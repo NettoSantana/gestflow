@@ -1,0 +1,9 @@
+# Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\requirements.txt
+# Último recode: 2026-02-09 20:28 (America/Bahia)
+# Motivo: Definir dependências mínimas do MVP (Flask + Twilio + Waitress + dotenv + PDF).
+
+Flask==3.0.2
+twilio==9.0.4
+waitress==3.0.0
+python-dotenv==1.0.1
+weasyprint==61.2
