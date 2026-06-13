@@ -1,12 +1,13 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-13 14:20 (America/Bahia)
-# Motivo: Adicionar rota inicial de Clientes (/clientes) ao ERP Web,
-#         mantendo Dashboard (/), healthcheck (/health) e webhook Twilio (/bot) ativos.
+# Último recode: 2026-06-13 15:08 (America/Bahia)
+# Motivo: Adicionar rota POST de Clientes para receber o formulário inicial de cadastro,
+#         mantendo Dashboard (/), listagem de Clientes (/clientes), healthcheck (/health)
+#         e webhook Twilio (/bot) ativos.
 
 from __future__ import annotations
 
 import html
-from flask import Flask, Response, render_template, request
+from flask import Flask, Response, redirect, render_template, request, url_for
 
 import config
 
@@ -26,6 +27,22 @@ def dashboard() -> str:
 @app.get("/clientes")
 def clientes() -> str:
     return render_template("clientes.html")
+
+
+@app.post("/clientes")
+def salvar_cliente() -> Response:
+    cliente = {
+        "nome": (request.form.get("cliente_nome") or "").strip(),
+        "documento": (request.form.get("cliente_documento") or "").strip(),
+        "telefone": (request.form.get("cliente_telefone") or "").strip(),
+        "cidade": (request.form.get("cliente_cidade") or "").strip(),
+        "status": (request.form.get("cliente_status") or "").strip(),
+        "email": (request.form.get("cliente_email") or "").strip(),
+    }
+
+    # Banco SQLite ainda sera implantado no proximo passo.
+    # Por enquanto a rota apenas recebe os dados do formulario e retorna para a tela Clientes.
+    return redirect(url_for("clientes"))
 
 
 @app.get("/health")
