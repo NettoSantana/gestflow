@@ -1,7 +1,8 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\dashboard.html
-Último recode: 2026-06-13 12:50 (America/Bahia)
-Motivo: Adicionar barra superior fixa ao Dashboard com data, notificações e perfil do usuário.
+Último recode: 2026-06-13 13:12 (America/Bahia)
+Motivo: Reestruturar o Dashboard para o padrão visual GESTFLOW com sidebar, topbar,
+        cards com ícones, indicadores operacionais, painéis e tabelas.
 -->
 
 <!DOCTYPE html>
@@ -16,21 +17,27 @@ Motivo: Adicionar barra superior fixa ao Dashboard com data, notificações e pe
 
     <aside class="sidebar">
 
-        <div class="logo">
+        <div class="brand">
+            <div class="brand-mark">GF</div>
             <h2>GESTFLOW</h2>
         </div>
 
-        <nav>
+        <nav class="sidebar-nav">
             <ul class="menu">
+
                 <li class="menu-item active">
+                    <span class="menu-icon">⌂</span>
                     <span>Dashboard</span>
                 </li>
 
                 <li class="menu-group">
                     <details>
                         <summary>
-                            <span>Cadastros</span>
-                            <span class="arrow">›</span>
+                            <span class="menu-label">
+                                <span class="menu-icon">☷</span>
+                                <span>Cadastros</span>
+                            </span>
+                            <span class="arrow">⌄</span>
                         </summary>
                         <ul class="submenu">
                             <li>Clientes</li>
@@ -45,8 +52,11 @@ Motivo: Adicionar barra superior fixa ao Dashboard com data, notificações e pe
                 <li class="menu-group">
                     <details>
                         <summary>
-                            <span>Produtos</span>
-                            <span class="arrow">›</span>
+                            <span class="menu-label">
+                                <span class="menu-icon">□</span>
+                                <span>Produtos</span>
+                            </span>
+                            <span class="arrow">⌄</span>
                         </summary>
                         <ul class="submenu">
                             <li>Gerenciar produtos</li>
@@ -60,8 +70,11 @@ Motivo: Adicionar barra superior fixa ao Dashboard com data, notificações e pe
                 <li class="menu-group">
                     <details>
                         <summary>
-                            <span>Serviços</span>
-                            <span class="arrow">›</span>
+                            <span class="menu-label">
+                                <span class="menu-icon">⚙</span>
+                                <span>Serviços</span>
+                            </span>
+                            <span class="arrow">⌄</span>
                         </summary>
                         <ul class="submenu">
                             <li>Gerenciar serviços</li>
@@ -73,8 +86,11 @@ Motivo: Adicionar barra superior fixa ao Dashboard com data, notificações e pe
                 <li class="menu-group">
                     <details>
                         <summary>
-                            <span>Orçamentos</span>
-                            <span class="arrow">›</span>
+                            <span class="menu-label">
+                                <span class="menu-icon">▣</span>
+                                <span>Orçamentos</span>
+                            </span>
+                            <span class="arrow">⌄</span>
                         </summary>
                         <ul class="submenu">
                             <li>Produtos</li>
@@ -87,8 +103,11 @@ Motivo: Adicionar barra superior fixa ao Dashboard com data, notificações e pe
                 <li class="menu-group">
                     <details>
                         <summary>
-                            <span>Vendas</span>
-                            <span class="arrow">›</span>
+                            <span class="menu-label">
+                                <span class="menu-icon">▤</span>
+                                <span>Vendas</span>
+                            </span>
+                            <span class="arrow">⌄</span>
                         </summary>
                         <ul class="submenu">
                             <li>Produtos</li>
@@ -103,8 +122,11 @@ Motivo: Adicionar barra superior fixa ao Dashboard com data, notificações e pe
                 <li class="menu-group">
                     <details>
                         <summary>
-                            <span>Ordens de Serviço</span>
-                            <span class="arrow">›</span>
+                            <span class="menu-label">
+                                <span class="menu-icon">✚</span>
+                                <span>Ordens de Serviço</span>
+                            </span>
+                            <span class="arrow">⌄</span>
                         </summary>
                         <ul class="submenu">
                             <li>Gerenciar O.S.</li>
@@ -117,8 +139,11 @@ Motivo: Adicionar barra superior fixa ao Dashboard com data, notificações e pe
                 <li class="menu-group">
                     <details>
                         <summary>
-                            <span>Estoque</span>
-                            <span class="arrow">›</span>
+                            <span class="menu-label">
+                                <span class="menu-icon">▧</span>
+                                <span>Estoque</span>
+                            </span>
+                            <span class="arrow">⌄</span>
                         </summary>
                         <ul class="submenu">
                             <li>Movimentações</li>
@@ -134,8 +159,11 @@ Motivo: Adicionar barra superior fixa ao Dashboard com data, notificações e pe
                 <li class="menu-group">
                     <details>
                         <summary>
-                            <span>Financeiro</span>
-                            <span class="arrow">›</span>
+                            <span class="menu-label">
+                                <span class="menu-icon">◈</span>
+                                <span>Financeiro</span>
+                            </span>
+                            <span class="arrow">⌄</span>
                         </summary>
                         <ul class="submenu">
                             <li>Contas a pagar</li>
@@ -146,8 +174,14 @@ Motivo: Adicionar barra superior fixa ao Dashboard com data, notificações e pe
                         </ul>
                     </details>
                 </li>
+
             </ul>
         </nav>
+
+        <div class="sidebar-footer">
+            <div class="footer-item">⚙ Configurações</div>
+            <div class="footer-item">? Ajuda</div>
+        </div>
 
     </aside>
 
@@ -161,7 +195,7 @@ Motivo: Adicionar barra superior fixa ao Dashboard com data, notificações e pe
 
             <div class="topbar-right">
                 <div class="topbar-date">
-                    <span class="topbar-icon">📅</span>
+                    <span class="topbar-icon">▣</span>
                     <span>13/06/2026</span>
                 </div>
 
@@ -181,44 +215,274 @@ Motivo: Adicionar barra superior fixa ao Dashboard com data, notificações e pe
             </div>
         </header>
 
-        <section class="cards">
+        <section class="cards cards-primary">
 
-            <div class="card">
-                <h3>Receber Hoje</h3>
-                <p>R$ 0,00</p>
+            <div class="card card-success">
+                <div class="card-icon">R$</div>
+                <div class="card-info">
+                    <h3>Receber hoje</h3>
+                    <p>R$ 12.540,00</p>
+                    <span>5 títulos</span>
+                </div>
+                <div class="mini-trend trend-success">⌁</div>
             </div>
 
-            <div class="card">
-                <h3>Pagar Hoje</h3>
-                <p>R$ 0,00</p>
+            <div class="card card-danger">
+                <div class="card-icon">R$</div>
+                <div class="card-info">
+                    <h3>Pagar hoje</h3>
+                    <p>R$ 7.320,00</p>
+                    <span>7 títulos</span>
+                </div>
+                <div class="mini-trend trend-danger">⌁</div>
             </div>
 
-            <div class="card">
-                <h3>Saldo Caixa</h3>
-                <p>R$ 0,00</p>
+            <div class="card card-blue">
+                <div class="card-icon">▣</div>
+                <div class="card-info">
+                    <h3>Saldo em caixa</h3>
+                    <p>R$ 15.870,50</p>
+                    <span>Caixa geral</span>
+                </div>
+                <div class="mini-trend trend-blue">⌁</div>
             </div>
 
-            <div class="card">
-                <h3>Vendas do Mês</h3>
-                <p>R$ 0,00</p>
+            <div class="card card-warning">
+                <div class="card-icon">▤</div>
+                <div class="card-info">
+                    <h3>Vendas do mês</h3>
+                    <p>R$ 45.680,00</p>
+                    <span>16 vendas</span>
+                </div>
+                <button class="filter-button" type="button">Filtros</button>
+            </div>
+
+        </section>
+
+        <section class="cards cards-secondary">
+
+            <div class="card stat-card">
+                <div class="card-icon">▣</div>
+                <div class="card-info">
+                    <p>12</p>
+                    <h3>Orçamentos abertos</h3>
+                    <span>R$ 28.650,00</span>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="card-icon">▤</div>
+                <div class="card-info">
+                    <p>8</p>
+                    <h3>Ordens de Serviço abertas</h3>
+                    <span>Ver ordens →</span>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="card-icon">▧</div>
+                <div class="card-info">
+                    <p>23</p>
+                    <h3>Produtos em estoque</h3>
+                    <span>7 com estoque baixo</span>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="card-icon">☷</div>
+                <div class="card-info">
+                    <p>15</p>
+                    <h3>Clientes ativos</h3>
+                    <span>Ver clientes →</span>
+                </div>
             </div>
 
         </section>
 
         <section class="dashboard-grid">
 
-            <div class="panel">
-                <h3>Fluxo de Caixa</h3>
-                <div class="placeholder">
-                    Gráfico será implementado posteriormente
+            <div class="panel chart-panel">
+                <h3>Vendas dos últimos 6 meses</h3>
+                <div class="fake-line-chart">
+                    <div class="chart-grid"></div>
+                    <div class="line-point point-1"></div>
+                    <div class="line-point point-2"></div>
+                    <div class="line-point point-3"></div>
+                    <div class="line-point point-4"></div>
+                    <div class="line-point point-5"></div>
+                    <div class="line-point point-6"></div>
+                    <div class="line-fill"></div>
+                    <div class="chart-labels">
+                        <span>Jan</span>
+                        <span>Fev</span>
+                        <span>Mar</span>
+                        <span>Abr</span>
+                        <span>Mai</span>
+                        <span>Jun</span>
+                    </div>
+                </div>
+
+                <div class="panel-summary">
+                    <div>
+                        <span>Total no período</span>
+                        <strong>R$ 215.420,00</strong>
+                    </div>
+                    <div>
+                        <span>Média mensal</span>
+                        <strong>R$ 35.903,33</strong>
+                    </div>
                 </div>
             </div>
 
-            <div class="panel">
-                <h3>Calendário</h3>
-                <div class="placeholder">
-                    Calendário será implementado posteriormente
+            <div class="panel chart-panel">
+                <h3>Fluxo de caixa (mês)</h3>
+                <div class="fake-bar-chart">
+                    <div class="bar-group">
+                        <span class="bar in h70"></span>
+                        <span class="bar out h45"></span>
+                        <span class="bar balance h20"></span>
+                    </div>
+                    <div class="bar-group">
+                        <span class="bar in h72"></span>
+                        <span class="bar out h40"></span>
+                        <span class="bar balance h28"></span>
+                    </div>
+                    <div class="bar-group">
+                        <span class="bar in h68"></span>
+                        <span class="bar out h50"></span>
+                        <span class="bar balance h18"></span>
+                    </div>
+                    <div class="bar-group">
+                        <span class="bar in h82"></span>
+                        <span class="bar out h42"></span>
+                        <span class="bar balance h22"></span>
+                    </div>
+                    <div class="bar-group">
+                        <span class="bar in h88"></span>
+                        <span class="bar out h18"></span>
+                        <span class="bar balance h55"></span>
+                    </div>
                 </div>
+                <div class="cash-summary">
+                    <div>
+                        <span>Entradas</span>
+                        <strong>R$ 68.540,00</strong>
+                    </div>
+                    <div>
+                        <span>Saídas</span>
+                        <strong>R$ 37.850,00</strong>
+                    </div>
+                    <div>
+                        <span>Saldo</span>
+                        <strong>R$ 30.690,00</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel calendar-panel">
+                <div class="panel-header">
+                    <h3>Calendário</h3>
+                    <button type="button">Hoje</button>
+                </div>
+
+                <div class="calendar-title">Junho 2026</div>
+
+                <div class="calendar-grid">
+                    <span>Dom</span><span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span><span>Sáb</span>
+                    <span class="muted">31</span><span>1</span><span>2</span><span>3</span><span class="today">4</span><span>5</span><span>6</span>
+                    <span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span><span>13</span>
+                    <span>14</span><span>15</span><span>16</span><span>17</span><span>18</span><span>19</span><span>20</span>
+                    <span>21</span><span>22</span><span>23</span><span>24</span><span>25</span><span>26</span><span>27</span>
+                    <span>28</span><span>29</span><span>30</span><span class="muted">1</span><span class="muted">2</span><span class="muted">3</span><span class="muted">4</span>
+                </div>
+
+                <div class="agenda-list">
+                    <div><span class="dot green"></span> 09:00 Reunião com cliente - Projeto X</div>
+                    <div><span class="dot blue"></span> 11:00 Visita técnica</div>
+                    <div><span class="dot red"></span> 14:00 Entrega de material - OS #1254</div>
+                </div>
+            </div>
+
+        </section>
+
+        <section class="table-grid">
+
+            <div class="panel table-panel">
+                <h3>Últimas Ordens de Serviço</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nº OS</th>
+                            <th>Cliente</th>
+                            <th>Serviço</th>
+                            <th>Status</th>
+                            <th>Prazo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>1256</td>
+                            <td>João da Silva</td>
+                            <td>Manutenção preventiva</td>
+                            <td><span class="status success">Em andamento</span></td>
+                            <td>06/06/2026</td>
+                        </tr>
+                        <tr>
+                            <td>1255</td>
+                            <td>Maria Santos</td>
+                            <td>Instalação de equipamento</td>
+                            <td><span class="status success">Em andamento</span></td>
+                            <td>05/06/2026</td>
+                        </tr>
+                        <tr>
+                            <td>1254</td>
+                            <td>Auto Center ABC</td>
+                            <td>Revisão completa</td>
+                            <td><span class="status warning">Aguardando peça</span></td>
+                            <td>04/06/2026</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <a href="#">Ver todas as ordens →</a>
+            </div>
+
+            <div class="panel table-panel">
+                <h3>Últimas Vendas</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nº Venda</th>
+                            <th>Cliente</th>
+                            <th>Data</th>
+                            <th>Valor</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>000125</td>
+                            <td>João da Silva</td>
+                            <td>04/06/2026</td>
+                            <td>R$ 2.540,00</td>
+                            <td><span class="status success">Finalizada</span></td>
+                        </tr>
+                        <tr>
+                            <td>000124</td>
+                            <td>Maria Santos</td>
+                            <td>03/06/2026</td>
+                            <td>R$ 1.280,00</td>
+                            <td><span class="status success">Finalizada</span></td>
+                        </tr>
+                        <tr>
+                            <td>000123</td>
+                            <td>Auto Center ABC</td>
+                            <td>03/06/2026</td>
+                            <td>R$ 3.650,00</td>
+                            <td><span class="status success">Finalizada</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <a href="#">Ver todas as vendas →</a>
             </div>
 
         </section>
