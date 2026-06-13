@@ -1,7 +1,7 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-13 15:35 (America/Bahia)
-# Motivo: Implantar SQLite inicial para salvar e listar clientes,
-#         mantendo Dashboard (/), Clientes (/clientes), healthcheck (/health)
+# Último recode: 2026-06-13 15:48 (America/Bahia)
+# Motivo: Adicionar rota de visualização individual de cliente,
+#         mantendo Dashboard (/), Clientes (/clientes), SQLite, healthcheck (/health)
 #         e webhook Twilio (/bot) ativos.
 
 from __future__ import annotations
@@ -97,6 +97,31 @@ def listar_clientes() -> list[dict[str, Any]]:
     return [dict(row) for row in rows]
 
 
+def buscar_cliente_por_id(cliente_id: int) -> dict[str, Any] | None:
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                id,
+                nome,
+                documento,
+                telefone,
+                cidade,
+                status,
+                email,
+                criado_em
+            FROM clientes
+            WHERE id = ?
+            """,
+            (cliente_id,),
+        ).fetchone()
+
+    if row is None:
+        return None
+
+    return dict(row)
+
+
 @app.get("/")
 def dashboard() -> str:
     return render_template("dashboard.html")
@@ -123,6 +148,16 @@ def salvar_cliente() -> Response:
         salvar_cliente_db(cliente)
 
     return redirect(url_for("clientes"))
+
+
+@app.get("/clientes/<int:cliente_id>")
+def ver_cliente(cliente_id: int) -> str | Response:
+    cliente = buscar_cliente_por_id(cliente_id)
+
+    if cliente is None:
+        return redirect(url_for("clientes"))
+
+    return render_template("cliente_detalhe.html", cliente=cliente)
 
 
 @app.get("/health")
