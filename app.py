@@ -1,8 +1,8 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-13 15:48 (America/Bahia)
-# Motivo: Adicionar rota de visualização individual de cliente,
-#         mantendo Dashboard (/), Clientes (/clientes), SQLite, healthcheck (/health)
-#         e webhook Twilio (/bot) ativos.
+# Último recode: 2026-06-13 16:02 (America/Bahia)
+# Motivo: Adicionar rotas de edição de cliente,
+#         mantendo Dashboard (/), Clientes (/clientes), SQLite, visualização,
+#         healthcheck (/health) e webhook Twilio (/bot) ativos.
 
 from __future__ import annotations
 
@@ -122,6 +122,33 @@ def buscar_cliente_por_id(cliente_id: int) -> dict[str, Any] | None:
     return dict(row)
 
 
+def atualizar_cliente_db(cliente_id: int, cliente: dict[str, str]) -> None:
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            UPDATE clientes
+            SET
+                nome = ?,
+                documento = ?,
+                telefone = ?,
+                cidade = ?,
+                status = ?,
+                email = ?
+            WHERE id = ?
+            """,
+            (
+                cliente["nome"],
+                cliente["documento"],
+                cliente["telefone"],
+                cliente["cidade"],
+                cliente["status"],
+                cliente["email"],
+                cliente_id,
+            ),
+        )
+        conn.commit()
+
+
 @app.get("/")
 def dashboard() -> str:
     return render_template("dashboard.html")
@@ -158,6 +185,38 @@ def ver_cliente(cliente_id: int) -> str | Response:
         return redirect(url_for("clientes"))
 
     return render_template("cliente_detalhe.html", cliente=cliente)
+
+
+@app.get("/clientes/<int:cliente_id>/editar")
+def editar_cliente(cliente_id: int) -> str | Response:
+    cliente = buscar_cliente_por_id(cliente_id)
+
+    if cliente is None:
+        return redirect(url_for("clientes"))
+
+    return render_template("cliente_editar.html", cliente=cliente)
+
+
+@app.post("/clientes/<int:cliente_id>/editar")
+def atualizar_cliente(cliente_id: int) -> Response:
+    cliente_atual = buscar_cliente_por_id(cliente_id)
+
+    if cliente_atual is None:
+        return redirect(url_for("clientes"))
+
+    cliente = {
+        "nome": (request.form.get("cliente_nome") or "").strip(),
+        "documento": (request.form.get("cliente_documento") or "").strip(),
+        "telefone": (request.form.get("cliente_telefone") or "").strip(),
+        "cidade": (request.form.get("cliente_cidade") or "").strip(),
+        "status": (request.form.get("cliente_status") or "ativo").strip() or "ativo",
+        "email": (request.form.get("cliente_email") or "").strip(),
+    }
+
+    if cliente["nome"]:
+        atualizar_cliente_db(cliente_id, cliente)
+
+    return redirect(url_for("ver_cliente", cliente_id=cliente_id))
 
 
 @app.get("/health")
