@@ -1,8 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\dashboard.html
-Último recode: 2026-06-13 13:12 (America/Bahia)
-Motivo: Reestruturar o Dashboard para o padrão visual GESTFLOW com sidebar, topbar,
-        cards com ícones, indicadores operacionais, painéis e tabelas.
+Último recode: 2026-06-13 13:25 (America/Bahia)
+Motivo: Remover dados fictícios do Dashboard e deixar todos os indicadores zerados até integração com o banco.
 -->
 
 <!DOCTYPE html>
@@ -201,7 +200,7 @@ Motivo: Reestruturar o Dashboard para o padrão visual GESTFLOW com sidebar, top
 
                 <div class="notification">
                     <span class="topbar-icon">🔔</span>
-                    <span class="notification-badge">3</span>
+                    <span class="notification-badge">0</span>
                 </div>
 
                 <div class="user-profile">
@@ -221,8 +220,8 @@ Motivo: Reestruturar o Dashboard para o padrão visual GESTFLOW com sidebar, top
                 <div class="card-icon">R$</div>
                 <div class="card-info">
                     <h3>Receber hoje</h3>
-                    <p>R$ 12.540,00</p>
-                    <span>5 títulos</span>
+                    <p>R$ 0,00</p>
+                    <span>0 títulos</span>
                 </div>
                 <div class="mini-trend trend-success">⌁</div>
             </div>
@@ -231,8 +230,8 @@ Motivo: Reestruturar o Dashboard para o padrão visual GESTFLOW com sidebar, top
                 <div class="card-icon">R$</div>
                 <div class="card-info">
                     <h3>Pagar hoje</h3>
-                    <p>R$ 7.320,00</p>
-                    <span>7 títulos</span>
+                    <p>R$ 0,00</p>
+                    <span>0 títulos</span>
                 </div>
                 <div class="mini-trend trend-danger">⌁</div>
             </div>
@@ -241,7 +240,7 @@ Motivo: Reestruturar o Dashboard para o padrão visual GESTFLOW com sidebar, top
                 <div class="card-icon">▣</div>
                 <div class="card-info">
                     <h3>Saldo em caixa</h3>
-                    <p>R$ 15.870,50</p>
+                    <p>R$ 0,00</p>
                     <span>Caixa geral</span>
                 </div>
                 <div class="mini-trend trend-blue">⌁</div>
@@ -251,8 +250,8 @@ Motivo: Reestruturar o Dashboard para o padrão visual GESTFLOW com sidebar, top
                 <div class="card-icon">▤</div>
                 <div class="card-info">
                     <h3>Vendas do mês</h3>
-                    <p>R$ 45.680,00</p>
-                    <span>16 vendas</span>
+                    <p>R$ 0,00</p>
+                    <span>0 vendas</span>
                 </div>
                 <button class="filter-button" type="button">Filtros</button>
             </div>
@@ -264,36 +263,36 @@ Motivo: Reestruturar o Dashboard para o padrão visual GESTFLOW com sidebar, top
             <div class="card stat-card">
                 <div class="card-icon">▣</div>
                 <div class="card-info">
-                    <p>12</p>
+                    <p>0</p>
                     <h3>Orçamentos abertos</h3>
-                    <span>R$ 28.650,00</span>
+                    <span>R$ 0,00</span>
                 </div>
             </div>
 
             <div class="card stat-card">
                 <div class="card-icon">▤</div>
                 <div class="card-info">
-                    <p>8</p>
+                    <p>0</p>
                     <h3>Ordens de Serviço abertas</h3>
-                    <span>Ver ordens →</span>
+                    <span>Nenhuma ordem aberta</span>
                 </div>
             </div>
 
             <div class="card stat-card">
                 <div class="card-icon">▧</div>
                 <div class="card-info">
-                    <p>23</p>
+                    <p>0</p>
                     <h3>Produtos em estoque</h3>
-                    <span>7 com estoque baixo</span>
+                    <span>0 com estoque baixo</span>
                 </div>
             </div>
 
             <div class="card stat-card">
                 <div class="card-icon">☷</div>
                 <div class="card-info">
-                    <p>15</p>
+                    <p>0</p>
                     <h3>Clientes ativos</h3>
-                    <span>Ver clientes →</span>
+                    <span>Nenhum cliente cadastrado</span>
                 </div>
             </div>
 
@@ -303,78 +302,39 @@ Motivo: Reestruturar o Dashboard para o padrão visual GESTFLOW com sidebar, top
 
             <div class="panel chart-panel">
                 <h3>Vendas dos últimos 6 meses</h3>
-                <div class="fake-line-chart">
-                    <div class="chart-grid"></div>
-                    <div class="line-point point-1"></div>
-                    <div class="line-point point-2"></div>
-                    <div class="line-point point-3"></div>
-                    <div class="line-point point-4"></div>
-                    <div class="line-point point-5"></div>
-                    <div class="line-point point-6"></div>
-                    <div class="line-fill"></div>
-                    <div class="chart-labels">
-                        <span>Jan</span>
-                        <span>Fev</span>
-                        <span>Mar</span>
-                        <span>Abr</span>
-                        <span>Mai</span>
-                        <span>Jun</span>
-                    </div>
+                <div class="empty-chart">
+                    Nenhuma venda registrada no período.
                 </div>
 
                 <div class="panel-summary">
                     <div>
                         <span>Total no período</span>
-                        <strong>R$ 215.420,00</strong>
+                        <strong>R$ 0,00</strong>
                     </div>
                     <div>
                         <span>Média mensal</span>
-                        <strong>R$ 35.903,33</strong>
+                        <strong>R$ 0,00</strong>
                     </div>
                 </div>
             </div>
 
             <div class="panel chart-panel">
                 <h3>Fluxo de caixa (mês)</h3>
-                <div class="fake-bar-chart">
-                    <div class="bar-group">
-                        <span class="bar in h70"></span>
-                        <span class="bar out h45"></span>
-                        <span class="bar balance h20"></span>
-                    </div>
-                    <div class="bar-group">
-                        <span class="bar in h72"></span>
-                        <span class="bar out h40"></span>
-                        <span class="bar balance h28"></span>
-                    </div>
-                    <div class="bar-group">
-                        <span class="bar in h68"></span>
-                        <span class="bar out h50"></span>
-                        <span class="bar balance h18"></span>
-                    </div>
-                    <div class="bar-group">
-                        <span class="bar in h82"></span>
-                        <span class="bar out h42"></span>
-                        <span class="bar balance h22"></span>
-                    </div>
-                    <div class="bar-group">
-                        <span class="bar in h88"></span>
-                        <span class="bar out h18"></span>
-                        <span class="bar balance h55"></span>
-                    </div>
+                <div class="empty-chart">
+                    Nenhuma movimentação financeira registrada.
                 </div>
                 <div class="cash-summary">
                     <div>
                         <span>Entradas</span>
-                        <strong>R$ 68.540,00</strong>
+                        <strong>R$ 0,00</strong>
                     </div>
                     <div>
                         <span>Saídas</span>
-                        <strong>R$ 37.850,00</strong>
+                        <strong>R$ 0,00</strong>
                     </div>
                     <div>
                         <span>Saldo</span>
-                        <strong>R$ 30.690,00</strong>
+                        <strong>R$ 0,00</strong>
                     </div>
                 </div>
             </div>
@@ -396,10 +356,8 @@ Motivo: Reestruturar o Dashboard para o padrão visual GESTFLOW com sidebar, top
                     <span>28</span><span>29</span><span>30</span><span class="muted">1</span><span class="muted">2</span><span class="muted">3</span><span class="muted">4</span>
                 </div>
 
-                <div class="agenda-list">
-                    <div><span class="dot green"></span> 09:00 Reunião com cliente - Projeto X</div>
-                    <div><span class="dot blue"></span> 11:00 Visita técnica</div>
-                    <div><span class="dot red"></span> 14:00 Entrega de material - OS #1254</div>
+                <div class="agenda-list empty-agenda">
+                    Nenhum compromisso agendado.
                 </div>
             </div>
 
@@ -421,25 +379,7 @@ Motivo: Reestruturar o Dashboard para o padrão visual GESTFLOW com sidebar, top
                     </thead>
                     <tbody>
                         <tr>
-                            <td>1256</td>
-                            <td>João da Silva</td>
-                            <td>Manutenção preventiva</td>
-                            <td><span class="status success">Em andamento</span></td>
-                            <td>06/06/2026</td>
-                        </tr>
-                        <tr>
-                            <td>1255</td>
-                            <td>Maria Santos</td>
-                            <td>Instalação de equipamento</td>
-                            <td><span class="status success">Em andamento</span></td>
-                            <td>05/06/2026</td>
-                        </tr>
-                        <tr>
-                            <td>1254</td>
-                            <td>Auto Center ABC</td>
-                            <td>Revisão completa</td>
-                            <td><span class="status warning">Aguardando peça</span></td>
-                            <td>04/06/2026</td>
+                            <td colspan="5" class="empty-table">Nenhuma ordem de serviço cadastrada.</td>
                         </tr>
                     </tbody>
                 </table>
@@ -460,25 +400,7 @@ Motivo: Reestruturar o Dashboard para o padrão visual GESTFLOW com sidebar, top
                     </thead>
                     <tbody>
                         <tr>
-                            <td>000125</td>
-                            <td>João da Silva</td>
-                            <td>04/06/2026</td>
-                            <td>R$ 2.540,00</td>
-                            <td><span class="status success">Finalizada</span></td>
-                        </tr>
-                        <tr>
-                            <td>000124</td>
-                            <td>Maria Santos</td>
-                            <td>03/06/2026</td>
-                            <td>R$ 1.280,00</td>
-                            <td><span class="status success">Finalizada</span></td>
-                        </tr>
-                        <tr>
-                            <td>000123</td>
-                            <td>Auto Center ABC</td>
-                            <td>03/06/2026</td>
-                            <td>R$ 3.650,00</td>
-                            <td><span class="status success">Finalizada</span></td>
+                            <td colspan="5" class="empty-table">Nenhuma venda cadastrada.</td>
                         </tr>
                     </tbody>
                 </table>
