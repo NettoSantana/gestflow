@@ -1,12 +1,12 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-02-09 20:12 (America/Bahia)
-# Motivo: Criar entrypoint do Flask para webhook do Twilio (POST /bot) e healthcheck,
-#         delegando toda a lógica de conversa para modules/whatsapp.py e retornando TwiML.
+# Último recode: 2026-02-10 01:25 (America/Bahia)
+# Motivo: Alterar a rota principal (/) para renderizar o Dashboard Web do GESTFLOW,
+#         mantendo healthcheck (/health) e webhook Twilio (/bot) ativos.
 
 from __future__ import annotations
 
 import html
-from flask import Flask, Response, request
+from flask import Flask, Response, render_template, request
 
 import config
 
@@ -19,8 +19,8 @@ def _twiml_message(text: str) -> str:
 
 
 @app.get("/")
-def health_root() -> Response:
-    return Response("ok", status=200, mimetype="text/plain")
+def dashboard() -> str:
+    return render_template("dashboard.html")
 
 
 @app.get("/health")

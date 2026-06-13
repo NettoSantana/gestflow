@@ -1,0 +1,167 @@
+/*
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\static\css\dashboard.css
+Último recode: 2026-02-10 01:15 (America/Bahia)
+Motivo: Criar estilo inicial do Dashboard Web do GESTFLOW com layout ERP, menu lateral, cards e painéis.
+*/
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    min-height: 100vh;
+    font-family: Arial, Helvetica, sans-serif;
+    background: #f4f7fb;
+    color: #1f2937;
+}
+
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 260px;
+    height: 100vh;
+    background: #111827;
+    color: #ffffff;
+    padding: 24px 18px;
+}
+
+.logo {
+    margin-bottom: 32px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.logo h2 {
+    font-size: 22px;
+    letter-spacing: 1px;
+}
+
+.sidebar nav ul {
+    list-style: none;
+}
+
+.sidebar nav li {
+    padding: 13px 14px;
+    margin-bottom: 6px;
+    border-radius: 10px;
+    color: #d1d5db;
+    cursor: pointer;
+    font-size: 15px;
+}
+
+.sidebar nav li:hover,
+.sidebar nav li.active {
+    background: #2563eb;
+    color: #ffffff;
+}
+
+.content {
+    margin-left: 260px;
+    min-height: 100vh;
+    padding: 28px;
+}
+
+.topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 26px;
+}
+
+.topbar h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #111827;
+}
+
+.cards {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(180px, 1fr));
+    gap: 18px;
+    margin-bottom: 24px;
+}
+
+.card {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 22px;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08);
+    border: 1px solid #e5e7eb;
+}
+
+.card h3 {
+    font-size: 14px;
+    color: #6b7280;
+    margin-bottom: 12px;
+    font-weight: 600;
+}
+
+.card p {
+    font-size: 26px;
+    color: #111827;
+    font-weight: 700;
+}
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 18px;
+}
+
+.panel {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 22px;
+    min-height: 280px;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08);
+    border: 1px solid #e5e7eb;
+}
+
+.panel h3 {
+    font-size: 18px;
+    margin-bottom: 18px;
+    color: #111827;
+}
+
+.placeholder {
+    height: 210px;
+    border: 2px dashed #cbd5e1;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    background: #f8fafc;
+    text-align: center;
+    padding: 20px;
+}
+
+@media (max-width: 1100px) {
+    .cards {
+        grid-template-columns: repeat(2, minmax(180px, 1fr));
+    }
+
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 760px) {
+    .sidebar {
+        position: relative;
+        width: 100%;
+        height: auto;
+    }
+
+    .content {
+        margin-left: 0;
+        padding: 18px;
+    }
+
+    .cards {
+        grid-template-columns: 1fr;
+    }
+}
