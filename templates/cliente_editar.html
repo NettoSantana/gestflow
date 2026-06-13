@@ -1,0 +1,288 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\cliente_editar.html
+Último recode: 2026-06-13 16:08 (America/Bahia)
+Motivo: Criar tela de edição de cliente cadastrado no SQLite.
+-->
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Editar Cliente</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+
+    <aside class="sidebar">
+
+        <div class="brand">
+            <div class="brand-mark">GF</div>
+            <h2>GESTFLOW</h2>
+        </div>
+
+        <nav class="sidebar-nav">
+            <ul class="menu">
+
+                <li class="menu-item">
+                    <a href="/">
+                        <span class="menu-icon">⌂</span>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+
+                <li class="menu-group">
+                    <details open>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">☷</span>
+                                <span>Cadastros</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li class="submenu-active"><a href="/clientes">Clientes</a></li>
+                            <li>Fornecedores</li>
+                            <li>Funcionários</li>
+                            <li>Veículos</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">□</span>
+                                <span>Produtos</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Gerenciar produtos</li>
+                            <li>Valores de venda</li>
+                            <li>Etiquetas</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">⚙</span>
+                                <span>Serviços</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Gerenciar serviços</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▣</span>
+                                <span>Orçamentos</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Produtos</li>
+                            <li>Serviços</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▤</span>
+                                <span>Vendas</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Produtos</li>
+                            <li>Serviços</li>
+                            <li>Balcão</li>
+                            <li>Devoluções</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">✚</span>
+                                <span>Ordens de Serviço</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Gerenciar O.S.</li>
+                            <li>Painel</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▧</span>
+                                <span>Estoque</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Movimentações</li>
+                            <li>Ajustes</li>
+                            <li>Transferências</li>
+                            <li>Cotações</li>
+                            <li>Compras</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">◈</span>
+                                <span>Financeiro</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Contas a pagar</li>
+                            <li>Contas a receber</li>
+                            <li>Fluxo de caixa</li>
+                            <li>Contas bancárias</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+            </ul>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="footer-item">⚙ Configurações</div>
+            <div class="footer-item">? Ajuda</div>
+        </div>
+
+    </aside>
+
+    <main class="content">
+
+        <header class="topbar">
+            <div class="topbar-left">
+                <button class="menu-toggle" type="button" aria-label="Abrir menu">☰</button>
+                <h1>Editar Cliente</h1>
+            </div>
+
+            <div class="topbar-right">
+                <div class="topbar-date">
+                    <span class="topbar-icon">▣</span>
+                    <span>13/06/2026</span>
+                </div>
+
+                <div class="notification">
+                    <span class="topbar-icon">🔔</span>
+                    <span class="notification-badge">0</span>
+                </div>
+
+                <div class="user-profile">
+                    <div class="avatar">NS</div>
+                    <div class="user-info">
+                        <strong>Netto Santana</strong>
+                        <span>Administrador</span>
+                    </div>
+                    <span class="profile-arrow">⌄</span>
+                </div>
+            </div>
+        </header>
+
+        <section class="panel" style="margin-bottom: 18px;">
+            <div class="panel-header" style="align-items: center; gap: 18px;">
+                <div>
+                    <span style="display: inline-block; margin-bottom: 8px; color: #f59e0b; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;">Cadastros</span>
+                    <h3 style="margin-bottom: 6px; font-size: 26px;">Editar cliente</h3>
+                    <p class="page-subtitle" style="max-width: 620px; margin: 0; color: #64748b;">Atualize os dados principais do cliente selecionado.</p>
+                </div>
+
+                <a href="/clientes/{{ cliente.id }}" style="min-width: 150px; height: 44px; display: inline-flex; align-items: center; justify-content: center; border-radius: 12px; background: #0f172a; color: #ffffff; border: 0; font-weight: 700; cursor: pointer; text-decoration: none;">Cancelar edição</a>
+            </div>
+        </section>
+
+        <section class="panel" style="margin-bottom: 18px;">
+            <div class="panel-header" style="align-items: center; gap: 16px;">
+                <div>
+                    <h3>{{ cliente.nome }}</h3>
+                    <p class="page-subtitle" style="margin: 4px 0 0; color: #64748b;">Código do cliente: {{ cliente.id }}</p>
+                </div>
+
+                <span style="display: inline-flex; align-items: center; height: 34px; padding: 0 12px; border-radius: 999px; background: #fff7ed; color: #c2410c; font-size: 12px; font-weight: 700;">Modo edição</span>
+            </div>
+
+            <form action="/clientes/{{ cliente.id }}/editar" method="post" style="margin-top: 20px;">
+                <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;">
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <label for="cliente_nome" style="font-size: 13px; font-weight: 700; color: #334155;">Nome / Razão Social</label>
+                        <input id="cliente_nome" name="cliente_nome" type="text" value="{{ cliente.nome or '' }}" placeholder="Ex: LR Manutenção Ltda" style="height: 44px; padding: 0 14px; border: 1px solid #dbe3ef; border-radius: 12px; font-size: 14px; outline: none;">
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <label for="cliente_documento" style="font-size: 13px; font-weight: 700; color: #334155;">CPF/CNPJ</label>
+                        <input id="cliente_documento" name="cliente_documento" type="text" value="{{ cliente.documento or '' }}" placeholder="Ex: 00.000.000/0000-00" style="height: 44px; padding: 0 14px; border: 1px solid #dbe3ef; border-radius: 12px; font-size: 14px; outline: none;">
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <label for="cliente_telefone" style="font-size: 13px; font-weight: 700; color: #334155;">Telefone</label>
+                        <input id="cliente_telefone" name="cliente_telefone" type="text" value="{{ cliente.telefone or '' }}" placeholder="Ex: (71) 99999-9999" style="height: 44px; padding: 0 14px; border: 1px solid #dbe3ef; border-radius: 12px; font-size: 14px; outline: none;">
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <label for="cliente_cidade" style="font-size: 13px; font-weight: 700; color: #334155;">Cidade</label>
+                        <input id="cliente_cidade" name="cliente_cidade" type="text" value="{{ cliente.cidade or '' }}" placeholder="Ex: Salvador" style="height: 44px; padding: 0 14px; border: 1px solid #dbe3ef; border-radius: 12px; font-size: 14px; outline: none;">
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <label for="cliente_status" style="font-size: 13px; font-weight: 700; color: #334155;">Status</label>
+                        <select id="cliente_status" name="cliente_status" style="height: 44px; padding: 0 14px; border: 1px solid #dbe3ef; border-radius: 12px; font-size: 14px; outline: none; background: #ffffff;">
+                            <option value="ativo" {% if cliente.status == "ativo" %}selected{% endif %}>Ativo</option>
+                            <option value="inativo" {% if cliente.status == "inativo" %}selected{% endif %}>Inativo</option>
+                            <option value="pendente" {% if cliente.status == "pendente" %}selected{% endif %}>Pendente</option>
+                        </select>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <label for="cliente_email" style="font-size: 13px; font-weight: 700; color: #334155;">E-mail</label>
+                        <input id="cliente_email" name="cliente_email" type="email" value="{{ cliente.email or '' }}" placeholder="Ex: contato@empresa.com.br" style="height: 44px; padding: 0 14px; border: 1px solid #dbe3ef; border-radius: 12px; font-size: 14px; outline: none;">
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                    <a href="/clientes/{{ cliente.id }}" style="height: 42px; padding: 0 18px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #dbe3ef; border-radius: 12px; background: #ffffff; color: #334155; font-weight: 700; cursor: pointer; text-decoration: none;">Cancelar</a>
+                    <button type="submit" style="height: 42px; padding: 0 20px; border: 0; border-radius: 12px; background: #f59e0b; color: #ffffff; font-weight: 700; cursor: pointer;">Salvar Alterações</button>
+                </div>
+            </form>
+        </section>
+
+    </main>
+
+</body>
+</html>
