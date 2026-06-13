@@ -1,0 +1,257 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\clientes.html
+Último recode: 2026-06-13 14:35 (America/Bahia)
+Motivo: Criar primeira tela de listagem de Clientes do módulo Cadastros no padrão visual GESTFLOW.
+-->
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Clientes</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+
+    <aside class="sidebar">
+
+        <div class="brand">
+            <div class="brand-mark">GF</div>
+            <h2>GESTFLOW</h2>
+        </div>
+
+        <nav class="sidebar-nav">
+            <ul class="menu">
+
+                <li class="menu-item">
+                    <span class="menu-icon">⌂</span>
+                    <span>Dashboard</span>
+                </li>
+
+                <li class="menu-group">
+                    <details open>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">☷</span>
+                                <span>Cadastros</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li class="submenu-active">Clientes</li>
+                            <li>Fornecedores</li>
+                            <li>Funcionários</li>
+                            <li>Veículos</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">□</span>
+                                <span>Produtos</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Gerenciar produtos</li>
+                            <li>Valores de venda</li>
+                            <li>Etiquetas</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">⚙</span>
+                                <span>Serviços</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Gerenciar serviços</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▣</span>
+                                <span>Orçamentos</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Produtos</li>
+                            <li>Serviços</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▤</span>
+                                <span>Vendas</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Produtos</li>
+                            <li>Serviços</li>
+                            <li>Balcão</li>
+                            <li>Devoluções</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">✚</span>
+                                <span>Ordens de Serviço</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Gerenciar O.S.</li>
+                            <li>Painel</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▧</span>
+                                <span>Estoque</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Movimentações</li>
+                            <li>Ajustes</li>
+                            <li>Transferências</li>
+                            <li>Cotações</li>
+                            <li>Compras</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">◈</span>
+                                <span>Financeiro</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Contas a pagar</li>
+                            <li>Contas a receber</li>
+                            <li>Fluxo de caixa</li>
+                            <li>Contas bancárias</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+            </ul>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="footer-item">⚙ Configurações</div>
+            <div class="footer-item">? Ajuda</div>
+        </div>
+
+    </aside>
+
+    <main class="content">
+
+        <header class="topbar">
+            <div class="topbar-left">
+                <button class="menu-toggle" type="button" aria-label="Abrir menu">☰</button>
+                <h1>Clientes</h1>
+            </div>
+
+            <div class="topbar-right">
+                <div class="topbar-date">
+                    <span class="topbar-icon">▣</span>
+                    <span>13/06/2026</span>
+                </div>
+
+                <div class="notification">
+                    <span class="topbar-icon">🔔</span>
+                    <span class="notification-badge">0</span>
+                </div>
+
+                <div class="user-profile">
+                    <div class="avatar">NS</div>
+                    <div class="user-info">
+                        <strong>Netto Santana</strong>
+                        <span>Administrador</span>
+                    </div>
+                    <span class="profile-arrow">⌄</span>
+                </div>
+            </div>
+        </header>
+
+        <section class="panel table-panel">
+
+            <div class="panel-header">
+                <div>
+                    <h3>Clientes</h3>
+                    <p class="page-subtitle">Gerencie os clientes cadastrados no GESTFLOW.</p>
+                </div>
+
+                <button class="filter-button" type="button">+ Novo Cliente</button>
+            </div>
+
+            <div class="client-actions">
+                <input type="text" placeholder="Buscar por nome, CPF/CNPJ ou telefone">
+                <button type="button">Buscar</button>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Nome / Razão Social</th>
+                        <th>CPF/CNPJ</th>
+                        <th>Telefone</th>
+                        <th>Cidade</th>
+                        <th>Status</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td colspan="7" class="empty-table">Nenhum cliente cadastrado.</td>
+                    </tr>
+                </tbody>
+            </table>
+
+        </section>
+
+    </main>
+
+</body>
+</html>
