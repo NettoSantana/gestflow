@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\clientes.html
-Último recode: 2026-06-13 14:58 (America/Bahia)
-Motivo: Melhorar o layout visual da tela Clientes sem alterar banco, rotas ou CSS externo.
+Último recode: 2026-06-13 15:10 (America/Bahia)
+Motivo: Adicionar formulário visual de novo cliente sem alterar banco, rotas ou CSS externo.
 -->
 
 <!DOCTYPE html>
@@ -224,7 +224,7 @@ Motivo: Melhorar o layout visual da tela Clientes sem alterar banco, rotas ou CS
                     <p class="page-subtitle" style="max-width: 620px; margin: 0; color: #64748b;">Controle os dados dos clientes, documentos, contatos e status de cadastro do GESTFLOW.</p>
                 </div>
 
-                <button class="filter-button" type="button" style="min-width: 150px; height: 44px; border-radius: 12px; background: #16a34a; color: #ffffff; border: 0; font-weight: 700; cursor: pointer;">+ Novo Cliente</button>
+                <a href="#form-novo-cliente" class="filter-button" style="min-width: 150px; height: 44px; display: inline-flex; align-items: center; justify-content: center; border-radius: 12px; background: #16a34a; color: #ffffff; border: 0; font-weight: 700; cursor: pointer; text-decoration: none;">+ Novo Cliente</a>
             </div>
         </section>
 
@@ -255,6 +255,60 @@ Motivo: Melhorar o layout visual da tela Clientes sem alterar banco, rotas ou CS
                     <span>Nenhuma pendência</span>
                 </div>
             </div>
+        </section>
+
+        <section id="form-novo-cliente" class="panel" style="margin-bottom: 18px;">
+            <div class="panel-header" style="align-items: center; gap: 16px;">
+                <div>
+                    <h3>Novo cliente</h3>
+                    <p class="page-subtitle" style="margin: 4px 0 0; color: #64748b;">Preencha os dados principais para preparar o cadastro do cliente.</p>
+                </div>
+
+                <span style="display: inline-flex; align-items: center; height: 34px; padding: 0 12px; border-radius: 999px; background: #eff6ff; color: #2563eb; font-size: 12px; font-weight: 700;">Cadastro inicial</span>
+            </div>
+
+            <form style="margin-top: 20px;">
+                <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;">
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <label for="cliente_nome" style="font-size: 13px; font-weight: 700; color: #334155;">Nome / Razão Social</label>
+                        <input id="cliente_nome" name="cliente_nome" type="text" placeholder="Ex: LR Manutenção Ltda" style="height: 44px; padding: 0 14px; border: 1px solid #dbe3ef; border-radius: 12px; font-size: 14px; outline: none;">
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <label for="cliente_documento" style="font-size: 13px; font-weight: 700; color: #334155;">CPF/CNPJ</label>
+                        <input id="cliente_documento" name="cliente_documento" type="text" placeholder="Ex: 00.000.000/0000-00" style="height: 44px; padding: 0 14px; border: 1px solid #dbe3ef; border-radius: 12px; font-size: 14px; outline: none;">
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <label for="cliente_telefone" style="font-size: 13px; font-weight: 700; color: #334155;">Telefone</label>
+                        <input id="cliente_telefone" name="cliente_telefone" type="text" placeholder="Ex: (71) 99999-9999" style="height: 44px; padding: 0 14px; border: 1px solid #dbe3ef; border-radius: 12px; font-size: 14px; outline: none;">
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <label for="cliente_cidade" style="font-size: 13px; font-weight: 700; color: #334155;">Cidade</label>
+                        <input id="cliente_cidade" name="cliente_cidade" type="text" placeholder="Ex: Salvador" style="height: 44px; padding: 0 14px; border: 1px solid #dbe3ef; border-radius: 12px; font-size: 14px; outline: none;">
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <label for="cliente_status" style="font-size: 13px; font-weight: 700; color: #334155;">Status</label>
+                        <select id="cliente_status" name="cliente_status" style="height: 44px; padding: 0 14px; border: 1px solid #dbe3ef; border-radius: 12px; font-size: 14px; outline: none; background: #ffffff;">
+                            <option value="ativo">Ativo</option>
+                            <option value="inativo">Inativo</option>
+                            <option value="pendente">Pendente</option>
+                        </select>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <label for="cliente_email" style="font-size: 13px; font-weight: 700; color: #334155;">E-mail</label>
+                        <input id="cliente_email" name="cliente_email" type="email" placeholder="Ex: contato@empresa.com.br" style="height: 44px; padding: 0 14px; border: 1px solid #dbe3ef; border-radius: 12px; font-size: 14px; outline: none;">
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                    <button type="reset" style="height: 42px; padding: 0 18px; border: 1px solid #dbe3ef; border-radius: 12px; background: #ffffff; color: #334155; font-weight: 700; cursor: pointer;">Cancelar</button>
+                    <button type="button" style="height: 42px; padding: 0 20px; border: 0; border-radius: 12px; background: #16a34a; color: #ffffff; font-weight: 700; cursor: pointer;">Salvar Cliente</button>
+                </div>
+            </form>
         </section>
 
         <section class="panel table-panel">
