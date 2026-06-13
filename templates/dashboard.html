@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\dashboard.html
-Último recode: 2026-02-10 01:45 (America/Bahia)
-Motivo: Atualizar menu lateral do Dashboard para estrutura expansível do CORE GESTFLOW.
+Último recode: 2026-06-13 12:42 (America/Bahia)
+Motivo: Ajustar menu lateral do Dashboard para submenus expansíveis, exibindo opções somente ao clicar.
 -->
 
 <!DOCTYPE html>
@@ -27,108 +27,124 @@ Motivo: Atualizar menu lateral do Dashboard para estrutura expansível do CORE G
                 </li>
 
                 <li class="menu-group">
-                    <div class="menu-title">
-                        <span>Cadastros</span>
-                        <span class="arrow">›</span>
-                    </div>
-                    <ul class="submenu">
-                        <li>Clientes</li>
-                        <li>Fornecedores</li>
-                        <li>Funcionários</li>
-                        <li>Veículos</li>
-                        <li>Opções auxiliares</li>
-                    </ul>
+                    <details>
+                        <summary>
+                            <span>Cadastros</span>
+                            <span class="arrow">›</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Clientes</li>
+                            <li>Fornecedores</li>
+                            <li>Funcionários</li>
+                            <li>Veículos</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
                 </li>
 
                 <li class="menu-group">
-                    <div class="menu-title">
-                        <span>Produtos</span>
-                        <span class="arrow">›</span>
-                    </div>
-                    <ul class="submenu">
-                        <li>Gerenciar produtos</li>
-                        <li>Valores de venda</li>
-                        <li>Etiquetas</li>
-                        <li>Opções auxiliares</li>
-                    </ul>
+                    <details>
+                        <summary>
+                            <span>Produtos</span>
+                            <span class="arrow">›</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Gerenciar produtos</li>
+                            <li>Valores de venda</li>
+                            <li>Etiquetas</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
                 </li>
 
                 <li class="menu-group">
-                    <div class="menu-title">
-                        <span>Serviços</span>
-                        <span class="arrow">›</span>
-                    </div>
-                    <ul class="submenu">
-                        <li>Gerenciar serviços</li>
-                        <li>Opções auxiliares</li>
-                    </ul>
+                    <details>
+                        <summary>
+                            <span>Serviços</span>
+                            <span class="arrow">›</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Gerenciar serviços</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
                 </li>
 
                 <li class="menu-group">
-                    <div class="menu-title">
-                        <span>Orçamentos</span>
-                        <span class="arrow">›</span>
-                    </div>
-                    <ul class="submenu">
-                        <li>Produtos</li>
-                        <li>Serviços</li>
-                        <li>Opções auxiliares</li>
-                    </ul>
+                    <details>
+                        <summary>
+                            <span>Orçamentos</span>
+                            <span class="arrow">›</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Produtos</li>
+                            <li>Serviços</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
                 </li>
 
                 <li class="menu-group">
-                    <div class="menu-title">
-                        <span>Vendas</span>
-                        <span class="arrow">›</span>
-                    </div>
-                    <ul class="submenu">
-                        <li>Produtos</li>
-                        <li>Serviços</li>
-                        <li>Balcão</li>
-                        <li>Devoluções</li>
-                        <li>Opções auxiliares</li>
-                    </ul>
+                    <details>
+                        <summary>
+                            <span>Vendas</span>
+                            <span class="arrow">›</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Produtos</li>
+                            <li>Serviços</li>
+                            <li>Balcão</li>
+                            <li>Devoluções</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
                 </li>
 
                 <li class="menu-group">
-                    <div class="menu-title">
-                        <span>Ordens de Serviço</span>
-                        <span class="arrow">›</span>
-                    </div>
-                    <ul class="submenu">
-                        <li>Gerenciar O.S.</li>
-                        <li>Painel</li>
-                        <li>Opções auxiliares</li>
-                    </ul>
+                    <details>
+                        <summary>
+                            <span>Ordens de Serviço</span>
+                            <span class="arrow">›</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Gerenciar O.S.</li>
+                            <li>Painel</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
                 </li>
 
                 <li class="menu-group">
-                    <div class="menu-title">
-                        <span>Estoque</span>
-                        <span class="arrow">›</span>
-                    </div>
-                    <ul class="submenu">
-                        <li>Movimentações</li>
-                        <li>Ajustes</li>
-                        <li>Transferências</li>
-                        <li>Cotações</li>
-                        <li>Compras</li>
-                        <li>Opções auxiliares</li>
-                    </ul>
+                    <details>
+                        <summary>
+                            <span>Estoque</span>
+                            <span class="arrow">›</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Movimentações</li>
+                            <li>Ajustes</li>
+                            <li>Transferências</li>
+                            <li>Cotações</li>
+                            <li>Compras</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
                 </li>
 
                 <li class="menu-group">
-                    <div class="menu-title">
-                        <span>Financeiro</span>
-                        <span class="arrow">›</span>
-                    </div>
-                    <ul class="submenu">
-                        <li>Contas a pagar</li>
-                        <li>Contas a receber</li>
-                        <li>Fluxo de caixa</li>
-                        <li>Contas bancárias</li>
-                        <li>Opções auxiliares</li>
-                    </ul>
+                    <details>
+                        <summary>
+                            <span>Financeiro</span>
+                            <span class="arrow">›</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Contas a pagar</li>
+                            <li>Contas a receber</li>
+                            <li>Fluxo de caixa</li>
+                            <li>Contas bancárias</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
                 </li>
             </ul>
         </nav>
