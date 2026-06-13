@@ -1,7 +1,7 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-02-10 01:25 (America/Bahia)
-# Motivo: Alterar a rota principal (/) para renderizar o Dashboard Web do GESTFLOW,
-#         mantendo healthcheck (/health) e webhook Twilio (/bot) ativos.
+# Último recode: 2026-06-13 14:20 (America/Bahia)
+# Motivo: Adicionar rota inicial de Clientes (/clientes) ao ERP Web,
+#         mantendo Dashboard (/), healthcheck (/health) e webhook Twilio (/bot) ativos.
 
 from __future__ import annotations
 
@@ -21,6 +21,11 @@ def _twiml_message(text: str) -> str:
 @app.get("/")
 def dashboard() -> str:
     return render_template("dashboard.html")
+
+
+@app.get("/clientes")
+def clientes() -> str:
+    return render_template("clientes.html")
 
 
 @app.get("/health")
