@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\dashboard.html
-Último recode: 2026-06-13 12:42 (America/Bahia)
-Motivo: Ajustar menu lateral do Dashboard para submenus expansíveis, exibindo opções somente ao clicar.
+Último recode: 2026-06-13 12:50 (America/Bahia)
+Motivo: Adicionar barra superior fixa ao Dashboard com data, notificações e perfil do usuário.
 -->
 
 <!DOCTYPE html>
@@ -154,7 +154,31 @@ Motivo: Ajustar menu lateral do Dashboard para submenus expansíveis, exibindo o
     <main class="content">
 
         <header class="topbar">
-            <h1>Painel de Controle</h1>
+            <div class="topbar-left">
+                <button class="menu-toggle" type="button" aria-label="Abrir menu">☰</button>
+                <h1>Dashboard</h1>
+            </div>
+
+            <div class="topbar-right">
+                <div class="topbar-date">
+                    <span class="topbar-icon">📅</span>
+                    <span>13/06/2026</span>
+                </div>
+
+                <div class="notification">
+                    <span class="topbar-icon">🔔</span>
+                    <span class="notification-badge">3</span>
+                </div>
+
+                <div class="user-profile">
+                    <div class="avatar">NS</div>
+                    <div class="user-info">
+                        <strong>Netto Santana</strong>
+                        <span>Administrador</span>
+                    </div>
+                    <span class="profile-arrow">⌄</span>
+                </div>
+            </div>
         </header>
 
         <section class="cards">
