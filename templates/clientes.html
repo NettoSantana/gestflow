@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\clientes.html
-Último recode: 2026-06-13 15:25 (America/Bahia)
-Motivo: Ajustar formulário de Clientes para enviar dados via POST para a rota /clientes.
+Último recode: 2026-06-13 15:40 (America/Bahia)
+Motivo: Listar clientes salvos no SQLite na tabela da tela Clientes.
 -->
 
 <!DOCTYPE html>
@@ -216,6 +216,17 @@ Motivo: Ajustar formulário de Clientes para enviar dados via POST para a rota /
             </div>
         </header>
 
+        {% set clientes_lista = clientes|default([]) %}
+        {% set resumo = namespace(ativos=0, pendentes=0) %}
+        {% for cliente in clientes_lista %}
+            {% if cliente.status == "ativo" %}
+                {% set resumo.ativos = resumo.ativos + 1 %}
+            {% endif %}
+            {% if cliente.status == "pendente" %}
+                {% set resumo.pendentes = resumo.pendentes + 1 %}
+            {% endif %}
+        {% endfor %}
+
         <section class="panel" style="margin-bottom: 18px;">
             <div class="panel-header" style="align-items: center; gap: 18px;">
                 <div>
@@ -232,27 +243,27 @@ Motivo: Ajustar formulário de Clientes para enviar dados via POST para a rota /
             <div class="card stat-card">
                 <div class="card-icon">☷</div>
                 <div class="card-info">
-                    <p>0</p>
+                    <p>{{ clientes_lista|length }}</p>
                     <h3>Total de clientes</h3>
-                    <span>Nenhum cliente cadastrado</span>
+                    <span>{% if clientes_lista|length == 1 %}1 cliente cadastrado{% elif clientes_lista|length > 1 %}{{ clientes_lista|length }} clientes cadastrados{% else %}Nenhum cliente cadastrado{% endif %}</span>
                 </div>
             </div>
 
             <div class="card stat-card">
                 <div class="card-icon">✓</div>
                 <div class="card-info">
-                    <p>0</p>
+                    <p>{{ resumo.ativos }}</p>
                     <h3>Clientes ativos</h3>
-                    <span>Aguardando cadastro</span>
+                    <span>{% if resumo.ativos == 1 %}1 cliente ativo{% elif resumo.ativos > 1 %}{{ resumo.ativos }} clientes ativos{% else %}Aguardando cadastro{% endif %}</span>
                 </div>
             </div>
 
             <div class="card stat-card">
                 <div class="card-icon">!</div>
                 <div class="card-info">
-                    <p>0</p>
+                    <p>{{ resumo.pendentes }}</p>
                     <h3>Pendências</h3>
-                    <span>Nenhuma pendência</span>
+                    <span>{% if resumo.pendentes == 1 %}1 cadastro pendente{% elif resumo.pendentes > 1 %}{{ resumo.pendentes }} cadastros pendentes{% else %}Nenhuma pendência{% endif %}</span>
                 </div>
             </div>
         </section>
@@ -344,15 +355,35 @@ Motivo: Ajustar formulário de Clientes para enviar dados via POST para a rota /
                         </tr>
                     </thead>
                     <tbody>
-                        <tr>
-                            <td colspan="7" class="empty-table" style="height: 180px; text-align: center; color: #64748b;">
-                                <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-                                    <div style="width: 54px; height: 54px; display: flex; align-items: center; justify-content: center; border-radius: 18px; background: #eff6ff; color: #2563eb; font-size: 24px;">☷</div>
-                                    <strong style="color: #0f172a;">Nenhum cliente cadastrado.</strong>
-                                    <span>Use o botão Novo Cliente para iniciar o cadastro.</span>
-                                </div>
-                            </td>
-                        </tr>
+                        {% if clientes_lista %}
+                            {% for cliente in clientes_lista %}
+                                <tr>
+                                    <td>{{ cliente.id }}</td>
+                                    <td>{{ cliente.nome }}</td>
+                                    <td>{{ cliente.documento }}</td>
+                                    <td>{{ cliente.telefone }}</td>
+                                    <td>{{ cliente.cidade }}</td>
+                                    <td>
+                                        <span style="display: inline-flex; align-items: center; height: 28px; padding: 0 10px; border-radius: 999px; background: {% if cliente.status == 'ativo' %}#dcfce7{% elif cliente.status == 'pendente' %}#fef3c7{% else %}#fee2e2{% endif %}; color: {% if cliente.status == 'ativo' %}#166534{% elif cliente.status == 'pendente' %}#92400e{% else %}#991b1b{% endif %}; font-size: 12px; font-weight: 700; text-transform: capitalize;">
+                                            {{ cliente.status }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <button type="button" style="height: 32px; padding: 0 12px; border: 1px solid #dbe3ef; border-radius: 10px; background: #ffffff; color: #334155; font-size: 12px; font-weight: 700; cursor: pointer;">Ver</button>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="empty-table" style="height: 180px; text-align: center; color: #64748b;">
+                                    <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
+                                        <div style="width: 54px; height: 54px; display: flex; align-items: center; justify-content: center; border-radius: 18px; background: #eff6ff; color: #2563eb; font-size: 24px;">☷</div>
+                                        <strong style="color: #0f172a;">Nenhum cliente cadastrado.</strong>
+                                        <span>Use o botão Novo Cliente para iniciar o cadastro.</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endif %}
                     </tbody>
                 </table>
             </div>
