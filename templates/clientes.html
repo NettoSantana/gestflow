@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\clientes.html
-Último recode: 2026-06-13 15:10 (America/Bahia)
-Motivo: Adicionar formulário visual de novo cliente sem alterar banco, rotas ou CSS externo.
+Último recode: 2026-06-13 15:25 (America/Bahia)
+Motivo: Ajustar formulário de Clientes para enviar dados via POST para a rota /clientes.
 -->
 
 <!DOCTYPE html>
@@ -267,7 +267,7 @@ Motivo: Adicionar formulário visual de novo cliente sem alterar banco, rotas ou
                 <span style="display: inline-flex; align-items: center; height: 34px; padding: 0 12px; border-radius: 999px; background: #eff6ff; color: #2563eb; font-size: 12px; font-weight: 700;">Cadastro inicial</span>
             </div>
 
-            <form style="margin-top: 20px;">
+            <form action="/clientes" method="post" style="margin-top: 20px;">
                 <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;">
                     <div style="display: flex; flex-direction: column; gap: 8px;">
                         <label for="cliente_nome" style="font-size: 13px; font-weight: 700; color: #334155;">Nome / Razão Social</label>
@@ -306,7 +306,7 @@ Motivo: Adicionar formulário visual de novo cliente sem alterar banco, rotas ou
 
                 <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
                     <button type="reset" style="height: 42px; padding: 0 18px; border: 1px solid #dbe3ef; border-radius: 12px; background: #ffffff; color: #334155; font-weight: 700; cursor: pointer;">Cancelar</button>
-                    <button type="button" style="height: 42px; padding: 0 20px; border: 0; border-radius: 12px; background: #16a34a; color: #ffffff; font-weight: 700; cursor: pointer;">Salvar Cliente</button>
+                    <button type="submit" style="height: 42px; padding: 0 20px; border: 0; border-radius: 12px; background: #16a34a; color: #ffffff; font-weight: 700; cursor: pointer;">Salvar Cliente</button>
                 </div>
             </form>
         </section>
