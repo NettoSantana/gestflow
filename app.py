@@ -1,9 +1,9 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-13 18:48 (America/Bahia)
-# Motivo: Adicionar base de rotas, funções SQLite e tabela de produtos,
+# Último recode: 2026-06-13 19:42 (America/Bahia)
+# Motivo: Adicionar base de rotas, funções SQLite e tabela de serviços,
 #         mantendo Dashboard (/), Clientes (/clientes), Fornecedores (/fornecedores),
-#         Funcionários (/funcionarios), SQLite, visualização, edição, exclusão,
-#         healthcheck (/health) e webhook Twilio (/bot) ativos.
+#         Funcionários (/funcionarios), Produtos (/produtos), SQLite, visualização,
+#         edição, exclusão, healthcheck (/health) e webhook Twilio (/bot) ativos.
 
 from __future__ import annotations
 
@@ -93,6 +93,23 @@ def iniciar_banco() -> None:
                 estoque_minimo TEXT,
                 preco_custo TEXT,
                 preco_venda TEXT,
+                status TEXT NOT NULL DEFAULT 'ativo',
+                observacoes TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS servicos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nome TEXT NOT NULL,
+                codigo TEXT,
+                categoria TEXT,
+                unidade TEXT,
+                custo TEXT,
+                valor_venda TEXT,
+                tempo_estimado TEXT,
                 status TEXT NOT NULL DEFAULT 'ativo',
                 observacoes TEXT,
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -590,6 +607,134 @@ def excluir_produto_db(produto_id: int) -> None:
         conn.commit()
 
 
+def salvar_servico_db(servico: dict[str, str]) -> None:
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            INSERT INTO servicos (
+                nome,
+                codigo,
+                categoria,
+                unidade,
+                custo,
+                valor_venda,
+                tempo_estimado,
+                status,
+                observacoes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                servico["nome"],
+                servico["codigo"],
+                servico["categoria"],
+                servico["unidade"],
+                servico["custo"],
+                servico["valor_venda"],
+                servico["tempo_estimado"],
+                servico["status"],
+                servico["observacoes"],
+            ),
+        )
+        conn.commit()
+
+
+def listar_servicos() -> list[dict[str, Any]]:
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                id,
+                nome,
+                codigo,
+                categoria,
+                unidade,
+                custo,
+                valor_venda,
+                tempo_estimado,
+                status,
+                observacoes,
+                criado_em
+            FROM servicos
+            ORDER BY id DESC
+            """
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def buscar_servico_por_id(servico_id: int) -> dict[str, Any] | None:
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                id,
+                nome,
+                codigo,
+                categoria,
+                unidade,
+                custo,
+                valor_venda,
+                tempo_estimado,
+                status,
+                observacoes,
+                criado_em
+            FROM servicos
+            WHERE id = ?
+            """,
+            (servico_id,),
+        ).fetchone()
+
+    if row is None:
+        return None
+
+    return dict(row)
+
+
+def atualizar_servico_db(servico_id: int, servico: dict[str, str]) -> None:
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            UPDATE servicos
+            SET
+                nome = ?,
+                codigo = ?,
+                categoria = ?,
+                unidade = ?,
+                custo = ?,
+                valor_venda = ?,
+                tempo_estimado = ?,
+                status = ?,
+                observacoes = ?
+            WHERE id = ?
+            """,
+            (
+                servico["nome"],
+                servico["codigo"],
+                servico["categoria"],
+                servico["unidade"],
+                servico["custo"],
+                servico["valor_venda"],
+                servico["tempo_estimado"],
+                servico["status"],
+                servico["observacoes"],
+                servico_id,
+            ),
+        )
+        conn.commit()
+
+
+def excluir_servico_db(servico_id: int) -> None:
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            DELETE FROM servicos
+            WHERE id = ?
+            """,
+            (servico_id,),
+        )
+        conn.commit()
+
+
 @app.get("/")
 def dashboard() -> str:
     return render_template("dashboard.html")
@@ -909,6 +1054,87 @@ def excluir_produto(produto_id: int) -> Response:
         excluir_produto_db(produto_id)
 
     return redirect(url_for("produtos"))
+
+
+@app.get("/servicos")
+def servicos() -> str:
+    servicos_lista = listar_servicos()
+    return render_template("servicos.html", servicos=servicos_lista)
+
+
+@app.post("/servicos")
+def salvar_servico() -> Response:
+    servico = {
+        "nome": (request.form.get("servico_nome") or "").strip(),
+        "codigo": (request.form.get("servico_codigo") or "").strip(),
+        "categoria": (request.form.get("servico_categoria") or "").strip(),
+        "unidade": (request.form.get("servico_unidade") or "").strip(),
+        "custo": (request.form.get("servico_custo") or "").strip(),
+        "valor_venda": (request.form.get("servico_valor_venda") or "").strip(),
+        "tempo_estimado": (request.form.get("servico_tempo_estimado") or "").strip(),
+        "status": (request.form.get("servico_status") or "ativo").strip() or "ativo",
+        "observacoes": (request.form.get("servico_observacoes") or "").strip(),
+    }
+
+    if servico["nome"]:
+        salvar_servico_db(servico)
+
+    return redirect(url_for("servicos"))
+
+
+@app.get("/servicos/<int:servico_id>")
+def ver_servico(servico_id: int) -> str | Response:
+    servico = buscar_servico_por_id(servico_id)
+
+    if servico is None:
+        return redirect(url_for("servicos"))
+
+    return render_template("servico_detalhe.html", servico=servico)
+
+
+@app.get("/servicos/<int:servico_id>/editar")
+def editar_servico(servico_id: int) -> str | Response:
+    servico = buscar_servico_por_id(servico_id)
+
+    if servico is None:
+        return redirect(url_for("servicos"))
+
+    return render_template("servico_editar.html", servico=servico)
+
+
+@app.post("/servicos/<int:servico_id>/editar")
+def atualizar_servico(servico_id: int) -> Response:
+    servico_atual = buscar_servico_por_id(servico_id)
+
+    if servico_atual is None:
+        return redirect(url_for("servicos"))
+
+    servico = {
+        "nome": (request.form.get("servico_nome") or "").strip(),
+        "codigo": (request.form.get("servico_codigo") or "").strip(),
+        "categoria": (request.form.get("servico_categoria") or "").strip(),
+        "unidade": (request.form.get("servico_unidade") or "").strip(),
+        "custo": (request.form.get("servico_custo") or "").strip(),
+        "valor_venda": (request.form.get("servico_valor_venda") or "").strip(),
+        "tempo_estimado": (request.form.get("servico_tempo_estimado") or "").strip(),
+        "status": (request.form.get("servico_status") or "ativo").strip() or "ativo",
+        "observacoes": (request.form.get("servico_observacoes") or "").strip(),
+    }
+
+    if servico["nome"]:
+        atualizar_servico_db(servico_id, servico)
+
+    return redirect(url_for("ver_servico", servico_id=servico_id))
+
+
+@app.post("/servicos/<int:servico_id>/excluir")
+def excluir_servico(servico_id: int) -> Response:
+    servico = buscar_servico_por_id(servico_id)
+
+    if servico is not None:
+        excluir_servico_db(servico_id)
+
+    return redirect(url_for("servicos"))
 
 
 @app.get("/health")
