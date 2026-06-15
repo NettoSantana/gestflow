@@ -1,0 +1,298 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\funcionario_editar.html
+Último recode: 2026-06-13 18:08 (America/Bahia)
+Motivo: Criar tela de edição de funcionário cadastrado no SQLite.
+-->
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Editar Funcionário</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+
+    <aside class="sidebar">
+
+        <div class="brand">
+            <div class="brand-mark">GF</div>
+            <h2>GESTFLOW</h2>
+        </div>
+
+        <nav class="sidebar-nav">
+            <ul class="menu">
+
+                <li class="menu-item">
+                    <a href="/">
+                        <span class="menu-icon">⌂</span>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+
+                <li class="menu-group">
+                    <details open>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">☷</span>
+                                <span>Cadastros</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/clientes">Clientes</a></li>
+                            <li><a href="/fornecedores">Fornecedores</a></li>
+                            <li class="submenu-active"><a href="/funcionarios">Funcionários</a></li>
+                            <li>Veículos</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">□</span>
+                                <span>Produtos</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Gerenciar produtos</li>
+                            <li>Valores de venda</li>
+                            <li>Etiquetas</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">⚙</span>
+                                <span>Serviços</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Gerenciar serviços</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▣</span>
+                                <span>Orçamentos</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Produtos</li>
+                            <li>Serviços</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▤</span>
+                                <span>Vendas</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Produtos</li>
+                            <li>Serviços</li>
+                            <li>Balcão</li>
+                            <li>Devoluções</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">✚</span>
+                                <span>Ordens de Serviço</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Gerenciar O.S.</li>
+                            <li>Painel</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▧</span>
+                                <span>Estoque</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Movimentações</li>
+                            <li>Ajustes</li>
+                            <li>Transferências</li>
+                            <li>Cotações</li>
+                            <li>Compras</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">◈</span>
+                                <span>Financeiro</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Contas a pagar</li>
+                            <li>Contas a receber</li>
+                            <li>Fluxo de caixa</li>
+                            <li>Contas bancárias</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+            </ul>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="footer-item">⚙ Configurações</div>
+            <div class="footer-item">? Ajuda</div>
+        </div>
+
+    </aside>
+
+    <main class="content">
+
+        <header class="topbar">
+            <div class="topbar-left">
+                <button class="menu-toggle" type="button" aria-label="Abrir menu">☰</button>
+                <h1>Editar Funcionário</h1>
+            </div>
+
+            <div class="topbar-right">
+                <div class="topbar-date">
+                    <span class="topbar-icon">▣</span>
+                    <span>13/06/2026</span>
+                </div>
+
+                <div class="notification">
+                    <span class="topbar-icon">🔔</span>
+                    <span class="notification-badge">0</span>
+                </div>
+
+                <div class="user-profile">
+                    <div class="avatar">NS</div>
+                    <div class="user-info">
+                        <strong>Netto Santana</strong>
+                        <span>Administrador</span>
+                    </div>
+                    <span class="profile-arrow">⌄</span>
+                </div>
+            </div>
+        </header>
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Cadastros</span>
+                    <h3 class="page-title">Editar funcionário</h3>
+                    <p class="page-subtitle">Atualize os dados principais do funcionário selecionado.</p>
+                </div>
+
+                <a href="/funcionarios/{{ funcionario.id }}" class="btn-dark">Cancelar edição</a>
+            </div>
+        </section>
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>{{ funcionario.nome }}</h3>
+                    <p class="page-subtitle">Código do funcionário: {{ funcionario.id }}</p>
+                </div>
+
+                <span class="badge-info">Modo edição</span>
+            </div>
+
+            <form action="/funcionarios/{{ funcionario.id }}/editar" method="post" class="client-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="funcionario_nome">Nome completo</label>
+                        <input id="funcionario_nome" name="funcionario_nome" type="text" value="{{ funcionario.nome or '' }}" placeholder="Ex: João Silva" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="funcionario_cpf">CPF</label>
+                        <input id="funcionario_cpf" name="funcionario_cpf" type="text" value="{{ funcionario.cpf or '' }}" placeholder="Ex: 000.000.000-00" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="funcionario_telefone">Telefone</label>
+                        <input id="funcionario_telefone" name="funcionario_telefone" type="text" value="{{ funcionario.telefone or '' }}" placeholder="Ex: (71) 99999-9999" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="funcionario_cidade">Cidade</label>
+                        <input id="funcionario_cidade" name="funcionario_cidade" type="text" value="{{ funcionario.cidade or '' }}" placeholder="Ex: Salvador" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="funcionario_cargo">Cargo / Função</label>
+                        <input id="funcionario_cargo" name="funcionario_cargo" type="text" value="{{ funcionario.cargo or '' }}" placeholder="Ex: Técnico eletromecânico" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="funcionario_status">Status</label>
+                        <select id="funcionario_status" name="funcionario_status" class="form-control">
+                            <option value="ativo" {% if funcionario.status == "ativo" %}selected{% endif %}>Ativo</option>
+                            <option value="inativo" {% if funcionario.status == "inativo" %}selected{% endif %}>Inativo</option>
+                            <option value="pendente" {% if funcionario.status == "pendente" %}selected{% endif %}>Pendente</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="funcionario_email">E-mail</label>
+                        <input id="funcionario_email" name="funcionario_email" type="email" value="{{ funcionario.email or '' }}" placeholder="Ex: funcionario@empresa.com.br" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="funcionario_observacoes">Observações</label>
+                        <input id="funcionario_observacoes" name="funcionario_observacoes" type="text" value="{{ funcionario.observacoes or '' }}" placeholder="Ex: Treinamentos, documentos ou observações" class="form-control">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <a href="/funcionarios/{{ funcionario.id }}" class="btn-light">Cancelar</a>
+                    <button type="submit" class="btn-primary-green">Salvar Alterações</button>
+                </div>
+            </form>
+        </section>
+
+    </main>
+
+</body>
+</html>
