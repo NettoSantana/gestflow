@@ -1,8 +1,9 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-13 16:58 (America/Bahia)
-# Motivo: Adicionar base de rotas, funções SQLite e tabela de fornecedores,
-#         mantendo Dashboard (/), Clientes (/clientes), SQLite, visualização, edição,
-#         exclusão, healthcheck (/health) e webhook Twilio (/bot) ativos.
+# Último recode: 2026-06-13 17:42 (America/Bahia)
+# Motivo: Adicionar base de rotas, funções SQLite e tabela de funcionários,
+#         mantendo Dashboard (/), Clientes (/clientes), Fornecedores (/fornecedores),
+#         SQLite, visualização, edição, exclusão, healthcheck (/health)
+#         e webhook Twilio (/bot) ativos.
 
 from __future__ import annotations
 
@@ -59,6 +60,22 @@ def iniciar_banco() -> None:
                 status TEXT NOT NULL DEFAULT 'ativo',
                 email TEXT,
                 categoria TEXT,
+                observacoes TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS funcionarios (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nome TEXT NOT NULL,
+                cpf TEXT,
+                telefone TEXT,
+                cidade TEXT,
+                cargo TEXT,
+                status TEXT NOT NULL DEFAULT 'ativo',
+                email TEXT,
                 observacoes TEXT,
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
@@ -299,6 +316,128 @@ def excluir_fornecedor_db(fornecedor_id: int) -> None:
         conn.commit()
 
 
+def salvar_funcionario_db(funcionario: dict[str, str]) -> None:
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            INSERT INTO funcionarios (
+                nome,
+                cpf,
+                telefone,
+                cidade,
+                cargo,
+                status,
+                email,
+                observacoes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                funcionario["nome"],
+                funcionario["cpf"],
+                funcionario["telefone"],
+                funcionario["cidade"],
+                funcionario["cargo"],
+                funcionario["status"],
+                funcionario["email"],
+                funcionario["observacoes"],
+            ),
+        )
+        conn.commit()
+
+
+def listar_funcionarios() -> list[dict[str, Any]]:
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                id,
+                nome,
+                cpf,
+                telefone,
+                cidade,
+                cargo,
+                status,
+                email,
+                observacoes,
+                criado_em
+            FROM funcionarios
+            ORDER BY id DESC
+            """
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def buscar_funcionario_por_id(funcionario_id: int) -> dict[str, Any] | None:
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                id,
+                nome,
+                cpf,
+                telefone,
+                cidade,
+                cargo,
+                status,
+                email,
+                observacoes,
+                criado_em
+            FROM funcionarios
+            WHERE id = ?
+            """,
+            (funcionario_id,),
+        ).fetchone()
+
+    if row is None:
+        return None
+
+    return dict(row)
+
+
+def atualizar_funcionario_db(funcionario_id: int, funcionario: dict[str, str]) -> None:
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            UPDATE funcionarios
+            SET
+                nome = ?,
+                cpf = ?,
+                telefone = ?,
+                cidade = ?,
+                cargo = ?,
+                status = ?,
+                email = ?,
+                observacoes = ?
+            WHERE id = ?
+            """,
+            (
+                funcionario["nome"],
+                funcionario["cpf"],
+                funcionario["telefone"],
+                funcionario["cidade"],
+                funcionario["cargo"],
+                funcionario["status"],
+                funcionario["email"],
+                funcionario["observacoes"],
+                funcionario_id,
+            ),
+        )
+        conn.commit()
+
+
+def excluir_funcionario_db(funcionario_id: int) -> None:
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            DELETE FROM funcionarios
+            WHERE id = ?
+            """,
+            (funcionario_id,),
+        )
+        conn.commit()
+
+
 @app.get("/")
 def dashboard() -> str:
     return render_template("dashboard.html")
@@ -456,6 +595,85 @@ def excluir_fornecedor(fornecedor_id: int) -> Response:
         excluir_fornecedor_db(fornecedor_id)
 
     return redirect(url_for("fornecedores"))
+
+
+@app.get("/funcionarios")
+def funcionarios() -> str:
+    funcionarios_lista = listar_funcionarios()
+    return render_template("funcionarios.html", funcionarios=funcionarios_lista)
+
+
+@app.post("/funcionarios")
+def salvar_funcionario() -> Response:
+    funcionario = {
+        "nome": (request.form.get("funcionario_nome") or "").strip(),
+        "cpf": (request.form.get("funcionario_cpf") or "").strip(),
+        "telefone": (request.form.get("funcionario_telefone") or "").strip(),
+        "cidade": (request.form.get("funcionario_cidade") or "").strip(),
+        "cargo": (request.form.get("funcionario_cargo") or "").strip(),
+        "status": (request.form.get("funcionario_status") or "ativo").strip() or "ativo",
+        "email": (request.form.get("funcionario_email") or "").strip(),
+        "observacoes": (request.form.get("funcionario_observacoes") or "").strip(),
+    }
+
+    if funcionario["nome"]:
+        salvar_funcionario_db(funcionario)
+
+    return redirect(url_for("funcionarios"))
+
+
+@app.get("/funcionarios/<int:funcionario_id>")
+def ver_funcionario(funcionario_id: int) -> str | Response:
+    funcionario = buscar_funcionario_por_id(funcionario_id)
+
+    if funcionario is None:
+        return redirect(url_for("funcionarios"))
+
+    return render_template("funcionario_detalhe.html", funcionario=funcionario)
+
+
+@app.get("/funcionarios/<int:funcionario_id>/editar")
+def editar_funcionario(funcionario_id: int) -> str | Response:
+    funcionario = buscar_funcionario_por_id(funcionario_id)
+
+    if funcionario is None:
+        return redirect(url_for("funcionarios"))
+
+    return render_template("funcionario_editar.html", funcionario=funcionario)
+
+
+@app.post("/funcionarios/<int:funcionario_id>/editar")
+def atualizar_funcionario(funcionario_id: int) -> Response:
+    funcionario_atual = buscar_funcionario_por_id(funcionario_id)
+
+    if funcionario_atual is None:
+        return redirect(url_for("funcionarios"))
+
+    funcionario = {
+        "nome": (request.form.get("funcionario_nome") or "").strip(),
+        "cpf": (request.form.get("funcionario_cpf") or "").strip(),
+        "telefone": (request.form.get("funcionario_telefone") or "").strip(),
+        "cidade": (request.form.get("funcionario_cidade") or "").strip(),
+        "cargo": (request.form.get("funcionario_cargo") or "").strip(),
+        "status": (request.form.get("funcionario_status") or "ativo").strip() or "ativo",
+        "email": (request.form.get("funcionario_email") or "").strip(),
+        "observacoes": (request.form.get("funcionario_observacoes") or "").strip(),
+    }
+
+    if funcionario["nome"]:
+        atualizar_funcionario_db(funcionario_id, funcionario)
+
+    return redirect(url_for("ver_funcionario", funcionario_id=funcionario_id))
+
+
+@app.post("/funcionarios/<int:funcionario_id>/excluir")
+def excluir_funcionario(funcionario_id: int) -> Response:
+    funcionario = buscar_funcionario_por_id(funcionario_id)
+
+    if funcionario is not None:
+        excluir_funcionario_db(funcionario_id)
+
+    return redirect(url_for("funcionarios"))
 
 
 @app.get("/health")
