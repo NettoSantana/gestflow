@@ -1,9 +1,9 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-13 17:42 (America/Bahia)
-# Motivo: Adicionar base de rotas, funções SQLite e tabela de funcionários,
+# Último recode: 2026-06-13 18:48 (America/Bahia)
+# Motivo: Adicionar base de rotas, funções SQLite e tabela de produtos,
 #         mantendo Dashboard (/), Clientes (/clientes), Fornecedores (/fornecedores),
-#         SQLite, visualização, edição, exclusão, healthcheck (/health)
-#         e webhook Twilio (/bot) ativos.
+#         Funcionários (/funcionarios), SQLite, visualização, edição, exclusão,
+#         healthcheck (/health) e webhook Twilio (/bot) ativos.
 
 from __future__ import annotations
 
@@ -76,6 +76,24 @@ def iniciar_banco() -> None:
                 cargo TEXT,
                 status TEXT NOT NULL DEFAULT 'ativo',
                 email TEXT,
+                observacoes TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS produtos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nome TEXT NOT NULL,
+                codigo TEXT,
+                categoria TEXT,
+                unidade TEXT,
+                estoque_atual TEXT,
+                estoque_minimo TEXT,
+                preco_custo TEXT,
+                preco_venda TEXT,
+                status TEXT NOT NULL DEFAULT 'ativo',
                 observacoes TEXT,
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
@@ -438,6 +456,140 @@ def excluir_funcionario_db(funcionario_id: int) -> None:
         conn.commit()
 
 
+def salvar_produto_db(produto: dict[str, str]) -> None:
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            INSERT INTO produtos (
+                nome,
+                codigo,
+                categoria,
+                unidade,
+                estoque_atual,
+                estoque_minimo,
+                preco_custo,
+                preco_venda,
+                status,
+                observacoes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                produto["nome"],
+                produto["codigo"],
+                produto["categoria"],
+                produto["unidade"],
+                produto["estoque_atual"],
+                produto["estoque_minimo"],
+                produto["preco_custo"],
+                produto["preco_venda"],
+                produto["status"],
+                produto["observacoes"],
+            ),
+        )
+        conn.commit()
+
+
+def listar_produtos() -> list[dict[str, Any]]:
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                id,
+                nome,
+                codigo,
+                categoria,
+                unidade,
+                estoque_atual,
+                estoque_minimo,
+                preco_custo,
+                preco_venda,
+                status,
+                observacoes,
+                criado_em
+            FROM produtos
+            ORDER BY id DESC
+            """
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def buscar_produto_por_id(produto_id: int) -> dict[str, Any] | None:
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                id,
+                nome,
+                codigo,
+                categoria,
+                unidade,
+                estoque_atual,
+                estoque_minimo,
+                preco_custo,
+                preco_venda,
+                status,
+                observacoes,
+                criado_em
+            FROM produtos
+            WHERE id = ?
+            """,
+            (produto_id,),
+        ).fetchone()
+
+    if row is None:
+        return None
+
+    return dict(row)
+
+
+def atualizar_produto_db(produto_id: int, produto: dict[str, str]) -> None:
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            UPDATE produtos
+            SET
+                nome = ?,
+                codigo = ?,
+                categoria = ?,
+                unidade = ?,
+                estoque_atual = ?,
+                estoque_minimo = ?,
+                preco_custo = ?,
+                preco_venda = ?,
+                status = ?,
+                observacoes = ?
+            WHERE id = ?
+            """,
+            (
+                produto["nome"],
+                produto["codigo"],
+                produto["categoria"],
+                produto["unidade"],
+                produto["estoque_atual"],
+                produto["estoque_minimo"],
+                produto["preco_custo"],
+                produto["preco_venda"],
+                produto["status"],
+                produto["observacoes"],
+                produto_id,
+            ),
+        )
+        conn.commit()
+
+
+def excluir_produto_db(produto_id: int) -> None:
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            DELETE FROM produtos
+            WHERE id = ?
+            """,
+            (produto_id,),
+        )
+        conn.commit()
+
+
 @app.get("/")
 def dashboard() -> str:
     return render_template("dashboard.html")
@@ -674,6 +826,89 @@ def excluir_funcionario(funcionario_id: int) -> Response:
         excluir_funcionario_db(funcionario_id)
 
     return redirect(url_for("funcionarios"))
+
+
+@app.get("/produtos")
+def produtos() -> str:
+    produtos_lista = listar_produtos()
+    return render_template("produtos.html", produtos=produtos_lista)
+
+
+@app.post("/produtos")
+def salvar_produto() -> Response:
+    produto = {
+        "nome": (request.form.get("produto_nome") or "").strip(),
+        "codigo": (request.form.get("produto_codigo") or "").strip(),
+        "categoria": (request.form.get("produto_categoria") or "").strip(),
+        "unidade": (request.form.get("produto_unidade") or "").strip(),
+        "estoque_atual": (request.form.get("produto_estoque_atual") or "").strip(),
+        "estoque_minimo": (request.form.get("produto_estoque_minimo") or "").strip(),
+        "preco_custo": (request.form.get("produto_preco_custo") or "").strip(),
+        "preco_venda": (request.form.get("produto_preco_venda") or "").strip(),
+        "status": (request.form.get("produto_status") or "ativo").strip() or "ativo",
+        "observacoes": (request.form.get("produto_observacoes") or "").strip(),
+    }
+
+    if produto["nome"]:
+        salvar_produto_db(produto)
+
+    return redirect(url_for("produtos"))
+
+
+@app.get("/produtos/<int:produto_id>")
+def ver_produto(produto_id: int) -> str | Response:
+    produto = buscar_produto_por_id(produto_id)
+
+    if produto is None:
+        return redirect(url_for("produtos"))
+
+    return render_template("produto_detalhe.html", produto=produto)
+
+
+@app.get("/produtos/<int:produto_id>/editar")
+def editar_produto(produto_id: int) -> str | Response:
+    produto = buscar_produto_por_id(produto_id)
+
+    if produto is None:
+        return redirect(url_for("produtos"))
+
+    return render_template("produto_editar.html", produto=produto)
+
+
+@app.post("/produtos/<int:produto_id>/editar")
+def atualizar_produto(produto_id: int) -> Response:
+    produto_atual = buscar_produto_por_id(produto_id)
+
+    if produto_atual is None:
+        return redirect(url_for("produtos"))
+
+    produto = {
+        "nome": (request.form.get("produto_nome") or "").strip(),
+        "codigo": (request.form.get("produto_codigo") or "").strip(),
+        "categoria": (request.form.get("produto_categoria") or "").strip(),
+        "unidade": (request.form.get("produto_unidade") or "").strip(),
+        "estoque_atual": (request.form.get("produto_estoque_atual") or "").strip(),
+        "estoque_minimo": (request.form.get("produto_estoque_minimo") or "").strip(),
+        "preco_custo": (request.form.get("produto_preco_custo") or "").strip(),
+        "preco_venda": (request.form.get("produto_preco_venda") or "").strip(),
+        "status": (request.form.get("produto_status") or "ativo").strip() or "ativo",
+        "observacoes": (request.form.get("produto_observacoes") or "").strip(),
+    }
+
+    if produto["nome"]:
+        atualizar_produto_db(produto_id, produto)
+
+    return redirect(url_for("ver_produto", produto_id=produto_id))
+
+
+@app.post("/produtos/<int:produto_id>/excluir")
+def excluir_produto(produto_id: int) -> Response:
+    produto = buscar_produto_por_id(produto_id)
+
+    if produto is not None:
+        excluir_produto_db(produto_id)
+
+    return redirect(url_for("produtos"))
 
 
 @app.get("/health")
