@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\clientes.html
-Último recode: 2026-06-13 16:22 (America/Bahia)
-Motivo: Ligar o botão Excluir da lista de clientes à rota POST de exclusão com confirmação.
+Último recode: 2026-06-13 16:35 (America/Bahia)
+Motivo: Remover estilos inline da tela Clientes e aplicar classes reutilizáveis do dashboard.css.
 -->
 
 <!DOCTYPE html>
@@ -227,19 +227,19 @@ Motivo: Ligar o botão Excluir da lista de clientes à rota POST de exclusão co
             {% endif %}
         {% endfor %}
 
-        <section class="panel" style="margin-bottom: 18px;">
-            <div class="panel-header" style="align-items: center; gap: 18px;">
+        <section class="panel page-section">
+            <div class="panel-header page-header">
                 <div>
-                    <span style="display: inline-block; margin-bottom: 8px; color: #2563eb; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;">Cadastros</span>
-                    <h3 style="margin-bottom: 6px; font-size: 26px;">Clientes</h3>
-                    <p class="page-subtitle" style="max-width: 620px; margin: 0; color: #64748b;">Controle os dados dos clientes, documentos, contatos e status de cadastro do GESTFLOW.</p>
+                    <span class="page-kicker">Cadastros</span>
+                    <h3 class="page-title">Clientes</h3>
+                    <p class="page-subtitle">Controle os dados dos clientes, documentos, contatos e status de cadastro do GESTFLOW.</p>
                 </div>
 
-                <a href="#form-novo-cliente" class="filter-button" style="min-width: 150px; height: 44px; display: inline-flex; align-items: center; justify-content: center; border-radius: 12px; background: #16a34a; color: #ffffff; border: 0; font-weight: 700; cursor: pointer; text-decoration: none;">+ Novo Cliente</a>
+                <a href="#form-novo-cliente" class="btn-primary-green">+ Novo Cliente</a>
             </div>
         </section>
 
-        <section class="cards cards-secondary" style="margin-bottom: 18px;">
+        <section class="cards cards-secondary page-section">
             <div class="card stat-card">
                 <div class="card-icon">☷</div>
                 <div class="card-info">
@@ -268,81 +268,81 @@ Motivo: Ligar o botão Excluir da lista de clientes à rota POST de exclusão co
             </div>
         </section>
 
-        <section id="form-novo-cliente" class="panel" style="margin-bottom: 18px;">
-            <div class="panel-header" style="align-items: center; gap: 16px;">
+        <section id="form-novo-cliente" class="panel page-section">
+            <div class="panel-header page-header">
                 <div>
                     <h3>Novo cliente</h3>
-                    <p class="page-subtitle" style="margin: 4px 0 0; color: #64748b;">Preencha os dados principais para preparar o cadastro do cliente.</p>
+                    <p class="page-subtitle">Preencha os dados principais para preparar o cadastro do cliente.</p>
                 </div>
 
-                <span style="display: inline-flex; align-items: center; height: 34px; padding: 0 12px; border-radius: 999px; background: #eff6ff; color: #2563eb; font-size: 12px; font-weight: 700;">Cadastro inicial</span>
+                <span class="badge-info">Cadastro inicial</span>
             </div>
 
-            <form action="/clientes" method="post" style="margin-top: 20px;">
-                <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;">
-                    <div style="display: flex; flex-direction: column; gap: 8px;">
-                        <label for="cliente_nome" style="font-size: 13px; font-weight: 700; color: #334155;">Nome / Razão Social</label>
-                        <input id="cliente_nome" name="cliente_nome" type="text" placeholder="Ex: LR Manutenção Ltda" style="height: 44px; padding: 0 14px; border: 1px solid #dbe3ef; border-radius: 12px; font-size: 14px; outline: none;">
+            <form action="/clientes" method="post" class="client-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="cliente_nome">Nome / Razão Social</label>
+                        <input id="cliente_nome" name="cliente_nome" type="text" placeholder="Ex: LR Manutenção Ltda" class="form-control">
                     </div>
 
-                    <div style="display: flex; flex-direction: column; gap: 8px;">
-                        <label for="cliente_documento" style="font-size: 13px; font-weight: 700; color: #334155;">CPF/CNPJ</label>
-                        <input id="cliente_documento" name="cliente_documento" type="text" placeholder="Ex: 00.000.000/0000-00" style="height: 44px; padding: 0 14px; border: 1px solid #dbe3ef; border-radius: 12px; font-size: 14px; outline: none;">
+                    <div class="form-group">
+                        <label for="cliente_documento">CPF/CNPJ</label>
+                        <input id="cliente_documento" name="cliente_documento" type="text" placeholder="Ex: 00.000.000/0000-00" class="form-control">
                     </div>
 
-                    <div style="display: flex; flex-direction: column; gap: 8px;">
-                        <label for="cliente_telefone" style="font-size: 13px; font-weight: 700; color: #334155;">Telefone</label>
-                        <input id="cliente_telefone" name="cliente_telefone" type="text" placeholder="Ex: (71) 99999-9999" style="height: 44px; padding: 0 14px; border: 1px solid #dbe3ef; border-radius: 12px; font-size: 14px; outline: none;">
+                    <div class="form-group">
+                        <label for="cliente_telefone">Telefone</label>
+                        <input id="cliente_telefone" name="cliente_telefone" type="text" placeholder="Ex: (71) 99999-9999" class="form-control">
                     </div>
 
-                    <div style="display: flex; flex-direction: column; gap: 8px;">
-                        <label for="cliente_cidade" style="font-size: 13px; font-weight: 700; color: #334155;">Cidade</label>
-                        <input id="cliente_cidade" name="cliente_cidade" type="text" placeholder="Ex: Salvador" style="height: 44px; padding: 0 14px; border: 1px solid #dbe3ef; border-radius: 12px; font-size: 14px; outline: none;">
+                    <div class="form-group">
+                        <label for="cliente_cidade">Cidade</label>
+                        <input id="cliente_cidade" name="cliente_cidade" type="text" placeholder="Ex: Salvador" class="form-control">
                     </div>
 
-                    <div style="display: flex; flex-direction: column; gap: 8px;">
-                        <label for="cliente_status" style="font-size: 13px; font-weight: 700; color: #334155;">Status</label>
-                        <select id="cliente_status" name="cliente_status" style="height: 44px; padding: 0 14px; border: 1px solid #dbe3ef; border-radius: 12px; font-size: 14px; outline: none; background: #ffffff;">
+                    <div class="form-group">
+                        <label for="cliente_status">Status</label>
+                        <select id="cliente_status" name="cliente_status" class="form-control">
                             <option value="ativo">Ativo</option>
                             <option value="inativo">Inativo</option>
                             <option value="pendente">Pendente</option>
                         </select>
                     </div>
 
-                    <div style="display: flex; flex-direction: column; gap: 8px;">
-                        <label for="cliente_email" style="font-size: 13px; font-weight: 700; color: #334155;">E-mail</label>
-                        <input id="cliente_email" name="cliente_email" type="email" placeholder="Ex: contato@empresa.com.br" style="height: 44px; padding: 0 14px; border: 1px solid #dbe3ef; border-radius: 12px; font-size: 14px; outline: none;">
+                    <div class="form-group">
+                        <label for="cliente_email">E-mail</label>
+                        <input id="cliente_email" name="cliente_email" type="email" placeholder="Ex: contato@empresa.com.br" class="form-control">
                     </div>
                 </div>
 
-                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
-                    <button type="reset" style="height: 42px; padding: 0 18px; border: 1px solid #dbe3ef; border-radius: 12px; background: #ffffff; color: #334155; font-weight: 700; cursor: pointer;">Cancelar</button>
-                    <button type="submit" style="height: 42px; padding: 0 20px; border: 0; border-radius: 12px; background: #16a34a; color: #ffffff; font-weight: 700; cursor: pointer;">Salvar Cliente</button>
+                <div class="form-actions">
+                    <button type="reset" class="btn-light">Cancelar</button>
+                    <button type="submit" class="btn-primary-green">Salvar Cliente</button>
                 </div>
             </form>
         </section>
 
         <section class="panel table-panel">
 
-            <div class="panel-header" style="align-items: center; gap: 16px;">
+            <div class="panel-header page-header">
                 <div>
                     <h3>Lista de clientes</h3>
-                    <p class="page-subtitle" style="margin: 4px 0 0; color: #64748b;">Pesquise, visualize e mantenha os clientes cadastrados.</p>
+                    <p class="page-subtitle">Pesquise, visualize e mantenha os clientes cadastrados.</p>
                 </div>
 
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    <button type="button" style="height: 40px; padding: 0 14px; border: 1px solid #dbe3ef; border-radius: 10px; background: #ffffff; color: #334155; font-weight: 700; cursor: pointer;">Exportar</button>
-                    <button type="button" style="height: 40px; padding: 0 14px; border: 1px solid #dbe3ef; border-radius: 10px; background: #ffffff; color: #334155; font-weight: 700; cursor: pointer;">Filtros</button>
+                <div class="client-toolbar">
+                    <button type="button" class="btn-light">Exportar</button>
+                    <button type="button" class="btn-light">Filtros</button>
                 </div>
             </div>
 
-            <div class="client-actions" style="display: flex; gap: 10px; margin: 20px 0;">
-                <input type="text" placeholder="Buscar por nome, CPF/CNPJ ou telefone" style="flex: 1; height: 44px; padding: 0 14px; border: 1px solid #dbe3ef; border-radius: 12px; font-size: 14px; outline: none;">
-                <button type="button" style="height: 44px; padding: 0 22px; border: 0; border-radius: 12px; background: #0f172a; color: #ffffff; font-weight: 700; cursor: pointer;">Buscar</button>
+            <div class="client-actions">
+                <input type="text" placeholder="Buscar por nome, CPF/CNPJ ou telefone" class="client-search">
+                <button type="button" class="btn-dark">Buscar</button>
             </div>
 
-            <div style="overflow-x: auto; border: 1px solid #e5eaf2; border-radius: 14px;">
-                <table style="margin: 0; min-width: 900px;">
+            <div class="table-shell">
+                <table class="client-table">
                     <thead>
                         <tr>
                             <th>Código</th>
@@ -364,16 +364,16 @@ Motivo: Ligar o botão Excluir da lista de clientes à rota POST de exclusão co
                                     <td>{{ cliente.telefone }}</td>
                                     <td>{{ cliente.cidade }}</td>
                                     <td>
-                                        <span style="display: inline-flex; align-items: center; height: 28px; padding: 0 10px; border-radius: 999px; background: {% if cliente.status == 'ativo' %}#dcfce7{% elif cliente.status == 'pendente' %}#fef3c7{% else %}#fee2e2{% endif %}; color: {% if cliente.status == 'ativo' %}#166534{% elif cliente.status == 'pendente' %}#92400e{% else %}#991b1b{% endif %}; font-size: 12px; font-weight: 700; text-transform: capitalize;">
+                                        <span class="status-pill {{ cliente.status }}">
                                             {{ cliente.status }}
                                         </span>
                                     </td>
                                     <td>
-                                        <div style="display: flex; gap: 6px; align-items: center;">
-                                            <a href="/clientes/{{ cliente.id }}" title="Ver cliente" aria-label="Ver cliente" style="width: 34px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 9px; background: #0ea5e9; color: #ffffff; font-size: 14px; font-weight: 700; cursor: pointer; text-decoration: none;">🔍</a>
-                                            <a href="/clientes/{{ cliente.id }}/editar" title="Editar cliente" aria-label="Editar cliente" style="width: 34px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 9px; background: #f59e0b; color: #ffffff; font-size: 14px; font-weight: 700; cursor: pointer; text-decoration: none;">✎</a>
-                                            <form action="/clientes/{{ cliente.id }}/excluir" method="post" onsubmit="return confirm('Tem certeza que deseja excluir este cliente?');" style="margin: 0;">
-                                                <button type="submit" title="Excluir cliente" aria-label="Excluir cliente" style="width: 34px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 9px; background: #ef4444; color: #ffffff; font-size: 16px; font-weight: 700; cursor: pointer;">×</button>
+                                        <div class="action-buttons">
+                                            <a href="/clientes/{{ cliente.id }}" title="Ver cliente" aria-label="Ver cliente" class="action-button view">🔍</a>
+                                            <a href="/clientes/{{ cliente.id }}/editar" title="Editar cliente" aria-label="Editar cliente" class="action-button edit">✎</a>
+                                            <form action="/clientes/{{ cliente.id }}/excluir" method="post" onsubmit="return confirm('Tem certeza que deseja excluir este cliente?');" class="action-form">
+                                                <button type="submit" title="Excluir cliente" aria-label="Excluir cliente" class="action-button delete">×</button>
                                             </form>
                                         </div>
                                     </td>
@@ -381,10 +381,10 @@ Motivo: Ligar o botão Excluir da lista de clientes à rota POST de exclusão co
                             {% endfor %}
                         {% else %}
                             <tr>
-                                <td colspan="7" class="empty-table" style="height: 180px; text-align: center; color: #64748b;">
-                                    <div style="display: flex; flex-direction: column; align-items: center; gap: 8px;">
-                                        <div style="width: 54px; height: 54px; display: flex; align-items: center; justify-content: center; border-radius: 18px; background: #eff6ff; color: #2563eb; font-size: 24px;">☷</div>
-                                        <strong style="color: #0f172a;">Nenhum cliente cadastrado.</strong>
+                                <td colspan="7" class="empty-table empty-table-box">
+                                    <div class="empty-table-content">
+                                        <div class="empty-table-icon">☷</div>
+                                        <strong>Nenhum cliente cadastrado.</strong>
                                         <span>Use o botão Novo Cliente para iniciar o cadastro.</span>
                                     </div>
                                 </td>
