@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\static\css\dashboard.css
-Último recode: 2026-06-13 13:45 (America/Bahia)
-Motivo: Recriar o CSS completo do Dashboard para acompanhar o HTML atual e aproximar o visual do padrão ERP de referência.
+Último recode: 2026-06-13 16:30 (America/Bahia)
+Motivo: Adicionar classes reutilizáveis para remover estilos inline da tela Clientes.
 */
 
 :root {
@@ -831,5 +831,273 @@ body {
     .panel-summary,
     .cash-summary {
         grid-template-columns: 1fr;
+    }
+}
+/* CLIENTES */
+
+.page-section {
+    margin-bottom: 18px;
+}
+
+.page-header {
+    align-items: center;
+    gap: 18px;
+}
+
+.page-kicker {
+    display: inline-block;
+    margin-bottom: 8px;
+    color: #2563eb;
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+.page-title {
+    margin-bottom: 6px;
+    font-size: 26px;
+}
+
+.page-subtitle {
+    max-width: 620px;
+    margin: 0;
+    color: #64748b;
+}
+
+.btn-primary-green {
+    min-width: 150px;
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 12px;
+    background: #16a34a;
+    color: #ffffff;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.btn-dark {
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 22px;
+    border: 0;
+    border-radius: 12px;
+    background: #0f172a;
+    color: #ffffff;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.btn-light {
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 14px;
+    border: 1px solid #dbe3ef;
+    border-radius: 10px;
+    background: #ffffff;
+    color: #334155;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.badge-info {
+    display: inline-flex;
+    align-items: center;
+    height: 34px;
+    padding: 0 12px;
+    border-radius: 999px;
+    background: #eff6ff;
+    color: #2563eb;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.client-form {
+    margin-top: 20px;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.form-group label {
+    font-size: 13px;
+    font-weight: 700;
+    color: #334155;
+}
+
+.form-control {
+    height: 44px;
+    padding: 0 14px;
+    border: 1px solid #dbe3ef;
+    border-radius: 12px;
+    background: #ffffff;
+    font-size: 14px;
+    outline: none;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.client-toolbar {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.client-actions {
+    display: flex;
+    gap: 10px;
+    margin: 20px 0;
+}
+
+.client-search {
+    flex: 1;
+    height: 44px;
+    padding: 0 14px;
+    border: 1px solid #dbe3ef;
+    border-radius: 12px;
+    font-size: 14px;
+    outline: none;
+}
+
+.table-shell {
+    overflow-x: auto;
+    border: 1px solid #e5eaf2;
+    border-radius: 14px;
+}
+
+.client-table {
+    margin: 0;
+    min-width: 900px;
+}
+
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    height: 28px;
+    padding: 0 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: capitalize;
+}
+
+.status-pill.active,
+.status-pill.ativo {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.status-pill.pending,
+.status-pill.pendente {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.status-pill.inactive,
+.status-pill.inativo {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.action-form {
+    margin: 0;
+}
+
+.action-button {
+    width: 34px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 9px;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.action-button.view {
+    background: #0ea5e9;
+}
+
+.action-button.edit {
+    background: #f59e0b;
+}
+
+.action-button.delete {
+    background: #ef4444;
+    font-size: 16px;
+}
+
+.empty-table-box {
+    height: 180px;
+    text-align: center;
+    color: #64748b;
+}
+
+.empty-table-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.empty-table-icon {
+    width: 54px;
+    height: 54px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 18px;
+    background: #eff6ff;
+    color: #2563eb;
+    font-size: 24px;
+}
+
+.empty-table-content strong {
+    color: #0f172a;
+}
+
+@media (max-width: 820px) {
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .client-actions,
+    .client-toolbar {
+        flex-direction: column;
+        align-items: stretch;
     }
 }
