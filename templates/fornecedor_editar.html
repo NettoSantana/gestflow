@@ -1,0 +1,307 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\fornecedor_editar.html
+Último recode: 2026-06-13 17:24 (America/Bahia)
+Motivo: Criar tela de edição de fornecedor cadastrado no SQLite.
+-->
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Editar Fornecedor</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+
+    <aside class="sidebar">
+
+        <div class="brand">
+            <div class="brand-mark">GF</div>
+            <h2>GESTFLOW</h2>
+        </div>
+
+        <nav class="sidebar-nav">
+            <ul class="menu">
+
+                <li class="menu-item">
+                    <a href="/">
+                        <span class="menu-icon">⌂</span>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+
+                <li class="menu-group">
+                    <details open>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">☷</span>
+                                <span>Cadastros</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/clientes">Clientes</a></li>
+                            <li class="submenu-active"><a href="/fornecedores">Fornecedores</a></li>
+                            <li>Funcionários</li>
+                            <li>Veículos</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">□</span>
+                                <span>Produtos</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Gerenciar produtos</li>
+                            <li>Valores de venda</li>
+                            <li>Etiquetas</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">⚙</span>
+                                <span>Serviços</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Gerenciar serviços</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▣</span>
+                                <span>Orçamentos</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Produtos</li>
+                            <li>Serviços</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▤</span>
+                                <span>Vendas</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Produtos</li>
+                            <li>Serviços</li>
+                            <li>Balcão</li>
+                            <li>Devoluções</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">✚</span>
+                                <span>Ordens de Serviço</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Gerenciar O.S.</li>
+                            <li>Painel</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▧</span>
+                                <span>Estoque</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Movimentações</li>
+                            <li>Ajustes</li>
+                            <li>Transferências</li>
+                            <li>Cotações</li>
+                            <li>Compras</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">◈</span>
+                                <span>Financeiro</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Contas a pagar</li>
+                            <li>Contas a receber</li>
+                            <li>Fluxo de caixa</li>
+                            <li>Contas bancárias</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+            </ul>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="footer-item">⚙ Configurações</div>
+            <div class="footer-item">? Ajuda</div>
+        </div>
+
+    </aside>
+
+    <main class="content">
+
+        <header class="topbar">
+            <div class="topbar-left">
+                <button class="menu-toggle" type="button" aria-label="Abrir menu">☰</button>
+                <h1>Editar Fornecedor</h1>
+            </div>
+
+            <div class="topbar-right">
+                <div class="topbar-date">
+                    <span class="topbar-icon">▣</span>
+                    <span>13/06/2026</span>
+                </div>
+
+                <div class="notification">
+                    <span class="topbar-icon">🔔</span>
+                    <span class="notification-badge">0</span>
+                </div>
+
+                <div class="user-profile">
+                    <div class="avatar">NS</div>
+                    <div class="user-info">
+                        <strong>Netto Santana</strong>
+                        <span>Administrador</span>
+                    </div>
+                    <span class="profile-arrow">⌄</span>
+                </div>
+            </div>
+        </header>
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Cadastros</span>
+                    <h3 class="page-title">Editar fornecedor</h3>
+                    <p class="page-subtitle">Atualize os dados principais do fornecedor selecionado.</p>
+                </div>
+
+                <a href="/fornecedores/{{ fornecedor.id }}" class="btn-dark">Cancelar edição</a>
+            </div>
+        </section>
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>{{ fornecedor.nome }}</h3>
+                    <p class="page-subtitle">Código do fornecedor: {{ fornecedor.id }}</p>
+                </div>
+
+                <span class="badge-info">Modo edição</span>
+            </div>
+
+            <form action="/fornecedores/{{ fornecedor.id }}/editar" method="post" class="client-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="fornecedor_nome">Nome / Razão Social</label>
+                        <input id="fornecedor_nome" name="fornecedor_nome" type="text" value="{{ fornecedor.nome or '' }}" placeholder="Ex: Fornecedor ABC Ltda" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fornecedor_documento">CPF/CNPJ</label>
+                        <input id="fornecedor_documento" name="fornecedor_documento" type="text" value="{{ fornecedor.documento or '' }}" placeholder="Ex: 00.000.000/0000-00" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fornecedor_telefone">Telefone</label>
+                        <input id="fornecedor_telefone" name="fornecedor_telefone" type="text" value="{{ fornecedor.telefone or '' }}" placeholder="Ex: (71) 99999-9999" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fornecedor_cidade">Cidade</label>
+                        <input id="fornecedor_cidade" name="fornecedor_cidade" type="text" value="{{ fornecedor.cidade or '' }}" placeholder="Ex: Salvador" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fornecedor_status">Status</label>
+                        <select id="fornecedor_status" name="fornecedor_status" class="form-control">
+                            <option value="ativo" {% if fornecedor.status == "ativo" %}selected{% endif %}>Ativo</option>
+                            <option value="inativo" {% if fornecedor.status == "inativo" %}selected{% endif %}>Inativo</option>
+                            <option value="pendente" {% if fornecedor.status == "pendente" %}selected{% endif %}>Pendente</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fornecedor_email">E-mail</label>
+                        <input id="fornecedor_email" name="fornecedor_email" type="email" value="{{ fornecedor.email or '' }}" placeholder="Ex: contato@fornecedor.com.br" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fornecedor_categoria">Categoria</label>
+                        <select id="fornecedor_categoria" name="fornecedor_categoria" class="form-control">
+                            <option value="" {% if not fornecedor.categoria %}selected{% endif %}>Selecione</option>
+                            <option value="Material elétrico" {% if fornecedor.categoria == "Material elétrico" %}selected{% endif %}>Material elétrico</option>
+                            <option value="Material mecânico" {% if fornecedor.categoria == "Material mecânico" %}selected{% endif %}>Material mecânico</option>
+                            <option value="Serviços" {% if fornecedor.categoria == "Serviços" %}selected{% endif %}>Serviços</option>
+                            <option value="Transporte" {% if fornecedor.categoria == "Transporte" %}selected{% endif %}>Transporte</option>
+                            <option value="Ferramentas" {% if fornecedor.categoria == "Ferramentas" %}selected{% endif %}>Ferramentas</option>
+                            <option value="EPI" {% if fornecedor.categoria == "EPI" %}selected{% endif %}>EPI</option>
+                            <option value="Outros" {% if fornecedor.categoria == "Outros" %}selected{% endif %}>Outros</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fornecedor_observacoes">Observações</label>
+                        <input id="fornecedor_observacoes" name="fornecedor_observacoes" type="text" value="{{ fornecedor.observacoes or '' }}" placeholder="Ex: Condição de pagamento, contato principal ou observação" class="form-control">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <a href="/fornecedores/{{ fornecedor.id }}" class="btn-light">Cancelar</a>
+                    <button type="submit" class="btn-primary-green">Salvar Alterações</button>
+                </div>
+            </form>
+        </section>
+
+    </main>
+
+</body>
+</html>
