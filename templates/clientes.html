@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\clientes.html
-Último recode: 2026-06-13 15:55 (America/Bahia)
-Motivo: Ligar o botão Ver da lista de clientes à tela individual de detalhes do cliente.
+Último recode: 2026-06-13 16:12 (America/Bahia)
+Motivo: Ligar o botão Editar da lista de clientes à tela de edição do cliente.
 -->
 
 <!DOCTYPE html>
@@ -371,7 +371,7 @@ Motivo: Ligar o botão Ver da lista de clientes à tela individual de detalhes d
                                     <td>
                                         <div style="display: flex; gap: 6px; align-items: center;">
                                             <a href="/clientes/{{ cliente.id }}" title="Ver cliente" aria-label="Ver cliente" style="width: 34px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 9px; background: #0ea5e9; color: #ffffff; font-size: 14px; font-weight: 700; cursor: pointer; text-decoration: none;">🔍</a>
-                                            <button type="button" title="Editar cliente" aria-label="Editar cliente" style="width: 34px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 9px; background: #f59e0b; color: #ffffff; font-size: 14px; font-weight: 700; cursor: pointer;">✎</button>
+                                            <a href="/clientes/{{ cliente.id }}/editar" title="Editar cliente" aria-label="Editar cliente" style="width: 34px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 9px; background: #f59e0b; color: #ffffff; font-size: 14px; font-weight: 700; cursor: pointer; text-decoration: none;">✎</a>
                                             <button type="button" title="Excluir cliente" aria-label="Excluir cliente" style="width: 34px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 9px; background: #ef4444; color: #ffffff; font-size: 16px; font-weight: 700; cursor: pointer;">×</button>
                                         </div>
                                     </td>
