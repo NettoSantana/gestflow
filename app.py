@@ -1,8 +1,8 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-13 16:18 (America/Bahia)
-# Motivo: Adicionar rota de exclusão de cliente,
+# Último recode: 2026-06-13 16:58 (America/Bahia)
+# Motivo: Adicionar base de rotas, funções SQLite e tabela de fornecedores,
 #         mantendo Dashboard (/), Clientes (/clientes), SQLite, visualização, edição,
-#         healthcheck (/health) e webhook Twilio (/bot) ativos.
+#         exclusão, healthcheck (/health) e webhook Twilio (/bot) ativos.
 
 from __future__ import annotations
 
@@ -44,6 +44,22 @@ def iniciar_banco() -> None:
                 cidade TEXT,
                 status TEXT NOT NULL DEFAULT 'ativo',
                 email TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS fornecedores (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nome TEXT NOT NULL,
+                documento TEXT,
+                telefone TEXT,
+                cidade TEXT,
+                status TEXT NOT NULL DEFAULT 'ativo',
+                email TEXT,
+                categoria TEXT,
+                observacoes TEXT,
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
             """
@@ -161,6 +177,128 @@ def excluir_cliente_db(cliente_id: int) -> None:
         conn.commit()
 
 
+def salvar_fornecedor_db(fornecedor: dict[str, str]) -> None:
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            INSERT INTO fornecedores (
+                nome,
+                documento,
+                telefone,
+                cidade,
+                status,
+                email,
+                categoria,
+                observacoes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                fornecedor["nome"],
+                fornecedor["documento"],
+                fornecedor["telefone"],
+                fornecedor["cidade"],
+                fornecedor["status"],
+                fornecedor["email"],
+                fornecedor["categoria"],
+                fornecedor["observacoes"],
+            ),
+        )
+        conn.commit()
+
+
+def listar_fornecedores() -> list[dict[str, Any]]:
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                id,
+                nome,
+                documento,
+                telefone,
+                cidade,
+                status,
+                email,
+                categoria,
+                observacoes,
+                criado_em
+            FROM fornecedores
+            ORDER BY id DESC
+            """
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def buscar_fornecedor_por_id(fornecedor_id: int) -> dict[str, Any] | None:
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                id,
+                nome,
+                documento,
+                telefone,
+                cidade,
+                status,
+                email,
+                categoria,
+                observacoes,
+                criado_em
+            FROM fornecedores
+            WHERE id = ?
+            """,
+            (fornecedor_id,),
+        ).fetchone()
+
+    if row is None:
+        return None
+
+    return dict(row)
+
+
+def atualizar_fornecedor_db(fornecedor_id: int, fornecedor: dict[str, str]) -> None:
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            UPDATE fornecedores
+            SET
+                nome = ?,
+                documento = ?,
+                telefone = ?,
+                cidade = ?,
+                status = ?,
+                email = ?,
+                categoria = ?,
+                observacoes = ?
+            WHERE id = ?
+            """,
+            (
+                fornecedor["nome"],
+                fornecedor["documento"],
+                fornecedor["telefone"],
+                fornecedor["cidade"],
+                fornecedor["status"],
+                fornecedor["email"],
+                fornecedor["categoria"],
+                fornecedor["observacoes"],
+                fornecedor_id,
+            ),
+        )
+        conn.commit()
+
+
+def excluir_fornecedor_db(fornecedor_id: int) -> None:
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            DELETE FROM fornecedores
+            WHERE id = ?
+            """,
+            (fornecedor_id,),
+        )
+        conn.commit()
+
+
 @app.get("/")
 def dashboard() -> str:
     return render_template("dashboard.html")
@@ -239,6 +377,85 @@ def excluir_cliente(cliente_id: int) -> Response:
         excluir_cliente_db(cliente_id)
 
     return redirect(url_for("clientes"))
+
+
+@app.get("/fornecedores")
+def fornecedores() -> str:
+    fornecedores_lista = listar_fornecedores()
+    return render_template("fornecedores.html", fornecedores=fornecedores_lista)
+
+
+@app.post("/fornecedores")
+def salvar_fornecedor() -> Response:
+    fornecedor = {
+        "nome": (request.form.get("fornecedor_nome") or "").strip(),
+        "documento": (request.form.get("fornecedor_documento") or "").strip(),
+        "telefone": (request.form.get("fornecedor_telefone") or "").strip(),
+        "cidade": (request.form.get("fornecedor_cidade") or "").strip(),
+        "status": (request.form.get("fornecedor_status") or "ativo").strip() or "ativo",
+        "email": (request.form.get("fornecedor_email") or "").strip(),
+        "categoria": (request.form.get("fornecedor_categoria") or "").strip(),
+        "observacoes": (request.form.get("fornecedor_observacoes") or "").strip(),
+    }
+
+    if fornecedor["nome"]:
+        salvar_fornecedor_db(fornecedor)
+
+    return redirect(url_for("fornecedores"))
+
+
+@app.get("/fornecedores/<int:fornecedor_id>")
+def ver_fornecedor(fornecedor_id: int) -> str | Response:
+    fornecedor = buscar_fornecedor_por_id(fornecedor_id)
+
+    if fornecedor is None:
+        return redirect(url_for("fornecedores"))
+
+    return render_template("fornecedor_detalhe.html", fornecedor=fornecedor)
+
+
+@app.get("/fornecedores/<int:fornecedor_id>/editar")
+def editar_fornecedor(fornecedor_id: int) -> str | Response:
+    fornecedor = buscar_fornecedor_por_id(fornecedor_id)
+
+    if fornecedor is None:
+        return redirect(url_for("fornecedores"))
+
+    return render_template("fornecedor_editar.html", fornecedor=fornecedor)
+
+
+@app.post("/fornecedores/<int:fornecedor_id>/editar")
+def atualizar_fornecedor(fornecedor_id: int) -> Response:
+    fornecedor_atual = buscar_fornecedor_por_id(fornecedor_id)
+
+    if fornecedor_atual is None:
+        return redirect(url_for("fornecedores"))
+
+    fornecedor = {
+        "nome": (request.form.get("fornecedor_nome") or "").strip(),
+        "documento": (request.form.get("fornecedor_documento") or "").strip(),
+        "telefone": (request.form.get("fornecedor_telefone") or "").strip(),
+        "cidade": (request.form.get("fornecedor_cidade") or "").strip(),
+        "status": (request.form.get("fornecedor_status") or "ativo").strip() or "ativo",
+        "email": (request.form.get("fornecedor_email") or "").strip(),
+        "categoria": (request.form.get("fornecedor_categoria") or "").strip(),
+        "observacoes": (request.form.get("fornecedor_observacoes") or "").strip(),
+    }
+
+    if fornecedor["nome"]:
+        atualizar_fornecedor_db(fornecedor_id, fornecedor)
+
+    return redirect(url_for("ver_fornecedor", fornecedor_id=fornecedor_id))
+
+
+@app.post("/fornecedores/<int:fornecedor_id>/excluir")
+def excluir_fornecedor(fornecedor_id: int) -> Response:
+    fornecedor = buscar_fornecedor_por_id(fornecedor_id)
+
+    if fornecedor is not None:
+        excluir_fornecedor_db(fornecedor_id)
+
+    return redirect(url_for("fornecedores"))
 
 
 @app.get("/health")
