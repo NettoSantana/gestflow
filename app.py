@@ -1,7 +1,7 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-13 16:02 (America/Bahia)
-# Motivo: Adicionar rotas de edição de cliente,
-#         mantendo Dashboard (/), Clientes (/clientes), SQLite, visualização,
+# Último recode: 2026-06-13 16:18 (America/Bahia)
+# Motivo: Adicionar rota de exclusão de cliente,
+#         mantendo Dashboard (/), Clientes (/clientes), SQLite, visualização, edição,
 #         healthcheck (/health) e webhook Twilio (/bot) ativos.
 
 from __future__ import annotations
@@ -149,6 +149,18 @@ def atualizar_cliente_db(cliente_id: int, cliente: dict[str, str]) -> None:
         conn.commit()
 
 
+def excluir_cliente_db(cliente_id: int) -> None:
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            DELETE FROM clientes
+            WHERE id = ?
+            """,
+            (cliente_id,),
+        )
+        conn.commit()
+
+
 @app.get("/")
 def dashboard() -> str:
     return render_template("dashboard.html")
@@ -217,6 +229,16 @@ def atualizar_cliente(cliente_id: int) -> Response:
         atualizar_cliente_db(cliente_id, cliente)
 
     return redirect(url_for("ver_cliente", cliente_id=cliente_id))
+
+
+@app.post("/clientes/<int:cliente_id>/excluir")
+def excluir_cliente(cliente_id: int) -> Response:
+    cliente = buscar_cliente_por_id(cliente_id)
+
+    if cliente is not None:
+        excluir_cliente_db(cliente_id)
+
+    return redirect(url_for("clientes"))
 
 
 @app.get("/health")
