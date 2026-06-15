@@ -1,0 +1,423 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\fornecedores.html
+Último recode: 2026-06-13 17:08 (America/Bahia)
+Motivo: Criar tela principal de fornecedores com cadastro, listagem, status e ações Ver, Editar e Excluir.
+-->
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Fornecedores</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+
+    <aside class="sidebar">
+
+        <div class="brand">
+            <div class="brand-mark">GF</div>
+            <h2>GESTFLOW</h2>
+        </div>
+
+        <nav class="sidebar-nav">
+            <ul class="menu">
+
+                <li class="menu-item">
+                    <a href="/">
+                        <span class="menu-icon">⌂</span>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+
+                <li class="menu-group">
+                    <details open>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">☷</span>
+                                <span>Cadastros</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/clientes">Clientes</a></li>
+                            <li class="submenu-active"><a href="/fornecedores">Fornecedores</a></li>
+                            <li>Funcionários</li>
+                            <li>Veículos</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">□</span>
+                                <span>Produtos</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Gerenciar produtos</li>
+                            <li>Valores de venda</li>
+                            <li>Etiquetas</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">⚙</span>
+                                <span>Serviços</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Gerenciar serviços</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▣</span>
+                                <span>Orçamentos</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Produtos</li>
+                            <li>Serviços</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▤</span>
+                                <span>Vendas</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Produtos</li>
+                            <li>Serviços</li>
+                            <li>Balcão</li>
+                            <li>Devoluções</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">✚</span>
+                                <span>Ordens de Serviço</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Gerenciar O.S.</li>
+                            <li>Painel</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▧</span>
+                                <span>Estoque</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Movimentações</li>
+                            <li>Ajustes</li>
+                            <li>Transferências</li>
+                            <li>Cotações</li>
+                            <li>Compras</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">◈</span>
+                                <span>Financeiro</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Contas a pagar</li>
+                            <li>Contas a receber</li>
+                            <li>Fluxo de caixa</li>
+                            <li>Contas bancárias</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+            </ul>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="footer-item">⚙ Configurações</div>
+            <div class="footer-item">? Ajuda</div>
+        </div>
+
+    </aside>
+
+    <main class="content">
+
+        <header class="topbar">
+            <div class="topbar-left">
+                <button class="menu-toggle" type="button" aria-label="Abrir menu">☰</button>
+                <h1>Fornecedores</h1>
+            </div>
+
+            <div class="topbar-right">
+                <div class="topbar-date">
+                    <span class="topbar-icon">▣</span>
+                    <span>13/06/2026</span>
+                </div>
+
+                <div class="notification">
+                    <span class="topbar-icon">🔔</span>
+                    <span class="notification-badge">0</span>
+                </div>
+
+                <div class="user-profile">
+                    <div class="avatar">NS</div>
+                    <div class="user-info">
+                        <strong>Netto Santana</strong>
+                        <span>Administrador</span>
+                    </div>
+                    <span class="profile-arrow">⌄</span>
+                </div>
+            </div>
+        </header>
+
+        {% set fornecedores_lista = fornecedores|default([]) %}
+        {% set resumo = namespace(ativos=0, pendentes=0) %}
+        {% for fornecedor in fornecedores_lista %}
+            {% if fornecedor.status == "ativo" %}
+                {% set resumo.ativos = resumo.ativos + 1 %}
+            {% endif %}
+            {% if fornecedor.status == "pendente" %}
+                {% set resumo.pendentes = resumo.pendentes + 1 %}
+            {% endif %}
+        {% endfor %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Cadastros</span>
+                    <h3 class="page-title">Fornecedores</h3>
+                    <p class="page-subtitle">Controle os dados dos fornecedores, documentos, contatos, categorias e status de cadastro do GESTFLOW.</p>
+                </div>
+
+                <a href="#form-novo-fornecedor" class="btn-primary-green">+ Novo Fornecedor</a>
+            </div>
+        </section>
+
+        <section class="cards cards-secondary page-section">
+            <div class="card stat-card">
+                <div class="card-icon">☷</div>
+                <div class="card-info">
+                    <p>{{ fornecedores_lista|length }}</p>
+                    <h3>Total de fornecedores</h3>
+                    <span>{% if fornecedores_lista|length == 1 %}1 fornecedor cadastrado{% elif fornecedores_lista|length > 1 %}{{ fornecedores_lista|length }} fornecedores cadastrados{% else %}Nenhum fornecedor cadastrado{% endif %}</span>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="card-icon">✓</div>
+                <div class="card-info">
+                    <p>{{ resumo.ativos }}</p>
+                    <h3>Fornecedores ativos</h3>
+                    <span>{% if resumo.ativos == 1 %}1 fornecedor ativo{% elif resumo.ativos > 1 %}{{ resumo.ativos }} fornecedores ativos{% else %}Aguardando cadastro{% endif %}</span>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="card-icon">!</div>
+                <div class="card-info">
+                    <p>{{ resumo.pendentes }}</p>
+                    <h3>Pendências</h3>
+                    <span>{% if resumo.pendentes == 1 %}1 cadastro pendente{% elif resumo.pendentes > 1 %}{{ resumo.pendentes }} cadastros pendentes{% else %}Nenhuma pendência{% endif %}</span>
+                </div>
+            </div>
+        </section>
+
+        <section id="form-novo-fornecedor" class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Novo fornecedor</h3>
+                    <p class="page-subtitle">Preencha os dados principais para preparar o cadastro do fornecedor.</p>
+                </div>
+
+                <span class="badge-info">Cadastro inicial</span>
+            </div>
+
+            <form action="/fornecedores" method="post" class="client-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="fornecedor_nome">Nome / Razão Social</label>
+                        <input id="fornecedor_nome" name="fornecedor_nome" type="text" placeholder="Ex: Fornecedor ABC Ltda" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fornecedor_documento">CPF/CNPJ</label>
+                        <input id="fornecedor_documento" name="fornecedor_documento" type="text" placeholder="Ex: 00.000.000/0000-00" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fornecedor_telefone">Telefone</label>
+                        <input id="fornecedor_telefone" name="fornecedor_telefone" type="text" placeholder="Ex: (71) 99999-9999" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fornecedor_cidade">Cidade</label>
+                        <input id="fornecedor_cidade" name="fornecedor_cidade" type="text" placeholder="Ex: Salvador" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fornecedor_status">Status</label>
+                        <select id="fornecedor_status" name="fornecedor_status" class="form-control">
+                            <option value="ativo">Ativo</option>
+                            <option value="inativo">Inativo</option>
+                            <option value="pendente">Pendente</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fornecedor_email">E-mail</label>
+                        <input id="fornecedor_email" name="fornecedor_email" type="email" placeholder="Ex: contato@fornecedor.com.br" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fornecedor_categoria">Categoria</label>
+                        <select id="fornecedor_categoria" name="fornecedor_categoria" class="form-control">
+                            <option value="">Selecione</option>
+                            <option value="Material elétrico">Material elétrico</option>
+                            <option value="Material mecânico">Material mecânico</option>
+                            <option value="Serviços">Serviços</option>
+                            <option value="Transporte">Transporte</option>
+                            <option value="Ferramentas">Ferramentas</option>
+                            <option value="EPI">EPI</option>
+                            <option value="Outros">Outros</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fornecedor_observacoes">Observações</label>
+                        <input id="fornecedor_observacoes" name="fornecedor_observacoes" type="text" placeholder="Ex: Condição de pagamento, contato principal ou observação" class="form-control">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="reset" class="btn-light">Cancelar</button>
+                    <button type="submit" class="btn-primary-green">Salvar Fornecedor</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="panel table-panel">
+
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Lista de fornecedores</h3>
+                    <p class="page-subtitle">Pesquise, visualize e mantenha os fornecedores cadastrados.</p>
+                </div>
+
+                <div class="client-toolbar">
+                    <button type="button" class="btn-light">Exportar</button>
+                    <button type="button" class="btn-light">Filtros</button>
+                </div>
+            </div>
+
+            <div class="client-actions">
+                <input type="text" placeholder="Buscar por nome, CPF/CNPJ, telefone ou categoria" class="client-search">
+                <button type="button" class="btn-dark">Buscar</button>
+            </div>
+
+            <div class="table-shell">
+                <table class="client-table">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Nome / Razão Social</th>
+                            <th>CPF/CNPJ</th>
+                            <th>Telefone</th>
+                            <th>Cidade</th>
+                            <th>Categoria</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if fornecedores_lista %}
+                            {% for fornecedor in fornecedores_lista %}
+                                <tr>
+                                    <td>{{ fornecedor.id }}</td>
+                                    <td>{{ fornecedor.nome }}</td>
+                                    <td>{{ fornecedor.documento }}</td>
+                                    <td>{{ fornecedor.telefone }}</td>
+                                    <td>{{ fornecedor.cidade }}</td>
+                                    <td>{{ fornecedor.categoria }}</td>
+                                    <td>
+                                        <span class="status-pill {{ fornecedor.status }}">
+                                            {{ fornecedor.status }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <a href="/fornecedores/{{ fornecedor.id }}" title="Ver fornecedor" aria-label="Ver fornecedor" class="action-button view">🔍</a>
+                                            <a href="/fornecedores/{{ fornecedor.id }}/editar" title="Editar fornecedor" aria-label="Editar fornecedor" class="action-button edit">✎</a>
+                                            <form action="/fornecedores/{{ fornecedor.id }}/excluir" method="post" onsubmit="return confirm('Tem certeza que deseja excluir este fornecedor?');" class="action-form">
+                                                <button type="submit" title="Excluir fornecedor" aria-label="Excluir fornecedor" class="action-button delete">×</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="8" class="empty-table empty-table-box">
+                                    <div class="empty-table-content">
+                                        <div class="empty-table-icon">☷</div>
+                                        <strong>Nenhum fornecedor cadastrado.</strong>
+                                        <span>Use o botão Novo Fornecedor para iniciar o cadastro.</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+        </section>
+
+    </main>
+
+</body>
+</html>
