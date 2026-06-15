@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\cliente_detalhe.html
-Último recode: 2026-06-13 15:50 (America/Bahia)
-Motivo: Criar tela de visualização individual do cliente cadastrado no SQLite.
+Último recode: 2026-06-13 16:42 (America/Bahia)
+Motivo: Remover estilos inline da tela de detalhes do cliente e aplicar classes reutilizáveis do dashboard.css.
 -->
 
 <!DOCTYPE html>
@@ -216,59 +216,59 @@ Motivo: Criar tela de visualização individual do cliente cadastrado no SQLite.
             </div>
         </header>
 
-        <section class="panel" style="margin-bottom: 18px;">
-            <div class="panel-header" style="align-items: center; gap: 18px;">
+        <section class="panel page-section">
+            <div class="panel-header page-header">
                 <div>
-                    <span style="display: inline-block; margin-bottom: 8px; color: #2563eb; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;">Cadastros</span>
-                    <h3 style="margin-bottom: 6px; font-size: 26px;">Detalhes do cliente</h3>
-                    <p class="page-subtitle" style="max-width: 620px; margin: 0; color: #64748b;">Visualize os dados principais do cliente cadastrado no GESTFLOW.</p>
+                    <span class="page-kicker">Cadastros</span>
+                    <h3 class="page-title">Detalhes do cliente</h3>
+                    <p class="page-subtitle">Visualize os dados principais do cliente cadastrado no GESTFLOW.</p>
                 </div>
 
-                <a href="/clientes" style="min-width: 150px; height: 44px; display: inline-flex; align-items: center; justify-content: center; border-radius: 12px; background: #0f172a; color: #ffffff; border: 0; font-weight: 700; cursor: pointer; text-decoration: none;">Voltar para Clientes</a>
+                <a href="/clientes" class="btn-dark">Voltar para Clientes</a>
             </div>
         </section>
 
-        <section class="panel" style="margin-bottom: 18px;">
-            <div class="panel-header" style="align-items: center; gap: 16px;">
+        <section class="panel page-section">
+            <div class="panel-header page-header">
                 <div>
                     <h3>{{ cliente.nome }}</h3>
-                    <p class="page-subtitle" style="margin: 4px 0 0; color: #64748b;">Código do cliente: {{ cliente.id }}</p>
+                    <p class="page-subtitle">Código do cliente: {{ cliente.id }}</p>
                 </div>
 
-                <span style="display: inline-flex; align-items: center; height: 34px; padding: 0 12px; border-radius: 999px; background: {% if cliente.status == 'ativo' %}#dcfce7{% elif cliente.status == 'pendente' %}#fef3c7{% else %}#fee2e2{% endif %}; color: {% if cliente.status == 'ativo' %}#166534{% elif cliente.status == 'pendente' %}#92400e{% else %}#991b1b{% endif %}; font-size: 12px; font-weight: 700; text-transform: capitalize;">
+                <span class="status-pill {{ cliente.status }}">
                     {{ cliente.status }}
                 </span>
             </div>
 
-            <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 22px;">
-                <div style="padding: 16px; border: 1px solid #e5eaf2; border-radius: 14px;">
-                    <strong style="display: block; margin-bottom: 6px; color: #334155; font-size: 13px;">Nome / Razão Social</strong>
-                    <span style="color: #0f172a;">{{ cliente.nome or '-' }}</span>
+            <div class="panel-summary">
+                <div>
+                    <span>Nome / Razão Social</span>
+                    <strong>{{ cliente.nome or '-' }}</strong>
                 </div>
 
-                <div style="padding: 16px; border: 1px solid #e5eaf2; border-radius: 14px;">
-                    <strong style="display: block; margin-bottom: 6px; color: #334155; font-size: 13px;">CPF/CNPJ</strong>
-                    <span style="color: #0f172a;">{{ cliente.documento or '-' }}</span>
+                <div>
+                    <span>CPF/CNPJ</span>
+                    <strong>{{ cliente.documento or '-' }}</strong>
                 </div>
 
-                <div style="padding: 16px; border: 1px solid #e5eaf2; border-radius: 14px;">
-                    <strong style="display: block; margin-bottom: 6px; color: #334155; font-size: 13px;">Telefone</strong>
-                    <span style="color: #0f172a;">{{ cliente.telefone or '-' }}</span>
+                <div>
+                    <span>Telefone</span>
+                    <strong>{{ cliente.telefone or '-' }}</strong>
                 </div>
 
-                <div style="padding: 16px; border: 1px solid #e5eaf2; border-radius: 14px;">
-                    <strong style="display: block; margin-bottom: 6px; color: #334155; font-size: 13px;">Cidade</strong>
-                    <span style="color: #0f172a;">{{ cliente.cidade or '-' }}</span>
+                <div>
+                    <span>Cidade</span>
+                    <strong>{{ cliente.cidade or '-' }}</strong>
                 </div>
 
-                <div style="padding: 16px; border: 1px solid #e5eaf2; border-radius: 14px;">
-                    <strong style="display: block; margin-bottom: 6px; color: #334155; font-size: 13px;">E-mail</strong>
-                    <span style="color: #0f172a;">{{ cliente.email or '-' }}</span>
+                <div>
+                    <span>E-mail</span>
+                    <strong>{{ cliente.email or '-' }}</strong>
                 </div>
 
-                <div style="padding: 16px; border: 1px solid #e5eaf2; border-radius: 14px;">
-                    <strong style="display: block; margin-bottom: 6px; color: #334155; font-size: 13px;">Data de cadastro</strong>
-                    <span style="color: #0f172a;">{{ cliente.criado_em or '-' }}</span>
+                <div>
+                    <span>Data de cadastro</span>
+                    <strong>{{ cliente.criado_em or '-' }}</strong>
                 </div>
             </div>
         </section>
