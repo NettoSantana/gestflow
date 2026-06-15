@@ -1,0 +1,442 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\produtos.html
+Último recode: 2026-06-13 19:02 (America/Bahia)
+Motivo: Criar tela principal de produtos com cadastro, listagem, status e ações Ver, Editar e Excluir.
+-->
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Produtos</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+
+    <aside class="sidebar">
+
+        <div class="brand">
+            <div class="brand-mark">GF</div>
+            <h2>GESTFLOW</h2>
+        </div>
+
+        <nav class="sidebar-nav">
+            <ul class="menu">
+
+                <li class="menu-item">
+                    <a href="/">
+                        <span class="menu-icon">⌂</span>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+
+                <li class="menu-group">
+                    <details open>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">☷</span>
+                                <span>Cadastros</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/clientes">Clientes</a></li>
+                            <li><a href="/fornecedores">Fornecedores</a></li>
+                            <li><a href="/produtos">Produtos</a></li>
+                            <li>Veículos</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">□</span>
+                                <span>Produtos</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li class="submenu-active"><a href="/produtos">Gerenciar produtos</a></li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">⚙</span>
+                                <span>Serviços</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Gerenciar serviços</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▣</span>
+                                <span>Orçamentos</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Produtos</li>
+                            <li>Serviços</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▤</span>
+                                <span>Vendas</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Produtos</li>
+                            <li>Serviços</li>
+                            <li>Balcão</li>
+                            <li>Devoluções</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">✚</span>
+                                <span>Ordens de Serviço</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Gerenciar O.S.</li>
+                            <li>Painel</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▧</span>
+                                <span>Estoque</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Movimentações</li>
+                            <li>Ajustes</li>
+                            <li>Transferências</li>
+                            <li>Cotações</li>
+                            <li>Compras</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">◈</span>
+                                <span>Financeiro</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Contas a pagar</li>
+                            <li>Contas a receber</li>
+                            <li>Fluxo de caixa</li>
+                            <li>Contas bancárias</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+            </ul>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="footer-item">⚙ Configurações</div>
+            <div class="footer-item">? Ajuda</div>
+        </div>
+
+    </aside>
+
+    <main class="content">
+
+        <header class="topbar">
+            <div class="topbar-left">
+                <button class="menu-toggle" type="button" aria-label="Abrir menu">☰</button>
+                <h1>Produtos</h1>
+            </div>
+
+            <div class="topbar-right">
+                <div class="topbar-date">
+                    <span class="topbar-icon">▣</span>
+                    <span>13/06/2026</span>
+                </div>
+
+                <div class="notification">
+                    <span class="topbar-icon">🔔</span>
+                    <span class="notification-badge">0</span>
+                </div>
+
+                <div class="user-profile">
+                    <div class="avatar">NS</div>
+                    <div class="user-info">
+                        <strong>Netto Santana</strong>
+                        <span>Administrador</span>
+                    </div>
+                    <span class="profile-arrow">⌄</span>
+                </div>
+            </div>
+        </header>
+
+        {% set produtos_lista = produtos|default([]) %}
+        {% set resumo = namespace(ativos=0, pendentes=0) %}
+        {% for produto in produtos_lista %}
+            {% if produto.status == "ativo" %}
+                {% set resumo.ativos = resumo.ativos + 1 %}
+            {% endif %}
+            {% if produto.status == "pendente" %}
+                {% set resumo.pendentes = resumo.pendentes + 1 %}
+            {% endif %}
+        {% endfor %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Cadastros</span>
+                    <h3 class="page-title">Produtos</h3>
+                    <p class="page-subtitle">Controle os produtos, códigos, categorias, estoque, custos, venda e status de cadastro do GESTFLOW.</p>
+                </div>
+
+                <a href="#form-novo-produto" class="btn-primary-green">+ Novo Produto</a>
+            </div>
+        </section>
+
+        <section class="cards cards-secondary page-section">
+            <div class="card stat-card">
+                <div class="card-icon">☷</div>
+                <div class="card-info">
+                    <p>{{ produtos_lista|length }}</p>
+                    <h3>Total de produtos</h3>
+                    <span>{% if produtos_lista|length == 1 %}1 produto cadastrado{% elif produtos_lista|length > 1 %}{{ produtos_lista|length }} produtos cadastrados{% else %}Nenhum produto cadastrado{% endif %}</span>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="card-icon">✓</div>
+                <div class="card-info">
+                    <p>{{ resumo.ativos }}</p>
+                    <h3>Produtos ativos</h3>
+                    <span>{% if resumo.ativos == 1 %}1 produto ativo{% elif resumo.ativos > 1 %}{{ resumo.ativos }} produtos ativos{% else %}Aguardando cadastro{% endif %}</span>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="card-icon">!</div>
+                <div class="card-info">
+                    <p>{{ resumo.pendentes }}</p>
+                    <h3>Pendências</h3>
+                    <span>{% if resumo.pendentes == 1 %}1 cadastro pendente{% elif resumo.pendentes > 1 %}{{ resumo.pendentes }} cadastros pendentes{% else %}Nenhuma pendência{% endif %}</span>
+                </div>
+            </div>
+        </section>
+
+        <section id="form-novo-produto" class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Novo produto</h3>
+                    <p class="page-subtitle">Preencha os dados principais para preparar o cadastro do produto.</p>
+                </div>
+
+                <span class="badge-info">Cadastro inicial</span>
+            </div>
+
+            <form action="/produtos" method="post" class="client-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="produto_nome">Nome do produto</label>
+                        <input id="produto_nome" name="produto_nome" type="text" placeholder="Ex: Cabo flexível 2,5mm" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="produto_codigo">Código interno</label>
+                        <input id="produto_codigo" name="produto_codigo" type="text" placeholder="Ex: PROD-001" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="produto_categoria">Categoria</label>
+                        <select id="produto_categoria" name="produto_categoria" class="form-control">
+                            <option value="">Selecione</option>
+                            <option value="Material elétrico">Material elétrico</option>
+                            <option value="Material mecânico">Material mecânico</option>
+                            <option value="Ferramentas">Ferramentas</option>
+                            <option value="EPI">EPI</option>
+                            <option value="Consumíveis">Consumíveis</option>
+                            <option value="Serviços aplicados">Serviços aplicados</option>
+                            <option value="Outros">Outros</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="produto_unidade">Unidade</label>
+                        <select id="produto_unidade" name="produto_unidade" class="form-control">
+                            <option value="">Selecione</option>
+                            <option value="Unidade">Unidade</option>
+                            <option value="Peça">Peça</option>
+                            <option value="Metro">Metro</option>
+                            <option value="Kg">Kg</option>
+                            <option value="Litro">Litro</option>
+                            <option value="Caixa">Caixa</option>
+                            <option value="Pacote">Pacote</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="produto_estoque_atual">Estoque atual</label>
+                        <input id="produto_estoque_atual" name="produto_estoque_atual" type="text" placeholder="Ex: 10" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="produto_estoque_minimo">Estoque mínimo</label>
+                        <input id="produto_estoque_minimo" name="produto_estoque_minimo" type="text" placeholder="Ex: 3" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="produto_preco_custo">Preço de custo</label>
+                        <input id="produto_preco_custo" name="produto_preco_custo" type="text" placeholder="Ex: 25,00" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="produto_preco_venda">Preço de venda</label>
+                        <input id="produto_preco_venda" name="produto_preco_venda" type="text" placeholder="Ex: 39,90" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="produto_status">Status</label>
+                        <select id="produto_status" name="produto_status" class="form-control">
+                            <option value="ativo">Ativo</option>
+                            <option value="inativo">Inativo</option>
+                            <option value="pendente">Pendente</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="produto_observacoes">Observações</label>
+                        <input id="produto_observacoes" name="produto_observacoes" type="text" placeholder="Ex: Fornecedor, aplicação ou observação" class="form-control">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="reset" class="btn-light">Cancelar</button>
+                    <button type="submit" class="btn-primary-green">Salvar Produto</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="panel table-panel">
+
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Lista de produtos</h3>
+                    <p class="page-subtitle">Pesquise, visualize e mantenha os produtos cadastrados.</p>
+                </div>
+
+                <div class="client-toolbar">
+                    <button type="button" class="btn-light">Exportar</button>
+                    <button type="button" class="btn-light">Filtros</button>
+                </div>
+            </div>
+
+            <div class="client-actions">
+                <input type="text" placeholder="Buscar por nome, código, categoria ou status" class="client-search">
+                <button type="button" class="btn-dark">Buscar</button>
+            </div>
+
+            <div class="table-shell">
+                <table class="client-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Produto</th>
+                            <th>Código interno</th>
+                            <th>Categoria</th>
+                            <th>Unidade</th>
+                            <th>Estoque</th>
+                            <th>Preço venda</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if produtos_lista %}
+                            {% for produto in produtos_lista %}
+                                <tr>
+                                    <td>{{ produto.id }}</td>
+                                    <td>{{ produto.nome }}</td>
+                                    <td>{{ produto.codigo }}</td>
+                                    <td>{{ produto.categoria }}</td>
+                                    <td>{{ produto.unidade }}</td>
+                                    <td>{{ produto.estoque_atual }}</td>
+                                    <td>{{ produto.preco_venda }}</td>
+                                    <td>
+                                        <span class="status-pill {{ produto.status }}">
+                                            {{ produto.status }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <a href="/produtos/{{ produto.id }}" title="Ver produto" aria-label="Ver produto" class="action-button view">🔍</a>
+                                            <a href="/produtos/{{ produto.id }}/editar" title="Editar produto" aria-label="Editar produto" class="action-button edit">✎</a>
+                                            <form action="/produtos/{{ produto.id }}/excluir" method="post" onsubmit="return confirm('Tem certeza que deseja excluir este produto?');" class="action-form">
+                                                <button type="submit" title="Excluir produto" aria-label="Excluir produto" class="action-button delete">×</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="9" class="empty-table empty-table-box">
+                                    <div class="empty-table-content">
+                                        <div class="empty-table-icon">☷</div>
+                                        <strong>Nenhum produto cadastrado.</strong>
+                                        <span>Use o botão Novo Produto para iniciar o cadastro.</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+        </section>
+
+    </main>
+
+</body>
+</html>
