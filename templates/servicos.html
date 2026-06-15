@@ -1,0 +1,436 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\servicos.html
+Último recode: 2026-06-13 19:52 (America/Bahia)
+Motivo: Criar tela principal de serviços com cadastro, listagem, status e ações Ver, Editar e Excluir.
+-->
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Serviços</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+
+    <aside class="sidebar">
+
+        <div class="brand">
+            <div class="brand-mark">GF</div>
+            <h2>GESTFLOW</h2>
+        </div>
+
+        <nav class="sidebar-nav">
+            <ul class="menu">
+
+                <li class="menu-item">
+                    <a href="/">
+                        <span class="menu-icon">⌂</span>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">☷</span>
+                                <span>Cadastros</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/clientes">Clientes</a></li>
+                            <li><a href="/fornecedores">Fornecedores</a></li>
+                            <li><a href="/funcionarios">Funcionários</a></li>
+                            <li>Veículos</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">□</span>
+                                <span>Produtos</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/produtos">Gerenciar produtos</a></li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details open>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">⚙</span>
+                                <span>Serviços</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li class="submenu-active"><a href="/servicos">Gerenciar serviços</a></li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▣</span>
+                                <span>Orçamentos</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Produtos</li>
+                            <li>Serviços</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▤</span>
+                                <span>Vendas</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Produtos</li>
+                            <li>Serviços</li>
+                            <li>Balcão</li>
+                            <li>Devoluções</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">✚</span>
+                                <span>Ordens de Serviço</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Gerenciar O.S.</li>
+                            <li>Painel</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▧</span>
+                                <span>Estoque</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Movimentações</li>
+                            <li>Ajustes</li>
+                            <li>Transferências</li>
+                            <li>Cotações</li>
+                            <li>Compras</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">◈</span>
+                                <span>Financeiro</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Contas a pagar</li>
+                            <li>Contas a receber</li>
+                            <li>Fluxo de caixa</li>
+                            <li>Contas bancárias</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+            </ul>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="footer-item">⚙ Configurações</div>
+            <div class="footer-item">? Ajuda</div>
+        </div>
+
+    </aside>
+
+    <main class="content">
+
+        <header class="topbar">
+            <div class="topbar-left">
+                <button class="menu-toggle" type="button" aria-label="Abrir menu">☰</button>
+                <h1>Serviços</h1>
+            </div>
+
+            <div class="topbar-right">
+                <div class="topbar-date">
+                    <span class="topbar-icon">▣</span>
+                    <span>13/06/2026</span>
+                </div>
+
+                <div class="notification">
+                    <span class="topbar-icon">🔔</span>
+                    <span class="notification-badge">0</span>
+                </div>
+
+                <div class="user-profile">
+                    <div class="avatar">NS</div>
+                    <div class="user-info">
+                        <strong>Netto Santana</strong>
+                        <span>Administrador</span>
+                    </div>
+                    <span class="profile-arrow">⌄</span>
+                </div>
+            </div>
+        </header>
+
+        {% set servicos_lista = servicos|default([]) %}
+        {% set resumo = namespace(ativos=0, pendentes=0) %}
+        {% for servico in servicos_lista %}
+            {% if servico.status == "ativo" %}
+                {% set resumo.ativos = resumo.ativos + 1 %}
+            {% endif %}
+            {% if servico.status == "pendente" %}
+                {% set resumo.pendentes = resumo.pendentes + 1 %}
+            {% endif %}
+        {% endfor %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Serviços</span>
+                    <h3 class="page-title">Serviços</h3>
+                    <p class="page-subtitle">Controle os serviços, códigos, categorias, custos, valores de venda, prazos e status de cadastro do GESTFLOW.</p>
+                </div>
+
+                <a href="#form-novo-servico" class="btn-primary-green">+ Novo Serviço</a>
+            </div>
+        </section>
+
+        <section class="cards cards-secondary page-section">
+            <div class="card stat-card">
+                <div class="card-icon">⚙</div>
+                <div class="card-info">
+                    <p>{{ servicos_lista|length }}</p>
+                    <h3>Total de serviços</h3>
+                    <span>{% if servicos_lista|length == 1 %}1 serviço cadastrado{% elif servicos_lista|length > 1 %}{{ servicos_lista|length }} serviços cadastrados{% else %}Nenhum serviço cadastrado{% endif %}</span>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="card-icon">✓</div>
+                <div class="card-info">
+                    <p>{{ resumo.ativos }}</p>
+                    <h3>Serviços ativos</h3>
+                    <span>{% if resumo.ativos == 1 %}1 serviço ativo{% elif resumo.ativos > 1 %}{{ resumo.ativos }} serviços ativos{% else %}Aguardando cadastro{% endif %}</span>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="card-icon">!</div>
+                <div class="card-info">
+                    <p>{{ resumo.pendentes }}</p>
+                    <h3>Pendências</h3>
+                    <span>{% if resumo.pendentes == 1 %}1 cadastro pendente{% elif resumo.pendentes > 1 %}{{ resumo.pendentes }} cadastros pendentes{% else %}Nenhuma pendência{% endif %}</span>
+                </div>
+            </div>
+        </section>
+
+        <section id="form-novo-servico" class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Novo serviço</h3>
+                    <p class="page-subtitle">Preencha os dados principais para preparar o cadastro do serviço.</p>
+                </div>
+
+                <span class="badge-info">Cadastro inicial</span>
+            </div>
+
+            <form action="/servicos" method="post" class="client-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="servico_nome">Nome do serviço</label>
+                        <input id="servico_nome" name="servico_nome" type="text" placeholder="Ex: Manutenção preventiva" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="servico_codigo">Código interno</label>
+                        <input id="servico_codigo" name="servico_codigo" type="text" placeholder="Ex: SERV-001" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="servico_categoria">Categoria</label>
+                        <select id="servico_categoria" name="servico_categoria" class="form-control">
+                            <option value="">Selecione</option>
+                            <option value="Elétrica">Elétrica</option>
+                            <option value="Mecânica">Mecânica</option>
+                            <option value="Automação">Automação</option>
+                            <option value="Caldeiraria">Caldeiraria</option>
+                            <option value="Solda">Solda</option>
+                            <option value="Inspeção">Inspeção</option>
+                            <option value="Projetos">Projetos</option>
+                            <option value="Outros">Outros</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="servico_unidade">Unidade</label>
+                        <select id="servico_unidade" name="servico_unidade" class="form-control">
+                            <option value="">Selecione</option>
+                            <option value="Serviço">Serviço</option>
+                            <option value="Hora">Hora</option>
+                            <option value="Diária">Diária</option>
+                            <option value="Projeto">Projeto</option>
+                            <option value="Unidade">Unidade</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="servico_custo">Custo</label>
+                        <input id="servico_custo" name="servico_custo" type="text" placeholder="Ex: 150,00" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="servico_valor_venda">Valor de venda</label>
+                        <input id="servico_valor_venda" name="servico_valor_venda" type="text" placeholder="Ex: 280,00" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="servico_tempo_estimado">Tempo estimado</label>
+                        <input id="servico_tempo_estimado" name="servico_tempo_estimado" type="text" placeholder="Ex: 4 horas" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="servico_status">Status</label>
+                        <select id="servico_status" name="servico_status" class="form-control">
+                            <option value="ativo">Ativo</option>
+                            <option value="inativo">Inativo</option>
+                            <option value="pendente">Pendente</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="servico_observacoes">Observações</label>
+                        <input id="servico_observacoes" name="servico_observacoes" type="text" placeholder="Ex: Escopo, aplicação ou observação" class="form-control">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="reset" class="btn-light">Cancelar</button>
+                    <button type="submit" class="btn-primary-green">Salvar Serviço</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="panel table-panel">
+
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Lista de serviços</h3>
+                    <p class="page-subtitle">Pesquise, visualize e mantenha os serviços cadastrados.</p>
+                </div>
+
+                <div class="client-toolbar">
+                    <button type="button" class="btn-light">Exportar</button>
+                    <button type="button" class="btn-light">Filtros</button>
+                </div>
+            </div>
+
+            <div class="client-actions">
+                <input type="text" placeholder="Buscar por nome, código, categoria ou status" class="client-search">
+                <button type="button" class="btn-dark">Buscar</button>
+            </div>
+
+            <div class="table-shell">
+                <table class="client-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Serviço</th>
+                            <th>Código interno</th>
+                            <th>Categoria</th>
+                            <th>Unidade</th>
+                            <th>Custo</th>
+                            <th>Valor venda</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if servicos_lista %}
+                            {% for servico in servicos_lista %}
+                                <tr>
+                                    <td>{{ servico.id }}</td>
+                                    <td>{{ servico.nome }}</td>
+                                    <td>{{ servico.codigo }}</td>
+                                    <td>{{ servico.categoria }}</td>
+                                    <td>{{ servico.unidade }}</td>
+                                    <td>{{ servico.custo }}</td>
+                                    <td>{{ servico.valor_venda }}</td>
+                                    <td>
+                                        <span class="status-pill {{ servico.status }}">
+                                            {{ servico.status }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <a href="/servicos/{{ servico.id }}" title="Ver serviço" aria-label="Ver serviço" class="action-button view">🔍</a>
+                                            <a href="/servicos/{{ servico.id }}/editar" title="Editar serviço" aria-label="Editar serviço" class="action-button edit">✎</a>
+                                            <form action="/servicos/{{ servico.id }}/excluir" method="post" onsubmit="return confirm('Tem certeza que deseja excluir este serviço?');" class="action-form">
+                                                <button type="submit" title="Excluir serviço" aria-label="Excluir serviço" class="action-button delete">×</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="9" class="empty-table empty-table-box">
+                                    <div class="empty-table-content">
+                                        <div class="empty-table-icon">⚙</div>
+                                        <strong>Nenhum serviço cadastrado.</strong>
+                                        <span>Use o botão Novo Serviço para iniciar o cadastro.</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+        </section></section>
+
+    </main>
+
+</body>
+</html>
