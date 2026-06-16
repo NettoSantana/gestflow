@@ -1,9 +1,7 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-13 23:15 (America/Bahia)
-# Motivo: Adicionar somente no app.py a rota Gerar Cópia para duplicar orçamento com novo número,
-#         mantendo Dashboard (/), Clientes (/clientes), Fornecedores (/fornecedores),
-#         Funcionários (/funcionarios), Produtos (/produtos), Serviços (/servicos),
-#         SQLite, visualização, edição, exclusão, healthcheck (/health) e webhook Twilio (/bot) ativos.
+# Último recode: 2026-06-16 19:52 (America/Bahia)
+# Motivo: Criar base inicial do módulo Vendas com tabelas vendas e venda_itens,
+#         funções de cadastro/listagem e rotas GET/POST /vendas, sem alterar os módulos existentes.
 
 from __future__ import annotations
 
@@ -157,6 +155,48 @@ def iniciar_banco() -> None:
                 subtotal TEXT,
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (orcamento_id) REFERENCES orcamentos (id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS vendas (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                numero TEXT,
+                cliente TEXT,
+                responsavel TEXT,
+                data TEXT,
+                prazo_entrega TEXT,
+                canal_venda TEXT,
+                centro_custo TEXT,
+                tipo TEXT NOT NULL DEFAULT 'misto',
+                status TEXT NOT NULL DEFAULT 'aberta',
+                total_produtos TEXT,
+                total_servicos TEXT,
+                desconto_valor TEXT,
+                desconto_percentual TEXT,
+                valor_total TEXT,
+                forma_pagamento TEXT,
+                observacoes TEXT,
+                observacoes_internas TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS venda_itens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                venda_id INTEGER NOT NULL,
+                tipo_item TEXT NOT NULL DEFAULT 'produto',
+                descricao TEXT,
+                detalhes TEXT,
+                quantidade TEXT,
+                valor_unitario TEXT,
+                desconto TEXT,
+                subtotal TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (venda_id) REFERENCES vendas (id)
             )
             """
         )
@@ -1195,6 +1235,192 @@ def copiar_orcamento_db(orcamento_id: int) -> int | None:
     return salvar_orcamento_db(novo_orcamento, novos_itens)
 
 
+def proximo_numero_venda() -> str:
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                COALESCE(MAX(id), 0) + 1 AS proximo
+            FROM vendas
+            """
+        ).fetchone()
+
+    proximo = 1 if row is None else int(row["proximo"])
+    return str(proximo).zfill(4)
+
+
+def salvar_venda_db(venda: dict[str, str], itens: list[dict[str, str]]) -> int:
+    with conectar_db() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO vendas (
+                numero,
+                cliente,
+                responsavel,
+                data,
+                prazo_entrega,
+                canal_venda,
+                centro_custo,
+                tipo,
+                status,
+                total_produtos,
+                total_servicos,
+                desconto_valor,
+                desconto_percentual,
+                valor_total,
+                forma_pagamento,
+                observacoes,
+                observacoes_internas
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                venda["numero"],
+                venda["cliente"],
+                venda["responsavel"],
+                venda["data"],
+                venda["prazo_entrega"],
+                venda["canal_venda"],
+                venda["centro_custo"],
+                venda["tipo"],
+                venda["status"],
+                venda["total_produtos"],
+                venda["total_servicos"],
+                venda["desconto_valor"],
+                venda["desconto_percentual"],
+                venda["valor_total"],
+                venda["forma_pagamento"],
+                venda["observacoes"],
+                venda["observacoes_internas"],
+            ),
+        )
+        venda_id = int(cursor.lastrowid)
+
+        for item in itens:
+            if not item["descricao"]:
+                continue
+
+            conn.execute(
+                """
+                INSERT INTO venda_itens (
+                    venda_id,
+                    tipo_item,
+                    descricao,
+                    detalhes,
+                    quantidade,
+                    valor_unitario,
+                    desconto,
+                    subtotal
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    venda_id,
+                    item["tipo_item"],
+                    item["descricao"],
+                    item["detalhes"],
+                    item["quantidade"],
+                    item["valor_unitario"],
+                    item["desconto"],
+                    item["subtotal"],
+                ),
+            )
+
+        conn.commit()
+
+    return venda_id
+
+
+def listar_vendas() -> list[dict[str, Any]]:
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                id,
+                numero,
+                cliente,
+                responsavel,
+                data,
+                prazo_entrega,
+                canal_venda,
+                centro_custo,
+                tipo,
+                status,
+                total_produtos,
+                total_servicos,
+                desconto_valor,
+                desconto_percentual,
+                valor_total,
+                forma_pagamento,
+                observacoes,
+                observacoes_internas,
+                criado_em
+            FROM vendas
+            ORDER BY id DESC
+            """
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def montar_venda_formulario(numero_padrao: str = "") -> dict[str, str]:
+    return {
+        "numero": (request.form.get("venda_numero") or numero_padrao).strip(),
+        "cliente": (request.form.get("venda_cliente") or "").strip(),
+        "responsavel": (request.form.get("venda_responsavel") or "").strip(),
+        "data": (request.form.get("venda_data") or "").strip(),
+        "prazo_entrega": (request.form.get("venda_prazo_entrega") or "").strip(),
+        "canal_venda": (request.form.get("venda_canal_venda") or "").strip(),
+        "centro_custo": (request.form.get("venda_centro_custo") or "").strip(),
+        "tipo": (request.form.get("venda_tipo") or "misto").strip() or "misto",
+        "status": (request.form.get("venda_status") or "aberta").strip() or "aberta",
+        "total_produtos": (request.form.get("venda_total_produtos") or "0,00").strip(),
+        "total_servicos": (request.form.get("venda_total_servicos") or "0,00").strip(),
+        "desconto_valor": (request.form.get("venda_desconto_valor") or "0,00").strip(),
+        "desconto_percentual": (request.form.get("venda_desconto_percentual") or "0,00").strip(),
+        "valor_total": (request.form.get("venda_valor_total") or "0,00").strip(),
+        "forma_pagamento": (request.form.get("venda_forma_pagamento") or "").strip(),
+        "observacoes": (request.form.get("venda_observacoes") or "").strip(),
+        "observacoes_internas": (request.form.get("venda_observacoes_internas") or "").strip(),
+    }
+
+
+def montar_venda_itens_formulario() -> list[dict[str, str]]:
+    tipos = request.form.getlist("item_tipo")
+    descricoes = request.form.getlist("item_descricao")
+    detalhes = request.form.getlist("item_detalhes")
+    quantidades = request.form.getlist("item_quantidade")
+    valores_unitarios = request.form.getlist("item_valor_unitario")
+    descontos = request.form.getlist("item_desconto")
+    subtotais = request.form.getlist("item_subtotal")
+
+    total_itens = max(
+        len(tipos),
+        len(descricoes),
+        len(detalhes),
+        len(quantidades),
+        len(valores_unitarios),
+        len(descontos),
+        len(subtotais),
+        0,
+    )
+
+    itens: list[dict[str, str]] = []
+
+    for index in range(total_itens):
+        itens.append(
+            {
+                "tipo_item": (tipos[index] if index < len(tipos) else "produto").strip() or "produto",
+                "descricao": (descricoes[index] if index < len(descricoes) else "").strip(),
+                "detalhes": (detalhes[index] if index < len(detalhes) else "").strip(),
+                "quantidade": (quantidades[index] if index < len(quantidades) else "").strip(),
+                "valor_unitario": (valores_unitarios[index] if index < len(valores_unitarios) else "").strip(),
+                "desconto": (descontos[index] if index < len(descontos) else "").strip(),
+                "subtotal": (subtotais[index] if index < len(subtotais) else "").strip(),
+            }
+        )
+
+    return itens
+
+
 @app.get("/")
 def dashboard() -> str:
     return render_template("dashboard.html")
@@ -1595,6 +1821,35 @@ def excluir_servico(servico_id: int) -> Response:
         excluir_servico_db(servico_id)
 
     return redirect(url_for("servicos"))
+
+
+@app.get("/vendas")
+def vendas() -> str:
+    vendas_lista = listar_vendas()
+    clientes_lista = listar_clientes()
+    produtos_lista = listar_produtos()
+    servicos_lista = listar_servicos()
+    proximo_numero = proximo_numero_venda()
+
+    return render_template(
+        "vendas.html",
+        vendas=vendas_lista,
+        clientes=clientes_lista,
+        produtos=produtos_lista,
+        servicos=servicos_lista,
+        proximo_numero=proximo_numero,
+    )
+
+
+@app.post("/vendas")
+def salvar_venda() -> Response:
+    venda = montar_venda_formulario(numero_padrao=proximo_numero_venda())
+    itens = montar_venda_itens_formulario()
+
+    if venda["cliente"] or venda["numero"]:
+        salvar_venda_db(venda, itens)
+
+    return redirect(url_for("vendas"))
 
 
 @app.get("/orcamentos")
