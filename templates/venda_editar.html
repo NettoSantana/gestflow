@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\venda_editar.html
-Último recode: 2026-06-16 20:30 (America/Bahia)
-Motivo: Criar tela de edição de venda com dados gerais, itens incrementais, totais e pagamento.
+Último recode: 2026-06-16 20:34 (America/Bahia)
+Motivo: Corrigir sequência de edição para carregar dados e itens existentes da venda sem sobrescrever conteúdo salvo.
 -->
 
 <!DOCTYPE html>
@@ -86,9 +86,31 @@ Motivo: Criar tela de edição de venda com dados gerais, itens incrementais, to
         </form>
 
         <script>
-            window.opcoesProdutos = [{% for produto in produtos|default([]) %}{ nome: "{{ produto.nome }}", valor: "{{ produto.preco_venda or '' }}" }{% if not loop.last %},{% endif %}{% endfor %}];
-            window.opcoesServicos = [{% for servico in servicos|default([]) %}{ nome: "{{ servico.nome }}", valor: "{{ servico.valor_venda or '' }}" }{% if not loop.last %},{% endif %}{% endfor %}];
-            window.itensIniciais = [{% for item in itens|default([]) %}{ tipo_item: "{{ item.tipo_item }}", descricao: "{{ item.descricao }}", detalhes: "{{ item.detalhes }}", quantidade: "{{ item.quantidade }}", valor_unitario: "{{ item.valor_unitario }}", desconto: "{{ item.desconto }}", subtotal: "{{ item.subtotal }}" }{% if not loop.last %},{% endif %}{% endfor %}];
+            window.opcoesProdutos = [
+                {% for produto in produtos|default([]) %}
+                    { nome: {{ (produto.nome or '')|tojson }}, valor: {{ (produto.preco_venda or '')|tojson }} }{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ];
+
+            window.opcoesServicos = [
+                {% for servico in servicos|default([]) %}
+                    { nome: {{ (servico.nome or '')|tojson }}, valor: {{ (servico.valor_venda or '')|tojson }} }{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ];
+
+            window.itensIniciais = [
+                {% for item in itens|default([]) %}
+                    {
+                        tipo_item: {{ (item.tipo_item or 'produto')|tojson }},
+                        descricao: {{ (item.descricao or '')|tojson }},
+                        detalhes: {{ (item.detalhes or '')|tojson }},
+                        quantidade: {{ (item.quantidade or '')|tojson }},
+                        valor_unitario: {{ (item.valor_unitario or '')|tojson }},
+                        desconto: {{ (item.desconto or '')|tojson }},
+                        subtotal: {{ (item.subtotal or '')|tojson }}
+                    }{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ];
         </script>
         <script>
             function criarLinha(tipo, dados) {
@@ -125,13 +147,16 @@ Motivo: Criar tela de edição de venda com dados gerais, itens incrementais, to
             }
             function carregarItensIniciais() {
                 const itensIniciais = window.itensIniciais || [];
-                if (itensIniciais.length === 0) { adicionarItem("produto"); adicionarItem("servico"); return; }
+                if (itensIniciais.length === 0) {
+                    adicionarItem("produto");
+                    adicionarItem("servico");
+                    return;
+                }
+
                 itensIniciais.forEach(function(item) {
                     const tipo = item.tipo_item === "servico" ? "servico" : "produto";
                     document.getElementById(tipo + "-tbody").appendChild(criarLinha(tipo, item));
                 });
-                if (document.getElementById("produto-tbody").children.length === 0) { adicionarItem("produto"); }
-                if (document.getElementById("servico-tbody").children.length === 0) { adicionarItem("servico"); }
             }
             document.addEventListener("DOMContentLoaded", carregarItensIniciais);
         </script>

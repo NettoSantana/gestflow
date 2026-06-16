@@ -1,7 +1,7 @@
 <!--
-Último recode: 2026-06-16 20:30 (America/Bahia)
-Motivo: Ativar botões de editar e excluir venda na lista, mantendo o menu de ações existente.
-Motivo: Adicionar seta verde de ações na lista de vendas, mantendo as rotas ainda não criadas sem quebra.
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vendas.html
+Último recode: 2026-06-16 20:34 (America/Bahia)
+Motivo: Ativar a lupa azul para abrir detalhes da venda e manter a sequência correta de ações da lista.
 -->
 
 <!DOCTYPE html>
@@ -207,9 +207,9 @@ Motivo: Adicionar seta verde de ações na lista de vendas, mantendo as rotas ai
                         <ul class="submenu">
                             <li class="submenu-active"><a href="/vendas">Produtos</a></li>
                             <li><a href="/vendas">Serviços</a></li>
-                            <li>Balcão</li>
-                            <li>Devoluções</li>
-                            <li>Opções auxiliares</li>
+                            <li><a href="/vendas">Balcão</a></li>
+                            <li><a href="/vendas">Devoluções</a></li>
+                            <li><a href="/vendas">Opções auxiliares</a></li>
                         </ul>
                     </details>
                 </li>
@@ -599,7 +599,7 @@ Motivo: Adicionar seta verde de ações na lista de vendas, mantendo as rotas ai
                                     <td>{{ venda.valor_total }}</td>
                                     <td>
                                         <div class="action-buttons">
-                                            <button type="button" title="Ver venda" aria-label="Ver venda" class="action-button view" disabled>🔍</button>
+                                            <a href="/vendas/{{ venda.id }}" title="Ver venda" aria-label="Ver venda" class="action-button view">🔍</a>
                                             <a href="/vendas/{{ venda.id }}/editar" title="Editar venda" aria-label="Editar venda" class="action-button edit">✎</a>
                                             <form action="/vendas/{{ venda.id }}/excluir" method="post" onsubmit="return confirm('Tem certeza que deseja excluir esta venda?');" class="action-form">
                                                 <button type="submit" title="Excluir venda" aria-label="Excluir venda" class="action-button delete">×</button>
