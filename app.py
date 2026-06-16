@@ -1,9 +1,9 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-13 19:42 (America/Bahia)
-# Motivo: Adicionar base de rotas, funções SQLite e tabela de serviços,
+# Último recode: 2026-06-13 20:18 (America/Bahia)
+# Motivo: Adicionar base de rotas, funções SQLite e tabelas de orçamentos,
 #         mantendo Dashboard (/), Clientes (/clientes), Fornecedores (/fornecedores),
-#         Funcionários (/funcionarios), Produtos (/produtos), SQLite, visualização,
-#         edição, exclusão, healthcheck (/health) e webhook Twilio (/bot) ativos.
+#         Funcionários (/funcionarios), Produtos (/produtos), Serviços (/servicos),
+#         SQLite, visualização, edição, exclusão, healthcheck (/health) e webhook Twilio (/bot) ativos.
 
 from __future__ import annotations
 
@@ -113,6 +113,50 @@ def iniciar_banco() -> None:
                 status TEXT NOT NULL DEFAULT 'ativo',
                 observacoes TEXT,
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS orcamentos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                numero TEXT,
+                cliente TEXT,
+                responsavel TEXT,
+                data TEXT,
+                prazo_entrega TEXT,
+                validade TEXT,
+                canal_venda TEXT,
+                centro_custo TEXT,
+                introducao TEXT,
+                tipo TEXT NOT NULL DEFAULT 'misto',
+                status TEXT NOT NULL DEFAULT 'aberto',
+                total_produtos TEXT,
+                total_servicos TEXT,
+                desconto_valor TEXT,
+                desconto_percentual TEXT,
+                valor_total TEXT,
+                forma_pagamento TEXT,
+                observacoes TEXT,
+                observacoes_internas TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS orcamento_itens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                orcamento_id INTEGER NOT NULL,
+                tipo_item TEXT NOT NULL DEFAULT 'produto',
+                descricao TEXT,
+                detalhes TEXT,
+                quantidade TEXT,
+                valor_unitario TEXT,
+                desconto TEXT,
+                subtotal TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (orcamento_id) REFERENCES orcamentos (id)
             )
             """
         )
@@ -735,6 +779,373 @@ def excluir_servico_db(servico_id: int) -> None:
         conn.commit()
 
 
+def proximo_numero_orcamento() -> str:
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                COALESCE(MAX(id), 0) + 1 AS proximo
+            FROM orcamentos
+            """
+        ).fetchone()
+
+    proximo = 1 if row is None else int(row["proximo"])
+    return str(proximo).zfill(4)
+
+
+def salvar_orcamento_db(orcamento: dict[str, str], itens: list[dict[str, str]]) -> int:
+    with conectar_db() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO orcamentos (
+                numero,
+                cliente,
+                responsavel,
+                data,
+                prazo_entrega,
+                validade,
+                canal_venda,
+                centro_custo,
+                introducao,
+                tipo,
+                status,
+                total_produtos,
+                total_servicos,
+                desconto_valor,
+                desconto_percentual,
+                valor_total,
+                forma_pagamento,
+                observacoes,
+                observacoes_internas
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                orcamento["numero"],
+                orcamento["cliente"],
+                orcamento["responsavel"],
+                orcamento["data"],
+                orcamento["prazo_entrega"],
+                orcamento["validade"],
+                orcamento["canal_venda"],
+                orcamento["centro_custo"],
+                orcamento["introducao"],
+                orcamento["tipo"],
+                orcamento["status"],
+                orcamento["total_produtos"],
+                orcamento["total_servicos"],
+                orcamento["desconto_valor"],
+                orcamento["desconto_percentual"],
+                orcamento["valor_total"],
+                orcamento["forma_pagamento"],
+                orcamento["observacoes"],
+                orcamento["observacoes_internas"],
+            ),
+        )
+        orcamento_id = int(cursor.lastrowid)
+
+        for item in itens:
+            if not item["descricao"]:
+                continue
+
+            conn.execute(
+                """
+                INSERT INTO orcamento_itens (
+                    orcamento_id,
+                    tipo_item,
+                    descricao,
+                    detalhes,
+                    quantidade,
+                    valor_unitario,
+                    desconto,
+                    subtotal
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    orcamento_id,
+                    item["tipo_item"],
+                    item["descricao"],
+                    item["detalhes"],
+                    item["quantidade"],
+                    item["valor_unitario"],
+                    item["desconto"],
+                    item["subtotal"],
+                ),
+            )
+
+        conn.commit()
+
+    return orcamento_id
+
+
+def listar_orcamentos() -> list[dict[str, Any]]:
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                id,
+                numero,
+                cliente,
+                responsavel,
+                data,
+                prazo_entrega,
+                validade,
+                canal_venda,
+                centro_custo,
+                introducao,
+                tipo,
+                status,
+                total_produtos,
+                total_servicos,
+                desconto_valor,
+                desconto_percentual,
+                valor_total,
+                forma_pagamento,
+                observacoes,
+                observacoes_internas,
+                criado_em
+            FROM orcamentos
+            ORDER BY id DESC
+            """
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def buscar_orcamento_por_id(orcamento_id: int) -> dict[str, Any] | None:
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                id,
+                numero,
+                cliente,
+                responsavel,
+                data,
+                prazo_entrega,
+                validade,
+                canal_venda,
+                centro_custo,
+                introducao,
+                tipo,
+                status,
+                total_produtos,
+                total_servicos,
+                desconto_valor,
+                desconto_percentual,
+                valor_total,
+                forma_pagamento,
+                observacoes,
+                observacoes_internas,
+                criado_em
+            FROM orcamentos
+            WHERE id = ?
+            """,
+            (orcamento_id,),
+        ).fetchone()
+
+    if row is None:
+        return None
+
+    return dict(row)
+
+
+def listar_orcamento_itens(orcamento_id: int) -> list[dict[str, Any]]:
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                id,
+                orcamento_id,
+                tipo_item,
+                descricao,
+                detalhes,
+                quantidade,
+                valor_unitario,
+                desconto,
+                subtotal,
+                criado_em
+            FROM orcamento_itens
+            WHERE orcamento_id = ?
+            ORDER BY id ASC
+            """,
+            (orcamento_id,),
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def atualizar_orcamento_db(orcamento_id: int, orcamento: dict[str, str], itens: list[dict[str, str]]) -> None:
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            UPDATE orcamentos
+            SET
+                numero = ?,
+                cliente = ?,
+                responsavel = ?,
+                data = ?,
+                prazo_entrega = ?,
+                validade = ?,
+                canal_venda = ?,
+                centro_custo = ?,
+                introducao = ?,
+                tipo = ?,
+                status = ?,
+                total_produtos = ?,
+                total_servicos = ?,
+                desconto_valor = ?,
+                desconto_percentual = ?,
+                valor_total = ?,
+                forma_pagamento = ?,
+                observacoes = ?,
+                observacoes_internas = ?
+            WHERE id = ?
+            """,
+            (
+                orcamento["numero"],
+                orcamento["cliente"],
+                orcamento["responsavel"],
+                orcamento["data"],
+                orcamento["prazo_entrega"],
+                orcamento["validade"],
+                orcamento["canal_venda"],
+                orcamento["centro_custo"],
+                orcamento["introducao"],
+                orcamento["tipo"],
+                orcamento["status"],
+                orcamento["total_produtos"],
+                orcamento["total_servicos"],
+                orcamento["desconto_valor"],
+                orcamento["desconto_percentual"],
+                orcamento["valor_total"],
+                orcamento["forma_pagamento"],
+                orcamento["observacoes"],
+                orcamento["observacoes_internas"],
+                orcamento_id,
+            ),
+        )
+
+        conn.execute(
+            """
+            DELETE FROM orcamento_itens
+            WHERE orcamento_id = ?
+            """,
+            (orcamento_id,),
+        )
+
+        for item in itens:
+            if not item["descricao"]:
+                continue
+
+            conn.execute(
+                """
+                INSERT INTO orcamento_itens (
+                    orcamento_id,
+                    tipo_item,
+                    descricao,
+                    detalhes,
+                    quantidade,
+                    valor_unitario,
+                    desconto,
+                    subtotal
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    orcamento_id,
+                    item["tipo_item"],
+                    item["descricao"],
+                    item["detalhes"],
+                    item["quantidade"],
+                    item["valor_unitario"],
+                    item["desconto"],
+                    item["subtotal"],
+                ),
+            )
+
+        conn.commit()
+
+
+def excluir_orcamento_db(orcamento_id: int) -> None:
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            DELETE FROM orcamento_itens
+            WHERE orcamento_id = ?
+            """,
+            (orcamento_id,),
+        )
+        conn.execute(
+            """
+            DELETE FROM orcamentos
+            WHERE id = ?
+            """,
+            (orcamento_id,),
+        )
+        conn.commit()
+
+
+def montar_orcamento_formulario(numero_padrao: str = "") -> dict[str, str]:
+    return {
+        "numero": (request.form.get("orcamento_numero") or numero_padrao).strip(),
+        "cliente": (request.form.get("orcamento_cliente") or "").strip(),
+        "responsavel": (request.form.get("orcamento_responsavel") or "").strip(),
+        "data": (request.form.get("orcamento_data") or "").strip(),
+        "prazo_entrega": (request.form.get("orcamento_prazo_entrega") or "").strip(),
+        "validade": (request.form.get("orcamento_validade") or "").strip(),
+        "canal_venda": (request.form.get("orcamento_canal_venda") or "").strip(),
+        "centro_custo": (request.form.get("orcamento_centro_custo") or "").strip(),
+        "introducao": (request.form.get("orcamento_introducao") or "").strip(),
+        "tipo": (request.form.get("orcamento_tipo") or "misto").strip() or "misto",
+        "status": (request.form.get("orcamento_status") or "aberto").strip() or "aberto",
+        "total_produtos": (request.form.get("orcamento_total_produtos") or "0,00").strip(),
+        "total_servicos": (request.form.get("orcamento_total_servicos") or "0,00").strip(),
+        "desconto_valor": (request.form.get("orcamento_desconto_valor") or "0,00").strip(),
+        "desconto_percentual": (request.form.get("orcamento_desconto_percentual") or "0,00").strip(),
+        "valor_total": (request.form.get("orcamento_valor_total") or "0,00").strip(),
+        "forma_pagamento": (request.form.get("orcamento_forma_pagamento") or "").strip(),
+        "observacoes": (request.form.get("orcamento_observacoes") or "").strip(),
+        "observacoes_internas": (request.form.get("orcamento_observacoes_internas") or "").strip(),
+    }
+
+
+def montar_orcamento_itens_formulario() -> list[dict[str, str]]:
+    tipos = request.form.getlist("item_tipo")
+    descricoes = request.form.getlist("item_descricao")
+    detalhes = request.form.getlist("item_detalhes")
+    quantidades = request.form.getlist("item_quantidade")
+    valores_unitarios = request.form.getlist("item_valor_unitario")
+    descontos = request.form.getlist("item_desconto")
+    subtotais = request.form.getlist("item_subtotal")
+
+    total_itens = max(
+        len(tipos),
+        len(descricoes),
+        len(detalhes),
+        len(quantidades),
+        len(valores_unitarios),
+        len(descontos),
+        len(subtotais),
+        0,
+    )
+
+    itens: list[dict[str, str]] = []
+
+    for index in range(total_itens):
+        itens.append(
+            {
+                "tipo_item": (tipos[index] if index < len(tipos) else "produto").strip() or "produto",
+                "descricao": (descricoes[index] if index < len(descricoes) else "").strip(),
+                "detalhes": (detalhes[index] if index < len(detalhes) else "").strip(),
+                "quantidade": (quantidades[index] if index < len(quantidades) else "").strip(),
+                "valor_unitario": (valores_unitarios[index] if index < len(valores_unitarios) else "").strip(),
+                "desconto": (descontos[index] if index < len(descontos) else "").strip(),
+                "subtotal": (subtotais[index] if index < len(subtotais) else "").strip(),
+            }
+        )
+
+    return itens
+
+
 @app.get("/")
 def dashboard() -> str:
     return render_template("dashboard.html")
@@ -1135,6 +1546,94 @@ def excluir_servico(servico_id: int) -> Response:
         excluir_servico_db(servico_id)
 
     return redirect(url_for("servicos"))
+
+
+@app.get("/orcamentos")
+def orcamentos() -> str:
+    orcamentos_lista = listar_orcamentos()
+    clientes_lista = listar_clientes()
+    produtos_lista = listar_produtos()
+    servicos_lista = listar_servicos()
+    proximo_numero = proximo_numero_orcamento()
+
+    return render_template(
+        "orcamentos.html",
+        orcamentos=orcamentos_lista,
+        clientes=clientes_lista,
+        produtos=produtos_lista,
+        servicos=servicos_lista,
+        proximo_numero=proximo_numero,
+    )
+
+
+@app.post("/orcamentos")
+def salvar_orcamento() -> Response:
+    orcamento = montar_orcamento_formulario(numero_padrao=proximo_numero_orcamento())
+    itens = montar_orcamento_itens_formulario()
+
+    if orcamento["cliente"] or orcamento["numero"]:
+        salvar_orcamento_db(orcamento, itens)
+
+    return redirect(url_for("orcamentos"))
+
+
+@app.get("/orcamentos/<int:orcamento_id>")
+def ver_orcamento(orcamento_id: int) -> str | Response:
+    orcamento = buscar_orcamento_por_id(orcamento_id)
+
+    if orcamento is None:
+        return redirect(url_for("orcamentos"))
+
+    itens = listar_orcamento_itens(orcamento_id)
+
+    return render_template("orcamento_detalhe.html", orcamento=orcamento, itens=itens)
+
+
+@app.get("/orcamentos/<int:orcamento_id>/editar")
+def editar_orcamento(orcamento_id: int) -> str | Response:
+    orcamento = buscar_orcamento_por_id(orcamento_id)
+
+    if orcamento is None:
+        return redirect(url_for("orcamentos"))
+
+    itens = listar_orcamento_itens(orcamento_id)
+    clientes_lista = listar_clientes()
+    produtos_lista = listar_produtos()
+    servicos_lista = listar_servicos()
+
+    return render_template(
+        "orcamento_editar.html",
+        orcamento=orcamento,
+        itens=itens,
+        clientes=clientes_lista,
+        produtos=produtos_lista,
+        servicos=servicos_lista,
+    )
+
+
+@app.post("/orcamentos/<int:orcamento_id>/editar")
+def atualizar_orcamento(orcamento_id: int) -> Response:
+    orcamento_atual = buscar_orcamento_por_id(orcamento_id)
+
+    if orcamento_atual is None:
+        return redirect(url_for("orcamentos"))
+
+    orcamento = montar_orcamento_formulario(numero_padrao=str(orcamento_atual["numero"] or ""))
+    itens = montar_orcamento_itens_formulario()
+
+    atualizar_orcamento_db(orcamento_id, orcamento, itens)
+
+    return redirect(url_for("ver_orcamento", orcamento_id=orcamento_id))
+
+
+@app.post("/orcamentos/<int:orcamento_id>/excluir")
+def excluir_orcamento(orcamento_id: int) -> Response:
+    orcamento = buscar_orcamento_por_id(orcamento_id)
+
+    if orcamento is not None:
+        excluir_orcamento_db(orcamento_id)
+
+    return redirect(url_for("orcamentos"))
 
 
 @app.get("/health")
