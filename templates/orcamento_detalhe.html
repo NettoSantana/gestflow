@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_detalhe.html
-Último recode: 2026-06-13 20:44 (America/Bahia)
-Motivo: Ativar links Produtos e Serviços do menu Orçamentos para a rota /orcamentos.
+Último recode: 2026-06-13 22:05 (America/Bahia)
+Motivo: Adicionar menu verde de ações exclusivas do orçamento com Imprimir e Gerar.
 -->
 
 <!DOCTYPE html>
@@ -11,6 +11,108 @@ Motivo: Ativar links Produtos e Serviços do menu Orçamentos para a rota /orcam
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GESTFLOW - Detalhes do Orçamento</title>
     <link rel="stylesheet" href="/static/css/dashboard.css">
+
+    <style>
+        .budget-action-menu {
+            position: relative;
+            display: inline-block;
+        }
+
+        .budget-action-trigger {
+            list-style: none;
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            background: #16a34a;
+            color: #ffffff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-weight: 800;
+            border: none;
+            box-shadow: 0 8px 18px rgba(22, 163, 74, 0.20);
+            user-select: none;
+        }
+
+        .budget-action-trigger::-webkit-details-marker {
+            display: none;
+        }
+
+        .budget-action-trigger::marker {
+            content: "";
+        }
+
+        .budget-action-panel {
+            position: fixed;
+            z-index: 9999;
+            min-width: 190px;
+            background: #ffffff;
+            border: 1px solid #d8dee8;
+            border-radius: 10px;
+            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.20);
+            padding: 6px;
+            display: none;
+        }
+
+        .budget-action-dropdown[open] .budget-action-panel {
+            display: block;
+        }
+
+        .budget-action-submenu {
+            border-radius: 8px;
+        }
+
+        .budget-action-submenu summary,
+        .budget-action-panel a {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 10px;
+            color: #1f2937;
+            text-decoration: none;
+            font-size: 13px;
+            cursor: pointer;
+            border-radius: 8px;
+            white-space: nowrap;
+        }
+
+        .budget-action-submenu summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .budget-action-submenu summary::marker {
+            content: "";
+        }
+
+        .budget-action-submenu summary::after {
+            content: "›";
+            margin-left: auto;
+            font-weight: 800;
+        }
+
+        .budget-action-submenu summary:hover,
+        .budget-action-panel a:hover {
+            background: #f1f5f9;
+        }
+
+        .budget-action-submenu[open] summary {
+            background: #0f172a;
+            color: #ffffff;
+        }
+
+        .budget-action-subitems {
+            padding-left: 10px;
+            border-left: 2px solid #e5e7eb;
+            margin-left: 12px;
+        }
+
+        .budget-action-row {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+    </style>
 </head>
 <body>
 
@@ -45,8 +147,97 @@ Motivo: Ativar links Produtos e Serviços do menu Orçamentos para a rota /orcam
 
         <section class="panel page-section"><div class="panel-header page-header"><div><span class="page-kicker">Orçamentos</span><h3 class="page-title">Detalhes do orçamento</h3><p class="page-subtitle">Visualize os dados principais, itens e totais do orçamento.</p></div><a href="/orcamentos" class="btn-dark">Voltar para Orçamentos</a></div></section>
         <section class="panel page-section"><div class="panel-header page-header"><div><h3>Orçamento {{ orcamento.numero or orcamento.id }}</h3><p class="page-subtitle">Cliente: {{ orcamento.cliente or '-' }}</p></div><span class="status-pill {{ orcamento.status }}">{{ orcamento.status }}</span></div><div class="panel-summary"><div><span>Número</span><strong>{{ orcamento.numero or '-' }}</strong></div><div><span>Cliente</span><strong>{{ orcamento.cliente or '-' }}</strong></div><div><span>Responsável</span><strong>{{ orcamento.responsavel or '-' }}</strong></div><div><span>Data</span><strong>{{ orcamento.data or '-' }}</strong></div><div><span>Prazo de entrega</span><strong>{{ orcamento.prazo_entrega or '-' }}</strong></div><div><span>Validade</span><strong>{{ orcamento.validade or '-' }}</strong></div><div><span>Tipo</span><strong>{{ orcamento.tipo or '-' }}</strong></div><div><span>Canal de venda</span><strong>{{ orcamento.canal_venda or '-' }}</strong></div><div><span>Centro de custo</span><strong>{{ orcamento.centro_custo or '-' }}</strong></div><div><span>Forma de pagamento</span><strong>{{ orcamento.forma_pagamento or '-' }}</strong></div></div></section>
-        <section class="panel table-panel"><div class="panel-header page-header"><div><h3>Itens do orçamento</h3><p class="page-subtitle">Produtos e serviços incluídos neste orçamento.</p></div><a href="/orcamentos/{{ orcamento.id }}/editar" class="btn-primary-green">Editar Orçamento</a></div><div class="table-shell"><table class="client-table"><thead><tr><th>Tipo</th><th>Descrição</th><th>Detalhes</th><th>Qtd</th><th>Valor unit.</th><th>Desconto</th><th>Subtotal</th></tr></thead><tbody>{% if itens %}{% for item in itens %}<tr><td>{{ item.tipo_item }}</td><td>{{ item.descricao }}</td><td>{{ item.detalhes }}</td><td>{{ item.quantidade }}</td><td>{{ item.valor_unitario }}</td><td>{{ item.desconto }}</td><td>{{ item.subtotal }}</td></tr>{% endfor %}{% else %}<tr><td colspan="7" class="empty-table">Nenhum item informado.</td></tr>{% endif %}</tbody></table></div></section>
+        <section class="panel table-panel"><div class="panel-header page-header"><div><h3>Itens do orçamento</h3><p class="page-subtitle">Produtos e serviços incluídos neste orçamento.</p></div><div class="budget-action-row">
+                    <a href="/orcamentos/{{ orcamento.id }}/editar" class="btn-primary-green">Editar Orçamento</a>
+                    <div class="budget-action-menu">
+                                                    <details class="budget-action-dropdown">
+                                                        <summary class="budget-action-trigger" title="Mais ações do orçamento" aria-label="Mais ações do orçamento">⌄</summary>
+                                                        <div class="budget-action-panel">
+                                                            <details class="budget-action-submenu">
+                                                                <summary>🖨 Imprimir</summary>
+                                                                <div class="budget-action-subitems">
+                                                                    <a href="/orcamentos/{{ orcamento.id }}?impressao=a4">A4</a>
+                                                                    <a href="/orcamentos/{{ orcamento.id }}?impressao=cupom">Cupom</a>
+                                                                </div>
+                                                            </details>
+
+                                                            <details class="budget-action-submenu">
+                                                                <summary>↻ Gerar</summary>
+                                                                <div class="budget-action-subitems">
+                                                                    <a href="/orcamentos/{{ orcamento.id }}?gerar=copia">Cópia</a>
+                                                                    <a href="/orcamentos/{{ orcamento.id }}?gerar=venda">Venda</a>
+                                                                    <a href="/orcamentos/{{ orcamento.id }}?gerar=os">OS</a>
+                                                                </div>
+                                                            </details>
+                                                        </div>
+                                                    </details>
+                                                </div>
+                </div></div><div class="table-shell"><table class="client-table"><thead><tr><th>Tipo</th><th>Descrição</th><th>Detalhes</th><th>Qtd</th><th>Valor unit.</th><th>Desconto</th><th>Subtotal</th></tr></thead><tbody>{% if itens %}{% for item in itens %}<tr><td>{{ item.tipo_item }}</td><td>{{ item.descricao }}</td><td>{{ item.detalhes }}</td><td>{{ item.quantidade }}</td><td>{{ item.valor_unitario }}</td><td>{{ item.desconto }}</td><td>{{ item.subtotal }}</td></tr>{% endfor %}{% else %}<tr><td colspan="7" class="empty-table">Nenhum item informado.</td></tr>{% endif %}</tbody></table></div></section>
         <section class="panel page-section"><div class="panel-header page-header"><div><h3>Totais e observações</h3><p class="page-subtitle">Resumo financeiro e informações complementares.</p></div></div><div class="panel-summary"><div><span>Total produtos</span><strong>{{ orcamento.total_produtos or '0,00' }}</strong></div><div><span>Total serviços</span><strong>{{ orcamento.total_servicos or '0,00' }}</strong></div><div><span>Desconto R$</span><strong>{{ orcamento.desconto_valor or '0,00' }}</strong></div><div><span>Desconto %</span><strong>{{ orcamento.desconto_percentual or '0' }}</strong></div><div><span>Valor total</span><strong>{{ orcamento.valor_total or '0,00' }}</strong></div><div><span>Introdução</span><strong>{{ orcamento.introducao or '-' }}</strong></div><div><span>Observações</span><strong>{{ orcamento.observacoes or '-' }}</strong></div><div><span>Observações internas</span><strong>{{ orcamento.observacoes_internas or '-' }}</strong></div><div><span>Data de cadastro</span><strong>{{ orcamento.criado_em or '-' }}</strong></div></div></section>
+
+        <script>
+            function posicionarMenuOrcamento(menu) {
+                const trigger = menu.querySelector(".budget-action-trigger");
+                const panel = menu.querySelector(".budget-action-panel");
+
+                if (!trigger || !panel) {
+                    return;
+                }
+
+                const rect = trigger.getBoundingClientRect();
+                const largura = 190;
+                const margem = 8;
+                let left = rect.right - largura;
+
+                if (left < margem) {
+                    left = margem;
+                }
+
+                if (left + largura > window.innerWidth - margem) {
+                    left = window.innerWidth - largura - margem;
+                }
+
+                panel.style.top = (rect.bottom + margem) + "px";
+                panel.style.left = left + "px";
+            }
+
+            document.addEventListener("toggle", function(event) {
+                const menu = event.target;
+
+                if (!menu.classList || !menu.classList.contains("budget-action-dropdown")) {
+                    return;
+                }
+
+                if (menu.open) {
+                    document.querySelectorAll(".budget-action-dropdown[open]").forEach(function(outroMenu) {
+                        if (outroMenu !== menu) {
+                            outroMenu.removeAttribute("open");
+                        }
+                    });
+
+                    posicionarMenuOrcamento(menu);
+                }
+            }, true);
+
+            document.addEventListener("click", function(event) {
+                if (event.target.closest(".budget-action-menu")) {
+                    return;
+                }
+
+                document.querySelectorAll(".budget-action-dropdown[open]").forEach(function(menu) {
+                    menu.removeAttribute("open");
+                });
+            });
+
+            window.addEventListener("scroll", function() {
+                document.querySelectorAll(".budget-action-dropdown[open]").forEach(posicionarMenuOrcamento);
+            }, true);
+
+            window.addEventListener("resize", function() {
+                document.querySelectorAll(".budget-action-dropdown[open]").forEach(posicionarMenuOrcamento);
+            });
+        </script>
+
 
     </main>
 
