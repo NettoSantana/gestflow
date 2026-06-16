@@ -1,0 +1,521 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\venda_detalhe.html
+Último recode: 2026-06-16 20:22 (America/Bahia)
+Motivo: Criar tela de visualização de venda com dados gerais, itens, totais e observações.
+-->
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Detalhes da Venda</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+
+    <style>
+        .sale-action-menu {
+            position: relative;
+            display: inline-block;
+        }
+
+        .sale-action-trigger {
+            list-style: none;
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            background: #16a34a;
+            color: #ffffff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-weight: 800;
+            border: none;
+            box-shadow: 0 8px 18px rgba(22, 163, 74, 0.20);
+            user-select: none;
+        }
+
+        .sale-action-trigger::-webkit-details-marker {
+            display: none;
+        }
+
+        .sale-action-trigger::marker {
+            content: "";
+        }
+
+        .sale-action-panel {
+            position: fixed;
+            z-index: 9999;
+            min-width: 190px;
+            background: #ffffff;
+            border: 1px solid #d8dee8;
+            border-radius: 10px;
+            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.20);
+            padding: 6px;
+            display: none;
+        }
+
+        .sale-action-dropdown[open] .sale-action-panel {
+            display: block;
+        }
+
+        .sale-action-submenu {
+            border-radius: 8px;
+        }
+
+        .sale-action-submenu summary,
+        .sale-action-panel a,
+        .sale-action-panel span {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 10px;
+            color: #1f2937;
+            text-decoration: none;
+            font-size: 13px;
+            cursor: pointer;
+            border-radius: 8px;
+            white-space: nowrap;
+        }
+
+        .sale-action-submenu summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .sale-action-submenu summary::marker {
+            content: "";
+        }
+
+        .sale-action-submenu summary::after {
+            content: "›";
+            margin-left: auto;
+            font-weight: 800;
+        }
+
+        .sale-action-submenu summary:hover,
+        .sale-action-panel a:hover,
+        .sale-action-panel span:hover {
+            background: #f1f5f9;
+        }
+
+        .sale-action-submenu[open] summary {
+            background: #0f172a;
+            color: #ffffff;
+        }
+
+        .sale-action-subitems {
+            padding-left: 10px;
+            border-left: 2px solid #e5e7eb;
+            margin-left: 12px;
+        }
+
+        .sale-action-row {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="brand-mark">GF</div>
+            <h2>GESTFLOW</h2>
+        </div>
+
+        <nav class="sidebar-nav">
+            <ul class="menu">
+                <li class="menu-item">
+                    <a href="/">
+                        <span class="menu-icon">⌂</span>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">☷</span>
+                                <span>Cadastros</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/clientes">Clientes</a></li>
+                            <li><a href="/fornecedores">Fornecedores</a></li>
+                            <li><a href="/funcionarios">Funcionários</a></li>
+                            <li>Veículos</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">□</span>
+                                <span>Produtos</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/produtos">Gerenciar produtos</a></li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">⚙</span>
+                                <span>Serviços</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/servicos">Gerenciar serviços</a></li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▣</span>
+                                <span>Orçamentos</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/orcamentos">Produtos</a></li>
+                            <li><a href="/orcamentos">Serviços</a></li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details open>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▤</span>
+                                <span>Vendas</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li class="submenu-active"><a href="/vendas">Produtos</a></li>
+                            <li><a href="/vendas">Serviços</a></li>
+                            <li><a href="/vendas">Balcão</a></li>
+                            <li><a href="/vendas">Devoluções</a></li>
+                            <li><a href="/vendas">Opções auxiliares</a></li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">✚</span>
+                                <span>Ordens de Serviço</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Gerenciar O.S.</li>
+                            <li>Painel</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▧</span>
+                                <span>Estoque</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Movimentações</li>
+                            <li>Ajustes</li>
+                            <li>Transferências</li>
+                            <li>Cotações</li>
+                            <li>Compras</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">◈</span>
+                                <span>Financeiro</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Contas a pagar</li>
+                            <li>Contas a receber</li>
+                            <li>Fluxo de caixa</li>
+                            <li>Contas bancárias</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+            </ul>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="footer-item">⚙ Configurações</div>
+            <div class="footer-item">? Ajuda</div>
+        </div>
+    </aside>
+
+    <main class="content">
+
+        <header class="topbar">
+            <div class="topbar-left">
+                <button class="menu-toggle" type="button" aria-label="Abrir menu">☰</button>
+                <h1>Venda</h1>
+            </div>
+
+            <div class="topbar-right">
+                <div class="topbar-date">
+                    <span class="topbar-icon">▤</span>
+                    <span>16/06/2026</span>
+                </div>
+
+                <div class="notification">
+                    <span class="topbar-icon">🔔</span>
+                    <span class="notification-badge">0</span>
+                </div>
+
+                <div class="user-profile">
+                    <div class="avatar">NS</div>
+                    <div class="user-info">
+                        <strong>Netto Santana</strong>
+                        <span>Administrador</span>
+                    </div>
+                    <span class="profile-arrow">⌄</span>
+                </div>
+            </div>
+        </header>
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Vendas</span>
+                    <h3 class="page-title">Detalhes da venda</h3>
+                    <p class="page-subtitle">Visualize os dados principais, itens, totais e observações da venda.</p>
+                </div>
+
+                <a href="/vendas" class="btn-dark">Voltar para Vendas</a>
+            </div>
+        </section>
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Venda {{ venda.numero or venda.id }}</h3>
+                    <p class="page-subtitle">Cliente: {{ venda.cliente or '-' }}</p>
+                </div>
+
+                <span class="status-pill {{ venda.status }}">{{ venda.status or '-' }}</span>
+            </div>
+
+            <div class="panel-summary">
+                <div><span>Número</span><strong>{{ venda.numero or '-' }}</strong></div>
+                <div><span>Cliente</span><strong>{{ venda.cliente or '-' }}</strong></div>
+                <div><span>Vendedor / responsável</span><strong>{{ venda.responsavel or '-' }}</strong></div>
+                <div><span>Data</span><strong>{{ venda.data or '-' }}</strong></div>
+                <div><span>Prazo de entrega</span><strong>{{ venda.prazo_entrega or '-' }}</strong></div>
+                <div><span>Tipo</span><strong>{{ venda.tipo or '-' }}</strong></div>
+                <div><span>Situação</span><strong>{{ venda.status or '-' }}</strong></div>
+                <div><span>Canal de venda</span><strong>{{ venda.canal_venda or '-' }}</strong></div>
+                <div><span>Centro de custo</span><strong>{{ venda.centro_custo or '-' }}</strong></div>
+                <div><span>Forma de pagamento</span><strong>{{ venda.forma_pagamento or '-' }}</strong></div>
+            </div>
+        </section>
+
+        <section class="panel table-panel">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Itens da venda</h3>
+                    <p class="page-subtitle">Produtos e serviços incluídos nesta venda.</p>
+                </div>
+
+                <div class="sale-action-row">
+                    <span class="btn-primary-green">Editar Venda</span>
+
+                    <div class="sale-action-menu">
+                        <details class="sale-action-dropdown">
+                            <summary class="sale-action-trigger" title="Mais ações da venda" aria-label="Mais ações da venda">⌄</summary>
+                            <div class="sale-action-panel">
+                                <details class="sale-action-submenu">
+                                    <summary>🖨 Imprimir</summary>
+                                    <div class="sale-action-subitems">
+                                        <span>A4</span>
+                                        <span>Cupom</span>
+                                    </div>
+                                </details>
+
+                                <details class="sale-action-submenu">
+                                    <summary>↻ Gerar</summary>
+                                    <div class="sale-action-subitems">
+                                        <span>Cópia</span>
+                                        <span>OS</span>
+                                    </div>
+                                </details>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-shell">
+                <table class="client-table">
+                    <thead>
+                        <tr>
+                            <th>Tipo</th>
+                            <th>Descrição</th>
+                            <th>Detalhes</th>
+                            <th>Qtd</th>
+                            <th>Valor unit.</th>
+                            <th>Desconto</th>
+                            <th>Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if itens %}
+                            {% for item in itens %}
+                                <tr>
+                                    <td>{{ item.tipo_item }}</td>
+                                    <td>{{ item.descricao }}</td>
+                                    <td>{{ item.detalhes }}</td>
+                                    <td>{{ item.quantidade }}</td>
+                                    <td>{{ item.valor_unitario }}</td>
+                                    <td>{{ item.desconto }}</td>
+                                    <td>{{ item.subtotal }}</td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="empty-table">Nenhum item informado.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Totais e observações</h3>
+                    <p class="page-subtitle">Resumo financeiro e informações complementares.</p>
+                </div>
+            </div>
+
+            <div class="panel-summary">
+                <div><span>Total produtos</span><strong>{{ venda.total_produtos or '0,00' }}</strong></div>
+                <div><span>Total serviços</span><strong>{{ venda.total_servicos or '0,00' }}</strong></div>
+                <div><span>Desconto R$</span><strong>{{ venda.desconto_valor or '0,00' }}</strong></div>
+                <div><span>Desconto %</span><strong>{{ venda.desconto_percentual or '0' }}</strong></div>
+                <div><span>Valor total</span><strong>{{ venda.valor_total or '0,00' }}</strong></div>
+                <div><span>Observações</span><strong>{{ venda.observacoes or '-' }}</strong></div>
+                <div><span>Observações internas</span><strong>{{ venda.observacoes_internas or '-' }}</strong></div>
+                <div><span>Data de cadastro</span><strong>{{ venda.criado_em or '-' }}</strong></div>
+            </div>
+        </section>
+
+        <script>
+            function posicionarMenuVenda(menu) {
+                const trigger = menu.querySelector(".sale-action-trigger");
+                const panel = menu.querySelector(".sale-action-panel");
+
+                if (!trigger || !panel) {
+                    return;
+                }
+
+                const rect = trigger.getBoundingClientRect();
+                const largura = 190;
+                const margem = 8;
+                let left = rect.right - largura;
+
+                if (left < margem) {
+                    left = margem;
+                }
+
+                if (left + largura > window.innerWidth - margem) {
+                    left = window.innerWidth - largura - margem;
+                }
+
+                const alturaEstimativa = 210;
+                let top = rect.bottom + margem;
+
+                if (top + alturaEstimativa > window.innerHeight - margem) {
+                    top = rect.top - alturaEstimativa - margem;
+                }
+
+                if (top < margem) {
+                    top = margem;
+                }
+
+                panel.style.top = top + "px";
+                panel.style.left = left + "px";
+            }
+
+            document.addEventListener("toggle", function(event) {
+                const menu = event.target;
+
+                if (!menu.classList || !menu.classList.contains("sale-action-dropdown")) {
+                    return;
+                }
+
+                if (menu.open) {
+                    document.querySelectorAll(".sale-action-dropdown[open]").forEach(function(outroMenu) {
+                        if (outroMenu !== menu) {
+                            outroMenu.removeAttribute("open");
+                        }
+                    });
+
+                    posicionarMenuVenda(menu);
+                }
+            }, true);
+
+            document.addEventListener("click", function(event) {
+                if (event.target.closest(".sale-action-menu")) {
+                    return;
+                }
+
+                document.querySelectorAll(".sale-action-dropdown[open]").forEach(function(menu) {
+                    menu.removeAttribute("open");
+                });
+            });
+
+            window.addEventListener("scroll", function() {
+                document.querySelectorAll(".sale-action-dropdown[open]").forEach(posicionarMenuVenda);
+            }, true);
+
+            window.addEventListener("resize", function() {
+                document.querySelectorAll(".sale-action-dropdown[open]").forEach(posicionarMenuVenda);
+            });
+        </script>
+
+    </main>
+
+</body>
+</html>
