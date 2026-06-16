@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_editar.html
-Último recode: 2026-06-13 20:32 (America/Bahia)
-Motivo: Criar tela de edição de orçamento cadastrado no SQLite.
+Último recode: 2026-06-13 20:44 (America/Bahia)
+Motivo: Ativar links Produtos e Serviços do menu Orçamentos para a rota /orcamentos.
 -->
 
 <!DOCTYPE html>
@@ -22,7 +22,11 @@ Motivo: Criar tela de edição de orçamento cadastrado no SQLite.
                 <li class="menu-group"><details><summary><span class="menu-label"><span class="menu-icon">☷</span><span>Cadastros</span></span><span class="arrow">⌄</span></summary><ul class="submenu"><li><a href="/clientes">Clientes</a></li><li><a href="/fornecedores">Fornecedores</a></li><li><a href="/funcionarios">Funcionários</a></li><li>Veículos</li><li>Opções auxiliares</li></ul></details></li>
                 <li class="menu-group"><details><summary><span class="menu-label"><span class="menu-icon">□</span><span>Produtos</span></span><span class="arrow">⌄</span></summary><ul class="submenu"><li><a href="/produtos">Gerenciar produtos</a></li><li>Opções auxiliares</li></ul></details></li>
                 <li class="menu-group"><details><summary><span class="menu-label"><span class="menu-icon">⚙</span><span>Serviços</span></span><span class="arrow">⌄</span></summary><ul class="submenu"><li><a href="/servicos">Gerenciar serviços</a></li><li>Opções auxiliares</li></ul></details></li>
-                <li class="menu-group"><details open><summary><span class="menu-label"><span class="menu-icon">▣</span><span>Orçamentos</span></span><span class="arrow">⌄</span></summary><ul class="submenu"><li class="submenu-active"><a href="/orcamentos">Produtos</a></li><li><a href="/orcamentos">Serviços</a></li><li>Opções auxiliares</li></ul></details></li>
+                <li class="menu-group"><details open><summary><span class="menu-label"><span class="menu-icon">▣</span><span>Orçamentos</span></span><span class="arrow">⌄</span></summary><ul class="submenu">
+                            <li class="submenu-active"><a href="/orcamentos">Produtos</a></li>
+                            <li><a href="/orcamentos">Serviços</a></li>
+                            <li>Opções auxiliares</li>
+                        </ul></details></li>
                 <li class="menu-group"><details><summary><span class="menu-label"><span class="menu-icon">▤</span><span>Vendas</span></span><span class="arrow">⌄</span></summary><ul class="submenu"><li>Produtos</li><li>Serviços</li><li>Balcão</li><li>Devoluções</li><li>Opções auxiliares</li></ul></details></li>
                 <li class="menu-group"><details><summary><span class="menu-label"><span class="menu-icon">✚</span><span>Ordens de Serviço</span></span><span class="arrow">⌄</span></summary><ul class="submenu"><li>Gerenciar O.S.</li><li>Painel</li><li>Opções auxiliares</li></ul></details></li>
                 <li class="menu-group"><details><summary><span class="menu-label"><span class="menu-icon">▧</span><span>Estoque</span></span><span class="arrow">⌄</span></summary><ul class="submenu"><li>Movimentações</li><li>Ajustes</li><li>Transferências</li><li>Cotações</li><li>Compras</li><li>Opções auxiliares</li></ul></details></li>
