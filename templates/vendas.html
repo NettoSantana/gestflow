@@ -1,0 +1,636 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vendas.html
+Último recode: 2026-06-16 19:55 (America/Bahia)
+Motivo: Criar a tela inicial do módulo Vendas com cadastro, itens incrementais e lista de vendas.
+-->
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Vendas</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+
+    <aside class="sidebar">
+
+        <div class="brand">
+            <div class="brand-mark">GF</div>
+            <h2>GESTFLOW</h2>
+        </div>
+
+        <nav class="sidebar-nav">
+            <ul class="menu">
+
+                <li class="menu-item">
+                    <a href="/">
+                        <span class="menu-icon">⌂</span>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">☷</span>
+                                <span>Cadastros</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/clientes">Clientes</a></li>
+                            <li><a href="/fornecedores">Fornecedores</a></li>
+                            <li><a href="/funcionarios">Funcionários</a></li>
+                            <li>Veículos</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">□</span>
+                                <span>Produtos</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/produtos">Gerenciar produtos</a></li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">⚙</span>
+                                <span>Serviços</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/servicos">Gerenciar serviços</a></li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▣</span>
+                                <span>Orçamentos</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/orcamentos">Produtos</a></li>
+                            <li><a href="/orcamentos">Serviços</a></li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details open>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▤</span>
+                                <span>Vendas</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li class="submenu-active"><a href="/vendas">Produtos</a></li>
+                            <li><a href="/vendas">Serviços</a></li>
+                            <li>Balcão</li>
+                            <li>Devoluções</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">✚</span>
+                                <span>Ordens de Serviço</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Gerenciar O.S.</li>
+                            <li>Painel</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▧</span>
+                                <span>Estoque</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Movimentações</li>
+                            <li>Ajustes</li>
+                            <li>Transferências</li>
+                            <li>Cotações</li>
+                            <li>Compras</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">◈</span>
+                                <span>Financeiro</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Contas a pagar</li>
+                            <li>Contas a receber</li>
+                            <li>Fluxo de caixa</li>
+                            <li>Contas bancárias</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+            </ul>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="footer-item">⚙ Configurações</div>
+            <div class="footer-item">? Ajuda</div>
+        </div>
+
+    </aside>
+
+    <main class="content vendas-page">
+
+        <header class="topbar">
+            <div class="topbar-left">
+                <button class="menu-toggle" type="button" aria-label="Abrir menu">☰</button>
+                <h1>Vendas</h1>
+            </div>
+
+            <div class="topbar-right">
+                <div class="topbar-date">
+                    <span class="topbar-icon">▤</span>
+                    <span>16/06/2026</span>
+                </div>
+
+                <div class="notification">
+                    <span class="topbar-icon">🔔</span>
+                    <span class="notification-badge">0</span>
+                </div>
+
+                <div class="user-profile">
+                    <div class="avatar">NS</div>
+                    <div class="user-info">
+                        <strong>Netto Santana</strong>
+                        <span>Administrador</span>
+                    </div>
+                    <span class="profile-arrow">⌄</span>
+                </div>
+            </div>
+        </header>
+
+        {% set vendas_lista = vendas|default([]) %}
+        {% set resumo = namespace(abertas=0, concretizadas=0, canceladas=0) %}
+        {% for venda in vendas_lista %}
+            {% if venda.status == "aberta" %}
+                {% set resumo.abertas = resumo.abertas + 1 %}
+            {% endif %}
+            {% if venda.status == "concretizada" %}
+                {% set resumo.concretizadas = resumo.concretizadas + 1 %}
+            {% endif %}
+            {% if venda.status == "cancelada" %}
+                {% set resumo.canceladas = resumo.canceladas + 1 %}
+            {% endif %}
+        {% endfor %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Vendas</span>
+                    <h3 class="page-title">Vendas</h3>
+                    <p class="page-subtitle">Cadastre vendas de produtos, serviços ou mistas, com cliente, itens, descontos, totais e forma de pagamento.</p>
+                </div>
+
+                <a href="#form-nova-venda" class="btn-primary-green">+ Nova Venda</a>
+            </div>
+        </section>
+
+        <section class="cards cards-secondary page-section">
+            <div class="card stat-card">
+                <div class="card-icon">▤</div>
+                <div class="card-info">
+                    <p>{{ vendas_lista|length }}</p>
+                    <h3>Total de vendas</h3>
+                    <span>{% if vendas_lista|length == 1 %}1 venda cadastrada{% elif vendas_lista|length > 1 %}{{ vendas_lista|length }} vendas cadastradas{% else %}Nenhuma venda cadastrada{% endif %}</span>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="card-icon">⌁</div>
+                <div class="card-info">
+                    <p>{{ resumo.abertas }}</p>
+                    <h3>Em aberto</h3>
+                    <span>{% if resumo.abertas == 1 %}1 venda aberta{% elif resumo.abertas > 1 %}{{ resumo.abertas }} vendas abertas{% else %}Nenhuma venda aberta{% endif %}</span>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="card-icon">✓</div>
+                <div class="card-info">
+                    <p>{{ resumo.concretizadas }}</p>
+                    <h3>Concretizadas</h3>
+                    <span>{% if resumo.concretizadas == 1 %}1 venda concretizada{% elif resumo.concretizadas > 1 %}{{ resumo.concretizadas }} vendas concretizadas{% else %}Nenhuma venda concretizada{% endif %}</span>
+                </div>
+            </div>
+        </section>
+
+        <form id="form-nova-venda" action="/vendas" method="post" class="client-form">
+            <section class="panel page-section">
+                <div class="panel-header page-header">
+                    <div>
+                        <h3>Dados gerais</h3>
+                        <p class="page-subtitle">Informações principais da venda.</p>
+                    </div>
+
+                    <span class="badge-info">Cadastro inicial</span>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="venda_numero">Número</label>
+                        <input id="venda_numero" name="venda_numero" type="text" value="{{ proximo_numero|default('0001') }}" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="venda_cliente">Cliente</label>
+                        <select id="venda_cliente" name="venda_cliente" class="form-control">
+                            <option value="">Selecione</option>
+                            {% for cliente in clientes|default([]) %}
+                                <option value="{{ cliente.nome }}">{{ cliente.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="venda_responsavel">Vendedor / responsável</label>
+                        <input id="venda_responsavel" name="venda_responsavel" type="text" placeholder="Ex: Netto Santana" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="venda_data">Data</label>
+                        <input id="venda_data" name="venda_data" type="date" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="venda_prazo_entrega">Prazo de entrega</label>
+                        <input id="venda_prazo_entrega" name="venda_prazo_entrega" type="text" placeholder="Ex: imediato, 3 dias úteis" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="venda_canal_venda">Canal de venda</label>
+                        <input id="venda_canal_venda" name="venda_canal_venda" type="text" placeholder="Ex: WhatsApp, balcão, indicação" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="venda_centro_custo">Centro de custo</label>
+                        <input id="venda_centro_custo" name="venda_centro_custo" type="text" placeholder="Ex: Geral" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="venda_tipo">Tipo</label>
+                        <select id="venda_tipo" name="venda_tipo" class="form-control">
+                            <option value="misto">Misto</option>
+                            <option value="produto">Produto</option>
+                            <option value="servico">Serviço</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="venda_status">Situação</label>
+                        <select id="venda_status" name="venda_status" class="form-control">
+                            <option value="aberta">Aberta</option>
+                            <option value="concretizada">Concretizada</option>
+                            <option value="cancelada">Cancelada</option>
+                        </select>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel page-section">
+                <div class="panel-header page-header">
+                    <div>
+                        <h3>Produtos</h3>
+                        <p class="page-subtitle">Adicione produtos à venda. Use o botão para inserir novas linhas.</p>
+                    </div>
+                </div>
+
+                <div class="client-actions">
+                    <button type="button" class="btn-primary-green" onclick="adicionarItem('produto')">+ Adicionar produto</button>
+                </div>
+
+                <div class="table-shell">
+                    <table class="client-table">
+                        <thead>
+                            <tr>
+                                <th>Produto</th>
+                                <th>Detalhes</th>
+                                <th>Quant.</th>
+                                <th>Valor</th>
+                                <th>Desconto</th>
+                                <th>Subtotal</th>
+                                <th>Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="produto-tbody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="panel page-section">
+                <div class="panel-header page-header">
+                    <div>
+                        <h3>Serviços</h3>
+                        <p class="page-subtitle">Adicione serviços à venda. Use o botão para inserir novas linhas.</p>
+                    </div>
+                </div>
+
+                <div class="client-actions">
+                    <button type="button" class="btn-primary-green" onclick="adicionarItem('servico')">+ Adicionar serviço</button>
+                </div>
+
+                <div class="table-shell">
+                    <table class="client-table">
+                        <thead>
+                            <tr>
+                                <th>Serviço</th>
+                                <th>Detalhes</th>
+                                <th>Quant.</th>
+                                <th>Valor</th>
+                                <th>Desconto</th>
+                                <th>Subtotal</th>
+                                <th>Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="servico-tbody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="panel page-section">
+                <div class="panel-header page-header">
+                    <div>
+                        <h3>Total e pagamento</h3>
+                        <p class="page-subtitle">Informe os totais da venda. O cálculo automático entra em etapa posterior.</p>
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="venda_total_produtos">Total produtos</label>
+                        <input id="venda_total_produtos" name="venda_total_produtos" type="text" placeholder="0,00" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="venda_total_servicos">Total serviços</label>
+                        <input id="venda_total_servicos" name="venda_total_servicos" type="text" placeholder="0,00" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="venda_desconto_valor">Desconto R$</label>
+                        <input id="venda_desconto_valor" name="venda_desconto_valor" type="text" placeholder="0,00" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="venda_desconto_percentual">Desconto %</label>
+                        <input id="venda_desconto_percentual" name="venda_desconto_percentual" type="text" placeholder="0" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="venda_valor_total">Valor total</label>
+                        <input id="venda_valor_total" name="venda_valor_total" type="text" placeholder="0,00" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="venda_forma_pagamento">Forma de pagamento</label>
+                        <input id="venda_forma_pagamento" name="venda_forma_pagamento" type="text" placeholder="Ex: Pix, dinheiro, cartão, entrada + parcelas" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="venda_observacoes">Observações para o cliente</label>
+                        <input id="venda_observacoes" name="venda_observacoes" type="text" placeholder="Observações que podem aparecer no comprovante" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="venda_observacoes_internas">Observações internas</label>
+                        <input id="venda_observacoes_internas" name="venda_observacoes_internas" type="text" placeholder="Uso interno" class="form-control">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="reset" class="btn-light">Cancelar</button>
+                    <button type="submit" class="btn-primary-green">Salvar Venda</button>
+                </div>
+            </section>
+        </form>
+
+        <section class="panel table-panel">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Lista de vendas</h3>
+                    <p class="page-subtitle">Pesquise e acompanhe as vendas cadastradas.</p>
+                </div>
+
+                <div class="client-toolbar">
+                    <button type="button" class="btn-light">Exportar</button>
+                    <button type="button" class="btn-light">Filtros</button>
+                </div>
+            </div>
+
+            <div class="client-actions">
+                <input type="text" placeholder="Buscar por número, cliente, situação ou responsável" class="client-search">
+                <button type="button" class="btn-dark">Buscar</button>
+            </div>
+
+            <div class="table-shell">
+                <table class="client-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Número</th>
+                            <th>Cliente</th>
+                            <th>Tipo</th>
+                            <th>Situação</th>
+                            <th>Data</th>
+                            <th>Valor total</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if vendas_lista %}
+                            {% for venda in vendas_lista %}
+                                <tr>
+                                    <td>{{ venda.id }}</td>
+                                    <td>{{ venda.numero }}</td>
+                                    <td>{{ venda.cliente }}</td>
+                                    <td>{{ venda.tipo }}</td>
+                                    <td><span class="status-pill {{ venda.status }}">{{ venda.status }}</span></td>
+                                    <td>{{ venda.data }}</td>
+                                    <td>{{ venda.valor_total }}</td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button type="button" title="Ver venda" aria-label="Ver venda" class="action-button view" disabled>🔍</button>
+                                            <button type="button" title="Editar venda" aria-label="Editar venda" class="action-button edit" disabled>✎</button>
+                                            <button type="button" title="Excluir venda" aria-label="Excluir venda" class="action-button delete" disabled>×</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="8" class="empty-table empty-table-box">
+                                    <div class="empty-table-content">
+                                        <div class="empty-table-icon">▤</div>
+                                        <strong>Nenhuma venda cadastrada.</strong>
+                                        <span>Use o botão Nova Venda para iniciar o cadastro.</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <script>
+            window.opcoesProdutos = [
+                {% for produto in produtos|default([]) %}
+                    { nome: "{{ produto.nome }}", valor: "{{ produto.preco_venda or '' }}" }{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ];
+
+            window.opcoesServicos = [
+                {% for servico in servicos|default([]) %}
+                    { nome: "{{ servico.nome }}", valor: "{{ servico.valor_venda or '' }}" }{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ];
+
+            window.itensIniciais = [];
+        </script>
+
+        <script>
+            function criarLinha(tipo, dados) {
+                const linha = document.createElement("tr");
+                const tipoLabel = tipo === "produto" ? "Produto" : "Serviço";
+                const opcoes = tipo === "produto" ? window.opcoesProdutos : window.opcoesServicos;
+
+                let selectOptions = '<option value="">Selecione</option>';
+                opcoes.forEach(function(item) {
+                    const selected = dados.descricao === item.nome ? " selected" : "";
+                    selectOptions += '<option value="' + item.nome + '"' + selected + '>' + item.nome + '</option>';
+                });
+
+                linha.innerHTML = `
+                    <td>
+                        <input type="hidden" name="item_tipo" value="${tipo}">
+                        <select name="item_descricao" class="form-control item-descricao">
+                            ${selectOptions}
+                        </select>
+                    </td>
+                    <td><input name="item_detalhes" type="text" value="${dados.detalhes || ""}" placeholder="Detalhes" class="form-control"></td>
+                    <td><input name="item_quantidade" type="text" value="${dados.quantidade || ""}" placeholder="1" class="form-control item-quantidade"></td>
+                    <td><input name="item_valor_unitario" type="text" value="${dados.valor_unitario || ""}" placeholder="0,00" class="form-control item-valor"></td>
+                    <td><input name="item_desconto" type="text" value="${dados.desconto || ""}" placeholder="0,00" class="form-control item-desconto"></td>
+                    <td><input name="item_subtotal" type="text" value="${dados.subtotal || ""}" placeholder="0,00" class="form-control item-subtotal"></td>
+                    <td>
+                        <button type="button" class="action-button delete" title="Remover ${tipoLabel}" aria-label="Remover ${tipoLabel}" onclick="removerLinha(this)">×</button>
+                    </td>
+                `;
+
+                const selectDescricao = linha.querySelector(".item-descricao");
+                const inputValor = linha.querySelector(".item-valor");
+
+                selectDescricao.addEventListener("change", function() {
+                    const itemSelecionado = opcoes.find(function(item) {
+                        return item.nome === selectDescricao.value;
+                    });
+
+                    if (itemSelecionado && !inputValor.value) {
+                        inputValor.value = itemSelecionado.valor || "";
+                    }
+                });
+
+                return linha;
+            }
+
+            function adicionarItem(tipo) {
+                const corpo = document.getElementById(tipo + "-tbody");
+                corpo.appendChild(criarLinha(tipo, {}));
+            }
+
+            function removerLinha(botao) {
+                const linha = botao.closest("tr");
+                const corpo = linha.closest("tbody");
+                linha.remove();
+
+                if (corpo.children.length === 0) {
+                    const tipo = corpo.id.replace("-tbody", "");
+                    adicionarItem(tipo);
+                }
+            }
+
+            function carregarItensIniciais() {
+                const itensIniciais = window.itensIniciais || [];
+
+                if (itensIniciais.length === 0) {
+                    adicionarItem("produto");
+                    adicionarItem("servico");
+                    return;
+                }
+
+                itensIniciais.forEach(function(item) {
+                    const tipo = item.tipo_item === "servico" ? "servico" : "produto";
+                    const corpo = document.getElementById(tipo + "-tbody");
+                    corpo.appendChild(criarLinha(tipo, item));
+                });
+
+                if (document.getElementById("produto-tbody").children.length === 0) {
+                    adicionarItem("produto");
+                }
+
+                if (document.getElementById("servico-tbody").children.length === 0) {
+                    adicionarItem("servico");
+                }
+            }
+
+            document.addEventListener("DOMContentLoaded", carregarItensIniciais);
+        </script>
+
+    </main>
+
+</body>
+</html>
