@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vendas.html
-Último recode: 2026-06-16 20:20 (America/Bahia)
-Motivo: Adicionar seta verde de ações na lista de vendas, mantendo as rotas ainda não criadas sem quebra.
+Último recode: 2026-06-16 20:25 (America/Bahia)
+Motivo: Ativar o botão Ver Venda na lista de vendas para abrir a rota /vendas/<id>.
 -->
 
 <!DOCTYPE html>
@@ -599,7 +599,7 @@ Motivo: Adicionar seta verde de ações na lista de vendas, mantendo as rotas ai
                                     <td>{{ venda.valor_total }}</td>
                                     <td>
                                         <div class="action-buttons">
-                                            <button type="button" title="Ver venda" aria-label="Ver venda" class="action-button view" disabled>🔍</button>
+                                            <a href="/vendas/{{ venda.id }}" title="Ver venda" aria-label="Ver venda" class="action-button view">🔍</a>
                                             <button type="button" title="Editar venda" aria-label="Editar venda" class="action-button edit" disabled>✎</button>
                                             <button type="button" title="Excluir venda" aria-label="Excluir venda" class="action-button delete" disabled>×</button>
 
