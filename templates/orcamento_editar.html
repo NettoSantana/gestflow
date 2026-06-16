@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_editar.html
-Último recode: 2026-06-13 21:05 (America/Bahia)
-Motivo: Deixar produtos e serviços do orçamento incrementais com botão Adicionar e Remover.
+Último recode: 2026-06-13 21:18 (America/Bahia)
+Motivo: Corrigir visibilidade dos botões Adicionar produto e Adicionar serviço no orçamento incremental.
 -->
 
 <!DOCTYPE html>
@@ -316,7 +316,15 @@ Motivo: Deixar produtos e serviços do orçamento incrementais com botão Adicio
                             <p class="page-subtitle">Adicione serviços ao orçamento. Use o botão para inserir novas linhas.</p>
                         </div>
 
-                        <button type="button" class="btn-dark" onclick="adicionarItem('servico')">+ Adicionar serviço</button>
+                        <button type="button" class="btn-primary-green" onclick="adicionarItem('servico')">+ Adicionar serviço</button>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn-primary-green" onclick="adicionarItem('servico')">+ Adicionar serviço</button>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn-primary-green" onclick="adicionarItem('produto')">+ Adicionar produto</button>
                     </div>
 
                     <div class="table-shell">
@@ -344,7 +352,7 @@ Motivo: Deixar produtos e serviços do orçamento incrementais com botão Adicio
                             <p class="page-subtitle">Adicione produtos ao orçamento. Use o botão para inserir novas linhas.</p>
                         </div>
 
-                        <button type="button" class="btn-dark" onclick="adicionarItem('produto')">+ Adicionar produto</button>
+                        <button type="button" class="btn-primary-green" onclick="adicionarItem('produto')">+ Adicionar produto</button>
                     </div>
 
                     <div class="table-shell">
