@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-16 20:22 (America/Bahia)
-# Motivo: Adicionar base de visualização da venda com busca por ID, listagem de itens e rota GET /vendas/<id>,
+# Último recode: 2026-06-16 20:30 (America/Bahia)
+# Motivo: Adicionar edição e exclusão de vendas com rotas GET/POST de edição e POST de exclusão,
 #         mantendo os módulos existentes sem alteração fora do escopo.
 
 from __future__ import annotations
@@ -1422,6 +1422,112 @@ def listar_venda_itens(venda_id: int) -> list[dict[str, Any]]:
     return [dict(row) for row in rows]
 
 
+
+def atualizar_venda_db(venda_id: int, venda: dict[str, str], itens: list[dict[str, str]]) -> None:
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            UPDATE vendas
+            SET
+                numero = ?,
+                cliente = ?,
+                responsavel = ?,
+                data = ?,
+                prazo_entrega = ?,
+                canal_venda = ?,
+                centro_custo = ?,
+                tipo = ?,
+                status = ?,
+                total_produtos = ?,
+                total_servicos = ?,
+                desconto_valor = ?,
+                desconto_percentual = ?,
+                valor_total = ?,
+                forma_pagamento = ?,
+                observacoes = ?,
+                observacoes_internas = ?
+            WHERE id = ?
+            """,
+            (
+                venda["numero"],
+                venda["cliente"],
+                venda["responsavel"],
+                venda["data"],
+                venda["prazo_entrega"],
+                venda["canal_venda"],
+                venda["centro_custo"],
+                venda["tipo"],
+                venda["status"],
+                venda["total_produtos"],
+                venda["total_servicos"],
+                venda["desconto_valor"],
+                venda["desconto_percentual"],
+                venda["valor_total"],
+                venda["forma_pagamento"],
+                venda["observacoes"],
+                venda["observacoes_internas"],
+                venda_id,
+            ),
+        )
+
+        conn.execute(
+            """
+            DELETE FROM venda_itens
+            WHERE venda_id = ?
+            """,
+            (venda_id,),
+        )
+
+        for item in itens:
+            if not item["descricao"]:
+                continue
+
+            conn.execute(
+                """
+                INSERT INTO venda_itens (
+                    venda_id,
+                    tipo_item,
+                    descricao,
+                    detalhes,
+                    quantidade,
+                    valor_unitario,
+                    desconto,
+                    subtotal
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    venda_id,
+                    item["tipo_item"],
+                    item["descricao"],
+                    item["detalhes"],
+                    item["quantidade"],
+                    item["valor_unitario"],
+                    item["desconto"],
+                    item["subtotal"],
+                ),
+            )
+
+        conn.commit()
+
+
+def excluir_venda_db(venda_id: int) -> None:
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            DELETE FROM venda_itens
+            WHERE venda_id = ?
+            """,
+            (venda_id,),
+        )
+        conn.execute(
+            """
+            DELETE FROM vendas
+            WHERE id = ?
+            """,
+            (venda_id,),
+        )
+        conn.commit()
+
 def montar_venda_formulario(numero_padrao: str = "") -> dict[str, str]:
     return {
         "numero": (request.form.get("venda_numero") or numero_padrao).strip(),
@@ -1923,6 +2029,53 @@ def ver_venda(venda_id: int) -> str | Response:
     itens = listar_venda_itens(venda_id)
 
     return render_template("venda_detalhe.html", venda=venda, itens=itens)
+
+
+@app.get("/vendas/<int:venda_id>/editar")
+def editar_venda(venda_id: int) -> str | Response:
+    venda = buscar_venda_por_id(venda_id)
+
+    if venda is None:
+        return redirect(url_for("vendas"))
+
+    itens = listar_venda_itens(venda_id)
+    clientes_lista = listar_clientes()
+    produtos_lista = listar_produtos()
+    servicos_lista = listar_servicos()
+
+    return render_template(
+        "venda_editar.html",
+        venda=venda,
+        itens=itens,
+        clientes=clientes_lista,
+        produtos=produtos_lista,
+        servicos=servicos_lista,
+    )
+
+
+@app.post("/vendas/<int:venda_id>/editar")
+def atualizar_venda(venda_id: int) -> Response:
+    venda_atual = buscar_venda_por_id(venda_id)
+
+    if venda_atual is None:
+        return redirect(url_for("vendas"))
+
+    venda = montar_venda_formulario(numero_padrao=str(venda_atual["numero"] or ""))
+    itens = montar_venda_itens_formulario()
+
+    atualizar_venda_db(venda_id, venda, itens)
+
+    return redirect(url_for("ver_venda", venda_id=venda_id))
+
+
+@app.post("/vendas/<int:venda_id>/excluir")
+def excluir_venda(venda_id: int) -> Response:
+    venda = buscar_venda_por_id(venda_id)
+
+    if venda is not None:
+        excluir_venda_db(venda_id)
+
+    return redirect(url_for("vendas"))
 
 
 @app.get("/orcamentos")

@@ -1,7 +1,7 @@
 <!--
-Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vendas.html
-Último recode: 2026-06-16 20:25 (America/Bahia)
-Motivo: Ativar o botão Ver Venda na lista de vendas para abrir a rota /vendas/<id>.
+Último recode: 2026-06-16 20:30 (America/Bahia)
+Motivo: Ativar botões de editar e excluir venda na lista, mantendo o menu de ações existente.
+Motivo: Adicionar seta verde de ações na lista de vendas, mantendo as rotas ainda não criadas sem quebra.
 -->
 
 <!DOCTYPE html>
@@ -599,9 +599,11 @@ Motivo: Ativar o botão Ver Venda na lista de vendas para abrir a rota /vendas/<
                                     <td>{{ venda.valor_total }}</td>
                                     <td>
                                         <div class="action-buttons">
-                                            <a href="/vendas/{{ venda.id }}" title="Ver venda" aria-label="Ver venda" class="action-button view">🔍</a>
-                                            <button type="button" title="Editar venda" aria-label="Editar venda" class="action-button edit" disabled>✎</button>
-                                            <button type="button" title="Excluir venda" aria-label="Excluir venda" class="action-button delete" disabled>×</button>
+                                            <button type="button" title="Ver venda" aria-label="Ver venda" class="action-button view" disabled>🔍</button>
+                                            <a href="/vendas/{{ venda.id }}/editar" title="Editar venda" aria-label="Editar venda" class="action-button edit">✎</a>
+                                            <form action="/vendas/{{ venda.id }}/excluir" method="post" onsubmit="return confirm('Tem certeza que deseja excluir esta venda?');" class="action-form">
+                                                <button type="submit" title="Excluir venda" aria-label="Excluir venda" class="action-button delete">×</button>
+                                            </form>
 
                                             <div class="sale-action-menu">
                                                 <details class="sale-action-dropdown">
