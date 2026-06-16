@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamentos.html
-Último recode: 2026-06-13 22:05 (America/Bahia)
-Motivo: Adicionar menu verde de ações exclusivas do orçamento com Imprimir e Gerar.
+Último recode: 2026-06-13 22:18 (America/Bahia)
+Motivo: Ajustar espaçamento inferior da tela para exibir completamente o menu de ações do orçamento.
 -->
 
 <!DOCTYPE html>
@@ -13,6 +13,15 @@ Motivo: Adicionar menu verde de ações exclusivas do orçamento com Imprimir e 
     <link rel="stylesheet" href="/static/css/dashboard.css">
 
     <style>
+
+        .orcamentos-page {
+            padding-bottom: 280px;
+        }
+
+        .orcamentos-page .table-panel {
+            margin-bottom: 180px;
+        }
+
         .budget-action-menu {
             position: relative;
             display: inline-block;
@@ -286,7 +295,7 @@ Motivo: Adicionar menu verde de ações exclusivas do orçamento com Imprimir e 
 
     </aside>
 
-    <main class="content">
+    <main class="content orcamentos-page">
 
         <header class="topbar">
             <div class="topbar-left">
@@ -773,7 +782,18 @@ Motivo: Adicionar menu verde de ações exclusivas do orçamento com Imprimir e 
                     left = window.innerWidth - largura - margem;
                 }
 
-                panel.style.top = (rect.bottom + margem) + "px";
+                const alturaEstimativa = 210;
+                let top = rect.bottom + margem;
+
+                if (top + alturaEstimativa > window.innerHeight - margem) {
+                    top = rect.top - alturaEstimativa - margem;
+                }
+
+                if (top < margem) {
+                    top = margem;
+                }
+
+                panel.style.top = top + "px";
                 panel.style.left = left + "px";
             }
 
