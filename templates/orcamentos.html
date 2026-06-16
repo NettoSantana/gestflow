@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamentos.html
-Último recode: 2026-06-13 22:18 (America/Bahia)
-Motivo: Ajustar espaçamento inferior da tela para exibir completamente o menu de ações do orçamento.
+Último recode: 2026-06-13 22:45 (America/Bahia)
+Motivo: Ligar menu Imprimir A4 e Cupom às rotas de impressão do orçamento.
 -->
 
 <!DOCTYPE html>
@@ -634,8 +634,8 @@ Motivo: Ajustar espaçamento inferior da tela para exibir completamente o menu d
                                                             <details class="budget-action-submenu">
                                                                 <summary>🖨 Imprimir</summary>
                                                                 <div class="budget-action-subitems">
-                                                                    <a href="/orcamentos/{{ orcamento.id }}?impressao=a4">A4</a>
-                                                                    <a href="/orcamentos/{{ orcamento.id }}?impressao=cupom">Cupom</a>
+                                                                    <a href="/orcamentos/{{ orcamento.id }}/imprimir/a4" target="_blank">A4</a>
+                                                                    <a href="/orcamentos/{{ orcamento.id }}/imprimir/cupom" target="_blank">Cupom</a>
                                                                 </div>
                                                             </details>
 

@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_detalhe.html
-Último recode: 2026-06-13 22:05 (America/Bahia)
-Motivo: Adicionar menu verde de ações exclusivas do orçamento com Imprimir e Gerar.
+Último recode: 2026-06-13 22:45 (America/Bahia)
+Motivo: Ligar menu Imprimir A4 e Cupom às rotas de impressão do orçamento.
 -->
 
 <!DOCTYPE html>
@@ -156,8 +156,8 @@ Motivo: Adicionar menu verde de ações exclusivas do orçamento com Imprimir e 
                                                             <details class="budget-action-submenu">
                                                                 <summary>🖨 Imprimir</summary>
                                                                 <div class="budget-action-subitems">
-                                                                    <a href="/orcamentos/{{ orcamento.id }}?impressao=a4">A4</a>
-                                                                    <a href="/orcamentos/{{ orcamento.id }}?impressao=cupom">Cupom</a>
+                                                                    <a href="/orcamentos/{{ orcamento.id }}/imprimir/a4" target="_blank">A4</a>
+                                                                    <a href="/orcamentos/{{ orcamento.id }}/imprimir/cupom" target="_blank">Cupom</a>
                                                                 </div>
                                                             </details>
 

@@ -1,0 +1,401 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_imprimir_a4.html
+Último recode: 2026-06-13 22:45 (America/Bahia)
+Motivo: Criar impressão A4 do orçamento em HTML pronta para impressão e futura geração de PDF.
+-->
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Orçamento A4 - {{ orcamento.numero or orcamento.id }}</title>
+
+    <style>
+        @page {
+            size: A4;
+            margin: 12mm;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: #e5e7eb;
+            color: #111827;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 12px;
+        }
+
+        .print-actions {
+            max-width: 794px;
+            margin: 16px auto;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .print-button {
+            border: 0;
+            border-radius: 6px;
+            padding: 10px 14px;
+            cursor: pointer;
+            font-weight: 700;
+            color: #ffffff;
+            background: #16a34a;
+        }
+
+        .back-button {
+            color: #111827;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            text-decoration: none;
+        }
+
+        .page {
+            width: 794px;
+            min-height: 1123px;
+            margin: 0 auto 20px auto;
+            background: #ffffff;
+            padding: 14px;
+            border: 1px solid #d1d5db;
+        }
+
+        .header {
+            display: grid;
+            grid-template-columns: 110px 1fr 245px;
+            gap: 12px;
+            align-items: center;
+            border: 1px solid #d1d5db;
+            padding: 8px;
+        }
+
+        .logo-box {
+            height: 100px;
+            background: #06233b;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            text-align: center;
+            line-height: 1.2;
+            border-radius: 2px;
+        }
+
+        .company-name {
+            font-size: 18px;
+            font-weight: 800;
+        }
+
+        .company-info {
+            text-align: right;
+            line-height: 1.35;
+            font-size: 12px;
+        }
+
+        .bar {
+            margin-top: 10px;
+            background: #e5e7eb;
+            border: 1px solid #d1d5db;
+            display: grid;
+            grid-template-columns: 1fr 150px;
+            font-weight: 800;
+            font-size: 16px;
+        }
+
+        .bar div {
+            padding: 6px 8px;
+        }
+
+        .bar .date {
+            text-align: right;
+        }
+
+        .intro {
+            margin: 12px 0;
+            line-height: 1.35;
+        }
+
+        .section-title {
+            background: #e5e7eb;
+            border: 1px solid #d1d5db;
+            padding: 5px 6px;
+            font-weight: 800;
+            text-transform: uppercase;
+            margin-top: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .info-table td,
+        .items-table th,
+        .items-table td {
+            border: 1px solid #d1d5db;
+            padding: 6px;
+            vertical-align: top;
+        }
+
+        .info-table td.label {
+            width: 110px;
+            font-weight: 800;
+            background: #f8fafc;
+        }
+
+        .items-table th {
+            background: #f8fafc;
+            font-weight: 800;
+            text-align: left;
+        }
+
+        .items-table .num {
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .items-table .center {
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .total-row td {
+            background: #e5e7eb;
+            font-weight: 800;
+        }
+
+        .total-box {
+            margin-top: 8px;
+            border: 1px solid #d1d5db;
+        }
+
+        .total-line {
+            display: grid;
+            grid-template-columns: 1fr 160px;
+            border-bottom: 1px solid #d1d5db;
+        }
+
+        .total-line:last-child {
+            border-bottom: 0;
+        }
+
+        .total-line div {
+            padding: 6px 8px;
+            font-weight: 800;
+        }
+
+        .total-line .value {
+            text-align: right;
+        }
+
+        .observacoes {
+            white-space: pre-wrap;
+            line-height: 1.35;
+            min-height: 120px;
+            padding: 8px 0;
+        }
+
+        .assinatura {
+            margin-top: 45px;
+            text-align: center;
+        }
+
+        .assinatura-line {
+            width: 260px;
+            border-top: 1px solid #111827;
+            margin: 0 auto 6px auto;
+        }
+
+        .footer {
+            margin-top: 25px;
+            text-align: center;
+            color: #6b7280;
+            font-size: 11px;
+        }
+
+        @media print {
+            body {
+                background: #ffffff;
+            }
+
+            .print-actions {
+                display: none;
+            }
+
+            .page {
+                width: auto;
+                min-height: auto;
+                margin: 0;
+                border: 0;
+                padding: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="print-actions">
+        <a class="print-button back-button" href="/orcamentos/{{ orcamento.id }}">Voltar</a>
+        <button class="print-button" onclick="window.print()">Imprimir A4</button>
+    </div>
+
+    <main class="page">
+        <header class="header">
+            <div class="logo-box">
+                GESTFLOW<br>ORÇAMENTO
+            </div>
+
+            <div class="company-name">
+                GESTFLOW
+            </div>
+
+            <div class="company-info">
+                (71) 00000-0000<br>
+                contato@gestflow.com.br<br>
+                Vendedor: <strong>{{ orcamento.responsavel or 'Administrador' }}</strong><br>
+                Aos cuidados de: <strong>{{ orcamento.cliente or '-' }}</strong>
+            </div>
+        </header>
+
+        <section class="bar">
+            <div>ORÇAMENTO Nº {{ orcamento.numero or orcamento.id }}</div>
+            <div class="date">{{ orcamento.data or '-' }}</div>
+        </section>
+
+        <p class="intro">
+            {{ orcamento.introducao or 'O GESTFLOW apresenta abaixo sua proposta comercial para fornecimento de produtos e/ou execução de serviços conforme solicitado:' }}
+        </p>
+
+        <div class="section-title">PREVISÃO DE ENTREGA: {{ orcamento.prazo_entrega or '-' }}</div>
+
+        <div class="section-title">DADOS DO CLIENTE</div>
+        <table class="info-table">
+            <tbody>
+                <tr>
+                    <td class="label">Razão social:</td>
+                    <td>{{ orcamento.cliente or '-' }}</td>
+                    <td class="label">Nome fantasia:</td>
+                    <td>{{ orcamento.cliente or '-' }}</td>
+                </tr>
+                <tr>
+                    <td class="label">CNPJ/CPF:</td>
+                    <td>-</td>
+                    <td class="label">Endereço:</td>
+                    <td>-</td>
+                </tr>
+                <tr>
+                    <td class="label">CEP:</td>
+                    <td>-</td>
+                    <td class="label">Cidade/UF:</td>
+                    <td>-</td>
+                </tr>
+                <tr>
+                    <td class="label">Telefone:</td>
+                    <td>-</td>
+                    <td class="label">E-mail:</td>
+                    <td>-</td>
+                </tr>
+            </tbody>
+        </table>
+
+        {% if itens_servicos %}
+            <div class="section-title">SERVIÇOS</div>
+            <table class="items-table">
+                <thead>
+                    <tr>
+                        <th class="center">ITEM</th>
+                        <th>NOME</th>
+                        <th class="center">QTD.</th>
+                        <th class="num">VR. UNIT.</th>
+                        <th class="num">SUBTOTAL</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in itens_servicos %}
+                        <tr>
+                            <td class="center">{{ loop.index }}</td>
+                            <td>{{ item.descricao or '-' }}</td>
+                            <td class="center">{{ item.quantidade or '-' }}</td>
+                            <td class="num">{{ item.valor_unitario or '0,00' }}</td>
+                            <td class="num">{{ item.subtotal or '0,00' }}</td>
+                        </tr>
+                    {% endfor %}
+                    <tr class="total-row">
+                        <td colspan="2">TOTAL</td>
+                        <td class="center">-</td>
+                        <td></td>
+                        <td class="num">{{ orcamento.total_servicos or '0,00' }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        {% endif %}
+
+        {% if itens_produtos %}
+            <div class="section-title">PRODUTOS</div>
+            <table class="items-table">
+                <thead>
+                    <tr>
+                        <th class="center">ITEM</th>
+                        <th>NOME</th>
+                        <th class="center">QTD.</th>
+                        <th class="num">VR. UNIT.</th>
+                        <th class="num">SUBTOTAL</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in itens_produtos %}
+                        <tr>
+                            <td class="center">{{ loop.index }}</td>
+                            <td>{{ item.descricao or '-' }}</td>
+                            <td class="center">{{ item.quantidade or '-' }}</td>
+                            <td class="num">{{ item.valor_unitario or '0,00' }}</td>
+                            <td class="num">{{ item.subtotal or '0,00' }}</td>
+                        </tr>
+                    {% endfor %}
+                    <tr class="total-row">
+                        <td colspan="2">TOTAL</td>
+                        <td class="center">-</td>
+                        <td></td>
+                        <td class="num">{{ orcamento.total_produtos or '0,00' }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        {% endif %}
+
+        <div class="total-box">
+            <div class="total-line">
+                <div>SERVIÇOS:</div>
+                <div class="value">{{ orcamento.total_servicos or '0,00' }}</div>
+            </div>
+            <div class="total-line">
+                <div>PRODUTOS:</div>
+                <div class="value">{{ orcamento.total_produtos or '0,00' }}</div>
+            </div>
+            <div class="total-line">
+                <div>DESCONTO:</div>
+                <div class="value">{{ orcamento.desconto_valor or '0,00' }}</div>
+            </div>
+            <div class="total-line">
+                <div>TOTAL:</div>
+                <div class="value">R$ {{ orcamento.valor_total or '0,00' }}</div>
+            </div>
+        </div>
+
+        <div class="section-title">OBSERVAÇÕES</div>
+        <div class="observacoes">{{ orcamento.observacoes or '-' }}</div>
+
+        <div class="assinatura">
+            <div class="assinatura-line"></div>
+            Assinatura do cliente
+        </div>
+
+        <div class="footer">
+            Orçamento emitido no GESTFLOW
+        </div>
+    </main>
+
+</body>
+</html>

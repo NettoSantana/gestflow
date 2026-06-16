@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-13 20:18 (America/Bahia)
-# Motivo: Adicionar base de rotas, funções SQLite e tabelas de orçamentos,
+# Último recode: 2026-06-13 22:45 (America/Bahia)
+# Motivo: Adicionar rotas de impressão A4 e Cupom para orçamentos,
 #         mantendo Dashboard (/), Clientes (/clientes), Fornecedores (/fornecedores),
 #         Funcionários (/funcionarios), Produtos (/produtos), Serviços (/servicos),
 #         SQLite, visualização, edição, exclusão, healthcheck (/health) e webhook Twilio (/bot) ativos.
@@ -1587,6 +1587,46 @@ def ver_orcamento(orcamento_id: int) -> str | Response:
     itens = listar_orcamento_itens(orcamento_id)
 
     return render_template("orcamento_detalhe.html", orcamento=orcamento, itens=itens)
+
+
+@app.get("/orcamentos/<int:orcamento_id>/imprimir/a4")
+def imprimir_orcamento_a4(orcamento_id: int) -> str | Response:
+    orcamento = buscar_orcamento_por_id(orcamento_id)
+
+    if orcamento is None:
+        return redirect(url_for("orcamentos"))
+
+    itens = listar_orcamento_itens(orcamento_id)
+    itens_produtos = [item for item in itens if item["tipo_item"] == "produto"]
+    itens_servicos = [item for item in itens if item["tipo_item"] == "servico"]
+
+    return render_template(
+        "orcamento_imprimir_a4.html",
+        orcamento=orcamento,
+        itens=itens,
+        itens_produtos=itens_produtos,
+        itens_servicos=itens_servicos,
+    )
+
+
+@app.get("/orcamentos/<int:orcamento_id>/imprimir/cupom")
+def imprimir_orcamento_cupom(orcamento_id: int) -> str | Response:
+    orcamento = buscar_orcamento_por_id(orcamento_id)
+
+    if orcamento is None:
+        return redirect(url_for("orcamentos"))
+
+    itens = listar_orcamento_itens(orcamento_id)
+    itens_produtos = [item for item in itens if item["tipo_item"] == "produto"]
+    itens_servicos = [item for item in itens if item["tipo_item"] == "servico"]
+
+    return render_template(
+        "orcamento_imprimir_cupom.html",
+        orcamento=orcamento,
+        itens=itens,
+        itens_produtos=itens_produtos,
+        itens_servicos=itens_servicos,
+    )
 
 
 @app.get("/orcamentos/<int:orcamento_id>/editar")
