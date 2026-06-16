@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_detalhe.html
-Último recode: 2026-06-13 22:45 (America/Bahia)
-Motivo: Ligar menu Imprimir A4 e Cupom às rotas de impressão do orçamento.
+Último recode: 2026-06-13 23:25 (America/Bahia)
+Motivo: Corrigir link da opção Gerar Cópia para chamar a rota /gerar/copia.
 -->
 
 <!DOCTYPE html>
@@ -164,7 +164,7 @@ Motivo: Ligar menu Imprimir A4 e Cupom às rotas de impressão do orçamento.
                                                             <details class="budget-action-submenu">
                                                                 <summary>↻ Gerar</summary>
                                                                 <div class="budget-action-subitems">
-                                                                    <a href="/orcamentos/{{ orcamento.id }}?gerar=copia">Cópia</a>
+                                                                    <a href="/orcamentos/{{ orcamento.id }}/gerar/copia">Cópia</a>
                                                                     <a href="/orcamentos/{{ orcamento.id }}?gerar=venda">Venda</a>
                                                                     <a href="/orcamentos/{{ orcamento.id }}?gerar=os">OS</a>
                                                                 </div>
