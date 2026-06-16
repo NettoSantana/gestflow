@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamentos.html
-Último recode: 2026-06-13 21:18 (America/Bahia)
-Motivo: Corrigir visibilidade dos botões Adicionar produto e Adicionar serviço no orçamento incremental.
+Último recode: 2026-06-13 21:42 (America/Bahia)
+Motivo: Reposicionar botões Adicionar produto e Adicionar serviço dentro dos blocos corretos.
 -->
 
 <!DOCTYPE html>
@@ -348,23 +348,16 @@ Motivo: Corrigir visibilidade dos botões Adicionar produto e Adicionar serviço
                     <input id="orcamento_introducao" name="orcamento_introducao" type="text" placeholder="Ex: Conforme solicitado, apresentamos nossa proposta comercial." class="form-control">
                 </div>
             </section>
-
                 <section class="panel page-section">
                     <div class="panel-header page-header">
                         <div>
                             <h3>Serviços</h3>
                             <p class="page-subtitle">Adicione serviços ao orçamento. Use o botão para inserir novas linhas.</p>
                         </div>
-
-                        <button type="button" class="btn-primary-green" onclick="adicionarItem('servico')">+ Adicionar serviço</button>
                     </div>
 
-                    <div class="form-actions">
+                    <div class="client-actions">
                         <button type="button" class="btn-primary-green" onclick="adicionarItem('servico')">+ Adicionar serviço</button>
-                    </div>
-
-                    <div class="form-actions">
-                        <button type="button" class="btn-primary-green" onclick="adicionarItem('produto')">+ Adicionar produto</button>
                     </div>
 
                     <div class="table-shell">
@@ -384,14 +377,15 @@ Motivo: Corrigir visibilidade dos botões Adicionar produto e Adicionar serviço
                         </table>
                     </div>
                 </section>
-
                 <section class="panel page-section">
                     <div class="panel-header page-header">
                         <div>
                             <h3>Produtos</h3>
                             <p class="page-subtitle">Adicione produtos ao orçamento. Use o botão para inserir novas linhas.</p>
                         </div>
+                    </div>
 
+                    <div class="client-actions">
                         <button type="button" class="btn-primary-green" onclick="adicionarItem('produto')">+ Adicionar produto</button>
                     </div>
 
