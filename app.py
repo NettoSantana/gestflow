@@ -1,7 +1,7 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-16 19:52 (America/Bahia)
-# Motivo: Criar base inicial do módulo Vendas com tabelas vendas e venda_itens,
-#         funções de cadastro/listagem e rotas GET/POST /vendas, sem alterar os módulos existentes.
+# Último recode: 2026-06-16 20:22 (America/Bahia)
+# Motivo: Adicionar base de visualização da venda com busca por ID, listagem de itens e rota GET /vendas/<id>,
+#         mantendo os módulos existentes sem alteração fora do escopo.
 
 from __future__ import annotations
 
@@ -1361,6 +1361,67 @@ def listar_vendas() -> list[dict[str, Any]]:
     return [dict(row) for row in rows]
 
 
+def buscar_venda_por_id(venda_id: int) -> dict[str, Any] | None:
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                id,
+                numero,
+                cliente,
+                responsavel,
+                data,
+                prazo_entrega,
+                canal_venda,
+                centro_custo,
+                tipo,
+                status,
+                total_produtos,
+                total_servicos,
+                desconto_valor,
+                desconto_percentual,
+                valor_total,
+                forma_pagamento,
+                observacoes,
+                observacoes_internas,
+                criado_em
+            FROM vendas
+            WHERE id = ?
+            """,
+            (venda_id,),
+        ).fetchone()
+
+    if row is None:
+        return None
+
+    return dict(row)
+
+
+def listar_venda_itens(venda_id: int) -> list[dict[str, Any]]:
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                id,
+                venda_id,
+                tipo_item,
+                descricao,
+                detalhes,
+                quantidade,
+                valor_unitario,
+                desconto,
+                subtotal,
+                criado_em
+            FROM venda_itens
+            WHERE venda_id = ?
+            ORDER BY id ASC
+            """,
+            (venda_id,),
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
 def montar_venda_formulario(numero_padrao: str = "") -> dict[str, str]:
     return {
         "numero": (request.form.get("venda_numero") or numero_padrao).strip(),
@@ -1850,6 +1911,18 @@ def salvar_venda() -> Response:
         salvar_venda_db(venda, itens)
 
     return redirect(url_for("vendas"))
+
+
+@app.get("/vendas/<int:venda_id>")
+def ver_venda(venda_id: int) -> str | Response:
+    venda = buscar_venda_por_id(venda_id)
+
+    if venda is None:
+        return redirect(url_for("vendas"))
+
+    itens = listar_venda_itens(venda_id)
+
+    return render_template("venda_detalhe.html", venda=venda, itens=itens)
 
 
 @app.get("/orcamentos")
