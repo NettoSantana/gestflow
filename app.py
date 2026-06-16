@@ -1,7 +1,7 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-16 20:30 (America/Bahia)
-# Motivo: Adicionar edição e exclusão de vendas com rotas GET/POST de edição e POST de exclusão,
-#         mantendo os módulos existentes sem alteração fora do escopo.
+# Último recode: 2026-06-16 20:45 (America/Bahia)
+# Motivo: Corrigir somente o redirecionamento após salvar edição de venda,
+#         retornando para a lista /vendas sem alterar os demais módulos.
 
 from __future__ import annotations
 
@@ -2065,7 +2065,7 @@ def atualizar_venda(venda_id: int) -> Response:
 
     atualizar_venda_db(venda_id, venda, itens)
 
-    return redirect(url_for("ver_venda", venda_id=venda_id))
+    return redirect(url_for("vendas"))
 
 
 @app.post("/vendas/<int:venda_id>/excluir")
