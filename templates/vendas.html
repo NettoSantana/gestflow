@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vendas.html
-Último recode: 2026-06-16 20:34 (America/Bahia)
-Motivo: Ativar a lupa azul para abrir detalhes da venda e manter a sequência correta de ações da lista.
+Último recode: 2026-06-16 20:50 (America/Bahia)
+Motivo: Ativar links de impressão A4 e Cupom no menu de ações da lista de vendas.
 -->
 
 <!DOCTYPE html>
@@ -612,8 +612,8 @@ Motivo: Ativar a lupa azul para abrir detalhes da venda e manter a sequência co
                                                         <details class="sale-action-submenu">
                                                             <summary>🖨 Imprimir</summary>
                                                             <div class="sale-action-subitems">
-                                                                <a href="#" onclick="return false;">A4</a>
-                                                                <a href="#" onclick="return false;">Cupom</a>
+                                                                <a href="/vendas/{{ venda.id }}/imprimir/a4" target="_blank">A4</a>
+                                                                <a href="/vendas/{{ venda.id }}/imprimir/cupom" target="_blank">Cupom</a>
                                                             </div>
                                                         </details>
 
