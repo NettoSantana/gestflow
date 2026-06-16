@@ -1,7 +1,7 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-16 20:45 (America/Bahia)
-# Motivo: Corrigir somente o redirecionamento após salvar edição de venda,
-#         retornando para a lista /vendas sem alterar os demais módulos.
+# Último recode: 2026-06-16 20:50 (America/Bahia)
+# Motivo: Adicionar rotas de impressão A4 e Cupom para vendas,
+#         mantendo edição, exclusão, visualização e demais módulos existentes.
 
 from __future__ import annotations
 
@@ -2029,6 +2029,46 @@ def ver_venda(venda_id: int) -> str | Response:
     itens = listar_venda_itens(venda_id)
 
     return render_template("venda_detalhe.html", venda=venda, itens=itens)
+
+
+@app.get("/vendas/<int:venda_id>/imprimir/a4")
+def imprimir_venda_a4(venda_id: int) -> str | Response:
+    venda = buscar_venda_por_id(venda_id)
+
+    if venda is None:
+        return redirect(url_for("vendas"))
+
+    itens = listar_venda_itens(venda_id)
+    itens_produtos = [item for item in itens if item["tipo_item"] == "produto"]
+    itens_servicos = [item for item in itens if item["tipo_item"] == "servico"]
+
+    return render_template(
+        "venda_imprimir_a4.html",
+        venda=venda,
+        itens=itens,
+        itens_produtos=itens_produtos,
+        itens_servicos=itens_servicos,
+    )
+
+
+@app.get("/vendas/<int:venda_id>/imprimir/cupom")
+def imprimir_venda_cupom(venda_id: int) -> str | Response:
+    venda = buscar_venda_por_id(venda_id)
+
+    if venda is None:
+        return redirect(url_for("vendas"))
+
+    itens = listar_venda_itens(venda_id)
+    itens_produtos = [item for item in itens if item["tipo_item"] == "produto"]
+    itens_servicos = [item for item in itens if item["tipo_item"] == "servico"]
+
+    return render_template(
+        "venda_imprimir_cupom.html",
+        venda=venda,
+        itens=itens,
+        itens_produtos=itens_produtos,
+        itens_servicos=itens_servicos,
+    )
 
 
 @app.get("/vendas/<int:venda_id>/editar")
