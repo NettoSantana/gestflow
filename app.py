@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-13 22:45 (America/Bahia)
-# Motivo: Adicionar rotas de impressão A4 e Cupom para orçamentos,
+# Último recode: 2026-06-13 23:15 (America/Bahia)
+# Motivo: Adicionar somente no app.py a rota Gerar Cópia para duplicar orçamento com novo número,
 #         mantendo Dashboard (/), Clientes (/clientes), Fornecedores (/fornecedores),
 #         Funcionários (/funcionarios), Produtos (/produtos), Serviços (/servicos),
 #         SQLite, visualização, edição, exclusão, healthcheck (/health) e webhook Twilio (/bot) ativos.
@@ -1146,6 +1146,55 @@ def montar_orcamento_itens_formulario() -> list[dict[str, str]]:
     return itens
 
 
+def copiar_orcamento_db(orcamento_id: int) -> int | None:
+    orcamento_original = buscar_orcamento_por_id(orcamento_id)
+
+    if orcamento_original is None:
+        return None
+
+    itens_originais = listar_orcamento_itens(orcamento_id)
+    novo_numero = proximo_numero_orcamento()
+
+    novo_orcamento = {
+        "numero": novo_numero,
+        "cliente": str(orcamento_original.get("cliente") or ""),
+        "responsavel": str(orcamento_original.get("responsavel") or ""),
+        "data": str(orcamento_original.get("data") or ""),
+        "prazo_entrega": str(orcamento_original.get("prazo_entrega") or ""),
+        "validade": str(orcamento_original.get("validade") or ""),
+        "canal_venda": str(orcamento_original.get("canal_venda") or ""),
+        "centro_custo": str(orcamento_original.get("centro_custo") or ""),
+        "introducao": str(orcamento_original.get("introducao") or ""),
+        "tipo": str(orcamento_original.get("tipo") or "misto"),
+        "status": "aberto",
+        "total_produtos": str(orcamento_original.get("total_produtos") or "0,00"),
+        "total_servicos": str(orcamento_original.get("total_servicos") or "0,00"),
+        "desconto_valor": str(orcamento_original.get("desconto_valor") or "0,00"),
+        "desconto_percentual": str(orcamento_original.get("desconto_percentual") or "0,00"),
+        "valor_total": str(orcamento_original.get("valor_total") or "0,00"),
+        "forma_pagamento": str(orcamento_original.get("forma_pagamento") or ""),
+        "observacoes": str(orcamento_original.get("observacoes") or ""),
+        "observacoes_internas": str(orcamento_original.get("observacoes_internas") or ""),
+    }
+
+    novos_itens: list[dict[str, str]] = []
+
+    for item in itens_originais:
+        novos_itens.append(
+            {
+                "tipo_item": str(item.get("tipo_item") or "produto"),
+                "descricao": str(item.get("descricao") or ""),
+                "detalhes": str(item.get("detalhes") or ""),
+                "quantidade": str(item.get("quantidade") or ""),
+                "valor_unitario": str(item.get("valor_unitario") or ""),
+                "desconto": str(item.get("desconto") or ""),
+                "subtotal": str(item.get("subtotal") or ""),
+            }
+        )
+
+    return salvar_orcamento_db(novo_orcamento, novos_itens)
+
+
 @app.get("/")
 def dashboard() -> str:
     return render_template("dashboard.html")
@@ -1587,6 +1636,16 @@ def ver_orcamento(orcamento_id: int) -> str | Response:
     itens = listar_orcamento_itens(orcamento_id)
 
     return render_template("orcamento_detalhe.html", orcamento=orcamento, itens=itens)
+
+
+@app.get("/orcamentos/<int:orcamento_id>/gerar/copia")
+def gerar_copia_orcamento(orcamento_id: int) -> Response:
+    novo_orcamento_id = copiar_orcamento_db(orcamento_id)
+
+    if novo_orcamento_id is None:
+        return redirect(url_for("orcamentos"))
+
+    return redirect(url_for("editar_orcamento", orcamento_id=novo_orcamento_id))
 
 
 @app.get("/orcamentos/<int:orcamento_id>/imprimir/a4")
