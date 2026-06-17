@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-16 21:35 (America/Bahia)
-# Motivo: Ligar campos completos da tela de OS no banco, formulário, listagem e geração por venda.
+# Último recode: 2026-06-16 21:45 (America/Bahia)
+# Motivo: Criar visualização de detalhes da OS com rota, itens e tela dedicada.
 
 from __future__ import annotations
 
@@ -2599,6 +2599,26 @@ def salvar_ordem_servico() -> Response:
         salvar_ordem_servico_db(ordem_servico, itens)
 
     return redirect(url_for("ordens_servico"))
+
+
+@app.get("/ordens-servico/<int:ordem_servico_id>")
+def ver_ordem_servico(ordem_servico_id: int) -> str | Response:
+    ordem_servico = buscar_ordem_servico_por_id(ordem_servico_id)
+
+    if ordem_servico is None:
+        return redirect(url_for("ordens_servico"))
+
+    itens = listar_ordem_servico_itens(ordem_servico_id)
+    itens_produtos = [item for item in itens if item["tipo_item"] == "produto"]
+    itens_servicos = [item for item in itens if item["tipo_item"] == "servico"]
+
+    return render_template(
+        "ordem_servico_detalhe.html",
+        ordem_servico=ordem_servico,
+        itens=itens,
+        itens_produtos=itens_produtos,
+        itens_servicos=itens_servicos,
+    )
 
 
 @app.get("/vendas")

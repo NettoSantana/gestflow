@@ -1,0 +1,158 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordem_servico_detalhe.html
+Último recode: 2026-06-16 21:45 (America/Bahia)
+Motivo: Criar tela de detalhes da OS com dados gerais, equipamento, itens, totais e observações.
+-->
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Detalhes da OS</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="brand"><div class="brand-mark">GF</div><h2>GESTFLOW</h2></div>
+        <nav class="sidebar-nav">
+            <ul class="menu">
+                <li class="menu-item"><a href="/"><span class="menu-icon">⌂</span><span>Dashboard</span></a></li>
+                <li class="menu-group"><details><summary><span class="menu-label"><span class="menu-icon">☷</span><span>Cadastros</span></span><span class="arrow">⌄</span></summary><ul class="submenu"><li><a href="/clientes">Clientes</a></li><li><a href="/fornecedores">Fornecedores</a></li><li><a href="/funcionarios">Funcionários</a></li><li>Veículos</li><li>Opções auxiliares</li></ul></details></li>
+                <li class="menu-group"><details><summary><span class="menu-label"><span class="menu-icon">□</span><span>Produtos</span></span><span class="arrow">⌄</span></summary><ul class="submenu"><li><a href="/produtos">Gerenciar produtos</a></li><li>Opções auxiliares</li></ul></details></li>
+                <li class="menu-group"><details><summary><span class="menu-label"><span class="menu-icon">⚙</span><span>Serviços</span></span><span class="arrow">⌄</span></summary><ul class="submenu"><li><a href="/servicos">Gerenciar serviços</a></li><li>Opções auxiliares</li></ul></details></li>
+                <li class="menu-group"><details><summary><span class="menu-label"><span class="menu-icon">▣</span><span>Orçamentos</span></span><span class="arrow">⌄</span></summary><ul class="submenu"><li><a href="/orcamentos">Produtos</a></li><li><a href="/orcamentos">Serviços</a></li><li>Opções auxiliares</li></ul></details></li>
+                <li class="menu-group"><details><summary><span class="menu-label"><span class="menu-icon">▤</span><span>Vendas</span></span><span class="arrow">⌄</span></summary><ul class="submenu"><li><a href="/vendas">Produtos</a></li><li><a href="/vendas">Serviços</a></li><li><a href="/vendas">Balcão</a></li><li><a href="/vendas">Devoluções</a></li><li><a href="/vendas">Opções auxiliares</a></li></ul></details></li>
+                <li class="menu-group"><details open><summary><span class="menu-label"><span class="menu-icon">✚</span><span>Ordens de Serviço</span></span><span class="arrow">⌄</span></summary><ul class="submenu"><li class="submenu-active"><a href="/ordens-servico">Gerenciar O.S.</a></li><li><a href="/ordens-servico">Painel</a></li><li><a href="/ordens-servico">Opções auxiliares</a></li></ul></details></li>
+                <li class="menu-group"><details><summary><span class="menu-label"><span class="menu-icon">▧</span><span>Estoque</span></span><span class="arrow">⌄</span></summary><ul class="submenu"><li>Movimentações</li><li>Ajustes</li><li>Transferências</li><li>Cotações</li><li>Compras</li><li>Opções auxiliares</li></ul></details></li>
+                <li class="menu-group"><details><summary><span class="menu-label"><span class="menu-icon">◈</span><span>Financeiro</span></span><span class="arrow">⌄</span></summary><ul class="submenu"><li>Contas a pagar</li><li>Contas a receber</li><li>Fluxo de caixa</li><li>Contas bancárias</li><li>Opções auxiliares</li></ul></details></li>
+            </ul>
+        </nav>
+        <div class="sidebar-footer"><div class="footer-item">⚙ Configurações</div><div class="footer-item">? Ajuda</div></div>
+    </aside>
+
+    <main class="content os-page">
+        <header class="topbar">
+            <div class="topbar-left"><button class="menu-toggle" type="button" aria-label="Abrir menu">☰</button><h1>Detalhes da OS</h1></div>
+            <div class="topbar-right"><div class="topbar-date"><span class="topbar-icon">✚</span><span>16/06/2026</span></div><div class="notification"><span class="topbar-icon">🔔</span><span class="notification-badge">0</span></div><div class="user-profile"><div class="avatar">NS</div><div class="user-info"><strong>Netto Santana</strong><span>Administrador</span></div><span class="profile-arrow">⌄</span></div></div>
+        </header>
+
+        {% set os = ordem_servico %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Ordens de Serviço</span>
+                    <h3 class="page-title">OS {{ os.numero or os.id }}</h3>
+                    <p class="page-subtitle">Visualização completa da ordem de serviço cadastrada.</p>
+                </div>
+                <div class="client-toolbar">
+                    <a href="/ordens-servico" class="btn-light">Voltar para OS</a>
+                    <button type="button" class="btn-dark" disabled>Editar OS</button>
+                    <button type="button" class="btn-primary-green" disabled>Imprimir</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="cards cards-secondary page-section">
+            <div class="card stat-card"><div class="card-icon">✚</div><div class="card-info"><p>{{ os.numero or '-' }}</p><h3>Número</h3><span>Registro da OS</span></div></div>
+            <div class="card stat-card"><div class="card-icon">⌁</div><div class="card-info"><p>{{ os.status or '-' }}</p><h3>Situação</h3><span>Prioridade: {{ os.prioridade or '-' }}</span></div></div>
+            <div class="card stat-card"><div class="card-icon">R$</div><div class="card-info"><p>{{ os.valor_total or '0,00' }}</p><h3>Valor total</h3><span>Produtos e serviços</span></div></div>
+        </section>
+
+        <section class="panel page-section">
+            <div class="panel-header page-header"><div><h3>Dados gerais</h3><p class="page-subtitle">Cliente, responsáveis e prazos.</p></div></div>
+            <div class="form-grid">
+                <div class="form-group"><label>Cliente</label><div class="form-control">{{ os.cliente or '-' }}</div></div>
+                <div class="form-group"><label>Responsável</label><div class="form-control">{{ os.responsavel or '-' }}</div></div>
+                <div class="form-group"><label>Técnico</label><div class="form-control">{{ os.tecnico or '-' }}</div></div>
+                <div class="form-group"><label>Data de abertura</label><div class="form-control">{{ os.data_abertura or '-' }}</div></div>
+                <div class="form-group"><label>Previsão</label><div class="form-control">{{ os.data_previsao or '-' }}</div></div>
+                <div class="form-group"><label>Data de saída</label><div class="form-control">{{ os.data_saida or '-' }}</div></div>
+                <div class="form-group"><label>Hora entrada</label><div class="form-control">{{ os.hora_entrada or '-' }}</div></div>
+                <div class="form-group"><label>Hora saída</label><div class="form-control">{{ os.hora_saida or '-' }}</div></div>
+                <div class="form-group"><label>Canal de venda</label><div class="form-control">{{ os.canal_venda or '-' }}</div></div>
+                <div class="form-group"><label>Centro de custo</label><div class="form-control">{{ os.centro_custo or '-' }}</div></div>
+                <div class="form-group"><label>Venda de origem</label><div class="form-control">{{ os.origem_venda_id or '-' }}</div></div>
+                <div class="form-group"><label>Tipo</label><div class="form-control">{{ os.tipo or '-' }}</div></div>
+            </div>
+        </section>
+
+        <section class="panel page-section">
+            <div class="panel-header page-header"><div><h3>Equipamento</h3><p class="page-subtitle">Dados do equipamento ou objeto atendido.</p></div></div>
+            <div class="form-grid">
+                <div class="form-group"><label>Equipamento</label><div class="form-control">{{ os.equipamento or '-' }}</div></div>
+                <div class="form-group"><label>Marca</label><div class="form-control">{{ os.marca or '-' }}</div></div>
+                <div class="form-group"><label>Modelo</label><div class="form-control">{{ os.modelo or '-' }}</div></div>
+                <div class="form-group"><label>Série</label><div class="form-control">{{ os.serie or '-' }}</div></div>
+                <div class="form-group"><label>Local do serviço</label><div class="form-control">{{ os.local_servico or '-' }}</div></div>
+                <div class="form-group"><label>Condições</label><div class="form-control">{{ os.condicoes or '-' }}</div></div>
+                <div class="form-group"><label>Acessórios</label><div class="form-control">{{ os.acessorios or '-' }}</div></div>
+                <div class="form-group"><label>Exibir valor na impressão</label><div class="form-control">{{ os.exibir_valor_impressao or '-' }}</div></div>
+            </div>
+        </section>
+
+        <section class="panel page-section">
+            <div class="panel-header page-header"><div><h3>Relato, diagnóstico e execução</h3><p class="page-subtitle">Informações técnicas da ordem.</p></div></div>
+            <div class="form-grid">
+                <div class="form-group"><label>Relato do cliente</label><div class="form-control">{{ os.relato_cliente or '-' }}</div></div>
+                <div class="form-group"><label>Diagnóstico</label><div class="form-control">{{ os.diagnostico or '-' }}</div></div>
+                <div class="form-group"><label>Serviço executado</label><div class="form-control">{{ os.servico_executado or '-' }}</div></div>
+                <div class="form-group"><label>Laudo</label><div class="form-control">{{ os.laudo or '-' }}</div></div>
+                <div class="form-group"><label>Termos</label><div class="form-control">{{ os.termos or '-' }}</div></div>
+            </div>
+        </section>
+
+        <section class="panel page-section">
+            <div class="panel-header page-header"><div><h3>Produtos e peças</h3><p class="page-subtitle">Materiais vinculados à OS.</p></div></div>
+            <div class="table-shell">
+                <table class="client-table">
+                    <thead><tr><th>Produto</th><th>Detalhes</th><th>Quant.</th><th>Valor</th><th>Desconto</th><th>Subtotal</th></tr></thead>
+                    <tbody>
+                        {% if itens_produtos %}
+                            {% for item in itens_produtos %}<tr><td>{{ item.descricao }}</td><td>{{ item.detalhes }}</td><td>{{ item.quantidade }}</td><td>{{ item.valor_unitario }}</td><td>{{ item.desconto }}</td><td>{{ item.subtotal }}</td></tr>{% endfor %}
+                        {% else %}
+                            <tr><td colspan="6" class="empty-table">Nenhum produto vinculado.</td></tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel page-section">
+            <div class="panel-header page-header"><div><h3>Serviços e mão de obra</h3><p class="page-subtitle">Serviços vinculados à OS.</p></div></div>
+            <div class="table-shell">
+                <table class="client-table">
+                    <thead><tr><th>Serviço</th><th>Detalhes</th><th>Quant.</th><th>Valor</th><th>Desconto</th><th>Subtotal</th></tr></thead>
+                    <tbody>
+                        {% if itens_servicos %}
+                            {% for item in itens_servicos %}<tr><td>{{ item.descricao }}</td><td>{{ item.detalhes }}</td><td>{{ item.quantidade }}</td><td>{{ item.valor_unitario }}</td><td>{{ item.desconto }}</td><td>{{ item.subtotal }}</td></tr>{% endfor %}
+                        {% else %}
+                            <tr><td colspan="6" class="empty-table">Nenhum serviço vinculado.</td></tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel page-section">
+            <div class="panel-header page-header"><div><h3>Totais, entrega e observações</h3><p class="page-subtitle">Resumo financeiro e informações complementares.</p></div></div>
+            <div class="form-grid">
+                <div class="form-group"><label>Total produtos</label><div class="form-control">{{ os.total_produtos or '0,00' }}</div></div>
+                <div class="form-group"><label>Total serviços</label><div class="form-control">{{ os.total_servicos or '0,00' }}</div></div>
+                <div class="form-group"><label>Frete</label><div class="form-control">{{ os.frete or '0,00' }}</div></div>
+                <div class="form-group"><label>Outros</label><div class="form-control">{{ os.outros or '0,00' }}</div></div>
+                <div class="form-group"><label>Desconto</label><div class="form-control">{{ os.desconto_valor or '0,00' }}</div></div>
+                <div class="form-group"><label>Valor total</label><div class="form-control">{{ os.valor_total or '0,00' }}</div></div>
+                <div class="form-group"><label>Forma de pagamento</label><div class="form-control">{{ os.forma_pagamento or '-' }}</div></div>
+                <div class="form-group"><label>Endereço de entrega</label><div class="form-control">{{ os.endereco_entrega or '-' }}</div></div>
+                <div class="form-group"><label>Bairro</label><div class="form-control">{{ os.bairro_entrega or '-' }}</div></div>
+                <div class="form-group"><label>Cidade</label><div class="form-control">{{ os.cidade_entrega or '-' }}</div></div>
+                <div class="form-group"><label>Observações</label><div class="form-control">{{ os.observacoes or '-' }}</div></div>
+                <div class="form-group"><label>Observações internas</label><div class="form-control">{{ os.observacoes_internas or '-' }}</div></div>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

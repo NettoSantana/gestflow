@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordens_servico.html
-Último recode: 2026-06-16 21:35 (America/Bahia)
-Motivo: Reorganizar a tela inicial do módulo OS seguindo a referência do GestãoClick, com blocos de dados gerais, responsáveis, equipamento, itens, total e observações.
+Último recode: 2026-06-16 21:45 (America/Bahia)
+Motivo: Ativar lupa azul da lista de OS para abrir a tela de detalhes.
 -->
 
 <!DOCTYPE html>
@@ -409,7 +409,7 @@ Motivo: Reorganizar a tela inicial do módulo OS seguindo a referência do Gest�
                             {% for os in ordens_lista %}
                                 <tr>
                                     <td>{{ os.id }}</td><td>{{ os.numero }}</td><td>{{ os.cliente }}</td><td>{{ os.equipamento }}</td><td><span class="status-pill {{ os.status }}">{{ os.status }}</span></td><td>{{ os.prioridade }}</td><td>{{ os.data_abertura }}</td><td>{{ os.valor_total }}</td>
-                                    <td><div class="action-buttons"><button type="button" class="action-button view" disabled>🔍</button><button type="button" class="action-button edit" disabled>✎</button><button type="button" class="action-button delete" disabled>×</button></div></td>
+                                    <td><div class="action-buttons"><a href="/ordens-servico/{{ os.id }}" title="Ver OS" aria-label="Ver OS" class="action-button view">🔍</a><button type="button" class="action-button edit" disabled>✎</button><button type="button" class="action-button delete" disabled>×</button></div></td>
                                 </tr>
                             {% endfor %}
                         {% else %}
