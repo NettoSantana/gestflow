@@ -1,0 +1,301 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordens_servico_painel.html
+Último recode: 2026-06-16 22:35 (America/Bahia)
+Motivo: Criar painel de OS com indicadores de prazo, prioridade, status, faturamento e técnico.
+-->
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Painel de OS</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+
+    <style>
+        .os-panel-grid {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 14px;
+            margin-bottom: 22px;
+        }
+
+        .os-priority-grid,
+        .os-status-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .os-panel-card {
+            background: #ffffff;
+            border: 1px solid #dbe3ef;
+            border-radius: 14px;
+            padding: 18px;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+        }
+
+        .os-panel-card strong {
+            display: block;
+            font-size: 28px;
+            color: #0f172a;
+            margin-bottom: 6px;
+        }
+
+        .os-panel-card span {
+            display: block;
+            color: #64748b;
+            font-size: 13px;
+        }
+
+        .os-panel-card h4 {
+            margin: 0 0 10px;
+            font-size: 14px;
+            color: #334155;
+        }
+
+        .os-panel-card-warning {
+            border-color: #facc15;
+            background: #fefce8;
+        }
+
+        .os-panel-card-danger {
+            border-color: #fecaca;
+            background: #fff1f2;
+        }
+
+        .os-panel-card-success {
+            border-color: #bbf7d0;
+            background: #f0fdf4;
+        }
+
+        .os-money-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .os-dashboard-link-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 1200px) {
+            .os-panel-grid,
+            .os-money-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .os-priority-grid,
+            .os-status-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 720px) {
+            .os-panel-grid,
+            .os-money-grid,
+            .os-priority-grid,
+            .os-status-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="brand-mark">GF</div>
+            <h2>GESTFLOW</h2>
+        </div>
+
+        <nav class="sidebar-nav">
+            <ul class="menu">
+                <li class="menu-item"><a href="/"><span class="menu-icon">⌂</span><span>Dashboard</span></a></li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary><span class="menu-label"><span class="menu-icon">☷</span><span>Cadastros</span></span><span class="arrow">⌄</span></summary>
+                        <ul class="submenu"><li><a href="/clientes">Clientes</a></li><li><a href="/fornecedores">Fornecedores</a></li><li><a href="/funcionarios">Funcionários</a></li><li>Veículos</li><li>Opções auxiliares</li></ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary><span class="menu-label"><span class="menu-icon">□</span><span>Produtos</span></span><span class="arrow">⌄</span></summary>
+                        <ul class="submenu"><li><a href="/produtos">Gerenciar produtos</a></li><li>Opções auxiliares</li></ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary><span class="menu-label"><span class="menu-icon">⚙</span><span>Serviços</span></span><span class="arrow">⌄</span></summary>
+                        <ul class="submenu"><li><a href="/servicos">Gerenciar serviços</a></li><li>Opções auxiliares</li></ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary><span class="menu-label"><span class="menu-icon">▣</span><span>Orçamentos</span></span><span class="arrow">⌄</span></summary>
+                        <ul class="submenu"><li><a href="/orcamentos">Produtos</a></li><li><a href="/orcamentos">Serviços</a></li><li>Opções auxiliares</li></ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary><span class="menu-label"><span class="menu-icon">▤</span><span>Vendas</span></span><span class="arrow">⌄</span></summary>
+                        <ul class="submenu"><li><a href="/vendas">Produtos</a></li><li><a href="/vendas">Serviços</a></li><li><a href="/vendas">Balcão</a></li><li><a href="/vendas">Devoluções</a></li><li><a href="/vendas">Opções auxiliares</a></li></ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details open>
+                        <summary><span class="menu-label"><span class="menu-icon">✚</span><span>Ordens de Serviço</span></span><span class="arrow">⌄</span></summary>
+                        <ul class="submenu"><li><a href="/ordens-servico">Gerenciar O.S.</a></li><li class="submenu-active"><a href="/ordens-servico/painel">Painel</a></li><li><a href="/ordens-servico">Opções auxiliares</a></li></ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary><span class="menu-label"><span class="menu-icon">▧</span><span>Estoque</span></span><span class="arrow">⌄</span></summary>
+                        <ul class="submenu"><li>Movimentações</li><li>Ajustes</li><li>Transferências</li><li>Cotações</li><li>Compras</li><li>Opções auxiliares</li></ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary><span class="menu-label"><span class="menu-icon">◈</span><span>Financeiro</span></span><span class="arrow">⌄</span></summary>
+                        <ul class="submenu"><li>Contas a pagar</li><li>Contas a receber</li><li>Fluxo de caixa</li><li>Contas bancárias</li><li>Opções auxiliares</li></ul>
+                    </details>
+                </li>
+            </ul>
+        </nav>
+
+        <div class="sidebar-footer"><div class="footer-item">⚙ Configurações</div><div class="footer-item">? Ajuda</div></div>
+    </aside>
+
+    <main class="content os-page">
+        <header class="topbar">
+            <div class="topbar-left"><button class="menu-toggle" type="button" aria-label="Abrir menu">☰</button><h1>Painel de OS</h1></div>
+            <div class="topbar-right"><div class="topbar-date"><span class="topbar-icon">✚</span><span>16/06/2026</span></div><div class="notification"><span class="topbar-icon">🔔</span><span class="notification-badge">0</span></div><div class="user-profile"><div class="avatar">NS</div><div class="user-info"><strong>Netto Santana</strong><span>Administrador</span></div><span class="profile-arrow">⌄</span></div></div>
+        </header>
+
+        {% set prazo = painel.prazo %}
+        {% set prioridade = painel.prioridade %}
+        {% set status = painel.status %}
+        {% set faturamento = painel.faturamento %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Ordens de Serviço</span>
+                    <h3 class="page-title">Painel de OS</h3>
+                    <p class="page-subtitle">Acompanhe prazos, prioridades, situação, faturamento e técnico responsável.</p>
+                </div>
+                <div class="os-dashboard-link-row">
+                    <a href="/ordens-servico" class="btn-light">Gerenciar OS</a>
+                    <a href="/ordens-servico#form-nova-os" class="btn-primary-green">+ Nova OS</a>
+                </div>
+            </div>
+        </section>
+
+        <section class="os-panel-grid">
+            <div class="os-panel-card os-panel-card-danger"><h4>Vencidas</h4><strong>{{ prazo.vencidas }}</strong><span>OS abertas com prazo vencido</span></div>
+            <div class="os-panel-card os-panel-card-warning"><h4>Hoje</h4><strong>{{ prazo.hoje }}</strong><span>OS previstas para hoje</span></div>
+            <div class="os-panel-card"><h4>Amanhã</h4><strong>{{ prazo.amanha }}</strong><span>OS previstas para amanhã</span></div>
+            <div class="os-panel-card"><h4>Futuras</h4><strong>{{ prazo.futuras }}</strong><span>OS com prazo futuro</span></div>
+            <div class="os-panel-card"><h4>Sem prazo</h4><strong>{{ prazo.sem_prazo }}</strong><span>OS sem previsão cadastrada</span></div>
+        </section>
+
+        <section class="panel page-section">
+            <div class="panel-header page-header"><div><h3>Faturamento</h3><p class="page-subtitle">Resumo financeiro das ordens cadastradas.</p></div></div>
+            <div class="os-money-grid">
+                <div class="os-panel-card"><h4>Em aberto</h4><strong>R$ {{ "%.2f"|format(faturamento.abertas)|replace(".", ",") }}</strong><span>OS abertas e aguardando</span></div>
+                <div class="os-panel-card"><h4>Em andamento</h4><strong>R$ {{ "%.2f"|format(faturamento.andamento)|replace(".", ",") }}</strong><span>OS em execução</span></div>
+                <div class="os-panel-card os-panel-card-success"><h4>Finalizadas</h4><strong>R$ {{ "%.2f"|format(faturamento.finalizadas)|replace(".", ",") }}</strong><span>OS concluídas</span></div>
+                <div class="os-panel-card"><h4>Total geral</h4><strong>R$ {{ "%.2f"|format(faturamento.geral)|replace(".", ",") }}</strong><span>Total cadastrado</span></div>
+            </div>
+        </section>
+
+        <section class="dashboard-grid">
+            <div class="panel table-panel">
+                <div class="panel-header page-header"><div><h3>Prioridade</h3><p class="page-subtitle">Distribuição das OS por urgência.</p></div></div>
+                <div class="os-priority-grid">
+                    <div class="os-panel-card"><h4>Baixa</h4><strong>{{ prioridade.baixa }}</strong><span>Baixa prioridade</span></div>
+                    <div class="os-panel-card"><h4>Média</h4><strong>{{ prioridade.media }}</strong><span>Prioridade média</span></div>
+                    <div class="os-panel-card os-panel-card-warning"><h4>Alta</h4><strong>{{ prioridade.alta }}</strong><span>Prioridade alta</span></div>
+                    <div class="os-panel-card os-panel-card-danger"><h4>Urgente</h4><strong>{{ prioridade.urgente }}</strong><span>Atendimento urgente</span></div>
+                    <div class="os-panel-card os-panel-card-danger"><h4>Muito urgente</h4><strong>{{ prioridade.muito_urgente }}</strong><span>Atenção imediata</span></div>
+                    <div class="os-panel-card"><h4>Normal</h4><strong>{{ prioridade.normal }}</strong><span>Sem prioridade especial</span></div>
+                </div>
+            </div>
+
+            <div class="panel table-panel">
+                <div class="panel-header page-header"><div><h3>Situação</h3><p class="page-subtitle">Status das ordens de serviço.</p></div></div>
+                <div class="os-status-grid">
+                    <div class="os-panel-card"><h4>Abertas</h4><strong>{{ status.aberta }}</strong><span>Aguardando execução</span></div>
+                    <div class="os-panel-card"><h4>Em andamento</h4><strong>{{ status.andamento }}</strong><span>Em execução</span></div>
+                    <div class="os-panel-card"><h4>Aguardando</h4><strong>{{ status.aguardando }}</strong><span>Aguardando peça ou retorno</span></div>
+                    <div class="os-panel-card os-panel-card-success"><h4>Finalizadas</h4><strong>{{ status.finalizada }}</strong><span>Concluídas</span></div>
+                    <div class="os-panel-card"><h4>Canceladas</h4><strong>{{ status.cancelada }}</strong><span>Canceladas</span></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="table-grid">
+            <div class="panel table-panel">
+                <div class="panel-header page-header"><div><h3>Faturamento por técnico</h3><p class="page-subtitle">Quantidade, abertas, finalizadas e valor por responsável técnico.</p></div></div>
+                <div class="table-shell">
+                    <table class="client-table">
+                        <thead><tr><th>Técnico</th><th>OS</th><th>Abertas</th><th>Finalizadas</th><th>Valor total</th></tr></thead>
+                        <tbody>
+                            {% if painel.por_tecnico %}
+                                {% for item in painel.por_tecnico %}
+                                    <tr>
+                                        <td>{{ item.tecnico }}</td>
+                                        <td>{{ item.quantidade }}</td>
+                                        <td>{{ item.abertas }}</td>
+                                        <td>{{ item.finalizadas }}</td>
+                                        <td>R$ {{ "%.2f"|format(item.valor_total)|replace(".", ",") }}</td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr><td colspan="5" class="empty-table">Nenhum técnico vinculado.</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="panel table-panel">
+                <div class="panel-header page-header"><div><h3>Próximas OS</h3><p class="page-subtitle">Lista ordenada pelo prazo de previsão.</p></div></div>
+                <div class="table-shell">
+                    <table class="client-table">
+                        <thead><tr><th>Número</th><th>Cliente</th><th>Técnico</th><th>Status</th><th>Prioridade</th><th>Previsão</th><th>Ação</th></tr></thead>
+                        <tbody>
+                            {% if painel.proximas_ordens %}
+                                {% for os in painel.proximas_ordens %}
+                                    <tr>
+                                        <td>{{ os.numero }}</td>
+                                        <td>{{ os.cliente }}</td>
+                                        <td>{{ os.tecnico or '-' }}</td>
+                                        <td><span class="status-pill {{ os.status }}">{{ os.status }}</span></td>
+                                        <td>{{ os.prioridade }}</td>
+                                        <td>{{ os.data_previsao or '-' }}</td>
+                                        <td><a href="/ordens-servico/{{ os.id }}" class="action-button view">🔍</a></td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr><td colspan="7" class="empty-table">Nenhuma OS cadastrada.</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

@@ -1,11 +1,12 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-16 22:25 (America/Bahia)
-# Motivo: Ligar impressão A4, cupom e geração de cópia da OS.
+# Último recode: 2026-06-16 22:35 (America/Bahia)
+# Motivo: Criar painel de OS com indicadores de prazo, prioridade, status e faturamento.
 
 from __future__ import annotations
 
 import html
 import sqlite3
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -2151,6 +2152,157 @@ def listar_ordem_servico_itens(ordem_servico_id: int) -> list[dict[str, Any]]:
     return [dict(row) for row in rows]
 
 
+def _converter_data_iso(valor: Any) -> date | None:
+    texto = str(valor or "").strip()
+
+    if not texto:
+        return None
+
+    try:
+        return datetime.strptime(texto, "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
+def _converter_valor_brl(valor: Any) -> float:
+    texto = str(valor or "").strip()
+
+    if not texto:
+        return 0.0
+
+    texto = texto.replace("R$", "").replace(" ", "")
+
+    if "," in texto:
+        texto = texto.replace(".", "").replace(",", ".")
+
+    try:
+        return float(texto)
+    except ValueError:
+        return 0.0
+
+
+def montar_painel_ordens_servico() -> dict[str, Any]:
+    ordens = listar_ordens_servico()
+    hoje = date.today()
+
+    prazo = {
+        "vencidas": 0,
+        "hoje": 0,
+        "amanha": 0,
+        "futuras": 0,
+        "sem_prazo": 0,
+    }
+
+    prioridade = {
+        "baixa": 0,
+        "media": 0,
+        "alta": 0,
+        "urgente": 0,
+        "muito_urgente": 0,
+        "normal": 0,
+    }
+
+    status = {
+        "aberta": 0,
+        "andamento": 0,
+        "aguardando": 0,
+        "finalizada": 0,
+        "cancelada": 0,
+    }
+
+    faturamento = {
+        "abertas": 0.0,
+        "andamento": 0.0,
+        "finalizadas": 0.0,
+        "geral": 0.0,
+    }
+
+    por_tecnico: dict[str, dict[str, Any]] = {}
+    proximas_ordens: list[dict[str, Any]] = []
+
+    for ordem in ordens:
+        data_previsao = _converter_data_iso(ordem.get("data_previsao"))
+        status_os = str(ordem.get("status") or "aberta").strip() or "aberta"
+        prioridade_os = str(ordem.get("prioridade") or "normal").strip() or "normal"
+        tecnico = str(ordem.get("tecnico") or "Sem técnico").strip() or "Sem técnico"
+        valor = _converter_valor_brl(ordem.get("valor_total"))
+
+        if data_previsao is None:
+            prazo["sem_prazo"] += 1
+        elif data_previsao < hoje and status_os not in {"finalizada", "cancelada"}:
+            prazo["vencidas"] += 1
+        elif data_previsao == hoje:
+            prazo["hoje"] += 1
+        elif (data_previsao - hoje).days == 1:
+            prazo["amanha"] += 1
+        elif data_previsao > hoje:
+            prazo["futuras"] += 1
+
+        if prioridade_os in prioridade:
+            prioridade[prioridade_os] += 1
+        else:
+            prioridade["normal"] += 1
+
+        if status_os in status:
+            status[status_os] += 1
+        else:
+            status["aberta"] += 1
+
+        faturamento["geral"] += valor
+
+        if status_os == "finalizada":
+            faturamento["finalizadas"] += valor
+        elif status_os == "andamento":
+            faturamento["andamento"] += valor
+        elif status_os != "cancelada":
+            faturamento["abertas"] += valor
+
+        if tecnico not in por_tecnico:
+            por_tecnico[tecnico] = {
+                "tecnico": tecnico,
+                "quantidade": 0,
+                "valor_total": 0.0,
+                "abertas": 0,
+                "finalizadas": 0,
+            }
+
+        por_tecnico[tecnico]["quantidade"] += 1
+        por_tecnico[tecnico]["valor_total"] += valor
+
+        if status_os == "finalizada":
+            por_tecnico[tecnico]["finalizadas"] += 1
+        elif status_os != "cancelada":
+            por_tecnico[tecnico]["abertas"] += 1
+
+        ordem_com_data = dict(ordem)
+        ordem_com_data["_data_previsao_obj"] = data_previsao
+        proximas_ordens.append(ordem_com_data)
+
+    proximas_ordens.sort(
+        key=lambda item: (
+            item["_data_previsao_obj"] is None,
+            item["_data_previsao_obj"] or date.max,
+            item.get("id") or 0,
+        )
+    )
+
+    painel_tecnicos = sorted(
+        por_tecnico.values(),
+        key=lambda item: item["valor_total"],
+        reverse=True,
+    )
+
+    return {
+        "ordens": ordens,
+        "prazo": prazo,
+        "prioridade": prioridade,
+        "status": status,
+        "faturamento": faturamento,
+        "por_tecnico": painel_tecnicos,
+        "proximas_ordens": proximas_ordens[:10],
+    }
+
+
 def excluir_ordem_servico_db(ordem_servico_id: int) -> None:
     with conectar_db() as conn:
         conn.execute(
@@ -2805,6 +2957,16 @@ def excluir_servico(servico_id: int) -> Response:
         excluir_servico_db(servico_id)
 
     return redirect(url_for("servicos"))
+
+
+@app.get("/ordens-servico/painel")
+def painel_ordens_servico() -> str:
+    painel = montar_painel_ordens_servico()
+
+    return render_template(
+        "ordens_servico_painel.html",
+        painel=painel,
+    )
 
 
 @app.get("/ordens-servico")
