@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordens_servico_painel.html
-Último recode: 2026-06-16 22:45 (America/Bahia)
-Motivo: Corrigir estouro horizontal do painel de OS e limitar grids/tabelas ao tamanho da tela.
+Último recode: 2026-06-16 22:42 (America/Bahia)
+Motivo: Corrigir estouro horizontal do painel de OS limitando largura, grids e tabelas.
 -->
 
 <!DOCTYPE html>
@@ -15,41 +15,78 @@ Motivo: Corrigir estouro horizontal do painel de OS e limitar grids/tabelas ao t
     <style>
         html,
         body {
+            max-width: 100%;
             overflow-x: hidden;
         }
 
-        .os-painel-page {
+        main.content.os-page {
+            width: auto !important;
+            min-width: 0 !important;
+            max-width: none !important;
+            overflow-x: hidden;
+            box-sizing: border-box;
+        }
+
+        .os-page *,
+        .os-page *::before,
+        .os-page *::after {
+            box-sizing: border-box;
+        }
+
+        .os-page .topbar,
+        .os-page .panel,
+        .os-page .page-section,
+        .os-page .table-panel,
+        .os-panel-grid,
+        .os-money-grid,
+        .os-priority-grid,
+        .os-status-grid,
+        .os-board-grid,
+        .os-board-tables {
             width: 100%;
             max-width: 100%;
-            overflow-x: hidden;
-            box-sizing: border-box;
+            min-width: 0;
         }
 
-        .os-painel-page *,
-        .os-painel-page *::before,
-        .os-painel-page *::after {
-            box-sizing: border-box;
+        .os-page .page-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            min-width: 0;
         }
 
-        .os-painel-page .panel,
-        .os-painel-page .page-section,
-        .os-painel-page section {
-            max-width: 100%;
+        .os-page .page-header > div:first-child {
+            min-width: 0;
+            flex: 1 1 320px;
         }
 
         .os-panel-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
             gap: 14px;
             margin-bottom: 22px;
-            width: 100%;
-            max-width: 100%;
+        }
+
+        .os-money-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+            gap: 14px;
+        }
+
+        .os-board-grid,
+        .os-board-tables {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            gap: 18px;
+            margin-bottom: 22px;
         }
 
         .os-priority-grid,
         .os-status-grid {
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
             gap: 14px;
         }
 
@@ -59,6 +96,7 @@ Motivo: Corrigir estouro horizontal do painel de OS e limitar grids/tabelas ao t
             border-radius: 14px;
             padding: 18px;
             box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+            min-width: 0;
         }
 
         .os-panel-card strong {
@@ -66,18 +104,22 @@ Motivo: Corrigir estouro horizontal do painel de OS e limitar grids/tabelas ao t
             font-size: 28px;
             color: #0f172a;
             margin-bottom: 6px;
+            line-height: 1.1;
+            overflow-wrap: anywhere;
         }
 
         .os-panel-card span {
             display: block;
             color: #64748b;
             font-size: 13px;
+            overflow-wrap: anywhere;
         }
 
         .os-panel-card h4 {
             margin: 0 0 10px;
             font-size: 14px;
             color: #334155;
+            overflow-wrap: anywhere;
         }
 
         .os-panel-card-warning {
@@ -95,65 +137,46 @@ Motivo: Corrigir estouro horizontal do painel de OS e limitar grids/tabelas ao t
             background: #f0fdf4;
         }
 
-        .os-money-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 14px;
-            width: 100%;
-            max-width: 100%;
-        }
-
         .os-dashboard-link-row {
             display: flex;
             align-items: center;
+            justify-content: flex-end;
             gap: 10px;
+            flex: 0 1 auto;
             flex-wrap: wrap;
-        }
-
-        .os-panel-middle-grid {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-            gap: 16px;
-            align-items: start;
-            width: 100%;
-            max-width: 100%;
-            margin-bottom: 18px;
-        }
-
-        .os-panel-table-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 16px;
-            width: 100%;
-            max-width: 100%;
-        }
-
-        .os-painel-page .table-shell {
-            width: 100%;
-            max-width: 100%;
-            overflow-x: auto;
-        }
-
-        .os-painel-page .client-table {
-            width: 100%;
-            min-width: 720px;
-        }
-
-        .os-painel-page .os-panel-card {
             min-width: 0;
         }
 
-        @media (max-width: 1200px) {
-            .os-priority-grid,
-            .os-status-grid,
-            .os-panel-middle-grid {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
+        .os-page .table-shell {
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            overflow-x: auto;
+        }
+
+        .os-page .client-table {
+            width: 100%;
+            min-width: 620px;
+        }
+
+        .os-page .table-panel {
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        @media (max-width: 1280px) {
+            .os-board-grid,
+            .os-board-tables {
+                grid-template-columns: 1fr;
             }
         }
 
-        @media (max-width: 900px) {
-            .os-panel-middle-grid {
-                grid-template-columns: 1fr;
+        @media (max-width: 980px) {
+            .os-panel-grid,
+            .os-money-grid,
+            .os-priority-grid,
+            .os-status-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
             }
         }
 
@@ -162,13 +185,13 @@ Motivo: Corrigir estouro horizontal do painel de OS e limitar grids/tabelas ao t
             .os-money-grid,
             .os-priority-grid,
             .os-status-grid,
-            .os-panel-middle-grid,
-            .os-panel-table-grid {
+            .os-board-grid,
+            .os-board-tables {
                 grid-template-columns: 1fr;
             }
 
-            .os-painel-page .client-table {
-                min-width: 640px;
+            .os-dashboard-link-row {
+                justify-content: flex-start;
             }
         }
     </style>
@@ -246,7 +269,7 @@ Motivo: Corrigir estouro horizontal do painel de OS e limitar grids/tabelas ao t
         <div class="sidebar-footer"><div class="footer-item">⚙ Configurações</div><div class="footer-item">? Ajuda</div></div>
     </aside>
 
-    <main class="content os-page os-painel-page">
+    <main class="content os-page">
         <header class="topbar">
             <div class="topbar-left"><button class="menu-toggle" type="button" aria-label="Abrir menu">☰</button><h1>Painel de OS</h1></div>
             <div class="topbar-right"><div class="topbar-date"><span class="topbar-icon">✚</span><span>16/06/2026</span></div><div class="notification"><span class="topbar-icon">🔔</span><span class="notification-badge">0</span></div><div class="user-profile"><div class="avatar">NS</div><div class="user-info"><strong>Netto Santana</strong><span>Administrador</span></div><span class="profile-arrow">⌄</span></div></div>
@@ -289,7 +312,7 @@ Motivo: Corrigir estouro horizontal do painel de OS e limitar grids/tabelas ao t
             </div>
         </section>
 
-        <section class="os-panel-middle-grid">
+        <section class="os-board-grid">
             <div class="panel table-panel">
                 <div class="panel-header page-header"><div><h3>Prioridade</h3><p class="page-subtitle">Distribuição das OS por urgência.</p></div></div>
                 <div class="os-priority-grid">
@@ -314,7 +337,7 @@ Motivo: Corrigir estouro horizontal do painel de OS e limitar grids/tabelas ao t
             </div>
         </section>
 
-        <section class="os-panel-table-grid">
+        <section class="os-board-tables">
             <div class="panel table-panel">
                 <div class="panel-header page-header"><div><h3>Faturamento por técnico</h3><p class="page-subtitle">Quantidade, abertas, finalizadas e valor por responsável técnico.</p></div></div>
                 <div class="table-shell">
