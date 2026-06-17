@@ -1,0 +1,244 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordens_servico.html
+Último recode: 2026-06-16 21:20 (America/Bahia)
+Motivo: Criar tela inicial do módulo OS com cadastro, itens e lista de ordens de serviço.
+-->
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Ordens de Serviço</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="brand-mark">GF</div>
+            <h2>GESTFLOW</h2>
+        </div>
+
+        <nav class="sidebar-nav">
+            <ul class="menu">
+                <li class="menu-item"><a href="/"><span class="menu-icon">⌂</span><span>Dashboard</span></a></li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary><span class="menu-label"><span class="menu-icon">☷</span><span>Cadastros</span></span><span class="arrow">⌄</span></summary>
+                        <ul class="submenu"><li><a href="/clientes">Clientes</a></li><li><a href="/fornecedores">Fornecedores</a></li><li><a href="/funcionarios">Funcionários</a></li><li>Veículos</li><li>Opções auxiliares</li></ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary><span class="menu-label"><span class="menu-icon">□</span><span>Produtos</span></span><span class="arrow">⌄</span></summary>
+                        <ul class="submenu"><li><a href="/produtos">Gerenciar produtos</a></li><li>Opções auxiliares</li></ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary><span class="menu-label"><span class="menu-icon">⚙</span><span>Serviços</span></span><span class="arrow">⌄</span></summary>
+                        <ul class="submenu"><li><a href="/servicos">Gerenciar serviços</a></li><li>Opções auxiliares</li></ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary><span class="menu-label"><span class="menu-icon">▣</span><span>Orçamentos</span></span><span class="arrow">⌄</span></summary>
+                        <ul class="submenu"><li><a href="/orcamentos">Produtos</a></li><li><a href="/orcamentos">Serviços</a></li><li>Opções auxiliares</li></ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary><span class="menu-label"><span class="menu-icon">▤</span><span>Vendas</span></span><span class="arrow">⌄</span></summary>
+                        <ul class="submenu"><li><a href="/vendas">Produtos</a></li><li><a href="/vendas">Serviços</a></li><li><a href="/vendas">Balcão</a></li><li><a href="/vendas">Devoluções</a></li><li><a href="/vendas">Opções auxiliares</a></li></ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details open>
+                        <summary><span class="menu-label"><span class="menu-icon">✚</span><span>Ordens de Serviço</span></span><span class="arrow">⌄</span></summary>
+                        <ul class="submenu"><li class="submenu-active"><a href="/ordens-servico">Gerenciar O.S.</a></li><li><a href="/ordens-servico">Painel</a></li><li><a href="/ordens-servico">Opções auxiliares</a></li></ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary><span class="menu-label"><span class="menu-icon">▧</span><span>Estoque</span></span><span class="arrow">⌄</span></summary>
+                        <ul class="submenu"><li>Movimentações</li><li>Ajustes</li><li>Transferências</li><li>Cotações</li><li>Compras</li><li>Opções auxiliares</li></ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary><span class="menu-label"><span class="menu-icon">◈</span><span>Financeiro</span></span><span class="arrow">⌄</span></summary>
+                        <ul class="submenu"><li>Contas a pagar</li><li>Contas a receber</li><li>Fluxo de caixa</li><li>Contas bancárias</li><li>Opções auxiliares</li></ul>
+                    </details>
+                </li>
+            </ul>
+        </nav>
+
+        <div class="sidebar-footer"><div class="footer-item">⚙ Configurações</div><div class="footer-item">? Ajuda</div></div>
+    </aside>
+
+    <main class="content os-page">
+        <header class="topbar">
+            <div class="topbar-left"><button class="menu-toggle" type="button" aria-label="Abrir menu">☰</button><h1>Ordens de Serviço</h1></div>
+            <div class="topbar-right"><div class="topbar-date"><span class="topbar-icon">✚</span><span>16/06/2026</span></div><div class="notification"><span class="topbar-icon">🔔</span><span class="notification-badge">0</span></div><div class="user-profile"><div class="avatar">NS</div><div class="user-info"><strong>Netto Santana</strong><span>Administrador</span></div><span class="profile-arrow">⌄</span></div></div>
+        </header>
+
+        {% set ordens_lista = ordens_servico|default([]) %}
+        {% set resumo = namespace(abertas=0, andamento=0, finalizadas=0) %}
+        {% for os in ordens_lista %}
+            {% if os.status == "aberta" %}{% set resumo.abertas = resumo.abertas + 1 %}{% endif %}
+            {% if os.status == "andamento" %}{% set resumo.andamento = resumo.andamento + 1 %}{% endif %}
+            {% if os.status == "finalizada" %}{% set resumo.finalizadas = resumo.finalizadas + 1 %}{% endif %}
+        {% endfor %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Ordens de Serviço</span>
+                    <h3 class="page-title">Ordens de Serviço</h3>
+                    <p class="page-subtitle">Cadastre e acompanhe serviços com cliente, responsável, produtos, serviços, status e prioridade.</p>
+                </div>
+                <a href="#form-nova-os" class="btn-primary-green">+ Nova OS</a>
+            </div>
+        </section>
+
+        <section class="cards cards-secondary page-section">
+            <div class="card stat-card"><div class="card-icon">✚</div><div class="card-info"><p>{{ ordens_lista|length }}</p><h3>Total de OS</h3><span>{% if ordens_lista|length == 1 %}1 OS cadastrada{% elif ordens_lista|length > 1 %}{{ ordens_lista|length }} OS cadastradas{% else %}Nenhuma OS cadastrada{% endif %}</span></div></div>
+            <div class="card stat-card"><div class="card-icon">⌁</div><div class="card-info"><p>{{ resumo.abertas }}</p><h3>Abertas</h3><span>{% if resumo.abertas == 1 %}1 OS aberta{% elif resumo.abertas > 1 %}{{ resumo.abertas }} OS abertas{% else %}Nenhuma OS aberta{% endif %}</span></div></div>
+            <div class="card stat-card"><div class="card-icon">✓</div><div class="card-info"><p>{{ resumo.finalizadas }}</p><h3>Finalizadas</h3><span>{% if resumo.finalizadas == 1 %}1 OS finalizada{% elif resumo.finalizadas > 1 %}{{ resumo.finalizadas }} OS finalizadas{% else %}Nenhuma OS finalizada{% endif %}</span></div></div>
+        </section>
+
+        <form id="form-nova-os" action="/ordens-servico" method="post" class="client-form">
+            <section class="panel page-section">
+                <div class="panel-header page-header"><div><h3>Dados gerais</h3><p class="page-subtitle">Informações principais da ordem de serviço.</p></div><span class="badge-info">Cadastro inicial</span></div>
+                <div class="form-grid">
+                    <div class="form-group"><label for="os_numero">Número</label><input id="os_numero" name="os_numero" type="text" value="{{ proximo_numero|default('0001') }}" class="form-control"></div>
+                    <div class="form-group"><label for="os_cliente">Cliente</label><select id="os_cliente" name="os_cliente" class="form-control"><option value="">Selecione</option>{% for cliente in clientes|default([]) %}<option value="{{ cliente.nome }}">{{ cliente.nome }}</option>{% endfor %}</select></div>
+                    <div class="form-group"><label for="os_responsavel">Responsável</label><input id="os_responsavel" name="os_responsavel" type="text" placeholder="Ex: Netto Santana" class="form-control"></div>
+                    <div class="form-group"><label for="os_data_abertura">Data de abertura</label><input id="os_data_abertura" name="os_data_abertura" type="date" class="form-control"></div>
+                    <div class="form-group"><label for="os_data_previsao">Previsão</label><input id="os_data_previsao" name="os_data_previsao" type="text" placeholder="Ex: 3 dias úteis" class="form-control"></div>
+                    <div class="form-group"><label for="os_equipamento">Equipamento / objeto</label><input id="os_equipamento" name="os_equipamento" type="text" placeholder="Ex: portão, máquina, veículo" class="form-control"></div>
+                    <div class="form-group"><label for="os_local_servico">Local do serviço</label><input id="os_local_servico" name="os_local_servico" type="text" placeholder="Ex: portaria principal" class="form-control"></div>
+                    <div class="form-group"><label for="os_origem_venda_id">Venda de origem</label><input id="os_origem_venda_id" name="os_origem_venda_id" type="text" placeholder="ID da venda, se houver" class="form-control"></div>
+                    <div class="form-group"><label for="os_tipo">Tipo</label><select id="os_tipo" name="os_tipo" class="form-control"><option value="misto">Misto</option><option value="produto">Produto</option><option value="servico">Serviço</option></select></div>
+                    <div class="form-group"><label for="os_status">Situação</label><select id="os_status" name="os_status" class="form-control"><option value="aberta">Aberta</option><option value="andamento">Em andamento</option><option value="aguardando">Aguardando</option><option value="finalizada">Finalizada</option><option value="cancelada">Cancelada</option></select></div>
+                    <div class="form-group"><label for="os_prioridade">Prioridade</label><select id="os_prioridade" name="os_prioridade" class="form-control"><option value="normal">Normal</option><option value="baixa">Baixa</option><option value="alta">Alta</option><option value="urgente">Urgente</option></select></div>
+                </div>
+            </section>
+
+            <section class="panel page-section">
+                <div class="panel-header page-header"><div><h3>Produtos</h3><p class="page-subtitle">Materiais ou produtos vinculados à OS.</p></div></div>
+                <div class="client-actions"><button type="button" class="btn-primary-green" onclick="adicionarItem('produto')">+ Adicionar produto</button></div>
+                <div class="table-shell"><table class="client-table"><thead><tr><th>Produto</th><th>Detalhes</th><th>Quant.</th><th>Valor</th><th>Desconto</th><th>Subtotal</th><th>Ação</th></tr></thead><tbody id="produto-tbody"></tbody></table></div>
+            </section>
+
+            <section class="panel page-section">
+                <div class="panel-header page-header"><div><h3>Serviços</h3><p class="page-subtitle">Serviços a executar ou executados na OS.</p></div></div>
+                <div class="client-actions"><button type="button" class="btn-primary-green" onclick="adicionarItem('servico')">+ Adicionar serviço</button></div>
+                <div class="table-shell"><table class="client-table"><thead><tr><th>Serviço</th><th>Detalhes</th><th>Quant.</th><th>Valor</th><th>Desconto</th><th>Subtotal</th><th>Ação</th></tr></thead><tbody id="servico-tbody"></tbody></table></div>
+            </section>
+
+            <section class="panel page-section">
+                <div class="panel-header page-header"><div><h3>Totais e execução</h3><p class="page-subtitle">Valores e informações técnicas da OS.</p></div></div>
+                <div class="form-grid">
+                    <div class="form-group"><label for="os_total_produtos">Total produtos</label><input id="os_total_produtos" name="os_total_produtos" type="text" placeholder="0,00" class="form-control"></div>
+                    <div class="form-group"><label for="os_total_servicos">Total serviços</label><input id="os_total_servicos" name="os_total_servicos" type="text" placeholder="0,00" class="form-control"></div>
+                    <div class="form-group"><label for="os_valor_total">Valor total</label><input id="os_valor_total" name="os_valor_total" type="text" placeholder="0,00" class="form-control"></div>
+                    <div class="form-group"><label for="os_forma_pagamento">Forma de pagamento</label><input id="os_forma_pagamento" name="os_forma_pagamento" type="text" placeholder="Ex: Pix, faturado, cartão" class="form-control"></div>
+                    <div class="form-group"><label for="os_relato_cliente">Relato do cliente</label><input id="os_relato_cliente" name="os_relato_cliente" type="text" placeholder="Problema informado pelo cliente" class="form-control"></div>
+                    <div class="form-group"><label for="os_diagnostico">Diagnóstico</label><input id="os_diagnostico" name="os_diagnostico" type="text" placeholder="Diagnóstico técnico" class="form-control"></div>
+                    <div class="form-group"><label for="os_servico_executado">Serviço executado</label><input id="os_servico_executado" name="os_servico_executado" type="text" placeholder="Resumo da execução" class="form-control"></div>
+                    <div class="form-group"><label for="os_observacoes">Observações</label><input id="os_observacoes" name="os_observacoes" type="text" placeholder="Observações da OS" class="form-control"></div>
+                    <div class="form-group"><label for="os_observacoes_internas">Observações internas</label><input id="os_observacoes_internas" name="os_observacoes_internas" type="text" placeholder="Uso interno" class="form-control"></div>
+                </div>
+                <div class="form-actions"><button type="reset" class="btn-light">Cancelar</button><button type="submit" class="btn-primary-green">Salvar OS</button></div>
+            </section>
+        </form>
+
+        <section class="panel table-panel">
+            <div class="panel-header page-header"><div><h3>Lista de OS</h3><p class="page-subtitle">Acompanhe as ordens de serviço cadastradas.</p></div><div class="client-toolbar"><button type="button" class="btn-light">Exportar</button><button type="button" class="btn-light">Filtros</button></div></div>
+            <div class="client-actions"><input type="text" placeholder="Buscar por número, cliente, situação ou responsável" class="client-search"><button type="button" class="btn-dark">Buscar</button></div>
+            <div class="table-shell">
+                <table class="client-table">
+                    <thead><tr><th>ID</th><th>Número</th><th>Cliente</th><th>Equipamento</th><th>Situação</th><th>Prioridade</th><th>Data</th><th>Valor total</th><th>Ações</th></tr></thead>
+                    <tbody>
+                        {% if ordens_lista %}
+                            {% for os in ordens_lista %}
+                                <tr>
+                                    <td>{{ os.id }}</td><td>{{ os.numero }}</td><td>{{ os.cliente }}</td><td>{{ os.equipamento }}</td><td><span class="status-pill {{ os.status }}">{{ os.status }}</span></td><td>{{ os.prioridade }}</td><td>{{ os.data_abertura }}</td><td>{{ os.valor_total }}</td>
+                                    <td><div class="action-buttons"><button type="button" class="action-button view" disabled>🔍</button><button type="button" class="action-button edit" disabled>✎</button><button type="button" class="action-button delete" disabled>×</button></div></td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr><td colspan="9" class="empty-table empty-table-box"><div class="empty-table-content"><div class="empty-table-icon">✚</div><strong>Nenhuma OS cadastrada.</strong><span>Use o botão Nova OS para iniciar o cadastro.</span></div></td></tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <script>
+            window.opcoesProdutos = [
+                {% for produto in produtos|default([]) %}
+                    { nome: "{{ produto.nome }}", valor: "{{ produto.preco_venda or '' }}" }{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ];
+
+            window.opcoesServicos = [
+                {% for servico in servicos|default([]) %}
+                    { nome: "{{ servico.nome }}", valor: "{{ servico.valor_venda or '' }}" }{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ];
+        </script>
+
+        <script>
+            function criarLinha(tipo, dados) {
+                const linha = document.createElement("tr");
+                const tipoLabel = tipo === "produto" ? "Produto" : "Serviço";
+                const opcoes = tipo === "produto" ? window.opcoesProdutos : window.opcoesServicos;
+                let selectOptions = '<option value="">Selecione</option>';
+                opcoes.forEach(function(item) {
+                    selectOptions += '<option value="' + item.nome + '">' + item.nome + '</option>';
+                });
+
+                linha.innerHTML = `
+                    <td><input type="hidden" name="item_tipo" value="${tipo}"><select name="item_descricao" class="form-control item-descricao">${selectOptions}</select></td>
+                    <td><input name="item_detalhes" type="text" value="${dados.detalhes || ""}" placeholder="Detalhes" class="form-control"></td>
+                    <td><input name="item_quantidade" type="text" value="${dados.quantidade || ""}" placeholder="1" class="form-control item-quantidade"></td>
+                    <td><input name="item_valor_unitario" type="text" value="${dados.valor_unitario || ""}" placeholder="0,00" class="form-control item-valor"></td>
+                    <td><input name="item_desconto" type="text" value="${dados.desconto || ""}" placeholder="0,00" class="form-control item-desconto"></td>
+                    <td><input name="item_subtotal" type="text" value="${dados.subtotal || ""}" placeholder="0,00" class="form-control item-subtotal"></td>
+                    <td><button type="button" class="action-button delete" title="Remover ${tipoLabel}" aria-label="Remover ${tipoLabel}" onclick="removerLinha(this)">×</button></td>
+                `;
+
+                const selectDescricao = linha.querySelector(".item-descricao");
+                const inputValor = linha.querySelector(".item-valor");
+                selectDescricao.addEventListener("change", function() {
+                    const itemSelecionado = opcoes.find(function(item) { return item.nome === selectDescricao.value; });
+                    if (itemSelecionado && !inputValor.value) { inputValor.value = itemSelecionado.valor || ""; }
+                });
+
+                return linha;
+            }
+
+            function adicionarItem(tipo) { document.getElementById(tipo + "-tbody").appendChild(criarLinha(tipo, {})); }
+            function removerLinha(botao) {
+                const linha = botao.closest("tr");
+                const corpo = linha.closest("tbody");
+                linha.remove();
+                if (corpo.children.length === 0) { adicionarItem(corpo.id.replace("-tbody", "")); }
+            }
+            document.addEventListener("DOMContentLoaded", function() { adicionarItem("produto"); adicionarItem("servico"); });
+        </script>
+
+    </main>
+</body>
+</html>

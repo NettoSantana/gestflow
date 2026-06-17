@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-16 21:05 (America/Bahia)
-# Motivo: Adicionar geração de cópia da venda, mantendo impressão, edição, exclusão e demais módulos.
+# Último recode: 2026-06-16 21:20 (America/Bahia)
+# Motivo: Iniciar módulo OS com tabelas, funções de cadastro/listagem e rota principal.
 
 from __future__ import annotations
 
@@ -196,6 +196,51 @@ def iniciar_banco() -> None:
                 subtotal TEXT,
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (venda_id) REFERENCES vendas (id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS ordens_servico (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                numero TEXT,
+                cliente TEXT,
+                responsavel TEXT,
+                data_abertura TEXT,
+                data_previsao TEXT,
+                equipamento TEXT,
+                local_servico TEXT,
+                origem_venda_id INTEGER,
+                tipo TEXT NOT NULL DEFAULT 'misto',
+                status TEXT NOT NULL DEFAULT 'aberta',
+                prioridade TEXT NOT NULL DEFAULT 'normal',
+                total_produtos TEXT,
+                total_servicos TEXT,
+                valor_total TEXT,
+                forma_pagamento TEXT,
+                relato_cliente TEXT,
+                diagnostico TEXT,
+                servico_executado TEXT,
+                observacoes TEXT,
+                observacoes_internas TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS ordem_servico_itens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ordem_servico_id INTEGER NOT NULL,
+                tipo_item TEXT NOT NULL DEFAULT 'produto',
+                descricao TEXT,
+                detalhes TEXT,
+                quantidade TEXT,
+                valor_unitario TEXT,
+                desconto TEXT,
+                subtotal TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (ordem_servico_id) REFERENCES ordens_servico (id)
             )
             """
         )
@@ -1634,6 +1679,317 @@ def montar_venda_itens_formulario() -> list[dict[str, str]]:
     return itens
 
 
+def proximo_numero_ordem_servico() -> str:
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                COALESCE(MAX(id), 0) + 1 AS proximo
+            FROM ordens_servico
+            """
+        ).fetchone()
+
+    proximo = 1 if row is None else int(row["proximo"])
+    return str(proximo).zfill(4)
+
+
+def salvar_ordem_servico_db(ordem_servico: dict[str, str], itens: list[dict[str, str]]) -> int:
+    with conectar_db() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO ordens_servico (
+                numero,
+                cliente,
+                responsavel,
+                data_abertura,
+                data_previsao,
+                equipamento,
+                local_servico,
+                origem_venda_id,
+                tipo,
+                status,
+                prioridade,
+                total_produtos,
+                total_servicos,
+                valor_total,
+                forma_pagamento,
+                relato_cliente,
+                diagnostico,
+                servico_executado,
+                observacoes,
+                observacoes_internas
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                ordem_servico["numero"],
+                ordem_servico["cliente"],
+                ordem_servico["responsavel"],
+                ordem_servico["data_abertura"],
+                ordem_servico["data_previsao"],
+                ordem_servico["equipamento"],
+                ordem_servico["local_servico"],
+                ordem_servico["origem_venda_id"],
+                ordem_servico["tipo"],
+                ordem_servico["status"],
+                ordem_servico["prioridade"],
+                ordem_servico["total_produtos"],
+                ordem_servico["total_servicos"],
+                ordem_servico["valor_total"],
+                ordem_servico["forma_pagamento"],
+                ordem_servico["relato_cliente"],
+                ordem_servico["diagnostico"],
+                ordem_servico["servico_executado"],
+                ordem_servico["observacoes"],
+                ordem_servico["observacoes_internas"],
+            ),
+        )
+        ordem_servico_id = int(cursor.lastrowid)
+
+        for item in itens:
+            if not item["descricao"]:
+                continue
+
+            conn.execute(
+                """
+                INSERT INTO ordem_servico_itens (
+                    ordem_servico_id,
+                    tipo_item,
+                    descricao,
+                    detalhes,
+                    quantidade,
+                    valor_unitario,
+                    desconto,
+                    subtotal
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    ordem_servico_id,
+                    item["tipo_item"],
+                    item["descricao"],
+                    item["detalhes"],
+                    item["quantidade"],
+                    item["valor_unitario"],
+                    item["desconto"],
+                    item["subtotal"],
+                ),
+            )
+
+        conn.commit()
+
+    return ordem_servico_id
+
+
+def listar_ordens_servico() -> list[dict[str, Any]]:
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                id,
+                numero,
+                cliente,
+                responsavel,
+                data_abertura,
+                data_previsao,
+                equipamento,
+                local_servico,
+                origem_venda_id,
+                tipo,
+                status,
+                prioridade,
+                total_produtos,
+                total_servicos,
+                valor_total,
+                forma_pagamento,
+                relato_cliente,
+                diagnostico,
+                servico_executado,
+                observacoes,
+                observacoes_internas,
+                criado_em
+            FROM ordens_servico
+            ORDER BY id DESC
+            """
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def buscar_ordem_servico_por_id(ordem_servico_id: int) -> dict[str, Any] | None:
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                id,
+                numero,
+                cliente,
+                responsavel,
+                data_abertura,
+                data_previsao,
+                equipamento,
+                local_servico,
+                origem_venda_id,
+                tipo,
+                status,
+                prioridade,
+                total_produtos,
+                total_servicos,
+                valor_total,
+                forma_pagamento,
+                relato_cliente,
+                diagnostico,
+                servico_executado,
+                observacoes,
+                observacoes_internas,
+                criado_em
+            FROM ordens_servico
+            WHERE id = ?
+            """,
+            (ordem_servico_id,),
+        ).fetchone()
+
+    if row is None:
+        return None
+
+    return dict(row)
+
+
+def listar_ordem_servico_itens(ordem_servico_id: int) -> list[dict[str, Any]]:
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                id,
+                ordem_servico_id,
+                tipo_item,
+                descricao,
+                detalhes,
+                quantidade,
+                valor_unitario,
+                desconto,
+                subtotal,
+                criado_em
+            FROM ordem_servico_itens
+            WHERE ordem_servico_id = ?
+            ORDER BY id ASC
+            """,
+            (ordem_servico_id,),
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def montar_ordem_servico_formulario(numero_padrao: str = "") -> dict[str, str]:
+    return {
+        "numero": (request.form.get("os_numero") or numero_padrao).strip(),
+        "cliente": (request.form.get("os_cliente") or "").strip(),
+        "responsavel": (request.form.get("os_responsavel") or "").strip(),
+        "data_abertura": (request.form.get("os_data_abertura") or "").strip(),
+        "data_previsao": (request.form.get("os_data_previsao") or "").strip(),
+        "equipamento": (request.form.get("os_equipamento") or "").strip(),
+        "local_servico": (request.form.get("os_local_servico") or "").strip(),
+        "origem_venda_id": (request.form.get("os_origem_venda_id") or "").strip(),
+        "tipo": (request.form.get("os_tipo") or "misto").strip() or "misto",
+        "status": (request.form.get("os_status") or "aberta").strip() or "aberta",
+        "prioridade": (request.form.get("os_prioridade") or "normal").strip() or "normal",
+        "total_produtos": (request.form.get("os_total_produtos") or "0,00").strip(),
+        "total_servicos": (request.form.get("os_total_servicos") or "0,00").strip(),
+        "valor_total": (request.form.get("os_valor_total") or "0,00").strip(),
+        "forma_pagamento": (request.form.get("os_forma_pagamento") or "").strip(),
+        "relato_cliente": (request.form.get("os_relato_cliente") or "").strip(),
+        "diagnostico": (request.form.get("os_diagnostico") or "").strip(),
+        "servico_executado": (request.form.get("os_servico_executado") or "").strip(),
+        "observacoes": (request.form.get("os_observacoes") or "").strip(),
+        "observacoes_internas": (request.form.get("os_observacoes_internas") or "").strip(),
+    }
+
+
+def montar_ordem_servico_itens_formulario() -> list[dict[str, str]]:
+    tipos = request.form.getlist("item_tipo")
+    descricoes = request.form.getlist("item_descricao")
+    detalhes = request.form.getlist("item_detalhes")
+    quantidades = request.form.getlist("item_quantidade")
+    valores_unitarios = request.form.getlist("item_valor_unitario")
+    descontos = request.form.getlist("item_desconto")
+    subtotais = request.form.getlist("item_subtotal")
+
+    total_itens = max(
+        len(tipos),
+        len(descricoes),
+        len(detalhes),
+        len(quantidades),
+        len(valores_unitarios),
+        len(descontos),
+        len(subtotais),
+        0,
+    )
+
+    itens: list[dict[str, str]] = []
+
+    for index in range(total_itens):
+        itens.append(
+            {
+                "tipo_item": (tipos[index] if index < len(tipos) else "produto").strip() or "produto",
+                "descricao": (descricoes[index] if index < len(descricoes) else "").strip(),
+                "detalhes": (detalhes[index] if index < len(detalhes) else "").strip(),
+                "quantidade": (quantidades[index] if index < len(quantidades) else "").strip(),
+                "valor_unitario": (valores_unitarios[index] if index < len(valores_unitarios) else "").strip(),
+                "desconto": (descontos[index] if index < len(descontos) else "").strip(),
+                "subtotal": (subtotais[index] if index < len(subtotais) else "").strip(),
+            }
+        )
+
+    return itens
+
+
+def gerar_ordem_servico_por_venda_db(venda_id: int) -> int | None:
+    venda = buscar_venda_por_id(venda_id)
+
+    if venda is None:
+        return None
+
+    itens_venda = listar_venda_itens(venda_id)
+
+    ordem_servico = {
+        "numero": proximo_numero_ordem_servico(),
+        "cliente": str(venda.get("cliente") or ""),
+        "responsavel": str(venda.get("responsavel") or ""),
+        "data_abertura": str(venda.get("data") or ""),
+        "data_previsao": str(venda.get("prazo_entrega") or ""),
+        "equipamento": "",
+        "local_servico": "",
+        "origem_venda_id": str(venda_id),
+        "tipo": str(venda.get("tipo") or "misto"),
+        "status": "aberta",
+        "prioridade": "normal",
+        "total_produtos": str(venda.get("total_produtos") or "0,00"),
+        "total_servicos": str(venda.get("total_servicos") or "0,00"),
+        "valor_total": str(venda.get("valor_total") or "0,00"),
+        "forma_pagamento": str(venda.get("forma_pagamento") or ""),
+        "relato_cliente": str(venda.get("observacoes") or ""),
+        "diagnostico": "",
+        "servico_executado": "",
+        "observacoes": "Gerada a partir da venda " + str(venda.get("numero") or venda_id),
+        "observacoes_internas": str(venda.get("observacoes_internas") or ""),
+    }
+
+    itens_os: list[dict[str, str]] = []
+
+    for item in itens_venda:
+        itens_os.append(
+            {
+                "tipo_item": str(item.get("tipo_item") or "produto"),
+                "descricao": str(item.get("descricao") or ""),
+                "detalhes": str(item.get("detalhes") or ""),
+                "quantidade": str(item.get("quantidade") or ""),
+                "valor_unitario": str(item.get("valor_unitario") or ""),
+                "desconto": str(item.get("desconto") or ""),
+                "subtotal": str(item.get("subtotal") or ""),
+            }
+        )
+
+    return salvar_ordem_servico_db(ordem_servico, itens_os)
+
+
 @app.get("/")
 def dashboard() -> str:
     return render_template("dashboard.html")
@@ -2036,6 +2392,35 @@ def excluir_servico(servico_id: int) -> Response:
     return redirect(url_for("servicos"))
 
 
+@app.get("/ordens-servico")
+def ordens_servico() -> str:
+    ordens_servico_lista = listar_ordens_servico()
+    clientes_lista = listar_clientes()
+    produtos_lista = listar_produtos()
+    servicos_lista = listar_servicos()
+    proximo_numero = proximo_numero_ordem_servico()
+
+    return render_template(
+        "ordens_servico.html",
+        ordens_servico=ordens_servico_lista,
+        clientes=clientes_lista,
+        produtos=produtos_lista,
+        servicos=servicos_lista,
+        proximo_numero=proximo_numero,
+    )
+
+
+@app.post("/ordens-servico")
+def salvar_ordem_servico() -> Response:
+    ordem_servico = montar_ordem_servico_formulario(numero_padrao=proximo_numero_ordem_servico())
+    itens = montar_ordem_servico_itens_formulario()
+
+    if ordem_servico["cliente"] or ordem_servico["numero"]:
+        salvar_ordem_servico_db(ordem_servico, itens)
+
+    return redirect(url_for("ordens_servico"))
+
+
 @app.get("/vendas")
 def vendas() -> str:
     vendas_lista = listar_vendas()
@@ -2086,6 +2471,17 @@ def gerar_copia_venda(venda_id: int) -> Response:
         return redirect(url_for("vendas"))
 
     return redirect(url_for("editar_venda", venda_id=nova_venda_id))
+
+
+
+@app.get("/vendas/<int:venda_id>/gerar/os")
+def gerar_ordem_servico_por_venda(venda_id: int) -> Response:
+    ordem_servico_id = gerar_ordem_servico_por_venda_db(venda_id)
+
+    if ordem_servico_id is None:
+        return redirect(url_for("vendas"))
+
+    return redirect(url_for("ordens_servico"))
 
 @app.get("/vendas/<int:venda_id>/imprimir/a4")
 def imprimir_venda_a4(venda_id: int) -> str | Response:
