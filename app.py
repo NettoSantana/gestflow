@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-16 21:55 (America/Bahia)
-# Motivo: Adicionar edição e exclusão de OS com rotas, funções e tela dedicada.
+# Último recode: 2026-06-16 22:05 (America/Bahia)
+# Motivo: Corrigir botão Adicionar equipamento da OS, permitindo múltiplos equipamentos no cadastro.
 
 from __future__ import annotations
 
@@ -2170,6 +2170,18 @@ def excluir_ordem_servico_db(ordem_servico_id: int) -> None:
         conn.commit()
 
 
+def _combinar_valores_formulario(campo: str) -> str:
+    valores = [valor.strip() for valor in request.form.getlist(campo) if valor.strip()]
+
+    if not valores:
+        return ""
+
+    if len(valores) == 1:
+        return valores[0]
+
+    return " | ".join(f"{indice + 1}) {valor}" for indice, valor in enumerate(valores))
+
+
 def montar_ordem_servico_formulario(numero_padrao: str = "") -> dict[str, str]:
     return {
         "numero": (request.form.get("os_numero") or numero_padrao).strip(),
@@ -2183,15 +2195,15 @@ def montar_ordem_servico_formulario(numero_padrao: str = "") -> dict[str, str]:
         "hora_saida": (request.form.get("os_hora_saida") or "").strip(),
         "canal_venda": (request.form.get("os_canal_venda") or "").strip(),
         "centro_custo": (request.form.get("os_centro_custo") or "").strip(),
-        "equipamento": (request.form.get("os_equipamento") or "").strip(),
-        "marca": (request.form.get("os_marca") or "").strip(),
-        "modelo": (request.form.get("os_modelo") or "").strip(),
-        "serie": (request.form.get("os_serie") or "").strip(),
-        "local_servico": (request.form.get("os_local_servico") or "").strip(),
-        "condicoes": (request.form.get("os_condicoes") or "").strip(),
-        "acessorios": (request.form.get("os_acessorios") or "").strip(),
-        "laudo": (request.form.get("os_laudo") or "").strip(),
-        "termos": (request.form.get("os_termos") or "").strip(),
+        "equipamento": _combinar_valores_formulario("os_equipamento"),
+        "marca": _combinar_valores_formulario("os_marca"),
+        "modelo": _combinar_valores_formulario("os_modelo"),
+        "serie": _combinar_valores_formulario("os_serie"),
+        "local_servico": _combinar_valores_formulario("os_local_servico"),
+        "condicoes": _combinar_valores_formulario("os_condicoes"),
+        "acessorios": _combinar_valores_formulario("os_acessorios"),
+        "laudo": _combinar_valores_formulario("os_laudo"),
+        "termos": _combinar_valores_formulario("os_termos"),
         "informar_endereco_entrega": "sim" if request.form.get("os_informar_endereco_entrega") else "nao",
         "endereco_entrega": (request.form.get("os_endereco_entrega") or "").strip(),
         "bairro_entrega": (request.form.get("os_bairro_entrega") or "").strip(),
@@ -2208,8 +2220,8 @@ def montar_ordem_servico_formulario(numero_padrao: str = "") -> dict[str, str]:
         "valor_total": (request.form.get("os_valor_total") or "0,00").strip(),
         "forma_pagamento": (request.form.get("os_forma_pagamento") or "").strip(),
         "exibir_valor_impressao": "sim" if request.form.get("os_exibir_valor_impressao") else "nao",
-        "relato_cliente": (request.form.get("os_relato_cliente") or "").strip(),
-        "diagnostico": (request.form.get("os_diagnostico") or "").strip(),
+        "relato_cliente": _combinar_valores_formulario("os_relato_cliente"),
+        "diagnostico": _combinar_valores_formulario("os_diagnostico"),
         "servico_executado": (request.form.get("os_servico_executado") or "").strip(),
         "observacoes": (request.form.get("os_observacoes") or "").strip(),
         "observacoes_internas": (request.form.get("os_observacoes_internas") or "").strip(),
