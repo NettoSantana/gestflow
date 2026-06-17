@@ -1,0 +1,201 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordem_servico_editar.html
+Último recode: 2026-06-16 21:55 (America/Bahia)
+Motivo: Criar tela de edição da OS com dados completos e itens editáveis.
+-->
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Editar OS</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+
+    <style>
+        .os-form-section { border: 1px solid #dbe3ef; border-radius: 12px; background: #ffffff; margin-bottom: 14px; overflow: hidden; }
+        .os-section-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: #f8fafc; border-bottom: 1px solid #e5eaf2; padding: 14px 16px; }
+        .os-section-title h3 { margin: 0; font-size: 15px; font-weight: 800; color: #0f172a; text-transform: none; }
+        .os-section-title span { color: #64748b; font-size: 12px; }
+        .os-section-body { padding: 16px; }
+        .os-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; }
+        .os-grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px 16px; }
+        .os-grid-6 { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px 16px; }
+        .os-span-2 { grid-column: span 2; }
+        .os-span-3 { grid-column: span 3; }
+        .os-span-6 { grid-column: span 6; }
+        .os-textarea { min-height: 92px; resize: vertical; }
+        .os-muted-check { display: flex; align-items: center; gap: 8px; color: #475569; font-size: 13px; }
+        .os-actions-line { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+        @media (max-width: 1100px) { .os-grid-6, .os-grid-4, .os-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .os-span-6, .os-span-3, .os-span-2 { grid-column: span 2; } }
+        @media (max-width: 720px) { .os-grid-6, .os-grid-4, .os-grid-2 { grid-template-columns: 1fr; } .os-span-6, .os-span-3, .os-span-2 { grid-column: span 1; } }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="brand"><div class="brand-mark">GF</div><h2>GESTFLOW</h2></div>
+        <nav class="sidebar-nav">
+            <ul class="menu">
+                <li class="menu-item"><a href="/"><span class="menu-icon">⌂</span><span>Dashboard</span></a></li>
+                <li class="menu-group"><details><summary><span class="menu-label"><span class="menu-icon">☷</span><span>Cadastros</span></span><span class="arrow">⌄</span></summary><ul class="submenu"><li><a href="/clientes">Clientes</a></li><li><a href="/fornecedores">Fornecedores</a></li><li><a href="/funcionarios">Funcionários</a></li><li>Veículos</li><li>Opções auxiliares</li></ul></details></li>
+                <li class="menu-group"><details><summary><span class="menu-label"><span class="menu-icon">□</span><span>Produtos</span></span><span class="arrow">⌄</span></summary><ul class="submenu"><li><a href="/produtos">Gerenciar produtos</a></li><li>Opções auxiliares</li></ul></details></li>
+                <li class="menu-group"><details><summary><span class="menu-label"><span class="menu-icon">⚙</span><span>Serviços</span></span><span class="arrow">⌄</span></summary><ul class="submenu"><li><a href="/servicos">Gerenciar serviços</a></li><li>Opções auxiliares</li></ul></details></li>
+                <li class="menu-group"><details><summary><span class="menu-label"><span class="menu-icon">▣</span><span>Orçamentos</span></span><span class="arrow">⌄</span></summary><ul class="submenu"><li><a href="/orcamentos">Produtos</a></li><li><a href="/orcamentos">Serviços</a></li><li>Opções auxiliares</li></ul></details></li>
+                <li class="menu-group"><details><summary><span class="menu-label"><span class="menu-icon">▤</span><span>Vendas</span></span><span class="arrow">⌄</span></summary><ul class="submenu"><li><a href="/vendas">Produtos</a></li><li><a href="/vendas">Serviços</a></li><li><a href="/vendas">Balcão</a></li><li><a href="/vendas">Devoluções</a></li><li><a href="/vendas">Opções auxiliares</a></li></ul></details></li>
+                <li class="menu-group"><details open><summary><span class="menu-label"><span class="menu-icon">✚</span><span>Ordens de Serviço</span></span><span class="arrow">⌄</span></summary><ul class="submenu"><li class="submenu-active"><a href="/ordens-servico">Gerenciar O.S.</a></li><li><a href="/ordens-servico">Painel</a></li><li><a href="/ordens-servico">Opções auxiliares</a></li></ul></details></li>
+                <li class="menu-group"><details><summary><span class="menu-label"><span class="menu-icon">▧</span><span>Estoque</span></span><span class="arrow">⌄</span></summary><ul class="submenu"><li>Movimentações</li><li>Ajustes</li><li>Transferências</li><li>Cotações</li><li>Compras</li><li>Opções auxiliares</li></ul></details></li>
+                <li class="menu-group"><details><summary><span class="menu-label"><span class="menu-icon">◈</span><span>Financeiro</span></span><span class="arrow">⌄</span></summary><ul class="submenu"><li>Contas a pagar</li><li>Contas a receber</li><li>Fluxo de caixa</li><li>Contas bancárias</li><li>Opções auxiliares</li></ul></details></li>
+            </ul>
+        </nav>
+        <div class="sidebar-footer"><div class="footer-item">⚙ Configurações</div><div class="footer-item">? Ajuda</div></div>
+    </aside>
+
+    <main class="content os-page">
+        <header class="topbar">
+            <div class="topbar-left"><button class="menu-toggle" type="button" aria-label="Abrir menu">☰</button><h1>Editar OS</h1></div>
+            <div class="topbar-right"><div class="topbar-date"><span class="topbar-icon">✚</span><span>16/06/2026</span></div><div class="notification"><span class="topbar-icon">🔔</span><span class="notification-badge">0</span></div><div class="user-profile"><div class="avatar">NS</div><div class="user-info"><strong>Netto Santana</strong><span>Administrador</span></div><span class="profile-arrow">⌄</span></div></div>
+        </header>
+
+        {% set os = ordem_servico %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Ordens de Serviço</span>
+                    <h3 class="page-title">Editar OS {{ os.numero or os.id }}</h3>
+                    <p class="page-subtitle">Atualize os dados da OS, produtos, serviços e totais.</p>
+                </div>
+                <div class="client-toolbar">
+                    <a href="/ordens-servico/{{ os.id }}" class="btn-light">Cancelar</a>
+                    <a href="/ordens-servico" class="btn-light">Lista de OS</a>
+                </div>
+            </div>
+        </section>
+
+        <form id="form-editar-os" action="/ordens-servico/{{ os.id }}/editar" method="post" class="client-form">
+            <section class="os-form-section">
+                <div class="os-section-title"><h3>✎ Dados gerais</h3><span>Campos principais da OS</span></div>
+                <div class="os-section-body">
+                    <div class="os-grid-4">
+                        <div class="form-group"><label for="os_numero">Número</label><input id="os_numero" name="os_numero" type="text" value="{{ os.numero or '' }}" class="form-control"></div>
+                        <div class="form-group os-span-2"><label for="os_cliente">Cliente</label><select id="os_cliente" name="os_cliente" class="form-control"><option value="">Digite para buscar</option>{% for cliente in clientes|default([]) %}<option value="{{ cliente.nome }}" {% if cliente.nome == os.cliente %}selected{% endif %}>{{ cliente.nome }}</option>{% endfor %}</select></div>
+                        <div class="form-group"><label for="os_status">Situação</label><select id="os_status" name="os_status" class="form-control"><option value="aberta" {% if os.status == 'aberta' %}selected{% endif %}>Em aberto</option><option value="andamento" {% if os.status == 'andamento' %}selected{% endif %}>Em andamento</option><option value="aguardando" {% if os.status == 'aguardando' %}selected{% endif %}>Aguardando</option><option value="finalizada" {% if os.status == 'finalizada' %}selected{% endif %}>Finalizada</option><option value="cancelada" {% if os.status == 'cancelada' %}selected{% endif %}>Cancelada</option></select></div>
+                        <div class="form-group"><label for="os_data_abertura">Entrada</label><input id="os_data_abertura" name="os_data_abertura" type="date" value="{{ os.data_abertura or '' }}" class="form-control"></div>
+                        <div class="form-group"><label for="os_hora_entrada">Hora de entrada</label><input id="os_hora_entrada" name="os_hora_entrada" type="time" value="{{ os.hora_entrada or '' }}" class="form-control"></div>
+                        <div class="form-group"><label for="os_data_saida">Saída</label><input id="os_data_saida" name="os_data_saida" type="date" value="{{ os.data_saida or '' }}" class="form-control"></div>
+                        <div class="form-group"><label for="os_hora_saida">Hora de saída</label><input id="os_hora_saida" name="os_hora_saida" type="time" value="{{ os.hora_saida or '' }}" class="form-control"></div>
+                        <div class="form-group"><label for="os_data_previsao">Previsão</label><input id="os_data_previsao" name="os_data_previsao" type="text" value="{{ os.data_previsao or '' }}" class="form-control"></div>
+                        <div class="form-group"><label for="os_canal_venda">Canal de venda</label><select id="os_canal_venda" name="os_canal_venda" class="form-control"><option value="presencial" {% if os.canal_venda == 'presencial' %}selected{% endif %}>Presencial</option><option value="whatsapp" {% if os.canal_venda == 'whatsapp' %}selected{% endif %}>WhatsApp</option><option value="telefone" {% if os.canal_venda == 'telefone' %}selected{% endif %}>Telefone</option><option value="indicacao" {% if os.canal_venda == 'indicacao' %}selected{% endif %}>Indicação</option><option value="outro" {% if os.canal_venda == 'outro' %}selected{% endif %}>Outro</option></select></div>
+                        <div class="form-group"><label for="os_centro_custo">Centro de custo</label><input id="os_centro_custo" name="os_centro_custo" type="text" value="{{ os.centro_custo or '' }}" class="form-control"></div>
+                        <div class="form-group"><label for="os_prioridade">Prioridade</label><select id="os_prioridade" name="os_prioridade" class="form-control"><option value="normal" {% if os.prioridade == 'normal' %}selected{% endif %}>Normal</option><option value="baixa" {% if os.prioridade == 'baixa' %}selected{% endif %}>Baixa</option><option value="media" {% if os.prioridade == 'media' %}selected{% endif %}>Média</option><option value="alta" {% if os.prioridade == 'alta' %}selected{% endif %}>Alta</option><option value="urgente" {% if os.prioridade == 'urgente' %}selected{% endif %}>Urgente</option><option value="muito_urgente" {% if os.prioridade == 'muito_urgente' %}selected{% endif %}>Muito urgente</option></select></div>
+                        <div class="form-group"><label for="os_origem_venda_id">Venda de origem</label><input id="os_origem_venda_id" name="os_origem_venda_id" type="text" value="{{ os.origem_venda_id or '' }}" class="form-control"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="os-form-section">
+                <div class="os-section-title"><h3>♟ Responsáveis</h3><span>Responsável comercial e técnico</span></div>
+                <div class="os-section-body"><div class="os-grid-2"><div class="form-group"><label for="os_responsavel">Vendedor / Responsável</label><input id="os_responsavel" name="os_responsavel" type="text" value="{{ os.responsavel or '' }}" class="form-control"></div><div class="form-group"><label for="os_tecnico">Técnico</label><input id="os_tecnico" name="os_tecnico" type="text" value="{{ os.tecnico or '' }}" class="form-control"></div></div></div>
+            </section>
+
+            <section class="os-form-section">
+                <div class="os-section-title"><h3>♜ Equipamento</h3><span>Informações técnicas da OS</span></div>
+                <div class="os-section-body">
+                    <div class="os-grid-6">
+                        <div class="form-group os-span-3"><label for="os_equipamento">Equipamento</label><input id="os_equipamento" name="os_equipamento" type="text" value="{{ os.equipamento or '' }}" class="form-control"></div>
+                        <div class="form-group"><label for="os_marca">Marca</label><input id="os_marca" name="os_marca" type="text" value="{{ os.marca or '' }}" class="form-control"></div>
+                        <div class="form-group"><label for="os_modelo">Modelo</label><input id="os_modelo" name="os_modelo" type="text" value="{{ os.modelo or '' }}" class="form-control"></div>
+                        <div class="form-group"><label for="os_serie">Série</label><input id="os_serie" name="os_serie" type="text" value="{{ os.serie or '' }}" class="form-control"></div>
+                        <div class="form-group os-span-3"><label for="os_condicoes">Condições</label><textarea id="os_condicoes" name="os_condicoes" class="form-control os-textarea">{{ os.condicoes or '' }}</textarea></div>
+                        <div class="form-group os-span-3"><label for="os_relato_cliente">Defeitos / relato do cliente</label><textarea id="os_relato_cliente" name="os_relato_cliente" class="form-control os-textarea">{{ os.relato_cliente or '' }}</textarea></div>
+                        <div class="form-group os-span-3"><label for="os_acessorios">Acessórios</label><textarea id="os_acessorios" name="os_acessorios" class="form-control os-textarea">{{ os.acessorios or '' }}</textarea></div>
+                        <div class="form-group os-span-3"><label for="os_diagnostico">Solução / diagnóstico</label><textarea id="os_diagnostico" name="os_diagnostico" class="form-control os-textarea">{{ os.diagnostico or '' }}</textarea></div>
+                        <div class="form-group os-span-3"><label for="os_laudo">Laudo</label><textarea id="os_laudo" name="os_laudo" class="form-control os-textarea">{{ os.laudo or '' }}</textarea></div>
+                        <div class="form-group os-span-3"><label for="os_termos">Termos</label><textarea id="os_termos" name="os_termos" class="form-control os-textarea">{{ os.termos or '' }}</textarea></div>
+                        <div class="form-group os-span-6"><label for="os_local_servico">Local do serviço</label><input id="os_local_servico" name="os_local_servico" type="text" value="{{ os.local_servico or '' }}" class="form-control"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="os-form-section"><div class="os-section-title"><h3>▣ Produtos / Peças</h3><span>Materiais aplicados ou previstos</span></div><div class="os-section-body"><div class="table-shell"><table class="client-table"><thead><tr><th>Produto</th><th>Detalhes</th><th>Quant.</th><th>Valor</th><th>Desconto</th><th>Subtotal</th><th>Ação</th></tr></thead><tbody id="produto-tbody"></tbody></table></div><div class="os-actions-line"><button type="button" class="btn-dark" onclick="adicionarItem('produto')">+ Adicionar produto</button></div></div></section>
+            <section class="os-form-section"><div class="os-section-title"><h3>⚒ Serviços / Mão de obra</h3><span>Serviços executados ou previstos</span></div><div class="os-section-body"><div class="table-shell"><table class="client-table"><thead><tr><th>Serviço</th><th>Detalhes</th><th>Quant.</th><th>Valor</th><th>Desconto</th><th>Subtotal</th><th>Ação</th></tr></thead><tbody id="servico-tbody"></tbody></table></div><div class="os-actions-line"><button type="button" class="btn-dark" onclick="adicionarItem('servico')">+ Adicionar serviço</button></div></div></section>
+
+            <section class="os-form-section">
+                <div class="os-section-title"><h3>⌖ Endereço de entrega</h3><span>Opcional para retirada ou entrega</span></div>
+                <div class="os-section-body"><label class="os-muted-check"><input type="checkbox" name="os_informar_endereco_entrega" value="sim" {% if os.informar_endereco_entrega == 'sim' %}checked{% endif %}> Informar endereço de entrega</label><div class="os-grid-4" style="margin-top: 14px;"><div class="form-group os-span-2"><label for="os_endereco_entrega">Endereço</label><input id="os_endereco_entrega" name="os_endereco_entrega" type="text" value="{{ os.endereco_entrega or '' }}" class="form-control"></div><div class="form-group"><label for="os_bairro_entrega">Bairro</label><input id="os_bairro_entrega" name="os_bairro_entrega" type="text" value="{{ os.bairro_entrega or '' }}" class="form-control"></div><div class="form-group"><label for="os_cidade_entrega">Cidade</label><input id="os_cidade_entrega" name="os_cidade_entrega" type="text" value="{{ os.cidade_entrega or '' }}" class="form-control"></div></div></div>
+            </section>
+
+            <section class="os-form-section">
+                <div class="os-section-title"><h3>▤ Total</h3><span>Valores e forma de pagamento</span></div>
+                <div class="os-section-body"><label class="os-muted-check"><input type="checkbox" name="os_exibir_valor_impressao" value="sim" {% if os.exibir_valor_impressao == 'sim' %}checked{% endif %}> Exibir valor total na impressão</label><div class="os-grid-6" style="margin-top: 14px;"><div class="form-group"><label for="os_total_servicos">Mão de obra</label><input id="os_total_servicos" name="os_total_servicos" type="text" value="{{ os.total_servicos or '0,00' }}" class="form-control"></div><div class="form-group"><label for="os_total_produtos">Peças</label><input id="os_total_produtos" name="os_total_produtos" type="text" value="{{ os.total_produtos or '0,00' }}" class="form-control"></div><div class="form-group"><label for="os_frete">Frete</label><input id="os_frete" name="os_frete" type="text" value="{{ os.frete or '0,00' }}" class="form-control"></div><div class="form-group"><label for="os_outros">Outros</label><input id="os_outros" name="os_outros" type="text" value="{{ os.outros or '0,00' }}" class="form-control"></div><div class="form-group"><label for="os_desconto_valor">Desconto</label><input id="os_desconto_valor" name="os_desconto_valor" type="text" value="{{ os.desconto_valor or '0,00' }}" class="form-control"></div><div class="form-group"><label for="os_valor_total">Valor total</label><input id="os_valor_total" name="os_valor_total" type="text" value="{{ os.valor_total or '0,00' }}" class="form-control"></div><div class="form-group os-span-2"><label for="os_forma_pagamento">Forma de pagamento</label><input id="os_forma_pagamento" name="os_forma_pagamento" type="text" value="{{ os.forma_pagamento or '' }}" class="form-control"></div><div class="form-group"><label for="os_tipo">Tipo</label><select id="os_tipo" name="os_tipo" class="form-control"><option value="misto" {% if os.tipo == 'misto' %}selected{% endif %}>Misto</option><option value="produto" {% if os.tipo == 'produto' %}selected{% endif %}>Produto</option><option value="servico" {% if os.tipo == 'servico' %}selected{% endif %}>Serviço</option></select></div></div></div>
+            </section>
+
+            <section class="os-form-section">
+                <div class="os-section-title"><h3>✎ Observações</h3><span>Observações impressas e internas</span></div>
+                <div class="os-section-body"><div class="os-grid-2"><div class="form-group"><label for="os_observacoes">Observações</label><textarea id="os_observacoes" name="os_observacoes" class="form-control os-textarea">{{ os.observacoes or '' }}</textarea></div><div class="form-group"><label for="os_observacoes_internas">Observações internas</label><textarea id="os_observacoes_internas" name="os_observacoes_internas" class="form-control os-textarea">{{ os.observacoes_internas or '' }}</textarea></div><div class="form-group os-span-2"><label for="os_servico_executado">Serviço executado</label><textarea id="os_servico_executado" name="os_servico_executado" class="form-control os-textarea">{{ os.servico_executado or '' }}</textarea></div></div><div class="form-actions"><a href="/ordens-servico/{{ os.id }}" class="btn-light">Cancelar</a><button type="submit" class="btn-primary-green">Salvar alterações</button></div></div>
+            </section>
+        </form>
+
+        <script>
+            window.opcoesProdutos = [
+                {% for produto in produtos|default([]) %}
+                    { nome: "{{ produto.nome }}", valor: "{{ produto.preco_venda or '' }}" }{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ];
+            window.opcoesServicos = [
+                {% for servico in servicos|default([]) %}
+                    { nome: "{{ servico.nome }}", valor: "{{ servico.valor_venda or '' }}" }{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ];
+            window.itensOS = {{ itens|tojson }};
+        </script>
+
+        <script>
+            function criarLinha(tipo, dados) {
+                dados = dados || {};
+                const linha = document.createElement("tr");
+                const tipoLabel = tipo === "produto" ? "Produto" : "Serviço";
+                const opcoes = tipo === "produto" ? window.opcoesProdutos : window.opcoesServicos;
+                let selectOptions = '<option value="">Selecione</option>';
+                opcoes.forEach(function(item) {
+                    const selected = item.nome === (dados.descricao || "") ? " selected" : "";
+                    selectOptions += '<option value="' + item.nome + '"' + selected + '>' + item.nome + '</option>';
+                });
+                if (dados.descricao && !opcoes.some(function(item) { return item.nome === dados.descricao; })) {
+                    selectOptions += '<option value="' + dados.descricao + '" selected>' + dados.descricao + '</option>';
+                }
+                linha.innerHTML = `
+                    <td><input type="hidden" name="item_tipo" value="${tipo}"><select name="item_descricao" class="form-control item-descricao">${selectOptions}</select></td>
+                    <td><input name="item_detalhes" type="text" value="${dados.detalhes || ""}" placeholder="Detalhes" class="form-control"></td>
+                    <td><input name="item_quantidade" type="text" value="${dados.quantidade || ""}" placeholder="1" class="form-control item-quantidade"></td>
+                    <td><input name="item_valor_unitario" type="text" value="${dados.valor_unitario || ""}" placeholder="0,00" class="form-control item-valor"></td>
+                    <td><input name="item_desconto" type="text" value="${dados.desconto || ""}" placeholder="0,00" class="form-control item-desconto"></td>
+                    <td><input name="item_subtotal" type="text" value="${dados.subtotal || ""}" placeholder="0,00" class="form-control item-subtotal"></td>
+                    <td><button type="button" class="action-button delete" title="Remover ${tipoLabel}" aria-label="Remover ${tipoLabel}" onclick="removerLinha(this)">×</button></td>
+                `;
+                const selectDescricao = linha.querySelector(".item-descricao");
+                const inputValor = linha.querySelector(".item-valor");
+                selectDescricao.addEventListener("change", function() {
+                    const itemSelecionado = opcoes.find(function(item) { return item.nome === selectDescricao.value; });
+                    if (itemSelecionado && !inputValor.value) { inputValor.value = itemSelecionado.valor || ""; }
+                });
+                return linha;
+            }
+            function adicionarItem(tipo, dados) { document.getElementById(tipo + "-tbody").appendChild(criarLinha(tipo, dados || {})); }
+            function removerLinha(botao) {
+                const linha = botao.closest("tr");
+                const corpo = linha.closest("tbody");
+                linha.remove();
+                if (corpo.children.length === 0) { adicionarItem(corpo.id.replace("-tbody", "")); }
+            }
+            document.addEventListener("DOMContentLoaded", function() {
+                const produtos = (window.itensOS || []).filter(function(item) { return item.tipo_item === "produto"; });
+                const servicos = (window.itensOS || []).filter(function(item) { return item.tipo_item === "servico"; });
+                if (produtos.length) { produtos.forEach(function(item) { adicionarItem("produto", item); }); } else { adicionarItem("produto"); }
+                if (servicos.length) { servicos.forEach(function(item) { adicionarItem("servico", item); }); } else { adicionarItem("servico"); }
+            });
+        </script>
+    </main>
+</body>
+</html>

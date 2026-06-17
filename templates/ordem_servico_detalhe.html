@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordem_servico_detalhe.html
-Último recode: 2026-06-16 21:45 (America/Bahia)
-Motivo: Criar tela de detalhes da OS com dados gerais, equipamento, itens, totais e observações.
+Último recode: 2026-06-16 21:55 (America/Bahia)
+Motivo: Ativar ações de editar e excluir na tela de detalhes da OS.
 -->
 
 <!DOCTYPE html>
@@ -49,7 +49,10 @@ Motivo: Criar tela de detalhes da OS com dados gerais, equipamento, itens, totai
                 </div>
                 <div class="client-toolbar">
                     <a href="/ordens-servico" class="btn-light">Voltar para OS</a>
-                    <button type="button" class="btn-dark" disabled>Editar OS</button>
+                    <a href="/ordens-servico/{{ os.id }}/editar" class="btn-dark">Editar OS</a>
+                    <form action="/ordens-servico/{{ os.id }}/excluir" method="post" style="display:inline;" onsubmit="return confirm('Deseja excluir esta OS?');">
+                        <button type="submit" class="btn-light">Excluir</button>
+                    </form>
                     <button type="button" class="btn-primary-green" disabled>Imprimir</button>
                 </div>
             </div>

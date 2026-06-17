@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordens_servico.html
-Último recode: 2026-06-16 21:45 (America/Bahia)
-Motivo: Ativar lupa azul da lista de OS para abrir a tela de detalhes.
+Último recode: 2026-06-16 21:55 (America/Bahia)
+Motivo: Ativar editar e excluir OS na lista.
 -->
 
 <!DOCTYPE html>
@@ -409,7 +409,13 @@ Motivo: Ativar lupa azul da lista de OS para abrir a tela de detalhes.
                             {% for os in ordens_lista %}
                                 <tr>
                                     <td>{{ os.id }}</td><td>{{ os.numero }}</td><td>{{ os.cliente }}</td><td>{{ os.equipamento }}</td><td><span class="status-pill {{ os.status }}">{{ os.status }}</span></td><td>{{ os.prioridade }}</td><td>{{ os.data_abertura }}</td><td>{{ os.valor_total }}</td>
-                                    <td><div class="action-buttons"><a href="/ordens-servico/{{ os.id }}" title="Ver OS" aria-label="Ver OS" class="action-button view">🔍</a><button type="button" class="action-button edit" disabled>✎</button><button type="button" class="action-button delete" disabled>×</button></div></td>
+                                    <td><div class="action-buttons">
+                                            <a href="/ordens-servico/{{ os.id }}" title="Ver OS" aria-label="Ver OS" class="action-button view">🔍</a>
+                                            <a href="/ordens-servico/{{ os.id }}/editar" title="Editar OS" aria-label="Editar OS" class="action-button edit">✎</a>
+                                            <form action="/ordens-servico/{{ os.id }}/excluir" method="post" style="display:inline;" onsubmit="return confirm('Deseja excluir esta OS?');">
+                                                <button type="submit" class="action-button delete" title="Excluir OS" aria-label="Excluir OS">×</button>
+                                            </form>
+                                        </div></td>
                                 </tr>
                             {% endfor %}
                         {% else %}

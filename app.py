@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-16 21:45 (America/Bahia)
-# Motivo: Criar visualização de detalhes da OS com rota, itens e tela dedicada.
+# Último recode: 2026-06-16 21:55 (America/Bahia)
+# Motivo: Adicionar edição e exclusão de OS com rotas, funções e tela dedicada.
 
 from __future__ import annotations
 
@@ -1875,6 +1875,141 @@ def salvar_ordem_servico_db(ordem_servico: dict[str, str], itens: list[dict[str,
     return ordem_servico_id
 
 
+def atualizar_ordem_servico_db(ordem_servico_id: int, ordem_servico: dict[str, str], itens: list[dict[str, str]]) -> None:
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            UPDATE ordens_servico
+            SET
+                numero = ?,
+                cliente = ?,
+                responsavel = ?,
+                tecnico = ?,
+                data_abertura = ?,
+                data_previsao = ?,
+                data_saida = ?,
+                hora_entrada = ?,
+                hora_saida = ?,
+                canal_venda = ?,
+                centro_custo = ?,
+                equipamento = ?,
+                marca = ?,
+                modelo = ?,
+                serie = ?,
+                local_servico = ?,
+                condicoes = ?,
+                acessorios = ?,
+                laudo = ?,
+                termos = ?,
+                informar_endereco_entrega = ?,
+                endereco_entrega = ?,
+                bairro_entrega = ?,
+                cidade_entrega = ?,
+                origem_venda_id = ?,
+                tipo = ?,
+                status = ?,
+                prioridade = ?,
+                total_produtos = ?,
+                total_servicos = ?,
+                frete = ?,
+                outros = ?,
+                desconto_valor = ?,
+                valor_total = ?,
+                forma_pagamento = ?,
+                exibir_valor_impressao = ?,
+                relato_cliente = ?,
+                diagnostico = ?,
+                servico_executado = ?,
+                observacoes = ?,
+                observacoes_internas = ?
+            WHERE id = ?
+            """,
+            (
+                ordem_servico["numero"],
+                ordem_servico["cliente"],
+                ordem_servico["responsavel"],
+                ordem_servico["tecnico"],
+                ordem_servico["data_abertura"],
+                ordem_servico["data_previsao"],
+                ordem_servico["data_saida"],
+                ordem_servico["hora_entrada"],
+                ordem_servico["hora_saida"],
+                ordem_servico["canal_venda"],
+                ordem_servico["centro_custo"],
+                ordem_servico["equipamento"],
+                ordem_servico["marca"],
+                ordem_servico["modelo"],
+                ordem_servico["serie"],
+                ordem_servico["local_servico"],
+                ordem_servico["condicoes"],
+                ordem_servico["acessorios"],
+                ordem_servico["laudo"],
+                ordem_servico["termos"],
+                ordem_servico["informar_endereco_entrega"],
+                ordem_servico["endereco_entrega"],
+                ordem_servico["bairro_entrega"],
+                ordem_servico["cidade_entrega"],
+                ordem_servico["origem_venda_id"],
+                ordem_servico["tipo"],
+                ordem_servico["status"],
+                ordem_servico["prioridade"],
+                ordem_servico["total_produtos"],
+                ordem_servico["total_servicos"],
+                ordem_servico["frete"],
+                ordem_servico["outros"],
+                ordem_servico["desconto_valor"],
+                ordem_servico["valor_total"],
+                ordem_servico["forma_pagamento"],
+                ordem_servico["exibir_valor_impressao"],
+                ordem_servico["relato_cliente"],
+                ordem_servico["diagnostico"],
+                ordem_servico["servico_executado"],
+                ordem_servico["observacoes"],
+                ordem_servico["observacoes_internas"],
+                ordem_servico_id,
+            ),
+        )
+
+        conn.execute(
+            """
+            DELETE FROM ordem_servico_itens
+            WHERE ordem_servico_id = ?
+            """,
+            (ordem_servico_id,),
+        )
+
+        for item in itens:
+            if not item["descricao"]:
+                continue
+
+            conn.execute(
+                """
+                INSERT INTO ordem_servico_itens (
+                    ordem_servico_id,
+                    tipo_item,
+                    descricao,
+                    detalhes,
+                    quantidade,
+                    valor_unitario,
+                    desconto,
+                    subtotal
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    ordem_servico_id,
+                    item["tipo_item"],
+                    item["descricao"],
+                    item["detalhes"],
+                    item["quantidade"],
+                    item["valor_unitario"],
+                    item["desconto"],
+                    item["subtotal"],
+                ),
+            )
+
+        conn.commit()
+
+
 def listar_ordens_servico() -> list[dict[str, Any]]:
     with conectar_db() as conn:
         rows = conn.execute(
@@ -2014,6 +2149,25 @@ def listar_ordem_servico_itens(ordem_servico_id: int) -> list[dict[str, Any]]:
         ).fetchall()
 
     return [dict(row) for row in rows]
+
+
+def excluir_ordem_servico_db(ordem_servico_id: int) -> None:
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            DELETE FROM ordem_servico_itens
+            WHERE ordem_servico_id = ?
+            """,
+            (ordem_servico_id,),
+        )
+        conn.execute(
+            """
+            DELETE FROM ordens_servico
+            WHERE id = ?
+            """,
+            (ordem_servico_id,),
+        )
+        conn.commit()
 
 
 def montar_ordem_servico_formulario(numero_padrao: str = "") -> dict[str, str]:
@@ -2619,6 +2773,53 @@ def ver_ordem_servico(ordem_servico_id: int) -> str | Response:
         itens_produtos=itens_produtos,
         itens_servicos=itens_servicos,
     )
+
+
+@app.get("/ordens-servico/<int:ordem_servico_id>/editar")
+def editar_ordem_servico(ordem_servico_id: int) -> str | Response:
+    ordem_servico = buscar_ordem_servico_por_id(ordem_servico_id)
+
+    if ordem_servico is None:
+        return redirect(url_for("ordens_servico"))
+
+    itens = listar_ordem_servico_itens(ordem_servico_id)
+    clientes_lista = listar_clientes()
+    produtos_lista = listar_produtos()
+    servicos_lista = listar_servicos()
+
+    return render_template(
+        "ordem_servico_editar.html",
+        ordem_servico=ordem_servico,
+        itens=itens,
+        clientes=clientes_lista,
+        produtos=produtos_lista,
+        servicos=servicos_lista,
+    )
+
+
+@app.post("/ordens-servico/<int:ordem_servico_id>/editar")
+def atualizar_ordem_servico(ordem_servico_id: int) -> Response:
+    ordem_servico_atual = buscar_ordem_servico_por_id(ordem_servico_id)
+
+    if ordem_servico_atual is None:
+        return redirect(url_for("ordens_servico"))
+
+    ordem_servico = montar_ordem_servico_formulario(numero_padrao=str(ordem_servico_atual["numero"] or ""))
+    itens = montar_ordem_servico_itens_formulario()
+
+    atualizar_ordem_servico_db(ordem_servico_id, ordem_servico, itens)
+
+    return redirect(url_for("ver_ordem_servico", ordem_servico_id=ordem_servico_id))
+
+
+@app.post("/ordens-servico/<int:ordem_servico_id>/excluir")
+def excluir_ordem_servico(ordem_servico_id: int) -> Response:
+    ordem_servico = buscar_ordem_servico_por_id(ordem_servico_id)
+
+    if ordem_servico is not None:
+        excluir_ordem_servico_db(ordem_servico_id)
+
+    return redirect(url_for("ordens_servico"))
 
 
 @app.get("/vendas")
