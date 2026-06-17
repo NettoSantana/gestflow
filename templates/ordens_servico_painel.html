@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordens_servico_painel.html
-Último recode: 2026-06-16 22:35 (America/Bahia)
-Motivo: Criar painel de OS com indicadores de prazo, prioridade, status, faturamento e técnico.
+Último recode: 2026-06-16 22:45 (America/Bahia)
+Motivo: Corrigir estouro horizontal do painel de OS e limitar grids/tabelas ao tamanho da tela.
 -->
 
 <!DOCTYPE html>
@@ -13,11 +13,37 @@ Motivo: Criar painel de OS com indicadores de prazo, prioridade, status, faturam
     <link rel="stylesheet" href="/static/css/dashboard.css">
 
     <style>
+        html,
+        body {
+            overflow-x: hidden;
+        }
+
+        .os-painel-page {
+            width: 100%;
+            max-width: 100%;
+            overflow-x: hidden;
+            box-sizing: border-box;
+        }
+
+        .os-painel-page *,
+        .os-painel-page *::before,
+        .os-painel-page *::after {
+            box-sizing: border-box;
+        }
+
+        .os-painel-page .panel,
+        .os-painel-page .page-section,
+        .os-painel-page section {
+            max-width: 100%;
+        }
+
         .os-panel-grid {
             display: grid;
-            grid-template-columns: repeat(5, minmax(0, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             gap: 14px;
             margin-bottom: 22px;
+            width: 100%;
+            max-width: 100%;
         }
 
         .os-priority-grid,
@@ -71,8 +97,10 @@ Motivo: Criar painel de OS com indicadores de prazo, prioridade, status, faturam
 
         .os-money-grid {
             display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 14px;
+            width: 100%;
+            max-width: 100%;
         }
 
         .os-dashboard-link-row {
@@ -82,15 +110,50 @@ Motivo: Criar painel de OS com indicadores de prazo, prioridade, status, faturam
             flex-wrap: wrap;
         }
 
+        .os-panel-middle-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            gap: 16px;
+            align-items: start;
+            width: 100%;
+            max-width: 100%;
+            margin-bottom: 18px;
+        }
+
+        .os-panel-table-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+            width: 100%;
+            max-width: 100%;
+        }
+
+        .os-painel-page .table-shell {
+            width: 100%;
+            max-width: 100%;
+            overflow-x: auto;
+        }
+
+        .os-painel-page .client-table {
+            width: 100%;
+            min-width: 720px;
+        }
+
+        .os-painel-page .os-panel-card {
+            min-width: 0;
+        }
+
         @media (max-width: 1200px) {
-            .os-panel-grid,
-            .os-money-grid {
+            .os-priority-grid,
+            .os-status-grid,
+            .os-panel-middle-grid {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
+        }
 
-            .os-priority-grid,
-            .os-status-grid {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
+        @media (max-width: 900px) {
+            .os-panel-middle-grid {
+                grid-template-columns: 1fr;
             }
         }
 
@@ -98,8 +161,14 @@ Motivo: Criar painel de OS com indicadores de prazo, prioridade, status, faturam
             .os-panel-grid,
             .os-money-grid,
             .os-priority-grid,
-            .os-status-grid {
+            .os-status-grid,
+            .os-panel-middle-grid,
+            .os-panel-table-grid {
                 grid-template-columns: 1fr;
+            }
+
+            .os-painel-page .client-table {
+                min-width: 640px;
             }
         }
     </style>
@@ -177,7 +246,7 @@ Motivo: Criar painel de OS com indicadores de prazo, prioridade, status, faturam
         <div class="sidebar-footer"><div class="footer-item">⚙ Configurações</div><div class="footer-item">? Ajuda</div></div>
     </aside>
 
-    <main class="content os-page">
+    <main class="content os-page os-painel-page">
         <header class="topbar">
             <div class="topbar-left"><button class="menu-toggle" type="button" aria-label="Abrir menu">☰</button><h1>Painel de OS</h1></div>
             <div class="topbar-right"><div class="topbar-date"><span class="topbar-icon">✚</span><span>16/06/2026</span></div><div class="notification"><span class="topbar-icon">🔔</span><span class="notification-badge">0</span></div><div class="user-profile"><div class="avatar">NS</div><div class="user-info"><strong>Netto Santana</strong><span>Administrador</span></div><span class="profile-arrow">⌄</span></div></div>
@@ -220,7 +289,7 @@ Motivo: Criar painel de OS com indicadores de prazo, prioridade, status, faturam
             </div>
         </section>
 
-        <section class="dashboard-grid">
+        <section class="os-panel-middle-grid">
             <div class="panel table-panel">
                 <div class="panel-header page-header"><div><h3>Prioridade</h3><p class="page-subtitle">Distribuição das OS por urgência.</p></div></div>
                 <div class="os-priority-grid">
@@ -245,7 +314,7 @@ Motivo: Criar painel de OS com indicadores de prazo, prioridade, status, faturam
             </div>
         </section>
 
-        <section class="table-grid">
+        <section class="os-panel-table-grid">
             <div class="panel table-panel">
                 <div class="panel-header page-header"><div><h3>Faturamento por técnico</h3><p class="page-subtitle">Quantidade, abertas, finalizadas e valor por responsável técnico.</p></div></div>
                 <div class="table-shell">
