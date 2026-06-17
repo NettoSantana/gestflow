@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-16 22:35 (America/Bahia)
-# Motivo: Criar painel de OS com indicadores de prazo, prioridade, status e faturamento.
+# Último recode: 2026-06-16 22:55 (America/Bahia)
+# Motivo: Ligar Dashboard aos dados reais de vendas, OS, orçamentos, produtos e clientes.
 
 from __future__ import annotations
 
@@ -2557,9 +2557,97 @@ def copiar_ordem_servico_db(ordem_servico_id: int) -> int | None:
     return salvar_ordem_servico_db(nova_ordem_servico, novos_itens)
 
 
+def montar_dashboard() -> dict[str, Any]:
+    vendas_lista = listar_vendas()
+    ordens_lista = listar_ordens_servico()
+    orcamentos_lista = listar_orcamentos()
+    clientes_lista = listar_clientes()
+    produtos_lista = listar_produtos()
+
+    hoje = date.today()
+    inicio_mes = hoje.replace(day=1)
+
+    vendas_mes = []
+    vendas_ultimos_6_meses = []
+
+    for venda in vendas_lista:
+        data_venda = _converter_data_iso(venda.get("data"))
+        valor = _converter_valor_brl(venda.get("valor_total"))
+
+        if data_venda is not None and data_venda.year == hoje.year and data_venda.month == hoje.month:
+            vendas_mes.append({"venda": venda, "valor": valor})
+
+        if data_venda is not None:
+            diferenca_meses = (hoje.year - data_venda.year) * 12 + (hoje.month - data_venda.month)
+            if 0 <= diferenca_meses <= 5:
+                vendas_ultimos_6_meses.append({"venda": venda, "valor": valor})
+
+    total_vendas_mes = sum(item["valor"] for item in vendas_mes)
+    total_vendas_6_meses = sum(item["valor"] for item in vendas_ultimos_6_meses)
+    media_vendas_6_meses = total_vendas_6_meses / 6 if total_vendas_6_meses else 0.0
+
+    orcamentos_abertos = [orcamento for orcamento in orcamentos_lista if str(orcamento.get("status") or "").strip() == "aberto"]
+    total_orcamentos_abertos = sum(_converter_valor_brl(orcamento.get("valor_total")) for orcamento in orcamentos_abertos)
+
+    os_abertas = [
+        ordem
+        for ordem in ordens_lista
+        if str(ordem.get("status") or "").strip() in {"aberta", "andamento", "aguardando"}
+    ]
+    total_os_abertas = sum(_converter_valor_brl(ordem.get("valor_total")) for ordem in os_abertas)
+
+    clientes_ativos = [cliente for cliente in clientes_lista if str(cliente.get("status") or "ativo").strip() == "ativo"]
+
+    produtos_estoque = []
+    produtos_estoque_baixo = []
+
+    for produto in produtos_lista:
+        estoque_atual = _converter_valor_brl(produto.get("estoque_atual"))
+        estoque_minimo = _converter_valor_brl(produto.get("estoque_minimo"))
+
+        if estoque_atual > 0:
+            produtos_estoque.append(produto)
+
+        if estoque_minimo > 0 and estoque_atual <= estoque_minimo:
+            produtos_estoque_baixo.append(produto)
+
+    ultimas_os = ordens_lista[:5]
+    ultimas_vendas = vendas_lista[:5]
+
+    return {
+        "vendas_mes": {
+            "quantidade": len(vendas_mes),
+            "valor_total": total_vendas_mes,
+        },
+        "vendas_6_meses": {
+            "valor_total": total_vendas_6_meses,
+            "media_mensal": media_vendas_6_meses,
+        },
+        "orcamentos_abertos": {
+            "quantidade": len(orcamentos_abertos),
+            "valor_total": total_orcamentos_abertos,
+        },
+        "ordens_abertas": {
+            "quantidade": len(os_abertas),
+            "valor_total": total_os_abertas,
+        },
+        "produtos": {
+            "em_estoque": len(produtos_estoque),
+            "estoque_baixo": len(produtos_estoque_baixo),
+        },
+        "clientes": {
+            "ativos": len(clientes_ativos),
+            "total": len(clientes_lista),
+        },
+        "ultimas_os": ultimas_os,
+        "ultimas_vendas": ultimas_vendas,
+    }
+
+
 @app.get("/")
 def dashboard() -> str:
-    return render_template("dashboard.html")
+    dados_dashboard = montar_dashboard()
+    return render_template("dashboard.html", dashboard=dados_dashboard)
 
 
 @app.get("/clientes")

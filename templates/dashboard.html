@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\dashboard.html
-Último recode: 2026-06-16 21:15 (America/Bahia)
-Motivo: Ativar links do módulo Ordens de Serviço para a rota /ordens-servico.
+Último recode: 2026-06-16 22:55 (America/Bahia)
+Motivo: Ligar cards e tabelas do Dashboard aos dados reais do sistema.
 -->
 
 <!DOCTYPE html>
@@ -214,6 +214,17 @@ Motivo: Ativar links do módulo Ordens de Serviço para a rota /ordens-servico.
             </div>
         </header>
 
+
+        {% set dash = dashboard|default({}) %}
+        {% set vendas_mes = dash.vendas_mes|default({"quantidade": 0, "valor_total": 0}) %}
+        {% set vendas_6_meses = dash.vendas_6_meses|default({"valor_total": 0, "media_mensal": 0}) %}
+        {% set orcamentos_abertos = dash.orcamentos_abertos|default({"quantidade": 0, "valor_total": 0}) %}
+        {% set ordens_abertas = dash.ordens_abertas|default({"quantidade": 0, "valor_total": 0}) %}
+        {% set produtos_dash = dash.produtos|default({"em_estoque": 0, "estoque_baixo": 0}) %}
+        {% set clientes_dash = dash.clientes|default({"ativos": 0, "total": 0}) %}
+        {% set ultimas_os = dash.ultimas_os|default([]) %}
+        {% set ultimas_vendas = dash.ultimas_vendas|default([]) %}
+
         <section class="cards cards-primary">
 
             <div class="card card-success">
@@ -250,8 +261,8 @@ Motivo: Ativar links do módulo Ordens de Serviço para a rota /ordens-servico.
                 <div class="card-icon">▤</div>
                 <div class="card-info">
                     <h3>Vendas do mês</h3>
-                    <p>R$ 0,00</p>
-                    <span>0 vendas</span>
+                    <p>R$ {{ "%.2f"|format(vendas_mes.valor_total)|replace(".", ",") }}</p>
+                    <span>{{ vendas_mes.quantidade }} vendas</span>
                 </div>
                 <button class="filter-button" type="button">Filtros</button>
             </div>
@@ -263,36 +274,36 @@ Motivo: Ativar links do módulo Ordens de Serviço para a rota /ordens-servico.
             <div class="card stat-card">
                 <div class="card-icon">▣</div>
                 <div class="card-info">
-                    <p>0</p>
+                    <p>{{ orcamentos_abertos.quantidade }}</p>
                     <h3>Orçamentos abertos</h3>
-                    <span>R$ 0,00</span>
+                    <span>R$ {{ "%.2f"|format(orcamentos_abertos.valor_total)|replace(".", ",") }}</span>
                 </div>
             </div>
 
             <div class="card stat-card">
                 <div class="card-icon">▤</div>
                 <div class="card-info">
-                    <p>0</p>
+                    <p>{{ ordens_abertas.quantidade }}</p>
                     <h3>Ordens de Serviço abertas</h3>
-                    <span>Nenhuma ordem aberta</span>
+                    <span>R$ {{ "%.2f"|format(ordens_abertas.valor_total)|replace(".", ",") }}</span>
                 </div>
             </div>
 
             <div class="card stat-card">
                 <div class="card-icon">▧</div>
                 <div class="card-info">
-                    <p>0</p>
+                    <p>{{ produtos_dash.em_estoque }}</p>
                     <h3>Produtos em estoque</h3>
-                    <span>0 com estoque baixo</span>
+                    <span>{{ produtos_dash.estoque_baixo }} com estoque baixo</span>
                 </div>
             </div>
 
             <div class="card stat-card">
                 <div class="card-icon">☷</div>
                 <div class="card-info">
-                    <p>0</p>
+                    <p>{{ clientes_dash.ativos }}</p>
                     <h3>Clientes ativos</h3>
-                    <span>Nenhum cliente cadastrado</span>
+                    <span>{{ clientes_dash.total }} clientes cadastrados</span>
                 </div>
             </div>
 
@@ -303,17 +314,17 @@ Motivo: Ativar links do módulo Ordens de Serviço para a rota /ordens-servico.
             <div class="panel chart-panel">
                 <h3>Vendas dos últimos 6 meses</h3>
                 <div class="empty-chart">
-                    Nenhuma venda registrada no período.
+                    {% if vendas_6_meses.valor_total > 0 %}Vendas registradas nos últimos 6 meses.{% else %}Nenhuma venda registrada no período.{% endif %}
                 </div>
 
                 <div class="panel-summary">
                     <div>
                         <span>Total no período</span>
-                        <strong>R$ 0,00</strong>
+                        <strong>R$ {{ "%.2f"|format(vendas_6_meses.valor_total)|replace(".", ",") }}</strong>
                     </div>
                     <div>
                         <span>Média mensal</span>
-                        <strong>R$ 0,00</strong>
+                        <strong>R$ {{ "%.2f"|format(vendas_6_meses.media_mensal)|replace(".", ",") }}</strong>
                     </div>
                 </div>
             </div>
@@ -378,9 +389,21 @@ Motivo: Ativar links do módulo Ordens de Serviço para a rota /ordens-servico.
                         </tr>
                     </thead>
                     <tbody>
-                        <tr>
-                            <td colspan="5" class="empty-table">Nenhuma ordem de serviço cadastrada.</td>
-                        </tr>
+                        {% if ultimas_os %}
+                            {% for os in ultimas_os %}
+                                <tr>
+                                    <td>{{ os.numero }}</td>
+                                    <td>{{ os.cliente }}</td>
+                                    <td>{{ os.equipamento or os.tipo or '-' }}</td>
+                                    <td><span class="status-pill {{ os.status }}">{{ os.status }}</span></td>
+                                    <td>{{ os.data_previsao or '-' }}</td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="5" class="empty-table">Nenhuma ordem de serviço cadastrada.</td>
+                            </tr>
+                        {% endif %}
                     </tbody>
                 </table>
                 <a href="/ordens-servico">Ver todas as ordens →</a>
@@ -399,9 +422,21 @@ Motivo: Ativar links do módulo Ordens de Serviço para a rota /ordens-servico.
                         </tr>
                     </thead>
                     <tbody>
-                        <tr>
-                            <td colspan="5" class="empty-table">Nenhuma venda cadastrada.</td>
-                        </tr>
+                        {% if ultimas_vendas %}
+                            {% for venda in ultimas_vendas %}
+                                <tr>
+                                    <td>{{ venda.numero }}</td>
+                                    <td>{{ venda.cliente }}</td>
+                                    <td>{{ venda.data or '-' }}</td>
+                                    <td>{{ venda.valor_total or '0,00' }}</td>
+                                    <td><span class="status-pill {{ venda.status }}">{{ venda.status }}</span></td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="5" class="empty-table">Nenhuma venda cadastrada.</td>
+                            </tr>
+                        {% endif %}
                     </tbody>
                 </table>
                 <a href="/vendas">Ver todas as vendas →</a>
