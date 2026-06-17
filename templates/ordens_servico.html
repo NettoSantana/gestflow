@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordens_servico.html
-Último recode: 2026-06-16 22:18 (America/Bahia)
-Motivo: Corrigir botão verde de ações da OS para seguir o mesmo padrão visual do menu de Orçamentos.
+Último recode: 2026-06-16 22:25 (America/Bahia)
+Motivo: Ligar links de impressão A4, cupom e geração de cópia da OS no menu verde.
 -->
 
 <!DOCTYPE html>
@@ -565,15 +565,15 @@ Motivo: Corrigir botão verde de ações da OS para seguir o mesmo padrão visua
                                                         <details class="budget-action-submenu">
                                                             <summary>🖨 Imprimir</summary>
                                                             <div class="budget-action-subitems">
-                                                                <button type="button" onclick="alert('Impressão A4 da OS será ligada no próximo passo.');">A4</button>
-                                                                <button type="button" onclick="alert('Cupom da OS será ligado no próximo passo.');">Cupom</button>
+                                                                <a href="/ordens-servico/{{ os.id }}/imprimir/a4" target="_blank">A4</a>
+                                                                <a href="/ordens-servico/{{ os.id }}/imprimir/cupom" target="_blank">Cupom</a>
                                                             </div>
                                                         </details>
 
                                                         <details class="budget-action-submenu">
                                                             <summary>↻ Gerar</summary>
                                                             <div class="budget-action-subitems">
-                                                                <button type="button" onclick="alert('Geração de cópia da OS será ligada no próximo passo.');">Cópia</button>
+                                                                <a href="/ordens-servico/{{ os.id }}/gerar/copia">Cópia</a>
                                                             </div>
                                                         </details>
                                                     </div>

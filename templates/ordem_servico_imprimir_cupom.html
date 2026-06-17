@@ -1,0 +1,67 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordem_servico_imprimir_cupom.html
+Último recode: 2026-06-16 22:25 (America/Bahia)
+Motivo: Criar impressão em cupom da ordem de serviço.
+-->
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OS {{ ordem_servico.numero or ordem_servico.id }} - Cupom</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; background: #e5e7eb; font-family: Arial, Helvetica, sans-serif; color: #111827; font-size: 11px; }
+        .cupom { width: 80mm; margin: 10px auto; background: #ffffff; padding: 8mm 5mm; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16); }
+        h1 { margin: 0; text-align: center; font-size: 18px; letter-spacing: 1px; }
+        h2 { margin: 6px 0 8px; text-align: center; font-size: 13px; }
+        .line { border-top: 1px dashed #111827; margin: 8px 0; }
+        .row { display: flex; justify-content: space-between; gap: 8px; margin: 4px 0; }
+        .label { font-weight: 700; }
+        .text { white-space: pre-wrap; line-height: 1.35; }
+        table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+        th, td { border-bottom: 1px dashed #cbd5e1; padding: 4px 0; text-align: left; vertical-align: top; }
+        th:last-child, td:last-child { text-align: right; }
+        .total { font-size: 14px; font-weight: 800; }
+        .assinatura { margin-top: 28px; border-top: 1px solid #111827; text-align: center; padding-top: 5px; }
+        .print-actions { position: fixed; right: 20px; bottom: 20px; }
+        .print-actions button { border: none; border-radius: 8px; padding: 10px 14px; background: #0f172a; color: #fff; cursor: pointer; font-weight: 700; }
+        @media print { body { background: #ffffff; } .cupom { margin: 0; box-shadow: none; width: auto; } .print-actions { display: none; } }
+    </style>
+</head>
+<body>
+    {% set os = ordem_servico %}
+    <div class="cupom">
+        <h1>GESTFLOW</h1>
+        <h2>ORDEM DE SERVIÇO {{ os.numero or os.id }}</h2>
+        <div class="line"></div>
+        <div class="row"><span class="label">Cliente</span><span>{{ os.cliente or '-' }}</span></div>
+        <div class="row"><span class="label">Status</span><span>{{ os.status or '-' }}</span></div>
+        <div class="row"><span class="label">Entrada</span><span>{{ os.data_abertura or '-' }} {{ os.hora_entrada or '' }}</span></div>
+        <div class="row"><span class="label">Técnico</span><span>{{ os.tecnico or '-' }}</span></div>
+        <div class="line"></div>
+        <div class="label">Equipamento</div><div class="text">{{ os.equipamento or '-' }}</div>
+        <div class="label">Defeito / relato</div><div class="text">{{ os.relato_cliente or '-' }}</div>
+        <div class="label">Diagnóstico</div><div class="text">{{ os.diagnostico or '-' }}</div>
+        <div class="line"></div>
+        <strong>Itens</strong>
+        <table><thead><tr><th>Descrição</th><th>Qtd</th><th>Total</th></tr></thead><tbody>
+            {% if itens %}
+                {% for item in itens %}<tr><td>{{ item.descricao }}</td><td>{{ item.quantidade }}</td><td>{{ item.subtotal }}</td></tr>{% endfor %}
+            {% else %}<tr><td colspan="3">Nenhum item vinculado.</td></tr>{% endif %}
+        </tbody></table>
+        {% if os.exibir_valor_impressao != 'nao' %}
+        <div class="line"></div>
+        <div class="row"><span>Peças</span><span>{{ os.total_produtos or '0,00' }}</span></div>
+        <div class="row"><span>Mão de obra</span><span>{{ os.total_servicos or '0,00' }}</span></div>
+        <div class="row"><span>Desconto</span><span>{{ os.desconto_valor or '0,00' }}</span></div>
+        <div class="row total"><span>Total</span><span>{{ os.valor_total or '0,00' }}</span></div>
+        {% endif %}
+        <div class="line"></div>
+        <div class="label">Observações</div><div class="text">{{ os.observacoes or '-' }}</div>
+        <div class="assinatura">Assinatura do cliente</div>
+    </div>
+    <div class="print-actions"><button onclick="window.print()">Imprimir</button></div>
+</body>
+</html>

@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-16 22:05 (America/Bahia)
-# Motivo: Corrigir botão Adicionar equipamento da OS, permitindo múltiplos equipamentos no cadastro.
+# Último recode: 2026-06-16 22:25 (America/Bahia)
+# Motivo: Ligar impressão A4, cupom e geração de cópia da OS.
 
 from __future__ import annotations
 
@@ -2336,6 +2336,75 @@ def gerar_ordem_servico_por_venda_db(venda_id: int) -> int | None:
     return salvar_ordem_servico_db(ordem_servico, itens_os)
 
 
+def copiar_ordem_servico_db(ordem_servico_id: int) -> int | None:
+    ordem_servico_original = buscar_ordem_servico_por_id(ordem_servico_id)
+
+    if ordem_servico_original is None:
+        return None
+
+    itens_originais = listar_ordem_servico_itens(ordem_servico_id)
+    nova_ordem_servico = {
+        "numero": proximo_numero_ordem_servico(),
+        "cliente": str(ordem_servico_original.get("cliente") or ""),
+        "responsavel": str(ordem_servico_original.get("responsavel") or ""),
+        "tecnico": str(ordem_servico_original.get("tecnico") or ""),
+        "data_abertura": str(ordem_servico_original.get("data_abertura") or ""),
+        "data_previsao": str(ordem_servico_original.get("data_previsao") or ""),
+        "data_saida": str(ordem_servico_original.get("data_saida") or ""),
+        "hora_entrada": str(ordem_servico_original.get("hora_entrada") or ""),
+        "hora_saida": str(ordem_servico_original.get("hora_saida") or ""),
+        "canal_venda": str(ordem_servico_original.get("canal_venda") or ""),
+        "centro_custo": str(ordem_servico_original.get("centro_custo") or ""),
+        "equipamento": str(ordem_servico_original.get("equipamento") or ""),
+        "marca": str(ordem_servico_original.get("marca") or ""),
+        "modelo": str(ordem_servico_original.get("modelo") or ""),
+        "serie": str(ordem_servico_original.get("serie") or ""),
+        "local_servico": str(ordem_servico_original.get("local_servico") or ""),
+        "condicoes": str(ordem_servico_original.get("condicoes") or ""),
+        "acessorios": str(ordem_servico_original.get("acessorios") or ""),
+        "laudo": str(ordem_servico_original.get("laudo") or ""),
+        "termos": str(ordem_servico_original.get("termos") or ""),
+        "informar_endereco_entrega": str(ordem_servico_original.get("informar_endereco_entrega") or "nao"),
+        "endereco_entrega": str(ordem_servico_original.get("endereco_entrega") or ""),
+        "bairro_entrega": str(ordem_servico_original.get("bairro_entrega") or ""),
+        "cidade_entrega": str(ordem_servico_original.get("cidade_entrega") or ""),
+        "origem_venda_id": str(ordem_servico_original.get("origem_venda_id") or ""),
+        "tipo": str(ordem_servico_original.get("tipo") or "misto"),
+        "status": "aberta",
+        "prioridade": str(ordem_servico_original.get("prioridade") or "normal"),
+        "total_produtos": str(ordem_servico_original.get("total_produtos") or "0,00"),
+        "total_servicos": str(ordem_servico_original.get("total_servicos") or "0,00"),
+        "frete": str(ordem_servico_original.get("frete") or "0,00"),
+        "outros": str(ordem_servico_original.get("outros") or "0,00"),
+        "desconto_valor": str(ordem_servico_original.get("desconto_valor") or "0,00"),
+        "valor_total": str(ordem_servico_original.get("valor_total") or "0,00"),
+        "forma_pagamento": str(ordem_servico_original.get("forma_pagamento") or ""),
+        "exibir_valor_impressao": str(ordem_servico_original.get("exibir_valor_impressao") or "sim"),
+        "relato_cliente": str(ordem_servico_original.get("relato_cliente") or ""),
+        "diagnostico": str(ordem_servico_original.get("diagnostico") or ""),
+        "servico_executado": str(ordem_servico_original.get("servico_executado") or ""),
+        "observacoes": str(ordem_servico_original.get("observacoes") or "") + "\nCópia gerada a partir da OS " + str(ordem_servico_original.get("numero") or ordem_servico_id),
+        "observacoes_internas": str(ordem_servico_original.get("observacoes_internas") or ""),
+    }
+
+    novos_itens: list[dict[str, str]] = []
+
+    for item in itens_originais:
+        novos_itens.append(
+            {
+                "tipo_item": str(item.get("tipo_item") or "produto"),
+                "descricao": str(item.get("descricao") or ""),
+                "detalhes": str(item.get("detalhes") or ""),
+                "quantidade": str(item.get("quantidade") or ""),
+                "valor_unitario": str(item.get("valor_unitario") or ""),
+                "desconto": str(item.get("desconto") or ""),
+                "subtotal": str(item.get("subtotal") or ""),
+            }
+        )
+
+    return salvar_ordem_servico_db(nova_ordem_servico, novos_itens)
+
+
 @app.get("/")
 def dashboard() -> str:
     return render_template("dashboard.html")
@@ -2785,6 +2854,56 @@ def ver_ordem_servico(ordem_servico_id: int) -> str | Response:
         itens_produtos=itens_produtos,
         itens_servicos=itens_servicos,
     )
+
+
+@app.get("/ordens-servico/<int:ordem_servico_id>/imprimir/a4")
+def imprimir_ordem_servico_a4(ordem_servico_id: int) -> str | Response:
+    ordem_servico = buscar_ordem_servico_por_id(ordem_servico_id)
+
+    if ordem_servico is None:
+        return redirect(url_for("ordens_servico"))
+
+    itens = listar_ordem_servico_itens(ordem_servico_id)
+    itens_produtos = [item for item in itens if item["tipo_item"] == "produto"]
+    itens_servicos = [item for item in itens if item["tipo_item"] == "servico"]
+
+    return render_template(
+        "ordem_servico_imprimir_a4.html",
+        ordem_servico=ordem_servico,
+        itens=itens,
+        itens_produtos=itens_produtos,
+        itens_servicos=itens_servicos,
+    )
+
+
+@app.get("/ordens-servico/<int:ordem_servico_id>/imprimir/cupom")
+def imprimir_ordem_servico_cupom(ordem_servico_id: int) -> str | Response:
+    ordem_servico = buscar_ordem_servico_por_id(ordem_servico_id)
+
+    if ordem_servico is None:
+        return redirect(url_for("ordens_servico"))
+
+    itens = listar_ordem_servico_itens(ordem_servico_id)
+    itens_produtos = [item for item in itens if item["tipo_item"] == "produto"]
+    itens_servicos = [item for item in itens if item["tipo_item"] == "servico"]
+
+    return render_template(
+        "ordem_servico_imprimir_cupom.html",
+        ordem_servico=ordem_servico,
+        itens=itens,
+        itens_produtos=itens_produtos,
+        itens_servicos=itens_servicos,
+    )
+
+
+@app.get("/ordens-servico/<int:ordem_servico_id>/gerar/copia")
+def gerar_copia_ordem_servico(ordem_servico_id: int) -> Response:
+    nova_ordem_servico_id = copiar_ordem_servico_db(ordem_servico_id)
+
+    if nova_ordem_servico_id is None:
+        return redirect(url_for("ordens_servico"))
+
+    return redirect(url_for("editar_ordem_servico", ordem_servico_id=nova_ordem_servico_id))
 
 
 @app.get("/ordens-servico/<int:ordem_servico_id>/editar")
