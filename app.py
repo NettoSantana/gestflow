@@ -1,7 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-16 20:50 (America/Bahia)
-# Motivo: Adicionar rotas de impressão A4 e Cupom para vendas,
-#         mantendo edição, exclusão, visualização e demais módulos existentes.
+# Último recode: 2026-06-16 21:05 (America/Bahia)
+# Motivo: Adicionar geração de cópia da venda, mantendo impressão, edição, exclusão e demais módulos.
 
 from __future__ import annotations
 
@@ -1329,6 +1328,53 @@ def salvar_venda_db(venda: dict[str, str], itens: list[dict[str, str]]) -> int:
     return venda_id
 
 
+
+def copiar_venda_db(venda_id: int) -> int | None:
+    venda_original = buscar_venda_por_id(venda_id)
+
+    if venda_original is None:
+        return None
+
+    itens_originais = listar_venda_itens(venda_id)
+    novo_numero = proximo_numero_venda()
+
+    nova_venda = {
+        "numero": novo_numero,
+        "cliente": str(venda_original.get("cliente") or ""),
+        "responsavel": str(venda_original.get("responsavel") or ""),
+        "data": str(venda_original.get("data") or ""),
+        "prazo_entrega": str(venda_original.get("prazo_entrega") or ""),
+        "canal_venda": str(venda_original.get("canal_venda") or ""),
+        "centro_custo": str(venda_original.get("centro_custo") or ""),
+        "tipo": str(venda_original.get("tipo") or "misto"),
+        "status": "aberta",
+        "total_produtos": str(venda_original.get("total_produtos") or "0,00"),
+        "total_servicos": str(venda_original.get("total_servicos") or "0,00"),
+        "desconto_valor": str(venda_original.get("desconto_valor") or "0,00"),
+        "desconto_percentual": str(venda_original.get("desconto_percentual") or "0,00"),
+        "valor_total": str(venda_original.get("valor_total") or "0,00"),
+        "forma_pagamento": str(venda_original.get("forma_pagamento") or ""),
+        "observacoes": str(venda_original.get("observacoes") or ""),
+        "observacoes_internas": str(venda_original.get("observacoes_internas") or ""),
+    }
+
+    novos_itens: list[dict[str, str]] = []
+
+    for item in itens_originais:
+        novos_itens.append(
+            {
+                "tipo_item": str(item.get("tipo_item") or "produto"),
+                "descricao": str(item.get("descricao") or ""),
+                "detalhes": str(item.get("detalhes") or ""),
+                "quantidade": str(item.get("quantidade") or ""),
+                "valor_unitario": str(item.get("valor_unitario") or ""),
+                "desconto": str(item.get("desconto") or ""),
+                "subtotal": str(item.get("subtotal") or ""),
+            }
+        )
+
+    return salvar_venda_db(nova_venda, novos_itens)
+
 def listar_vendas() -> list[dict[str, Any]]:
     with conectar_db() as conn:
         rows = conn.execute(
@@ -2030,6 +2076,16 @@ def ver_venda(venda_id: int) -> str | Response:
 
     return render_template("venda_detalhe.html", venda=venda, itens=itens)
 
+
+
+@app.get("/vendas/<int:venda_id>/gerar/copia")
+def gerar_copia_venda(venda_id: int) -> Response:
+    nova_venda_id = copiar_venda_db(venda_id)
+
+    if nova_venda_id is None:
+        return redirect(url_for("vendas"))
+
+    return redirect(url_for("editar_venda", venda_id=nova_venda_id))
 
 @app.get("/vendas/<int:venda_id>/imprimir/a4")
 def imprimir_venda_a4(venda_id: int) -> str | Response:
