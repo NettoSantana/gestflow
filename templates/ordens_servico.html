@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordens_servico.html
-Último recode: 2026-06-16 22:05 (America/Bahia)
-Motivo: Corrigir botão Adicionar equipamento para criar novo bloco de equipamento na OS.
+Último recode: 2026-06-16 22:12 (America/Bahia)
+Motivo: Adicionar botão verde de ações da OS na lista, mantendo ver, editar e excluir.
 -->
 
 <!DOCTYPE html>
@@ -140,6 +140,93 @@ Motivo: Corrigir botão Adicionar equipamento para criar novo bloco de equipamen
             color: #334155;
             font-size: 13px;
             font-weight: 800;
+        }
+
+
+
+        .os-table-actions-shell {
+            overflow: visible;
+        }
+
+        .os-action-wrap {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .os-more-button {
+            min-width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 8px;
+            background: #16a34a;
+            color: #ffffff;
+            font-weight: 900;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 6px 14px rgba(22, 163, 74, 0.18);
+        }
+
+        .os-more-button:hover {
+            background: #15803d;
+        }
+
+        .os-more-menu {
+            position: absolute;
+            top: 38px;
+            right: 0;
+            width: 210px;
+            background: #ffffff;
+            border: 1px solid #dbe3ef;
+            border-radius: 10px;
+            box-shadow: 0 18px 38px rgba(15, 23, 42, 0.16);
+            padding: 8px;
+            z-index: 50;
+            display: none;
+            text-align: left;
+        }
+
+        .os-more-menu.open {
+            display: block;
+        }
+
+        .os-more-menu a,
+        .os-more-menu button {
+            width: 100%;
+            border: none;
+            background: transparent;
+            color: #334155;
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 9px 10px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 13px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .os-more-menu a:hover,
+        .os-more-menu button:hover {
+            background: #f1f5f9;
+        }
+
+        .os-more-menu .os-more-danger {
+            color: #dc2626;
+        }
+
+        .os-more-divider {
+            height: 1px;
+            background: #e2e8f0;
+            margin: 6px 0;
+        }
+
+        .os-menu-form {
+            margin: 0;
         }
 
         @media (max-width: 1100px) {
@@ -430,7 +517,7 @@ Motivo: Corrigir botão Adicionar equipamento para criar novo bloco de equipamen
         <section class="panel table-panel">
             <div class="panel-header page-header"><div><h3>Lista de OS</h3><p class="page-subtitle">Acompanhe as ordens de serviço cadastradas.</p></div><div class="client-toolbar"><button type="button" class="btn-light">Exportar</button><button type="button" class="btn-light">Filtros</button></div></div>
             <div class="client-actions"><input type="text" placeholder="Buscar por número, cliente, situação ou responsável" class="client-search"><button type="button" class="btn-dark">Buscar</button></div>
-            <div class="table-shell">
+            <div class="table-shell os-table-actions-shell">
                 <table class="client-table">
                     <thead><tr><th>ID</th><th>Número</th><th>Cliente</th><th>Equipamento</th><th>Situação</th><th>Prioridade</th><th>Data</th><th>Valor total</th><th>Ações</th></tr></thead>
                     <tbody>
@@ -438,13 +525,27 @@ Motivo: Corrigir botão Adicionar equipamento para criar novo bloco de equipamen
                             {% for os in ordens_lista %}
                                 <tr>
                                     <td>{{ os.id }}</td><td>{{ os.numero }}</td><td>{{ os.cliente }}</td><td>{{ os.equipamento }}</td><td><span class="status-pill {{ os.status }}">{{ os.status }}</span></td><td>{{ os.prioridade }}</td><td>{{ os.data_abertura }}</td><td>{{ os.valor_total }}</td>
-                                    <td><div class="action-buttons">
+                                    <td>
+                                        <div class="action-buttons os-action-wrap">
                                             <a href="/ordens-servico/{{ os.id }}" title="Ver OS" aria-label="Ver OS" class="action-button view">🔍</a>
                                             <a href="/ordens-servico/{{ os.id }}/editar" title="Editar OS" aria-label="Editar OS" class="action-button edit">✎</a>
                                             <form action="/ordens-servico/{{ os.id }}/excluir" method="post" style="display:inline;" onsubmit="return confirm('Deseja excluir esta OS?');">
                                                 <button type="submit" class="action-button delete" title="Excluir OS" aria-label="Excluir OS">×</button>
                                             </form>
-                                        </div></td>
+                                            <button type="button" class="os-more-button" title="Mais ações" aria-label="Mais ações da OS" onclick="alternarMenuOs(this)">⌄</button>
+                                            <div class="os-more-menu">
+                                                <a href="/ordens-servico/{{ os.id }}">🔍 Ver detalhes</a>
+                                                <a href="/ordens-servico/{{ os.id }}/editar">✎ Editar OS</a>
+                                                <div class="os-more-divider"></div>
+                                                <button type="button" onclick="alert('Impressão da OS será ligada no próximo passo.');">▣ Imprimir A4</button>
+                                                <button type="button" onclick="alert('Cupom da OS será ligado no próximo passo.');">▤ Imprimir cupom</button>
+                                                <div class="os-more-divider"></div>
+                                                <form class="os-menu-form" action="/ordens-servico/{{ os.id }}/excluir" method="post" onsubmit="return confirm('Deseja excluir esta OS?');">
+                                                    <button type="submit" class="os-more-danger">× Excluir OS</button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </td>
                                 </tr>
                             {% endfor %}
                         {% else %}
@@ -508,6 +609,25 @@ Motivo: Corrigir botão Adicionar equipamento para criar novo bloco de equipamen
                     bloco.remove();
                 }
             }
+
+
+            function alternarMenuOs(botao) {
+                const menuAtual = botao.parentElement.querySelector(".os-more-menu");
+                document.querySelectorAll(".os-more-menu.open").forEach(function(menu) {
+                    if (menu !== menuAtual) {
+                        menu.classList.remove("open");
+                    }
+                });
+                menuAtual.classList.toggle("open");
+            }
+
+            document.addEventListener("click", function(evento) {
+                if (!evento.target.closest(".os-action-wrap")) {
+                    document.querySelectorAll(".os-more-menu.open").forEach(function(menu) {
+                        menu.classList.remove("open");
+                    });
+                }
+            });
 
             function criarLinha(tipo, dados) {
                 const linha = document.createElement("tr");
