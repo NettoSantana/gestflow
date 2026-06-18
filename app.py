@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-16 23:25 (America/Bahia)
-# Motivo: Ajustar Estoque no padrão básico do GestãoClick com Movimentações, Ajustes e Compras.
+# Último recode: 2026-06-16 23:35 (America/Bahia)
+# Motivo: Ligar baixa automática de estoque ao salvar venda com produtos.
 
 from __future__ import annotations
 
@@ -943,6 +943,87 @@ def montar_painel_estoque() -> dict[str, Any]:
         "saldo_total": saldo_total,
         "ultimas_movimentacoes": movimentacoes,
     }
+
+def _normalizar_texto_busca(valor: Any) -> str:
+    return str(valor or "").strip().casefold()
+
+
+def buscar_produto_por_descricao_item(descricao: Any) -> dict[str, Any] | None:
+    texto_original = str(descricao or "").strip()
+    texto_normalizado = _normalizar_texto_busca(texto_original)
+
+    if not texto_normalizado:
+        return None
+
+    produtos_lista = listar_produtos()
+
+    for produto in produtos_lista:
+        nome = _normalizar_texto_busca(produto.get("nome"))
+        codigo = _normalizar_texto_busca(produto.get("codigo"))
+
+        if texto_normalizado == nome or (codigo and texto_normalizado == codigo):
+            return produto
+
+    for produto in produtos_lista:
+        nome = _normalizar_texto_busca(produto.get("nome"))
+        codigo = _normalizar_texto_busca(produto.get("codigo"))
+
+        if nome and nome in texto_normalizado:
+            return produto
+
+        if codigo and codigo in texto_normalizado:
+            return produto
+
+    return None
+
+
+def baixar_estoque_por_venda_db(venda_id: int, venda: dict[str, str], itens: list[dict[str, str]]) -> None:
+    status_venda = str(venda.get("status") or "").strip()
+
+    if status_venda == "cancelada":
+        return
+
+    numero_venda = str(venda.get("numero") or venda_id).strip() or str(venda_id)
+    responsavel = str(venda.get("responsavel") or "").strip()
+
+    for item in itens:
+        tipo_item = str(item.get("tipo_item") or "").strip()
+
+        if tipo_item != "produto":
+            continue
+
+        descricao = str(item.get("descricao") or "").strip()
+
+        if not descricao:
+            continue
+
+        produto = buscar_produto_por_descricao_item(descricao)
+
+        if produto is None:
+            continue
+
+        quantidade = _converter_valor_brl(item.get("quantidade"))
+
+        if quantidade <= 0:
+            quantidade = 1.0
+
+        saldo_anterior_numero = _converter_valor_brl(produto.get("estoque_atual"))
+        saldo_atual_numero = saldo_anterior_numero - quantidade
+
+        movimentacao = {
+            "produto_id": str(produto.get("id") or ""),
+            "produto_nome": str(produto.get("nome") or descricao),
+            "tipo": "saida",
+            "quantidade": _formatar_numero_estoque(quantidade),
+            "saldo_anterior": _formatar_numero_estoque(saldo_anterior_numero),
+            "saldo_atual": _formatar_numero_estoque(saldo_atual_numero),
+            "motivo": "Venda de produto",
+            "documento": f"Venda Nº {numero_venda}",
+            "responsavel": responsavel,
+            "observacoes": "Baixa automática gerada ao salvar a venda.",
+        }
+
+        salvar_estoque_movimentacao_db(movimentacao)
 
 
 def salvar_servico_db(servico: dict[str, str]) -> None:
@@ -3519,7 +3600,8 @@ def salvar_venda() -> Response:
     itens = montar_venda_itens_formulario()
 
     if venda["cliente"] or venda["numero"]:
-        salvar_venda_db(venda, itens)
+        venda_id = salvar_venda_db(venda, itens)
+        baixar_estoque_por_venda_db(venda_id, venda, itens)
 
     return redirect(url_for("vendas"))
 
