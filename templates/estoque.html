@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\estoque.html
-Último recode: 2026-06-16 23:05 (America/Bahia)
-Motivo: Criar tela base do módulo Estoque com movimentação manual e histórico.
+Último recode: 2026-06-16 23:25 (America/Bahia)
+Motivo: Reorganizar Estoque no padrão básico do GestãoClick com Movimentações, Ajustes e Compras.
 -->
 
 <!DOCTYPE html>
@@ -14,29 +14,63 @@ Motivo: Criar tela base do módulo Estoque com movimentação manual e históric
 
     <style>
         .estoque-page {
-            max-width: calc(100vw - 280px);
+            width: 100%;
+            max-width: 100%;
             overflow-x: hidden;
         }
 
-        .estoque-header-actions {
+        .estoque-toolbar {
             display: flex;
-            gap: 10px;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
             flex-wrap: wrap;
-            justify-content: flex-end;
+            margin-bottom: 16px;
+        }
+
+        .estoque-toolbar-left,
+        .estoque-toolbar-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .estoque-search {
+            min-width: 280px;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        .estoque-action-dark {
+            border: 0;
+            background: #071826;
+            color: #ffffff;
+            font-weight: 700;
+            border-radius: 8px;
+            padding: 10px 14px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
         }
 
         .estoque-card-grid {
             display: grid;
             grid-template-columns: repeat(4, minmax(0, 1fr));
             gap: 14px;
-            margin-bottom: 22px;
+            margin-bottom: 18px;
         }
 
         .estoque-card {
             background: #ffffff;
             border: 1px solid #dbe3ef;
             border-radius: 14px;
-            padding: 18px;
+            padding: 16px;
             box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
             min-width: 0;
         }
@@ -75,9 +109,36 @@ Motivo: Criar tela base do módulo Estoque com movimentação manual e históric
             background: #f0fdf4;
         }
 
-        .estoque-grid {
+        .estoque-tabs {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .estoque-tab {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            color: #334155;
+            background: #ffffff;
+            border: 1px solid #dbe3ef;
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .estoque-tab.active {
+            background: #0f172a;
+            border-color: #0f172a;
+            color: #ffffff;
+        }
+
+        .estoque-two-columns {
             display: grid;
-            grid-template-columns: minmax(320px, 0.75fr) minmax(0, 1.25fr);
+            grid-template-columns: minmax(300px, 0.8fr) minmax(0, 1.2fr);
             gap: 18px;
             align-items: start;
         }
@@ -92,7 +153,7 @@ Motivo: Criar tela base do módulo Estoque com movimentação manual e históric
             gap: 6px;
             font-size: 13px;
             color: #475569;
-            font-weight: 600;
+            font-weight: 700;
         }
 
         .estoque-form input,
@@ -127,7 +188,11 @@ Motivo: Criar tela base do módulo Estoque com movimentação manual e históric
 
         .estoque-table-wrap table {
             width: 100%;
-            min-width: 820px;
+            min-width: 760px;
+        }
+
+        .estoque-table-wrap-produtos table {
+            min-width: 900px;
         }
 
         .tipo-pill {
@@ -158,16 +223,25 @@ Motivo: Criar tela base do módulo Estoque com movimentação manual e históric
             color: #92400e;
         }
 
-        @media (max-width: 1200px) {
-            .estoque-page {
-                max-width: 100%;
-            }
+        .estoque-mini-info {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            color: #64748b;
+            font-size: 13px;
+            margin-top: 6px;
+        }
 
+        .estoque-mini-info strong {
+            color: #0f172a;
+        }
+
+        @media (max-width: 1200px) {
             .estoque-card-grid {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
 
-            .estoque-grid {
+            .estoque-two-columns {
                 grid-template-columns: 1fr;
             }
         }
@@ -176,6 +250,10 @@ Motivo: Criar tela base do módulo Estoque com movimentação manual e históric
             .estoque-card-grid,
             .estoque-form-row {
                 grid-template-columns: 1fr;
+            }
+
+            .estoque-search {
+                min-width: 100%;
             }
         }
     </style>
@@ -313,12 +391,9 @@ Motivo: Criar tela base do módulo Estoque com movimentação manual e históric
                             <span class="arrow">⌄</span>
                         </summary>
                         <ul class="submenu">
-                            <li class="submenu-active"><a href="/estoque">Movimentações</a></li>
-                            <li><a href="/estoque">Ajustes</a></li>
-                            <li>Transferências</li>
-                            <li>Cotações</li>
-                            <li>Compras</li>
-                            <li>Opções auxiliares</li>
+                            <li class="{% if aba == 'movimentacoes' %}submenu-active{% endif %}"><a href="/estoque/movimentacoes">Movimentações</a></li>
+                            <li class="{% if aba == 'ajustes' %}submenu-active{% endif %}"><a href="/estoque/ajustes">Ajustes</a></li>
+                            <li class="{% if aba == 'compras' %}submenu-active{% endif %}"><a href="/estoque/compras">Compras</a></li>
                         </ul>
                     </details>
                 </li>
@@ -385,17 +460,27 @@ Motivo: Criar tela base do módulo Estoque com movimentação manual e históric
         {% set painel_estoque = painel|default({}) %}
         {% set produtos_lista = produtos|default([]) %}
         {% set movimentacoes_lista = movimentacoes|default([]) %}
+        {% set fornecedores_lista = fornecedores|default([]) %}
+        {% set aba_atual = aba|default('movimentacoes') %}
 
         <section class="panel page-section">
             <div class="panel-header page-header">
                 <div>
                     <span class="page-kicker">Estoque</span>
-                    <h3 class="page-title">Movimentações de estoque</h3>
-                    <p class="page-subtitle">Controle entradas, saídas e ajustes manuais dos produtos cadastrados.</p>
+                    {% if aba_atual == 'compras' %}
+                        <h3 class="page-title">Compras de produtos</h3>
+                        <p class="page-subtitle">Registre compra simples e aumente o estoque do produto.</p>
+                    {% elif aba_atual == 'ajustes' %}
+                        <h3 class="page-title">Ajustes de estoque</h3>
+                        <p class="page-subtitle">Atualização manual para conferência, perda, correção ou inventário.</p>
+                    {% else %}
+                        <h3 class="page-title">Produtos</h3>
+                        <p class="page-subtitle">Lista de produtos com saldo, valor, estoque e histórico de movimentações.</p>
+                    {% endif %}
                 </div>
-                <div class="estoque-header-actions">
-                    <a href="/produtos" class="btn-light">Produtos</a>
-                    <a href="#form-movimentacao" class="btn-primary-green">+ Nova movimentação</a>
+                <div class="estoque-toolbar-left">
+                    <a href="/produtos" class="btn-light">Gerenciar produtos</a>
+                    <a href="/estoque/ajustes" class="btn-primary-green">+ Adicionar</a>
                 </div>
             </div>
         </section>
@@ -426,162 +511,358 @@ Motivo: Criar tela base do módulo Estoque com movimentação manual e históric
             </div>
         </section>
 
-        <section class="estoque-grid">
+        <div class="estoque-tabs">
+            <a href="/estoque/movimentacoes" class="estoque-tab {% if aba_atual == 'movimentacoes' %}active{% endif %}">Movimentações</a>
+            <a href="/estoque/ajustes" class="estoque-tab {% if aba_atual == 'ajustes' %}active{% endif %}">Ajustes</a>
+            <a href="/estoque/compras" class="estoque-tab {% if aba_atual == 'compras' %}active{% endif %}">Compras</a>
+        </div>
 
-            <div class="panel table-panel" id="form-movimentacao">
-                <div class="panel-header page-header">
-                    <div>
-                        <h3>Nova movimentação</h3>
-                        <p class="page-subtitle">Entrada, saída ou ajuste manual do saldo.</p>
+        {% if aba_atual == 'movimentacoes' %}
+            <section class="panel table-panel">
+                <div class="estoque-toolbar">
+                    <div class="estoque-toolbar-left">
+                        <a href="/estoque/ajustes" class="btn-primary-green">+ Adicionar</a>
+                        <a href="/estoque/compras" class="estoque-action-dark">Compras</a>
+                    </div>
+                    <div class="estoque-toolbar-right">
+                        <input class="estoque-search" type="text" id="busca-produto-estoque" placeholder="Buscar produto, código ou categoria">
+                        <button class="estoque-action-dark" type="button" onclick="filtrarProdutosEstoque()">🔍 Buscar</button>
                     </div>
                 </div>
 
-                <form class="estoque-form" action="/estoque/movimentar" method="post">
-                    <label>
-                        Produto
-                        <select name="estoque_produto_id" required>
-                            <option value="">Selecione um produto</option>
-                            {% for produto in produtos_lista %}
-                                <option value="{{ produto.id }}">{{ produto.nome }}{% if produto.codigo %} - {{ produto.codigo }}{% endif %}</option>
-                            {% endfor %}
-                        </select>
-                    </label>
-
-                    <div class="estoque-form-row">
-                        <label>
-                            Tipo
-                            <select name="estoque_tipo" required>
-                                <option value="entrada">Entrada</option>
-                                <option value="saida">Saída</option>
-                                <option value="ajuste">Ajuste manual</option>
-                            </select>
-                        </label>
-
-                        <label>
-                            Quantidade / saldo
-                            <input type="text" name="estoque_quantidade" placeholder="Ex: 10" required>
-                        </label>
-                    </div>
-
-                    <label>
-                        Motivo
-                        <input type="text" name="estoque_motivo" placeholder="Ex: compra, venda, perda, conferência">
-                    </label>
-
-                    <div class="estoque-form-row">
-                        <label>
-                            Documento
-                            <input type="text" name="estoque_documento" placeholder="NF, pedido, OS ou venda">
-                        </label>
-
-                        <label>
-                            Responsável
-                            <input type="text" name="estoque_responsavel" placeholder="Responsável pela movimentação">
-                        </label>
-                    </div>
-
-                    <label>
-                        Observações
-                        <textarea name="estoque_observacoes" placeholder="Informações internas da movimentação"></textarea>
-                    </label>
-
-                    <button type="submit" class="btn-primary-green">Salvar movimentação</button>
-                </form>
-            </div>
-
-            <div class="panel table-panel">
-                <div class="panel-header page-header">
-                    <div>
-                        <h3>Produtos em estoque</h3>
-                        <p class="page-subtitle">Saldo atual e mínimo configurado em produtos.</p>
-                    </div>
-                </div>
-
-                <div class="estoque-table-wrap">
-                    <table class="client-table">
+                <div class="estoque-table-wrap estoque-table-wrap-produtos">
+                    <table class="client-table" id="tabela-produtos-estoque">
                         <thead>
                             <tr>
-                                <th>Produto</th>
                                 <th>Código</th>
+                                <th>Nome</th>
+                                <th>Valor</th>
+                                <th>Estoque</th>
+                                <th>Mínimo</th>
                                 <th>Categoria</th>
-                                <th>Saldo atual</th>
-                                <th>Estoque mínimo</th>
-                                <th>Status</th>
+                                <th>Ações</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% if produtos_lista %}
                                 {% for produto in produtos_lista %}
                                     <tr>
-                                        <td>{{ produto.nome }}</td>
                                         <td>{{ produto.codigo or '-' }}</td>
-                                        <td>{{ produto.categoria or '-' }}</td>
+                                        <td>{{ produto.nome }}</td>
+                                        <td>{{ produto.preco_venda or '0,00' }}</td>
                                         <td>{{ produto.estoque_atual or '0' }}</td>
                                         <td>{{ produto.estoque_minimo or '0' }}</td>
-                                        <td><span class="status-pill {{ produto.status }}">{{ produto.status }}</span></td>
+                                        <td>{{ produto.categoria or '-' }}</td>
+                                        <td>
+                                            <a href="/estoque/movimentacoes?produto_id={{ produto.id }}#historico" class="estoque-action-dark">⇄ Movimentações</a>
+                                        </td>
                                     </tr>
                                 {% endfor %}
                             {% else %}
                                 <tr>
-                                    <td colspan="6" class="empty-table">Nenhum produto cadastrado.</td>
+                                    <td colspan="7" class="empty-table">Nenhum produto cadastrado.</td>
                                 </tr>
                             {% endif %}
                         </tbody>
                     </table>
                 </div>
-            </div>
+            </section>
 
-        </section>
-
-        <section class="panel table-panel" style="margin-top: 18px;">
-            <div class="panel-header page-header">
-                <div>
-                    <h3>Histórico de movimentações</h3>
-                    <p class="page-subtitle">Últimas entradas, saídas e ajustes realizados.</p>
-                </div>
-            </div>
-
-            <div class="estoque-table-wrap">
-                <table class="client-table">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Produto</th>
-                            <th>Tipo</th>
-                            <th>Quantidade</th>
-                            <th>Saldo anterior</th>
-                            <th>Saldo atual</th>
-                            <th>Motivo</th>
-                            <th>Responsável</th>
-                            <th>Data</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% if movimentacoes_lista %}
-                            {% for mov in movimentacoes_lista %}
-                                <tr>
-                                    <td>{{ mov.id }}</td>
-                                    <td>{{ mov.produto_nome or '-' }}</td>
-                                    <td><span class="tipo-pill {{ mov.tipo }}">{{ mov.tipo }}</span></td>
-                                    <td>{{ mov.quantidade or '0' }}</td>
-                                    <td>{{ mov.saldo_anterior or '0' }}</td>
-                                    <td>{{ mov.saldo_atual or '0' }}</td>
-                                    <td>{{ mov.motivo or '-' }}</td>
-                                    <td>{{ mov.responsavel or '-' }}</td>
-                                    <td>{{ mov.criado_em or '-' }}</td>
-                                </tr>
-                            {% endfor %}
+            <section class="panel table-panel" id="historico" style="margin-top: 18px;">
+                <div class="panel-header page-header">
+                    <div>
+                        <h3>Histórico de movimentações</h3>
+                        {% if produto_selecionado %}
+                            <p class="page-subtitle">Movimentações do produto: <strong>{{ produto_selecionado.nome }}</strong>.</p>
+                            <div class="estoque-mini-info">
+                                <span>Código: <strong>{{ produto_selecionado.codigo or '-' }}</strong></span>
+                                <span>Saldo: <strong>{{ produto_selecionado.estoque_atual or '0' }}</strong></span>
+                                <span>Mínimo: <strong>{{ produto_selecionado.estoque_minimo or '0' }}</strong></span>
+                            </div>
                         {% else %}
-                            <tr>
-                                <td colspan="9" class="empty-table">Nenhuma movimentação de estoque registrada.</td>
-                            </tr>
+                            <p class="page-subtitle">Últimas entradas, saídas e ajustes realizados.</p>
                         {% endif %}
-                    </tbody>
-                </table>
-            </div>
-        </section>
+                    </div>
+                    {% if produto_selecionado %}
+                        <a href="/estoque/movimentacoes#historico" class="btn-light">Ver todos</a>
+                    {% endif %}
+                </div>
 
+                <div class="estoque-table-wrap">
+                    <table class="client-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Produto</th>
+                                <th>Tipo</th>
+                                <th>Quantidade</th>
+                                <th>Saldo anterior</th>
+                                <th>Saldo atual</th>
+                                <th>Motivo</th>
+                                <th>Responsável</th>
+                                <th>Data</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if movimentacoes_lista %}
+                                {% for mov in movimentacoes_lista %}
+                                    <tr>
+                                        <td>{{ mov.id }}</td>
+                                        <td>{{ mov.produto_nome or '-' }}</td>
+                                        <td><span class="tipo-pill {{ mov.tipo }}">{{ mov.tipo }}</span></td>
+                                        <td>{{ mov.quantidade or '0' }}</td>
+                                        <td>{{ mov.saldo_anterior or '0' }}</td>
+                                        <td>{{ mov.saldo_atual or '0' }}</td>
+                                        <td>{{ mov.motivo or '-' }}</td>
+                                        <td>{{ mov.responsavel or '-' }}</td>
+                                        <td>{{ mov.criado_em or '-' }}</td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="9" class="empty-table">Nenhuma movimentação de estoque registrada.</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        {% elif aba_atual == 'ajustes' %}
+            <section class="estoque-two-columns">
+                <div class="panel table-panel">
+                    <div class="panel-header page-header">
+                        <div>
+                            <h3>Novo ajuste</h3>
+                            <p class="page-subtitle">Entrada, saída ou ajuste manual do saldo.</p>
+                        </div>
+                    </div>
+
+                    <form class="estoque-form" action="/estoque/movimentar" method="post">
+                        <label>
+                            Produto
+                            <select name="estoque_produto_id" required>
+                                <option value="">Selecione um produto</option>
+                                {% for produto in produtos_lista %}
+                                    <option value="{{ produto.id }}">{{ produto.nome }}{% if produto.codigo %} - {{ produto.codigo }}{% endif %}</option>
+                                {% endfor %}
+                            </select>
+                        </label>
+
+                        <div class="estoque-form-row">
+                            <label>
+                                Tipo
+                                <select name="estoque_tipo" required>
+                                    <option value="entrada">Entrada</option>
+                                    <option value="saida">Saída</option>
+                                    <option value="ajuste">Ajuste manual</option>
+                                </select>
+                            </label>
+
+                            <label>
+                                Quantidade / saldo
+                                <input type="text" name="estoque_quantidade" placeholder="Ex: 10" required>
+                            </label>
+                        </div>
+
+                        <label>
+                            Motivo
+                            <input type="text" name="estoque_motivo" placeholder="Ex: perda, conferência, inventário, correção">
+                        </label>
+
+                        <div class="estoque-form-row">
+                            <label>
+                                Documento
+                                <input type="text" name="estoque_documento" placeholder="NF, pedido, OS ou venda">
+                            </label>
+
+                            <label>
+                                Responsável
+                                <input type="text" name="estoque_responsavel" placeholder="Responsável pela movimentação">
+                            </label>
+                        </div>
+
+                        <label>
+                            Observações
+                            <textarea name="estoque_observacoes" placeholder="Informações internas da movimentação"></textarea>
+                        </label>
+
+                        <button type="submit" class="btn-primary-green">Salvar ajuste</button>
+                    </form>
+                </div>
+
+                <div class="panel table-panel">
+                    <div class="panel-header page-header">
+                        <div>
+                            <h3>Últimos ajustes e movimentações</h3>
+                            <p class="page-subtitle">Histórico rápido para conferência.</p>
+                        </div>
+                    </div>
+
+                    <div class="estoque-table-wrap">
+                        <table class="client-table">
+                            <thead>
+                                <tr>
+                                    <th>Produto</th>
+                                    <th>Tipo</th>
+                                    <th>Qtd.</th>
+                                    <th>Saldo atual</th>
+                                    <th>Motivo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if movimentacoes_lista %}
+                                    {% for mov in movimentacoes_lista[:10] %}
+                                        <tr>
+                                            <td>{{ mov.produto_nome or '-' }}</td>
+                                            <td><span class="tipo-pill {{ mov.tipo }}">{{ mov.tipo }}</span></td>
+                                            <td>{{ mov.quantidade or '0' }}</td>
+                                            <td>{{ mov.saldo_atual or '0' }}</td>
+                                            <td>{{ mov.motivo or '-' }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="5" class="empty-table">Nenhum ajuste registrado.</td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        {% else %}
+            <section class="estoque-two-columns">
+                <div class="panel table-panel">
+                    <div class="panel-header page-header">
+                        <div>
+                            <h3>Nova compra de produto</h3>
+                            <p class="page-subtitle">Registre uma compra simples e dê entrada no estoque.</p>
+                        </div>
+                    </div>
+
+                    <form class="estoque-form" action="/estoque/comprar" method="post">
+                        <label>
+                            Produto
+                            <select name="compra_produto_id" required>
+                                <option value="">Selecione um produto</option>
+                                {% for produto in produtos_lista %}
+                                    <option value="{{ produto.id }}">{{ produto.nome }}{% if produto.codigo %} - {{ produto.codigo }}{% endif %}</option>
+                                {% endfor %}
+                            </select>
+                        </label>
+
+                        <label>
+                            Fornecedor
+                            <select name="compra_fornecedor">
+                                <option value="">Selecione ou deixe em branco</option>
+                                {% for fornecedor in fornecedores_lista %}
+                                    <option value="{{ fornecedor.nome }}">{{ fornecedor.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </label>
+
+                        <div class="estoque-form-row">
+                            <label>
+                                Quantidade
+                                <input type="text" name="compra_quantidade" placeholder="Ex: 10" required>
+                            </label>
+
+                            <label>
+                                Valor de custo
+                                <input type="text" name="compra_valor_custo" placeholder="Ex: 100,00">
+                            </label>
+                        </div>
+
+                        <div class="estoque-form-row">
+                            <label>
+                                Documento
+                                <input type="text" name="compra_documento" placeholder="NF, pedido ou recibo">
+                            </label>
+
+                            <label>
+                                Responsável
+                                <input type="text" name="compra_responsavel" placeholder="Responsável pela compra">
+                            </label>
+                        </div>
+
+                        <label>
+                            Observações
+                            <textarea name="compra_observacoes" placeholder="Condição de compra, prazo, fornecedor alternativo etc."></textarea>
+                        </label>
+
+                        <button type="submit" class="btn-primary-green">Salvar compra e dar entrada</button>
+                    </form>
+                </div>
+
+                <div class="panel table-panel">
+                    <div class="panel-header page-header">
+                        <div>
+                            <h3>Entradas por compra</h3>
+                            <p class="page-subtitle">Últimas movimentações registradas como compra de produto.</p>
+                        </div>
+                    </div>
+
+                    <div class="estoque-table-wrap">
+                        <table class="client-table">
+                            <thead>
+                                <tr>
+                                    <th>Produto</th>
+                                    <th>Quantidade</th>
+                                    <th>Saldo atual</th>
+                                    <th>Documento</th>
+                                    <th>Responsável</th>
+                                    <th>Data</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% set compras = movimentacoes_lista|selectattr('motivo', 'equalto', 'Compra de produto')|list %}
+                                {% if movimentacoes_lista %}
+                                    {% for mov in movimentacoes_lista[:10] %}
+                                        <tr>
+                                            <td>{{ mov.produto_nome or '-' }}</td>
+                                            <td>{{ mov.quantidade or '0' }}</td>
+                                            <td>{{ mov.saldo_atual or '0' }}</td>
+                                            <td>{{ mov.documento or '-' }}</td>
+                                            <td>{{ mov.responsavel or '-' }}</td>
+                                            <td>{{ mov.criado_em or '-' }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="6" class="empty-table">Nenhuma compra registrada.</td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        {% endif %}
     </main>
 
+    <script>
+        function filtrarProdutosEstoque() {
+            const busca = document.getElementById("busca-produto-estoque");
+            const tabela = document.getElementById("tabela-produtos-estoque");
+
+            if (!busca || !tabela) {
+                return;
+            }
+
+            const termo = busca.value.toLowerCase().trim();
+            const linhas = tabela.querySelectorAll("tbody tr");
+
+            linhas.forEach((linha) => {
+                const texto = linha.innerText.toLowerCase();
+                linha.style.display = texto.includes(termo) ? "" : "none";
+            });
+        }
+
+        const campoBuscaProdutoEstoque = document.getElementById("busca-produto-estoque");
+
+        if (campoBuscaProdutoEstoque) {
+            campoBuscaProdutoEstoque.addEventListener("input", filtrarProdutosEstoque);
+        }
+    </script>
 </body>
 </html>
