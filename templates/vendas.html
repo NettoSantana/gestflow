@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vendas.html
-Último recode: 2026-06-16 23:35 (America/Bahia)
-Motivo: Ajustar links de OS e Estoque mantendo venda ligada à baixa automática pelo app.py.
+Último recode: 2026-06-16 23:45 (America/Bahia)
+Motivo: Criar devolução de venda e restaurar ações da lista.
 -->
 
 <!DOCTYPE html>
@@ -11,6 +11,111 @@ Motivo: Ajustar links de OS e Estoque mantendo venda ligada à baixa automática
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GESTFLOW - Vendas</title>
     <link rel="stylesheet" href="/static/css/dashboard.css">
+
+    <style>
+        .sale-action-menu {
+            position: relative;
+            display: inline-block;
+        }
+
+        .sale-action-trigger {
+            list-style: none;
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            background: #16a34a;
+            color: #ffffff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-weight: 800;
+            border: none;
+            box-shadow: 0 8px 18px rgba(22, 163, 74, 0.20);
+            user-select: none;
+        }
+
+        .sale-action-trigger::-webkit-details-marker {
+            display: none;
+        }
+
+        .sale-action-trigger::marker {
+            content: "";
+        }
+
+        .sale-action-panel {
+            position: fixed;
+            z-index: 9999;
+            min-width: 205px;
+            background: #ffffff;
+            border: 1px solid #d8dee8;
+            border-radius: 10px;
+            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.20);
+            padding: 6px;
+            display: none;
+        }
+
+        .sale-action-dropdown[open] .sale-action-panel {
+            display: block;
+        }
+
+        .sale-action-submenu {
+            border-radius: 8px;
+        }
+
+        .sale-action-submenu summary,
+        .sale-action-panel a {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 10px;
+            color: #1f2937;
+            text-decoration: none;
+            font-size: 13px;
+            cursor: pointer;
+            border-radius: 8px;
+            white-space: nowrap;
+        }
+
+        .sale-action-submenu summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .sale-action-submenu summary::marker {
+            content: "";
+        }
+
+        .sale-action-submenu summary::after {
+            content: "›";
+            margin-left: auto;
+            font-weight: 800;
+        }
+
+        .sale-action-submenu summary:hover,
+        .sale-action-panel a:hover {
+            background: #f1f5f9;
+        }
+
+        .sale-action-submenu[open] summary {
+            background: #0f172a;
+            color: #ffffff;
+        }
+
+        .sale-action-subitems {
+            padding-left: 10px;
+            border-left: 2px solid #e5e7eb;
+            margin-left: 12px;
+        }
+
+        .devolucao-alerta {
+            border-left: 4px solid #16a34a;
+        }
+
+        .devolucao-table input {
+            min-width: 90px;
+        }
+    </style>
+
 </head>
 <body>
 
@@ -112,7 +217,7 @@ Motivo: Ajustar links de OS e Estoque mantendo venda ligada à baixa automática
                             <li class="submenu-active"><a href="/vendas">Produtos</a></li>
                             <li><a href="/vendas">Serviços</a></li>
                             <li>Balcão</li>
-                            <li>Devoluções</li>
+                            <li><a href="/vendas">Devoluções</a></li>
                             <li>Opções auxiliares</li>
                         </ul>
                     </details>
@@ -266,7 +371,86 @@ Motivo: Ajustar links de OS e Estoque mantendo venda ligada à baixa automática
             </div>
         </section>
 
-        <form id="form-nova-venda" action="/vendas" method="post" class="client-form">
+        
+        {% set devolucao_venda = devolucao_venda|default(None) %}
+        {% set devolucao_itens = devolucao_itens|default([]) %}
+
+        {% if devolucao_venda %}
+            <section class="panel page-section devolucao-alerta" id="devolucao-venda">
+                <div class="panel-header page-header">
+                    <div>
+                        <span class="page-kicker">Devolução</span>
+                        <h3 class="page-title">Devolução da venda {{ devolucao_venda.numero }}</h3>
+                        <p class="page-subtitle">Informe a quantidade que retornou para o estoque. Para devolução parcial, altere a quantidade do item antes de salvar.</p>
+                    </div>
+
+                    <a href="/vendas" class="btn-light">Cancelar devolução</a>
+                </div>
+
+                <form action="/vendas/{{ devolucao_venda.id }}/devolver" method="post" class="client-form">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Cliente</label>
+                            <input type="text" value="{{ devolucao_venda.cliente or '-' }}" class="form-control" disabled>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Responsável pela devolução</label>
+                            <input name="devolucao_responsavel" type="text" value="{{ devolucao_venda.responsavel or '' }}" placeholder="Quem recebeu a devolução" class="form-control">
+                        </div>
+                    </div>
+
+                    <div class="table-shell">
+                        <table class="client-table devolucao-table">
+                            <thead>
+                                <tr>
+                                    <th>Produto</th>
+                                    <th>Detalhes</th>
+                                    <th>Qtd. vendida</th>
+                                    <th>Qtd. a devolver</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if devolucao_itens %}
+                                    {% for item in devolucao_itens %}
+                                        <tr>
+                                            <td>
+                                                {{ item.descricao }}
+                                                <input type="hidden" name="devolucao_descricao" value="{{ item.descricao }}">
+                                            </td>
+                                            <td>
+                                                {{ item.detalhes or '-' }}
+                                                <input type="hidden" name="devolucao_detalhes" value="{{ item.detalhes or '' }}">
+                                            </td>
+                                            <td>{{ item.quantidade or '1' }}</td>
+                                            <td>
+                                                <input name="devolucao_quantidade" type="text" value="{{ item.quantidade or '1' }}" class="form-control">
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="4" class="empty-table">Esta venda não possui produtos para devolver ao estoque.</td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="form-group" style="margin-top: 14px;">
+                        <label>Observações da devolução</label>
+                        <input name="devolucao_observacoes" type="text" placeholder="Ex: devolução total, troca, produto com defeito, arrependimento" class="form-control">
+                    </div>
+
+                    <div class="form-actions">
+                        <a href="/vendas" class="btn-light">Cancelar</a>
+                        <button type="submit" class="btn-primary-green">Confirmar devolução e retornar ao estoque</button>
+                    </div>
+                </form>
+            </section>
+        {% endif %}
+
+<form id="form-nova-venda" action="/vendas" method="post" class="client-form">
             <section class="panel page-section">
                 <div class="panel-header page-header">
                     <div>
@@ -500,9 +684,36 @@ Motivo: Ajustar links de OS e Estoque mantendo venda ligada à baixa automática
                                     <td>{{ venda.valor_total }}</td>
                                     <td>
                                         <div class="action-buttons">
-                                            <button type="button" title="Ver venda" aria-label="Ver venda" class="action-button view" disabled>🔍</button>
-                                            <button type="button" title="Editar venda" aria-label="Editar venda" class="action-button edit" disabled>✎</button>
-                                            <button type="button" title="Excluir venda" aria-label="Excluir venda" class="action-button delete" disabled>×</button>
+                                            <a href="/vendas/{{ venda.id }}" title="Ver venda" aria-label="Ver venda" class="action-button view">🔍</a>
+                                            <a href="/vendas/{{ venda.id }}/editar" title="Editar venda" aria-label="Editar venda" class="action-button edit">✎</a>
+                                            <form action="/vendas/{{ venda.id }}/excluir" method="post" onsubmit="return confirm('Tem certeza que deseja excluir esta venda?');" class="action-form">
+                                                <button type="submit" title="Excluir venda" aria-label="Excluir venda" class="action-button delete">×</button>
+                                            </form>
+
+                                            <div class="sale-action-menu">
+                                                <details class="sale-action-dropdown">
+                                                    <summary class="sale-action-trigger" title="Mais ações da venda" aria-label="Mais ações da venda">⌄</summary>
+                                                    <div class="sale-action-panel">
+                                                        <details class="sale-action-submenu">
+                                                            <summary>🖨 Imprimir</summary>
+                                                            <div class="sale-action-subitems">
+                                                                <a href="/vendas/{{ venda.id }}/imprimir/a4" target="_blank">A4</a>
+                                                                <a href="/vendas/{{ venda.id }}/imprimir/cupom" target="_blank">Cupom</a>
+                                                            </div>
+                                                        </details>
+
+                                                        <details class="sale-action-submenu">
+                                                            <summary>↻ Gerar</summary>
+                                                            <div class="sale-action-subitems">
+                                                                <a href="/vendas/{{ venda.id }}/gerar/copia">Cópia</a>
+                                                                <a href="/vendas/{{ venda.id }}/gerar/os">OS</a>
+                                                            </div>
+                                                        </details>
+
+                                                        <a href="/vendas/{{ venda.id }}/devolucao">↩ Devolução</a>
+                                                    </div>
+                                                </details>
+                                            </div>
                                         </div>
                                     </td>
                                 </tr>
@@ -625,6 +836,81 @@ Motivo: Ajustar links de OS e Estoque mantendo venda ligada à baixa automática
             }
 
             document.addEventListener("DOMContentLoaded", carregarItensIniciais);
+        </script>
+
+
+        <script>
+            function posicionarMenuVenda(menu) {
+                const trigger = menu.querySelector(".sale-action-trigger");
+                const panel = menu.querySelector(".sale-action-panel");
+
+                if (!trigger || !panel) {
+                    return;
+                }
+
+                const rect = trigger.getBoundingClientRect();
+                const largura = 205;
+                const margem = 8;
+                let left = rect.right - largura;
+
+                if (left < margem) {
+                    left = margem;
+                }
+
+                if (left + largura > window.innerWidth - margem) {
+                    left = window.innerWidth - largura - margem;
+                }
+
+                const alturaEstimativa = 210;
+                let top = rect.bottom + margem;
+
+                if (top + alturaEstimativa > window.innerHeight - margem) {
+                    top = rect.top - alturaEstimativa - margem;
+                }
+
+                if (top < margem) {
+                    top = margem;
+                }
+
+                panel.style.top = top + "px";
+                panel.style.left = left + "px";
+            }
+
+            document.addEventListener("toggle", function(event) {
+                const menu = event.target;
+
+                if (!menu.classList || !menu.classList.contains("sale-action-dropdown")) {
+                    return;
+                }
+
+                if (menu.open) {
+                    document.querySelectorAll(".sale-action-dropdown[open]").forEach(function(outroMenu) {
+                        if (outroMenu !== menu) {
+                            outroMenu.removeAttribute("open");
+                        }
+                    });
+
+                    posicionarMenuVenda(menu);
+                }
+            }, true);
+
+            document.addEventListener("click", function(event) {
+                if (event.target.closest(".sale-action-menu")) {
+                    return;
+                }
+
+                document.querySelectorAll(".sale-action-dropdown[open]").forEach(function(menu) {
+                    menu.removeAttribute("open");
+                });
+            });
+
+            window.addEventListener("scroll", function() {
+                document.querySelectorAll(".sale-action-dropdown[open]").forEach(posicionarMenuVenda);
+            }, true);
+
+            window.addEventListener("resize", function() {
+                document.querySelectorAll(".sale-action-dropdown[open]").forEach(posicionarMenuVenda);
+            });
         </script>
 
     </main>
