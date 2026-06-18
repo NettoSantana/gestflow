@@ -1,0 +1,587 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\estoque.html
+Último recode: 2026-06-16 23:05 (America/Bahia)
+Motivo: Criar tela base do módulo Estoque com movimentação manual e histórico.
+-->
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Estoque</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+
+    <style>
+        .estoque-page {
+            max-width: calc(100vw - 280px);
+            overflow-x: hidden;
+        }
+
+        .estoque-header-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .estoque-card-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px;
+            margin-bottom: 22px;
+        }
+
+        .estoque-card {
+            background: #ffffff;
+            border: 1px solid #dbe3ef;
+            border-radius: 14px;
+            padding: 18px;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+            min-width: 0;
+        }
+
+        .estoque-card h4 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            color: #334155;
+        }
+
+        .estoque-card strong {
+            display: block;
+            font-size: 28px;
+            color: #0f172a;
+            margin-bottom: 6px;
+        }
+
+        .estoque-card span {
+            display: block;
+            color: #64748b;
+            font-size: 13px;
+        }
+
+        .estoque-card-warning {
+            border-color: #facc15;
+            background: #fefce8;
+        }
+
+        .estoque-card-danger {
+            border-color: #fecaca;
+            background: #fff1f2;
+        }
+
+        .estoque-card-success {
+            border-color: #bbf7d0;
+            background: #f0fdf4;
+        }
+
+        .estoque-grid {
+            display: grid;
+            grid-template-columns: minmax(320px, 0.75fr) minmax(0, 1.25fr);
+            gap: 18px;
+            align-items: start;
+        }
+
+        .estoque-form {
+            display: grid;
+            gap: 14px;
+        }
+
+        .estoque-form label {
+            display: grid;
+            gap: 6px;
+            font-size: 13px;
+            color: #475569;
+            font-weight: 600;
+        }
+
+        .estoque-form input,
+        .estoque-form select,
+        .estoque-form textarea {
+            width: 100%;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 14px;
+            color: #0f172a;
+            background: #ffffff;
+            box-sizing: border-box;
+        }
+
+        .estoque-form textarea {
+            min-height: 82px;
+            resize: vertical;
+        }
+
+        .estoque-form-row {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .estoque-table-wrap {
+            width: 100%;
+            max-width: 100%;
+            overflow-x: auto;
+        }
+
+        .estoque-table-wrap table {
+            width: 100%;
+            min-width: 820px;
+        }
+
+        .tipo-pill {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 999px;
+            padding: 5px 10px;
+            font-size: 12px;
+            font-weight: 700;
+            background: #e2e8f0;
+            color: #334155;
+            white-space: nowrap;
+        }
+
+        .tipo-pill.entrada {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .tipo-pill.saida {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .tipo-pill.ajuste {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        @media (max-width: 1200px) {
+            .estoque-page {
+                max-width: 100%;
+            }
+
+            .estoque-card-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .estoque-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .estoque-card-grid,
+            .estoque-form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+
+        <div class="brand">
+            <div class="brand-mark">GF</div>
+            <h2>GESTFLOW</h2>
+        </div>
+
+        <nav class="sidebar-nav">
+            <ul class="menu">
+
+                <li class="menu-item">
+                    <a href="/">
+                        <span class="menu-icon">⌂</span>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">☷</span>
+                                <span>Cadastros</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/clientes">Clientes</a></li>
+                            <li><a href="/fornecedores">Fornecedores</a></li>
+                            <li><a href="/funcionarios">Funcionários</a></li>
+                            <li>Veículos</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">□</span>
+                                <span>Produtos</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/produtos">Gerenciar produtos</a></li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">⚙</span>
+                                <span>Serviços</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/servicos">Gerenciar serviços</a></li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▣</span>
+                                <span>Orçamentos</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/orcamentos">Produtos</a></li>
+                            <li><a href="/orcamentos">Serviços</a></li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▤</span>
+                                <span>Vendas</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/vendas">Produtos</a></li>
+                            <li><a href="/vendas">Serviços</a></li>
+                            <li><a href="/vendas">Balcão</a></li>
+                            <li>Devoluções</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">✚</span>
+                                <span>Ordens de Serviço</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/ordens-servico">Gerenciar O.S.</a></li>
+                            <li><a href="/ordens-servico/painel">Painel</a></li>
+                            <li><a href="/ordens-servico">Opções auxiliares</a></li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details open>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▧</span>
+                                <span>Estoque</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li class="submenu-active"><a href="/estoque">Movimentações</a></li>
+                            <li><a href="/estoque">Ajustes</a></li>
+                            <li>Transferências</li>
+                            <li>Cotações</li>
+                            <li>Compras</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">◈</span>
+                                <span>Financeiro</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Contas a pagar</li>
+                            <li>Contas a receber</li>
+                            <li>Fluxo de caixa</li>
+                            <li>Contas bancárias</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+            </ul>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="footer-item">⚙ Configurações</div>
+            <div class="footer-item">? Ajuda</div>
+        </div>
+
+    </aside>
+
+    <main class="content estoque-page">
+
+        <header class="topbar">
+            <div class="topbar-left">
+                <button class="menu-toggle" type="button" aria-label="Abrir menu">☰</button>
+                <h1>Estoque</h1>
+            </div>
+
+            <div class="topbar-right">
+                <div class="topbar-date">
+                    <span class="topbar-icon">▧</span>
+                    <span>16/06/2026</span>
+                </div>
+
+                <div class="notification">
+                    <span class="topbar-icon">🔔</span>
+                    <span class="notification-badge">0</span>
+                </div>
+
+                <div class="user-profile">
+                    <div class="avatar">NS</div>
+                    <div class="user-info">
+                        <strong>Netto Santana</strong>
+                        <span>Administrador</span>
+                    </div>
+                    <span class="profile-arrow">⌄</span>
+                </div>
+            </div>
+        </header>
+
+        {% set painel_estoque = painel|default({}) %}
+        {% set produtos_lista = produtos|default([]) %}
+        {% set movimentacoes_lista = movimentacoes|default([]) %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Estoque</span>
+                    <h3 class="page-title">Movimentações de estoque</h3>
+                    <p class="page-subtitle">Controle entradas, saídas e ajustes manuais dos produtos cadastrados.</p>
+                </div>
+                <div class="estoque-header-actions">
+                    <a href="/produtos" class="btn-light">Produtos</a>
+                    <a href="#form-movimentacao" class="btn-primary-green">+ Nova movimentação</a>
+                </div>
+            </div>
+        </section>
+
+        <section class="estoque-card-grid">
+            <div class="estoque-card">
+                <h4>Produtos cadastrados</h4>
+                <strong>{{ painel_estoque.total_produtos|default(0) }}</strong>
+                <span>Total de produtos no sistema</span>
+            </div>
+
+            <div class="estoque-card estoque-card-success">
+                <h4>Com estoque</h4>
+                <strong>{{ painel_estoque.produtos_com_estoque|default(0) }}</strong>
+                <span>Produtos com saldo maior que zero</span>
+            </div>
+
+            <div class="estoque-card estoque-card-warning">
+                <h4>Estoque baixo</h4>
+                <strong>{{ painel_estoque.produtos_baixo|default(0) }}</strong>
+                <span>Produtos abaixo do mínimo</span>
+            </div>
+
+            <div class="estoque-card estoque-card-danger">
+                <h4>Zerados</h4>
+                <strong>{{ painel_estoque.produtos_zerados|default(0) }}</strong>
+                <span>Produtos sem saldo</span>
+            </div>
+        </section>
+
+        <section class="estoque-grid">
+
+            <div class="panel table-panel" id="form-movimentacao">
+                <div class="panel-header page-header">
+                    <div>
+                        <h3>Nova movimentação</h3>
+                        <p class="page-subtitle">Entrada, saída ou ajuste manual do saldo.</p>
+                    </div>
+                </div>
+
+                <form class="estoque-form" action="/estoque/movimentar" method="post">
+                    <label>
+                        Produto
+                        <select name="estoque_produto_id" required>
+                            <option value="">Selecione um produto</option>
+                            {% for produto in produtos_lista %}
+                                <option value="{{ produto.id }}">{{ produto.nome }}{% if produto.codigo %} - {{ produto.codigo }}{% endif %}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+
+                    <div class="estoque-form-row">
+                        <label>
+                            Tipo
+                            <select name="estoque_tipo" required>
+                                <option value="entrada">Entrada</option>
+                                <option value="saida">Saída</option>
+                                <option value="ajuste">Ajuste manual</option>
+                            </select>
+                        </label>
+
+                        <label>
+                            Quantidade / saldo
+                            <input type="text" name="estoque_quantidade" placeholder="Ex: 10" required>
+                        </label>
+                    </div>
+
+                    <label>
+                        Motivo
+                        <input type="text" name="estoque_motivo" placeholder="Ex: compra, venda, perda, conferência">
+                    </label>
+
+                    <div class="estoque-form-row">
+                        <label>
+                            Documento
+                            <input type="text" name="estoque_documento" placeholder="NF, pedido, OS ou venda">
+                        </label>
+
+                        <label>
+                            Responsável
+                            <input type="text" name="estoque_responsavel" placeholder="Responsável pela movimentação">
+                        </label>
+                    </div>
+
+                    <label>
+                        Observações
+                        <textarea name="estoque_observacoes" placeholder="Informações internas da movimentação"></textarea>
+                    </label>
+
+                    <button type="submit" class="btn-primary-green">Salvar movimentação</button>
+                </form>
+            </div>
+
+            <div class="panel table-panel">
+                <div class="panel-header page-header">
+                    <div>
+                        <h3>Produtos em estoque</h3>
+                        <p class="page-subtitle">Saldo atual e mínimo configurado em produtos.</p>
+                    </div>
+                </div>
+
+                <div class="estoque-table-wrap">
+                    <table class="client-table">
+                        <thead>
+                            <tr>
+                                <th>Produto</th>
+                                <th>Código</th>
+                                <th>Categoria</th>
+                                <th>Saldo atual</th>
+                                <th>Estoque mínimo</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if produtos_lista %}
+                                {% for produto in produtos_lista %}
+                                    <tr>
+                                        <td>{{ produto.nome }}</td>
+                                        <td>{{ produto.codigo or '-' }}</td>
+                                        <td>{{ produto.categoria or '-' }}</td>
+                                        <td>{{ produto.estoque_atual or '0' }}</td>
+                                        <td>{{ produto.estoque_minimo or '0' }}</td>
+                                        <td><span class="status-pill {{ produto.status }}">{{ produto.status }}</span></td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="6" class="empty-table">Nenhum produto cadastrado.</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </section>
+
+        <section class="panel table-panel" style="margin-top: 18px;">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Histórico de movimentações</h3>
+                    <p class="page-subtitle">Últimas entradas, saídas e ajustes realizados.</p>
+                </div>
+            </div>
+
+            <div class="estoque-table-wrap">
+                <table class="client-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Produto</th>
+                            <th>Tipo</th>
+                            <th>Quantidade</th>
+                            <th>Saldo anterior</th>
+                            <th>Saldo atual</th>
+                            <th>Motivo</th>
+                            <th>Responsável</th>
+                            <th>Data</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if movimentacoes_lista %}
+                            {% for mov in movimentacoes_lista %}
+                                <tr>
+                                    <td>{{ mov.id }}</td>
+                                    <td>{{ mov.produto_nome or '-' }}</td>
+                                    <td><span class="tipo-pill {{ mov.tipo }}">{{ mov.tipo }}</span></td>
+                                    <td>{{ mov.quantidade or '0' }}</td>
+                                    <td>{{ mov.saldo_anterior or '0' }}</td>
+                                    <td>{{ mov.saldo_atual or '0' }}</td>
+                                    <td>{{ mov.motivo or '-' }}</td>
+                                    <td>{{ mov.responsavel or '-' }}</td>
+                                    <td>{{ mov.criado_em or '-' }}</td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="9" class="empty-table">Nenhuma movimentação de estoque registrada.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    </main>
+
+</body>
+</html>

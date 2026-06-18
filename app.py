@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-16 22:55 (America/Bahia)
-# Motivo: Ligar Dashboard aos dados reais de vendas, OS, orçamentos, produtos e clientes.
+# Último recode: 2026-06-16 23:05 (America/Bahia)
+# Motivo: Criar base do módulo Estoque com movimentações, entrada, saída, ajuste e histórico.
 
 from __future__ import annotations
 
@@ -263,6 +263,26 @@ def iniciar_banco() -> None:
                 subtotal TEXT,
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (ordem_servico_id) REFERENCES ordens_servico (id)
+            )
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS estoque_movimentacoes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                produto_id INTEGER,
+                produto_nome TEXT,
+                tipo TEXT NOT NULL DEFAULT 'entrada',
+                quantidade TEXT,
+                saldo_anterior TEXT,
+                saldo_atual TEXT,
+                motivo TEXT,
+                documento TEXT,
+                responsavel TEXT,
+                observacoes TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (produto_id) REFERENCES produtos (id)
             )
             """
         )
@@ -788,6 +808,135 @@ def excluir_produto_db(produto_id: int) -> None:
             (produto_id,),
         )
         conn.commit()
+
+
+def listar_estoque_movimentacoes(limite: int = 100) -> list[dict[str, Any]]:
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                id,
+                produto_id,
+                produto_nome,
+                tipo,
+                quantidade,
+                saldo_anterior,
+                saldo_atual,
+                motivo,
+                documento,
+                responsavel,
+                observacoes,
+                criado_em
+            FROM estoque_movimentacoes
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (limite,),
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def salvar_estoque_movimentacao_db(movimentacao: dict[str, str]) -> None:
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            INSERT INTO estoque_movimentacoes (
+                produto_id,
+                produto_nome,
+                tipo,
+                quantidade,
+                saldo_anterior,
+                saldo_atual,
+                motivo,
+                documento,
+                responsavel,
+                observacoes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                movimentacao["produto_id"],
+                movimentacao["produto_nome"],
+                movimentacao["tipo"],
+                movimentacao["quantidade"],
+                movimentacao["saldo_anterior"],
+                movimentacao["saldo_atual"],
+                movimentacao["motivo"],
+                movimentacao["documento"],
+                movimentacao["responsavel"],
+                movimentacao["observacoes"],
+            ),
+        )
+
+        conn.execute(
+            """
+            UPDATE produtos
+            SET estoque_atual = ?
+            WHERE id = ?
+            """,
+            (
+                movimentacao["saldo_atual"],
+                movimentacao["produto_id"],
+            ),
+        )
+
+        conn.commit()
+
+
+def _formatar_numero_estoque(valor: float) -> str:
+    texto = f"{valor:.2f}".replace(".", ",")
+
+    if texto.endswith(",00"):
+        return texto[:-3]
+
+    return texto
+
+
+def montar_estoque_formulario() -> dict[str, str]:
+    return {
+        "produto_id": (request.form.get("estoque_produto_id") or "").strip(),
+        "tipo": (request.form.get("estoque_tipo") or "entrada").strip() or "entrada",
+        "quantidade": (request.form.get("estoque_quantidade") or "0").strip(),
+        "motivo": (request.form.get("estoque_motivo") or "").strip(),
+        "documento": (request.form.get("estoque_documento") or "").strip(),
+        "responsavel": (request.form.get("estoque_responsavel") or "").strip(),
+        "observacoes": (request.form.get("estoque_observacoes") or "").strip(),
+    }
+
+
+def montar_painel_estoque() -> dict[str, Any]:
+    produtos_lista = listar_produtos()
+    movimentacoes = listar_estoque_movimentacoes(10)
+
+    total_produtos = len(produtos_lista)
+    produtos_com_estoque = 0
+    produtos_baixo = 0
+    produtos_zerados = 0
+    saldo_total = 0.0
+
+    for produto in produtos_lista:
+        estoque_atual = _converter_valor_brl(produto.get("estoque_atual"))
+        estoque_minimo = _converter_valor_brl(produto.get("estoque_minimo"))
+
+        saldo_total += estoque_atual
+
+        if estoque_atual > 0:
+            produtos_com_estoque += 1
+
+        if estoque_atual <= 0:
+            produtos_zerados += 1
+
+        if estoque_minimo > 0 and estoque_atual <= estoque_minimo:
+            produtos_baixo += 1
+
+    return {
+        "total_produtos": total_produtos,
+        "produtos_com_estoque": produtos_com_estoque,
+        "produtos_baixo": produtos_baixo,
+        "produtos_zerados": produtos_zerados,
+        "saldo_total": saldo_total,
+        "ultimas_movimentacoes": movimentacoes,
+    }
 
 
 def salvar_servico_db(servico: dict[str, str]) -> None:
@@ -3045,6 +3194,67 @@ def excluir_servico(servico_id: int) -> Response:
         excluir_servico_db(servico_id)
 
     return redirect(url_for("servicos"))
+
+
+@app.get("/estoque")
+def estoque() -> str:
+    produtos_lista = listar_produtos()
+    movimentacoes = listar_estoque_movimentacoes()
+    painel = montar_painel_estoque()
+
+    return render_template(
+        "estoque.html",
+        produtos=produtos_lista,
+        movimentacoes=movimentacoes,
+        painel=painel,
+    )
+
+
+@app.post("/estoque/movimentar")
+def movimentar_estoque() -> Response:
+    movimentacao_form = montar_estoque_formulario()
+
+    try:
+        produto_id = int(movimentacao_form["produto_id"])
+    except ValueError:
+        return redirect(url_for("estoque"))
+
+    produto = buscar_produto_por_id(produto_id)
+
+    if produto is None:
+        return redirect(url_for("estoque"))
+
+    tipo = movimentacao_form["tipo"]
+
+    if tipo not in {"entrada", "saida", "ajuste"}:
+        tipo = "entrada"
+
+    quantidade = _converter_valor_brl(movimentacao_form["quantidade"])
+    saldo_anterior_numero = _converter_valor_brl(produto.get("estoque_atual"))
+
+    if tipo == "entrada":
+        saldo_atual_numero = saldo_anterior_numero + quantidade
+    elif tipo == "saida":
+        saldo_atual_numero = saldo_anterior_numero - quantidade
+    else:
+        saldo_atual_numero = quantidade
+
+    movimentacao = {
+        "produto_id": str(produto_id),
+        "produto_nome": str(produto.get("nome") or ""),
+        "tipo": tipo,
+        "quantidade": _formatar_numero_estoque(quantidade),
+        "saldo_anterior": _formatar_numero_estoque(saldo_anterior_numero),
+        "saldo_atual": _formatar_numero_estoque(saldo_atual_numero),
+        "motivo": movimentacao_form["motivo"],
+        "documento": movimentacao_form["documento"],
+        "responsavel": movimentacao_form["responsavel"],
+        "observacoes": movimentacao_form["observacoes"],
+    }
+
+    salvar_estoque_movimentacao_db(movimentacao)
+
+    return redirect(url_for("estoque"))
 
 
 @app.get("/ordens-servico/painel")
