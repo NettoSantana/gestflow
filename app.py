@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-16 23:45 (America/Bahia)
-# Motivo: Criar devolução de venda com entrada automática no estoque.
+# Último recode: 2026-06-17 00:05 (America/Bahia)
+# Motivo: Criar rota geral de devoluções e ligar menu Devoluções em Vendas.
 
 from __future__ import annotations
 
@@ -3687,6 +3687,24 @@ def salvar_venda() -> Response:
         baixar_estoque_por_venda_db(venda_id, venda, itens)
 
     return redirect(url_for("vendas"))
+
+
+@app.get("/vendas/devolucoes")
+def vendas_devolucoes() -> str:
+    vendas_lista = listar_vendas()
+    clientes_lista = listar_clientes()
+    produtos_lista = listar_produtos()
+    servicos_lista = listar_servicos()
+
+    return render_template(
+        "vendas.html",
+        vendas=vendas_lista,
+        clientes=clientes_lista,
+        produtos=produtos_lista,
+        servicos=servicos_lista,
+        proximo_numero=proximo_numero_venda(),
+        modo_devolucoes=True,
+    )
 
 
 @app.get("/vendas/<int:venda_id>")

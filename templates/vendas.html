@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vendas.html
-Último recode: 2026-06-16 23:45 (America/Bahia)
-Motivo: Criar devolução de venda e restaurar ações da lista.
+Último recode: 2026-06-17 00:05 (America/Bahia)
+Motivo: Ligar rota geral de devoluções no menu Vendas.
 -->
 
 <!DOCTYPE html>
@@ -214,10 +214,10 @@ Motivo: Criar devolução de venda e restaurar ações da lista.
                             <span class="arrow">⌄</span>
                         </summary>
                         <ul class="submenu">
-                            <li class="submenu-active"><a href="/vendas">Produtos</a></li>
+                            <li class="{% if not modo_devolucoes|default(False) %}submenu-active{% endif %}"><a href="/vendas">Produtos</a></li>
                             <li><a href="/vendas">Serviços</a></li>
                             <li>Balcão</li>
-                            <li><a href="/vendas">Devoluções</a></li>
+                            <li class="{% if modo_devolucoes|default(False) %}submenu-active{% endif %}"><a href="/vendas/devolucoes">Devoluções</a></li>
                             <li>Opções auxiliares</li>
                         </ul>
                     </details>
@@ -372,6 +372,21 @@ Motivo: Criar devolução de venda e restaurar ações da lista.
         </section>
 
         
+        {% set modo_devolucoes = modo_devolucoes|default(False) %}
+
+        {% if modo_devolucoes %}
+            <section class="panel page-section devolucao-alerta">
+                <div class="panel-header page-header">
+                    <div>
+                        <span class="page-kicker">Vendas</span>
+                        <h3 class="page-title">Devoluções</h3>
+                        <p class="page-subtitle">Selecione uma venda na lista abaixo e clique em Devolução para retornar produtos ao estoque.</p>
+                    </div>
+                    <a href="/vendas" class="btn-light">Voltar para vendas</a>
+                </div>
+            </section>
+        {% endif %}
+
         {% set devolucao_venda = devolucao_venda|default(None) %}
         {% set devolucao_itens = devolucao_itens|default([]) %}
 
@@ -450,7 +465,8 @@ Motivo: Criar devolução de venda e restaurar ações da lista.
             </section>
         {% endif %}
 
-<form id="form-nova-venda" action="/vendas" method="post" class="client-form">
+{% if not modo_devolucoes %}
+        <form id="form-nova-venda" action="/vendas" method="post" class="client-form">
             <section class="panel page-section">
                 <div class="panel-header page-header">
                     <div>
@@ -638,12 +654,13 @@ Motivo: Criar devolução de venda e restaurar ações da lista.
                 </div>
             </section>
         </form>
+        {% endif %}
 
         <section class="panel table-panel">
             <div class="panel-header page-header">
                 <div>
-                    <h3>Lista de vendas</h3>
-                    <p class="page-subtitle">Pesquise e acompanhe as vendas cadastradas.</p>
+                    <h3>{% if modo_devolucoes %}Vendas disponíveis para devolução{% else %}Lista de vendas{% endif %}</h3>
+                    <p class="page-subtitle">{% if modo_devolucoes %}Clique em Devolução nas ações para iniciar o retorno ao estoque.{% else %}Pesquise e acompanhe as vendas cadastradas.{% endif %}</p>
                 </div>
 
                 <div class="client-toolbar">
