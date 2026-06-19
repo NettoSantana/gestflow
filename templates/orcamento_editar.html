@@ -418,6 +418,146 @@ Motivo: Padronizar links do menu lateral na segunda leva de telas.
             ];
         </script>
         <script>
+            function normalizarNumero(valor) {
+                let texto = String(valor || "").trim();
+
+                if (!texto) {
+                    return 0;
+                }
+
+                texto = texto.replace("R$", "").replace(/\s/g, "");
+
+                if (texto.includes(",")) {
+                    texto = texto.replace(/\./g, "").replace(",", ".");
+                }
+
+                const numero = Number.parseFloat(texto);
+                return Number.isFinite(numero) ? numero : 0;
+            }
+
+            function formatarMoeda(valor) {
+                const numero = Number.isFinite(valor) ? valor : 0;
+                return numero.toLocaleString("pt-BR", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+            }
+
+            function buscarOpcaoPorNome(tipo, nome) {
+                const opcoes = tipo === "produto" ? window.opcoesProdutos : window.opcoesServicos;
+                const nomeNormalizado = String(nome || "").trim().toLowerCase();
+
+                return (opcoes || []).find(function(item) {
+                    return String(item.nome || "").trim().toLowerCase() === nomeNormalizado;
+                });
+            }
+
+            function recalcularLinha(linha) {
+                if (!linha) {
+                    return;
+                }
+
+                const quantidadeInput = linha.querySelector(".item-quantidade");
+                const valorInput = linha.querySelector(".item-valor");
+                const descontoInput = linha.querySelector(".item-desconto");
+                const subtotalInput = linha.querySelector(".item-subtotal");
+
+                const quantidade = normalizarNumero(quantidadeInput ? quantidadeInput.value : "0");
+                const valor = normalizarNumero(valorInput ? valorInput.value : "0");
+                const desconto = normalizarNumero(descontoInput ? descontoInput.value : "0");
+                const subtotal = Math.max((quantidade * valor) - desconto, 0);
+
+                if (subtotalInput) {
+                    subtotalInput.value = formatarMoeda(subtotal);
+                }
+
+                recalcularTotaisOrcamento();
+            }
+
+            function recalcularTotaisOrcamento() {
+                let totalProdutos = 0;
+                let totalServicos = 0;
+
+                document.querySelectorAll("#produto-tbody tr").forEach(function(linha) {
+                    const subtotalInput = linha.querySelector(".item-subtotal");
+                    totalProdutos += normalizarNumero(subtotalInput ? subtotalInput.value : "0");
+                });
+
+                document.querySelectorAll("#servico-tbody tr").forEach(function(linha) {
+                    const subtotalInput = linha.querySelector(".item-subtotal");
+                    totalServicos += normalizarNumero(subtotalInput ? subtotalInput.value : "0");
+                });
+
+                const descontoValorInput = document.getElementById("orcamento_desconto_valor");
+                const descontoPercentualInput = document.getElementById("orcamento_desconto_percentual");
+                const totalProdutosInput = document.getElementById("orcamento_total_produtos");
+                const totalServicosInput = document.getElementById("orcamento_total_servicos");
+                const valorTotalInput = document.getElementById("orcamento_valor_total");
+
+                const subtotalGeral = totalProdutos + totalServicos;
+                const descontoValor = normalizarNumero(descontoValorInput ? descontoValorInput.value : "0");
+                const descontoPercentual = normalizarNumero(descontoPercentualInput ? descontoPercentualInput.value : "0");
+                const descontoPercentualValor = subtotalGeral * (descontoPercentual / 100);
+                const valorTotal = Math.max(subtotalGeral - descontoValor - descontoPercentualValor, 0);
+
+                if (totalProdutosInput) {
+                    totalProdutosInput.value = formatarMoeda(totalProdutos);
+                }
+
+                if (totalServicosInput) {
+                    totalServicosInput.value = formatarMoeda(totalServicos);
+                }
+
+                if (valorTotalInput) {
+                    valorTotalInput.value = formatarMoeda(valorTotal);
+                }
+            }
+
+            function atualizarValorSelecionado(linha, tipo) {
+                const select = linha.querySelector(".item-descricao");
+                const valorInput = linha.querySelector(".item-valor");
+                const quantidadeInput = linha.querySelector(".item-quantidade");
+                const opcao = buscarOpcaoPorNome(tipo, select ? select.value : "");
+
+                if (opcao && valorInput) {
+                    valorInput.value = opcao.valor || "0,00";
+                }
+
+                if (quantidadeInput && !String(quantidadeInput.value || "").trim()) {
+                    quantidadeInput.value = "1";
+                }
+
+                recalcularLinha(linha);
+            }
+
+            function prepararEventosLinha(linha, tipo) {
+                const select = linha.querySelector(".item-descricao");
+                const quantidadeInput = linha.querySelector(".item-quantidade");
+                const valorInput = linha.querySelector(".item-valor");
+                const descontoInput = linha.querySelector(".item-desconto");
+
+                if (select) {
+                    select.addEventListener("change", function() {
+                        atualizarValorSelecionado(linha, tipo);
+                    });
+                }
+
+                [quantidadeInput, valorInput, descontoInput].forEach(function(input) {
+                    if (!input) {
+                        return;
+                    }
+
+                    input.addEventListener("input", function() {
+                        recalcularLinha(linha);
+                    });
+
+                    input.addEventListener("blur", function() {
+                        input.value = formatarMoeda(normalizarNumero(input.value));
+                        recalcularLinha(linha);
+                    });
+                });
+            }
+
             function criarLinha(tipo, dados) {
                 const linha = document.createElement("tr");
                 const tipoLabel = tipo === "produto" ? "Produto" : "Serviço";
@@ -437,21 +577,24 @@ Motivo: Padronizar links do menu lateral na segunda leva de telas.
                         </select>
                     </td>
                     <td><input name="item_detalhes" type="text" value="${dados.detalhes || ""}" placeholder="Detalhes" class="form-control"></td>
-                    <td><input name="item_quantidade" type="text" value="${dados.quantidade || ""}" placeholder="1" class="form-control item-quantidade"></td>
+                    <td><input name="item_quantidade" type="text" value="${dados.quantidade || "1"}" placeholder="1" class="form-control item-quantidade"></td>
                     <td><input name="item_valor_unitario" type="text" value="${dados.valor_unitario || ""}" placeholder="0,00" class="form-control item-valor"></td>
-                    <td><input name="item_desconto" type="text" value="${dados.desconto || ""}" placeholder="0,00" class="form-control item-desconto"></td>
+                    <td><input name="item_desconto" type="text" value="${dados.desconto || "0,00"}" placeholder="0,00" class="form-control item-desconto"></td>
                     <td><input name="item_subtotal" type="text" value="${dados.subtotal || ""}" placeholder="0,00" class="form-control item-subtotal"></td>
                     <td>
                         <button type="button" class="action-button delete" title="Remover ${tipoLabel}" aria-label="Remover ${tipoLabel}" onclick="removerLinha(this)">×</button>
                     </td>
                 `;
 
+                prepararEventosLinha(linha, tipo);
                 return linha;
             }
 
             function adicionarItem(tipo) {
                 const corpo = document.getElementById(tipo + "-tbody");
-                corpo.appendChild(criarLinha(tipo, {}));
+                const linha = criarLinha(tipo, {});
+                corpo.appendChild(linha);
+                recalcularLinha(linha);
             }
 
             function removerLinha(botao) {
@@ -463,6 +606,8 @@ Motivo: Padronizar links do menu lateral na segunda leva de telas.
                     const tipo = corpo.id.replace("-tbody", "");
                     adicionarItem(tipo);
                 }
+
+                recalcularTotaisOrcamento();
             }
 
             function carregarItensIniciais() {
@@ -471,13 +616,16 @@ Motivo: Padronizar links do menu lateral na segunda leva de telas.
                 if (itensIniciais.length === 0) {
                     adicionarItem("produto");
                     adicionarItem("servico");
+                    recalcularTotaisOrcamento();
                     return;
                 }
 
                 itensIniciais.forEach(function(item) {
                     const tipo = item.tipo_item === "servico" ? "servico" : "produto";
                     const corpo = document.getElementById(tipo + "-tbody");
-                    corpo.appendChild(criarLinha(tipo, item));
+                    const linha = criarLinha(tipo, item);
+                    corpo.appendChild(linha);
+                    recalcularLinha(linha);
                 });
 
                 if (document.getElementById("produto-tbody").children.length === 0) {
@@ -487,9 +635,27 @@ Motivo: Padronizar links do menu lateral na segunda leva de telas.
                 if (document.getElementById("servico-tbody").children.length === 0) {
                     adicionarItem("servico");
                 }
+
+                recalcularTotaisOrcamento();
             }
 
-            document.addEventListener("DOMContentLoaded", carregarItensIniciais);
+            document.addEventListener("DOMContentLoaded", function() {
+                carregarItensIniciais();
+
+                ["orcamento_desconto_valor", "orcamento_desconto_percentual"].forEach(function(id) {
+                    const input = document.getElementById(id);
+
+                    if (!input) {
+                        return;
+                    }
+
+                    input.addEventListener("input", recalcularTotaisOrcamento);
+                    input.addEventListener("blur", function() {
+                        input.value = formatarMoeda(normalizarNumero(input.value));
+                        recalcularTotaisOrcamento();
+                    });
+                });
+            });
         </script>
 
     </main>
