@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-18 21:50 (America/Bahia)
-# Motivo: Criar primeira versão do módulo financeiro com títulos, contas a receber, contas a pagar e fluxo de caixa.
+# Último recode: 2026-06-18 22:08 (America/Bahia)
+# Motivo: Preparar dados funcionais do dashboard para gráficos, calendário e resumo financeiro real.
 
 from __future__ import annotations
 
@@ -2736,7 +2736,8 @@ def gerar_conta_receber_por_venda_db(venda_id: int, venda: dict[str, str]) -> No
 
     numero_venda = str(venda.get("numero") or venda_id).strip() or str(venda_id)
     data_emissao = str(venda.get("data") or "").strip() or date.today().isoformat()
-    data_vencimento = str(venda.get("prazo_entrega") or "").strip() or data_emissao
+    prazo_entrega = str(venda.get("prazo_entrega") or "").strip()
+    data_vencimento = prazo_entrega if _converter_data_iso(prazo_entrega) is not None else data_emissao
 
     titulo = {
         "tipo": "receber",
@@ -2758,6 +2759,102 @@ def gerar_conta_receber_por_venda_db(venda_id: int, venda: dict[str, str]) -> No
     salvar_financeiro_titulo_db(titulo)
 
 
+def _adicionar_meses(data_base: date, meses: int) -> date:
+    mes_total = data_base.month - 1 + meses
+    ano = data_base.year + mes_total // 12
+    mes = mes_total % 12 + 1
+    return date(ano, mes, 1)
+
+
+def _nome_mes_curto(data_base: date) -> str:
+    nomes = [
+        "Jan",
+        "Fev",
+        "Mar",
+        "Abr",
+        "Mai",
+        "Jun",
+        "Jul",
+        "Ago",
+        "Set",
+        "Out",
+        "Nov",
+        "Dez",
+    ]
+    return f"{nomes[data_base.month - 1]}/{str(data_base.year)[-2:]}"
+
+
+def _periodo_ultimos_meses(quantidade: int = 6) -> list[date]:
+    inicio_mes_atual = date.today().replace(day=1)
+    return [_adicionar_meses(inicio_mes_atual, indice - quantidade + 1) for indice in range(quantidade)]
+
+
+def _montar_calendario_financeiro(titulos: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    hoje = date.today()
+    eventos: list[dict[str, Any]] = []
+
+    for titulo in titulos:
+        if titulo["status"] == "cancelado":
+            continue
+
+        vencimento = _converter_data_iso(titulo.get("data_vencimento"))
+
+        if vencimento is None or vencimento.year != hoje.year or vencimento.month != hoje.month:
+            continue
+
+        eventos.append(
+            {
+                "dia": vencimento.day,
+                "data": vencimento.isoformat(),
+                "tipo": titulo["tipo"],
+                "descricao": titulo["descricao"],
+                "pessoa": titulo["pessoa"],
+                "documento": titulo["documento"],
+                "valor": titulo["valor_numero"],
+                "valor_formatado": _formatar_moeda_brl(titulo["valor_numero"]),
+                "status": titulo["status_exibicao"],
+            }
+        )
+
+    eventos.sort(key=lambda item: (item["dia"], item["tipo"], item["descricao"] or ""))
+    return eventos
+
+
+def _montar_fluxo_caixa_mensal(titulos: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    meses = _periodo_ultimos_meses(6)
+    fluxo = []
+
+    for mes in meses:
+        entradas = 0.0
+        saidas = 0.0
+
+        for titulo in titulos:
+            pagamento = _converter_data_iso(titulo.get("data_pagamento"))
+
+            if pagamento is None or pagamento.year != mes.year or pagamento.month != mes.month:
+                continue
+
+            if titulo["status"] != "pago":
+                continue
+
+            if titulo["tipo"] == "receber":
+                entradas += titulo["valor_numero"]
+            elif titulo["tipo"] == "pagar":
+                saidas += titulo["valor_numero"]
+
+        fluxo.append(
+            {
+                "mes": mes.isoformat(),
+                "rotulo": _nome_mes_curto(mes),
+                "entradas": entradas,
+                "saidas": saidas,
+                "saldo": entradas - saidas,
+            }
+        )
+
+    return fluxo
+
+
 def montar_painel_financeiro() -> dict[str, Any]:
     titulos = listar_financeiro_titulos()
     hoje = date.today()
@@ -2772,6 +2869,26 @@ def montar_painel_financeiro() -> dict[str, Any]:
         titulo
         for titulo in titulos
         if titulo["tipo"] == "pagar" and titulo["status_exibicao"] in {"aberto", "vencido"}
+    ]
+    receber_hoje = [
+        titulo
+        for titulo in receber_aberto
+        if _converter_data_iso(titulo.get("data_vencimento")) == hoje
+    ]
+    pagar_hoje = [
+        titulo
+        for titulo in pagar_aberto
+        if _converter_data_iso(titulo.get("data_vencimento")) == hoje
+    ]
+    receber_vencido = [
+        titulo
+        for titulo in receber_aberto
+        if titulo["status_exibicao"] == "vencido"
+    ]
+    pagar_vencido = [
+        titulo
+        for titulo in pagar_aberto
+        if titulo["status_exibicao"] == "vencido"
     ]
 
     recebido_mes = []
@@ -2790,17 +2907,43 @@ def montar_painel_financeiro() -> dict[str, Any]:
 
     total_receber_aberto = sum(titulo["valor_numero"] for titulo in receber_aberto)
     total_pagar_aberto = sum(titulo["valor_numero"] for titulo in pagar_aberto)
+    total_receber_hoje = sum(titulo["valor_numero"] for titulo in receber_hoje)
+    total_pagar_hoje = sum(titulo["valor_numero"] for titulo in pagar_hoje)
+    total_receber_vencido = sum(titulo["valor_numero"] for titulo in receber_vencido)
+    total_pagar_vencido = sum(titulo["valor_numero"] for titulo in pagar_vencido)
     total_recebido_mes = sum(titulo["valor_numero"] for titulo in recebido_mes)
     total_pago_mes = sum(titulo["valor_numero"] for titulo in pago_mes)
 
     return {
         "a_receber_aberto": total_receber_aberto,
         "a_pagar_aberto": total_pagar_aberto,
+        "receber_hoje": total_receber_hoje,
+        "pagar_hoje": total_pagar_hoje,
+        "receber_vencido": total_receber_vencido,
+        "pagar_vencido": total_pagar_vencido,
         "recebido_mes": total_recebido_mes,
         "pago_mes": total_pago_mes,
         "saldo_previsto": total_receber_aberto - total_pagar_aberto,
+        "saldo_mes": total_recebido_mes - total_pago_mes,
+        "quantidade_receber_aberto": len(receber_aberto),
+        "quantidade_pagar_aberto": len(pagar_aberto),
+        "quantidade_receber_hoje": len(receber_hoje),
+        "quantidade_pagar_hoje": len(pagar_hoje),
+        "quantidade_receber_vencido": len(receber_vencido),
+        "quantidade_pagar_vencido": len(pagar_vencido),
         "recebimentos": [titulo for titulo in titulos if titulo["tipo"] == "receber"],
         "pagamentos": [titulo for titulo in titulos if titulo["tipo"] == "pagar"],
+        "recebimentos_abertos": receber_aberto,
+        "pagamentos_abertos": pagar_aberto,
+        "recebimentos_hoje": receber_hoje,
+        "pagamentos_hoje": pagar_hoje,
+        "recebimentos_vencidos": receber_vencido,
+        "pagamentos_vencidos": pagar_vencido,
+        "recebidos_mes": recebido_mes,
+        "pagos_mes": pago_mes,
+        "fluxo_mensal": _montar_fluxo_caixa_mensal(titulos),
+        "calendario": _montar_calendario_financeiro(titulos),
+        "ultimos_titulos": titulos[:10],
     }
 
 
@@ -3189,10 +3332,20 @@ def montar_dashboard() -> dict[str, Any]:
     financeiro = montar_painel_financeiro()
 
     hoje = date.today()
-    inicio_mes = hoje.replace(day=1)
+    meses_grafico = _periodo_ultimos_meses(6)
 
     vendas_mes = []
-    vendas_ultimos_6_meses = []
+    vendas_por_mes: list[dict[str, Any]] = []
+
+    for mes in meses_grafico:
+        vendas_por_mes.append(
+            {
+                "mes": mes.isoformat(),
+                "rotulo": _nome_mes_curto(mes),
+                "quantidade": 0,
+                "valor_total": 0.0,
+            }
+        )
 
     for venda in vendas_lista:
         data_venda = _converter_data_iso(venda.get("data"))
@@ -3201,13 +3354,22 @@ def montar_dashboard() -> dict[str, Any]:
         if data_venda is not None and data_venda.year == hoje.year and data_venda.month == hoje.month:
             vendas_mes.append({"venda": venda, "valor": valor})
 
-        if data_venda is not None:
-            diferenca_meses = (hoje.year - data_venda.year) * 12 + (hoje.month - data_venda.month)
-            if 0 <= diferenca_meses <= 5:
-                vendas_ultimos_6_meses.append({"venda": venda, "valor": valor})
+        if data_venda is None:
+            continue
+
+        for item_mes in vendas_por_mes:
+            mes_referencia = _converter_data_iso(item_mes["mes"])
+
+            if mes_referencia is None:
+                continue
+
+            if data_venda.year == mes_referencia.year and data_venda.month == mes_referencia.month:
+                item_mes["quantidade"] += 1
+                item_mes["valor_total"] += valor
+                break
 
     total_vendas_mes = sum(item["valor"] for item in vendas_mes)
-    total_vendas_6_meses = sum(item["valor"] for item in vendas_ultimos_6_meses)
+    total_vendas_6_meses = sum(item["valor_total"] for item in vendas_por_mes)
     media_vendas_6_meses = total_vendas_6_meses / 6 if total_vendas_6_meses else 0.0
 
     orcamentos_abertos = [orcamento for orcamento in orcamentos_lista if str(orcamento.get("status") or "").strip() == "aberto"]
@@ -3239,6 +3401,7 @@ def montar_dashboard() -> dict[str, Any]:
     ultimas_vendas = vendas_lista[:5]
 
     return {
+        "data_hoje": hoje.isoformat(),
         "vendas_mes": {
             "quantidade": len(vendas_mes),
             "valor_total": total_vendas_mes,
@@ -3246,6 +3409,20 @@ def montar_dashboard() -> dict[str, Any]:
         "vendas_6_meses": {
             "valor_total": total_vendas_6_meses,
             "media_mensal": media_vendas_6_meses,
+            "meses": vendas_por_mes,
+            "rotulos": [item["rotulo"] for item in vendas_por_mes],
+            "valores": [item["valor_total"] for item in vendas_por_mes],
+            "quantidades": [item["quantidade"] for item in vendas_por_mes],
+        },
+        "fluxo_6_meses": {
+            "meses": financeiro["fluxo_mensal"],
+            "rotulos": [item["rotulo"] for item in financeiro["fluxo_mensal"]],
+            "entradas": [item["entradas"] for item in financeiro["fluxo_mensal"]],
+            "saidas": [item["saidas"] for item in financeiro["fluxo_mensal"]],
+            "saldos": [item["saldo"] for item in financeiro["fluxo_mensal"]],
+        },
+        "calendario": {
+            "eventos": financeiro["calendario"],
         },
         "orcamentos_abertos": {
             "quantidade": len(orcamentos_abertos),
