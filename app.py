@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-18 23:05 (America/Bahia)
-# Motivo: Preparar base multitenant com empresa_id nas tabelas principais.
+# Último recode: 2026-06-18 22:18 (America/Bahia)
+# Motivo: Ligar rotas das novas telas de portal e login.
 
 from __future__ import annotations
 
@@ -10,14 +10,11 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
-from flask import Flask, Response, redirect, render_template, request, session, url_for
-
-from werkzeug.security import check_password_hash, generate_password_hash
+from flask import Flask, Response, redirect, render_template, request, url_for
 
 import config
 
 app = Flask(__name__)
-app.secret_key = getattr(config, "SECRET_KEY", "gestflow-dev-secret-key-trocar-em-producao")
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
@@ -34,151 +31,6 @@ def conectar_db() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
-
-
-def buscar_usuario_por_email(email: str) -> dict[str, Any] | None:
-    email_normalizado = str(email or "").strip().lower()
-
-    if not email_normalizado:
-        return None
-
-    with conectar_db() as conn:
-        row = conn.execute(
-            """
-            SELECT
-                usuarios.id,
-                usuarios.empresa_id,
-                usuarios.nome,
-                usuarios.email,
-                usuarios.senha_hash,
-                usuarios.perfil,
-                usuarios.status,
-                usuarios.ultimo_login,
-                usuarios.criado_em,
-                empresas.nome_fantasia AS empresa_nome,
-                empresas.plano AS empresa_plano,
-                empresas.status AS empresa_status
-            FROM usuarios
-            JOIN empresas ON empresas.id = usuarios.empresa_id
-            WHERE LOWER(usuarios.email) = ?
-            LIMIT 1
-            """,
-            (email_normalizado,),
-        ).fetchone()
-
-    if row is None:
-        return None
-
-    return dict(row)
-
-
-def autenticar_usuario(email: str, senha: str) -> dict[str, Any] | None:
-    usuario = buscar_usuario_por_email(email)
-
-    if usuario is None:
-        return None
-
-    if str(usuario.get("status") or "").strip() != "ativo":
-        return None
-
-    if str(usuario.get("empresa_status") or "").strip() != "ativo":
-        return None
-
-    senha_hash = str(usuario.get("senha_hash") or "")
-
-    if not senha_hash or not check_password_hash(senha_hash, senha):
-        return None
-
-    return usuario
-
-
-def registrar_ultimo_login_usuario(usuario_id: int) -> None:
-    with conectar_db() as conn:
-        conn.execute(
-            """
-            UPDATE usuarios
-            SET ultimo_login = ?
-            WHERE id = ?
-            """,
-            (datetime.now().isoformat(timespec="seconds"), usuario_id),
-        )
-        conn.commit()
-
-
-def usuario_logado() -> dict[str, Any] | None:
-    usuario_id = session.get("usuario_id")
-
-    if not usuario_id:
-        return None
-
-    return {
-        "id": session.get("usuario_id"),
-        "empresa_id": session.get("empresa_id"),
-        "nome": session.get("usuario_nome"),
-        "email": session.get("usuario_email"),
-        "perfil": session.get("usuario_perfil"),
-        "empresa_nome": session.get("empresa_nome"),
-        "empresa_plano": session.get("empresa_plano"),
-    }
-
-
-def empresa_padrao_id() -> int:
-    with conectar_db() as conn:
-        row = conn.execute(
-            """
-            SELECT id
-            FROM empresas
-            ORDER BY id ASC
-            LIMIT 1
-            """
-        ).fetchone()
-
-    if row is None:
-        return 1
-
-    return int(row["id"])
-
-
-def empresa_logada_id() -> int:
-    try:
-        return int(session.get("empresa_id") or empresa_padrao_id())
-    except (TypeError, ValueError):
-        return empresa_padrao_id()
-
-
-def usuario_logado_id() -> int | None:
-    try:
-        usuario_id = session.get("usuario_id")
-        return int(usuario_id) if usuario_id else None
-    except (TypeError, ValueError):
-        return None
-
-
-@app.context_processor
-def injetar_usuario_logado() -> dict[str, Any]:
-    return {"usuario_logado": usuario_logado()}
-
-
-@app.before_request
-def exigir_login_rotas_internas() -> Response | None:
-    rotas_publicas = {
-        "portal",
-        "login",
-        "health",
-        "twilio_webhook",
-        "static",
-    }
-
-    if request.endpoint in rotas_publicas:
-        return None
-
-    if request.path.startswith("/static/"):
-        return None
-
-    if session.get("usuario_id"):
-        return None
-
-    return redirect(url_for("login"))
 
 
 def iniciar_banco() -> None:
@@ -460,184 +312,6 @@ def iniciar_banco() -> None:
             """
         )
 
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS empresas (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                nome_fantasia TEXT NOT NULL,
-                razao_social TEXT,
-                documento TEXT,
-                email TEXT,
-                telefone TEXT,
-                plano TEXT NOT NULL DEFAULT 'Start',
-                status TEXT NOT NULL DEFAULT 'ativo',
-                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-            """
-        )
-
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS usuarios (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                empresa_id INTEGER NOT NULL,
-                nome TEXT NOT NULL,
-                email TEXT NOT NULL UNIQUE,
-                senha_hash TEXT NOT NULL,
-                perfil TEXT NOT NULL DEFAULT 'administrador',
-                status TEXT NOT NULL DEFAULT 'ativo',
-                ultimo_login TEXT,
-                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (empresa_id) REFERENCES empresas (id)
-            )
-            """
-        )
-
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS lojas (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                empresa_id INTEGER NOT NULL,
-                nome TEXT NOT NULL,
-                tipo TEXT NOT NULL DEFAULT 'Principal',
-                cidade TEXT,
-                status TEXT NOT NULL DEFAULT 'ativo',
-                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (empresa_id) REFERENCES empresas (id)
-            )
-            """
-        )
-
-        empresa_row = conn.execute(
-            """
-            SELECT id
-            FROM empresas
-            ORDER BY id ASC
-            LIMIT 1
-            """
-        ).fetchone()
-
-        if empresa_row is None:
-            cursor_empresa = conn.execute(
-                """
-                INSERT INTO empresas (
-                    nome_fantasia,
-                    razao_social,
-                    documento,
-                    email,
-                    telefone,
-                    plano,
-                    status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    "GestFlow Demo",
-                    "GestFlow Demo",
-                    "",
-                    "",
-                    "",
-                    "Start",
-                    "ativo",
-                ),
-            )
-            empresa_id_inicial = int(cursor_empresa.lastrowid)
-        else:
-            empresa_id_inicial = int(empresa_row["id"])
-
-        usuario_row = conn.execute(
-            """
-            SELECT id
-            FROM usuarios
-            WHERE email = ?
-            LIMIT 1
-            """,
-            ("admin@gestflow.local",),
-        ).fetchone()
-
-        if usuario_row is None:
-            conn.execute(
-                """
-                INSERT INTO usuarios (
-                    empresa_id,
-                    nome,
-                    email,
-                    senha_hash,
-                    perfil,
-                    status,
-                    ultimo_login
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    empresa_id_inicial,
-                    "Netto Santana",
-                    "admin@gestflow.local",
-                    generate_password_hash("admin123"),
-                    "administrador",
-                    "ativo",
-                    "",
-                ),
-            )
-
-        loja_row = conn.execute(
-            """
-            SELECT id
-            FROM lojas
-            WHERE empresa_id = ?
-            LIMIT 1
-            """,
-            (empresa_id_inicial,),
-        ).fetchone()
-
-        if loja_row is None:
-            conn.execute(
-                """
-                INSERT INTO lojas (
-                    empresa_id,
-                    nome,
-                    tipo,
-                    cidade,
-                    status
-                ) VALUES (?, ?, ?, ?, ?)
-                """,
-                (
-                    empresa_id_inicial,
-                    "Matriz",
-                    "Principal",
-                    "",
-                    "ativo",
-                ),
-            )
-
-        tabelas_com_empresa_id = [
-            "clientes",
-            "fornecedores",
-            "funcionarios",
-            "produtos",
-            "servicos",
-            "orcamentos",
-            "orcamento_itens",
-            "vendas",
-            "venda_itens",
-            "ordens_servico",
-            "ordem_servico_itens",
-            "estoque_movimentacoes",
-            "financeiro_titulos",
-        ]
-
-        for tabela in tabelas_com_empresa_id:
-            colunas_tabela = {
-                str(row["name"])
-                for row in conn.execute(f"PRAGMA table_info({tabela})").fetchall()
-            }
-
-            if "empresa_id" not in colunas_tabela:
-                conn.execute(f"ALTER TABLE {tabela} ADD COLUMN empresa_id INTEGER")
-
-            conn.execute(
-                f"UPDATE {tabela} SET empresa_id = ? WHERE empresa_id IS NULL",
-                (empresa_id_inicial,),
-            )
-
         colunas_ordens_servico = {
             "tecnico": "TEXT",
             "data_saida": "TEXT",
@@ -674,19 +348,23 @@ def iniciar_banco() -> None:
 
 
 def salvar_cliente_db(cliente: dict[str, str]) -> None:
+    empresa_id = empresa_logada_id()
+
     with conectar_db() as conn:
         conn.execute(
             """
             INSERT INTO clientes (
+                empresa_id,
                 nome,
                 documento,
                 telefone,
                 cidade,
                 status,
                 email
-            ) VALUES (?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
             (
+                empresa_id,
                 cliente["nome"],
                 cliente["documento"],
                 cliente["telefone"],
@@ -699,11 +377,14 @@ def salvar_cliente_db(cliente: dict[str, str]) -> None:
 
 
 def listar_clientes() -> list[dict[str, Any]]:
+    empresa_id = empresa_logada_id()
+
     with conectar_db() as conn:
         rows = conn.execute(
             """
             SELECT
                 id,
+                empresa_id,
                 nome,
                 documento,
                 telefone,
@@ -712,19 +393,24 @@ def listar_clientes() -> list[dict[str, Any]]:
                 email,
                 criado_em
             FROM clientes
+            WHERE empresa_id = ?
             ORDER BY id DESC
-            """
+            """,
+            (empresa_id,),
         ).fetchall()
 
     return [dict(row) for row in rows]
 
 
 def buscar_cliente_por_id(cliente_id: int) -> dict[str, Any] | None:
+    empresa_id = empresa_logada_id()
+
     with conectar_db() as conn:
         row = conn.execute(
             """
             SELECT
                 id,
+                empresa_id,
                 nome,
                 documento,
                 telefone,
@@ -734,8 +420,9 @@ def buscar_cliente_por_id(cliente_id: int) -> dict[str, Any] | None:
                 criado_em
             FROM clientes
             WHERE id = ?
+              AND empresa_id = ?
             """,
-            (cliente_id,),
+            (cliente_id, empresa_id),
         ).fetchone()
 
     if row is None:
@@ -745,6 +432,8 @@ def buscar_cliente_por_id(cliente_id: int) -> dict[str, Any] | None:
 
 
 def atualizar_cliente_db(cliente_id: int, cliente: dict[str, str]) -> None:
+    empresa_id = empresa_logada_id()
+
     with conectar_db() as conn:
         conn.execute(
             """
@@ -757,6 +446,7 @@ def atualizar_cliente_db(cliente_id: int, cliente: dict[str, str]) -> None:
                 status = ?,
                 email = ?
             WHERE id = ?
+              AND empresa_id = ?
             """,
             (
                 cliente["nome"],
@@ -766,19 +456,23 @@ def atualizar_cliente_db(cliente_id: int, cliente: dict[str, str]) -> None:
                 cliente["status"],
                 cliente["email"],
                 cliente_id,
+                empresa_id,
             ),
         )
         conn.commit()
 
 
 def excluir_cliente_db(cliente_id: int) -> None:
+    empresa_id = empresa_logada_id()
+
     with conectar_db() as conn:
         conn.execute(
             """
             DELETE FROM clientes
             WHERE id = ?
+              AND empresa_id = ?
             """,
-            (cliente_id,),
+            (cliente_id, empresa_id),
         )
         conn.commit()
 
@@ -3772,129 +3466,6 @@ def montar_dashboard() -> dict[str, Any]:
     }
 
 
-
-def buscar_empresa_configuracoes() -> dict[str, Any]:
-    with conectar_db() as conn:
-        row = conn.execute(
-            """
-            SELECT
-                id,
-                nome_fantasia,
-                razao_social,
-                documento,
-                email,
-                telefone,
-                plano,
-                status,
-                criado_em
-            FROM empresas
-            WHERE id = ?
-            LIMIT 1
-            """,
-            (empresa_logada_id(),),
-        ).fetchone()
-
-    if row is None:
-        return {
-            "id": empresa_logada_id(),
-            "nome_fantasia": "GestFlow Demo",
-            "razao_social": "GestFlow Demo",
-            "documento": "",
-            "email": "",
-            "telefone": "",
-            "plano": "Start",
-            "status": "ativo",
-            "criado_em": "",
-        }
-
-    return dict(row)
-
-
-def listar_usuarios_configuracoes() -> list[dict[str, Any]]:
-    with conectar_db() as conn:
-        rows = conn.execute(
-            """
-            SELECT
-                id,
-                empresa_id,
-                nome,
-                email,
-                perfil,
-                status,
-                ultimo_login,
-                criado_em
-            FROM usuarios
-            WHERE empresa_id = ?
-            ORDER BY id ASC
-            """,
-            (empresa_logada_id(),),
-        ).fetchall()
-
-    return [dict(row) for row in rows]
-
-
-def listar_lojas_configuracoes() -> list[dict[str, Any]]:
-    with conectar_db() as conn:
-        rows = conn.execute(
-            """
-            SELECT
-                id,
-                empresa_id,
-                nome,
-                tipo,
-                cidade,
-                status,
-                criado_em
-            FROM lojas
-            WHERE empresa_id = ?
-            ORDER BY id ASC
-            """,
-            (empresa_logada_id(),),
-        ).fetchall()
-
-    return [dict(row) for row in rows]
-
-
-def montar_configuracoes_contexto() -> dict[str, Any]:
-    return {
-        "empresa": buscar_empresa_configuracoes(),
-        "usuarios": listar_usuarios_configuracoes(),
-        "lojas": listar_lojas_configuracoes(),
-    }
-
-
-@app.get("/configuracoes")
-@app.get("/configuracoes/gerais")
-@app.get("/configuracoes/plano")
-@app.get("/configuracoes/usuarios")
-@app.get("/configuracoes/empresa")
-@app.get("/configuracoes/marca")
-@app.get("/configuracoes/lojas")
-def configuracoes() -> str:
-    aba = "gerais"
-
-    if request.path.endswith("/plano"):
-        aba = "plano"
-    elif request.path.endswith("/usuarios"):
-        aba = "usuarios"
-    elif request.path.endswith("/empresa"):
-        aba = "empresa"
-    elif request.path.endswith("/marca"):
-        aba = "marca"
-    elif request.path.endswith("/lojas"):
-        aba = "lojas"
-
-    contexto = montar_configuracoes_contexto()
-
-    return render_template(
-        "configuracoes.html",
-        aba=aba,
-        empresa=contexto["empresa"],
-        usuarios=contexto["usuarios"],
-        lojas=contexto["lojas"],
-    )
-
-
 @app.get("/portal")
 def portal() -> str:
     return render_template("portal.html")
@@ -3902,33 +3473,7 @@ def portal() -> str:
 
 @app.route("/login", methods=["GET", "POST"])
 def login() -> str | Response:
-    if request.method == "GET" and session.get("usuario_id"):
-        return redirect(url_for("dashboard"))
-
     if request.method == "POST":
-        email = (request.form.get("email") or "").strip().lower()
-        senha = request.form.get("senha") or ""
-
-        usuario = autenticar_usuario(email, senha)
-
-        if usuario is None:
-            return render_template(
-                "login.html",
-                erro_login="E-mail ou senha inválidos.",
-                email_login=email,
-            ), 401
-
-        session.clear()
-        session["usuario_id"] = int(usuario["id"])
-        session["empresa_id"] = int(usuario["empresa_id"])
-        session["usuario_nome"] = str(usuario.get("nome") or "")
-        session["usuario_email"] = str(usuario.get("email") or "")
-        session["usuario_perfil"] = str(usuario.get("perfil") or "")
-        session["empresa_nome"] = str(usuario.get("empresa_nome") or "")
-        session["empresa_plano"] = str(usuario.get("empresa_plano") or "")
-
-        registrar_ultimo_login_usuario(int(usuario["id"]))
-
         return redirect(url_for("dashboard"))
 
     return render_template("login.html")
@@ -3936,7 +3481,6 @@ def login() -> str | Response:
 
 @app.get("/sair")
 def sair() -> Response:
-    session.clear()
     return redirect(url_for("login"))
 
 
