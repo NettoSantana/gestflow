@@ -82,6 +82,15 @@ Motivo: Criar impressão A4 do orçamento em HTML pronta para impressão e futur
             text-align: center;
             line-height: 1.2;
             border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .logo-img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            background: #ffffff;
+            padding: 6px;
         }
 
         .company-name {
@@ -160,10 +169,6 @@ Motivo: Criar impressão A4 do orçamento em HTML pronta para impressão e futur
         .items-table .center {
             text-align: center;
             white-space: nowrap;
-        }
-
-        .service-description {
-            font-style: italic;
         }
 
         .total-row td {
@@ -249,16 +254,22 @@ Motivo: Criar impressão A4 do orçamento em HTML pronta para impressão e futur
     <main class="page">
         <header class="header">
             <div class="logo-box">
-                GESTFLOW<br>ORÇAMENTO
+                {% if empresa.logo_path %}
+                    <img src="{{ empresa.logo_path }}" alt="Logo da empresa" class="logo-img">
+                {% else %}
+                    GESTFLOW<br>ORÇAMENTO
+                {% endif %}
             </div>
 
             <div class="company-name">
-                GESTFLOW
+                {{ empresa.nome_fantasia or empresa.razao_social or 'GESTFLOW' }}
             </div>
 
             <div class="company-info">
-                (71) 00000-0000<br>
-                contato@gestflow.com.br<br>
+                {% if empresa.documento %}{{ empresa.documento }}<br>{% endif %}
+                {{ empresa.telefone or '-' }}<br>
+                {{ empresa.email or '-' }}<br>
+                {% if loja.cidade %}{{ loja.cidade }}<br>{% endif %}
                 Vendedor: <strong>{{ orcamento.responsavel or 'Administrador' }}</strong><br>
                 Aos cuidados de: <strong>{{ orcamento.cliente or '-' }}</strong>
             </div>
@@ -270,7 +281,7 @@ Motivo: Criar impressão A4 do orçamento em HTML pronta para impressão e futur
         </section>
 
         <p class="intro">
-            {{ orcamento.introducao or 'O GESTFLOW apresenta abaixo sua proposta comercial para fornecimento de produtos e/ou execução de serviços conforme solicitado:' }}
+            {{ orcamento.introducao or ((empresa.nome_fantasia or 'A empresa') ~ ' apresenta abaixo sua proposta comercial para fornecimento de produtos e/ou execução de serviços conforme solicitado:') }}
         </p>
 
         <div class="section-title">PREVISÃO DE ENTREGA: {{ orcamento.prazo_entrega or '-' }}</div>
@@ -280,13 +291,13 @@ Motivo: Criar impressão A4 do orçamento em HTML pronta para impressão e futur
             <tbody>
                 <tr>
                     <td class="label">Razão social:</td>
-                    <td>{{ orcamento.cliente or '-' }}</td>
+                    <td>{{ cliente.nome if cliente else (orcamento.cliente or '-') }}</td>
                     <td class="label">Nome fantasia:</td>
-                    <td>{{ orcamento.cliente or '-' }}</td>
+                    <td>{{ cliente.nome if cliente else (orcamento.cliente or '-') }}</td>
                 </tr>
                 <tr>
                     <td class="label">CNPJ/CPF:</td>
-                    <td>-</td>
+                    <td>{{ cliente.documento if cliente and cliente.documento else '-' }}</td>
                     <td class="label">Endereço:</td>
                     <td>-</td>
                 </tr>
@@ -294,13 +305,13 @@ Motivo: Criar impressão A4 do orçamento em HTML pronta para impressão e futur
                     <td class="label">CEP:</td>
                     <td>-</td>
                     <td class="label">Cidade/UF:</td>
-                    <td>-</td>
+                    <td>{{ cliente.cidade if cliente and cliente.cidade else '-' }}</td>
                 </tr>
                 <tr>
                     <td class="label">Telefone:</td>
-                    <td>-</td>
+                    <td>{{ cliente.telefone if cliente and cliente.telefone else '-' }}</td>
                     <td class="label">E-mail:</td>
-                    <td>-</td>
+                    <td>{{ cliente.email if cliente and cliente.email else '-' }}</td>
                 </tr>
             </tbody>
         </table>
@@ -321,12 +332,7 @@ Motivo: Criar impressão A4 do orçamento em HTML pronta para impressão e futur
                     {% for item in itens_servicos %}
                         <tr>
                             <td class="center">{{ loop.index }}</td>
-                            <td>
-                                {{ item.descricao or '-' }}
-                                {% if item.detalhes %}
-                                    <span class="service-description">({{ item.detalhes }})</span>
-                                {% endif %}
-                            </td>
+                            <td>{{ item.descricao or '-' }}</td>
                             <td class="center">{{ item.quantidade or '-' }}</td>
                             <td class="num">{{ item.valor_unitario or '0,00' }}</td>
                             <td class="num">{{ item.subtotal or '0,00' }}</td>
@@ -402,7 +408,7 @@ Motivo: Criar impressão A4 do orçamento em HTML pronta para impressão e futur
         </div>
 
         <div class="footer">
-            Orçamento emitido no GESTFLOW
+            Orçamento emitido no {{ empresa.nome_fantasia or 'GESTFLOW' }}
         </div>
     </main>
 

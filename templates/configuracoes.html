@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\configuracoes.html
-Último recode: 2026-06-19 07:55 (America/Bahia)
-Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
+Último recode: 2026-06-18 22:24 (America/Bahia)
+Motivo: Criar tela inicial de Configurações para organizar empresa, usuários, plano, marca e lojas.
 -->
 
 <!DOCTYPE html>
@@ -171,29 +171,12 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
                     </details>
                 </li>
 
-                {% if usuario_logado and usuario_logado.email in ["admin@gestflow.local", "nettosantana@icloud.com"] %}
-                <li class="menu-group">
-                    <details>
-                        <summary>
-                            <span class="menu-label">
-                                <span class="menu-icon">◆</span>
-                                <span>Admin</span>
-                            </span>
-                            <span class="arrow">⌄</span>
-                        </summary>
-                        <ul class="submenu">
-                            <li><a href="/admin/empresas">Empresas</a></li>
-                        </ul>
-                    </details>
-                </li>
-                {% endif %}
-
             </ul>
         </nav>
 
         <div class="sidebar-footer">
-            <a href="/configuracoes" class="footer-item active" style="text-decoration: none;">⚙ Configurações</a>
-            <a href="/sair" class="footer-item" style="text-decoration: none;">Sair</a>
+            <div class="footer-item active">⚙ Configurações</div>
+            <div class="footer-item">? Ajuda</div>
         </div>
 
     </aside>
@@ -201,12 +184,6 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
     <main class="content">
 
         <header class="topbar">
-            {% set _usuario_topbar = usuario_logado|default({}) %}
-            {% set _data_topbar = data_hoje|default('') %}
-            {% if not _data_topbar and dashboard is defined %}
-                {% set _data_topbar = dashboard.data_hoje|default('') %}
-            {% endif %}
-
             <div class="topbar-left">
                 <button class="menu-toggle" type="button" aria-label="Abrir menu">☰</button>
                 <h1>Configurações</h1>
@@ -214,25 +191,23 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
 
             <div class="topbar-right">
                 <div class="topbar-date">
-                    <span class="topbar-icon">⚙</span>
-                    <span>{{ _data_topbar or 'Hoje' }}</span>
+                    <span class="topbar-icon">▣</span>
+                    <span>18/06/2026</span>
                 </div>
 
                 <div class="notification">
                     <span class="topbar-icon">🔔</span>
-                    <span class="notification-badge">{{ notificacoes|default(0) }}</span>
+                    <span class="notification-badge">0</span>
                 </div>
 
                 <div class="user-profile">
-                    <div class="avatar">{{ (_usuario_topbar.nome|default('US') or 'US')[:2]|upper }}</div>
+                    <div class="avatar">NS</div>
                     <div class="user-info">
-                        <strong>{{ _usuario_topbar.nome|default('Usuário') }}</strong>
-                        <span>{{ _usuario_topbar.perfil|default('Administrador')|capitalize }}</span>
+                        <strong>Netto Santana</strong>
+                        <span>Administrador</span>
                     </div>
                     <span class="profile-arrow">⌄</span>
                 </div>
-
-                <a href="/sair" class="logout-button">Sair</a>
             </div>
         </header>
 
@@ -422,10 +397,9 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
                             <h3>Dados da empresa</h3>
                             <p class="page-subtitle">Esses dados serão usados para identificar a conta do cliente no GestFlow.</p>
                         </div>
-                        <button type="button" class="btn-primary-green">Salvar dados</button>
                     </div>
 
-                    <form class="client-form">
+                    <form class="client-form" action="/configuracoes/empresa" method="post">
                         <div class="form-grid">
                             <div class="form-group">
                                 <label for="empresa_nome_fantasia">Nome fantasia</label>
@@ -457,35 +431,51 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
                                 <input id="empresa_plano" name="empresa_plano" type="text" value="{{ empresa.plano|default('Start') }}" class="form-control" readonly>
                             </div>
                         </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn-primary-green">Salvar dados</button>
+                        </div>
                     </form>
 
                 {% elif aba == 'marca' %}
                     <div class="panel-header page-header">
                         <div>
                             <h3>Marca da empresa</h3>
-                            <p class="page-subtitle">Área preparada para configurar logo, cor principal e identificação visual.</p>
+                            <p class="page-subtitle">Cadastre a logo que será usada nas impressões A4 de orçamento, venda e ordem de serviço.</p>
                         </div>
-                        <button type="button" class="btn-primary-green">Salvar marca</button>
+                        <span class="badge-info">Logo da empresa</span>
                     </div>
 
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label for="marca_nome">Nome exibido no sistema</label>
-                            <input id="marca_nome" name="marca_nome" type="text" placeholder="Ex: Minha Loja" class="form-control">
+                    <form class="client-form" action="/configuracoes/marca" method="post" enctype="multipart/form-data">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="marca_nome">Nome exibido no sistema</label>
+                                <input id="marca_nome" name="marca_nome" type="text" value="{{ empresa.nome_fantasia|default('') }}" class="form-control" readonly>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="marca_logo">Enviar logo</label>
+                                <input id="marca_logo" name="marca_logo" type="file" accept=".png,.jpg,.jpeg,.webp,.gif" class="form-control">
+                            </div>
                         </div>
 
-                        <div class="form-group">
-                            <label for="marca_cor">Cor principal</label>
-                            <input id="marca_cor" name="marca_cor" type="text" placeholder="Ex: #1458f5" class="form-control">
+                        <div class="logo-preview-panel">
+                            <div>
+                                <strong>Logo atual</strong>
+                                <p class="page-subtitle">Formatos aceitos: PNG, JPG, JPEG, WEBP ou GIF.</p>
+                            </div>
+
+                            {% if empresa.logo_path %}
+                                <img src="{{ empresa.logo_path }}" alt="Logo da empresa" class="logo-preview-img">
+                            {% else %}
+                                <div class="logo-preview-empty">Nenhuma logo cadastrada.</div>
+                            {% endif %}
                         </div>
 
-                        <div class="form-group">
-                            <label for="marca_logo">Logo</label>
-                            <input id="marca_logo" name="marca_logo" type="text" placeholder="Upload será ligado depois" class="form-control" readonly>
+                        <div class="form-actions">
+                            <button type="submit" class="btn-primary-green">Salvar logo</button>
                         </div>
-                    </div>
-
-                    <div class="empty-chart">Configuração visual preparada para a próxima etapa.</div>
+                    </form>
 
                 {% elif aba == 'lojas' %}
                     <div class="panel-header page-header">
@@ -669,34 +659,48 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
                 cursor: not-allowed;
             }
 
+
+            .logo-preview-panel {
+                margin-top: 18px;
+                padding: 18px;
+                border: 1px solid #e4eaf3;
+                border-radius: 14px;
+                background: #ffffff;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 20px;
+            }
+
+            .logo-preview-img {
+                max-width: 180px;
+                max-height: 90px;
+                object-fit: contain;
+                border: 1px solid #e4eaf3;
+                border-radius: 10px;
+                background: #ffffff;
+                padding: 8px;
+            }
+
+            .logo-preview-empty {
+                min-width: 180px;
+                min-height: 90px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border: 1px dashed #cbd5e1;
+                border-radius: 10px;
+                color: #64748b;
+                background: #f8fafc;
+                font-weight: 700;
+            }
+
             @media (max-width: 1100px) {
                 .config-dashboard-grid {
                     grid-template-columns: 1fr;
                 }
             }
-        
-        .logout-button {
-            height: 36px;
-            padding: 0 14px;
-            border: 1px solid #d7e1ef;
-            border-radius: 10px;
-            background: #ffffff;
-            color: #dc2626;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 13px;
-            font-weight: 900;
-            text-decoration: none;
-            transition: background 0.2s ease, border-color 0.2s ease;
-        }
-
-        .logout-button:hover {
-            background: #fff1f2;
-            border-color: #fecdd3;
-        }
-
-    </style>
+        </style>
 
     </main>
 

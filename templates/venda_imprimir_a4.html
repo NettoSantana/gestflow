@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\venda_imprimir_a4.html
-Último recode: 2026-06-19 08:45 (America/Bahia)
-Motivo: Buscar dados cadastrados da empresa e do cliente na impressão A4 da venda.
+Último recode: 2026-06-16 20:50 (America/Bahia)
+Motivo: Criar impressão A4 da venda com dados gerais, itens, totais e observações.
 -->
 
 <!DOCTYPE html>
@@ -48,8 +48,8 @@ Motivo: Buscar dados cadastrados da empresa e do cliente na impressão A4 da ven
         }
 
         .brand-mark {
-            width: 46px;
-            height: 46px;
+            width: 64px;
+            height: 52px;
             border-radius: 12px;
             background: #0f172a;
             color: #ffffff;
@@ -58,6 +58,15 @@ Motivo: Buscar dados cadastrados da empresa e do cliente na impressão A4 da ven
             justify-content: center;
             font-size: 18px;
             font-weight: 800;
+            overflow: hidden;
+        }
+
+        .brand-logo {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            background: #ffffff;
+            padding: 5px;
         }
 
         .brand-title {
@@ -230,10 +239,16 @@ Motivo: Buscar dados cadastrados da empresa e do cliente na impressão A4 da ven
     <main class="print-page">
         <header class="print-header">
             <div class="brand-block">
-                <div class="brand-mark">GF</div>
+                <div class="brand-mark">
+                    {% if empresa.logo_path %}
+                        <img src="{{ empresa.logo_path }}" alt="Logo da empresa" class="brand-logo">
+                    {% else %}
+                        GF
+                    {% endif %}
+                </div>
                 <div>
-                    <h1 class="brand-title">{{ empresa.nome_fantasia or empresa.razao_social or 'GESTFLOW' }}</h1>
-                    <p class="brand-subtitle">{{ empresa.telefone or '-' }} | {{ empresa.email or '-' }}{% if loja.cidade %} | {{ loja.cidade }}{% endif %}</p>
+                    <h1 class="brand-title">GESTFLOW</h1>
+                    <p class="brand-subtitle">Gestão de vendas, serviços e operações</p>
                 </div>
             </div>
 
@@ -247,12 +262,8 @@ Motivo: Buscar dados cadastrados da empresa e do cliente na impressão A4 da ven
         <section class="section">
             <h3 class="section-title">Dados gerais</h3>
             <div class="info-grid">
-                <div class="info-box"><span class="info-label">Cliente</span><span class="info-value">{{ cliente.nome if cliente else (venda.cliente or '-') }}</span></div>
+                <div class="info-box"><span class="info-label">Cliente</span><span class="info-value">{{ venda.cliente or '-' }}</span></div>
                 <div class="info-box"><span class="info-label">Vendedor / responsável</span><span class="info-value">{{ venda.responsavel or '-' }}</span></div>
-                <div class="info-box"><span class="info-label">CPF/CNPJ</span><span class="info-value">{{ cliente.documento if cliente and cliente.documento else '-' }}</span></div>
-                <div class="info-box"><span class="info-label">Telefone</span><span class="info-value">{{ cliente.telefone if cliente and cliente.telefone else '-' }}</span></div>
-                <div class="info-box"><span class="info-label">E-mail</span><span class="info-value">{{ cliente.email if cliente and cliente.email else '-' }}</span></div>
-                <div class="info-box"><span class="info-label">Cidade</span><span class="info-value">{{ cliente.cidade if cliente and cliente.cidade else '-' }}</span></div>
                 <div class="info-box"><span class="info-label">Prazo de entrega</span><span class="info-value">{{ venda.prazo_entrega or '-' }}</span></div>
                 <div class="info-box"><span class="info-label">Canal de venda</span><span class="info-value">{{ venda.canal_venda or '-' }}</span></div>
                 <div class="info-box"><span class="info-label">Centro de custo</span><span class="info-value">{{ venda.centro_custo or '-' }}</span></div>
@@ -344,7 +355,7 @@ Motivo: Buscar dados cadastrados da empresa e do cliente na impressão A4 da ven
         </section>
 
         <footer class="print-footer">
-            <span>{{ empresa.nome_fantasia or 'GESTFLOW' }}</span>
+            <span>GESTFLOW</span>
             <span>Venda {{ venda.numero or venda.id }}</span>
         </footer>
     </main>

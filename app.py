@@ -13,6 +13,7 @@ from typing import Any
 from flask import Flask, Response, redirect, render_template, request, session, url_for
 
 from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.utils import secure_filename
 
 import config
 
@@ -23,6 +24,10 @@ BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 DB_PATH = DATA_DIR / "gestflow.db"
+
+UPLOAD_DIR = BASE_DIR / "static" / "uploads" / "logos"
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+EXTENSOES_LOGO_PERMITIDAS = {"png", "jpg", "jpeg", "webp", "gif"}
 
 
 def _twiml_message(text: str) -> str:
@@ -610,6 +615,15 @@ def iniciar_banco() -> None:
                     "ativo",
                 ),
             )
+
+        colunas_empresas = {
+            str(row["name"])
+            for row in conn.execute("PRAGMA table_info(empresas)").fetchall()
+        }
+
+        if "logo_path" not in colunas_empresas:
+            conn.execute("ALTER TABLE empresas ADD COLUMN logo_path TEXT")
+
 
         tabelas_com_empresa_id = [
             "clientes",
@@ -4067,7 +4081,8 @@ def buscar_empresa_configuracoes() -> dict[str, Any]:
                 telefone,
                 plano,
                 status,
-                criado_em
+                criado_em,
+                logo_path
             FROM empresas
             WHERE id = ?
             LIMIT 1
@@ -4083,6 +4098,7 @@ def buscar_empresa_configuracoes() -> dict[str, Any]:
             "documento": "",
             "email": "",
             "telefone": "",
+            "logo_path": "",
             "plano": "Start",
             "status": "ativo",
             "criado_em": "",
@@ -4142,6 +4158,74 @@ def montar_configuracoes_contexto() -> dict[str, Any]:
         "usuarios": listar_usuarios_configuracoes(),
         "lojas": listar_lojas_configuracoes(),
     }
+
+
+
+def atualizar_empresa_configuracoes_db(dados: dict[str, str]) -> None:
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            UPDATE empresas
+            SET
+                nome_fantasia = ?,
+                razao_social = ?,
+                documento = ?,
+                email = ?,
+                telefone = ?
+            WHERE id = ?
+            """,
+            (
+                dados["nome_fantasia"],
+                dados["razao_social"],
+                dados["documento"],
+                dados["email"],
+                dados["telefone"],
+                empresa_id,
+            ),
+        )
+        conn.commit()
+
+
+def salvar_logo_empresa_db(logo_path: str) -> None:
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            UPDATE empresas
+            SET logo_path = ?
+            WHERE id = ?
+            """,
+            (logo_path, empresa_id),
+        )
+        conn.commit()
+
+
+def _extensao_logo_permitida(nome_arquivo: str) -> bool:
+    if "." not in nome_arquivo:
+        return False
+
+    extensao = nome_arquivo.rsplit(".", 1)[1].lower()
+    return extensao in EXTENSOES_LOGO_PERMITIDAS
+
+
+def salvar_upload_logo_empresa(arquivo) -> str:
+    nome_seguro = secure_filename(arquivo.filename or "")
+
+    if not nome_seguro or not _extensao_logo_permitida(nome_seguro):
+        raise ValueError("Formato de logo inválido. Use PNG, JPG, JPEG, WEBP ou GIF.")
+
+    extensao = nome_seguro.rsplit(".", 1)[1].lower()
+    empresa_id = empresa_logada_id()
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    nome_final = f"empresa_{empresa_id}_{timestamp}.{extensao}"
+    destino = UPLOAD_DIR / nome_final
+
+    arquivo.save(destino)
+
+    return f"/static/uploads/logos/{nome_final}"
 
 
 def usuario_logado_eh_admin_sistema() -> bool:
@@ -4629,7 +4713,36 @@ def configuracoes() -> str:
         empresa=contexto["empresa"],
         usuarios=contexto["usuarios"],
         lojas=contexto["lojas"],
+        erro="",
+        sucesso="",
     )
+
+
+@app.post("/configuracoes/empresa")
+def salvar_configuracoes_empresa() -> Response:
+    dados = {
+        "nome_fantasia": (request.form.get("empresa_nome_fantasia") or "").strip(),
+        "razao_social": (request.form.get("empresa_razao_social") or "").strip(),
+        "documento": (request.form.get("empresa_documento") or "").strip(),
+        "email": (request.form.get("empresa_email") or "").strip(),
+        "telefone": (request.form.get("empresa_telefone") or "").strip(),
+    }
+
+    if dados["nome_fantasia"]:
+        atualizar_empresa_configuracoes_db(dados)
+
+    return redirect(url_for("configuracoes") + "/empresa")
+
+
+@app.post("/configuracoes/marca")
+def salvar_configuracoes_marca() -> Response:
+    arquivo = request.files.get("marca_logo")
+
+    if arquivo is not None and arquivo.filename:
+        logo_path = salvar_upload_logo_empresa(arquivo)
+        salvar_logo_empresa_db(logo_path)
+
+    return redirect(url_for("configuracoes") + "/marca")
 
 
 @app.get("/portal")
