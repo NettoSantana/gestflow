@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\admin_empresas.html
-Último recode: 2026-06-19 07:55 (America/Bahia)
-Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
+Último recode: 2026-06-19 08:05 (America/Bahia)
+Motivo: Simplificar admin para gerar somente login e senha inicial do cliente.
 -->
 
 <!DOCTYPE html>
@@ -263,11 +263,11 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
             <div class="panel-header page-header">
                 <div>
                     <span class="page-kicker">Admin GestFlow</span>
-                    <h3 class="page-title">Cadastrar nova empresa</h3>
-                    <p class="page-subtitle">Crie um novo cliente GestFlow com empresa, usuário administrador e loja matriz.</p>
+                    <h3 class="page-title">Gerar acesso inicial</h3>
+                    <p class="page-subtitle">Crie somente o login e a senha inicial. O cliente completa os dados da empresa no primeiro acesso.</p>
                 </div>
 
-                <span class="badge-info">Multitenant</span>
+                <span class="badge-info">Acesso inicial</span>
             </div>
 
             {% if erro %}
@@ -281,28 +281,21 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
             <form action="/admin/empresas" method="post" class="client-form">
                 <div class="form-grid">
                     <div class="form-group">
-                        <label for="empresa_nome_fantasia">Nome fantasia *</label>
-                        <input id="empresa_nome_fantasia" name="empresa_nome_fantasia" type="text" value="{{ formulario.nome_fantasia }}" placeholder="Ex: Loja Modelo" class="form-control">
+                        <label for="usuario_admin_nome">Nome do cliente/responsável *</label>
+                        <input id="usuario_admin_nome" name="usuario_admin_nome" type="text" value="{{ formulario.admin_nome }}" placeholder="Nome do responsável" class="form-control">
                     </div>
 
                     <div class="form-group">
-                        <label for="empresa_razao_social">Razão social</label>
-                        <input id="empresa_razao_social" name="empresa_razao_social" type="text" value="{{ formulario.razao_social }}" placeholder="Razão social" class="form-control">
+                        <label for="usuario_admin_email">E-mail de login *</label>
+                        <input id="usuario_admin_email" name="usuario_admin_email" type="email" value="{{ formulario.admin_email }}" placeholder="login@empresa.com" class="form-control">
                     </div>
 
                     <div class="form-group">
-                        <label for="empresa_documento">CPF/CNPJ</label>
-                        <input id="empresa_documento" name="empresa_documento" type="text" value="{{ formulario.documento }}" placeholder="Documento" class="form-control">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="empresa_email">E-mail da empresa</label>
-                        <input id="empresa_email" name="empresa_email" type="email" value="{{ formulario.email }}" placeholder="empresa@email.com" class="form-control">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="empresa_telefone">Telefone</label>
-                        <input id="empresa_telefone" name="empresa_telefone" type="text" value="{{ formulario.telefone }}" placeholder="Telefone/WhatsApp" class="form-control">
+                        <label for="usuario_admin_senha">Senha inicial *</label>
+                        <div style="display: flex; gap: 8px;">
+                            <input id="usuario_admin_senha" name="usuario_admin_senha" type="text" value="{{ formulario.admin_senha }}" placeholder="Clique em Gerar senha" class="form-control">
+                            <button type="button" class="btn-light" onclick="gerarSenhaGestFlow()" style="white-space: nowrap;">Gerar senha</button>
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -322,45 +315,11 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
                             <option value="cancelado" {% if formulario.status == "cancelado" %}selected{% endif %}>Cancelado</option>
                         </select>
                     </div>
-
-                    <div class="form-group">
-                        <label for="loja_nome">Loja matriz</label>
-                        <input id="loja_nome" name="loja_nome" type="text" value="{{ formulario.loja_nome }}" placeholder="Matriz" class="form-control">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="loja_cidade">Cidade da loja</label>
-                        <input id="loja_cidade" name="loja_cidade" type="text" value="{{ formulario.loja_cidade }}" placeholder="Cidade" class="form-control">
-                    </div>
-                </div>
-
-                <div class="panel-header page-header" style="margin-top: 22px;">
-                    <div>
-                        <h3>Usuário administrador</h3>
-                        <p class="page-subtitle">Esse usuário será o primeiro acesso da nova empresa.</p>
-                    </div>
-                </div>
-
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="usuario_admin_nome">Nome do administrador</label>
-                        <input id="usuario_admin_nome" name="usuario_admin_nome" type="text" value="{{ formulario.admin_nome }}" placeholder="Nome do responsável" class="form-control">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="usuario_admin_email">E-mail de login *</label>
-                        <input id="usuario_admin_email" name="usuario_admin_email" type="email" value="{{ formulario.admin_email }}" placeholder="login@empresa.com" class="form-control">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="usuario_admin_senha">Senha inicial *</label>
-                        <input id="usuario_admin_senha" name="usuario_admin_senha" type="text" value="{{ formulario.admin_senha }}" placeholder="Ex: empresa123" class="form-control">
-                    </div>
                 </div>
 
                 <div class="form-actions">
                     <button type="reset" class="btn-light">Limpar</button>
-                    <button type="submit" class="btn-primary-green">Cadastrar empresa</button>
+                    <button type="submit" class="btn-primary-green">Criar acesso</button>
                 </div>
             </form>
         </section>
@@ -368,8 +327,8 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
         <section class="panel table-panel">
             <div class="panel-header page-header">
                 <div>
-                    <h3>Empresas cadastradas</h3>
-                    <p class="page-subtitle">Controle os clientes que usam o GestFlow.</p>
+                    <h3>Acessos criados</h3>
+                    <p class="page-subtitle">Controle os logins liberados para clientes GestFlow.</p>
                 </div>
             </div>
 
@@ -378,8 +337,8 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
                     <thead>
                         <tr>
                             <th>ID</th>
-                            <th>Empresa</th>
-                            <th>Documento</th>
+                            <th>Cliente/Acesso</th>
+                            <th>Login</th>
                             <th>Plano</th>
                             <th>Status</th>
                             <th>Usuários</th>
@@ -395,9 +354,9 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
                                     <td>{{ empresa.id }}</td>
                                     <td>
                                         <strong>{{ empresa.nome_fantasia }}</strong><br>
-                                        <span>{{ empresa.email or '-' }}</span>
+                                        <span>{{ empresa.razao_social or 'Cadastro pendente' }}</span>
                                     </td>
-                                    <td>{{ empresa.documento or '-' }}</td>
+                                    <td>{{ empresa.email or '-' }}</td>
                                     <td>{{ empresa.plano }}</td>
                                     <td><span class="status-pill {{ empresa.status }}">{{ empresa.status }}</span></td>
                                     <td>{{ empresa.total_usuarios }}</td>
@@ -420,8 +379,8 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
                                 <td colspan="9" class="empty-table empty-table-box">
                                     <div class="empty-table-content">
                                         <div class="empty-table-icon">◆</div>
-                                        <strong>Nenhuma empresa cadastrada.</strong>
-                                        <span>Use o formulário acima para criar o primeiro cliente.</span>
+                                        <strong>Nenhum acesso criado.</strong>
+                                        <span>Use o formulário acima para gerar o primeiro login.</span>
                                     </div>
                                 </td>
                             </tr>
@@ -432,6 +391,36 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
         </section>
 
     </main>
+
+    <script>
+        function gerarSenhaGestFlow() {
+            const letrasMaiusculas = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+            const letrasMinusculas = "abcdefghijkmnopqrstuvwxyz";
+            const numeros = "23456789";
+            const simbolos = "@#$%";
+            const todos = letrasMaiusculas + letrasMinusculas + numeros + simbolos;
+
+            function escolher(texto) {
+                return texto[Math.floor(Math.random() * texto.length)];
+            }
+
+            let senha = "Gf-";
+            senha += escolher(numeros);
+            senha += escolher(numeros);
+            senha += escolher(letrasMaiusculas);
+            senha += escolher(letrasMinusculas);
+            senha += escolher(simbolos);
+            senha += escolher(todos);
+            senha += escolher(todos);
+
+            const campoSenha = document.getElementById("usuario_admin_senha");
+            if (campoSenha) {
+                campoSenha.value = senha;
+                campoSenha.focus();
+                campoSenha.select();
+            }
+        }
+    </script>
 
 </body>
 </html>
