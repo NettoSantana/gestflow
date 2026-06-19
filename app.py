@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-19 08:05 (America/Bahia)
-# Motivo: Simplificar admin para gerar somente login e senha inicial do cliente.
+# Último recode: 2026-06-19 07:35 (America/Bahia)
+# Motivo: Criar painel admin para cadastro de novas empresas/clientes GestFlow.
 
 from __future__ import annotations
 
@@ -4128,20 +4128,26 @@ def email_usuario_ja_existe(email: str) -> bool:
 
 def montar_empresa_admin_formulario() -> dict[str, str]:
     return {
+        "nome_fantasia": (request.form.get("empresa_nome_fantasia") or "").strip(),
+        "razao_social": (request.form.get("empresa_razao_social") or "").strip(),
+        "documento": (request.form.get("empresa_documento") or "").strip(),
+        "email": (request.form.get("empresa_email") or "").strip().lower(),
+        "telefone": (request.form.get("empresa_telefone") or "").strip(),
+        "plano": (request.form.get("empresa_plano") or "Start").strip() or "Start",
+        "status": (request.form.get("empresa_status") or "ativo").strip() or "ativo",
         "admin_nome": (request.form.get("usuario_admin_nome") or "").strip(),
         "admin_email": (request.form.get("usuario_admin_email") or "").strip().lower(),
         "admin_senha": (request.form.get("usuario_admin_senha") or "").strip(),
-        "plano": (request.form.get("empresa_plano") or "Start").strip() or "Start",
-        "status": (request.form.get("empresa_status") or "ativo").strip() or "ativo",
+        "loja_nome": (request.form.get("loja_nome") or "Matriz").strip() or "Matriz",
+        "loja_cidade": (request.form.get("loja_cidade") or "").strip(),
     }
 
 
 def criar_empresa_cliente_db(dados: dict[str, str]) -> int:
-    admin_nome = dados["admin_nome"] or "Cliente GestFlow"
+    admin_nome = dados["admin_nome"] or dados["nome_fantasia"]
     admin_email = dados["admin_email"]
     admin_senha = dados["admin_senha"]
-    nome_empresa_provisorio = f"Cadastro pendente - {admin_nome}".strip()
-    loja_nome = "Matriz"
+    loja_nome = dados["loja_nome"] or "Matriz"
 
     with conectar_db() as conn:
         cursor_empresa = conn.execute(
@@ -4157,11 +4163,11 @@ def criar_empresa_cliente_db(dados: dict[str, str]) -> int:
             ) VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                nome_empresa_provisorio,
-                "",
-                "",
-                admin_email,
-                "",
+                dados["nome_fantasia"],
+                dados["razao_social"],
+                dados["documento"],
+                dados["email"],
+                dados["telefone"],
                 dados["plano"],
                 dados["status"],
             ),
@@ -4205,7 +4211,7 @@ def criar_empresa_cliente_db(dados: dict[str, str]) -> int:
                 empresa_id,
                 loja_nome,
                 "Principal",
-                "",
+                dados["loja_cidade"],
                 "ativo",
             ),
         )
@@ -4233,6 +4239,81 @@ def atualizar_status_empresa_admin_db(empresa_id: int, status: str) -> None:
         conn.commit()
 
 
+def excluir_empresa_cliente_admin_db(empresa_id: int) -> bool:
+    try:
+        empresa_id = int(empresa_id)
+    except (TypeError, ValueError):
+        return False
+
+    empresa_principal_id = empresa_padrao_id()
+    empresa_sessao_id = empresa_logada_id()
+
+    if empresa_id <= 0:
+        return False
+
+    if empresa_id == empresa_principal_id:
+        return False
+
+    if empresa_id == empresa_sessao_id:
+        return False
+
+    empresa = buscar_empresa_admin_por_id(empresa_id)
+
+    if empresa is None:
+        return False
+
+    with conectar_db() as conn:
+        tabelas_por_empresa = [
+            "orcamento_itens",
+            "venda_itens",
+            "ordem_servico_itens",
+            "estoque_movimentacoes",
+            "financeiro_titulos",
+            "orcamentos",
+            "vendas",
+            "ordens_servico",
+            "clientes",
+            "fornecedores",
+            "funcionarios",
+            "produtos",
+            "servicos",
+        ]
+
+        for tabela in tabelas_por_empresa:
+            conn.execute(
+                f"DELETE FROM {tabela} WHERE empresa_id = ?",
+                (empresa_id,),
+            )
+
+        conn.execute(
+            """
+            DELETE FROM lojas
+            WHERE empresa_id = ?
+            """,
+            (empresa_id,),
+        )
+
+        conn.execute(
+            """
+            DELETE FROM usuarios
+            WHERE empresa_id = ?
+            """,
+            (empresa_id,),
+        )
+
+        conn.execute(
+            """
+            DELETE FROM empresas
+            WHERE id = ?
+            """,
+            (empresa_id,),
+        )
+
+        conn.commit()
+
+    return True
+
+
 
 
 @app.route("/admin/empresas", methods=["GET", "POST"])
@@ -4243,33 +4324,47 @@ def admin_empresas() -> str | Response:
     erro = ""
     sucesso = ""
     formulario = {
+        "nome_fantasia": "",
+        "razao_social": "",
+        "documento": "",
+        "email": "",
+        "telefone": "",
         "plano": "Start",
         "status": "ativo",
         "admin_nome": "",
         "admin_email": "",
         "admin_senha": "",
+        "loja_nome": "Matriz",
+        "loja_cidade": "",
     }
 
     if request.method == "POST":
         formulario = montar_empresa_admin_formulario()
 
-        if not formulario["admin_nome"]:
-            erro = "Informe o nome do cliente ou responsável."
+        if not formulario["nome_fantasia"]:
+            erro = "Informe o nome fantasia da empresa."
         elif not formulario["admin_email"]:
-            erro = "Informe o e-mail de login."
+            erro = "Informe o e-mail do usuário administrador."
         elif not formulario["admin_senha"]:
-            erro = "Informe a senha inicial."
+            erro = "Informe a senha inicial do usuário administrador."
         elif email_usuario_ja_existe(formulario["admin_email"]):
             erro = "Já existe um usuário cadastrado com este e-mail."
         else:
             empresa_id = criar_empresa_cliente_db(formulario)
-            sucesso = f"Acesso criado com sucesso. ID provisório {empresa_id}."
+            sucesso = f"Empresa cadastrada com sucesso. ID {empresa_id}."
             formulario = {
+                "nome_fantasia": "",
+                "razao_social": "",
+                "documento": "",
+                "email": "",
+                "telefone": "",
                 "plano": "Start",
                 "status": "ativo",
                 "admin_nome": "",
                 "admin_email": "",
                 "admin_senha": "",
+                "loja_nome": "Matriz",
+                "loja_cidade": "",
             }
 
     return render_template(
@@ -4291,6 +4386,16 @@ def admin_alterar_status_empresa(empresa_id: int) -> Response:
     if empresa is not None:
         novo_status = (request.form.get("empresa_status") or "ativo").strip()
         atualizar_status_empresa_admin_db(empresa_id, novo_status)
+
+    return redirect(url_for("admin_empresas"))
+
+
+@app.post("/admin/empresas/<int:empresa_id>/excluir")
+def admin_excluir_empresa(empresa_id: int) -> Response:
+    if not usuario_logado_eh_admin_sistema():
+        return redirect(url_for("dashboard"))
+
+    excluir_empresa_cliente_admin_db(empresa_id)
 
     return redirect(url_for("admin_empresas"))
 

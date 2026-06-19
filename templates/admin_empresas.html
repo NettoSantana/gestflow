@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\admin_empresas.html
-Último recode: 2026-06-19 08:05 (America/Bahia)
-Motivo: Simplificar admin para gerar somente login e senha inicial do cliente.
+Último recode: 2026-06-19 08:20 (America/Bahia)
+Motivo: Adicionar botão de exclusão segura de acesso/cliente no admin.
 -->
 
 <!DOCTYPE html>
@@ -31,6 +31,37 @@ Motivo: Simplificar admin para gerar somente login e senha inicial do cliente.
         .logout-button:hover {
             background: #fff1f2;
             border-color: #fecdd3;
+        }
+
+        .admin-action-stack {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .admin-delete-form {
+            margin: 0;
+        }
+
+        .btn-danger-light {
+            min-height: 36px;
+            padding: 0 14px;
+            border: 1px solid #fecaca;
+            border-radius: 10px;
+            background: #fff1f2;
+            color: #dc2626;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 900;
+            cursor: pointer;
+        }
+
+        .btn-danger-light:hover {
+            background: #fee2e2;
+            border-color: #fca5a5;
         }
 
     </style>
@@ -363,14 +394,22 @@ Motivo: Simplificar admin para gerar somente login e senha inicial do cliente.
                                     <td>{{ empresa.total_lojas }}</td>
                                     <td>{{ empresa.criado_em }}</td>
                                     <td>
-                                        <form action="/admin/empresas/{{ empresa.id }}/status" method="post" class="action-form">
-                                            <select name="empresa_status" class="form-control" style="min-width: 120px;">
-                                                <option value="ativo" {% if empresa.status == "ativo" %}selected{% endif %}>Ativo</option>
-                                                <option value="bloqueado" {% if empresa.status == "bloqueado" %}selected{% endif %}>Bloqueado</option>
-                                                <option value="cancelado" {% if empresa.status == "cancelado" %}selected{% endif %}>Cancelado</option>
-                                            </select>
-                                            <button type="submit" class="btn-light">Salvar</button>
-                                        </form>
+                                        <div class="admin-action-stack">
+                                            <form action="/admin/empresas/{{ empresa.id }}/status" method="post" class="action-form">
+                                                <select name="empresa_status" class="form-control" style="min-width: 120px;">
+                                                    <option value="ativo" {% if empresa.status == "ativo" %}selected{% endif %}>Ativo</option>
+                                                    <option value="bloqueado" {% if empresa.status == "bloqueado" %}selected{% endif %}>Bloqueado</option>
+                                                    <option value="cancelado" {% if empresa.status == "cancelado" %}selected{% endif %}>Cancelado</option>
+                                                </select>
+                                                <button type="submit" class="btn-light">Salvar</button>
+                                            </form>
+
+                                            {% if empresa.id != usuario_logado.empresa_id %}
+                                                <form action="/admin/empresas/{{ empresa.id }}/excluir" method="post" class="admin-delete-form" onsubmit="return confirm('Tem certeza que deseja excluir este acesso/cliente? Esta ação apagará usuários, lojas e dados vinculados a esta empresa e não poderá ser desfeita.');">
+                                                    <button type="submit" class="btn-danger-light">Excluir</button>
+                                                </form>
+                                            {% endif %}
+                                        </div>
                                     </td>
                                 </tr>
                             {% endfor %}
