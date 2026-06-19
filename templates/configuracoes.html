@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\configuracoes.html
-Último recode: 2026-06-18 22:24 (America/Bahia)
-Motivo: Criar tela inicial de Configurações para organizar empresa, usuários, plano, marca e lojas.
+Último recode: 2026-06-19 07:45 (America/Bahia)
+Motivo: Padronizar menu lateral, links do financeiro, configurações e admin.
 -->
 
 <!DOCTYPE html>
@@ -171,11 +171,29 @@ Motivo: Criar tela inicial de Configurações para organizar empresa, usuários,
                     </details>
                 </li>
 
+                {% if usuario_logado and usuario_logado.email in ["admin@gestflow.local", "nettosantana@icloud.com"] %}
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">◆</span>
+                                <span>Admin</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/admin/empresas">Empresas</a></li>
+                        </ul>
+                    </details>
+                </li>
+                {% endif %}
+
             </ul>
         </nav>
 
         <div class="sidebar-footer">
-            <div class="footer-item active">⚙ Configurações</div>
+            <a href="/configuracoes" class="footer-item active" style="text-decoration: none;">⚙ Configurações</a>
             <div class="footer-item">? Ajuda</div>
         </div>
 

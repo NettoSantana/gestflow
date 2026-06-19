@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\estoque.html
-Último recode: 2026-06-16 23:25 (America/Bahia)
-Motivo: Reorganizar Estoque no padrão básico do GestãoClick com Movimentações, Ajustes e Compras.
+Último recode: 2026-06-19 07:45 (America/Bahia)
+Motivo: Padronizar menu lateral, links do financeiro, configurações e admin.
 -->
 
 <!DOCTYPE html>
@@ -358,7 +358,7 @@ Motivo: Reorganizar Estoque no padrão básico do GestãoClick com Movimentaçõ
                             <li><a href="/vendas">Produtos</a></li>
                             <li><a href="/vendas">Serviços</a></li>
                             <li><a href="/vendas">Balcão</a></li>
-                            <li>Devoluções</li>
+                            <li><a href="/vendas/devolucoes">Devoluções</a></li>
                             <li>Opções auxiliares</li>
                         </ul>
                     </details>
@@ -376,12 +376,12 @@ Motivo: Reorganizar Estoque no padrão básico do GestãoClick com Movimentaçõ
                         <ul class="submenu">
                             <li><a href="/ordens-servico">Gerenciar O.S.</a></li>
                             <li><a href="/ordens-servico/painel">Painel</a></li>
-                            <li><a href="/ordens-servico">Opções auxiliares</a></li>
+                            <li>Opções auxiliares</li>
                         </ul>
                     </details>
                 </li>
 
-                <li class="menu-group">
+                <li class="menu-group active">
                     <details open>
                         <summary>
                             <span class="menu-label">
@@ -391,9 +391,9 @@ Motivo: Reorganizar Estoque no padrão básico do GestãoClick com Movimentaçõ
                             <span class="arrow">⌄</span>
                         </summary>
                         <ul class="submenu">
-                            <li class="{% if aba == 'movimentacoes' %}submenu-active{% endif %}"><a href="/estoque/movimentacoes">Movimentações</a></li>
-                            <li class="{% if aba == 'ajustes' %}submenu-active{% endif %}"><a href="/estoque/ajustes">Ajustes</a></li>
-                            <li class="{% if aba == 'compras' %}submenu-active{% endif %}"><a href="/estoque/compras">Compras</a></li>
+                            <li class="{% if aba|default('movimentacoes') == 'movimentacoes' %}submenu-active{% endif %}"><a href="/estoque/movimentacoes">Movimentações</a></li>
+                            <li class="{% if aba|default('movimentacoes') == 'ajustes' %}submenu-active{% endif %}"><a href="/estoque/ajustes">Ajustes</a></li>
+                            <li class="{% if aba|default('movimentacoes') == 'compras' %}submenu-active{% endif %}"><a href="/estoque/compras">Compras</a></li>
                         </ul>
                     </details>
                 </li>
@@ -408,20 +408,38 @@ Motivo: Reorganizar Estoque no padrão básico do GestãoClick com Movimentaçõ
                             <span class="arrow">⌄</span>
                         </summary>
                         <ul class="submenu">
-                            <li>Contas a pagar</li>
-                            <li>Contas a receber</li>
-                            <li>Fluxo de caixa</li>
+                            <li><a href="/financeiro/pagar">Contas a pagar</a></li>
+                            <li><a href="/financeiro/receber">Contas a receber</a></li>
+                            <li><a href="/financeiro/fluxo-caixa">Fluxo de caixa</a></li>
                             <li>Contas bancárias</li>
                             <li>Opções auxiliares</li>
                         </ul>
                     </details>
                 </li>
 
+                {% if usuario_logado and usuario_logado.email in ["admin@gestflow.local", "nettosantana@icloud.com"] %}
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">◆</span>
+                                <span>Admin</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/admin/empresas">Empresas</a></li>
+                        </ul>
+                    </details>
+                </li>
+                {% endif %}
+
             </ul>
         </nav>
 
         <div class="sidebar-footer">
-            <div class="footer-item">⚙ Configurações</div>
+            <a href="/configuracoes" class="footer-item" style="text-decoration: none;">⚙ Configurações</a>
             <div class="footer-item">? Ajuda</div>
         </div>
 

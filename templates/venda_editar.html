@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\venda_editar.html
-Último recode: 2026-06-16 20:34 (America/Bahia)
-Motivo: Corrigir sequência de edição para carregar dados e itens existentes da venda sem sobrescrever conteúdo salvo.
+Último recode: 2026-06-18 21:20 (America/Bahia)
+Motivo: Padronizar links do menu lateral na primeira leva de telas.
 -->
 
 <!DOCTYPE html>
@@ -15,21 +15,170 @@ Motivo: Corrigir sequência de edição para carregar dados e itens existentes d
 <body>
 
     <aside class="sidebar">
-        <div class="brand"><div class="brand-mark">GF</div><h2>GESTFLOW</h2></div>
+
+        <div class="brand">
+            <div class="brand-mark">GF</div>
+            <h2>GESTFLOW</h2>
+        </div>
+
         <nav class="sidebar-nav">
             <ul class="menu">
-                <li class="menu-item"><a href="/"><span class="menu-icon">⌂</span><span>Dashboard</span></a></li>
-                <li class="menu-group"><details><summary><span class="menu-label"><span class="menu-icon">☷</span><span>Cadastros</span></span><span class="arrow">⌄</span></summary><ul class="submenu"><li><a href="/clientes">Clientes</a></li><li><a href="/fornecedores">Fornecedores</a></li><li><a href="/funcionarios">Funcionários</a></li><li>Veículos</li><li>Opções auxiliares</li></ul></details></li>
-                <li class="menu-group"><details><summary><span class="menu-label"><span class="menu-icon">□</span><span>Produtos</span></span><span class="arrow">⌄</span></summary><ul class="submenu"><li><a href="/produtos">Gerenciar produtos</a></li><li>Opções auxiliares</li></ul></details></li>
-                <li class="menu-group"><details><summary><span class="menu-label"><span class="menu-icon">⚙</span><span>Serviços</span></span><span class="arrow">⌄</span></summary><ul class="submenu"><li><a href="/servicos">Gerenciar serviços</a></li><li>Opções auxiliares</li></ul></details></li>
-                <li class="menu-group"><details><summary><span class="menu-label"><span class="menu-icon">▣</span><span>Orçamentos</span></span><span class="arrow">⌄</span></summary><ul class="submenu"><li><a href="/orcamentos">Produtos</a></li><li><a href="/orcamentos">Serviços</a></li><li>Opções auxiliares</li></ul></details></li>
-                <li class="menu-group"><details open><summary><span class="menu-label"><span class="menu-icon">▤</span><span>Vendas</span></span><span class="arrow">⌄</span></summary><ul class="submenu"><li class="submenu-active"><a href="/vendas">Produtos</a></li><li><a href="/vendas">Serviços</a></li><li><a href="/vendas">Balcão</a></li><li><a href="/vendas">Devoluções</a></li><li><a href="/vendas">Opções auxiliares</a></li></ul></details></li>
-                <li class="menu-group"><details><summary><span class="menu-label"><span class="menu-icon">✚</span><span>Ordens de Serviço</span></span><span class="arrow">⌄</span></summary><ul class="submenu"><li>Gerenciar O.S.</li><li>Painel</li><li>Opções auxiliares</li></ul></details></li>
-                <li class="menu-group"><details><summary><span class="menu-label"><span class="menu-icon">▧</span><span>Estoque</span></span><span class="arrow">⌄</span></summary><ul class="submenu"><li>Movimentações</li><li>Ajustes</li><li>Transferências</li><li>Cotações</li><li>Compras</li><li>Opções auxiliares</li></ul></details></li>
-                <li class="menu-group"><details><summary><span class="menu-label"><span class="menu-icon">◈</span><span>Financeiro</span></span><span class="arrow">⌄</span></summary><ul class="submenu"><li>Contas a pagar</li><li>Contas a receber</li><li>Fluxo de caixa</li><li>Contas bancárias</li><li>Opções auxiliares</li></ul></details></li>
+
+                <li class="menu-item">
+                    <a href="/">
+                        <span class="menu-icon">⌂</span>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">☷</span>
+                                <span>Cadastros</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/clientes">Clientes</a></li>
+                            <li><a href="/fornecedores">Fornecedores</a></li>
+                            <li><a href="/funcionarios">Funcionários</a></li>
+                            <li>Veículos</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">□</span>
+                                <span>Produtos</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/produtos">Gerenciar produtos</a></li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">⚙</span>
+                                <span>Serviços</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/servicos">Gerenciar serviços</a></li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▣</span>
+                                <span>Orçamentos</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/orcamentos">Produtos</a></li>
+                            <li><a href="/orcamentos">Serviços</a></li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details open>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▤</span>
+                                <span>Vendas</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li class="submenu-active"><a href="/vendas">Produtos</a></li>
+                            <li><a href="/vendas">Serviços</a></li>
+                            <li><a href="/vendas">Balcão</a></li>
+                            <li><a href="/vendas/devolucoes">Devoluções</a></li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">✚</span>
+                                <span>Ordens de Serviço</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/ordens-servico">Gerenciar O.S.</a></li>
+                            <li><a href="/ordens-servico/painel">Painel</a></li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▧</span>
+                                <span>Estoque</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/estoque/movimentacoes">Movimentações</a></li>
+                            <li><a href="/estoque/ajustes">Ajustes</a></li>
+                            <li><a href="/estoque/compras">Compras</a></li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">◈</span>
+                                <span>Financeiro</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li>Contas a pagar</li>
+                            <li>Contas a receber</li>
+                            <li>Fluxo de caixa</li>
+                            <li>Contas bancárias</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
             </ul>
         </nav>
-        <div class="sidebar-footer"><div class="footer-item">⚙ Configurações</div><div class="footer-item">? Ajuda</div></div>
+
+        <div class="sidebar-footer">
+            <div class="footer-item">⚙ Configurações</div>
+            <div class="footer-item">? Ajuda</div>
+        </div>
+
     </aside>
 
     <main class="content vendas-page">

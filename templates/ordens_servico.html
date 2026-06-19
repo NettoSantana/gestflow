@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordens_servico.html
-Último recode: 2026-06-16 22:25 (America/Bahia)
-Motivo: Ligar links de impressão A4, cupom e geração de cópia da OS no menu verde.
+Último recode: 2026-06-19 07:45 (America/Bahia)
+Motivo: Padronizar menu lateral, links do financeiro, configurações e admin.
 -->
 
 <!DOCTYPE html>
@@ -148,111 +148,85 @@ Motivo: Ligar links de impressão A4, cupom e geração de cópia da OS no menu 
             overflow: visible;
         }
 
-        .budget-action-menu {
+        .os-action-wrap {
             position: relative;
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
         }
 
-        .budget-action-trigger {
-            list-style: none;
-            width: 34px;
-            height: 34px;
+        .os-more-button {
+            min-width: 32px;
+            height: 32px;
+            border: none;
             border-radius: 8px;
             background: #16a34a;
             color: #ffffff;
+            font-weight: 900;
+            cursor: pointer;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            cursor: pointer;
-            font-weight: 800;
-            border: none;
-            box-shadow: 0 8px 18px rgba(22, 163, 74, 0.20);
-            user-select: none;
+            box-shadow: 0 6px 14px rgba(22, 163, 74, 0.18);
         }
 
-        .budget-action-trigger::-webkit-details-marker {
-            display: none;
+        .os-more-button:hover {
+            background: #15803d;
         }
 
-        .budget-action-trigger::marker {
-            content: "";
-        }
-
-        .budget-action-panel {
-            position: fixed;
-            z-index: 9999;
-            min-width: 190px;
+        .os-more-menu {
+            position: absolute;
+            top: 38px;
+            right: 0;
+            width: 210px;
             background: #ffffff;
-            border: 1px solid #d8dee8;
+            border: 1px solid #dbe3ef;
             border-radius: 10px;
-            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.20);
-            padding: 6px;
+            box-shadow: 0 18px 38px rgba(15, 23, 42, 0.16);
+            padding: 8px;
+            z-index: 50;
             display: none;
-        }
-
-        .budget-action-dropdown[open] .budget-action-panel {
-            display: block;
-        }
-
-        .budget-action-submenu {
-            border-radius: 8px;
-        }
-
-        .budget-action-submenu summary,
-        .budget-action-panel a,
-        .budget-action-panel button {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 9px 10px;
-            color: #1f2937;
-            text-decoration: none;
-            font-size: 13px;
-            cursor: pointer;
-            border-radius: 8px;
-            white-space: nowrap;
-            width: 100%;
-            border: none;
-            background: transparent;
-            font-family: inherit;
             text-align: left;
         }
 
-        .budget-action-submenu summary::-webkit-details-marker {
-            display: none;
+        .os-more-menu.open {
+            display: block;
         }
 
-        .budget-action-submenu summary::marker {
-            content: "";
+        .os-more-menu a,
+        .os-more-menu button {
+            width: 100%;
+            border: none;
+            background: transparent;
+            color: #334155;
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 9px 10px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 13px;
+            cursor: pointer;
+            font-family: inherit;
         }
 
-        .budget-action-submenu summary::after {
-            content: "›";
-            margin-left: auto;
-            font-weight: 800;
-        }
-
-        .budget-action-submenu summary:hover,
-        .budget-action-panel a:hover,
-        .budget-action-panel button:hover {
+        .os-more-menu a:hover,
+        .os-more-menu button:hover {
             background: #f1f5f9;
         }
 
-        .budget-action-submenu[open] summary {
-            background: #0f172a;
-            color: #ffffff;
+        .os-more-menu .os-more-danger {
+            color: #dc2626;
         }
 
-        .budget-action-subitems {
-            padding-left: 10px;
-            border-left: 2px solid #e5e7eb;
-            margin-left: 12px;
+        .os-more-divider {
+            height: 1px;
+            background: #e2e8f0;
+            margin: 6px 0;
         }
 
-        .budget-action-row {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
+        .os-menu-form {
+            margin: 0;
         }
 
         @media (max-width: 1100px) {
@@ -291,6 +265,7 @@ Motivo: Ligar links de impressão A4, cupom e geração de cópia da OS no menu 
 <body>
 
     <aside class="sidebar">
+
         <div class="brand">
             <div class="brand-mark">GF</div>
             <h2>GESTFLOW</h2>
@@ -298,67 +273,180 @@ Motivo: Ligar links de impressão A4, cupom e geração de cópia da OS no menu 
 
         <nav class="sidebar-nav">
             <ul class="menu">
-                <li class="menu-item"><a href="/"><span class="menu-icon">⌂</span><span>Dashboard</span></a></li>
+
+                <li class="menu-item">
+                    <a href="/">
+                        <span class="menu-icon">⌂</span>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
 
                 <li class="menu-group">
                     <details>
-                        <summary><span class="menu-label"><span class="menu-icon">☷</span><span>Cadastros</span></span><span class="arrow">⌄</span></summary>
-                        <ul class="submenu"><li><a href="/clientes">Clientes</a></li><li><a href="/fornecedores">Fornecedores</a></li><li><a href="/funcionarios">Funcionários</a></li><li>Veículos</li><li>Opções auxiliares</li></ul>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">☷</span>
+                                <span>Cadastros</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/clientes">Clientes</a></li>
+                            <li><a href="/fornecedores">Fornecedores</a></li>
+                            <li><a href="/funcionarios">Funcionários</a></li>
+                            <li>Veículos</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
                     </details>
                 </li>
 
                 <li class="menu-group">
                     <details>
-                        <summary><span class="menu-label"><span class="menu-icon">□</span><span>Produtos</span></span><span class="arrow">⌄</span></summary>
-                        <ul class="submenu"><li><a href="/produtos">Gerenciar produtos</a></li><li>Opções auxiliares</li></ul>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">□</span>
+                                <span>Produtos</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/produtos">Gerenciar produtos</a></li>
+                            <li>Opções auxiliares</li>
+                        </ul>
                     </details>
                 </li>
 
                 <li class="menu-group">
                     <details>
-                        <summary><span class="menu-label"><span class="menu-icon">⚙</span><span>Serviços</span></span><span class="arrow">⌄</span></summary>
-                        <ul class="submenu"><li><a href="/servicos">Gerenciar serviços</a></li><li>Opções auxiliares</li></ul>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">⚙</span>
+                                <span>Serviços</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/servicos">Gerenciar serviços</a></li>
+                            <li>Opções auxiliares</li>
+                        </ul>
                     </details>
                 </li>
 
                 <li class="menu-group">
                     <details>
-                        <summary><span class="menu-label"><span class="menu-icon">▣</span><span>Orçamentos</span></span><span class="arrow">⌄</span></summary>
-                        <ul class="submenu"><li><a href="/orcamentos">Produtos</a></li><li><a href="/orcamentos">Serviços</a></li><li>Opções auxiliares</li></ul>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▣</span>
+                                <span>Orçamentos</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/orcamentos">Produtos</a></li>
+                            <li><a href="/orcamentos">Serviços</a></li>
+                            <li>Opções auxiliares</li>
+                        </ul>
                     </details>
                 </li>
 
                 <li class="menu-group">
                     <details>
-                        <summary><span class="menu-label"><span class="menu-icon">▤</span><span>Vendas</span></span><span class="arrow">⌄</span></summary>
-                        <ul class="submenu"><li><a href="/vendas">Produtos</a></li><li><a href="/vendas">Serviços</a></li><li><a href="/vendas">Balcão</a></li><li><a href="/vendas">Devoluções</a></li><li><a href="/vendas">Opções auxiliares</a></li></ul>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▤</span>
+                                <span>Vendas</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/vendas">Produtos</a></li>
+                            <li><a href="/vendas">Serviços</a></li>
+                            <li><a href="/vendas">Balcão</a></li>
+                            <li><a href="/vendas/devolucoes">Devoluções</a></li>
+                            <li>Opções auxiliares</li>
+                        </ul>
                     </details>
                 </li>
 
-                <li class="menu-group">
+                <li class="menu-group active">
                     <details open>
-                        <summary><span class="menu-label"><span class="menu-icon">✚</span><span>Ordens de Serviço</span></span><span class="arrow">⌄</span></summary>
-                        <ul class="submenu"><li class="submenu-active"><a href="/ordens-servico">Gerenciar O.S.</a></li><li><a href="/ordens-servico">Painel</a></li><li><a href="/ordens-servico">Opções auxiliares</a></li></ul>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">✚</span>
+                                <span>Ordens de Serviço</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li class="submenu-active"><a href="/ordens-servico">Gerenciar O.S.</a></li>
+                            <li><a href="/ordens-servico/painel">Painel</a></li>
+                            <li>Opções auxiliares</li>
+                        </ul>
                     </details>
                 </li>
 
                 <li class="menu-group">
                     <details>
-                        <summary><span class="menu-label"><span class="menu-icon">▧</span><span>Estoque</span></span><span class="arrow">⌄</span></summary>
-                        <ul class="submenu"><li>Movimentações</li><li>Ajustes</li><li>Transferências</li><li>Cotações</li><li>Compras</li><li>Opções auxiliares</li></ul>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▧</span>
+                                <span>Estoque</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/estoque/movimentacoes">Movimentações</a></li>
+                            <li><a href="/estoque/ajustes">Ajustes</a></li>
+                            <li><a href="/estoque/compras">Compras</a></li>
+                        </ul>
                     </details>
                 </li>
 
                 <li class="menu-group">
                     <details>
-                        <summary><span class="menu-label"><span class="menu-icon">◈</span><span>Financeiro</span></span><span class="arrow">⌄</span></summary>
-                        <ul class="submenu"><li>Contas a pagar</li><li>Contas a receber</li><li>Fluxo de caixa</li><li>Contas bancárias</li><li>Opções auxiliares</li></ul>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">◈</span>
+                                <span>Financeiro</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/financeiro/pagar">Contas a pagar</a></li>
+                            <li><a href="/financeiro/receber">Contas a receber</a></li>
+                            <li><a href="/financeiro/fluxo-caixa">Fluxo de caixa</a></li>
+                            <li>Contas bancárias</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
                     </details>
                 </li>
+
+                {% if usuario_logado and usuario_logado.email in ["admin@gestflow.local", "nettosantana@icloud.com"] %}
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">◆</span>
+                                <span>Admin</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/admin/empresas">Empresas</a></li>
+                        </ul>
+                    </details>
+                </li>
+                {% endif %}
+
             </ul>
         </nav>
 
-        <div class="sidebar-footer"><div class="footer-item">⚙ Configurações</div><div class="footer-item">? Ajuda</div></div>
+        <div class="sidebar-footer">
+            <a href="/configuracoes" class="footer-item" style="text-decoration: none;">⚙ Configurações</a>
+            <div class="footer-item">? Ajuda</div>
+        </div>
+
     </aside>
 
     <main class="content os-page">
@@ -552,32 +640,23 @@ Motivo: Ligar links de impressão A4, cupom e geração de cópia da OS no menu 
                                 <tr>
                                     <td>{{ os.id }}</td><td>{{ os.numero }}</td><td>{{ os.cliente }}</td><td>{{ os.equipamento }}</td><td><span class="status-pill {{ os.status }}">{{ os.status }}</span></td><td>{{ os.prioridade }}</td><td>{{ os.data_abertura }}</td><td>{{ os.valor_total }}</td>
                                     <td>
-                                        <div class="action-buttons budget-action-row">
+                                        <div class="action-buttons os-action-wrap">
                                             <a href="/ordens-servico/{{ os.id }}" title="Ver OS" aria-label="Ver OS" class="action-button view">🔍</a>
                                             <a href="/ordens-servico/{{ os.id }}/editar" title="Editar OS" aria-label="Editar OS" class="action-button edit">✎</a>
-                                            <form action="/ordens-servico/{{ os.id }}/excluir" method="post" onsubmit="return confirm('Deseja excluir esta OS?');" class="action-form">
+                                            <form action="/ordens-servico/{{ os.id }}/excluir" method="post" style="display:inline;" onsubmit="return confirm('Deseja excluir esta OS?');">
                                                 <button type="submit" class="action-button delete" title="Excluir OS" aria-label="Excluir OS">×</button>
                                             </form>
-                                            <div class="budget-action-menu">
-                                                <details class="budget-action-dropdown">
-                                                    <summary class="budget-action-trigger" title="Mais ações da OS" aria-label="Mais ações da OS">⌄</summary>
-                                                    <div class="budget-action-panel">
-                                                        <details class="budget-action-submenu">
-                                                            <summary>🖨 Imprimir</summary>
-                                                            <div class="budget-action-subitems">
-                                                                <a href="/ordens-servico/{{ os.id }}/imprimir/a4" target="_blank">A4</a>
-                                                                <a href="/ordens-servico/{{ os.id }}/imprimir/cupom" target="_blank">Cupom</a>
-                                                            </div>
-                                                        </details>
-
-                                                        <details class="budget-action-submenu">
-                                                            <summary>↻ Gerar</summary>
-                                                            <div class="budget-action-subitems">
-                                                                <a href="/ordens-servico/{{ os.id }}/gerar/copia">Cópia</a>
-                                                            </div>
-                                                        </details>
-                                                    </div>
-                                                </details>
+                                            <button type="button" class="os-more-button" title="Mais ações" aria-label="Mais ações da OS" onclick="alternarMenuOs(this)">⌄</button>
+                                            <div class="os-more-menu">
+                                                <a href="/ordens-servico/{{ os.id }}">🔍 Ver detalhes</a>
+                                                <a href="/ordens-servico/{{ os.id }}/editar">✎ Editar OS</a>
+                                                <div class="os-more-divider"></div>
+                                                <button type="button" onclick="alert('Impressão da OS será ligada no próximo passo.');">▣ Imprimir A4</button>
+                                                <button type="button" onclick="alert('Cupom da OS será ligado no próximo passo.');">▤ Imprimir cupom</button>
+                                                <div class="os-more-divider"></div>
+                                                <form class="os-menu-form" action="/ordens-servico/{{ os.id }}/excluir" method="post" onsubmit="return confirm('Deseja excluir esta OS?');">
+                                                    <button type="submit" class="os-more-danger">× Excluir OS</button>
+                                                </form>
                                             </div>
                                         </div>
                                     </td>
@@ -646,6 +725,24 @@ Motivo: Ligar links de impressão A4, cupom e geração de cópia da OS no menu 
             }
 
 
+            function alternarMenuOs(botao) {
+                const menuAtual = botao.parentElement.querySelector(".os-more-menu");
+                document.querySelectorAll(".os-more-menu.open").forEach(function(menu) {
+                    if (menu !== menuAtual) {
+                        menu.classList.remove("open");
+                    }
+                });
+                menuAtual.classList.toggle("open");
+            }
+
+            document.addEventListener("click", function(evento) {
+                if (!evento.target.closest(".os-action-wrap")) {
+                    document.querySelectorAll(".os-more-menu.open").forEach(function(menu) {
+                        menu.classList.remove("open");
+                    });
+                }
+            });
+
             function criarLinha(tipo, dados) {
                 const linha = document.createElement("tr");
                 const tipoLabel = tipo === "produto" ? "Produto" : "Serviço";
@@ -683,78 +780,6 @@ Motivo: Ligar links de impressão A4, cupom e geração de cópia da OS no menu 
                 if (corpo.children.length === 0) { adicionarItem(corpo.id.replace("-tbody", "")); }
             }
             document.addEventListener("DOMContentLoaded", function() { adicionarItem("produto"); adicionarItem("servico"); });
-
-            function posicionarMenuOrdemServico(menu) {
-                const trigger = menu.querySelector(".budget-action-trigger");
-                const panel = menu.querySelector(".budget-action-panel");
-
-                if (!trigger || !panel) {
-                    return;
-                }
-
-                const rect = trigger.getBoundingClientRect();
-                const largura = 190;
-                const margem = 8;
-                let left = rect.right - largura;
-
-                if (left < margem) {
-                    left = margem;
-                }
-
-                if (left + largura > window.innerWidth - margem) {
-                    left = window.innerWidth - largura - margem;
-                }
-
-                const alturaEstimativa = 170;
-                let top = rect.bottom + margem;
-
-                if (top + alturaEstimativa > window.innerHeight - margem) {
-                    top = rect.top - alturaEstimativa - margem;
-                }
-
-                if (top < margem) {
-                    top = margem;
-                }
-
-                panel.style.top = top + "px";
-                panel.style.left = left + "px";
-            }
-
-            document.addEventListener("toggle", function(event) {
-                const menu = event.target;
-
-                if (!menu.classList || !menu.classList.contains("budget-action-dropdown")) {
-                    return;
-                }
-
-                if (menu.open) {
-                    document.querySelectorAll(".budget-action-dropdown[open]").forEach(function(outroMenu) {
-                        if (outroMenu !== menu) {
-                            outroMenu.removeAttribute("open");
-                        }
-                    });
-
-                    posicionarMenuOrdemServico(menu);
-                }
-            }, true);
-
-            document.addEventListener("click", function(event) {
-                if (event.target.closest(".budget-action-menu")) {
-                    return;
-                }
-
-                document.querySelectorAll(".budget-action-dropdown[open]").forEach(function(menu) {
-                    menu.removeAttribute("open");
-                });
-            });
-
-            window.addEventListener("scroll", function() {
-                document.querySelectorAll(".budget-action-dropdown[open]").forEach(posicionarMenuOrdemServico);
-            }, true);
-
-            window.addEventListener("resize", function() {
-                document.querySelectorAll(".budget-action-dropdown[open]").forEach(posicionarMenuOrdemServico);
-            });
         </script>
 
     </main>
