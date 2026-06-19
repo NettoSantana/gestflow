@@ -4731,7 +4731,7 @@ def salvar_configuracoes_empresa() -> Response:
     if dados["nome_fantasia"]:
         atualizar_empresa_configuracoes_db(dados)
 
-    return redirect(url_for("configuracoes") + "/empresa")
+    return redirect("/configuracoes/empresa")
 
 
 @app.post("/configuracoes/marca")
@@ -4742,7 +4742,7 @@ def salvar_configuracoes_marca() -> Response:
         logo_path = salvar_upload_logo_empresa(arquivo)
         salvar_logo_empresa_db(logo_path)
 
-    return redirect(url_for("configuracoes") + "/marca")
+    return redirect("/configuracoes/marca")
 
 
 @app.get("/portal")
