@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-19 08:30 (America/Bahia)
-# Motivo: Permitir criar acesso novo ou resetar senha de login existente no Admin.
+# Último recode: 2026-06-19 08:35 (America/Bahia)
+# Motivo: Corrigir reset de senha e login com senha temporaria.
 
 from __future__ import annotations
 
@@ -73,20 +73,23 @@ def buscar_usuario_por_email(email: str) -> dict[str, Any] | None:
 
 
 def autenticar_usuario(email: str, senha: str) -> dict[str, Any] | None:
-    usuario = buscar_usuario_por_email(email)
+    email_normalizado = str(email or "").strip().lower()
+    senha_normalizada = str(senha or "").strip()
+
+    usuario = buscar_usuario_por_email(email_normalizado)
 
     if usuario is None:
         return None
 
-    if str(usuario.get("status") or "").strip() != "ativo":
+    if str(usuario.get("status") or "").strip().lower() != "ativo":
         return None
 
-    if str(usuario.get("empresa_status") or "").strip() != "ativo":
+    if str(usuario.get("empresa_status") or "").strip().lower() != "ativo":
         return None
 
     senha_hash = str(usuario.get("senha_hash") or "")
 
-    if not senha_hash or not check_password_hash(senha_hash, senha):
+    if not senha_hash or not check_password_hash(senha_hash, senha_normalizada):
         return None
 
     return usuario
@@ -4126,6 +4129,35 @@ def email_usuario_ja_existe(email: str) -> bool:
     return row is not None
 
 
+def buscar_usuario_admin_por_email(email: str) -> dict[str, Any] | None:
+    email_normalizado = str(email or "").strip().lower()
+
+    if not email_normalizado:
+        return None
+
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                id,
+                empresa_id,
+                nome,
+                email,
+                perfil,
+                status
+            FROM usuarios
+            WHERE LOWER(email) = ?
+            LIMIT 1
+            """,
+            (email_normalizado,),
+        ).fetchone()
+
+    if row is None:
+        return None
+
+    return dict(row)
+
+
 def montar_empresa_admin_formulario() -> dict[str, str]:
     return {
         "admin_nome": (request.form.get("usuario_admin_nome") or "").strip(),
@@ -4217,19 +4249,22 @@ def criar_empresa_cliente_db(dados: dict[str, str]) -> int:
 
 def atualizar_senha_acesso_admin_db(dados: dict[str, str]) -> int | None:
     admin_email = str(dados.get("admin_email") or "").strip().lower()
+    admin_senha = str(dados.get("admin_senha") or "").strip()
 
-    if not admin_email:
+    if not admin_email or not admin_senha:
         return None
 
-    usuario_existente = buscar_usuario_por_email(admin_email)
+    usuario_existente = buscar_usuario_admin_por_email(admin_email)
 
     if usuario_existente is None:
         return None
 
     usuario_id = int(usuario_existente["id"])
     empresa_id = int(usuario_existente["empresa_id"])
-    admin_nome = dados["admin_nome"] or str(usuario_existente.get("nome") or "Cliente GestFlow")
-    status_empresa = dados["status"] if dados["status"] in {"ativo", "bloqueado", "cancelado"} else "ativo"
+    admin_nome = str(dados.get("admin_nome") or usuario_existente.get("nome") or "Cliente GestFlow").strip()
+    plano = str(dados.get("plano") or "Start").strip() or "Start"
+
+    senha_hash_nova = generate_password_hash(admin_senha)
 
     with conectar_db() as conn:
         conn.execute(
@@ -4237,13 +4272,16 @@ def atualizar_senha_acesso_admin_db(dados: dict[str, str]) -> int | None:
             UPDATE usuarios
             SET
                 nome = ?,
+                email = ?,
                 senha_hash = ?,
+                perfil = 'administrador',
                 status = 'ativo'
             WHERE id = ?
             """,
             (
                 admin_nome,
-                generate_password_hash(dados["admin_senha"]),
+                admin_email,
+                senha_hash_nova,
                 usuario_id,
             ),
         )
@@ -4254,21 +4292,36 @@ def atualizar_senha_acesso_admin_db(dados: dict[str, str]) -> int | None:
             SET
                 email = ?,
                 plano = ?,
-                status = ?
+                status = 'ativo'
             WHERE id = ?
             """,
             (
                 admin_email,
-                dados["plano"],
-                status_empresa,
+                plano,
                 empresa_id,
             ),
         )
 
+        conn.execute(
+            """
+            UPDATE lojas
+            SET status = 'ativo'
+            WHERE empresa_id = ?
+            """,
+            (empresa_id,),
+        )
+
         conn.commit()
 
-    return empresa_id
+    usuario_teste = buscar_usuario_por_email(admin_email)
 
+    if usuario_teste is None:
+        return None
+
+    if not check_password_hash(str(usuario_teste.get("senha_hash") or ""), admin_senha):
+        return None
+
+    return empresa_id
 
 def atualizar_status_empresa_admin_db(empresa_id: int, status: str) -> None:
     status_normalizado = str(status or "").strip()
@@ -4393,7 +4446,7 @@ def admin_empresas() -> str | Response:
             if empresa_id is None:
                 erro = "Este e-mail já existe, mas não foi possível atualizar a senha."
             else:
-                sucesso = f"Login existente atualizado com sucesso. Nova senha liberada para o ID {empresa_id}."
+                sucesso = f"Senha atualizada com sucesso. Login ativo e empresa ativa para o ID {empresa_id}."
                 formulario = {
                     "plano": "Start",
                     "status": "ativo",
@@ -4490,7 +4543,7 @@ def login() -> str | Response:
 
     if request.method == "POST":
         email = (request.form.get("email") or "").strip().lower()
-        senha = request.form.get("senha") or ""
+        senha = (request.form.get("senha") or "").strip()
 
         usuario = autenticar_usuario(email, senha)
 

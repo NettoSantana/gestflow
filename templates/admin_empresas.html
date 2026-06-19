@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\admin_empresas.html
-Último recode: 2026-06-19 08:30 (America/Bahia)
-Motivo: Permitir criar acesso novo ou atualizar senha de login existente.
+Último recode: 2026-06-19 08:35 (America/Bahia)
+Motivo: Corrigir gerador de senha sem caracteres confusos e reset de acesso.
 -->
 
 <!DOCTYPE html>
@@ -324,9 +324,10 @@ Motivo: Permitir criar acesso novo ou atualizar senha de login existente.
                     <div class="form-group">
                         <label for="usuario_admin_senha">Senha inicial *</label>
                         <div style="display: flex; gap: 8px;">
-                            <input id="usuario_admin_senha" name="usuario_admin_senha" type="text" value="{{ formulario.admin_senha }}" placeholder="Clique em Gerar senha" class="form-control">
+                            <input id="usuario_admin_senha" name="usuario_admin_senha" type="text" value="{{ formulario.admin_senha }}" placeholder="Clique em Gerar senha" autocomplete="new-password" class="form-control">
                             <button type="button" class="btn-light" onclick="gerarSenhaGestFlow()" style="white-space: nowrap;">Gerar senha</button>
                         </div>
+                        <small style="display:block; margin-top:6px; color:#64748b; font-weight:700;">A nova senha não usa símbolos para evitar erro de cópia.</small>
                     </div>
 
                     <div class="form-group">
@@ -436,8 +437,7 @@ Motivo: Permitir criar acesso novo ou atualizar senha de login existente.
             const letrasMaiusculas = "ABCDEFGHJKLMNPQRSTUVWXYZ";
             const letrasMinusculas = "abcdefghijkmnopqrstuvwxyz";
             const numeros = "23456789";
-            const simbolos = "@#$%";
-            const todos = letrasMaiusculas + letrasMinusculas + numeros + simbolos;
+            const todos = letrasMaiusculas + letrasMinusculas + numeros;
 
             function numeroSeguro(maximo) {
                 const array = new Uint32Array(1);
@@ -449,12 +449,12 @@ Motivo: Permitir criar acesso novo ou atualizar senha de login existente.
                 return texto[numeroSeguro(texto.length)];
             }
 
-            let senha = "Gf-";
+            let senha = "GF";
             senha += escolher(numeros);
             senha += escolher(numeros);
             senha += escolher(letrasMaiusculas);
             senha += escolher(letrasMinusculas);
-            senha += escolher(simbolos);
+            senha += escolher(todos);
             senha += escolher(todos);
             senha += escolher(todos);
             senha += escolher(todos);
