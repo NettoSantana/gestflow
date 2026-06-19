@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_detalhe.html
-Último recode: 2026-06-18 21:20 (America/Bahia)
-Motivo: Padronizar links do menu lateral na primeira leva de telas.
+Último recode: 2026-06-19 10:10 (America/Bahia)
+Motivo: Exibir descrição do serviço/escopo no detalhe do orçamento.
 -->
 
 <!DOCTYPE html>
@@ -184,7 +184,7 @@ Motivo: Padronizar links do menu lateral na primeira leva de telas.
                     </details>
                 </li>
 
-                <li class="menu-group active">
+                <li class="menu-group">
                     <details open>
                         <summary>
                             <span class="menu-label">
@@ -264,37 +264,20 @@ Motivo: Padronizar links do menu lateral na primeira leva de telas.
                             <span class="arrow">⌄</span>
                         </summary>
                         <ul class="submenu">
-                            <li><a href="/financeiro/pagar">Contas a pagar</a></li>
-                            <li><a href="/financeiro/receber">Contas a receber</a></li>
-                            <li><a href="/financeiro/fluxo-caixa">Fluxo de caixa</a></li>
+                            <li>Contas a pagar</li>
+                            <li>Contas a receber</li>
+                            <li>Fluxo de caixa</li>
                             <li>Contas bancárias</li>
                             <li>Opções auxiliares</li>
                         </ul>
                     </details>
                 </li>
 
-                {% if usuario_logado and usuario_logado.email in ["admin@gestflow.local", "nettosantana@icloud.com"] %}
-                <li class="menu-group">
-                    <details>
-                        <summary>
-                            <span class="menu-label">
-                                <span class="menu-icon">◆</span>
-                                <span>Admin</span>
-                            </span>
-                            <span class="arrow">⌄</span>
-                        </summary>
-                        <ul class="submenu">
-                            <li><a href="/admin/empresas">Empresas</a></li>
-                        </ul>
-                    </details>
-                </li>
-                {% endif %}
-
             </ul>
         </nav>
 
         <div class="sidebar-footer">
-            <a href="/configuracoes" class="footer-item" style="text-decoration: none;">⚙ Configurações</a>
+            <div class="footer-item">⚙ Configurações</div>
             <div class="footer-item">? Ajuda</div>
         </div>
 
@@ -303,37 +286,8 @@ Motivo: Padronizar links do menu lateral na primeira leva de telas.
     <main class="content">
 
         <header class="topbar">
-            <div class="topbar-left">
-                <button class="menu-toggle" type="button" aria-label="Abrir menu">☰</button>
-                <h1>Orçamento</h1>
-            </div>
-
-            <div class="topbar-right">
-                <div class="topbar-date">
-                    <span class="topbar-icon">▣</span>
-                    <span>{{ data_atual|default('2026-06-19') }}</span>
-                </div>
-
-                <div class="notification">
-                    <span class="topbar-icon">🔔</span>
-                    <span class="notification-badge">0</span>
-                </div>
-
-                {% set nome_topbar = usuario_logado.nome if usuario_logado and usuario_logado.nome else 'Usuário' %}
-                {% set partes_nome_topbar = nome_topbar.split() %}
-                {% set iniciais_topbar = (partes_nome_topbar[0][0] if partes_nome_topbar|length > 0 else 'U') ~ (partes_nome_topbar[1][0] if partes_nome_topbar|length > 1 else '') %}
-
-                <div class="user-profile">
-                    <div class="avatar">{{ iniciais_topbar|upper }}</div>
-                    <div class="user-info">
-                        <strong>{{ nome_topbar }}</strong>
-                        <span>{{ usuario_logado.perfil|default('Usuário') if usuario_logado else 'Usuário' }}</span>
-                    </div>
-                    <span class="profile-arrow">⌄</span>
-                </div>
-
-                <a href="/sair" class="logout-button" style="height:36px;padding:0 14px;border:1px solid #d7e1ef;border-radius:10px;background:#ffffff;color:#dc2626;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;text-decoration:none;">Sair</a>
-            </div>
+            <div class="topbar-left"><button class="menu-toggle" type="button" aria-label="Abrir menu">☰</button><h1>Orçamento</h1></div>
+            <div class="topbar-right"><div class="topbar-date"><span class="topbar-icon">▣</span><span>13/06/2026</span></div><div class="notification"><span class="topbar-icon">🔔</span><span class="notification-badge">0</span></div><div class="user-profile"><div class="avatar">NS</div><div class="user-info"><strong>Netto Santana</strong><span>Administrador</span></div><span class="profile-arrow">⌄</span></div></div>
         </header>
 
         <section class="panel page-section"><div class="panel-header page-header"><div><span class="page-kicker">Orçamentos</span><h3 class="page-title">Detalhes do orçamento</h3><p class="page-subtitle">Visualize os dados principais, itens e totais do orçamento.</p></div><a href="/orcamentos" class="btn-dark">Voltar para Orçamentos</a></div></section>
@@ -364,7 +318,7 @@ Motivo: Padronizar links do menu lateral na primeira leva de telas.
                                                     </details>
                                                 </div>
                 </div></div><div class="table-shell"><table class="client-table"><thead><tr><th>Tipo</th><th>Descrição</th><th>Detalhes</th><th>Qtd</th><th>Valor unit.</th><th>Desconto</th><th>Subtotal</th></tr></thead><tbody>{% if itens %}{% for item in itens %}<tr><td>{{ item.tipo_item }}</td><td>{{ item.descricao }}</td><td>{{ item.detalhes }}</td><td>{{ item.quantidade }}</td><td>{{ item.valor_unitario }}</td><td>{{ item.desconto }}</td><td>{{ item.subtotal }}</td></tr>{% endfor %}{% else %}<tr><td colspan="7" class="empty-table">Nenhum item informado.</td></tr>{% endif %}</tbody></table></div></section>
-        <section class="panel page-section"><div class="panel-header page-header"><div><h3>Totais e observações</h3><p class="page-subtitle">Resumo financeiro e informações complementares.</p></div></div><div class="panel-summary"><div><span>Total produtos</span><strong>{{ orcamento.total_produtos or '0,00' }}</strong></div><div><span>Total serviços</span><strong>{{ orcamento.total_servicos or '0,00' }}</strong></div><div><span>Desconto R$</span><strong>{{ orcamento.desconto_valor or '0,00' }}</strong></div><div><span>Desconto %</span><strong>{{ orcamento.desconto_percentual or '0' }}</strong></div><div><span>Valor total</span><strong>{{ orcamento.valor_total or '0,00' }}</strong></div><div><span>Introdução</span><strong>{{ orcamento.introducao or '-' }}</strong></div><div><span>Observações</span><strong>{{ orcamento.observacoes or '-' }}</strong></div><div><span>Observações internas</span><strong>{{ orcamento.observacoes_internas or '-' }}</strong></div><div><span>Data de cadastro</span><strong>{{ orcamento.criado_em or '-' }}</strong></div></div></section>
+        <section class="panel page-section"><div class="panel-header page-header"><div><h3>Totais e observações</h3><p class="page-subtitle">Resumo financeiro e informações complementares.</p></div></div><div class="panel-summary"><div><span>Total produtos</span><strong>{{ orcamento.total_produtos or '0,00' }}</strong></div><div><span>Total serviços</span><strong>{{ orcamento.total_servicos or '0,00' }}</strong></div><div><span>Desconto R$</span><strong>{{ orcamento.desconto_valor or '0,00' }}</strong></div><div><span>Desconto %</span><strong>{{ orcamento.desconto_percentual or '0' }}</strong></div><div><span>Valor total</span><strong>{{ orcamento.valor_total or '0,00' }}</strong></div><div><span>Introdução</span><strong>{{ orcamento.introducao or '-' }}</strong></div><div><span>Descrição do serviço / Escopo</span><strong style="white-space: pre-wrap;">{{ orcamento.descricao_servico or '-' }}</strong></div><div><span>Observações</span><strong>{{ orcamento.observacoes or '-' }}</strong></div><div><span>Observações internas</span><strong>{{ orcamento.observacoes_internas or '-' }}</strong></div><div><span>Data de cadastro</span><strong>{{ orcamento.criado_em or '-' }}</strong></div></div></section>
 
         <script>
             function posicionarMenuOrcamento(menu) {

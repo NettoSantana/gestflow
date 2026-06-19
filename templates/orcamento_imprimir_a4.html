@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_imprimir_a4.html
-Último recode: 2026-06-19 08:45 (America/Bahia)
-Motivo: Buscar dados cadastrados da empresa e do cliente na impressão A4 do orçamento.
+Último recode: 2026-06-13 22:45 (America/Bahia)
+Motivo: Criar impressão A4 do orçamento em HTML pronta para impressão e futura geração de PDF.
 -->
 
 <!DOCTYPE html>
@@ -243,20 +243,19 @@ Motivo: Buscar dados cadastrados da empresa e do cliente na impressão A4 do or�
     </div>
 
     <main class="page">
+        {% set descricao_servico_orcamento = orcamento.descricao_servico or '' %}
         <header class="header">
             <div class="logo-box">
                 GESTFLOW<br>ORÇAMENTO
             </div>
 
             <div class="company-name">
-                {{ empresa.nome_fantasia or empresa.razao_social or 'GESTFLOW' }}
+                GESTFLOW
             </div>
 
             <div class="company-info">
-                {% if empresa.documento %}{{ empresa.documento }}<br>{% endif %}
-                {{ empresa.telefone or '-' }}<br>
-                {{ empresa.email or '-' }}<br>
-                {% if loja.cidade %}{{ loja.cidade }}<br>{% endif %}
+                (71) 00000-0000<br>
+                contato@gestflow.com.br<br>
                 Vendedor: <strong>{{ orcamento.responsavel or 'Administrador' }}</strong><br>
                 Aos cuidados de: <strong>{{ orcamento.cliente or '-' }}</strong>
             </div>
@@ -268,23 +267,23 @@ Motivo: Buscar dados cadastrados da empresa e do cliente na impressão A4 do or�
         </section>
 
         <p class="intro">
-            {{ orcamento.introducao or ((empresa.nome_fantasia or 'A empresa') ~ ' apresenta abaixo sua proposta comercial para fornecimento de produtos e/ou execução de serviços conforme solicitado:') }}
+            {{ orcamento.introducao or 'O GESTFLOW apresenta abaixo sua proposta comercial para fornecimento de produtos e/ou execução de serviços conforme solicitado:' }}
         </p>
 
-        <div class="section-title">PREVISÃO DE ENTREGA: {{ orcamento.prazo_entrega or '-' }}</div>
+        <div class="section-title">VALIDADE DA PROPOSTA: {{ orcamento.validade or '-' }}</div>
 
         <div class="section-title">DADOS DO CLIENTE</div>
         <table class="info-table">
             <tbody>
                 <tr>
                     <td class="label">Razão social:</td>
-                    <td>{{ cliente.nome if cliente else (orcamento.cliente or '-') }}</td>
+                    <td>{{ orcamento.cliente or '-' }}</td>
                     <td class="label">Nome fantasia:</td>
-                    <td>{{ cliente.nome if cliente else (orcamento.cliente or '-') }}</td>
+                    <td>{{ orcamento.cliente or '-' }}</td>
                 </tr>
                 <tr>
                     <td class="label">CNPJ/CPF:</td>
-                    <td>{{ cliente.documento if cliente and cliente.documento else '-' }}</td>
+                    <td>-</td>
                     <td class="label">Endereço:</td>
                     <td>-</td>
                 </tr>
@@ -292,16 +291,21 @@ Motivo: Buscar dados cadastrados da empresa e do cliente na impressão A4 do or�
                     <td class="label">CEP:</td>
                     <td>-</td>
                     <td class="label">Cidade/UF:</td>
-                    <td>{{ cliente.cidade if cliente and cliente.cidade else '-' }}</td>
+                    <td>-</td>
                 </tr>
                 <tr>
                     <td class="label">Telefone:</td>
-                    <td>{{ cliente.telefone if cliente and cliente.telefone else '-' }}</td>
+                    <td>-</td>
                     <td class="label">E-mail:</td>
-                    <td>{{ cliente.email if cliente and cliente.email else '-' }}</td>
+                    <td>-</td>
                 </tr>
             </tbody>
         </table>
+
+        {% if descricao_servico_orcamento %}
+            <div class="section-title">DESCRIÇÃO DO SERVIÇO / ESCOPO</div>
+            <div class="observacoes" style="min-height: 65px;">{{ descricao_servico_orcamento }}</div>
+        {% endif %}
 
         {% if itens_servicos %}
             <div class="section-title">SERVIÇOS</div>
@@ -387,7 +391,10 @@ Motivo: Buscar dados cadastrados da empresa e do cliente na impressão A4 do or�
         </div>
 
         <div class="section-title">OBSERVAÇÕES</div>
-        <div class="observacoes">{{ orcamento.observacoes or '-' }}</div>
+        <div class="observacoes">{% if descricao_servico_orcamento %}ESCOPO 1
+{{ descricao_servico_orcamento }}{% if orcamento.observacoes %}
+
+{{ orcamento.observacoes }}{% endif %}{% else %}{{ orcamento.observacoes or '-' }}{% endif %}</div>
 
         <div class="assinatura">
             <div class="assinatura-line"></div>
@@ -395,7 +402,7 @@ Motivo: Buscar dados cadastrados da empresa e do cliente na impressão A4 do or�
         </div>
 
         <div class="footer">
-            Orçamento emitido no {{ empresa.nome_fantasia or 'GESTFLOW' }}
+            Orçamento emitido no GESTFLOW
         </div>
     </main>
 

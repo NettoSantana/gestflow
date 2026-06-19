@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_imprimir_cupom.html
-Último recode: 2026-06-19 08:45 (America/Bahia)
-Motivo: Buscar dados cadastrados da empresa e do cliente no cupom do orçamento.
+Último recode: 2026-06-13 22:45 (America/Bahia)
+Motivo: Criar impressão Cupom do orçamento em HTML pronta para impressão e futura geração de PDF.
 -->
 
 <!DOCTYPE html>
@@ -163,9 +163,8 @@ Motivo: Buscar dados cadastrados da empresa e do cliente no cupom do orçamento.
     </div>
 
     <main class="cupom">
-        <div class="center empresa">{{ empresa.nome_fantasia or empresa.razao_social or 'GESTFLOW' }}</div>
-        <div class="center">{{ empresa.telefone or '-' }}</div>
-        <div class="center">{{ empresa.email or '-' }}</div>
+        {% set descricao_servico_orcamento = orcamento.descricao_servico or '' %}
+        <div class="center empresa">GESTFLOW</div>
         <div class="center">Orçamento Nº {{ orcamento.numero or orcamento.id }}</div>
         <div class="center">Vendedor: {{ orcamento.responsavel or 'Administrador' }}</div>
 
@@ -174,13 +173,16 @@ Motivo: Buscar dados cadastrados da empresa e do cliente no cupom do orçamento.
         <div class="dados">
             <p><strong>Data:</strong> {{ orcamento.data or '-' }}</p>
             <p><strong>Entrega:</strong> {{ orcamento.prazo_entrega or '-' }}</p>
-            <p><strong>Cliente:</strong> {{ cliente.nome if cliente else (orcamento.cliente or '-') }}</p>
-            <p><strong>CPF/CNPJ:</strong> {{ cliente.documento if cliente and cliente.documento else '-' }}</p>
-            <p><strong>Telefone:</strong> {{ cliente.telefone if cliente and cliente.telefone else '-' }}</p>
-            <p><strong>E-mail:</strong> {{ cliente.email if cliente and cliente.email else '-' }}</p>
+            <p><strong>Cliente:</strong> {{ orcamento.cliente or '-' }}</p>
             <p><strong>Validade:</strong> {{ orcamento.validade or '-' }}</p>
             <p><strong>Pagamento:</strong> {{ orcamento.forma_pagamento or '-' }}</p>
         </div>
+
+        {% if descricao_servico_orcamento %}
+            <div class="linha"></div>
+            <div class="titulo">Descrição do serviço / Escopo</div>
+            <div class="obs">{{ descricao_servico_orcamento }}</div>
+        {% endif %}
 
         {% if itens_servicos %}
             <div class="linha"></div>
@@ -244,7 +246,10 @@ Motivo: Buscar dados cadastrados da empresa e do cliente no cupom do orçamento.
         <div class="linha"></div>
 
         <div class="titulo">Observações</div>
-        <div class="obs">{{ orcamento.observacoes or '-' }}</div>
+        <div class="obs">{% if descricao_servico_orcamento %}ESCOPO 1
+{{ descricao_servico_orcamento }}{% if orcamento.observacoes %}
+
+{{ orcamento.observacoes }}{% endif %}{% else %}{{ orcamento.observacoes or '-' }}{% endif %}</div>
 
         <div class="aviso">*** Este cupom não é documento fiscal ***</div>
 
@@ -253,7 +258,7 @@ Motivo: Buscar dados cadastrados da empresa e do cliente no cupom do orçamento.
             Assinatura do cliente
         </div>
 
-        <div class="footer">Software GESTFLOW<br>{{ empresa.nome_fantasia or 'GESTFLOW' }}</div>
+        <div class="footer">Software GESTFLOW</div>
     </main>
 
 </body>
