@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-18 22:08 (America/Bahia)
-# Motivo: Preparar dados funcionais do dashboard para gráficos, calendário e resumo financeiro real.
+# Último recode: 2026-06-18 22:18 (America/Bahia)
+# Motivo: Ligar rotas das novas telas de portal e login.
 
 from __future__ import annotations
 
@@ -3444,6 +3444,24 @@ def montar_dashboard() -> dict[str, Any]:
         "ultimas_vendas": ultimas_vendas,
         "financeiro": financeiro,
     }
+
+
+@app.get("/portal")
+def portal() -> str:
+    return render_template("portal.html")
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login() -> str | Response:
+    if request.method == "POST":
+        return redirect(url_for("dashboard"))
+
+    return render_template("login.html")
+
+
+@app.get("/sair")
+def sair() -> Response:
+    return redirect(url_for("login"))
 
 
 @app.get("/")
