@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_imprimir_cupom.html
-Último recode: 2026-06-13 22:45 (America/Bahia)
-Motivo: Criar impressão Cupom do orçamento em HTML pronta para impressão e futura geração de PDF.
+Último recode: 2026-06-19 08:45 (America/Bahia)
+Motivo: Buscar dados cadastrados da empresa e do cliente no cupom do orçamento.
 -->
 
 <!DOCTYPE html>
@@ -163,7 +163,9 @@ Motivo: Criar impressão Cupom do orçamento em HTML pronta para impressão e fu
     </div>
 
     <main class="cupom">
-        <div class="center empresa">GESTFLOW</div>
+        <div class="center empresa">{{ empresa.nome_fantasia or empresa.razao_social or 'GESTFLOW' }}</div>
+        <div class="center">{{ empresa.telefone or '-' }}</div>
+        <div class="center">{{ empresa.email or '-' }}</div>
         <div class="center">Orçamento Nº {{ orcamento.numero or orcamento.id }}</div>
         <div class="center">Vendedor: {{ orcamento.responsavel or 'Administrador' }}</div>
 
@@ -172,7 +174,10 @@ Motivo: Criar impressão Cupom do orçamento em HTML pronta para impressão e fu
         <div class="dados">
             <p><strong>Data:</strong> {{ orcamento.data or '-' }}</p>
             <p><strong>Entrega:</strong> {{ orcamento.prazo_entrega or '-' }}</p>
-            <p><strong>Cliente:</strong> {{ orcamento.cliente or '-' }}</p>
+            <p><strong>Cliente:</strong> {{ cliente.nome if cliente else (orcamento.cliente or '-') }}</p>
+            <p><strong>CPF/CNPJ:</strong> {{ cliente.documento if cliente and cliente.documento else '-' }}</p>
+            <p><strong>Telefone:</strong> {{ cliente.telefone if cliente and cliente.telefone else '-' }}</p>
+            <p><strong>E-mail:</strong> {{ cliente.email if cliente and cliente.email else '-' }}</p>
             <p><strong>Validade:</strong> {{ orcamento.validade or '-' }}</p>
             <p><strong>Pagamento:</strong> {{ orcamento.forma_pagamento or '-' }}</p>
         </div>
@@ -248,7 +253,7 @@ Motivo: Criar impressão Cupom do orçamento em HTML pronta para impressão e fu
             Assinatura do cliente
         </div>
 
-        <div class="footer">Software GESTFLOW</div>
+        <div class="footer">Software GESTFLOW<br>{{ empresa.nome_fantasia or 'GESTFLOW' }}</div>
     </main>
 
 </body>

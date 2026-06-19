@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-19 08:35 (America/Bahia)
-# Motivo: Corrigir reset de senha e login com senha temporaria.
+# Último recode: 2026-06-19 08:45 (America/Bahia)
+# Motivo: Impressões de orçamento e venda buscando dados cadastrados da empresa e do cliente.
 
 from __future__ import annotations
 
@@ -759,6 +759,107 @@ def buscar_cliente_por_id(cliente_id: int) -> dict[str, Any] | None:
 
     return dict(row)
 
+
+
+def buscar_cliente_por_nome(nome_cliente: str) -> dict[str, Any] | None:
+    empresa_id = empresa_logada_id()
+    nome_normalizado = str(nome_cliente or "").strip()
+
+    if not nome_normalizado:
+        return None
+
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                id,
+                empresa_id,
+                nome,
+                documento,
+                telefone,
+                cidade,
+                status,
+                email,
+                criado_em
+            FROM clientes
+            WHERE empresa_id = ?
+              AND LOWER(nome) = LOWER(?)
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            (empresa_id, nome_normalizado),
+        ).fetchone()
+
+        if row is None:
+            row = conn.execute(
+                """
+                SELECT
+                    id,
+                    empresa_id,
+                    nome,
+                    documento,
+                    telefone,
+                    cidade,
+                    status,
+                    email,
+                    criado_em
+                FROM clientes
+                WHERE empresa_id = ?
+                  AND LOWER(nome) LIKE LOWER(?)
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                (empresa_id, f"%{nome_normalizado}%"),
+            ).fetchone()
+
+    if row is None:
+        return None
+
+    return dict(row)
+
+
+def buscar_loja_principal_configuracoes() -> dict[str, Any]:
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                id,
+                empresa_id,
+                nome,
+                tipo,
+                cidade,
+                status,
+                criado_em
+            FROM lojas
+            WHERE empresa_id = ?
+            ORDER BY
+                CASE WHEN LOWER(tipo) = 'principal' THEN 0 ELSE 1 END,
+                id ASC
+            LIMIT 1
+            """,
+            (empresa_logada_id(),),
+        ).fetchone()
+
+    if row is None:
+        return {
+            "id": "",
+            "empresa_id": empresa_logada_id(),
+            "nome": "Matriz",
+            "tipo": "Principal",
+            "cidade": "",
+            "status": "ativo",
+            "criado_em": "",
+        }
+
+    return dict(row)
+
+
+def montar_contexto_impressao(nome_cliente: Any) -> dict[str, Any]:
+    return {
+        "empresa": buscar_empresa_configuracoes(),
+        "loja": buscar_loja_principal_configuracoes(),
+        "cliente": buscar_cliente_por_nome(str(nome_cliente or "")),
+    }
 
 def atualizar_cliente_db(cliente_id: int, cliente: dict[str, str]) -> None:
     empresa_id = empresa_logada_id()
@@ -5477,12 +5578,17 @@ def imprimir_venda_a4(venda_id: int) -> str | Response:
     itens_produtos = [item for item in itens if item["tipo_item"] == "produto"]
     itens_servicos = [item for item in itens if item["tipo_item"] == "servico"]
 
+    contexto_impressao = montar_contexto_impressao(venda.get("cliente"))
+
     return render_template(
         "venda_imprimir_a4.html",
         venda=venda,
         itens=itens,
         itens_produtos=itens_produtos,
         itens_servicos=itens_servicos,
+        empresa=contexto_impressao["empresa"],
+        loja=contexto_impressao["loja"],
+        cliente=contexto_impressao["cliente"],
     )
 
 
@@ -5497,12 +5603,17 @@ def imprimir_venda_cupom(venda_id: int) -> str | Response:
     itens_produtos = [item for item in itens if item["tipo_item"] == "produto"]
     itens_servicos = [item for item in itens if item["tipo_item"] == "servico"]
 
+    contexto_impressao = montar_contexto_impressao(venda.get("cliente"))
+
     return render_template(
         "venda_imprimir_cupom.html",
         venda=venda,
         itens=itens,
         itens_produtos=itens_produtos,
         itens_servicos=itens_servicos,
+        empresa=contexto_impressao["empresa"],
+        loja=contexto_impressao["loja"],
+        cliente=contexto_impressao["cliente"],
     )
 
 
@@ -5615,12 +5726,17 @@ def imprimir_orcamento_a4(orcamento_id: int) -> str | Response:
     itens_produtos = [item for item in itens if item["tipo_item"] == "produto"]
     itens_servicos = [item for item in itens if item["tipo_item"] == "servico"]
 
+    contexto_impressao = montar_contexto_impressao(orcamento.get("cliente"))
+
     return render_template(
         "orcamento_imprimir_a4.html",
         orcamento=orcamento,
         itens=itens,
         itens_produtos=itens_produtos,
         itens_servicos=itens_servicos,
+        empresa=contexto_impressao["empresa"],
+        loja=contexto_impressao["loja"],
+        cliente=contexto_impressao["cliente"],
     )
 
 
@@ -5635,12 +5751,17 @@ def imprimir_orcamento_cupom(orcamento_id: int) -> str | Response:
     itens_produtos = [item for item in itens if item["tipo_item"] == "produto"]
     itens_servicos = [item for item in itens if item["tipo_item"] == "servico"]
 
+    contexto_impressao = montar_contexto_impressao(orcamento.get("cliente"))
+
     return render_template(
         "orcamento_imprimir_cupom.html",
         orcamento=orcamento,
         itens=itens,
         itens_produtos=itens_produtos,
         itens_servicos=itens_servicos,
+        empresa=contexto_impressao["empresa"],
+        loja=contexto_impressao["loja"],
+        cliente=contexto_impressao["cliente"],
     )
 
 

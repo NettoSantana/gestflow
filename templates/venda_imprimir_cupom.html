@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\venda_imprimir_cupom.html
-Último recode: 2026-06-16 20:50 (America/Bahia)
-Motivo: Criar impressão tipo cupom da venda com dados essenciais, itens e total.
+Último recode: 2026-06-19 08:45 (America/Bahia)
+Motivo: Buscar dados cadastrados da empresa e do cliente no cupom da venda.
 -->
 
 <!DOCTYPE html>
@@ -134,13 +134,16 @@ Motivo: Criar impressão tipo cupom da venda com dados essenciais, itens e total
 
     <main class="cupom">
         <header class="brand center">
-            <h1>GESTFLOW</h1>
+            <h1>{{ empresa.nome_fantasia or empresa.razao_social or 'GESTFLOW' }}</h1>
+            <p>{{ empresa.telefone or '-' }} | {{ empresa.email or '-' }}</p>
             <p>COMPROVANTE DE VENDA</p>
             <p>Venda {{ venda.numero or venda.id }}</p>
         </header>
 
         <section>
-            <div class="row"><span class="label">Cliente</span><span class="value">{{ venda.cliente or '-' }}</span></div>
+            <div class="row"><span class="label">Cliente</span><span class="value">{{ cliente.nome if cliente else (venda.cliente or '-') }}</span></div>
+            <div class="row"><span class="label">CPF/CNPJ</span><span class="value">{{ cliente.documento if cliente and cliente.documento else '-' }}</span></div>
+            <div class="row"><span class="label">Telefone</span><span class="value">{{ cliente.telefone if cliente and cliente.telefone else '-' }}</span></div>
             <div class="row"><span class="label">Data</span><span class="value">{{ venda.data or '-' }}</span></div>
             <div class="row"><span class="label">Situação</span><span class="value">{{ venda.status or '-' }}</span></div>
             <div class="row"><span class="label">Pagamento</span><span class="value">{{ venda.forma_pagamento or '-' }}</span></div>
@@ -194,7 +197,7 @@ Motivo: Criar impressão tipo cupom da venda com dados essenciais, itens e total
 
         <footer class="center">
             <p>Obrigado pela preferência.</p>
-            <p>GESTFLOW</p>
+            <p>{{ empresa.nome_fantasia or 'GESTFLOW' }}</p>
         </footer>
     </main>
 </body>
