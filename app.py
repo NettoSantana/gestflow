@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-18 22:31 (America/Bahia)
-# Motivo: Ligar rotas da tela de Configurações.
+# Último recode: 2026-06-18 22:40 (America/Bahia)
+# Motivo: Criar base real de configurações com empresas, usuários e lojas.
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from flask import Flask, Response, redirect, render_template, request, url_for
+from werkzeug.security import generate_password_hash
 
 import config
 
@@ -311,6 +312,154 @@ def iniciar_banco() -> None:
             )
             """
         )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS empresas (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nome_fantasia TEXT NOT NULL,
+                razao_social TEXT,
+                documento TEXT,
+                email TEXT,
+                telefone TEXT,
+                plano TEXT NOT NULL DEFAULT 'Start',
+                status TEXT NOT NULL DEFAULT 'ativo',
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS usuarios (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER NOT NULL,
+                nome TEXT NOT NULL,
+                email TEXT NOT NULL UNIQUE,
+                senha_hash TEXT NOT NULL,
+                perfil TEXT NOT NULL DEFAULT 'administrador',
+                status TEXT NOT NULL DEFAULT 'ativo',
+                ultimo_login TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (empresa_id) REFERENCES empresas (id)
+            )
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS lojas (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER NOT NULL,
+                nome TEXT NOT NULL,
+                tipo TEXT NOT NULL DEFAULT 'Principal',
+                cidade TEXT,
+                status TEXT NOT NULL DEFAULT 'ativo',
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (empresa_id) REFERENCES empresas (id)
+            )
+            """
+        )
+
+        empresa_row = conn.execute(
+            """
+            SELECT id
+            FROM empresas
+            ORDER BY id ASC
+            LIMIT 1
+            """
+        ).fetchone()
+
+        if empresa_row is None:
+            cursor_empresa = conn.execute(
+                """
+                INSERT INTO empresas (
+                    nome_fantasia,
+                    razao_social,
+                    documento,
+                    email,
+                    telefone,
+                    plano,
+                    status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "GestFlow Demo",
+                    "GestFlow Demo",
+                    "",
+                    "",
+                    "",
+                    "Start",
+                    "ativo",
+                ),
+            )
+            empresa_id_inicial = int(cursor_empresa.lastrowid)
+        else:
+            empresa_id_inicial = int(empresa_row["id"])
+
+        usuario_row = conn.execute(
+            """
+            SELECT id
+            FROM usuarios
+            WHERE email = ?
+            LIMIT 1
+            """,
+            ("admin@gestflow.local",),
+        ).fetchone()
+
+        if usuario_row is None:
+            conn.execute(
+                """
+                INSERT INTO usuarios (
+                    empresa_id,
+                    nome,
+                    email,
+                    senha_hash,
+                    perfil,
+                    status,
+                    ultimo_login
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    empresa_id_inicial,
+                    "Netto Santana",
+                    "admin@gestflow.local",
+                    generate_password_hash("admin123"),
+                    "administrador",
+                    "ativo",
+                    "",
+                ),
+            )
+
+        loja_row = conn.execute(
+            """
+            SELECT id
+            FROM lojas
+            WHERE empresa_id = ?
+            LIMIT 1
+            """,
+            (empresa_id_inicial,),
+        ).fetchone()
+
+        if loja_row is None:
+            conn.execute(
+                """
+                INSERT INTO lojas (
+                    empresa_id,
+                    nome,
+                    tipo,
+                    cidade,
+                    status
+                ) VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    empresa_id_inicial,
+                    "Matriz",
+                    "Principal",
+                    "",
+                    "ativo",
+                ),
+            )
 
         colunas_ordens_servico = {
             "tecnico": "TEXT",
@@ -3447,9 +3596,29 @@ def montar_dashboard() -> dict[str, Any]:
 
 
 
-def montar_configuracoes_contexto() -> dict[str, Any]:
-    return {
-        "empresa": {
+def buscar_empresa_padrao_configuracoes() -> dict[str, Any]:
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                id,
+                nome_fantasia,
+                razao_social,
+                documento,
+                email,
+                telefone,
+                plano,
+                status,
+                criado_em
+            FROM empresas
+            ORDER BY id ASC
+            LIMIT 1
+            """
+        ).fetchone()
+
+    if row is None:
+        return {
+            "id": "",
             "nome_fantasia": "GestFlow Demo",
             "razao_social": "GestFlow Demo",
             "documento": "",
@@ -3457,23 +3626,80 @@ def montar_configuracoes_contexto() -> dict[str, Any]:
             "telefone": "",
             "plano": "Start",
             "status": "ativo",
-        },
-        "usuarios": [
-            {
-                "nome": "Netto Santana",
-                "email": "admin@gestflow.local",
-                "perfil": "Administrador",
-                "status": "ativo",
-            }
-        ],
-        "lojas": [
-            {
-                "nome": "Matriz",
-                "tipo": "Principal",
-                "cidade": "",
-                "status": "ativo",
-            }
-        ],
+            "criado_em": "",
+        }
+
+    return dict(row)
+
+
+def listar_usuarios_configuracoes(empresa_id: int | None = None) -> list[dict[str, Any]]:
+    consulta = """
+        SELECT
+            id,
+            empresa_id,
+            nome,
+            email,
+            perfil,
+            status,
+            ultimo_login,
+            criado_em
+        FROM usuarios
+    """
+    parametros: list[Any] = []
+
+    if empresa_id is not None:
+        consulta += " WHERE empresa_id = ?"
+        parametros.append(empresa_id)
+
+    consulta += " ORDER BY id ASC"
+
+    with conectar_db() as conn:
+        rows = conn.execute(consulta, parametros).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def listar_lojas_configuracoes(empresa_id: int | None = None) -> list[dict[str, Any]]:
+    consulta = """
+        SELECT
+            id,
+            empresa_id,
+            nome,
+            tipo,
+            cidade,
+            status,
+            criado_em
+        FROM lojas
+    """
+    parametros: list[Any] = []
+
+    if empresa_id is not None:
+        consulta += " WHERE empresa_id = ?"
+        parametros.append(empresa_id)
+
+    consulta += " ORDER BY id ASC"
+
+    with conectar_db() as conn:
+        rows = conn.execute(consulta, parametros).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def montar_configuracoes_contexto() -> dict[str, Any]:
+    empresa = buscar_empresa_padrao_configuracoes()
+
+    try:
+        empresa_id = int(empresa.get("id") or 0)
+    except (TypeError, ValueError):
+        empresa_id = 0
+
+    usuarios = listar_usuarios_configuracoes(empresa_id if empresa_id else None)
+    lojas = listar_lojas_configuracoes(empresa_id if empresa_id else None)
+
+    return {
+        "empresa": empresa,
+        "usuarios": usuarios,
+        "lojas": lojas,
     }
 
 
