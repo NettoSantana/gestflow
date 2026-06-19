@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-18 21:35 (America/Bahia)
-# Motivo: Reativar rotas de devolução de vendas no app.py.
+# Último recode: 2026-06-18 21:50 (America/Bahia)
+# Motivo: Criar primeira versão do módulo financeiro com títulos, contas a receber, contas a pagar e fluxo de caixa.
 
 from __future__ import annotations
 
@@ -285,6 +285,29 @@ def iniciar_banco() -> None:
                 observacoes TEXT,
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (produto_id) REFERENCES produtos (id)
+            )
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS financeiro_titulos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tipo TEXT NOT NULL DEFAULT 'receber',
+                descricao TEXT,
+                pessoa TEXT,
+                categoria TEXT,
+                origem TEXT NOT NULL DEFAULT 'manual',
+                origem_id INTEGER,
+                documento TEXT,
+                data_emissao TEXT,
+                data_vencimento TEXT,
+                data_pagamento TEXT,
+                valor TEXT,
+                forma_pagamento TEXT,
+                status TEXT NOT NULL DEFAULT 'aberto',
+                observacoes TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
             """
         )
@@ -2501,6 +2524,286 @@ def _converter_valor_brl(valor: Any) -> float:
         return 0.0
 
 
+def _formatar_moeda_brl(valor: float) -> str:
+    texto = f"{valor:,.2f}"
+    return texto.replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def _status_financeiro_calculado(titulo: dict[str, Any]) -> str:
+    status = str(titulo.get("status") or "aberto").strip() or "aberto"
+
+    if status != "aberto":
+        return status
+
+    vencimento = _converter_data_iso(titulo.get("data_vencimento"))
+
+    if vencimento is not None and vencimento < date.today():
+        return "vencido"
+
+    return status
+
+
+def _normalizar_status_financeiro(titulo: dict[str, Any]) -> dict[str, Any]:
+    titulo_normalizado = dict(titulo)
+    titulo_normalizado["status_exibicao"] = _status_financeiro_calculado(titulo_normalizado)
+    titulo_normalizado["valor_numero"] = _converter_valor_brl(titulo_normalizado.get("valor"))
+    return titulo_normalizado
+
+
+def salvar_financeiro_titulo_db(titulo: dict[str, str]) -> int:
+    with conectar_db() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO financeiro_titulos (
+                tipo,
+                descricao,
+                pessoa,
+                categoria,
+                origem,
+                origem_id,
+                documento,
+                data_emissao,
+                data_vencimento,
+                data_pagamento,
+                valor,
+                forma_pagamento,
+                status,
+                observacoes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                titulo["tipo"],
+                titulo["descricao"],
+                titulo["pessoa"],
+                titulo["categoria"],
+                titulo["origem"],
+                titulo["origem_id"],
+                titulo["documento"],
+                titulo["data_emissao"],
+                titulo["data_vencimento"],
+                titulo["data_pagamento"],
+                titulo["valor"],
+                titulo["forma_pagamento"],
+                titulo["status"],
+                titulo["observacoes"],
+            ),
+        )
+        titulo_id = int(cursor.lastrowid)
+        conn.commit()
+
+    return titulo_id
+
+
+def listar_financeiro_titulos(tipo: str | None = None, limite: int | None = None) -> list[dict[str, Any]]:
+    consulta = """
+        SELECT
+            id,
+            tipo,
+            descricao,
+            pessoa,
+            categoria,
+            origem,
+            origem_id,
+            documento,
+            data_emissao,
+            data_vencimento,
+            data_pagamento,
+            valor,
+            forma_pagamento,
+            status,
+            observacoes,
+            criado_em
+        FROM financeiro_titulos
+    """
+    parametros: list[Any] = []
+
+    if tipo:
+        consulta += " WHERE tipo = ?"
+        parametros.append(tipo)
+
+    consulta += " ORDER BY data_vencimento ASC, id DESC"
+
+    if limite is not None:
+        consulta += " LIMIT ?"
+        parametros.append(limite)
+
+    with conectar_db() as conn:
+        rows = conn.execute(consulta, parametros).fetchall()
+
+    return [_normalizar_status_financeiro(dict(row)) for row in rows]
+
+
+def buscar_financeiro_titulo_por_id(titulo_id: int) -> dict[str, Any] | None:
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                id,
+                tipo,
+                descricao,
+                pessoa,
+                categoria,
+                origem,
+                origem_id,
+                documento,
+                data_emissao,
+                data_vencimento,
+                data_pagamento,
+                valor,
+                forma_pagamento,
+                status,
+                observacoes,
+                criado_em
+            FROM financeiro_titulos
+            WHERE id = ?
+            """,
+            (titulo_id,),
+        ).fetchone()
+
+    if row is None:
+        return None
+
+    return _normalizar_status_financeiro(dict(row))
+
+
+def atualizar_status_financeiro_titulo_db(titulo_id: int, status: str, data_pagamento: str = "") -> None:
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            UPDATE financeiro_titulos
+            SET
+                status = ?,
+                data_pagamento = ?
+            WHERE id = ?
+            """,
+            (status, data_pagamento, titulo_id),
+        )
+        conn.commit()
+
+
+def cancelar_financeiro_titulo_db(titulo_id: int) -> None:
+    atualizar_status_financeiro_titulo_db(titulo_id, "cancelado", "")
+
+
+def baixar_financeiro_titulo_db(titulo_id: int) -> None:
+    atualizar_status_financeiro_titulo_db(titulo_id, "pago", date.today().isoformat())
+
+
+def montar_financeiro_titulo_formulario(tipo_padrao: str = "receber") -> dict[str, str]:
+    tipo = (request.form.get("financeiro_tipo") or tipo_padrao).strip() or tipo_padrao
+
+    if tipo not in {"receber", "pagar"}:
+        tipo = tipo_padrao
+
+    status = (request.form.get("financeiro_status") or "aberto").strip() or "aberto"
+
+    if status not in {"aberto", "pago", "vencido", "cancelado"}:
+        status = "aberto"
+
+    data_pagamento = (request.form.get("financeiro_data_pagamento") or "").strip()
+
+    if status == "pago" and not data_pagamento:
+        data_pagamento = date.today().isoformat()
+
+    return {
+        "tipo": tipo,
+        "descricao": (request.form.get("financeiro_descricao") or "").strip(),
+        "pessoa": (request.form.get("financeiro_pessoa") or "").strip(),
+        "categoria": (request.form.get("financeiro_categoria") or "Outros").strip() or "Outros",
+        "origem": "manual",
+        "origem_id": "",
+        "documento": (request.form.get("financeiro_documento") or "").strip(),
+        "data_emissao": (request.form.get("financeiro_data_emissao") or date.today().isoformat()).strip(),
+        "data_vencimento": (request.form.get("financeiro_data_vencimento") or date.today().isoformat()).strip(),
+        "data_pagamento": data_pagamento,
+        "valor": (request.form.get("financeiro_valor") or "0,00").strip(),
+        "forma_pagamento": (request.form.get("financeiro_forma_pagamento") or "").strip(),
+        "status": status,
+        "observacoes": (request.form.get("financeiro_observacoes") or "").strip(),
+    }
+
+
+def gerar_conta_receber_por_venda_db(venda_id: int, venda: dict[str, str]) -> None:
+    status_venda = str(venda.get("status") or "").strip()
+
+    if status_venda == "cancelada":
+        return
+
+    valor_total = _converter_valor_brl(venda.get("valor_total"))
+
+    if valor_total <= 0:
+        return
+
+    numero_venda = str(venda.get("numero") or venda_id).strip() or str(venda_id)
+    data_emissao = str(venda.get("data") or "").strip() or date.today().isoformat()
+    data_vencimento = str(venda.get("prazo_entrega") or "").strip() or data_emissao
+
+    titulo = {
+        "tipo": "receber",
+        "descricao": f"Recebimento de venda Nº {numero_venda}",
+        "pessoa": str(venda.get("cliente") or "").strip(),
+        "categoria": "Venda",
+        "origem": "venda",
+        "origem_id": str(venda_id),
+        "documento": f"Venda Nº {numero_venda}",
+        "data_emissao": data_emissao,
+        "data_vencimento": data_vencimento,
+        "data_pagamento": "",
+        "valor": _formatar_moeda_brl(valor_total),
+        "forma_pagamento": str(venda.get("forma_pagamento") or "").strip(),
+        "status": "aberto",
+        "observacoes": "Conta a receber gerada automaticamente ao salvar a venda.",
+    }
+
+    salvar_financeiro_titulo_db(titulo)
+
+
+def montar_painel_financeiro() -> dict[str, Any]:
+    titulos = listar_financeiro_titulos()
+    hoje = date.today()
+    inicio_mes = hoje.replace(day=1)
+
+    receber_aberto = [
+        titulo
+        for titulo in titulos
+        if titulo["tipo"] == "receber" and titulo["status_exibicao"] in {"aberto", "vencido"}
+    ]
+    pagar_aberto = [
+        titulo
+        for titulo in titulos
+        if titulo["tipo"] == "pagar" and titulo["status_exibicao"] in {"aberto", "vencido"}
+    ]
+
+    recebido_mes = []
+    pago_mes = []
+
+    for titulo in titulos:
+        data_pagamento = _converter_data_iso(titulo.get("data_pagamento"))
+
+        if data_pagamento is None or data_pagamento < inicio_mes or data_pagamento > hoje:
+            continue
+
+        if titulo["tipo"] == "receber" and titulo["status"] == "pago":
+            recebido_mes.append(titulo)
+        elif titulo["tipo"] == "pagar" and titulo["status"] == "pago":
+            pago_mes.append(titulo)
+
+    total_receber_aberto = sum(titulo["valor_numero"] for titulo in receber_aberto)
+    total_pagar_aberto = sum(titulo["valor_numero"] for titulo in pagar_aberto)
+    total_recebido_mes = sum(titulo["valor_numero"] for titulo in recebido_mes)
+    total_pago_mes = sum(titulo["valor_numero"] for titulo in pago_mes)
+
+    return {
+        "a_receber_aberto": total_receber_aberto,
+        "a_pagar_aberto": total_pagar_aberto,
+        "recebido_mes": total_recebido_mes,
+        "pago_mes": total_pago_mes,
+        "saldo_previsto": total_receber_aberto - total_pagar_aberto,
+        "recebimentos": [titulo for titulo in titulos if titulo["tipo"] == "receber"],
+        "pagamentos": [titulo for titulo in titulos if titulo["tipo"] == "pagar"],
+    }
+
+
 def montar_painel_ordens_servico() -> dict[str, Any]:
     ordens = listar_ordens_servico()
     hoje = date.today()
@@ -2883,6 +3186,7 @@ def montar_dashboard() -> dict[str, Any]:
     orcamentos_lista = listar_orcamentos()
     clientes_lista = listar_clientes()
     produtos_lista = listar_produtos()
+    financeiro = montar_painel_financeiro()
 
     hoje = date.today()
     inicio_mes = hoje.replace(day=1)
@@ -2961,6 +3265,7 @@ def montar_dashboard() -> dict[str, Any]:
         },
         "ultimas_os": ultimas_os,
         "ultimas_vendas": ultimas_vendas,
+        "financeiro": financeiro,
     }
 
 
@@ -3367,6 +3672,73 @@ def excluir_servico(servico_id: int) -> Response:
     return redirect(url_for("servicos"))
 
 
+@app.get("/financeiro")
+@app.get("/financeiro/receber")
+@app.get("/financeiro/pagar")
+@app.get("/financeiro/fluxo-caixa")
+def financeiro() -> str:
+    aba = "fluxo-caixa"
+
+    if request.path.endswith("/receber"):
+        aba = "receber"
+    elif request.path.endswith("/pagar"):
+        aba = "pagar"
+
+    painel = montar_painel_financeiro()
+
+    return render_template(
+        "financeiro.html",
+        aba=aba,
+        painel=painel,
+        categorias_financeiro=[
+            "Fornecedor",
+            "Funcionário",
+            "Aluguel",
+            "Energia",
+            "Internet",
+            "Material",
+            "Imposto",
+            "Transporte",
+            "Manutenção",
+            "Outros",
+        ],
+    )
+
+
+@app.post("/financeiro/titulos")
+def salvar_financeiro_titulo() -> Response:
+    tipo_padrao = (request.form.get("financeiro_tipo") or "receber").strip() or "receber"
+    titulo = montar_financeiro_titulo_formulario(tipo_padrao=tipo_padrao)
+
+    if titulo["descricao"] and _converter_valor_brl(titulo["valor"]) > 0:
+        salvar_financeiro_titulo_db(titulo)
+
+    if titulo["tipo"] == "pagar":
+        return redirect("/financeiro/pagar")
+
+    return redirect("/financeiro/receber")
+
+
+@app.post("/financeiro/titulos/<int:titulo_id>/baixar")
+def baixar_financeiro_titulo(titulo_id: int) -> Response:
+    titulo = buscar_financeiro_titulo_por_id(titulo_id)
+
+    if titulo is not None and titulo.get("status") != "cancelado":
+        baixar_financeiro_titulo_db(titulo_id)
+
+    return redirect(request.referrer or url_for("financeiro"))
+
+
+@app.post("/financeiro/titulos/<int:titulo_id>/cancelar")
+def cancelar_financeiro_titulo(titulo_id: int) -> Response:
+    titulo = buscar_financeiro_titulo_por_id(titulo_id)
+
+    if titulo is not None and titulo.get("status") != "pago":
+        cancelar_financeiro_titulo_db(titulo_id)
+
+    return redirect(request.referrer or url_for("financeiro"))
+
+
 @app.get("/estoque")
 @app.get("/estoque/movimentacoes")
 @app.get("/estoque/ajustes")
@@ -3705,6 +4077,7 @@ def salvar_venda() -> Response:
     if venda["cliente"] or venda["numero"]:
         venda_id = salvar_venda_db(venda, itens)
         baixar_estoque_por_venda_db(venda_id, venda, itens)
+        gerar_conta_receber_por_venda_db(venda_id, venda)
 
     return redirect(url_for("vendas"))
 

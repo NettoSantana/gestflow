@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\dashboard.html
-Último recode: 2026-06-17 00:05 (America/Bahia)
-Motivo: Ligar menu Devoluções em Vendas.
+Último recode: 2026-06-18 21:50 (America/Bahia)
+Motivo: Ligar menu Financeiro ao novo módulo e exibir resumo financeiro no dashboard.
 -->
 
 <!DOCTYPE html>
@@ -130,7 +130,7 @@ Motivo: Ligar menu Devoluções em Vendas.
                         <ul class="submenu">
                             <li><a href="/ordens-servico">Gerenciar O.S.</a></li>
                             <li><a href="/ordens-servico/painel">Painel</a></li>
-                            <li><a href="/ordens-servico">Opções auxiliares</a></li>
+                            <li>Opções auxiliares</li>
                         </ul>
                     </details>
                 </li>
@@ -162,9 +162,9 @@ Motivo: Ligar menu Devoluções em Vendas.
                             <span class="arrow">⌄</span>
                         </summary>
                         <ul class="submenu">
-                            <li>Contas a pagar</li>
-                            <li>Contas a receber</li>
-                            <li>Fluxo de caixa</li>
+                            <li><a href="/financeiro/pagar">Contas a pagar</a></li>
+                            <li><a href="/financeiro/receber">Contas a receber</a></li>
+                            <li><a href="/financeiro/fluxo-caixa">Fluxo de caixa</a></li>
                             <li>Contas bancárias</li>
                             <li>Opções auxiliares</li>
                         </ul>
@@ -221,6 +221,7 @@ Motivo: Ligar menu Devoluções em Vendas.
         {% set clientes_dash = dash.clientes|default({"ativos": 0, "total": 0}) %}
         {% set ultimas_os = dash.ultimas_os|default([]) %}
         {% set ultimas_vendas = dash.ultimas_vendas|default([]) %}
+        {% set financeiro_dash = dash.financeiro|default({"a_receber_aberto": 0, "a_pagar_aberto": 0, "recebido_mes": 0, "pago_mes": 0, "saldo_previsto": 0, "recebimentos": [], "pagamentos": []}) %}
 
         <section class="cards cards-primary">
 
@@ -228,8 +229,8 @@ Motivo: Ligar menu Devoluções em Vendas.
                 <div class="card-icon">R$</div>
                 <div class="card-info">
                     <h3>Receber hoje</h3>
-                    <p>R$ 0,00</p>
-                    <span>0 títulos</span>
+                    <p>R$ {{ "%.2f"|format(financeiro_dash.a_receber_aberto)|replace(".", ",") }}</p>
+                    <span>{{ financeiro_dash.recebimentos|length }} títulos</span>
                 </div>
                 <div class="mini-trend trend-success">⌁</div>
             </div>
@@ -238,8 +239,8 @@ Motivo: Ligar menu Devoluções em Vendas.
                 <div class="card-icon">R$</div>
                 <div class="card-info">
                     <h3>Pagar hoje</h3>
-                    <p>R$ 0,00</p>
-                    <span>0 títulos</span>
+                    <p>R$ {{ "%.2f"|format(financeiro_dash.a_pagar_aberto)|replace(".", ",") }}</p>
+                    <span>{{ financeiro_dash.pagamentos|length }} títulos</span>
                 </div>
                 <div class="mini-trend trend-danger">⌁</div>
             </div>
@@ -248,8 +249,8 @@ Motivo: Ligar menu Devoluções em Vendas.
                 <div class="card-icon">▣</div>
                 <div class="card-info">
                     <h3>Saldo em caixa</h3>
-                    <p>R$ 0,00</p>
-                    <span>Caixa geral</span>
+                    <p>R$ {{ "%.2f"|format(financeiro_dash.saldo_previsto)|replace(".", ",") }}</p>
+                    <span>Saldo previsto</span>
                 </div>
                 <div class="mini-trend trend-blue">⌁</div>
             </div>
@@ -329,20 +330,20 @@ Motivo: Ligar menu Devoluções em Vendas.
             <div class="panel chart-panel">
                 <h3>Fluxo de caixa (mês)</h3>
                 <div class="empty-chart">
-                    Nenhuma movimentação financeira registrada.
+                    {% if financeiro_dash.recebimentos or financeiro_dash.pagamentos %}Movimentações financeiras registradas.{% else %}Nenhuma movimentação financeira registrada.{% endif %}
                 </div>
                 <div class="cash-summary">
                     <div>
                         <span>Entradas</span>
-                        <strong>R$ 0,00</strong>
+                        <strong>R$ {{ "%.2f"|format(financeiro_dash.recebido_mes)|replace(".", ",") }}</strong>
                     </div>
                     <div>
                         <span>Saídas</span>
-                        <strong>R$ 0,00</strong>
+                        <strong>R$ {{ "%.2f"|format(financeiro_dash.pago_mes)|replace(".", ",") }}</strong>
                     </div>
                     <div>
                         <span>Saldo</span>
-                        <strong>R$ 0,00</strong>
+                        <strong>R$ {{ "%.2f"|format(financeiro_dash.saldo_previsto)|replace(".", ",") }}</strong>
                     </div>
                 </div>
             </div>

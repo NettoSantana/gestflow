@@ -1,0 +1,485 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\financeiro.html
+Último recode: 2026-06-18 21:50 (America/Bahia)
+Motivo: Criar tela inicial do módulo financeiro com contas a receber, contas a pagar e fluxo de caixa.
+-->
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Financeiro</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .financeiro-tabs {
+            display: flex;
+            gap: 10px;
+            margin: 18px 0;
+            flex-wrap: wrap;
+        }
+
+        .financeiro-tabs a,
+        .financeiro-action,
+        .financeiro-button {
+            border: 0;
+            border-radius: 8px;
+            background: #19a463;
+            color: #fff;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 700;
+            padding: 10px 14px;
+            text-decoration: none;
+        }
+
+        .financeiro-tabs a.secondary {
+            background: #eef2f7;
+            color: #334155;
+        }
+
+        .financeiro-form-grid {
+            display: grid;
+            gap: 14px;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+
+        .financeiro-field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .financeiro-field.full {
+            grid-column: 1 / -1;
+        }
+
+        .financeiro-field label {
+            color: #475569;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .financeiro-field input,
+        .financeiro-field select,
+        .financeiro-field textarea {
+            border: 1px solid #d8dee9;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 14px;
+            padding: 10px;
+            width: 100%;
+        }
+
+        .financeiro-field textarea {
+            min-height: 76px;
+            resize: vertical;
+        }
+
+        .financeiro-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-top: 16px;
+        }
+
+        .financeiro-action.cancelar {
+            background: #64748b;
+        }
+
+        .status-pill.vencido {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .status-pill.cancelado {
+            background: #e2e8f0;
+            color: #475569;
+        }
+
+        @media (max-width: 1100px) {
+            .financeiro-form-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 700px) {
+            .financeiro-form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+
+        <div class="brand">
+            <div class="brand-mark">GF</div>
+            <h2>GESTFLOW</h2>
+        </div>
+
+        <nav class="sidebar-nav">
+            <ul class="menu">
+
+                <li class="menu-item">
+                    <a href="/">
+                        <span class="menu-icon">⌂</span>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label"><span class="menu-icon">☷</span><span>Cadastros</span></span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/clientes">Clientes</a></li>
+                            <li><a href="/fornecedores">Fornecedores</a></li>
+                            <li><a href="/funcionarios">Funcionários</a></li>
+                            <li>Veículos</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label"><span class="menu-icon">□</span><span>Produtos</span></span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/produtos">Gerenciar produtos</a></li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label"><span class="menu-icon">⚙</span><span>Serviços</span></span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/servicos">Gerenciar serviços</a></li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label"><span class="menu-icon">▣</span><span>Orçamentos</span></span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/orcamentos">Produtos</a></li>
+                            <li><a href="/orcamentos">Serviços</a></li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label"><span class="menu-icon">▤</span><span>Vendas</span></span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/vendas">Produtos</a></li>
+                            <li><a href="/vendas">Serviços</a></li>
+                            <li><a href="/vendas">Balcão</a></li>
+                            <li><a href="/vendas/devolucoes">Devoluções</a></li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label"><span class="menu-icon">✚</span><span>Ordens de Serviço</span></span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/ordens-servico">Gerenciar O.S.</a></li>
+                            <li><a href="/ordens-servico/painel">Painel</a></li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label"><span class="menu-icon">▧</span><span>Estoque</span></span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/estoque/movimentacoes">Movimentações</a></li>
+                            <li><a href="/estoque/ajustes">Ajustes</a></li>
+                            <li><a href="/estoque/compras">Compras</a></li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group active">
+                    <details open>
+                        <summary>
+                            <span class="menu-label"><span class="menu-icon">◈</span><span>Financeiro</span></span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/financeiro/pagar">Contas a pagar</a></li>
+                            <li><a href="/financeiro/receber">Contas a receber</a></li>
+                            <li><a href="/financeiro/fluxo-caixa">Fluxo de caixa</a></li>
+                            <li>Contas bancárias</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+            </ul>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="footer-item">⚙ Configurações</div>
+            <div class="footer-item">? Ajuda</div>
+        </div>
+
+    </aside>
+
+    <main class="content">
+
+        <header class="topbar">
+            <div class="topbar-left">
+                <button class="menu-toggle" type="button" aria-label="Abrir menu">☰</button>
+                <h1>Financeiro</h1>
+            </div>
+
+            <div class="topbar-right">
+                <div class="topbar-date">
+                    <span class="topbar-icon">▣</span>
+                    <span>18/06/2026</span>
+                </div>
+                <div class="notification"><span class="topbar-icon">🔔</span><span class="notification-badge">0</span></div>
+                <div class="user-profile">
+                    <div class="avatar">NS</div>
+                    <div class="user-info"><strong>Netto Santana</strong><span>Administrador</span></div>
+                    <span class="profile-arrow">⌄</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="financeiro-tabs">
+            <a class="{% if aba != 'receber' %}secondary{% endif %}" href="/financeiro/receber">Contas a receber</a>
+            <a class="{% if aba != 'pagar' %}secondary{% endif %}" href="/financeiro/pagar">Contas a pagar</a>
+            <a class="{% if aba != 'fluxo-caixa' %}secondary{% endif %}" href="/financeiro/fluxo-caixa">Fluxo de caixa</a>
+        </div>
+
+        <section class="cards cards-primary">
+            <div class="card card-success">
+                <div class="card-icon">R$</div>
+                <div class="card-info">
+                    <h3>A receber em aberto</h3>
+                    <p>R$ {{ "%.2f"|format(painel.a_receber_aberto)|replace(".", ",") }}</p>
+                    <span>{{ painel.recebimentos|length }} títulos</span>
+                </div>
+            </div>
+
+            <div class="card card-danger">
+                <div class="card-icon">R$</div>
+                <div class="card-info">
+                    <h3>A pagar em aberto</h3>
+                    <p>R$ {{ "%.2f"|format(painel.a_pagar_aberto)|replace(".", ",") }}</p>
+                    <span>{{ painel.pagamentos|length }} títulos</span>
+                </div>
+            </div>
+
+            <div class="card card-blue">
+                <div class="card-icon">▣</div>
+                <div class="card-info">
+                    <h3>Recebido no mês</h3>
+                    <p>R$ {{ "%.2f"|format(painel.recebido_mes)|replace(".", ",") }}</p>
+                    <span>Entradas baixadas</span>
+                </div>
+            </div>
+
+            <div class="card card-warning">
+                <div class="card-icon">▤</div>
+                <div class="card-info">
+                    <h3>Saldo previsto</h3>
+                    <p>R$ {{ "%.2f"|format(painel.saldo_previsto)|replace(".", ",") }}</p>
+                    <span>Receber menos pagar</span>
+                </div>
+            </div>
+        </section>
+
+        {% if aba in ['receber', 'pagar'] %}
+            <section class="panel">
+                <h3>{% if aba == 'receber' %}Lançar recebimento manual{% else %}Lançar conta a pagar{% endif %}</h3>
+
+                <form action="/financeiro/titulos" method="post">
+                    <input type="hidden" name="financeiro_tipo" value="{% if aba == 'receber' %}receber{% else %}pagar{% endif %}">
+
+                    <div class="financeiro-form-grid">
+                        <div class="financeiro-field">
+                            <label>{% if aba == 'receber' %}Cliente{% else %}Fornecedor{% endif %}</label>
+                            <input type="text" name="financeiro_pessoa" placeholder="Nome">
+                        </div>
+
+                        <div class="financeiro-field">
+                            <label>Descrição</label>
+                            <input type="text" name="financeiro_descricao" required placeholder="Descrição do título">
+                        </div>
+
+                        <div class="financeiro-field">
+                            <label>Categoria</label>
+                            <select name="financeiro_categoria">
+                                {% for categoria in categorias_financeiro %}
+                                    <option value="{{ categoria }}">{{ categoria }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="financeiro-field">
+                            <label>Documento</label>
+                            <input type="text" name="financeiro_documento" placeholder="NF, recibo ou referência">
+                        </div>
+
+                        <div class="financeiro-field">
+                            <label>Data de emissão</label>
+                            <input type="date" name="financeiro_data_emissao" value="2026-06-18">
+                        </div>
+
+                        <div class="financeiro-field">
+                            <label>Data de vencimento</label>
+                            <input type="date" name="financeiro_data_vencimento" value="2026-06-18">
+                        </div>
+
+                        <div class="financeiro-field">
+                            <label>Valor</label>
+                            <input type="text" name="financeiro_valor" required placeholder="0,00">
+                        </div>
+
+                        <div class="financeiro-field">
+                            <label>Forma de pagamento</label>
+                            <input type="text" name="financeiro_forma_pagamento" placeholder="Pix, dinheiro, cartão...">
+                        </div>
+
+                        <div class="financeiro-field">
+                            <label>Status</label>
+                            <select name="financeiro_status">
+                                <option value="aberto">Aberto</option>
+                                <option value="pago">Pago</option>
+                                <option value="cancelado">Cancelado</option>
+                            </select>
+                        </div>
+
+                        <div class="financeiro-field full">
+                            <label>Observações</label>
+                            <textarea name="financeiro_observacoes" placeholder="Observações internas"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="financeiro-actions">
+                        <button class="financeiro-button" type="submit">Salvar título</button>
+                    </div>
+                </form>
+            </section>
+        {% endif %}
+
+        <section class="table-grid">
+            {% if aba in ['receber', 'fluxo-caixa'] %}
+                <div class="panel table-panel">
+                    <h3>Recebimentos</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Documento</th>
+                                <th>Pessoa</th>
+                                <th>Vencimento</th>
+                                <th>Valor</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if painel.recebimentos %}
+                                {% for titulo in painel.recebimentos %}
+                                    <tr>
+                                        <td>{{ titulo.documento or titulo.descricao }}</td>
+                                        <td>{{ titulo.pessoa or '-' }}</td>
+                                        <td>{{ titulo.data_vencimento or '-' }}</td>
+                                        <td>R$ {{ titulo.valor or '0,00' }}</td>
+                                        <td><span class="status-pill {{ titulo.status_exibicao }}">{{ titulo.status_exibicao }}</span></td>
+                                        <td>
+                                            {% if titulo.status_exibicao in ['aberto', 'vencido'] %}
+                                                <form action="/financeiro/titulos/{{ titulo.id }}/baixar" method="post" style="display:inline;"><button class="financeiro-action" type="submit">Baixar</button></form>
+                                                <form action="/financeiro/titulos/{{ titulo.id }}/cancelar" method="post" style="display:inline;"><button class="financeiro-action cancelar" type="submit">Cancelar</button></form>
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr><td colspan="6" class="empty-table">Nenhuma conta a receber cadastrada.</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+
+            {% if aba in ['pagar', 'fluxo-caixa'] %}
+                <div class="panel table-panel">
+                    <h3>Pagamentos</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Documento</th>
+                                <th>Pessoa</th>
+                                <th>Vencimento</th>
+                                <th>Valor</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if painel.pagamentos %}
+                                {% for titulo in painel.pagamentos %}
+                                    <tr>
+                                        <td>{{ titulo.documento or titulo.descricao }}</td>
+                                        <td>{{ titulo.pessoa or '-' }}</td>
+                                        <td>{{ titulo.data_vencimento or '-' }}</td>
+                                        <td>R$ {{ titulo.valor or '0,00' }}</td>
+                                        <td><span class="status-pill {{ titulo.status_exibicao }}">{{ titulo.status_exibicao }}</span></td>
+                                        <td>
+                                            {% if titulo.status_exibicao in ['aberto', 'vencido'] %}
+                                                <form action="/financeiro/titulos/{{ titulo.id }}/baixar" method="post" style="display:inline;"><button class="financeiro-action" type="submit">Baixar</button></form>
+                                                <form action="/financeiro/titulos/{{ titulo.id }}/cancelar" method="post" style="display:inline;"><button class="financeiro-action cancelar" type="submit">Cancelar</button></form>
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr><td colspan="6" class="empty-table">Nenhuma conta a pagar cadastrada.</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+        </section>
+
+    </main>
+
+</body>
+</html>
