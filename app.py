@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-19 07:35 (America/Bahia)
-# Motivo: Criar painel admin para cadastro de novas empresas/clientes GestFlow.
+# Último recode: 2026-06-19 08:35 (America/Bahia)
+# Motivo: Corrigir admin para gerar login/senha, bloquear e-mail duplicado com aviso claro e excluir acesso corretamente.
 
 from __future__ import annotations
 
@@ -4128,26 +4128,19 @@ def email_usuario_ja_existe(email: str) -> bool:
 
 def montar_empresa_admin_formulario() -> dict[str, str]:
     return {
-        "nome_fantasia": (request.form.get("empresa_nome_fantasia") or "").strip(),
-        "razao_social": (request.form.get("empresa_razao_social") or "").strip(),
-        "documento": (request.form.get("empresa_documento") or "").strip(),
-        "email": (request.form.get("empresa_email") or "").strip().lower(),
-        "telefone": (request.form.get("empresa_telefone") or "").strip(),
-        "plano": (request.form.get("empresa_plano") or "Start").strip() or "Start",
-        "status": (request.form.get("empresa_status") or "ativo").strip() or "ativo",
         "admin_nome": (request.form.get("usuario_admin_nome") or "").strip(),
         "admin_email": (request.form.get("usuario_admin_email") or "").strip().lower(),
         "admin_senha": (request.form.get("usuario_admin_senha") or "").strip(),
-        "loja_nome": (request.form.get("loja_nome") or "Matriz").strip() or "Matriz",
-        "loja_cidade": (request.form.get("loja_cidade") or "").strip(),
+        "plano": (request.form.get("empresa_plano") or "Start").strip() or "Start",
+        "status": (request.form.get("empresa_status") or "ativo").strip() or "ativo",
     }
 
 
 def criar_empresa_cliente_db(dados: dict[str, str]) -> int:
-    admin_nome = dados["admin_nome"] or dados["nome_fantasia"]
+    admin_nome = dados["admin_nome"] or "Cliente GestFlow"
     admin_email = dados["admin_email"]
     admin_senha = dados["admin_senha"]
-    loja_nome = dados["loja_nome"] or "Matriz"
+    nome_empresa_provisorio = f"Cadastro pendente - {admin_nome}".strip()
 
     with conectar_db() as conn:
         cursor_empresa = conn.execute(
@@ -4163,11 +4156,11 @@ def criar_empresa_cliente_db(dados: dict[str, str]) -> int:
             ) VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                dados["nome_fantasia"],
-                dados["razao_social"],
-                dados["documento"],
-                dados["email"],
-                dados["telefone"],
+                nome_empresa_provisorio,
+                "Cadastro pendente",
+                "",
+                admin_email,
+                "",
                 dados["plano"],
                 dados["status"],
             ),
@@ -4209,9 +4202,9 @@ def criar_empresa_cliente_db(dados: dict[str, str]) -> int:
             """,
             (
                 empresa_id,
-                loja_nome,
+                "Matriz",
                 "Principal",
-                dados["loja_cidade"],
+                "",
                 "ativo",
             ),
         )
@@ -4324,47 +4317,33 @@ def admin_empresas() -> str | Response:
     erro = ""
     sucesso = ""
     formulario = {
-        "nome_fantasia": "",
-        "razao_social": "",
-        "documento": "",
-        "email": "",
-        "telefone": "",
         "plano": "Start",
         "status": "ativo",
         "admin_nome": "",
         "admin_email": "",
         "admin_senha": "",
-        "loja_nome": "Matriz",
-        "loja_cidade": "",
     }
 
     if request.method == "POST":
         formulario = montar_empresa_admin_formulario()
 
-        if not formulario["nome_fantasia"]:
-            erro = "Informe o nome fantasia da empresa."
+        if not formulario["admin_nome"]:
+            erro = "Informe o nome do cliente ou responsável."
         elif not formulario["admin_email"]:
-            erro = "Informe o e-mail do usuário administrador."
+            erro = "Informe o e-mail de login."
         elif not formulario["admin_senha"]:
-            erro = "Informe a senha inicial do usuário administrador."
+            erro = "Informe a senha inicial."
         elif email_usuario_ja_existe(formulario["admin_email"]):
-            erro = "Já existe um usuário cadastrado com este e-mail."
+            erro = "Este e-mail já possui login cadastrado. Para reutilizar o mesmo e-mail, exclua o acesso antigo primeiro ou use outro e-mail."
         else:
             empresa_id = criar_empresa_cliente_db(formulario)
-            sucesso = f"Empresa cadastrada com sucesso. ID {empresa_id}."
+            sucesso = f"Acesso criado com sucesso. ID provisório {empresa_id}."
             formulario = {
-                "nome_fantasia": "",
-                "razao_social": "",
-                "documento": "",
-                "email": "",
-                "telefone": "",
                 "plano": "Start",
                 "status": "ativo",
                 "admin_nome": "",
                 "admin_email": "",
                 "admin_senha": "",
-                "loja_nome": "Matriz",
-                "loja_cidade": "",
             }
 
     return render_template(
