@@ -1,0 +1,657 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\configuracoes.html
+Último recode: 2026-06-18 22:24 (America/Bahia)
+Motivo: Criar tela inicial de Configurações para organizar empresa, usuários, plano, marca e lojas.
+-->
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Configurações</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+
+    <aside class="sidebar">
+
+        <div class="brand">
+            <div class="brand-mark">GF</div>
+            <h2>GESTFLOW</h2>
+        </div>
+
+        <nav class="sidebar-nav">
+            <ul class="menu">
+
+                <li class="menu-item">
+                    <a href="/">
+                        <span class="menu-icon">⌂</span>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">☷</span>
+                                <span>Cadastros</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/clientes">Clientes</a></li>
+                            <li><a href="/fornecedores">Fornecedores</a></li>
+                            <li><a href="/funcionarios">Funcionários</a></li>
+                            <li>Veículos</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">□</span>
+                                <span>Produtos</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/produtos">Gerenciar produtos</a></li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">⚙</span>
+                                <span>Serviços</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/servicos">Gerenciar serviços</a></li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▣</span>
+                                <span>Orçamentos</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/orcamentos">Produtos</a></li>
+                            <li><a href="/orcamentos">Serviços</a></li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▤</span>
+                                <span>Vendas</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/vendas">Produtos</a></li>
+                            <li><a href="/vendas">Serviços</a></li>
+                            <li><a href="/vendas">Balcão</a></li>
+                            <li><a href="/vendas/devolucoes">Devoluções</a></li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">✚</span>
+                                <span>Ordens de Serviço</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/ordens-servico">Gerenciar O.S.</a></li>
+                            <li><a href="/ordens-servico/painel">Painel</a></li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▧</span>
+                                <span>Estoque</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/estoque/movimentacoes">Movimentações</a></li>
+                            <li><a href="/estoque/ajustes">Ajustes</a></li>
+                            <li><a href="/estoque/compras">Compras</a></li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">◈</span>
+                                <span>Financeiro</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/financeiro/pagar">Contas a pagar</a></li>
+                            <li><a href="/financeiro/receber">Contas a receber</a></li>
+                            <li><a href="/financeiro/fluxo-caixa">Fluxo de caixa</a></li>
+                            <li>Contas bancárias</li>
+                            <li>Opções auxiliares</li>
+                        </ul>
+                    </details>
+                </li>
+
+            </ul>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="footer-item active">⚙ Configurações</div>
+            <div class="footer-item">? Ajuda</div>
+        </div>
+
+    </aside>
+
+    <main class="content">
+
+        <header class="topbar">
+            <div class="topbar-left">
+                <button class="menu-toggle" type="button" aria-label="Abrir menu">☰</button>
+                <h1>Configurações</h1>
+            </div>
+
+            <div class="topbar-right">
+                <div class="topbar-date">
+                    <span class="topbar-icon">▣</span>
+                    <span>18/06/2026</span>
+                </div>
+
+                <div class="notification">
+                    <span class="topbar-icon">🔔</span>
+                    <span class="notification-badge">0</span>
+                </div>
+
+                <div class="user-profile">
+                    <div class="avatar">NS</div>
+                    <div class="user-info">
+                        <strong>Netto Santana</strong>
+                        <span>Administrador</span>
+                    </div>
+                    <span class="profile-arrow">⌄</span>
+                </div>
+            </div>
+        </header>
+
+        {% set aba = aba|default('gerais') %}
+        {% set empresa = empresa|default({}) %}
+        {% set usuarios = usuarios|default([]) %}
+        {% set lojas = lojas|default([]) %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Configurações</span>
+                    <h3 class="page-title">Painel de configurações</h3>
+                    <p class="page-subtitle">Organize dados da empresa, usuários, plano, marca e futuras lojas do GestFlow.</p>
+                </div>
+
+                <span class="badge-info">Ambiente da empresa</span>
+            </div>
+        </section>
+
+        <section class="cards cards-secondary page-section">
+            <a href="/configuracoes" class="card stat-card config-card-link {% if aba == 'gerais' %}config-active{% endif %}">
+                <div class="card-icon">⚙</div>
+                <div class="card-info">
+                    <p>Gerais</p>
+                    <h3>Configurações gerais</h3>
+                    <span>Preferências básicas do sistema</span>
+                </div>
+            </a>
+
+            <a href="/configuracoes/plano" class="card stat-card config-card-link {% if aba == 'plano' %}config-active{% endif %}">
+                <div class="card-icon">☆</div>
+                <div class="card-info">
+                    <p>Plano</p>
+                    <h3>Meu plano</h3>
+                    <span>Assinatura e limites da conta</span>
+                </div>
+            </a>
+
+            <a href="/configuracoes/usuarios" class="card stat-card config-card-link {% if aba == 'usuarios' %}config-active{% endif %}">
+                <div class="card-icon">♟</div>
+                <div class="card-info">
+                    <p>{{ usuarios|length }}</p>
+                    <h3>Usuários</h3>
+                    <span>Acessos da equipe</span>
+                </div>
+            </a>
+
+            <a href="/configuracoes/empresa" class="card stat-card config-card-link {% if aba == 'empresa' %}config-active{% endif %}">
+                <div class="card-icon">▣</div>
+                <div class="card-info">
+                    <p>Empresa</p>
+                    <h3>Dados da empresa</h3>
+                    <span>Dados fiscais e contato</span>
+                </div>
+            </a>
+        </section>
+
+        <section class="dashboard-grid config-dashboard-grid">
+
+            <div class="panel table-panel config-menu-panel">
+                <h3>Menu de configurações</h3>
+                <div class="config-menu-list">
+                    <a href="/configuracoes" class="config-menu-item {% if aba == 'gerais' %}active{% endif %}">
+                        <span>⚙</span>
+                        <div>
+                            <strong>Gerais</strong>
+                            <small>Preferências básicas</small>
+                        </div>
+                    </a>
+
+                    <a href="/configuracoes/plano" class="config-menu-item {% if aba == 'plano' %}active{% endif %}">
+                        <span>☆</span>
+                        <div>
+                            <strong>Meu plano</strong>
+                            <small>Plano atual e assinatura</small>
+                        </div>
+                    </a>
+
+                    <a href="/configuracoes/usuarios" class="config-menu-item {% if aba == 'usuarios' %}active{% endif %}">
+                        <span>♟</span>
+                        <div>
+                            <strong>Usuários</strong>
+                            <small>Equipe e permissões</small>
+                        </div>
+                    </a>
+
+                    <a href="/configuracoes/empresa" class="config-menu-item {% if aba == 'empresa' %}active{% endif %}">
+                        <span>▣</span>
+                        <div>
+                            <strong>Dados da empresa</strong>
+                            <small>Cadastro do cliente</small>
+                        </div>
+                    </a>
+
+                    <a href="/configuracoes/marca" class="config-menu-item {% if aba == 'marca' %}active{% endif %}">
+                        <span>▧</span>
+                        <div>
+                            <strong>Marca da empresa</strong>
+                            <small>Logo, cor e identidade</small>
+                        </div>
+                    </a>
+
+                    <a href="/configuracoes/lojas" class="config-menu-item {% if aba == 'lojas' %}active{% endif %}">
+                        <span>▤</span>
+                        <div>
+                            <strong>Empresas / Lojas</strong>
+                            <small>Matriz, filial e unidade</small>
+                        </div>
+                    </a>
+
+                    <div class="config-menu-item disabled">
+                        <span>◆</span>
+                        <div>
+                            <strong>Certificado digital</strong>
+                            <small>Fica para etapa fiscal</small>
+                        </div>
+                    </div>
+
+                    <div class="config-menu-item disabled">
+                        <span>✉</span>
+                        <div>
+                            <strong>Modelos de e-mails</strong>
+                            <small>Fica para automações</small>
+                        </div>
+                    </div>
+
+                    <div class="config-menu-item disabled">
+                        <span>⚑</span>
+                        <div>
+                            <strong>Avisos por e-mail</strong>
+                            <small>Fica para notificações</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel chart-panel config-content-panel">
+                {% if aba == 'usuarios' %}
+                    <div class="panel-header page-header">
+                        <div>
+                            <h3>Usuários</h3>
+                            <p class="page-subtitle">Controle quem acessa o sistema e qual perfil cada usuário terá.</p>
+                        </div>
+                        <button type="button" class="btn-primary-green">+ Novo usuário</button>
+                    </div>
+
+                    <div class="table-shell">
+                        <table class="client-table">
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>E-mail</th>
+                                    <th>Perfil</th>
+                                    <th>Status</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if usuarios %}
+                                    {% for usuario in usuarios %}
+                                        <tr>
+                                            <td>{{ usuario.nome }}</td>
+                                            <td>{{ usuario.email }}</td>
+                                            <td>{{ usuario.perfil }}</td>
+                                            <td><span class="status-pill {{ usuario.status }}">{{ usuario.status }}</span></td>
+                                            <td>
+                                                <div class="action-buttons">
+                                                    <button type="button" class="action-button view" disabled>🔍</button>
+                                                    <button type="button" class="action-button edit" disabled>✎</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="5" class="empty-table">Nenhum usuário cadastrado nesta empresa.</td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                {% elif aba == 'empresa' %}
+                    <div class="panel-header page-header">
+                        <div>
+                            <h3>Dados da empresa</h3>
+                            <p class="page-subtitle">Esses dados serão usados para identificar a conta do cliente no GestFlow.</p>
+                        </div>
+                        <button type="button" class="btn-primary-green">Salvar dados</button>
+                    </div>
+
+                    <form class="client-form">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="empresa_nome_fantasia">Nome fantasia</label>
+                                <input id="empresa_nome_fantasia" name="empresa_nome_fantasia" type="text" value="{{ empresa.nome_fantasia|default('') }}" placeholder="Ex: Loja do João" class="form-control">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="empresa_razao_social">Razão social</label>
+                                <input id="empresa_razao_social" name="empresa_razao_social" type="text" value="{{ empresa.razao_social|default('') }}" placeholder="Ex: Loja do João LTDA" class="form-control">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="empresa_documento">CNPJ / CPF</label>
+                                <input id="empresa_documento" name="empresa_documento" type="text" value="{{ empresa.documento|default('') }}" placeholder="Documento da empresa" class="form-control">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="empresa_email">E-mail</label>
+                                <input id="empresa_email" name="empresa_email" type="email" value="{{ empresa.email|default('') }}" placeholder="contato@empresa.com" class="form-control">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="empresa_telefone">Telefone</label>
+                                <input id="empresa_telefone" name="empresa_telefone" type="text" value="{{ empresa.telefone|default('') }}" placeholder="(00) 00000-0000" class="form-control">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="empresa_plano">Plano</label>
+                                <input id="empresa_plano" name="empresa_plano" type="text" value="{{ empresa.plano|default('Start') }}" class="form-control" readonly>
+                            </div>
+                        </div>
+                    </form>
+
+                {% elif aba == 'marca' %}
+                    <div class="panel-header page-header">
+                        <div>
+                            <h3>Marca da empresa</h3>
+                            <p class="page-subtitle">Área preparada para configurar logo, cor principal e identificação visual.</p>
+                        </div>
+                        <button type="button" class="btn-primary-green">Salvar marca</button>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="marca_nome">Nome exibido no sistema</label>
+                            <input id="marca_nome" name="marca_nome" type="text" placeholder="Ex: Minha Loja" class="form-control">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="marca_cor">Cor principal</label>
+                            <input id="marca_cor" name="marca_cor" type="text" placeholder="Ex: #1458f5" class="form-control">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="marca_logo">Logo</label>
+                            <input id="marca_logo" name="marca_logo" type="text" placeholder="Upload será ligado depois" class="form-control" readonly>
+                        </div>
+                    </div>
+
+                    <div class="empty-chart">Configuração visual preparada para a próxima etapa.</div>
+
+                {% elif aba == 'lojas' %}
+                    <div class="panel-header page-header">
+                        <div>
+                            <h3>Empresas / Lojas</h3>
+                            <p class="page-subtitle">Use futuramente para matriz, filial, oficina, balcão ou depósito.</p>
+                        </div>
+                        <button type="button" class="btn-primary-green">+ Nova loja</button>
+                    </div>
+
+                    <div class="table-shell">
+                        <table class="client-table">
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>Tipo</th>
+                                    <th>Cidade</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if lojas %}
+                                    {% for loja in lojas %}
+                                        <tr>
+                                            <td>{{ loja.nome }}</td>
+                                            <td>{{ loja.tipo }}</td>
+                                            <td>{{ loja.cidade }}</td>
+                                            <td><span class="status-pill {{ loja.status }}">{{ loja.status }}</span></td>
+                                        </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="4" class="empty-table">Nenhuma loja cadastrada. Esta etapa fica para depois do login multitenant.</td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                {% elif aba == 'plano' %}
+                    <div class="panel-header page-header">
+                        <div>
+                            <h3>Meu plano</h3>
+                            <p class="page-subtitle">Resumo comercial do cliente e plano ativo no GestFlow.</p>
+                        </div>
+                        <span class="badge-info">Plano atual</span>
+                    </div>
+
+                    <div class="cards cards-secondary">
+                        <div class="card stat-card">
+                            <div class="card-icon">☆</div>
+                            <div class="card-info">
+                                <p>{{ empresa.plano|default('Start') }}</p>
+                                <h3>Plano contratado</h3>
+                                <span>Controle simples para fase inicial</span>
+                            </div>
+                        </div>
+
+                        <div class="card stat-card">
+                            <div class="card-icon">♟</div>
+                            <div class="card-info">
+                                <p>{{ usuarios|length }}</p>
+                                <h3>Usuários ativos</h3>
+                                <span>Limite será definido depois</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="empty-chart">Cobrança, upgrade e limites ficam para a etapa comercial.</div>
+
+                {% else %}
+                    <div class="panel-header page-header">
+                        <div>
+                            <h3>Gerais</h3>
+                            <p class="page-subtitle">Configurações básicas do ambiente da empresa.</p>
+                        </div>
+                        <button type="button" class="btn-primary-green">Salvar configurações</button>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="geral_nome_sistema">Nome do ambiente</label>
+                            <input id="geral_nome_sistema" name="geral_nome_sistema" type="text" value="GestFlow" class="form-control">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="geral_moeda">Moeda</label>
+                            <input id="geral_moeda" name="geral_moeda" type="text" value="Real Brasileiro (R$)" class="form-control" readonly>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="geral_fuso">Fuso horário</label>
+                            <input id="geral_fuso" name="geral_fuso" type="text" value="America/Bahia" class="form-control">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="geral_status">Status do ambiente</label>
+                            <input id="geral_status" name="geral_status" type="text" value="Ativo" class="form-control" readonly>
+                        </div>
+                    </div>
+
+                    <div class="empty-chart">Tela base pronta. Agora falta ligar rotas, banco e permissões no app.py.</div>
+                {% endif %}
+            </div>
+
+        </section>
+
+        <style>
+            .config-card-link,
+            .config-menu-item {
+                color: inherit;
+                text-decoration: none;
+            }
+
+            .config-active {
+                outline: 2px solid rgba(20, 88, 245, 0.25);
+            }
+
+            .config-dashboard-grid {
+                grid-template-columns: 320px 1fr;
+            }
+
+            .config-menu-panel {
+                min-height: 620px;
+            }
+
+            .config-content-panel {
+                min-height: 620px;
+            }
+
+            .config-menu-list {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+                margin-top: 18px;
+            }
+
+            .config-menu-item {
+                display: flex;
+                gap: 12px;
+                align-items: center;
+                padding: 14px;
+                border: 1px solid #e4eaf3;
+                border-radius: 14px;
+                background: #ffffff;
+                transition: 0.2s ease;
+            }
+
+            .config-menu-item:hover,
+            .config-menu-item.active {
+                border-color: #1458f5;
+                background: #f4f7ff;
+            }
+
+            .config-menu-item span {
+                width: 34px;
+                height: 34px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 10px;
+                background: #eef4ff;
+                color: #1458f5;
+                font-weight: 800;
+            }
+
+            .config-menu-item strong {
+                display: block;
+                font-size: 14px;
+                color: #0f172a;
+            }
+
+            .config-menu-item small {
+                display: block;
+                margin-top: 3px;
+                color: #64748b;
+            }
+
+            .config-menu-item.disabled {
+                opacity: 0.55;
+                cursor: not-allowed;
+            }
+
+            @media (max-width: 1100px) {
+                .config-dashboard-grid {
+                    grid-template-columns: 1fr;
+                }
+            }
+        </style>
+
+    </main>
+
+</body>
+</html>
