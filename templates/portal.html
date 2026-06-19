@@ -1,0 +1,789 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\portal.html
+Último recode: 2026-06-18 22:18 (America/Bahia)
+Motivo: Criar tela portal pública do GestFlow inspirada em página institucional de ERP.
+-->
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GestFlow - Sistema de Gestão Web</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        :root {
+            --portal-navy: #06162b;
+            --portal-navy-soft: #0d2746;
+            --portal-blue: #1f7cff;
+            --portal-red: #e3222a;
+            --portal-text: #132238;
+            --portal-muted: #60708a;
+            --portal-border: #dbe5f1;
+            --portal-bg: #f5f8fc;
+            --portal-white: #ffffff;
+            --portal-shadow: 0 18px 45px rgba(8, 28, 54, 0.14);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: var(--portal-white);
+            color: var(--portal-text);
+            font-family: Inter, Arial, Helvetica, sans-serif;
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .top-strip {
+            background: #02091d;
+            color: #ffffff;
+            font-size: 12px;
+            text-align: center;
+            padding: 8px 16px;
+        }
+
+        .portal-header {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            background: rgba(255, 255, 255, 0.96);
+            border-bottom: 1px solid var(--portal-border);
+            backdrop-filter: blur(10px);
+        }
+
+        .portal-header-inner {
+            width: min(1180px, calc(100% - 32px));
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 22px;
+            min-height: 78px;
+        }
+
+        .portal-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 900;
+            font-size: 26px;
+            letter-spacing: -0.7px;
+            color: var(--portal-navy);
+        }
+
+        .portal-logo-mark {
+            width: 42px;
+            height: 42px;
+            display: grid;
+            place-items: center;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--portal-blue), #00a86b);
+            color: #ffffff;
+            font-size: 15px;
+            box-shadow: 0 12px 24px rgba(31, 124, 255, 0.25);
+        }
+
+        .portal-nav {
+            display: flex;
+            align-items: center;
+            gap: 22px;
+            color: #34465f;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .portal-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-ghost, .btn-primary, .btn-dark, .btn-outline {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 9px;
+            padding: 12px 18px;
+            font-weight: 800;
+            font-size: 14px;
+            border: 0;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+        }
+
+        .btn-ghost {
+            color: var(--portal-navy);
+            background: #ffffff;
+            border: 1px solid var(--portal-border);
+        }
+
+        .btn-primary {
+            color: #ffffff;
+            background: var(--portal-blue);
+            box-shadow: 0 12px 24px rgba(31, 124, 255, 0.22);
+        }
+
+        .btn-dark {
+            color: #ffffff;
+            background: var(--portal-navy);
+        }
+
+        .btn-outline {
+            color: var(--portal-navy);
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.45);
+        }
+
+        .btn-ghost:hover, .btn-primary:hover, .btn-dark:hover, .btn-outline:hover {
+            transform: translateY(-1px);
+        }
+
+        .hero {
+            background: linear-gradient(135deg, #06162b 0%, #0b294b 100%);
+            color: #ffffff;
+            overflow: hidden;
+        }
+
+        .hero-inner {
+            width: min(1180px, calc(100% - 32px));
+            margin: 0 auto;
+            min-height: 560px;
+            display: grid;
+            grid-template-columns: 1.04fr 0.96fr;
+            gap: 52px;
+            align-items: center;
+            padding: 70px 0;
+        }
+
+        .hero-kicker {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            border-radius: 999px;
+            padding: 8px 14px;
+            color: #d7e7ff;
+            font-weight: 800;
+            font-size: 13px;
+        }
+
+        .hero h1 {
+            margin: 22px 0 16px;
+            max-width: 600px;
+            font-size: clamp(38px, 5vw, 64px);
+            line-height: 0.98;
+            letter-spacing: -2.4px;
+        }
+
+        .hero p {
+            max-width: 560px;
+            color: #d3dfec;
+            font-size: 18px;
+            line-height: 1.65;
+            margin: 0 0 28px;
+        }
+
+        .hero-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            margin-bottom: 30px;
+        }
+
+        .hero-features {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+            max-width: 650px;
+        }
+
+        .hero-feature {
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 15px;
+            padding: 16px;
+            min-height: 88px;
+        }
+
+        .hero-feature strong {
+            display: block;
+            font-size: 15px;
+            margin-bottom: 5px;
+        }
+
+        .hero-feature span {
+            color: #b9c7d7;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+
+        .hero-visual {
+            position: relative;
+        }
+
+        .dashboard-preview {
+            background: #ffffff;
+            border-radius: 26px;
+            box-shadow: var(--portal-shadow);
+            overflow: hidden;
+            color: var(--portal-text);
+        }
+
+        .preview-topbar {
+            height: 58px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 22px;
+            border-bottom: 1px solid #e5edf6;
+            background: #f7fbff;
+        }
+
+        .preview-dot-wrap {
+            display: flex;
+            gap: 6px;
+        }
+
+        .preview-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #d4ddea;
+        }
+
+        .preview-body {
+            padding: 26px;
+        }
+
+        .preview-cards {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .preview-card {
+            border: 1px solid #e1e9f4;
+            border-radius: 18px;
+            padding: 18px;
+            background: #ffffff;
+        }
+
+        .preview-card span {
+            color: var(--portal-muted);
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .preview-card strong {
+            display: block;
+            margin-top: 8px;
+            font-size: 28px;
+        }
+
+        .preview-chart {
+            height: 190px;
+            border: 1px dashed #c6d6eb;
+            border-radius: 20px;
+            display: flex;
+            align-items: end;
+            gap: 14px;
+            padding: 22px;
+            background: linear-gradient(180deg, #ffffff, #f5f9ff);
+        }
+
+        .bar {
+            flex: 1;
+            min-width: 18px;
+            border-radius: 10px 10px 0 0;
+            background: linear-gradient(180deg, #1f7cff, #00a86b);
+        }
+
+        .section {
+            width: min(1180px, calc(100% - 32px));
+            margin: 0 auto;
+            padding: 92px 0;
+        }
+
+        .section-title {
+            max-width: 720px;
+            margin: 0 auto 48px;
+            text-align: center;
+        }
+
+        .section-title span {
+            color: var(--portal-blue);
+            font-weight: 900;
+            text-transform: uppercase;
+            font-size: 13px;
+            letter-spacing: 0.08em;
+        }
+
+        .section-title h2 {
+            margin: 12px 0 12px;
+            font-size: clamp(30px, 4vw, 44px);
+            line-height: 1.08;
+            letter-spacing: -1.4px;
+            color: var(--portal-navy);
+        }
+
+        .section-title p {
+            margin: 0;
+            color: var(--portal-muted);
+            font-size: 17px;
+            line-height: 1.6;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 22px;
+        }
+
+        .feature-card {
+            background: #ffffff;
+            border: 1px solid var(--portal-border);
+            border-radius: 22px;
+            padding: 28px;
+            box-shadow: 0 15px 36px rgba(7, 27, 49, 0.06);
+        }
+
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            background: #ecf4ff;
+            display: grid;
+            place-items: center;
+            color: var(--portal-blue);
+            font-weight: 900;
+            margin-bottom: 18px;
+        }
+
+        .feature-card h3 {
+            margin: 0 0 10px;
+            color: var(--portal-navy);
+        }
+
+        .feature-card p {
+            margin: 0;
+            color: var(--portal-muted);
+            line-height: 1.55;
+        }
+
+        .split-section {
+            background: var(--portal-bg);
+        }
+
+        .split {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 54px;
+            align-items: center;
+        }
+
+        .mock-image {
+            min-height: 360px;
+            border-radius: 28px;
+            background:
+                radial-gradient(circle at 25% 20%, rgba(31, 124, 255, 0.25), transparent 28%),
+                linear-gradient(135deg, #ffffff, #dce9fb);
+            box-shadow: var(--portal-shadow);
+            display: grid;
+            place-items: center;
+            padding: 28px;
+        }
+
+        .mock-person-card {
+            width: min(380px, 100%);
+            background: #ffffff;
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: 0 18px 45px rgba(8, 28, 54, 0.14);
+        }
+
+        .mock-avatar {
+            width: 88px;
+            height: 88px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #1f7cff, #00a86b);
+            display: grid;
+            place-items: center;
+            color: #ffffff;
+            font-weight: 900;
+            font-size: 28px;
+            margin-bottom: 18px;
+        }
+
+        .split h2 {
+            margin: 0 0 16px;
+            color: var(--portal-navy);
+            font-size: clamp(30px, 4vw, 44px);
+            letter-spacing: -1.2px;
+            line-height: 1.12;
+        }
+
+        .split p {
+            color: var(--portal-muted);
+            font-size: 17px;
+            line-height: 1.7;
+        }
+
+        .check-list {
+            display: grid;
+            gap: 12px;
+            margin: 24px 0 30px;
+            padding: 0;
+            list-style: none;
+        }
+
+        .check-list li {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #334862;
+            font-weight: 700;
+        }
+
+        .check-list li::before {
+            content: "✓";
+            width: 22px;
+            height: 22px;
+            display: grid;
+            place-items: center;
+            border-radius: 50%;
+            background: #e8f8f0;
+            color: #00a86b;
+            font-size: 13px;
+            font-weight: 900;
+        }
+
+        .module-strip {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 16px;
+        }
+
+        .module-card {
+            background: #ffffff;
+            border: 1px solid var(--portal-border);
+            box-shadow: 0 14px 36px rgba(7, 27, 49, 0.08);
+            border-radius: 16px;
+            min-height: 130px;
+            padding: 18px;
+        }
+
+        .module-card strong {
+            display: block;
+            margin-top: 14px;
+            color: var(--portal-navy);
+            font-size: 14px;
+        }
+
+        .module-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: var(--portal-red);
+            color: #ffffff;
+            display: grid;
+            place-items: center;
+            font-weight: 900;
+        }
+
+        .cta {
+            background: linear-gradient(135deg, #07172c, #0d2d52);
+            color: #ffffff;
+        }
+
+        .cta .section {
+            display: grid;
+            grid-template-columns: 1.05fr 0.95fr;
+            gap: 42px;
+            align-items: center;
+        }
+
+        .cta h2 {
+            margin: 0 0 14px;
+            font-size: clamp(34px, 4vw, 52px);
+            line-height: 1.06;
+        }
+
+        .cta p {
+            color: #c7d5e5;
+            line-height: 1.7;
+            margin: 0 0 24px;
+        }
+
+        .contact-box {
+            background: #ffffff;
+            border-radius: 24px;
+            padding: 28px;
+            color: var(--portal-text);
+            box-shadow: var(--portal-shadow);
+        }
+
+        .contact-item {
+            display: flex;
+            gap: 14px;
+            padding: 16px 0;
+            border-bottom: 1px solid #e6eef7;
+        }
+
+        .contact-item:last-child {
+            border-bottom: 0;
+        }
+
+        .footer {
+            background: #030f21;
+            color: #dbe7f5;
+            padding: 50px 0;
+        }
+
+        .footer-inner {
+            width: min(1180px, calc(100% - 32px));
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1.3fr 1fr 1fr 1fr;
+            gap: 32px;
+        }
+
+        .footer h4 {
+            color: #ffffff;
+            margin: 0 0 14px;
+        }
+
+        .footer p, .footer a {
+            color: #b6c5d7;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+
+        @media (max-width: 980px) {
+            .portal-nav { display: none; }
+            .hero-inner, .split, .cta .section, .footer-inner { grid-template-columns: 1fr; }
+            .feature-grid { grid-template-columns: 1fr 1fr; }
+            .module-strip { grid-template-columns: repeat(3, 1fr); }
+        }
+
+        @media (max-width: 640px) {
+            .portal-header-inner { flex-wrap: wrap; padding: 14px 0; }
+            .portal-actions { width: 100%; }
+            .portal-actions a { flex: 1; }
+            .hero-features, .feature-grid, .module-strip, .preview-cards { grid-template-columns: 1fr; }
+            .section { padding: 68px 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="top-strip">Sistema em desenvolvimento para gestão simples de vendas, estoque, serviços e financeiro.</div>
+
+    <header class="portal-header">
+        <div class="portal-header-inner">
+            <a href="/portal" class="portal-logo">
+                <span class="portal-logo-mark">GF</span>
+                <span>GestFlow</span>
+            </a>
+
+            <nav class="portal-nav">
+                <a href="#funcionalidades">Funcionalidades</a>
+                <a href="#financeiro">Financeiro</a>
+                <a href="#modulos">Módulos</a>
+                <a href="#contato">Contato</a>
+            </nav>
+
+            <div class="portal-actions">
+                <a href="/login" class="btn-ghost">Entrar</a>
+                <a href="/login" class="btn-primary">Experimentar grátis</a>
+            </div>
+        </div>
+    </header>
+
+    <section class="hero">
+        <div class="hero-inner">
+            <div>
+                <span class="hero-kicker">Gestão web para pequenos negócios</span>
+                <h1>Controle sua empresa com simplicidade.</h1>
+                <p>O GestFlow reúne vendas, clientes, produtos, serviços, estoque, ordens de serviço e financeiro em uma plataforma direta, leve e feita para o dia a dia.</p>
+
+                <div class="hero-buttons">
+                    <a href="/login" class="btn-primary">Acessar o sistema</a>
+                    <a href="#funcionalidades" class="btn-outline">Ver funcionalidades</a>
+                </div>
+
+                <div class="hero-features">
+                    <div class="hero-feature">
+                        <strong>Vendas e OS</strong>
+                        <span>Cadastre vendas, serviços e ordens de serviço sem complicação.</span>
+                    </div>
+                    <div class="hero-feature">
+                        <strong>Estoque integrado</strong>
+                        <span>Baixa automática em vendas e retorno por devolução.</span>
+                    </div>
+                    <div class="hero-feature">
+                        <strong>Financeiro simples</strong>
+                        <span>Contas a receber, pagar e fluxo de caixa inicial.</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="hero-visual">
+                <div class="dashboard-preview">
+                    <div class="preview-topbar">
+                        <strong>Dashboard GestFlow</strong>
+                        <div class="preview-dot-wrap">
+                            <span class="preview-dot"></span>
+                            <span class="preview-dot"></span>
+                            <span class="preview-dot"></span>
+                        </div>
+                    </div>
+                    <div class="preview-body">
+                        <div class="preview-cards">
+                            <div class="preview-card"><span>Receber hoje</span><strong>R$ 40,00</strong></div>
+                            <div class="preview-card"><span>Vendas do mês</span><strong>R$ 40,00</strong></div>
+                            <div class="preview-card"><span>Produtos</span><strong>1</strong></div>
+                            <div class="preview-card"><span>Clientes</span><strong>2</strong></div>
+                        </div>
+                        <div class="preview-chart">
+                            <span class="bar" style="height: 38%"></span>
+                            <span class="bar" style="height: 58%"></span>
+                            <span class="bar" style="height: 44%"></span>
+                            <span class="bar" style="height: 82%"></span>
+                            <span class="bar" style="height: 64%"></span>
+                            <span class="bar" style="height: 94%"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="funcionalidades" class="section">
+        <div class="section-title">
+            <span>Funcionalidades</span>
+            <h2>O essencial para controlar a operação.</h2>
+            <p>Uma base simples para pequenos lojistas, oficinas e prestadores de serviço começarem a organizar a rotina comercial e financeira.</p>
+        </div>
+
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="feature-icon">▤</div>
+                <h3>Vendas</h3>
+                <p>Cadastre vendas de produtos e serviços, gere cópias, visualize detalhes e acompanhe status.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">▧</div>
+                <h3>Estoque</h3>
+                <p>Controle entradas, saídas, ajustes, compras e movimentações vinculadas às vendas.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">◈</div>
+                <h3>Financeiro</h3>
+                <p>Organize contas a receber, contas a pagar, baixas de pagamento e fluxo de caixa.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">✚</div>
+                <h3>Ordens de serviço</h3>
+                <p>Registre OS com cliente, técnico, itens, prazo, diagnóstico e serviço executado.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">☷</div>
+                <h3>Cadastros</h3>
+                <p>Clientes, fornecedores, funcionários, produtos e serviços em um só lugar.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">▣</div>
+                <h3>Orçamentos</h3>
+                <p>Monte orçamentos com itens, totais, impressão, cópia e geração de venda.</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="financeiro" class="split-section">
+        <div class="section split">
+            <div>
+                <h2>Gestão financeira sem complicar.</h2>
+                <p>Acompanhe o que tem para receber, o que precisa pagar, os valores baixados no mês e o saldo previsto da operação.</p>
+                <ul class="check-list">
+                    <li>Contas a receber geradas automaticamente pela venda</li>
+                    <li>Lançamentos manuais de contas a pagar e receber</li>
+                    <li>Baixa e cancelamento de títulos</li>
+                    <li>Fluxo de caixa com entradas, saídas e saldo previsto</li>
+                </ul>
+                <a href="/login" class="btn-dark">Entrar no GestFlow</a>
+            </div>
+
+            <div class="mock-image">
+                <div class="mock-person-card">
+                    <div class="mock-avatar">R$</div>
+                    <h3>Resumo financeiro</h3>
+                    <p>Receber hoje, pagar hoje, títulos vencidos e fluxo de caixa em uma visão simples.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="modulos" class="section">
+        <div class="section-title">
+            <span>Módulos</span>
+            <h2>Principais módulos do GestFlow.</h2>
+        </div>
+
+        <div class="module-strip">
+            <div class="module-card"><div class="module-icon">☷</div><strong>Cadastros</strong></div>
+            <div class="module-card"><div class="module-icon">▤</div><strong>Vendas</strong></div>
+            <div class="module-card"><div class="module-icon">▧</div><strong>Estoque</strong></div>
+            <div class="module-card"><div class="module-icon">◈</div><strong>Financeiro</strong></div>
+            <div class="module-card"><div class="module-icon">✚</div><strong>Ordens de Serviço</strong></div>
+            <div class="module-card"><div class="module-icon">▣</div><strong>Orçamentos</strong></div>
+        </div>
+    </section>
+
+    <section id="contato" class="cta">
+        <div class="section">
+            <div>
+                <h2>Comece simples. Evolua com controle.</h2>
+                <p>O GestFlow está sendo construído para quem precisa vender, acompanhar estoque, controlar serviços e enxergar o financeiro sem depender de planilhas soltas.</p>
+                <a href="/login" class="btn-primary">Acessar agora</a>
+            </div>
+
+            <div class="contact-box">
+                <h3>Fale com a equipe</h3>
+                <div class="contact-item"><strong>WhatsApp</strong><span>Atendimento comercial</span></div>
+                <div class="contact-item"><strong>E-mail</strong><span>contato@gestflow.com.br</span></div>
+                <div class="contact-item"><strong>Suporte</strong><span>Ajuda para implantação e uso do sistema</span></div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="footer-inner">
+            <div>
+                <h4>GestFlow</h4>
+                <p>Sistema de gestão web para pequenos negócios, oficinas, lojas e prestadores de serviço.</p>
+            </div>
+            <div>
+                <h4>Produto</h4>
+                <p>Dashboard<br>Vendas<br>Estoque<br>Financeiro</p>
+            </div>
+            <div>
+                <h4>Operação</h4>
+                <p>Clientes<br>Fornecedores<br>Funcionários<br>Serviços</p>
+            </div>
+            <div>
+                <h4>Acesso</h4>
+                <p><a href="/login">Entrar no sistema</a><br><a href="/login">Experimentar grátis</a></p>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>
