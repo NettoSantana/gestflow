@@ -1,0 +1,289 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\admin_empresas.html
+Último recode: 2026-06-19 07:35 (America/Bahia)
+Motivo: Criar painel administrativo para cadastrar empresas/clientes GestFlow.
+-->
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Admin Empresas</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+
+    <aside class="sidebar">
+
+        <div class="brand">
+            <div class="brand-mark">GF</div>
+            <h2>GESTFLOW</h2>
+        </div>
+
+        <nav class="sidebar-nav">
+            <ul class="menu">
+
+                <li class="menu-item">
+                    <a href="/">
+                        <span class="menu-icon">⌂</span>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+
+                <li class="menu-group">
+                    <details open>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">◆</span>
+                                <span>Admin GestFlow</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li class="submenu-active"><a href="/admin/empresas">Empresas</a></li>
+                            <li><a href="/configuracoes">Configurações</a></li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">☷</span>
+                                <span>Cadastros</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/clientes">Clientes</a></li>
+                            <li><a href="/fornecedores">Fornecedores</a></li>
+                            <li><a href="/funcionarios">Funcionários</a></li>
+                        </ul>
+                    </details>
+                </li>
+
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">▣</span>
+                                <span>Operação</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/orcamentos">Orçamentos</a></li>
+                            <li><a href="/vendas">Vendas</a></li>
+                            <li><a href="/ordens-servico">Ordens de Serviço</a></li>
+                            <li><a href="/estoque">Estoque</a></li>
+                            <li><a href="/financeiro">Financeiro</a></li>
+                        </ul>
+                    </details>
+                </li>
+
+            </ul>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="footer-item"><a href="/sair">Sair</a></div>
+        </div>
+
+    </aside>
+
+    <main class="content">
+
+        <header class="topbar">
+            <div class="topbar-left">
+                <button class="menu-toggle" type="button" aria-label="Abrir menu">☰</button>
+                <h1>Admin Empresas</h1>
+            </div>
+
+            <div class="topbar-right">
+                <div class="user-profile">
+                    <div class="avatar">GF</div>
+                    <div class="user-info">
+                        <strong>{{ usuario_logado.nome if usuario_logado else 'Administrador' }}</strong>
+                        <span>{{ usuario_logado.email if usuario_logado else '' }}</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Admin GestFlow</span>
+                    <h3 class="page-title">Cadastrar nova empresa</h3>
+                    <p class="page-subtitle">Crie um novo cliente GestFlow com empresa, usuário administrador e loja matriz.</p>
+                </div>
+
+                <span class="badge-info">Multitenant</span>
+            </div>
+
+            {% if erro %}
+                <div class="alert alert-danger">{{ erro }}</div>
+            {% endif %}
+
+            {% if sucesso %}
+                <div class="alert alert-success">{{ sucesso }}</div>
+            {% endif %}
+
+            <form action="/admin/empresas" method="post" class="client-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="empresa_nome_fantasia">Nome fantasia *</label>
+                        <input id="empresa_nome_fantasia" name="empresa_nome_fantasia" type="text" value="{{ formulario.nome_fantasia }}" placeholder="Ex: Loja Modelo" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="empresa_razao_social">Razão social</label>
+                        <input id="empresa_razao_social" name="empresa_razao_social" type="text" value="{{ formulario.razao_social }}" placeholder="Razão social" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="empresa_documento">CPF/CNPJ</label>
+                        <input id="empresa_documento" name="empresa_documento" type="text" value="{{ formulario.documento }}" placeholder="Documento" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="empresa_email">E-mail da empresa</label>
+                        <input id="empresa_email" name="empresa_email" type="email" value="{{ formulario.email }}" placeholder="empresa@email.com" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="empresa_telefone">Telefone</label>
+                        <input id="empresa_telefone" name="empresa_telefone" type="text" value="{{ formulario.telefone }}" placeholder="Telefone/WhatsApp" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="empresa_plano">Plano</label>
+                        <select id="empresa_plano" name="empresa_plano" class="form-control">
+                            <option value="Start" {% if formulario.plano == "Start" %}selected{% endif %}>Start</option>
+                            <option value="Pro" {% if formulario.plano == "Pro" %}selected{% endif %}>Pro</option>
+                            <option value="Business" {% if formulario.plano == "Business" %}selected{% endif %}>Business</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="empresa_status">Status</label>
+                        <select id="empresa_status" name="empresa_status" class="form-control">
+                            <option value="ativo" {% if formulario.status == "ativo" %}selected{% endif %}>Ativo</option>
+                            <option value="bloqueado" {% if formulario.status == "bloqueado" %}selected{% endif %}>Bloqueado</option>
+                            <option value="cancelado" {% if formulario.status == "cancelado" %}selected{% endif %}>Cancelado</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="loja_nome">Loja matriz</label>
+                        <input id="loja_nome" name="loja_nome" type="text" value="{{ formulario.loja_nome }}" placeholder="Matriz" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="loja_cidade">Cidade da loja</label>
+                        <input id="loja_cidade" name="loja_cidade" type="text" value="{{ formulario.loja_cidade }}" placeholder="Cidade" class="form-control">
+                    </div>
+                </div>
+
+                <div class="panel-header page-header" style="margin-top: 22px;">
+                    <div>
+                        <h3>Usuário administrador</h3>
+                        <p class="page-subtitle">Esse usuário será o primeiro acesso da nova empresa.</p>
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="usuario_admin_nome">Nome do administrador</label>
+                        <input id="usuario_admin_nome" name="usuario_admin_nome" type="text" value="{{ formulario.admin_nome }}" placeholder="Nome do responsável" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="usuario_admin_email">E-mail de login *</label>
+                        <input id="usuario_admin_email" name="usuario_admin_email" type="email" value="{{ formulario.admin_email }}" placeholder="login@empresa.com" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="usuario_admin_senha">Senha inicial *</label>
+                        <input id="usuario_admin_senha" name="usuario_admin_senha" type="text" value="{{ formulario.admin_senha }}" placeholder="Ex: empresa123" class="form-control">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="reset" class="btn-light">Limpar</button>
+                    <button type="submit" class="btn-primary-green">Cadastrar empresa</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="panel table-panel">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Empresas cadastradas</h3>
+                    <p class="page-subtitle">Controle os clientes que usam o GestFlow.</p>
+                </div>
+            </div>
+
+            <div class="table-shell">
+                <table class="client-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Empresa</th>
+                            <th>Documento</th>
+                            <th>Plano</th>
+                            <th>Status</th>
+                            <th>Usuários</th>
+                            <th>Lojas</th>
+                            <th>Criado em</th>
+                            <th>Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if empresas %}
+                            {% for empresa in empresas %}
+                                <tr>
+                                    <td>{{ empresa.id }}</td>
+                                    <td>
+                                        <strong>{{ empresa.nome_fantasia }}</strong><br>
+                                        <span>{{ empresa.email or '-' }}</span>
+                                    </td>
+                                    <td>{{ empresa.documento or '-' }}</td>
+                                    <td>{{ empresa.plano }}</td>
+                                    <td><span class="status-pill {{ empresa.status }}">{{ empresa.status }}</span></td>
+                                    <td>{{ empresa.total_usuarios }}</td>
+                                    <td>{{ empresa.total_lojas }}</td>
+                                    <td>{{ empresa.criado_em }}</td>
+                                    <td>
+                                        <form action="/admin/empresas/{{ empresa.id }}/status" method="post" class="action-form">
+                                            <select name="empresa_status" class="form-control" style="min-width: 120px;">
+                                                <option value="ativo" {% if empresa.status == "ativo" %}selected{% endif %}>Ativo</option>
+                                                <option value="bloqueado" {% if empresa.status == "bloqueado" %}selected{% endif %}>Bloqueado</option>
+                                                <option value="cancelado" {% if empresa.status == "cancelado" %}selected{% endif %}>Cancelado</option>
+                                            </select>
+                                            <button type="submit" class="btn-light">Salvar</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="9" class="empty-table empty-table-box">
+                                    <div class="empty-table-content">
+                                        <div class="empty-table-icon">◆</div>
+                                        <strong>Nenhuma empresa cadastrada.</strong>
+                                        <span>Use o formulário acima para criar o primeiro cliente.</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    </main>
+
+</body>
+</html>
