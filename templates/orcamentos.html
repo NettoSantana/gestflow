@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamentos.html
-Último recode: 2026-06-13 23:25 (America/Bahia)
-Motivo: Corrigir link da opção Gerar Cópia para chamar a rota /gerar/copia.
+Último recode: 2026-06-18 21:20 (America/Bahia)
+Motivo: Padronizar links do menu lateral na primeira leva de telas.
 -->
 
 <!DOCTYPE html>
@@ -220,10 +220,10 @@ Motivo: Corrigir link da opção Gerar Cópia para chamar a rota /gerar/copia.
                             <span class="arrow">⌄</span>
                         </summary>
                         <ul class="submenu">
-                            <li>Produtos</li>
-                            <li>Serviços</li>
-                            <li>Balcão</li>
-                            <li>Devoluções</li>
+                            <li><a href="/vendas">Produtos</a></li>
+                            <li><a href="/vendas">Serviços</a></li>
+                            <li><a href="/vendas">Balcão</a></li>
+                            <li><a href="/vendas/devolucoes">Devoluções</a></li>
                             <li>Opções auxiliares</li>
                         </ul>
                     </details>
@@ -239,8 +239,8 @@ Motivo: Corrigir link da opção Gerar Cópia para chamar a rota /gerar/copia.
                             <span class="arrow">⌄</span>
                         </summary>
                         <ul class="submenu">
-                            <li>Gerenciar O.S.</li>
-                            <li>Painel</li>
+                            <li><a href="/ordens-servico">Gerenciar O.S.</a></li>
+                            <li><a href="/ordens-servico/painel">Painel</a></li>
                             <li>Opções auxiliares</li>
                         </ul>
                     </details>
@@ -256,12 +256,9 @@ Motivo: Corrigir link da opção Gerar Cópia para chamar a rota /gerar/copia.
                             <span class="arrow">⌄</span>
                         </summary>
                         <ul class="submenu">
-                            <li>Movimentações</li>
-                            <li>Ajustes</li>
-                            <li>Transferências</li>
-                            <li>Cotações</li>
-                            <li>Compras</li>
-                            <li>Opções auxiliares</li>
+                            <li><a href="/estoque/movimentacoes">Movimentações</a></li>
+                            <li><a href="/estoque/ajustes">Ajustes</a></li>
+                            <li><a href="/estoque/compras">Compras</a></li>
                         </ul>
                     </details>
                 </li>
@@ -686,6 +683,86 @@ Motivo: Corrigir link da opção Gerar Cópia para chamar a rota /gerar/copia.
             window.itensIniciais = [];
         </script>
         <script>
+            function moedaParaNumero(valor) {
+                let texto = String(valor || "").trim();
+
+                if (!texto) {
+                    return 0;
+                }
+
+                texto = texto.replace("R$", "").replace(/\s/g, "");
+
+                if (texto.includes(",")) {
+                    texto = texto.replace(/\./g, "").replace(",", ".");
+                }
+
+                const numero = Number.parseFloat(texto);
+                return Number.isFinite(numero) ? numero : 0;
+            }
+
+            function numeroParaMoeda(valor) {
+                const numero = Number.isFinite(valor) ? valor : 0;
+                return numero.toLocaleString("pt-BR", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+            }
+
+            function buscarValorCadastro(tipo, nome) {
+                const opcoes = tipo === "produto" ? window.opcoesProdutos : window.opcoesServicos;
+                const item = opcoes.find(function(opcao) {
+                    return String(opcao.nome || "") === String(nome || "");
+                });
+
+                return item ? String(item.valor || "") : "";
+            }
+
+            function recalcularLinha(linha) {
+                const quantidadeInput = linha.querySelector(".item-quantidade");
+                const valorInput = linha.querySelector(".item-valor");
+                const descontoInput = linha.querySelector(".item-desconto");
+                const subtotalInput = linha.querySelector(".item-subtotal");
+
+                const quantidade = moedaParaNumero(quantidadeInput.value || "1") || 1;
+                const valor = moedaParaNumero(valorInput.value);
+                const desconto = moedaParaNumero(descontoInput.value);
+                const subtotal = Math.max((quantidade * valor) - desconto, 0);
+
+                quantidadeInput.value = quantidadeInput.value || "1";
+                subtotalInput.value = numeroParaMoeda(subtotal);
+
+                recalcularTotaisOrcamento();
+            }
+
+            function recalcularTotaisOrcamento() {
+                let totalProdutos = 0;
+                let totalServicos = 0;
+
+                document.querySelectorAll("#produto-tbody tr").forEach(function(linha) {
+                    totalProdutos += moedaParaNumero(linha.querySelector(".item-subtotal")?.value);
+                });
+
+                document.querySelectorAll("#servico-tbody tr").forEach(function(linha) {
+                    totalServicos += moedaParaNumero(linha.querySelector(".item-subtotal")?.value);
+                });
+
+                const descontoValorInput = document.getElementById("orcamento_desconto_valor");
+                const descontoPercentualInput = document.getElementById("orcamento_desconto_percentual");
+                const totalProdutosInput = document.getElementById("orcamento_total_produtos");
+                const totalServicosInput = document.getElementById("orcamento_total_servicos");
+                const valorTotalInput = document.getElementById("orcamento_valor_total");
+
+                const bruto = totalProdutos + totalServicos;
+                const descontoValor = moedaParaNumero(descontoValorInput.value);
+                const descontoPercentual = moedaParaNumero(descontoPercentualInput.value);
+                const descontoPercentualValor = bruto * (descontoPercentual / 100);
+                const total = Math.max(bruto - descontoValor - descontoPercentualValor, 0);
+
+                totalProdutosInput.value = numeroParaMoeda(totalProdutos);
+                totalServicosInput.value = numeroParaMoeda(totalServicos);
+                valorTotalInput.value = numeroParaMoeda(total);
+            }
+
             function criarLinha(tipo, dados) {
                 const linha = document.createElement("tr");
                 const tipoLabel = tipo === "produto" ? "Produto" : "Serviço";
@@ -694,7 +771,7 @@ Motivo: Corrigir link da opção Gerar Cópia para chamar a rota /gerar/copia.
                 let selectOptions = '<option value="">Selecione</option>';
                 opcoes.forEach(function(item) {
                     const selected = dados.descricao === item.nome ? " selected" : "";
-                    selectOptions += '<option value="' + item.nome + '"' + selected + '>' + item.nome + '</option>';
+                    selectOptions += '<option value="' + item.nome + '" data-valor="' + (item.valor || '') + '"' + selected + '>' + item.nome + '</option>';
                 });
 
                 linha.innerHTML = `
@@ -705,21 +782,56 @@ Motivo: Corrigir link da opção Gerar Cópia para chamar a rota /gerar/copia.
                         </select>
                     </td>
                     <td><input name="item_detalhes" type="text" value="${dados.detalhes || ""}" placeholder="Detalhes" class="form-control"></td>
-                    <td><input name="item_quantidade" type="text" value="${dados.quantidade || ""}" placeholder="1" class="form-control item-quantidade"></td>
+                    <td><input name="item_quantidade" type="text" value="${dados.quantidade || "1"}" placeholder="1" class="form-control item-quantidade"></td>
                     <td><input name="item_valor_unitario" type="text" value="${dados.valor_unitario || ""}" placeholder="0,00" class="form-control item-valor"></td>
-                    <td><input name="item_desconto" type="text" value="${dados.desconto || ""}" placeholder="0,00" class="form-control item-desconto"></td>
+                    <td><input name="item_desconto" type="text" value="${dados.desconto || "0,00"}" placeholder="0,00" class="form-control item-desconto"></td>
                     <td><input name="item_subtotal" type="text" value="${dados.subtotal || ""}" placeholder="0,00" class="form-control item-subtotal"></td>
                     <td>
                         <button type="button" class="action-button delete" title="Remover ${tipoLabel}" aria-label="Remover ${tipoLabel}" onclick="removerLinha(this)">×</button>
                     </td>
                 `;
 
+                const select = linha.querySelector(".item-descricao");
+                const quantidadeInput = linha.querySelector(".item-quantidade");
+                const valorInput = linha.querySelector(".item-valor");
+                const descontoInput = linha.querySelector(".item-desconto");
+
+                select.addEventListener("change", function() {
+                    const valorCadastro = select.options[select.selectedIndex]?.dataset.valor || buscarValorCadastro(tipo, select.value);
+
+                    if (valorCadastro) {
+                        valorInput.value = numeroParaMoeda(moedaParaNumero(valorCadastro));
+                    }
+
+                    recalcularLinha(linha);
+                });
+
+                [quantidadeInput, valorInput, descontoInput].forEach(function(input) {
+                    input.addEventListener("input", function() {
+                        recalcularLinha(linha);
+                    });
+
+                    input.addEventListener("blur", function() {
+                        input.value = numeroParaMoeda(moedaParaNumero(input.value));
+                        recalcularLinha(linha);
+                    });
+                });
+
+                if (dados.descricao && !dados.valor_unitario) {
+                    const valorCadastro = buscarValorCadastro(tipo, dados.descricao);
+                    if (valorCadastro) {
+                        valorInput.value = numeroParaMoeda(moedaParaNumero(valorCadastro));
+                    }
+                }
+
+                recalcularLinha(linha);
                 return linha;
             }
 
             function adicionarItem(tipo) {
                 const corpo = document.getElementById(tipo + "-tbody");
                 corpo.appendChild(criarLinha(tipo, {}));
+                recalcularTotaisOrcamento();
             }
 
             function removerLinha(botao) {
@@ -731,6 +843,8 @@ Motivo: Corrigir link da opção Gerar Cópia para chamar a rota /gerar/copia.
                     const tipo = corpo.id.replace("-tbody", "");
                     adicionarItem(tipo);
                 }
+
+                recalcularTotaisOrcamento();
             }
 
             function carregarItensIniciais() {
@@ -757,7 +871,25 @@ Motivo: Corrigir link da opção Gerar Cópia para chamar a rota /gerar/copia.
                 }
             }
 
-            document.addEventListener("DOMContentLoaded", carregarItensIniciais);
+            document.addEventListener("DOMContentLoaded", function() {
+                carregarItensIniciais();
+
+                ["orcamento_desconto_valor", "orcamento_desconto_percentual"].forEach(function(id) {
+                    const campo = document.getElementById(id);
+
+                    if (!campo) {
+                        return;
+                    }
+
+                    campo.addEventListener("input", recalcularTotaisOrcamento);
+                    campo.addEventListener("blur", function() {
+                        campo.value = numeroParaMoeda(moedaParaNumero(campo.value));
+                        recalcularTotaisOrcamento();
+                    });
+                });
+
+                recalcularTotaisOrcamento();
+            });
         </script>
 
         <script>
