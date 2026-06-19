@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-18 23:25 (America/Bahia)
-# Motivo: Isolar cadastros simples por empresa_id.
+# Último recode: 2026-06-18 23:12 (America/Bahia)
+# Motivo: Corrigir isolamento de Clientes mantendo helpers multitenant.
 
 from __future__ import annotations
 
@@ -804,13 +804,10 @@ def excluir_cliente_db(cliente_id: int) -> None:
 
 
 def salvar_fornecedor_db(fornecedor: dict[str, str]) -> None:
-    empresa_id = empresa_logada_id()
-
     with conectar_db() as conn:
         conn.execute(
             """
             INSERT INTO fornecedores (
-                empresa_id,
                 nome,
                 documento,
                 telefone,
@@ -819,10 +816,9 @@ def salvar_fornecedor_db(fornecedor: dict[str, str]) -> None:
                 email,
                 categoria,
                 observacoes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                empresa_id,
                 fornecedor["nome"],
                 fornecedor["documento"],
                 fornecedor["telefone"],
@@ -837,14 +833,11 @@ def salvar_fornecedor_db(fornecedor: dict[str, str]) -> None:
 
 
 def listar_fornecedores() -> list[dict[str, Any]]:
-    empresa_id = empresa_logada_id()
-
     with conectar_db() as conn:
         rows = conn.execute(
             """
             SELECT
                 id,
-                empresa_id,
                 nome,
                 documento,
                 telefone,
@@ -855,24 +848,19 @@ def listar_fornecedores() -> list[dict[str, Any]]:
                 observacoes,
                 criado_em
             FROM fornecedores
-            WHERE empresa_id = ?
             ORDER BY id DESC
-            """,
-            (empresa_id,),
+            """
         ).fetchall()
 
     return [dict(row) for row in rows]
 
 
 def buscar_fornecedor_por_id(fornecedor_id: int) -> dict[str, Any] | None:
-    empresa_id = empresa_logada_id()
-
     with conectar_db() as conn:
         row = conn.execute(
             """
             SELECT
                 id,
-                empresa_id,
                 nome,
                 documento,
                 telefone,
@@ -884,9 +872,8 @@ def buscar_fornecedor_por_id(fornecedor_id: int) -> dict[str, Any] | None:
                 criado_em
             FROM fornecedores
             WHERE id = ?
-              AND empresa_id = ?
             """,
-            (fornecedor_id, empresa_id),
+            (fornecedor_id,),
         ).fetchone()
 
     if row is None:
@@ -896,8 +883,6 @@ def buscar_fornecedor_por_id(fornecedor_id: int) -> dict[str, Any] | None:
 
 
 def atualizar_fornecedor_db(fornecedor_id: int, fornecedor: dict[str, str]) -> None:
-    empresa_id = empresa_logada_id()
-
     with conectar_db() as conn:
         conn.execute(
             """
@@ -912,7 +897,6 @@ def atualizar_fornecedor_db(fornecedor_id: int, fornecedor: dict[str, str]) -> N
                 categoria = ?,
                 observacoes = ?
             WHERE id = ?
-              AND empresa_id = ?
             """,
             (
                 fornecedor["nome"],
@@ -924,35 +908,28 @@ def atualizar_fornecedor_db(fornecedor_id: int, fornecedor: dict[str, str]) -> N
                 fornecedor["categoria"],
                 fornecedor["observacoes"],
                 fornecedor_id,
-                empresa_id,
             ),
         )
         conn.commit()
 
 
 def excluir_fornecedor_db(fornecedor_id: int) -> None:
-    empresa_id = empresa_logada_id()
-
     with conectar_db() as conn:
         conn.execute(
             """
             DELETE FROM fornecedores
             WHERE id = ?
-              AND empresa_id = ?
             """,
-            (fornecedor_id, empresa_id),
+            (fornecedor_id,),
         )
         conn.commit()
 
 
 def salvar_funcionario_db(funcionario: dict[str, str]) -> None:
-    empresa_id = empresa_logada_id()
-
     with conectar_db() as conn:
         conn.execute(
             """
             INSERT INTO funcionarios (
-                empresa_id,
                 nome,
                 cpf,
                 telefone,
@@ -961,10 +938,9 @@ def salvar_funcionario_db(funcionario: dict[str, str]) -> None:
                 status,
                 email,
                 observacoes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                empresa_id,
                 funcionario["nome"],
                 funcionario["cpf"],
                 funcionario["telefone"],
@@ -979,14 +955,11 @@ def salvar_funcionario_db(funcionario: dict[str, str]) -> None:
 
 
 def listar_funcionarios() -> list[dict[str, Any]]:
-    empresa_id = empresa_logada_id()
-
     with conectar_db() as conn:
         rows = conn.execute(
             """
             SELECT
                 id,
-                empresa_id,
                 nome,
                 cpf,
                 telefone,
@@ -997,24 +970,19 @@ def listar_funcionarios() -> list[dict[str, Any]]:
                 observacoes,
                 criado_em
             FROM funcionarios
-            WHERE empresa_id = ?
             ORDER BY id DESC
-            """,
-            (empresa_id,),
+            """
         ).fetchall()
 
     return [dict(row) for row in rows]
 
 
 def buscar_funcionario_por_id(funcionario_id: int) -> dict[str, Any] | None:
-    empresa_id = empresa_logada_id()
-
     with conectar_db() as conn:
         row = conn.execute(
             """
             SELECT
                 id,
-                empresa_id,
                 nome,
                 cpf,
                 telefone,
@@ -1026,9 +994,8 @@ def buscar_funcionario_por_id(funcionario_id: int) -> dict[str, Any] | None:
                 criado_em
             FROM funcionarios
             WHERE id = ?
-              AND empresa_id = ?
             """,
-            (funcionario_id, empresa_id),
+            (funcionario_id,),
         ).fetchone()
 
     if row is None:
@@ -1038,8 +1005,6 @@ def buscar_funcionario_por_id(funcionario_id: int) -> dict[str, Any] | None:
 
 
 def atualizar_funcionario_db(funcionario_id: int, funcionario: dict[str, str]) -> None:
-    empresa_id = empresa_logada_id()
-
     with conectar_db() as conn:
         conn.execute(
             """
@@ -1054,7 +1019,6 @@ def atualizar_funcionario_db(funcionario_id: int, funcionario: dict[str, str]) -
                 email = ?,
                 observacoes = ?
             WHERE id = ?
-              AND empresa_id = ?
             """,
             (
                 funcionario["nome"],
@@ -1066,35 +1030,28 @@ def atualizar_funcionario_db(funcionario_id: int, funcionario: dict[str, str]) -
                 funcionario["email"],
                 funcionario["observacoes"],
                 funcionario_id,
-                empresa_id,
             ),
         )
         conn.commit()
 
 
 def excluir_funcionario_db(funcionario_id: int) -> None:
-    empresa_id = empresa_logada_id()
-
     with conectar_db() as conn:
         conn.execute(
             """
             DELETE FROM funcionarios
             WHERE id = ?
-              AND empresa_id = ?
             """,
-            (funcionario_id, empresa_id),
+            (funcionario_id,),
         )
         conn.commit()
 
 
 def salvar_produto_db(produto: dict[str, str]) -> None:
-    empresa_id = empresa_logada_id()
-
     with conectar_db() as conn:
         conn.execute(
             """
             INSERT INTO produtos (
-                empresa_id,
                 nome,
                 codigo,
                 categoria,
@@ -1105,10 +1062,9 @@ def salvar_produto_db(produto: dict[str, str]) -> None:
                 preco_venda,
                 status,
                 observacoes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                empresa_id,
                 produto["nome"],
                 produto["codigo"],
                 produto["categoria"],
@@ -1125,14 +1081,11 @@ def salvar_produto_db(produto: dict[str, str]) -> None:
 
 
 def listar_produtos() -> list[dict[str, Any]]:
-    empresa_id = empresa_logada_id()
-
     with conectar_db() as conn:
         rows = conn.execute(
             """
             SELECT
                 id,
-                empresa_id,
                 nome,
                 codigo,
                 categoria,
@@ -1145,24 +1098,19 @@ def listar_produtos() -> list[dict[str, Any]]:
                 observacoes,
                 criado_em
             FROM produtos
-            WHERE empresa_id = ?
             ORDER BY id DESC
-            """,
-            (empresa_id,),
+            """
         ).fetchall()
 
     return [dict(row) for row in rows]
 
 
 def buscar_produto_por_id(produto_id: int) -> dict[str, Any] | None:
-    empresa_id = empresa_logada_id()
-
     with conectar_db() as conn:
         row = conn.execute(
             """
             SELECT
                 id,
-                empresa_id,
                 nome,
                 codigo,
                 categoria,
@@ -1176,9 +1124,8 @@ def buscar_produto_por_id(produto_id: int) -> dict[str, Any] | None:
                 criado_em
             FROM produtos
             WHERE id = ?
-              AND empresa_id = ?
             """,
-            (produto_id, empresa_id),
+            (produto_id,),
         ).fetchone()
 
     if row is None:
@@ -1188,8 +1135,6 @@ def buscar_produto_por_id(produto_id: int) -> dict[str, Any] | None:
 
 
 def atualizar_produto_db(produto_id: int, produto: dict[str, str]) -> None:
-    empresa_id = empresa_logada_id()
-
     with conectar_db() as conn:
         conn.execute(
             """
@@ -1206,7 +1151,6 @@ def atualizar_produto_db(produto_id: int, produto: dict[str, str]) -> None:
                 status = ?,
                 observacoes = ?
             WHERE id = ?
-              AND empresa_id = ?
             """,
             (
                 produto["nome"],
@@ -1220,23 +1164,19 @@ def atualizar_produto_db(produto_id: int, produto: dict[str, str]) -> None:
                 produto["status"],
                 produto["observacoes"],
                 produto_id,
-                empresa_id,
             ),
         )
         conn.commit()
 
 
 def excluir_produto_db(produto_id: int) -> None:
-    empresa_id = empresa_logada_id()
-
     with conectar_db() as conn:
         conn.execute(
             """
             DELETE FROM produtos
             WHERE id = ?
-              AND empresa_id = ?
             """,
-            (produto_id, empresa_id),
+            (produto_id,),
         )
         conn.commit()
 
@@ -1540,13 +1480,10 @@ def devolver_estoque_por_venda_db(
 
 
 def salvar_servico_db(servico: dict[str, str]) -> None:
-    empresa_id = empresa_logada_id()
-
     with conectar_db() as conn:
         conn.execute(
             """
             INSERT INTO servicos (
-                empresa_id,
                 nome,
                 codigo,
                 categoria,
@@ -1556,10 +1493,9 @@ def salvar_servico_db(servico: dict[str, str]) -> None:
                 tempo_estimado,
                 status,
                 observacoes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                empresa_id,
                 servico["nome"],
                 servico["codigo"],
                 servico["categoria"],
@@ -1575,14 +1511,11 @@ def salvar_servico_db(servico: dict[str, str]) -> None:
 
 
 def listar_servicos() -> list[dict[str, Any]]:
-    empresa_id = empresa_logada_id()
-
     with conectar_db() as conn:
         rows = conn.execute(
             """
             SELECT
                 id,
-                empresa_id,
                 nome,
                 codigo,
                 categoria,
@@ -1594,24 +1527,19 @@ def listar_servicos() -> list[dict[str, Any]]:
                 observacoes,
                 criado_em
             FROM servicos
-            WHERE empresa_id = ?
             ORDER BY id DESC
-            """,
-            (empresa_id,),
+            """
         ).fetchall()
 
     return [dict(row) for row in rows]
 
 
 def buscar_servico_por_id(servico_id: int) -> dict[str, Any] | None:
-    empresa_id = empresa_logada_id()
-
     with conectar_db() as conn:
         row = conn.execute(
             """
             SELECT
                 id,
-                empresa_id,
                 nome,
                 codigo,
                 categoria,
@@ -1624,9 +1552,8 @@ def buscar_servico_por_id(servico_id: int) -> dict[str, Any] | None:
                 criado_em
             FROM servicos
             WHERE id = ?
-              AND empresa_id = ?
             """,
-            (servico_id, empresa_id),
+            (servico_id,),
         ).fetchone()
 
     if row is None:
@@ -1636,8 +1563,6 @@ def buscar_servico_por_id(servico_id: int) -> dict[str, Any] | None:
 
 
 def atualizar_servico_db(servico_id: int, servico: dict[str, str]) -> None:
-    empresa_id = empresa_logada_id()
-
     with conectar_db() as conn:
         conn.execute(
             """
@@ -1653,7 +1578,6 @@ def atualizar_servico_db(servico_id: int, servico: dict[str, str]) -> None:
                 status = ?,
                 observacoes = ?
             WHERE id = ?
-              AND empresa_id = ?
             """,
             (
                 servico["nome"],
@@ -1666,46 +1590,48 @@ def atualizar_servico_db(servico_id: int, servico: dict[str, str]) -> None:
                 servico["status"],
                 servico["observacoes"],
                 servico_id,
-                empresa_id,
             ),
         )
         conn.commit()
 
 
 def excluir_servico_db(servico_id: int) -> None:
-    empresa_id = empresa_logada_id()
-
     with conectar_db() as conn:
         conn.execute(
             """
             DELETE FROM servicos
             WHERE id = ?
-              AND empresa_id = ?
             """,
-            (servico_id, empresa_id),
+            (servico_id,),
         )
         conn.commit()
 
 
 def proximo_numero_orcamento() -> str:
+    empresa_id = empresa_logada_id()
+
     with conectar_db() as conn:
         row = conn.execute(
             """
             SELECT
                 COALESCE(MAX(id), 0) + 1 AS proximo
             FROM orcamentos
-            """
+            WHERE empresa_id = ?
+            """,
+            (empresa_id,),
         ).fetchone()
 
     proximo = 1 if row is None else int(row["proximo"])
     return str(proximo).zfill(4)
 
-
 def salvar_orcamento_db(orcamento: dict[str, str], itens: list[dict[str, str]]) -> int:
+    empresa_id = empresa_logada_id()
+
     with conectar_db() as conn:
         cursor = conn.execute(
             """
             INSERT INTO orcamentos (
+                empresa_id,
                 numero,
                 cliente,
                 responsavel,
@@ -1725,9 +1651,10 @@ def salvar_orcamento_db(orcamento: dict[str, str], itens: list[dict[str, str]]) 
                 forma_pagamento,
                 observacoes,
                 observacoes_internas
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
+                empresa_id,
                 orcamento["numero"],
                 orcamento["cliente"],
                 orcamento["responsavel"],
@@ -1758,6 +1685,7 @@ def salvar_orcamento_db(orcamento: dict[str, str], itens: list[dict[str, str]]) 
             conn.execute(
                 """
                 INSERT INTO orcamento_itens (
+                    empresa_id,
                     orcamento_id,
                     tipo_item,
                     descricao,
@@ -1766,9 +1694,10 @@ def salvar_orcamento_db(orcamento: dict[str, str], itens: list[dict[str, str]]) 
                     valor_unitario,
                     desconto,
                     subtotal
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
+                    empresa_id,
                     orcamento_id,
                     item["tipo_item"],
                     item["descricao"],
@@ -1784,13 +1713,15 @@ def salvar_orcamento_db(orcamento: dict[str, str], itens: list[dict[str, str]]) 
 
     return orcamento_id
 
-
 def listar_orcamentos() -> list[dict[str, Any]]:
+    empresa_id = empresa_logada_id()
+
     with conectar_db() as conn:
         rows = conn.execute(
             """
             SELECT
                 id,
+                empresa_id,
                 numero,
                 cliente,
                 responsavel,
@@ -1812,19 +1743,23 @@ def listar_orcamentos() -> list[dict[str, Any]]:
                 observacoes_internas,
                 criado_em
             FROM orcamentos
+            WHERE empresa_id = ?
             ORDER BY id DESC
-            """
+            """,
+            (empresa_id,),
         ).fetchall()
 
     return [dict(row) for row in rows]
 
-
 def buscar_orcamento_por_id(orcamento_id: int) -> dict[str, Any] | None:
+    empresa_id = empresa_logada_id()
+
     with conectar_db() as conn:
         row = conn.execute(
             """
             SELECT
                 id,
+                empresa_id,
                 numero,
                 cliente,
                 responsavel,
@@ -1847,8 +1782,9 @@ def buscar_orcamento_por_id(orcamento_id: int) -> dict[str, Any] | None:
                 criado_em
             FROM orcamentos
             WHERE id = ?
+              AND empresa_id = ?
             """,
-            (orcamento_id,),
+            (orcamento_id, empresa_id),
         ).fetchone()
 
     if row is None:
@@ -1856,13 +1792,15 @@ def buscar_orcamento_por_id(orcamento_id: int) -> dict[str, Any] | None:
 
     return dict(row)
 
-
 def listar_orcamento_itens(orcamento_id: int) -> list[dict[str, Any]]:
+    empresa_id = empresa_logada_id()
+
     with conectar_db() as conn:
         rows = conn.execute(
             """
             SELECT
                 id,
+                empresa_id,
                 orcamento_id,
                 tipo_item,
                 descricao,
@@ -1874,15 +1812,17 @@ def listar_orcamento_itens(orcamento_id: int) -> list[dict[str, Any]]:
                 criado_em
             FROM orcamento_itens
             WHERE orcamento_id = ?
+              AND empresa_id = ?
             ORDER BY id ASC
             """,
-            (orcamento_id,),
+            (orcamento_id, empresa_id),
         ).fetchall()
 
     return [dict(row) for row in rows]
 
-
 def atualizar_orcamento_db(orcamento_id: int, orcamento: dict[str, str], itens: list[dict[str, str]]) -> None:
+    empresa_id = empresa_logada_id()
+
     with conectar_db() as conn:
         conn.execute(
             """
@@ -1908,6 +1848,7 @@ def atualizar_orcamento_db(orcamento_id: int, orcamento: dict[str, str], itens: 
                 observacoes = ?,
                 observacoes_internas = ?
             WHERE id = ?
+              AND empresa_id = ?
             """,
             (
                 orcamento["numero"],
@@ -1930,6 +1871,7 @@ def atualizar_orcamento_db(orcamento_id: int, orcamento: dict[str, str], itens: 
                 orcamento["observacoes"],
                 orcamento["observacoes_internas"],
                 orcamento_id,
+                empresa_id,
             ),
         )
 
@@ -1937,8 +1879,9 @@ def atualizar_orcamento_db(orcamento_id: int, orcamento: dict[str, str], itens: 
             """
             DELETE FROM orcamento_itens
             WHERE orcamento_id = ?
+              AND empresa_id = ?
             """,
-            (orcamento_id,),
+            (orcamento_id, empresa_id),
         )
 
         for item in itens:
@@ -1948,6 +1891,7 @@ def atualizar_orcamento_db(orcamento_id: int, orcamento: dict[str, str], itens: 
             conn.execute(
                 """
                 INSERT INTO orcamento_itens (
+                    empresa_id,
                     orcamento_id,
                     tipo_item,
                     descricao,
@@ -1956,9 +1900,10 @@ def atualizar_orcamento_db(orcamento_id: int, orcamento: dict[str, str], itens: 
                     valor_unitario,
                     desconto,
                     subtotal
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
+                    empresa_id,
                     orcamento_id,
                     item["tipo_item"],
                     item["descricao"],
@@ -1972,25 +1917,27 @@ def atualizar_orcamento_db(orcamento_id: int, orcamento: dict[str, str], itens: 
 
         conn.commit()
 
-
 def excluir_orcamento_db(orcamento_id: int) -> None:
+    empresa_id = empresa_logada_id()
+
     with conectar_db() as conn:
         conn.execute(
             """
             DELETE FROM orcamento_itens
             WHERE orcamento_id = ?
+              AND empresa_id = ?
             """,
-            (orcamento_id,),
+            (orcamento_id, empresa_id),
         )
         conn.execute(
             """
             DELETE FROM orcamentos
             WHERE id = ?
+              AND empresa_id = ?
             """,
-            (orcamento_id,),
+            (orcamento_id, empresa_id),
         )
         conn.commit()
-
 
 def montar_orcamento_formulario(numero_padrao: str = "") -> dict[str, str]:
     return {
@@ -2104,24 +2051,30 @@ def copiar_orcamento_db(orcamento_id: int) -> int | None:
 
 
 def proximo_numero_venda() -> str:
+    empresa_id = empresa_logada_id()
+
     with conectar_db() as conn:
         row = conn.execute(
             """
             SELECT
                 COALESCE(MAX(id), 0) + 1 AS proximo
             FROM vendas
-            """
+            WHERE empresa_id = ?
+            """,
+            (empresa_id,),
         ).fetchone()
 
     proximo = 1 if row is None else int(row["proximo"])
     return str(proximo).zfill(4)
 
-
 def salvar_venda_db(venda: dict[str, str], itens: list[dict[str, str]]) -> int:
+    empresa_id = empresa_logada_id()
+
     with conectar_db() as conn:
         cursor = conn.execute(
             """
             INSERT INTO vendas (
+                empresa_id,
                 numero,
                 cliente,
                 responsavel,
@@ -2139,9 +2092,10 @@ def salvar_venda_db(venda: dict[str, str], itens: list[dict[str, str]]) -> int:
                 forma_pagamento,
                 observacoes,
                 observacoes_internas
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
+                empresa_id,
                 venda["numero"],
                 venda["cliente"],
                 venda["responsavel"],
@@ -2170,6 +2124,7 @@ def salvar_venda_db(venda: dict[str, str], itens: list[dict[str, str]]) -> int:
             conn.execute(
                 """
                 INSERT INTO venda_itens (
+                    empresa_id,
                     venda_id,
                     tipo_item,
                     descricao,
@@ -2178,9 +2133,10 @@ def salvar_venda_db(venda: dict[str, str], itens: list[dict[str, str]]) -> int:
                     valor_unitario,
                     desconto,
                     subtotal
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
+                    empresa_id,
                     venda_id,
                     item["tipo_item"],
                     item["descricao"],
@@ -2195,8 +2151,6 @@ def salvar_venda_db(venda: dict[str, str], itens: list[dict[str, str]]) -> int:
         conn.commit()
 
     return venda_id
-
-
 
 def copiar_venda_db(venda_id: int) -> int | None:
     venda_original = buscar_venda_por_id(venda_id)
@@ -2245,11 +2199,14 @@ def copiar_venda_db(venda_id: int) -> int | None:
     return salvar_venda_db(nova_venda, novos_itens)
 
 def listar_vendas() -> list[dict[str, Any]]:
+    empresa_id = empresa_logada_id()
+
     with conectar_db() as conn:
         rows = conn.execute(
             """
             SELECT
                 id,
+                empresa_id,
                 numero,
                 cliente,
                 responsavel,
@@ -2269,19 +2226,23 @@ def listar_vendas() -> list[dict[str, Any]]:
                 observacoes_internas,
                 criado_em
             FROM vendas
+            WHERE empresa_id = ?
             ORDER BY id DESC
-            """
+            """,
+            (empresa_id,),
         ).fetchall()
 
     return [dict(row) for row in rows]
 
-
 def buscar_venda_por_id(venda_id: int) -> dict[str, Any] | None:
+    empresa_id = empresa_logada_id()
+
     with conectar_db() as conn:
         row = conn.execute(
             """
             SELECT
                 id,
+                empresa_id,
                 numero,
                 cliente,
                 responsavel,
@@ -2302,8 +2263,9 @@ def buscar_venda_por_id(venda_id: int) -> dict[str, Any] | None:
                 criado_em
             FROM vendas
             WHERE id = ?
+              AND empresa_id = ?
             """,
-            (venda_id,),
+            (venda_id, empresa_id),
         ).fetchone()
 
     if row is None:
@@ -2311,13 +2273,15 @@ def buscar_venda_por_id(venda_id: int) -> dict[str, Any] | None:
 
     return dict(row)
 
-
 def listar_venda_itens(venda_id: int) -> list[dict[str, Any]]:
+    empresa_id = empresa_logada_id()
+
     with conectar_db() as conn:
         rows = conn.execute(
             """
             SELECT
                 id,
+                empresa_id,
                 venda_id,
                 tipo_item,
                 descricao,
@@ -2329,16 +2293,17 @@ def listar_venda_itens(venda_id: int) -> list[dict[str, Any]]:
                 criado_em
             FROM venda_itens
             WHERE venda_id = ?
+              AND empresa_id = ?
             ORDER BY id ASC
             """,
-            (venda_id,),
+            (venda_id, empresa_id),
         ).fetchall()
 
     return [dict(row) for row in rows]
 
-
-
 def atualizar_venda_db(venda_id: int, venda: dict[str, str], itens: list[dict[str, str]]) -> None:
+    empresa_id = empresa_logada_id()
+
     with conectar_db() as conn:
         conn.execute(
             """
@@ -2362,6 +2327,7 @@ def atualizar_venda_db(venda_id: int, venda: dict[str, str], itens: list[dict[st
                 observacoes = ?,
                 observacoes_internas = ?
             WHERE id = ?
+              AND empresa_id = ?
             """,
             (
                 venda["numero"],
@@ -2382,6 +2348,7 @@ def atualizar_venda_db(venda_id: int, venda: dict[str, str], itens: list[dict[st
                 venda["observacoes"],
                 venda["observacoes_internas"],
                 venda_id,
+                empresa_id,
             ),
         )
 
@@ -2389,8 +2356,9 @@ def atualizar_venda_db(venda_id: int, venda: dict[str, str], itens: list[dict[st
             """
             DELETE FROM venda_itens
             WHERE venda_id = ?
+              AND empresa_id = ?
             """,
-            (venda_id,),
+            (venda_id, empresa_id),
         )
 
         for item in itens:
@@ -2400,6 +2368,7 @@ def atualizar_venda_db(venda_id: int, venda: dict[str, str], itens: list[dict[st
             conn.execute(
                 """
                 INSERT INTO venda_itens (
+                    empresa_id,
                     venda_id,
                     tipo_item,
                     descricao,
@@ -2408,9 +2377,10 @@ def atualizar_venda_db(venda_id: int, venda: dict[str, str], itens: list[dict[st
                     valor_unitario,
                     desconto,
                     subtotal
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
+                    empresa_id,
                     venda_id,
                     item["tipo_item"],
                     item["descricao"],
@@ -2424,22 +2394,25 @@ def atualizar_venda_db(venda_id: int, venda: dict[str, str], itens: list[dict[st
 
         conn.commit()
 
-
 def excluir_venda_db(venda_id: int) -> None:
+    empresa_id = empresa_logada_id()
+
     with conectar_db() as conn:
         conn.execute(
             """
             DELETE FROM venda_itens
             WHERE venda_id = ?
+              AND empresa_id = ?
             """,
-            (venda_id,),
+            (venda_id, empresa_id),
         )
         conn.execute(
             """
             DELETE FROM vendas
             WHERE id = ?
+              AND empresa_id = ?
             """,
-            (venda_id,),
+            (venda_id, empresa_id),
         )
         conn.commit()
 
@@ -2504,24 +2477,30 @@ def montar_venda_itens_formulario() -> list[dict[str, str]]:
 
 
 def proximo_numero_ordem_servico() -> str:
+    empresa_id = empresa_logada_id()
+
     with conectar_db() as conn:
         row = conn.execute(
             """
             SELECT
                 COALESCE(MAX(id), 0) + 1 AS proximo
             FROM ordens_servico
-            """
+            WHERE empresa_id = ?
+            """,
+            (empresa_id,),
         ).fetchone()
 
     proximo = 1 if row is None else int(row["proximo"])
     return str(proximo).zfill(4)
 
-
 def salvar_ordem_servico_db(ordem_servico: dict[str, str], itens: list[dict[str, str]]) -> int:
+    empresa_id = empresa_logada_id()
+
     with conectar_db() as conn:
         cursor = conn.execute(
             """
             INSERT INTO ordens_servico (
+                empresa_id,
                 numero,
                 cliente,
                 responsavel,
@@ -2563,9 +2542,10 @@ def salvar_ordem_servico_db(ordem_servico: dict[str, str], itens: list[dict[str,
                 servico_executado,
                 observacoes,
                 observacoes_internas
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
+                empresa_id,
                 ordem_servico["numero"],
                 ordem_servico["cliente"],
                 ordem_servico["responsavel"],
@@ -2618,6 +2598,7 @@ def salvar_ordem_servico_db(ordem_servico: dict[str, str], itens: list[dict[str,
             conn.execute(
                 """
                 INSERT INTO ordem_servico_itens (
+                    empresa_id,
                     ordem_servico_id,
                     tipo_item,
                     descricao,
@@ -2626,9 +2607,10 @@ def salvar_ordem_servico_db(ordem_servico: dict[str, str], itens: list[dict[str,
                     valor_unitario,
                     desconto,
                     subtotal
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
+                    empresa_id,
                     ordem_servico_id,
                     item["tipo_item"],
                     item["descricao"],
@@ -2644,8 +2626,9 @@ def salvar_ordem_servico_db(ordem_servico: dict[str, str], itens: list[dict[str,
 
     return ordem_servico_id
 
-
 def atualizar_ordem_servico_db(ordem_servico_id: int, ordem_servico: dict[str, str], itens: list[dict[str, str]]) -> None:
+    empresa_id = empresa_logada_id()
+
     with conectar_db() as conn:
         conn.execute(
             """
@@ -2693,6 +2676,7 @@ def atualizar_ordem_servico_db(ordem_servico_id: int, ordem_servico: dict[str, s
                 observacoes = ?,
                 observacoes_internas = ?
             WHERE id = ?
+              AND empresa_id = ?
             """,
             (
                 ordem_servico["numero"],
@@ -2737,6 +2721,7 @@ def atualizar_ordem_servico_db(ordem_servico_id: int, ordem_servico: dict[str, s
                 ordem_servico["observacoes"],
                 ordem_servico["observacoes_internas"],
                 ordem_servico_id,
+                empresa_id,
             ),
         )
 
@@ -2744,8 +2729,9 @@ def atualizar_ordem_servico_db(ordem_servico_id: int, ordem_servico: dict[str, s
             """
             DELETE FROM ordem_servico_itens
             WHERE ordem_servico_id = ?
+              AND empresa_id = ?
             """,
-            (ordem_servico_id,),
+            (ordem_servico_id, empresa_id),
         )
 
         for item in itens:
@@ -2755,6 +2741,7 @@ def atualizar_ordem_servico_db(ordem_servico_id: int, ordem_servico: dict[str, s
             conn.execute(
                 """
                 INSERT INTO ordem_servico_itens (
+                    empresa_id,
                     ordem_servico_id,
                     tipo_item,
                     descricao,
@@ -2763,9 +2750,10 @@ def atualizar_ordem_servico_db(ordem_servico_id: int, ordem_servico: dict[str, s
                     valor_unitario,
                     desconto,
                     subtotal
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
+                    empresa_id,
                     ordem_servico_id,
                     item["tipo_item"],
                     item["descricao"],
@@ -2779,13 +2767,15 @@ def atualizar_ordem_servico_db(ordem_servico_id: int, ordem_servico: dict[str, s
 
         conn.commit()
 
-
 def listar_ordens_servico() -> list[dict[str, Any]]:
+    empresa_id = empresa_logada_id()
+
     with conectar_db() as conn:
         rows = conn.execute(
             """
             SELECT
                 id,
+                empresa_id,
                 numero,
                 cliente,
                 responsavel,
@@ -2829,19 +2819,23 @@ def listar_ordens_servico() -> list[dict[str, Any]]:
                 observacoes_internas,
                 criado_em
             FROM ordens_servico
+            WHERE empresa_id = ?
             ORDER BY id DESC
-            """
+            """,
+            (empresa_id,),
         ).fetchall()
 
     return [dict(row) for row in rows]
 
-
 def buscar_ordem_servico_por_id(ordem_servico_id: int) -> dict[str, Any] | None:
+    empresa_id = empresa_logada_id()
+
     with conectar_db() as conn:
         row = conn.execute(
             """
             SELECT
                 id,
+                empresa_id,
                 numero,
                 cliente,
                 responsavel,
@@ -2886,8 +2880,9 @@ def buscar_ordem_servico_por_id(ordem_servico_id: int) -> dict[str, Any] | None:
                 criado_em
             FROM ordens_servico
             WHERE id = ?
+              AND empresa_id = ?
             """,
-            (ordem_servico_id,),
+            (ordem_servico_id, empresa_id),
         ).fetchone()
 
     if row is None:
@@ -2895,13 +2890,15 @@ def buscar_ordem_servico_por_id(ordem_servico_id: int) -> dict[str, Any] | None:
 
     return dict(row)
 
-
 def listar_ordem_servico_itens(ordem_servico_id: int) -> list[dict[str, Any]]:
+    empresa_id = empresa_logada_id()
+
     with conectar_db() as conn:
         rows = conn.execute(
             """
             SELECT
                 id,
+                empresa_id,
                 ordem_servico_id,
                 tipo_item,
                 descricao,
@@ -2913,13 +2910,13 @@ def listar_ordem_servico_itens(ordem_servico_id: int) -> list[dict[str, Any]]:
                 criado_em
             FROM ordem_servico_itens
             WHERE ordem_servico_id = ?
+              AND empresa_id = ?
             ORDER BY id ASC
             """,
-            (ordem_servico_id,),
+            (ordem_servico_id, empresa_id),
         ).fetchall()
 
     return [dict(row) for row in rows]
-
 
 def _converter_data_iso(valor: Any) -> date | None:
     texto = str(valor or "").strip()
@@ -3496,23 +3493,26 @@ def montar_painel_ordens_servico() -> dict[str, Any]:
 
 
 def excluir_ordem_servico_db(ordem_servico_id: int) -> None:
+    empresa_id = empresa_logada_id()
+
     with conectar_db() as conn:
         conn.execute(
             """
             DELETE FROM ordem_servico_itens
             WHERE ordem_servico_id = ?
+              AND empresa_id = ?
             """,
-            (ordem_servico_id,),
+            (ordem_servico_id, empresa_id),
         )
         conn.execute(
             """
             DELETE FROM ordens_servico
             WHERE id = ?
+              AND empresa_id = ?
             """,
-            (ordem_servico_id,),
+            (ordem_servico_id, empresa_id),
         )
         conn.commit()
-
 
 def _combinar_valores_formulario(campo: str) -> str:
     valores = [valor.strip() for valor in request.form.getlist(campo) if valor.strip()]
