@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-16 23:35 (America/Bahia)
-# Motivo: Ligar baixa automática de estoque ao salvar venda com produtos.
+# Último recode: 2026-06-18 21:35 (America/Bahia)
+# Motivo: Reativar rotas de devolução de vendas no app.py.
 
 from __future__ import annotations
 
@@ -1023,6 +1023,88 @@ def baixar_estoque_por_venda_db(venda_id: int, venda: dict[str, str], itens: lis
             "documento": f"Venda Nº {numero_venda}",
             "responsavel": responsavel,
             "observacoes": "Baixa automática gerada ao salvar a venda.",
+        }
+
+        salvar_estoque_movimentacao_db(movimentacao)
+
+
+def montar_devolucao_itens_formulario() -> list[dict[str, str]]:
+    descricoes = request.form.getlist("devolucao_descricao")
+    quantidades = request.form.getlist("devolucao_quantidade")
+    detalhes = request.form.getlist("devolucao_detalhes")
+
+    total_itens = max(len(descricoes), len(quantidades), len(detalhes), 0)
+    itens: list[dict[str, str]] = []
+
+    for index in range(total_itens):
+        descricao = (descricoes[index] if index < len(descricoes) else "").strip()
+        quantidade = (quantidades[index] if index < len(quantidades) else "").strip()
+        detalhe = (detalhes[index] if index < len(detalhes) else "").strip()
+
+        if not descricao:
+            continue
+
+        itens.append(
+            {
+                "descricao": descricao,
+                "quantidade": quantidade,
+                "detalhes": detalhe,
+            }
+        )
+
+    return itens
+
+
+def devolver_estoque_por_venda_db(
+    venda_id: int,
+    venda: dict[str, Any],
+    itens_devolucao: list[dict[str, str]],
+    responsavel: str = "",
+    observacoes: str = "",
+) -> None:
+    numero_venda = str(venda.get("numero") or venda_id).strip() or str(venda_id)
+    responsavel = str(responsavel or venda.get("responsavel") or "").strip()
+    observacoes = str(observacoes or "").strip()
+
+    for item in itens_devolucao:
+        descricao = str(item.get("descricao") or "").strip()
+
+        if not descricao:
+            continue
+
+        produto = buscar_produto_por_descricao_item(descricao)
+
+        if produto is None:
+            continue
+
+        quantidade = _converter_valor_brl(item.get("quantidade"))
+
+        if quantidade <= 0:
+            continue
+
+        saldo_anterior_numero = _converter_valor_brl(produto.get("estoque_atual"))
+        saldo_atual_numero = saldo_anterior_numero + quantidade
+
+        texto_observacoes = "Entrada automática gerada por devolução de venda."
+
+        detalhe = str(item.get("detalhes") or "").strip()
+        if detalhe:
+            texto_observacoes += f"\nItem: {detalhe}"
+
+        if observacoes:
+            texto_observacoes += f"\n{observacoes}"
+
+        movimentacao = {
+            "produto_id": str(produto.get("id") or ""),
+            "produto_nome": str(produto.get("nome") or descricao),
+            "tipo": "entrada",
+            "quantidade": _formatar_numero_estoque(quantidade),
+            "saldo_anterior": _formatar_numero_estoque(saldo_anterior_numero),
+            "saldo_atual": _formatar_numero_estoque(saldo_atual_numero),
+            "motivo": "Devolução de venda",
+            "documento": f"Devolução Venda Nº {numero_venda}",
+            "responsavel": responsavel,
+            "observacoes": texto_observacoes,
         }
 
         salvar_estoque_movimentacao_db(movimentacao)
@@ -3596,6 +3678,25 @@ def vendas() -> str:
     )
 
 
+@app.get("/vendas/devolucoes")
+def vendas_devolucoes() -> str:
+    vendas_lista = listar_vendas()
+    clientes_lista = listar_clientes()
+    produtos_lista = listar_produtos()
+    servicos_lista = listar_servicos()
+    proximo_numero = proximo_numero_venda()
+
+    return render_template(
+        "vendas.html",
+        vendas=vendas_lista,
+        clientes=clientes_lista,
+        produtos=produtos_lista,
+        servicos=servicos_lista,
+        proximo_numero=proximo_numero,
+        modo_devolucoes=True,
+    )
+
+
 @app.post("/vendas")
 def salvar_venda() -> Response:
     venda = montar_venda_formulario(numero_padrao=proximo_numero_venda())
@@ -3618,6 +3719,50 @@ def ver_venda(venda_id: int) -> str | Response:
     itens = listar_venda_itens(venda_id)
 
     return render_template("venda_detalhe.html", venda=venda, itens=itens)
+
+
+@app.get("/vendas/<int:venda_id>/devolucao")
+def devolucao_venda(venda_id: int) -> str | Response:
+    venda = buscar_venda_por_id(venda_id)
+
+    if venda is None:
+        return redirect(url_for("vendas"))
+
+    vendas_lista = listar_vendas()
+    clientes_lista = listar_clientes()
+    produtos_lista = listar_produtos()
+    servicos_lista = listar_servicos()
+    itens_venda = listar_venda_itens(venda_id)
+    itens_produtos = [item for item in itens_venda if str(item.get("tipo_item") or "") == "produto"]
+
+    return render_template(
+        "vendas.html",
+        vendas=vendas_lista,
+        clientes=clientes_lista,
+        produtos=produtos_lista,
+        servicos=servicos_lista,
+        proximo_numero=proximo_numero_venda(),
+        modo_devolucoes=True,
+        devolucao_venda=venda,
+        devolucao_itens=itens_produtos,
+    )
+
+
+@app.post("/vendas/<int:venda_id>/devolver")
+def devolver_venda(venda_id: int) -> Response:
+    venda = buscar_venda_por_id(venda_id)
+
+    if venda is None:
+        return redirect(url_for("vendas"))
+
+    itens_devolucao = montar_devolucao_itens_formulario()
+    responsavel = (request.form.get("devolucao_responsavel") or "").strip()
+    observacoes = (request.form.get("devolucao_observacoes") or "").strip()
+
+    if itens_devolucao:
+        devolver_estoque_por_venda_db(venda_id, venda, itens_devolucao, responsavel, observacoes)
+
+    return redirect(url_for("vendas_devolucoes"))
 
 
 
