@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamentos.html
-Último recode: 2026-06-19 07:45 (America/Bahia)
-Motivo: Padronizar menu lateral, links do financeiro, configurações e admin.
+Último recode: 2026-06-19 07:55 (America/Bahia)
+Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
 -->
 
 <!DOCTYPE html>
@@ -121,6 +121,28 @@ Motivo: Padronizar menu lateral, links do financeiro, configurações e admin.
             align-items: center;
             gap: 8px;
         }
+    
+        .logout-button {
+            height: 36px;
+            padding: 0 14px;
+            border: 1px solid #d7e1ef;
+            border-radius: 10px;
+            background: #ffffff;
+            color: #dc2626;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 900;
+            text-decoration: none;
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .logout-button:hover {
+            background: #fff1f2;
+            border-color: #fecdd3;
+        }
+
     </style>
 </head>
 <body>
@@ -283,7 +305,6 @@ Motivo: Padronizar menu lateral, links do financeiro, configurações e admin.
                 </li>
 
                 {% if usuario_logado and usuario_logado.email in ["admin@gestflow.local", "nettosantana@icloud.com"] %}
-
                 <li class="menu-group">
                     <details>
                         <summary>
@@ -305,7 +326,7 @@ Motivo: Padronizar menu lateral, links do financeiro, configurações e admin.
 
         <div class="sidebar-footer">
             <a href="/configuracoes" class="footer-item" style="text-decoration: none;">⚙ Configurações</a>
-            <div class="footer-item">? Ajuda</div>
+            <a href="/sair" class="footer-item" style="text-decoration: none;">Sair</a>
         </div>
 
     </aside>
@@ -313,6 +334,12 @@ Motivo: Padronizar menu lateral, links do financeiro, configurações e admin.
     <main class="content orcamentos-page">
 
         <header class="topbar">
+            {% set _usuario_topbar = usuario_logado|default({}) %}
+            {% set _data_topbar = data_hoje|default('') %}
+            {% if not _data_topbar and dashboard is defined %}
+                {% set _data_topbar = dashboard.data_hoje|default('') %}
+            {% endif %}
+
             <div class="topbar-left">
                 <button class="menu-toggle" type="button" aria-label="Abrir menu">☰</button>
                 <h1>Orçamentos</h1>
@@ -321,22 +348,24 @@ Motivo: Padronizar menu lateral, links do financeiro, configurações e admin.
             <div class="topbar-right">
                 <div class="topbar-date">
                     <span class="topbar-icon">▣</span>
-                    <span>13/06/2026</span>
+                    <span>{{ _data_topbar or 'Hoje' }}</span>
                 </div>
 
                 <div class="notification">
                     <span class="topbar-icon">🔔</span>
-                    <span class="notification-badge">0</span>
+                    <span class="notification-badge">{{ notificacoes|default(0) }}</span>
                 </div>
 
                 <div class="user-profile">
-                    <div class="avatar">NS</div>
+                    <div class="avatar">{{ (_usuario_topbar.nome|default('US') or 'US')[:2]|upper }}</div>
                     <div class="user-info">
-                        <strong>Netto Santana</strong>
-                        <span>Administrador</span>
+                        <strong>{{ _usuario_topbar.nome|default('Usuário') }}</strong>
+                        <span>{{ _usuario_topbar.perfil|default('Administrador')|capitalize }}</span>
                     </div>
                     <span class="profile-arrow">⌄</span>
                 </div>
+
+                <a href="/sair" class="logout-button">Sair</a>
             </div>
         </header>
 

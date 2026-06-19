@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_editar.html
-Último recode: 2026-06-18 21:25 (America/Bahia)
-Motivo: Padronizar links do menu lateral na segunda leva de telas.
+Último recode: 2026-06-19 07:55 (America/Bahia)
+Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
 -->
 
 <!DOCTYPE html>
@@ -11,6 +11,29 @@ Motivo: Padronizar links do menu lateral na segunda leva de telas.
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GESTFLOW - Editar Orçamento</title>
     <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .logout-button {
+            height: 36px;
+            padding: 0 14px;
+            border: 1px solid #d7e1ef;
+            border-radius: 10px;
+            background: #ffffff;
+            color: #dc2626;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 900;
+            text-decoration: none;
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .logout-button:hover {
+            background: #fff1f2;
+            border-color: #fecdd3;
+        }
+
+    </style>
 </head>
 <body>
 
@@ -82,7 +105,7 @@ Motivo: Padronizar links do menu lateral na segunda leva de telas.
                     </details>
                 </li>
 
-                <li class="menu-group">
+                <li class="menu-group active">
                     <details open>
                         <summary>
                             <span class="menu-label">
@@ -162,21 +185,38 @@ Motivo: Padronizar links do menu lateral na segunda leva de telas.
                             <span class="arrow">⌄</span>
                         </summary>
                         <ul class="submenu">
-                            <li>Contas a pagar</li>
-                            <li>Contas a receber</li>
-                            <li>Fluxo de caixa</li>
+                            <li><a href="/financeiro/pagar">Contas a pagar</a></li>
+                            <li><a href="/financeiro/receber">Contas a receber</a></li>
+                            <li><a href="/financeiro/fluxo-caixa">Fluxo de caixa</a></li>
                             <li>Contas bancárias</li>
                             <li>Opções auxiliares</li>
                         </ul>
                     </details>
                 </li>
 
+                {% if usuario_logado and usuario_logado.email in ["admin@gestflow.local", "nettosantana@icloud.com"] %}
+                <li class="menu-group">
+                    <details>
+                        <summary>
+                            <span class="menu-label">
+                                <span class="menu-icon">◆</span>
+                                <span>Admin</span>
+                            </span>
+                            <span class="arrow">⌄</span>
+                        </summary>
+                        <ul class="submenu">
+                            <li><a href="/admin/empresas">Empresas</a></li>
+                        </ul>
+                    </details>
+                </li>
+                {% endif %}
+
             </ul>
         </nav>
 
         <div class="sidebar-footer">
-            <div class="footer-item">⚙ Configurações</div>
-            <div class="footer-item">? Ajuda</div>
+            <a href="/configuracoes" class="footer-item" style="text-decoration: none;">⚙ Configurações</a>
+            <a href="/sair" class="footer-item" style="text-decoration: none;">Sair</a>
         </div>
 
     </aside>
@@ -184,6 +224,12 @@ Motivo: Padronizar links do menu lateral na segunda leva de telas.
     <main class="content">
 
         <header class="topbar">
+            {% set _usuario_topbar = usuario_logado|default({}) %}
+            {% set _data_topbar = data_hoje|default('') %}
+            {% if not _data_topbar and dashboard is defined %}
+                {% set _data_topbar = dashboard.data_hoje|default('') %}
+            {% endif %}
+
             <div class="topbar-left">
                 <button class="menu-toggle" type="button" aria-label="Abrir menu">☰</button>
                 <h1>Editar Orçamento</h1>
@@ -192,22 +238,24 @@ Motivo: Padronizar links do menu lateral na segunda leva de telas.
             <div class="topbar-right">
                 <div class="topbar-date">
                     <span class="topbar-icon">▣</span>
-                    <span>13/06/2026</span>
+                    <span>{{ _data_topbar or 'Hoje' }}</span>
                 </div>
 
                 <div class="notification">
                     <span class="topbar-icon">🔔</span>
-                    <span class="notification-badge">0</span>
+                    <span class="notification-badge">{{ notificacoes|default(0) }}</span>
                 </div>
 
                 <div class="user-profile">
-                    <div class="avatar">NS</div>
+                    <div class="avatar">{{ (_usuario_topbar.nome|default('US') or 'US')[:2]|upper }}</div>
                     <div class="user-info">
-                        <strong>Netto Santana</strong>
-                        <span>Administrador</span>
+                        <strong>{{ _usuario_topbar.nome|default('Usuário') }}</strong>
+                        <span>{{ _usuario_topbar.perfil|default('Administrador')|capitalize }}</span>
                     </div>
                     <span class="profile-arrow">⌄</span>
                 </div>
+
+                <a href="/sair" class="logout-button">Sair</a>
             </div>
         </header>
 
