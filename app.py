@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-18 22:31 (America/Bahia)
-# Motivo: Ligar rotas da tela de Configurações.
+# Último recode: 2026-06-18 22:50 (America/Bahia)
+# Motivo: Corrigir imports do login real com sessão.
 
 from __future__ import annotations
 
@@ -10,7 +10,9 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
-from flask import Flask, Response, redirect, render_template, request, url_for
+from flask import Flask, Response, redirect, render_template, request, session, url_for
+
+from werkzeug.security import check_password_hash, generate_password_hash
 
 import config
 
