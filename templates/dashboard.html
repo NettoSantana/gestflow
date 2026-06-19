@@ -216,6 +216,27 @@ Motivo: Ligar botão Configurações do rodapé lateral para a tela de configura
             text-decoration: none;
         }
 
+        .logout-button {
+            height: 36px;
+            padding: 0 14px;
+            border: 1px solid #d7e1ef;
+            border-radius: 10px;
+            background: #ffffff;
+            color: #dc2626;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 900;
+            text-decoration: none;
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .logout-button:hover {
+            background: #fff1f2;
+            border-color: #fecdd3;
+        }
+
         @media (max-width: 980px) {
             .status-mini-grid {
                 grid-template-columns: repeat(2, 1fr);
@@ -431,13 +452,15 @@ Motivo: Ligar botão Configurações do rodapé lateral para a tela de configura
                 </div>
 
                 <div class="user-profile">
-                    <div class="avatar">NS</div>
+                    <div class="avatar">{{ (usuario_logado.nome|default('NS') or 'NS')[:2]|upper }}</div>
                     <div class="user-info">
-                        <strong>Netto Santana</strong>
-                        <span>Administrador</span>
+                        <strong>{{ usuario_logado.nome|default('Usuário') }}</strong>
+                        <span>{{ usuario_logado.perfil|default('Administrador')|capitalize }}</span>
                     </div>
                     <span class="profile-arrow">⌄</span>
                 </div>
+
+                <a href="/sair" class="logout-button">Sair</a>
             </div>
         </header>
 
