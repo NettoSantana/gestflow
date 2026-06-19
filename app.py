@@ -5353,6 +5353,7 @@ def imprimir_ordem_servico_a4(ordem_servico_id: int) -> str | Response:
     itens = listar_ordem_servico_itens(ordem_servico_id)
     itens_produtos = [item for item in itens if item["tipo_item"] == "produto"]
     itens_servicos = [item for item in itens if item["tipo_item"] == "servico"]
+    contexto_impressao = montar_contexto_impressao(ordem_servico.get("cliente"))
 
     return render_template(
         "ordem_servico_imprimir_a4.html",
@@ -5360,6 +5361,9 @@ def imprimir_ordem_servico_a4(ordem_servico_id: int) -> str | Response:
         itens=itens,
         itens_produtos=itens_produtos,
         itens_servicos=itens_servicos,
+        empresa=contexto_impressao["empresa"],
+        loja=contexto_impressao["loja"],
+        cliente=contexto_impressao["cliente"],
     )
 
 
@@ -5373,6 +5377,7 @@ def imprimir_ordem_servico_cupom(ordem_servico_id: int) -> str | Response:
     itens = listar_ordem_servico_itens(ordem_servico_id)
     itens_produtos = [item for item in itens if item["tipo_item"] == "produto"]
     itens_servicos = [item for item in itens if item["tipo_item"] == "servico"]
+    contexto_impressao = montar_contexto_impressao(ordem_servico.get("cliente"))
 
     return render_template(
         "ordem_servico_imprimir_cupom.html",
@@ -5380,6 +5385,9 @@ def imprimir_ordem_servico_cupom(ordem_servico_id: int) -> str | Response:
         itens=itens,
         itens_produtos=itens_produtos,
         itens_servicos=itens_servicos,
+        empresa=contexto_impressao["empresa"],
+        loja=contexto_impressao["loja"],
+        cliente=contexto_impressao["cliente"],
     )
 
 

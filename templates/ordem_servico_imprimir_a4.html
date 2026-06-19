@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordem_servico_imprimir_a4.html
-Último recode: 2026-06-16 22:25 (America/Bahia)
-Motivo: Criar impressão A4 da ordem de serviço.
+Último recode: 2026-06-19 09:05 (America/Bahia)
+Motivo: Fazer impressão A4 da OS buscar dados cadastrados da empresa e do cliente.
 -->
 
 <!DOCTYPE html>
@@ -13,15 +13,16 @@ Motivo: Criar impressão A4 da ordem de serviço.
     <style>
         * { box-sizing: border-box; }
         body { margin: 0; background: #e5e7eb; color: #111827; font-family: Arial, Helvetica, sans-serif; font-size: 12px; }
-        .page { width: 210mm; min-height: 297mm; margin: 12px auto; padding: 16mm; background: #ffffff; box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18); }
-        .header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 14px; }
+        .page { width: 210mm; min-height: 297mm; margin: 12px auto; padding: 14mm; background: #ffffff; box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18); }
+        .header { display: grid; grid-template-columns: 1.3fr 0.9fr; gap: 16px; border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 14px; }
         .brand h1 { margin: 0; font-size: 24px; letter-spacing: 1px; color: #0f172a; }
-        .brand p { margin: 4px 0 0; color: #475569; }
+        .brand p { margin: 4px 0 0; color: #475569; line-height: 1.35; }
+        .empresa-info { margin-top: 8px; color: #334155; line-height: 1.4; }
         .doc-title { text-align: right; }
         .doc-title h2 { margin: 0; font-size: 20px; color: #0f172a; }
         .doc-title strong { display: inline-block; margin-top: 6px; padding: 5px 10px; border-radius: 999px; background: #e0f2fe; color: #075985; }
         .section { border: 1px solid #dbe3ef; border-radius: 10px; margin-bottom: 10px; overflow: hidden; }
-        .section h3 { margin: 0; padding: 8px 10px; background: #f8fafc; border-bottom: 1px solid #e5eaf2; font-size: 13px; color: #0f172a; }
+        .section h3 { margin: 0; padding: 8px 10px; background: #f8fafc; border-bottom: 1px solid #e5eaf2; font-size: 13px; color: #0f172a; text-transform: uppercase; }
         .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; }
         .field { min-height: 44px; border-right: 1px solid #e5eaf2; border-bottom: 1px solid #e5eaf2; padding: 7px 8px; }
         .field:nth-child(4n) { border-right: none; }
@@ -30,35 +31,70 @@ Motivo: Criar impressão A4 da ordem de serviço.
         .span-2 { grid-column: span 2; }
         .span-4 { grid-column: span 4; }
         table { width: 100%; border-collapse: collapse; }
-        th { background: #f8fafc; color: #334155; text-align: left; font-size: 11px; }
+        th { background: #f8fafc; color: #334155; text-align: left; font-size: 11px; text-transform: uppercase; }
         th, td { border: 1px solid #e5eaf2; padding: 7px 8px; vertical-align: top; }
-        .totals { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+        .text-right { text-align: right; }
+        .totals { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; padding: 10px; }
         .total-box { border: 1px solid #dbe3ef; border-radius: 8px; padding: 8px; background: #f8fafc; }
         .total-box strong { display: block; margin-top: 4px; font-size: 13px; }
         .footer { margin-top: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
         .signature { border-top: 1px solid #0f172a; text-align: center; padding-top: 8px; margin-top: 38px; color: #475569; }
         .print-actions { position: fixed; right: 20px; bottom: 20px; display: flex; gap: 8px; }
-        .print-actions button { border: none; border-radius: 8px; padding: 10px 14px; background: #0f172a; color: #fff; cursor: pointer; font-weight: 700; }
+        .print-actions button, .print-actions a { border: none; border-radius: 8px; padding: 10px 14px; background: #0f172a; color: #fff; cursor: pointer; font-weight: 700; text-decoration: none; }
         @media print { body { background: #ffffff; } .page { margin: 0; box-shadow: none; width: auto; min-height: auto; } .print-actions { display: none; } }
     </style>
 </head>
 <body>
     {% set os = ordem_servico %}
+    {% set empresa_nome = empresa.nome_fantasia if empresa and empresa.nome_fantasia else 'GESTFLOW' %}
+    {% set empresa_razao = empresa.razao_social if empresa and empresa.razao_social else empresa_nome %}
+    {% set empresa_doc = empresa.documento if empresa and empresa.documento else '-' %}
+    {% set empresa_tel = empresa.telefone if empresa and empresa.telefone else '-' %}
+    {% set empresa_email = empresa.email if empresa and empresa.email else '-' %}
+    {% set loja_cidade = loja.cidade if loja and loja.cidade else '-' %}
+    {% set cliente_nome = cliente.nome if cliente and cliente.nome else os.cliente %}
+    {% set cliente_doc = cliente.documento if cliente and cliente.documento else '-' %}
+    {% set cliente_tel = cliente.telefone if cliente and cliente.telefone else '-' %}
+    {% set cliente_email = cliente.email if cliente and cliente.email else '-' %}
+    {% set cliente_cidade = cliente.cidade if cliente and cliente.cidade else '-' %}
+
     <div class="page">
         <div class="header">
-            <div class="brand"><h1>GESTFLOW</h1><p>ORDEM DE SERVIÇO</p></div>
-            <div class="doc-title"><h2>OS {{ os.numero or os.id }}</h2><strong>{{ os.status or 'aberta' }}</strong></div>
+            <div class="brand">
+                <h1>{{ empresa_nome }}</h1>
+                <p>ORDEM DE SERVIÇO</p>
+                <div class="empresa-info">
+                    <strong>{{ empresa_razao }}</strong><br>
+                    CNPJ/CPF: {{ empresa_doc }}<br>
+                    Telefone: {{ empresa_tel }} | E-mail: {{ empresa_email }}<br>
+                    Cidade/UF: {{ loja_cidade }}
+                </div>
+            </div>
+            <div class="doc-title">
+                <h2>OS {{ os.numero or os.id }}</h2>
+                <strong>{{ os.status or 'aberta' }}</strong><br><br>
+                <span>Entrada: {{ os.data_abertura or '-' }} {{ os.hora_entrada or '' }}</span><br>
+                <span>Previsão: {{ os.data_previsao or '-' }}</span>
+            </div>
         </div>
 
+        <section class="section"><h3>Dados do cliente</h3><div class="grid">
+            <div class="field span-2"><span class="label">Cliente</span><div class="value">{{ cliente_nome or '-' }}</div></div>
+            <div class="field"><span class="label">CNPJ/CPF</span><div class="value">{{ cliente_doc }}</div></div>
+            <div class="field"><span class="label">Telefone</span><div class="value">{{ cliente_tel }}</div></div>
+            <div class="field span-2"><span class="label">E-mail</span><div class="value">{{ cliente_email }}</div></div>
+            <div class="field span-2"><span class="label">Cidade/UF</span><div class="value">{{ cliente_cidade }}</div></div>
+        </div></section>
+
         <section class="section"><h3>Dados gerais</h3><div class="grid">
-            <div class="field"><span class="label">Cliente</span><div class="value">{{ os.cliente or '-' }}</div></div>
             <div class="field"><span class="label">Responsável</span><div class="value">{{ os.responsavel or '-' }}</div></div>
             <div class="field"><span class="label">Técnico</span><div class="value">{{ os.tecnico or '-' }}</div></div>
             <div class="field"><span class="label">Prioridade</span><div class="value">{{ os.prioridade or '-' }}</div></div>
+            <div class="field"><span class="label">Canal</span><div class="value">{{ os.canal_venda or '-' }}</div></div>
             <div class="field"><span class="label">Entrada</span><div class="value">{{ os.data_abertura or '-' }} {{ os.hora_entrada or '' }}</div></div>
             <div class="field"><span class="label">Previsão</span><div class="value">{{ os.data_previsao or '-' }}</div></div>
             <div class="field"><span class="label">Saída</span><div class="value">{{ os.data_saida or '-' }} {{ os.hora_saida or '' }}</div></div>
-            <div class="field"><span class="label">Canal</span><div class="value">{{ os.canal_venda or '-' }}</div></div>
+            <div class="field"><span class="label">Centro de custo</span><div class="value">{{ os.centro_custo or '-' }}</div></div>
         </div></section>
 
         <section class="section"><h3>Equipamento</h3><div class="grid">
@@ -72,13 +108,13 @@ Motivo: Criar impressão A4 da ordem de serviço.
             <div class="field span-2"><span class="label">Serviço executado</span><div class="value">{{ os.servico_executado or '-' }}</div></div>
         </div></section>
 
-        <section class="section"><h3>Produtos / Peças</h3><table><thead><tr><th>Produto</th><th>Detalhes</th><th>Qtde</th><th>Valor</th><th>Desc.</th><th>Subtotal</th></tr></thead><tbody>{% if itens_produtos %}{% for item in itens_produtos %}<tr><td>{{ item.descricao }}</td><td>{{ item.detalhes }}</td><td>{{ item.quantidade }}</td><td>{{ item.valor_unitario }}</td><td>{{ item.desconto }}</td><td>{{ item.subtotal }}</td></tr>{% endfor %}{% else %}<tr><td colspan="6">Nenhum produto vinculado.</td></tr>{% endif %}</tbody></table></section>
-        <section class="section"><h3>Serviços / Mão de obra</h3><table><thead><tr><th>Serviço</th><th>Detalhes</th><th>Qtde</th><th>Valor</th><th>Desc.</th><th>Subtotal</th></tr></thead><tbody>{% if itens_servicos %}{% for item in itens_servicos %}<tr><td>{{ item.descricao }}</td><td>{{ item.detalhes }}</td><td>{{ item.quantidade }}</td><td>{{ item.valor_unitario }}</td><td>{{ item.desconto }}</td><td>{{ item.subtotal }}</td></tr>{% endfor %}{% else %}<tr><td colspan="6">Nenhum serviço vinculado.</td></tr>{% endif %}</tbody></table></section>
+        <section class="section"><h3>Produtos / Peças</h3><table><thead><tr><th>Produto</th><th>Detalhes</th><th class="text-right">Qtde</th><th class="text-right">Valor</th><th class="text-right">Desc.</th><th class="text-right">Subtotal</th></tr></thead><tbody>{% if itens_produtos %}{% for item in itens_produtos %}<tr><td>{{ item.descricao or '-' }}</td><td>{{ item.detalhes or '-' }}</td><td class="text-right">{{ item.quantidade or '-' }}</td><td class="text-right">{{ item.valor_unitario or '0,00' }}</td><td class="text-right">{{ item.desconto or '0,00' }}</td><td class="text-right">{{ item.subtotal or '0,00' }}</td></tr>{% endfor %}{% else %}<tr><td colspan="6">Nenhum produto vinculado.</td></tr>{% endif %}</tbody></table></section>
+        <section class="section"><h3>Serviços / Mão de obra</h3><table><thead><tr><th>Serviço</th><th>Detalhes</th><th class="text-right">Qtde</th><th class="text-right">Valor</th><th class="text-right">Desc.</th><th class="text-right">Subtotal</th></tr></thead><tbody>{% if itens_servicos %}{% for item in itens_servicos %}<tr><td>{{ item.descricao or '-' }}</td><td>{{ item.detalhes or '-' }}</td><td class="text-right">{{ item.quantidade or '-' }}</td><td class="text-right">{{ item.valor_unitario or '0,00' }}</td><td class="text-right">{{ item.desconto or '0,00' }}</td><td class="text-right">{{ item.subtotal or '0,00' }}</td></tr>{% endfor %}{% else %}<tr><td colspan="6">Nenhum serviço vinculado.</td></tr>{% endif %}</tbody></table></section>
 
         {% if os.exibir_valor_impressao != 'nao' %}
-        <section class="section"><h3>Totais</h3><div class="section" style="border:none;margin:10px;"><div class="totals">
-            <div class="total-box">Peças<strong>{{ os.total_produtos or '0,00' }}</strong></div><div class="total-box">Mão de obra<strong>{{ os.total_servicos or '0,00' }}</strong></div><div class="total-box">Frete<strong>{{ os.frete or '0,00' }}</strong></div><div class="total-box">Outros<strong>{{ os.outros or '0,00' }}</strong></div><div class="total-box">Desconto<strong>{{ os.desconto_valor or '0,00' }}</strong></div><div class="total-box">Total<strong>{{ os.valor_total or '0,00' }}</strong></div>
-        </div></div></section>
+        <section class="section"><h3>Totais</h3><div class="totals">
+            <div class="total-box">Peças<strong>R$ {{ os.total_produtos or '0,00' }}</strong></div><div class="total-box">Mão de obra<strong>R$ {{ os.total_servicos or '0,00' }}</strong></div><div class="total-box">Frete<strong>R$ {{ os.frete or '0,00' }}</strong></div><div class="total-box">Outros<strong>R$ {{ os.outros or '0,00' }}</strong></div><div class="total-box">Desconto<strong>R$ {{ os.desconto_valor or '0,00' }}</strong></div><div class="total-box">Total<strong>R$ {{ os.valor_total or '0,00' }}</strong></div>
+        </div></section>
         {% endif %}
 
         <section class="section"><h3>Observações</h3><div class="grid">
@@ -87,6 +123,6 @@ Motivo: Criar impressão A4 da ordem de serviço.
         </div></section>
         <div class="footer"><div class="signature">Assinatura do cliente</div><div class="signature">Responsável técnico</div></div>
     </div>
-    <div class="print-actions"><button onclick="window.print()">Imprimir</button></div>
+    <div class="print-actions"><a href="/ordens-servico/{{ os.id }}">Voltar</a><button onclick="window.print()">Imprimir</button></div>
 </body>
 </html>
