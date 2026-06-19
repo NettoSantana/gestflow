@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-19 10:10 (America/Bahia)
-# Motivo: Adicionar descrição do serviço/escopo no orçamento e impressões.
+# Último recode: 2026-06-19 08:45 (America/Bahia)
+# Motivo: Impressões de orçamento e venda buscando dados cadastrados da empresa e do cliente.
 
 from __future__ import annotations
 
@@ -280,7 +280,6 @@ def iniciar_banco() -> None:
                 canal_venda TEXT,
                 centro_custo TEXT,
                 introducao TEXT,
-                descricao_servico TEXT,
                 tipo TEXT NOT NULL DEFAULT 'misto',
                 status TEXT NOT NULL DEFAULT 'aberto',
                 total_produtos TEXT,
@@ -641,18 +640,6 @@ def iniciar_banco() -> None:
                 f"UPDATE {tabela} SET empresa_id = ? WHERE empresa_id IS NULL",
                 (empresa_id_inicial,),
             )
-
-        colunas_orcamentos = {
-            "descricao_servico": "TEXT",
-        }
-        colunas_orcamentos_existentes = {
-            str(row["name"])
-            for row in conn.execute("PRAGMA table_info(orcamentos)").fetchall()
-        }
-
-        for coluna, tipo_coluna in colunas_orcamentos.items():
-            if coluna not in colunas_orcamentos_existentes:
-                conn.execute(f"ALTER TABLE orcamentos ADD COLUMN {coluna} {tipo_coluna}")
 
         colunas_ordens_servico = {
             "tecnico": "TEXT",
@@ -1825,7 +1812,6 @@ def salvar_orcamento_db(orcamento: dict[str, str], itens: list[dict[str, str]]) 
                 canal_venda,
                 centro_custo,
                 introducao,
-                descricao_servico,
                 tipo,
                 status,
                 total_produtos,
@@ -1836,7 +1822,7 @@ def salvar_orcamento_db(orcamento: dict[str, str], itens: list[dict[str, str]]) 
                 forma_pagamento,
                 observacoes,
                 observacoes_internas
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id,
@@ -1849,7 +1835,6 @@ def salvar_orcamento_db(orcamento: dict[str, str], itens: list[dict[str, str]]) 
                 orcamento["canal_venda"],
                 orcamento["centro_custo"],
                 orcamento["introducao"],
-                orcamento["descricao_servico"],
                 orcamento["tipo"],
                 orcamento["status"],
                 orcamento["total_produtos"],
@@ -1917,7 +1902,6 @@ def listar_orcamentos() -> list[dict[str, Any]]:
                 canal_venda,
                 centro_custo,
                 introducao,
-                descricao_servico,
                 tipo,
                 status,
                 total_produtos,
@@ -1956,7 +1940,6 @@ def buscar_orcamento_por_id(orcamento_id: int) -> dict[str, Any] | None:
                 canal_venda,
                 centro_custo,
                 introducao,
-                descricao_servico,
                 tipo,
                 status,
                 total_produtos,
@@ -2025,7 +2008,6 @@ def atualizar_orcamento_db(orcamento_id: int, orcamento: dict[str, str], itens: 
                 canal_venda = ?,
                 centro_custo = ?,
                 introducao = ?,
-                descricao_servico = ?,
                 tipo = ?,
                 status = ?,
                 total_produtos = ?,
@@ -2049,7 +2031,6 @@ def atualizar_orcamento_db(orcamento_id: int, orcamento: dict[str, str], itens: 
                 orcamento["canal_venda"],
                 orcamento["centro_custo"],
                 orcamento["introducao"],
-                orcamento["descricao_servico"],
                 orcamento["tipo"],
                 orcamento["status"],
                 orcamento["total_produtos"],
@@ -2140,7 +2121,6 @@ def montar_orcamento_formulario(numero_padrao: str = "") -> dict[str, str]:
         "canal_venda": (request.form.get("orcamento_canal_venda") or "").strip(),
         "centro_custo": (request.form.get("orcamento_centro_custo") or "").strip(),
         "introducao": (request.form.get("orcamento_introducao") or "").strip(),
-        "descricao_servico": (request.form.get("orcamento_descricao_servico") or "").strip(),
         "tipo": (request.form.get("orcamento_tipo") or "misto").strip() or "misto",
         "status": (request.form.get("orcamento_status") or "aberto").strip() or "aberto",
         "total_produtos": (request.form.get("orcamento_total_produtos") or "0,00").strip(),
@@ -2211,7 +2191,6 @@ def copiar_orcamento_db(orcamento_id: int) -> int | None:
         "canal_venda": str(orcamento_original.get("canal_venda") or ""),
         "centro_custo": str(orcamento_original.get("centro_custo") or ""),
         "introducao": str(orcamento_original.get("introducao") or ""),
-        "descricao_servico": str(orcamento_original.get("descricao_servico") or ""),
         "tipo": str(orcamento_original.get("tipo") or "misto"),
         "status": "aberto",
         "total_produtos": str(orcamento_original.get("total_produtos") or "0,00"),

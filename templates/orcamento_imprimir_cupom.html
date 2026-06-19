@@ -163,7 +163,6 @@ Motivo: Criar impressão Cupom do orçamento em HTML pronta para impressão e fu
     </div>
 
     <main class="cupom">
-        {% set descricao_servico_orcamento = orcamento.descricao_servico or '' %}
         <div class="center empresa">GESTFLOW</div>
         <div class="center">Orçamento Nº {{ orcamento.numero or orcamento.id }}</div>
         <div class="center">Vendedor: {{ orcamento.responsavel or 'Administrador' }}</div>
@@ -177,12 +176,6 @@ Motivo: Criar impressão Cupom do orçamento em HTML pronta para impressão e fu
             <p><strong>Validade:</strong> {{ orcamento.validade or '-' }}</p>
             <p><strong>Pagamento:</strong> {{ orcamento.forma_pagamento or '-' }}</p>
         </div>
-
-        {% if descricao_servico_orcamento %}
-            <div class="linha"></div>
-            <div class="titulo">Descrição do serviço / Escopo</div>
-            <div class="obs">{{ descricao_servico_orcamento }}</div>
-        {% endif %}
 
         {% if itens_servicos %}
             <div class="linha"></div>
@@ -199,7 +192,12 @@ Motivo: Criar impressão Cupom do orçamento em HTML pronta para impressão e fu
                 <tbody>
                     {% for item in itens_servicos %}
                         <tr>
-                            <td>{{ item.descricao or '-' }}</td>
+                            <td>
+                                {{ item.descricao or '-' }}
+                                {% if item.detalhes %}
+                                    <br><em>({{ item.detalhes }})</em>
+                                {% endif %}
+                            </td>
                             <td class="num">{{ item.quantidade or '-' }}</td>
                             <td class="num">{{ item.valor_unitario or '0,00' }}</td>
                             <td class="num">{{ item.subtotal or '0,00' }}</td>
@@ -246,10 +244,7 @@ Motivo: Criar impressão Cupom do orçamento em HTML pronta para impressão e fu
         <div class="linha"></div>
 
         <div class="titulo">Observações</div>
-        <div class="obs">{% if descricao_servico_orcamento %}ESCOPO 1
-{{ descricao_servico_orcamento }}{% if orcamento.observacoes %}
-
-{{ orcamento.observacoes }}{% endif %}{% else %}{{ orcamento.observacoes or '-' }}{% endif %}</div>
+        <div class="obs">{{ orcamento.observacoes or '-' }}</div>
 
         <div class="aviso">*** Este cupom não é documento fiscal ***</div>
 

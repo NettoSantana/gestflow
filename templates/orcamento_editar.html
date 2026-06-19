@@ -304,11 +304,6 @@ Motivo: Padronizar links do menu lateral na segunda leva de telas.
                     <label for="orcamento_introducao">Introdução</label>
                     <input id="orcamento_introducao" name="orcamento_introducao" type="text" value="{{ orcamento.introducao or '' }}" class="form-control">
                 </div>
-
-                <div class="form-group">
-                    <label for="orcamento_descricao_servico">Descrição do serviço / Escopo</label>
-                    <textarea id="orcamento_descricao_servico" name="orcamento_descricao_servico" class="form-control" rows="5" placeholder="Descreva o serviço solicitado, escopo, objetivo ou resumo técnico que aparecerá na proposta.">{{ orcamento.descricao_servico or '' }}</textarea>
-                </div>
             </section>
                 <section class="panel page-section">
                     <div class="panel-header page-header">
@@ -441,7 +436,7 @@ Motivo: Padronizar links do menu lateral na segunda leva de telas.
                             ${selectOptions}
                         </select>
                     </td>
-                    <td><input name="item_detalhes" type="text" value="${dados.detalhes || ""}" placeholder="Detalhes" class="form-control"></td>
+                    <td><input name="item_detalhes" type="text" value="${dados.detalhes || ""}" placeholder="${tipo === 'servico' ? 'Descrição do serviço' : 'Detalhes'}" class="form-control"></td>
                     <td><input name="item_quantidade" type="text" value="${dados.quantidade || ""}" placeholder="1" class="form-control item-quantidade"></td>
                     <td><input name="item_valor_unitario" type="text" value="${dados.valor_unitario || ""}" placeholder="0,00" class="form-control item-valor"></td>
                     <td><input name="item_desconto" type="text" value="${dados.desconto || ""}" placeholder="0,00" class="form-control item-desconto"></td>
