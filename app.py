@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-19 08:35 (America/Bahia)
-# Motivo: Corrigir admin para gerar login/senha, bloquear e-mail duplicado com aviso claro e excluir acesso corretamente.
+# Último recode: 2026-06-19 08:30 (America/Bahia)
+# Motivo: Permitir criar acesso novo ou resetar senha de login existente no Admin.
 
 from __future__ import annotations
 
@@ -4141,6 +4141,7 @@ def criar_empresa_cliente_db(dados: dict[str, str]) -> int:
     admin_email = dados["admin_email"]
     admin_senha = dados["admin_senha"]
     nome_empresa_provisorio = f"Cadastro pendente - {admin_nome}".strip()
+    loja_nome = "Matriz"
 
     with conectar_db() as conn:
         cursor_empresa = conn.execute(
@@ -4202,10 +4203,65 @@ def criar_empresa_cliente_db(dados: dict[str, str]) -> int:
             """,
             (
                 empresa_id,
-                "Matriz",
+                loja_nome,
                 "Principal",
                 "",
                 "ativo",
+            ),
+        )
+
+        conn.commit()
+
+    return empresa_id
+
+
+def atualizar_senha_acesso_admin_db(dados: dict[str, str]) -> int | None:
+    admin_email = str(dados.get("admin_email") or "").strip().lower()
+
+    if not admin_email:
+        return None
+
+    usuario_existente = buscar_usuario_por_email(admin_email)
+
+    if usuario_existente is None:
+        return None
+
+    usuario_id = int(usuario_existente["id"])
+    empresa_id = int(usuario_existente["empresa_id"])
+    admin_nome = dados["admin_nome"] or str(usuario_existente.get("nome") or "Cliente GestFlow")
+    status_empresa = dados["status"] if dados["status"] in {"ativo", "bloqueado", "cancelado"} else "ativo"
+
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            UPDATE usuarios
+            SET
+                nome = ?,
+                senha_hash = ?,
+                status = 'ativo'
+            WHERE id = ?
+            """,
+            (
+                admin_nome,
+                generate_password_hash(dados["admin_senha"]),
+                usuario_id,
+            ),
+        )
+
+        conn.execute(
+            """
+            UPDATE empresas
+            SET
+                email = ?,
+                plano = ?,
+                status = ?
+            WHERE id = ?
+            """,
+            (
+                admin_email,
+                dados["plano"],
+                status_empresa,
+                empresa_id,
             ),
         )
 
@@ -4308,7 +4364,6 @@ def excluir_empresa_cliente_admin_db(empresa_id: int) -> bool:
 
 
 
-
 @app.route("/admin/empresas", methods=["GET", "POST"])
 def admin_empresas() -> str | Response:
     if not usuario_logado_eh_admin_sistema():
@@ -4334,7 +4389,18 @@ def admin_empresas() -> str | Response:
         elif not formulario["admin_senha"]:
             erro = "Informe a senha inicial."
         elif email_usuario_ja_existe(formulario["admin_email"]):
-            erro = "Este e-mail já possui login cadastrado. Para reutilizar o mesmo e-mail, exclua o acesso antigo primeiro ou use outro e-mail."
+            empresa_id = atualizar_senha_acesso_admin_db(formulario)
+            if empresa_id is None:
+                erro = "Este e-mail já existe, mas não foi possível atualizar a senha."
+            else:
+                sucesso = f"Login existente atualizado com sucesso. Nova senha liberada para o ID {empresa_id}."
+                formulario = {
+                    "plano": "Start",
+                    "status": "ativo",
+                    "admin_nome": "",
+                    "admin_email": "",
+                    "admin_senha": "",
+                }
         else:
             empresa_id = criar_empresa_cliente_db(formulario)
             sucesso = f"Acesso criado com sucesso. ID provisório {empresa_id}."

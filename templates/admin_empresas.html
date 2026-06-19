@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\admin_empresas.html
-Último recode: 2026-06-19 08:35 (America/Bahia)
-Motivo: Corrigir gerador de senha e aviso de e-mail já cadastrado.
+Último recode: 2026-06-19 08:30 (America/Bahia)
+Motivo: Permitir criar acesso novo ou atualizar senha de login existente.
 -->
 
 <!DOCTYPE html>
@@ -62,25 +62,6 @@ Motivo: Corrigir gerador de senha e aviso de e-mail já cadastrado.
         .btn-danger-light:hover {
             background: #fee2e2;
             border-color: #fca5a5;
-        }
-
-        .admin-alert {
-            margin: 14px 0;
-            padding: 14px 16px;
-            border-radius: 12px;
-            font-weight: 800;
-        }
-
-        .admin-alert-danger {
-            border: 1px solid #fecaca;
-            background: #fff1f2;
-            color: #b91c1c;
-        }
-
-        .admin-alert-success {
-            border: 1px solid #bbf7d0;
-            background: #f0fdf4;
-            color: #15803d;
         }
 
     </style>
@@ -314,18 +295,18 @@ Motivo: Corrigir gerador de senha e aviso de e-mail já cadastrado.
                 <div>
                     <span class="page-kicker">Admin GestFlow</span>
                     <h3 class="page-title">Gerar acesso inicial</h3>
-                    <p class="page-subtitle">Crie somente o login e a senha inicial. O cliente completa os dados da empresa no primeiro acesso.</p>
+                    <p class="page-subtitle">Crie um login novo ou atualize a senha de um login já existente. O cliente completa os dados da empresa no primeiro acesso.</p>
                 </div>
 
-                <span class="badge-info">Acesso inicial</span>
+                <span class="badge-info">Login e senha</span>
             </div>
 
             {% if erro %}
-                <div class="admin-alert admin-alert-danger">{{ erro }}</div>
+                <div class="alert alert-danger">{{ erro }}</div>
             {% endif %}
 
             {% if sucesso %}
-                <div class="admin-alert admin-alert-success">{{ sucesso }}</div>
+                <div class="alert alert-success">{{ sucesso }}</div>
             {% endif %}
 
             <form action="/admin/empresas" method="post" class="client-form">
@@ -338,7 +319,6 @@ Motivo: Corrigir gerador de senha e aviso de e-mail já cadastrado.
                     <div class="form-group">
                         <label for="usuario_admin_email">E-mail de login *</label>
                         <input id="usuario_admin_email" name="usuario_admin_email" type="email" value="{{ formulario.admin_email }}" placeholder="login@empresa.com" class="form-control">
-                        <small style="display:block;margin-top:6px;color:#64748b;font-weight:700;">O e-mail é único. Se já existir, exclua o acesso antigo antes de recriar.</small>
                     </div>
 
                     <div class="form-group">
@@ -370,7 +350,7 @@ Motivo: Corrigir gerador de senha e aviso de e-mail já cadastrado.
 
                 <div class="form-actions">
                     <button type="reset" class="btn-light">Limpar</button>
-                    <button type="submit" class="btn-primary-green">Criar acesso</button>
+                    <button type="submit" class="btn-primary-green">Criar/Atualizar acesso</button>
                 </div>
             </form>
         </section>
@@ -379,7 +359,7 @@ Motivo: Corrigir gerador de senha e aviso de e-mail já cadastrado.
             <div class="panel-header page-header">
                 <div>
                     <h3>Acessos criados</h3>
-                    <p class="page-subtitle">Controle os logins liberados para clientes GestFlow.</p>
+                    <p class="page-subtitle">Controle os logins liberados para clientes GestFlow. Se usar um e-mail já cadastrado, a senha será atualizada.</p>
                 </div>
             </div>
 
@@ -459,42 +439,25 @@ Motivo: Corrigir gerador de senha e aviso de e-mail já cadastrado.
             const simbolos = "@#$%";
             const todos = letrasMaiusculas + letrasMinusculas + numeros + simbolos;
 
-            function randomIndex(maximo) {
-                if (window.crypto && window.crypto.getRandomValues) {
-                    const array = new Uint32Array(1);
-                    window.crypto.getRandomValues(array);
-                    return array[0] % maximo;
-                }
-                return Math.floor(Math.random() * maximo);
+            function numeroSeguro(maximo) {
+                const array = new Uint32Array(1);
+                window.crypto.getRandomValues(array);
+                return array[0] % maximo;
             }
 
             function escolher(texto) {
-                return texto[randomIndex(texto.length)];
+                return texto[numeroSeguro(texto.length)];
             }
 
-            function embaralhar(lista) {
-                for (let i = lista.length - 1; i > 0; i--) {
-                    const j = randomIndex(i + 1);
-                    const temp = lista[i];
-                    lista[i] = lista[j];
-                    lista[j] = temp;
-                }
-                return lista;
-            }
-
-            const obrigatorios = [
-                escolher(letrasMaiusculas),
-                escolher(letrasMinusculas),
-                escolher(numeros),
-                escolher(numeros),
-                escolher(simbolos),
-            ];
-
-            while (obrigatorios.length < 9) {
-                obrigatorios.push(escolher(todos));
-            }
-
-            const senha = "Gf-" + embaralhar(obrigatorios).join("");
+            let senha = "Gf-";
+            senha += escolher(numeros);
+            senha += escolher(numeros);
+            senha += escolher(letrasMaiusculas);
+            senha += escolher(letrasMinusculas);
+            senha += escolher(simbolos);
+            senha += escolher(todos);
+            senha += escolher(todos);
+            senha += escolher(todos);
 
             const campoSenha = document.getElementById("usuario_admin_senha");
             if (campoSenha) {
