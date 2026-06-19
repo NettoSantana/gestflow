@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-18 22:18 (America/Bahia)
-# Motivo: Ligar rotas das novas telas de portal e login.
+# Último recode: 2026-06-18 22:31 (America/Bahia)
+# Motivo: Ligar rotas da tela de Configurações.
 
 from __future__ import annotations
 
@@ -3444,6 +3444,69 @@ def montar_dashboard() -> dict[str, Any]:
         "ultimas_vendas": ultimas_vendas,
         "financeiro": financeiro,
     }
+
+
+
+def montar_configuracoes_contexto() -> dict[str, Any]:
+    return {
+        "empresa": {
+            "nome_fantasia": "GestFlow Demo",
+            "razao_social": "GestFlow Demo",
+            "documento": "",
+            "email": "",
+            "telefone": "",
+            "plano": "Start",
+            "status": "ativo",
+        },
+        "usuarios": [
+            {
+                "nome": "Netto Santana",
+                "email": "admin@gestflow.local",
+                "perfil": "Administrador",
+                "status": "ativo",
+            }
+        ],
+        "lojas": [
+            {
+                "nome": "Matriz",
+                "tipo": "Principal",
+                "cidade": "",
+                "status": "ativo",
+            }
+        ],
+    }
+
+
+@app.get("/configuracoes")
+@app.get("/configuracoes/gerais")
+@app.get("/configuracoes/plano")
+@app.get("/configuracoes/usuarios")
+@app.get("/configuracoes/empresa")
+@app.get("/configuracoes/marca")
+@app.get("/configuracoes/lojas")
+def configuracoes() -> str:
+    aba = "gerais"
+
+    if request.path.endswith("/plano"):
+        aba = "plano"
+    elif request.path.endswith("/usuarios"):
+        aba = "usuarios"
+    elif request.path.endswith("/empresa"):
+        aba = "empresa"
+    elif request.path.endswith("/marca"):
+        aba = "marca"
+    elif request.path.endswith("/lojas"):
+        aba = "lojas"
+
+    contexto = montar_configuracoes_contexto()
+
+    return render_template(
+        "configuracoes.html",
+        aba=aba,
+        empresa=contexto["empresa"],
+        usuarios=contexto["usuarios"],
+        lojas=contexto["lojas"],
+    )
 
 
 @app.get("/portal")
