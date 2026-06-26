@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\estoque.html
-Último recode: 2026-06-19 07:55 (America/Bahia)
-Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
+Último recode: 2026-06-26
+Motivo: Corrigir estouro horizontal do módulo Estoque após padronização de sidebar/topbar.
 -->
 
 <!DOCTYPE html>
@@ -13,11 +13,53 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
     <link rel="stylesheet" href="/static/css/dashboard.css">
 
     <style>
-        .estoque-page {
-            width: 100%;
+        html,
+        body {
             max-width: 100%;
             overflow-x: hidden;
         }
+
+        body {
+            min-width: 0;
+        }
+
+        .estoque-page {
+            width: auto;
+            max-width: 100%;
+            min-width: 0;
+            overflow-x: hidden;
+        }
+
+        .estoque-page *,
+        .estoque-page *::before,
+        .estoque-page *::after {
+            box-sizing: border-box;
+        }
+
+        .estoque-page .topbar,
+        .estoque-page .panel,
+        .estoque-page .page-section,
+        .estoque-page .table-panel,
+        .estoque-page .panel-header,
+        .estoque-page .page-header {
+            max-width: 100%;
+            min-width: 0;
+        }
+
+        .estoque-page .page-header {
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .estoque-page .page-header > div {
+            min-width: 0;
+        }
+
+        .estoque-page .page-title,
+        .estoque-page .page-subtitle {
+            overflow-wrap: anywhere;
+        }
+
 
         .estoque-toolbar {
             display: flex;
@@ -57,13 +99,22 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
             align-items: center;
             gap: 6px;
             cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .estoque-page .btn-light,
+        .estoque-page .btn-primary-green {
+            white-space: nowrap;
         }
 
         .estoque-card-grid {
             display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
             gap: 14px;
             margin-bottom: 18px;
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
         }
 
         .estoque-card {
@@ -73,6 +124,7 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
             padding: 16px;
             box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
             min-width: 0;
+            overflow: hidden;
         }
 
         .estoque-card h4 {
@@ -114,6 +166,8 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
             gap: 8px;
             flex-wrap: wrap;
             margin-bottom: 16px;
+            max-width: 100%;
+            min-width: 0;
         }
 
         .estoque-tab {
@@ -138,9 +192,17 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
 
         .estoque-two-columns {
             display: grid;
-            grid-template-columns: minmax(300px, 0.8fr) minmax(0, 1.2fr);
+            grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
             gap: 18px;
             align-items: start;
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+        }
+
+        .estoque-two-columns > * {
+            min-width: 0;
+            max-width: 100%;
         }
 
         .estoque-form {
@@ -181,9 +243,13 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
         }
 
         .estoque-table-wrap {
+            display: block;
             width: 100%;
             max-width: 100%;
+            min-width: 0;
             overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
         }
 
         .estoque-table-wrap table {
@@ -236,6 +302,16 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
             color: #0f172a;
         }
 
+        @media (max-width: 1400px) {
+            .estoque-card-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .estoque-two-columns {
+                grid-template-columns: 1fr;
+            }
+        }
+
         @media (max-width: 1200px) {
             .estoque-card-grid {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -283,11 +359,11 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
 <body>
     {% include "partials/sidebar.html" %}
 
-<main class="content estoque-page">
+    <main class="content estoque-page">
         {% set page_title = 'Estoque' %}
         {% include "partials/topbar.html" %}
 
-{% set painel_estoque = painel|default({}) %}
+        {% set painel_estoque = painel|default({}) %}
         {% set produtos_lista = produtos|default([]) %}
         {% set movimentacoes_lista = movimentacoes|default([]) %}
         {% set fornecedores_lista = fornecedores|default([]) %}
