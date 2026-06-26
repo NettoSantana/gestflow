@@ -1,0 +1,39 @@
+{# Caminho: templates/partials/topbar.html #}
+{% set _usuario_topbar = usuario_logado|default({}, true) %}
+{% set _data_topbar = data_hoje|default('', true) %}
+{% if not _data_topbar and dashboard is defined %}
+    {% set _data_topbar = dashboard.data_hoje|default('', true) %}
+{% endif %}
+{% set _nome_topbar = _usuario_topbar.nome|default('Usuário', true) %}
+{% set _perfil_topbar = _usuario_topbar.perfil|default('Administrador', true) %}
+{% set _titulo_topbar = page_title|default('GestFlow', true) %}
+
+<header class="topbar">
+    <div class="topbar-left">
+        <button class="menu-toggle" type="button" aria-label="Abrir menu">☰</button>
+        <h1>{{ _titulo_topbar }}</h1>
+    </div>
+
+    <div class="topbar-right">
+        <div class="topbar-date">
+            <span class="topbar-icon">▣</span>
+            <span>{{ _data_topbar or 'Hoje' }}</span>
+        </div>
+
+        <div class="notification">
+            <span class="topbar-icon">🔔</span>
+            <span class="notification-badge">{{ notificacoes|default(0, true) }}</span>
+        </div>
+
+        <div class="user-profile">
+            <div class="avatar">{{ (_nome_topbar or 'US')[:2]|upper }}</div>
+            <div class="user-info">
+                <strong>{{ _nome_topbar }}</strong>
+                <span>{{ _perfil_topbar|capitalize }}</span>
+            </div>
+            <span class="profile-arrow">⌄</span>
+        </div>
+
+        <a href="/sair" class="logout-button">Sair</a>
+    </div>
+</header>
