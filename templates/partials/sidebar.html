@@ -6,6 +6,7 @@
     <div class="brand">
         <div class="brand-mark">GF</div>
         <h2>GESTFLOW</h2>
+        <button class="mobile-sidebar-close" type="button" aria-label="Fechar menu">×</button>
     </div>
 
     <nav class="sidebar-nav">
@@ -24,6 +25,7 @@
                         <span class="arrow">⌄</span>
                     </summary>
                     <ul class="submenu">
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Cadastros</strong></li>
                         <li class="{% if _path.startswith('/clientes') %}submenu-active{% endif %}"><a href="/clientes">Clientes</a></li>
                         <li class="{% if _path.startswith('/fornecedores') %}submenu-active{% endif %}"><a href="/fornecedores">Fornecedores</a></li>
                         <li class="{% if _path.startswith('/funcionarios') %}submenu-active{% endif %}"><a href="/funcionarios">Funcionários</a></li>
@@ -40,6 +42,7 @@
                         <span class="arrow">⌄</span>
                     </summary>
                     <ul class="submenu">
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Produtos</strong></li>
                         <li class="{% if _path.startswith('/produtos') %}submenu-active{% endif %}"><a href="/produtos">Gerenciar produtos</a></li>
                         <li>Opções auxiliares</li>
                     </ul>
@@ -53,6 +56,7 @@
                         <span class="arrow">⌄</span>
                     </summary>
                     <ul class="submenu">
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Serviços</strong></li>
                         <li class="{% if _path.startswith('/servicos') %}submenu-active{% endif %}"><a href="/servicos">Gerenciar serviços</a></li>
                         <li>Opções auxiliares</li>
                     </ul>
@@ -66,6 +70,7 @@
                         <span class="arrow">⌄</span>
                     </summary>
                     <ul class="submenu">
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Orçamentos</strong></li>
                         <li class="{% if _path.startswith('/orcamentos') %}submenu-active{% endif %}"><a href="/orcamentos">Produtos</a></li>
                         <li class="{% if _path.startswith('/orcamentos') %}submenu-active{% endif %}"><a href="/orcamentos">Serviços</a></li>
                         <li>Opções auxiliares</li>
@@ -80,6 +85,7 @@
                         <span class="arrow">⌄</span>
                     </summary>
                     <ul class="submenu">
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Vendas</strong></li>
                         <li class="{% if _path == '/vendas' %}submenu-active{% endif %}"><a href="/vendas">Produtos</a></li>
                         <li class="{% if _path == '/vendas' %}submenu-active{% endif %}"><a href="/vendas">Serviços</a></li>
                         <li class="{% if _path == '/vendas' %}submenu-active{% endif %}"><a href="/vendas">Balcão</a></li>
@@ -96,6 +102,7 @@
                         <span class="arrow">⌄</span>
                     </summary>
                     <ul class="submenu">
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Ordens de Serviço</strong></li>
                         <li class="{% if _path == '/ordens-servico' %}submenu-active{% endif %}"><a href="/ordens-servico">Gerenciar O.S.</a></li>
                         <li class="{% if _path.startswith('/ordens-servico/painel') %}submenu-active{% endif %}"><a href="/ordens-servico/painel">Painel</a></li>
                         <li>Opções auxiliares</li>
@@ -110,6 +117,7 @@
                         <span class="arrow">⌄</span>
                     </summary>
                     <ul class="submenu">
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Estoque</strong></li>
                         <li class="{% if _path.startswith('/estoque/movimentacoes') or _path == '/estoque' %}submenu-active{% endif %}"><a href="/estoque/movimentacoes">Movimentações</a></li>
                         <li class="{% if _path.startswith('/estoque/ajustes') %}submenu-active{% endif %}"><a href="/estoque/ajustes">Ajustes</a></li>
                         <li class="{% if _path.startswith('/estoque/compras') %}submenu-active{% endif %}"><a href="/estoque/compras">Compras</a></li>
@@ -124,6 +132,7 @@
                         <span class="arrow">⌄</span>
                     </summary>
                     <ul class="submenu">
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Financeiro</strong></li>
                         <li class="{% if _path.startswith('/financeiro/pagar') %}submenu-active{% endif %}"><a href="/financeiro/pagar">Contas a pagar</a></li>
                         <li class="{% if _path.startswith('/financeiro/receber') %}submenu-active{% endif %}"><a href="/financeiro/receber">Contas a receber</a></li>
                         <li class="{% if _path.startswith('/financeiro/fluxo-caixa') or _path == '/financeiro' %}submenu-active{% endif %}"><a href="/financeiro/fluxo-caixa">Fluxo de caixa</a></li>
@@ -141,6 +150,7 @@
                         <span class="arrow">⌄</span>
                     </summary>
                     <ul class="submenu">
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Admin</strong></li>
                         <li class="{% if _path.startswith('/admin/empresas') %}submenu-active{% endif %}"><a href="/admin/empresas">Empresas</a></li>
                     </ul>
                 </details>
@@ -154,3 +164,113 @@
         <a href="/sair" class="footer-item" style="text-decoration: none;">Sair</a>
     </div>
 </aside>
+<div class="sidebar-backdrop" aria-hidden="true"></div>
+
+<script>
+(function () {
+    function iniciarMenuMobile() {
+        const sidebar = document.querySelector('.sidebar');
+        const backdrop = document.querySelector('.sidebar-backdrop');
+        const toggle = document.querySelector('.menu-toggle');
+        const closeButton = document.querySelector('.mobile-sidebar-close');
+        const mobileLimit = 1024;
+
+        if (!sidebar || !backdrop) {
+            return;
+        }
+
+        function isMobile() {
+            return window.innerWidth <= mobileLimit;
+        }
+
+        function fecharSubmenusMobile() {
+            document.querySelectorAll('.menu-group.mobile-submenu-open').forEach((grupo) => {
+                grupo.classList.remove('mobile-submenu-open');
+            });
+            sidebar.classList.remove('mobile-submenu-mode');
+        }
+
+        function abrirSidebar() {
+            document.body.classList.add('sidebar-mobile-open');
+        }
+
+        function fecharSidebar() {
+            fecharSubmenusMobile();
+            document.body.classList.remove('sidebar-mobile-open');
+        }
+
+        if (toggle) {
+            toggle.addEventListener('click', function () {
+                if (isMobile()) {
+                    abrirSidebar();
+                }
+            });
+        }
+
+        if (closeButton) {
+            closeButton.addEventListener('click', fecharSidebar);
+        }
+
+        backdrop.addEventListener('click', fecharSidebar);
+
+        document.querySelectorAll('.menu-group > details > summary').forEach((summary) => {
+            summary.addEventListener('click', function (event) {
+                if (!isMobile()) {
+                    return;
+                }
+
+                const grupo = summary.closest('.menu-group');
+
+                if (!grupo) {
+                    return;
+                }
+
+                event.preventDefault();
+
+                document.querySelectorAll('.menu-group.mobile-submenu-open').forEach((item) => {
+                    if (item !== grupo) {
+                        item.classList.remove('mobile-submenu-open');
+                    }
+                });
+
+                grupo.classList.add('mobile-submenu-open');
+                sidebar.classList.add('mobile-submenu-mode');
+            });
+        });
+
+        document.querySelectorAll('.submenu-back').forEach((button) => {
+            button.addEventListener('click', function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+
+                const grupo = button.closest('.menu-group');
+
+                if (grupo) {
+                    grupo.classList.remove('mobile-submenu-open');
+                }
+
+                sidebar.classList.remove('mobile-submenu-mode');
+            });
+        });
+
+        window.addEventListener('resize', function () {
+            if (!isMobile()) {
+                fecharSidebar();
+            }
+        });
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') {
+                fecharSidebar();
+            }
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', iniciarMenuMobile);
+    } else {
+        iniciarMenuMobile();
+    }
+})();
+</script>
+
