@@ -254,7 +254,7 @@ Motivo: Criar impressão A4 do orçamento em HTML pronta para impressão e futur
         <header class="header">
             <div class="logo-box">
                 {% if empresa.logo_path %}
-                    <img src="{{ empresa.logo_path }}" alt="Logo da empresa" class="logo-img">
+                    <img src="{{ empresa.logo_path }}" alt="Logo da empresa" class="logo-img" onerror="this.remove(); this.parentElement.textContent='GF';">
                 {% else %}
                     GESTFLOW<br>ORÇAMENTO
                 {% endif %}

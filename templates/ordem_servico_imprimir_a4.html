@@ -52,7 +52,7 @@ Motivo: Criar impressão A4 da ordem de serviço.
             <div class="brand-top">
                 <div class="brand-logo-box">
                     {% if empresa and empresa.logo_path %}
-                        <img src="{{ empresa.logo_path }}" alt="Logo da empresa" class="brand-logo-img">
+                        <img src="{{ empresa.logo_path }}" alt="Logo da empresa" class="brand-logo-img" onerror="this.remove(); this.parentElement.textContent='GF';">
                     {% else %}
                         GF
                     {% endif %}

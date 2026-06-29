@@ -240,7 +240,7 @@ Motivo: Criar impressão A4 da venda com dados gerais, itens, totais e observaç
             <div class="brand-block">
                 <div class="brand-mark">
                     {% if empresa.logo_path %}
-                        <img src="{{ empresa.logo_path }}" alt="Logo da empresa" class="brand-logo">
+                        <img src="{{ empresa.logo_path }}" alt="Logo da empresa" class="brand-logo" onerror="this.remove(); this.parentElement.textContent='GF';">
                     {% else %}
                         GF
                     {% endif %}

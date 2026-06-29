@@ -274,7 +274,7 @@ Motivo: Criar tela inicial de Configurações para organizar empresa, usuários,
                             </div>
 
                             {% if empresa.logo_path %}
-                                <img src="{{ empresa.logo_path }}" alt="Logo da empresa" class="logo-preview-img">
+                                <img src="{{ empresa.logo_path }}" alt="Logo da empresa" class="logo-preview-img" onerror="this.remove(); this.parentElement.textContent='Logo indisponível';">
                             {% else %}
                                 <div class="logo-preview-empty">Nenhuma logo cadastrada.</div>
                             {% endif %}

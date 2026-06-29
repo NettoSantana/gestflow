@@ -10,7 +10,7 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
-from flask import Flask, Response, jsonify, redirect, render_template, request, session, url_for
+from flask import Flask, Response, jsonify, redirect, render_template, request, send_from_directory, session, url_for
 
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
@@ -25,7 +25,7 @@ DATA_DIR = BASE_DIR / "data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 DB_PATH = DATA_DIR / "gestflow.db"
 
-UPLOAD_DIR = BASE_DIR / "static" / "uploads" / "logos"
+UPLOAD_DIR = DATA_DIR / "uploads" / "logos"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 EXTENSOES_LOGO_PERMITIDAS = {"png", "jpg", "jpeg", "webp", "gif"}
 
@@ -4225,7 +4225,7 @@ def salvar_upload_logo_empresa(arquivo) -> str:
 
     arquivo.save(destino)
 
-    return f"/static/uploads/logos/{nome_final}"
+    return f"/uploads/logos/{nome_final}"
 
 
 def usuario_logado_eh_admin_sistema() -> bool:
@@ -4743,6 +4743,11 @@ def salvar_configuracoes_marca() -> Response:
         salvar_logo_empresa_db(logo_path)
 
     return redirect("/configuracoes/marca")
+
+
+@app.get("/uploads/logos/<path:nome_arquivo>")
+def servir_logo_empresa(nome_arquivo: str) -> Response:
+    return send_from_directory(UPLOAD_DIR, nome_arquivo)
 
 
 @app.get("/portal")
