@@ -1374,3 +1374,44 @@ body {
         min-height: 42px;
     }
 }
+
+
+/* FIX DEFINITIVO MOBILE: links do submenu devem receber clique normal */
+.sidebar,
+.sidebar * {
+    -webkit-tap-highlight-color: transparent;
+}
+
+.submenu a,
+.menu-item a,
+.footer-item {
+    position: relative;
+    z-index: 2;
+    pointer-events: auto !important;
+}
+
+@media (max-width: 1024px) {
+    .menu-group.mobile-submenu-open .submenu {
+        pointer-events: auto !important;
+        z-index: 1105;
+    }
+
+    .menu-group.mobile-submenu-open .submenu a {
+        display: flex !important;
+        width: 100% !important;
+        min-height: 42px !important;
+        align-items: center !important;
+        color: inherit !important;
+        text-decoration: none !important;
+        pointer-events: auto !important;
+        cursor: pointer !important;
+    }
+
+    .submenu li:not(.submenu-mobile-title) {
+        cursor: default !important;
+    }
+
+    .submenu li:not(.submenu-mobile-title):has(a) {
+        cursor: pointer !important;
+    }
+}
