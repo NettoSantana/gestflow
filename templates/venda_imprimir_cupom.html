@@ -135,7 +135,9 @@ Motivo: Buscar dados cadastrados da empresa e do cliente no cupom da venda.
     <main class="cupom">
         <header class="brand center">
             <h1>{{ empresa.nome_fantasia or empresa.razao_social or 'GESTFLOW' }}</h1>
+            {% if empresa.documento %}<p>CNPJ/CPF: {{ empresa.documento }}</p>{% endif %}
             <p>{{ empresa.telefone or '-' }} | {{ empresa.email or '-' }}</p>
+            {% if loja and loja.cidade %}<p>{{ loja.cidade }}</p>{% endif %}
             <p>COMPROVANTE DE VENDA</p>
             <p>Venda {{ venda.numero or venda.id }}</p>
         </header>

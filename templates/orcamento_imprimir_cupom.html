@@ -163,7 +163,13 @@ Motivo: Criar impressão Cupom do orçamento em HTML pronta para impressão e fu
     </div>
 
     <main class="cupom">
-        <div class="center empresa">GESTFLOW</div>
+        <div class="center empresa">{{ empresa.nome_fantasia or empresa.razao_social or 'GESTFLOW' }}</div>
+        <div class="center">
+            {% if empresa.documento %}CNPJ/CPF: {{ empresa.documento }}<br>{% endif %}
+            {% if empresa.telefone %}Tel: {{ empresa.telefone }}<br>{% endif %}
+            {% if empresa.email %}{{ empresa.email }}<br>{% endif %}
+            {% if loja and loja.cidade %}{{ loja.cidade }}<br>{% endif %}
+        </div>
         <div class="center">Orçamento Nº {{ orcamento.numero or orcamento.id }}</div>
         <div class="center">Vendedor: {{ orcamento.responsavel or 'Administrador' }}</div>
 
@@ -253,7 +259,7 @@ Motivo: Criar impressão Cupom do orçamento em HTML pronta para impressão e fu
             Assinatura do cliente
         </div>
 
-        <div class="footer">Software GESTFLOW</div>
+        <div class="footer">{{ empresa.nome_fantasia or 'GESTFLOW' }}</div>
     </main>
 
 </body>

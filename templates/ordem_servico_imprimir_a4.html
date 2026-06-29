@@ -41,7 +41,7 @@ Motivo: Criar impressão A4 da ordem de serviço.
         .footer { margin-top: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
         .signature { border-top: 1px solid #0f172a; text-align: center; padding-top: 8px; margin-top: 38px; color: #475569; }
         .print-actions { position: fixed; right: 20px; bottom: 20px; display: flex; gap: 8px; }
-        .print-actions button { border: none; border-radius: 8px; padding: 10px 14px; background: #0f172a; color: #fff; cursor: pointer; font-weight: 700; }
+        .print-actions button, .print-actions a { border: none; border-radius: 8px; padding: 10px 14px; background: #0f172a; color: #fff; cursor: pointer; font-weight: 700; text-decoration: none; }
         @media print { body { background: #ffffff; } .page { margin: 0; box-shadow: none; width: auto; min-height: auto; } .print-actions { display: none; } }
     </style>
 </head>
@@ -49,7 +49,25 @@ Motivo: Criar impressão A4 da ordem de serviço.
     {% set os = ordem_servico %}
     <div class="page">
         <div class="header">
-            <div class="brand"><h1>GESTFLOW</h1><p>ORDEM DE SERVIÇO</p></div>
+            <div class="brand-top">
+                <div class="brand-logo-box">
+                    {% if empresa and empresa.logo_path %}
+                        <img src="{{ empresa.logo_path }}" alt="Logo da empresa" class="brand-logo-img">
+                    {% else %}
+                        GF
+                    {% endif %}
+                </div>
+                <div class="brand">
+                    <h1>{{ empresa.nome_fantasia if empresa and empresa.nome_fantasia else (empresa.razao_social if empresa and empresa.razao_social else 'GESTFLOW') }}</h1>
+                    <p>
+                        ORDEM DE SERVIÇO<br>
+                        {% if empresa and empresa.documento %}CNPJ/CPF: {{ empresa.documento }}<br>{% endif %}
+                        {% if empresa and empresa.telefone %}Tel: {{ empresa.telefone }}<br>{% endif %}
+                        {% if empresa and empresa.email %}{{ empresa.email }}<br>{% endif %}
+                        {% if loja and loja.cidade %}{{ loja.cidade }}{% endif %}
+                    </p>
+                </div>
+            </div>
             <div class="doc-title"><h2>OS {{ os.numero or os.id }}</h2><strong>{{ os.status or 'aberta' }}</strong></div>
         </div>
 
@@ -90,6 +108,6 @@ Motivo: Criar impressão A4 da ordem de serviço.
         </div></section>
         <div class="footer"><div class="signature">Assinatura do cliente</div><div class="signature">Responsável técnico</div></div>
     </div>
-    <div class="print-actions"><button onclick="window.print()">Imprimir</button></div>
+    <div class="print-actions"><a href="/ordens-servico/{{ os.id }}">Voltar</a><button onclick="window.print()">Imprimir</button></div>
 </body>
 </html>

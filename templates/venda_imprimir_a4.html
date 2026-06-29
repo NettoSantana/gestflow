@@ -247,8 +247,13 @@ Motivo: Criar impressão A4 da venda com dados gerais, itens, totais e observaç
                     {% endif %}
                 </div>
                 <div>
-                    <h1 class="brand-title">GESTFLOW</h1>
-                    <p class="brand-subtitle">Gestão de vendas, serviços e operações</p>
+                    <h1 class="brand-title">{{ empresa.nome_fantasia or empresa.razao_social or 'GESTFLOW' }}</h1>
+                    <p class="brand-subtitle">
+                        {% if empresa.documento %}CNPJ/CPF: {{ empresa.documento }}{% endif %}
+                        {% if empresa.telefone %}{% if empresa.documento %} | {% endif %}Tel: {{ empresa.telefone }}{% endif %}
+                        {% if empresa.email %}<br>{{ empresa.email }}{% endif %}
+                        {% if loja and loja.cidade %}<br>{{ loja.cidade }}{% endif %}
+                    </p>
                 </div>
             </div>
 
@@ -355,7 +360,7 @@ Motivo: Criar impressão A4 da venda com dados gerais, itens, totais e observaç
         </section>
 
         <footer class="print-footer">
-            <span>GESTFLOW</span>
+            <span>{{ empresa.nome_fantasia or empresa.razao_social or 'GESTFLOW' }}</span>
             <span>Venda {{ venda.numero or venda.id }}</span>
         </footer>
     </main>
