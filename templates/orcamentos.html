@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamentos.html
-Último recode: 2026-06-18 21:20 (America/Bahia)
-Motivo: Padronizar links do menu lateral na primeira leva de telas.
+Último recode: 2026-06-29 12:00 (America/Bahia)
+Motivo: Adicionar modal de cadastro rápido de cliente no orçamento.
 -->
 
 <!DOCTYPE html>
@@ -289,6 +289,7 @@ Motivo: Padronizar links do menu lateral na primeira leva de telas.
                             {% for cliente in clientes|default([]) %}
                                 <option value="{{ cliente.nome }}">{{ cliente.nome }}</option>
                             {% endfor %}
+                            <option value="__novo_cliente__" class="quick-new-option">+ Adicionar novo cliente</option>
                         </select>
                     </div>
 
@@ -464,6 +465,48 @@ Motivo: Padronizar links do menu lateral na primeira leva de telas.
         </form>
 
 
+        <div id="quick-cliente-modal" class="quick-modal-backdrop" aria-hidden="true">
+            <div class="quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-cliente-title">
+                <div class="quick-modal-header">
+                    <div>
+                        <h3 id="quick-cliente-title">Novo cliente</h3>
+                        <p>Cadastro rápido sem sair do orçamento.</p>
+                    </div>
+                    <button type="button" class="quick-modal-close" onclick="fecharModalClienteRapido()">×</button>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="quick-cliente-nome">Nome *</label>
+                        <input id="quick-cliente-nome" type="text" class="form-control" placeholder="Ex: Cliente ABC">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-cliente-documento">CPF / CNPJ</label>
+                        <input id="quick-cliente-documento" type="text" class="form-control" placeholder="Documento do cliente">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-cliente-telefone">Telefone</label>
+                        <input id="quick-cliente-telefone" type="text" class="form-control" placeholder="WhatsApp ou telefone">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-cliente-email">E-mail</label>
+                        <input id="quick-cliente-email" type="text" class="form-control" placeholder="email@cliente.com">
+                    </div>
+                </div>
+
+                <div id="quick-cliente-error" class="quick-modal-error"></div>
+
+                <div class="quick-modal-actions">
+                    <button type="button" class="btn-light" onclick="fecharModalClienteRapido()">Cancelar</button>
+                    <button type="button" class="btn-primary-green" onclick="salvarClienteRapido()">Salvar cliente</button>
+                </div>
+            </div>
+        </div>
+
+
         <div id="quick-item-modal" class="quick-modal-backdrop" aria-hidden="true">
             <div class="quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-item-title">
                 <div class="quick-modal-header">
@@ -619,6 +662,123 @@ Motivo: Padronizar links do menu lateral na primeira leva de telas.
             window.itensIniciais = [];
         </script>
         <script>
+
+            function abrirModalClienteRapido() {
+                const modal = document.getElementById("quick-cliente-modal");
+                const nomeInput = document.getElementById("quick-cliente-nome");
+                const documentoInput = document.getElementById("quick-cliente-documento");
+                const telefoneInput = document.getElementById("quick-cliente-telefone");
+                const emailInput = document.getElementById("quick-cliente-email");
+                const erroBox = document.getElementById("quick-cliente-error");
+
+                nomeInput.value = "";
+                documentoInput.value = "";
+                telefoneInput.value = "";
+                emailInput.value = "";
+
+                erroBox.textContent = "";
+                erroBox.classList.remove("show");
+
+                modal.classList.add("open");
+                modal.setAttribute("aria-hidden", "false");
+
+                setTimeout(function() {
+                    nomeInput.focus();
+                }, 50);
+            }
+
+            function fecharModalClienteRapido() {
+                const modal = document.getElementById("quick-cliente-modal");
+                const selectCliente = document.getElementById("orcamento_cliente");
+
+                if (modal) {
+                    modal.classList.remove("open");
+                    modal.setAttribute("aria-hidden", "true");
+                }
+
+                if (selectCliente && selectCliente.value === "__novo_cliente__") {
+                    selectCliente.value = "";
+                }
+            }
+
+            function adicionarClienteRapidoNoSelect(cliente) {
+                const selectCliente = document.getElementById("orcamento_cliente");
+
+                if (!selectCliente || !cliente || !cliente.nome) {
+                    return;
+                }
+
+                const clienteExistente = Array.from(selectCliente.options).find(function(opcao) {
+                    return opcao.value === cliente.nome;
+                });
+
+                if (clienteExistente) {
+                    selectCliente.value = cliente.nome;
+                    return;
+                }
+
+                const option = document.createElement("option");
+                option.value = cliente.nome;
+                option.textContent = cliente.nome;
+
+                const novaOpcao = Array.from(selectCliente.options).find(function(opcao) {
+                    return opcao.value === "__novo_cliente__";
+                });
+
+                if (novaOpcao) {
+                    selectCliente.insertBefore(option, novaOpcao);
+                } else {
+                    selectCliente.appendChild(option);
+                }
+
+                selectCliente.value = cliente.nome;
+            }
+
+            function salvarClienteRapido() {
+                const nome = document.getElementById("quick-cliente-nome").value.trim();
+                const documento = document.getElementById("quick-cliente-documento").value.trim();
+                const telefone = document.getElementById("quick-cliente-telefone").value.trim();
+                const email = document.getElementById("quick-cliente-email").value.trim();
+                const erroBox = document.getElementById("quick-cliente-error");
+
+                if (!nome) {
+                    erroBox.textContent = "Informe o nome do cliente.";
+                    erroBox.classList.add("show");
+                    return;
+                }
+
+                const dados = new URLSearchParams();
+                dados.append("nome", nome);
+                dados.append("documento", documento);
+                dados.append("telefone", telefone);
+                dados.append("email", email);
+
+                fetch("/clientes/rapido", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"
+                    },
+                    body: dados.toString()
+                })
+                    .then(function(resposta) {
+                        return resposta.json().then(function(payload) {
+                            if (!resposta.ok || !payload.ok) {
+                                throw new Error(payload.erro || "Não foi possível salvar o cliente.");
+                            }
+
+                            return payload.cliente;
+                        });
+                    })
+                    .then(function(cliente) {
+                        adicionarClienteRapidoNoSelect(cliente);
+                        fecharModalClienteRapido();
+                    })
+                    .catch(function(erro) {
+                        erroBox.textContent = erro.message || "Erro ao salvar cliente.";
+                        erroBox.classList.add("show");
+                    });
+            }
+
             function moedaParaNumero(valor) {
                 let texto = String(valor || "").trim();
 
@@ -969,6 +1129,16 @@ Motivo: Padronizar links do menu lateral na primeira leva de telas.
 
 
             document.addEventListener("DOMContentLoaded", function() {
+                const selectCliente = document.getElementById("orcamento_cliente");
+
+                if (selectCliente) {
+                    selectCliente.addEventListener("change", function() {
+                        if (selectCliente.value === "__novo_cliente__") {
+                            abrirModalClienteRapido();
+                        }
+                    });
+                }
+
                 carregarItensIniciais();
 
                 ["orcamento_desconto_valor", "orcamento_desconto_percentual"].forEach(function(id) {

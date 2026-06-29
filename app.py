@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-19 08:45 (America/Bahia)
-# Motivo: Impressões de orçamento e venda buscando dados cadastrados da empresa e do cliente.
+# Último recode: 2026-06-29 20:56 (America/Bahia)
+# Motivo: Criar rota rápida de cadastro de cliente para uso no modal de orçamento.
 
 from __future__ import annotations
 
@@ -4822,6 +4822,67 @@ def salvar_cliente() -> Response:
         salvar_cliente_db(cliente)
 
     return redirect(url_for("clientes"))
+
+
+@app.post("/clientes/rapido")
+def salvar_cliente_rapido() -> Response:
+    nome = (request.form.get("nome") or request.form.get("cliente_nome") or "").strip()
+    documento = (request.form.get("documento") or request.form.get("cliente_documento") or "").strip()
+    telefone = (request.form.get("telefone") or request.form.get("cliente_telefone") or "").strip()
+    email = (request.form.get("email") or request.form.get("cliente_email") or "").strip()
+
+    if not nome:
+        return jsonify({"ok": False, "erro": "Informe o nome do cliente."}), 400
+
+    cliente = {
+        "nome": nome,
+        "documento": documento,
+        "telefone": telefone,
+        "cidade": "",
+        "status": "ativo",
+        "email": email,
+    }
+
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO clientes (
+                empresa_id,
+                nome,
+                documento,
+                telefone,
+                cidade,
+                status,
+                email
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                empresa_id,
+                cliente["nome"],
+                cliente["documento"],
+                cliente["telefone"],
+                cliente["cidade"],
+                cliente["status"],
+                cliente["email"],
+            ),
+        )
+        cliente_id = int(cursor.lastrowid)
+        conn.commit()
+
+    return jsonify(
+        {
+            "ok": True,
+            "item": {
+                "id": cliente_id,
+                "nome": cliente["nome"],
+                "documento": cliente["documento"],
+                "telefone": cliente["telefone"],
+                "email": cliente["email"],
+            },
+        }
+    )
 
 
 @app.get("/clientes/<int:cliente_id>")
