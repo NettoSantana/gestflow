@@ -1415,3 +1415,62 @@ body {
         cursor: pointer !important;
     }
 }
+
+
+/* BOTAO VOLTAR DO SUBMENU - SOMENTE CELULAR/TABLET */
+.submenu-back {
+    display: none;
+}
+
+@media (max-width: 1024px) {
+    .menu-group .submenu .submenu-mobile-title {
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 1200 !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 12px !important;
+        min-height: 58px !important;
+        padding: 8px 0 14px !important;
+        margin: 0 0 10px !important;
+        border-bottom: 1px solid rgba(255,255,255,0.16) !important;
+        background: linear-gradient(180deg, var(--bg-sidebar), var(--bg-sidebar-2)) !important;
+        color: #ffffff !important;
+    }
+
+    .menu-group .submenu .submenu-mobile-title .submenu-back {
+        min-width: 104px !important;
+        height: 40px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border: 1px solid rgba(255, 255, 255, 0.22) !important;
+        border-radius: 12px !important;
+        background: rgba(255, 255, 255, 0.12) !important;
+        color: #ffffff !important;
+        font-size: 13px !important;
+        font-weight: 900 !important;
+        letter-spacing: .02em !important;
+        cursor: pointer !important;
+        pointer-events: auto !important;
+    }
+
+    .menu-group .submenu .submenu-mobile-title .submenu-back:active {
+        background: rgba(255, 255, 255, 0.22) !important;
+    }
+
+    .menu-group .submenu .submenu-mobile-title strong {
+        display: block !important;
+        color: #ffffff !important;
+        font-size: 16px !important;
+        font-weight: 900 !important;
+        line-height: 1.1 !important;
+    }
+}
+
+@media (min-width: 1025px) {
+    .submenu-mobile-title,
+    .submenu-back {
+        display: none !important;
+    }
+}
