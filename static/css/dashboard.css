@@ -1417,58 +1417,68 @@ body {
 }
 
 
-/* BOTAO VOLTAR DO SUBMENU - SOMENTE CELULAR/TABLET */
-.submenu-back {
+/* BOTAO VOLTAR MOBILE/TABLET - VERSAO ROBUSTA */
+.mobile-submenu-floating-back,
+.submenu-mobile-title {
     display: none;
 }
 
 @media (max-width: 1024px) {
-    .menu-group .submenu .submenu-mobile-title {
-        position: sticky !important;
-        top: 0 !important;
-        z-index: 1200 !important;
-        display: flex !important;
-        align-items: center !important;
-        gap: 12px !important;
-        min-height: 58px !important;
-        padding: 8px 0 14px !important;
-        margin: 0 0 10px !important;
-        border-bottom: 1px solid rgba(255,255,255,0.16) !important;
-        background: linear-gradient(180deg, var(--bg-sidebar), var(--bg-sidebar-2)) !important;
-        color: #ffffff !important;
-    }
-
-    .menu-group .submenu .submenu-mobile-title .submenu-back {
-        min-width: 104px !important;
-        height: 40px !important;
+    .sidebar.mobile-submenu-mode .mobile-submenu-floating-back {
+        position: fixed !important;
+        top: 14px !important;
+        left: 14px !important;
+        z-index: 2200 !important;
+        width: auto !important;
+        min-width: 108px !important;
+        height: 42px !important;
         display: inline-flex !important;
         align-items: center !important;
         justify-content: center !important;
-        border: 1px solid rgba(255, 255, 255, 0.22) !important;
+        padding: 0 14px !important;
+        border: 1px solid rgba(255,255,255,.28) !important;
         border-radius: 12px !important;
-        background: rgba(255, 255, 255, 0.12) !important;
+        background: #0f62fe !important;
         color: #ffffff !important;
         font-size: 13px !important;
         font-weight: 900 !important;
-        letter-spacing: .02em !important;
         cursor: pointer !important;
         pointer-events: auto !important;
+        box-shadow: 0 10px 24px rgba(0,0,0,.28) !important;
     }
 
-    .menu-group .submenu .submenu-mobile-title .submenu-back:active {
-        background: rgba(255, 255, 255, 0.22) !important;
+    .menu-group .submenu {
+        padding-top: 70px !important;
+    }
+
+    .menu-group .submenu .submenu-mobile-title {
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
+        min-height: 48px !important;
+        padding: 8px 0 14px !important;
+        margin: -56px 0 10px !important;
+        border-bottom: 1px solid rgba(255,255,255,.14) !important;
+        background: transparent !important;
+        color: #ffffff !important;
+        cursor: default !important;
+    }
+
+    .menu-group .submenu .submenu-mobile-title .submenu-back {
+        display: none !important;
     }
 
     .menu-group .submenu .submenu-mobile-title strong {
         display: block !important;
+        margin-left: 118px !important;
         color: #ffffff !important;
         font-size: 16px !important;
         font-weight: 900 !important;
-        line-height: 1.1 !important;
     }
 }
 
 @media (min-width: 1025px) {
+    .mobile-submenu-floating-back,
     .submenu-mobile-title,
     .submenu-back {
         display: none !important;

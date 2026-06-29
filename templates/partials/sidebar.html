@@ -9,6 +9,9 @@
         <button class="mobile-sidebar-close" type="button" aria-label="Fechar menu">×</button>
     </div>
 
+
+    <button class="mobile-submenu-floating-back" type="button" aria-label="Voltar para o menu principal">← VOLTAR</button>
+
     <nav class="sidebar-nav">
         <ul class="menu">
             <li class="menu-item {% if _path == '/' %}active{% endif %}">
@@ -25,7 +28,7 @@
                         <span class="arrow">⌄</span>
                     </summary>
                     <ul class="submenu">
-                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← VOLTAR</button><strong>Cadastros</strong></li>
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Cadastros</strong></li>
                         <li class="{% if _path.startswith('/clientes') %}submenu-active{% endif %}"><a href="/clientes">Clientes</a></li>
                         <li class="{% if _path.startswith('/fornecedores') %}submenu-active{% endif %}"><a href="/fornecedores">Fornecedores</a></li>
                         <li class="{% if _path.startswith('/funcionarios') %}submenu-active{% endif %}"><a href="/funcionarios">Funcionários</a></li>
@@ -42,7 +45,7 @@
                         <span class="arrow">⌄</span>
                     </summary>
                     <ul class="submenu">
-                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← VOLTAR</button><strong>Produtos</strong></li>
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Produtos</strong></li>
                         <li class="{% if _path.startswith('/produtos') %}submenu-active{% endif %}"><a href="/produtos">Gerenciar produtos</a></li>
                         <li>Opções auxiliares</li>
                     </ul>
@@ -56,7 +59,7 @@
                         <span class="arrow">⌄</span>
                     </summary>
                     <ul class="submenu">
-                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← VOLTAR</button><strong>Serviços</strong></li>
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Serviços</strong></li>
                         <li class="{% if _path.startswith('/servicos') %}submenu-active{% endif %}"><a href="/servicos">Gerenciar serviços</a></li>
                         <li>Opções auxiliares</li>
                     </ul>
@@ -70,7 +73,7 @@
                         <span class="arrow">⌄</span>
                     </summary>
                     <ul class="submenu">
-                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← VOLTAR</button><strong>Orçamentos</strong></li>
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Orçamentos</strong></li>
                         <li class="{% if _path.startswith('/orcamentos') %}submenu-active{% endif %}"><a href="/orcamentos">Produtos</a></li>
                         <li class="{% if _path.startswith('/orcamentos') %}submenu-active{% endif %}"><a href="/orcamentos">Serviços</a></li>
                         <li>Opções auxiliares</li>
@@ -85,7 +88,7 @@
                         <span class="arrow">⌄</span>
                     </summary>
                     <ul class="submenu">
-                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← VOLTAR</button><strong>Vendas</strong></li>
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Vendas</strong></li>
                         <li class="{% if _path == '/vendas' %}submenu-active{% endif %}"><a href="/vendas">Produtos</a></li>
                         <li class="{% if _path == '/vendas' %}submenu-active{% endif %}"><a href="/vendas">Serviços</a></li>
                         <li class="{% if _path == '/vendas' %}submenu-active{% endif %}"><a href="/vendas">Balcão</a></li>
@@ -102,7 +105,7 @@
                         <span class="arrow">⌄</span>
                     </summary>
                     <ul class="submenu">
-                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← VOLTAR</button><strong>Ordens de Serviço</strong></li>
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Ordens de Serviço</strong></li>
                         <li class="{% if _path == '/ordens-servico' %}submenu-active{% endif %}"><a href="/ordens-servico">Gerenciar O.S.</a></li>
                         <li class="{% if _path.startswith('/ordens-servico/painel') %}submenu-active{% endif %}"><a href="/ordens-servico/painel">Painel</a></li>
                         <li>Opções auxiliares</li>
@@ -117,7 +120,7 @@
                         <span class="arrow">⌄</span>
                     </summary>
                     <ul class="submenu">
-                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← VOLTAR</button><strong>Estoque</strong></li>
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Estoque</strong></li>
                         <li class="{% if _path.startswith('/estoque/movimentacoes') or _path == '/estoque' %}submenu-active{% endif %}"><a href="/estoque/movimentacoes">Movimentações</a></li>
                         <li class="{% if _path.startswith('/estoque/ajustes') %}submenu-active{% endif %}"><a href="/estoque/ajustes">Ajustes</a></li>
                         <li class="{% if _path.startswith('/estoque/compras') %}submenu-active{% endif %}"><a href="/estoque/compras">Compras</a></li>
@@ -132,7 +135,7 @@
                         <span class="arrow">⌄</span>
                     </summary>
                     <ul class="submenu">
-                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← VOLTAR</button><strong>Financeiro</strong></li>
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Financeiro</strong></li>
                         <li class="{% if _path.startswith('/financeiro/pagar') %}submenu-active{% endif %}"><a href="/financeiro/pagar">Contas a pagar</a></li>
                         <li class="{% if _path.startswith('/financeiro/receber') %}submenu-active{% endif %}"><a href="/financeiro/receber">Contas a receber</a></li>
                         <li class="{% if _path.startswith('/financeiro/fluxo-caixa') or _path == '/financeiro' %}submenu-active{% endif %}"><a href="/financeiro/fluxo-caixa">Fluxo de caixa</a></li>
@@ -150,7 +153,7 @@
                         <span class="arrow">⌄</span>
                     </summary>
                     <ul class="submenu">
-                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← VOLTAR</button><strong>Admin</strong></li>
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Admin</strong></li>
                         <li class="{% if _path.startswith('/admin/empresas') %}submenu-active{% endif %}"><a href="/admin/empresas">Empresas</a></li>
                     </ul>
                 </details>
@@ -194,6 +197,9 @@
                 grupo.classList.remove('mobile-submenu-open');
             });
             sidebar.classList.remove('mobile-submenu-mode');
+            if (voltarFlutuante) {
+                voltarFlutuante.style.display = '';
+            }
         }
 
         function abrirMenu() {
@@ -244,27 +250,18 @@
                 detalhes.open = true;
                 grupo.classList.add('mobile-submenu-open');
                 sidebar.classList.add('mobile-submenu-mode');
+                if (voltarFlutuante) {
+                    voltarFlutuante.style.display = 'inline-flex';
+                }
             });
         });
 
-        document.querySelectorAll('.submenu-back').forEach(function (botao) {
+        document.querySelectorAll('.submenu-back, .mobile-submenu-floating-back').forEach(function (botao) {
             botao.addEventListener('click', function (event) {
                 event.preventDefault();
                 event.stopPropagation();
                 fecharSubmenu();
             });
-        });
-
-        // Delegacao extra: garante que o botao Voltar funcione no celular/tablet
-        // mesmo quando o navegador reutilizar DOM/cache depois do deploy.
-        sidebar.addEventListener('click', function (event) {
-            const botaoVoltar = event.target.closest('.submenu-back');
-
-            if (botaoVoltar && mobile()) {
-                event.preventDefault();
-                event.stopPropagation();
-                fecharSubmenu();
-            }
         });
 
         // IMPORTANTE: nao bloqueia cliques em links.
