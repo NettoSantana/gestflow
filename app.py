@@ -10,7 +10,7 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
-from flask import Flask, Response, redirect, render_template, request, session, url_for
+from flask import Flask, Response, jsonify, redirect, render_template, request, session, url_for
 
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
@@ -5056,6 +5056,80 @@ def salvar_produto() -> Response:
     return redirect(url_for("produtos"))
 
 
+
+@app.post("/produtos/rapido")
+def salvar_produto_rapido() -> Response:
+    nome = (request.form.get("nome") or "").strip()
+    preco_venda = (request.form.get("valor_venda") or request.form.get("preco_venda") or "").strip()
+    categoria = (request.form.get("categoria") or "").strip()
+    observacoes = (request.form.get("observacoes") or "").strip()
+
+    if not nome:
+        return jsonify({"ok": False, "erro": "Informe o nome do produto."}), 400
+
+    produto = {
+        "nome": nome,
+        "codigo": "",
+        "categoria": categoria,
+        "unidade": "un",
+        "estoque_atual": "0",
+        "estoque_minimo": "0",
+        "preco_custo": "",
+        "preco_venda": preco_venda,
+        "status": "ativo",
+        "observacoes": observacoes,
+    }
+
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO produtos (
+                empresa_id,
+                nome,
+                codigo,
+                categoria,
+                unidade,
+                estoque_atual,
+                estoque_minimo,
+                preco_custo,
+                preco_venda,
+                status,
+                observacoes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                empresa_id,
+                produto["nome"],
+                produto["codigo"],
+                produto["categoria"],
+                produto["unidade"],
+                produto["estoque_atual"],
+                produto["estoque_minimo"],
+                produto["preco_custo"],
+                produto["preco_venda"],
+                produto["status"],
+                produto["observacoes"],
+            ),
+        )
+        produto_id = int(cursor.lastrowid)
+        conn.commit()
+
+    return jsonify(
+        {
+            "ok": True,
+            "item": {
+                "id": produto_id,
+                "nome": produto["nome"],
+                "valor": produto["preco_venda"],
+                "categoria": produto["categoria"],
+                "observacoes": produto["observacoes"],
+            },
+        }
+    )
+
+
 @app.get("/produtos/<int:produto_id>")
 def ver_produto(produto_id: int) -> str | Response:
     produto = buscar_produto_por_id(produto_id)
@@ -5136,6 +5210,77 @@ def salvar_servico() -> Response:
         salvar_servico_db(servico)
 
     return redirect(url_for("servicos"))
+
+
+
+@app.post("/servicos/rapido")
+def salvar_servico_rapido() -> Response:
+    nome = (request.form.get("nome") or "").strip()
+    valor_venda = (request.form.get("valor_venda") or "").strip()
+    categoria = (request.form.get("categoria") or "").strip()
+    observacoes = (request.form.get("observacoes") or "").strip()
+
+    if not nome:
+        return jsonify({"ok": False, "erro": "Informe o nome do serviço."}), 400
+
+    servico = {
+        "nome": nome,
+        "codigo": "",
+        "categoria": categoria,
+        "unidade": "un",
+        "custo": "",
+        "valor_venda": valor_venda,
+        "tempo_estimado": "",
+        "status": "ativo",
+        "observacoes": observacoes,
+    }
+
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO servicos (
+                empresa_id,
+                nome,
+                codigo,
+                categoria,
+                unidade,
+                custo,
+                valor_venda,
+                tempo_estimado,
+                status,
+                observacoes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                empresa_id,
+                servico["nome"],
+                servico["codigo"],
+                servico["categoria"],
+                servico["unidade"],
+                servico["custo"],
+                servico["valor_venda"],
+                servico["tempo_estimado"],
+                servico["status"],
+                servico["observacoes"],
+            ),
+        )
+        servico_id = int(cursor.lastrowid)
+        conn.commit()
+
+    return jsonify(
+        {
+            "ok": True,
+            "item": {
+                "id": servico_id,
+                "nome": servico["nome"],
+                "valor": servico["valor_venda"],
+                "categoria": servico["categoria"],
+                "observacoes": servico["observacoes"],
+            },
+        }
+    )
 
 
 @app.get("/servicos/<int:servico_id>")

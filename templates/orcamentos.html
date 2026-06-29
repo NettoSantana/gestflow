@@ -121,6 +121,89 @@ Motivo: Padronizar links do menu lateral na primeira leva de telas.
             align-items: center;
             gap: 8px;
         }
+
+        .quick-modal-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 10000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: rgba(15, 23, 42, 0.45);
+        }
+
+        .quick-modal-backdrop.open {
+            display: flex;
+        }
+
+        .quick-modal {
+            width: min(460px, 100%);
+            background: #ffffff;
+            border-radius: 18px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+            padding: 18px;
+        }
+
+        .quick-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .quick-modal-header h3 {
+            margin: 0;
+            font-size: 18px;
+            color: #0f172a;
+        }
+
+        .quick-modal-header p {
+            margin: 4px 0 0;
+            color: #64748b;
+            font-size: 13px;
+        }
+
+        .quick-modal-close {
+            width: 34px;
+            height: 34px;
+            border: 0;
+            border-radius: 10px;
+            background: #f1f5f9;
+            color: #0f172a;
+            cursor: pointer;
+            font-weight: 800;
+        }
+
+        .quick-modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 14px;
+        }
+
+        .quick-modal-error {
+            display: none;
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 10px;
+            background: #fef2f2;
+            color: #991b1b;
+            font-weight: 700;
+            font-size: 13px;
+        }
+
+        .quick-modal-error.show {
+            display: block;
+        }
+
+        .quick-new-option {
+            font-weight: 800;
+            color: #16a34a;
+        }
+
     </style>
 </head>
 <body>
@@ -380,6 +463,51 @@ Motivo: Padronizar links do menu lateral na primeira leva de telas.
             </section>
         </form>
 
+
+        <div id="quick-item-modal" class="quick-modal-backdrop" aria-hidden="true">
+            <div class="quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-item-title">
+                <div class="quick-modal-header">
+                    <div>
+                        <h3 id="quick-item-title">Novo item</h3>
+                        <p id="quick-item-subtitle">Cadastro rápido sem sair do orçamento.</p>
+                    </div>
+                    <button type="button" class="quick-modal-close" onclick="fecharModalItemRapido()">×</button>
+                </div>
+
+                <input id="quick-item-tipo" type="hidden" value="servico">
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="quick-item-nome">Nome *</label>
+                        <input id="quick-item-nome" type="text" class="form-control" placeholder="Ex: ART, deslocamento, instalação">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-item-valor">Valor de venda *</label>
+                        <input id="quick-item-valor" type="text" class="form-control" placeholder="0,00">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-item-categoria">Categoria</label>
+                        <input id="quick-item-categoria" type="text" class="form-control" placeholder="Ex: Serviço técnico">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-item-observacoes">Descrição / observação</label>
+                        <input id="quick-item-observacoes" type="text" class="form-control" placeholder="Resumo do item">
+                    </div>
+                </div>
+
+                <div id="quick-item-error" class="quick-modal-error"></div>
+
+                <div class="quick-modal-actions">
+                    <button type="button" class="btn-light" onclick="fecharModalItemRapido()">Cancelar</button>
+                    <button type="button" class="btn-primary-green" onclick="salvarItemRapido()">Salvar item</button>
+                </div>
+            </div>
+        </div>
+
+
         <section class="panel table-panel">
             <div class="panel-header page-header">
                 <div>
@@ -581,11 +709,12 @@ Motivo: Padronizar links do menu lateral na primeira leva de telas.
                     const selected = dados.descricao === item.nome ? " selected" : "";
                     selectOptions += '<option value="' + item.nome + '" data-valor="' + (item.valor || '') + '"' + selected + '>' + item.nome + '</option>';
                 });
+                selectOptions += '<option value="__novo__" class="quick-new-option">+ Adicionar novo ' + tipoLabel.toLowerCase() + '</option>';
 
                 linha.innerHTML = `
                     <td>
                         <input type="hidden" name="item_tipo" value="${tipo}">
-                        <select name="item_descricao" class="form-control item-descricao">
+                        <select name="item_descricao" class="form-control item-descricao" data-tipo="${tipo}">
                             ${selectOptions}
                         </select>
                     </td>
@@ -605,6 +734,11 @@ Motivo: Padronizar links do menu lateral na primeira leva de telas.
                 const descontoInput = linha.querySelector(".item-desconto");
 
                 select.addEventListener("change", function() {
+                    if (select.value === "__novo__") {
+                        abrirModalItemRapido(tipo, select, linha);
+                        return;
+                    }
+
                     const valorCadastro = select.options[select.selectedIndex]?.dataset.valor || buscarValorCadastro(tipo, select.value);
 
                     if (valorCadastro) {
@@ -678,6 +812,161 @@ Motivo: Padronizar links do menu lateral na primeira leva de telas.
                     adicionarItem("servico");
                 }
             }
+
+
+            window.selectItemRapidoAtual = null;
+            window.linhaItemRapidoAtual = null;
+
+            function abrirModalItemRapido(tipo, select, linha) {
+                window.selectItemRapidoAtual = select || null;
+                window.linhaItemRapidoAtual = linha || null;
+
+                const modal = document.getElementById("quick-item-modal");
+                const tipoInput = document.getElementById("quick-item-tipo");
+                const titulo = document.getElementById("quick-item-title");
+                const subtitulo = document.getElementById("quick-item-subtitle");
+                const nomeInput = document.getElementById("quick-item-nome");
+                const valorInput = document.getElementById("quick-item-valor");
+                const categoriaInput = document.getElementById("quick-item-categoria");
+                const observacoesInput = document.getElementById("quick-item-observacoes");
+                const erroBox = document.getElementById("quick-item-error");
+
+                tipoInput.value = tipo;
+                titulo.textContent = tipo === "produto" ? "Novo produto" : "Novo serviço";
+                subtitulo.textContent = tipo === "produto"
+                    ? "Cadastre um produto rápido e use no orçamento agora."
+                    : "Cadastre um serviço rápido e use no orçamento agora.";
+
+                nomeInput.value = "";
+                valorInput.value = "";
+                categoriaInput.value = "";
+                observacoesInput.value = "";
+
+                erroBox.textContent = "";
+                erroBox.classList.remove("show");
+
+                if (modal) {
+                    modal.classList.add("open");
+                    modal.setAttribute("aria-hidden", "false");
+                    setTimeout(function() {
+                        nomeInput.focus();
+                    }, 50);
+                }
+
+                if (select) {
+                    select.value = "";
+                }
+            }
+
+            function fecharModalItemRapido() {
+                const modal = document.getElementById("quick-item-modal");
+
+                if (modal) {
+                    modal.classList.remove("open");
+                    modal.setAttribute("aria-hidden", "true");
+                }
+
+                window.selectItemRapidoAtual = null;
+                window.linhaItemRapidoAtual = null;
+            }
+
+            function adicionarOpcaoRapidaEmSelects(tipo, item) {
+                const seletor = 'select.item-descricao[data-tipo="' + tipo + '"]';
+
+                document.querySelectorAll(seletor).forEach(function(select) {
+                    const option = document.createElement("option");
+                    option.value = item.nome;
+                    option.textContent = item.nome;
+                    option.dataset.valor = item.valor || "";
+
+                    const novaOpcao = Array.from(select.options).find(function(opcao) {
+                        return opcao.value === "__novo__";
+                    });
+
+                    if (novaOpcao) {
+                        select.insertBefore(option, novaOpcao);
+                    } else {
+                        select.appendChild(option);
+                    }
+                });
+            }
+
+            function salvarItemRapido() {
+                const tipo = document.getElementById("quick-item-tipo").value || "servico";
+                const nome = document.getElementById("quick-item-nome").value.trim();
+                const valor = document.getElementById("quick-item-valor").value.trim();
+                const categoria = document.getElementById("quick-item-categoria").value.trim();
+                const observacoes = document.getElementById("quick-item-observacoes").value.trim();
+                const erroBox = document.getElementById("quick-item-error");
+
+                if (!nome) {
+                    erroBox.textContent = "Informe o nome do item.";
+                    erroBox.classList.add("show");
+                    return;
+                }
+
+                const endpoint = tipo === "produto" ? "/produtos/rapido" : "/servicos/rapido";
+                const dados = new URLSearchParams();
+                dados.append("nome", nome);
+                dados.append("valor_venda", valor);
+                dados.append("categoria", categoria);
+                dados.append("observacoes", observacoes);
+
+                fetch(endpoint, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"
+                    },
+                    body: dados.toString()
+                })
+                    .then(function(resposta) {
+                        return resposta.json().then(function(payload) {
+                            if (!resposta.ok || !payload.ok) {
+                                throw new Error(payload.erro || "Não foi possível salvar o item.");
+                            }
+
+                            return payload.item;
+                        });
+                    })
+                    .then(function(item) {
+                        if (tipo === "produto") {
+                            window.opcoesProdutos.push({ nome: item.nome, valor: item.valor || "" });
+                        } else {
+                            window.opcoesServicos.push({ nome: item.nome, valor: item.valor || "" });
+                        }
+
+                        adicionarOpcaoRapidaEmSelects(tipo, item);
+
+                        const select = window.selectItemRapidoAtual;
+                        const linha = window.linhaItemRapidoAtual;
+
+                        if (select) {
+                            select.value = item.nome;
+                        }
+
+                        if (linha) {
+                            const valorInput = linha.querySelector(".item-valor");
+                            const detalhesInput = linha.querySelector('input[name="item_detalhes"]');
+
+                            if (valorInput) {
+                                valorInput.value = numeroParaMoeda(moedaParaNumero(item.valor || "0,00"));
+                            }
+
+                            if (detalhesInput && item.observacoes) {
+                                detalhesInput.value = item.observacoes;
+                            }
+
+                            recalcularLinha(linha);
+                        }
+
+                        fecharModalItemRapido();
+                    })
+                    .catch(function(erro) {
+                        erroBox.textContent = erro.message || "Erro ao salvar item.";
+                        erroBox.classList.add("show");
+                    });
+            }
+
 
             document.addEventListener("DOMContentLoaded", function() {
                 carregarItensIniciais();
