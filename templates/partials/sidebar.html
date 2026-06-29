@@ -253,6 +253,48 @@
             });
         });
 
+        document.querySelectorAll('.sidebar a').forEach((link) => {
+            link.addEventListener('click', function (event) {
+                const href = link.getAttribute('href');
+
+                if (!href || href === '#') {
+                    return;
+                }
+
+                event.stopPropagation();
+
+                if (isMobile()) {
+                    event.preventDefault();
+                    window.location.href = href;
+                }
+            });
+        });
+
+        document.querySelectorAll('.submenu li').forEach((item) => {
+            item.addEventListener('click', function (event) {
+                const link = item.querySelector('a[href]');
+
+                if (!link || item.classList.contains('submenu-mobile-title')) {
+                    return;
+                }
+
+                const href = link.getAttribute('href');
+
+                if (!href || href === '#') {
+                    return;
+                }
+
+                event.preventDefault();
+                event.stopPropagation();
+
+                if (isMobile()) {
+                    window.location.href = href;
+                } else {
+                    window.location.href = href;
+                }
+            });
+        });
+
         window.addEventListener('resize', function () {
             if (!isMobile()) {
                 fecharSidebar();

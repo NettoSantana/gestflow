@@ -1334,3 +1334,43 @@ body {
         display: none;
     }
 }
+
+
+/* FIX MOBILE MENU LINKS */
+.sidebar a,
+.submenu a,
+.footer-item,
+.menu-item a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.menu-item a,
+.submenu a,
+.footer-item {
+    width: 100%;
+    min-height: inherit;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.submenu li:has(a) {
+    cursor: pointer;
+}
+
+@media (max-width: 1024px) {
+    .submenu li:not(.submenu-mobile-title) a {
+        width: 100%;
+        min-height: 42px;
+        display: flex;
+        align-items: center;
+        color: inherit;
+        text-decoration: none;
+    }
+
+    .menu-item a,
+    .footer-item {
+        min-height: 42px;
+    }
+}
