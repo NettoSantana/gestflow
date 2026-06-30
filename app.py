@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-29 23:35 (America/Bahia)
-# Motivo: Travar validações mínimas de produtos e serviços no cadastro e edição.
+# Último recode: 2026-06-29 23:50 (America/Bahia)
+# Motivo: Travar validações mínimas de clientes, fornecedores e funcionários no cadastro e edição.
 
 from __future__ import annotations
 
@@ -4929,6 +4929,78 @@ def dashboard() -> str:
     return render_template("dashboard.html", dashboard=dados_dashboard)
 
 
+
+def normalizar_cliente_para_salvar(cliente: dict[str, str]) -> dict[str, str]:
+    cliente_normalizado = dict(cliente)
+
+    if not cliente_normalizado["status"]:
+        cliente_normalizado["status"] = "ativo"
+
+    if cliente_normalizado["status"] not in {"ativo", "inativo", "pendente"}:
+        cliente_normalizado["status"] = "ativo"
+
+    return cliente_normalizado
+
+
+def validar_cliente_para_salvar(cliente: dict[str, str]) -> str:
+    if not cliente["nome"]:
+        return "Informe o nome do cliente."
+
+    if not cliente["status"]:
+        return "Selecione o status do cliente."
+
+    return ""
+
+
+def normalizar_fornecedor_para_salvar(fornecedor: dict[str, str]) -> dict[str, str]:
+    fornecedor_normalizado = dict(fornecedor)
+
+    if not fornecedor_normalizado["status"]:
+        fornecedor_normalizado["status"] = "ativo"
+
+    if fornecedor_normalizado["status"] not in {"ativo", "inativo", "pendente"}:
+        fornecedor_normalizado["status"] = "ativo"
+
+    return fornecedor_normalizado
+
+
+def validar_fornecedor_para_salvar(fornecedor: dict[str, str]) -> str:
+    if not fornecedor["nome"]:
+        return "Informe o nome do fornecedor."
+
+    if not fornecedor["categoria"]:
+        return "Selecione a categoria do fornecedor."
+
+    if not fornecedor["status"]:
+        return "Selecione o status do fornecedor."
+
+    return ""
+
+
+def normalizar_funcionario_para_salvar(funcionario: dict[str, str]) -> dict[str, str]:
+    funcionario_normalizado = dict(funcionario)
+
+    if not funcionario_normalizado["status"]:
+        funcionario_normalizado["status"] = "ativo"
+
+    if funcionario_normalizado["status"] not in {"ativo", "inativo", "pendente"}:
+        funcionario_normalizado["status"] = "ativo"
+
+    return funcionario_normalizado
+
+
+def validar_funcionario_para_salvar(funcionario: dict[str, str]) -> str:
+    if not funcionario["nome"]:
+        return "Informe o nome do funcionário."
+
+    if not funcionario["cargo"]:
+        return "Informe o cargo ou função do funcionário."
+
+    if not funcionario["status"]:
+        return "Selecione o status do funcionário."
+
+    return ""
+
 @app.get("/clientes")
 def clientes() -> str:
     clientes_lista = listar_clientes()
@@ -4946,8 +5018,13 @@ def salvar_cliente() -> Response:
         "email": (request.form.get("cliente_email") or "").strip(),
     }
 
-    if cliente["nome"]:
-        salvar_cliente_db(cliente)
+    cliente = normalizar_cliente_para_salvar(cliente)
+    erro_validacao = validar_cliente_para_salvar(cliente)
+
+    if erro_validacao:
+        return redirect(url_for("clientes", erro=erro_validacao))
+
+    salvar_cliente_db(cliente)
 
     return redirect(url_for("clientes"))
 
@@ -5052,8 +5129,13 @@ def atualizar_cliente(cliente_id: int) -> Response:
         "email": (request.form.get("cliente_email") or "").strip(),
     }
 
-    if cliente["nome"]:
-        atualizar_cliente_db(cliente_id, cliente)
+    cliente = normalizar_cliente_para_salvar(cliente)
+    erro_validacao = validar_cliente_para_salvar(cliente)
+
+    if erro_validacao:
+        return redirect(url_for("editar_cliente", cliente_id=cliente_id, erro=erro_validacao))
+
+    atualizar_cliente_db(cliente_id, cliente)
 
     return redirect(url_for("ver_cliente", cliente_id=cliente_id))
 
@@ -5087,8 +5169,13 @@ def salvar_fornecedor() -> Response:
         "observacoes": (request.form.get("fornecedor_observacoes") or "").strip(),
     }
 
-    if fornecedor["nome"]:
-        salvar_fornecedor_db(fornecedor)
+    fornecedor = normalizar_fornecedor_para_salvar(fornecedor)
+    erro_validacao = validar_fornecedor_para_salvar(fornecedor)
+
+    if erro_validacao:
+        return redirect(url_for("fornecedores", erro=erro_validacao))
+
+    salvar_fornecedor_db(fornecedor)
 
     return redirect(url_for("fornecedores"))
 
@@ -5131,8 +5218,13 @@ def atualizar_fornecedor(fornecedor_id: int) -> Response:
         "observacoes": (request.form.get("fornecedor_observacoes") or "").strip(),
     }
 
-    if fornecedor["nome"]:
-        atualizar_fornecedor_db(fornecedor_id, fornecedor)
+    fornecedor = normalizar_fornecedor_para_salvar(fornecedor)
+    erro_validacao = validar_fornecedor_para_salvar(fornecedor)
+
+    if erro_validacao:
+        return redirect(url_for("editar_fornecedor", fornecedor_id=fornecedor_id, erro=erro_validacao))
+
+    atualizar_fornecedor_db(fornecedor_id, fornecedor)
 
     return redirect(url_for("ver_fornecedor", fornecedor_id=fornecedor_id))
 
@@ -5166,8 +5258,13 @@ def salvar_funcionario() -> Response:
         "observacoes": (request.form.get("funcionario_observacoes") or "").strip(),
     }
 
-    if funcionario["nome"]:
-        salvar_funcionario_db(funcionario)
+    funcionario = normalizar_funcionario_para_salvar(funcionario)
+    erro_validacao = validar_funcionario_para_salvar(funcionario)
+
+    if erro_validacao:
+        return redirect(url_for("funcionarios", erro=erro_validacao))
+
+    salvar_funcionario_db(funcionario)
 
     return redirect(url_for("funcionarios"))
 
@@ -5280,8 +5377,13 @@ def atualizar_funcionario(funcionario_id: int) -> Response:
         "observacoes": (request.form.get("funcionario_observacoes") or "").strip(),
     }
 
-    if funcionario["nome"]:
-        atualizar_funcionario_db(funcionario_id, funcionario)
+    funcionario = normalizar_funcionario_para_salvar(funcionario)
+    erro_validacao = validar_funcionario_para_salvar(funcionario)
+
+    if erro_validacao:
+        return redirect(url_for("editar_funcionario", funcionario_id=funcionario_id, erro=erro_validacao))
+
+    atualizar_funcionario_db(funcionario_id, funcionario)
 
     return redirect(url_for("ver_funcionario", funcionario_id=funcionario_id))
 

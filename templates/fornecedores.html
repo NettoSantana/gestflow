@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\fornecedores.html
-Último recode: 2026-06-19 07:55 (America/Bahia)
-Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
+Último recode: 2026-06-29 23:50 (America/Bahia)
+Motivo: Travar campos mínimos do cadastro de fornecedores.
 -->
 
 <!DOCTYPE html>
@@ -33,6 +33,16 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
             border-color: #fecdd3;
         }
 
+        .alert-error {
+            padding: 12px 14px;
+            border: 1px solid #fecaca;
+            border-radius: 12px;
+            background: #fef2f2;
+            color: #b91c1c;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
     </style>
 </head>
 <body>
@@ -41,6 +51,13 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
 <main class="content">
         {% set page_title = 'Fornecedores' %}
         {% include "partials/topbar.html" %}
+
+        {% if request.args.get("erro") %}
+            <section class="panel page-section">
+                <div class="alert-error">{{ request.args.get("erro") }}</div>
+            </section>
+        {% endif %}
+
 
 {% set fornecedores_lista = fornecedores|default([]) %}
         {% set resumo = namespace(ativos=0, pendentes=0) %}
@@ -107,8 +124,8 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
             <form action="/fornecedores" method="post" class="client-form">
                 <div class="form-grid">
                     <div class="form-group">
-                        <label for="fornecedor_nome">Nome / Razão Social</label>
-                        <input id="fornecedor_nome" name="fornecedor_nome" type="text" placeholder="Ex: Fornecedor ABC Ltda" class="form-control">
+                        <label for="fornecedor_nome">Nome / Razão Social *</label>
+                        <input id="fornecedor_nome" name="fornecedor_nome" type="text" placeholder="Ex: Fornecedor ABC Ltda" class="form-control" required>
                     </div>
 
                     <div class="form-group">
@@ -127,8 +144,8 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
                     </div>
 
                     <div class="form-group">
-                        <label for="fornecedor_status">Status</label>
-                        <select id="fornecedor_status" name="fornecedor_status" class="form-control">
+                        <label for="fornecedor_status">Status *</label>
+                        <select id="fornecedor_status" name="fornecedor_status" class="form-control" required>
                             <option value="ativo">Ativo</option>
                             <option value="inativo">Inativo</option>
                             <option value="pendente">Pendente</option>
@@ -141,8 +158,8 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
                     </div>
 
                     <div class="form-group">
-                        <label for="fornecedor_categoria">Categoria</label>
-                        <select id="fornecedor_categoria" name="fornecedor_categoria" class="form-control">
+                        <label for="fornecedor_categoria">Categoria *</label>
+                        <select id="fornecedor_categoria" name="fornecedor_categoria" class="form-control" required>
                             <option value="">Selecione</option>
                             <option value="Material elétrico">Material elétrico</option>
                             <option value="Material mecânico">Material mecânico</option>

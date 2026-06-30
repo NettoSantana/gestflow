@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\cliente_editar.html
-Último recode: 2026-06-18 21:20 (America/Bahia)
-Motivo: Padronizar links do menu lateral na primeira leva de telas.
+Último recode: 2026-06-29 23:50 (America/Bahia)
+Motivo: Travar campos mínimos da edição de clientes.
 -->
 
 <!DOCTYPE html>
@@ -11,6 +11,17 @@ Motivo: Padronizar links do menu lateral na primeira leva de telas.
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GESTFLOW - Editar Cliente</title>
     <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .alert-error {
+            padding: 12px 14px;
+            border: 1px solid #fecaca;
+            border-radius: 12px;
+            background: #fef2f2;
+            color: #b91c1c;
+            font-size: 13px;
+            font-weight: 800;
+        }
+    </style>
 </head>
 <body>
     {% include "partials/sidebar.html" %}
@@ -18,6 +29,13 @@ Motivo: Padronizar links do menu lateral na primeira leva de telas.
 <main class="content">
         {% set page_title = 'Editar Cliente' %}
         {% include "partials/topbar.html" %}
+
+        {% if request.args.get("erro") %}
+            <section class="panel page-section">
+                <div class="alert-error">{{ request.args.get("erro") }}</div>
+            </section>
+        {% endif %}
+
 
 <section class="panel page-section">
             <div class="panel-header page-header">
@@ -44,8 +62,8 @@ Motivo: Padronizar links do menu lateral na primeira leva de telas.
             <form action="/clientes/{{ cliente.id }}/editar" method="post" class="client-form">
                 <div class="form-grid">
                     <div class="form-group">
-                        <label for="cliente_nome">Nome / Razão Social</label>
-                        <input id="cliente_nome" name="cliente_nome" type="text" value="{{ cliente.nome or '' }}" placeholder="Ex: LR Manutenção Ltda" class="form-control">
+                        <label for="cliente_nome">Nome / Razão Social *</label>
+                        <input id="cliente_nome" name="cliente_nome" type="text" value="{{ cliente.nome or '' }}" placeholder="Ex: LR Manutenção Ltda" class="form-control" required>
                     </div>
 
                     <div class="form-group">
@@ -64,8 +82,8 @@ Motivo: Padronizar links do menu lateral na primeira leva de telas.
                     </div>
 
                     <div class="form-group">
-                        <label for="cliente_status">Status</label>
-                        <select id="cliente_status" name="cliente_status" class="form-control">
+                        <label for="cliente_status">Status *</label>
+                        <select id="cliente_status" name="cliente_status" class="form-control" required>
                             <option value="ativo" {% if cliente.status == "ativo" %}selected{% endif %}>Ativo</option>
                             <option value="inativo" {% if cliente.status == "inativo" %}selected{% endif %}>Inativo</option>
                             <option value="pendente" {% if cliente.status == "pendente" %}selected{% endif %}>Pendente</option>

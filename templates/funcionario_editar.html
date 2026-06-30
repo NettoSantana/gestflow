@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\funcionario_editar.html
-Último recode: 2026-06-19 07:55 (America/Bahia)
-Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
+Último recode: 2026-06-29 23:50 (America/Bahia)
+Motivo: Travar campos mínimos da edição de funcionários.
 -->
 
 <!DOCTYPE html>
@@ -33,6 +33,16 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
             border-color: #fecdd3;
         }
 
+        .alert-error {
+            padding: 12px 14px;
+            border: 1px solid #fecaca;
+            border-radius: 12px;
+            background: #fef2f2;
+            color: #b91c1c;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
     </style>
 </head>
 <body>
@@ -41,6 +51,13 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
 <main class="content">
         {% set page_title = 'Editar Funcionário' %}
         {% include "partials/topbar.html" %}
+
+        {% if request.args.get("erro") %}
+            <section class="panel page-section">
+                <div class="alert-error">{{ request.args.get("erro") }}</div>
+            </section>
+        {% endif %}
+
 
 <section class="panel page-section">
             <div class="panel-header page-header">
@@ -67,8 +84,8 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
             <form action="/funcionarios/{{ funcionario.id }}/editar" method="post" class="client-form">
                 <div class="form-grid">
                     <div class="form-group">
-                        <label for="funcionario_nome">Nome completo</label>
-                        <input id="funcionario_nome" name="funcionario_nome" type="text" value="{{ funcionario.nome or '' }}" placeholder="Ex: João Silva" class="form-control">
+                        <label for="funcionario_nome">Nome completo *</label>
+                        <input id="funcionario_nome" name="funcionario_nome" type="text" value="{{ funcionario.nome or '' }}" placeholder="Ex: João Silva" class="form-control" required>
                     </div>
 
                     <div class="form-group">
@@ -87,13 +104,13 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
                     </div>
 
                     <div class="form-group">
-                        <label for="funcionario_cargo">Cargo / Função</label>
-                        <input id="funcionario_cargo" name="funcionario_cargo" type="text" value="{{ funcionario.cargo or '' }}" placeholder="Ex: Técnico eletromecânico" class="form-control">
+                        <label for="funcionario_cargo">Cargo / Função *</label>
+                        <input id="funcionario_cargo" name="funcionario_cargo" type="text" value="{{ funcionario.cargo or '' }}" placeholder="Ex: Técnico eletromecânico" class="form-control" required>
                     </div>
 
                     <div class="form-group">
-                        <label for="funcionario_status">Status</label>
-                        <select id="funcionario_status" name="funcionario_status" class="form-control">
+                        <label for="funcionario_status">Status *</label>
+                        <select id="funcionario_status" name="funcionario_status" class="form-control" required>
                             <option value="ativo" {% if funcionario.status == "ativo" %}selected{% endif %}>Ativo</option>
                             <option value="inativo" {% if funcionario.status == "inativo" %}selected{% endif %}>Inativo</option>
                             <option value="pendente" {% if funcionario.status == "pendente" %}selected{% endif %}>Pendente</option>

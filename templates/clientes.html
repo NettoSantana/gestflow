@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\clientes.html
-Último recode: 2026-06-19 07:55 (America/Bahia)
-Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
+Último recode: 2026-06-29 23:50 (America/Bahia)
+Motivo: Travar campos mínimos do cadastro de clientes.
 -->
 
 <!DOCTYPE html>
@@ -33,6 +33,16 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
             border-color: #fecdd3;
         }
 
+        .alert-error {
+            padding: 12px 14px;
+            border: 1px solid #fecaca;
+            border-radius: 12px;
+            background: #fef2f2;
+            color: #b91c1c;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
     </style>
 </head>
 <body>
@@ -41,6 +51,13 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
 <main class="content">
         {% set page_title = 'Clientes' %}
         {% include "partials/topbar.html" %}
+
+        {% if request.args.get("erro") %}
+            <section class="panel page-section">
+                <div class="alert-error">{{ request.args.get("erro") }}</div>
+            </section>
+        {% endif %}
+
 
 {% set clientes_lista = clientes|default([]) %}
         {% set resumo = namespace(ativos=0, pendentes=0) %}
@@ -107,8 +124,8 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
             <form action="/clientes" method="post" class="client-form">
                 <div class="form-grid">
                     <div class="form-group">
-                        <label for="cliente_nome">Nome / Razão Social</label>
-                        <input id="cliente_nome" name="cliente_nome" type="text" placeholder="Ex: LR Manutenção Ltda" class="form-control">
+                        <label for="cliente_nome">Nome / Razão Social *</label>
+                        <input id="cliente_nome" name="cliente_nome" type="text" placeholder="Ex: LR Manutenção Ltda" class="form-control" required>
                     </div>
 
                     <div class="form-group">
@@ -127,8 +144,8 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
                     </div>
 
                     <div class="form-group">
-                        <label for="cliente_status">Status</label>
-                        <select id="cliente_status" name="cliente_status" class="form-control">
+                        <label for="cliente_status">Status *</label>
+                        <select id="cliente_status" name="cliente_status" class="form-control" required>
                             <option value="ativo">Ativo</option>
                             <option value="inativo">Inativo</option>
                             <option value="pendente">Pendente</option>
