@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\estoque.html
-Último recode: 2026-06-26
-Motivo: Corrigir estouro horizontal do módulo Estoque após padronização de sidebar/topbar.
+Último recode: 2026-06-29 22:30 (America/Bahia)
+Motivo: Aplicar lista de funcionários e cadastro rápido no responsável de estoque.
 -->
 
 <!DOCTYPE html>
@@ -354,6 +354,89 @@ Motivo: Corrigir estouro horizontal do módulo Estoque após padronização de s
             border-color: #fecdd3;
         }
 
+
+        .quick-modal-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 10000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: rgba(15, 23, 42, 0.45);
+        }
+
+        .quick-modal-backdrop.open {
+            display: flex;
+        }
+
+        .quick-modal {
+            width: min(460px, 100%);
+            background: #ffffff;
+            border-radius: 18px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+            padding: 18px;
+        }
+
+        .quick-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .quick-modal-header h3 {
+            margin: 0;
+            font-size: 18px;
+            color: #0f172a;
+        }
+
+        .quick-modal-header p {
+            margin: 4px 0 0;
+            color: #64748b;
+            font-size: 13px;
+        }
+
+        .quick-modal-close {
+            width: 34px;
+            height: 34px;
+            border: 0;
+            border-radius: 10px;
+            background: #f1f5f9;
+            color: #0f172a;
+            cursor: pointer;
+            font-weight: 800;
+        }
+
+        .quick-modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 14px;
+        }
+
+        .quick-modal-error {
+            display: none;
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 10px;
+            background: #fef2f2;
+            color: #991b1b;
+            font-weight: 700;
+            font-size: 13px;
+        }
+
+        .quick-modal-error.show {
+            display: block;
+        }
+
+        .quick-new-option {
+            font-weight: 800;
+            color: #16a34a;
+        }
+
     </style>
 </head>
 <body>
@@ -583,7 +666,13 @@ Motivo: Corrigir estouro horizontal do módulo Estoque após padronização de s
 
                             <label>
                                 Responsável
-                                <input type="text" name="estoque_responsavel" placeholder="Responsável pela movimentação">
+                                <select name="estoque_responsavel" class="form-control quick-responsavel-select">
+                                            <option value="">Selecione</option>
+                                            {% for funcionario in funcionarios|default([]) %}
+                                                <option value="{{ funcionario.nome }}">{{ funcionario.nome }}</option>
+                                            {% endfor %}
+                                            <option value="__novo_responsavel__" class="quick-new-option">+ Adicionar novo responsável</option>
+                                        </select>
                             </label>
                         </div>
 
@@ -687,7 +776,13 @@ Motivo: Corrigir estouro horizontal do módulo Estoque após padronização de s
 
                             <label>
                                 Responsável
-                                <input type="text" name="compra_responsavel" placeholder="Responsável pela compra">
+                                <select name="compra_responsavel" class="form-control quick-responsavel-select">
+                                            <option value="">Selecione</option>
+                                            {% for funcionario in funcionarios|default([]) %}
+                                                <option value="{{ funcionario.nome }}">{{ funcionario.nome }}</option>
+                                            {% endfor %}
+                                            <option value="__novo_responsavel__" class="quick-new-option">+ Adicionar novo responsável</option>
+                                        </select>
                             </label>
                         </div>
 
@@ -744,7 +839,91 @@ Motivo: Corrigir estouro horizontal do módulo Estoque após padronização de s
                 </div>
             </section>
         {% endif %}
-    </main>
+    
+
+        <div id="quick-cliente-modal" class="quick-modal-backdrop" aria-hidden="true">
+            <div class="quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-cliente-title">
+                <div class="quick-modal-header">
+                    <div>
+                        <h3 id="quick-cliente-title">Novo cliente</h3>
+                        <p>Cadastro rápido sem sair da tela atual.</p>
+                    </div>
+                    <button type="button" class="quick-modal-close" onclick="fecharModalClienteRapidoGeral()">×</button>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="quick-cliente-nome">Nome *</label>
+                        <input id="quick-cliente-nome" type="text" class="form-control" placeholder="Ex: Cliente ABC">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-cliente-documento">CPF / CNPJ</label>
+                        <input id="quick-cliente-documento" type="text" class="form-control" placeholder="Documento do cliente">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-cliente-telefone">Telefone</label>
+                        <input id="quick-cliente-telefone" type="text" class="form-control" placeholder="WhatsApp ou telefone">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-cliente-email">E-mail</label>
+                        <input id="quick-cliente-email" type="text" class="form-control" placeholder="email@cliente.com">
+                    </div>
+                </div>
+
+                <div id="quick-cliente-error" class="quick-modal-error"></div>
+
+                <div class="quick-modal-actions">
+                    <button type="button" class="btn-light" onclick="fecharModalClienteRapidoGeral()">Cancelar</button>
+                    <button type="button" class="btn-primary-green" onclick="salvarClienteRapidoGeral()">Salvar cliente</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="quick-responsavel-modal" class="quick-modal-backdrop" aria-hidden="true">
+            <div class="quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-responsavel-title">
+                <div class="quick-modal-header">
+                    <div>
+                        <h3 id="quick-responsavel-title">Novo responsável</h3>
+                        <p>Cadastro rápido de funcionário sem sair da tela atual.</p>
+                    </div>
+                    <button type="button" class="quick-modal-close" onclick="fecharModalResponsavelRapidoGeral()">×</button>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="quick-responsavel-nome">Nome *</label>
+                        <input id="quick-responsavel-nome" type="text" class="form-control" placeholder="Ex: Vendedor ou técnico">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-responsavel-cargo">Cargo</label>
+                        <input id="quick-responsavel-cargo" type="text" class="form-control" placeholder="Ex: Vendedor, técnico">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-responsavel-telefone">Telefone</label>
+                        <input id="quick-responsavel-telefone" type="text" class="form-control" placeholder="WhatsApp ou telefone">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-responsavel-email">E-mail</label>
+                        <input id="quick-responsavel-email" type="text" class="form-control" placeholder="email@empresa.com">
+                    </div>
+                </div>
+
+                <div id="quick-responsavel-error" class="quick-modal-error"></div>
+
+                <div class="quick-modal-actions">
+                    <button type="button" class="btn-light" onclick="fecharModalResponsavelRapidoGeral()">Cancelar</button>
+                    <button type="button" class="btn-primary-green" onclick="salvarResponsavelRapidoGeral()">Salvar responsável</button>
+                </div>
+            </div>
+        </div>
+
+</main>
 
     <script>
         function filtrarProdutosEstoque() {

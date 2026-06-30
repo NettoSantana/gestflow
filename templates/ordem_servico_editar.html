@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordem_servico_editar.html
-Último recode: 2026-06-18 21:20 (America/Bahia)
-Motivo: Padronizar links do menu lateral na primeira leva de telas.
+Último recode: 2026-06-29 22:30 (America/Bahia)
+Motivo: Aplicar cadastro rápido de cliente, responsável e técnico na edição de OS.
 -->
 
 <!DOCTYPE html>
@@ -29,6 +29,89 @@ Motivo: Padronizar links do menu lateral na primeira leva de telas.
         .os-actions-line { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
         @media (max-width: 1100px) { .os-grid-6, .os-grid-4, .os-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .os-span-6, .os-span-3, .os-span-2 { grid-column: span 2; } }
         @media (max-width: 720px) { .os-grid-6, .os-grid-4, .os-grid-2 { grid-template-columns: 1fr; } .os-span-6, .os-span-3, .os-span-2 { grid-column: span 1; } }
+
+        .quick-modal-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 10000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: rgba(15, 23, 42, 0.45);
+        }
+
+        .quick-modal-backdrop.open {
+            display: flex;
+        }
+
+        .quick-modal {
+            width: min(460px, 100%);
+            background: #ffffff;
+            border-radius: 18px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+            padding: 18px;
+        }
+
+        .quick-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .quick-modal-header h3 {
+            margin: 0;
+            font-size: 18px;
+            color: #0f172a;
+        }
+
+        .quick-modal-header p {
+            margin: 4px 0 0;
+            color: #64748b;
+            font-size: 13px;
+        }
+
+        .quick-modal-close {
+            width: 34px;
+            height: 34px;
+            border: 0;
+            border-radius: 10px;
+            background: #f1f5f9;
+            color: #0f172a;
+            cursor: pointer;
+            font-weight: 800;
+        }
+
+        .quick-modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 14px;
+        }
+
+        .quick-modal-error {
+            display: none;
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 10px;
+            background: #fef2f2;
+            color: #991b1b;
+            font-weight: 700;
+            font-size: 13px;
+        }
+
+        .quick-modal-error.show {
+            display: block;
+        }
+
+        .quick-new-option {
+            font-weight: 800;
+            color: #16a34a;
+        }
+
     </style>
 </head>
 <body>
@@ -60,7 +143,16 @@ Motivo: Padronizar links do menu lateral na primeira leva de telas.
                 <div class="os-section-body">
                     <div class="os-grid-4">
                         <div class="form-group"><label for="os_numero">Número</label><input id="os_numero" name="os_numero" type="text" value="{{ os.numero or '' }}" class="form-control"></div>
-                        <div class="form-group os-span-2"><label for="os_cliente">Cliente</label><select id="os_cliente" name="os_cliente" class="form-control"><option value="">Digite para buscar</option>{% for cliente in clientes|default([]) %}<option value="{{ cliente.nome }}" {% if cliente.nome == os.cliente %}selected{% endif %}>{{ cliente.nome }}</option>{% endfor %}</select></div>
+                        <div class="form-group os-span-2">
+                        <label for="os_cliente">Cliente</label>
+                        <select id="os_cliente" name="os_cliente" class="form-control quick-cliente-select">
+                            <option value="">Digite para buscar</option>
+                            {% for cliente in clientes|default([]) %}
+                                <option value="{{ cliente.nome }}" {% if cliente.nome == os.cliente %}selected{% endif %}>{{ cliente.nome }}</option>
+                            {% endfor %}
+                            <option value="__novo_cliente__" class="quick-new-option">+ Adicionar novo cliente</option>
+                        </select>
+                    </div>
                         <div class="form-group"><label for="os_status">Situação</label><select id="os_status" name="os_status" class="form-control"><option value="aberta" {% if os.status == 'aberta' %}selected{% endif %}>Em aberto</option><option value="andamento" {% if os.status == 'andamento' %}selected{% endif %}>Em andamento</option><option value="aguardando" {% if os.status == 'aguardando' %}selected{% endif %}>Aguardando</option><option value="finalizada" {% if os.status == 'finalizada' %}selected{% endif %}>Finalizada</option><option value="cancelada" {% if os.status == 'cancelada' %}selected{% endif %}>Cancelada</option></select></div>
                         <div class="form-group"><label for="os_data_abertura">Entrada</label><input id="os_data_abertura" name="os_data_abertura" type="date" value="{{ os.data_abertura or '' }}" class="form-control"></div>
                         <div class="form-group"><label for="os_hora_entrada">Hora de entrada</label><input id="os_hora_entrada" name="os_hora_entrada" type="time" value="{{ os.hora_entrada or '' }}" class="form-control"></div>
@@ -77,7 +169,25 @@ Motivo: Padronizar links do menu lateral na primeira leva de telas.
 
             <section class="os-form-section">
                 <div class="os-section-title"><h3>♟ Responsáveis</h3><span>Responsável comercial e técnico</span></div>
-                <div class="os-section-body"><div class="os-grid-2"><div class="form-group"><label for="os_responsavel">Vendedor / Responsável</label><input id="os_responsavel" name="os_responsavel" type="text" value="{{ os.responsavel or '' }}" class="form-control"></div><div class="form-group"><label for="os_tecnico">Técnico</label><input id="os_tecnico" name="os_tecnico" type="text" value="{{ os.tecnico or '' }}" class="form-control"></div></div></div>
+                <div class="os-section-body"><div class="os-grid-2"><div class="form-group">
+                        <label for="os_responsavel">Vendedor / Responsável</label>
+                        <select id="os_responsavel" name="os_responsavel" class="form-control quick-responsavel-select">
+                            <option value="">Selecione</option>
+                            {% for funcionario in funcionarios|default([]) %}
+                                <option value="{{ funcionario.nome }}" {% if os.responsavel == funcionario.nome %}selected{% endif %}>{{ funcionario.nome }}</option>
+                            {% endfor %}
+                            <option value="__novo_responsavel__" class="quick-new-option">+ Adicionar novo responsável</option>
+                        </select>
+                    </div><div class="form-group">
+                        <label for="os_tecnico">Técnico</label>
+                        <select id="os_tecnico" name="os_tecnico" class="form-control quick-responsavel-select">
+                            <option value="">Selecione</option>
+                            {% for funcionario in funcionarios|default([]) %}
+                                <option value="{{ funcionario.nome }}" {% if os.tecnico == funcionario.nome %}selected{% endif %}>{{ funcionario.nome }}</option>
+                            {% endfor %}
+                            <option value="__novo_responsavel__" class="quick-new-option">+ Adicionar novo responsável</option>
+                        </select>
+                    </div></div></div>
             </section>
 
             <section class="os-form-section">
@@ -117,6 +227,90 @@ Motivo: Padronizar links do menu lateral na primeira leva de telas.
                 <div class="os-section-body"><div class="os-grid-2"><div class="form-group"><label for="os_observacoes">Observações</label><textarea id="os_observacoes" name="os_observacoes" class="form-control os-textarea">{{ os.observacoes or '' }}</textarea></div><div class="form-group"><label for="os_observacoes_internas">Observações internas</label><textarea id="os_observacoes_internas" name="os_observacoes_internas" class="form-control os-textarea">{{ os.observacoes_internas or '' }}</textarea></div><div class="form-group os-span-2"><label for="os_servico_executado">Serviço executado</label><textarea id="os_servico_executado" name="os_servico_executado" class="form-control os-textarea">{{ os.servico_executado or '' }}</textarea></div></div><div class="form-actions"><a href="/ordens-servico/{{ os.id }}" class="btn-light">Cancelar</a><button type="submit" class="btn-primary-green">Salvar alterações</button></div></div>
             </section>
         </form>
+
+
+
+        <div id="quick-cliente-modal" class="quick-modal-backdrop" aria-hidden="true">
+            <div class="quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-cliente-title">
+                <div class="quick-modal-header">
+                    <div>
+                        <h3 id="quick-cliente-title">Novo cliente</h3>
+                        <p>Cadastro rápido sem sair da tela atual.</p>
+                    </div>
+                    <button type="button" class="quick-modal-close" onclick="fecharModalClienteRapidoGeral()">×</button>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="quick-cliente-nome">Nome *</label>
+                        <input id="quick-cliente-nome" type="text" class="form-control" placeholder="Ex: Cliente ABC">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-cliente-documento">CPF / CNPJ</label>
+                        <input id="quick-cliente-documento" type="text" class="form-control" placeholder="Documento do cliente">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-cliente-telefone">Telefone</label>
+                        <input id="quick-cliente-telefone" type="text" class="form-control" placeholder="WhatsApp ou telefone">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-cliente-email">E-mail</label>
+                        <input id="quick-cliente-email" type="text" class="form-control" placeholder="email@cliente.com">
+                    </div>
+                </div>
+
+                <div id="quick-cliente-error" class="quick-modal-error"></div>
+
+                <div class="quick-modal-actions">
+                    <button type="button" class="btn-light" onclick="fecharModalClienteRapidoGeral()">Cancelar</button>
+                    <button type="button" class="btn-primary-green" onclick="salvarClienteRapidoGeral()">Salvar cliente</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="quick-responsavel-modal" class="quick-modal-backdrop" aria-hidden="true">
+            <div class="quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-responsavel-title">
+                <div class="quick-modal-header">
+                    <div>
+                        <h3 id="quick-responsavel-title">Novo responsável</h3>
+                        <p>Cadastro rápido de funcionário sem sair da tela atual.</p>
+                    </div>
+                    <button type="button" class="quick-modal-close" onclick="fecharModalResponsavelRapidoGeral()">×</button>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="quick-responsavel-nome">Nome *</label>
+                        <input id="quick-responsavel-nome" type="text" class="form-control" placeholder="Ex: Vendedor ou técnico">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-responsavel-cargo">Cargo</label>
+                        <input id="quick-responsavel-cargo" type="text" class="form-control" placeholder="Ex: Vendedor, técnico">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-responsavel-telefone">Telefone</label>
+                        <input id="quick-responsavel-telefone" type="text" class="form-control" placeholder="WhatsApp ou telefone">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-responsavel-email">E-mail</label>
+                        <input id="quick-responsavel-email" type="text" class="form-control" placeholder="email@empresa.com">
+                    </div>
+                </div>
+
+                <div id="quick-responsavel-error" class="quick-modal-error"></div>
+
+                <div class="quick-modal-actions">
+                    <button type="button" class="btn-light" onclick="fecharModalResponsavelRapidoGeral()">Cancelar</button>
+                    <button type="button" class="btn-primary-green" onclick="salvarResponsavelRapidoGeral()">Salvar responsável</button>
+                </div>
+            </div>
+        </div>
 
         <script>
             window.opcoesProdutos = [

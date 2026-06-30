@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-29 22:05 (America/Bahia)
-# Motivo: Adicionar rota de cadastro rápido de funcionário para responsável do orçamento.
+# Último recode: 2026-06-29 22:30 (America/Bahia)
+# Motivo: Enviar funcionários para telas com responsável e manter cadastro rápido disponível.
 
 from __future__ import annotations
 
@@ -5551,6 +5551,7 @@ def cancelar_financeiro_titulo(titulo_id: int) -> Response:
 def estoque() -> str:
     produtos_lista = listar_produtos()
     fornecedores_lista = listar_fornecedores()
+    funcionarios_lista = listar_funcionarios()
     painel = montar_painel_estoque()
     aba = "movimentacoes"
 
@@ -5576,6 +5577,7 @@ def estoque() -> str:
         "estoque.html",
         produtos=produtos_lista,
         fornecedores=fornecedores_lista,
+        funcionarios=funcionarios_lista,
         movimentacoes=movimentacoes,
         painel=painel,
         aba=aba,
@@ -5695,6 +5697,7 @@ def painel_ordens_servico() -> str:
 def ordens_servico() -> str:
     ordens_servico_lista = listar_ordens_servico()
     clientes_lista = listar_clientes()
+    funcionarios_lista = listar_funcionarios()
     produtos_lista = listar_produtos()
     servicos_lista = listar_servicos()
     proximo_numero = proximo_numero_ordem_servico()
@@ -5703,6 +5706,7 @@ def ordens_servico() -> str:
         "ordens_servico.html",
         ordens_servico=ordens_servico_lista,
         clientes=clientes_lista,
+        funcionarios=funcionarios_lista,
         produtos=produtos_lista,
         servicos=servicos_lista,
         proximo_numero=proximo_numero,
@@ -5807,6 +5811,7 @@ def editar_ordem_servico(ordem_servico_id: int) -> str | Response:
 
     itens = listar_ordem_servico_itens(ordem_servico_id)
     clientes_lista = listar_clientes()
+    funcionarios_lista = listar_funcionarios()
     produtos_lista = listar_produtos()
     servicos_lista = listar_servicos()
 
@@ -5850,6 +5855,7 @@ def excluir_ordem_servico(ordem_servico_id: int) -> Response:
 def vendas() -> str:
     vendas_lista = listar_vendas()
     clientes_lista = listar_clientes()
+    funcionarios_lista = listar_funcionarios()
     produtos_lista = listar_produtos()
     servicos_lista = listar_servicos()
     proximo_numero = proximo_numero_venda()
@@ -5858,6 +5864,7 @@ def vendas() -> str:
         "vendas.html",
         vendas=vendas_lista,
         clientes=clientes_lista,
+        funcionarios=funcionarios_lista,
         produtos=produtos_lista,
         servicos=servicos_lista,
         proximo_numero=proximo_numero,
@@ -5868,6 +5875,7 @@ def vendas() -> str:
 def vendas_devolucoes() -> str:
     vendas_lista = listar_vendas()
     clientes_lista = listar_clientes()
+    funcionarios_lista = listar_funcionarios()
     produtos_lista = listar_produtos()
     servicos_lista = listar_servicos()
     proximo_numero = proximo_numero_venda()
@@ -5876,6 +5884,7 @@ def vendas_devolucoes() -> str:
         "vendas.html",
         vendas=vendas_lista,
         clientes=clientes_lista,
+        funcionarios=funcionarios_lista,
         produtos=produtos_lista,
         servicos=servicos_lista,
         proximo_numero=proximo_numero,
@@ -5917,6 +5926,7 @@ def devolucao_venda(venda_id: int) -> str | Response:
 
     vendas_lista = listar_vendas()
     clientes_lista = listar_clientes()
+    funcionarios_lista = listar_funcionarios()
     produtos_lista = listar_produtos()
     servicos_lista = listar_servicos()
     itens_venda = listar_venda_itens(venda_id)
@@ -5926,6 +5936,7 @@ def devolucao_venda(venda_id: int) -> str | Response:
         "vendas.html",
         vendas=vendas_lista,
         clientes=clientes_lista,
+        funcionarios=funcionarios_lista,
         produtos=produtos_lista,
         servicos=servicos_lista,
         proximo_numero=proximo_numero_venda(),
@@ -6032,6 +6043,7 @@ def editar_venda(venda_id: int) -> str | Response:
 
     itens = listar_venda_itens(venda_id)
     clientes_lista = listar_clientes()
+    funcionarios_lista = listar_funcionarios()
     produtos_lista = listar_produtos()
     servicos_lista = listar_servicos()
 
@@ -6040,6 +6052,7 @@ def editar_venda(venda_id: int) -> str | Response:
         venda=venda,
         itens=itens,
         clientes=clientes_lista,
+        funcionarios=funcionarios_lista,
         produtos=produtos_lista,
         servicos=servicos_lista,
     )
