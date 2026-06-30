@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-29 22:30 (America/Bahia)
-# Motivo: Enviar funcionários para telas com responsável e manter cadastro rápido disponível.
+# Último recode: 2026-06-29 23:10 (America/Bahia)
+# Motivo: Travar validações obrigatórias de orçamento, venda, OS e estoque no backend.
 
 from __future__ import annotations
 
@@ -2184,6 +2184,134 @@ def montar_orcamento_itens_formulario() -> list[dict[str, str]]:
         )
 
     return itens
+
+
+def _valor_formulario_positivo(valor: Any) -> bool:
+    return _converter_valor_brl(valor) > 0
+
+
+def _item_documento_valido(item: dict[str, str], exigir_valor: bool = True) -> bool:
+    descricao = str(item.get("descricao") or "").strip()
+    quantidade = _converter_valor_brl(item.get("quantidade"))
+    valor_unitario = _converter_valor_brl(item.get("valor_unitario"))
+
+    if not descricao:
+        return False
+
+    if descricao.startswith("__novo"):
+        return False
+
+    if quantidade <= 0:
+        return False
+
+    if exigir_valor and valor_unitario <= 0:
+        return False
+
+    return True
+
+
+def _existe_item_documento_valido(itens: list[dict[str, str]], exigir_valor: bool = True) -> bool:
+    return any(_item_documento_valido(item, exigir_valor=exigir_valor) for item in itens)
+
+
+def validar_orcamento_para_salvar(orcamento: dict[str, str], itens: list[dict[str, str]]) -> str:
+    if not orcamento["cliente"]:
+        return "Selecione um cliente para salvar o orçamento."
+
+    if orcamento["cliente"].startswith("__novo"):
+        return "Finalize o cadastro do cliente antes de salvar o orçamento."
+
+    if not orcamento["responsavel"]:
+        return "Selecione um responsável para salvar o orçamento."
+
+    if orcamento["responsavel"].startswith("__novo"):
+        return "Finalize o cadastro do responsável antes de salvar o orçamento."
+
+    if not orcamento["data"]:
+        return "Informe a data do orçamento."
+
+    if not orcamento["canal_venda"]:
+        return "Informe o canal de venda do orçamento."
+
+    if not _existe_item_documento_valido(itens, exigir_valor=True):
+        return "Adicione pelo menos um produto ou serviço com quantidade e valor unitário maiores que zero."
+
+    if not _valor_formulario_positivo(orcamento["valor_total"]):
+        return "O valor total do orçamento precisa ser maior que zero."
+
+    return ""
+
+
+def validar_venda_para_salvar(venda: dict[str, str], itens: list[dict[str, str]]) -> str:
+    if not venda["cliente"]:
+        return "Selecione um cliente para salvar a venda."
+
+    if venda["cliente"].startswith("__novo"):
+        return "Finalize o cadastro do cliente antes de salvar a venda."
+
+    if not venda["responsavel"]:
+        return "Selecione um responsável para salvar a venda."
+
+    if venda["responsavel"].startswith("__novo"):
+        return "Finalize o cadastro do responsável antes de salvar a venda."
+
+    if not venda["data"]:
+        return "Informe a data da venda."
+
+    if not venda["canal_venda"]:
+        return "Informe o canal de venda."
+
+    if not venda["forma_pagamento"]:
+        return "Informe a forma de pagamento."
+
+    if not _existe_item_documento_valido(itens, exigir_valor=True):
+        return "Adicione pelo menos um produto ou serviço com quantidade e valor unitário maiores que zero."
+
+    if not _valor_formulario_positivo(venda["valor_total"]):
+        return "O valor total da venda precisa ser maior que zero."
+
+    return ""
+
+
+def validar_ordem_servico_para_salvar(ordem_servico: dict[str, str], itens: list[dict[str, str]]) -> str:
+    if not ordem_servico["cliente"]:
+        return "Selecione um cliente para salvar a OS."
+
+    if ordem_servico["cliente"].startswith("__novo"):
+        return "Finalize o cadastro do cliente antes de salvar a OS."
+
+    if not ordem_servico["responsavel"]:
+        return "Selecione um responsável para salvar a OS."
+
+    if ordem_servico["responsavel"].startswith("__novo"):
+        return "Finalize o cadastro do responsável antes de salvar a OS."
+
+    if not ordem_servico["tecnico"]:
+        return "Selecione um técnico para salvar a OS."
+
+    if ordem_servico["tecnico"].startswith("__novo"):
+        return "Finalize o cadastro do técnico antes de salvar a OS."
+
+    if not ordem_servico["data_abertura"]:
+        return "Informe a data de abertura da OS."
+
+    if not ordem_servico["status"]:
+        return "Informe o status da OS."
+
+    if not ordem_servico["prioridade"]:
+        return "Informe a prioridade da OS."
+
+    tem_item = _existe_item_documento_valido(itens, exigir_valor=False)
+    tem_relato = bool(
+        ordem_servico["relato_cliente"]
+        or ordem_servico["diagnostico"]
+        or ordem_servico["servico_executado"]
+    )
+
+    if not tem_item and not tem_relato:
+        return "Informe ao menos um item, relato do cliente, diagnóstico ou serviço executado."
+
+    return ""
 
 
 def copiar_orcamento_db(orcamento_id: int) -> int | None:
@@ -5590,15 +5718,27 @@ def estoque() -> str:
 def movimentar_estoque() -> Response:
     movimentacao_form = montar_estoque_formulario()
 
+    if not movimentacao_form["produto_id"]:
+        return redirect(url_for("estoque", erro="Selecione um produto para movimentar o estoque."))
+
+    if not _valor_formulario_positivo(movimentacao_form["quantidade"]):
+        return redirect(url_for("estoque", erro="Informe uma quantidade maior que zero."))
+
+    if not movimentacao_form["motivo"]:
+        return redirect(url_for("estoque", erro="Informe o motivo da movimentação."))
+
+    if not movimentacao_form["responsavel"]:
+        return redirect(url_for("estoque", erro="Selecione o responsável pela movimentação."))
+
     try:
         produto_id = int(movimentacao_form["produto_id"])
     except ValueError:
-        return redirect(url_for("estoque"))
+        return redirect(url_for("estoque", erro="Produto inválido para movimentação."))
 
     produto = buscar_produto_por_id(produto_id)
 
     if produto is None:
-        return redirect(url_for("estoque"))
+        return redirect(url_for("estoque", erro="Produto não encontrado."))
 
     tipo = movimentacao_form["tipo"]
 
@@ -5639,6 +5779,17 @@ def movimentar_estoque() -> Response:
 @app.post("/estoque/comprar")
 def comprar_produto_estoque() -> Response:
     produto_id_texto = (request.form.get("compra_produto_id") or "").strip()
+    quantidade_texto = (request.form.get("compra_quantidade") or "").strip()
+    responsavel = (request.form.get("compra_responsavel") or "").strip()
+
+    if not produto_id_texto:
+        return redirect(url_for("estoque") + "/compras")
+
+    if not _valor_formulario_positivo(quantidade_texto):
+        return redirect(url_for("estoque") + "/compras")
+
+    if not responsavel:
+        return redirect(url_for("estoque") + "/compras")
 
     try:
         produto_id = int(produto_id_texto)
@@ -5650,7 +5801,7 @@ def comprar_produto_estoque() -> Response:
     if produto is None:
         return redirect(url_for("estoque") + "/compras")
 
-    quantidade = _converter_valor_brl(request.form.get("compra_quantidade"))
+    quantidade = _converter_valor_brl(quantidade_texto)
     saldo_anterior_numero = _converter_valor_brl(produto.get("estoque_atual"))
     saldo_atual_numero = saldo_anterior_numero + quantidade
 
@@ -5717,9 +5868,12 @@ def ordens_servico() -> str:
 def salvar_ordem_servico() -> Response:
     ordem_servico = montar_ordem_servico_formulario(numero_padrao=proximo_numero_ordem_servico())
     itens = montar_ordem_servico_itens_formulario()
+    erro_validacao = validar_ordem_servico_para_salvar(ordem_servico, itens)
 
-    if ordem_servico["cliente"] or ordem_servico["numero"]:
-        salvar_ordem_servico_db(ordem_servico, itens)
+    if erro_validacao:
+        return redirect(url_for("ordens_servico", erro=erro_validacao))
+
+    salvar_ordem_servico_db(ordem_servico, itens)
 
     return redirect(url_for("ordens_servico"))
 
@@ -5835,6 +5989,10 @@ def atualizar_ordem_servico(ordem_servico_id: int) -> Response:
 
     ordem_servico = montar_ordem_servico_formulario(numero_padrao=str(ordem_servico_atual["numero"] or ""))
     itens = montar_ordem_servico_itens_formulario()
+    erro_validacao = validar_ordem_servico_para_salvar(ordem_servico, itens)
+
+    if erro_validacao:
+        return redirect(url_for("editar_ordem_servico", ordem_servico_id=ordem_servico_id, erro=erro_validacao))
 
     atualizar_ordem_servico_db(ordem_servico_id, ordem_servico, itens)
 
@@ -5896,11 +6054,14 @@ def vendas_devolucoes() -> str:
 def salvar_venda() -> Response:
     venda = montar_venda_formulario(numero_padrao=proximo_numero_venda())
     itens = montar_venda_itens_formulario()
+    erro_validacao = validar_venda_para_salvar(venda, itens)
 
-    if venda["cliente"] or venda["numero"]:
-        venda_id = salvar_venda_db(venda, itens)
-        baixar_estoque_por_venda_db(venda_id, venda, itens)
-        gerar_conta_receber_por_venda_db(venda_id, venda)
+    if erro_validacao:
+        return redirect(url_for("vendas", erro=erro_validacao))
+
+    venda_id = salvar_venda_db(venda, itens)
+    baixar_estoque_por_venda_db(venda_id, venda, itens)
+    gerar_conta_receber_por_venda_db(venda_id, venda)
 
     return redirect(url_for("vendas"))
 
@@ -6067,6 +6228,10 @@ def atualizar_venda(venda_id: int) -> Response:
 
     venda = montar_venda_formulario(numero_padrao=str(venda_atual["numero"] or ""))
     itens = montar_venda_itens_formulario()
+    erro_validacao = validar_venda_para_salvar(venda, itens)
+
+    if erro_validacao:
+        return redirect(url_for("editar_venda", venda_id=venda_id, erro=erro_validacao))
 
     atualizar_venda_db(venda_id, venda, itens)
 
@@ -6107,9 +6272,12 @@ def orcamentos() -> str:
 def salvar_orcamento() -> Response:
     orcamento = montar_orcamento_formulario(numero_padrao=proximo_numero_orcamento())
     itens = montar_orcamento_itens_formulario()
+    erro_validacao = validar_orcamento_para_salvar(orcamento, itens)
 
-    if orcamento["cliente"] or orcamento["numero"]:
-        salvar_orcamento_db(orcamento, itens)
+    if erro_validacao:
+        return redirect(url_for("orcamentos", erro=erro_validacao))
+
+    salvar_orcamento_db(orcamento, itens)
 
     return redirect(url_for("orcamentos"))
 
@@ -6219,6 +6387,10 @@ def atualizar_orcamento(orcamento_id: int) -> Response:
 
     orcamento = montar_orcamento_formulario(numero_padrao=str(orcamento_atual["numero"] or ""))
     itens = montar_orcamento_itens_formulario()
+    erro_validacao = validar_orcamento_para_salvar(orcamento, itens)
+
+    if erro_validacao:
+        return redirect(url_for("editar_orcamento", orcamento_id=orcamento_id, erro=erro_validacao))
 
     atualizar_orcamento_db(orcamento_id, orcamento, itens)
 

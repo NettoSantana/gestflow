@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordens_servico.html
-Último recode: 2026-06-29 22:30 (America/Bahia)
-Motivo: Aplicar cadastro rápido de cliente, responsável e técnico em ordens de serviço.
+Último recode: 2026-06-29 23:10 (America/Bahia)
+Motivo: Travar campos obrigatórios e totais automáticos no cadastro de OS.
 -->
 
 <!DOCTYPE html>
@@ -394,6 +394,28 @@ Motivo: Aplicar cadastro rápido de cliente, responsável e técnico em ordens d
             color: #16a34a;
         }
 
+
+        .gestflow-form-error {
+            display: none;
+            margin: 12px 0;
+            padding: 12px 14px;
+            border-radius: 10px;
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+            font-weight: 700;
+            font-size: 13px;
+        }
+
+        .gestflow-form-error.show {
+            display: block;
+        }
+
+        .gestflow-campo-invalido {
+            border-color: #dc2626 !important;
+            box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.12);
+        }
+
     </style>
 </head>
 <body>
@@ -429,6 +451,7 @@ Motivo: Aplicar cadastro rápido de cliente, responsável e técnico em ordens d
         </section>
 
         <form id="form-nova-os" action="/ordens-servico" method="post" class="client-form">
+            <div class="gestflow-form-error{% if request.args.get('erro') %} show{% endif %}" data-form-error>{% if request.args.get('erro') %}{{ request.args.get('erro') }}{% endif %}</div>
             <section class="os-form-section">
                 <div class="os-section-title">
                     <h3>✎ Dados gerais</h3>
@@ -439,7 +462,7 @@ Motivo: Aplicar cadastro rápido de cliente, responsável e técnico em ordens d
                         <div class="form-group"><label for="os_numero">Número</label><input id="os_numero" name="os_numero" type="text" value="{{ proximo_numero|default('0001') }}" class="form-control"></div>
                         <div class="form-group os-span-2">
                         <label for="os_cliente">Cliente</label>
-                        <select id="os_cliente" name="os_cliente" class="form-control quick-cliente-select">
+                        <select id="os_cliente" name="os_cliente" class="form-control quick-cliente-select" required>
                             <option value="">Digite para buscar</option>
                             {% for cliente in clientes|default([]) %}
                                 <option value="{{ cliente.nome }}" {% if false %}selected{% endif %}>{{ cliente.nome }}</option>
@@ -447,14 +470,14 @@ Motivo: Aplicar cadastro rápido de cliente, responsável e técnico em ordens d
                             <option value="__novo_cliente__" class="quick-new-option">+ Adicionar novo cliente</option>
                         </select>
                     </div>
-                        <div class="form-group"><label for="os_status">Situação</label><select id="os_status" name="os_status" class="form-control"><option value="aberta">Em aberto</option><option value="andamento">Em andamento</option><option value="aguardando">Aguardando</option><option value="finalizada">Finalizada</option><option value="cancelada">Cancelada</option></select></div>
-                        <div class="form-group"><label for="os_data_abertura">Entrada</label><input id="os_data_abertura" name="os_data_abertura" type="date" class="form-control"></div>
+                        <div class="form-group"><label for="os_status">Situação</label><select id="os_status" name="os_status" class="form-control" required><option value="aberta">Em aberto</option><option value="andamento">Em andamento</option><option value="aguardando">Aguardando</option><option value="finalizada">Finalizada</option><option value="cancelada">Cancelada</option></select></div>
+                        <div class="form-group"><label for="os_data_abertura">Entrada</label><input id="os_data_abertura" name="os_data_abertura" type="date" class="form-control" required></div>
                         <div class="form-group"><label for="os_hora_entrada">Hora de entrada</label><input id="os_hora_entrada" name="os_hora_entrada" type="time" class="form-control"></div>
                         <div class="form-group"><label for="os_data_saida">Saída</label><input id="os_data_saida" name="os_data_saida" type="date" class="form-control"></div>
                         <div class="form-group"><label for="os_hora_saida">Hora de saída</label><input id="os_hora_saida" name="os_hora_saida" type="time" class="form-control"></div>
                         <div class="form-group"><label for="os_canal_venda">Canal de venda</label><select id="os_canal_venda" name="os_canal_venda" class="form-control"><option value="presencial">Presencial</option><option value="whatsapp">WhatsApp</option><option value="telefone">Telefone</option><option value="indicacao">Indicação</option><option value="outro">Outro</option></select></div>
                         <div class="form-group"><label for="os_centro_custo">Centro de custo</label><input id="os_centro_custo" name="os_centro_custo" type="text" placeholder="Digite para buscar" class="form-control"></div>
-                        <div class="form-group"><label for="os_prioridade">Prioridade</label><select id="os_prioridade" name="os_prioridade" class="form-control"><option value="normal">Selecione</option><option value="baixa">Baixa</option><option value="media">Média</option><option value="alta">Alta</option><option value="urgente">Urgente</option><option value="muito_urgente">Muito urgente</option></select></div>
+                        <div class="form-group"><label for="os_prioridade">Prioridade</label><select id="os_prioridade" name="os_prioridade" class="form-control" required><option value="normal">Selecione</option><option value="baixa">Baixa</option><option value="media">Média</option><option value="alta">Alta</option><option value="urgente">Urgente</option><option value="muito_urgente">Muito urgente</option></select></div>
                         <div class="form-group"><label for="os_origem_venda_id">Venda de origem</label><input id="os_origem_venda_id" name="os_origem_venda_id" type="text" placeholder="ID da venda, se houver" class="form-control"></div>
                     </div>
                 </div>
@@ -469,7 +492,7 @@ Motivo: Aplicar cadastro rápido de cliente, responsável e técnico em ordens d
                     <div class="os-grid-2">
                         <div class="form-group">
                         <label for="os_responsavel">Vendedor / Responsável</label>
-                        <select id="os_responsavel" name="os_responsavel" class="form-control quick-responsavel-select">
+                        <select id="os_responsavel" name="os_responsavel" class="form-control quick-responsavel-select" required>
                             <option value="">Selecione</option>
                             {% for funcionario in funcionarios|default([]) %}
                                 <option value="{{ funcionario.nome }}">{{ funcionario.nome }}</option>
@@ -479,7 +502,7 @@ Motivo: Aplicar cadastro rápido de cliente, responsável e técnico em ordens d
                     </div>
                         <div class="form-group">
                         <label for="os_tecnico">Técnico</label>
-                        <select id="os_tecnico" name="os_tecnico" class="form-control quick-responsavel-select">
+                        <select id="os_tecnico" name="os_tecnico" class="form-control quick-responsavel-select" required>
                             <option value="">Selecione</option>
                             {% for funcionario in funcionarios|default([]) %}
                                 <option value="{{ funcionario.nome }}">{{ funcionario.nome }}</option>
@@ -564,12 +587,12 @@ Motivo: Aplicar cadastro rápido de cliente, responsável e técnico em ordens d
                 <div class="os-section-body">
                     <label class="os-muted-check"><input type="checkbox" name="os_exibir_valor_impressao" value="sim" checked> Exibir valor total na impressão</label>
                     <div class="os-grid-6" style="margin-top: 14px;">
-                        <div class="form-group"><label for="os_total_servicos">Mão de obra</label><input id="os_total_servicos" name="os_total_servicos" type="text" placeholder="0,00" class="form-control"></div>
-                        <div class="form-group"><label for="os_total_produtos">Peças</label><input id="os_total_produtos" name="os_total_produtos" type="text" placeholder="0,00" class="form-control"></div>
+                        <div class="form-group"><label for="os_total_servicos">Mão de obra</label><input id="os_total_servicos" name="os_total_servicos" type="text" placeholder="0,00" class="form-control" readonly></div>
+                        <div class="form-group"><label for="os_total_produtos">Peças</label><input id="os_total_produtos" name="os_total_produtos" type="text" placeholder="0,00" class="form-control" readonly></div>
                         <div class="form-group"><label for="os_frete">Frete</label><input id="os_frete" name="os_frete" type="text" placeholder="0,00" class="form-control"></div>
                         <div class="form-group"><label for="os_outros">Outros</label><input id="os_outros" name="os_outros" type="text" placeholder="0,00" class="form-control"></div>
                         <div class="form-group"><label for="os_desconto_valor">Desconto</label><input id="os_desconto_valor" name="os_desconto_valor" type="text" placeholder="0,00" class="form-control"></div>
-                        <div class="form-group"><label for="os_valor_total">Valor total</label><input id="os_valor_total" name="os_valor_total" type="text" placeholder="0,00" class="form-control"></div>
+                        <div class="form-group"><label for="os_valor_total">Valor total</label><input id="os_valor_total" name="os_valor_total" type="text" placeholder="0,00" class="form-control" readonly></div>
                         <div class="form-group os-span-2"><label for="os_forma_pagamento">Forma de pagamento</label><input id="os_forma_pagamento" name="os_forma_pagamento" type="text" placeholder="Ex: Pix, faturado, cartão" class="form-control"></div>
                         <div class="form-group"><label for="os_tipo">Tipo</label><select id="os_tipo" name="os_tipo" class="form-control"><option value="misto">Misto</option><option value="produto">Produto</option><option value="servico">Serviço</option></select></div>
                     </div>
@@ -873,7 +896,7 @@ Motivo: Aplicar cadastro rápido de cliente, responsável e técnico em ordens d
                     <td><input name="item_quantidade" type="text" value="${dados.quantidade || ""}" placeholder="1" class="form-control item-quantidade"></td>
                     <td><input name="item_valor_unitario" type="text" value="${dados.valor_unitario || ""}" placeholder="0,00" class="form-control item-valor"></td>
                     <td><input name="item_desconto" type="text" value="${dados.desconto || ""}" placeholder="0,00" class="form-control item-desconto"></td>
-                    <td><input name="item_subtotal" type="text" value="${dados.subtotal || ""}" placeholder="0,00" class="form-control item-subtotal"></td>
+                    <td><input name="item_subtotal" type="text" value="${dados.subtotal || ""}" placeholder="0,00" class="form-control item-subtotal" readonly></td>
                     <td><button type="button" class="action-button delete" title="Remover ${tipoLabel}" aria-label="Remover ${tipoLabel}" onclick="removerLinha(this)">×</button></td>
                 `;
 
@@ -898,5 +921,170 @@ Motivo: Aplicar cadastro rápido de cliente, responsável e técnico em ordens d
         </script>
 
     </main>
+
+        <script>
+            function gestflowValorNumero(valor) {
+                let texto = String(valor || "").trim();
+
+                if (!texto) {
+                    return 0;
+                }
+
+                texto = texto.replace("R$", "").replace(/\s/g, "");
+
+                if (texto.includes(",")) {
+                    texto = texto.replace(/\./g, "").replace(",", ".");
+                }
+
+                const numero = Number.parseFloat(texto);
+                return Number.isFinite(numero) ? numero : 0;
+            }
+
+            function gestflowLimparErrosFormulario(formulario) {
+                formulario.querySelectorAll(".gestflow-campo-invalido").forEach(function(campo) {
+                    campo.classList.remove("gestflow-campo-invalido");
+                });
+
+                const erroBox = formulario.querySelector("[data-form-error]");
+
+                if (erroBox) {
+                    erroBox.textContent = "";
+                    erroBox.classList.remove("show");
+                }
+            }
+
+            function gestflowExibirErroFormulario(formulario, mensagem, campo) {
+                const erroBox = formulario.querySelector("[data-form-error]");
+
+                if (erroBox) {
+                    erroBox.textContent = mensagem;
+                    erroBox.classList.add("show");
+                    erroBox.scrollIntoView({ behavior: "smooth", block: "center" });
+                } else {
+                    alert(mensagem);
+                }
+
+                if (campo) {
+                    campo.classList.add("gestflow-campo-invalido");
+                    campo.focus();
+                }
+            }
+
+            function gestflowCampoObrigatorio(formulario, seletor, mensagem) {
+                const campo = formulario.querySelector(seletor);
+
+                if (!campo) {
+                    return "";
+                }
+
+                const valor = String(campo.value || "").trim();
+
+                if (!valor || valor.startsWith("__novo")) {
+                    gestflowExibirErroFormulario(formulario, mensagem, campo);
+                    return mensagem;
+                }
+
+                return "";
+            }
+
+            function gestflowExisteItemValido(formulario, exigirValor) {
+                const linhas = formulario.querySelectorAll("tbody tr");
+
+                for (const linha of linhas) {
+                    const descricao = linha.querySelector('[name="item_descricao"]');
+                    const quantidade = linha.querySelector('[name="item_quantidade"]');
+                    const valor = linha.querySelector('[name="item_valor_unitario"]');
+
+                    if (!descricao) {
+                        continue;
+                    }
+
+                    const descricaoValor = String(descricao.value || "").trim();
+
+                    if (!descricaoValor || descricaoValor.startsWith("__novo")) {
+                        continue;
+                    }
+
+                    const quantidadeNumero = gestflowValorNumero(quantidade ? quantidade.value : "");
+                    const valorNumero = gestflowValorNumero(valor ? valor.value : "");
+
+                    if (quantidadeNumero > 0 && (!exigirValor || valorNumero > 0)) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            function gestflowTravarFormularioDocumento(configuracao) {
+                const formulario = document.getElementById(configuracao.formId);
+
+                if (!formulario) {
+                    return;
+                }
+
+                formulario.addEventListener("submit", function(evento) {
+                    gestflowLimparErrosFormulario(formulario);
+
+                    for (const campo of configuracao.camposObrigatorios) {
+                        const erro = gestflowCampoObrigatorio(formulario, campo.seletor, campo.mensagem);
+
+                        if (erro) {
+                            evento.preventDefault();
+                            return;
+                        }
+                    }
+
+                    if (configuracao.exigirItem && !gestflowExisteItemValido(formulario, configuracao.exigirValorItem !== false)) {
+                        evento.preventDefault();
+                        gestflowExibirErroFormulario(formulario, configuracao.mensagemItem || "Adicione pelo menos um item válido com quantidade e valor.");
+                        return;
+                    }
+
+                    if (configuracao.exigirItemOuRelato && !gestflowExisteItemValido(formulario, false)) {
+                        const relato = formulario.querySelector('[name="os_relato_cliente"]');
+                        const diagnostico = formulario.querySelector('[name="os_diagnostico"]');
+                        const executado = formulario.querySelector('[name="os_servico_executado"]');
+                        const temRelato = [relato, diagnostico, executado].some(function(campo) {
+                            return campo && String(campo.value || "").trim();
+                        });
+
+                        if (!temRelato) {
+                            evento.preventDefault();
+                            gestflowExibirErroFormulario(formulario, "Informe ao menos um item, relato do cliente, diagnóstico ou serviço executado.");
+                            return;
+                        }
+                    }
+
+                    if (configuracao.totalSeletor) {
+                        const total = formulario.querySelector(configuracao.totalSeletor);
+
+                        if (total && gestflowValorNumero(total.value) <= 0) {
+                            evento.preventDefault();
+                            gestflowExibirErroFormulario(formulario, configuracao.mensagemTotal || "O valor total precisa ser maior que zero.", total);
+                        }
+                    }
+                });
+            }
+        </script>
+
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function() {
+                gestflowTravarFormularioDocumento({
+                    formId: "form-nova-os",
+                    camposObrigatorios: [
+                        { seletor: '[name="os_cliente"]', mensagem: "Selecione um cliente para salvar a OS." },
+                        { seletor: '[name="os_responsavel"]', mensagem: "Selecione um responsável para salvar a OS." },
+                        { seletor: '[name="os_tecnico"]', mensagem: "Selecione um técnico para salvar a OS." },
+                        { seletor: '[name="os_data_abertura"]', mensagem: "Informe a data de abertura da OS." },
+                        { seletor: '[name="os_status"]', mensagem: "Informe o status da OS." },
+                        { seletor: '[name="os_prioridade"]', mensagem: "Informe a prioridade da OS." }
+                    ],
+                    exigirItemOuRelato: true
+                });
+            });
+        </script>
+
 </body>
 </html>

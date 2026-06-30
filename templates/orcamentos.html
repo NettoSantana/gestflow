@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamentos.html
-Último recode: 2026-06-29 22:05 (America/Bahia)
-Motivo: Adicionar modal de cadastro rápido de responsável por funcionário no orçamento.
+Último recode: 2026-06-29 23:10 (America/Bahia)
+Motivo: Travar campos obrigatórios e totais automáticos no cadastro de orçamento.
 -->
 
 <!DOCTYPE html>
@@ -204,6 +204,28 @@ Motivo: Adicionar modal de cadastro rápido de responsável por funcionário no 
             color: #16a34a;
         }
 
+
+        .gestflow-form-error {
+            display: none;
+            margin: 12px 0;
+            padding: 12px 14px;
+            border-radius: 10px;
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+            font-weight: 700;
+            font-size: 13px;
+        }
+
+        .gestflow-form-error.show {
+            display: block;
+        }
+
+        .gestflow-campo-invalido {
+            border-color: #dc2626 !important;
+            box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.12);
+        }
+
     </style>
 </head>
 <body>
@@ -266,6 +288,7 @@ Motivo: Adicionar modal de cadastro rápido de responsável por funcionário no 
         </section>
 
         <form id="form-novo-orcamento" action="/orcamentos" method="post" class="client-form">
+            <div class="gestflow-form-error{% if request.args.get('erro') %} show{% endif %}" data-form-error>{% if request.args.get('erro') %}{{ request.args.get('erro') }}{% endif %}</div>
             <section class="panel page-section">
                 <div class="panel-header page-header">
                     <div>
@@ -284,7 +307,7 @@ Motivo: Adicionar modal de cadastro rápido de responsável por funcionário no 
 
                     <div class="form-group">
                         <label for="orcamento_cliente">Cliente</label>
-                        <select id="orcamento_cliente" name="orcamento_cliente" class="form-control">
+                        <select id="orcamento_cliente" name="orcamento_cliente" class="form-control" required>
                             <option value="">Selecione</option>
                             {% for cliente in clientes|default([]) %}
                                 <option value="{{ cliente.nome }}">{{ cliente.nome }}</option>
@@ -295,7 +318,7 @@ Motivo: Adicionar modal de cadastro rápido de responsável por funcionário no 
 
                     <div class="form-group">
                         <label for="orcamento_responsavel">Responsável</label>
-                        <select id="orcamento_responsavel" name="orcamento_responsavel" class="form-control">
+                        <select id="orcamento_responsavel" name="orcamento_responsavel" class="form-control" required>
                             <option value="">Selecione</option>
                             {% for funcionario in funcionarios|default([]) %}
                                 <option value="{{ funcionario.nome }}">{{ funcionario.nome }}</option>
@@ -306,7 +329,7 @@ Motivo: Adicionar modal de cadastro rápido de responsável por funcionário no 
 
                     <div class="form-group">
                         <label for="orcamento_data">Data</label>
-                        <input id="orcamento_data" name="orcamento_data" type="date" class="form-control">
+                        <input id="orcamento_data" name="orcamento_data" type="date" class="form-control" required>
                     </div>
 
                     <div class="form-group">
@@ -340,7 +363,7 @@ Motivo: Adicionar modal de cadastro rápido de responsável por funcionário no 
 
                     <div class="form-group">
                         <label for="orcamento_canal_venda">Canal de venda</label>
-                        <input id="orcamento_canal_venda" name="orcamento_canal_venda" type="text" placeholder="Ex: WhatsApp, balcão, indicação" class="form-control">
+                        <input id="orcamento_canal_venda" name="orcamento_canal_venda" type="text" placeholder="Ex: WhatsApp, balcão, indicação" class="form-control" required>
                     </div>
 
                     <div class="form-group">
@@ -424,12 +447,12 @@ Motivo: Adicionar modal de cadastro rápido de responsável por funcionário no 
                 <div class="form-grid">
                     <div class="form-group">
                         <label for="orcamento_total_produtos">Total produtos</label>
-                        <input id="orcamento_total_produtos" name="orcamento_total_produtos" type="text" placeholder="0,00" class="form-control">
+                        <input id="orcamento_total_produtos" name="orcamento_total_produtos" type="text" placeholder="0,00" class="form-control" readonly>
                     </div>
 
                     <div class="form-group">
                         <label for="orcamento_total_servicos">Total serviços</label>
-                        <input id="orcamento_total_servicos" name="orcamento_total_servicos" type="text" placeholder="0,00" class="form-control">
+                        <input id="orcamento_total_servicos" name="orcamento_total_servicos" type="text" placeholder="0,00" class="form-control" readonly>
                     </div>
 
                     <div class="form-group">
@@ -444,7 +467,7 @@ Motivo: Adicionar modal de cadastro rápido de responsável por funcionário no 
 
                     <div class="form-group">
                         <label for="orcamento_valor_total">Valor total</label>
-                        <input id="orcamento_valor_total" name="orcamento_valor_total" type="text" placeholder="0,00" class="form-control">
+                        <input id="orcamento_valor_total" name="orcamento_valor_total" type="text" placeholder="0,00" class="form-control" readonly>
                     </div>
 
                     <div class="form-group">
@@ -1046,7 +1069,7 @@ Motivo: Adicionar modal de cadastro rápido de responsável por funcionário no 
                     <td><input name="item_quantidade" type="text" value="${dados.quantidade || "1"}" placeholder="1" class="form-control item-quantidade"></td>
                     <td><input name="item_valor_unitario" type="text" value="${dados.valor_unitario || ""}" placeholder="0,00" class="form-control item-valor"></td>
                     <td><input name="item_desconto" type="text" value="${dados.desconto || "0,00"}" placeholder="0,00" class="form-control item-desconto"></td>
-                    <td><input name="item_subtotal" type="text" value="${dados.subtotal || ""}" placeholder="0,00" class="form-control item-subtotal"></td>
+                    <td><input name="item_subtotal" type="text" value="${dados.subtotal || ""}" placeholder="0,00" class="form-control item-subtotal" readonly></td>
                     <td>
                         <button type="button" class="action-button delete" title="Remover ${tipoLabel}" aria-label="Remover ${tipoLabel}" onclick="removerLinha(this)">×</button>
                     </td>
@@ -1409,6 +1432,173 @@ Motivo: Adicionar modal de cadastro rápido de responsável por funcionário no 
 
 
     </main>
+
+
+        <script>
+            function gestflowValorNumero(valor) {
+                let texto = String(valor || "").trim();
+
+                if (!texto) {
+                    return 0;
+                }
+
+                texto = texto.replace("R$", "").replace(/\s/g, "");
+
+                if (texto.includes(",")) {
+                    texto = texto.replace(/\./g, "").replace(",", ".");
+                }
+
+                const numero = Number.parseFloat(texto);
+                return Number.isFinite(numero) ? numero : 0;
+            }
+
+            function gestflowLimparErrosFormulario(formulario) {
+                formulario.querySelectorAll(".gestflow-campo-invalido").forEach(function(campo) {
+                    campo.classList.remove("gestflow-campo-invalido");
+                });
+
+                const erroBox = formulario.querySelector("[data-form-error]");
+
+                if (erroBox) {
+                    erroBox.textContent = "";
+                    erroBox.classList.remove("show");
+                }
+            }
+
+            function gestflowExibirErroFormulario(formulario, mensagem, campo) {
+                const erroBox = formulario.querySelector("[data-form-error]");
+
+                if (erroBox) {
+                    erroBox.textContent = mensagem;
+                    erroBox.classList.add("show");
+                    erroBox.scrollIntoView({ behavior: "smooth", block: "center" });
+                } else {
+                    alert(mensagem);
+                }
+
+                if (campo) {
+                    campo.classList.add("gestflow-campo-invalido");
+                    campo.focus();
+                }
+            }
+
+            function gestflowCampoObrigatorio(formulario, seletor, mensagem) {
+                const campo = formulario.querySelector(seletor);
+
+                if (!campo) {
+                    return "";
+                }
+
+                const valor = String(campo.value || "").trim();
+
+                if (!valor || valor.startsWith("__novo")) {
+                    gestflowExibirErroFormulario(formulario, mensagem, campo);
+                    return mensagem;
+                }
+
+                return "";
+            }
+
+            function gestflowExisteItemValido(formulario, exigirValor) {
+                const linhas = formulario.querySelectorAll("tbody tr");
+
+                for (const linha of linhas) {
+                    const descricao = linha.querySelector('[name="item_descricao"]');
+                    const quantidade = linha.querySelector('[name="item_quantidade"]');
+                    const valor = linha.querySelector('[name="item_valor_unitario"]');
+
+                    if (!descricao) {
+                        continue;
+                    }
+
+                    const descricaoValor = String(descricao.value || "").trim();
+
+                    if (!descricaoValor || descricaoValor.startsWith("__novo")) {
+                        continue;
+                    }
+
+                    const quantidadeNumero = gestflowValorNumero(quantidade ? quantidade.value : "");
+                    const valorNumero = gestflowValorNumero(valor ? valor.value : "");
+
+                    if (quantidadeNumero > 0 && (!exigirValor || valorNumero > 0)) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            function gestflowTravarFormularioDocumento(configuracao) {
+                const formulario = document.getElementById(configuracao.formId);
+
+                if (!formulario) {
+                    return;
+                }
+
+                formulario.addEventListener("submit", function(evento) {
+                    gestflowLimparErrosFormulario(formulario);
+
+                    for (const campo of configuracao.camposObrigatorios) {
+                        const erro = gestflowCampoObrigatorio(formulario, campo.seletor, campo.mensagem);
+
+                        if (erro) {
+                            evento.preventDefault();
+                            return;
+                        }
+                    }
+
+                    if (configuracao.exigirItem && !gestflowExisteItemValido(formulario, configuracao.exigirValorItem !== false)) {
+                        evento.preventDefault();
+                        gestflowExibirErroFormulario(formulario, configuracao.mensagemItem || "Adicione pelo menos um item válido com quantidade e valor.");
+                        return;
+                    }
+
+                    if (configuracao.exigirItemOuRelato && !gestflowExisteItemValido(formulario, false)) {
+                        const relato = formulario.querySelector('[name="os_relato_cliente"]');
+                        const diagnostico = formulario.querySelector('[name="os_diagnostico"]');
+                        const executado = formulario.querySelector('[name="os_servico_executado"]');
+                        const temRelato = [relato, diagnostico, executado].some(function(campo) {
+                            return campo && String(campo.value || "").trim();
+                        });
+
+                        if (!temRelato) {
+                            evento.preventDefault();
+                            gestflowExibirErroFormulario(formulario, "Informe ao menos um item, relato do cliente, diagnóstico ou serviço executado.");
+                            return;
+                        }
+                    }
+
+                    if (configuracao.totalSeletor) {
+                        const total = formulario.querySelector(configuracao.totalSeletor);
+
+                        if (total && gestflowValorNumero(total.value) <= 0) {
+                            evento.preventDefault();
+                            gestflowExibirErroFormulario(formulario, configuracao.mensagemTotal || "O valor total precisa ser maior que zero.", total);
+                        }
+                    }
+                });
+            }
+        </script>
+
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function() {
+                gestflowTravarFormularioDocumento({
+                    formId: "form-novo-orcamento",
+                    camposObrigatorios: [
+                        { seletor: '[name="orcamento_cliente"]', mensagem: "Selecione um cliente para salvar o orçamento." },
+                        { seletor: '[name="orcamento_responsavel"]', mensagem: "Selecione um responsável para salvar o orçamento." },
+                        { seletor: '[name="orcamento_data"]', mensagem: "Informe a data do orçamento." },
+                        { seletor: '[name="orcamento_canal_venda"]', mensagem: "Informe o canal de venda do orçamento." }
+                    ],
+                    exigirItem: true,
+                    exigirValorItem: true,
+                    totalSeletor: '[name="orcamento_valor_total"]',
+                    mensagemItem: "Adicione pelo menos um produto ou serviço com quantidade e valor unitário maiores que zero.",
+                    mensagemTotal: "O valor total do orçamento precisa ser maior que zero."
+                });
+            });
+        </script>
 
 </body>
 </html>

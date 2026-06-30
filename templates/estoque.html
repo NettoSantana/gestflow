@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\estoque.html
-Último recode: 2026-06-29 22:30 (America/Bahia)
-Motivo: Aplicar lista de funcionários e cadastro rápido no responsável de estoque.
+Último recode: 2026-06-29 23:10 (America/Bahia)
+Motivo: Travar campos obrigatórios nas movimentações e compras de estoque.
 -->
 
 <!DOCTYPE html>
@@ -437,6 +437,28 @@ Motivo: Aplicar lista de funcionários e cadastro rápido no responsável de est
             color: #16a34a;
         }
 
+
+        .gestflow-form-error {
+            display: none;
+            margin: 12px 0;
+            padding: 12px 14px;
+            border-radius: 10px;
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+            font-weight: 700;
+            font-size: 13px;
+        }
+
+        .gestflow-form-error.show {
+            display: block;
+        }
+
+        .gestflow-campo-invalido {
+            border-color: #dc2626 !important;
+            box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.12);
+        }
+
     </style>
 </head>
 <body>
@@ -626,7 +648,8 @@ Motivo: Aplicar lista de funcionários e cadastro rápido no responsável de est
                         </div>
                     </div>
 
-                    <form class="estoque-form" action="/estoque/movimentar" method="post">
+                    <form id="form-movimentar-estoque" class="estoque-form" action="/estoque/movimentar" method="post">
+                        <div class="gestflow-form-error{% if request.args.get('erro') and aba_atual != 'compras' %} show{% endif %}" data-form-error>{% if request.args.get('erro') and aba_atual != 'compras' %}{{ request.args.get('erro') }}{% endif %}</div>
                         <label>
                             Produto
                             <select name="estoque_produto_id" required>
@@ -655,7 +678,7 @@ Motivo: Aplicar lista de funcionários e cadastro rápido no responsável de est
 
                         <label>
                             Motivo
-                            <input type="text" name="estoque_motivo" placeholder="Ex: perda, conferência, inventário, correção">
+                            <input type="text" name="estoque_motivo" placeholder="Ex: perda, conferência, inventário, correção" required>
                         </label>
 
                         <div class="estoque-form-row">
@@ -666,7 +689,7 @@ Motivo: Aplicar lista de funcionários e cadastro rápido no responsável de est
 
                             <label>
                                 Responsável
-                                <select name="estoque_responsavel" class="form-control quick-responsavel-select">
+                                <select name="estoque_responsavel" class="form-control quick-responsavel-select" required>
                                             <option value="">Selecione</option>
                                             {% for funcionario in funcionarios|default([]) %}
                                                 <option value="{{ funcionario.nome }}">{{ funcionario.nome }}</option>
@@ -735,7 +758,8 @@ Motivo: Aplicar lista de funcionários e cadastro rápido no responsável de est
                         </div>
                     </div>
 
-                    <form class="estoque-form" action="/estoque/comprar" method="post">
+                    <form id="form-comprar-estoque" class="estoque-form" action="/estoque/comprar" method="post">
+                        <div class="gestflow-form-error{% if request.args.get('erro') and aba_atual == 'compras' %} show{% endif %}" data-form-error>{% if request.args.get('erro') and aba_atual == 'compras' %}{{ request.args.get('erro') }}{% endif %}</div>
                         <label>
                             Produto
                             <select name="compra_produto_id" required>
@@ -776,7 +800,7 @@ Motivo: Aplicar lista de funcionários e cadastro rápido no responsável de est
 
                             <label>
                                 Responsável
-                                <select name="compra_responsavel" class="form-control quick-responsavel-select">
+                                <select name="compra_responsavel" class="form-control quick-responsavel-select" required>
                                             <option value="">Selecione</option>
                                             {% for funcionario in funcionarios|default([]) %}
                                                 <option value="{{ funcionario.nome }}">{{ funcionario.nome }}</option>
@@ -949,5 +973,203 @@ Motivo: Aplicar lista de funcionários e cadastro rápido no responsável de est
             campoBuscaProdutoEstoque.addEventListener("input", filtrarProdutosEstoque);
         }
     </script>
+
+        <script>
+            function gestflowValorNumero(valor) {
+                let texto = String(valor || "").trim();
+
+                if (!texto) {
+                    return 0;
+                }
+
+                texto = texto.replace("R$", "").replace(/\s/g, "");
+
+                if (texto.includes(",")) {
+                    texto = texto.replace(/\./g, "").replace(",", ".");
+                }
+
+                const numero = Number.parseFloat(texto);
+                return Number.isFinite(numero) ? numero : 0;
+            }
+
+            function gestflowLimparErrosFormulario(formulario) {
+                formulario.querySelectorAll(".gestflow-campo-invalido").forEach(function(campo) {
+                    campo.classList.remove("gestflow-campo-invalido");
+                });
+
+                const erroBox = formulario.querySelector("[data-form-error]");
+
+                if (erroBox) {
+                    erroBox.textContent = "";
+                    erroBox.classList.remove("show");
+                }
+            }
+
+            function gestflowExibirErroFormulario(formulario, mensagem, campo) {
+                const erroBox = formulario.querySelector("[data-form-error]");
+
+                if (erroBox) {
+                    erroBox.textContent = mensagem;
+                    erroBox.classList.add("show");
+                    erroBox.scrollIntoView({ behavior: "smooth", block: "center" });
+                } else {
+                    alert(mensagem);
+                }
+
+                if (campo) {
+                    campo.classList.add("gestflow-campo-invalido");
+                    campo.focus();
+                }
+            }
+
+            function gestflowCampoObrigatorio(formulario, seletor, mensagem) {
+                const campo = formulario.querySelector(seletor);
+
+                if (!campo) {
+                    return "";
+                }
+
+                const valor = String(campo.value || "").trim();
+
+                if (!valor || valor.startsWith("__novo")) {
+                    gestflowExibirErroFormulario(formulario, mensagem, campo);
+                    return mensagem;
+                }
+
+                return "";
+            }
+
+            function gestflowExisteItemValido(formulario, exigirValor) {
+                const linhas = formulario.querySelectorAll("tbody tr");
+
+                for (const linha of linhas) {
+                    const descricao = linha.querySelector('[name="item_descricao"]');
+                    const quantidade = linha.querySelector('[name="item_quantidade"]');
+                    const valor = linha.querySelector('[name="item_valor_unitario"]');
+
+                    if (!descricao) {
+                        continue;
+                    }
+
+                    const descricaoValor = String(descricao.value || "").trim();
+
+                    if (!descricaoValor || descricaoValor.startsWith("__novo")) {
+                        continue;
+                    }
+
+                    const quantidadeNumero = gestflowValorNumero(quantidade ? quantidade.value : "");
+                    const valorNumero = gestflowValorNumero(valor ? valor.value : "");
+
+                    if (quantidadeNumero > 0 && (!exigirValor || valorNumero > 0)) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            function gestflowTravarFormularioDocumento(configuracao) {
+                const formulario = document.getElementById(configuracao.formId);
+
+                if (!formulario) {
+                    return;
+                }
+
+                formulario.addEventListener("submit", function(evento) {
+                    gestflowLimparErrosFormulario(formulario);
+
+                    for (const campo of configuracao.camposObrigatorios) {
+                        const erro = gestflowCampoObrigatorio(formulario, campo.seletor, campo.mensagem);
+
+                        if (erro) {
+                            evento.preventDefault();
+                            return;
+                        }
+                    }
+
+                    if (configuracao.exigirItem && !gestflowExisteItemValido(formulario, configuracao.exigirValorItem !== false)) {
+                        evento.preventDefault();
+                        gestflowExibirErroFormulario(formulario, configuracao.mensagemItem || "Adicione pelo menos um item válido com quantidade e valor.");
+                        return;
+                    }
+
+                    if (configuracao.exigirItemOuRelato && !gestflowExisteItemValido(formulario, false)) {
+                        const relato = formulario.querySelector('[name="os_relato_cliente"]');
+                        const diagnostico = formulario.querySelector('[name="os_diagnostico"]');
+                        const executado = formulario.querySelector('[name="os_servico_executado"]');
+                        const temRelato = [relato, diagnostico, executado].some(function(campo) {
+                            return campo && String(campo.value || "").trim();
+                        });
+
+                        if (!temRelato) {
+                            evento.preventDefault();
+                            gestflowExibirErroFormulario(formulario, "Informe ao menos um item, relato do cliente, diagnóstico ou serviço executado.");
+                            return;
+                        }
+                    }
+
+                    if (configuracao.totalSeletor) {
+                        const total = formulario.querySelector(configuracao.totalSeletor);
+
+                        if (total && gestflowValorNumero(total.value) <= 0) {
+                            evento.preventDefault();
+                            gestflowExibirErroFormulario(formulario, configuracao.mensagemTotal || "O valor total precisa ser maior que zero.", total);
+                        }
+                    }
+                });
+            }
+        </script>
+
+
+    <script>
+        function validarFormularioEstoque(formId, configuracao) {
+            const formulario = document.getElementById(formId);
+
+            if (!formulario) {
+                return;
+            }
+
+            formulario.addEventListener("submit", function(evento) {
+                gestflowLimparErrosFormulario(formulario);
+
+                for (const campo of configuracao.camposObrigatorios) {
+                    const erro = gestflowCampoObrigatorio(formulario, campo.seletor, campo.mensagem);
+
+                    if (erro) {
+                        evento.preventDefault();
+                        return;
+                    }
+                }
+
+                const quantidade = formulario.querySelector(configuracao.quantidadeSeletor);
+
+                if (quantidade && gestflowValorNumero(quantidade.value) <= 0) {
+                    evento.preventDefault();
+                    gestflowExibirErroFormulario(formulario, "Informe uma quantidade maior que zero.", quantidade);
+                }
+            });
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            validarFormularioEstoque("form-movimentar-estoque", {
+                quantidadeSeletor: '[name="estoque_quantidade"]',
+                camposObrigatorios: [
+                    { seletor: '[name="estoque_produto_id"]', mensagem: "Selecione um produto para movimentar o estoque." },
+                    { seletor: '[name="estoque_tipo"]', mensagem: "Selecione o tipo da movimentação." },
+                    { seletor: '[name="estoque_motivo"]', mensagem: "Informe o motivo da movimentação." },
+                    { seletor: '[name="estoque_responsavel"]', mensagem: "Selecione o responsável pela movimentação." }
+                ]
+            });
+
+            validarFormularioEstoque("form-comprar-estoque", {
+                quantidadeSeletor: '[name="compra_quantidade"]',
+                camposObrigatorios: [
+                    { seletor: '[name="compra_produto_id"]', mensagem: "Selecione um produto para registrar a compra." },
+                    { seletor: '[name="compra_responsavel"]', mensagem: "Selecione o responsável pela compra." }
+                ]
+            });
+        });
+    </script>
+
 </body>
 </html>
