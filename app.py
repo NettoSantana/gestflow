@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-29 20:56 (America/Bahia)
-# Motivo: Criar rota rápida de cadastro de cliente para uso no modal de orçamento.
+# Último recode: 2026-06-29 21:15 (America/Bahia)
+# Motivo: Corrigir retorno JSON da rota rápida de cliente para o modal de orçamento selecionar e manter o cadastro salvo.
 
 from __future__ import annotations
 
@@ -4871,16 +4871,19 @@ def salvar_cliente_rapido() -> Response:
         cliente_id = int(cursor.lastrowid)
         conn.commit()
 
+    cliente_resposta = {
+        "id": cliente_id,
+        "nome": cliente["nome"],
+        "documento": cliente["documento"],
+        "telefone": cliente["telefone"],
+        "email": cliente["email"],
+    }
+
     return jsonify(
         {
             "ok": True,
-            "item": {
-                "id": cliente_id,
-                "nome": cliente["nome"],
-                "documento": cliente["documento"],
-                "telefone": cliente["telefone"],
-                "email": cliente["email"],
-            },
+            "cliente": cliente_resposta,
+            "item": cliente_resposta,
         }
     )
 
