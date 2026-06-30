@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\servico_editar.html
-Último recode: 2026-06-18 21:25 (America/Bahia)
-Motivo: Padronizar links do menu lateral na segunda leva de telas.
+Último recode: 2026-06-29 23:35 (America/Bahia)
+Motivo: Travar campos mínimos obrigatórios na edição de serviço.
 -->
 
 <!DOCTYPE html>
@@ -11,6 +11,18 @@ Motivo: Padronizar links do menu lateral na segunda leva de telas.
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GESTFLOW - Editar Serviço</title>
     <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .form-alert-error {
+            margin: 0 0 18px;
+            padding: 12px 14px;
+            border: 1px solid #fecaca;
+            border-radius: 12px;
+            background: #fef2f2;
+            color: #991b1b;
+            font-size: 13px;
+            font-weight: 800;
+        }
+    </style>
 </head>
 <body>
     {% include "partials/sidebar.html" %}
@@ -18,6 +30,10 @@ Motivo: Padronizar links do menu lateral na segunda leva de telas.
 <main class="content">
         {% set page_title = 'Editar Serviço' %}
         {% include "partials/topbar.html" %}
+
+        {% if request.args.get('erro') %}
+            <div class="form-alert-error">{{ request.args.get('erro') }}</div>
+        {% endif %}
 
 <section class="panel page-section">
             <div class="panel-header page-header">
@@ -44,8 +60,8 @@ Motivo: Padronizar links do menu lateral na segunda leva de telas.
             <form action="/servicos/{{ servico.id }}/editar" method="post" class="client-form">
                 <div class="form-grid">
                     <div class="form-group">
-                        <label for="servico_nome">Nome do serviço</label>
-                        <input id="servico_nome" name="servico_nome" type="text" value="{{ servico.nome or '' }}" placeholder="Ex: Manutenção preventiva" class="form-control">
+                        <label for="servico_nome">Nome do serviço *</label>
+                        <input id="servico_nome" name="servico_nome" type="text" value="{{ servico.nome or '' }}" placeholder="Ex: Manutenção preventiva" class="form-control" required>
                     </div>
 
                     <div class="form-group">
@@ -69,8 +85,8 @@ Motivo: Padronizar links do menu lateral na segunda leva de telas.
                     </div>
 
                     <div class="form-group">
-                        <label for="servico_unidade">Unidade</label>
-                        <select id="servico_unidade" name="servico_unidade" class="form-control">
+                        <label for="servico_unidade">Unidade *</label>
+                        <select id="servico_unidade" name="servico_unidade" class="form-control" required>
                             <option value="" {% if not servico.unidade %}selected{% endif %}>Selecione</option>
                             <option value="Serviço" {% if servico.unidade == "Serviço" %}selected{% endif %}>Serviço</option>
                             <option value="Hora" {% if servico.unidade == "Hora" %}selected{% endif %}>Hora</option>
@@ -86,8 +102,8 @@ Motivo: Padronizar links do menu lateral na segunda leva de telas.
                     </div>
 
                     <div class="form-group">
-                        <label for="servico_valor_venda">Valor de venda</label>
-                        <input id="servico_valor_venda" name="servico_valor_venda" type="text" value="{{ servico.valor_venda or '' }}" placeholder="Ex: 280,00" class="form-control">
+                        <label for="servico_valor_venda">Valor de venda *</label>
+                        <input id="servico_valor_venda" name="servico_valor_venda" type="text" value="{{ servico.valor_venda or '' }}" placeholder="Ex: 280,00" class="form-control" required>
                     </div>
 
                     <div class="form-group">
@@ -96,8 +112,8 @@ Motivo: Padronizar links do menu lateral na segunda leva de telas.
                     </div>
 
                     <div class="form-group">
-                        <label for="servico_status">Status</label>
-                        <select id="servico_status" name="servico_status" class="form-control">
+                        <label for="servico_status">Status *</label>
+                        <select id="servico_status" name="servico_status" class="form-control" required>
                             <option value="ativo" {% if servico.status == "ativo" %}selected{% endif %}>Ativo</option>
                             <option value="inativo" {% if servico.status == "inativo" %}selected{% endif %}>Inativo</option>
                             <option value="pendente" {% if servico.status == "pendente" %}selected{% endif %}>Pendente</option>

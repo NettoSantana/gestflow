@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\produtos.html
-Último recode: 2026-06-19 07:55 (America/Bahia)
-Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
+Último recode: 2026-06-29 23:35 (America/Bahia)
+Motivo: Travar campos mínimos obrigatórios para cadastro de produto.
 -->
 
 <!DOCTYPE html>
@@ -33,6 +33,17 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
             border-color: #fecdd3;
         }
 
+        .form-alert-error {
+            margin: 0 0 18px;
+            padding: 12px 14px;
+            border: 1px solid #fecaca;
+            border-radius: 12px;
+            background: #fef2f2;
+            color: #991b1b;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
     </style>
 </head>
 <body>
@@ -41,6 +52,10 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
 <main class="content">
         {% set page_title = 'Produtos' %}
         {% include "partials/topbar.html" %}
+
+        {% if request.args.get('erro') %}
+            <div class="form-alert-error">{{ request.args.get('erro') }}</div>
+        {% endif %}
 
 {% set produtos_lista = produtos|default([]) %}
         {% set resumo = namespace(ativos=0, pendentes=0) %}
@@ -107,8 +122,8 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
             <form action="/produtos" method="post" class="client-form">
                 <div class="form-grid">
                     <div class="form-group">
-                        <label for="produto_nome">Nome do produto</label>
-                        <input id="produto_nome" name="produto_nome" type="text" placeholder="Ex: Cabo flexível 2,5mm" class="form-control">
+                        <label for="produto_nome">Nome do produto *</label>
+                        <input id="produto_nome" name="produto_nome" type="text" placeholder="Ex: Cabo flexível 2,5mm" class="form-control" required>
                     </div>
 
                     <div class="form-group">
@@ -131,8 +146,8 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
                     </div>
 
                     <div class="form-group">
-                        <label for="produto_unidade">Unidade</label>
-                        <select id="produto_unidade" name="produto_unidade" class="form-control">
+                        <label for="produto_unidade">Unidade *</label>
+                        <select id="produto_unidade" name="produto_unidade" class="form-control" required>
                             <option value="">Selecione</option>
                             <option value="Unidade">Unidade</option>
                             <option value="Peça">Peça</option>
@@ -146,7 +161,7 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
 
                     <div class="form-group">
                         <label for="produto_estoque_atual">Estoque atual</label>
-                        <input id="produto_estoque_atual" name="produto_estoque_atual" type="text" placeholder="Ex: 10" class="form-control">
+                        <input id="produto_estoque_atual" name="produto_estoque_atual" type="text" value="0" placeholder="Ex: 10" class="form-control">
                     </div>
 
                     <div class="form-group">
@@ -165,8 +180,8 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
                     </div>
 
                     <div class="form-group">
-                        <label for="produto_status">Status</label>
-                        <select id="produto_status" name="produto_status" class="form-control">
+                        <label for="produto_status">Status *</label>
+                        <select id="produto_status" name="produto_status" class="form-control" required>
                             <option value="ativo">Ativo</option>
                             <option value="inativo">Inativo</option>
                             <option value="pendente">Pendente</option>

@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-29 23:10 (America/Bahia)
-# Motivo: Travar validações obrigatórias de orçamento, venda, OS e estoque no backend.
+# Último recode: 2026-06-29 23:35 (America/Bahia)
+# Motivo: Travar validações mínimas de produtos e serviços no cadastro e edição.
 
 from __future__ import annotations
 
@@ -5296,6 +5296,66 @@ def excluir_funcionario(funcionario_id: int) -> Response:
     return redirect(url_for("funcionarios"))
 
 
+
+def normalizar_produto_para_salvar(produto: dict[str, str]) -> dict[str, str]:
+    produto_normalizado = dict(produto)
+
+    if not produto_normalizado["estoque_atual"]:
+        produto_normalizado["estoque_atual"] = "0"
+
+    if not produto_normalizado["estoque_minimo"]:
+        produto_normalizado["estoque_minimo"] = "0"
+
+    if not produto_normalizado["status"]:
+        produto_normalizado["status"] = "ativo"
+
+    if produto_normalizado["status"] not in {"ativo", "inativo", "pendente"}:
+        produto_normalizado["status"] = "ativo"
+
+    return produto_normalizado
+
+
+def validar_produto_para_salvar(produto: dict[str, str]) -> str:
+    if not produto["nome"]:
+        return "Informe o nome do produto."
+
+    if not produto["unidade"]:
+        return "Selecione a unidade do produto."
+
+    if not produto["status"]:
+        return "Selecione o status do produto."
+
+    return ""
+
+
+def normalizar_servico_para_salvar(servico: dict[str, str]) -> dict[str, str]:
+    servico_normalizado = dict(servico)
+
+    if not servico_normalizado["status"]:
+        servico_normalizado["status"] = "ativo"
+
+    if servico_normalizado["status"] not in {"ativo", "inativo", "pendente"}:
+        servico_normalizado["status"] = "ativo"
+
+    return servico_normalizado
+
+
+def validar_servico_para_salvar(servico: dict[str, str]) -> str:
+    if not servico["nome"]:
+        return "Informe o nome do serviço."
+
+    if not servico["unidade"]:
+        return "Selecione a unidade do serviço."
+
+    if not _valor_formulario_positivo(servico["valor_venda"]):
+        return "Informe o valor de venda do serviço."
+
+    if not servico["status"]:
+        return "Selecione o status do serviço."
+
+    return ""
+
+
 @app.get("/produtos")
 def produtos() -> str:
     produtos_lista = listar_produtos()
@@ -5317,8 +5377,13 @@ def salvar_produto() -> Response:
         "observacoes": (request.form.get("produto_observacoes") or "").strip(),
     }
 
-    if produto["nome"]:
-        salvar_produto_db(produto)
+    produto = normalizar_produto_para_salvar(produto)
+    erro_validacao = validar_produto_para_salvar(produto)
+
+    if erro_validacao:
+        return redirect(url_for("produtos", erro=erro_validacao))
+
+    salvar_produto_db(produto)
 
     return redirect(url_for("produtos"))
 
@@ -5346,6 +5411,12 @@ def salvar_produto_rapido() -> Response:
         "status": "ativo",
         "observacoes": observacoes,
     }
+
+    produto = normalizar_produto_para_salvar(produto)
+    erro_validacao = validar_produto_para_salvar(produto)
+
+    if erro_validacao:
+        return jsonify({"ok": False, "erro": erro_validacao}), 400
 
     empresa_id = empresa_logada_id()
 
@@ -5437,8 +5508,13 @@ def atualizar_produto(produto_id: int) -> Response:
         "observacoes": (request.form.get("produto_observacoes") or "").strip(),
     }
 
-    if produto["nome"]:
-        atualizar_produto_db(produto_id, produto)
+    produto = normalizar_produto_para_salvar(produto)
+    erro_validacao = validar_produto_para_salvar(produto)
+
+    if erro_validacao:
+        return redirect(url_for("editar_produto", produto_id=produto_id, erro=erro_validacao))
+
+    atualizar_produto_db(produto_id, produto)
 
     return redirect(url_for("ver_produto", produto_id=produto_id))
 
@@ -5473,8 +5549,13 @@ def salvar_servico() -> Response:
         "observacoes": (request.form.get("servico_observacoes") or "").strip(),
     }
 
-    if servico["nome"]:
-        salvar_servico_db(servico)
+    servico = normalizar_servico_para_salvar(servico)
+    erro_validacao = validar_servico_para_salvar(servico)
+
+    if erro_validacao:
+        return redirect(url_for("servicos", erro=erro_validacao))
+
+    salvar_servico_db(servico)
 
     return redirect(url_for("servicos"))
 
@@ -5501,6 +5582,12 @@ def salvar_servico_rapido() -> Response:
         "status": "ativo",
         "observacoes": observacoes,
     }
+
+    servico = normalizar_servico_para_salvar(servico)
+    erro_validacao = validar_servico_para_salvar(servico)
+
+    if erro_validacao:
+        return jsonify({"ok": False, "erro": erro_validacao}), 400
 
     empresa_id = empresa_logada_id()
 
@@ -5589,8 +5676,13 @@ def atualizar_servico(servico_id: int) -> Response:
         "observacoes": (request.form.get("servico_observacoes") or "").strip(),
     }
 
-    if servico["nome"]:
-        atualizar_servico_db(servico_id, servico)
+    servico = normalizar_servico_para_salvar(servico)
+    erro_validacao = validar_servico_para_salvar(servico)
+
+    if erro_validacao:
+        return redirect(url_for("editar_servico", servico_id=servico_id, erro=erro_validacao))
+
+    atualizar_servico_db(servico_id, servico)
 
     return redirect(url_for("ver_servico", servico_id=servico_id))
 

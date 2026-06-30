@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\produto_editar.html
-Último recode: 2026-06-18 21:25 (America/Bahia)
-Motivo: Padronizar links do menu lateral na segunda leva de telas.
+Último recode: 2026-06-29 23:35 (America/Bahia)
+Motivo: Travar campos mínimos obrigatórios na edição de produto.
 -->
 
 <!DOCTYPE html>
@@ -11,6 +11,18 @@ Motivo: Padronizar links do menu lateral na segunda leva de telas.
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GESTFLOW - Editar Produto</title>
     <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .form-alert-error {
+            margin: 0 0 18px;
+            padding: 12px 14px;
+            border: 1px solid #fecaca;
+            border-radius: 12px;
+            background: #fef2f2;
+            color: #991b1b;
+            font-size: 13px;
+            font-weight: 800;
+        }
+    </style>
 </head>
 <body>
     {% include "partials/sidebar.html" %}
@@ -18,6 +30,10 @@ Motivo: Padronizar links do menu lateral na segunda leva de telas.
 <main class="content">
         {% set page_title = 'Editar Produto' %}
         {% include "partials/topbar.html" %}
+
+        {% if request.args.get('erro') %}
+            <div class="form-alert-error">{{ request.args.get('erro') }}</div>
+        {% endif %}
 
 <section class="panel page-section">
             <div class="panel-header page-header">
@@ -44,8 +60,8 @@ Motivo: Padronizar links do menu lateral na segunda leva de telas.
             <form action="/produtos/{{ produto.id }}/editar" method="post" class="client-form">
                 <div class="form-grid">
                     <div class="form-group">
-                        <label for="produto_nome">Nome do produto</label>
-                        <input id="produto_nome" name="produto_nome" type="text" value="{{ produto.nome or '' }}" placeholder="Ex: Cabo flexível 2,5mm" class="form-control">
+                        <label for="produto_nome">Nome do produto *</label>
+                        <input id="produto_nome" name="produto_nome" type="text" value="{{ produto.nome or '' }}" placeholder="Ex: Cabo flexível 2,5mm" class="form-control" required>
                     </div>
 
                     <div class="form-group">
@@ -68,8 +84,8 @@ Motivo: Padronizar links do menu lateral na segunda leva de telas.
                     </div>
 
                     <div class="form-group">
-                        <label for="produto_unidade">Unidade</label>
-                        <select id="produto_unidade" name="produto_unidade" class="form-control">
+                        <label for="produto_unidade">Unidade *</label>
+                        <select id="produto_unidade" name="produto_unidade" class="form-control" required>
                             <option value="" {% if not produto.unidade %}selected{% endif %}>Selecione</option>
                             <option value="Unidade" {% if produto.unidade == "Unidade" %}selected{% endif %}>Unidade</option>
                             <option value="Peça" {% if produto.unidade == "Peça" %}selected{% endif %}>Peça</option>
@@ -83,7 +99,7 @@ Motivo: Padronizar links do menu lateral na segunda leva de telas.
 
                     <div class="form-group">
                         <label for="produto_estoque_atual">Estoque atual</label>
-                        <input id="produto_estoque_atual" name="produto_estoque_atual" type="text" value="{{ produto.estoque_atual or '' }}" placeholder="Ex: 10" class="form-control">
+                        <input id="produto_estoque_atual" name="produto_estoque_atual" type="text" value="{{ produto.estoque_atual or '0' }}" placeholder="Ex: 10" class="form-control">
                     </div>
 
                     <div class="form-group">
@@ -102,8 +118,8 @@ Motivo: Padronizar links do menu lateral na segunda leva de telas.
                     </div>
 
                     <div class="form-group">
-                        <label for="produto_status">Status</label>
-                        <select id="produto_status" name="produto_status" class="form-control">
+                        <label for="produto_status">Status *</label>
+                        <select id="produto_status" name="produto_status" class="form-control" required>
                             <option value="ativo" {% if produto.status == "ativo" %}selected{% endif %}>Ativo</option>
                             <option value="inativo" {% if produto.status == "inativo" %}selected{% endif %}>Inativo</option>
                             <option value="pendente" {% if produto.status == "pendente" %}selected{% endif %}>Pendente</option>
