@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamentos.html
-Último recode: 2026-06-29 21:10 (America/Bahia)
-Motivo: Transformar responsável do orçamento em lista de funcionários cadastrados.
+Último recode: 2026-06-29 22:05 (America/Bahia)
+Motivo: Adicionar modal de cadastro rápido de responsável por funcionário no orçamento.
 -->
 
 <!DOCTYPE html>
@@ -300,6 +300,7 @@ Motivo: Transformar responsável do orçamento em lista de funcionários cadastr
                             {% for funcionario in funcionarios|default([]) %}
                                 <option value="{{ funcionario.nome }}">{{ funcionario.nome }}</option>
                             {% endfor %}
+                            <option value="__novo_responsavel__" class="quick-new-option">+ Adicionar novo responsável</option>
                         </select>
                     </div>
 
@@ -507,6 +508,48 @@ Motivo: Transformar responsável do orçamento em lista de funcionários cadastr
                 <div class="quick-modal-actions">
                     <button type="button" class="btn-light" onclick="fecharModalClienteRapido()">Cancelar</button>
                     <button type="button" class="btn-primary-green" onclick="salvarClienteRapido()">Salvar cliente</button>
+                </div>
+            </div>
+        </div>
+
+
+        <div id="quick-responsavel-modal" class="quick-modal-backdrop" aria-hidden="true">
+            <div class="quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-responsavel-title">
+                <div class="quick-modal-header">
+                    <div>
+                        <h3 id="quick-responsavel-title">Novo responsável</h3>
+                        <p>Cadastro rápido de funcionário sem sair do orçamento.</p>
+                    </div>
+                    <button type="button" class="quick-modal-close" onclick="fecharModalResponsavelRapido()">×</button>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="quick-responsavel-nome">Nome *</label>
+                        <input id="quick-responsavel-nome" type="text" class="form-control" placeholder="Ex: Netto Santana">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-responsavel-cargo">Cargo</label>
+                        <input id="quick-responsavel-cargo" type="text" class="form-control" placeholder="Ex: Vendedor">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-responsavel-telefone">Telefone</label>
+                        <input id="quick-responsavel-telefone" type="text" class="form-control" placeholder="WhatsApp ou telefone">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-responsavel-email">E-mail</label>
+                        <input id="quick-responsavel-email" type="text" class="form-control" placeholder="email@empresa.com">
+                    </div>
+                </div>
+
+                <div id="quick-responsavel-error" class="quick-modal-error"></div>
+
+                <div class="quick-modal-actions">
+                    <button type="button" class="btn-light" onclick="fecharModalResponsavelRapido()">Cancelar</button>
+                    <button type="button" class="btn-primary-green" onclick="salvarResponsavelRapido()">Salvar responsável</button>
                 </div>
             </div>
         </div>
@@ -780,6 +823,122 @@ Motivo: Transformar responsável do orçamento em lista de funcionários cadastr
                     })
                     .catch(function(erro) {
                         erroBox.textContent = erro.message || "Erro ao salvar cliente.";
+                        erroBox.classList.add("show");
+                    });
+            }
+
+            function abrirModalResponsavelRapido() {
+                const modal = document.getElementById("quick-responsavel-modal");
+                const nomeInput = document.getElementById("quick-responsavel-nome");
+                const cargoInput = document.getElementById("quick-responsavel-cargo");
+                const telefoneInput = document.getElementById("quick-responsavel-telefone");
+                const emailInput = document.getElementById("quick-responsavel-email");
+                const erroBox = document.getElementById("quick-responsavel-error");
+
+                nomeInput.value = "";
+                cargoInput.value = "";
+                telefoneInput.value = "";
+                emailInput.value = "";
+
+                erroBox.textContent = "";
+                erroBox.classList.remove("show");
+
+                modal.classList.add("open");
+                modal.setAttribute("aria-hidden", "false");
+
+                setTimeout(function() {
+                    nomeInput.focus();
+                }, 50);
+            }
+
+            function fecharModalResponsavelRapido() {
+                const modal = document.getElementById("quick-responsavel-modal");
+                const selectResponsavel = document.getElementById("orcamento_responsavel");
+
+                if (modal) {
+                    modal.classList.remove("open");
+                    modal.setAttribute("aria-hidden", "true");
+                }
+
+                if (selectResponsavel && selectResponsavel.value === "__novo_responsavel__") {
+                    selectResponsavel.value = "";
+                }
+            }
+
+            function adicionarResponsavelRapidoNoSelect(funcionario) {
+                const selectResponsavel = document.getElementById("orcamento_responsavel");
+
+                if (!selectResponsavel || !funcionario || !funcionario.nome) {
+                    return;
+                }
+
+                const funcionarioExistente = Array.from(selectResponsavel.options).find(function(opcao) {
+                    return opcao.value === funcionario.nome;
+                });
+
+                if (funcionarioExistente) {
+                    selectResponsavel.value = funcionario.nome;
+                    return;
+                }
+
+                const option = document.createElement("option");
+                option.value = funcionario.nome;
+                option.textContent = funcionario.nome;
+
+                const novaOpcao = Array.from(selectResponsavel.options).find(function(opcao) {
+                    return opcao.value === "__novo_responsavel__";
+                });
+
+                if (novaOpcao) {
+                    selectResponsavel.insertBefore(option, novaOpcao);
+                } else {
+                    selectResponsavel.appendChild(option);
+                }
+
+                selectResponsavel.value = funcionario.nome;
+            }
+
+            function salvarResponsavelRapido() {
+                const nome = document.getElementById("quick-responsavel-nome").value.trim();
+                const cargo = document.getElementById("quick-responsavel-cargo").value.trim();
+                const telefone = document.getElementById("quick-responsavel-telefone").value.trim();
+                const email = document.getElementById("quick-responsavel-email").value.trim();
+                const erroBox = document.getElementById("quick-responsavel-error");
+
+                if (!nome) {
+                    erroBox.textContent = "Informe o nome do responsável.";
+                    erroBox.classList.add("show");
+                    return;
+                }
+
+                const dados = new URLSearchParams();
+                dados.append("nome", nome);
+                dados.append("cargo", cargo);
+                dados.append("telefone", telefone);
+                dados.append("email", email);
+
+                fetch("/funcionarios/rapido", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"
+                    },
+                    body: dados.toString()
+                })
+                    .then(function(resposta) {
+                        return resposta.json().then(function(payload) {
+                            if (!resposta.ok || !payload.ok) {
+                                throw new Error(payload.erro || "Não foi possível salvar o responsável.");
+                            }
+
+                            return payload.funcionario;
+                        });
+                    })
+                    .then(function(funcionario) {
+                        adicionarResponsavelRapidoNoSelect(funcionario);
+                        fecharModalResponsavelRapido();
+                    })
+                    .catch(function(erro) {
+                        erroBox.textContent = erro.message || "Erro ao salvar responsável.";
                         erroBox.classList.add("show");
                     });
             }
@@ -1140,6 +1299,16 @@ Motivo: Transformar responsável do orçamento em lista de funcionários cadastr
                     selectCliente.addEventListener("change", function() {
                         if (selectCliente.value === "__novo_cliente__") {
                             abrirModalClienteRapido();
+                        }
+                    });
+                }
+
+                const selectResponsavel = document.getElementById("orcamento_responsavel");
+
+                if (selectResponsavel) {
+                    selectResponsavel.addEventListener("change", function() {
+                        if (selectResponsavel.value === "__novo_responsavel__") {
+                            abrirModalResponsavelRapido();
                         }
                     });
                 }

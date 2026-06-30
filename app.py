@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-29 21:45 (America/Bahia)
-# Motivo: Enviar funcionários cadastrados para o campo responsável na tela de orçamentos.
+# Último recode: 2026-06-29 22:05 (America/Bahia)
+# Motivo: Adicionar rota de cadastro rápido de funcionário para responsável do orçamento.
 
 from __future__ import annotations
 
@@ -5042,6 +5042,76 @@ def salvar_funcionario() -> Response:
         salvar_funcionario_db(funcionario)
 
     return redirect(url_for("funcionarios"))
+
+
+@app.post("/funcionarios/rapido")
+def salvar_funcionario_rapido() -> Response:
+    nome = (request.form.get("nome") or request.form.get("funcionario_nome") or "").strip()
+    cargo = (request.form.get("cargo") or request.form.get("funcionario_cargo") or "").strip()
+    telefone = (request.form.get("telefone") or request.form.get("funcionario_telefone") or "").strip()
+    email = (request.form.get("email") or request.form.get("funcionario_email") or "").strip()
+
+    if not nome:
+        return jsonify({"ok": False, "erro": "Informe o nome do responsável."}), 400
+
+    funcionario = {
+        "nome": nome,
+        "cpf": "",
+        "telefone": telefone,
+        "cidade": "",
+        "cargo": cargo,
+        "status": "ativo",
+        "email": email,
+        "observacoes": "Cadastro rápido gerado pelo orçamento.",
+    }
+
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO funcionarios (
+                empresa_id,
+                nome,
+                cpf,
+                telefone,
+                cidade,
+                cargo,
+                status,
+                email,
+                observacoes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                empresa_id,
+                funcionario["nome"],
+                funcionario["cpf"],
+                funcionario["telefone"],
+                funcionario["cidade"],
+                funcionario["cargo"],
+                funcionario["status"],
+                funcionario["email"],
+                funcionario["observacoes"],
+            ),
+        )
+        funcionario_id = int(cursor.lastrowid)
+        conn.commit()
+
+    funcionario_resposta = {
+        "id": funcionario_id,
+        "nome": funcionario["nome"],
+        "cargo": funcionario["cargo"],
+        "telefone": funcionario["telefone"],
+        "email": funcionario["email"],
+    }
+
+    return jsonify(
+        {
+            "ok": True,
+            "funcionario": funcionario_resposta,
+            "item": funcionario_resposta,
+        }
+    )
 
 
 @app.get("/funcionarios/<int:funcionario_id>")
