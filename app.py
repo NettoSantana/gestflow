@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-29 21:15 (America/Bahia)
-# Motivo: Corrigir retorno JSON da rota rápida de cliente para o modal de orçamento selecionar e manter o cadastro salvo.
+# Último recode: 2026-06-29 21:45 (America/Bahia)
+# Motivo: Enviar funcionários cadastrados para o campo responsável na tela de orçamentos.
 
 from __future__ import annotations
 
@@ -5745,6 +5745,7 @@ def editar_ordem_servico(ordem_servico_id: int) -> str | Response:
         ordem_servico=ordem_servico,
         itens=itens,
         clientes=clientes_lista,
+        funcionarios=funcionarios_lista,
         produtos=produtos_lista,
         servicos=servicos_lista,
     )
@@ -6003,6 +6004,7 @@ def excluir_venda(venda_id: int) -> Response:
 def orcamentos() -> str:
     orcamentos_lista = listar_orcamentos()
     clientes_lista = listar_clientes()
+    funcionarios_lista = listar_funcionarios()
     produtos_lista = listar_produtos()
     servicos_lista = listar_servicos()
     proximo_numero = proximo_numero_orcamento()
@@ -6011,6 +6013,7 @@ def orcamentos() -> str:
         "orcamentos.html",
         orcamentos=orcamentos_lista,
         clientes=clientes_lista,
+        funcionarios=funcionarios_lista,
         produtos=produtos_lista,
         servicos=servicos_lista,
         proximo_numero=proximo_numero,
@@ -6109,6 +6112,7 @@ def editar_orcamento(orcamento_id: int) -> str | Response:
 
     itens = listar_orcamento_itens(orcamento_id)
     clientes_lista = listar_clientes()
+    funcionarios_lista = listar_funcionarios()
     produtos_lista = listar_produtos()
     servicos_lista = listar_servicos()
 
@@ -6117,6 +6121,7 @@ def editar_orcamento(orcamento_id: int) -> str | Response:
         orcamento=orcamento,
         itens=itens,
         clientes=clientes_lista,
+        funcionarios=funcionarios_lista,
         produtos=produtos_lista,
         servicos=servicos_lista,
     )
