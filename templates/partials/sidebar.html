@@ -1,7 +1,7 @@
 {#
 Caminho: templates/partials/sidebar.html
-Último recode: 2026-06-30 23:25 (America/Bahia)
-Motivo: Adicionar atalhos do Venda Balcão/PDV no menu de Vendas.
+Último recode: 2026-06-30 23:45 (America/Bahia)
+Motivo: Limpar menu de Vendas deixando caixa dentro do Balcão/PDV.
 #}
 {% set _path = request.path if request is defined else '' %}
 {% set _usuario_sidebar = usuario_logado|default({}, true) %}
@@ -97,8 +97,6 @@ Motivo: Adicionar atalhos do Venda Balcão/PDV no menu de Vendas.
                         <li class="{% if _path == '/vendas' %}submenu-active{% endif %}"><a href="/vendas">Produtos</a></li>
                         <li class="{% if _path == '/vendas' %}submenu-active{% endif %}"><a href="/vendas">Serviços</a></li>
                         <li class="{% if _path.startswith('/vendas/balcao') %}submenu-active{% endif %}"><a href="/vendas/balcao">Balcão / PDV</a></li>
-                        <li class="{% if _path.startswith('/vendas/balcao/abrir-caixa') %}submenu-active{% endif %}"><a href="/vendas/balcao/abrir-caixa">Abrir caixa</a></li>
-                        <li class="{% if _path.startswith('/vendas/balcao/fechar-caixa') %}submenu-active{% endif %}"><a href="/vendas/balcao/fechar-caixa">Fechar caixa</a></li>
                         <li class="{% if _path.startswith('/vendas/devolucoes') %}submenu-active{% endif %}"><a href="/vendas/devolucoes">Devoluções</a></li>
                         <li>Opções auxiliares</li>
                     </ul>

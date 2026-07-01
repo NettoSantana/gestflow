@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-30 23:25 (America/Bahia)
-# Motivo: Criar primeira versão de Venda Balcão/PDV com abertura de caixa, pagamento e finalização integrada.
+# Último recode: 2026-06-30 23:45 (America/Bahia)
+# Motivo: Ajustar PDV com caixa interno, busca alfabética de produtos e tela de venda finalizada.
 
 from __future__ import annotations
 
@@ -7379,14 +7379,21 @@ def gerar_recebimento_pdv_pago_db(venda_id: int, venda: dict[str, str]) -> None:
 
 
 
+
+def listar_produtos_pdv() -> list[dict[str, Any]]:
+    produtos = [
+        produto
+        for produto in listar_produtos()
+        if str(produto.get("status") or "ativo").strip().lower() == "ativo"
+    ]
+
+    produtos.sort(key=lambda item: str(item.get("nome") or "").casefold())
+    return produtos
+
+
 @app.get("/vendas/balcao/abrir-caixa")
-def venda_balcao_abrir_caixa() -> str | Response:
-    caixa_aberto = buscar_caixa_aberto_db()
-
-    if caixa_aberto is not None:
-        return redirect(url_for("venda_balcao"))
-
-    return render_template("caixa_abrir.html")
+def venda_balcao_abrir_caixa() -> Response:
+    return redirect(url_for("venda_balcao"))
 
 
 @app.post("/vendas/balcao/abrir-caixa")
@@ -7401,19 +7408,28 @@ def venda_balcao_salvar_abertura_caixa() -> Response:
 
 
 @app.get("/vendas/balcao")
-def venda_balcao() -> str | Response:
+def venda_balcao() -> str:
     caixa_aberto = buscar_caixa_aberto_db()
+    movimentacoes_caixa: list[dict[str, Any]] = []
+    total_entradas_caixa = 0.0
 
-    if caixa_aberto is None:
-        return redirect(url_for("venda_balcao_abrir_caixa"))
+    if caixa_aberto is not None:
+        movimentacoes_caixa = listar_caixa_movimentacoes(int(caixa_aberto["id"]))
+        total_entradas_caixa = sum(
+            _converter_valor_brl(item.get("valor"))
+            for item in movimentacoes_caixa
+            if str(item.get("tipo") or "") in {"abertura", "venda", "entrada"}
+        )
 
     return render_template(
         "venda_balcao.html",
         caixa=caixa_aberto,
+        caixa_aberto=caixa_aberto,
+        movimentacoes_caixa=movimentacoes_caixa,
+        total_entradas_caixa=_formatar_moeda_brl(total_entradas_caixa),
         clientes=listar_clientes(),
         funcionarios=listar_funcionarios(),
-        produtos=listar_produtos(),
-        servicos=listar_servicos(),
+        produtos=listar_produtos_pdv(),
     )
 
 
@@ -7422,13 +7438,19 @@ def venda_balcao_pagamento() -> str | Response:
     caixa_aberto = buscar_caixa_aberto_db()
 
     if caixa_aberto is None:
-        return redirect(url_for("venda_balcao_abrir_caixa"))
+        return redirect(url_for("venda_balcao"))
 
     carrinho_json = request.form.get("carrinho_json") or "[]"
     itens = normalizar_carrinho_pdv_json(carrinho_json)
 
+    itens = [
+        item
+        for item in itens
+        if str(item.get("tipo_item") or "produto").strip() == "produto"
+    ]
+
     if not itens:
-        return redirect(url_for("venda_balcao", erro="Adicione pelo menos um produto ou serviço para continuar."))
+        return redirect(url_for("venda_balcao", erro="Adicione pelo menos um produto para continuar."))
 
     session["pdv_carrinho"] = itens
     session["pdv_cliente"] = (request.form.get("cliente") or "AO CONSUMIDOR").strip() or "AO CONSUMIDOR"
@@ -7451,7 +7473,7 @@ def venda_balcao_pagamento_get() -> str | Response:
     caixa_aberto = buscar_caixa_aberto_db()
 
     if caixa_aberto is None:
-        return redirect(url_for("venda_balcao_abrir_caixa"))
+        return redirect(url_for("venda_balcao"))
 
     itens = session.get("pdv_carrinho") or []
 
@@ -7475,7 +7497,7 @@ def venda_balcao_finalizar() -> Response:
     caixa_aberto = buscar_caixa_aberto_db()
 
     if caixa_aberto is None:
-        return redirect(url_for("venda_balcao_abrir_caixa"))
+        return redirect(url_for("venda_balcao"))
 
     itens = session.get("pdv_carrinho") or []
 
@@ -7502,10 +7524,10 @@ def venda_balcao_finalizar() -> Response:
         "prazo_entrega": "imediato",
         "canal_venda": "Balcão / PDV",
         "centro_custo": "Balcão",
-        "tipo": "misto",
+        "tipo": "produto",
         "status": "concretizada",
         "total_produtos": resumo["subtotal_produtos_formatado"],
-        "total_servicos": resumo["subtotal_servicos_formatado"],
+        "total_servicos": "0,00",
         "desconto_valor": _formatar_moeda_brl(_converter_valor_brl(desconto_valor)),
         "desconto_percentual": _formatar_moeda_brl(_converter_valor_brl(desconto_percentual)),
         "valor_total": resumo["total_formatado"],
@@ -7530,25 +7552,22 @@ def venda_balcao_finalizar() -> Response:
     session.pop("pdv_cliente", None)
     session.pop("pdv_responsavel", None)
 
-    return redirect(url_for("imprimir_venda_cupom", venda_id=venda_id))
+    return redirect(url_for("venda_balcao_finalizada", venda_id=venda_id))
+
+
+@app.get("/vendas/balcao/finalizada/<int:venda_id>")
+def venda_balcao_finalizada(venda_id: int) -> str | Response:
+    venda = buscar_venda_por_id(venda_id)
+
+    if venda is None:
+        return redirect(url_for("venda_balcao"))
+
+    return render_template("venda_balcao_finalizada.html", venda=venda)
 
 
 @app.get("/vendas/balcao/fechar-caixa")
-def venda_balcao_fechar_caixa() -> str | Response:
-    caixa_aberto = buscar_caixa_aberto_db()
-
-    if caixa_aberto is None:
-        return redirect(url_for("venda_balcao_abrir_caixa"))
-
-    movimentacoes = listar_caixa_movimentacoes(int(caixa_aberto["id"]))
-    total_entradas = sum(_converter_valor_brl(item.get("valor")) for item in movimentacoes if str(item.get("tipo") or "") in {"abertura", "venda", "entrada"})
-
-    return render_template(
-        "caixa_fechar.html",
-        caixa=caixa_aberto,
-        movimentacoes=movimentacoes,
-        total_entradas=_formatar_moeda_brl(total_entradas),
-    )
+def venda_balcao_fechar_caixa() -> Response:
+    return redirect(url_for("venda_balcao"))
 
 
 @app.post("/vendas/balcao/fechar-caixa")
@@ -7557,7 +7576,7 @@ def venda_balcao_salvar_fechamento_caixa() -> Response:
     observacoes = (request.form.get("observacoes") or "").strip()
     fechar_caixa_db(valor_fechamento, observacoes)
 
-    return redirect(url_for("vendas"))
+    return redirect(url_for("venda_balcao"))
 
 @app.get("/vendas")
 def vendas() -> str:
