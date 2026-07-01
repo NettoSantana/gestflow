@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-01 13:40 (America/Bahia)
-# Motivo: Criar listas vinculadas de equipe, materiais e serviços no acompanhamento diário da OS.
+# Último recode: 2026-07-01 14:05 (America/Bahia)
+# Motivo: Exibir acompanhamento diário da OS também na impressão A4.
 
 from __future__ import annotations
 
@@ -8597,6 +8597,7 @@ def imprimir_ordem_servico_a4(ordem_servico_id: int) -> str | Response:
     itens = listar_ordem_servico_itens(ordem_servico_id)
     itens_produtos = [item for item in itens if item["tipo_item"] == "produto"]
     itens_servicos = [item for item in itens if item["tipo_item"] == "servico"]
+    acompanhamentos = anexar_itens_aos_acompanhamentos(listar_acompanhamentos_ordem_servico(ordem_servico_id))
     contexto_impressao = montar_contexto_impressao(ordem_servico.get("cliente"))
 
     return render_template(
@@ -8605,6 +8606,7 @@ def imprimir_ordem_servico_a4(ordem_servico_id: int) -> str | Response:
         itens=itens,
         itens_produtos=itens_produtos,
         itens_servicos=itens_servicos,
+        acompanhamentos=acompanhamentos,
         empresa=contexto_impressao["empresa"],
         loja=contexto_impressao["loja"],
         cliente=contexto_impressao["cliente"],

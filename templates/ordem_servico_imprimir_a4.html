@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordem_servico_imprimir_a4.html
-Último recode: 2026-06-16 22:25 (America/Bahia)
-Motivo: Criar impressão A4 da ordem de serviço.
+Último recode: 2026-07-01 14:05 (America/Bahia)
+Motivo: Exibir acompanhamento diário da OS na impressão A4.
 -->
 
 <!DOCTYPE html>
@@ -42,6 +42,11 @@ Motivo: Criar impressão A4 da ordem de serviço.
         .signature { border-top: 1px solid #0f172a; text-align: center; padding-top: 8px; margin-top: 38px; color: #475569; }
         .print-actions { position: fixed; right: 20px; bottom: 20px; display: flex; gap: 8px; }
         .print-actions button, .print-actions a { border: none; border-radius: 8px; padding: 10px 14px; background: #0f172a; color: #fff; cursor: pointer; font-weight: 700; text-decoration: none; }
+        .acompanhamento-dia { page-break-inside: avoid; }
+        .acompanhamento-resumo { margin-bottom: 8px; }
+        .mini-list { margin: 0; padding-left: 16px; line-height: 1.35; }
+        .mini-list li { margin-bottom: 3px; }
+        .muted { color: #64748b; }
         @media print { body { background: #ffffff; } .page { margin: 0; box-shadow: none; width: auto; min-height: auto; } .print-actions { display: none; } }
     </style>
 </head>
@@ -106,6 +111,82 @@ Motivo: Criar impressão A4 da ordem de serviço.
             <div class="field span-2"><span class="label">Observações</span><div class="value">{{ os.observacoes or '-' }}</div></div>
             <div class="field span-2"><span class="label">Laudo / termos</span><div class="value">{{ os.laudo or '-' }}{% if os.termos %}\n{{ os.termos }}{% endif %}</div></div>
         </div></section>
+        {% if acompanhamentos %}
+        <section class="section">
+            <h3>Acompanhamento diário</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Responsável</th>
+                        <th>Status</th>
+                        <th>Atividades</th>
+                        <th>Equipe / Materiais / Serviços</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for acompanhamento in acompanhamentos %}
+                    <tr class="acompanhamento-dia">
+                        <td>{{ acompanhamento.data_acompanhamento or '-' }}</td>
+                        <td>{{ acompanhamento.responsavel or '-' }}</td>
+                        <td>{{ acompanhamento.status_dia or '-' }}</td>
+                        <td>
+                            <div class="acompanhamento-resumo">
+                                <strong>Previstas:</strong><br>
+                                <span class="value">{{ acompanhamento.atividades_previstas or '-' }}</span>
+                            </div>
+                            <div>
+                                <strong>Executadas:</strong><br>
+                                <span class="value">{{ acompanhamento.atividades_executadas or '-' }}</span>
+                            </div>
+                            {% if acompanhamento.observacoes %}
+                                <div style="margin-top:6px;">
+                                    <strong>Observações:</strong><br>
+                                    <span class="value">{{ acompanhamento.observacoes }}</span>
+                                </div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <strong>Equipe:</strong>
+                            {% if acompanhamento.equipe_lista %}
+                                <ul class="mini-list">
+                                    {% for item in acompanhamento.equipe_lista %}
+                                        <li>{{ item.nome or '-' }}{% if item.cargo %} - {{ item.cargo }}{% endif %}{% if item.horas %} | {{ item.horas }}h{% endif %}{% if item.observacoes %}<br><span class="muted">{{ item.observacoes }}</span>{% endif %}</li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <div class="muted">-</div>
+                            {% endif %}
+
+                            <strong>Materiais:</strong>
+                            {% if acompanhamento.materiais_lista %}
+                                <ul class="mini-list">
+                                    {% for item in acompanhamento.materiais_lista %}
+                                        <li>{{ item.nome or '-' }}{% if item.quantidade %} | {{ item.quantidade }}{% endif %}{% if item.unidade %} {{ item.unidade }}{% endif %}{% if item.observacoes %}<br><span class="muted">{{ item.observacoes }}</span>{% endif %}</li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <div class="muted">-</div>
+                            {% endif %}
+
+                            <strong>Serviços:</strong>
+                            {% if acompanhamento.servicos_lista %}
+                                <ul class="mini-list">
+                                    {% for item in acompanhamento.servicos_lista %}
+                                        <li>{{ item.nome or '-' }}{% if item.quantidade %} | {{ item.quantidade }}{% endif %}{% if item.observacoes %}<br><span class="muted">{{ item.observacoes }}</span>{% endif %}</li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <div class="muted">-</div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+        {% endif %}
+
         <div class="footer"><div class="signature">Assinatura do cliente</div><div class="signature">Responsável técnico</div></div>
     </div>
     <div class="print-actions"><a href="/ordens-servico/{{ os.id }}">Voltar</a><button onclick="window.print()">Imprimir</button></div>
