@@ -1,0 +1,435 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_gerador.html
+Último recode: 2026-07-01 08:10 (America/Bahia)
+Motivo: Criar tela do Gerador de Orçamentos técnico baseado em custos, margens e preço sugerido.
+-->
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Gerador de Orçamentos</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+
+    <main class="content gerador-page">
+        {% set page_title = 'Gerador de Orçamentos' %}
+        {% include "partials/topbar.html" %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Orçamentos</span>
+                    <h3 class="page-title">Gerador de Orçamentos</h3>
+                    <p class="page-subtitle">Monte o custo real do serviço, aplique margens, impostos e gere um orçamento normal no GestFlow.</p>
+                </div>
+
+                <div class="budget-header-actions">
+                    <a href="/orcamentos" class="btn-light">Voltar para orçamentos</a>
+                </div>
+            </div>
+        </section>
+
+        {% if request.args.get('erro') %}
+            <div class="gerador-form-error">{{ request.args.get('erro') }}</div>
+        {% endif %}
+
+        <form id="gerador-form" action="/orcamentos/gerador" method="post">
+            <div class="gerador-layout">
+                <div class="gerador-stack">
+                    <section class="panel page-section">
+                        <div class="panel-header page-header">
+                            <div>
+                                <h3>Dados do orçamento</h3>
+                                <p class="page-subtitle">Informações básicas usadas para criar o orçamento final.</p>
+                            </div>
+                            <span class="badge-info">Nº {{ proximo_numero|default('0001') }}</span>
+                        </div>
+
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="gerador_cliente">Cliente *</label>
+                                <select id="gerador_cliente" name="gerador_cliente" class="form-control" required>
+                                    <option value="">Selecione</option>
+                                    {% for cliente in clientes|default([]) %}
+                                        <option value="{{ cliente.nome }}">{{ cliente.nome }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="gerador_responsavel">Responsável *</label>
+                                <select id="gerador_responsavel" name="gerador_responsavel" class="form-control" required>
+                                    <option value="">Selecione</option>
+                                    {% for funcionario in funcionarios|default([]) %}
+                                        <option value="{{ funcionario.nome }}">{{ funcionario.nome }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="gerador_data">Data</label>
+                                <input id="gerador_data" name="gerador_data" type="date" value="{{ data_hoje }}" class="form-control">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="gerador_tipo_servico">Tipo de serviço</label>
+                                <select id="gerador_tipo_servico" name="gerador_tipo_servico" class="form-control">
+                                    <option value="Elétrica">Elétrica</option>
+                                    <option value="Mecânica">Mecânica</option>
+                                    <option value="Caldeiraria / Solda">Caldeiraria / Solda</option>
+                                    <option value="Civil">Civil</option>
+                                    <option value="Usinagem">Usinagem</option>
+                                    <option value="Automação">Automação</option>
+                                    <option value="SPDA">SPDA</option>
+                                    <option value="Subestação">Subestação</option>
+                                    <option value="Outros">Outros</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="gerador_prazo">Prazo</label>
+                                <input id="gerador_prazo" name="gerador_prazo" type="text" class="form-control" placeholder="Ex: 5 dias úteis">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="gerador_validade">Validade</label>
+                                <input id="gerador_validade" name="gerador_validade" type="text" value="15 dias" class="form-control">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="gerador_forma_pagamento">Forma de pagamento</label>
+                                <input id="gerador_forma_pagamento" name="gerador_forma_pagamento" type="text" class="form-control" placeholder="Ex: 50% entrada + 50% entrega">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="gerador_escopo">Escopo do serviço</label>
+                            <textarea id="gerador_escopo" name="gerador_escopo" class="form-control" style="height: 110px; padding-top: 12px;" placeholder="Descreva o que será executado. Essa informação pode aparecer no orçamento do cliente."></textarea>
+                        </div>
+                    </section>
+
+                    <section class="panel page-section">
+                        <div class="panel-header page-header">
+                            <div>
+                                <h3>Materiais</h3>
+                                <p class="page-subtitle">Lance os materiais com quantidade, valor unitário e perda técnica.</p>
+                            </div>
+                            <button type="button" class="btn-primary-green" onclick="adicionarMaterial()">+ Material</button>
+                        </div>
+
+                        <div class="table-shell">
+                            <table class="client-table gerador-table">
+                                <thead>
+                                    <tr>
+                                        <th>Descrição</th>
+                                        <th>Unid.</th>
+                                        <th>Qtd.</th>
+                                        <th>Valor unit.</th>
+                                        <th>Perda %</th>
+                                        <th>Total custo</th>
+                                        <th>Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="materiais-body"></tbody>
+                            </table>
+                        </div>
+                    </section>
+
+                    <section class="panel page-section">
+                        <div class="panel-header page-header">
+                            <div>
+                                <h3>Mão de obra</h3>
+                                <p class="page-subtitle">Informe equipe, tempo e custo base por hora, diária, semana ou mês.</p>
+                            </div>
+                            <button type="button" class="btn-primary-green" onclick="adicionarMaoObra()">+ Mão de obra</button>
+                        </div>
+
+                        <div class="table-shell">
+                            <table class="client-table gerador-table">
+                                <thead>
+                                    <tr>
+                                        <th>Função</th>
+                                        <th>Pessoas</th>
+                                        <th>Tempo</th>
+                                        <th>Unidade</th>
+                                        <th>Custo unit.</th>
+                                        <th>Total custo</th>
+                                        <th>Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="mao-obra-body"></tbody>
+                            </table>
+                        </div>
+                    </section>
+
+                    <section class="panel page-section">
+                        <div class="panel-header page-header">
+                            <div>
+                                <h3>Custos adicionais</h3>
+                                <p class="page-subtitle">Coloque transporte, alimentação, hospedagem, ART, ferramentas, consumíveis e outros custos.</p>
+                            </div>
+                            <button type="button" class="btn-primary-green" onclick="adicionarCusto()">+ Custo</button>
+                        </div>
+
+                        <div class="table-shell">
+                            <table class="client-table gerador-table">
+                                <thead>
+                                    <tr>
+                                        <th>Descrição</th>
+                                        <th>Valor</th>
+                                        <th>Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="custos-body"></tbody>
+                            </table>
+                        </div>
+                    </section>
+
+                    <section class="panel page-section">
+                        <div class="panel-header page-header">
+                            <div>
+                                <h3>Parâmetros comerciais</h3>
+                                <p class="page-subtitle">Defina as margens e percentuais usados no cálculo sugerido.</p>
+                            </div>
+                        </div>
+
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="margem_material">Margem material %</label>
+                                <input id="margem_material" name="margem_material" type="text" value="30" class="form-control gerador-parametro">
+                            </div>
+                            <div class="form-group">
+                                <label for="margem_mao_obra">Margem mão de obra %</label>
+                                <input id="margem_mao_obra" name="margem_mao_obra" type="text" value="40" class="form-control gerador-parametro">
+                            </div>
+                            <div class="form-group">
+                                <label for="margem_custos">Margem custos %</label>
+                                <input id="margem_custos" name="margem_custos" type="text" value="20" class="form-control gerador-parametro">
+                            </div>
+                            <div class="form-group">
+                                <label for="imposto_percentual">Imposto %</label>
+                                <input id="imposto_percentual" name="imposto_percentual" type="text" value="8" class="form-control gerador-parametro">
+                            </div>
+                            <div class="form-group">
+                                <label for="administrativo_percentual">Administrativo %</label>
+                                <input id="administrativo_percentual" name="administrativo_percentual" type="text" value="10" class="form-control gerador-parametro">
+                            </div>
+                            <div class="form-group">
+                                <label for="reserva_percentual">Reserva técnica %</label>
+                                <input id="reserva_percentual" name="reserva_percentual" type="text" value="5" class="form-control gerador-parametro">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="gerador_observacoes_cliente">Observações para o cliente</label>
+                            <input id="gerador_observacoes_cliente" name="gerador_observacoes_cliente" type="text" class="form-control" placeholder="Ex: Valores sujeitos à aprovação técnica em campo.">
+                        </div>
+                    </section>
+                </div>
+
+                <aside class="gerador-resumo">
+                    <div class="gerador-resumo-card">
+                        <h3>Resumo de custo</h3>
+                        <div class="gerador-indicador"><span>Material</span><strong id="res-custo-material">R$ 0,00</strong></div>
+                        <div class="gerador-indicador"><span>Mão de obra</span><strong id="res-custo-mao">R$ 0,00</strong></div>
+                        <div class="gerador-indicador"><span>Custos adicionais</span><strong id="res-custo-adicional">R$ 0,00</strong></div>
+                        <div class="gerador-indicador"><span>Custo total</span><strong id="res-custo-total">R$ 0,00</strong></div>
+                    </div>
+
+                    <div class="gerador-resumo-card">
+                        <h3>Preço sugerido</h3>
+                        <div class="gerador-precos">
+                            <label class="gerador-preco-opcao">
+                                <input type="radio" name="valor_escolhido_tipo" value="minimo">
+                                <span><strong>Mínimo</strong><span>Cobre custos e deixa margem baixa.</span><b id="preco-minimo">R$ 0,00</b></span>
+                            </label>
+                            <label class="gerador-preco-opcao">
+                                <input type="radio" name="valor_escolhido_tipo" value="recomendado" checked>
+                                <span><strong>Recomendado</strong><span>Preço saudável para proposta normal.</span><b id="preco-recomendado">R$ 0,00</b></span>
+                            </label>
+                            <label class="gerador-preco-opcao">
+                                <input type="radio" name="valor_escolhido_tipo" value="ideal">
+                                <span><strong>Ideal</strong><span>Melhor para urgência, risco ou cliente grande.</span><b id="preco-ideal">R$ 0,00</b></span>
+                            </label>
+                            <label class="gerador-preco-opcao">
+                                <input type="radio" name="valor_escolhido_tipo" value="customizado">
+                                <span><strong>Customizado</strong><span>Defina o valor manualmente.</span><input id="valor_customizado" name="valor_customizado" type="text" class="form-control" placeholder="0,00"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="gerador-resumo-card">
+                        <h3>Resultado</h3>
+                        <div class="gerador-indicador"><span>Venda escolhida</span><strong id="res-venda">R$ 0,00</strong></div>
+                        <div class="gerador-indicador"><span>Lucro estimado</span><strong id="res-lucro">R$ 0,00</strong></div>
+                        <div class="gerador-indicador"><span>Margem estimada</span><strong id="res-margem">0,00%</strong></div>
+
+                        <div class="gerador-final-actions">
+                            <button type="submit" class="btn-primary-green">Gerar orçamento</button>
+                            <button type="button" class="btn-light" onclick="window.location.href='/orcamentos'">Cancelar</button>
+                        </div>
+                    </div>
+                </aside>
+            </div>
+        </form>
+    </main>
+
+<script>
+function numero(valor) {
+    let texto = String(valor || '').trim().replace('R$', '').replace(/\s/g, '');
+    if (!texto) return 0;
+    if (texto.includes(',')) texto = texto.replace(/\./g, '').replace(',', '.');
+    const n = Number.parseFloat(texto);
+    return Number.isFinite(n) ? n : 0;
+}
+
+function moeda(valor) {
+    const n = Number.isFinite(valor) ? valor : 0;
+    return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function moedaSemSimbolo(valor) {
+    const n = Number.isFinite(valor) ? valor : 0;
+    return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function removerLinha(botao) {
+    const linha = botao.closest('tr');
+    if (linha) linha.remove();
+    recalcularGerador();
+}
+
+function adicionarMaterial(dados = {}) {
+    const body = document.getElementById('materiais-body');
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+        <td><input name="material_descricao" type="text" class="form-control gerador-descricao gerador-input" placeholder="Ex: Cabo 16 mm²" value="${dados.descricao || ''}"></td>
+        <td><input name="material_unidade" type="text" class="form-control gerador-input" value="${dados.unidade || 'un'}"></td>
+        <td><input name="material_quantidade" type="text" class="form-control gerador-input" value="${dados.quantidade || '1'}"></td>
+        <td><input name="material_valor_unitario" type="text" class="form-control gerador-input" placeholder="0,00" value="${dados.valor || ''}"></td>
+        <td><input name="material_perda_percentual" type="text" class="form-control gerador-input" value="${dados.perda || '0'}"></td>
+        <td><strong class="linha-total">R$ 0,00</strong></td>
+        <td><button type="button" class="gerador-remove" onclick="removerLinha(this)">×</button></td>
+    `;
+    body.appendChild(tr);
+    conectarEventosGerador(tr);
+    recalcularGerador();
+}
+
+function adicionarMaoObra(dados = {}) {
+    const body = document.getElementById('mao-obra-body');
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+        <td><input name="mao_funcao" type="text" class="form-control gerador-descricao gerador-input" placeholder="Ex: Eletricista" value="${dados.funcao || ''}"></td>
+        <td><input name="mao_pessoas" type="text" class="form-control gerador-input" value="${dados.pessoas || '1'}"></td>
+        <td><input name="mao_tempo" type="text" class="form-control gerador-input" value="${dados.tempo || '1'}"></td>
+        <td><select name="mao_unidade" class="form-control gerador-input"><option value="hora">hora</option><option value="dia" selected>dia</option><option value="semana">semana</option><option value="mes">mês</option></select></td>
+        <td><input name="mao_custo_unitario" type="text" class="form-control gerador-input" placeholder="0,00" value="${dados.custo || ''}"></td>
+        <td><strong class="linha-total">R$ 0,00</strong></td>
+        <td><button type="button" class="gerador-remove" onclick="removerLinha(this)">×</button></td>
+    `;
+    body.appendChild(tr);
+    conectarEventosGerador(tr);
+    recalcularGerador();
+}
+
+function adicionarCusto(dados = {}) {
+    const body = document.getElementById('custos-body');
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+        <td><input name="custo_descricao" type="text" class="form-control gerador-descricao gerador-input" placeholder="Ex: Transporte" value="${dados.descricao || ''}"></td>
+        <td><input name="custo_valor" type="text" class="form-control gerador-input" placeholder="0,00" value="${dados.valor || ''}"></td>
+        <td><button type="button" class="gerador-remove" onclick="removerLinha(this)">×</button></td>
+    `;
+    body.appendChild(tr);
+    conectarEventosGerador(tr);
+    recalcularGerador();
+}
+
+function conectarEventosGerador(raiz) {
+    raiz.querySelectorAll('.gerador-input, .gerador-parametro, input[name="valor_escolhido_tipo"], #valor_customizado').forEach(function(input) {
+        input.addEventListener('input', recalcularGerador);
+        input.addEventListener('change', recalcularGerador);
+    });
+}
+
+function recalcularGerador() {
+    let custoMaterial = 0;
+    let custoMao = 0;
+    let custoAdicional = 0;
+
+    document.querySelectorAll('#materiais-body tr').forEach(function(tr) {
+        const qtd = numero(tr.querySelector('[name="material_quantidade"]')?.value);
+        const unit = numero(tr.querySelector('[name="material_valor_unitario"]')?.value);
+        const perda = numero(tr.querySelector('[name="material_perda_percentual"]')?.value);
+        const total = qtd * unit * (1 + (perda / 100));
+        custoMaterial += total;
+        tr.querySelector('.linha-total').textContent = moeda(total);
+    });
+
+    document.querySelectorAll('#mao-obra-body tr').forEach(function(tr) {
+        const pessoas = numero(tr.querySelector('[name="mao_pessoas"]')?.value) || 1;
+        const tempo = numero(tr.querySelector('[name="mao_tempo"]')?.value) || 1;
+        const custo = numero(tr.querySelector('[name="mao_custo_unitario"]')?.value);
+        const total = pessoas * tempo * custo;
+        custoMao += total;
+        tr.querySelector('.linha-total').textContent = moeda(total);
+    });
+
+    document.querySelectorAll('#custos-body tr').forEach(function(tr) {
+        custoAdicional += numero(tr.querySelector('[name="custo_valor"]')?.value);
+    });
+
+    const margemMaterial = numero(document.getElementById('margem_material').value || 30);
+    const margemMao = numero(document.getElementById('margem_mao_obra').value || 40);
+    const margemCustos = numero(document.getElementById('margem_custos').value || 20);
+    const imposto = numero(document.getElementById('imposto_percentual').value || 8);
+    const administrativo = numero(document.getElementById('administrativo_percentual').value || 10);
+    const reserva = numero(document.getElementById('reserva_percentual').value || 5);
+
+    const vendaMaterial = custoMaterial * (1 + margemMaterial / 100);
+    const vendaMao = custoMao * (1 + margemMao / 100);
+    const vendaCustos = custoAdicional * (1 + margemCustos / 100);
+    const base = vendaMaterial + vendaMao + vendaCustos;
+    const antesImposto = base + (base * administrativo / 100) + (base * reserva / 100);
+    const divisor = Math.max(1 - (imposto / 100), 0.01);
+    const recomendado = antesImposto / divisor;
+    const custoTotal = custoMaterial + custoMao + custoAdicional;
+    const minimo = Math.max((custoTotal * 1.10) / divisor, custoTotal);
+    const ideal = recomendado * 1.15;
+
+    const selecionado = document.querySelector('input[name="valor_escolhido_tipo"]:checked')?.value || 'recomendado';
+    let venda = recomendado;
+    if (selecionado === 'minimo') venda = minimo;
+    if (selecionado === 'ideal') venda = ideal;
+    if (selecionado === 'customizado') venda = numero(document.getElementById('valor_customizado').value);
+
+    const lucro = venda - custoTotal;
+    const margem = venda > 0 ? (lucro / venda) * 100 : 0;
+
+    document.getElementById('res-custo-material').textContent = moeda(custoMaterial);
+    document.getElementById('res-custo-mao').textContent = moeda(custoMao);
+    document.getElementById('res-custo-adicional').textContent = moeda(custoAdicional);
+    document.getElementById('res-custo-total').textContent = moeda(custoTotal);
+    document.getElementById('preco-minimo').textContent = moeda(minimo);
+    document.getElementById('preco-recomendado').textContent = moeda(recomendado);
+    document.getElementById('preco-ideal').textContent = moeda(ideal);
+    document.getElementById('res-venda').textContent = moeda(venda);
+    document.getElementById('res-lucro').textContent = moeda(lucro);
+    document.getElementById('res-margem').textContent = moedaSemSimbolo(margem) + '%';
+}
+
+window.addEventListener('DOMContentLoaded', function() {
+    adicionarMaterial();
+    adicionarMaoObra({funcao: 'Técnico', pessoas: '1', tempo: '1'});
+    adicionarCusto({descricao: 'Transporte'});
+    conectarEventosGerador(document);
+    recalcularGerador();
+});
+</script>
+</body>
+</html>

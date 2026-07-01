@@ -1,7 +1,7 @@
 {#
 Caminho: templates/partials/sidebar.html
-Último recode: 2026-06-30 23:45 (America/Bahia)
-Motivo: Limpar menu de Vendas deixando caixa dentro do Balcão/PDV.
+Último recode: 2026-07-01 08:10 (America/Bahia)
+Motivo: Adicionar acesso ao Gerador de Orçamentos no menu de Orçamentos.
 #}
 {% set _path = request.path if request is defined else '' %}
 {% set _usuario_sidebar = usuario_logado|default({}, true) %}
@@ -79,8 +79,8 @@ Motivo: Limpar menu de Vendas deixando caixa dentro do Balcão/PDV.
                     </summary>
                     <ul class="submenu">
                         <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Orçamentos</strong></li>
-                        <li class="{% if _path.startswith('/orcamentos') %}submenu-active{% endif %}"><a href="/orcamentos">Produtos</a></li>
-                        <li class="{% if _path.startswith('/orcamentos') %}submenu-active{% endif %}"><a href="/orcamentos">Serviços</a></li>
+                        <li class="{% if _path == '/orcamentos' %}submenu-active{% endif %}"><a href="/orcamentos">Orçamentos</a></li>
+                        <li class="{% if _path.startswith('/orcamentos/gerador') %}submenu-active{% endif %}"><a href="/orcamentos/gerador">Gerador de Orçamentos</a></li>
                         <li>Opções auxiliares</li>
                     </ul>
                 </details>

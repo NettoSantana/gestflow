@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-01 00:30 (America/Bahia)
-# Motivo: Criar onboarding inicial e tour guiado de primeiro acesso.
+# Último recode: 2026-07-01 08:10 (America/Bahia)
+# Motivo: Criar Gerador de Orçamentos técnico com cálculo de custos, margens e geração de orçamento normal.
 
 from __future__ import annotations
 
@@ -2679,6 +2679,294 @@ def copiar_orcamento_db(orcamento_id: int) -> int | None:
 
     return salvar_orcamento_db(novo_orcamento, novos_itens)
 
+
+
+def _limpar_lista_formulario(nome: str) -> list[str]:
+    return [str(valor or "").strip() for valor in request.form.getlist(nome)]
+
+
+def _valor_percentual_formulario(nome: str, padrao: float = 0.0) -> float:
+    texto = str(request.form.get(nome) or "").strip()
+    if not texto:
+        return padrao
+    return _converter_valor_brl(texto)
+
+
+def _gerador_item_valor(descricoes: list[str], indice: int) -> str:
+    if indice < len(descricoes):
+        return str(descricoes[indice] or "").strip()
+    return ""
+
+
+def montar_gerador_orcamento_formulario() -> dict[str, Any]:
+    materiais_descricao = _limpar_lista_formulario("material_descricao")
+    materiais_unidade = _limpar_lista_formulario("material_unidade")
+    materiais_quantidade = _limpar_lista_formulario("material_quantidade")
+    materiais_valor = _limpar_lista_formulario("material_valor_unitario")
+    materiais_perda = _limpar_lista_formulario("material_perda_percentual")
+
+    mao_funcao = _limpar_lista_formulario("mao_funcao")
+    mao_pessoas = _limpar_lista_formulario("mao_pessoas")
+    mao_tempo = _limpar_lista_formulario("mao_tempo")
+    mao_unidade = _limpar_lista_formulario("mao_unidade")
+    mao_custo = _limpar_lista_formulario("mao_custo_unitario")
+
+    custos_descricao = _limpar_lista_formulario("custo_descricao")
+    custos_valor = _limpar_lista_formulario("custo_valor")
+
+    materiais: list[dict[str, Any]] = []
+    for indice in range(max(len(materiais_descricao), len(materiais_quantidade), len(materiais_valor), 0)):
+        descricao = _gerador_item_valor(materiais_descricao, indice)
+        if not descricao:
+            continue
+
+        quantidade = _converter_valor_brl(_gerador_item_valor(materiais_quantidade, indice))
+        valor_unitario = _converter_valor_brl(_gerador_item_valor(materiais_valor, indice))
+        perda_percentual = _converter_valor_brl(_gerador_item_valor(materiais_perda, indice))
+        custo = quantidade * valor_unitario
+        custo_com_perda = custo * (1 + (perda_percentual / 100))
+
+        materiais.append(
+            {
+                "descricao": descricao,
+                "unidade": _gerador_item_valor(materiais_unidade, indice) or "un",
+                "quantidade": quantidade,
+                "valor_unitario": valor_unitario,
+                "perda_percentual": perda_percentual,
+                "custo": custo_com_perda,
+            }
+        )
+
+    mao_obra: list[dict[str, Any]] = []
+    for indice in range(max(len(mao_funcao), len(mao_pessoas), len(mao_tempo), len(mao_custo), 0)):
+        funcao = _gerador_item_valor(mao_funcao, indice)
+        if not funcao:
+            continue
+
+        pessoas = _converter_valor_brl(_gerador_item_valor(mao_pessoas, indice)) or 1
+        tempo = _converter_valor_brl(_gerador_item_valor(mao_tempo, indice)) or 1
+        custo_unitario = _converter_valor_brl(_gerador_item_valor(mao_custo, indice))
+        custo = pessoas * tempo * custo_unitario
+
+        mao_obra.append(
+            {
+                "funcao": funcao,
+                "pessoas": pessoas,
+                "tempo": tempo,
+                "unidade": _gerador_item_valor(mao_unidade, indice) or "dia",
+                "custo_unitario": custo_unitario,
+                "custo": custo,
+            }
+        )
+
+    custos_adicionais: list[dict[str, Any]] = []
+    for indice in range(max(len(custos_descricao), len(custos_valor), 0)):
+        descricao = _gerador_item_valor(custos_descricao, indice)
+        if not descricao:
+            continue
+
+        valor = _converter_valor_brl(_gerador_item_valor(custos_valor, indice))
+        custos_adicionais.append({"descricao": descricao, "valor": valor})
+
+    margem_material = _valor_percentual_formulario("margem_material", 30.0)
+    margem_mao_obra = _valor_percentual_formulario("margem_mao_obra", 40.0)
+    margem_custos = _valor_percentual_formulario("margem_custos", 20.0)
+    imposto_percentual = _valor_percentual_formulario("imposto_percentual", 8.0)
+    administrativo_percentual = _valor_percentual_formulario("administrativo_percentual", 10.0)
+    reserva_percentual = _valor_percentual_formulario("reserva_percentual", 5.0)
+
+    custo_material = sum(item["custo"] for item in materiais)
+    custo_mao_obra = sum(item["custo"] for item in mao_obra)
+    custo_adicional = sum(item["valor"] for item in custos_adicionais)
+    custo_total = custo_material + custo_mao_obra + custo_adicional
+
+    venda_material = custo_material * (1 + (margem_material / 100))
+    venda_mao_obra = custo_mao_obra * (1 + (margem_mao_obra / 100))
+    venda_custos = custo_adicional * (1 + (margem_custos / 100))
+    base_comercial = venda_material + venda_mao_obra + venda_custos
+    administrativo_valor = base_comercial * (administrativo_percentual / 100)
+    reserva_valor = base_comercial * (reserva_percentual / 100)
+    base_antes_imposto = base_comercial + administrativo_valor + reserva_valor
+
+    divisor_imposto = 1 - (imposto_percentual / 100)
+    if divisor_imposto <= 0:
+        divisor_imposto = 1
+
+    valor_recomendado = base_antes_imposto / divisor_imposto
+    valor_minimo = max(custo_total * 1.10 / divisor_imposto, custo_total)
+    valor_ideal = valor_recomendado * 1.15
+
+    tipo_valor = str(request.form.get("valor_escolhido_tipo") or "recomendado").strip()
+    valor_customizado = _converter_valor_brl(request.form.get("valor_customizado"))
+
+    if tipo_valor == "minimo":
+        valor_escolhido = valor_minimo
+    elif tipo_valor == "ideal":
+        valor_escolhido = valor_ideal
+    elif tipo_valor == "customizado" and valor_customizado > 0:
+        valor_escolhido = valor_customizado
+    else:
+        tipo_valor = "recomendado"
+        valor_escolhido = valor_recomendado
+
+    lucro_estimado = valor_escolhido - custo_total
+    margem_estimado = (lucro_estimado / valor_escolhido * 100) if valor_escolhido > 0 else 0
+
+    return {
+        "cliente": str(request.form.get("gerador_cliente") or "").strip(),
+        "responsavel": str(request.form.get("gerador_responsavel") or "").strip(),
+        "tipo_servico": str(request.form.get("gerador_tipo_servico") or "Serviço técnico").strip(),
+        "data": str(request.form.get("gerador_data") or date.today().isoformat()).strip(),
+        "prazo": str(request.form.get("gerador_prazo") or "").strip(),
+        "validade": str(request.form.get("gerador_validade") or "15 dias").strip(),
+        "forma_pagamento": str(request.form.get("gerador_forma_pagamento") or "").strip(),
+        "escopo": str(request.form.get("gerador_escopo") or "").strip(),
+        "observacoes_cliente": str(request.form.get("gerador_observacoes_cliente") or "").strip(),
+        "materiais": materiais,
+        "mao_obra": mao_obra,
+        "custos_adicionais": custos_adicionais,
+        "margem_material": margem_material,
+        "margem_mao_obra": margem_mao_obra,
+        "margem_custos": margem_custos,
+        "imposto_percentual": imposto_percentual,
+        "administrativo_percentual": administrativo_percentual,
+        "reserva_percentual": reserva_percentual,
+        "custo_material": custo_material,
+        "custo_mao_obra": custo_mao_obra,
+        "custo_adicional": custo_adicional,
+        "custo_total": custo_total,
+        "venda_material": venda_material,
+        "venda_mao_obra": venda_mao_obra,
+        "venda_custos": venda_custos,
+        "administrativo_valor": administrativo_valor,
+        "reserva_valor": reserva_valor,
+        "valor_minimo": valor_minimo,
+        "valor_recomendado": valor_recomendado,
+        "valor_ideal": valor_ideal,
+        "tipo_valor": tipo_valor,
+        "valor_escolhido": valor_escolhido,
+        "lucro_estimado": lucro_estimado,
+        "margem_estimado": margem_estimado,
+    }
+
+
+def gerar_orcamento_por_gerador_db(dados: dict[str, Any]) -> int:
+    valor_total = float(dados.get("valor_escolhido") or 0)
+    venda_material = float(dados.get("venda_material") or 0)
+    venda_mao_obra = float(dados.get("venda_mao_obra") or 0)
+    venda_custos = float(dados.get("venda_custos") or 0)
+    valor_demais = max(valor_total - venda_material - venda_mao_obra - venda_custos, 0)
+
+    itens: list[dict[str, str]] = []
+
+    if venda_material > 0:
+        itens.append(
+            {
+                "tipo_item": "servico",
+                "descricao": "Materiais aplicados no serviço",
+                "detalhes": "Valor consolidado a partir do Gerador de Orçamentos.",
+                "quantidade": "1",
+                "valor_unitario": _formatar_moeda_brl(venda_material),
+                "desconto": "0,00",
+                "subtotal": _formatar_moeda_brl(venda_material),
+            }
+        )
+
+    if venda_mao_obra > 0:
+        itens.append(
+            {
+                "tipo_item": "servico",
+                "descricao": "Mão de obra técnica",
+                "detalhes": "Equipe e tempo estimados conforme escopo do serviço.",
+                "quantidade": "1",
+                "valor_unitario": _formatar_moeda_brl(venda_mao_obra),
+                "desconto": "0,00",
+                "subtotal": _formatar_moeda_brl(venda_mao_obra),
+            }
+        )
+
+    if venda_custos > 0:
+        itens.append(
+            {
+                "tipo_item": "servico",
+                "descricao": "Custos operacionais",
+                "detalhes": "Transporte, alimentação, consumíveis, ferramentas ou custos complementares.",
+                "quantidade": "1",
+                "valor_unitario": _formatar_moeda_brl(venda_custos),
+                "desconto": "0,00",
+                "subtotal": _formatar_moeda_brl(venda_custos),
+            }
+        )
+
+    if valor_demais > 0:
+        itens.append(
+            {
+                "tipo_item": "servico",
+                "descricao": "Impostos, administrativo e reserva técnica",
+                "detalhes": "Composição comercial do orçamento técnico.",
+                "quantidade": "1",
+                "valor_unitario": _formatar_moeda_brl(valor_demais),
+                "desconto": "0,00",
+                "subtotal": _formatar_moeda_brl(valor_demais),
+            }
+        )
+
+    if not itens:
+        itens.append(
+            {
+                "tipo_item": "servico",
+                "descricao": "Serviço técnico conforme escopo",
+                "detalhes": str(dados.get("escopo") or "Orçamento gerado pelo Gerador de Orçamentos."),
+                "quantidade": "1",
+                "valor_unitario": _formatar_moeda_brl(valor_total),
+                "desconto": "0,00",
+                "subtotal": _formatar_moeda_brl(valor_total),
+            }
+        )
+
+    detalhes_internos = [
+        "Orçamento gerado pelo Gerador de Orçamentos.",
+        f"Tipo de serviço: {dados.get('tipo_servico') or '-'}",
+        f"Valor escolhido: {dados.get('tipo_valor') or 'recomendado'}",
+        f"Custo material: R$ {_formatar_moeda_brl(float(dados.get('custo_material') or 0))}",
+        f"Custo mão de obra: R$ {_formatar_moeda_brl(float(dados.get('custo_mao_obra') or 0))}",
+        f"Custos adicionais: R$ {_formatar_moeda_brl(float(dados.get('custo_adicional') or 0))}",
+        f"Custo total: R$ {_formatar_moeda_brl(float(dados.get('custo_total') or 0))}",
+        f"Lucro estimado: R$ {_formatar_moeda_brl(float(dados.get('lucro_estimado') or 0))}",
+        f"Margem estimada: {_formatar_moeda_brl(float(dados.get('margem_estimado') or 0))}%",
+    ]
+
+    escopo = str(dados.get("escopo") or "").strip()
+    observacoes_cliente = str(dados.get("observacoes_cliente") or "").strip()
+    observacoes = observacoes_cliente
+    if escopo:
+        observacoes = f"Escopo: {escopo}"
+        if observacoes_cliente:
+            observacoes += f"\n\n{observacoes_cliente}"
+
+    orcamento = {
+        "numero": proximo_numero_orcamento(),
+        "cliente": str(dados.get("cliente") or ""),
+        "responsavel": str(dados.get("responsavel") or ""),
+        "data": str(dados.get("data") or date.today().isoformat()),
+        "prazo_entrega": str(dados.get("prazo") or ""),
+        "validade": str(dados.get("validade") or "15 dias"),
+        "canal_venda": "Gerador de Orçamentos",
+        "centro_custo": str(dados.get("tipo_servico") or "Serviço técnico"),
+        "introducao": "Proposta técnica e comercial gerada pelo GestFlow.",
+        "tipo": "servico",
+        "status": "aberto",
+        "total_produtos": "0,00",
+        "total_servicos": _formatar_moeda_brl(valor_total),
+        "desconto_valor": "0,00",
+        "desconto_percentual": "0,00",
+        "valor_total": _formatar_moeda_brl(valor_total),
+        "forma_pagamento": str(dados.get("forma_pagamento") or ""),
+        "observacoes": observacoes,
+        "observacoes_internas": "\n".join(detalhes_internos),
+    }
+
+    return salvar_orcamento_db(orcamento, itens)
 
 def proximo_numero_venda() -> str:
     empresa_id = empresa_logada_id()
@@ -7980,6 +8268,32 @@ def excluir_venda(venda_id: int) -> Response:
 
     return redirect(url_for("vendas"))
 
+
+
+@app.route("/orcamentos/gerador", methods=["GET", "POST"])
+def gerador_orcamentos() -> str | Response:
+    if request.method == "POST":
+        dados = montar_gerador_orcamento_formulario()
+
+        if not dados["cliente"]:
+            return redirect(url_for("gerador_orcamentos", erro="Selecione um cliente para gerar o orçamento."))
+
+        if not dados["responsavel"]:
+            return redirect(url_for("gerador_orcamentos", erro="Selecione um responsável para gerar o orçamento."))
+
+        if float(dados.get("valor_escolhido") or 0) <= 0:
+            return redirect(url_for("gerador_orcamentos", erro="Informe materiais, mão de obra ou custos para formar um valor de orçamento."))
+
+        novo_orcamento_id = gerar_orcamento_por_gerador_db(dados)
+        return redirect(url_for("ver_orcamento", orcamento_id=novo_orcamento_id))
+
+    return render_template(
+        "orcamento_gerador.html",
+        clientes=listar_clientes(),
+        funcionarios=listar_funcionarios(),
+        proximo_numero=proximo_numero_orcamento(),
+        data_hoje=date.today().isoformat(),
+    )
 
 @app.get("/orcamentos")
 def orcamentos() -> str:
