@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\clientes.html
-Último recode: 2026-06-29 23:50 (America/Bahia)
-Motivo: Travar campos mínimos do cadastro de clientes.
+Último recode: 2026-07-01 19:25 (America/Bahia)
+Motivo: Criar menu Mais ações com importar, modelo e exportar clientes.
 -->
 
 <!DOCTYPE html>
@@ -33,14 +33,71 @@ Motivo: Travar campos mínimos do cadastro de clientes.
             border-color: #fecdd3;
         }
 
-        .alert-error {
+        .alert-error,
+        .alert-success {
             padding: 12px 14px;
-            border: 1px solid #fecaca;
             border-radius: 12px;
-            background: #fef2f2;
-            color: #b91c1c;
             font-size: 13px;
             font-weight: 800;
+        }
+
+        .alert-error {
+            border: 1px solid #fecaca;
+            background: #fef2f2;
+            color: #b91c1c;
+        }
+
+        .alert-success {
+            border: 1px solid #bbf7d0;
+            background: #f0fdf4;
+            color: #166534;
+        }
+
+        .more-actions-wrap {
+            position: relative;
+            display: inline-flex;
+        }
+
+        .more-actions-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            z-index: 20;
+            min-width: 230px;
+            padding: 8px;
+            border: 1px solid #dbe4f0;
+            border-radius: 12px;
+            background: #ffffff;
+            box-shadow: 0 18px 36px rgba(15, 23, 42, 0.16);
+            display: none;
+        }
+
+        .more-actions-menu.open {
+            display: block;
+        }
+
+        .more-actions-menu a,
+        .more-actions-menu button {
+            width: 100%;
+            min-height: 36px;
+            border: 0;
+            border-radius: 9px;
+            background: transparent;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            font-size: 13px;
+            font-weight: 800;
+            text-align: left;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .more-actions-menu a:hover,
+        .more-actions-menu button:hover {
+            background: #f1f5f9;
         }
 
     </style>
@@ -55,6 +112,12 @@ Motivo: Travar campos mínimos do cadastro de clientes.
         {% if request.args.get("erro") %}
             <section class="panel page-section">
                 <div class="alert-error">{{ request.args.get("erro") }}</div>
+            </section>
+        {% endif %}
+
+        {% if request.args.get("sucesso") %}
+            <section class="panel page-section">
+                <div class="alert-success">{{ request.args.get("sucesso") }}</div>
             </section>
         {% endif %}
 
@@ -174,9 +237,19 @@ Motivo: Travar campos mínimos do cadastro de clientes.
                 </div>
 
                 <div class="client-toolbar">
-                    <button type="button" class="btn-light">Exportar</button>
-                    <button type="button" class="btn-light">Filtros</button>
+                    <div class="more-actions-wrap">
+                        <button type="button" class="btn-light" onclick="alternarMenuClientes()">⚙ Mais ações</button>
+                        <div id="clientes-more-actions" class="more-actions-menu">
+                            <button type="button" onclick="abrirImportacaoClientes()">⬆ Importar de uma planilha</button>
+                            <a href="/clientes/modelo">⬇ Baixar modelo</a>
+                            <a href="/clientes/exportar">⬇ Exportar clientes</a>
+                        </div>
+                    </div>
                 </div>
+
+                <form id="form-importar-clientes" action="/clientes/importar" method="post" enctype="multipart/form-data" style="display:none;">
+                    <input id="arquivo-clientes" name="arquivo_clientes" type="file" accept=".xlsx,.csv" onchange="enviarImportacaoClientes()">
+                </form>
             </div>
 
             <div class="client-actions">
@@ -239,8 +312,51 @@ Motivo: Travar campos mínimos do cadastro de clientes.
 
         </section>
 
-    </main>   
+    </main>
 
-</body>  
-</html>  
+    <script>
+        function alternarMenuClientes() {
+            const menu = document.getElementById("clientes-more-actions");
+
+            if (!menu) {
+                return;
+            }
+
+            menu.classList.toggle("open");
+        }
+
+        function abrirImportacaoClientes() {
+            const input = document.getElementById("arquivo-clientes");
+            const menu = document.getElementById("clientes-more-actions");
+
+            if (menu) {
+                menu.classList.remove("open");
+            }
+
+            if (input) {
+                input.click();
+            }
+        }
+
+        function enviarImportacaoClientes() {
+            const form = document.getElementById("form-importar-clientes");
+            const input = document.getElementById("arquivo-clientes");
+
+            if (form && input && input.files.length > 0) {
+                form.submit();
+            }
+        }
+
+        document.addEventListener("click", function(event) {
+            const menu = document.getElementById("clientes-more-actions");
+            const wrapper = document.querySelector(".more-actions-wrap");
+
+            if (menu && wrapper && !wrapper.contains(event.target)) {
+                menu.classList.remove("open");
+            }
+        });
+    </script>
+
+</body>
+</html>
    

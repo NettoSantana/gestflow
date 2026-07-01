@@ -1,23 +1,28 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-01 18:55 (America/Bahia)
-# Motivo: Criar Assistente IA flutuante interno do GestFlow.
+# Último recode: 2026-07-01 19:25 (America/Bahia)
+# Motivo: Criar importação, exportação e modelo de planilha para clientes.
 
 from __future__ import annotations
 
+import csv
 import html
+import io
 import json
 import os
 import re
 import secrets
 import sqlite3
+import unicodedata
 import urllib.error
 import urllib.request
+import zipfile
+import xml.etree.ElementTree as ET
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from flask import Flask, Response, jsonify, redirect, render_template, request, send_from_directory, session, url_for
+from flask import Flask, Response, jsonify, redirect, render_template, request, send_file, send_from_directory, session, url_for
 
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
@@ -8431,6 +8436,311 @@ def validar_cliente_para_salvar(cliente: dict[str, str]) -> str:
     return ""
 
 
+COLUNAS_CLIENTES_EXPORTACAO = [
+    "Código",
+    "Nome / Razão Social",
+    "CPF/CNPJ",
+    "Telefone",
+    "Cidade",
+    "Status",
+    "E-mail",
+]
+
+COLUNAS_CLIENTES_MODELO = [
+    "Nome / Razão Social",
+    "CPF/CNPJ",
+    "Telefone",
+    "Cidade",
+    "Status",
+    "E-mail",
+]
+
+
+def _coluna_excel(indice: int) -> str:
+    letras = ""
+
+    while indice > 0:
+        indice, resto = divmod(indice - 1, 26)
+        letras = chr(65 + resto) + letras
+
+    return letras
+
+
+def _xml_texto(valor: Any) -> str:
+    return html.escape(str(valor or ""), quote=False)
+
+
+def gerar_xlsx_simples(nome_aba: str, linhas: list[list[Any]]) -> bytes:
+    linhas_xml: list[str] = []
+
+    for linha_indice, linha in enumerate(linhas, start=1):
+        celulas_xml: list[str] = []
+
+        for coluna_indice, valor in enumerate(linha, start=1):
+            referencia = f"{_coluna_excel(coluna_indice)}{linha_indice}"
+            texto = _xml_texto(valor)
+            celulas_xml.append(
+                f'<c r="{referencia}" t="inlineStr"><is><t>{texto}</t></is></c>'
+            )
+
+        linhas_xml.append(f'<row r="{linha_indice}">{"".join(celulas_xml)}</row>')
+
+    sheet_xml = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+    <sheetViews><sheetView workbookViewId="0"/></sheetViews>
+    <sheetFormatPr defaultRowHeight="18"/>
+    <sheetData>{''.join(linhas_xml)}</sheetData>
+</worksheet>"""
+
+    workbook_xml = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+    <sheets><sheet name="{html.escape(nome_aba[:31])}" sheetId="1" r:id="rId1"/></sheets>
+</workbook>"""
+
+    rels_xml = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+    <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>"""
+
+    workbook_rels_xml = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+    <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+</Relationships>"""
+
+    content_types_xml = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+    <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+    <Default Extension="xml" ContentType="application/xml"/>
+    <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+    <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+</Types>"""
+
+    buffer = io.BytesIO()
+
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as arquivo_zip:
+        arquivo_zip.writestr("[Content_Types].xml", content_types_xml)
+        arquivo_zip.writestr("_rels/.rels", rels_xml)
+        arquivo_zip.writestr("xl/workbook.xml", workbook_xml)
+        arquivo_zip.writestr("xl/_rels/workbook.xml.rels", workbook_rels_xml)
+        arquivo_zip.writestr("xl/worksheets/sheet1.xml", sheet_xml)
+
+    return buffer.getvalue()
+
+
+def _xlsx_shared_strings(arquivo_zip: zipfile.ZipFile) -> list[str]:
+    try:
+        conteudo = arquivo_zip.read("xl/sharedStrings.xml")
+    except KeyError:
+        return []
+
+    raiz = ET.fromstring(conteudo)
+    namespace = {"a": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+    valores: list[str] = []
+
+    for item in raiz.findall("a:si", namespace):
+        textos = [texto.text or "" for texto in item.findall(".//a:t", namespace)]
+        valores.append("".join(textos))
+
+    return valores
+
+
+def _xlsx_primeira_planilha_path(arquivo_zip: zipfile.ZipFile) -> str:
+    try:
+        workbook = ET.fromstring(arquivo_zip.read("xl/workbook.xml"))
+        rels = ET.fromstring(arquivo_zip.read("xl/_rels/workbook.xml.rels"))
+    except Exception:
+        return "xl/worksheets/sheet1.xml"
+
+    namespace_workbook = {
+        "a": "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
+        "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+    }
+    namespace_rels = {"a": "http://schemas.openxmlformats.org/package/2006/relationships"}
+    primeira_aba = workbook.find("a:sheets/a:sheet", namespace_workbook)
+
+    if primeira_aba is None:
+        return "xl/worksheets/sheet1.xml"
+
+    rel_id = primeira_aba.attrib.get("{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id", "")
+
+    for rel in rels.findall("a:Relationship", namespace_rels):
+        if rel.attrib.get("Id") == rel_id:
+            target = rel.attrib.get("Target", "worksheets/sheet1.xml")
+            if target.startswith("/"):
+                return target.lstrip("/")
+            return f"xl/{target}" if not target.startswith("xl/") else target
+
+    return "xl/worksheets/sheet1.xml"
+
+
+def ler_xlsx_simples(conteudo: bytes) -> list[list[str]]:
+    linhas: list[list[str]] = []
+
+    with zipfile.ZipFile(io.BytesIO(conteudo)) as arquivo_zip:
+        strings = _xlsx_shared_strings(arquivo_zip)
+        planilha_path = _xlsx_primeira_planilha_path(arquivo_zip)
+        raiz = ET.fromstring(arquivo_zip.read(planilha_path))
+
+    namespace = {"a": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+
+    for row in raiz.findall(".//a:sheetData/a:row", namespace):
+        valores_por_coluna: dict[int, str] = {}
+
+        for celula in row.findall("a:c", namespace):
+            referencia = celula.attrib.get("r", "A1")
+            letras = "".join(caractere for caractere in referencia if caractere.isalpha()) or "A"
+            coluna_indice = 0
+
+            for letra in letras:
+                coluna_indice = coluna_indice * 26 + (ord(letra.upper()) - 64)
+
+            tipo = celula.attrib.get("t", "")
+            valor = ""
+
+            if tipo == "inlineStr":
+                textos = [texto.text or "" for texto in celula.findall(".//a:t", namespace)]
+                valor = "".join(textos)
+            else:
+                valor_node = celula.find("a:v", namespace)
+                valor = valor_node.text if valor_node is not None and valor_node.text is not None else ""
+
+                if tipo == "s" and valor.isdigit():
+                    indice_string = int(valor)
+                    valor = strings[indice_string] if indice_string < len(strings) else ""
+
+            valores_por_coluna[coluna_indice] = str(valor).strip()
+
+        if valores_por_coluna:
+            maior_coluna = max(valores_por_coluna)
+            linhas.append([valores_por_coluna.get(indice, "") for indice in range(1, maior_coluna + 1)])
+
+    return linhas
+
+
+def ler_csv_simples(conteudo: bytes) -> list[list[str]]:
+    for encoding in ("utf-8-sig", "latin-1"):
+        try:
+            texto = conteudo.decode(encoding)
+            break
+        except UnicodeDecodeError:
+            continue
+    else:
+        texto = conteudo.decode("utf-8", errors="ignore")
+
+    amostra = texto[:2048]
+    delimitador = ";" if amostra.count(";") >= amostra.count(",") else ","
+    leitor = csv.reader(io.StringIO(texto), delimiter=delimitador)
+    return [[str(campo or "").strip() for campo in linha] for linha in leitor]
+
+
+def normalizar_cabecalho_importacao(valor: Any) -> str:
+    texto = str(valor or "").strip().lower()
+    texto = unicodedata.normalize("NFKD", texto)
+    texto = "".join(caractere for caractere in texto if not unicodedata.combining(caractere))
+    texto = re.sub(r"[^a-z0-9]+", " ", texto)
+    return re.sub(r"\s+", " ", texto).strip()
+
+
+def normalizar_status_importacao(valor: Any) -> str:
+    texto = normalizar_cabecalho_importacao(valor)
+
+    if texto in {"ativo", "sim", "s", "1", "true", "verdadeiro", "x"}:
+        return "ativo"
+
+    if texto in {"inativo", "nao", "n", "0", "false", "falso", "cancelado"}:
+        return "inativo"
+
+    if texto in {"pendente", "em analise", "analise"}:
+        return "pendente"
+
+    return "ativo"
+
+
+def _valor_linha_por_coluna(linha: list[str], mapa: dict[str, int], opcoes: list[str]) -> str:
+    for opcao in opcoes:
+        indice = mapa.get(opcao)
+        if indice is not None and indice < len(linha):
+            valor = str(linha[indice] or "").strip()
+            if valor:
+                return valor
+
+    return ""
+
+
+def montar_cliente_importado(linha: list[str], mapa: dict[str, int]) -> dict[str, str]:
+    nome = _valor_linha_por_coluna(
+        linha,
+        mapa,
+        [
+            "nome razao social",
+            "nome nome fantasia",
+            "nome fantasia",
+            "nome",
+            "cliente",
+            "razao social",
+        ],
+    )
+    documento = _valor_linha_por_coluna(
+        linha,
+        mapa,
+        ["cpf cnpj", "documento", "cnpj", "cpf"],
+    )
+    telefone = _valor_linha_por_coluna(
+        linha,
+        mapa,
+        ["telefone", "celular", "fone", "telefone celular"],
+    )
+    cidade = _valor_linha_por_coluna(linha, mapa, ["cidade", "municipio"])
+    email = _valor_linha_por_coluna(linha, mapa, ["e mail", "email"])
+    status = normalizar_status_importacao(_valor_linha_por_coluna(linha, mapa, ["status", "situacao", "ativo"]))
+
+    return normalizar_cliente_para_salvar(
+        {
+            "nome": nome,
+            "documento": documento,
+            "telefone": telefone,
+            "cidade": cidade,
+            "status": status,
+            "email": email,
+        }
+    )
+
+
+def cliente_importado_ja_existe(cliente: dict[str, str]) -> bool:
+    nome = str(cliente.get("nome") or "").strip().lower()
+    documento = str(cliente.get("documento") or "").strip().lower()
+
+    if not nome:
+        return False
+
+    with conectar_db() as conn:
+        if documento:
+            row = conn.execute(
+                """
+                SELECT id
+                FROM clientes
+                WHERE empresa_id = ?
+                  AND LOWER(nome) = ?
+                  AND LOWER(documento) = ?
+                LIMIT 1
+                """,
+                (empresa_logada_id(), nome, documento),
+            ).fetchone()
+        else:
+            row = conn.execute(
+                """
+                SELECT id
+                FROM clientes
+                WHERE empresa_id = ?
+                  AND LOWER(nome) = ?
+                LIMIT 1
+                """,
+                (empresa_logada_id(), nome),
+            ).fetchone()
+
+    return row is not None
+
+
 def normalizar_fornecedor_para_salvar(fornecedor: dict[str, str]) -> dict[str, str]:
     fornecedor_normalizado = dict(fornecedor)
 
@@ -8507,6 +8817,118 @@ def salvar_cliente() -> Response:
     registrar_atividade_usuario("criacao", "clientes", f"Criou cliente {cliente['nome']}", request.path)
 
     return redirect(url_for("clientes"))
+
+
+@app.get("/clientes/modelo")
+def baixar_modelo_clientes() -> Response:
+    linhas = [
+        COLUNAS_CLIENTES_MODELO,
+        ["Cliente Exemplo LTDA", "00.000.000/0000-00", "(71) 99999-9999", "Salvador", "ativo", "contato@cliente.com"],
+    ]
+    conteudo = gerar_xlsx_simples("Clientes", linhas)
+    registrar_atividade_usuario("exportacao", "clientes", "Baixou modelo de importação de clientes", request.path)
+
+    return send_file(
+        io.BytesIO(conteudo),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name="modelo_clientes_gestflow.xlsx",
+    )
+
+
+@app.get("/clientes/exportar")
+def exportar_clientes() -> Response:
+    clientes_lista = listar_clientes()
+    linhas = [COLUNAS_CLIENTES_EXPORTACAO]
+
+    for cliente in clientes_lista:
+        linhas.append(
+            [
+                cliente.get("id", ""),
+                cliente.get("nome", ""),
+                cliente.get("documento", ""),
+                cliente.get("telefone", ""),
+                cliente.get("cidade", ""),
+                cliente.get("status", ""),
+                cliente.get("email", ""),
+            ]
+        )
+
+    conteudo = gerar_xlsx_simples("Clientes", linhas)
+    registrar_atividade_usuario("exportacao", "clientes", f"Exportou {len(clientes_lista)} clientes", request.path)
+
+    return send_file(
+        io.BytesIO(conteudo),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name=f"clientes_gestflow_{hoje_empresa().strftime('%Y%m%d')}.xlsx",
+    )
+
+
+@app.post("/clientes/importar")
+def importar_clientes() -> Response:
+    arquivo = request.files.get("arquivo_clientes")
+
+    if arquivo is None or not arquivo.filename:
+        return redirect(url_for("clientes", erro="Selecione uma planilha para importar."))
+
+    nome_arquivo = secure_filename(arquivo.filename or "")
+    extensao = nome_arquivo.rsplit(".", 1)[-1].lower() if "." in nome_arquivo else ""
+    conteudo = arquivo.read()
+
+    try:
+        if extensao == "xlsx":
+            linhas = ler_xlsx_simples(conteudo)
+        elif extensao == "csv":
+            linhas = ler_csv_simples(conteudo)
+        else:
+            return redirect(url_for("clientes", erro="Envie uma planilha .xlsx ou .csv."))
+    except Exception:
+        return redirect(url_for("clientes", erro="Não foi possível ler a planilha enviada."))
+
+    linhas = [linha for linha in linhas if any(str(celula or "").strip() for celula in linha)]
+
+    if len(linhas) < 2:
+        return redirect(url_for("clientes", erro="A planilha não possui clientes para importar."))
+
+    cabecalhos = [normalizar_cabecalho_importacao(celula) for celula in linhas[0]]
+    mapa = {cabecalho: indice for indice, cabecalho in enumerate(cabecalhos) if cabecalho}
+
+    importados = 0
+    ignorados = 0
+    duplicados = 0
+
+    for linha in linhas[1:]:
+        cliente = montar_cliente_importado(linha, mapa)
+        erro_validacao = validar_cliente_para_salvar(cliente)
+
+        if erro_validacao:
+            ignorados += 1
+            continue
+
+        if cliente_importado_ja_existe(cliente):
+            duplicados += 1
+            continue
+
+        salvar_cliente_db(cliente)
+        importados += 1
+
+    registrar_atividade_usuario(
+        "importacao",
+        "clientes",
+        f"Importou {importados} clientes. Ignorados: {ignorados}. Duplicados: {duplicados}.",
+        request.path,
+    )
+
+    mensagem = f"{importados} clientes importados com sucesso."
+
+    if duplicados:
+        mensagem += f" {duplicados} duplicados ignorados."
+
+    if ignorados:
+        mensagem += f" {ignorados} linhas ignoradas por falta de dados obrigatórios."
+
+    return redirect(url_for("clientes", sucesso=mensagem))
 
 
 @app.post("/clientes/rapido")
