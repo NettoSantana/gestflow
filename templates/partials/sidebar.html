@@ -1,7 +1,7 @@
 {#
 Caminho: templates/partials/sidebar.html
-Último recode: 2026-07-01 17:15 (America/Bahia)
-Motivo: Adicionar Dashboard Admin ao menu administrativo.
+Último recode: 2026-07-01 18:55 (America/Bahia)
+Motivo: Incluir widget flutuante do Assistente IA no sistema.
 #}
 {% set _path = request.path if request is defined else '' %}
 {% set _usuario_sidebar = usuario_logado|default({}, true) %}
@@ -174,6 +174,8 @@ Motivo: Adicionar Dashboard Admin ao menu administrativo.
     </div>
 </aside>
 <div class="sidebar-backdrop" aria-hidden="true"></div>
+
+{% include "partials/assistente_ia_widget.html" %}
 
 <style>
     .brand-with-logo {

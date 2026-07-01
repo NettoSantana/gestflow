@@ -1,0 +1,141 @@
+{#
+Caminho: templates/partials/assistente_ia_widget.html
+Último recode: 2026-07-01 18:55 (America/Bahia)
+Motivo: Criar widget flutuante do Assistente IA interno do GestFlow.
+#}
+
+<div class="gestflow-ai-widget" data-gestflow-ai-widget>
+    <button type="button" class="gestflow-ai-button" data-gestflow-ai-toggle aria-label="Abrir Assistente IA">
+        <span>💬</span>
+        <strong>Assistente IA</strong>
+    </button>
+
+    <section class="gestflow-ai-panel" data-gestflow-ai-panel aria-hidden="true">
+        <header class="gestflow-ai-header">
+            <div>
+                <strong>GestFlow IA</strong>
+                <span>Como posso ajudar?</span>
+            </div>
+            <button type="button" data-gestflow-ai-close aria-label="Fechar Assistente IA">⌄</button>
+        </header>
+
+        <div class="gestflow-ai-body" data-gestflow-ai-body>
+            <div class="gestflow-ai-message bot">
+                <p>Olá! Sou o Assistente IA do GestFlow. Posso te ajudar com vendas, orçamentos, OS, financeiro, estoque e textos de escopo.</p>
+            </div>
+
+            <div class="gestflow-ai-shortcuts">
+                <button type="button" data-ai-shortcut="Como faço uma venda no GestFlow?">Como fazer venda?</button>
+                <button type="button" data-ai-shortcut="Como criar um orçamento?">Criar orçamento</button>
+                <button type="button" data-ai-shortcut="Me ajude com um escopo de serviço.">Escopo de serviço</button>
+                <button type="button" data-ai-shortcut="Como usar o financeiro?">Financeiro</button>
+            </div>
+        </div>
+
+        <form class="gestflow-ai-form" data-gestflow-ai-form>
+            <input type="text" data-gestflow-ai-input placeholder="Digite sua mensagem" maxlength="1200" autocomplete="off">
+            <button type="submit" aria-label="Enviar mensagem">➤</button>
+        </form>
+    </section>
+</div>
+
+<script>
+(function () {
+    function iniciarAssistenteGestFlow() {
+        const widget = document.querySelector("[data-gestflow-ai-widget]");
+        if (!widget) {
+            return;
+        }
+
+        const painel = widget.querySelector("[data-gestflow-ai-panel]");
+        const corpo = widget.querySelector("[data-gestflow-ai-body]");
+        const form = widget.querySelector("[data-gestflow-ai-form]");
+        const input = widget.querySelector("[data-gestflow-ai-input]");
+        const botaoAbrir = widget.querySelector("[data-gestflow-ai-toggle]");
+        const botaoFechar = widget.querySelector("[data-gestflow-ai-close]");
+
+        function abrir() {
+            painel.classList.add("open");
+            painel.setAttribute("aria-hidden", "false");
+            setTimeout(function () {
+                input.focus();
+            }, 120);
+        }
+
+        function fechar() {
+            painel.classList.remove("open");
+            painel.setAttribute("aria-hidden", "true");
+        }
+
+        function adicionarMensagem(tipo, texto) {
+            const mensagem = document.createElement("div");
+            mensagem.className = "gestflow-ai-message " + tipo;
+            mensagem.innerHTML = "<p></p>";
+            mensagem.querySelector("p").textContent = texto;
+            corpo.appendChild(mensagem);
+            corpo.scrollTop = corpo.scrollHeight;
+            return mensagem;
+        }
+
+        function enviarPergunta(pergunta) {
+            const texto = String(pergunta || "").trim();
+
+            if (!texto) {
+                return;
+            }
+
+            adicionarMensagem("user", texto);
+            input.value = "";
+
+            const carregando = adicionarMensagem("bot loading", "Pensando...");
+
+            fetch("/assistente/perguntar", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ pergunta: texto })
+            })
+                .then(function (response) {
+                    return response.json().catch(function () {
+                        return { ok: false, resposta: "Não consegui ler a resposta do servidor." };
+                    });
+                })
+                .then(function (data) {
+                    carregando.remove();
+                    adicionarMensagem("bot", data.resposta || "Não consegui responder agora.");
+                })
+                .catch(function () {
+                    carregando.remove();
+                    adicionarMensagem("bot", "Não consegui conectar ao Assistente IA agora. Tente novamente.");
+                });
+        }
+
+        botaoAbrir.addEventListener("click", abrir);
+        botaoFechar.addEventListener("click", fechar);
+
+        form.addEventListener("submit", function (event) {
+            event.preventDefault();
+            enviarPergunta(input.value);
+        });
+
+        widget.querySelectorAll("[data-ai-shortcut]").forEach(function (botao) {
+            botao.addEventListener("click", function () {
+                enviarPergunta(botao.getAttribute("data-ai-shortcut"));
+            });
+        });
+
+        document.addEventListener("keydown", function (event) {
+            if (event.key === "Escape") {
+                fechar();
+            }
+        });
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", iniciarAssistenteGestFlow);
+    } else {
+        iniciarAssistenteGestFlow();
+    }
+})();
+</script>

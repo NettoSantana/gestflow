@@ -1,14 +1,17 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-01 18:40 (America/Bahia)
-# Motivo: Criar fuso horario configuravel por empresa e exibir data brasileira no topo.
+# Último recode: 2026-07-01 18:55 (America/Bahia)
+# Motivo: Criar Assistente IA flutuante interno do GestFlow.
 
 from __future__ import annotations
 
 import html
 import json
+import os
 import re
 import secrets
 import sqlite3
+import urllib.error
+import urllib.request
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -977,6 +980,22 @@ def iniciar_banco() -> None:
             """
         )
 
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS assistente_conversas (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER,
+                usuario_id INTEGER,
+                usuario_nome TEXT,
+                pergunta TEXT,
+                resposta TEXT,
+                origem TEXT NOT NULL DEFAULT 'local',
+                criado_em TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS lojas (
@@ -1213,6 +1232,7 @@ def iniciar_banco() -> None:
             "caixa_aberturas",
             "caixa_movimentacoes",
             "usuario_atividades",
+            "assistente_conversas",
         ]
 
         for tabela in tabelas_com_empresa_id:
@@ -6823,6 +6843,153 @@ def montar_dashboard_admin() -> dict[str, Any]:
     }
 
 
+
+def salvar_conversa_assistente(pergunta: str, resposta: str, origem: str) -> None:
+    try:
+        with conectar_db() as conn:
+            conn.execute(
+                """
+                INSERT INTO assistente_conversas (
+                    empresa_id,
+                    usuario_id,
+                    usuario_nome,
+                    pergunta,
+                    resposta,
+                    origem,
+                    criado_em
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    empresa_logada_id(),
+                    usuario_logado_id(),
+                    str(session.get("usuario_nome") or "").strip(),
+                    str(pergunta or "").strip(),
+                    str(resposta or "").strip(),
+                    str(origem or "local").strip() or "local",
+                    agora_empresa().isoformat(timespec="seconds"),
+                ),
+            )
+            conn.commit()
+    except sqlite3.Error:
+        return
+
+
+def resposta_assistente_local(pergunta: str) -> str:
+    texto = str(pergunta or "").strip().lower()
+
+    if not texto:
+        return "Digite sua dúvida que eu te ajudo com o GestFlow."
+
+    if any(palavra in texto for palavra in ["venda", "vender", "pdv", "balcão", "balcao"]):
+        return (
+            "Para fazer uma venda: acesse Vendas, preencha cliente, responsável, data e forma de pagamento, "
+            "adicione produtos ou serviços, confira o total e clique em Salvar Venda. "
+            "Para venda rápida, use Venda Balcão / PDV."
+        )
+
+    if any(palavra in texto for palavra in ["orçamento", "orcamento", "proposta"]):
+        return (
+            "Para criar um orçamento: acesse Orçamentos, informe cliente e responsável, adicione produtos ou serviços, "
+            "confira os totais e salve. Depois você pode visualizar, editar, imprimir ou gerar cópia."
+        )
+
+    if any(palavra in texto for palavra in ["ordem de serviço", "os ", "o.s", "serviço", "servico"]):
+        return (
+            "Para abrir uma Ordem de Serviço: acesse Ordens de Serviço, informe cliente, técnico, equipamento, "
+            "relato do cliente e itens usados. Depois você pode acompanhar, imprimir e adicionar fotos por equipamento."
+        )
+
+    if any(palavra in texto for palavra in ["cliente", "clientes"]):
+        return (
+            "Para cadastrar cliente: acesse Cadastros > Clientes e preencha nome, documento, telefone, cidade, status e e-mail. "
+            "Em algumas telas também existe cadastro rápido sem sair do formulário."
+        )
+
+    if any(palavra in texto for palavra in ["produto", "estoque"]):
+        return (
+            "Para cadastrar produto: acesse Produtos > Gerenciar produtos. Informe nome, código, unidade, estoque atual, "
+            "estoque mínimo e preço. Para controlar entrada e saída, use o módulo Estoque."
+        )
+
+    if any(palavra in texto for palavra in ["financeiro", "pagar", "receber", "caixa", "fluxo"]):
+        return (
+            "No Financeiro você controla contas a receber, contas a pagar e fluxo de caixa. "
+            "Use os títulos para acompanhar vencimentos, pagamentos e saldo previsto."
+        )
+
+    if any(palavra in texto for palavra in ["escopo", "descrição", "descricao", "texto"]):
+        return (
+            "Posso te ajudar a montar um texto. Me diga o serviço executado, quantidade, local, problema encontrado "
+            "e o que será feito. Exemplo: 'crie um escopo para manutenção de portão com troca de fim de curso'."
+        )
+
+    if any(palavra in texto for palavra in ["senha", "login", "acesso"]):
+        return (
+            "Para redefinir senha, um administrador deve acessar Configurações > Usuários e usar o formulário de redefinição. "
+            "Por segurança, a nova senha precisa seguir as regras de senha forte."
+        )
+
+    return (
+        "Sou o Assistente IA do GestFlow. Posso ajudar com vendas, orçamentos, OS, clientes, produtos, estoque, financeiro "
+        "e textos de escopo. Me diga com mais detalhes o que você quer fazer."
+    )
+
+
+def chamar_assistente_ia(pergunta: str) -> tuple[str, str]:
+    pergunta_limpa = str(pergunta or "").strip()
+
+    api_key = str(getattr(config, "OPENAI_API_KEY", "") or os.environ.get("OPENAI_API_KEY", "")).strip()
+
+    if not api_key:
+        return resposta_assistente_local(pergunta_limpa), "local"
+
+    prompt_sistema = (
+        "Você é o Assistente IA interno do GestFlow, um ERP web simples para pequenos negócios. "
+        "Responda em português do Brasil, de forma direta, prática e curta. "
+        "Nesta primeira etapa você só orienta o usuário. Não diga que criou, alterou, apagou ou consultou dados reais. "
+        "Não invente números do sistema. Quando o usuário pedir ação no banco, explique o caminho e diga que ações automáticas virão em etapa futura."
+    )
+
+    payload = {
+        "model": str(getattr(config, "OPENAI_MODEL", "") or os.environ.get("OPENAI_MODEL", "") or "gpt-4.1-mini"),
+        "input": [
+            {"role": "system", "content": prompt_sistema},
+            {"role": "user", "content": pergunta_limpa},
+        ],
+        "max_output_tokens": 450,
+    }
+
+    try:
+        requisicao = urllib.request.Request(
+            "https://api.openai.com/v1/responses",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+            method="POST",
+        )
+
+        with urllib.request.urlopen(requisicao, timeout=18) as resposta_http:
+            dados = json.loads(resposta_http.read().decode("utf-8"))
+
+        texto_resposta = ""
+        for item in dados.get("output", []):
+            for conteudo in item.get("content", []):
+                if conteudo.get("type") in {"output_text", "text"}:
+                    texto_resposta += str(conteudo.get("text") or "")
+
+        texto_resposta = texto_resposta.strip()
+
+        if texto_resposta:
+            return texto_resposta, "openai"
+
+    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, ValueError, KeyError):
+        pass
+
+    return resposta_assistente_local(pergunta_limpa), "local"
+
+
 def listar_empresas_admin() -> list[dict[str, Any]]:
     with conectar_db() as conn:
         rows = conn.execute(
@@ -10691,6 +10858,33 @@ def excluir_orcamento(orcamento_id: int) -> Response:
         excluir_orcamento_db(orcamento_id)
 
     return redirect(url_for("orcamentos"))
+
+
+
+@app.post("/assistente/perguntar")
+def assistente_perguntar() -> Response:
+    if not session.get("usuario_id"):
+        return jsonify({"ok": False, "resposta": "Faça login para usar o Assistente IA."}), 401
+
+    dados = request.get_json(silent=True) or {}
+    pergunta = str(dados.get("pergunta") or "").strip()
+
+    if not pergunta:
+        return jsonify({"ok": False, "resposta": "Digite uma pergunta para o Assistente IA."}), 400
+
+    if len(pergunta) > 1200:
+        return jsonify({"ok": False, "resposta": "Sua pergunta ficou muito grande. Resuma um pouco e tente novamente."}), 400
+
+    resposta, origem = chamar_assistente_ia(pergunta)
+    salvar_conversa_assistente(pergunta, resposta, origem)
+    registrar_atividade_usuario(
+        "assistente",
+        "assistente_ia",
+        "Usou o Assistente IA",
+        "/assistente/perguntar",
+    )
+
+    return jsonify({"ok": True, "resposta": resposta, "origem": origem})
 
 
 @app.get("/health")

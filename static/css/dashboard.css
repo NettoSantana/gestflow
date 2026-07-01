@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\static\css\dashboard.css
-Último recode: 2026-07-01 09:20 (America/Bahia)
-Motivo: Adicionar painel visual de custos/lucro, botão gerar escopo e ajustes do Gerador.
+Último recode: 2026-07-01 18:55 (America/Bahia)
+Motivo: Adicionar visual do Assistente IA flutuante.
 */
 
 :root {
@@ -2361,3 +2361,216 @@ body {
         justify-content: flex-start;
     }
 }
+
+
+/* ASSISTENTE IA FLUTUANTE */
+
+.gestflow-ai-widget {
+    position: fixed;
+    right: 22px;
+    bottom: 20px;
+    z-index: 9998;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+.gestflow-ai-button {
+    min-height: 44px;
+    padding: 0 16px;
+    border: 0;
+    border-radius: 999px;
+    background: #071624;
+    color: #ffffff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 16px 34px rgba(7, 22, 36, 0.28);
+    cursor: pointer;
+    font-weight: 900;
+}
+
+.gestflow-ai-button span {
+    font-size: 16px;
+}
+
+.gestflow-ai-panel {
+    position: absolute;
+    right: 0;
+    bottom: 58px;
+    width: min(390px, calc(100vw - 28px));
+    height: min(560px, calc(100vh - 110px));
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 22px;
+    background: #ffffff;
+    border: 1px solid #dbe4f0;
+    box-shadow: 0 28px 80px rgba(15, 23, 42, 0.28);
+}
+
+.gestflow-ai-panel.open {
+    display: flex;
+}
+
+.gestflow-ai-header {
+    min-height: 70px;
+    padding: 16px 18px;
+    background: #071624;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.gestflow-ai-header strong {
+    display: block;
+    font-size: 16px;
+    font-weight: 900;
+}
+
+.gestflow-ai-header span {
+    display: block;
+    margin-top: 3px;
+    color: #dbeafe;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.gestflow-ai-header button {
+    width: 34px;
+    height: 34px;
+    border: 0;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+    cursor: pointer;
+    font-size: 20px;
+    font-weight: 900;
+}
+
+.gestflow-ai-body {
+    flex: 1;
+    padding: 16px;
+    overflow-y: auto;
+    background: #f8fbff;
+}
+
+.gestflow-ai-message {
+    max-width: 86%;
+    margin-bottom: 12px;
+}
+
+.gestflow-ai-message p {
+    margin: 0;
+    padding: 12px 14px;
+    border-radius: 16px;
+    font-size: 14px;
+    line-height: 1.45;
+    font-weight: 700;
+}
+
+.gestflow-ai-message.bot p {
+    background: #ffffff;
+    color: #263c5f;
+    border: 1px solid #e5eaf2;
+}
+
+.gestflow-ai-message.user {
+    margin-left: auto;
+}
+
+.gestflow-ai-message.user p {
+    background: #0f62fe;
+    color: #ffffff;
+}
+
+.gestflow-ai-message.loading p {
+    color: #64748b;
+    font-style: italic;
+}
+
+.gestflow-ai-shortcuts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 4px 0 10px;
+}
+
+.gestflow-ai-shortcuts button {
+    border: 1px solid #cfe0f5;
+    background: #ffffff;
+    color: #0f172a;
+    border-radius: 999px;
+    padding: 8px 11px;
+    font-size: 12px;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.gestflow-ai-shortcuts button:hover {
+    border-color: #0f62fe;
+    color: #0f62fe;
+}
+
+.gestflow-ai-form {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+    border-top: 1px solid #e5eaf2;
+    background: #ffffff;
+}
+
+.gestflow-ai-form input {
+    flex: 1;
+    height: 44px;
+    border: 2px solid #16a34a;
+    border-radius: 999px;
+    padding: 0 14px;
+    outline: none;
+    color: #0f172a;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.gestflow-ai-form input:focus {
+    box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.12);
+}
+
+.gestflow-ai-form button {
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: 50%;
+    background: #16a34a;
+    color: #ffffff;
+    cursor: pointer;
+    font-weight: 900;
+}
+
+@media (max-width: 640px) {
+    .gestflow-ai-widget {
+        right: 12px;
+        bottom: 12px;
+    }
+
+    .gestflow-ai-panel {
+        right: -2px;
+        width: calc(100vw - 24px);
+        height: min(590px, calc(100vh - 92px));
+    }
+
+    .gestflow-ai-button strong {
+        display: none;
+    }
+
+    .gestflow-ai-button {
+        width: 52px;
+        height: 52px;
+        padding: 0;
+    }
+}
+
+
