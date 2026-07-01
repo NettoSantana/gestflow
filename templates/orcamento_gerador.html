@@ -1,7 +1,7 @@
 <!--
 Caminho: templates/orcamento_gerador.html
 Último recode: 2026-07-01 09:55 (America/Bahia)
-Motivo: Corrigir modais do gerador fora da tela e reforçar botões Adicionar em materiais e mão de obra.
+Motivo: Adicionar geração automática de escopo, parâmetros persistentes e painel visual de custos/lucro.
 -->
 
 <!DOCTYPE html>
@@ -107,7 +107,10 @@ Motivo: Corrigir modais do gerador fora da tela e reforçar botões Adicionar em
                         </div>
 
                         <div class="form-group">
-                            <label for="gerador_escopo">Escopo do serviço</label>
+                            <div class="gerador-label-action">
+                                <label for="gerador_escopo">Escopo do serviço</label>
+                                <button type="button" class="btn-dark btn-compact" onclick="gerarEscopoAutomatico()">Gerar escopo</button>
+                            </div>
                             <textarea id="gerador_escopo" name="gerador_escopo" class="form-control textarea-control" placeholder="Descreva o que será executado. Essa informação pode aparecer no orçamento do cliente."></textarea>
                         </div>
                     </section>
@@ -210,27 +213,27 @@ Motivo: Corrigir modais do gerador fora da tela e reforçar botões Adicionar em
                         <div class="form-grid">
                             <div class="form-group">
                                 <label for="margem_material">Margem material %</label>
-                                <input id="margem_material" name="margem_material" type="text" value="30" class="form-control gerador-parametro">
+                                <input id="margem_material" name="margem_material" type="text" value="{{ gerador_config.margem_material|default('30') }}" class="form-control gerador-parametro">
                             </div>
                             <div class="form-group">
                                 <label for="margem_mao_obra">Margem mão de obra %</label>
-                                <input id="margem_mao_obra" name="margem_mao_obra" type="text" value="40" class="form-control gerador-parametro">
+                                <input id="margem_mao_obra" name="margem_mao_obra" type="text" value="{{ gerador_config.margem_mao_obra|default('40') }}" class="form-control gerador-parametro">
                             </div>
                             <div class="form-group">
                                 <label for="margem_custos">Margem custos %</label>
-                                <input id="margem_custos" name="margem_custos" type="text" value="20" class="form-control gerador-parametro">
+                                <input id="margem_custos" name="margem_custos" type="text" value="{{ gerador_config.margem_custos|default('20') }}" class="form-control gerador-parametro">
                             </div>
                             <div class="form-group">
                                 <label for="imposto_percentual">Imposto %</label>
-                                <input id="imposto_percentual" name="imposto_percentual" type="text" value="8" class="form-control gerador-parametro">
+                                <input id="imposto_percentual" name="imposto_percentual" type="text" value="{{ gerador_config.imposto_percentual|default('8') }}" class="form-control gerador-parametro">
                             </div>
                             <div class="form-group">
                                 <label for="administrativo_percentual">Administrativo %</label>
-                                <input id="administrativo_percentual" name="administrativo_percentual" type="text" value="10" class="form-control gerador-parametro">
+                                <input id="administrativo_percentual" name="administrativo_percentual" type="text" value="{{ gerador_config.administrativo_percentual|default('10') }}" class="form-control gerador-parametro">
                             </div>
                             <div class="form-group">
                                 <label for="reserva_percentual">Reserva técnica %</label>
-                                <input id="reserva_percentual" name="reserva_percentual" type="text" value="5" class="form-control gerador-parametro">
+                                <input id="reserva_percentual" name="reserva_percentual" type="text" value="{{ gerador_config.reserva_percentual|default('5') }}" class="form-control gerador-parametro">
                             </div>
                         </div>
 
@@ -285,6 +288,74 @@ Motivo: Corrigir modais do gerador fora da tela e reforçar botões Adicionar em
                     </div>
                 </aside>
             </div>
+
+            <section class="panel page-section gerador-painel-visual" id="gerador-painel-visual">
+                <div class="panel-header page-header">
+                    <div>
+                        <span class="page-kicker">Análise antes de salvar</span>
+                        <h3 class="page-title">Painel de custos e lucro</h3>
+                        <p class="page-subtitle">Visualize custo, lucro, impostos, ROI e composição do orçamento antes de gerar a proposta para o cliente.</p>
+                    </div>
+                    <span id="painel-status" class="gerador-status-badge neutro">Sem dados</span>
+                </div>
+
+                <div class="gerador-painel-grid">
+                    <div class="gerador-painel-coluna">
+                        <div class="gerador-linha-valor destaque"><span>Valor total</span><strong id="painel-valor-total">R$ 0,00</strong></div>
+                        <div class="gerador-linha-valor custo"><span>Custos</span><strong id="painel-custo-total">R$ 0,00</strong></div>
+                        <div class="gerador-linha-valor lucro"><span>Lucro</span><strong id="painel-lucro-total">R$ 0,00</strong></div>
+                        <div class="gerador-linha-valor"><span>Custo mão de obra</span><strong id="painel-custo-mao">R$ 0,00</strong></div>
+                        <div class="gerador-linha-valor"><span>Lucro mão de obra</span><strong id="painel-lucro-mao">R$ 0,00</strong></div>
+                        <div class="gerador-linha-valor"><span>Custo material</span><strong id="painel-custo-material">R$ 0,00</strong></div>
+                        <div class="gerador-linha-valor"><span>Lucro material</span><strong id="painel-lucro-material">R$ 0,00</strong></div>
+                        <div class="gerador-linha-valor impostos"><span>Impostos</span><strong id="painel-impostos">R$ 0,00</strong></div>
+                        <div class="gerador-linha-valor"><span>Administrativo</span><strong id="painel-administrativo">R$ 0,00</strong></div>
+                        <div class="gerador-linha-valor"><span>Reserva técnica</span><strong id="painel-reserva">R$ 0,00</strong></div>
+                    </div>
+
+                    <div class="gerador-painel-grafico">
+                        <h4>Valor total</h4>
+                        <div class="gerador-donut-wrap">
+                            <div class="gerador-donut" id="grafico-custo-lucro"></div>
+                            <div class="gerador-donut-centro">
+                                <strong id="painel-roi">0%</strong>
+                                <span>ROI</span>
+                            </div>
+                        </div>
+                        <div class="gerador-legenda">
+                            <span><i class="legenda-custo"></i>Custo</span>
+                            <span><i class="legenda-lucro"></i>Lucro</span>
+                        </div>
+                    </div>
+
+                    <div class="gerador-painel-grafico">
+                        <h4>Composição de custos</h4>
+                        <div class="gerador-barra-item">
+                            <div><span>Material</span><strong id="barra-material-label">0%</strong></div>
+                            <b><i id="barra-material"></i></b>
+                        </div>
+                        <div class="gerador-barra-item">
+                            <div><span>Mão de obra</span><strong id="barra-mao-label">0%</strong></div>
+                            <b><i id="barra-mao"></i></b>
+                        </div>
+                        <div class="gerador-barra-item">
+                            <div><span>Custos adicionais</span><strong id="barra-custos-label">0%</strong></div>
+                            <b><i id="barra-custos"></i></b>
+                        </div>
+                        <div class="gerador-barra-item">
+                            <div><span>Imp./Adm./Reserva</span><strong id="barra-comercial-label">0%</strong></div>
+                            <b><i id="barra-comercial"></i></b>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="gerador-mini-resumo">
+                    <div><span>Margem estimada</span><strong id="painel-margem">0,00%</strong></div>
+                    <div><span>Venda material</span><strong id="painel-venda-material">R$ 0,00</strong></div>
+                    <div><span>Venda mão de obra</span><strong id="painel-venda-mao">R$ 0,00</strong></div>
+                    <div><span>Venda custos</span><strong id="painel-venda-custos">R$ 0,00</strong></div>
+                </div>
+            </section>
         </form>
     </main>
 
@@ -460,6 +531,50 @@ function preencherCustoFuncionario(linha) {
     if (custo) linha.querySelector('[name="mao_custo_unitario"]').value = custo;
 }
 
+
+function gerarEscopoAutomatico() {
+    const tipo = document.getElementById('gerador_tipo_servico')?.value || 'Serviço técnico';
+    const prazo = document.getElementById('gerador_prazo')?.value.trim();
+    const materiais = Array.from(document.querySelectorAll('#materiais-body .material-select'))
+        .map(select => select.value)
+        .filter(valor => valor && !valor.startsWith('__novo'))
+        .slice(0, 8);
+    const maoObra = Array.from(document.querySelectorAll('#mao-obra-body .mao-select'))
+        .map(select => select.value)
+        .filter(valor => valor && !valor.startsWith('__novo'))
+        .slice(0, 6);
+    const custos = Array.from(document.querySelectorAll('#custos-body [name="custo_descricao"]'))
+        .map(input => input.value.trim())
+        .filter(Boolean)
+        .slice(0, 6);
+
+    let texto = `Execução de serviço técnico de ${tipo.toLowerCase()}, contemplando planejamento, mobilização da equipe, fornecimento/aplicação dos materiais necessários e execução conforme condições técnicas definidas.`;
+
+    if (materiais.length) {
+        texto += `\\n\\nMateriais previstos: ${materiais.join(', ')}.`;
+    }
+
+    if (maoObra.length) {
+        texto += `\\n\\nMão de obra prevista: ${maoObra.join(', ')}.`;
+    }
+
+    if (custos.length) {
+        texto += `\\n\\nCustos operacionais considerados: ${custos.join(', ')}.`;
+    }
+
+    if (prazo) {
+        texto += `\\n\\nPrazo estimado de execução/entrega: ${prazo}.`;
+    }
+
+    texto += `\\n\\nA execução será realizada conforme disponibilidade operacional, condições de acesso ao local e aprovação comercial do cliente.`;
+
+    const campo = document.getElementById('gerador_escopo');
+    if (campo) {
+        campo.value = texto;
+        campo.focus();
+    }
+}
+
 function conectarEventosGerador(raiz) {
     raiz.querySelectorAll('.gerador-input, .gerador-parametro, input[name="valor_escolhido_tipo"], #valor_customizado').forEach(function(input) {
         input.addEventListener('input', recalcularGerador);
@@ -528,9 +643,12 @@ function recalcularGerador() {
     const vendaMao = custoMao * (1 + margemMao / 100);
     const vendaCustos = custoAdicional * (1 + margemCustos / 100);
     const base = vendaMaterial + vendaMao + vendaCustos;
-    const baseAntesImposto = base + (base * administrativo / 100) + (base * reserva / 100);
+    const administrativoValor = base * administrativo / 100;
+    const reservaValor = base * reserva / 100;
+    const baseAntesImposto = base + administrativoValor + reservaValor;
     const divisor = 1 - (imposto / 100);
     const recomendado = divisor > 0 ? baseAntesImposto / divisor : baseAntesImposto;
+    const impostoValor = Math.max(recomendado - baseAntesImposto, 0);
     const minimo = Math.max(custoTotal * 1.10 / (divisor > 0 ? divisor : 1), custoTotal);
     const ideal = recomendado * 1.15;
 
@@ -554,6 +672,92 @@ function recalcularGerador() {
     document.getElementById('res-venda').textContent = moeda(escolhido);
     document.getElementById('res-lucro').textContent = moeda(lucro);
     document.getElementById('res-margem').textContent = moedaSemSimbolo(margem) + '%';
+
+    atualizarPainelVisual({
+        custoMaterial,
+        custoMao,
+        custoAdicional,
+        custoTotal,
+        vendaMaterial,
+        vendaMao,
+        vendaCustos,
+        administrativoValor,
+        reservaValor,
+        impostoValor,
+        escolhido,
+        lucro,
+        margem
+    });
+}
+
+function atualizarPainelVisual(dados) {
+    const custoTotal = dados.custoTotal || 0;
+    const escolhido = dados.escolhido || 0;
+    const lucro = dados.lucro || 0;
+    const margem = dados.margem || 0;
+    const roi = custoTotal > 0 ? (lucro / custoTotal) * 100 : 0;
+    const lucroMaterial = Math.max((dados.vendaMaterial || 0) - (dados.custoMaterial || 0), 0);
+    const lucroMao = Math.max((dados.vendaMao || 0) - (dados.custoMao || 0), 0);
+    const comercial = (dados.administrativoValor || 0) + (dados.reservaValor || 0) + (dados.impostoValor || 0);
+
+    const setText = function(id, valor) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = valor;
+    };
+
+    setText('painel-valor-total', moeda(escolhido));
+    setText('painel-custo-total', moeda(custoTotal));
+    setText('painel-lucro-total', moeda(lucro));
+    setText('painel-custo-mao', moeda(dados.custoMao || 0));
+    setText('painel-lucro-mao', moeda(lucroMao));
+    setText('painel-custo-material', moeda(dados.custoMaterial || 0));
+    setText('painel-lucro-material', moeda(lucroMaterial));
+    setText('painel-impostos', moeda(dados.impostoValor || 0));
+    setText('painel-administrativo', moeda(dados.administrativoValor || 0));
+    setText('painel-reserva', moeda(dados.reservaValor || 0));
+    setText('painel-roi', moedaSemSimbolo(roi) + '%');
+    setText('painel-margem', moedaSemSimbolo(margem) + '%');
+    setText('painel-venda-material', moeda(dados.vendaMaterial || 0));
+    setText('painel-venda-mao', moeda(dados.vendaMao || 0));
+    setText('painel-venda-custos', moeda(dados.vendaCustos || 0));
+
+    const status = document.getElementById('painel-status');
+    if (status) {
+        status.className = 'gerador-status-badge';
+        if (escolhido <= 0) {
+            status.textContent = 'Sem dados';
+            status.classList.add('neutro');
+        } else if (margem < 15) {
+            status.textContent = 'Margem baixa';
+            status.classList.add('ruim');
+        } else if (margem < 30) {
+            status.textContent = 'Saudável';
+            status.classList.add('ok');
+        } else {
+            status.textContent = 'Excelente';
+            status.classList.add('bom');
+        }
+    }
+
+    const custoPct = escolhido > 0 ? Math.max(Math.min((custoTotal / escolhido) * 100, 100), 0) : 0;
+    const lucroPct = escolhido > 0 ? Math.max(Math.min((lucro / escolhido) * 100, 100), 0) : 0;
+    const donut = document.getElementById('grafico-custo-lucro');
+    if (donut) {
+        donut.style.background = `conic-gradient(#ef4444 0 ${custoPct}%, #16a34a ${custoPct}% ${custoPct + lucroPct}%, #e5e7eb ${custoPct + lucroPct}% 100%)`;
+    }
+
+    const totalComposicao = (dados.custoMaterial || 0) + (dados.custoMao || 0) + (dados.custoAdicional || 0) + comercial;
+    const atualizarBarra = function(barraId, labelId, valor) {
+        const pct = totalComposicao > 0 ? Math.max(Math.min((valor / totalComposicao) * 100, 100), 0) : 0;
+        const barra = document.getElementById(barraId);
+        if (barra) barra.style.width = pct + '%';
+        setText(labelId, moedaSemSimbolo(pct) + '%');
+    };
+
+    atualizarBarra('barra-material', 'barra-material-label', dados.custoMaterial || 0);
+    atualizarBarra('barra-mao', 'barra-mao-label', dados.custoMao || 0);
+    atualizarBarra('barra-custos', 'barra-custos-label', dados.custoAdicional || 0);
+    atualizarBarra('barra-comercial', 'barra-comercial-label', comercial);
 }
 
 function abrirModalMaterial(linha) {

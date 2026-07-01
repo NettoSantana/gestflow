@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\static\css\dashboard.css
 Último recode: 2026-07-01 09:20 (America/Bahia)
-Motivo: Adicionar estilos dos custos de funcionários e melhorias do Gerador de Orçamentos.
+Motivo: Adicionar painel visual de custos/lucro, botão gerar escopo e ajustes do Gerador.
 */
 
 :root {
@@ -2016,5 +2016,329 @@ body {
     .quick-modal-actions .btn-primary-green,
     .gerador-table-actions .btn-primary-green {
         width: 100%;
+    }
+}
+
+
+/* GERADOR - ESCOPO AUTOMATICO E PAINEL VISUAL */
+.gerador-label-action {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.btn-compact {
+    min-width: auto;
+    height: 34px;
+    padding: 0 14px;
+    border-radius: 10px;
+    font-size: 12px;
+}
+
+.gerador-painel-visual {
+    margin-top: 18px;
+    overflow: hidden;
+}
+
+.gerador-status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 34px;
+    padding: 0 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.gerador-status-badge.neutro {
+    background: #e5e7eb;
+    color: #334155;
+}
+
+.gerador-status-badge.ruim {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.gerador-status-badge.ok {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.gerador-status-badge.bom {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.gerador-painel-grid {
+    display: grid;
+    grid-template-columns: 1.05fr 1fr 1.15fr;
+    gap: 16px;
+    align-items: stretch;
+}
+
+.gerador-painel-coluna {
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid #dbe3ef;
+    background: #ffffff;
+}
+
+.gerador-linha-valor {
+    min-height: 44px;
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(110px, 0.9fr);
+    align-items: center;
+    border-bottom: 1px solid #e5eaf2;
+}
+
+.gerador-linha-valor:last-child {
+    border-bottom: 0;
+}
+
+.gerador-linha-valor span,
+.gerador-linha-valor strong {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    padding: 9px 12px;
+    font-size: 13px;
+    font-weight: 900;
+}
+
+.gerador-linha-valor span {
+    color: #0f172a;
+    background: #f8fafc;
+}
+
+.gerador-linha-valor strong {
+    justify-content: flex-end;
+    color: #ffffff;
+    background: #0f172a;
+}
+
+.gerador-linha-valor.destaque span {
+    background: #93b3df;
+    font-size: 18px;
+}
+
+.gerador-linha-valor.destaque strong {
+    background: #7699cf;
+    font-size: 18px;
+}
+
+.gerador-linha-valor.custo span,
+.gerador-linha-valor.custo strong {
+    background: #fbbf24;
+    color: #ffffff;
+}
+
+.gerador-linha-valor.lucro span,
+.gerador-linha-valor.lucro strong {
+    background: #4f8b34;
+    color: #ffffff;
+}
+
+.gerador-linha-valor.impostos span,
+.gerador-linha-valor.impostos strong {
+    background: #ef4444;
+    color: #ffffff;
+}
+
+.gerador-painel-grafico {
+    min-height: 320px;
+    border-radius: 16px;
+    border: 1px solid #dbe3ef;
+    background:
+        radial-gradient(circle at 50% 50%, rgba(255,255,255,.12), transparent 35%),
+        linear-gradient(135deg, #1f2937, #111827);
+    color: #ffffff;
+    padding: 18px;
+}
+
+.gerador-painel-grafico h4 {
+    margin: 0 0 18px;
+    text-align: center;
+    color: #ffffff;
+    font-size: 15px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.gerador-donut-wrap {
+    position: relative;
+    width: 210px;
+    height: 210px;
+    margin: 18px auto;
+}
+
+.gerador-donut {
+    width: 210px;
+    height: 210px;
+    border-radius: 50%;
+    background: conic-gradient(#e5e7eb 0 100%);
+    box-shadow: inset 0 0 28px rgba(0,0,0,.28);
+}
+
+.gerador-donut-centro {
+    position: absolute;
+    inset: 44px;
+    border-radius: 50%;
+    background: #111827;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    box-shadow: 0 0 30px rgba(255,255,255,.08);
+}
+
+.gerador-donut-centro strong {
+    color: #ffffff;
+    font-size: 24px;
+    font-weight: 900;
+}
+
+.gerador-donut-centro span {
+    color: #cbd5e1;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.gerador-legenda {
+    display: flex;
+    justify-content: center;
+    gap: 18px;
+    color: #e5e7eb;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.gerador-legenda span {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.gerador-legenda i {
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    display: inline-block;
+}
+
+.legenda-custo {
+    background: #ef4444;
+}
+
+.legenda-lucro {
+    background: #16a34a;
+}
+
+.gerador-barra-item {
+    margin-bottom: 18px;
+}
+
+.gerador-barra-item div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+    font-size: 13px;
+    font-weight: 900;
+}
+
+.gerador-barra-item b {
+    display: block;
+    height: 16px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: rgba(255,255,255,.16);
+}
+
+.gerador-barra-item i {
+    display: block;
+    width: 0%;
+    height: 100%;
+    border-radius: 999px;
+    background: #93c5fd;
+    transition: width .2s ease;
+}
+
+#barra-mao {
+    background: #22c55e;
+}
+
+#barra-custos {
+    background: #f59e0b;
+}
+
+#barra-comercial {
+    background: #ef4444;
+}
+
+.gerador-mini-resumo {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(160px, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.gerador-mini-resumo div {
+    border: 1px solid #dbe3ef;
+    border-radius: 14px;
+    padding: 13px;
+    background: #f8fafc;
+}
+
+.gerador-mini-resumo span {
+    display: block;
+    margin-bottom: 6px;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.gerador-mini-resumo strong {
+    color: #0f172a;
+    font-size: 17px;
+    font-weight: 900;
+}
+
+@media (max-width: 1180px) {
+    .gerador-painel-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .gerador-mini-resumo {
+        grid-template-columns: repeat(2, minmax(160px, 1fr));
+    }
+}
+
+@media (max-width: 820px) {
+    .gerador-label-action {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .gerador-label-action .btn-compact {
+        width: 100%;
+    }
+
+    .gerador-mini-resumo {
+        grid-template-columns: 1fr;
+    }
+
+    .gerador-linha-valor {
+        grid-template-columns: 1fr;
+    }
+
+    .gerador-linha-valor strong {
+        justify-content: flex-start;
     }
 }

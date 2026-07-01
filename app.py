@@ -926,6 +926,20 @@ def iniciar_banco() -> None:
         if "tour_concluido" not in colunas_empresas:
             conn.execute("ALTER TABLE empresas ADD COLUMN tour_concluido TEXT DEFAULT 'nao'")
 
+        colunas_config_gerador = {
+            "gerador_margem_material": "TEXT DEFAULT '30'",
+            "gerador_margem_mao_obra": "TEXT DEFAULT '40'",
+            "gerador_margem_custos": "TEXT DEFAULT '20'",
+            "gerador_imposto_percentual": "TEXT DEFAULT '8'",
+            "gerador_administrativo_percentual": "TEXT DEFAULT '10'",
+            "gerador_reserva_percentual": "TEXT DEFAULT '5'",
+            "gerador_config_atualizado_em": "TEXT",
+        }
+
+        for coluna, tipo_coluna in colunas_config_gerador.items():
+            if coluna not in colunas_empresas:
+                conn.execute(f"ALTER TABLE empresas ADD COLUMN {coluna} {tipo_coluna}")
+
         colunas_funcionarios_existentes = {
             str(row["name"])
             for row in conn.execute("PRAGMA table_info(funcionarios)").fetchall()
@@ -2830,6 +2844,89 @@ def _gerador_item_valor(descricoes: list[str], indice: int) -> str:
     if indice < len(descricoes):
         return str(descricoes[indice] or "").strip()
     return ""
+
+
+
+def _formatar_percentual_simples(valor: float) -> str:
+    texto = _formatar_moeda_brl(valor)
+    if texto.endswith(",00"):
+        return texto[:-3]
+    if texto.endswith("0"):
+        return texto.rstrip("0").rstrip(",")
+    return texto
+
+
+def buscar_configuracao_gerador_empresa() -> dict[str, str]:
+    empresa_id = empresa_logada_id()
+
+    padrao = {
+        "margem_material": "30",
+        "margem_mao_obra": "40",
+        "margem_custos": "20",
+        "imposto_percentual": "8",
+        "administrativo_percentual": "10",
+        "reserva_percentual": "5",
+    }
+
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                gerador_margem_material,
+                gerador_margem_mao_obra,
+                gerador_margem_custos,
+                gerador_imposto_percentual,
+                gerador_administrativo_percentual,
+                gerador_reserva_percentual
+            FROM empresas
+            WHERE id = ?
+            LIMIT 1
+            """,
+            (empresa_id,),
+        ).fetchone()
+
+    if row is None:
+        return padrao
+
+    return {
+        "margem_material": str(row["gerador_margem_material"] or padrao["margem_material"]),
+        "margem_mao_obra": str(row["gerador_margem_mao_obra"] or padrao["margem_mao_obra"]),
+        "margem_custos": str(row["gerador_margem_custos"] or padrao["margem_custos"]),
+        "imposto_percentual": str(row["gerador_imposto_percentual"] or padrao["imposto_percentual"]),
+        "administrativo_percentual": str(row["gerador_administrativo_percentual"] or padrao["administrativo_percentual"]),
+        "reserva_percentual": str(row["gerador_reserva_percentual"] or padrao["reserva_percentual"]),
+    }
+
+
+def salvar_configuracao_gerador_empresa(dados: dict[str, Any]) -> None:
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            UPDATE empresas
+            SET
+                gerador_margem_material = ?,
+                gerador_margem_mao_obra = ?,
+                gerador_margem_custos = ?,
+                gerador_imposto_percentual = ?,
+                gerador_administrativo_percentual = ?,
+                gerador_reserva_percentual = ?,
+                gerador_config_atualizado_em = ?
+            WHERE id = ?
+            """,
+            (
+                _formatar_percentual_simples(float(dados.get("margem_material") or 0)),
+                _formatar_percentual_simples(float(dados.get("margem_mao_obra") or 0)),
+                _formatar_percentual_simples(float(dados.get("margem_custos") or 0)),
+                _formatar_percentual_simples(float(dados.get("imposto_percentual") or 0)),
+                _formatar_percentual_simples(float(dados.get("administrativo_percentual") or 0)),
+                _formatar_percentual_simples(float(dados.get("reserva_percentual") or 0)),
+                datetime.now().isoformat(timespec="seconds"),
+                empresa_id,
+            ),
+        )
+        conn.commit()
 
 
 def montar_gerador_orcamento_formulario() -> dict[str, Any]:
@@ -8480,6 +8577,7 @@ def excluir_venda(venda_id: int) -> Response:
 def gerador_orcamentos() -> str | Response:
     if request.method == "POST":
         dados = montar_gerador_orcamento_formulario()
+        salvar_configuracao_gerador_empresa(dados)
 
         if not dados["cliente"]:
             return redirect(url_for("gerador_orcamentos", erro="Selecione um cliente para gerar o orçamento."))
@@ -8498,6 +8596,7 @@ def gerador_orcamentos() -> str | Response:
         clientes=listar_clientes(),
         funcionarios=listar_funcionarios(),
         produtos=listar_produtos(),
+        gerador_config=buscar_configuracao_gerador_empresa(),
         proximo_numero=proximo_numero_orcamento(),
         data_hoje=date.today().isoformat(),
     )
