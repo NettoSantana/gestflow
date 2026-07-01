@@ -1,10 +1,11 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-30 23:10 (America/Bahia)
-# Motivo: Criar módulo de indicações com link próprio, comissão recorrente e controle de repasse.
+# Último recode: 2026-06-30 23:25 (America/Bahia)
+# Motivo: Criar primeira versão de Venda Balcão/PDV com abertura de caixa, pagamento e finalização integrada.
 
 from __future__ import annotations
 
 import html
+import json
 import secrets
 import sqlite3
 from datetime import date, datetime, timedelta
@@ -678,6 +679,42 @@ def iniciar_banco() -> None:
 
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS caixa_aberturas (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER,
+                usuario_id INTEGER,
+                responsavel TEXT,
+                valor_abertura TEXT,
+                valor_fechamento TEXT,
+                status TEXT NOT NULL DEFAULT 'aberto',
+                aberto_em TEXT,
+                fechado_em TEXT,
+                observacoes TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS caixa_movimentacoes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER,
+                caixa_id INTEGER,
+                venda_id INTEGER,
+                tipo TEXT NOT NULL DEFAULT 'entrada',
+                descricao TEXT,
+                forma_pagamento TEXT,
+                valor TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (caixa_id) REFERENCES caixa_aberturas (id),
+                FOREIGN KEY (venda_id) REFERENCES vendas (id)
+            )
+            """
+        )
+
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS indicacao_comissoes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 indicador_empresa_id INTEGER NOT NULL,
@@ -899,6 +936,8 @@ def iniciar_banco() -> None:
             "ordem_servico_itens",
             "estoque_movimentacoes",
             "financeiro_titulos",
+            "caixa_aberturas",
+            "caixa_movimentacoes",
         ]
 
         for tabela in tabelas_com_empresa_id:
@@ -7017,6 +7056,508 @@ def excluir_ordem_servico(ordem_servico_id: int) -> Response:
 
     return redirect(url_for("ordens_servico"))
 
+
+
+
+def buscar_caixa_aberto_db() -> dict[str, Any] | None:
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                id,
+                empresa_id,
+                usuario_id,
+                responsavel,
+                valor_abertura,
+                valor_fechamento,
+                status,
+                aberto_em,
+                fechado_em,
+                observacoes,
+                criado_em
+            FROM caixa_aberturas
+            WHERE empresa_id = ?
+              AND status = 'aberto'
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            (empresa_id,),
+        ).fetchone()
+
+    if row is None:
+        return None
+
+    return dict(row)
+
+
+def abrir_caixa_db(valor_abertura: str, responsavel: str, gerar_recebimento: bool = False) -> int:
+    empresa_id = empresa_logada_id()
+    usuario_id = usuario_logado_id()
+    valor_abertura_formatado = _formatar_moeda_brl(_converter_valor_brl(valor_abertura))
+    aberto_em = datetime.now().isoformat(timespec="seconds")
+
+    with conectar_db() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO caixa_aberturas (
+                empresa_id,
+                usuario_id,
+                responsavel,
+                valor_abertura,
+                valor_fechamento,
+                status,
+                aberto_em,
+                fechado_em,
+                observacoes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                empresa_id,
+                usuario_id,
+                responsavel,
+                valor_abertura_formatado,
+                "",
+                "aberto",
+                aberto_em,
+                "",
+                "Abertura de caixa do PDV.",
+            ),
+        )
+        caixa_id = int(cursor.lastrowid)
+
+        conn.execute(
+            """
+            INSERT INTO caixa_movimentacoes (
+                empresa_id,
+                caixa_id,
+                venda_id,
+                tipo,
+                descricao,
+                forma_pagamento,
+                valor
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                empresa_id,
+                caixa_id,
+                None,
+                "abertura",
+                "Abertura de caixa",
+                "Dinheiro",
+                valor_abertura_formatado,
+            ),
+        )
+
+        conn.commit()
+
+    if gerar_recebimento and _converter_valor_brl(valor_abertura_formatado) > 0:
+        salvar_financeiro_titulo_db(
+            {
+                "tipo": "receber",
+                "descricao": "Abertura de caixa PDV",
+                "pessoa": responsavel or "Balcão",
+                "categoria": "Caixa",
+                "origem": "caixa",
+                "origem_id": str(caixa_id),
+                "documento": f"Caixa Nº {caixa_id}",
+                "data_emissao": date.today().isoformat(),
+                "data_vencimento": date.today().isoformat(),
+                "data_pagamento": date.today().isoformat(),
+                "valor": valor_abertura_formatado,
+                "forma_pagamento": "Dinheiro",
+                "status": "pago",
+                "observacoes": "Recebimento opcional gerado pela abertura de caixa.",
+            }
+        )
+
+    return caixa_id
+
+
+def fechar_caixa_db(valor_fechamento: str, observacoes: str = "") -> bool:
+    caixa = buscar_caixa_aberto_db()
+
+    if caixa is None:
+        return False
+
+    empresa_id = empresa_logada_id()
+    valor_formatado = _formatar_moeda_brl(_converter_valor_brl(valor_fechamento))
+
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            UPDATE caixa_aberturas
+            SET
+                valor_fechamento = ?,
+                status = 'fechado',
+                fechado_em = ?,
+                observacoes = ?
+            WHERE id = ?
+              AND empresa_id = ?
+            """,
+            (
+                valor_formatado,
+                datetime.now().isoformat(timespec="seconds"),
+                observacoes,
+                int(caixa["id"]),
+                empresa_id,
+            ),
+        )
+        conn.commit()
+
+    return True
+
+
+def registrar_caixa_movimentacao_db(caixa_id: int, venda_id: int | None, tipo: str, descricao: str, forma_pagamento: str, valor: str) -> None:
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            INSERT INTO caixa_movimentacoes (
+                empresa_id,
+                caixa_id,
+                venda_id,
+                tipo,
+                descricao,
+                forma_pagamento,
+                valor
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                empresa_id,
+                caixa_id,
+                venda_id,
+                tipo,
+                descricao,
+                forma_pagamento,
+                valor,
+            ),
+        )
+        conn.commit()
+
+
+def listar_caixa_movimentacoes(caixa_id: int) -> list[dict[str, Any]]:
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                id,
+                empresa_id,
+                caixa_id,
+                venda_id,
+                tipo,
+                descricao,
+                forma_pagamento,
+                valor,
+                criado_em
+            FROM caixa_movimentacoes
+            WHERE empresa_id = ?
+              AND caixa_id = ?
+            ORDER BY id ASC
+            """,
+            (empresa_id, caixa_id),
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def _normalizar_item_pdv(item: dict[str, Any]) -> dict[str, str] | None:
+    tipo_item = str(item.get("tipo_item") or "produto").strip()
+    if tipo_item not in {"produto", "servico"}:
+        tipo_item = "produto"
+
+    descricao = str(item.get("descricao") or "").strip()
+    if not descricao:
+        return None
+
+    quantidade = _converter_valor_brl(item.get("quantidade"))
+    valor_unitario = _converter_valor_brl(item.get("valor_unitario"))
+    desconto = _converter_valor_brl(item.get("desconto"))
+
+    if quantidade <= 0:
+        quantidade = 1.0
+
+    if valor_unitario <= 0:
+        return None
+
+    subtotal = max((quantidade * valor_unitario) - desconto, 0)
+
+    return {
+        "tipo_item": tipo_item,
+        "descricao": descricao,
+        "detalhes": str(item.get("detalhes") or "Balcão / PDV").strip(),
+        "quantidade": _formatar_numero_estoque(quantidade),
+        "valor_unitario": _formatar_moeda_brl(valor_unitario),
+        "desconto": _formatar_moeda_brl(desconto),
+        "subtotal": _formatar_moeda_brl(subtotal),
+    }
+
+
+def normalizar_carrinho_pdv_json(carrinho_json: str) -> list[dict[str, str]]:
+    try:
+        dados = json.loads(carrinho_json or "[]")
+    except json.JSONDecodeError:
+        return []
+
+    if not isinstance(dados, list):
+        return []
+
+    itens: list[dict[str, str]] = []
+
+    for item in dados:
+        if not isinstance(item, dict):
+            continue
+
+        item_normalizado = _normalizar_item_pdv(item)
+        if item_normalizado is not None:
+            itens.append(item_normalizado)
+
+    return itens
+
+
+def montar_resumo_pdv(itens: list[dict[str, str]], desconto_valor: str = "0,00", desconto_percentual: str = "0,00", valor_pago: str = "0,00") -> dict[str, Any]:
+    subtotal_produtos = sum(_converter_valor_brl(item["subtotal"]) for item in itens if item["tipo_item"] == "produto")
+    subtotal_servicos = sum(_converter_valor_brl(item["subtotal"]) for item in itens if item["tipo_item"] == "servico")
+    subtotal = subtotal_produtos + subtotal_servicos
+    desconto_reais = _converter_valor_brl(desconto_valor)
+    desconto_percentual_numero = _converter_valor_brl(desconto_percentual)
+    desconto_percentual_valor = subtotal * (desconto_percentual_numero / 100)
+    desconto_total = max(desconto_reais + desconto_percentual_valor, 0)
+    total = max(subtotal - desconto_total, 0)
+    valor_pago_numero = _converter_valor_brl(valor_pago)
+    troco = max(valor_pago_numero - total, 0)
+
+    return {
+        "subtotal_produtos": subtotal_produtos,
+        "subtotal_servicos": subtotal_servicos,
+        "subtotal": subtotal,
+        "desconto_total": desconto_total,
+        "total": total,
+        "valor_pago": valor_pago_numero,
+        "troco": troco,
+        "subtotal_produtos_formatado": _formatar_moeda_brl(subtotal_produtos),
+        "subtotal_servicos_formatado": _formatar_moeda_brl(subtotal_servicos),
+        "subtotal_formatado": _formatar_moeda_brl(subtotal),
+        "desconto_total_formatado": _formatar_moeda_brl(desconto_total),
+        "total_formatado": _formatar_moeda_brl(total),
+        "valor_pago_formatado": _formatar_moeda_brl(valor_pago_numero),
+        "troco_formatado": _formatar_moeda_brl(troco),
+    }
+
+
+def gerar_recebimento_pdv_pago_db(venda_id: int, venda: dict[str, str]) -> None:
+    valor_total = _converter_valor_brl(venda.get("valor_total"))
+
+    if valor_total <= 0:
+        return
+
+    numero_venda = str(venda.get("numero") or venda_id).strip() or str(venda_id)
+    data_venda = str(venda.get("data") or date.today().isoformat()).strip()
+
+    salvar_financeiro_titulo_db(
+        {
+            "tipo": "receber",
+            "descricao": f"Recebimento PDV venda Nº {numero_venda}",
+            "pessoa": str(venda.get("cliente") or "Consumidor").strip(),
+            "categoria": "Venda balcão",
+            "origem": "venda_pdv",
+            "origem_id": str(venda_id),
+            "documento": f"Venda PDV Nº {numero_venda}",
+            "data_emissao": data_venda,
+            "data_vencimento": data_venda,
+            "data_pagamento": date.today().isoformat(),
+            "valor": _formatar_moeda_brl(valor_total),
+            "forma_pagamento": str(venda.get("forma_pagamento") or "").strip(),
+            "status": "pago",
+            "observacoes": "Recebimento gerado automaticamente pela venda de balcão.",
+        }
+    )
+
+
+
+@app.get("/vendas/balcao/abrir-caixa")
+def venda_balcao_abrir_caixa() -> str | Response:
+    caixa_aberto = buscar_caixa_aberto_db()
+
+    if caixa_aberto is not None:
+        return redirect(url_for("venda_balcao"))
+
+    return render_template("caixa_abrir.html")
+
+
+@app.post("/vendas/balcao/abrir-caixa")
+def venda_balcao_salvar_abertura_caixa() -> Response:
+    valor_abertura = (request.form.get("valor_abertura") or "0,00").strip()
+    responsavel = (request.form.get("responsavel") or session.get("usuario_nome") or "").strip()
+    gerar_recebimento = bool(request.form.get("gerar_recebimento"))
+
+    abrir_caixa_db(valor_abertura, responsavel, gerar_recebimento)
+
+    return redirect(url_for("venda_balcao"))
+
+
+@app.get("/vendas/balcao")
+def venda_balcao() -> str | Response:
+    caixa_aberto = buscar_caixa_aberto_db()
+
+    if caixa_aberto is None:
+        return redirect(url_for("venda_balcao_abrir_caixa"))
+
+    return render_template(
+        "venda_balcao.html",
+        caixa=caixa_aberto,
+        clientes=listar_clientes(),
+        funcionarios=listar_funcionarios(),
+        produtos=listar_produtos(),
+        servicos=listar_servicos(),
+    )
+
+
+@app.post("/vendas/balcao/pagamento")
+def venda_balcao_pagamento() -> str | Response:
+    caixa_aberto = buscar_caixa_aberto_db()
+
+    if caixa_aberto is None:
+        return redirect(url_for("venda_balcao_abrir_caixa"))
+
+    carrinho_json = request.form.get("carrinho_json") or "[]"
+    itens = normalizar_carrinho_pdv_json(carrinho_json)
+
+    if not itens:
+        return redirect(url_for("venda_balcao", erro="Adicione pelo menos um produto ou serviço para continuar."))
+
+    session["pdv_carrinho"] = itens
+    session["pdv_cliente"] = (request.form.get("cliente") or "AO CONSUMIDOR").strip() or "AO CONSUMIDOR"
+    session["pdv_responsavel"] = (request.form.get("responsavel") or session.get("usuario_nome") or "").strip()
+
+    resumo = montar_resumo_pdv(itens)
+
+    return render_template(
+        "venda_balcao_pagamento.html",
+        caixa=caixa_aberto,
+        itens=itens,
+        resumo=resumo,
+        cliente=session["pdv_cliente"],
+        responsavel=session["pdv_responsavel"],
+    )
+
+
+@app.get("/vendas/balcao/pagamento")
+def venda_balcao_pagamento_get() -> str | Response:
+    caixa_aberto = buscar_caixa_aberto_db()
+
+    if caixa_aberto is None:
+        return redirect(url_for("venda_balcao_abrir_caixa"))
+
+    itens = session.get("pdv_carrinho") or []
+
+    if not itens:
+        return redirect(url_for("venda_balcao"))
+
+    resumo = montar_resumo_pdv(itens)
+
+    return render_template(
+        "venda_balcao_pagamento.html",
+        caixa=caixa_aberto,
+        itens=itens,
+        resumo=resumo,
+        cliente=session.get("pdv_cliente") or "AO CONSUMIDOR",
+        responsavel=session.get("pdv_responsavel") or "",
+    )
+
+
+@app.post("/vendas/balcao/finalizar")
+def venda_balcao_finalizar() -> Response:
+    caixa_aberto = buscar_caixa_aberto_db()
+
+    if caixa_aberto is None:
+        return redirect(url_for("venda_balcao_abrir_caixa"))
+
+    itens = session.get("pdv_carrinho") or []
+
+    if not itens:
+        return redirect(url_for("venda_balcao"))
+
+    forma_pagamento = (request.form.get("forma_pagamento") or "").strip()
+    desconto_valor = (request.form.get("desconto_valor") or "0,00").strip()
+    desconto_percentual = (request.form.get("desconto_percentual") or "0,00").strip()
+    valor_pago = (request.form.get("valor_pago") or "0,00").strip()
+
+    if not forma_pagamento:
+        return redirect(url_for("venda_balcao_pagamento_get"))
+
+    resumo = montar_resumo_pdv(itens, desconto_valor, desconto_percentual, valor_pago)
+    cliente = str(session.get("pdv_cliente") or "AO CONSUMIDOR").strip() or "AO CONSUMIDOR"
+    responsavel = str(session.get("pdv_responsavel") or session.get("usuario_nome") or "").strip()
+
+    venda = {
+        "numero": proximo_numero_venda(),
+        "cliente": cliente,
+        "responsavel": responsavel,
+        "data": date.today().isoformat(),
+        "prazo_entrega": "imediato",
+        "canal_venda": "Balcão / PDV",
+        "centro_custo": "Balcão",
+        "tipo": "misto",
+        "status": "concretizada",
+        "total_produtos": resumo["subtotal_produtos_formatado"],
+        "total_servicos": resumo["subtotal_servicos_formatado"],
+        "desconto_valor": _formatar_moeda_brl(_converter_valor_brl(desconto_valor)),
+        "desconto_percentual": _formatar_moeda_brl(_converter_valor_brl(desconto_percentual)),
+        "valor_total": resumo["total_formatado"],
+        "forma_pagamento": forma_pagamento,
+        "observacoes": f"Venda balcão. Valor recebido: R$ {resumo['valor_pago_formatado']}. Troco: R$ {resumo['troco_formatado']}.",
+        "observacoes_internas": f"Caixa Nº {caixa_aberto['id']}",
+    }
+
+    venda_id = salvar_venda_db(venda, itens)
+    baixar_estoque_por_venda_db(venda_id, venda, itens)
+    gerar_recebimento_pdv_pago_db(venda_id, venda)
+    registrar_caixa_movimentacao_db(
+        int(caixa_aberto["id"]),
+        venda_id,
+        "venda",
+        f"Venda balcão Nº {venda['numero']}",
+        forma_pagamento,
+        resumo["total_formatado"],
+    )
+
+    session.pop("pdv_carrinho", None)
+    session.pop("pdv_cliente", None)
+    session.pop("pdv_responsavel", None)
+
+    return redirect(url_for("imprimir_venda_cupom", venda_id=venda_id))
+
+
+@app.get("/vendas/balcao/fechar-caixa")
+def venda_balcao_fechar_caixa() -> str | Response:
+    caixa_aberto = buscar_caixa_aberto_db()
+
+    if caixa_aberto is None:
+        return redirect(url_for("venda_balcao_abrir_caixa"))
+
+    movimentacoes = listar_caixa_movimentacoes(int(caixa_aberto["id"]))
+    total_entradas = sum(_converter_valor_brl(item.get("valor")) for item in movimentacoes if str(item.get("tipo") or "") in {"abertura", "venda", "entrada"})
+
+    return render_template(
+        "caixa_fechar.html",
+        caixa=caixa_aberto,
+        movimentacoes=movimentacoes,
+        total_entradas=_formatar_moeda_brl(total_entradas),
+    )
+
+
+@app.post("/vendas/balcao/fechar-caixa")
+def venda_balcao_salvar_fechamento_caixa() -> Response:
+    valor_fechamento = (request.form.get("valor_fechamento") or "0,00").strip()
+    observacoes = (request.form.get("observacoes") or "").strip()
+    fechar_caixa_db(valor_fechamento, observacoes)
+
+    return redirect(url_for("vendas"))
 
 @app.get("/vendas")
 def vendas() -> str:

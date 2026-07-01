@@ -1,7 +1,7 @@
 {#
 Caminho: templates/partials/sidebar.html
-Último recode: 2026-06-30 22:45 (America/Bahia)
-Motivo: Aplicar logo oficial GestFlow no menu lateral.
+Último recode: 2026-06-30 23:25 (America/Bahia)
+Motivo: Adicionar atalhos do Venda Balcão/PDV no menu de Vendas.
 #}
 {% set _path = request.path if request is defined else '' %}
 {% set _usuario_sidebar = usuario_logado|default({}, true) %}
@@ -96,7 +96,9 @@ Motivo: Aplicar logo oficial GestFlow no menu lateral.
                         <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Vendas</strong></li>
                         <li class="{% if _path == '/vendas' %}submenu-active{% endif %}"><a href="/vendas">Produtos</a></li>
                         <li class="{% if _path == '/vendas' %}submenu-active{% endif %}"><a href="/vendas">Serviços</a></li>
-                        <li class="{% if _path == '/vendas' %}submenu-active{% endif %}"><a href="/vendas">Balcão</a></li>
+                        <li class="{% if _path.startswith('/vendas/balcao') %}submenu-active{% endif %}"><a href="/vendas/balcao">Balcão / PDV</a></li>
+                        <li class="{% if _path.startswith('/vendas/balcao/abrir-caixa') %}submenu-active{% endif %}"><a href="/vendas/balcao/abrir-caixa">Abrir caixa</a></li>
+                        <li class="{% if _path.startswith('/vendas/balcao/fechar-caixa') %}submenu-active{% endif %}"><a href="/vendas/balcao/fechar-caixa">Fechar caixa</a></li>
                         <li class="{% if _path.startswith('/vendas/devolucoes') %}submenu-active{% endif %}"><a href="/vendas/devolucoes">Devoluções</a></li>
                         <li>Opções auxiliares</li>
                     </ul>
@@ -211,6 +213,7 @@ Motivo: Aplicar logo oficial GestFlow no menu lateral.
         const sidebar = document.querySelector('.sidebar');
         const toggle = document.querySelector('.menu-toggle');
         const fechar = document.querySelector('.mobile-sidebar-close');
+        const voltarFlutuante = document.querySelector('.mobile-submenu-floating-back');
 
         if (!sidebar) {
             return;

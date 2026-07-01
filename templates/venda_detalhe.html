@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\venda_detalhe.html
-Último recode: 2026-06-18 21:20 (America/Bahia)
-Motivo: Padronizar links do menu lateral na primeira leva de telas.
+Último recode: 2026-06-30 23:25 (America/Bahia)
+Motivo: Ativar links de edição, impressão e geração nos detalhes da venda.
 -->
 
 <!DOCTYPE html>
@@ -167,7 +167,7 @@ Motivo: Padronizar links do menu lateral na primeira leva de telas.
                 </div>
 
                 <div class="sale-action-row">
-                    <span class="btn-primary-green">Editar Venda</span>
+                    <a href="/vendas/{{ venda.id }}/editar" class="btn-primary-green" style="text-decoration:none;">Editar Venda</a>
 
                     <div class="sale-action-menu">
                         <details class="sale-action-dropdown">
@@ -176,16 +176,16 @@ Motivo: Padronizar links do menu lateral na primeira leva de telas.
                                 <details class="sale-action-submenu">
                                     <summary>🖨 Imprimir</summary>
                                     <div class="sale-action-subitems">
-                                        <span>A4</span>
-                                        <span>Cupom</span>
+                                        <a href="/vendas/{{ venda.id }}/imprimir/a4">A4</a>
+                                        <a href="/vendas/{{ venda.id }}/imprimir/cupom">Cupom</a>
                                     </div>
                                 </details>
 
                                 <details class="sale-action-submenu">
                                     <summary>↻ Gerar</summary>
                                     <div class="sale-action-subitems">
-                                        <span>Cópia</span>
-                                        <span>OS</span>
+                                        <a href="/vendas/{{ venda.id }}/gerar/copia">Cópia</a>
+                                        <a href="/vendas/{{ venda.id }}/gerar/os">OS</a>
                                     </div>
                                 </details>
                             </div>

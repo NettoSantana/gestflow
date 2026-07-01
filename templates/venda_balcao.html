@@ -1,0 +1,495 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\venda_balcao.html
+Último recode: 2026-06-30 23:25 (America/Bahia)
+Motivo: Criar tela rápida de venda balcão/PDV com busca de produto/serviço e carrinho.
+-->
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Venda Balcão</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .pdv-layout {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 22px;
+        }
+
+        .pdv-panel {
+            background: #ffffff;
+            border: 1px solid #dbe5f1;
+            border-radius: 16px;
+            padding: 18px;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+        }
+
+        .pdv-title {
+            margin: 0 0 12px;
+            color: #071624;
+            font-size: 24px;
+            text-transform: uppercase;
+        }
+
+        .pdv-search {
+            width: 100%;
+            height: 54px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 0 16px;
+            font-size: 18px;
+            outline: none;
+        }
+
+        .pdv-search:focus {
+            border-color: #16a34a;
+            box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
+        }
+
+        .pdv-work-area {
+            display: grid;
+            grid-template-columns: 190px 1fr;
+            gap: 28px;
+            margin-top: 16px;
+        }
+
+        .pdv-image-box {
+            height: 176px;
+            border-radius: 4px;
+            background: #e5e7eb;
+            color: #ffffff;
+            display: grid;
+            place-items: center;
+            font-size: 54px;
+        }
+
+        .pdv-fields {
+            display: grid;
+            gap: 9px;
+        }
+
+        .pdv-row {
+            display: grid;
+            grid-template-columns: 180px 1fr;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .pdv-row label {
+            font-size: 19px;
+            color: #071624;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .pdv-row input,
+        .pdv-row select {
+            height: 52px;
+            border: 1px solid #cbd5e1;
+            border-radius: 7px;
+            padding: 0 12px;
+            font-size: 16px;
+            background: #f8fafc;
+        }
+
+        .pdv-add-button {
+            height: 44px;
+            border: 0;
+            border-radius: 7px;
+            background: #071624;
+            color: #ffffff;
+            font-weight: 900;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        .pdv-side-card {
+            background: #00a85a;
+            color: #ffffff;
+            border-radius: 4px;
+            padding: 12px;
+            font-size: 12px;
+            font-weight: 900;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+        }
+
+        .pdv-total-label {
+            margin: 120px 0 10px;
+            color: #071624;
+            font-size: 22px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .pdv-total-box {
+            height: 48px;
+            border-radius: 3px;
+            background: #071624;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 16px;
+            font-size: 24px;
+            font-weight: 900;
+        }
+
+        .pdv-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .pdv-actions button,
+        .pdv-actions a {
+            height: 40px;
+            border: 0;
+            border-radius: 5px;
+            color: #ffffff;
+            font-weight: 900;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+        }
+
+        .pdv-wait { background: #f59e0b; }
+        .pdv-cancel { background: #ef6351; }
+        .pdv-finish { background: #08a85a; grid-column: 1 / -1; }
+
+        .pdv-cart {
+            margin-top: 18px;
+            max-height: 220px;
+            overflow: auto;
+            border: 1px solid #e5edf6;
+            border-radius: 10px;
+        }
+
+        .pdv-cart table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .pdv-cart th,
+        .pdv-cart td {
+            padding: 9px;
+            border-bottom: 1px solid #e5edf6;
+            text-align: left;
+        }
+
+        .pdv-remove {
+            border: 0;
+            border-radius: 6px;
+            background: #fee2e2;
+            color: #dc2626;
+            font-weight: 900;
+            cursor: pointer;
+        }
+
+        .pdv-footer-help {
+            margin-top: 18px;
+            padding: 13px;
+            background: #f1f5f9;
+            color: #0f172a;
+            font-size: 12px;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        @media (max-width: 1100px) {
+            .pdv-layout { grid-template-columns: 1fr; }
+            .pdv-total-label { margin-top: 18px; }
+        }
+
+        @media (max-width: 760px) {
+            .pdv-work-area { grid-template-columns: 1fr; }
+            .pdv-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+
+    <main class="content">
+        {% set page_title = 'Venda Balcão / PDV' %}
+        {% include "partials/topbar.html" %}
+
+        <form id="pdv-form" action="/vendas/balcao/pagamento" method="post">
+            <input type="hidden" name="carrinho_json" id="carrinho_json">
+
+            <section class="pdv-layout">
+                <div class="pdv-panel">
+                    <h2 class="pdv-title">Localize um produto/serviço abaixo</h2>
+
+                    {% if request.args.get('erro') %}
+                        <div class="alert alert-danger">{{ request.args.get('erro') }}</div>
+                    {% endif %}
+
+                    <input id="busca_pdv" class="pdv-search" type="text" placeholder="Digite o código ou o nome" autocomplete="off">
+
+                    <div class="pdv-work-area">
+                        <div class="pdv-image-box">▧</div>
+
+                        <div class="pdv-fields">
+                            <div class="pdv-row">
+                                <label for="tipo_item">Tipo</label>
+                                <select id="tipo_item">
+                                    <option value="produto">Produto</option>
+                                    <option value="servico">Serviço</option>
+                                </select>
+                            </div>
+                            <div class="pdv-row">
+                                <label for="codigo_item">Código</label>
+                                <input id="codigo_item" type="text" readonly>
+                            </div>
+                            <div class="pdv-row">
+                                <label for="quantidade_item">Quantidade</label>
+                                <input id="quantidade_item" type="text" value="1">
+                            </div>
+                            <div class="pdv-row">
+                                <label for="valor_item">Valor unitário</label>
+                                <input id="valor_item" type="text" value="0,00">
+                            </div>
+                            <div class="pdv-row">
+                                <label for="desconto_item">Desconto</label>
+                                <input id="desconto_item" type="text" value="0,00">
+                            </div>
+                            <div class="pdv-row">
+                                <label for="total_item">Valor total</label>
+                                <input id="total_item" type="text" value="0,00" readonly>
+                            </div>
+                            <button type="button" class="pdv-add-button" onclick="adicionarProdutoPdv()">Adicionar produto</button>
+                        </div>
+                    </div>
+
+                    <div class="pdv-cart">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Qtd.</th>
+                                    <th>Nome</th>
+                                    <th>Valor</th>
+                                    <th>Desc.</th>
+                                    <th>Total</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="pdv-carrinho-body">
+                                <tr><td colspan="6">Nenhum item adicionado.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="pdv-footer-help">F1 = Ver atalhos | F2 = Nova busca | F4 = Adicionar produto | F6 = Finalizar venda</div>
+                </div>
+
+                <aside class="pdv-panel">
+                    <div class="pdv-side-card">
+                        Cliente:
+                        <select name="cliente" style="width:100%; margin:6px 0 10px; height:34px; border:0; border-radius:6px; padding:0 8px;">
+                            <option value="AO CONSUMIDOR">AO CONSUMIDOR</option>
+                            {% for cliente in clientes|default([]) %}
+                                <option value="{{ cliente.nome }}">{{ cliente.nome }}</option>
+                            {% endfor %}
+                        </select>
+                        Vendedor:
+                        <select name="responsavel" style="width:100%; margin-top:6px; height:34px; border:0; border-radius:6px; padding:0 8px;">
+                            <option value="{{ usuario_logado.nome if usuario_logado else '' }}">{{ usuario_logado.nome if usuario_logado else 'Selecione' }}</option>
+                            {% for funcionario in funcionarios|default([]) %}
+                                <option value="{{ funcionario.nome }}">{{ funcionario.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="pdv-total-label">Total do pedido</div>
+                    <div class="pdv-total-box">R$ <span id="total_pedido">0,00</span></div>
+
+                    <div class="pdv-actions">
+                        <button type="button" class="pdv-wait">Aguardar</button>
+                        <button type="button" class="pdv-cancel" onclick="limparPdv()">Cancelar</button>
+                        <button type="submit" class="pdv-finish">Finalizar venda</button>
+                    </div>
+                </aside>
+            </section>
+        </form>
+
+        <script>
+            const itensDisponiveis = [
+                {% for produto in produtos|default([]) %}
+                    {
+                        tipo_item: "produto",
+                        codigo: "{{ produto.codigo or produto.id }}",
+                        descricao: "{{ produto.nome }}",
+                        valor_unitario: "{{ produto.preco_venda or '0,00' }}"
+                    },
+                {% endfor %}
+                {% for servico in servicos|default([]) %}
+                    {
+                        tipo_item: "servico",
+                        codigo: "{{ servico.codigo or servico.id }}",
+                        descricao: "{{ servico.nome }}",
+                        valor_unitario: "{{ servico.valor_venda or '0,00' }}"
+                    }{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ];
+
+            let itemSelecionado = null;
+            let carrinho = [];
+
+            function converterMoeda(valor) {
+                let texto = String(valor || "").replace("R$", "").replace(/\s/g, "");
+                if (texto.includes(",")) {
+                    texto = texto.replace(/\./g, "").replace(",", ".");
+                }
+                const numero = Number(texto);
+                return Number.isNaN(numero) ? 0 : numero;
+            }
+
+            function formatarMoeda(valor) {
+                return Number(valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+
+            function calcularItemAtual() {
+                const quantidade = converterMoeda(document.getElementById("quantidade_item").value) || 1;
+                const valor = converterMoeda(document.getElementById("valor_item").value);
+                const desconto = converterMoeda(document.getElementById("desconto_item").value);
+                document.getElementById("total_item").value = formatarMoeda(Math.max((quantidade * valor) - desconto, 0));
+            }
+
+            function selecionarItem(item) {
+                itemSelecionado = item;
+                document.getElementById("tipo_item").value = item.tipo_item;
+                document.getElementById("codigo_item").value = item.codigo || "";
+                document.getElementById("busca_pdv").value = item.descricao || "";
+                document.getElementById("valor_item").value = item.valor_unitario || "0,00";
+                calcularItemAtual();
+            }
+
+            document.getElementById("busca_pdv").addEventListener("input", function () {
+                const busca = this.value.trim().toLowerCase();
+                if (!busca) {
+                    itemSelecionado = null;
+                    return;
+                }
+
+                const encontrado = itensDisponiveis.find(function (item) {
+                    return String(item.codigo || "").toLowerCase() === busca || String(item.descricao || "").toLowerCase().includes(busca);
+                });
+
+                if (encontrado) {
+                    selecionarItem(encontrado);
+                }
+            });
+
+            ["quantidade_item", "valor_item", "desconto_item"].forEach(function (id) {
+                document.getElementById(id).addEventListener("input", calcularItemAtual);
+                document.getElementById(id).addEventListener("blur", calcularItemAtual);
+            });
+
+            function renderizarCarrinho() {
+                const corpo = document.getElementById("pdv-carrinho-body");
+                corpo.innerHTML = "";
+
+                if (!carrinho.length) {
+                    corpo.innerHTML = '<tr><td colspan="6">Nenhum item adicionado.</td></tr>';
+                }
+
+                let total = 0;
+                carrinho.forEach(function (item, indice) {
+                    total += converterMoeda(item.subtotal);
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
+                        <td>${item.quantidade}</td>
+                        <td>${item.descricao}</td>
+                        <td>${item.valor_unitario}</td>
+                        <td>${item.desconto}</td>
+                        <td>${item.subtotal}</td>
+                        <td><button type="button" class="pdv-remove" onclick="removerItemPdv(${indice})">×</button></td>
+                    `;
+                    corpo.appendChild(tr);
+                });
+
+                document.getElementById("total_pedido").textContent = formatarMoeda(total);
+                document.getElementById("carrinho_json").value = JSON.stringify(carrinho);
+            }
+
+            function adicionarProdutoPdv() {
+                const descricao = document.getElementById("busca_pdv").value.trim();
+                const tipo = document.getElementById("tipo_item").value || "produto";
+                const quantidade = converterMoeda(document.getElementById("quantidade_item").value) || 1;
+                const valor = converterMoeda(document.getElementById("valor_item").value);
+                const desconto = converterMoeda(document.getElementById("desconto_item").value);
+
+                if (!descricao || valor <= 0) {
+                    alert("Informe um produto/serviço e valor unitário maior que zero.");
+                    return;
+                }
+
+                carrinho.push({
+                    tipo_item: tipo,
+                    codigo: document.getElementById("codigo_item").value,
+                    descricao: descricao,
+                    detalhes: "Balcão / PDV",
+                    quantidade: formatarMoeda(quantidade).replace(",00", ""),
+                    valor_unitario: formatarMoeda(valor),
+                    desconto: formatarMoeda(desconto),
+                    subtotal: formatarMoeda(Math.max((quantidade * valor) - desconto, 0))
+                });
+
+                document.getElementById("busca_pdv").value = "";
+                document.getElementById("codigo_item").value = "";
+                document.getElementById("quantidade_item").value = "1";
+                document.getElementById("valor_item").value = "0,00";
+                document.getElementById("desconto_item").value = "0,00";
+                document.getElementById("total_item").value = "0,00";
+                itemSelecionado = null;
+                renderizarCarrinho();
+                document.getElementById("busca_pdv").focus();
+            }
+
+            function removerItemPdv(indice) {
+                carrinho.splice(indice, 1);
+                renderizarCarrinho();
+            }
+
+            function limparPdv() {
+                if (!confirm("Cancelar a venda atual?")) {
+                    return;
+                }
+                carrinho = [];
+                renderizarCarrinho();
+            }
+
+            document.getElementById("pdv-form").addEventListener("submit", function (event) {
+                if (!carrinho.length) {
+                    event.preventDefault();
+                    alert("Adicione pelo menos um item para finalizar a venda.");
+                }
+            });
+
+            document.addEventListener("keydown", function (event) {
+                if (event.key === "F2") {
+                    event.preventDefault();
+                    document.getElementById("busca_pdv").focus();
+                }
+                if (event.key === "F4") {
+                    event.preventDefault();
+                    adicionarProdutoPdv();
+                }
+                if (event.key === "F6") {
+                    event.preventDefault();
+                    document.getElementById("pdv-form").requestSubmit();
+                }
+            });
+
+            renderizarCarrinho();
+        </script>
+    </main>
+</body>
+</html>

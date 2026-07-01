@@ -1,0 +1,291 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\venda_balcao_pagamento.html
+Último recode: 2026-06-30 23:25 (America/Bahia)
+Motivo: Criar tela de pagamento do Venda Balcão/PDV.
+-->
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Pagamento PDV</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .pdv-pay-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 26px;
+        }
+
+        .pdv-pay-panel {
+            background: #ffffff;
+            border: 1px solid #dbe5f1;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+        }
+
+        .pdv-pay-title {
+            padding: 14px 18px;
+            border-bottom: 1px solid #dbe5f1;
+            color: #071624;
+            font-size: 22px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .pdv-pay-body {
+            padding: 18px;
+        }
+
+        .pdv-pay-input,
+        .pdv-pay-select {
+            width: 100%;
+            height: 54px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 0 12px;
+            font-size: 16px;
+            margin-bottom: 14px;
+        }
+
+        .pdv-pay-label {
+            display: block;
+            color: #071624;
+            font-size: 18px;
+            font-weight: 900;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        .pdv-confirm-line {
+            display: grid;
+            grid-template-columns: 1fr 120px;
+            gap: 0;
+        }
+
+        .pdv-confirm-line input {
+            border-radius: 6px 0 0 6px;
+        }
+
+        .pdv-confirm-line button {
+            height: 54px;
+            border: 0;
+            border-radius: 0 6px 6px 0;
+            background: #64717a;
+            color: #ffffff;
+            font-weight: 900;
+            cursor: pointer;
+        }
+
+        .pdv-items-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .pdv-items-table th,
+        .pdv-items-table td {
+            padding: 10px;
+            border-bottom: 1px solid #e5edf6;
+            text-align: left;
+        }
+
+        .pdv-total-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 14px 12px;
+            border-bottom: 1px solid #dbe5f1;
+            font-size: 17px;
+            color: #071624;
+        }
+
+        .pdv-total-row:nth-child(odd) {
+            background: #f8fafc;
+        }
+
+        .pdv-final-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .pdv-final-actions a,
+        .pdv-final-actions button {
+            min-width: 110px;
+            height: 38px;
+            border: 0;
+            border-radius: 5px;
+            color: #ffffff;
+            font-weight: 900;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+        }
+
+        .pdv-final { background: #08a85a; }
+        .pdv-cancel { background: #ef6351; }
+
+        .pdv-footer-help {
+            margin-top: 18px;
+            padding: 13px;
+            background: #f1f5f9;
+            color: #0f172a;
+            font-size: 12px;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        @media (max-width: 980px) {
+            .pdv-pay-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+
+    <main class="content">
+        {% set page_title = 'Pagamento PDV' %}
+        {% include "partials/topbar.html" %}
+
+        <form id="form-pagamento-pdv" action="/vendas/balcao/finalizar" method="post">
+            <section class="pdv-pay-grid">
+                <div>
+                    <div class="pdv-pay-panel">
+                        <div class="pdv-pay-title">▣ Forma de pagamento</div>
+                        <div class="pdv-pay-body">
+                            <select name="forma_pagamento" class="pdv-pay-select" required>
+                                <option value="">Selecione</option>
+                                <option value="Dinheiro">Dinheiro</option>
+                                <option value="Pix">Pix</option>
+                                <option value="Cartão de débito">Cartão de débito</option>
+                                <option value="Cartão de crédito">Cartão de crédito</option>
+                                <option value="Transferência">Transferência</option>
+                            </select>
+
+                            <label class="pdv-pay-label">Total a pagar</label>
+                            <div class="pdv-confirm-line">
+                                <input id="valor_pago" name="valor_pago" class="pdv-pay-input" type="text" value="{{ resumo.total_formatado }}" inputmode="decimal">
+                                <button type="button" onclick="recalcularPagamento()">» Confirmar</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pdv-pay-panel" style="margin-top:16px;">
+                        <div class="pdv-pay-title">▥ Itens da compra</div>
+                        <div class="pdv-pay-body" style="padding:0; max-height:270px; overflow:auto;">
+                            <table class="pdv-items-table">
+                                <thead>
+                                    <tr>
+                                        <th>Qtd.</th>
+                                        <th>Nome</th>
+                                        <th>Valor</th>
+                                        <th>Desc.</th>
+                                        <th>Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in itens %}
+                                        <tr>
+                                            <td>{{ item.quantidade }}</td>
+                                            <td>{{ item.descricao }}</td>
+                                            <td>{{ item.valor_unitario }}</td>
+                                            <td>{{ item.desconto }}</td>
+                                            <td>{{ item.subtotal }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="pdv-pay-panel">
+                        <div class="pdv-pay-title">% Descontos</div>
+                        <div class="pdv-pay-body" style="display:grid; grid-template-columns:1fr 1fr; gap:26px;">
+                            <input id="desconto_valor" name="desconto_valor" class="pdv-pay-input" type="text" value="0,00" placeholder="R$" oninput="recalcularPagamento()">
+                            <input id="desconto_percentual" name="desconto_percentual" class="pdv-pay-input" type="text" value="0,00" placeholder="%" oninput="recalcularPagamento()">
+                        </div>
+                    </div>
+
+                    <div class="pdv-pay-panel" style="margin-top:16px;">
+                        <div class="pdv-pay-title">💰 Total</div>
+                        <div id="resumo-pdv-total">
+                            <div class="pdv-total-row"><span>Subtotal:</span><strong>R$ <span id="subtotal">{{ resumo.subtotal_formatado }}</span></strong></div>
+                            <div class="pdv-total-row"><span>Descontos:</span><strong>R$ <span id="descontos">0,00</span></strong></div>
+                            <div class="pdv-total-row"><span>Pagamentos:</span><strong>R$ <span id="pagamentos">0,00</span></strong></div>
+                            <div class="pdv-total-row"><span>Troco:</span><strong>R$ <span id="troco">0,00</span></strong></div>
+                            <div class="pdv-total-row"><span>Total a pagar:</span><strong>R$ <span id="total_pagar">{{ resumo.total_formatado }}</span></strong></div>
+                        </div>
+                    </div>
+
+                    <div class="pdv-final-actions">
+                        <button type="submit" class="pdv-final">Finalizar</button>
+                        <a href="/vendas/balcao" class="pdv-cancel">Cancelar</a>
+                    </div>
+                </div>
+            </section>
+        </form>
+
+        <div class="pdv-footer-help">F2 = Mudar forma de pagamento | F3 = Confirmar pagamento | F4 = Conceder desconto | F6 = Finalizar venda | F8 = Cancelar</div>
+
+        <script>
+            const subtotal = {{ '%.2f'|format(resumo.subtotal) }};
+
+            function converterMoeda(valor) {
+                let texto = String(valor || "").replace("R$", "").replace(/\s/g, "");
+                if (texto.includes(",")) {
+                    texto = texto.replace(/\./g, "").replace(",", ".");
+                }
+                const numero = Number(texto);
+                return Number.isNaN(numero) ? 0 : numero;
+            }
+
+            function formatarMoeda(valor) {
+                return Number(valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+
+            function recalcularPagamento() {
+                const descontoValor = converterMoeda(document.getElementById("desconto_valor").value);
+                const descontoPercentual = converterMoeda(document.getElementById("desconto_percentual").value);
+                const descontoTotal = Math.max(descontoValor + (subtotal * (descontoPercentual / 100)), 0);
+                const total = Math.max(subtotal - descontoTotal, 0);
+                const valorPago = converterMoeda(document.getElementById("valor_pago").value);
+                const troco = Math.max(valorPago - total, 0);
+
+                document.getElementById("descontos").textContent = formatarMoeda(descontoTotal);
+                document.getElementById("pagamentos").textContent = formatarMoeda(valorPago);
+                document.getElementById("troco").textContent = formatarMoeda(troco);
+                document.getElementById("total_pagar").textContent = formatarMoeda(total);
+            }
+
+            document.getElementById("valor_pago").addEventListener("input", recalcularPagamento);
+            recalcularPagamento();
+
+            document.addEventListener("keydown", function (event) {
+                if (event.key === "F3") {
+                    event.preventDefault();
+                    recalcularPagamento();
+                }
+                if (event.key === "F4") {
+                    event.preventDefault();
+                    document.getElementById("desconto_valor").focus();
+                }
+                if (event.key === "F6") {
+                    event.preventDefault();
+                    document.getElementById("form-pagamento-pdv").requestSubmit();
+                }
+                if (event.key === "F8") {
+                    event.preventDefault();
+                    window.location.href = "/vendas/balcao";
+                }
+            });
+        </script>
+    </main>
+</body>
+</html>

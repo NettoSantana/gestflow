@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vendas.html
-Último recode: 2026-06-29 23:10 (America/Bahia)
-Motivo: Travar campos obrigatórios e totais automáticos no cadastro de venda.
+Último recode: 2026-06-30 23:25 (America/Bahia)
+Motivo: Adicionar atalho para Venda Balcão/PDV na tela de vendas.
 -->
 
 <!DOCTYPE html>
@@ -169,7 +169,10 @@ Motivo: Travar campos obrigatórios e totais automáticos no cadastro de venda.
                     <p class="page-subtitle">Cadastre vendas de produtos, serviços ou mistas, com cliente, itens, descontos, totais e forma de pagamento.</p>
                 </div>
 
-                <a href="#form-nova-venda" class="btn-primary-green">+ Nova Venda</a>
+                <div class="client-toolbar">
+                    <a href="/vendas/balcao" class="btn-primary-green">▤ Venda Balcão / PDV</a>
+                    <a href="#form-nova-venda" class="btn-light">+ Nova Venda</a>
+                </div>
             </div>
         </section>
 
@@ -444,9 +447,11 @@ Motivo: Travar campos obrigatórios e totais automáticos no cadastro de venda.
                                     <td>{{ venda.valor_total }}</td>
                                     <td>
                                         <div class="action-buttons">
-                                            <button type="button" title="Ver venda" aria-label="Ver venda" class="action-button view" disabled>🔍</button>
-                                            <button type="button" title="Editar venda" aria-label="Editar venda" class="action-button edit" disabled>✎</button>
-                                            <button type="button" title="Excluir venda" aria-label="Excluir venda" class="action-button delete" disabled>×</button>
+                                            <a href="/vendas/{{ venda.id }}" title="Ver venda" aria-label="Ver venda" class="action-button view" style="text-decoration:none;">🔍</a>
+                                            <a href="/vendas/{{ venda.id }}/editar" title="Editar venda" aria-label="Editar venda" class="action-button edit" style="text-decoration:none;">✎</a>
+                                            <form action="/vendas/{{ venda.id }}/excluir" method="post" style="display:inline;" onsubmit="return confirm('Excluir esta venda?');">
+                                                <button type="submit" title="Excluir venda" aria-label="Excluir venda" class="action-button delete">×</button>
+                                            </form>
                                         </div>
                                     </td>
                                 </tr>

@@ -1,0 +1,173 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\caixa_abrir.html
+Último recode: 2026-06-30 23:25 (America/Bahia)
+Motivo: Criar tela de abertura de caixa para Venda Balcão/PDV.
+-->
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Abertura de Caixa</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .pdv-shell {
+            min-height: calc(100vh - 140px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .pdv-caixa-card {
+            width: min(980px, 100%);
+            border: 1px solid #dbe5f1;
+            border-radius: 18px;
+            background: #ffffff;
+            box-shadow: 0 18px 45px rgba(15, 23, 42, 0.16);
+            overflow: hidden;
+        }
+
+        .pdv-caixa-header {
+            padding: 22px 26px;
+            border-bottom: 1px solid #e5edf6;
+        }
+
+        .pdv-caixa-header h2 {
+            margin: 0;
+            color: #06162b;
+            font-size: 26px;
+            letter-spacing: -0.5px;
+            text-transform: uppercase;
+        }
+
+        .pdv-caixa-body {
+            padding: 38px 28px 28px;
+            text-align: center;
+        }
+
+        .pdv-caixa-body h3 {
+            margin: 0 0 26px;
+            font-size: 25px;
+            color: #071624;
+            font-weight: 800;
+        }
+
+        .pdv-terminal {
+            width: 170px;
+            height: 150px;
+            margin: 0 auto 28px;
+            color: #c7cbd1;
+        }
+
+        .pdv-caixa-form {
+            width: min(580px, 100%);
+            margin: 0 auto;
+            display: grid;
+            gap: 14px;
+        }
+
+        .pdv-caixa-form input {
+            width: 100%;
+            height: 54px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 0 14px;
+            text-align: right;
+            font-size: 18px;
+            outline: none;
+        }
+
+        .pdv-caixa-form input:focus {
+            border-color: #16a34a;
+            box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
+        }
+
+        .pdv-caixa-label {
+            color: #071624;
+            font-size: 22px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .pdv-checkbox-line {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            color: #16a34a;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .pdv-checkbox-line input {
+            width: 14px;
+            height: 14px;
+            padding: 0;
+        }
+
+        .pdv-confirmar {
+            height: 48px;
+            border: 0;
+            border-radius: 8px;
+            background: #08a85a;
+            color: #ffffff;
+            font-weight: 900;
+            font-size: 18px;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        .pdv-footer-help {
+            margin-top: 18px;
+            padding: 13px;
+            background: #f1f5f9;
+            color: #0f172a;
+            font-size: 12px;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+
+    <main class="content">
+        {% set page_title = 'Abertura de Caixa' %}
+        {% include "partials/topbar.html" %}
+
+        <section class="pdv-shell">
+            <div class="pdv-caixa-card">
+                <div class="pdv-caixa-header">
+                    <h2>Abertura de caixa</h2>
+                </div>
+
+                <div class="pdv-caixa-body">
+                    <h3>Informe os valores disponíveis para iniciar suas operações</h3>
+
+                    <svg class="pdv-terminal" viewBox="0 0 220 170" aria-hidden="true">
+                        <rect x="52" y="10" width="116" height="96" rx="15" fill="none" stroke="currentColor" stroke-width="16"></rect>
+                        <path d="M28 122h164v12c0 10-16 18-36 18H64c-20 0-36-8-36-18z" fill="currentColor"></path>
+                        <rect x="98" y="132" width="24" height="4" rx="2" fill="#fff"></rect>
+                    </svg>
+
+                    <form action="/vendas/balcao/abrir-caixa" method="post" class="pdv-caixa-form">
+                        <input name="valor_abertura" type="text" value="0,00" inputmode="decimal" autocomplete="off">
+                        <div class="pdv-caixa-label">Valor da abertura</div>
+
+                        <input name="responsavel" type="text" value="{{ usuario_logado.nome if usuario_logado else '' }}" placeholder="Responsável pelo caixa" style="text-align:left; font-size:15px;">
+
+                        <label class="pdv-checkbox-line">
+                            <input type="checkbox" name="gerar_recebimento" value="1">
+                            Gerar um recebimento no financeiro
+                        </label>
+
+                        <button type="submit" class="pdv-confirmar">↪ Confirmar abertura</button>
+                    </form>
+
+                    <div class="pdv-footer-help">F2 = Mudar o valor | Enter = Confirmar abertura</div>
+                </div>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

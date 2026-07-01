@@ -1,0 +1,108 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\caixa_fechar.html
+Último recode: 2026-06-30 23:25 (America/Bahia)
+Motivo: Criar fechamento básico de caixa do Venda Balcão/PDV.
+-->
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Fechar Caixa</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+
+    <main class="content">
+        {% set page_title = 'Fechar Caixa' %}
+        {% include "partials/topbar.html" %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Venda Balcão / PDV</span>
+                    <h3 class="page-title">Fechamento de caixa</h3>
+                    <p class="page-subtitle">Confira as movimentações do caixa aberto e informe o valor físico encontrado no fechamento.</p>
+                </div>
+                <a href="/vendas/balcao" class="btn-dark">Voltar ao PDV</a>
+            </div>
+
+            <div class="panel-summary">
+                <div><span>Caixa</span><strong>Nº {{ caixa.id }}</strong></div>
+                <div><span>Responsável</span><strong>{{ caixa.responsavel or '-' }}</strong></div>
+                <div><span>Aberto em</span><strong>{{ caixa.aberto_em or '-' }}</strong></div>
+                <div><span>Valor abertura</span><strong>R$ {{ caixa.valor_abertura or '0,00' }}</strong></div>
+                <div><span>Total registrado</span><strong>R$ {{ total_entradas or '0,00' }}</strong></div>
+            </div>
+        </section>
+
+        <section class="panel table-panel">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Movimentações</h3>
+                    <p class="page-subtitle">Abertura e vendas lançadas no caixa atual.</p>
+                </div>
+            </div>
+
+            <div class="table-shell">
+                <table class="client-table">
+                    <thead>
+                        <tr>
+                            <th>Tipo</th>
+                            <th>Descrição</th>
+                            <th>Forma</th>
+                            <th>Valor</th>
+                            <th>Data</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if movimentacoes %}
+                            {% for item in movimentacoes %}
+                                <tr>
+                                    <td>{{ item.tipo }}</td>
+                                    <td>{{ item.descricao }}</td>
+                                    <td>{{ item.forma_pagamento }}</td>
+                                    <td>R$ {{ item.valor }}</td>
+                                    <td>{{ item.criado_em }}</td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr><td colspan="5" class="empty-table">Nenhuma movimentação registrada.</td></tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Confirmar fechamento</h3>
+                    <p class="page-subtitle">Informe o valor físico final e conclua o caixa.</p>
+                </div>
+            </div>
+
+            <form action="/vendas/balcao/fechar-caixa" method="post" class="client-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="valor_fechamento">Valor encontrado no caixa</label>
+                        <input id="valor_fechamento" name="valor_fechamento" type="text" value="{{ total_entradas or '0,00' }}" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="observacoes">Observações</label>
+                        <input id="observacoes" name="observacoes" type="text" placeholder="Diferenças, conferência ou observação interna" class="form-control">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <a href="/vendas/balcao" class="btn-light" style="text-decoration:none;">Cancelar</a>
+                    <button type="submit" class="btn-primary-green">Fechar caixa</button>
+                </div>
+            </form>
+        </section>
+    </main>
+</body>
+</html>
