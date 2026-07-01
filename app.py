@@ -1,12 +1,12 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-29 23:50 (America/Bahia)
-# Motivo: Travar validações mínimas de clientes, fornecedores e funcionários no cadastro e edição.
+# Último recode: 2026-06-30 21:20 (America/Bahia)
+# Motivo: Criar funil público de planos e cadastro automático com trial para novos clientes.
 
 from __future__ import annotations
 
 import html
 import sqlite3
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -89,7 +89,7 @@ def autenticar_usuario(email: str, senha: str) -> dict[str, Any] | None:
     if str(usuario.get("status") or "").strip().lower() != "ativo":
         return None
 
-    if str(usuario.get("empresa_status") or "").strip().lower() != "ativo":
+    if str(usuario.get("empresa_status") or "").strip().lower() not in {"ativo", "trial"}:
         return None
 
     senha_hash = str(usuario.get("senha_hash") or "")
@@ -171,6 +171,8 @@ def injetar_usuario_logado() -> dict[str, Any]:
 def exigir_login_rotas_internas() -> Response | None:
     rotas_publicas = {
         "portal",
+        "planos",
+        "novo_cadastro",
         "login",
         "health",
         "twilio_webhook",
@@ -623,6 +625,12 @@ def iniciar_banco() -> None:
 
         if "logo_path" not in colunas_empresas:
             conn.execute("ALTER TABLE empresas ADD COLUMN logo_path TEXT")
+
+        if "trial_inicio" not in colunas_empresas:
+            conn.execute("ALTER TABLE empresas ADD COLUMN trial_inicio TEXT")
+
+        if "trial_fim" not in colunas_empresas:
+            conn.execute("ALTER TABLE empresas ADD COLUMN trial_fim TEXT")
 
 
         tabelas_com_empresa_id = [
@@ -4210,7 +4218,9 @@ def buscar_empresa_configuracoes() -> dict[str, Any]:
                 plano,
                 status,
                 criado_em,
-                logo_path
+                logo_path,
+                trial_inicio,
+                trial_fim
             FROM empresas
             WHERE id = ?
             LIMIT 1
@@ -4227,6 +4237,8 @@ def buscar_empresa_configuracoes() -> dict[str, Any]:
             "email": "",
             "telefone": "",
             "logo_path": "",
+            "trial_inicio": "",
+            "trial_fim": "",
             "plano": "Start",
             "status": "ativo",
             "criado_em": "",
@@ -4878,9 +4890,174 @@ def servir_logo_empresa(nome_arquivo: str) -> Response:
     return send_from_directory(UPLOAD_DIR, nome_arquivo)
 
 
+
+def montar_novo_cadastro_formulario() -> dict[str, str]:
+    plano = (request.form.get("plano") or request.args.get("plano") or "Start").strip() or "Start"
+
+    if plano not in {"Start", "Pro", "Business"}:
+        plano = "Start"
+
+    return {
+        "responsavel_nome": (request.form.get("responsavel_nome") or "").strip(),
+        "empresa_nome": (request.form.get("empresa_nome") or "").strip(),
+        "telefone": (request.form.get("telefone") or "").strip(),
+        "email": (request.form.get("email") or "").strip().lower(),
+        "senha": (request.form.get("senha") or "").strip(),
+        "confirmar_senha": (request.form.get("confirmar_senha") or "").strip(),
+        "plano": plano,
+    }
+
+
+def validar_novo_cadastro(formulario: dict[str, str]) -> str:
+    if not formulario["responsavel_nome"]:
+        return "Informe seu nome."
+
+    if not formulario["empresa_nome"]:
+        return "Informe o nome da empresa."
+
+    if not formulario["telefone"]:
+        return "Informe um telefone ou WhatsApp."
+
+    if not formulario["email"]:
+        return "Informe o e-mail de acesso."
+
+    if email_usuario_ja_existe(formulario["email"]):
+        return "Este e-mail já possui cadastro. Acesse pelo login ou use outro e-mail."
+
+    if len(formulario["senha"]) < 6:
+        return "A senha precisa ter pelo menos 6 caracteres."
+
+    if formulario["senha"] != formulario["confirmar_senha"]:
+        return "A confirmação de senha não confere."
+
+    return ""
+
+
+def criar_empresa_trial_db(formulario: dict[str, str]) -> int:
+    trial_inicio = date.today()
+    trial_fim = trial_inicio + timedelta(days=7)
+
+    with conectar_db() as conn:
+        cursor_empresa = conn.execute(
+            """
+            INSERT INTO empresas (
+                nome_fantasia,
+                razao_social,
+                documento,
+                email,
+                telefone,
+                plano,
+                status,
+                trial_inicio,
+                trial_fim
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                formulario["empresa_nome"],
+                formulario["empresa_nome"],
+                "",
+                formulario["email"],
+                formulario["telefone"],
+                formulario["plano"],
+                "trial",
+                trial_inicio.isoformat(),
+                trial_fim.isoformat(),
+            ),
+        )
+        empresa_id = int(cursor_empresa.lastrowid)
+
+        conn.execute(
+            """
+            INSERT INTO usuarios (
+                empresa_id,
+                nome,
+                email,
+                senha_hash,
+                perfil,
+                status,
+                ultimo_login
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                empresa_id,
+                formulario["responsavel_nome"],
+                formulario["email"],
+                generate_password_hash(formulario["senha"]),
+                "administrador",
+                "ativo",
+                "",
+            ),
+        )
+
+        conn.execute(
+            """
+            INSERT INTO lojas (
+                empresa_id,
+                nome,
+                tipo,
+                cidade,
+                status
+            ) VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                empresa_id,
+                "Matriz",
+                "Principal",
+                "",
+                "ativo",
+            ),
+        )
+
+        conn.commit()
+
+    return empresa_id
+
+
+def entrar_usuario_na_sessao(usuario: dict[str, Any]) -> None:
+    session.clear()
+    session["usuario_id"] = int(usuario["id"])
+    session["empresa_id"] = int(usuario["empresa_id"])
+    session["usuario_nome"] = str(usuario.get("nome") or "")
+    session["usuario_email"] = str(usuario.get("email") or "")
+    session["usuario_perfil"] = str(usuario.get("perfil") or "")
+    session["empresa_nome"] = str(usuario.get("empresa_nome") or "")
+    session["empresa_plano"] = str(usuario.get("empresa_plano") or "")
+    registrar_ultimo_login_usuario(int(usuario["id"]))
+
+
 @app.get("/portal")
 def portal() -> str:
     return render_template("portal.html")
+
+
+@app.get("/planos")
+def planos() -> str:
+    return render_template("planos.html")
+
+
+@app.route("/novo-cadastro", methods=["GET", "POST"])
+def novo_cadastro() -> str | Response:
+    formulario = montar_novo_cadastro_formulario()
+    erro = ""
+
+    if request.method == "POST":
+        erro = validar_novo_cadastro(formulario)
+
+        if not erro:
+            criar_empresa_trial_db(formulario)
+            usuario = buscar_usuario_por_email(formulario["email"])
+
+            if usuario is None:
+                return redirect(url_for("login"))
+
+            entrar_usuario_na_sessao(usuario)
+            return redirect(url_for("dashboard"))
+
+    return render_template(
+        "novo_cadastro.html",
+        formulario=formulario,
+        erro=erro,
+    )
 
 
 @app.route("/login", methods=["GET", "POST"])
@@ -4901,16 +5078,7 @@ def login() -> str | Response:
                 email_login=email,
             ), 401
 
-        session.clear()
-        session["usuario_id"] = int(usuario["id"])
-        session["empresa_id"] = int(usuario["empresa_id"])
-        session["usuario_nome"] = str(usuario.get("nome") or "")
-        session["usuario_email"] = str(usuario.get("email") or "")
-        session["usuario_perfil"] = str(usuario.get("perfil") or "")
-        session["empresa_nome"] = str(usuario.get("empresa_nome") or "")
-        session["empresa_plano"] = str(usuario.get("empresa_plano") or "")
-
-        registrar_ultimo_login_usuario(int(usuario["id"]))
+        entrar_usuario_na_sessao(usuario)
 
         return redirect(url_for("dashboard"))
 

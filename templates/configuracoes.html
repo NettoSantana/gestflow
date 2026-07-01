@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\configuracoes.html
-Último recode: 2026-06-18 22:24 (America/Bahia)
-Motivo: Criar tela inicial de Configurações para organizar empresa, usuários, plano, marca e lojas.
+Último recode: 2026-06-30 21:20 (America/Bahia)
+Motivo: Exibir plano e período de teste do cadastro automático.
 -->
 
 <!DOCTYPE html>
@@ -350,9 +350,18 @@ Motivo: Criar tela inicial de Configurações para organizar empresa, usuários,
                                 <span>Limite será definido depois</span>
                             </div>
                         </div>
+
+                        <div class="card stat-card">
+                            <div class="card-icon">✓</div>
+                            <div class="card-info">
+                                <p>{{ empresa.status|default('ativo') }}</p>
+                                <h3>Status da conta</h3>
+                                <span>{% if empresa.trial_fim %}Teste grátis até {{ empresa.trial_fim }}{% else %}Conta ativa{% endif %}</span>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="empty-chart">Cobrança, upgrade e limites ficam para a etapa comercial.</div>
+                    <div class="empty-chart">Planos disponíveis: Start R$ 29,90/mês, Pro R$ 49,90/mês e Business R$ 99,90/mês. Upgrade e cobrança online ficam para a próxima etapa.</div>
 
                 {% else %}
                     <div class="panel-header page-header">

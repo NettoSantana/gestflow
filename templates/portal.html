@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\portal.html
-Último recode: 2026-06-18 22:18 (America/Bahia)
-Motivo: Criar tela portal pública do GestFlow inspirada em página institucional de ERP.
+Último recode: 2026-06-30 21:20 (America/Bahia)
+Motivo: Ajustar portal público para funil comercial, planos e cadastro automático.
 -->
 
 <!DOCTYPE html>
@@ -598,12 +598,13 @@ Motivo: Criar tela portal pública do GestFlow inspirada em página instituciona
                 <a href="#funcionalidades">Funcionalidades</a>
                 <a href="#financeiro">Financeiro</a>
                 <a href="#modulos">Módulos</a>
+                <a href="/planos">Planos</a>
                 <a href="#contato">Contato</a>
             </nav>
 
             <div class="portal-actions">
                 <a href="/login" class="btn-ghost">Entrar</a>
-                <a href="/login" class="btn-primary">Experimentar grátis</a>
+                <a href="/novo-cadastro" class="btn-primary">Experimentar grátis</a>
             </div>
         </div>
     </header>
@@ -616,8 +617,8 @@ Motivo: Criar tela portal pública do GestFlow inspirada em página instituciona
                 <p>O GestFlow reúne vendas, clientes, produtos, serviços, estoque, ordens de serviço e financeiro em uma plataforma direta, leve e feita para o dia a dia.</p>
 
                 <div class="hero-buttons">
-                    <a href="/login" class="btn-primary">Acessar o sistema</a>
-                    <a href="#funcionalidades" class="btn-outline">Ver funcionalidades</a>
+                    <a href="/novo-cadastro" class="btn-primary">Começar grátis</a>
+                    <a href="/planos" class="btn-outline">Ver planos</a>
                 </div>
 
                 <div class="hero-features">
@@ -719,7 +720,7 @@ Motivo: Criar tela portal pública do GestFlow inspirada em página instituciona
                     <li>Baixa e cancelamento de títulos</li>
                     <li>Fluxo de caixa com entradas, saídas e saldo previsto</li>
                 </ul>
-                <a href="/login" class="btn-dark">Entrar no GestFlow</a>
+                <a href="/novo-cadastro?plano=Start" class="btn-dark">Criar conta grátis</a>
             </div>
 
             <div class="mock-image">
@@ -753,7 +754,7 @@ Motivo: Criar tela portal pública do GestFlow inspirada em página instituciona
             <div>
                 <h2>Comece simples. Evolua com controle.</h2>
                 <p>O GestFlow está sendo construído para quem precisa vender, acompanhar estoque, controlar serviços e enxergar o financeiro sem depender de planilhas soltas.</p>
-                <a href="/login" class="btn-primary">Acessar agora</a>
+                <a href="/novo-cadastro" class="btn-primary">Começar teste grátis</a>
             </div>
 
             <div class="contact-box">
@@ -781,7 +782,7 @@ Motivo: Criar tela portal pública do GestFlow inspirada em página instituciona
             </div>
             <div>
                 <h4>Acesso</h4>
-                <p><a href="/login">Entrar no sistema</a><br><a href="/login">Experimentar grátis</a></p>
+                <p><a href="/login">Entrar no sistema</a><br><a href="/novo-cadastro">Experimentar grátis</a><br><a href="/planos">Ver planos</a></p>
             </div>
         </div>
     </footer>
