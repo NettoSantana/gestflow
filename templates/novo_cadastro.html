@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\novo_cadastro.html
-Último recode: 2026-06-30 21:20 (America/Bahia)
-Motivo: Criar tela pública de cadastro automático com teste grátis para novos clientes.
+Último recode: 2026-06-30 23:10 (America/Bahia)
+Motivo: Receber código de indicação no cadastro automático público.
 -->
 
 <!DOCTYPE html>
@@ -231,6 +231,16 @@ Motivo: Criar tela pública de cadastro automático com teste grátis para novos
             font-weight: 800;
         }
 
+        .ref-hint {
+            border: 1px solid #bbf7d0;
+            background: #f0fdf4;
+            color: #166534;
+            border-radius: 14px;
+            padding: 13px;
+            font-size: 13px;
+            font-weight: 900;
+        }
+
         @media (max-width: 980px) {
             .signup-page { grid-template-columns: 1fr; }
             .signup-copy { padding: 42px 24px; }
@@ -273,6 +283,10 @@ Motivo: Criar tela pública de cadastro automático com teste grátis para novos
                 {% endif %}
 
                 <form action="/novo-cadastro" method="post" class="signup-form">
+                    <input type="hidden" name="ref" value="{{ formulario.ref|default('') }}">
+                    {% if formulario.ref|default('') %}
+                        <div class="ref-hint">Cadastro vinculado ao código de indicação {{ formulario.ref }}.</div>
+                    {% endif %}
                     <div class="form-row">
                         <div class="field">
                             <label for="responsavel_nome">Seu nome</label>

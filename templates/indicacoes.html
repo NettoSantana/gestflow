@@ -1,0 +1,300 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\indicacoes.html
+Último recode: 2026-06-30 23:10 (America/Bahia)
+Motivo: Criar tela do cliente para link de indicação, chave Pix, indicados e comissões.
+-->
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Indicações</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+
+    <main class="content">
+        {% set page_title = 'Indicações' %}
+        {% include "partials/topbar.html" %}
+
+        {% set contexto = contexto|default({}) %}
+        {% set empresa = contexto.empresa|default({}) %}
+        {% set indicados = contexto.indicados|default([]) %}
+        {% set comissoes = contexto.comissoes|default([]) %}
+        {% set totais = contexto.totais|default({}) %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Programa de indicação</span>
+                    <h3 class="page-title">Meu link de indicação</h3>
+                    <p class="page-subtitle">Compartilhe seu link. Quando uma empresa indicada pagar o GestFlow, sua comissão recorrente fica liberada para repasse via Pix.</p>
+                </div>
+                <span class="badge-info">Comissão recorrente</span>
+            </div>
+        </section>
+
+        <section class="cards cards-secondary page-section">
+            <div class="card stat-card">
+                <div class="card-icon">↗</div>
+                <div class="card-info">
+                    <p>{{ totais.indicados|default(0) }}</p>
+                    <h3>Empresas indicadas</h3>
+                    <span>Cadastros feitos pelo seu link</span>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="card-icon">R$</div>
+                <div class="card-info">
+                    <p>{{ totais.liberada|default('0,00') }}</p>
+                    <h3>Valor liberado</h3>
+                    <span>Pronto para repasse</span>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="card-icon">✓</div>
+                <div class="card-info">
+                    <p>{{ totais.paga|default('0,00') }}</p>
+                    <h3>Valor pago</h3>
+                    <span>Comissões já repassadas</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="dashboard-grid indicacoes-grid page-section">
+            <div class="panel chart-panel">
+                <div class="panel-header page-header">
+                    <div>
+                        <h3>Compartilhar link</h3>
+                        <p class="page-subtitle">Copie e envie para clientes, amigos, fornecedores e parceiros.</p>
+                    </div>
+                </div>
+
+                <div class="link-box">
+                    <label>Seu código</label>
+                    <strong>{{ empresa.codigo_indicacao }}</strong>
+                </div>
+
+                <div class="copy-row">
+                    <input id="linkIndicacao" type="text" class="form-control" value="{{ empresa.link_indicacao }}" readonly>
+                    <button type="button" class="btn-primary-green" onclick="copiarLinkIndicacao()">Copiar link</button>
+                </div>
+
+                <div class="rules-box">
+                    <strong>Regras atuais</strong>
+                    <ul>
+                        <li>Start: R$ 3,00 por mês pago.</li>
+                        <li>Pro: R$ 5,00 por mês pago.</li>
+                        <li>Business: R$ 10,00 por mês pago.</li>
+                        <li>A comissão é recorrente por até 12 meses enquanto o indicado estiver pagando.</li>
+                        <li>O repasse é feito via Pix após confirmação do pagamento do cliente indicado.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="panel chart-panel">
+                <div class="panel-header page-header">
+                    <div>
+                        <h3>Chave Pix para repasse</h3>
+                        <p class="page-subtitle">Informe a chave Pix onde você quer receber as comissões.</p>
+                    </div>
+                </div>
+
+                <form action="/indicacoes/pix" method="post" class="client-form">
+                    <div class="form-group">
+                        <label for="pix_indicador">Chave Pix</label>
+                        <input id="pix_indicador" name="pix_indicador" type="text" value="{{ empresa.pix_indicador|default('') }}" placeholder="CPF, CNPJ, e-mail, telefone ou chave aleatória" class="form-control">
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary-green">Salvar Pix</button>
+                    </div>
+                </form>
+
+                <div class="empty-chart small-note">O pagamento não é automático nesta etapa. O administrador confirma o pagamento do cliente indicado e libera o repasse.</div>
+            </div>
+        </section>
+
+        <section class="panel table-panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Empresas indicadas</h3>
+                    <p class="page-subtitle">Lista de empresas cadastradas usando seu link.</p>
+                </div>
+            </div>
+
+            <div class="table-shell">
+                <table class="client-table">
+                    <thead>
+                        <tr>
+                            <th>Empresa</th>
+                            <th>E-mail</th>
+                            <th>Plano</th>
+                            <th>Status</th>
+                            <th>Cadastro</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if indicados %}
+                            {% for indicado in indicados %}
+                                <tr>
+                                    <td><strong>{{ indicado.nome_fantasia }}</strong></td>
+                                    <td>{{ indicado.email or '-' }}</td>
+                                    <td>{{ indicado.plano }}</td>
+                                    <td><span class="status-pill {{ indicado.status }}">{{ indicado.status }}</span></td>
+                                    <td>{{ indicado.criado_em }}</td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="5" class="empty-table">Nenhuma empresa indicada ainda.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel table-panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Comissões</h3>
+                    <p class="page-subtitle">Acompanhe valores liberados, pagos, pendentes ou cancelados.</p>
+                </div>
+            </div>
+
+            <div class="table-shell">
+                <table class="client-table">
+                    <thead>
+                        <tr>
+                            <th>Indicado</th>
+                            <th>Plano</th>
+                            <th>Competência</th>
+                            <th>Valor</th>
+                            <th>Status</th>
+                            <th>Pagamento cliente</th>
+                            <th>Repasse</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if comissoes %}
+                            {% for comissao in comissoes %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ comissao.indicado_nome }}</strong><br>
+                                        <span>{{ comissao.indicado_email or '-' }}</span>
+                                    </td>
+                                    <td>{{ comissao.plano }}</td>
+                                    <td>{{ comissao.competencia }}</td>
+                                    <td>R$ {{ comissao.valor_formatado }}</td>
+                                    <td><span class="status-pill {{ comissao.status }}">{{ comissao.status }}</span></td>
+                                    <td>{{ comissao.data_pagamento_cliente or '-' }}</td>
+                                    <td>{{ comissao.data_repasse or '-' }}</td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="empty-table">Nenhuma comissão gerada ainda.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <style>
+            .indicacoes-grid {
+                grid-template-columns: 1.2fr 0.8fr;
+            }
+
+            .link-box {
+                border: 1px solid #dbeafe;
+                border-radius: 14px;
+                background: #eff6ff;
+                padding: 18px;
+                margin-bottom: 14px;
+            }
+
+            .link-box label {
+                display: block;
+                color: #475569;
+                font-weight: 800;
+                margin-bottom: 6px;
+            }
+
+            .link-box strong {
+                color: #0f172a;
+                font-size: 28px;
+                letter-spacing: 1px;
+            }
+
+            .copy-row {
+                display: flex;
+                gap: 10px;
+                align-items: center;
+            }
+
+            .copy-row input {
+                flex: 1;
+            }
+
+            .rules-box {
+                margin-top: 18px;
+                border: 1px solid #e4eaf3;
+                border-radius: 14px;
+                background: #ffffff;
+                padding: 18px;
+            }
+
+            .rules-box strong {
+                display: block;
+                margin-bottom: 10px;
+                color: #0f172a;
+            }
+
+            .rules-box ul {
+                margin: 0;
+                padding-left: 20px;
+                color: #475569;
+                font-weight: 700;
+                line-height: 1.7;
+            }
+
+            .small-note {
+                margin-top: 16px;
+                min-height: auto;
+                padding: 18px;
+            }
+
+            @media (max-width: 1100px) {
+                .indicacoes-grid {
+                    grid-template-columns: 1fr;
+                }
+
+                .copy-row {
+                    flex-direction: column;
+                    align-items: stretch;
+                }
+            }
+        </style>
+
+        <script>
+            function copiarLinkIndicacao() {
+                const campo = document.getElementById("linkIndicacao");
+
+                if (!campo) {
+                    return;
+                }
+
+                campo.select();
+                campo.setSelectionRange(0, 99999);
+                navigator.clipboard.writeText(campo.value);
+            }
+        </script>
+    </main>
+</body>
+</html>

@@ -1,10 +1,11 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-30 22:05 (America/Bahia)
-# Motivo: Ajustar status trial no admin, exibir fim do teste e avisar dias restantes no topo.
+# Último recode: 2026-06-30 23:10 (America/Bahia)
+# Motivo: Criar módulo de indicações com link próprio, comissão recorrente e controle de repasse.
 
 from __future__ import annotations
 
 import html
+import secrets
 import sqlite3
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -195,7 +196,11 @@ def montar_aviso_trial_empresa() -> dict[str, Any]:
                 plano,
                 status,
                 trial_inicio,
-                trial_fim
+                trial_fim,
+                codigo_indicacao,
+                indicado_por_empresa_id,
+                indicador_codigo,
+                pix_indicador
             FROM empresas
             WHERE id = ?
             LIMIT 1
@@ -272,6 +277,124 @@ def exigir_login_rotas_internas() -> Response | None:
         return None
 
     return redirect(url_for("login"))
+
+
+
+def normalizar_codigo_indicacao(codigo: Any) -> str:
+    texto = str(codigo or "").strip().upper()
+    return "".join(caractere for caractere in texto if caractere.isalnum())[:32]
+
+
+def gerar_codigo_indicacao_base(empresa_id: int) -> str:
+    return f"GF{int(empresa_id):04d}"
+
+
+def garantir_codigo_indicacao_empresa(empresa_id: int, conn: sqlite3.Connection | None = None) -> str:
+    codigo_base = gerar_codigo_indicacao_base(empresa_id)
+
+    def _executar(conexao: sqlite3.Connection) -> str:
+        row = conexao.execute(
+            """
+            SELECT codigo_indicacao
+            FROM empresas
+            WHERE id = ?
+            LIMIT 1
+            """,
+            (empresa_id,),
+        ).fetchone()
+
+        if row is not None:
+            codigo_atual = normalizar_codigo_indicacao(row["codigo_indicacao"])
+            if codigo_atual:
+                return codigo_atual
+
+        codigo_final = codigo_base
+        tentativa = 1
+
+        while True:
+            conflito = conexao.execute(
+                """
+                SELECT id
+                FROM empresas
+                WHERE codigo_indicacao = ?
+                  AND id <> ?
+                LIMIT 1
+                """,
+                (codigo_final, empresa_id),
+            ).fetchone()
+
+            if conflito is None:
+                break
+
+            tentativa += 1
+            codigo_final = f"{codigo_base}{tentativa}"
+
+        conexao.execute(
+            """
+            UPDATE empresas
+            SET codigo_indicacao = ?
+            WHERE id = ?
+            """,
+            (codigo_final, empresa_id),
+        )
+        return codigo_final
+
+    if conn is not None:
+        return _executar(conn)
+
+    with conectar_db() as conexao:
+        codigo = _executar(conexao)
+        conexao.commit()
+        return codigo
+
+
+def buscar_empresa_por_codigo_indicacao(codigo: Any) -> dict[str, Any] | None:
+    codigo_normalizado = normalizar_codigo_indicacao(codigo)
+
+    if not codigo_normalizado:
+        return None
+
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                id,
+                nome_fantasia,
+                email,
+                plano,
+                status,
+                codigo_indicacao
+            FROM empresas
+            WHERE codigo_indicacao = ?
+            LIMIT 1
+            """,
+            (codigo_normalizado,),
+        ).fetchone()
+
+    if row is None:
+        return None
+
+    return dict(row)
+
+
+def valor_comissao_por_plano(plano: Any) -> float:
+    plano_normalizado = str(plano or "Start").strip()
+    valores = {
+        "Start": 3.0,
+        "Pro": 5.0,
+        "Business": 10.0,
+    }
+    return valores.get(plano_normalizado, 3.0)
+
+
+def formatar_valor_comissao(valor: Any) -> str:
+    return _formatar_moeda_brl(float(valor or 0))
+
+
+def montar_link_indicacao(codigo: Any) -> str:
+    codigo_normalizado = normalizar_codigo_indicacao(codigo)
+    base_url = request.url_root.rstrip("/") if request else ""
+    return f"{base_url}{url_for('novo_cadastro')}?ref={codigo_normalizado}"
 
 
 def iniciar_banco() -> None:
@@ -555,6 +678,27 @@ def iniciar_banco() -> None:
 
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS indicacao_comissoes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                indicador_empresa_id INTEGER NOT NULL,
+                indicado_empresa_id INTEGER NOT NULL,
+                plano TEXT,
+                competencia TEXT,
+                valor TEXT,
+                status TEXT NOT NULL DEFAULT 'liberada',
+                data_pagamento_cliente TEXT,
+                data_liberacao TEXT,
+                data_repasse TEXT,
+                observacoes TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (indicador_empresa_id) REFERENCES empresas (id),
+                FOREIGN KEY (indicado_empresa_id) REFERENCES empresas (id)
+            )
+            """
+        )
+
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS empresas (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 nome_fantasia TEXT NOT NULL,
@@ -714,6 +858,31 @@ def iniciar_banco() -> None:
 
         if "trial_fim" not in colunas_empresas:
             conn.execute("ALTER TABLE empresas ADD COLUMN trial_fim TEXT")
+
+        if "codigo_indicacao" not in colunas_empresas:
+            conn.execute("ALTER TABLE empresas ADD COLUMN codigo_indicacao TEXT")
+
+        if "indicado_por_empresa_id" not in colunas_empresas:
+            conn.execute("ALTER TABLE empresas ADD COLUMN indicado_por_empresa_id INTEGER")
+
+        if "indicador_codigo" not in colunas_empresas:
+            conn.execute("ALTER TABLE empresas ADD COLUMN indicador_codigo TEXT")
+
+        if "pix_indicador" not in colunas_empresas:
+            conn.execute("ALTER TABLE empresas ADD COLUMN pix_indicador TEXT")
+
+        empresas_sem_codigo = conn.execute(
+            """
+            SELECT id
+            FROM empresas
+            WHERE codigo_indicacao IS NULL
+               OR TRIM(codigo_indicacao) = ''
+            ORDER BY id ASC
+            """
+        ).fetchall()
+
+        for empresa_sem_codigo in empresas_sem_codigo:
+            garantir_codigo_indicacao_empresa(int(empresa_sem_codigo["id"]), conn)
 
 
         tabelas_com_empresa_id = [
@@ -4303,7 +4472,11 @@ def buscar_empresa_configuracoes() -> dict[str, Any]:
                 criado_em,
                 logo_path,
                 trial_inicio,
-                trial_fim
+                trial_fim,
+                codigo_indicacao,
+                indicado_por_empresa_id,
+                indicador_codigo,
+                pix_indicador
             FROM empresas
             WHERE id = ?
             LIMIT 1
@@ -4322,6 +4495,10 @@ def buscar_empresa_configuracoes() -> dict[str, Any]:
             "logo_path": "",
             "trial_inicio": "",
             "trial_fim": "",
+            "codigo_indicacao": "",
+            "indicado_por_empresa_id": "",
+            "indicador_codigo": "",
+            "pix_indicador": "",
             "plano": "Start",
             "status": "ativo",
             "criado_em": "",
@@ -4376,8 +4553,13 @@ def listar_lojas_configuracoes() -> list[dict[str, Any]]:
 
 
 def montar_configuracoes_contexto() -> dict[str, Any]:
+    empresa = buscar_empresa_configuracoes()
+    empresa_id = int(empresa.get("id") or empresa_logada_id())
+    empresa["codigo_indicacao"] = garantir_codigo_indicacao_empresa(empresa_id)
+    empresa["link_indicacao"] = montar_link_indicacao(empresa["codigo_indicacao"])
+
     return {
-        "empresa": buscar_empresa_configuracoes(),
+        "empresa": empresa,
         "usuarios": listar_usuarios_configuracoes(),
         "lojas": listar_lojas_configuracoes(),
     }
@@ -4478,6 +4660,9 @@ def listar_empresas_admin() -> list[dict[str, Any]]:
                 empresas.status,
                 empresas.trial_inicio,
                 empresas.trial_fim,
+                empresas.codigo_indicacao,
+                empresas.indicado_por_empresa_id,
+                empresas.indicador_codigo,
                 empresas.criado_em,
                 COUNT(DISTINCT usuarios.id) AS total_usuarios,
                 COUNT(DISTINCT lojas.id) AS total_lojas
@@ -4527,6 +4712,9 @@ def buscar_empresa_admin_por_id(empresa_id: int) -> dict[str, Any] | None:
                 status,
                 trial_inicio,
                 trial_fim,
+                codigo_indicacao,
+                indicado_por_empresa_id,
+                indicador_codigo,
                 criado_em
             FROM empresas
             WHERE id = ?
@@ -4821,6 +5009,26 @@ def excluir_empresa_cliente_admin_db(empresa_id: int) -> bool:
 
         conn.execute(
             """
+            DELETE FROM indicacao_comissoes
+            WHERE indicador_empresa_id = ?
+               OR indicado_empresa_id = ?
+            """,
+            (empresa_id, empresa_id),
+        )
+
+        conn.execute(
+            """
+            UPDATE empresas
+            SET
+                indicado_por_empresa_id = NULL,
+                indicador_codigo = ''
+            WHERE indicado_por_empresa_id = ?
+            """,
+            (empresa_id,),
+        )
+
+        conn.execute(
+            """
             DELETE FROM lojas
             WHERE empresa_id = ?
             """,
@@ -5012,6 +5220,7 @@ def montar_novo_cadastro_formulario() -> dict[str, str]:
         "senha": (request.form.get("senha") or "").strip(),
         "confirmar_senha": (request.form.get("confirmar_senha") or "").strip(),
         "plano": plano,
+        "ref": normalizar_codigo_indicacao(request.form.get("ref") or request.args.get("ref") or ""),
     }
 
 
@@ -5037,12 +5246,18 @@ def validar_novo_cadastro(formulario: dict[str, str]) -> str:
     if formulario["senha"] != formulario["confirmar_senha"]:
         return "A confirmação de senha não confere."
 
+    if formulario.get("ref") and buscar_empresa_por_codigo_indicacao(formulario["ref"]) is None:
+        return "O código de indicação informado não foi encontrado. Confira o link recebido."
+
     return ""
 
 
 def criar_empresa_trial_db(formulario: dict[str, str]) -> int:
     trial_inicio = date.today()
     trial_fim = trial_inicio + timedelta(days=7)
+    indicador = buscar_empresa_por_codigo_indicacao(formulario.get("ref"))
+    indicador_empresa_id = int(indicador["id"]) if indicador is not None else None
+    indicador_codigo = normalizar_codigo_indicacao(formulario.get("ref")) if indicador is not None else ""
 
     with conectar_db() as conn:
         cursor_empresa = conn.execute(
@@ -5056,8 +5271,10 @@ def criar_empresa_trial_db(formulario: dict[str, str]) -> int:
                 plano,
                 status,
                 trial_inicio,
-                trial_fim
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                trial_fim,
+                indicado_por_empresa_id,
+                indicador_codigo
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 formulario["empresa_nome"],
@@ -5069,9 +5286,12 @@ def criar_empresa_trial_db(formulario: dict[str, str]) -> int:
                 "trial",
                 trial_inicio.isoformat(),
                 trial_fim.isoformat(),
+                indicador_empresa_id,
+                indicador_codigo,
             ),
         )
         empresa_id = int(cursor_empresa.lastrowid)
+        garantir_codigo_indicacao_empresa(empresa_id, conn)
 
         conn.execute(
             """
@@ -5119,7 +5339,6 @@ def criar_empresa_trial_db(formulario: dict[str, str]) -> int:
 
     return empresa_id
 
-
 def entrar_usuario_na_sessao(usuario: dict[str, Any]) -> None:
     session.clear()
     session["usuario_id"] = int(usuario["id"])
@@ -5132,6 +5351,327 @@ def entrar_usuario_na_sessao(usuario: dict[str, Any]) -> None:
     registrar_ultimo_login_usuario(int(usuario["id"]))
 
 
+
+
+def listar_indicados_empresa(empresa_id: int) -> list[dict[str, Any]]:
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                id,
+                nome_fantasia,
+                email,
+                telefone,
+                plano,
+                status,
+                trial_inicio,
+                trial_fim,
+                criado_em
+            FROM empresas
+            WHERE indicado_por_empresa_id = ?
+            ORDER BY id DESC
+            """,
+            (empresa_id,),
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def listar_comissoes_indicador(empresa_id: int) -> list[dict[str, Any]]:
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                indicacao_comissoes.id,
+                indicacao_comissoes.indicador_empresa_id,
+                indicacao_comissoes.indicado_empresa_id,
+                indicacao_comissoes.plano,
+                indicacao_comissoes.competencia,
+                indicacao_comissoes.valor,
+                indicacao_comissoes.status,
+                indicacao_comissoes.data_pagamento_cliente,
+                indicacao_comissoes.data_liberacao,
+                indicacao_comissoes.data_repasse,
+                indicacao_comissoes.observacoes,
+                indicacao_comissoes.criado_em,
+                empresas.nome_fantasia AS indicado_nome,
+                empresas.email AS indicado_email
+            FROM indicacao_comissoes
+            JOIN empresas ON empresas.id = indicacao_comissoes.indicado_empresa_id
+            WHERE indicacao_comissoes.indicador_empresa_id = ?
+            ORDER BY indicacao_comissoes.id DESC
+            """,
+            (empresa_id,),
+        ).fetchall()
+
+    comissoes = []
+    for row in rows:
+        item = dict(row)
+        item["valor_formatado"] = formatar_valor_comissao(_converter_valor_brl(item.get("valor")))
+        comissoes.append(item)
+
+    return comissoes
+
+
+def montar_indicacoes_contexto() -> dict[str, Any]:
+    empresa = buscar_empresa_configuracoes()
+    empresa_id = int(empresa.get("id") or empresa_logada_id())
+    codigo = garantir_codigo_indicacao_empresa(empresa_id)
+    empresa["codigo_indicacao"] = codigo
+    empresa["link_indicacao"] = montar_link_indicacao(codigo)
+
+    indicados = listar_indicados_empresa(empresa_id)
+    comissoes = listar_comissoes_indicador(empresa_id)
+
+    totais = {
+        "indicados": len(indicados),
+        "pendente": 0.0,
+        "liberada": 0.0,
+        "paga": 0.0,
+        "cancelada": 0.0,
+    }
+
+    for comissao in comissoes:
+        status = str(comissao.get("status") or "liberada").strip()
+        valor = _converter_valor_brl(comissao.get("valor"))
+        if status in totais:
+            totais[status] += valor
+
+    totais_formatados = {chave: formatar_valor_comissao(valor) if chave != "indicados" else valor for chave, valor in totais.items()}
+
+    return {
+        "empresa": empresa,
+        "indicados": indicados,
+        "comissoes": comissoes,
+        "totais": totais_formatados,
+    }
+
+
+def atualizar_pix_indicador_db(chave_pix: str) -> None:
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            UPDATE empresas
+            SET pix_indicador = ?
+            WHERE id = ?
+            """,
+            (chave_pix, empresa_logada_id()),
+        )
+        conn.commit()
+
+
+def listar_indicacoes_admin() -> dict[str, Any]:
+    with conectar_db() as conn:
+        indicacoes_rows = conn.execute(
+            """
+            SELECT
+                indicadas.id AS indicado_id,
+                indicadas.nome_fantasia AS indicado_nome,
+                indicadas.email AS indicado_email,
+                indicadas.plano AS indicado_plano,
+                indicadas.status AS indicado_status,
+                indicadas.criado_em AS indicado_criado_em,
+                indicadas.indicador_codigo,
+                indicadoras.id AS indicador_id,
+                indicadoras.nome_fantasia AS indicador_nome,
+                indicadoras.email AS indicador_email,
+                indicadoras.pix_indicador AS indicador_pix
+            FROM empresas indicadas
+            JOIN empresas indicadoras ON indicadoras.id = indicadas.indicado_por_empresa_id
+            ORDER BY indicadas.id DESC
+            """
+        ).fetchall()
+
+        comissoes_rows = conn.execute(
+            """
+            SELECT
+                indicacao_comissoes.id,
+                indicacao_comissoes.indicador_empresa_id,
+                indicacao_comissoes.indicado_empresa_id,
+                indicacao_comissoes.plano,
+                indicacao_comissoes.competencia,
+                indicacao_comissoes.valor,
+                indicacao_comissoes.status,
+                indicacao_comissoes.data_pagamento_cliente,
+                indicacao_comissoes.data_liberacao,
+                indicacao_comissoes.data_repasse,
+                indicacao_comissoes.observacoes,
+                indicacao_comissoes.criado_em,
+                indicadoras.nome_fantasia AS indicador_nome,
+                indicadoras.email AS indicador_email,
+                indicadoras.pix_indicador AS indicador_pix,
+                indicadas.nome_fantasia AS indicado_nome,
+                indicadas.email AS indicado_email
+            FROM indicacao_comissoes
+            JOIN empresas indicadoras ON indicadoras.id = indicacao_comissoes.indicador_empresa_id
+            JOIN empresas indicadas ON indicadas.id = indicacao_comissoes.indicado_empresa_id
+            ORDER BY indicacao_comissoes.id DESC
+            """
+        ).fetchall()
+
+    indicacoes = [dict(row) for row in indicacoes_rows]
+    comissoes = []
+
+    for row in comissoes_rows:
+        item = dict(row)
+        item["valor_formatado"] = formatar_valor_comissao(_converter_valor_brl(item.get("valor")))
+        comissoes.append(item)
+
+    total_liberado = sum(_converter_valor_brl(item.get("valor")) for item in comissoes if item.get("status") == "liberada")
+    total_pago = sum(_converter_valor_brl(item.get("valor")) for item in comissoes if item.get("status") == "paga")
+    total_pendente = sum(_converter_valor_brl(item.get("valor")) for item in comissoes if item.get("status") == "pendente")
+
+    return {
+        "indicacoes": indicacoes,
+        "comissoes": comissoes,
+        "totais": {
+            "indicacoes": len(indicacoes),
+            "liberado": formatar_valor_comissao(total_liberado),
+            "pago": formatar_valor_comissao(total_pago),
+            "pendente": formatar_valor_comissao(total_pendente),
+        },
+    }
+
+
+def registrar_pagamento_indicacao_db(indicado_empresa_id: int, competencia: str = "") -> tuple[bool, str]:
+    indicado = buscar_empresa_admin_por_id(indicado_empresa_id)
+
+    if indicado is None:
+        return False, "Empresa indicada não encontrada."
+
+    indicador_empresa_id = indicado.get("indicado_por_empresa_id")
+
+    if not indicador_empresa_id:
+        return False, "Esta empresa não possui indicador vinculado."
+
+    competencia = str(competencia or date.today().strftime("%Y-%m")).strip()[:7]
+
+    if not competencia:
+        competencia = date.today().strftime("%Y-%m")
+
+    plano = str(indicado.get("plano") or "Start").strip() or "Start"
+    valor = valor_comissao_por_plano(plano)
+
+    with conectar_db() as conn:
+        existente = conn.execute(
+            """
+            SELECT id
+            FROM indicacao_comissoes
+            WHERE indicado_empresa_id = ?
+              AND competencia = ?
+              AND status <> 'cancelada'
+            LIMIT 1
+            """,
+            (indicado_empresa_id, competencia),
+        ).fetchone()
+
+        if existente is not None:
+            return False, "Comissão desta competência já foi registrada para esta indicação."
+
+        conn.execute(
+            """
+            INSERT INTO indicacao_comissoes (
+                indicador_empresa_id,
+                indicado_empresa_id,
+                plano,
+                competencia,
+                valor,
+                status,
+                data_pagamento_cliente,
+                data_liberacao,
+                data_repasse,
+                observacoes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                int(indicador_empresa_id),
+                int(indicado_empresa_id),
+                plano,
+                competencia,
+                _formatar_moeda_brl(valor),
+                "liberada",
+                date.today().isoformat(),
+                date.today().isoformat(),
+                "",
+                "Comissão recorrente gerada após pagamento confirmado do cliente indicado.",
+            ),
+        )
+        conn.commit()
+
+    return True, "Comissão registrada como liberada."
+
+
+def atualizar_status_comissao_indicacao_db(comissao_id: int, status: str) -> None:
+    status_normalizado = str(status or "").strip()
+
+    if status_normalizado not in {"pendente", "liberada", "paga", "cancelada"}:
+        status_normalizado = "liberada"
+
+    data_repasse = date.today().isoformat() if status_normalizado == "paga" else ""
+
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            UPDATE indicacao_comissoes
+            SET
+                status = ?,
+                data_repasse = ?
+            WHERE id = ?
+            """,
+            (status_normalizado, data_repasse, comissao_id),
+        )
+        conn.commit()
+
+
+@app.get("/indicacoes")
+def indicacoes() -> str:
+    return render_template("indicacoes.html", contexto=montar_indicacoes_contexto())
+
+
+@app.post("/indicacoes/pix")
+def salvar_pix_indicador() -> Response:
+    chave_pix = (request.form.get("pix_indicador") or "").strip()
+    atualizar_pix_indicador_db(chave_pix)
+    return redirect(url_for("indicacoes"))
+
+
+@app.get("/admin/indicacoes")
+def admin_indicacoes() -> str | Response:
+    if not usuario_logado_eh_admin_sistema():
+        return redirect(url_for("dashboard"))
+
+    return render_template(
+        "admin_indicacoes.html",
+        contexto=listar_indicacoes_admin(),
+        hoje_competencia=date.today().strftime("%Y-%m"),
+        erro=request.args.get("erro", ""),
+        sucesso=request.args.get("sucesso", ""),
+    )
+
+
+@app.post("/admin/indicacoes/<int:empresa_id>/registrar-pagamento")
+def admin_registrar_pagamento_indicacao(empresa_id: int) -> Response:
+    if not usuario_logado_eh_admin_sistema():
+        return redirect(url_for("dashboard"))
+
+    competencia = (request.form.get("competencia") or "").strip()
+    ok, mensagem = registrar_pagamento_indicacao_db(empresa_id, competencia)
+
+    if ok:
+        return redirect(url_for("admin_indicacoes", sucesso=mensagem))
+
+    return redirect(url_for("admin_indicacoes", erro=mensagem))
+
+
+@app.post("/admin/indicacoes/comissoes/<int:comissao_id>/status")
+def admin_atualizar_status_comissao_indicacao(comissao_id: int) -> Response:
+    if not usuario_logado_eh_admin_sistema():
+        return redirect(url_for("dashboard"))
+
+    novo_status = (request.form.get("status") or "liberada").strip()
+    atualizar_status_comissao_indicacao_db(comissao_id, novo_status)
+    return redirect(url_for("admin_indicacoes", sucesso="Status da comissão atualizado."))
+
 @app.get("/portal")
 def portal() -> str:
     return render_template("portal.html")
@@ -5139,7 +5679,7 @@ def portal() -> str:
 
 @app.get("/planos")
 def planos() -> str:
-    return render_template("planos.html")
+    return render_template("planos.html", ref=normalizar_codigo_indicacao(request.args.get("ref") or ""))
 
 
 @app.route("/novo-cadastro", methods=["GET", "POST"])

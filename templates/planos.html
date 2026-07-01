@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\planos.html
-Último recode: 2026-06-30 21:20 (America/Bahia)
-Motivo: Criar página pública de planos comerciais do GestFlow.
+Último recode: 2026-06-30 23:10 (America/Bahia)
+Motivo: Preservar código de indicação nos botões de teste dos planos.
 -->
 
 <!DOCTYPE html>
@@ -221,12 +221,13 @@ Motivo: Criar página pública de planos comerciais do GestFlow.
     </style>
 </head>
 <body>
+    {% set ref_query = "&ref=" ~ ref if ref|default("") else "" %}
     <header class="header">
         <div class="header-inner">
             <a href="/portal" class="logo"><span class="logo-mark">GF</span><span>GestFlow</span></a>
             <div class="nav">
                 <a href="/login" class="btn btn-light">Entrar</a>
-                <a href="/novo-cadastro" class="btn btn-primary">Começar grátis</a>
+                <a href="/novo-cadastro{% if ref|default('') %}?ref={{ ref }}{% endif %}" class="btn btn-primary">Começar grátis</a>
             </div>
         </div>
     </header>
@@ -251,7 +252,7 @@ Motivo: Criar página pública de planos comerciais do GestFlow.
                 <li>Estoque e financeiro básico</li>
                 <li>Impressões do sistema</li>
             </ul>
-            <a href="/novo-cadastro?plano=Start" class="btn btn-dark">Testar Start</a>
+            <a href="/novo-cadastro?plano=Start{{ ref_query }}" class="btn btn-dark">Testar Start</a>
         </article>
 
         <article class="plan-card featured">
@@ -266,7 +267,7 @@ Motivo: Criar página pública de planos comerciais do GestFlow.
                 <li>Financeiro com contas a pagar e receber</li>
                 <li>Suporte via WhatsApp</li>
             </ul>
-            <a href="/novo-cadastro?plano=Pro" class="btn btn-primary">Testar Pro</a>
+            <a href="/novo-cadastro?plano=Pro{{ ref_query }}" class="btn btn-primary">Testar Pro</a>
         </article>
 
         <article class="plan-card">
@@ -281,7 +282,7 @@ Motivo: Criar página pública de planos comerciais do GestFlow.
                 <li>Relatórios avançados</li>
                 <li>Prioridade no suporte</li>
             </ul>
-            <a href="/novo-cadastro?plano=Business" class="btn btn-dark">Testar Business</a>
+            <a href="/novo-cadastro?plano=Business{{ ref_query }}" class="btn btn-dark">Testar Business</a>
         </article>
     </section>
 

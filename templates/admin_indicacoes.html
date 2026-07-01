@@ -1,0 +1,210 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\admin_indicacoes.html
+Último recode: 2026-06-30 23:10 (America/Bahia)
+Motivo: Criar tela administrativa para controlar indicações, comissões e repasses.
+-->
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Admin Indicações</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+
+    <main class="content">
+        {% set page_title = 'Admin Indicações' %}
+        {% include "partials/topbar.html" %}
+
+        {% set contexto = contexto|default({}) %}
+        {% set indicacoes = contexto.indicacoes|default([]) %}
+        {% set comissoes = contexto.comissoes|default([]) %}
+        {% set totais = contexto.totais|default({}) %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Admin GestFlow</span>
+                    <h3 class="page-title">Indicações e repasses</h3>
+                    <p class="page-subtitle">Controle quem indicou, qual empresa entrou pelo link e quais comissões devem ser pagas via Pix.</p>
+                </div>
+                <a href="/admin/empresas" class="btn-light">Voltar para empresas</a>
+            </div>
+
+            {% if erro %}
+                <div class="alert alert-danger">{{ erro }}</div>
+            {% endif %}
+
+            {% if sucesso %}
+                <div class="alert alert-success">{{ sucesso }}</div>
+            {% endif %}
+        </section>
+
+        <section class="cards cards-secondary page-section">
+            <div class="card stat-card">
+                <div class="card-icon">↗</div>
+                <div class="card-info">
+                    <p>{{ totais.indicacoes|default(0) }}</p>
+                    <h3>Indicações</h3>
+                    <span>Empresas cadastradas por link</span>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="card-icon">R$</div>
+                <div class="card-info">
+                    <p>{{ totais.liberado|default('0,00') }}</p>
+                    <h3>Liberado</h3>
+                    <span>A pagar via Pix</span>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="card-icon">✓</div>
+                <div class="card-info">
+                    <p>{{ totais.pago|default('0,00') }}</p>
+                    <h3>Pago</h3>
+                    <span>Comissões repassadas</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel table-panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Empresas indicadas</h3>
+                    <p class="page-subtitle">Quando o cliente indicado pagar, registre o pagamento para gerar a comissão do mês.</p>
+                </div>
+            </div>
+
+            <div class="table-shell">
+                <table class="client-table">
+                    <thead>
+                        <tr>
+                            <th>Indicador</th>
+                            <th>Pix indicador</th>
+                            <th>Indicado</th>
+                            <th>Plano</th>
+                            <th>Status</th>
+                            <th>Competência</th>
+                            <th>Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if indicacoes %}
+                            {% for item in indicacoes %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ item.indicador_nome }}</strong><br>
+                                        <span>{{ item.indicador_email or '-' }}</span>
+                                    </td>
+                                    <td>{{ item.indicador_pix or '-' }}</td>
+                                    <td>
+                                        <strong>{{ item.indicado_nome }}</strong><br>
+                                        <span>{{ item.indicado_email or '-' }}</span>
+                                    </td>
+                                    <td>{{ item.indicado_plano }}</td>
+                                    <td><span class="status-pill {{ item.indicado_status }}">{{ item.indicado_status }}</span></td>
+                                    <td>
+                                        <form action="/admin/indicacoes/{{ item.indicado_id }}/registrar-pagamento" method="post" class="inline-form">
+                                            <input name="competencia" type="month" class="form-control mini-control" value="{{ hoje_competencia|default('') }}">
+                                            <button type="submit" class="btn-primary-green">Registrar pagamento</button>
+                                        </form>
+                                    </td>
+                                    <td>R$ {% if item.indicado_plano == 'Business' %}10,00{% elif item.indicado_plano == 'Pro' %}5,00{% else %}3,00{% endif %}</td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="empty-table">Nenhuma indicação vinculada ainda.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel table-panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Comissões geradas</h3>
+                    <p class="page-subtitle">Marque como paga depois de fazer o Pix para o indicador.</p>
+                </div>
+            </div>
+
+            <div class="table-shell">
+                <table class="client-table">
+                    <thead>
+                        <tr>
+                            <th>Indicador</th>
+                            <th>Pix</th>
+                            <th>Indicado</th>
+                            <th>Plano</th>
+                            <th>Competência</th>
+                            <th>Valor</th>
+                            <th>Status</th>
+                            <th>Repasse</th>
+                            <th>Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if comissoes %}
+                            {% for comissao in comissoes %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ comissao.indicador_nome }}</strong><br>
+                                        <span>{{ comissao.indicador_email or '-' }}</span>
+                                    </td>
+                                    <td>{{ comissao.indicador_pix or '-' }}</td>
+                                    <td>
+                                        <strong>{{ comissao.indicado_nome }}</strong><br>
+                                        <span>{{ comissao.indicado_email or '-' }}</span>
+                                    </td>
+                                    <td>{{ comissao.plano }}</td>
+                                    <td>{{ comissao.competencia }}</td>
+                                    <td>R$ {{ comissao.valor_formatado }}</td>
+                                    <td><span class="status-pill {{ comissao.status }}">{{ comissao.status }}</span></td>
+                                    <td>{{ comissao.data_repasse or '-' }}</td>
+                                    <td>
+                                        <form action="/admin/indicacoes/comissoes/{{ comissao.id }}/status" method="post" class="inline-form">
+                                            <select name="status" class="form-control mini-control">
+                                                <option value="pendente" {% if comissao.status == 'pendente' %}selected{% endif %}>Pendente</option>
+                                                <option value="liberada" {% if comissao.status == 'liberada' %}selected{% endif %}>Liberada</option>
+                                                <option value="paga" {% if comissao.status == 'paga' %}selected{% endif %}>Paga</option>
+                                                <option value="cancelada" {% if comissao.status == 'cancelada' %}selected{% endif %}>Cancelada</option>
+                                            </select>
+                                            <button type="submit" class="btn-light">Salvar</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="9" class="empty-table">Nenhuma comissão gerada ainda.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <style>
+            .inline-form {
+                display: flex;
+                gap: 8px;
+                align-items: center;
+                margin: 0;
+                flex-wrap: wrap;
+            }
+
+            .mini-control {
+                min-width: 130px;
+                height: 38px;
+            }
+        </style>
+    </main>
+</body>
+</html>

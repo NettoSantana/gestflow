@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\configuracoes.html
-Último recode: 2026-06-30 21:20 (America/Bahia)
-Motivo: Exibir plano e período de teste do cadastro automático.
+Último recode: 2026-06-30 23:10 (America/Bahia)
+Motivo: Incluir acesso ao programa de indicações e link próprio do cliente.
 -->
 
 <!DOCTYPE html>
@@ -55,6 +55,15 @@ Motivo: Exibir plano e período de teste do cadastro automático.
                 </div>
             </a>
 
+            <a href="/indicacoes" class="card stat-card config-card-link">
+                <div class="card-icon">↗</div>
+                <div class="card-info">
+                    <p>Indicações</p>
+                    <h3>Meu link</h3>
+                    <span>Ganhe comissão por indicação</span>
+                </div>
+            </a>
+
             <a href="/configuracoes/usuarios" class="card stat-card config-card-link {% if aba == 'usuarios' %}config-active{% endif %}">
                 <div class="card-icon">♟</div>
                 <div class="card-info">
@@ -92,6 +101,14 @@ Motivo: Exibir plano e período de teste do cadastro automático.
                         <div>
                             <strong>Meu plano</strong>
                             <small>Plano atual e assinatura</small>
+                        </div>
+                    </a>
+
+                    <a href="/indicacoes" class="config-menu-item">
+                        <span>↗</span>
+                        <div>
+                            <strong>Indicações</strong>
+                            <small>Link, indicados e repasses</small>
                         </div>
                     </a>
 
@@ -509,6 +526,31 @@ Motivo: Exibir plano e período de teste do cadastro automático.
                 border-radius: 10px;
                 color: #64748b;
                 background: #f8fafc;
+                font-weight: 700;
+            }
+
+            .indication-box {
+                margin-top: 18px;
+                padding: 18px;
+                border: 1px solid #dbeafe;
+                border-radius: 14px;
+                background: #eff6ff;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 18px;
+            }
+
+            .indication-box strong {
+                display: block;
+                color: #0f172a;
+                font-size: 16px;
+                margin-bottom: 6px;
+            }
+
+            .indication-box p {
+                margin: 0;
+                color: #475569;
                 font-weight: 700;
             }
 

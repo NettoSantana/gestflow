@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\admin_empresas.html
-Último recode: 2026-06-30 22:05 (America/Bahia)
-Motivo: Exibir status trial corretamente, fim do teste e dias restantes no admin.
+Último recode: 2026-06-30 23:10 (America/Bahia)
+Motivo: Adicionar atalho para controle administrativo de indicações e repasses.
 -->
 
 <!DOCTYPE html>
@@ -81,7 +81,10 @@ Motivo: Exibir status trial corretamente, fim do teste e dias restantes no admin
                     <p class="page-subtitle">Crie um login novo ou atualize a senha de um login já existente. O cliente completa os dados da empresa no primeiro acesso.</p>
                 </div>
 
-                <span class="badge-info">Login e senha</span>
+                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <a href="/admin/indicacoes" class="btn-primary-green">Indicações</a>
+                    <span class="badge-info">Login e senha</span>
+                </div>
             </div>
 
             {% if erro %}
