@@ -1879,6 +1879,25 @@ body {
     resize: vertical;
 }
 
+.resumo-servico-control {
+    min-height: 78px;
+}
+
+.escopo-tecnico-control {
+    min-height: 360px;
+    font-family: Arial, Helvetica, sans-serif;
+    line-height: 1.45;
+    text-transform: uppercase;
+}
+
+.field-hint {
+    display: block;
+    margin-top: 6px;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 700;
+}
+
 .quick-new-option {
     color: #16a34a;
     font-weight: 900;

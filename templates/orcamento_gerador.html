@@ -107,11 +107,17 @@ Motivo: Adicionar geração automática de escopo, parâmetros persistentes e pa
                         </div>
 
                         <div class="form-group">
+                            <label for="gerador_resumo_servico">Resumo do serviço</label>
+                            <textarea id="gerador_resumo_servico" class="form-control textarea-control resumo-servico-control" placeholder="Ex: Modificação em 05 racks metálicos, alterando de 120 x 240 cm para 160 x 240 cm."></textarea>
+                            <small class="field-hint">Use este campo como base para o botão Gerar escopo. Quanto mais claro o resumo, melhor fica o texto técnico.</small>
+                        </div>
+
+                        <div class="form-group">
                             <div class="gerador-label-action">
                                 <label for="gerador_escopo">Escopo do serviço</label>
                                 <button type="button" class="btn-dark btn-compact" onclick="gerarEscopoAutomatico()">Gerar escopo</button>
                             </div>
-                            <textarea id="gerador_escopo" name="gerador_escopo" class="form-control textarea-control" placeholder="Descreva o que será executado. Essa informação pode aparecer no orçamento do cliente."></textarea>
+                            <textarea id="gerador_escopo" name="gerador_escopo" class="form-control textarea-control escopo-tecnico-control" placeholder="Descreva o que será executado. Essa informação pode aparecer no orçamento do cliente."></textarea>
                         </div>
                     </section>
 
@@ -532,41 +538,107 @@ function preencherCustoFuncionario(linha) {
 }
 
 
-function gerarEscopoAutomatico() {
-    const tipo = document.getElementById('gerador_tipo_servico')?.value || 'Serviço técnico';
-    const prazo = document.getElementById('gerador_prazo')?.value.trim();
-    const materiais = Array.from(document.querySelectorAll('#materiais-body .material-select'))
-        .map(select => select.value)
-        .filter(valor => valor && !valor.startsWith('__novo'))
-        .slice(0, 8);
-    const maoObra = Array.from(document.querySelectorAll('#mao-obra-body .mao-select'))
-        .map(select => select.value)
-        .filter(valor => valor && !valor.startsWith('__novo'))
-        .slice(0, 6);
-    const custos = Array.from(document.querySelectorAll('#custos-body [name="custo_descricao"]'))
-        .map(input => input.value.trim())
+function textoMaiusculoTecnico(valor) {
+    return String(valor || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/ç/g, 'c')
+        .replace(/Ç/g, 'C')
+        .replace(/º/g, '')
+        .replace(/ª/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toUpperCase();
+}
+
+function listaMateriaisEscopo() {
+    return Array.from(document.querySelectorAll('#materiais-body tr'))
+        .map(function(tr) {
+            const select = tr.querySelector('.material-select');
+            const descricao = select?.value || '';
+            if (!descricao || descricao.startsWith('__novo')) return '';
+            const qtd = tr.querySelector('[name="material_quantidade"]')?.value || '';
+            const unidade = tr.querySelector('[name="material_unidade"]')?.value || '';
+            const qtdTexto = textoMaiusculoTecnico(qtd || '');
+            const unTexto = textoMaiusculoTecnico(unidade || '');
+            const descTexto = textoMaiusculoTecnico(descricao);
+            if (qtdTexto && unTexto) return `${qtdTexto} ${unTexto} - ${descTexto}`;
+            return descTexto;
+        })
         .filter(Boolean)
-        .slice(0, 6);
+        .slice(0, 12);
+}
 
-    let texto = `Execução de serviço técnico de ${tipo.toLowerCase()}, contemplando planejamento, mobilização da equipe, fornecimento/aplicação dos materiais necessários e execução conforme condições técnicas definidas.`;
+function listaMaoObraEscopo() {
+    return Array.from(document.querySelectorAll('#mao-obra-body tr'))
+        .map(function(tr) {
+            const select = tr.querySelector('.mao-select');
+            const descricao = select?.value || '';
+            if (!descricao || descricao.startsWith('__novo')) return '';
+            const pessoas = tr.querySelector('[name="mao_pessoas"]')?.value || '';
+            const tempo = tr.querySelector('[name="mao_tempo"]')?.value || '';
+            const unidade = tr.querySelector('[name="mao_unidade"]')?.value || '';
+            const descTexto = textoMaiusculoTecnico(descricao);
+            const pessoasTexto = textoMaiusculoTecnico(pessoas || '');
+            const tempoTexto = textoMaiusculoTecnico(tempo || '');
+            const unidadeTexto = textoMaiusculoTecnico(unidade || '');
+            if (pessoasTexto && tempoTexto) return `${descTexto} - ${pessoasTexto} PESSOA(S) POR ${tempoTexto} ${unidadeTexto}`;
+            return descTexto;
+        })
+        .filter(Boolean)
+        .slice(0, 10);
+}
 
-    if (materiais.length) {
-        texto += `\n\nMateriais previstos: ${materiais.join(', ')}.`;
-    }
+function listaCustosEscopo() {
+    return Array.from(document.querySelectorAll('#custos-body [name="custo_descricao"]'))
+        .map(input => textoMaiusculoTecnico(input.value))
+        .filter(Boolean)
+        .slice(0, 10);
+}
 
-    if (maoObra.length) {
-        texto += `\n\nMão de obra prevista: ${maoObra.join(', ')}.`;
-    }
+function montarLinhasOuPadrao(lista, padrao) {
+    if (lista.length) return lista.join('\n');
+    return padrao;
+}
 
-    if (custos.length) {
-        texto += `\n\nCustos operacionais considerados: ${custos.join(', ')}.`;
-    }
+function gerarEscopoAutomatico() {
+    const tipo = textoMaiusculoTecnico(document.getElementById('gerador_tipo_servico')?.value || 'SERVICO TECNICO');
+    const prazo = textoMaiusculoTecnico(document.getElementById('gerador_prazo')?.value || 'A DEFINIR CONFORME PROGRAMACAO E CONDICOES DE CAMPO');
+    const resumoCampo = document.getElementById('gerador_resumo_servico');
+    const resumo = textoMaiusculoTecnico(resumoCampo?.value || '');
+    const cliente = textoMaiusculoTecnico(document.getElementById('gerador_cliente')?.value || 'CLIENTE');
+    const materiais = listaMateriaisEscopo();
+    const maoObra = listaMaoObraEscopo();
+    const custos = listaCustosEscopo();
 
-    if (prazo) {
-        texto += `\n\nPrazo estimado de execução/entrega: ${prazo}.`;
-    }
+    const objetivoBase = resumo
+        ? `EXECUTAR SERVICOS DE ${resumo}, CONFORME SOLICITACAO DO CLIENTE, VISANDO ATENDER AS NECESSIDADES OPERACIONAIS, TECNICAS E DE UTILIZACAO.`
+        : `EXECUTAR SERVICOS DE ${tipo}, CONFORME SOLICITACAO DO CLIENTE, VISANDO ATENDER AS NECESSIDADES OPERACIONAIS, TECNICAS E DE UTILIZACAO.`;
 
-    texto += `\n\nA execução será realizada conforme disponibilidade operacional, condições de acesso ao local e aprovação comercial do cliente.`;
+    const descricaoBase = resumo
+        ? `O SERVICO CONTEMPLA ${resumo}, COM UTILIZACAO DE MAO DE OBRA ESPECIALIZADA, MATERIAIS APLICAVEIS E PROCEDIMENTOS ADEQUADOS PARA ENTREGA DO SERVICO CONFORME ESCOPO DEFINIDO.`
+        : `O SERVICO CONTEMPLA A EXECUCAO DE ATIVIDADES TECNICAS DE ${tipo}, COM UTILIZACAO DE MAO DE OBRA ESPECIALIZADA, MATERIAIS APLICAVEIS E PROCEDIMENTOS ADEQUADOS PARA ENTREGA DO SERVICO CONFORME ESCOPO DEFINIDO.`;
+
+    const diagnosticoBase = resumo
+        ? `FOI IDENTIFICADA A NECESSIDADE DE INTERVENCAO TECNICA PARA ${resumo}, SENDO NECESSARIA A EXECUCAO DOS SERVICOS PREVISTOS PARA ATENDER AO PADRAO SOLICITADO PELO CLIENTE.`
+        : `FOI IDENTIFICADA A NECESSIDADE DE INTERVENCAO TECNICA PARA ADEQUACAO, CORRECAO OU MELHORIA DAS CONDICOES EXISTENTES, CONFORME DEMANDA INFORMADA PELO CLIENTE E AVALIACAO PRELIMINAR DO SERVICO.`;
+
+    const servicosExecutadosPadrao = [
+        'MOBILIZACAO DA EQUIPE TECNICA',
+        `EXECUCAO DOS SERVICOS DE ${tipo} CONFORME ESCOPO DEFINIDO`,
+        'APLICACAO DOS MATERIAIS NECESSARIOS',
+        'AJUSTES, TESTES E VERIFICACAO FINAL DAS CONDICOES DE ENTREGA'
+    ];
+
+    maoObra.forEach(item => servicosExecutadosPadrao.push(`UTILIZACAO DE MAO DE OBRA: ${item}`));
+    custos.forEach(item => servicosExecutadosPadrao.push(`CUSTO OPERACIONAL PREVISTO: ${item}`));
+
+    const materiaisPadrao = [
+        'MATERIAIS NECESSARIOS PARA EXECUCAO DO SERVICO',
+        'CONSUMIVEIS, ACESSORIOS E ELEMENTOS COMPLEMENTARES NECESSARIOS PARA EXECUCAO DAS ATIVIDADES'
+    ];
+
+    const texto = `1 OBJETIVO DO SERVICO\n\n${objetivoBase}\n\n2 DESCRICAO DO SERVICO\n\n${descricaoBase}\n\nAS ATIVIDADES DEVERAO SER EXECUTADAS CONFORME AS CONDICOES REAIS DE CAMPO, MANTENDO A FUNCIONALIDADE, A SEGURANCA E A INTEGRIDADE DOS CONJUNTOS OU SISTEMAS ENVOLVIDOS APOS A INTERVENCAO.\n\n3 DIAGNOSTICO TECNICO\n\n${diagnosticoBase}\n\nEM RAZAO DESSA NECESSIDADE, DEVERAO SER REALIZADOS OS SERVICOS DE PREPARACAO, EXECUCAO, AJUSTES, VERIFICACOES E FINALIZACAO, DE FORMA A GARANTIR CONDICOES ADEQUADAS DE USO APOS A INTERVENCAO.\n\n4 SERVICOS EXECUTADOS\n\n${montarLinhasOuPadrao(servicosExecutadosPadrao, `EXECUCAO DOS SERVICOS DE ${tipo} CONFORME ESCOPO DEFINIDO`)}\n\n5 MATERIAIS E COMPONENTES\n\n${montarLinhasOuPadrao(materiais.length ? materiais : materiaisPadrao, materiaisPadrao.join('\n'))}\n\n6 CONDICOES DO SERVICO\n\nO ESCOPO CONTEMPLA A EXECUCAO DOS SERVICOS DESCRITOS, CONFORME SOLICITACAO DO CLIENTE ${cliente && cliente !== 'CLIENTE' ? ' ' + cliente : ''}.\n\nAS ALTERACOES, ADEQUACOES OU INTERVENCOES SERAO EXECUTADAS COM BASE NAS CONDICOES REAIS DO LOCAL E NAS DEFINICOES TECNICAS DE CAMPO.\n\nEVENTUAIS AJUSTES ADICIONAIS OU MODIFICACOES NAO PREVISTAS INICIALMENTE DEVERAO SER TRATADOS SEPARADAMENTE, CASO NECESSARIO.\n\nO SERVICO DEVERA GARANTIR A FUNCIONALIDADE, A SEGURANCA E AS CONDICOES ADEQUADAS DE UTILIZACAO APOS A EXECUCAO.\n\n7 PRAZO\n\nPRAZO DE EXECUCAO: ${prazo}.`;
 
     const campo = document.getElementById('gerador_escopo');
     if (campo) {
