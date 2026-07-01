@@ -551,22 +551,22 @@ function gerarEscopoAutomatico() {
     let texto = `Execução de serviço técnico de ${tipo.toLowerCase()}, contemplando planejamento, mobilização da equipe, fornecimento/aplicação dos materiais necessários e execução conforme condições técnicas definidas.`;
 
     if (materiais.length) {
-        texto += `\\n\\nMateriais previstos: ${materiais.join(', ')}.`;
+        texto += `\n\nMateriais previstos: ${materiais.join(', ')}.`;
     }
 
     if (maoObra.length) {
-        texto += `\\n\\nMão de obra prevista: ${maoObra.join(', ')}.`;
+        texto += `\n\nMão de obra prevista: ${maoObra.join(', ')}.`;
     }
 
     if (custos.length) {
-        texto += `\\n\\nCustos operacionais considerados: ${custos.join(', ')}.`;
+        texto += `\n\nCustos operacionais considerados: ${custos.join(', ')}.`;
     }
 
     if (prazo) {
-        texto += `\\n\\nPrazo estimado de execução/entrega: ${prazo}.`;
+        texto += `\n\nPrazo estimado de execução/entrega: ${prazo}.`;
     }
 
-    texto += `\\n\\nA execução será realizada conforme disponibilidade operacional, condições de acesso ao local e aprovação comercial do cliente.`;
+    texto += `\n\nA execução será realizada conforme disponibilidade operacional, condições de acesso ao local e aprovação comercial do cliente.`;
 
     const campo = document.getElementById('gerador_escopo');
     if (campo) {

@@ -3081,83 +3081,152 @@ def montar_gerador_orcamento_formulario() -> dict[str, Any]:
     }
 
 
+def _gerador_alocar_total(valor_total: float, bases: list[float]) -> list[float]:
+    soma_bases = sum(max(float(base or 0), 0.0) for base in bases)
+
+    if valor_total <= 0 or soma_bases <= 0 or not bases:
+        return [0.0 for _ in bases]
+
+    valores: list[float] = []
+    acumulado = 0.0
+
+    for indice, base in enumerate(bases):
+        if indice == len(bases) - 1:
+            valor = max(valor_total - acumulado, 0.0)
+        else:
+            valor = round(valor_total * (max(float(base or 0), 0.0) / soma_bases), 2)
+            acumulado += valor
+
+        valores.append(valor)
+
+    return valores
+
+
 def gerar_orcamento_por_gerador_db(dados: dict[str, Any]) -> int:
     valor_total = float(dados.get("valor_escolhido") or 0)
     venda_material = float(dados.get("venda_material") or 0)
     venda_mao_obra = float(dados.get("venda_mao_obra") or 0)
     venda_custos = float(dados.get("venda_custos") or 0)
+    materiais = list(dados.get("materiais") or [])
 
-    # Mantém o padrão visual do orçamento manual: o cliente vê apenas os itens comerciais.
-    # Impostos, administrativo, reserva técnica e lucro ficam embutidos nesses itens
-    # e continuam registrados somente nas observações internas.
-    componentes_visiveis = []
+    # Padrão igual ao orçamento manual:
+    # - materiais aparecem na seção PRODUTOS;
+    # - mão de obra/custos aparecem na seção SERVIÇOS;
+    # - impostos, administrativo, reserva técnica e lucro ficam embutidos nos valores.
+    bases_grupos = []
+    nomes_grupos = []
 
     if venda_material > 0:
-        componentes_visiveis.append(
-            {
-                "descricao": "Materiais aplicados no serviço",
-                "detalhes": "Fornecimento e aplicação de materiais conforme escopo aprovado.",
-                "base": venda_material,
-            }
-        )
+        bases_grupos.append(venda_material)
+        nomes_grupos.append("produtos")
 
-    if venda_mao_obra > 0:
-        componentes_visiveis.append(
-            {
-                "descricao": "Mão de obra técnica",
-                "detalhes": "Equipe técnica, tempo de execução e mobilização conforme escopo do serviço.",
-                "base": venda_mao_obra,
-            }
-        )
+    servicos_base = venda_mao_obra + venda_custos
+    if servicos_base > 0:
+        bases_grupos.append(servicos_base)
+        nomes_grupos.append("servicos")
 
-    if venda_custos > 0:
-        componentes_visiveis.append(
-            {
-                "descricao": "Custos operacionais",
-                "detalhes": "Deslocamento, ferramentas, consumíveis e demais custos operacionais necessários à execução.",
-                "base": venda_custos,
-            }
-        )
+    if not bases_grupos:
+        bases_grupos.append(valor_total)
+        nomes_grupos.append("servicos")
 
-    if not componentes_visiveis:
-        componentes_visiveis.append(
-            {
-                "descricao": "Serviço técnico conforme escopo",
-                "detalhes": str(dados.get("escopo") or "Serviço técnico gerado pelo Gerador de Orçamentos."),
-                "base": valor_total,
-            }
-        )
+    valores_grupos = _gerador_alocar_total(valor_total, bases_grupos)
+    total_produtos_numero = 0.0
+    total_servicos_numero = 0.0
 
-    base_visivel = sum(float(item.get("base") or 0) for item in componentes_visiveis)
-    itens: list[dict[str, str]] = []
-    acumulado = 0.0
-
-    for indice, componente in enumerate(componentes_visiveis):
-        if indice == len(componentes_visiveis) - 1:
-            valor_item = max(valor_total - acumulado, 0)
-        elif base_visivel > 0:
-            valor_item = round(valor_total * (float(componente.get("base") or 0) / base_visivel), 2)
-            acumulado += valor_item
+    for nome_grupo, valor_grupo in zip(nomes_grupos, valores_grupos):
+        if nome_grupo == "produtos":
+            total_produtos_numero += valor_grupo
         else:
-            valor_item = 0.0
+            total_servicos_numero += valor_grupo
 
-        if valor_item <= 0:
-            continue
+    itens: list[dict[str, str]] = []
 
-        itens.append(
-            {
-                "tipo_item": "servico",
-                "descricao": str(componente.get("descricao") or "Serviço técnico"),
-                "detalhes": str(componente.get("detalhes") or "Conforme escopo técnico."),
-                "quantidade": "1",
-                "valor_unitario": _formatar_moeda_brl(valor_item),
-                "desconto": "0,00",
-                "subtotal": _formatar_moeda_brl(valor_item),
-            }
-        )
+    if total_produtos_numero > 0:
+        if materiais:
+            bases_materiais = [float(item.get("custo") or 0) for item in materiais]
+            valores_materiais = _gerador_alocar_total(total_produtos_numero, bases_materiais)
+
+            for material, valor_material in zip(materiais, valores_materiais):
+                descricao = str(material.get("descricao") or "Material aplicado").strip()
+                quantidade_numero = float(material.get("quantidade") or 0) or 1.0
+                valor_unitario = valor_material / quantidade_numero if quantidade_numero > 0 else valor_material
+
+                itens.append(
+                    {
+                        "tipo_item": "produto",
+                        "descricao": descricao,
+                        "detalhes": "Material previsto no Gerador de Orçamentos.",
+                        "quantidade": _formatar_numero_estoque(quantidade_numero),
+                        "valor_unitario": _formatar_moeda_brl(valor_unitario),
+                        "desconto": "0,00",
+                        "subtotal": _formatar_moeda_brl(valor_material),
+                    }
+                )
+        else:
+            itens.append(
+                {
+                    "tipo_item": "produto",
+                    "descricao": "Materiais aplicados no serviço",
+                    "detalhes": "Materiais previstos no Gerador de Orçamentos.",
+                    "quantidade": "1",
+                    "valor_unitario": _formatar_moeda_brl(total_produtos_numero),
+                    "desconto": "0,00",
+                    "subtotal": _formatar_moeda_brl(total_produtos_numero),
+                }
+            )
+
+    if total_servicos_numero > 0:
+        bases_servicos = []
+        descricoes_servicos: list[tuple[str, str]] = []
+
+        if venda_mao_obra > 0:
+            bases_servicos.append(venda_mao_obra)
+            descricoes_servicos.append(
+                (
+                    "Mão de obra técnica",
+                    "Equipe técnica, tempo de execução e mobilização conforme escopo do serviço.",
+                )
+            )
+
+        if venda_custos > 0:
+            bases_servicos.append(venda_custos)
+            descricoes_servicos.append(
+                (
+                    "Custos operacionais",
+                    "Deslocamento, ferramentas, consumíveis e demais custos operacionais necessários à execução.",
+                )
+            )
+
+        if not bases_servicos:
+            bases_servicos.append(total_servicos_numero)
+            descricoes_servicos.append(
+                (
+                    "Serviço técnico conforme escopo",
+                    str(dados.get("escopo") or "Serviço técnico gerado pelo Gerador de Orçamentos."),
+                )
+            )
+
+        valores_servicos = _gerador_alocar_total(total_servicos_numero, bases_servicos)
+
+        for (descricao, detalhes), valor_servico in zip(descricoes_servicos, valores_servicos):
+            if valor_servico <= 0:
+                continue
+
+            itens.append(
+                {
+                    "tipo_item": "servico",
+                    "descricao": descricao,
+                    "detalhes": detalhes,
+                    "quantidade": "1",
+                    "valor_unitario": _formatar_moeda_brl(valor_servico),
+                    "desconto": "0,00",
+                    "subtotal": _formatar_moeda_brl(valor_servico),
+                }
+            )
 
     detalhes_internos = [
         "Orçamento gerado pelo Gerador de Orçamentos.",
+        "Materiais separados como PRODUTOS e mão de obra/custos separados como SERVIÇOS, mantendo o padrão do orçamento manual.",
         "A composição de impostos, administrativo, reserva técnica e lucro foi embutida nos itens comerciais.",
         f"Tipo de serviço: {dados.get('tipo_servico') or '-'}",
         f"Valor escolhido: {dados.get('tipo_valor') or 'recomendado'}",
@@ -3169,13 +3238,20 @@ def gerar_orcamento_por_gerador_db(dados: dict[str, Any]) -> int:
         f"Margem estimada: {_formatar_moeda_brl(float(dados.get('margem_estimado') or 0))}%",
     ]
 
-    escopo = str(dados.get("escopo") or "").strip()
-    observacoes_cliente = str(dados.get("observacoes_cliente") or "").strip()
+    escopo = str(dados.get("escopo") or "").replace("\\n", "\n").strip()
+    observacoes_cliente = str(dados.get("observacoes_cliente") or "").replace("\\n", "\n").strip()
     observacoes = observacoes_cliente
     if escopo:
         observacoes = f"Escopo: {escopo}"
         if observacoes_cliente:
             observacoes += f"\n\n{observacoes_cliente}"
+
+    if total_produtos_numero > 0 and total_servicos_numero > 0:
+        tipo_orcamento = "misto"
+    elif total_produtos_numero > 0:
+        tipo_orcamento = "produto"
+    else:
+        tipo_orcamento = "servico"
 
     orcamento = {
         "numero": proximo_numero_orcamento(),
@@ -3187,10 +3263,10 @@ def gerar_orcamento_por_gerador_db(dados: dict[str, Any]) -> int:
         "canal_venda": "Gerador de Orçamentos",
         "centro_custo": str(dados.get("tipo_servico") or "Serviço técnico"),
         "introducao": "GESTFLOW apresenta abaixo sua proposta comercial para fornecimento de produtos e/ou execução de serviços conforme solicitado:",
-        "tipo": "servico",
+        "tipo": tipo_orcamento,
         "status": "aberto",
-        "total_produtos": "0,00",
-        "total_servicos": _formatar_moeda_brl(valor_total),
+        "total_produtos": _formatar_moeda_brl(total_produtos_numero),
+        "total_servicos": _formatar_moeda_brl(total_servicos_numero),
         "desconto_valor": "0,00",
         "desconto_percentual": "0,00",
         "valor_total": _formatar_moeda_brl(valor_total),
