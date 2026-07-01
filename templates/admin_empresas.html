@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\admin_empresas.html
-Último recode: 2026-06-19 08:35 (America/Bahia)
-Motivo: Corrigir gerador de senha sem caracteres confusos e reset de acesso.
+Último recode: 2026-06-30 22:05 (America/Bahia)
+Motivo: Exibir status trial corretamente, fim do teste e dias restantes no admin.
 -->
 
 <!DOCTYPE html>
@@ -125,6 +125,7 @@ Motivo: Corrigir gerador de senha sem caracteres confusos e reset de acesso.
                     <div class="form-group">
                         <label for="empresa_status">Status</label>
                         <select id="empresa_status" name="empresa_status" class="form-control">
+                            <option value="trial" {% if formulario.status == "trial" %}selected{% endif %}>Trial</option>
                             <option value="ativo" {% if formulario.status == "ativo" %}selected{% endif %}>Ativo</option>
                             <option value="bloqueado" {% if formulario.status == "bloqueado" %}selected{% endif %}>Bloqueado</option>
                             <option value="cancelado" {% if formulario.status == "cancelado" %}selected{% endif %}>Cancelado</option>
@@ -156,6 +157,8 @@ Motivo: Corrigir gerador de senha sem caracteres confusos e reset de acesso.
                             <th>Login</th>
                             <th>Plano</th>
                             <th>Status</th>
+                            <th>Fim do teste</th>
+                            <th>Dias</th>
                             <th>Usuários</th>
                             <th>Lojas</th>
                             <th>Criado em</th>
@@ -174,6 +177,8 @@ Motivo: Corrigir gerador de senha sem caracteres confusos e reset de acesso.
                                     <td>{{ empresa.email or '-' }}</td>
                                     <td>{{ empresa.plano }}</td>
                                     <td><span class="status-pill {{ empresa.status }}">{{ empresa.status }}</span></td>
+                                    <td>{{ empresa.trial_fim or '-' }}</td>
+                                    <td>{{ empresa.trial_dias_texto or '-' }}</td>
                                     <td>{{ empresa.total_usuarios }}</td>
                                     <td>{{ empresa.total_lojas }}</td>
                                     <td>{{ empresa.criado_em }}</td>
@@ -181,6 +186,7 @@ Motivo: Corrigir gerador de senha sem caracteres confusos e reset de acesso.
                                         <div class="admin-action-stack">
                                             <form action="/admin/empresas/{{ empresa.id }}/status" method="post" class="action-form">
                                                 <select name="empresa_status" class="form-control" style="min-width: 120px;">
+                                                    <option value="trial" {% if empresa.status == "trial" %}selected{% endif %}>Trial</option>
                                                     <option value="ativo" {% if empresa.status == "ativo" %}selected{% endif %}>Ativo</option>
                                                     <option value="bloqueado" {% if empresa.status == "bloqueado" %}selected{% endif %}>Bloqueado</option>
                                                     <option value="cancelado" {% if empresa.status == "cancelado" %}selected{% endif %}>Cancelado</option>
@@ -199,7 +205,7 @@ Motivo: Corrigir gerador de senha sem caracteres confusos e reset de acesso.
                             {% endfor %}
                         {% else %}
                             <tr>
-                                <td colspan="9" class="empty-table empty-table-box">
+                                <td colspan="11" class="empty-table empty-table-box">
                                     <div class="empty-table-content">
                                         <div class="empty-table-icon">◆</div>
                                         <strong>Nenhum acesso criado.</strong>

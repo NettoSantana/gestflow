@@ -1,4 +1,8 @@
-{# Caminho: templates/partials/topbar.html #}
+{#
+Caminho: templates/partials/topbar.html
+Último recode: 2026-06-30 22:05 (America/Bahia)
+Motivo: Exibir aviso de teste grátis para empresas em status trial.
+#}
 {% set _usuario_topbar = usuario_logado|default({}, true) %}
 {% set _data_topbar = data_hoje|default('', true) %}
 {% if not _data_topbar and dashboard is defined %}
@@ -7,6 +11,7 @@
 {% set _nome_topbar = _usuario_topbar.nome|default('Usuário', true) %}
 {% set _perfil_topbar = _usuario_topbar.perfil|default('Administrador', true) %}
 {% set _titulo_topbar = page_title|default('GestFlow', true) %}
+{% set _empresa_trial = empresa_trial|default({}, true) %}
 
 <header class="topbar">
     <div class="topbar-left">
@@ -15,6 +20,12 @@
     </div>
 
     <div class="topbar-right">
+        {% if _empresa_trial.exibir_aviso %}
+            <a href="/configuracoes/plano" class="trial-topbar-pill" title="Ver plano">
+                {{ _empresa_trial.texto }}
+            </a>
+        {% endif %}
+
         <div class="topbar-date">
             <span class="topbar-icon">▣</span>
             <span>{{ _data_topbar or 'Hoje' }}</span>
@@ -37,3 +48,73 @@
         <a href="/sair" class="logout-button">Sair</a>
     </div>
 </header>
+
+{% if _empresa_trial.exibir_aviso %}
+    <div class="trial-system-banner">
+        <strong>Teste grátis ativo</strong>
+        <span>{{ _empresa_trial.texto }}</span>
+        {% if _empresa_trial.trial_fim %}
+            <small>Fim do teste: {{ _empresa_trial.trial_fim }}</small>
+        {% endif %}
+        <a href="/configuracoes/plano">Ver plano</a>
+    </div>
+{% endif %}
+
+<style>
+    .trial-topbar-pill {
+        min-height: 32px;
+        padding: 0 12px;
+        border: 1px solid #fed7aa;
+        border-radius: 999px;
+        background: #fff7ed;
+        color: #9a3412;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 900;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+
+    .trial-system-banner {
+        margin: 0 0 16px;
+        padding: 12px 18px;
+        border: 1px solid #fed7aa;
+        border-radius: 14px;
+        background: #fff7ed;
+        color: #9a3412;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        font-size: 13px;
+        font-weight: 800;
+    }
+
+    .trial-system-banner strong {
+        color: #7c2d12;
+    }
+
+    .trial-system-banner small {
+        color: #9a3412;
+        font-weight: 700;
+    }
+
+    .trial-system-banner a {
+        margin-left: auto;
+        color: #1458f5;
+        font-weight: 900;
+        text-decoration: none;
+    }
+
+    @media (max-width: 1100px) {
+        .trial-topbar-pill {
+            display: none;
+        }
+
+        .trial-system-banner a {
+            margin-left: 0;
+        }
+    }
+</style>

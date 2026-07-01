@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-30 21:20 (America/Bahia)
-# Motivo: Criar funil público de planos e cadastro automático com trial para novos clientes.
+# Último recode: 2026-06-30 22:05 (America/Bahia)
+# Motivo: Ajustar status trial no admin, exibir fim do teste e avisar dias restantes no topo.
 
 from __future__ import annotations
 
@@ -162,9 +162,92 @@ def usuario_logado_id() -> int | None:
         return None
 
 
+def _converter_data_simples(valor: Any) -> date | None:
+    texto = str(valor or "").strip()
+
+    if not texto:
+        return None
+
+    try:
+        return datetime.strptime(texto[:10], "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
+def calcular_dias_trial_restantes(trial_fim: Any) -> int | None:
+    data_fim = _converter_data_simples(trial_fim)
+
+    if data_fim is None:
+        return None
+
+    return (data_fim - date.today()).days
+
+
+def montar_aviso_trial_empresa() -> dict[str, Any]:
+    if not session.get("usuario_id"):
+        return {}
+
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                id,
+                plano,
+                status,
+                trial_inicio,
+                trial_fim
+            FROM empresas
+            WHERE id = ?
+            LIMIT 1
+            """,
+            (empresa_logada_id(),),
+        ).fetchone()
+
+    if row is None:
+        return {}
+
+    empresa = dict(row)
+    status = str(empresa.get("status") or "").strip().lower()
+    dias_restantes = calcular_dias_trial_restantes(empresa.get("trial_fim"))
+
+    if status != "trial":
+        return {
+            "status": status,
+            "plano": empresa.get("plano") or "Start",
+            "trial_inicio": empresa.get("trial_inicio") or "",
+            "trial_fim": empresa.get("trial_fim") or "",
+            "dias_restantes": dias_restantes,
+            "exibir_aviso": False,
+        }
+
+    if dias_restantes is None:
+        texto = "Teste grátis ativo."
+    elif dias_restantes < 0:
+        texto = "Seu teste grátis terminou. Escolha um plano para continuar usando o GestFlow."
+    elif dias_restantes == 0:
+        texto = "Seu teste grátis termina hoje."
+    elif dias_restantes == 1:
+        texto = "Seu teste grátis termina em 1 dia."
+    else:
+        texto = f"Seu teste grátis termina em {dias_restantes} dias."
+
+    return {
+        "status": status,
+        "plano": empresa.get("plano") or "Start",
+        "trial_inicio": empresa.get("trial_inicio") or "",
+        "trial_fim": empresa.get("trial_fim") or "",
+        "dias_restantes": dias_restantes,
+        "exibir_aviso": True,
+        "texto": texto,
+    }
+
+
 @app.context_processor
 def injetar_usuario_logado() -> dict[str, Any]:
-    return {"usuario_logado": usuario_logado()}
+    return {
+        "usuario_logado": usuario_logado(),
+        "empresa_trial": montar_aviso_trial_empresa(),
+    }
 
 
 @app.before_request
@@ -4393,6 +4476,8 @@ def listar_empresas_admin() -> list[dict[str, Any]]:
                 empresas.telefone,
                 empresas.plano,
                 empresas.status,
+                empresas.trial_inicio,
+                empresas.trial_fim,
                 empresas.criado_em,
                 COUNT(DISTINCT usuarios.id) AS total_usuarios,
                 COUNT(DISTINCT lojas.id) AS total_lojas
@@ -4404,7 +4489,27 @@ def listar_empresas_admin() -> list[dict[str, Any]]:
             """
         ).fetchall()
 
-    return [dict(row) for row in rows]
+    empresas = []
+
+    for row in rows:
+        empresa = dict(row)
+        dias_restantes = calcular_dias_trial_restantes(empresa.get("trial_fim"))
+        empresa["trial_dias_restantes"] = dias_restantes
+
+        if dias_restantes is None:
+            empresa["trial_dias_texto"] = "-"
+        elif dias_restantes < 0:
+            empresa["trial_dias_texto"] = "Expirado"
+        elif dias_restantes == 0:
+            empresa["trial_dias_texto"] = "Hoje"
+        elif dias_restantes == 1:
+            empresa["trial_dias_texto"] = "1 dia"
+        else:
+            empresa["trial_dias_texto"] = f"{dias_restantes} dias"
+
+        empresas.append(empresa)
+
+    return empresas
 
 
 def buscar_empresa_admin_por_id(empresa_id: int) -> dict[str, Any] | None:
@@ -4420,6 +4525,8 @@ def buscar_empresa_admin_por_id(empresa_id: int) -> dict[str, Any] | None:
                 telefone,
                 plano,
                 status,
+                trial_inicio,
+                trial_fim,
                 criado_em
             FROM empresas
             WHERE id = ?
@@ -4651,7 +4758,7 @@ def atualizar_senha_acesso_admin_db(dados: dict[str, str]) -> int | None:
 def atualizar_status_empresa_admin_db(empresa_id: int, status: str) -> None:
     status_normalizado = str(status or "").strip()
 
-    if status_normalizado not in {"ativo", "bloqueado", "cancelado"}:
+    if status_normalizado not in {"trial", "ativo", "bloqueado", "cancelado"}:
         status_normalizado = "ativo"
 
     with conectar_db() as conn:
