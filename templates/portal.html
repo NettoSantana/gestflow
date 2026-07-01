@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\portal.html
 Último recode: 2026-06-30 21:20 (America/Bahia)
-Motivo: Ajustar portal público para funil comercial, planos e cadastro automático.
+Motivo: Aplicar logo oficial GestFlow no portal público.
 -->
 
 <!DOCTYPE html>
@@ -69,25 +69,17 @@ Motivo: Ajustar portal público para funil comercial, planos e cadastro automát
         }
 
         .portal-logo {
-            display: flex;
+            display: inline-flex;
             align-items: center;
-            gap: 12px;
-            font-weight: 900;
-            font-size: 26px;
-            letter-spacing: -0.7px;
-            color: var(--portal-navy);
+            min-width: 0;
         }
 
-        .portal-logo-mark {
-            width: 42px;
-            height: 42px;
-            display: grid;
-            place-items: center;
-            border-radius: 12px;
-            background: linear-gradient(135deg, var(--portal-blue), #00a86b);
-            color: #ffffff;
-            font-size: 15px;
-            box-shadow: 0 12px 24px rgba(31, 124, 255, 0.25);
+        .portal-logo-img {
+            width: 188px;
+            max-width: 100%;
+            height: auto;
+            display: block;
+            object-fit: contain;
         }
 
         .portal-nav {
@@ -568,6 +560,12 @@ Motivo: Ajustar portal público para funil comercial, planos e cadastro automát
             line-height: 1.8;
         }
 
+        @media (max-width: 720px) {
+            .portal-logo-img {
+                width: 158px;
+            }
+        }
+
         @media (max-width: 980px) {
             .portal-nav { display: none; }
             .hero-inner, .split, .cta .section, .footer-inner { grid-template-columns: 1fr; }
@@ -589,9 +587,8 @@ Motivo: Ajustar portal público para funil comercial, planos e cadastro automát
 
     <header class="portal-header">
         <div class="portal-header-inner">
-            <a href="/portal" class="portal-logo">
-                <span class="portal-logo-mark">GF</span>
-                <span>GestFlow</span>
+            <a href="/portal" class="portal-logo" aria-label="GestFlow">
+                <img src="/static/img/gestflow-logo.png" alt="GestFlow" class="portal-logo-img">
             </a>
 
             <nav class="portal-nav">

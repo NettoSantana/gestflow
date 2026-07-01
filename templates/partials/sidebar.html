@@ -1,11 +1,16 @@
-{# Caminho: templates/partials/sidebar.html #}
+{#
+Caminho: templates/partials/sidebar.html
+Último recode: 2026-06-30 22:45 (America/Bahia)
+Motivo: Aplicar logo oficial GestFlow no menu lateral.
+#}
 {% set _path = request.path if request is defined else '' %}
 {% set _usuario_sidebar = usuario_logado|default({}, true) %}
 
 <aside class="sidebar">
-    <div class="brand">
-        <div class="brand-mark">GF</div>
-        <h2>GESTFLOW</h2>
+    <div class="brand brand-with-logo">
+        <a href="/" class="brand-logo-link" aria-label="GestFlow - Dashboard">
+            <img src="/static/img/gestflow-logo.png" alt="GestFlow" class="brand-logo-img">
+        </a>
         <button class="mobile-sidebar-close" type="button" aria-label="Fechar menu">×</button>
     </div>
 
@@ -168,6 +173,36 @@
     </div>
 </aside>
 <div class="sidebar-backdrop" aria-hidden="true"></div>
+
+<style>
+    .brand-with-logo {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+    }
+
+    .brand-logo-link {
+        display: inline-flex;
+        align-items: center;
+        min-width: 0;
+        text-decoration: none;
+    }
+
+    .brand-logo-img {
+        width: 176px;
+        max-width: 100%;
+        height: auto;
+        display: block;
+        object-fit: contain;
+    }
+
+    @media (max-width: 1024px) {
+        .brand-logo-img {
+            width: 162px;
+        }
+    }
+</style>
 
 <script>
 (function () {

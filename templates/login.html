@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\login.html
 Último recode: 2026-06-30 21:20 (America/Bahia)
-Motivo: Direcionar teste grátis para cadastro automático público.
+Motivo: Aplicar logo oficial GestFlow na tela de login.
 -->
 
 <!DOCTYPE html>
@@ -200,24 +200,15 @@ Motivo: Direcionar teste grátis para cadastro automático público.
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 12px;
             margin-bottom: 42px;
-            font-size: 44px;
-            font-weight: 900;
-            letter-spacing: -1.8px;
-            color: var(--login-navy);
         }
 
-        .login-logo-mark {
-            width: 54px;
-            height: 54px;
-            border-radius: 16px;
-            background: linear-gradient(135deg, var(--login-blue), var(--login-green));
-            color: #ffffff;
-            display: grid;
-            place-items: center;
-            font-size: 18px;
-            box-shadow: 0 18px 36px rgba(31, 124, 255, 0.24);
+        .login-logo-img {
+            width: 258px;
+            max-width: 100%;
+            height: auto;
+            display: block;
+            object-fit: contain;
         }
 
         .login-title {
@@ -448,13 +439,11 @@ Motivo: Direcionar teste grátis para cadastro automático público.
             }
 
             .login-logo {
-                font-size: 34px;
                 margin-bottom: 28px;
             }
 
-            .login-logo-mark {
-                width: 46px;
-                height: 46px;
+            .login-logo-img {
+                width: 220px;
             }
 
             .login-links {
@@ -493,9 +482,8 @@ Motivo: Direcionar teste grátis para cadastro automático público.
 
         <section class="login-area">
             <div class="login-box">
-                <a href="/portal" class="login-logo">
-                    <span class="login-logo-mark">GF</span>
-                    <span>GestFlow</span>
+                <a href="/portal" class="login-logo" aria-label="GestFlow">
+                    <img src="/static/img/gestflow-logo.png" alt="GestFlow" class="login-logo-img">
                 </a>
 
                 <div class="login-title">

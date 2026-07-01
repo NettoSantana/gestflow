@@ -1,7 +1,7 @@
 {#
 Caminho: templates/partials/topbar.html
 Último recode: 2026-06-30 22:05 (America/Bahia)
-Motivo: Exibir aviso de teste grátis para empresas em status trial.
+Motivo: Exibir aviso de trial e aplicar ícone oficial GestFlow no topo.
 #}
 {% set _usuario_topbar = usuario_logado|default({}, true) %}
 {% set _data_topbar = data_hoje|default('', true) %}
@@ -16,6 +16,7 @@ Motivo: Exibir aviso de teste grátis para empresas em status trial.
 <header class="topbar">
     <div class="topbar-left">
         <button class="menu-toggle" type="button" aria-label="Abrir menu">☰</button>
+        <img src="/static/img/gestflow-icon.png" alt="GestFlow" class="topbar-logo-icon">
         <h1>{{ _titulo_topbar }}</h1>
     </div>
 
@@ -61,6 +62,20 @@ Motivo: Exibir aviso de teste grátis para empresas em status trial.
 {% endif %}
 
 <style>
+    .topbar-logo-icon {
+        width: 34px;
+        height: 34px;
+        object-fit: contain;
+        display: block;
+    }
+
+    @media (max-width: 768px) {
+        .topbar-logo-icon {
+            width: 30px;
+            height: 30px;
+        }
+    }
+
     .trial-topbar-pill {
         min-height: 32px;
         padding: 0 12px;
