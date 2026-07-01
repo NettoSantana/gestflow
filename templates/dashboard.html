@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\dashboard.html
-Último recode: 2026-06-19 07:55 (America/Bahia)
-Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
+Último recode: 2026-07-01 00:30 (America/Bahia)
+Motivo: Acionar tour guiado após onboarding inicial.
 -->
 
 <!DOCTYPE html>
@@ -692,6 +692,11 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
             renderizarCalendarioDashboard();
         });
     </script>
+
+    <script>
+        window.GESTFLOW_INICIAR_TOUR = {{ iniciar_tour|default(false)|tojson }};
+    </script>
+    <script src="/static/js/tour_gestflow.js"></script>
 
 </body>
 </html>

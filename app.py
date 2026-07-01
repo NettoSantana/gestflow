@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-06-30 23:45 (America/Bahia)
-# Motivo: Ajustar PDV com caixa interno, busca alfabética de produtos e tela de venda finalizada.
+# Último recode: 2026-07-01 00:30 (America/Bahia)
+# Motivo: Criar onboarding inicial e tour guiado de primeiro acesso.
 
 from __future__ import annotations
 
@@ -907,6 +907,24 @@ def iniciar_banco() -> None:
 
         if "pix_indicador" not in colunas_empresas:
             conn.execute("ALTER TABLE empresas ADD COLUMN pix_indicador TEXT")
+
+        if "onboarding_concluido" not in colunas_empresas:
+            conn.execute("ALTER TABLE empresas ADD COLUMN onboarding_concluido TEXT DEFAULT 'nao'")
+
+        if "onboarding_ramo" not in colunas_empresas:
+            conn.execute("ALTER TABLE empresas ADD COLUMN onboarding_ramo TEXT")
+
+        if "onboarding_objetivos" not in colunas_empresas:
+            conn.execute("ALTER TABLE empresas ADD COLUMN onboarding_objetivos TEXT")
+
+        if "onboarding_ferramenta_atual" not in colunas_empresas:
+            conn.execute("ALTER TABLE empresas ADD COLUMN onboarding_ferramenta_atual TEXT")
+
+        if "onboarding_canal_contato" not in colunas_empresas:
+            conn.execute("ALTER TABLE empresas ADD COLUMN onboarding_canal_contato TEXT")
+
+        if "tour_concluido" not in colunas_empresas:
+            conn.execute("ALTER TABLE empresas ADD COLUMN tour_concluido TEXT DEFAULT 'nao'")
 
         empresas_sem_codigo = conn.execute(
             """
@@ -4515,7 +4533,13 @@ def buscar_empresa_configuracoes() -> dict[str, Any]:
                 codigo_indicacao,
                 indicado_por_empresa_id,
                 indicador_codigo,
-                pix_indicador
+                pix_indicador,
+                onboarding_concluido,
+                onboarding_ramo,
+                onboarding_objetivos,
+                onboarding_ferramenta_atual,
+                onboarding_canal_contato,
+                tour_concluido
             FROM empresas
             WHERE id = ?
             LIMIT 1
@@ -4538,6 +4562,12 @@ def buscar_empresa_configuracoes() -> dict[str, Any]:
             "indicado_por_empresa_id": "",
             "indicador_codigo": "",
             "pix_indicador": "",
+            "onboarding_concluido": "nao",
+            "onboarding_ramo": "",
+            "onboarding_objetivos": "",
+            "onboarding_ferramenta_atual": "",
+            "onboarding_canal_contato": "",
+            "tour_concluido": "nao",
             "plano": "Start",
             "status": "ativo",
             "criado_em": "",
@@ -5391,6 +5421,107 @@ def entrar_usuario_na_sessao(usuario: dict[str, Any]) -> None:
 
 
 
+def buscar_onboarding_empresa() -> dict[str, Any]:
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                id,
+                nome_fantasia,
+                onboarding_concluido,
+                onboarding_ramo,
+                onboarding_objetivos,
+                onboarding_ferramenta_atual,
+                onboarding_canal_contato,
+                tour_concluido
+            FROM empresas
+            WHERE id = ?
+            LIMIT 1
+            """,
+            (empresa_logada_id(),),
+        ).fetchone()
+
+    if row is None:
+        return {
+            "id": empresa_logada_id(),
+            "nome_fantasia": "",
+            "onboarding_concluido": "nao",
+            "onboarding_ramo": "",
+            "onboarding_objetivos": "",
+            "onboarding_ferramenta_atual": "",
+            "onboarding_canal_contato": "",
+            "tour_concluido": "nao",
+        }
+
+    return dict(row)
+
+
+def empresa_precisa_onboarding() -> bool:
+    if not session.get("usuario_id"):
+        return False
+
+    empresa = buscar_onboarding_empresa()
+    return str(empresa.get("onboarding_concluido") or "nao").strip().lower() != "sim"
+
+
+def empresa_precisa_tour() -> bool:
+    if not session.get("usuario_id"):
+        return False
+
+    empresa = buscar_onboarding_empresa()
+    onboarding_ok = str(empresa.get("onboarding_concluido") or "nao").strip().lower() == "sim"
+    tour_ok = str(empresa.get("tour_concluido") or "nao").strip().lower() == "sim"
+    return onboarding_ok and not tour_ok
+
+
+def montar_onboarding_formulario() -> dict[str, str]:
+    objetivos = request.form.getlist("objetivos")
+
+    return {
+        "ramo": (request.form.get("ramo") or "").strip(),
+        "objetivos": ", ".join(item.strip() for item in objetivos if item.strip()),
+        "ferramenta_atual": (request.form.get("ferramenta_atual") or "").strip(),
+        "canal_contato": (request.form.get("canal_contato") or "").strip(),
+    }
+
+
+def salvar_onboarding_empresa_db(dados: dict[str, str]) -> None:
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            UPDATE empresas
+            SET
+                onboarding_concluido = 'sim',
+                onboarding_ramo = ?,
+                onboarding_objetivos = ?,
+                onboarding_ferramenta_atual = ?,
+                onboarding_canal_contato = ?
+            WHERE id = ?
+            """,
+            (
+                dados["ramo"],
+                dados["objetivos"],
+                dados["ferramenta_atual"],
+                dados["canal_contato"],
+                empresa_logada_id(),
+            ),
+        )
+        conn.commit()
+
+
+def marcar_tour_concluido_db() -> None:
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            UPDATE empresas
+            SET tour_concluido = 'sim'
+            WHERE id = ?
+            """,
+            (empresa_logada_id(),),
+        )
+        conn.commit()
+
+
 
 def listar_indicados_empresa(empresa_id: int) -> list[dict[str, Any]]:
     with conectar_db() as conn:
@@ -5777,10 +5908,43 @@ def sair() -> Response:
     return redirect(url_for("login"))
 
 
+@app.route("/onboarding", methods=["GET", "POST"])
+def onboarding() -> str | Response:
+    if not session.get("usuario_id"):
+        return redirect(url_for("login"))
+
+    empresa = buscar_onboarding_empresa()
+
+    if request.method == "POST":
+        dados = montar_onboarding_formulario()
+        salvar_onboarding_empresa_db(dados)
+        return redirect(url_for("dashboard", tour="1"))
+
+    return render_template("onboarding.html", empresa=empresa)
+
+
+@app.post("/tour/concluir")
+def concluir_tour() -> Response:
+    if not session.get("usuario_id"):
+        return jsonify({"ok": False}), 401
+
+    marcar_tour_concluido_db()
+    return jsonify({"ok": True})
+
+
 @app.get("/")
-def dashboard() -> str:
+def dashboard() -> str | Response:
+    if empresa_precisa_onboarding():
+        return redirect(url_for("onboarding"))
+
     dados_dashboard = montar_dashboard()
-    return render_template("dashboard.html", dashboard=dados_dashboard)
+    iniciar_tour = empresa_precisa_tour() or request.args.get("tour") == "1"
+
+    return render_template(
+        "dashboard.html",
+        dashboard=dados_dashboard,
+        iniciar_tour=iniciar_tour,
+    )
 
 
 
