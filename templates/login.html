@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\login.html
-Último recode: 2026-06-30 21:20 (America/Bahia)
-Motivo: Aplicar logo oficial GestFlow na tela de login.
+Último recode: 2026-07-01 15:25 (America/Bahia)
+Motivo: Trocar chamada de IA por slides institucionais do Portal GestFlow na tela de login.
 -->
 
 <!DOCTYPE html>
@@ -82,6 +82,64 @@ Motivo: Aplicar logo oficial GestFlow na tela de login.
             font-weight: 900;
             font-size: 16px;
             margin-bottom: 24px;
+        }
+
+        .marketing-slide {
+            display: none;
+            animation: gestflowFadeSlide 0.45s ease;
+        }
+
+        .marketing-slide.active {
+            display: block;
+        }
+
+        @keyframes gestflowFadeSlide {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .slide-card-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .slide-card-item {
+            border: 1px solid #dce8f8;
+            border-radius: 18px;
+            background: #ffffff;
+            padding: 18px;
+        }
+
+        .slide-card-item span {
+            display: block;
+            color: var(--login-muted);
+            font-size: 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .slide-card-item strong {
+            display: block;
+            color: var(--login-navy);
+            font-size: 22px;
+            line-height: 1.15;
+        }
+
+        .slide-card-item small {
+            display: block;
+            color: #64748b;
+            font-size: 12px;
+            line-height: 1.4;
+            margin-top: 6px;
         }
 
         .marketing-content h1 {
@@ -183,6 +241,14 @@ Motivo: Aplicar logo oficial GestFlow na tela de login.
         .control-line.active {
             background: #ffffff;
         }
+
+
+        .marketing-controls button.control-line {
+            border: 0;
+            cursor: pointer;
+            padding: 0;
+        }
+
 
         .login-area {
             display: flex;
@@ -457,25 +523,95 @@ Motivo: Aplicar logo oficial GestFlow na tela de login.
     <main class="login-page">
         <section class="login-marketing">
             <div class="marketing-content">
-                <div class="ai-pill">Assistente IA ✨</div>
-                <h1>O ERP GestFlow agora tem <strong>IA</strong></h1>
-                <p>Faça consultas, acompanhe sua rotina e tire dúvidas do sistema em poucos segundos com uma experiência simples.</p>
+                <div class="marketing-slide active" data-login-slide>
+                    <div class="ai-pill">Gestão web simples</div>
+                    <h1>Controle sua empresa com <strong>simplicidade.</strong></h1>
+                    <p>O GestFlow reúne vendas, clientes, produtos, serviços, estoque, ordens de serviço e financeiro em uma plataforma leve para o dia a dia.</p>
 
-                <div class="assistant-card">
-                    <div class="assistant-top">
-                        <div class="assistant-status"><span class="assistant-dot"></span>Assistente GestFlow</div>
-                        <span>⚙ ×</span>
-                    </div>
-                    <div class="assistant-body">
-                        <div class="bubble bot">Olá, sou seu assistente de IA. Como posso te ajudar hoje?</div>
-                        <div class="bubble user">Me dê o resumo financeiro do dia.</div>
-                        <div class="bubble bot">Claro. Aqui está um resumo com contas a receber, pagar, vendas e saldo previsto.</div>
+                    <div class="assistant-card">
+                        <div class="assistant-top">
+                            <div class="assistant-status"><span class="assistant-dot"></span>Resumo GestFlow</div>
+                            <span>Hoje</span>
+                        </div>
+                        <div class="assistant-body">
+                            <div class="slide-card-grid">
+                                <div class="slide-card-item"><span>Vendas</span><strong>Controle diário</strong><small>Produtos, serviços e clientes organizados.</small></div>
+                                <div class="slide-card-item"><span>Estoque</span><strong>Mais visão</strong><small>Entradas, saídas e movimentações.</small></div>
+                                <div class="slide-card-item"><span>Serviços</span><strong>OS completa</strong><small>Registro técnico e acompanhamento.</small></div>
+                                <div class="slide-card-item"><span>Financeiro</span><strong>Simples</strong><small>Receber, pagar e fluxo de caixa.</small></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="marketing-controls">
-                    <span class="control-line active"></span>
-                    <span class="control-line"></span>
+                <div class="marketing-slide" data-login-slide>
+                    <div class="ai-pill">Ordens de serviço</div>
+                    <h1>Acompanhe serviços do início ao <strong>fim.</strong></h1>
+                    <p>Registre cliente, técnico, equipamentos, fotos antes e depois, materiais aplicados e acompanhamento diário da execução.</p>
+
+                    <div class="assistant-card">
+                        <div class="assistant-top">
+                            <div class="assistant-status"><span class="assistant-dot"></span>OS em andamento</div>
+                            <span>Execução</span>
+                        </div>
+                        <div class="assistant-body">
+                            <div class="slide-card-grid">
+                                <div class="slide-card-item"><span>Equipamento</span><strong>Antes/depois</strong><small>Fotos vinculadas ao item correto.</small></div>
+                                <div class="slide-card-item"><span>Equipe</span><strong>Responsáveis</strong><small>Técnico, apoio e horas registradas.</small></div>
+                                <div class="slide-card-item"><span>Materiais</span><strong>Aplicação</strong><small>Produtos utilizados no serviço.</small></div>
+                                <div class="slide-card-item"><span>Histórico</span><strong>Diário</strong><small>Registro do que foi executado.</small></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="marketing-slide" data-login-slide>
+                    <div class="ai-pill">Vendas e estoque</div>
+                    <h1>Tenha mais controle da sua <strong>operação.</strong></h1>
+                    <p>Cadastre produtos, serviços, vendas e devoluções com uma rotina mais organizada e fácil de acompanhar.</p>
+
+                    <div class="assistant-card">
+                        <div class="assistant-top">
+                            <div class="assistant-status"><span class="assistant-dot"></span>Operação organizada</div>
+                            <span>Gestão</span>
+                        </div>
+                        <div class="assistant-body">
+                            <div class="slide-card-grid">
+                                <div class="slide-card-item"><span>Produtos</span><strong>Cadastro único</strong><small>Informações comerciais e estoque.</small></div>
+                                <div class="slide-card-item"><span>Serviços</span><strong>Catálogo</strong><small>Mão de obra e atividades recorrentes.</small></div>
+                                <div class="slide-card-item"><span>Vendas</span><strong>Agilidade</strong><small>Itens, totais e impressão.</small></div>
+                                <div class="slide-card-item"><span>Devoluções</span><strong>Retorno</strong><small>Reposição controlada no estoque.</small></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="marketing-slide" data-login-slide>
+                    <div class="ai-pill">Financeiro simples</div>
+                    <h1>Veja o que entra e o que <strong>sai.</strong></h1>
+                    <p>Organize contas a receber, contas a pagar, baixas e fluxo de caixa para enxergar melhor o resultado do negócio.</p>
+
+                    <div class="assistant-card">
+                        <div class="assistant-top">
+                            <div class="assistant-status"><span class="assistant-dot"></span>Visão financeira</div>
+                            <span>Controle</span>
+                        </div>
+                        <div class="assistant-body">
+                            <div class="slide-card-grid">
+                                <div class="slide-card-item"><span>Receber</span><strong>Títulos</strong><small>Valores previstos e baixados.</small></div>
+                                <div class="slide-card-item"><span>Pagar</span><strong>Compromissos</strong><small>Contas e vencimentos.</small></div>
+                                <div class="slide-card-item"><span>Caixa</span><strong>Fluxo</strong><small>Entradas, saídas e saldo.</small></div>
+                                <div class="slide-card-item"><span>Resumo</span><strong>Decisão</strong><small>Números simples para agir melhor.</small></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="marketing-controls" aria-label="Slides do GestFlow">
+                    <button type="button" class="control-line active" data-login-slide-control="0" aria-label="Slide 1"></button>
+                    <button type="button" class="control-line" data-login-slide-control="1" aria-label="Slide 2"></button>
+                    <button type="button" class="control-line" data-login-slide-control="2" aria-label="Slide 3"></button>
+                    <button type="button" class="control-line" data-login-slide-control="3" aria-label="Slide 4"></button>
                 </div>
             </div>
         </section>
@@ -558,6 +694,50 @@ Motivo: Aplicar logo oficial GestFlow na tela de login.
 
             campoSenha.type = campoSenha.type === "password" ? "text" : "password";
         }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            const slides = Array.from(document.querySelectorAll("[data-login-slide]"));
+            const controles = Array.from(document.querySelectorAll("[data-login-slide-control]"));
+            let slideAtual = 0;
+            let intervaloSlides = null;
+
+            function mostrarSlide(indice) {
+                if (!slides.length) {
+                    return;
+                }
+
+                slideAtual = ((indice % slides.length) + slides.length) % slides.length;
+
+                slides.forEach(function(slide, posicao) {
+                    slide.classList.toggle("active", posicao === slideAtual);
+                });
+
+                controles.forEach(function(controle, posicao) {
+                    controle.classList.toggle("active", posicao === slideAtual);
+                });
+            }
+
+            function iniciarSlides() {
+                if (intervaloSlides) {
+                    window.clearInterval(intervaloSlides);
+                }
+
+                intervaloSlides = window.setInterval(function() {
+                    mostrarSlide(slideAtual + 1);
+                }, 5200);
+            }
+
+            controles.forEach(function(controle) {
+                controle.addEventListener("click", function() {
+                    const indice = Number.parseInt(controle.getAttribute("data-login-slide-control"), 10);
+                    mostrarSlide(Number.isFinite(indice) ? indice : 0);
+                    iniciarSlides();
+                });
+            });
+
+            mostrarSlide(0);
+            iniciarSlides();
+        });
     </script>
 </body>
 </html>
