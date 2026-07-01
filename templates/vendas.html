@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vendas.html
-Último recode: 2026-06-30 23:25 (America/Bahia)
-Motivo: Adicionar atalho para Venda Balcão/PDV na tela de vendas.
+Último recode: 2026-07-01 17:25 (America/Bahia)
+Motivo: Adicionar cadastro rápido de produto e serviço na tela de vendas.
 -->
 
 <!DOCTYPE html>
@@ -556,6 +556,88 @@ Motivo: Adicionar atalho para Venda Balcão/PDV na tela de vendas.
             </div>
         </div>
 
+        <div id="quick-produto-modal" class="quick-modal-backdrop" aria-hidden="true">
+            <div class="quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-produto-title">
+                <div class="quick-modal-header">
+                    <div>
+                        <h3 id="quick-produto-title">Novo produto</h3>
+                        <p>Cadastro rápido de produto sem sair da venda.</p>
+                    </div>
+                    <button type="button" class="quick-modal-close" onclick="fecharModalProdutoRapidoVenda()">×</button>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="quick-produto-nome">Produto *</label>
+                        <input id="quick-produto-nome" type="text" class="form-control" placeholder="Ex: Rolamento 6203">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-produto-valor">Valor de venda *</label>
+                        <input id="quick-produto-valor" type="text" class="form-control" placeholder="0,00">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-produto-unidade">Unidade</label>
+                        <input id="quick-produto-unidade" type="text" class="form-control" value="un" placeholder="un, kg, m">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-produto-categoria">Categoria</label>
+                        <input id="quick-produto-categoria" type="text" class="form-control" placeholder="Ex: Peças">
+                    </div>
+                </div>
+
+                <div id="quick-produto-error" class="quick-modal-error"></div>
+
+                <div class="quick-modal-actions">
+                    <button type="button" class="btn-light" onclick="fecharModalProdutoRapidoVenda()">Cancelar</button>
+                    <button type="button" class="btn-primary-green" onclick="salvarProdutoRapidoVenda()">Salvar produto</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="quick-servico-modal" class="quick-modal-backdrop" aria-hidden="true">
+            <div class="quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-servico-title">
+                <div class="quick-modal-header">
+                    <div>
+                        <h3 id="quick-servico-title">Novo serviço</h3>
+                        <p>Cadastro rápido de serviço sem sair da venda.</p>
+                    </div>
+                    <button type="button" class="quick-modal-close" onclick="fecharModalServicoRapidoVenda()">×</button>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="quick-servico-nome">Serviço *</label>
+                        <input id="quick-servico-nome" type="text" class="form-control" placeholder="Ex: Troca de rolamento">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-servico-valor">Valor de venda *</label>
+                        <input id="quick-servico-valor" type="text" class="form-control" placeholder="0,00">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-servico-categoria">Categoria</label>
+                        <input id="quick-servico-categoria" type="text" class="form-control" placeholder="Ex: Manutenção">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-servico-observacoes">Observações</label>
+                        <input id="quick-servico-observacoes" type="text" class="form-control" placeholder="Observação interna opcional">
+                    </div>
+                </div>
+
+                <div id="quick-servico-error" class="quick-modal-error"></div>
+
+                <div class="quick-modal-actions">
+                    <button type="button" class="btn-light" onclick="fecharModalServicoRapidoVenda()">Cancelar</button>
+                    <button type="button" class="btn-primary-green" onclick="salvarServicoRapidoVenda()">Salvar serviço</button>
+                </div>
+            </div>
+        </div>
+
         <script>
             window.opcoesProdutos = [
                 {% for produto in produtos|default([]) %}
@@ -653,6 +735,16 @@ Motivo: Adicionar atalho para Venda Balcão/PDV na tela de vendas.
                 const camposCalculo = linha.querySelectorAll(".item-quantidade, .item-valor, .item-desconto");
 
                 selectDescricao.addEventListener("change", function() {
+                    if (selectDescricao.value === "__novo_produto__") {
+                        abrirModalProdutoRapidoVenda(selectDescricao);
+                        return;
+                    }
+
+                    if (selectDescricao.value === "__novo_servico__") {
+                        abrirModalServicoRapidoVenda(selectDescricao);
+                        return;
+                    }
+
                     const itemSelecionado = opcoes.find(function(item) {
                         return item.nome === selectDescricao.value;
                     });
@@ -680,6 +772,10 @@ Motivo: Adicionar atalho para Venda Balcão/PDV na tela de vendas.
                     const selected = dados.descricao === item.nome ? " selected" : "";
                     selectOptions += '<option value="' + item.nome + '"' + selected + '>' + item.nome + '</option>';
                 });
+
+                const valorNovoItem = tipo === "produto" ? "__novo_produto__" : "__novo_servico__";
+                const textoNovoItem = tipo === "produto" ? "+ Adicionar novo produto" : "+ Adicionar novo serviço";
+                selectOptions += '<option value="' + valorNovoItem + '" class="quick-new-option">' + textoNovoItem + '</option>';
 
                 linha.innerHTML = `
                     <td>
@@ -748,6 +844,252 @@ Motivo: Adicionar atalho para Venda Balcão/PDV na tela de vendas.
                 }
 
                 calcularTotaisVenda();
+            }
+
+            let selectProdutoRapidoAtualVenda = null;
+            let selectServicoRapidoAtualVenda = null;
+
+            function abrirModalGenericoVenda(modalId, campoFocoId) {
+                const modal = document.getElementById(modalId);
+                const campoFoco = document.getElementById(campoFocoId);
+
+                if (!modal) {
+                    return;
+                }
+
+                modal.classList.add("open");
+                modal.setAttribute("aria-hidden", "false");
+
+                if (campoFoco) {
+                    setTimeout(function() {
+                        campoFoco.focus();
+                    }, 80);
+                }
+            }
+
+            function fecharModalGenericoVenda(modalId) {
+                const modal = document.getElementById(modalId);
+
+                if (!modal) {
+                    return;
+                }
+
+                modal.classList.remove("open");
+                modal.setAttribute("aria-hidden", "true");
+            }
+
+            function exibirErroRapidoVenda(elementoId, mensagem) {
+                const erro = document.getElementById(elementoId);
+
+                if (!erro) {
+                    alert(mensagem);
+                    return;
+                }
+
+                erro.textContent = mensagem;
+                erro.classList.add("show");
+            }
+
+            function limparErroRapidoVenda(elementoId) {
+                const erro = document.getElementById(elementoId);
+
+                if (!erro) {
+                    return;
+                }
+
+                erro.textContent = "";
+                erro.classList.remove("show");
+            }
+
+            function abrirModalProdutoRapidoVenda(selectOrigem) {
+                selectProdutoRapidoAtualVenda = selectOrigem;
+                limparErroRapidoVenda("quick-produto-error");
+
+                const nome = document.getElementById("quick-produto-nome");
+                const valor = document.getElementById("quick-produto-valor");
+                const unidade = document.getElementById("quick-produto-unidade");
+                const categoria = document.getElementById("quick-produto-categoria");
+
+                if (nome) nome.value = "";
+                if (valor) valor.value = "";
+                if (unidade) unidade.value = "un";
+                if (categoria) categoria.value = "";
+
+                abrirModalGenericoVenda("quick-produto-modal", "quick-produto-nome");
+            }
+
+            function fecharModalProdutoRapidoVenda() {
+                if (selectProdutoRapidoAtualVenda && selectProdutoRapidoAtualVenda.value === "__novo_produto__") {
+                    selectProdutoRapidoAtualVenda.value = "";
+                }
+
+                selectProdutoRapidoAtualVenda = null;
+                fecharModalGenericoVenda("quick-produto-modal");
+            }
+
+            function abrirModalServicoRapidoVenda(selectOrigem) {
+                selectServicoRapidoAtualVenda = selectOrigem;
+                limparErroRapidoVenda("quick-servico-error");
+
+                const nome = document.getElementById("quick-servico-nome");
+                const valor = document.getElementById("quick-servico-valor");
+                const categoria = document.getElementById("quick-servico-categoria");
+                const observacoes = document.getElementById("quick-servico-observacoes");
+
+                if (nome) nome.value = "";
+                if (valor) valor.value = "";
+                if (categoria) categoria.value = "";
+                if (observacoes) observacoes.value = "";
+
+                abrirModalGenericoVenda("quick-servico-modal", "quick-servico-nome");
+            }
+
+            function fecharModalServicoRapidoVenda() {
+                if (selectServicoRapidoAtualVenda && selectServicoRapidoAtualVenda.value === "__novo_servico__") {
+                    selectServicoRapidoAtualVenda.value = "";
+                }
+
+                selectServicoRapidoAtualVenda = null;
+                fecharModalGenericoVenda("quick-servico-modal");
+            }
+
+            function adicionarOpcaoItemVenda(tipo, item, selectAtual) {
+                const opcoes = tipo === "produto" ? window.opcoesProdutos : window.opcoesServicos;
+                const seletor = tipo === "produto" ? "#produto-tbody .item-descricao" : "#servico-tbody .item-descricao";
+                const valorNovo = tipo === "produto" ? "__novo_produto__" : "__novo_servico__";
+
+                opcoes.push(item);
+
+                document.querySelectorAll(seletor).forEach(function(select) {
+                    let existe = false;
+
+                    Array.from(select.options).forEach(function(option) {
+                        if (option.value === item.nome) {
+                            existe = true;
+                        }
+                    });
+
+                    if (!existe) {
+                        const novaOpcao = document.createElement("option");
+                        novaOpcao.value = item.nome;
+                        novaOpcao.textContent = item.nome;
+
+                        const opcaoNovo = Array.from(select.options).find(function(option) {
+                            return option.value === valorNovo;
+                        });
+
+                        select.insertBefore(novaOpcao, opcaoNovo || null);
+                    }
+                });
+
+                if (selectAtual) {
+                    const linha = selectAtual.closest("tr");
+                    const inputValor = linha ? linha.querySelector(".item-valor") : null;
+
+                    selectAtual.value = item.nome;
+
+                    if (inputValor) {
+                        inputValor.value = item.valor || "";
+                    }
+
+                    calcularTotaisVenda();
+                }
+            }
+
+            function salvarProdutoRapidoVenda() {
+                limparErroRapidoVenda("quick-produto-error");
+
+                const nome = (document.getElementById("quick-produto-nome")?.value || "").trim();
+                const valor = (document.getElementById("quick-produto-valor")?.value || "").trim();
+                const unidade = (document.getElementById("quick-produto-unidade")?.value || "un").trim() || "un";
+                const categoria = (document.getElementById("quick-produto-categoria")?.value || "").trim();
+
+                if (!nome) {
+                    exibirErroRapidoVenda("quick-produto-error", "Informe o nome do produto.");
+                    return;
+                }
+
+                if (!valor) {
+                    exibirErroRapidoVenda("quick-produto-error", "Informe o valor de venda do produto.");
+                    return;
+                }
+
+                const dados = new URLSearchParams();
+                dados.append("nome", nome);
+                dados.append("valor_venda", valor);
+                dados.append("unidade", unidade);
+                dados.append("categoria", categoria);
+
+                fetch("/produtos/rapido", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: dados.toString()
+                })
+                    .then(function(resposta) {
+                        return resposta.json().then(function(payload) {
+                            if (!resposta.ok || !payload.ok) {
+                                throw new Error(payload.erro || "Não foi possível salvar o produto.");
+                            }
+
+                            return payload;
+                        });
+                    })
+                    .then(function(payload) {
+                        adicionarOpcaoItemVenda("produto", payload.item, selectProdutoRapidoAtualVenda);
+                        selectProdutoRapidoAtualVenda = null;
+                        fecharModalGenericoVenda("quick-produto-modal");
+                    })
+                    .catch(function(erro) {
+                        exibirErroRapidoVenda("quick-produto-error", erro.message || "Não foi possível salvar o produto.");
+                    });
+            }
+
+            function salvarServicoRapidoVenda() {
+                limparErroRapidoVenda("quick-servico-error");
+
+                const nome = (document.getElementById("quick-servico-nome")?.value || "").trim();
+                const valor = (document.getElementById("quick-servico-valor")?.value || "").trim();
+                const categoria = (document.getElementById("quick-servico-categoria")?.value || "").trim();
+                const observacoes = (document.getElementById("quick-servico-observacoes")?.value || "").trim();
+
+                if (!nome) {
+                    exibirErroRapidoVenda("quick-servico-error", "Informe o nome do serviço.");
+                    return;
+                }
+
+                if (!valor) {
+                    exibirErroRapidoVenda("quick-servico-error", "Informe o valor de venda do serviço.");
+                    return;
+                }
+
+                const dados = new URLSearchParams();
+                dados.append("nome", nome);
+                dados.append("valor_venda", valor);
+                dados.append("categoria", categoria);
+                dados.append("observacoes", observacoes);
+
+                fetch("/servicos/rapido", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: dados.toString()
+                })
+                    .then(function(resposta) {
+                        return resposta.json().then(function(payload) {
+                            if (!resposta.ok || !payload.ok) {
+                                throw new Error(payload.erro || "Não foi possível salvar o serviço.");
+                            }
+
+                            return payload;
+                        });
+                    })
+                    .then(function(payload) {
+                        adicionarOpcaoItemVenda("servico", payload.item, selectServicoRapidoAtualVenda);
+                        selectServicoRapidoAtualVenda = null;
+                        fecharModalGenericoVenda("quick-servico-modal");
+                    })
+                    .catch(function(erro) {
+                        exibirErroRapidoVenda("quick-servico-error", erro.message || "Não foi possível salvar o serviço.");
+                    });
             }
 
             document.addEventListener("DOMContentLoaded", function() {
