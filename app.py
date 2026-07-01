@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-01 14:35 (America/Bahia)
-# Motivo: Criar registro fotografico antes e depois vinculado a OS.
+# Último recode: 2026-07-01 15:05 (America/Bahia)
+# Motivo: Salvar fotos antes/depois também no cadastro da OS.
 
 from __future__ import annotations
 
@@ -8760,7 +8760,8 @@ def salvar_ordem_servico() -> Response:
     if erro_validacao:
         return redirect(url_for("ordens_servico", erro=erro_validacao))
 
-    salvar_ordem_servico_db(ordem_servico, itens)
+    nova_ordem_servico_id = salvar_ordem_servico_db(ordem_servico, itens)
+    atualizar_fotos_equipamento_os_formulario(nova_ordem_servico_id)
 
     return redirect(url_for("ordens_servico"))
 

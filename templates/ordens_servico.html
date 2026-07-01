@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordens_servico.html
-Último recode: 2026-07-01 12:20 (America/Bahia)
-Motivo: Criar menu Gerar na lista de OS com link de acompanhamento diário.
+Último recode: 2026-07-01 15:05 (America/Bahia)
+Motivo: Recolocar fotos antes/depois no cadastro da OS.
 -->
 
 <!DOCTYPE html>
@@ -416,6 +416,32 @@ Motivo: Criar menu Gerar na lista de OS com link de acompanhamento diário.
             box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.12);
         }
 
+
+        .os-photo-table th,
+        .os-photo-table td {
+            vertical-align: top;
+        }
+
+        .os-photo-preview {
+            width: 120px;
+            height: 86px;
+            border: 1px solid #dbe3ef;
+            border-radius: 10px;
+            object-fit: cover;
+            display: block;
+            margin-bottom: 8px;
+            background: #f8fafc;
+        }
+
+        .os-photo-remove-check {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #991b1b;
+            font-weight: 800;
+        }
+
     </style>
 </head>
 <body>
@@ -450,7 +476,7 @@ Motivo: Criar menu Gerar na lista de OS com link de acompanhamento diário.
             <div class="card stat-card"><div class="card-icon">✓</div><div class="card-info"><p>{{ resumo.finalizadas }}</p><h3>Finalizadas</h3><span>{% if resumo.finalizadas == 1 %}1 OS finalizada{% elif resumo.finalizadas > 1 %}{{ resumo.finalizadas }} OS finalizadas{% else %}Nenhuma OS finalizada{% endif %}</span></div></div>
         </section>
 
-        <form id="form-nova-os" action="/ordens-servico" method="post" class="client-form">
+        <form id="form-nova-os" action="/ordens-servico" method="post" enctype="multipart/form-data" class="client-form">
             <div class="gestflow-form-error{% if request.args.get('erro') %} show{% endif %}" data-form-error>{% if request.args.get('erro') %}{{ request.args.get('erro') }}{% endif %}</div>
             <section class="os-form-section">
                 <div class="os-section-title">
@@ -539,6 +565,42 @@ Motivo: Criar menu Gerar na lista de OS com link de acompanhamento diário.
                         </div>
                     </div>
                     <div class="os-actions-line"><button type="button" class="btn-dark" onclick="adicionarEquipamento()">+ Adicionar equipamento</button></div>
+                </div>
+            </section>
+
+
+            <section class="os-form-section">
+                <div class="os-section-title">
+                    <h3>▧ Fotos antes / depois</h3>
+                    <span>Registro fotográfico do equipamento</span>
+                </div>
+                <div class="os-section-body">
+                    <div class="table-shell">
+                        <table class="client-table os-photo-table">
+                            <thead>
+                                <tr>
+                                    <th>Equipamento / item</th>
+                                    <th>Foto antes</th>
+                                    <th>Foto depois</th>
+                                    <th>Observação</th>
+                                    <th>Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody id="fotos-equipamento-tbody">
+                                <tr>
+                                    <td>
+                                        <input type="hidden" name="foto_os_id" value="">
+                                        <input type="text" name="foto_os_titulo" class="form-control" placeholder="Ex.: Motor principal">
+                                    </td>
+                                    <td><input type="file" name="foto_os_antes" class="form-control" accept="image/*"></td>
+                                    <td><input type="file" name="foto_os_depois" class="form-control" accept="image/*"></td>
+                                    <td><textarea name="foto_os_observacoes" class="form-control os-textarea" placeholder="Observação da foto"></textarea></td>
+                                    <td></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="os-actions-line"><button type="button" class="btn-dark" onclick="adicionarLinhaFotoEquipamento()">+ Adicionar foto</button></div>
                 </div>
             </section>
 
@@ -1091,6 +1153,29 @@ Motivo: Criar menu Gerar na lista de OS com link de acompanhamento diário.
                     exigirItemOuRelato: true
                 });
             });
+        </script>
+
+
+        <script>
+            function adicionarLinhaFotoEquipamento() {
+                const corpo = document.getElementById("fotos-equipamento-tbody");
+                if (!corpo) {
+                    return;
+                }
+
+                const linha = document.createElement("tr");
+                linha.innerHTML = `
+                    <td>
+                        <input type="hidden" name="foto_os_id" value="">
+                        <input type="text" name="foto_os_titulo" class="form-control" placeholder="Ex.: Motor principal">
+                    </td>
+                    <td><input type="file" name="foto_os_antes" class="form-control" accept="image/*"></td>
+                    <td><input type="file" name="foto_os_depois" class="form-control" accept="image/*"></td>
+                    <td><textarea name="foto_os_observacoes" class="form-control os-textarea" placeholder="Observação da foto"></textarea></td>
+                    <td><button type="button" class="os-remove-equipment" onclick="this.closest('tr').remove()">×</button></td>
+                `;
+                corpo.appendChild(linha);
+            }
         </script>
 
 </body>
