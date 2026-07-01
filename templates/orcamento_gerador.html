@@ -1,7 +1,7 @@
 <!--
 Caminho: templates/orcamento_gerador.html
-Último recode: 2026-07-01 09:20 (America/Bahia)
-Motivo: Integrar materiais e mão de obra ao cadastro do GestFlow com busca, cadastro rápido e botão Adicionar.
+Último recode: 2026-07-01 09:55 (America/Bahia)
+Motivo: Corrigir modais do gerador fora da tela e reforçar botões Adicionar em materiais e mão de obra.
 -->
 
 <!DOCTYPE html>
@@ -137,6 +137,11 @@ Motivo: Integrar materiais e mão de obra ao cadastro do GestFlow com busca, cad
                                 <tbody id="materiais-body"></tbody>
                             </table>
                         </div>
+
+                        <div class="gerador-table-actions">
+                            <button type="button" class="btn-primary-green" onclick="adicionarMaterial()">+ Adicionar material</button>
+                            <span>Use este botão para lançar mais de um material no orçamento.</span>
+                        </div>
                     </section>
 
                     <section class="panel page-section">
@@ -163,6 +168,11 @@ Motivo: Integrar materiais e mão de obra ao cadastro do GestFlow com busca, cad
                                 </thead>
                                 <tbody id="mao-obra-body"></tbody>
                             </table>
+                        </div>
+
+                        <div class="gerador-table-actions">
+                            <button type="button" class="btn-primary-green" onclick="adicionarMaoObra()">+ Adicionar mão de obra</button>
+                            <span>Use este botão para lançar mais funcionários, funções ou equipes.</span>
                         </div>
                     </section>
 

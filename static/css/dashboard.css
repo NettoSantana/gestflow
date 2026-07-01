@@ -1894,8 +1894,88 @@ body {
     min-width: 260px;
 }
 
+
+/* MODAIS RAPIDOS DO GERADOR / ORCAMENTO */
+.quick-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(15, 23, 42, 0.50);
+}
+
 .quick-modal-backdrop.open {
+    display: flex !important;
+}
+
+.quick-modal {
+    width: min(560px, 100%);
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.30);
+    padding: 18px;
+}
+
+.quick-modal-header {
     display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.quick-modal-header h3 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 18px;
+    font-weight: 900;
+}
+
+.quick-modal-header p {
+    margin: 4px 0 0;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.quick-modal-close {
+    width: 34px;
+    height: 34px;
+    flex: 0 0 34px;
+    border: 0;
+    border-radius: 10px;
+    background: #f1f5f9;
+    color: #0f172a;
+    cursor: pointer;
+    font-size: 20px;
+    font-weight: 900;
+}
+
+.quick-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.gerador-table-actions {
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.gerador-table-actions span {
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 800;
 }
 
 .quick-modal-error {
@@ -1921,7 +2001,20 @@ body {
     }
 
     .quick-modal {
-        max-height: 88vh;
-        overflow-y: auto;
+        width: min(94vw, 560px);
+        max-height: calc(100vh - 28px);
+        padding: 16px;
+    }
+
+    .quick-modal-actions,
+    .gerador-table-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .quick-modal-actions .btn-light,
+    .quick-modal-actions .btn-primary-green,
+    .gerador-table-actions .btn-primary-green {
+        width: 100%;
     }
 }
