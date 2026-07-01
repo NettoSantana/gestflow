@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\static\css\dashboard.css
-Último recode: 2026-07-01 08:10 (America/Bahia)
-Motivo: Adicionar estilos do Gerador de Orçamentos técnico.
+Último recode: 2026-07-01 09:20 (America/Bahia)
+Motivo: Adicionar estilos dos custos de funcionários e melhorias do Gerador de Orçamentos.
 */
 
 :root {
@@ -1848,5 +1848,80 @@ body {
 
     .gerador-page .panel-header.page-header {
         align-items: stretch;
+    }
+}
+
+/* FUNCIONARIOS - CUSTOS E GERADOR INTEGRADO */
+.cost-section {
+    margin-top: 24px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+}
+
+.cost-section-header {
+    margin-bottom: 16px;
+}
+
+.funcionario-custos-grid .form-control {
+    font-weight: 800;
+}
+
+.funcionario-custo-total {
+    background: #f8fafc;
+    color: #0f172a;
+    font-weight: 900;
+}
+
+.textarea-control {
+    min-height: 110px;
+    height: auto;
+    padding-top: 12px;
+    resize: vertical;
+}
+
+.quick-new-option {
+    color: #16a34a;
+    font-weight: 900;
+}
+
+.gerador-table select.form-control,
+.gerador-table input.form-control {
+    min-width: 150px;
+}
+
+.gerador-table th:first-child,
+.gerador-table td:first-child {
+    min-width: 260px;
+}
+
+.quick-modal-backdrop.open {
+    display: flex;
+}
+
+.quick-modal-error {
+    display: none;
+    margin-top: 10px;
+    padding: 10px 12px;
+    border: 1px solid #fecaca;
+    border-radius: 10px;
+    background: #fef2f2;
+    color: #991b1b;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.quick-modal-error.show {
+    display: block;
+}
+
+@media (max-width: 820px) {
+    .gerador-table th:first-child,
+    .gerador-table td:first-child {
+        min-width: 240px;
+    }
+
+    .quick-modal {
+        max-height: 88vh;
+        overflow-y: auto;
     }
 }

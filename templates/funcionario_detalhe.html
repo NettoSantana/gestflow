@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\funcionario_detalhe.html
-Último recode: 2026-06-19 07:55 (America/Bahia)
-Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
+Último recode: 2026-07-01 09:20 (America/Bahia)
+Motivo: Exibir custos do funcionário para uso no Gerador de Orçamentos.
 -->
 
 <!DOCTYPE html>
@@ -106,6 +106,32 @@ Motivo: Uniformizar menu lateral e cabeçalho com usuário logado.
                     <span>Data de cadastro</span>
                     <strong>{{ funcionario.criado_em or '-' }}</strong>
                 </div>
+            </div>
+        </section>
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Custos</h3>
+                    <p class="page-subtitle">Valores internos usados para calcular mão de obra no Gerador de Orçamentos.</p>
+                </div>
+
+                <a href="/funcionarios/{{ funcionario.id }}/editar" class="btn-primary-green">Editar custos</a>
+            </div>
+
+            <div class="panel-summary">
+                <div><span>Salário base</span><strong>{{ funcionario.salario_base or '-' }}</strong></div>
+                <div><span>INSS / encargos %</span><strong>{{ funcionario.inss_percentual or '-' }}</strong></div>
+                <div><span>FGTS %</span><strong>{{ funcionario.fgts_percentual or '-' }}</strong></div>
+                <div><span>Férias %</span><strong>{{ funcionario.ferias_percentual or '-' }}</strong></div>
+                <div><span>13º %</span><strong>{{ funcionario.decimo_percentual or '-' }}</strong></div>
+                <div><span>Benefícios</span><strong>{{ funcionario.beneficios or '-' }}</strong></div>
+                <div><span>Transporte</span><strong>{{ funcionario.transporte or '-' }}</strong></div>
+                <div><span>Alimentação</span><strong>{{ funcionario.alimentacao or '-' }}</strong></div>
+                <div><span>Outros custos</span><strong>{{ funcionario.outros_custos or '-' }}</strong></div>
+                <div><span>Custo mensal</span><strong>{{ funcionario.custo_mensal or '-' }}</strong></div>
+                <div><span>Custo dia</span><strong>{{ funcionario.custo_dia or '-' }}</strong></div>
+                <div><span>Custo hora</span><strong>{{ funcionario.custo_hora or '-' }}</strong></div>
             </div>
         </section>
 

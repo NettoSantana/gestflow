@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-01 08:10 (America/Bahia)
-# Motivo: Criar Gerador de Orçamentos técnico com cálculo de custos, margens e geração de orçamento normal.
+# Último recode: 2026-07-01 09:20 (America/Bahia)
+# Motivo: Integrar materiais e mão de obra ao Gerador de Orçamentos com cadastro rápido e custos de funcionários.
 
 from __future__ import annotations
 
@@ -926,6 +926,30 @@ def iniciar_banco() -> None:
         if "tour_concluido" not in colunas_empresas:
             conn.execute("ALTER TABLE empresas ADD COLUMN tour_concluido TEXT DEFAULT 'nao'")
 
+        colunas_funcionarios_existentes = {
+            str(row["name"])
+            for row in conn.execute("PRAGMA table_info(funcionarios)").fetchall()
+        }
+
+        colunas_custos_funcionarios = {
+            "salario_base": "TEXT",
+            "inss_percentual": "TEXT",
+            "fgts_percentual": "TEXT",
+            "ferias_percentual": "TEXT",
+            "decimo_percentual": "TEXT",
+            "beneficios": "TEXT",
+            "transporte": "TEXT",
+            "alimentacao": "TEXT",
+            "outros_custos": "TEXT",
+            "custo_mensal": "TEXT",
+            "custo_dia": "TEXT",
+            "custo_hora": "TEXT",
+        }
+
+        for coluna, tipo_coluna in colunas_custos_funcionarios.items():
+            if coluna not in colunas_funcionarios_existentes:
+                conn.execute(f"ALTER TABLE funcionarios ADD COLUMN {coluna} {tipo_coluna}")
+
         empresas_sem_codigo = conn.execute(
             """
             SELECT id
@@ -1375,8 +1399,45 @@ def excluir_fornecedor_db(fornecedor_id: int) -> None:
         )
         conn.commit()
 
+def _normalizar_custos_funcionario(funcionario: dict[str, str]) -> dict[str, str]:
+    funcionario_normalizado = dict(funcionario)
+
+    salario = _converter_valor_brl(funcionario_normalizado.get("salario_base"))
+    inss = _converter_valor_brl(funcionario_normalizado.get("inss_percentual"))
+    fgts = _converter_valor_brl(funcionario_normalizado.get("fgts_percentual"))
+    ferias = _converter_valor_brl(funcionario_normalizado.get("ferias_percentual"))
+    decimo = _converter_valor_brl(funcionario_normalizado.get("decimo_percentual"))
+    beneficios = _converter_valor_brl(funcionario_normalizado.get("beneficios"))
+    transporte = _converter_valor_brl(funcionario_normalizado.get("transporte"))
+    alimentacao = _converter_valor_brl(funcionario_normalizado.get("alimentacao"))
+    outros_custos = _converter_valor_brl(funcionario_normalizado.get("outros_custos"))
+
+    encargos_percentual = inss + fgts + ferias + decimo
+    custo_mensal_calculado = salario + (salario * encargos_percentual / 100) + beneficios + transporte + alimentacao + outros_custos
+
+    custo_mensal = _converter_valor_brl(funcionario_normalizado.get("custo_mensal")) or custo_mensal_calculado
+    custo_dia = _converter_valor_brl(funcionario_normalizado.get("custo_dia")) or (custo_mensal / 22 if custo_mensal else 0)
+    custo_hora = _converter_valor_brl(funcionario_normalizado.get("custo_hora")) or (custo_mensal / 220 if custo_mensal else 0)
+
+    funcionario_normalizado["salario_base"] = funcionario_normalizado.get("salario_base", "")
+    funcionario_normalizado["inss_percentual"] = funcionario_normalizado.get("inss_percentual", "")
+    funcionario_normalizado["fgts_percentual"] = funcionario_normalizado.get("fgts_percentual", "")
+    funcionario_normalizado["ferias_percentual"] = funcionario_normalizado.get("ferias_percentual", "")
+    funcionario_normalizado["decimo_percentual"] = funcionario_normalizado.get("decimo_percentual", "")
+    funcionario_normalizado["beneficios"] = funcionario_normalizado.get("beneficios", "")
+    funcionario_normalizado["transporte"] = funcionario_normalizado.get("transporte", "")
+    funcionario_normalizado["alimentacao"] = funcionario_normalizado.get("alimentacao", "")
+    funcionario_normalizado["outros_custos"] = funcionario_normalizado.get("outros_custos", "")
+    funcionario_normalizado["custo_mensal"] = _formatar_moeda_brl(custo_mensal) if custo_mensal else ""
+    funcionario_normalizado["custo_dia"] = _formatar_moeda_brl(custo_dia) if custo_dia else ""
+    funcionario_normalizado["custo_hora"] = _formatar_moeda_brl(custo_hora) if custo_hora else ""
+
+    return funcionario_normalizado
+
+
 def salvar_funcionario_db(funcionario: dict[str, str]) -> None:
     empresa_id = empresa_logada_id()
+    funcionario = _normalizar_custos_funcionario(funcionario)
 
     with conectar_db() as conn:
         conn.execute(
@@ -1390,8 +1451,20 @@ def salvar_funcionario_db(funcionario: dict[str, str]) -> None:
                 cargo,
                 status,
                 email,
-                observacoes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                observacoes,
+                salario_base,
+                inss_percentual,
+                fgts_percentual,
+                ferias_percentual,
+                decimo_percentual,
+                beneficios,
+                transporte,
+                alimentacao,
+                outros_custos,
+                custo_mensal,
+                custo_dia,
+                custo_hora
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id,
@@ -1403,6 +1476,18 @@ def salvar_funcionario_db(funcionario: dict[str, str]) -> None:
                 funcionario["status"],
                 funcionario["email"],
                 funcionario["observacoes"],
+                funcionario["salario_base"],
+                funcionario["inss_percentual"],
+                funcionario["fgts_percentual"],
+                funcionario["ferias_percentual"],
+                funcionario["decimo_percentual"],
+                funcionario["beneficios"],
+                funcionario["transporte"],
+                funcionario["alimentacao"],
+                funcionario["outros_custos"],
+                funcionario["custo_mensal"],
+                funcionario["custo_dia"],
+                funcionario["custo_hora"],
             ),
         )
         conn.commit()
@@ -1424,6 +1509,18 @@ def listar_funcionarios() -> list[dict[str, Any]]:
                 status,
                 email,
                 observacoes,
+                salario_base,
+                inss_percentual,
+                fgts_percentual,
+                ferias_percentual,
+                decimo_percentual,
+                beneficios,
+                transporte,
+                alimentacao,
+                outros_custos,
+                custo_mensal,
+                custo_dia,
+                custo_hora,
                 criado_em
             FROM funcionarios
             WHERE empresa_id = ?
@@ -1451,6 +1548,18 @@ def buscar_funcionario_por_id(funcionario_id: int) -> dict[str, Any] | None:
                 status,
                 email,
                 observacoes,
+                salario_base,
+                inss_percentual,
+                fgts_percentual,
+                ferias_percentual,
+                decimo_percentual,
+                beneficios,
+                transporte,
+                alimentacao,
+                outros_custos,
+                custo_mensal,
+                custo_dia,
+                custo_hora,
                 criado_em
             FROM funcionarios
             WHERE id = ?
@@ -1466,6 +1575,7 @@ def buscar_funcionario_por_id(funcionario_id: int) -> dict[str, Any] | None:
 
 def atualizar_funcionario_db(funcionario_id: int, funcionario: dict[str, str]) -> None:
     empresa_id = empresa_logada_id()
+    funcionario = _normalizar_custos_funcionario(funcionario)
 
     with conectar_db() as conn:
         conn.execute(
@@ -1479,7 +1589,19 @@ def atualizar_funcionario_db(funcionario_id: int, funcionario: dict[str, str]) -
                 cargo = ?,
                 status = ?,
                 email = ?,
-                observacoes = ?
+                observacoes = ?,
+                salario_base = ?,
+                inss_percentual = ?,
+                fgts_percentual = ?,
+                ferias_percentual = ?,
+                decimo_percentual = ?,
+                beneficios = ?,
+                transporte = ?,
+                alimentacao = ?,
+                outros_custos = ?,
+                custo_mensal = ?,
+                custo_dia = ?,
+                custo_hora = ?
             WHERE id = ?
               AND empresa_id = ?
             """,
@@ -1492,6 +1614,18 @@ def atualizar_funcionario_db(funcionario_id: int, funcionario: dict[str, str]) -
                 funcionario["status"],
                 funcionario["email"],
                 funcionario["observacoes"],
+                funcionario["salario_base"],
+                funcionario["inss_percentual"],
+                funcionario["fgts_percentual"],
+                funcionario["ferias_percentual"],
+                funcionario["decimo_percentual"],
+                funcionario["beneficios"],
+                funcionario["transporte"],
+                funcionario["alimentacao"],
+                funcionario["outros_custos"],
+                funcionario["custo_mensal"],
+                funcionario["custo_dia"],
+                funcionario["custo_hora"],
                 funcionario_id,
                 empresa_id,
             ),
@@ -6562,6 +6696,18 @@ def salvar_funcionario() -> Response:
         "status": (request.form.get("funcionario_status") or "ativo").strip() or "ativo",
         "email": (request.form.get("funcionario_email") or "").strip(),
         "observacoes": (request.form.get("funcionario_observacoes") or "").strip(),
+        "salario_base": (request.form.get("funcionario_salario_base") or "").strip(),
+        "inss_percentual": (request.form.get("funcionario_inss_percentual") or "").strip(),
+        "fgts_percentual": (request.form.get("funcionario_fgts_percentual") or "").strip(),
+        "ferias_percentual": (request.form.get("funcionario_ferias_percentual") or "").strip(),
+        "decimo_percentual": (request.form.get("funcionario_decimo_percentual") or "").strip(),
+        "beneficios": (request.form.get("funcionario_beneficios") or "").strip(),
+        "transporte": (request.form.get("funcionario_transporte") or "").strip(),
+        "alimentacao": (request.form.get("funcionario_alimentacao") or "").strip(),
+        "outros_custos": (request.form.get("funcionario_outros_custos") or "").strip(),
+        "custo_mensal": (request.form.get("funcionario_custo_mensal") or "").strip(),
+        "custo_dia": (request.form.get("funcionario_custo_dia") or "").strip(),
+        "custo_hora": (request.form.get("funcionario_custo_hora") or "").strip(),
     }
 
     funcionario = normalizar_funcionario_para_salvar(funcionario)
@@ -6583,19 +6729,32 @@ def salvar_funcionario_rapido() -> Response:
     email = (request.form.get("email") or request.form.get("funcionario_email") or "").strip()
 
     if not nome:
-        return jsonify({"ok": False, "erro": "Informe o nome do responsável."}), 400
+        return jsonify({"ok": False, "erro": "Informe o nome do funcionário."}), 400
 
     funcionario = {
         "nome": nome,
         "cpf": "",
         "telefone": telefone,
         "cidade": "",
-        "cargo": cargo,
+        "cargo": cargo or "Mão de obra",
         "status": "ativo",
         "email": email,
         "observacoes": "Cadastro rápido gerado pelo orçamento.",
+        "salario_base": (request.form.get("salario_base") or "").strip(),
+        "inss_percentual": (request.form.get("inss_percentual") or "").strip(),
+        "fgts_percentual": (request.form.get("fgts_percentual") or "").strip(),
+        "ferias_percentual": (request.form.get("ferias_percentual") or "").strip(),
+        "decimo_percentual": (request.form.get("decimo_percentual") or "").strip(),
+        "beneficios": (request.form.get("beneficios") or "").strip(),
+        "transporte": (request.form.get("transporte") or "").strip(),
+        "alimentacao": (request.form.get("alimentacao") or "").strip(),
+        "outros_custos": (request.form.get("outros_custos") or "").strip(),
+        "custo_mensal": (request.form.get("custo_mensal") or "").strip(),
+        "custo_dia": (request.form.get("custo_dia") or "").strip(),
+        "custo_hora": (request.form.get("custo_hora") or "").strip(),
     }
 
+    funcionario = _normalizar_custos_funcionario(funcionario)
     empresa_id = empresa_logada_id()
 
     with conectar_db() as conn:
@@ -6610,8 +6769,20 @@ def salvar_funcionario_rapido() -> Response:
                 cargo,
                 status,
                 email,
-                observacoes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                observacoes,
+                salario_base,
+                inss_percentual,
+                fgts_percentual,
+                ferias_percentual,
+                decimo_percentual,
+                beneficios,
+                transporte,
+                alimentacao,
+                outros_custos,
+                custo_mensal,
+                custo_dia,
+                custo_hora
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id,
@@ -6623,6 +6794,18 @@ def salvar_funcionario_rapido() -> Response:
                 funcionario["status"],
                 funcionario["email"],
                 funcionario["observacoes"],
+                funcionario["salario_base"],
+                funcionario["inss_percentual"],
+                funcionario["fgts_percentual"],
+                funcionario["ferias_percentual"],
+                funcionario["decimo_percentual"],
+                funcionario["beneficios"],
+                funcionario["transporte"],
+                funcionario["alimentacao"],
+                funcionario["outros_custos"],
+                funcionario["custo_mensal"],
+                funcionario["custo_dia"],
+                funcionario["custo_hora"],
             ),
         )
         funcionario_id = int(cursor.lastrowid)
@@ -6634,6 +6817,10 @@ def salvar_funcionario_rapido() -> Response:
         "cargo": funcionario["cargo"],
         "telefone": funcionario["telefone"],
         "email": funcionario["email"],
+        "salario_base": funcionario["salario_base"],
+        "custo_mensal": funcionario["custo_mensal"],
+        "custo_dia": funcionario["custo_dia"],
+        "custo_hora": funcionario["custo_hora"],
     }
 
     return jsonify(
@@ -6681,6 +6868,18 @@ def atualizar_funcionario(funcionario_id: int) -> Response:
         "status": (request.form.get("funcionario_status") or "ativo").strip() or "ativo",
         "email": (request.form.get("funcionario_email") or "").strip(),
         "observacoes": (request.form.get("funcionario_observacoes") or "").strip(),
+        "salario_base": (request.form.get("funcionario_salario_base") or "").strip(),
+        "inss_percentual": (request.form.get("funcionario_inss_percentual") or "").strip(),
+        "fgts_percentual": (request.form.get("funcionario_fgts_percentual") or "").strip(),
+        "ferias_percentual": (request.form.get("funcionario_ferias_percentual") or "").strip(),
+        "decimo_percentual": (request.form.get("funcionario_decimo_percentual") or "").strip(),
+        "beneficios": (request.form.get("funcionario_beneficios") or "").strip(),
+        "transporte": (request.form.get("funcionario_transporte") or "").strip(),
+        "alimentacao": (request.form.get("funcionario_alimentacao") or "").strip(),
+        "outros_custos": (request.form.get("funcionario_outros_custos") or "").strip(),
+        "custo_mensal": (request.form.get("funcionario_custo_mensal") or "").strip(),
+        "custo_dia": (request.form.get("funcionario_custo_dia") or "").strip(),
+        "custo_hora": (request.form.get("funcionario_custo_hora") or "").strip(),
     }
 
     funcionario = normalizar_funcionario_para_salvar(funcionario)
@@ -6801,6 +7000,8 @@ def salvar_produto() -> Response:
 def salvar_produto_rapido() -> Response:
     nome = (request.form.get("nome") or "").strip()
     preco_venda = (request.form.get("valor_venda") or request.form.get("preco_venda") or "").strip()
+    preco_custo = (request.form.get("preco_custo") or request.form.get("custo") or "").strip()
+    unidade = (request.form.get("unidade") or "un").strip() or "un"
     categoria = (request.form.get("categoria") or "").strip()
     observacoes = (request.form.get("observacoes") or "").strip()
 
@@ -6811,11 +7012,11 @@ def salvar_produto_rapido() -> Response:
         "nome": nome,
         "codigo": "",
         "categoria": categoria,
-        "unidade": "un",
+        "unidade": unidade,
         "estoque_atual": "0",
         "estoque_minimo": "0",
-        "preco_custo": "",
-        "preco_venda": preco_venda,
+        "preco_custo": preco_custo,
+        "preco_venda": preco_venda or preco_custo,
         "status": "ativo",
         "observacoes": observacoes,
     }
@@ -6869,6 +7070,9 @@ def salvar_produto_rapido() -> Response:
                 "id": produto_id,
                 "nome": produto["nome"],
                 "valor": produto["preco_venda"],
+                "preco_custo": produto["preco_custo"],
+                "preco_venda": produto["preco_venda"],
+                "unidade": produto["unidade"],
                 "categoria": produto["categoria"],
                 "observacoes": produto["observacoes"],
             },
@@ -8291,6 +8495,7 @@ def gerador_orcamentos() -> str | Response:
         "orcamento_gerador.html",
         clientes=listar_clientes(),
         funcionarios=listar_funcionarios(),
+        produtos=listar_produtos(),
         proximo_numero=proximo_numero_orcamento(),
         data_hoje=date.today().isoformat(),
     )

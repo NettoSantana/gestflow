@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\funcionarios.html
-Último recode: 2026-06-29 23:50 (America/Bahia)
-Motivo: Travar campos mínimos do cadastro de funcionários.
+Último recode: 2026-07-01 09:20 (America/Bahia)
+Motivo: Adicionar área de custos do funcionário para uso no Gerador de Orçamentos.
 -->
 
 <!DOCTYPE html>
@@ -168,6 +168,67 @@ Motivo: Travar campos mínimos do cadastro de funcionários.
                     </div>
                 </div>
 
+                <div class="cost-section">
+                    <div class="panel-header page-header cost-section-header">
+                        <div>
+                            <h3>Custos</h3>
+                            <p class="page-subtitle">Informe salário, encargos e benefícios para o Gerador de Orçamentos calcular a mão de obra real.</p>
+                        </div>
+                        <span class="badge-info">Uso interno</span>
+                    </div>
+
+                    <div class="form-grid funcionario-custos-grid">
+                        <div class="form-group">
+                            <label for="funcionario_salario_base">Salário base</label>
+                            <input id="funcionario_salario_base" name="funcionario_salario_base" type="text" placeholder="Ex: 2200,00" class="form-control funcionario-custo-input">
+                        </div>
+                        <div class="form-group">
+                            <label for="funcionario_inss_percentual">INSS / encargos %</label>
+                            <input id="funcionario_inss_percentual" name="funcionario_inss_percentual" type="text" placeholder="Ex: 20" class="form-control funcionario-custo-input">
+                        </div>
+                        <div class="form-group">
+                            <label for="funcionario_fgts_percentual">FGTS %</label>
+                            <input id="funcionario_fgts_percentual" name="funcionario_fgts_percentual" type="text" placeholder="Ex: 8" class="form-control funcionario-custo-input">
+                        </div>
+                        <div class="form-group">
+                            <label for="funcionario_ferias_percentual">Férias %</label>
+                            <input id="funcionario_ferias_percentual" name="funcionario_ferias_percentual" type="text" placeholder="Ex: 11,11" class="form-control funcionario-custo-input">
+                        </div>
+                        <div class="form-group">
+                            <label for="funcionario_decimo_percentual">13º %</label>
+                            <input id="funcionario_decimo_percentual" name="funcionario_decimo_percentual" type="text" placeholder="Ex: 8,33" class="form-control funcionario-custo-input">
+                        </div>
+                        <div class="form-group">
+                            <label for="funcionario_beneficios">Benefícios</label>
+                            <input id="funcionario_beneficios" name="funcionario_beneficios" type="text" placeholder="Ex: 300,00" class="form-control funcionario-custo-input">
+                        </div>
+                        <div class="form-group">
+                            <label for="funcionario_transporte">Transporte</label>
+                            <input id="funcionario_transporte" name="funcionario_transporte" type="text" placeholder="Ex: 250,00" class="form-control funcionario-custo-input">
+                        </div>
+                        <div class="form-group">
+                            <label for="funcionario_alimentacao">Alimentação</label>
+                            <input id="funcionario_alimentacao" name="funcionario_alimentacao" type="text" placeholder="Ex: 400,00" class="form-control funcionario-custo-input">
+                        </div>
+                        <div class="form-group">
+                            <label for="funcionario_outros_custos">Outros custos</label>
+                            <input id="funcionario_outros_custos" name="funcionario_outros_custos" type="text" placeholder="Ex: 100,00" class="form-control funcionario-custo-input">
+                        </div>
+                        <div class="form-group">
+                            <label for="funcionario_custo_mensal">Custo mensal</label>
+                            <input id="funcionario_custo_mensal" name="funcionario_custo_mensal" type="text" placeholder="0,00" class="form-control funcionario-custo-total">
+                        </div>
+                        <div class="form-group">
+                            <label for="funcionario_custo_dia">Custo dia</label>
+                            <input id="funcionario_custo_dia" name="funcionario_custo_dia" type="text" placeholder="0,00" class="form-control funcionario-custo-total">
+                        </div>
+                        <div class="form-group">
+                            <label for="funcionario_custo_hora">Custo hora</label>
+                            <input id="funcionario_custo_hora" name="funcionario_custo_hora" type="text" placeholder="0,00" class="form-control funcionario-custo-total">
+                        </div>
+                    </div>
+                </div>
+
                 <div class="form-actions">
                     <button type="reset" class="btn-light">Cancelar</button>
                     <button type="submit" class="btn-primary-green">Salvar Funcionário</button>
@@ -204,6 +265,7 @@ Motivo: Travar campos mínimos do cadastro de funcionários.
                             <th>Telefone</th>
                             <th>Cidade</th>
                             <th>Cargo / Função</th>
+                            <th>Custo hora</th>
                             <th>Status</th>
                             <th>Ações</th>
                         </tr>
@@ -218,6 +280,7 @@ Motivo: Travar campos mínimos do cadastro de funcionários.
                                     <td>{{ funcionario.telefone }}</td>
                                     <td>{{ funcionario.cidade }}</td>
                                     <td>{{ funcionario.cargo }}</td>
+                                    <td>{{ funcionario.custo_hora or "-" }}</td>
                                     <td>
                                         <span class="status-pill {{ funcionario.status }}">
                                             {{ funcionario.status }}
@@ -236,7 +299,7 @@ Motivo: Travar campos mínimos do cadastro de funcionários.
                             {% endfor %}
                         {% else %}
                             <tr>
-                                <td colspan="8" class="empty-table empty-table-box">
+                                <td colspan="9" class="empty-table empty-table-box">
                                     <div class="empty-table-content">
                                         <div class="empty-table-icon">☷</div>
                                         <strong>Nenhum funcionário cadastrado.</strong>
@@ -252,6 +315,43 @@ Motivo: Travar campos mínimos do cadastro de funcionários.
         </section>
 
     </main>
+
+<script>
+function funcionarioNumero(valor) {
+    let texto = String(valor || '').trim().replace('R$', '').replace(/\s/g, '');
+    if (!texto) return 0;
+    if (texto.includes(',')) texto = texto.replace(/\./g, '').replace(',', '.');
+    const n = Number.parseFloat(texto);
+    return Number.isFinite(n) ? n : 0;
+}
+function funcionarioMoeda(valor) {
+    const n = Number.isFinite(valor) ? valor : 0;
+    return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function recalcularCustosFuncionario() {
+    const salario = funcionarioNumero(document.getElementById('funcionario_salario_base')?.value);
+    const inss = funcionarioNumero(document.getElementById('funcionario_inss_percentual')?.value);
+    const fgts = funcionarioNumero(document.getElementById('funcionario_fgts_percentual')?.value);
+    const ferias = funcionarioNumero(document.getElementById('funcionario_ferias_percentual')?.value);
+    const decimo = funcionarioNumero(document.getElementById('funcionario_decimo_percentual')?.value);
+    const beneficios = funcionarioNumero(document.getElementById('funcionario_beneficios')?.value);
+    const transporte = funcionarioNumero(document.getElementById('funcionario_transporte')?.value);
+    const alimentacao = funcionarioNumero(document.getElementById('funcionario_alimentacao')?.value);
+    const outros = funcionarioNumero(document.getElementById('funcionario_outros_custos')?.value);
+    const custoMensal = salario + (salario * ((inss + fgts + ferias + decimo) / 100)) + beneficios + transporte + alimentacao + outros;
+    const custoDia = custoMensal / 22;
+    const custoHora = custoMensal / 220;
+    const mensal = document.getElementById('funcionario_custo_mensal');
+    const dia = document.getElementById('funcionario_custo_dia');
+    const hora = document.getElementById('funcionario_custo_hora');
+    if (mensal) mensal.value = custoMensal ? funcionarioMoeda(custoMensal) : '';
+    if (dia) dia.value = custoDia ? funcionarioMoeda(custoDia) : '';
+    if (hora) hora.value = custoHora ? funcionarioMoeda(custoHora) : '';
+}
+document.querySelectorAll('.funcionario-custo-input').forEach(function(input) {
+    input.addEventListener('input', recalcularCustosFuncionario);
+});
+</script>
 
 </body>
 </html>

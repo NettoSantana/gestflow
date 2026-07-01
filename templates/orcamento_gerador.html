@@ -1,7 +1,7 @@
 <!--
-Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_gerador.html
-Último recode: 2026-07-01 08:10 (America/Bahia)
-Motivo: Criar tela do Gerador de Orçamentos técnico baseado em custos, margens e preço sugerido.
+Caminho: templates/orcamento_gerador.html
+Último recode: 2026-07-01 09:20 (America/Bahia)
+Motivo: Integrar materiais e mão de obra ao cadastro do GestFlow com busca, cadastro rápido e botão Adicionar.
 -->
 
 <!DOCTYPE html>
@@ -24,7 +24,7 @@ Motivo: Criar tela do Gerador de Orçamentos técnico baseado em custos, margens
                 <div>
                     <span class="page-kicker">Orçamentos</span>
                     <h3 class="page-title">Gerador de Orçamentos</h3>
-                    <p class="page-subtitle">Monte o custo real do serviço, aplique margens, impostos e gere um orçamento normal no GestFlow.</p>
+                    <p class="page-subtitle">Monte custo real com materiais cadastrados, mão de obra por funcionário, margens, impostos e gere um orçamento normal.</p>
                 </div>
 
                 <div class="budget-header-actions">
@@ -108,7 +108,7 @@ Motivo: Criar tela do Gerador de Orçamentos técnico baseado em custos, margens
 
                         <div class="form-group">
                             <label for="gerador_escopo">Escopo do serviço</label>
-                            <textarea id="gerador_escopo" name="gerador_escopo" class="form-control" style="height: 110px; padding-top: 12px;" placeholder="Descreva o que será executado. Essa informação pode aparecer no orçamento do cliente."></textarea>
+                            <textarea id="gerador_escopo" name="gerador_escopo" class="form-control textarea-control" placeholder="Descreva o que será executado. Essa informação pode aparecer no orçamento do cliente."></textarea>
                         </div>
                     </section>
 
@@ -116,19 +116,19 @@ Motivo: Criar tela do Gerador de Orçamentos técnico baseado em custos, margens
                         <div class="panel-header page-header">
                             <div>
                                 <h3>Materiais</h3>
-                                <p class="page-subtitle">Lance os materiais com quantidade, valor unitário e perda técnica.</p>
+                                <p class="page-subtitle">Busque no cadastro. Se não existir, use + Adicionar novo material dentro da própria linha.</p>
                             </div>
-                            <button type="button" class="btn-primary-green" onclick="adicionarMaterial()">+ Material</button>
+                            <button type="button" class="btn-primary-green" onclick="adicionarMaterial()">+ Adicionar</button>
                         </div>
 
                         <div class="table-shell">
                             <table class="client-table gerador-table">
                                 <thead>
                                     <tr>
-                                        <th>Descrição</th>
+                                        <th>Material</th>
                                         <th>Unid.</th>
                                         <th>Qtd.</th>
-                                        <th>Valor unit.</th>
+                                        <th>Custo unit.</th>
                                         <th>Perda %</th>
                                         <th>Total custo</th>
                                         <th>Ação</th>
@@ -143,16 +143,16 @@ Motivo: Criar tela do Gerador de Orçamentos técnico baseado em custos, margens
                         <div class="panel-header page-header">
                             <div>
                                 <h3>Mão de obra</h3>
-                                <p class="page-subtitle">Informe equipe, tempo e custo base por hora, diária, semana ou mês.</p>
+                                <p class="page-subtitle">Busque funcionários cadastrados. O custo vem da área Custos do funcionário.</p>
                             </div>
-                            <button type="button" class="btn-primary-green" onclick="adicionarMaoObra()">+ Mão de obra</button>
+                            <button type="button" class="btn-primary-green" onclick="adicionarMaoObra()">+ Adicionar</button>
                         </div>
 
                         <div class="table-shell">
                             <table class="client-table gerador-table">
                                 <thead>
                                     <tr>
-                                        <th>Função</th>
+                                        <th>Funcionário / Função</th>
                                         <th>Pessoas</th>
                                         <th>Tempo</th>
                                         <th>Unidade</th>
@@ -278,7 +278,69 @@ Motivo: Criar tela do Gerador de Orçamentos técnico baseado em custos, margens
         </form>
     </main>
 
+    <div id="modal-material" class="quick-modal-backdrop" aria-hidden="true">
+        <div class="quick-modal" role="dialog" aria-modal="true">
+            <div class="quick-modal-header">
+                <div>
+                    <h3>Novo material</h3>
+                    <p>Cadastre sem sair do gerador.</p>
+                </div>
+                <button type="button" class="quick-modal-close" onclick="fecharModalMaterial()">×</button>
+            </div>
+            <input id="modal-material-linha" type="hidden">
+            <div class="form-grid">
+                <div class="form-group"><label>Nome *</label><input id="novo-material-nome" type="text" class="form-control" placeholder="Ex: Cabo 16 mm²"></div>
+                <div class="form-group"><label>Unidade</label><input id="novo-material-unidade" type="text" class="form-control" value="un"></div>
+                <div class="form-group"><label>Preço de custo</label><input id="novo-material-custo" type="text" class="form-control" placeholder="0,00"></div>
+                <div class="form-group"><label>Preço de venda</label><input id="novo-material-venda" type="text" class="form-control" placeholder="0,00"></div>
+                <div class="form-group"><label>Categoria</label><input id="novo-material-categoria" type="text" class="form-control" placeholder="Ex: Material elétrico"></div>
+            </div>
+            <div id="novo-material-erro" class="quick-modal-error"></div>
+            <div class="quick-modal-actions">
+                <button type="button" class="btn-light" onclick="fecharModalMaterial()">Cancelar</button>
+                <button type="button" class="btn-primary-green" onclick="salvarMaterialRapido()">Salvar material</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-funcionario" class="quick-modal-backdrop" aria-hidden="true">
+        <div class="quick-modal" role="dialog" aria-modal="true">
+            <div class="quick-modal-header">
+                <div>
+                    <h3>Novo funcionário</h3>
+                    <p>Cadastre a mão de obra e o custo base.</p>
+                </div>
+                <button type="button" class="quick-modal-close" onclick="fecharModalFuncionario()">×</button>
+            </div>
+            <input id="modal-funcionario-linha" type="hidden">
+            <div class="form-grid">
+                <div class="form-group"><label>Nome *</label><input id="novo-funcionario-nome" type="text" class="form-control" placeholder="Ex: Eletricista João"></div>
+                <div class="form-group"><label>Cargo / função</label><input id="novo-funcionario-cargo" type="text" class="form-control" placeholder="Ex: Eletricista"></div>
+                <div class="form-group"><label>Salário base</label><input id="novo-funcionario-salario" type="text" class="form-control funcionario-custo-modal" placeholder="0,00"></div>
+                <div class="form-group"><label>INSS %</label><input id="novo-funcionario-inss" type="text" class="form-control funcionario-custo-modal" placeholder="0"></div>
+                <div class="form-group"><label>FGTS %</label><input id="novo-funcionario-fgts" type="text" class="form-control funcionario-custo-modal" placeholder="8"></div>
+                <div class="form-group"><label>Benefícios</label><input id="novo-funcionario-beneficios" type="text" class="form-control funcionario-custo-modal" placeholder="0,00"></div>
+                <div class="form-group"><label>Custo dia</label><input id="novo-funcionario-custo-dia" type="text" class="form-control" placeholder="0,00"></div>
+                <div class="form-group"><label>Custo hora</label><input id="novo-funcionario-custo-hora" type="text" class="form-control" placeholder="0,00"></div>
+            </div>
+            <div id="novo-funcionario-erro" class="quick-modal-error"></div>
+            <div class="quick-modal-actions">
+                <button type="button" class="btn-light" onclick="fecharModalFuncionario()">Cancelar</button>
+                <button type="button" class="btn-primary-green" onclick="salvarFuncionarioRapidoGerador()">Salvar funcionário</button>
+            </div>
+        </div>
+    </div>
+
 <script>
+const materiaisCatalogo = {{ produtos|default([])|tojson }};
+const funcionariosCatalogo = {{ funcionarios|default([])|tojson }};
+let materialLinhaAlvo = null;
+let funcionarioLinhaAlvo = null;
+
+function textoSeguro(valor) {
+    return String(valor || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 function numero(valor) {
     let texto = String(valor || '').trim().replace('R$', '').replace(/\s/g, '');
     if (!texto) return 0;
@@ -297,6 +359,25 @@ function moedaSemSimbolo(valor) {
     return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function opcoesMateriais() {
+    let html = '<option value="">Buscar material</option>';
+    materiaisCatalogo.forEach(function(item) {
+        const custo = item.preco_custo || item.preco_venda || '';
+        html += `<option value="${textoSeguro(item.nome)}" data-unidade="${textoSeguro(item.unidade || 'un')}" data-custo="${textoSeguro(custo)}">${textoSeguro(item.nome)}</option>`;
+    });
+    html += '<option value="__novo_material__" class="quick-new-option">+ Adicionar novo material</option>';
+    return html;
+}
+
+function opcoesFuncionarios() {
+    let html = '<option value="">Buscar funcionário</option>';
+    funcionariosCatalogo.forEach(function(item) {
+        html += `<option value="${textoSeguro(item.nome)}" data-cargo="${textoSeguro(item.cargo || '')}" data-custo-hora="${textoSeguro(item.custo_hora || '')}" data-custo-dia="${textoSeguro(item.custo_dia || '')}" data-custo-mensal="${textoSeguro(item.custo_mensal || '')}">${textoSeguro(item.nome)}${item.cargo ? ' - ' + textoSeguro(item.cargo) : ''}</option>`;
+    });
+    html += '<option value="__novo_funcionario__" class="quick-new-option">+ Adicionar novo funcionário</option>';
+    return html;
+}
+
 function removerLinha(botao) {
     const linha = botao.closest('tr');
     if (linha) linha.remove();
@@ -307,15 +388,16 @@ function adicionarMaterial(dados = {}) {
     const body = document.getElementById('materiais-body');
     const tr = document.createElement('tr');
     tr.innerHTML = `
-        <td><input name="material_descricao" type="text" class="form-control gerador-descricao gerador-input" placeholder="Ex: Cabo 16 mm²" value="${dados.descricao || ''}"></td>
-        <td><input name="material_unidade" type="text" class="form-control gerador-input" value="${dados.unidade || 'un'}"></td>
-        <td><input name="material_quantidade" type="text" class="form-control gerador-input" value="${dados.quantidade || '1'}"></td>
-        <td><input name="material_valor_unitario" type="text" class="form-control gerador-input" placeholder="0,00" value="${dados.valor || ''}"></td>
-        <td><input name="material_perda_percentual" type="text" class="form-control gerador-input" value="${dados.perda || '0'}"></td>
+        <td><select name="material_descricao" class="form-control gerador-input material-select">${opcoesMateriais()}</select></td>
+        <td><input name="material_unidade" type="text" class="form-control gerador-input" value="${textoSeguro(dados.unidade || 'un')}"></td>
+        <td><input name="material_quantidade" type="text" class="form-control gerador-input" value="${textoSeguro(dados.quantidade || '1')}"></td>
+        <td><input name="material_valor_unitario" type="text" class="form-control gerador-input" placeholder="0,00" value="${textoSeguro(dados.valor || '')}"></td>
+        <td><input name="material_perda_percentual" type="text" class="form-control gerador-input" value="${textoSeguro(dados.perda || '0')}"></td>
         <td><strong class="linha-total">R$ 0,00</strong></td>
         <td><button type="button" class="gerador-remove" onclick="removerLinha(this)">×</button></td>
     `;
     body.appendChild(tr);
+    if (dados.descricao) tr.querySelector('.material-select').value = dados.descricao;
     conectarEventosGerador(tr);
     recalcularGerador();
 }
@@ -324,15 +406,16 @@ function adicionarMaoObra(dados = {}) {
     const body = document.getElementById('mao-obra-body');
     const tr = document.createElement('tr');
     tr.innerHTML = `
-        <td><input name="mao_funcao" type="text" class="form-control gerador-descricao gerador-input" placeholder="Ex: Eletricista" value="${dados.funcao || ''}"></td>
-        <td><input name="mao_pessoas" type="text" class="form-control gerador-input" value="${dados.pessoas || '1'}"></td>
-        <td><input name="mao_tempo" type="text" class="form-control gerador-input" value="${dados.tempo || '1'}"></td>
-        <td><select name="mao_unidade" class="form-control gerador-input"><option value="hora">hora</option><option value="dia" selected>dia</option><option value="semana">semana</option><option value="mes">mês</option></select></td>
-        <td><input name="mao_custo_unitario" type="text" class="form-control gerador-input" placeholder="0,00" value="${dados.custo || ''}"></td>
+        <td><select name="mao_funcao" class="form-control gerador-input mao-select">${opcoesFuncionarios()}</select></td>
+        <td><input name="mao_pessoas" type="text" class="form-control gerador-input" value="${textoSeguro(dados.pessoas || '1')}"></td>
+        <td><input name="mao_tempo" type="text" class="form-control gerador-input" value="${textoSeguro(dados.tempo || '1')}"></td>
+        <td><select name="mao_unidade" class="form-control gerador-input mao-unidade"><option value="hora">hora</option><option value="dia" selected>dia</option><option value="semana">semana</option><option value="mes">mês</option></select></td>
+        <td><input name="mao_custo_unitario" type="text" class="form-control gerador-input" placeholder="0,00" value="${textoSeguro(dados.custo || '')}"></td>
         <td><strong class="linha-total">R$ 0,00</strong></td>
         <td><button type="button" class="gerador-remove" onclick="removerLinha(this)">×</button></td>
     `;
     body.appendChild(tr);
+    if (dados.funcao) tr.querySelector('.mao-select').value = dados.funcao;
     conectarEventosGerador(tr);
     recalcularGerador();
 }
@@ -341,8 +424,8 @@ function adicionarCusto(dados = {}) {
     const body = document.getElementById('custos-body');
     const tr = document.createElement('tr');
     tr.innerHTML = `
-        <td><input name="custo_descricao" type="text" class="form-control gerador-descricao gerador-input" placeholder="Ex: Transporte" value="${dados.descricao || ''}"></td>
-        <td><input name="custo_valor" type="text" class="form-control gerador-input" placeholder="0,00" value="${dados.valor || ''}"></td>
+        <td><input name="custo_descricao" type="text" class="form-control gerador-descricao gerador-input" placeholder="Ex: Transporte" value="${textoSeguro(dados.descricao || '')}"></td>
+        <td><input name="custo_valor" type="text" class="form-control gerador-input" placeholder="0,00" value="${textoSeguro(dados.valor || '')}"></td>
         <td><button type="button" class="gerador-remove" onclick="removerLinha(this)">×</button></td>
     `;
     body.appendChild(tr);
@@ -350,10 +433,49 @@ function adicionarCusto(dados = {}) {
     recalcularGerador();
 }
 
+function preencherCustoFuncionario(linha) {
+    const select = linha.querySelector('.mao-select');
+    const unidade = linha.querySelector('.mao-unidade')?.value || 'dia';
+    const option = select?.selectedOptions?.[0];
+    if (!option) return;
+    if (select.value === '__novo_funcionario__') {
+        abrirModalFuncionario(linha);
+        select.value = '';
+        return;
+    }
+    let custo = option.dataset.custoDia || '';
+    if (unidade === 'hora') custo = option.dataset.custoHora || option.dataset.custoDia || '';
+    if (unidade === 'mes') custo = option.dataset.custoMensal || option.dataset.custoDia || '';
+    if (unidade === 'semana') custo = option.dataset.custoDia ? moedaSemSimbolo(numero(option.dataset.custoDia) * 5) : '';
+    if (custo) linha.querySelector('[name="mao_custo_unitario"]').value = custo;
+}
+
 function conectarEventosGerador(raiz) {
     raiz.querySelectorAll('.gerador-input, .gerador-parametro, input[name="valor_escolhido_tipo"], #valor_customizado').forEach(function(input) {
         input.addEventListener('input', recalcularGerador);
         input.addEventListener('change', recalcularGerador);
+    });
+    raiz.querySelectorAll('.material-select').forEach(function(select) {
+        select.addEventListener('change', function() {
+            const linha = select.closest('tr');
+            if (select.value === '__novo_material__') {
+                abrirModalMaterial(linha);
+                select.value = '';
+                return;
+            }
+            const option = select.selectedOptions[0];
+            if (option) {
+                linha.querySelector('[name="material_unidade"]').value = option.dataset.unidade || 'un';
+                linha.querySelector('[name="material_valor_unitario"]').value = option.dataset.custo || '';
+            }
+            recalcularGerador();
+        });
+    });
+    raiz.querySelectorAll('.mao-select, .mao-unidade').forEach(function(campo) {
+        campo.addEventListener('change', function() {
+            preencherCustoFuncionario(campo.closest('tr'));
+            recalcularGerador();
+        });
     });
 }
 
@@ -366,7 +488,7 @@ function recalcularGerador() {
         const qtd = numero(tr.querySelector('[name="material_quantidade"]')?.value);
         const unit = numero(tr.querySelector('[name="material_valor_unitario"]')?.value);
         const perda = numero(tr.querySelector('[name="material_perda_percentual"]')?.value);
-        const total = qtd * unit * (1 + (perda / 100));
+        const total = qtd * unit * (1 + perda / 100);
         custoMaterial += total;
         tr.querySelector('.linha-total').textContent = moeda(total);
     });
@@ -384,32 +506,33 @@ function recalcularGerador() {
         custoAdicional += numero(tr.querySelector('[name="custo_valor"]')?.value);
     });
 
-    const margemMaterial = numero(document.getElementById('margem_material').value || 30);
-    const margemMao = numero(document.getElementById('margem_mao_obra').value || 40);
-    const margemCustos = numero(document.getElementById('margem_custos').value || 20);
-    const imposto = numero(document.getElementById('imposto_percentual').value || 8);
-    const administrativo = numero(document.getElementById('administrativo_percentual').value || 10);
-    const reserva = numero(document.getElementById('reserva_percentual').value || 5);
+    const margemMaterial = numero(document.getElementById('margem_material')?.value || 30);
+    const margemMao = numero(document.getElementById('margem_mao_obra')?.value || 40);
+    const margemCustos = numero(document.getElementById('margem_custos')?.value || 20);
+    const imposto = numero(document.getElementById('imposto_percentual')?.value || 8);
+    const administrativo = numero(document.getElementById('administrativo_percentual')?.value || 10);
+    const reserva = numero(document.getElementById('reserva_percentual')?.value || 5);
 
+    const custoTotal = custoMaterial + custoMao + custoAdicional;
     const vendaMaterial = custoMaterial * (1 + margemMaterial / 100);
     const vendaMao = custoMao * (1 + margemMao / 100);
     const vendaCustos = custoAdicional * (1 + margemCustos / 100);
     const base = vendaMaterial + vendaMao + vendaCustos;
-    const antesImposto = base + (base * administrativo / 100) + (base * reserva / 100);
-    const divisor = Math.max(1 - (imposto / 100), 0.01);
-    const recomendado = antesImposto / divisor;
-    const custoTotal = custoMaterial + custoMao + custoAdicional;
-    const minimo = Math.max((custoTotal * 1.10) / divisor, custoTotal);
+    const baseAntesImposto = base + (base * administrativo / 100) + (base * reserva / 100);
+    const divisor = 1 - (imposto / 100);
+    const recomendado = divisor > 0 ? baseAntesImposto / divisor : baseAntesImposto;
+    const minimo = Math.max(custoTotal * 1.10 / (divisor > 0 ? divisor : 1), custoTotal);
     const ideal = recomendado * 1.15;
 
-    const selecionado = document.querySelector('input[name="valor_escolhido_tipo"]:checked')?.value || 'recomendado';
-    let venda = recomendado;
-    if (selecionado === 'minimo') venda = minimo;
-    if (selecionado === 'ideal') venda = ideal;
-    if (selecionado === 'customizado') venda = numero(document.getElementById('valor_customizado').value);
+    const tipo = document.querySelector('input[name="valor_escolhido_tipo"]:checked')?.value || 'recomendado';
+    const customizado = numero(document.getElementById('valor_customizado')?.value);
+    let escolhido = recomendado;
+    if (tipo === 'minimo') escolhido = minimo;
+    if (tipo === 'ideal') escolhido = ideal;
+    if (tipo === 'customizado' && customizado > 0) escolhido = customizado;
 
-    const lucro = venda - custoTotal;
-    const margem = venda > 0 ? (lucro / venda) * 100 : 0;
+    const lucro = escolhido - custoTotal;
+    const margem = escolhido > 0 ? (lucro / escolhido) * 100 : 0;
 
     document.getElementById('res-custo-material').textContent = moeda(custoMaterial);
     document.getElementById('res-custo-mao').textContent = moeda(custoMao);
@@ -418,17 +541,138 @@ function recalcularGerador() {
     document.getElementById('preco-minimo').textContent = moeda(minimo);
     document.getElementById('preco-recomendado').textContent = moeda(recomendado);
     document.getElementById('preco-ideal').textContent = moeda(ideal);
-    document.getElementById('res-venda').textContent = moeda(venda);
+    document.getElementById('res-venda').textContent = moeda(escolhido);
     document.getElementById('res-lucro').textContent = moeda(lucro);
     document.getElementById('res-margem').textContent = moedaSemSimbolo(margem) + '%';
 }
 
+function abrirModalMaterial(linha) {
+    materialLinhaAlvo = linha;
+    document.getElementById('novo-material-nome').value = '';
+    document.getElementById('novo-material-unidade').value = linha?.querySelector('[name="material_unidade"]')?.value || 'un';
+    document.getElementById('novo-material-custo').value = linha?.querySelector('[name="material_valor_unitario"]')?.value || '';
+    document.getElementById('novo-material-venda').value = '';
+    document.getElementById('novo-material-categoria').value = '';
+    document.getElementById('novo-material-erro').classList.remove('show');
+    document.getElementById('modal-material').classList.add('open');
+    setTimeout(() => document.getElementById('novo-material-nome').focus(), 50);
+}
+
+function fecharModalMaterial() {
+    document.getElementById('modal-material').classList.remove('open');
+}
+
+function salvarMaterialRapido() {
+    const nome = document.getElementById('novo-material-nome').value.trim();
+    const erro = document.getElementById('novo-material-erro');
+    if (!nome) {
+        erro.textContent = 'Informe o nome do material.';
+        erro.classList.add('show');
+        return;
+    }
+    const dados = new URLSearchParams();
+    dados.append('nome', nome);
+    dados.append('unidade', document.getElementById('novo-material-unidade').value.trim() || 'un');
+    dados.append('preco_custo', document.getElementById('novo-material-custo').value.trim());
+    dados.append('preco_venda', document.getElementById('novo-material-venda').value.trim());
+    dados.append('categoria', document.getElementById('novo-material-categoria').value.trim());
+
+    fetch('/produtos/rapido', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' }, body: dados.toString() })
+        .then(r => r.json().then(p => { if (!r.ok || !p.ok) throw new Error(p.erro || 'Erro ao salvar material.'); return p.item || p.produto; }))
+        .then(item => {
+            materiaisCatalogo.push(item);
+            document.querySelectorAll('.material-select').forEach(function(select) {
+                const opt = document.createElement('option');
+                opt.value = item.nome;
+                opt.textContent = item.nome;
+                opt.dataset.unidade = item.unidade || 'un';
+                opt.dataset.custo = item.preco_custo || item.preco_venda || item.valor || '';
+                const novo = Array.from(select.options).find(o => o.value === '__novo_material__');
+                select.insertBefore(opt, novo);
+            });
+            if (materialLinhaAlvo) {
+                const select = materialLinhaAlvo.querySelector('.material-select');
+                select.value = item.nome;
+                materialLinhaAlvo.querySelector('[name="material_unidade"]').value = item.unidade || 'un';
+                materialLinhaAlvo.querySelector('[name="material_valor_unitario"]').value = item.preco_custo || item.preco_venda || item.valor || '';
+            }
+            fecharModalMaterial();
+            recalcularGerador();
+        })
+        .catch(e => { erro.textContent = e.message; erro.classList.add('show'); });
+}
+
+function abrirModalFuncionario(linha) {
+    funcionarioLinhaAlvo = linha;
+    ['nome','cargo','salario','inss','fgts','beneficios','custo-dia','custo-hora'].forEach(function(id) {
+        const el = document.getElementById('novo-funcionario-' + id);
+        if (el) el.value = '';
+    });
+    document.getElementById('novo-funcionario-erro').classList.remove('show');
+    document.getElementById('modal-funcionario').classList.add('open');
+    setTimeout(() => document.getElementById('novo-funcionario-nome').focus(), 50);
+}
+
+function fecharModalFuncionario() {
+    document.getElementById('modal-funcionario').classList.remove('open');
+}
+
+function salvarFuncionarioRapidoGerador() {
+    const nome = document.getElementById('novo-funcionario-nome').value.trim();
+    const erro = document.getElementById('novo-funcionario-erro');
+    if (!nome) {
+        erro.textContent = 'Informe o nome do funcionário.';
+        erro.classList.add('show');
+        return;
+    }
+    const dados = new URLSearchParams();
+    dados.append('nome', nome);
+    dados.append('cargo', document.getElementById('novo-funcionario-cargo').value.trim());
+    dados.append('salario_base', document.getElementById('novo-funcionario-salario').value.trim());
+    dados.append('inss_percentual', document.getElementById('novo-funcionario-inss').value.trim());
+    dados.append('fgts_percentual', document.getElementById('novo-funcionario-fgts').value.trim());
+    dados.append('beneficios', document.getElementById('novo-funcionario-beneficios').value.trim());
+    dados.append('custo_dia', document.getElementById('novo-funcionario-custo-dia').value.trim());
+    dados.append('custo_hora', document.getElementById('novo-funcionario-custo-hora').value.trim());
+
+    fetch('/funcionarios/rapido', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' }, body: dados.toString() })
+        .then(r => r.json().then(p => { if (!r.ok || !p.ok) throw new Error(p.erro || 'Erro ao salvar funcionário.'); return p.funcionario || p.item; }))
+        .then(item => {
+            funcionariosCatalogo.push(item);
+            document.querySelectorAll('.mao-select').forEach(function(select) {
+                const opt = document.createElement('option');
+                opt.value = item.nome;
+                opt.textContent = item.nome + (item.cargo ? ' - ' + item.cargo : '');
+                opt.dataset.cargo = item.cargo || '';
+                opt.dataset.custoHora = item.custo_hora || '';
+                opt.dataset.custoDia = item.custo_dia || '';
+                opt.dataset.custoMensal = item.custo_mensal || '';
+                const novo = Array.from(select.options).find(o => o.value === '__novo_funcionario__');
+                select.insertBefore(opt, novo);
+            });
+            if (funcionarioLinhaAlvo) {
+                const select = funcionarioLinhaAlvo.querySelector('.mao-select');
+                select.value = item.nome;
+                preencherCustoFuncionario(funcionarioLinhaAlvo);
+            }
+            fecharModalFuncionario();
+            recalcularGerador();
+        })
+        .catch(e => { erro.textContent = e.message; erro.classList.add('show'); });
+}
+
+function conectarEventosGlobaisGerador() {
+    document.querySelectorAll('.gerador-parametro, input[name="valor_escolhido_tipo"], #valor_customizado').forEach(function(input) {
+        input.addEventListener('input', recalcularGerador);
+        input.addEventListener('change', recalcularGerador);
+    });
+}
+
 window.addEventListener('DOMContentLoaded', function() {
+    conectarEventosGlobaisGerador();
     adicionarMaterial();
-    adicionarMaoObra({funcao: 'Técnico', pessoas: '1', tempo: '1'});
-    adicionarCusto({descricao: 'Transporte'});
-    conectarEventosGerador(document);
-    recalcularGerador();
+    adicionarMaoObra();
+    adicionarCusto();
 });
 </script>
 </body>
