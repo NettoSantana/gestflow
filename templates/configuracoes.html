@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\configuracoes.html
-Último recode: 2026-07-01 16:10 (America/Bahia)
-Motivo: Incluir redefinição de senha de usuários pelo administrador.
+Último recode: 2026-07-01 18:40 (America/Bahia)
+Motivo: Adicionar fuso horario configuravel nas configuracoes gerais.
 -->
 
 <!DOCTYPE html>
@@ -478,32 +478,54 @@ Motivo: Incluir redefinição de senha de usuários pelo administrador.
                             <h3>Gerais</h3>
                             <p class="page-subtitle">Configurações básicas do ambiente da empresa.</p>
                         </div>
-                        <button type="button" class="btn-primary-green">Salvar configurações</button>
+                        <span class="badge-info">Data e horário</span>
                     </div>
 
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label for="geral_nome_sistema">Nome do ambiente</label>
-                            <input id="geral_nome_sistema" name="geral_nome_sistema" type="text" value="GestFlow" class="form-control">
+                    {% if erro %}
+                        <div class="config-alert error">{{ erro }}</div>
+                    {% endif %}
+
+                    {% if sucesso %}
+                        <div class="config-alert success">{{ sucesso }}</div>
+                    {% endif %}
+
+                    <form class="client-form" action="/configuracoes/gerais" method="post">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="geral_nome_sistema">Nome do ambiente</label>
+                                <input id="geral_nome_sistema" name="geral_nome_sistema" type="text" value="GestFlow" class="form-control" readonly>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="geral_moeda">Moeda</label>
+                                <input id="geral_moeda" name="geral_moeda" type="text" value="Real Brasileiro (R$)" class="form-control" readonly>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="geral_timezone">Fuso horário do sistema</label>
+                                <select id="geral_timezone" name="geral_timezone" class="form-control">
+                                    {% for fuso in fusos_horarios|default([]) %}
+                                        <option value="{{ fuso.valor }}" {% if empresa.timezone|default('America/Bahia') == fuso.valor %}selected{% endif %}>{{ fuso.nome }} — {{ fuso.valor }}</option>
+                                    {% endfor %}
+                                </select>
+                                <small style="display:block; margin-top:6px; color:#64748b; font-weight:700;">Esse fuso será usado em login, atividades, dashboard, vencimentos e registros do sistema.</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="geral_data_atual">Data atual no topo</label>
+                                <input id="geral_data_atual" name="geral_data_atual" type="text" value="{{ data_hoje|default('') }}" class="form-control" readonly>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="geral_status">Status do ambiente</label>
+                                <input id="geral_status" name="geral_status" type="text" value="Ativo" class="form-control" readonly>
+                            </div>
                         </div>
 
-                        <div class="form-group">
-                            <label for="geral_moeda">Moeda</label>
-                            <input id="geral_moeda" name="geral_moeda" type="text" value="Real Brasileiro (R$)" class="form-control" readonly>
+                        <div class="form-actions">
+                            <button type="submit" class="btn-primary-green">Salvar configurações</button>
                         </div>
-
-                        <div class="form-group">
-                            <label for="geral_fuso">Fuso horário</label>
-                            <input id="geral_fuso" name="geral_fuso" type="text" value="America/Bahia" class="form-control">
-                        </div>
-
-                        <div class="form-group">
-                            <label for="geral_status">Status do ambiente</label>
-                            <input id="geral_status" name="geral_status" type="text" value="Ativo" class="form-control" readonly>
-                        </div>
-                    </div>
-
-                    <div class="empty-chart">Tela base pronta. Agora falta ligar rotas, banco e permissões no app.py.</div>
+                    </form>
                 {% endif %}
             </div>
 

@@ -1,7 +1,7 @@
 {#
 Caminho: templates/partials/topbar.html
-Último recode: 2026-06-30 22:05 (America/Bahia)
-Motivo: Exibir aviso de trial e aplicar ícone oficial GestFlow no topo.
+Último recode: 2026-07-01 18:40 (America/Bahia)
+Motivo: Exibir data brasileira e fuso configurado da empresa no topo.
 #}
 {% set _usuario_topbar = usuario_logado|default({}, true) %}
 {% set _data_topbar = data_hoje|default('', true) %}
@@ -27,7 +27,7 @@ Motivo: Exibir aviso de trial e aplicar ícone oficial GestFlow no topo.
             </a>
         {% endif %}
 
-        <div class="topbar-date">
+        <div class="topbar-date" title="Fuso horário: {{ timezone_empresa|default('America/Bahia', true) }}">
             <span class="topbar-icon">▣</span>
             <span>{{ _data_topbar or 'Hoje' }}</span>
         </div>

@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-01 17:15 (America/Bahia)
-# Motivo: Criar Dashboard Admin com rastreamento de uso e ações principais.
+# Último recode: 2026-07-01 18:40 (America/Bahia)
+# Motivo: Criar fuso horario configuravel por empresa e exibir data brasileira no topo.
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ import sqlite3
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from flask import Flask, Response, jsonify, redirect, render_template, request, send_from_directory, session, url_for
 
@@ -34,6 +35,19 @@ OS_FOTOS_DIR = DATA_DIR / "uploads" / "os_fotos"
 OS_FOTOS_DIR.mkdir(parents=True, exist_ok=True)
 EXTENSOES_LOGO_PERMITIDAS = {"png", "jpg", "jpeg", "webp", "gif"}
 EXTENSOES_FOTO_OS_PERMITIDAS = {"png", "jpg", "jpeg", "webp"}
+
+TIMEZONE_PADRAO_GESTFLOW = "America/Bahia"
+FUSOS_HORARIOS_GESTFLOW = [
+    {"valor": "America/Bahia", "nome": "Bahia / Brasil"},
+    {"valor": "America/Sao_Paulo", "nome": "Brasília / São Paulo"},
+    {"valor": "America/Recife", "nome": "Recife"},
+    {"valor": "America/Fortaleza", "nome": "Fortaleza"},
+    {"valor": "America/Manaus", "nome": "Manaus"},
+    {"valor": "America/Cuiaba", "nome": "Cuiabá"},
+    {"valor": "America/Rio_Branco", "nome": "Rio Branco"},
+]
+FUSOS_HORARIOS_VALIDOS = {item["valor"] for item in FUSOS_HORARIOS_GESTFLOW}
+
 
 
 def _twiml_message(text: str) -> str:
@@ -114,7 +128,7 @@ def registrar_ultimo_login_usuario(usuario_id: int) -> None:
             SET ultimo_login = ?
             WHERE id = ?
             """,
-            (datetime.now().isoformat(timespec="seconds"), usuario_id),
+            (agora_empresa().isoformat(timespec="seconds"), usuario_id),
         )
         conn.commit()
 
@@ -168,6 +182,77 @@ def usuario_logado_id() -> int | None:
         return None
 
 
+def normalizar_timezone_empresa(valor: Any) -> str:
+    timezone = str(valor or "").strip()
+
+    if timezone in FUSOS_HORARIOS_VALIDOS:
+        return timezone
+
+    return TIMEZONE_PADRAO_GESTFLOW
+
+
+def timezone_empresa() -> str:
+    empresa_id = empresa_logada_id()
+
+    try:
+        with conectar_db() as conn:
+            row = conn.execute(
+                """
+                SELECT timezone
+                FROM empresas
+                WHERE id = ?
+                LIMIT 1
+                """,
+                (empresa_id,),
+            ).fetchone()
+    except sqlite3.Error:
+        return TIMEZONE_PADRAO_GESTFLOW
+
+    if row is None:
+        return TIMEZONE_PADRAO_GESTFLOW
+
+    return normalizar_timezone_empresa(row["timezone"])
+
+
+def agora_empresa() -> datetime:
+    try:
+        return datetime.now(ZoneInfo(timezone_empresa())).replace(tzinfo=None)
+    except Exception:
+        return datetime.now(ZoneInfo(TIMEZONE_PADRAO_GESTFLOW)).replace(tzinfo=None)
+
+
+def hoje_empresa() -> date:
+    return agora_empresa().date()
+
+
+def formatar_data_br(valor: Any) -> str:
+    texto = str(valor or "").strip()
+
+    if not texto:
+        return ""
+
+    try:
+        if isinstance(valor, datetime):
+            return valor.strftime("%d/%m/%Y")
+        if isinstance(valor, date):
+            return valor.strftime("%d/%m/%Y")
+        return datetime.strptime(texto[:10], "%Y-%m-%d").strftime("%d/%m/%Y")
+    except (TypeError, ValueError):
+        return texto
+
+
+def formatar_data_hora_br(valor: Any) -> str:
+    texto = str(valor or "").strip()
+
+    if not texto:
+        return ""
+
+    try:
+        return datetime.fromisoformat(texto).strftime("%d/%m/%Y %H:%M")
+    except (TypeError, ValueError):
+        return texto
+
+
 def _converter_data_simples(valor: Any) -> date | None:
     texto = str(valor or "").strip()
 
@@ -186,7 +271,7 @@ def calcular_dias_trial_restantes(trial_fim: Any) -> int | None:
     if data_fim is None:
         return None
 
-    return (data_fim - date.today()).days
+    return (data_fim - hoje_empresa()).days
 
 
 def montar_aviso_trial_empresa() -> dict[str, Any]:
@@ -257,6 +342,9 @@ def injetar_usuario_logado() -> dict[str, Any]:
     return {
         "usuario_logado": usuario_logado(),
         "empresa_trial": montar_aviso_trial_empresa(),
+        "data_hoje": formatar_data_br(hoje_empresa()),
+        "data_hora_atual": formatar_data_hora_br(agora_empresa().isoformat(timespec="seconds")),
+        "timezone_empresa": timezone_empresa(),
     }
 
 
@@ -924,7 +1012,7 @@ def iniciar_banco() -> None:
                     telefone,
                     plano,
                     status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     "GestFlow Demo",
@@ -1029,6 +1117,9 @@ def iniciar_banco() -> None:
 
         if "pix_indicador" not in colunas_empresas:
             conn.execute("ALTER TABLE empresas ADD COLUMN pix_indicador TEXT")
+
+        if "timezone" not in colunas_empresas:
+            conn.execute("ALTER TABLE empresas ADD COLUMN timezone TEXT DEFAULT 'America/Bahia'")
 
         if "onboarding_concluido" not in colunas_empresas:
             conn.execute("ALTER TABLE empresas ADD COLUMN onboarding_concluido TEXT DEFAULT 'nao'")
@@ -3058,7 +3149,7 @@ def salvar_configuracao_gerador_empresa(dados: dict[str, Any]) -> None:
                 _formatar_percentual_simples(float(dados.get("imposto_percentual") or 0)),
                 _formatar_percentual_simples(float(dados.get("administrativo_percentual") or 0)),
                 _formatar_percentual_simples(float(dados.get("reserva_percentual") or 0)),
-                datetime.now().isoformat(timespec="seconds"),
+                agora_empresa().isoformat(timespec="seconds"),
                 empresa_id,
             ),
         )
@@ -3183,7 +3274,7 @@ def montar_gerador_orcamento_formulario() -> dict[str, Any]:
         "cliente": str(request.form.get("gerador_cliente") or "").strip(),
         "responsavel": str(request.form.get("gerador_responsavel") or "").strip(),
         "tipo_servico": str(request.form.get("gerador_tipo_servico") or "Serviço técnico").strip(),
-        "data": str(request.form.get("gerador_data") or date.today().isoformat()).strip(),
+        "data": str(request.form.get("gerador_data") or hoje_empresa().isoformat()).strip(),
         "prazo": str(request.form.get("gerador_prazo") or "").strip(),
         "validade": str(request.form.get("gerador_validade") or "15 dias").strip(),
         "forma_pagamento": str(request.form.get("gerador_forma_pagamento") or "").strip(),
@@ -3393,7 +3484,7 @@ def gerar_orcamento_por_gerador_db(dados: dict[str, Any]) -> int:
         "numero": proximo_numero_orcamento(),
         "cliente": str(dados.get("cliente") or ""),
         "responsavel": str(dados.get("responsavel") or ""),
-        "data": str(dados.get("data") or date.today().isoformat()),
+        "data": str(dados.get("data") or hoje_empresa().isoformat()),
         "prazo_entrega": str(dados.get("prazo") or ""),
         "validade": str(dados.get("validade") or "15 dias"),
         "canal_venda": "Gerador de Orçamentos",
@@ -4757,8 +4848,8 @@ def gerar_acompanhamento_diario_os(ordem_servico_id: int) -> tuple[bool, str, di
         return False, "O link de acompanhamento só pode ser gerado quando a OS estiver em andamento.", None
 
     empresa_id = empresa_logada_id()
-    hoje = date.today().isoformat()
-    agora = datetime.now()
+    hoje = hoje_empresa().isoformat()
+    agora = agora_empresa()
     expira_em = agora + timedelta(hours=24)
 
     with conectar_db() as conn:
@@ -4930,7 +5021,7 @@ def acompanhamento_os_esta_expirado(acompanhamento: dict[str, Any]) -> bool:
         return True
 
     try:
-        return datetime.fromisoformat(expira_em) < datetime.now()
+        return datetime.fromisoformat(expira_em) < agora_empresa()
     except ValueError:
         return True
 
@@ -4950,7 +5041,7 @@ def atualizar_acompanhamento_os_publico(token: Any, dados: dict[str, str], final
     if str(acompanhamento.get("status_dia") or "").strip().lower() == "finalizado":
         return False
 
-    agora = datetime.now().isoformat(timespec="seconds")
+    agora = agora_empresa().isoformat(timespec="seconds")
     status_dia = "finalizado" if finalizar else "aberto"
     finalizado_em = agora if finalizar else str(acompanhamento.get("finalizado_em") or "")
 
@@ -5038,7 +5129,7 @@ def _status_financeiro_calculado(titulo: dict[str, Any]) -> str:
 
     vencimento = _converter_data_iso(titulo.get("data_vencimento"))
 
-    if vencimento is not None and vencimento < date.today():
+    if vencimento is not None and vencimento < hoje_empresa():
         return "vencido"
 
     return status
@@ -5197,7 +5288,7 @@ def cancelar_financeiro_titulo_db(titulo_id: int) -> None:
 
 
 def baixar_financeiro_titulo_db(titulo_id: int) -> None:
-    atualizar_status_financeiro_titulo_db(titulo_id, "pago", date.today().isoformat())
+    atualizar_status_financeiro_titulo_db(titulo_id, "pago", hoje_empresa().isoformat())
 
 
 def montar_financeiro_titulo_formulario(tipo_padrao: str = "receber") -> dict[str, str]:
@@ -5214,7 +5305,7 @@ def montar_financeiro_titulo_formulario(tipo_padrao: str = "receber") -> dict[st
     data_pagamento = (request.form.get("financeiro_data_pagamento") or "").strip()
 
     if status == "pago" and not data_pagamento:
-        data_pagamento = date.today().isoformat()
+        data_pagamento = hoje_empresa().isoformat()
 
     return {
         "tipo": tipo,
@@ -5224,8 +5315,8 @@ def montar_financeiro_titulo_formulario(tipo_padrao: str = "receber") -> dict[st
         "origem": "manual",
         "origem_id": "",
         "documento": (request.form.get("financeiro_documento") or "").strip(),
-        "data_emissao": (request.form.get("financeiro_data_emissao") or date.today().isoformat()).strip(),
-        "data_vencimento": (request.form.get("financeiro_data_vencimento") or date.today().isoformat()).strip(),
+        "data_emissao": (request.form.get("financeiro_data_emissao") or hoje_empresa().isoformat()).strip(),
+        "data_vencimento": (request.form.get("financeiro_data_vencimento") or hoje_empresa().isoformat()).strip(),
         "data_pagamento": data_pagamento,
         "valor": (request.form.get("financeiro_valor") or "0,00").strip(),
         "forma_pagamento": (request.form.get("financeiro_forma_pagamento") or "").strip(),
@@ -5246,7 +5337,7 @@ def gerar_conta_receber_por_venda_db(venda_id: int, venda: dict[str, str]) -> No
         return
 
     numero_venda = str(venda.get("numero") or venda_id).strip() or str(venda_id)
-    data_emissao = str(venda.get("data") or "").strip() or date.today().isoformat()
+    data_emissao = str(venda.get("data") or "").strip() or hoje_empresa().isoformat()
     prazo_entrega = str(venda.get("prazo_entrega") or "").strip()
     data_vencimento = prazo_entrega if _converter_data_iso(prazo_entrega) is not None else data_emissao
 
@@ -5296,12 +5387,12 @@ def _nome_mes_curto(data_base: date) -> str:
 
 
 def _periodo_ultimos_meses(quantidade: int = 6) -> list[date]:
-    inicio_mes_atual = date.today().replace(day=1)
+    inicio_mes_atual = hoje_empresa().replace(day=1)
     return [_adicionar_meses(inicio_mes_atual, indice - quantidade + 1) for indice in range(quantidade)]
 
 
 def _montar_calendario_financeiro(titulos: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    hoje = date.today()
+    hoje = hoje_empresa()
     eventos: list[dict[str, Any]] = []
 
     for titulo in titulos:
@@ -5368,7 +5459,7 @@ def _montar_fluxo_caixa_mensal(titulos: list[dict[str, Any]]) -> list[dict[str, 
 
 def montar_painel_financeiro() -> dict[str, Any]:
     titulos = listar_financeiro_titulos()
-    hoje = date.today()
+    hoje = hoje_empresa()
     inicio_mes = hoje.replace(day=1)
 
     receber_aberto = [
@@ -5460,7 +5551,7 @@ def montar_painel_financeiro() -> dict[str, Any]:
 
 def montar_painel_ordens_servico() -> dict[str, Any]:
     ordens = listar_ordens_servico()
-    hoje = date.today()
+    hoje = hoje_empresa()
 
     prazo = {
         "vencidas": 0,
@@ -5927,7 +6018,7 @@ def montar_dashboard() -> dict[str, Any]:
     produtos_lista = listar_produtos()
     financeiro = montar_painel_financeiro()
 
-    hoje = date.today()
+    hoje = hoje_empresa()
     meses_grafico = _periodo_ultimos_meses(6)
 
     vendas_mes = []
@@ -6064,6 +6155,7 @@ def buscar_empresa_configuracoes() -> dict[str, Any]:
                 indicado_por_empresa_id,
                 indicador_codigo,
                 pix_indicador,
+                timezone,
                 onboarding_concluido,
                 onboarding_ramo,
                 onboarding_objetivos,
@@ -6092,6 +6184,7 @@ def buscar_empresa_configuracoes() -> dict[str, Any]:
             "indicado_por_empresa_id": "",
             "indicador_codigo": "",
             "pix_indicador": "",
+            "timezone": TIMEZONE_PADRAO_GESTFLOW,
             "onboarding_concluido": "nao",
             "onboarding_ramo": "",
             "onboarding_objetivos": "",
@@ -6103,7 +6196,9 @@ def buscar_empresa_configuracoes() -> dict[str, Any]:
             "criado_em": "",
         }
 
-    return dict(row)
+    empresa = dict(row)
+    empresa["timezone"] = normalizar_timezone_empresa(empresa.get("timezone"))
+    return empresa
 
 
 def listar_usuarios_configuracoes() -> list[dict[str, Any]]:
@@ -6161,6 +6256,7 @@ def montar_configuracoes_contexto() -> dict[str, Any]:
         "empresa": empresa,
         "usuarios": listar_usuarios_configuracoes(),
         "lojas": listar_lojas_configuracoes(),
+        "fusos_horarios": FUSOS_HORARIOS_GESTFLOW,
     }
 
 
@@ -6236,6 +6332,22 @@ def atualizar_empresa_configuracoes_db(dados: dict[str, str]) -> None:
         conn.commit()
 
 
+def atualizar_timezone_empresa_configuracoes_db(timezone: str) -> None:
+    empresa_id = empresa_logada_id()
+    timezone_normalizado = normalizar_timezone_empresa(timezone)
+
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            UPDATE empresas
+            SET timezone = ?
+            WHERE id = ?
+            """,
+            (timezone_normalizado, empresa_id),
+        )
+        conn.commit()
+
+
 def salvar_logo_empresa_db(logo_path: str) -> None:
     empresa_id = empresa_logada_id()
 
@@ -6267,7 +6379,7 @@ def salvar_upload_logo_empresa(arquivo) -> str:
 
     extensao = nome_seguro.rsplit(".", 1)[1].lower()
     empresa_id = empresa_logada_id()
-    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    timestamp = agora_empresa().strftime("%Y%m%d%H%M%S")
     nome_final = f"empresa_{empresa_id}_{timestamp}.{extensao}"
     destino = UPLOAD_DIR / nome_final
 
@@ -6296,7 +6408,7 @@ def salvar_upload_foto_os(arquivo, ordem_servico_id: int, tipo_foto: str) -> str
 
     extensao = nome_seguro.rsplit(".", 1)[1].lower()
     empresa_id = empresa_logada_id()
-    timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
+    timestamp = agora_empresa().strftime("%Y%m%d%H%M%S%f")
     tipo_limpo = "".join(caractere for caractere in str(tipo_foto or "foto") if caractere.isalnum())[:16] or "foto"
     nome_final = f"os_{empresa_id}_{int(ordem_servico_id)}_{tipo_limpo}_{timestamp}.{extensao}"
     destino = OS_FOTOS_DIR / nome_final
@@ -6347,7 +6459,7 @@ def atualizar_fotos_equipamento_os_formulario(ordem_servico_id: int) -> None:
     }
     arquivos_antes = request.files.getlist("foto_os_antes")
     arquivos_depois = request.files.getlist("foto_os_depois")
-    agora = datetime.now().isoformat(timespec="seconds")
+    agora = agora_empresa().isoformat(timespec="seconds")
 
     total_linhas = max(
         len(ids),
@@ -6530,7 +6642,7 @@ def registrar_atividade_usuario(
                     modulo_normalizado,
                     descricao_normalizada,
                     rota_normalizada,
-                    datetime.now().isoformat(timespec="seconds"),
+                    agora_empresa().isoformat(timespec="seconds"),
                 ),
             )
             conn.commit()
@@ -6595,7 +6707,7 @@ def registrar_acesso_modulo_usuario() -> None:
 
 
 def montar_dashboard_admin() -> dict[str, Any]:
-    agora = datetime.now()
+    agora = agora_empresa()
     limite_7_dias = (agora - timedelta(days=7)).isoformat(timespec="seconds")
 
     with conectar_db() as conn:
@@ -7245,9 +7357,17 @@ def configuracoes() -> str:
         empresa=contexto["empresa"],
         usuarios=contexto["usuarios"],
         lojas=contexto["lojas"],
+        fusos_horarios=contexto["fusos_horarios"],
         erro=request.args.get("erro", ""),
         sucesso=request.args.get("sucesso", ""),
     )
+
+
+@app.post("/configuracoes/gerais")
+def salvar_configuracoes_gerais() -> Response:
+    timezone = request.form.get("geral_timezone") or request.form.get("geral_fuso") or TIMEZONE_PADRAO_GESTFLOW
+    atualizar_timezone_empresa_configuracoes_db(timezone)
+    return redirect("/configuracoes/gerais?sucesso=Configurações gerais salvas com sucesso.")
 
 
 @app.post("/configuracoes/empresa")
@@ -7361,7 +7481,7 @@ def validar_novo_cadastro(formulario: dict[str, str]) -> str:
 
 
 def criar_empresa_trial_db(formulario: dict[str, str]) -> int:
-    trial_inicio = date.today()
+    trial_inicio = hoje_empresa()
     trial_fim = trial_inicio + timedelta(days=7)
     indicador = buscar_empresa_por_codigo_indicacao(formulario.get("ref"))
     indicador_empresa_id = int(indicador["id"]) if indicador is not None else None
@@ -7753,10 +7873,10 @@ def registrar_pagamento_indicacao_db(indicado_empresa_id: int, competencia: str 
     if not indicador_empresa_id:
         return False, "Esta empresa não possui indicador vinculado."
 
-    competencia = str(competencia or date.today().strftime("%Y-%m")).strip()[:7]
+    competencia = str(competencia or hoje_empresa().strftime("%Y-%m")).strip()[:7]
 
     if not competencia:
-        competencia = date.today().strftime("%Y-%m")
+        competencia = hoje_empresa().strftime("%Y-%m")
 
     plano = str(indicado.get("plano") or "Start").strip() or "Start"
     valor = valor_comissao_por_plano(plano)
@@ -7799,8 +7919,8 @@ def registrar_pagamento_indicacao_db(indicado_empresa_id: int, competencia: str 
                 competencia,
                 _formatar_moeda_brl(valor),
                 "liberada",
-                date.today().isoformat(),
-                date.today().isoformat(),
+                hoje_empresa().isoformat(),
+                hoje_empresa().isoformat(),
                 "",
                 "Comissão recorrente gerada após pagamento confirmado do cliente indicado.",
             ),
@@ -7816,7 +7936,7 @@ def atualizar_status_comissao_indicacao_db(comissao_id: int, status: str) -> Non
     if status_normalizado not in {"pendente", "liberada", "paga", "cancelada"}:
         status_normalizado = "liberada"
 
-    data_repasse = date.today().isoformat() if status_normalizado == "paga" else ""
+    data_repasse = hoje_empresa().isoformat() if status_normalizado == "paga" else ""
 
     with conectar_db() as conn:
         conn.execute(
@@ -7852,7 +7972,7 @@ def admin_indicacoes() -> str | Response:
     return render_template(
         "admin_indicacoes.html",
         contexto=listar_indicacoes_admin(),
-        hoje_competencia=date.today().strftime("%Y-%m"),
+        hoje_competencia=hoje_empresa().strftime("%Y-%m"),
         erro=request.args.get("erro", ""),
         sucesso=request.args.get("sucesso", ""),
     )
@@ -9662,7 +9782,7 @@ def abrir_caixa_db(valor_abertura: str, responsavel: str, gerar_recebimento: boo
     empresa_id = empresa_logada_id()
     usuario_id = usuario_logado_id()
     valor_abertura_formatado = _formatar_moeda_brl(_converter_valor_brl(valor_abertura))
-    aberto_em = datetime.now().isoformat(timespec="seconds")
+    aberto_em = agora_empresa().isoformat(timespec="seconds")
 
     with conectar_db() as conn:
         cursor = conn.execute(
@@ -9728,9 +9848,9 @@ def abrir_caixa_db(valor_abertura: str, responsavel: str, gerar_recebimento: boo
                 "origem": "caixa",
                 "origem_id": str(caixa_id),
                 "documento": f"Caixa Nº {caixa_id}",
-                "data_emissao": date.today().isoformat(),
-                "data_vencimento": date.today().isoformat(),
-                "data_pagamento": date.today().isoformat(),
+                "data_emissao": hoje_empresa().isoformat(),
+                "data_vencimento": hoje_empresa().isoformat(),
+                "data_pagamento": hoje_empresa().isoformat(),
                 "valor": valor_abertura_formatado,
                 "forma_pagamento": "Dinheiro",
                 "status": "pago",
@@ -9764,7 +9884,7 @@ def fechar_caixa_db(valor_fechamento: str, observacoes: str = "") -> bool:
             """,
             (
                 valor_formatado,
-                datetime.now().isoformat(timespec="seconds"),
+                agora_empresa().isoformat(timespec="seconds"),
                 observacoes,
                 int(caixa["id"]),
                 empresa_id,
@@ -9922,7 +10042,7 @@ def gerar_recebimento_pdv_pago_db(venda_id: int, venda: dict[str, str]) -> None:
         return
 
     numero_venda = str(venda.get("numero") or venda_id).strip() or str(venda_id)
-    data_venda = str(venda.get("data") or date.today().isoformat()).strip()
+    data_venda = str(venda.get("data") or hoje_empresa().isoformat()).strip()
 
     salvar_financeiro_titulo_db(
         {
@@ -9935,7 +10055,7 @@ def gerar_recebimento_pdv_pago_db(venda_id: int, venda: dict[str, str]) -> None:
             "documento": f"Venda PDV Nº {numero_venda}",
             "data_emissao": data_venda,
             "data_vencimento": data_venda,
-            "data_pagamento": date.today().isoformat(),
+            "data_pagamento": hoje_empresa().isoformat(),
             "valor": _formatar_moeda_brl(valor_total),
             "forma_pagamento": str(venda.get("forma_pagamento") or "").strip(),
             "status": "pago",
@@ -10086,7 +10206,7 @@ def venda_balcao_finalizar() -> Response:
         "numero": proximo_numero_venda(),
         "cliente": cliente,
         "responsavel": responsavel,
-        "data": date.today().isoformat(),
+        "data": hoje_empresa().isoformat(),
         "prazo_entrega": "imediato",
         "canal_venda": "Balcão / PDV",
         "centro_custo": "Balcão",
@@ -10410,7 +10530,7 @@ def gerador_orcamentos() -> str | Response:
         produtos=listar_produtos(),
         gerador_config=buscar_configuracao_gerador_empresa(),
         proximo_numero=proximo_numero_orcamento(),
-        data_hoje=date.today().isoformat(),
+        data_hoje=hoje_empresa().isoformat(),
     )
 
 @app.get("/orcamentos")
