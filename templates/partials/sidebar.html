@@ -1,7 +1,7 @@
 {#
 Caminho: templates/partials/sidebar.html
-Último recode: 2026-07-01 08:10 (America/Bahia)
-Motivo: Adicionar acesso ao Gerador de Orçamentos no menu de Orçamentos.
+Último recode: 2026-07-01 17:15 (America/Bahia)
+Motivo: Adicionar Dashboard Admin ao menu administrativo.
 #}
 {% set _path = request.path if request is defined else '' %}
 {% set _usuario_sidebar = usuario_logado|default({}, true) %}
@@ -159,6 +159,7 @@ Motivo: Adicionar acesso ao Gerador de Orçamentos no menu de Orçamentos.
                     </summary>
                     <ul class="submenu">
                         <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Admin</strong></li>
+                        <li class="{% if _path.startswith('/admin/dashboard') %}submenu-active{% endif %}"><a href="/admin/dashboard">Dashboard Admin</a></li>
                         <li class="{% if _path.startswith('/admin/empresas') %}submenu-active{% endif %}"><a href="/admin/empresas">Empresas</a></li>
                     </ul>
                 </details>

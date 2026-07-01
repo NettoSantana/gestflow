@@ -1,0 +1,254 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\admin_dashboard.html
+Último recode: 2026-07-01 17:15 (America/Bahia)
+Motivo: Criar Dashboard Admin com rastreamento de uso e ações principais.
+-->
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Dashboard Admin</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .admin-dashboard-grid {
+            display: grid;
+            grid-template-columns: 1.15fr 0.85fr;
+            gap: 18px;
+            align-items: start;
+        }
+
+        .admin-mini-table td,
+        .admin-mini-table th {
+            vertical-align: top;
+        }
+
+        .admin-muted {
+            color: #64748b;
+            font-size: 12px;
+            display: block;
+            margin-top: 4px;
+        }
+
+        .admin-activity-list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .admin-activity-item {
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 12px;
+            background: #ffffff;
+        }
+
+        .admin-activity-item strong {
+            display: block;
+            color: #0f172a;
+            margin-bottom: 4px;
+        }
+
+        .admin-activity-item span {
+            color: #64748b;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+
+        .admin-module-pill {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 24px;
+            padding: 0 9px;
+            border-radius: 999px;
+            background: #eef6ff;
+            color: #1d4ed8;
+            font-size: 11px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        @media (max-width: 1100px) {
+            .admin-dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+
+    <main class="content">
+        {% set page_title = 'Dashboard Admin' %}
+        {% include "partials/topbar.html" %}
+
+        {% set painel = admin_dashboard|default({}) %}
+        {% set resumo = painel.resumo|default({}) %}
+        {% set usuarios = painel.usuarios|default([]) %}
+        {% set atividades = painel.atividades|default([]) %}
+        {% set modulos = painel.modulos|default([]) %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Admin GestFlow</span>
+                    <h3 class="page-title">Dashboard Admin</h3>
+                    <p class="page-subtitle">Acompanhe quem entrou, quem testou de verdade e quais módulos estão sendo usados.</p>
+                </div>
+                <div class="client-toolbar">
+                    <a href="/admin/empresas" class="btn-light">Empresas</a>
+                    <a href="/admin/indicacoes" class="btn-primary-green">Indicações</a>
+                </div>
+            </div>
+        </section>
+
+        <section class="cards cards-secondary page-section">
+            <div class="card stat-card">
+                <div class="card-icon">▣</div>
+                <div class="card-info">
+                    <p>{{ resumo.total_empresas|default(0) }}</p>
+                    <h3>Empresas</h3>
+                    <span>{{ resumo.empresas_trial|default(0) }} em trial · {{ resumo.empresas_ativas|default(0) }} ativas</span>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="card-icon">♟</div>
+                <div class="card-info">
+                    <p>{{ resumo.total_usuarios|default(0) }}</p>
+                    <h3>Usuários</h3>
+                    <span>{{ resumo.usuarios_ja_acessaram|default(0) }} já acessaram</span>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="card-icon">⌁</div>
+                <div class="card-info">
+                    <p>{{ resumo.usuarios_nunca_acessaram|default(0) }}</p>
+                    <h3>Nunca acessaram</h3>
+                    <span>Contas criadas sem teste real</span>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="card-icon">✓</div>
+                <div class="card-info">
+                    <p>{{ resumo.usuarios_ativos_7_dias|default(0) }}</p>
+                    <h3>Ativos 7 dias</h3>
+                    <span>{{ resumo.atividades_7_dias|default(0) }} atividades recentes</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="admin-dashboard-grid page-section">
+            <div class="panel table-panel">
+                <div class="panel-header page-header">
+                    <div>
+                        <h3>Uso por usuário</h3>
+                        <p class="page-subtitle">Classificação automática baseada em login e ações realizadas.</p>
+                    </div>
+                </div>
+
+                <div class="table-shell">
+                    <table class="client-table admin-mini-table">
+                        <thead>
+                            <tr>
+                                <th>Usuário</th>
+                                <th>Empresa</th>
+                                <th>Último login</th>
+                                <th>Logins</th>
+                                <th>Ações</th>
+                                <th>Situação</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if usuarios %}
+                                {% for usuario in usuarios %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ usuario.nome }}</strong>
+                                            <span class="admin-muted">{{ usuario.email }}</span>
+                                        </td>
+                                        <td>
+                                            {{ usuario.empresa_nome or '-' }}
+                                            <span class="admin-muted">{{ usuario.empresa_status or '-' }}</span>
+                                        </td>
+                                        <td>{{ usuario.ultimo_login or 'Nunca' }}</td>
+                                        <td>{{ usuario.total_logins|default(0) }}</td>
+                                        <td>{{ usuario.total_acoes|default(0) }}</td>
+                                        <td><span class="status-pill {{ usuario.situacao_classe }}">{{ usuario.situacao_uso }}</span></td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="6" class="empty-table">Nenhum usuário encontrado.</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="panel table-panel">
+                <div class="panel-header page-header">
+                    <div>
+                        <h3>Módulos mais usados</h3>
+                        <p class="page-subtitle">Acessos e ações por módulo.</p>
+                    </div>
+                </div>
+
+                <div class="table-shell">
+                    <table class="client-table admin-mini-table">
+                        <thead>
+                            <tr>
+                                <th>Módulo</th>
+                                <th>Acessos</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if modulos %}
+                                {% for modulo in modulos %}
+                                    <tr>
+                                        <td><span class="admin-module-pill">{{ modulo.modulo }}</span></td>
+                                        <td>{{ modulo.total_acessos|default(0) }}</td>
+                                        <td>{{ modulo.total_acoes|default(0) }}</td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="3" class="empty-table">Nenhuma atividade registrada ainda.</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel table-panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Últimas atividades</h3>
+                    <p class="page-subtitle">Registro recente de login, acessos e ações principais.</p>
+                </div>
+            </div>
+
+            <div class="admin-activity-list">
+                {% if atividades %}
+                    {% for atividade in atividades %}
+                        <div class="admin-activity-item">
+                            <strong>{{ atividade.usuario_nome or 'Usuário' }} · {{ atividade.tipo|capitalize }} · {{ atividade.modulo or '-' }}</strong>
+                            <span>{{ atividade.descricao or '-' }}</span><br>
+                            <span>{{ atividade.empresa_nome or 'Empresa não identificada' }} · {{ atividade.criado_em or '-' }} · {{ atividade.rota or '-' }}</span>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-table">Nenhuma atividade registrada ainda.</div>
+                {% endif %}
+            </div>
+        </section>
+    </main>
+</body>
+</html>

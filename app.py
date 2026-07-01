@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-01 16:10 (America/Bahia)
-# Motivo: Criar orientação de esqueci senha e redefinição de senha pelo administrador.
+# Último recode: 2026-07-01 17:15 (America/Bahia)
+# Motivo: Criar Dashboard Admin com rastreamento de uso e ações principais.
 
 from __future__ import annotations
 
@@ -875,6 +875,22 @@ def iniciar_banco() -> None:
 
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS usuario_atividades (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER,
+                usuario_id INTEGER,
+                usuario_nome TEXT,
+                tipo TEXT NOT NULL DEFAULT 'acesso',
+                modulo TEXT,
+                descricao TEXT,
+                rota TEXT,
+                criado_em TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS lojas (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 empresa_id INTEGER NOT NULL,
@@ -1105,6 +1121,7 @@ def iniciar_banco() -> None:
             "financeiro_titulos",
             "caixa_aberturas",
             "caixa_movimentacoes",
+            "usuario_atividades",
         ]
 
         for tabela in tabelas_com_empresa_id:
@@ -6459,6 +6476,241 @@ def usuario_logado_eh_admin_sistema() -> bool:
     return perfil in {"super_admin", "dono", "administrador_sistema"} or email in emails_admin_sistema
 
 
+
+
+def registrar_atividade_usuario(
+    tipo: str,
+    modulo: str,
+    descricao: str,
+    rota: str | None = None,
+    empresa_id: int | None = None,
+    usuario_id: int | None = None,
+    usuario_nome: str | None = None,
+) -> None:
+    tipo_normalizado = str(tipo or "acesso").strip().lower() or "acesso"
+    modulo_normalizado = str(modulo or "geral").strip().lower() or "geral"
+    descricao_normalizada = str(descricao or "").strip()
+    rota_normalizada = str(rota or (request.path if request else "")).strip()
+
+    try:
+        empresa_final = int(empresa_id if empresa_id is not None else (session.get("empresa_id") or 0))
+    except (TypeError, ValueError):
+        empresa_final = 0
+
+    try:
+        usuario_final = int(usuario_id if usuario_id is not None else (session.get("usuario_id") or 0))
+    except (TypeError, ValueError):
+        usuario_final = 0
+
+    nome_final = str(usuario_nome or session.get("usuario_nome") or "").strip()
+
+    if not usuario_final and not nome_final:
+        return
+
+    try:
+        with conectar_db() as conn:
+            conn.execute(
+                """
+                INSERT INTO usuario_atividades (
+                    empresa_id,
+                    usuario_id,
+                    usuario_nome,
+                    tipo,
+                    modulo,
+                    descricao,
+                    rota,
+                    criado_em
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    empresa_final or None,
+                    usuario_final or None,
+                    nome_final,
+                    tipo_normalizado,
+                    modulo_normalizado,
+                    descricao_normalizada,
+                    rota_normalizada,
+                    datetime.now().isoformat(timespec="seconds"),
+                ),
+            )
+            conn.commit()
+    except sqlite3.Error:
+        return
+
+
+def modulo_por_rota_admin(rota: str) -> str | None:
+    rota = str(rota or "").strip()
+
+    if rota == "/":
+        return "dashboard"
+
+    mapa_modulos = {
+        "/clientes": "clientes",
+        "/fornecedores": "fornecedores",
+        "/funcionarios": "funcionarios",
+        "/produtos": "produtos",
+        "/servicos": "servicos",
+        "/orcamentos": "orcamentos",
+        "/vendas": "vendas",
+        "/ordens-servico": "ordens_servico",
+        "/estoque": "estoque",
+        "/financeiro": "financeiro",
+        "/configuracoes": "configuracoes",
+        "/admin": "admin",
+    }
+
+    for prefixo, modulo in mapa_modulos.items():
+        if rota == prefixo or rota.startswith(f"{prefixo}/"):
+            return modulo
+
+    return None
+
+
+@app.before_request
+def registrar_acesso_modulo_usuario() -> None:
+    if request.method != "GET":
+        return
+
+    if not session.get("usuario_id"):
+        return
+
+    endpoint = str(request.endpoint or "")
+    if endpoint in {"static", "servir_foto_os"}:
+        return
+
+    if request.path.startswith("/static/") or request.path.startswith("/uploads/"):
+        return
+
+    modulo = modulo_por_rota_admin(request.path)
+
+    if not modulo:
+        return
+
+    registrar_atividade_usuario(
+        "visualizacao",
+        modulo,
+        f"Acessou {modulo.replace('_', ' ')}",
+        request.path,
+    )
+
+
+def montar_dashboard_admin() -> dict[str, Any]:
+    agora = datetime.now()
+    limite_7_dias = (agora - timedelta(days=7)).isoformat(timespec="seconds")
+
+    with conectar_db() as conn:
+        resumo_row = conn.execute(
+            """
+            SELECT
+                (SELECT COUNT(*) FROM empresas) AS total_empresas,
+                (SELECT COUNT(*) FROM empresas WHERE LOWER(status) = 'trial') AS empresas_trial,
+                (SELECT COUNT(*) FROM empresas WHERE LOWER(status) = 'ativo') AS empresas_ativas,
+                (SELECT COUNT(*) FROM usuarios) AS total_usuarios,
+                (SELECT COUNT(*) FROM usuarios WHERE ultimo_login IS NOT NULL AND TRIM(ultimo_login) <> '') AS usuarios_ja_acessaram,
+                (SELECT COUNT(*) FROM usuarios WHERE ultimo_login IS NULL OR TRIM(ultimo_login) = '') AS usuarios_nunca_acessaram,
+                (SELECT COUNT(*) FROM usuario_atividades WHERE criado_em >= ?) AS atividades_7_dias,
+                (SELECT COUNT(DISTINCT usuario_id) FROM usuario_atividades WHERE criado_em >= ? AND usuario_id IS NOT NULL) AS usuarios_ativos_7_dias
+            """,
+            (limite_7_dias, limite_7_dias),
+        ).fetchone()
+
+        usuarios_rows = conn.execute(
+            """
+            SELECT
+                usuarios.id,
+                usuarios.nome,
+                usuarios.email,
+                usuarios.perfil,
+                usuarios.status,
+                usuarios.ultimo_login,
+                usuarios.criado_em,
+                empresas.nome_fantasia AS empresa_nome,
+                empresas.status AS empresa_status,
+                COALESCE(COUNT(usuario_atividades.id), 0) AS total_atividades,
+                COALESCE(SUM(CASE WHEN usuario_atividades.tipo = 'login' THEN 1 ELSE 0 END), 0) AS total_logins,
+                COALESCE(SUM(CASE WHEN usuario_atividades.tipo IN ('criacao', 'edicao', 'exclusao') THEN 1 ELSE 0 END), 0) AS total_acoes,
+                MAX(usuario_atividades.criado_em) AS ultima_atividade
+            FROM usuarios
+            JOIN empresas ON empresas.id = usuarios.empresa_id
+            LEFT JOIN usuario_atividades ON usuario_atividades.usuario_id = usuarios.id
+            GROUP BY usuarios.id
+            ORDER BY ultima_atividade DESC, usuarios.id DESC
+            LIMIT 80
+            """
+        ).fetchall()
+
+        atividades_rows = conn.execute(
+            """
+            SELECT
+                usuario_atividades.id,
+                usuario_atividades.empresa_id,
+                usuario_atividades.usuario_id,
+                usuario_atividades.usuario_nome,
+                usuario_atividades.tipo,
+                usuario_atividades.modulo,
+                usuario_atividades.descricao,
+                usuario_atividades.rota,
+                usuario_atividades.criado_em,
+                empresas.nome_fantasia AS empresa_nome
+            FROM usuario_atividades
+            LEFT JOIN empresas ON empresas.id = usuario_atividades.empresa_id
+            ORDER BY usuario_atividades.id DESC
+            LIMIT 60
+            """
+        ).fetchall()
+
+        modulos_rows = conn.execute(
+            """
+            SELECT
+                modulo,
+                COUNT(*) AS total_acessos,
+                SUM(CASE WHEN tipo IN ('criacao', 'edicao', 'exclusao') THEN 1 ELSE 0 END) AS total_acoes,
+                MAX(criado_em) AS ultima_atividade
+            FROM usuario_atividades
+            WHERE modulo IS NOT NULL AND TRIM(modulo) <> ''
+            GROUP BY modulo
+            ORDER BY total_acessos DESC, modulo ASC
+            LIMIT 20
+            """
+        ).fetchall()
+
+    resumo = dict(resumo_row or {})
+    usuarios = []
+
+    for row in usuarios_rows:
+        usuario = dict(row)
+        total_logins = int(usuario.get("total_logins") or 0)
+        total_acoes = int(usuario.get("total_acoes") or 0)
+        ultimo_login = str(usuario.get("ultimo_login") or "").strip()
+
+        if not ultimo_login and total_logins == 0:
+            situacao = "Não testou"
+            classe = "cancelada"
+        elif total_acoes == 0:
+            situacao = "Só entrou"
+            classe = "aberta"
+        elif total_acoes <= 2:
+            situacao = "Testou pouco"
+            classe = "aguardando"
+        elif total_acoes < 10:
+            situacao = "Testando"
+            classe = "andamento"
+        else:
+            situacao = "Ativo"
+            classe = "concretizada"
+
+        usuario["situacao_uso"] = situacao
+        usuario["situacao_classe"] = classe
+        usuarios.append(usuario)
+
+    return {
+        "resumo": resumo,
+        "usuarios": usuarios,
+        "atividades": [dict(row) for row in atividades_rows],
+        "modulos": [dict(row) for row in modulos_rows],
+    }
+
+
 def listar_empresas_admin() -> list[dict[str, Any]]:
     with conectar_db() as conn:
         rows = conn.execute(
@@ -6869,6 +7121,17 @@ def excluir_empresa_cliente_admin_db(empresa_id: int) -> bool:
 
     return True
 
+
+
+@app.get("/admin/dashboard")
+def admin_dashboard() -> str | Response:
+    if not usuario_logado_eh_admin_sistema():
+        return redirect(url_for("dashboard"))
+
+    return render_template(
+        "admin_dashboard.html",
+        admin_dashboard=montar_dashboard_admin(),
+    )
 
 
 @app.route("/admin/empresas", methods=["GET", "POST"])
@@ -7672,6 +7935,7 @@ def login() -> str | Response:
             ), 401
 
         entrar_usuario_na_sessao(usuario)
+        registrar_atividade_usuario("login", "acesso", "Login realizado", request.path)
 
         return redirect(url_for("dashboard"))
 
@@ -7953,6 +8217,7 @@ def salvar_cliente() -> Response:
         return redirect(url_for("clientes", erro=erro_validacao))
 
     salvar_cliente_db(cliente)
+    registrar_atividade_usuario("criacao", "clientes", f"Criou cliente {cliente['nome']}", request.path)
 
     return redirect(url_for("clientes"))
 
@@ -8003,6 +8268,8 @@ def salvar_cliente_rapido() -> Response:
         )
         cliente_id = int(cursor.lastrowid)
         conn.commit()
+
+    registrar_atividade_usuario("criacao", "clientes", f"Criou cliente rápido {cliente['nome']}", request.path)
 
     cliente_resposta = {
         "id": cliente_id,
@@ -8479,6 +8746,7 @@ def salvar_produto() -> Response:
         return redirect(url_for("produtos", erro=erro_validacao))
 
     salvar_produto_db(produto)
+    registrar_atividade_usuario("criacao", "produtos", f"Criou produto {produto['nome']}", request.path)
 
     return redirect(url_for("produtos"))
 
@@ -8550,6 +8818,8 @@ def salvar_produto_rapido() -> Response:
         )
         produto_id = int(cursor.lastrowid)
         conn.commit()
+
+    registrar_atividade_usuario("criacao", "produtos", f"Criou produto rápido {produto['nome']}", request.path)
 
     return jsonify(
         {
@@ -8656,6 +8926,7 @@ def salvar_servico() -> Response:
         return redirect(url_for("servicos", erro=erro_validacao))
 
     salvar_servico_db(servico)
+    registrar_atividade_usuario("criacao", "servicos", f"Criou serviço {servico['nome']}", request.path)
 
     return redirect(url_for("servicos"))
 
@@ -8722,6 +8993,8 @@ def salvar_servico_rapido() -> Response:
         )
         servico_id = int(cursor.lastrowid)
         conn.commit()
+
+    registrar_atividade_usuario("criacao", "servicos", f"Criou serviço rápido {servico['nome']}", request.path)
 
     return jsonify(
         {
@@ -9067,6 +9340,7 @@ def salvar_ordem_servico() -> Response:
 
     nova_ordem_servico_id = salvar_ordem_servico_db(ordem_servico, itens)
     atualizar_fotos_equipamento_os_formulario(nova_ordem_servico_id)
+    registrar_atividade_usuario("criacao", "ordens_servico", f"Criou OS {ordem_servico.get('numero') or nova_ordem_servico_id}", request.path)
 
     return redirect(url_for("ordens_servico"))
 
@@ -9923,6 +10197,7 @@ def salvar_venda() -> Response:
     venda_id = salvar_venda_db(venda, itens)
     baixar_estoque_por_venda_db(venda_id, venda, itens)
     gerar_conta_receber_por_venda_db(venda_id, venda)
+    registrar_atividade_usuario("criacao", "vendas", f"Criou venda {venda.get('numero') or venda_id}", request.path)
 
     return redirect(url_for("vendas"))
 
@@ -10167,7 +10442,8 @@ def salvar_orcamento() -> Response:
     if erro_validacao:
         return redirect(url_for("orcamentos", erro=erro_validacao))
 
-    salvar_orcamento_db(orcamento, itens)
+    orcamento_id = salvar_orcamento_db(orcamento, itens)
+    registrar_atividade_usuario("criacao", "orcamentos", f"Criou orçamento {orcamento.get('numero') or orcamento_id}", request.path)
 
     return redirect(url_for("orcamentos"))
 
