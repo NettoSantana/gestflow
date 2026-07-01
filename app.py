@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-01 15:45 (America/Bahia)
-# Motivo: Exigir senha forte e aceite dos termos no cadastro público.
+# Último recode: 2026-07-01 16:10 (America/Bahia)
+# Motivo: Criar orientação de esqueci senha e redefinição de senha pelo administrador.
 
 from __future__ import annotations
 
@@ -267,6 +267,7 @@ def exigir_login_rotas_internas() -> Response | None:
         "planos",
         "novo_cadastro",
         "login",
+        "esqueci_senha",
         "health",
         "twilio_webhook",
         "acompanhamento_os_publico",
@@ -6147,6 +6148,50 @@ def montar_configuracoes_contexto() -> dict[str, Any]:
 
 
 
+def buscar_usuario_configuracoes_por_id(usuario_id: int) -> dict[str, Any] | None:
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                id,
+                empresa_id,
+                nome,
+                email,
+                perfil,
+                status
+            FROM usuarios
+            WHERE id = ?
+              AND empresa_id = ?
+            LIMIT 1
+            """,
+            (usuario_id, empresa_id),
+        ).fetchone()
+
+    if row is None:
+        return None
+
+    return dict(row)
+
+
+def redefinir_senha_usuario_configuracoes_db(usuario_id: int, nova_senha: str) -> None:
+    empresa_id = empresa_logada_id()
+    senha_hash = generate_password_hash(str(nova_senha or ""))
+
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            UPDATE usuarios
+            SET senha_hash = ?
+            WHERE id = ?
+              AND empresa_id = ?
+            """,
+            (senha_hash, usuario_id, empresa_id),
+        )
+        conn.commit()
+
+
 def atualizar_empresa_configuracoes_db(dados: dict[str, str]) -> None:
     empresa_id = empresa_logada_id()
 
@@ -6937,8 +6982,8 @@ def configuracoes() -> str:
         empresa=contexto["empresa"],
         usuarios=contexto["usuarios"],
         lojas=contexto["lojas"],
-        erro="",
-        sucesso="",
+        erro=request.args.get("erro", ""),
+        sucesso=request.args.get("sucesso", ""),
     )
 
 
@@ -7631,6 +7676,140 @@ def login() -> str | Response:
         return redirect(url_for("dashboard"))
 
     return render_template("login.html")
+
+
+@app.get("/esqueci-senha")
+def esqueci_senha() -> str:
+    return """
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>GestFlow - Recuperar senha</title>
+        <style>
+            * { box-sizing: border-box; }
+            body {
+                margin: 0;
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 24px;
+                background: linear-gradient(135deg, #06162b 0%, #0d2746 100%);
+                color: #132238;
+                font-family: Inter, Arial, Helvetica, sans-serif;
+            }
+            .card {
+                width: min(520px, 100%);
+                background: #ffffff;
+                border-radius: 24px;
+                padding: 34px;
+                box-shadow: 0 22px 60px rgba(5, 20, 42, 0.22);
+                text-align: center;
+            }
+            .badge {
+                display: inline-flex;
+                border-radius: 999px;
+                padding: 8px 14px;
+                margin-bottom: 18px;
+                background: #eff6ff;
+                color: #1e3a8a;
+                font-weight: 900;
+                font-size: 13px;
+            }
+            h1 {
+                margin: 0 0 10px;
+                color: #06162b;
+                font-size: 28px;
+            }
+            p {
+                margin: 0 0 18px;
+                color: #60708a;
+                line-height: 1.6;
+            }
+            .notice {
+                border: 1px solid #dbe5f1;
+                background: #f8fbff;
+                border-radius: 16px;
+                padding: 16px;
+                margin: 18px 0;
+                text-align: left;
+                color: #334155;
+                line-height: 1.55;
+            }
+            .actions {
+                display: flex;
+                justify-content: center;
+                gap: 10px;
+                flex-wrap: wrap;
+                margin-top: 22px;
+            }
+            a {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 44px;
+                padding: 0 18px;
+                border-radius: 10px;
+                font-weight: 900;
+                text-decoration: none;
+            }
+            .primary {
+                background: #06162b;
+                color: #ffffff;
+            }
+            .light {
+                border: 1px solid #dbe5f1;
+                color: #06162b;
+                background: #ffffff;
+            }
+        </style>
+    </head>
+    <body>
+        <main class="card">
+            <span class="badge">Recuperação de acesso</span>
+            <h1>Esqueceu sua senha?</h1>
+            <p>Por enquanto, a redefinição automática por e-mail ainda não está ativa.</p>
+            <div class="notice">
+                Solicite ao administrador da sua empresa para acessar <strong>Configurações &gt; Usuários</strong> e redefinir sua senha.
+                A nova senha deverá seguir os critérios de segurança do GestFlow.
+            </div>
+            <div class="actions">
+                <a href="/login" class="primary">Voltar para o login</a>
+                <a href="/portal" class="light">Voltar ao portal</a>
+            </div>
+        </main>
+    </body>
+    </html>
+    """
+
+
+@app.post("/configuracoes/usuarios/redefinir-senha")
+def redefinir_senha_usuario_configuracoes() -> Response:
+    try:
+        usuario_id = int(request.form.get("usuario_id") or 0)
+    except (TypeError, ValueError):
+        usuario_id = 0
+
+    nova_senha = (request.form.get("nova_senha") or "").strip()
+    confirmar_senha = (request.form.get("confirmar_senha") or "").strip()
+
+    usuario = buscar_usuario_configuracoes_por_id(usuario_id)
+
+    if usuario is None:
+        return redirect("/configuracoes/usuarios?erro=Usuário não encontrado nesta empresa.")
+
+    erro_senha = validar_senha_forte(nova_senha)
+    if erro_senha:
+        return redirect(f"/configuracoes/usuarios?erro={erro_senha}")
+
+    if nova_senha != confirmar_senha:
+        return redirect("/configuracoes/usuarios?erro=A confirmação da senha não confere.")
+
+    redefinir_senha_usuario_configuracoes_db(usuario_id, nova_senha)
+
+    return redirect("/configuracoes/usuarios?sucesso=Senha redefinida com sucesso.")
 
 
 @app.get("/sair")

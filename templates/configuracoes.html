@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\configuracoes.html
-Último recode: 2026-06-30 23:10 (America/Bahia)
-Motivo: Incluir acesso ao programa de indicações e link próprio do cliente.
+Último recode: 2026-07-01 16:10 (America/Bahia)
+Motivo: Incluir redefinição de senha de usuários pelo administrador.
 -->
 
 <!DOCTYPE html>
@@ -11,6 +11,49 @@ Motivo: Incluir acesso ao programa de indicações e link próprio do cliente.
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GESTFLOW - Configurações</title>
     <link rel="stylesheet" href="/static/css/dashboard.css">
+
+    <style>
+        .config-alert {
+            margin-bottom: 16px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            font-weight: 800;
+            font-size: 13px;
+        }
+
+        .config-alert.error {
+            border: 1px solid #fecaca;
+            background: #fef2f2;
+            color: #991b1b;
+        }
+
+        .config-alert.success {
+            border: 1px solid #bbf7d0;
+            background: #f0fdf4;
+            color: #166534;
+        }
+
+        .password-rules {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 6px 12px;
+            margin: 2px 0 6px;
+            color: #475569;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .password-rules span::before {
+            content: "• ";
+            color: #1f7cff;
+        }
+
+        @media (max-width: 720px) {
+            .password-rules {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 <body>
     {% include "partials/sidebar.html" %}
@@ -177,8 +220,16 @@ Motivo: Incluir acesso ao programa de indicações e link próprio do cliente.
                             <h3>Usuários</h3>
                             <p class="page-subtitle">Controle quem acessa o sistema e qual perfil cada usuário terá.</p>
                         </div>
-                        <button type="button" class="btn-primary-green">+ Novo usuário</button>
+                        <span class="badge-info">Redefinição pelo administrador</span>
                     </div>
+
+                    {% if erro %}
+                        <div class="config-alert error">{{ erro }}</div>
+                    {% endif %}
+
+                    {% if sucesso %}
+                        <div class="config-alert success">{{ sucesso }}</div>
+                    {% endif %}
 
                     <div class="table-shell">
                         <table class="client-table">
@@ -201,8 +252,7 @@ Motivo: Incluir acesso ao programa de indicações e link próprio do cliente.
                                             <td><span class="status-pill {{ usuario.status }}">{{ usuario.status }}</span></td>
                                             <td>
                                                 <div class="action-buttons">
-                                                    <button type="button" class="action-button view" disabled>🔍</button>
-                                                    <button type="button" class="action-button edit" disabled>✎</button>
+                                                    <span class="badge-info">Reset via formulário</span>
                                                 </div>
                                             </td>
                                         </tr>
@@ -215,6 +265,48 @@ Motivo: Incluir acesso ao programa de indicações e link próprio do cliente.
                             </tbody>
                         </table>
                     </div>
+
+                    <form class="client-form" action="/configuracoes/usuarios/redefinir-senha" method="post" style="margin-top: 18px;">
+                        <div class="panel-header page-header">
+                            <div>
+                                <h3>Redefinir senha</h3>
+                                <p class="page-subtitle">Selecione o usuário e informe uma nova senha segura.</p>
+                            </div>
+                        </div>
+
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="usuario_id">Usuário</label>
+                                <select id="usuario_id" name="usuario_id" class="form-control" required>
+                                    <option value="">Selecione</option>
+                                    {% for usuario in usuarios %}
+                                        <option value="{{ usuario.id }}">{{ usuario.nome }} - {{ usuario.email }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="nova_senha">Nova senha</label>
+                                <input id="nova_senha" name="nova_senha" type="password" class="form-control" autocomplete="new-password" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="confirmar_senha">Confirmar nova senha</label>
+                                <input id="confirmar_senha" name="confirmar_senha" type="password" class="form-control" autocomplete="new-password" required>
+                            </div>
+                        </div>
+
+                        <div class="password-rules">
+                            <span>No mínimo 8 caracteres</span>
+                            <span>Letras maiúsculas e minúsculas</span>
+                            <span>Pelo menos um número</span>
+                            <span>Pelo menos um caractere especial</span>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn-primary-green">Redefinir senha</button>
+                        </div>
+                    </form>
 
                 {% elif aba == 'empresa' %}
                     <div class="panel-header page-header">
