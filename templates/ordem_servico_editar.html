@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordem_servico_editar.html
-Último recode: 2026-07-01 14:55 (America/Bahia)
-Motivo: Recolocar botão Adicionar equipamento na edição da OS.
+Último recode: 2026-07-01 15:25 (America/Bahia)
+Motivo: Vincular fotos antes/depois ao equipamento correspondente na edição da OS.
 -->
 
 <!DOCTYPE html>
@@ -196,6 +196,26 @@ Motivo: Recolocar botão Adicionar equipamento na edição da OS.
             font-weight: 800;
         }
 
+
+        .os-foto-equipamento-bloco {
+            margin-top: 14px;
+            border: 1px solid #dbe3ef;
+            border-radius: 12px;
+            background: #f8fafc;
+            padding: 12px;
+        }
+
+        .os-foto-equipamento-titulo {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 10px;
+            color: #334155;
+            font-size: 13px;
+            font-weight: 900;
+        }
+
     </style>
 </head>
 <body>
@@ -279,78 +299,87 @@ Motivo: Recolocar botão Adicionar equipamento na edição da OS.
                 <div class="os-section-title"><h3>♜ Equipamento</h3><span>Informações técnicas da OS</span></div>
                 <div class="os-section-body">
                     <div id="equipamentos-container">
-                        <div class="os-equipamento-bloco">
-                            <div class="os-equipamento-topo"><span>Equipamento principal</span></div>
-                            <div class="os-grid-6">
-                                <div class="form-group os-span-3"><label for="os_equipamento">Equipamento</label><input id="os_equipamento" name="os_equipamento" type="text" value="{{ os.equipamento or '' }}" class="form-control"></div>
-                                <div class="form-group"><label for="os_marca">Marca</label><input id="os_marca" name="os_marca" type="text" value="{{ os.marca or '' }}" class="form-control"></div>
-                                <div class="form-group"><label for="os_modelo">Modelo</label><input id="os_modelo" name="os_modelo" type="text" value="{{ os.modelo or '' }}" class="form-control"></div>
-                                <div class="form-group"><label for="os_serie">Série</label><input id="os_serie" name="os_serie" type="text" value="{{ os.serie or '' }}" class="form-control"></div>
-                                <div class="form-group os-span-3"><label for="os_condicoes">Condições</label><textarea id="os_condicoes" name="os_condicoes" class="form-control os-textarea">{{ os.condicoes or '' }}</textarea></div>
-                                <div class="form-group os-span-3"><label for="os_relato_cliente">Defeitos / relato do cliente</label><textarea id="os_relato_cliente" name="os_relato_cliente" class="form-control os-textarea">{{ os.relato_cliente or '' }}</textarea></div>
-                                <div class="form-group os-span-3"><label for="os_acessorios">Acessórios</label><textarea id="os_acessorios" name="os_acessorios" class="form-control os-textarea">{{ os.acessorios or '' }}</textarea></div>
-                                <div class="form-group os-span-3"><label for="os_diagnostico">Solução / diagnóstico</label><textarea id="os_diagnostico" name="os_diagnostico" class="form-control os-textarea">{{ os.diagnostico or '' }}</textarea></div>
-                                <div class="form-group os-span-3"><label for="os_laudo">Laudo</label><textarea id="os_laudo" name="os_laudo" class="form-control os-textarea">{{ os.laudo or '' }}</textarea></div>
-                                <div class="form-group os-span-3"><label for="os_termos">Termos</label><textarea id="os_termos" name="os_termos" class="form-control os-textarea">{{ os.termos or '' }}</textarea></div>
-                                <div class="form-group os-span-6"><label for="os_local_servico">Local do serviço</label><input id="os_local_servico" name="os_local_servico" type="text" value="{{ os.local_servico or '' }}" class="form-control"></div>
+                        {% for equipamento in equipamentos_os|default([]) %}
+                            {% set fotos_do_equipamento = fotos_por_equipamento.get(equipamento.indice, []) if fotos_por_equipamento else [] %}
+                            <div class="os-equipamento-bloco{% if not loop.first %} os-equipamento-bloco-extra{% endif %}">
+                                <div class="os-equipamento-topo">
+                                    <span>{{ equipamento.titulo }}</span>
+                                    {% if not loop.first %}
+                                        <button type="button" class="os-remove-equipment" title="Remover equipamento" aria-label="Remover equipamento" onclick="removerEquipamento(this)">×</button>
+                                    {% endif %}
+                                </div>
+                                <div class="os-grid-6">
+                                    <div class="form-group os-span-3"><label>Equipamento</label><input name="os_equipamento" type="text" value="{{ equipamento.equipamento or '' }}" placeholder="Ex.: portão, máquina, veículo" class="form-control"></div>
+                                    <div class="form-group"><label>Marca</label><input name="os_marca" type="text" value="{{ equipamento.marca or '' }}" class="form-control"></div>
+                                    <div class="form-group"><label>Modelo</label><input name="os_modelo" type="text" value="{{ equipamento.modelo or '' }}" class="form-control"></div>
+                                    <div class="form-group"><label>Série</label><input name="os_serie" type="text" value="{{ equipamento.serie or '' }}" class="form-control"></div>
+                                    <div class="form-group os-span-3"><label>Condições</label><textarea name="os_condicoes" class="form-control os-textarea" placeholder="Condições encontradas">{{ equipamento.condicoes or '' }}</textarea></div>
+                                    <div class="form-group os-span-3"><label>Defeitos / relato do cliente</label><textarea name="os_relato_cliente" class="form-control os-textarea" placeholder="Problema informado pelo cliente">{{ equipamento.relato_cliente or '' }}</textarea></div>
+                                    <div class="form-group os-span-3"><label>Acessórios</label><textarea name="os_acessorios" class="form-control os-textarea" placeholder="Acessórios recebidos ou vinculados">{{ equipamento.acessorios or '' }}</textarea></div>
+                                    <div class="form-group os-span-3"><label>Solução / diagnóstico</label><textarea name="os_diagnostico" class="form-control os-textarea" placeholder="Diagnóstico técnico e solução proposta">{{ equipamento.diagnostico or '' }}</textarea></div>
+                                    <div class="form-group os-span-3"><label>Laudo</label><textarea name="os_laudo" class="form-control os-textarea" placeholder="Laudo técnico, quando aplicável">{{ equipamento.laudo or '' }}</textarea></div>
+                                    <div class="form-group os-span-3"><label>Termos</label><textarea name="os_termos" class="form-control os-textarea" placeholder="Termos e condições do atendimento">{{ equipamento.termos or '' }}</textarea></div>
+                                    <div class="form-group os-span-6"><label>Local do serviço</label><input name="os_local_servico" type="text" value="{{ equipamento.local_servico or '' }}" placeholder="Ex.: portaria principal, linha 2, área técnica" class="form-control"></div>
+                                </div>
+
+                                <div class="os-foto-equipamento-bloco" data-foto-bloco>
+                                    <div class="os-foto-equipamento-titulo">
+                                        <span>Fotos antes / depois deste equipamento</span>
+                                    </div>
+                                    <div class="table-shell">
+                                        <table class="client-table os-photo-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Foto antes</th>
+                                                    <th>Foto depois</th>
+                                                    <th>Observação</th>
+                                                    <th>Remover</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="fotos-equipamento-tbody" data-equipamento-indice="{{ equipamento.indice }}">
+                                                {% for foto in fotos_do_equipamento %}
+                                                    <tr>
+                                                        <td>
+                                                            <input type="hidden" name="foto_os_id" value="{{ foto.id }}">
+                                                            <input type="hidden" name="foto_os_equipamento_indice" value="{{ equipamento.indice }}">
+                                                            <input type="hidden" name="foto_os_titulo" value="{{ foto.titulo or equipamento.equipamento or equipamento.titulo }}">
+                                                            {% if foto.foto_antes_path %}
+                                                                <img src="{{ foto.foto_antes_path }}" alt="Foto antes" class="os-photo-preview">
+                                                            {% endif %}
+                                                            <input type="file" name="foto_os_antes" class="form-control" accept="image/*">
+                                                        </td>
+                                                        <td>
+                                                            {% if foto.foto_depois_path %}
+                                                                <img src="{{ foto.foto_depois_path }}" alt="Foto depois" class="os-photo-preview">
+                                                            {% endif %}
+                                                            <input type="file" name="foto_os_depois" class="form-control" accept="image/*">
+                                                        </td>
+                                                        <td><textarea name="foto_os_observacoes" class="form-control os-textarea" placeholder="Observação da foto">{{ foto.observacoes or '' }}</textarea></td>
+                                                        <td><label class="os-photo-remove-check"><input type="checkbox" name="foto_os_remover" value="{{ foto.id }}"> Remover</label></td>
+                                                    </tr>
+                                                {% endfor %}
+                                                <tr>
+                                                    <td>
+                                                        <input type="hidden" name="foto_os_id" value="">
+                                                        <input type="hidden" name="foto_os_equipamento_indice" value="{{ equipamento.indice }}">
+                                                        <input type="hidden" name="foto_os_titulo" value="{{ equipamento.equipamento or equipamento.titulo }}">
+                                                        <input type="file" name="foto_os_antes" class="form-control" accept="image/*">
+                                                    </td>
+                                                    <td><input type="file" name="foto_os_depois" class="form-control" accept="image/*"></td>
+                                                    <td><textarea name="foto_os_observacoes" class="form-control os-textarea" placeholder="Observação da foto"></textarea></td>
+                                                    <td></td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="os-actions-line">
+                                        <button type="button" class="btn-dark" onclick="adicionarLinhaFotoEquipamento(this)">+ Adicionar foto</button>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
+                        {% endfor %}
                     </div>
                     <div class="os-actions-line"><button type="button" class="btn-dark" onclick="adicionarEquipamento()">+ Adicionar equipamento</button></div>
-                </div>
-            </section>
-
-            <section class="os-form-section">
-                <div class="os-section-title"><h3>▧ Fotos antes / depois</h3><span>Registro fotográfico do equipamento</span></div>
-                <div class="os-section-body">
-                    <div class="table-shell">
-                        <table class="client-table os-photo-table">
-                            <thead>
-                                <tr>
-                                    <th>Equipamento / item</th>
-                                    <th>Foto antes</th>
-                                    <th>Foto depois</th>
-                                    <th>Observação</th>
-                                    <th>Remover</th>
-                                </tr>
-                            </thead>
-                            <tbody id="fotos-equipamento-tbody">
-                                {% for foto in fotos_equipamento|default([]) %}
-                                    <tr>
-                                        <td>
-                                            <input type="hidden" name="foto_os_id" value="{{ foto.id }}">
-                                            <input type="text" name="foto_os_titulo" class="form-control" value="{{ foto.titulo or '' }}" placeholder="Ex.: Motor principal">
-                                        </td>
-                                        <td>
-                                            {% if foto.foto_antes_path %}
-                                                <img src="{{ foto.foto_antes_path }}" alt="Foto antes" class="os-photo-preview">
-                                            {% endif %}
-                                            <input type="file" name="foto_os_antes" class="form-control" accept="image/*">
-                                        </td>
-                                        <td>
-                                            {% if foto.foto_depois_path %}
-                                                <img src="{{ foto.foto_depois_path }}" alt="Foto depois" class="os-photo-preview">
-                                            {% endif %}
-                                            <input type="file" name="foto_os_depois" class="form-control" accept="image/*">
-                                        </td>
-                                        <td><textarea name="foto_os_observacoes" class="form-control os-textarea" placeholder="Observação da foto">{{ foto.observacoes or '' }}</textarea></td>
-                                        <td><label class="os-photo-remove-check"><input type="checkbox" name="foto_os_remover" value="{{ foto.id }}"> Remover</label></td>
-                                    </tr>
-                                {% endfor %}
-                                <tr>
-                                    <td>
-                                        <input type="hidden" name="foto_os_id" value="">
-                                        <input type="text" name="foto_os_titulo" class="form-control" placeholder="Ex.: Motor principal">
-                                    </td>
-                                    <td><input type="file" name="foto_os_antes" class="form-control" accept="image/*"></td>
-                                    <td><input type="file" name="foto_os_depois" class="form-control" accept="image/*"></td>
-                                    <td><textarea name="foto_os_observacoes" class="form-control os-textarea" placeholder="Observação da foto"></textarea></td>
-                                    <td></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    <div class="os-actions-line"><button type="button" class="btn-dark" onclick="adicionarLinhaFotoEquipamento()">+ Adicionar foto</button></div>
                 </div>
             </section>
 
@@ -684,7 +713,7 @@ Motivo: Recolocar botão Adicionar equipamento na edição da OS.
 
 
         <script>
-            let contadorEquipamentos = 1;
+            let contadorEquipamentos = {{ equipamentos_os|length if equipamentos_os else 1 }};
 
             function adicionarEquipamento() {
                 contadorEquipamentos += 1;
@@ -695,6 +724,7 @@ Motivo: Recolocar botão Adicionar equipamento na edição da OS.
                 }
 
                 const bloco = document.createElement("div");
+                const equipamentoIndice = contadorEquipamentos - 1;
                 bloco.className = "os-equipamento-bloco os-equipamento-bloco-extra";
 
                 bloco.innerHTML = `
@@ -715,6 +745,39 @@ Motivo: Recolocar botão Adicionar equipamento na edição da OS.
                         <div class="form-group os-span-3"><label>Termos</label><textarea name="os_termos" class="form-control os-textarea" placeholder="Termos e condições do atendimento"></textarea></div>
                         <div class="form-group os-span-6"><label>Local do serviço</label><input name="os_local_servico" type="text" placeholder="Ex.: portaria principal, linha 2, área técnica" class="form-control"></div>
                     </div>
+                    <div class="os-foto-equipamento-bloco" data-foto-bloco>
+                        <div class="os-foto-equipamento-titulo">
+                            <span>Fotos antes / depois deste equipamento</span>
+                        </div>
+                        <div class="table-shell">
+                            <table class="client-table os-photo-table">
+                                <thead>
+                                    <tr>
+                                        <th>Foto antes</th>
+                                        <th>Foto depois</th>
+                                        <th>Observação</th>
+                                        <th>Remover</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="fotos-equipamento-tbody" data-equipamento-indice="${equipamentoIndice}">
+                                    <tr>
+                                        <td>
+                                            <input type="hidden" name="foto_os_id" value="">
+                                            <input type="hidden" name="foto_os_equipamento_indice" value="${equipamentoIndice}">
+                                            <input type="hidden" name="foto_os_titulo" value="">
+                                            <input type="file" name="foto_os_antes" class="form-control" accept="image/*">
+                                        </td>
+                                        <td><input type="file" name="foto_os_depois" class="form-control" accept="image/*"></td>
+                                        <td><textarea name="foto_os_observacoes" class="form-control os-textarea" placeholder="Observação da foto"></textarea></td>
+                                        <td></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="os-actions-line">
+                            <button type="button" class="btn-dark" onclick="adicionarLinhaFotoEquipamento(this)">+ Adicionar foto</button>
+                        </div>
+                    </div>
                 `;
 
                 container.appendChild(bloco);
@@ -730,25 +793,55 @@ Motivo: Recolocar botão Adicionar equipamento na edição da OS.
 
 
         <script>
-            function adicionarLinhaFotoEquipamento() {
-                const corpo = document.getElementById("fotos-equipamento-tbody");
+            function adicionarLinhaFotoEquipamento(botao) {
+                const blocoFoto = botao ? botao.closest("[data-foto-bloco]") : null;
+                const corpo = blocoFoto ? blocoFoto.querySelector(".fotos-equipamento-tbody") : document.querySelector(".fotos-equipamento-tbody");
+
                 if (!corpo) {
                     return;
                 }
 
+                const equipamentoIndice = corpo.dataset.equipamentoIndice || "0";
                 const linha = document.createElement("tr");
                 linha.innerHTML = `
                     <td>
                         <input type="hidden" name="foto_os_id" value="">
-                        <input type="text" name="foto_os_titulo" class="form-control" placeholder="Ex.: Motor principal">
+                        <input type="hidden" name="foto_os_equipamento_indice" value="${equipamentoIndice}">
+                        <input type="hidden" name="foto_os_titulo" value="">
+                        <input type="file" name="foto_os_antes" class="form-control" accept="image/*">
                     </td>
-                    <td><input type="file" name="foto_os_antes" class="form-control" accept="image/*"></td>
                     <td><input type="file" name="foto_os_depois" class="form-control" accept="image/*"></td>
                     <td><textarea name="foto_os_observacoes" class="form-control os-textarea" placeholder="Observação da foto"></textarea></td>
                     <td><button type="button" class="os-remove-equipment" onclick="this.closest('tr').remove()">×</button></td>
                 `;
                 corpo.appendChild(linha);
             }
+
+            function prepararTitulosFotosEquipamento() {
+                document.querySelectorAll(".os-equipamento-bloco").forEach(function(bloco, indice) {
+                    const equipamentoInput = bloco.querySelector('[name="os_equipamento"]');
+                    const equipamentoNome = equipamentoInput && equipamentoInput.value.trim() ? equipamentoInput.value.trim() : (indice === 0 ? "Equipamento principal" : "Equipamento adicional " + (indice + 1));
+
+                    bloco.querySelectorAll('[name="foto_os_titulo"]').forEach(function(inputTitulo) {
+                        inputTitulo.value = equipamentoNome;
+                    });
+
+                    bloco.querySelectorAll('[name="foto_os_equipamento_indice"]').forEach(function(inputIndice) {
+                        inputIndice.value = String(indice);
+                    });
+
+                    bloco.querySelectorAll(".fotos-equipamento-tbody").forEach(function(corpo) {
+                        corpo.dataset.equipamentoIndice = String(indice);
+                    });
+                });
+            }
+
+            document.addEventListener("DOMContentLoaded", function() {
+                const formulario = document.getElementById("form-editar-os");
+                if (formulario) {
+                    formulario.addEventListener("submit", prepararTitulosFotosEquipamento);
+                }
+            });
         </script>
 
 </body>

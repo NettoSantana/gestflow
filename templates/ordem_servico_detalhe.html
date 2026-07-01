@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordem_servico_detalhe.html
-Último recode: 2026-07-01 14:35 (America/Bahia)
-Motivo: Exibir registro fotografico antes e depois do equipamento na OS.
+Último recode: 2026-07-01 15:25 (America/Bahia)
+Motivo: Exibir fotos antes/depois abaixo do equipamento correspondente na OS.
 -->
 
 <!DOCTYPE html>
@@ -123,51 +123,65 @@ Motivo: Exibir registro fotografico antes e depois do equipamento na OS.
             </div>
         </section>
 
-        <section class="panel page-section">
-            <div class="panel-header page-header"><div><h3>Equipamento</h3><p class="page-subtitle">Dados do equipamento ou objeto atendido.</p></div></div>
-            <div class="form-grid">
-                <div class="form-group"><label>Equipamento</label><div class="form-control">{{ os.equipamento or '-' }}</div></div>
-                <div class="form-group"><label>Marca</label><div class="form-control">{{ os.marca or '-' }}</div></div>
-                <div class="form-group"><label>Modelo</label><div class="form-control">{{ os.modelo or '-' }}</div></div>
-                <div class="form-group"><label>Série</label><div class="form-control">{{ os.serie or '-' }}</div></div>
-                <div class="form-group"><label>Local do serviço</label><div class="form-control">{{ os.local_servico or '-' }}</div></div>
-                <div class="form-group"><label>Condições</label><div class="form-control">{{ os.condicoes or '-' }}</div></div>
-                <div class="form-group"><label>Acessórios</label><div class="form-control">{{ os.acessorios or '-' }}</div></div>
-                <div class="form-group"><label>Exibir valor na impressão</label><div class="form-control">{{ os.exibir_valor_impressao or '-' }}</div></div>
-            </div>
-        </section>
-
-        {% if fotos_equipamento %}
+        {% for equipamento in equipamentos_os|default([]) %}
+            {% set fotos_do_equipamento = fotos_por_equipamento.get(equipamento.indice, []) if fotos_por_equipamento else [] %}
             <section class="panel page-section">
-                <div class="panel-header page-header"><div><h3>Registro fotográfico</h3><p class="page-subtitle">Fotos antes e depois vinculadas ao equipamento da OS.</p></div></div>
-                <div class="os-photo-grid">
-                    {% for foto in fotos_equipamento %}
-                        <div class="os-photo-card">
-                            <h4>{{ foto.titulo or ('Registro ' ~ loop.index) }}</h4>
-                            <div class="os-photo-pair">
-                                <div class="os-photo-box">
-                                    <strong>Antes</strong>
-                                    {% if foto.foto_antes_path %}
-                                        <img src="{{ foto.foto_antes_path }}" alt="Foto antes">
-                                    {% else %}
-                                        <div class="form-control">Sem foto antes</div>
-                                    {% endif %}
-                                </div>
-                                <div class="os-photo-box">
-                                    <strong>Depois</strong>
-                                    {% if foto.foto_depois_path %}
-                                        <img src="{{ foto.foto_depois_path }}" alt="Foto depois">
-                                    {% else %}
-                                        <div class="form-control">Sem foto depois</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            {% if foto.observacoes %}<p>{{ foto.observacoes }}</p>{% endif %}
-                        </div>
-                    {% endfor %}
+                <div class="panel-header page-header">
+                    <div>
+                        <h3>{{ equipamento.titulo }}</h3>
+                        <p class="page-subtitle">Dados do equipamento ou objeto atendido.</p>
+                    </div>
                 </div>
+                <div class="form-grid">
+                    <div class="form-group"><label>Equipamento</label><div class="form-control">{{ equipamento.equipamento or '-' }}</div></div>
+                    <div class="form-group"><label>Marca</label><div class="form-control">{{ equipamento.marca or '-' }}</div></div>
+                    <div class="form-group"><label>Modelo</label><div class="form-control">{{ equipamento.modelo or '-' }}</div></div>
+                    <div class="form-group"><label>Série</label><div class="form-control">{{ equipamento.serie or '-' }}</div></div>
+                    <div class="form-group"><label>Local do serviço</label><div class="form-control">{{ equipamento.local_servico or '-' }}</div></div>
+                    <div class="form-group"><label>Condições</label><div class="form-control">{{ equipamento.condicoes or '-' }}</div></div>
+                    <div class="form-group"><label>Acessórios</label><div class="form-control">{{ equipamento.acessorios or '-' }}</div></div>
+                    <div class="form-group"><label>Defeito / relato</label><div class="form-control">{{ equipamento.relato_cliente or '-' }}</div></div>
+                    <div class="form-group"><label>Diagnóstico / solução</label><div class="form-control">{{ equipamento.diagnostico or '-' }}</div></div>
+                    <div class="form-group"><label>Laudo</label><div class="form-control">{{ equipamento.laudo or '-' }}</div></div>
+                    <div class="form-group"><label>Termos</label><div class="form-control">{{ equipamento.termos or '-' }}</div></div>
+                </div>
+
+                {% if fotos_do_equipamento %}
+                    <div class="panel-header page-header" style="margin-top: 14px;">
+                        <div>
+                            <h3>Registro fotográfico</h3>
+                            <p class="page-subtitle">Fotos antes e depois deste equipamento.</p>
+                        </div>
+                    </div>
+                    <div class="os-photo-grid">
+                        {% for foto in fotos_do_equipamento %}
+                            <div class="os-photo-card">
+                                <h4>{{ foto.titulo or equipamento.equipamento or equipamento.titulo }}</h4>
+                                <div class="os-photo-pair">
+                                    <div class="os-photo-box">
+                                        <strong>Antes</strong>
+                                        {% if foto.foto_antes_path %}
+                                            <img src="{{ foto.foto_antes_path }}" alt="Foto antes">
+                                        {% else %}
+                                            <div class="form-control">Sem foto antes</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="os-photo-box">
+                                        <strong>Depois</strong>
+                                        {% if foto.foto_depois_path %}
+                                            <img src="{{ foto.foto_depois_path }}" alt="Foto depois">
+                                        {% else %}
+                                            <div class="form-control">Sem foto depois</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% if foto.observacoes %}<p>{{ foto.observacoes }}</p>{% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
             </section>
-        {% endif %}
+        {% endfor %}
 
         <section class="panel page-section">
             <div class="panel-header page-header"><div><h3>Relato, diagnóstico e execução</h3><p class="page-subtitle">Informações técnicas da ordem.</p></div></div>

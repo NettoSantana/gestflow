@@ -1,11 +1,12 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-01 15:05 (America/Bahia)
-# Motivo: Salvar fotos antes/depois também no cadastro da OS.
+# Último recode: 2026-07-01 15:25 (America/Bahia)
+# Motivo: Vincular fotos antes/depois ao equipamento correspondente na OS.
 
 from __future__ import annotations
 
 import html
 import json
+import re
 import secrets
 import sqlite3
 from datetime import date, datetime, timedelta
@@ -646,6 +647,7 @@ def iniciar_banco() -> None:
                 empresa_id INTEGER,
                 ordem_servico_id INTEGER NOT NULL,
                 titulo TEXT,
+                equipamento_indice TEXT DEFAULT '0',
                 foto_antes_path TEXT,
                 foto_depois_path TEXT,
                 observacoes TEXT,
@@ -905,7 +907,7 @@ def iniciar_banco() -> None:
                     telefone,
                     plano,
                     status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     "GestFlow Demo",
@@ -1149,6 +1151,14 @@ def iniciar_banco() -> None:
         for coluna, tipo_coluna in colunas_ordens_servico.items():
             if coluna not in colunas_existentes:
                 conn.execute(f"ALTER TABLE ordens_servico ADD COLUMN {coluna} {tipo_coluna}")
+
+        colunas_fotos_equipamento = {
+            str(row["name"])
+            for row in conn.execute("PRAGMA table_info(os_fotos_equipamento)").fetchall()
+        }
+
+        if "equipamento_indice" not in colunas_fotos_equipamento:
+            conn.execute("ALTER TABLE os_fotos_equipamento ADD COLUMN equipamento_indice TEXT DEFAULT '0'")
 
         conn.commit()
 
@@ -5586,6 +5596,88 @@ def _combinar_valores_formulario(campo: str) -> str:
     return " | ".join(f"{indice + 1}) {valor}" for indice, valor in enumerate(valores))
 
 
+def _separar_valores_formulario_combinado(valor: Any) -> list[str]:
+    texto = str(valor or "").strip()
+
+    if not texto:
+        return []
+
+    partes_numeradas = re.findall(r"(?:^|\s\|\s)\d+\)\s*(.*?)(?=\s\|\s\d+\)\s*|$)", texto)
+
+    if partes_numeradas:
+        return [parte.strip() for parte in partes_numeradas]
+
+    if " | " in texto:
+        return [parte.strip() for parte in texto.split(" | ")]
+
+    return [texto]
+
+
+def montar_equipamentos_ordem_servico(ordem_servico: dict[str, Any] | None) -> list[dict[str, str]]:
+    if not ordem_servico:
+        return [
+            {
+                "indice": "0",
+                "titulo": "Equipamento principal",
+                "equipamento": "",
+                "marca": "",
+                "modelo": "",
+                "serie": "",
+                "local_servico": "",
+                "condicoes": "",
+                "acessorios": "",
+                "relato_cliente": "",
+                "diagnostico": "",
+                "laudo": "",
+                "termos": "",
+            }
+        ]
+
+    campos = {
+        "equipamento": _separar_valores_formulario_combinado(ordem_servico.get("equipamento")),
+        "marca": _separar_valores_formulario_combinado(ordem_servico.get("marca")),
+        "modelo": _separar_valores_formulario_combinado(ordem_servico.get("modelo")),
+        "serie": _separar_valores_formulario_combinado(ordem_servico.get("serie")),
+        "local_servico": _separar_valores_formulario_combinado(ordem_servico.get("local_servico")),
+        "condicoes": _separar_valores_formulario_combinado(ordem_servico.get("condicoes")),
+        "acessorios": _separar_valores_formulario_combinado(ordem_servico.get("acessorios")),
+        "relato_cliente": _separar_valores_formulario_combinado(ordem_servico.get("relato_cliente")),
+        "diagnostico": _separar_valores_formulario_combinado(ordem_servico.get("diagnostico")),
+        "laudo": _separar_valores_formulario_combinado(ordem_servico.get("laudo")),
+        "termos": _separar_valores_formulario_combinado(ordem_servico.get("termos")),
+    }
+
+    total = max((len(valores) for valores in campos.values()), default=0)
+
+    if total <= 0:
+        total = 1
+
+    equipamentos = []
+
+    for indice in range(total):
+        equipamento = {
+            "indice": str(indice),
+            "titulo": "Equipamento principal" if indice == 0 else f"Equipamento adicional {indice + 1}",
+        }
+
+        for campo, valores in campos.items():
+            equipamento[campo] = valores[indice] if indice < len(valores) else ""
+
+        equipamentos.append(equipamento)
+
+    return equipamentos
+
+
+def agrupar_fotos_por_equipamento(fotos_equipamento: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    fotos_por_equipamento: dict[str, list[dict[str, Any]]] = {}
+
+    for foto in fotos_equipamento:
+        indice = str(foto.get("equipamento_indice") or "0").strip() or "0"
+        fotos_por_equipamento.setdefault(indice, []).append(foto)
+
+    return fotos_por_equipamento
+
+
 def montar_ordem_servico_formulario(numero_padrao: str = "") -> dict[str, str]:
     return {
         "numero": (request.form.get("os_numero") or numero_padrao).strip(),
@@ -6163,6 +6255,7 @@ def listar_fotos_equipamento_os(ordem_servico_id: int) -> list[dict[str, Any]]:
                 empresa_id,
                 ordem_servico_id,
                 titulo,
+                equipamento_indice,
                 foto_antes_path,
                 foto_depois_path,
                 observacoes,
@@ -6183,6 +6276,7 @@ def atualizar_fotos_equipamento_os_formulario(ordem_servico_id: int) -> None:
     empresa_id = empresa_logada_id()
     ids = request.form.getlist("foto_os_id")
     titulos = request.form.getlist("foto_os_titulo")
+    indices_equipamento = request.form.getlist("foto_os_equipamento_indice")
     observacoes_lista = request.form.getlist("foto_os_observacoes")
     remover_ids = {
         int(valor)
@@ -6196,6 +6290,7 @@ def atualizar_fotos_equipamento_os_formulario(ordem_servico_id: int) -> None:
     total_linhas = max(
         len(ids),
         len(titulos),
+        len(indices_equipamento),
         len(observacoes_lista),
         len(arquivos_antes),
         len(arquivos_depois),
@@ -6206,6 +6301,7 @@ def atualizar_fotos_equipamento_os_formulario(ordem_servico_id: int) -> None:
             foto_id_texto = str(ids[indice] if indice < len(ids) else "").strip()
             foto_id = int(foto_id_texto) if foto_id_texto.isdigit() else None
             titulo = str(titulos[indice] if indice < len(titulos) else "").strip()
+            equipamento_indice = str(indices_equipamento[indice] if indice < len(indices_equipamento) else "0").strip() or "0"
             observacoes = str(observacoes_lista[indice] if indice < len(observacoes_lista) else "").strip()
             arquivo_antes = arquivos_antes[indice] if indice < len(arquivos_antes) else None
             arquivo_depois = arquivos_depois[indice] if indice < len(arquivos_depois) else None
@@ -6252,6 +6348,7 @@ def atualizar_fotos_equipamento_os_formulario(ordem_servico_id: int) -> None:
                     UPDATE os_fotos_equipamento
                     SET
                         titulo = ?,
+                        equipamento_indice = ?,
                         foto_antes_path = ?,
                         foto_depois_path = ?,
                         observacoes = ?,
@@ -6262,6 +6359,7 @@ def atualizar_fotos_equipamento_os_formulario(ordem_servico_id: int) -> None:
                     """,
                     (
                         titulo,
+                        equipamento_indice,
                         foto_antes_path or row_atual["foto_antes_path"] or "",
                         foto_depois_path or row_atual["foto_depois_path"] or "",
                         observacoes,
@@ -6282,16 +6380,18 @@ def atualizar_fotos_equipamento_os_formulario(ordem_servico_id: int) -> None:
                     empresa_id,
                     ordem_servico_id,
                     titulo,
+                    equipamento_indice,
                     foto_antes_path,
                     foto_depois_path,
                     observacoes,
                     atualizado_em
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     empresa_id,
                     ordem_servico_id,
                     titulo,
+                    equipamento_indice,
                     foto_antes_path,
                     foto_depois_path,
                     observacoes,
@@ -8778,6 +8878,8 @@ def ver_ordem_servico(ordem_servico_id: int) -> str | Response:
     itens_servicos = [item for item in itens if item["tipo_item"] == "servico"]
     acompanhamentos = anexar_itens_aos_acompanhamentos(listar_acompanhamentos_ordem_servico(ordem_servico_id))
     fotos_equipamento = listar_fotos_equipamento_os(ordem_servico_id)
+    equipamentos_os = montar_equipamentos_ordem_servico(ordem_servico)
+    fotos_por_equipamento = agrupar_fotos_por_equipamento(fotos_equipamento)
     token_gerado = (request.args.get("link") or "").strip()
     acompanhamento_url_gerada = montar_url_acompanhamento_os(token_gerado)
     acompanhamento_mensagem = (request.args.get("mensagem") or "").strip()
@@ -8790,7 +8892,9 @@ def ver_ordem_servico(ordem_servico_id: int) -> str | Response:
         itens_produtos=itens_produtos,
         itens_servicos=itens_servicos,
         acompanhamentos=acompanhamentos,
+        equipamentos_os=equipamentos_os,
         fotos_equipamento=fotos_equipamento,
+        fotos_por_equipamento=fotos_por_equipamento,
         acompanhamento_url_gerada=acompanhamento_url_gerada,
         acompanhamento_mensagem=acompanhamento_mensagem,
         acompanhamento_erro=acompanhamento_erro,
@@ -8809,6 +8913,8 @@ def imprimir_ordem_servico_a4(ordem_servico_id: int) -> str | Response:
     itens_servicos = [item for item in itens if item["tipo_item"] == "servico"]
     acompanhamentos = anexar_itens_aos_acompanhamentos(listar_acompanhamentos_ordem_servico(ordem_servico_id))
     fotos_equipamento = listar_fotos_equipamento_os(ordem_servico_id)
+    equipamentos_os = montar_equipamentos_ordem_servico(ordem_servico)
+    fotos_por_equipamento = agrupar_fotos_por_equipamento(fotos_equipamento)
     contexto_impressao = montar_contexto_impressao(ordem_servico.get("cliente"))
 
     return render_template(
@@ -8818,7 +8924,9 @@ def imprimir_ordem_servico_a4(ordem_servico_id: int) -> str | Response:
         itens_produtos=itens_produtos,
         itens_servicos=itens_servicos,
         acompanhamentos=acompanhamentos,
+        equipamentos_os=equipamentos_os,
         fotos_equipamento=fotos_equipamento,
+        fotos_por_equipamento=fotos_por_equipamento,
         empresa=contexto_impressao["empresa"],
         loja=contexto_impressao["loja"],
         cliente=contexto_impressao["cliente"],
@@ -8989,6 +9097,8 @@ def editar_ordem_servico(ordem_servico_id: int) -> str | Response:
     produtos_lista = listar_produtos()
     servicos_lista = listar_servicos()
     fotos_equipamento = listar_fotos_equipamento_os(ordem_servico_id)
+    equipamentos_os = montar_equipamentos_ordem_servico(ordem_servico)
+    fotos_por_equipamento = agrupar_fotos_por_equipamento(fotos_equipamento)
 
     return render_template(
         "ordem_servico_editar.html",
@@ -8998,7 +9108,9 @@ def editar_ordem_servico(ordem_servico_id: int) -> str | Response:
         funcionarios=funcionarios_lista,
         produtos=produtos_lista,
         servicos=servicos_lista,
+        equipamentos_os=equipamentos_os,
         fotos_equipamento=fotos_equipamento,
+        fotos_por_equipamento=fotos_por_equipamento,
     )
 
 

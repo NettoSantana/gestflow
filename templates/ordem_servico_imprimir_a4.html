@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordem_servico_imprimir_a4.html
-Último recode: 2026-07-01 14:35 (America/Bahia)
-Motivo: Exibir registro fotografico antes e depois do equipamento na impressao A4.
+Último recode: 2026-07-01 15:25 (America/Bahia)
+Motivo: Exibir fotos antes/depois abaixo do equipamento correspondente na impressão A4.
 -->
 
 <!DOCTYPE html>
@@ -94,49 +94,52 @@ Motivo: Exibir registro fotografico antes e depois do equipamento na impressao A
             <div class="field"><span class="label">Canal</span><div class="value">{{ os.canal_venda or '-' }}</div></div>
         </div></section>
 
-        <section class="section"><h3>Equipamento</h3><div class="grid">
-            <div class="field span-2"><span class="label">Equipamento</span><div class="value">{{ os.equipamento or '-' }}</div></div>
-            <div class="field"><span class="label">Marca</span><div class="value">{{ os.marca or '-' }}</div></div>
-            <div class="field"><span class="label">Modelo / Série</span><div class="value">{{ os.modelo or '-' }} / {{ os.serie or '-' }}</div></div>
-            <div class="field span-4"><span class="label">Local do serviço</span><div class="value">{{ os.local_servico or '-' }}</div></div>
-            <div class="field span-2"><span class="label">Condições</span><div class="value">{{ os.condicoes or '-' }}</div></div>
-            <div class="field span-2"><span class="label">Defeito / relato</span><div class="value">{{ os.relato_cliente or '-' }}</div></div>
-            <div class="field span-2"><span class="label">Diagnóstico / solução</span><div class="value">{{ os.diagnostico or '-' }}</div></div>
-            <div class="field span-2"><span class="label">Serviço executado</span><div class="value">{{ os.servico_executado or '-' }}</div></div>
-        </div></section>
-
-        {% if fotos_equipamento %}
+        {% for equipamento in equipamentos_os|default([]) %}
+            {% set fotos_do_equipamento = fotos_por_equipamento.get(equipamento.indice, []) if fotos_por_equipamento else [] %}
             <section class="section">
-                <h3>Registro fotográfico</h3>
-                <div class="foto-grid">
-                    {% for foto in fotos_equipamento %}
-                        <div class="foto-card">
-                            <div class="foto-card-title">{{ foto.titulo or ('Registro ' ~ loop.index) }}</div>
-                            <div class="foto-pair">
-                                <div class="foto-box">
-                                    <strong>Antes</strong>
-                                    {% if foto.foto_antes_path %}
-                                        <img src="{{ foto.foto_antes_path }}" alt="Foto antes" class="foto-img">
-                                    {% else %}
-                                        <div class="value muted">Sem foto antes</div>
-                                    {% endif %}
-                                </div>
-                                <div class="foto-box">
-                                    <strong>Depois</strong>
-                                    {% if foto.foto_depois_path %}
-                                        <img src="{{ foto.foto_depois_path }}" alt="Foto depois" class="foto-img">
-                                    {% else %}
-                                        <div class="value muted">Sem foto depois</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            {% if foto.observacoes %}<div class="foto-obs">{{ foto.observacoes }}</div>{% endif %}
-                        </div>
-                    {% endfor %}
+                <h3>{{ equipamento.titulo }}</h3>
+                <div class="grid">
+                    <div class="field span-2"><span class="label">Equipamento</span><div class="value">{{ equipamento.equipamento or '-' }}</div></div>
+                    <div class="field"><span class="label">Marca</span><div class="value">{{ equipamento.marca or '-' }}</div></div>
+                    <div class="field"><span class="label">Modelo / Série</span><div class="value">{{ equipamento.modelo or '-' }} / {{ equipamento.serie or '-' }}</div></div>
+                    <div class="field span-4"><span class="label">Local do serviço</span><div class="value">{{ equipamento.local_servico or '-' }}</div></div>
+                    <div class="field span-2"><span class="label">Condições</span><div class="value">{{ equipamento.condicoes or '-' }}</div></div>
+                    <div class="field span-2"><span class="label">Defeito / relato</span><div class="value">{{ equipamento.relato_cliente or '-' }}</div></div>
+                    <div class="field span-2"><span class="label">Diagnóstico / solução</span><div class="value">{{ equipamento.diagnostico or '-' }}</div></div>
+                    <div class="field span-2"><span class="label">Laudo</span><div class="value">{{ equipamento.laudo or '-' }}</div></div>
                 </div>
-            </section>
-        {% endif %}
 
+                {% if fotos_do_equipamento %}
+                    <h3>Registro fotográfico</h3>
+                    <div class="foto-grid">
+                        {% for foto in fotos_do_equipamento %}
+                            <div class="foto-card">
+                                <div class="foto-card-title">{{ foto.titulo or equipamento.equipamento or equipamento.titulo }}</div>
+                                <div class="foto-pair">
+                                    <div class="foto-box">
+                                        <strong>Antes</strong>
+                                        {% if foto.foto_antes_path %}
+                                            <img src="{{ foto.foto_antes_path }}" alt="Foto antes" class="foto-img">
+                                        {% else %}
+                                            <div class="value muted">Sem foto antes</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="foto-box">
+                                        <strong>Depois</strong>
+                                        {% if foto.foto_depois_path %}
+                                            <img src="{{ foto.foto_depois_path }}" alt="Foto depois" class="foto-img">
+                                        {% else %}
+                                            <div class="value muted">Sem foto depois</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% if foto.observacoes %}<div class="foto-obs">{{ foto.observacoes }}</div>{% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </section>
+        {% endfor %}
 
         <section class="section"><h3>Produtos / Peças</h3><table><thead><tr><th>Produto</th><th>Detalhes</th><th>Qtde</th><th>Valor</th><th>Desc.</th><th>Subtotal</th></tr></thead><tbody>{% if itens_produtos %}{% for item in itens_produtos %}<tr><td>{{ item.descricao }}</td><td>{{ item.detalhes }}</td><td>{{ item.quantidade }}</td><td>{{ item.valor_unitario }}</td><td>{{ item.desconto }}</td><td>{{ item.subtotal }}</td></tr>{% endfor %}{% else %}<tr><td colspan="6">Nenhum produto vinculado.</td></tr>{% endif %}</tbody></table></section>
         <section class="section"><h3>Serviços / Mão de obra</h3><table><thead><tr><th>Serviço</th><th>Detalhes</th><th>Qtde</th><th>Valor</th><th>Desc.</th><th>Subtotal</th></tr></thead><tbody>{% if itens_servicos %}{% for item in itens_servicos %}<tr><td>{{ item.descricao }}</td><td>{{ item.detalhes }}</td><td>{{ item.quantidade }}</td><td>{{ item.valor_unitario }}</td><td>{{ item.desconto }}</td><td>{{ item.subtotal }}</td></tr>{% endfor %}{% else %}<tr><td colspan="6">Nenhum serviço vinculado.</td></tr>{% endif %}</tbody></table></section>

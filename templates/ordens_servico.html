@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordens_servico.html
-Último recode: 2026-07-01 15:05 (America/Bahia)
-Motivo: Recolocar fotos antes/depois no cadastro da OS.
+Último recode: 2026-07-01 15:25 (America/Bahia)
+Motivo: Vincular fotos antes/depois ao equipamento correspondente no cadastro da OS.
 -->
 
 <!DOCTYPE html>
@@ -442,6 +442,26 @@ Motivo: Recolocar fotos antes/depois no cadastro da OS.
             font-weight: 800;
         }
 
+
+        .os-foto-equipamento-bloco {
+            margin-top: 14px;
+            border: 1px solid #dbe3ef;
+            border-radius: 12px;
+            background: #f8fafc;
+            padding: 12px;
+        }
+
+        .os-foto-equipamento-titulo {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 10px;
+            color: #334155;
+            font-size: 13px;
+            font-weight: 900;
+        }
+
     </style>
 </head>
 <body>
@@ -562,45 +582,42 @@ Motivo: Recolocar fotos antes/depois no cadastro da OS.
                         <div class="form-group os-span-3"><label for="os_termos">Termos</label><textarea id="os_termos" name="os_termos" class="form-control os-textarea" placeholder="Termos e condições do atendimento"></textarea></div>
                                 <div class="form-group os-span-6"><label for="os_local_servico">Local do serviço</label><input id="os_local_servico" name="os_local_servico" type="text" placeholder="Ex: portaria principal, linha 2, área técnica" class="form-control"></div>
                             </div>
+                            <div class="os-foto-equipamento-bloco" data-foto-bloco>
+                                <div class="os-foto-equipamento-titulo">
+                                    <span>Fotos antes / depois deste equipamento</span>
+                                </div>
+                                <div class="table-shell">
+                                    <table class="client-table os-photo-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Foto antes</th>
+                                                <th>Foto depois</th>
+                                                <th>Observação</th>
+                                                <th>Ação</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="fotos-equipamento-tbody" data-equipamento-indice="0">
+                                            <tr>
+                                                <td>
+                                                    <input type="hidden" name="foto_os_id" value="">
+                                                    <input type="hidden" name="foto_os_equipamento_indice" value="0">
+                                                    <input type="hidden" name="foto_os_titulo" value="">
+                                                    <input type="file" name="foto_os_antes" class="form-control" accept="image/*">
+                                                </td>
+                                                <td><input type="file" name="foto_os_depois" class="form-control" accept="image/*"></td>
+                                                <td><textarea name="foto_os_observacoes" class="form-control os-textarea" placeholder="Observação da foto"></textarea></td>
+                                                <td></td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="os-actions-line">
+                                    <button type="button" class="btn-dark" onclick="adicionarLinhaFotoEquipamento(this)">+ Adicionar foto</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="os-actions-line"><button type="button" class="btn-dark" onclick="adicionarEquipamento()">+ Adicionar equipamento</button></div>
-                </div>
-            </section>
-
-
-            <section class="os-form-section">
-                <div class="os-section-title">
-                    <h3>▧ Fotos antes / depois</h3>
-                    <span>Registro fotográfico do equipamento</span>
-                </div>
-                <div class="os-section-body">
-                    <div class="table-shell">
-                        <table class="client-table os-photo-table">
-                            <thead>
-                                <tr>
-                                    <th>Equipamento / item</th>
-                                    <th>Foto antes</th>
-                                    <th>Foto depois</th>
-                                    <th>Observação</th>
-                                    <th>Ação</th>
-                                </tr>
-                            </thead>
-                            <tbody id="fotos-equipamento-tbody">
-                                <tr>
-                                    <td>
-                                        <input type="hidden" name="foto_os_id" value="">
-                                        <input type="text" name="foto_os_titulo" class="form-control" placeholder="Ex.: Motor principal">
-                                    </td>
-                                    <td><input type="file" name="foto_os_antes" class="form-control" accept="image/*"></td>
-                                    <td><input type="file" name="foto_os_depois" class="form-control" accept="image/*"></td>
-                                    <td><textarea name="foto_os_observacoes" class="form-control os-textarea" placeholder="Observação da foto"></textarea></td>
-                                    <td></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    <div class="os-actions-line"><button type="button" class="btn-dark" onclick="adicionarLinhaFotoEquipamento()">+ Adicionar foto</button></div>
                 </div>
             </section>
 
@@ -845,6 +862,7 @@ Motivo: Recolocar fotos antes/depois no cadastro da OS.
 
                 const container = document.getElementById("equipamentos-container");
                 const bloco = document.createElement("div");
+                const equipamentoIndice = contadorEquipamentos - 1;
                 bloco.className = "os-equipamento-bloco os-equipamento-bloco-extra";
 
                 bloco.innerHTML = `
@@ -864,6 +882,39 @@ Motivo: Recolocar fotos antes/depois no cadastro da OS.
                         <div class="form-group os-span-3"><label>Laudo</label><textarea name="os_laudo" class="form-control os-textarea" placeholder="Laudo técnico, quando aplicável"></textarea></div>
                         <div class="form-group os-span-3"><label>Termos</label><textarea name="os_termos" class="form-control os-textarea" placeholder="Termos e condições do atendimento"></textarea></div>
                         <div class="form-group os-span-6"><label>Local do serviço</label><input name="os_local_servico" type="text" placeholder="Ex: portaria principal, linha 2, área técnica" class="form-control"></div>
+                    </div>
+                    <div class="os-foto-equipamento-bloco" data-foto-bloco>
+                        <div class="os-foto-equipamento-titulo">
+                            <span>Fotos antes / depois deste equipamento</span>
+                        </div>
+                        <div class="table-shell">
+                            <table class="client-table os-photo-table">
+                                <thead>
+                                    <tr>
+                                        <th>Foto antes</th>
+                                        <th>Foto depois</th>
+                                        <th>Observação</th>
+                                        <th>Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="fotos-equipamento-tbody" data-equipamento-indice="${equipamentoIndice}">
+                                    <tr>
+                                        <td>
+                                            <input type="hidden" name="foto_os_id" value="">
+                                            <input type="hidden" name="foto_os_equipamento_indice" value="${equipamentoIndice}">
+                                            <input type="hidden" name="foto_os_titulo" value="">
+                                            <input type="file" name="foto_os_antes" class="form-control" accept="image/*">
+                                        </td>
+                                        <td><input type="file" name="foto_os_depois" class="form-control" accept="image/*"></td>
+                                        <td><textarea name="foto_os_observacoes" class="form-control os-textarea" placeholder="Observação da foto"></textarea></td>
+                                        <td></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="os-actions-line">
+                            <button type="button" class="btn-dark" onclick="adicionarLinhaFotoEquipamento(this)">+ Adicionar foto</button>
+                        </div>
                     </div>
                 `;
 
@@ -1157,25 +1208,55 @@ Motivo: Recolocar fotos antes/depois no cadastro da OS.
 
 
         <script>
-            function adicionarLinhaFotoEquipamento() {
-                const corpo = document.getElementById("fotos-equipamento-tbody");
+            function adicionarLinhaFotoEquipamento(botao) {
+                const blocoFoto = botao ? botao.closest("[data-foto-bloco]") : null;
+                const corpo = blocoFoto ? blocoFoto.querySelector(".fotos-equipamento-tbody") : document.querySelector(".fotos-equipamento-tbody");
+
                 if (!corpo) {
                     return;
                 }
 
+                const equipamentoIndice = corpo.dataset.equipamentoIndice || "0";
                 const linha = document.createElement("tr");
                 linha.innerHTML = `
                     <td>
                         <input type="hidden" name="foto_os_id" value="">
-                        <input type="text" name="foto_os_titulo" class="form-control" placeholder="Ex.: Motor principal">
+                        <input type="hidden" name="foto_os_equipamento_indice" value="${equipamentoIndice}">
+                        <input type="hidden" name="foto_os_titulo" value="">
+                        <input type="file" name="foto_os_antes" class="form-control" accept="image/*">
                     </td>
-                    <td><input type="file" name="foto_os_antes" class="form-control" accept="image/*"></td>
                     <td><input type="file" name="foto_os_depois" class="form-control" accept="image/*"></td>
                     <td><textarea name="foto_os_observacoes" class="form-control os-textarea" placeholder="Observação da foto"></textarea></td>
                     <td><button type="button" class="os-remove-equipment" onclick="this.closest('tr').remove()">×</button></td>
                 `;
                 corpo.appendChild(linha);
             }
+
+            function prepararTitulosFotosEquipamento() {
+                document.querySelectorAll(".os-equipamento-bloco").forEach(function(bloco, indice) {
+                    const equipamentoInput = bloco.querySelector('[name="os_equipamento"]');
+                    const equipamentoNome = equipamentoInput && equipamentoInput.value.trim() ? equipamentoInput.value.trim() : (indice === 0 ? "Equipamento principal" : "Equipamento adicional " + (indice + 1));
+
+                    bloco.querySelectorAll('[name="foto_os_titulo"]').forEach(function(inputTitulo) {
+                        inputTitulo.value = equipamentoNome;
+                    });
+
+                    bloco.querySelectorAll('[name="foto_os_equipamento_indice"]').forEach(function(inputIndice) {
+                        inputIndice.value = String(indice);
+                    });
+
+                    bloco.querySelectorAll(".fotos-equipamento-tbody").forEach(function(corpo) {
+                        corpo.dataset.equipamentoIndice = String(indice);
+                    });
+                });
+            }
+
+            document.addEventListener("DOMContentLoaded", function() {
+                const formulario = document.getElementById("form-nova-os");
+                if (formulario) {
+                    formulario.addEventListener("submit", prepararTitulosFotosEquipamento);
+                }
+            });
         </script>
 
 </body>
