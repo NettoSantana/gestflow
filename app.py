@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-01 15:25 (America/Bahia)
-# Motivo: Vincular fotos antes/depois ao equipamento correspondente na OS.
+# Último recode: 2026-07-01 15:45 (America/Bahia)
+# Motivo: Exigir senha forte e aceite dos termos no cadastro público.
 
 from __future__ import annotations
 
@@ -6993,9 +6993,31 @@ def montar_novo_cadastro_formulario() -> dict[str, str]:
         "email": (request.form.get("email") or "").strip().lower(),
         "senha": (request.form.get("senha") or "").strip(),
         "confirmar_senha": (request.form.get("confirmar_senha") or "").strip(),
+        "termos_uso": (request.form.get("termos_uso") or "").strip(),
         "plano": plano,
         "ref": normalizar_codigo_indicacao(request.form.get("ref") or request.args.get("ref") or ""),
     }
+
+
+def validar_senha_forte(senha: str) -> str:
+    senha = str(senha or "")
+
+    if len(senha) < 8:
+        return "A senha precisa ter no mínimo 8 caracteres."
+
+    if not re.search(r"[A-Z]", senha):
+        return "A senha precisa ter pelo menos uma letra maiúscula."
+
+    if not re.search(r"[a-z]", senha):
+        return "A senha precisa ter pelo menos uma letra minúscula."
+
+    if not re.search(r"\d", senha):
+        return "A senha precisa ter pelo menos um número."
+
+    if not re.search(r"[^A-Za-z0-9]", senha):
+        return "A senha precisa ter pelo menos um caractere especial."
+
+    return ""
 
 
 def validar_novo_cadastro(formulario: dict[str, str]) -> str:
@@ -7014,11 +7036,15 @@ def validar_novo_cadastro(formulario: dict[str, str]) -> str:
     if email_usuario_ja_existe(formulario["email"]):
         return "Este e-mail já possui cadastro. Acesse pelo login ou use outro e-mail."
 
-    if len(formulario["senha"]) < 6:
-        return "A senha precisa ter pelo menos 6 caracteres."
+    erro_senha = validar_senha_forte(formulario["senha"])
+    if erro_senha:
+        return erro_senha
 
     if formulario["senha"] != formulario["confirmar_senha"]:
         return "A confirmação de senha não confere."
+
+    if formulario.get("termos_uso") != "sim":
+        return "Confirme que leu e concorda com os termos de uso."
 
     if formulario.get("ref") and buscar_empresa_por_codigo_indicacao(formulario["ref"]) is None:
         return "O código de indicação informado não foi encontrado. Confira o link recebido."
