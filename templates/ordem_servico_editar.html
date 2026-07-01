@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordem_servico_editar.html
-Último recode: 2026-07-01 14:35 (America/Bahia)
-Motivo: Criar registro fotografico antes e depois do equipamento na OS.
+Último recode: 2026-07-01 14:55 (America/Bahia)
+Motivo: Recolocar botão Adicionar equipamento na edição da OS.
 -->
 
 <!DOCTYPE html>
@@ -27,6 +27,42 @@ Motivo: Criar registro fotografico antes e depois do equipamento na OS.
         .os-textarea { min-height: 92px; resize: vertical; }
         .os-muted-check { display: flex; align-items: center; gap: 8px; color: #475569; font-size: 13px; }
         .os-actions-line { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+
+        .os-equipamento-bloco {
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 14px;
+            margin-bottom: 14px;
+            background: #ffffff;
+        }
+
+        .os-equipamento-bloco-extra {
+            background: #f8fafc;
+        }
+
+        .os-equipamento-topo {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+            color: #334155;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .os-remove-equipment {
+            align-self: end;
+            width: 36px;
+            height: 36px;
+            border: none;
+            border-radius: 8px;
+            background: #ef4444;
+            color: #ffffff;
+            cursor: pointer;
+            font-weight: 800;
+        }
+
         @media (max-width: 1100px) { .os-grid-6, .os-grid-4, .os-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .os-span-6, .os-span-3, .os-span-2 { grid-column: span 2; } }
         @media (max-width: 720px) { .os-grid-6, .os-grid-4, .os-grid-2 { grid-template-columns: 1fr; } .os-span-6, .os-span-3, .os-span-2 { grid-column: span 1; } }
 
@@ -242,19 +278,25 @@ Motivo: Criar registro fotografico antes e depois do equipamento na OS.
             <section class="os-form-section">
                 <div class="os-section-title"><h3>♜ Equipamento</h3><span>Informações técnicas da OS</span></div>
                 <div class="os-section-body">
-                    <div class="os-grid-6">
-                        <div class="form-group os-span-3"><label for="os_equipamento">Equipamento</label><input id="os_equipamento" name="os_equipamento" type="text" value="{{ os.equipamento or '' }}" class="form-control"></div>
-                        <div class="form-group"><label for="os_marca">Marca</label><input id="os_marca" name="os_marca" type="text" value="{{ os.marca or '' }}" class="form-control"></div>
-                        <div class="form-group"><label for="os_modelo">Modelo</label><input id="os_modelo" name="os_modelo" type="text" value="{{ os.modelo or '' }}" class="form-control"></div>
-                        <div class="form-group"><label for="os_serie">Série</label><input id="os_serie" name="os_serie" type="text" value="{{ os.serie or '' }}" class="form-control"></div>
-                        <div class="form-group os-span-3"><label for="os_condicoes">Condições</label><textarea id="os_condicoes" name="os_condicoes" class="form-control os-textarea">{{ os.condicoes or '' }}</textarea></div>
-                        <div class="form-group os-span-3"><label for="os_relato_cliente">Defeitos / relato do cliente</label><textarea id="os_relato_cliente" name="os_relato_cliente" class="form-control os-textarea">{{ os.relato_cliente or '' }}</textarea></div>
-                        <div class="form-group os-span-3"><label for="os_acessorios">Acessórios</label><textarea id="os_acessorios" name="os_acessorios" class="form-control os-textarea">{{ os.acessorios or '' }}</textarea></div>
-                        <div class="form-group os-span-3"><label for="os_diagnostico">Solução / diagnóstico</label><textarea id="os_diagnostico" name="os_diagnostico" class="form-control os-textarea">{{ os.diagnostico or '' }}</textarea></div>
-                        <div class="form-group os-span-3"><label for="os_laudo">Laudo</label><textarea id="os_laudo" name="os_laudo" class="form-control os-textarea">{{ os.laudo or '' }}</textarea></div>
-                        <div class="form-group os-span-3"><label for="os_termos">Termos</label><textarea id="os_termos" name="os_termos" class="form-control os-textarea">{{ os.termos or '' }}</textarea></div>
-                        <div class="form-group os-span-6"><label for="os_local_servico">Local do serviço</label><input id="os_local_servico" name="os_local_servico" type="text" value="{{ os.local_servico or '' }}" class="form-control"></div>
+                    <div id="equipamentos-container">
+                        <div class="os-equipamento-bloco">
+                            <div class="os-equipamento-topo"><span>Equipamento principal</span></div>
+                            <div class="os-grid-6">
+                                <div class="form-group os-span-3"><label for="os_equipamento">Equipamento</label><input id="os_equipamento" name="os_equipamento" type="text" value="{{ os.equipamento or '' }}" class="form-control"></div>
+                                <div class="form-group"><label for="os_marca">Marca</label><input id="os_marca" name="os_marca" type="text" value="{{ os.marca or '' }}" class="form-control"></div>
+                                <div class="form-group"><label for="os_modelo">Modelo</label><input id="os_modelo" name="os_modelo" type="text" value="{{ os.modelo or '' }}" class="form-control"></div>
+                                <div class="form-group"><label for="os_serie">Série</label><input id="os_serie" name="os_serie" type="text" value="{{ os.serie or '' }}" class="form-control"></div>
+                                <div class="form-group os-span-3"><label for="os_condicoes">Condições</label><textarea id="os_condicoes" name="os_condicoes" class="form-control os-textarea">{{ os.condicoes or '' }}</textarea></div>
+                                <div class="form-group os-span-3"><label for="os_relato_cliente">Defeitos / relato do cliente</label><textarea id="os_relato_cliente" name="os_relato_cliente" class="form-control os-textarea">{{ os.relato_cliente or '' }}</textarea></div>
+                                <div class="form-group os-span-3"><label for="os_acessorios">Acessórios</label><textarea id="os_acessorios" name="os_acessorios" class="form-control os-textarea">{{ os.acessorios or '' }}</textarea></div>
+                                <div class="form-group os-span-3"><label for="os_diagnostico">Solução / diagnóstico</label><textarea id="os_diagnostico" name="os_diagnostico" class="form-control os-textarea">{{ os.diagnostico or '' }}</textarea></div>
+                                <div class="form-group os-span-3"><label for="os_laudo">Laudo</label><textarea id="os_laudo" name="os_laudo" class="form-control os-textarea">{{ os.laudo or '' }}</textarea></div>
+                                <div class="form-group os-span-3"><label for="os_termos">Termos</label><textarea id="os_termos" name="os_termos" class="form-control os-textarea">{{ os.termos or '' }}</textarea></div>
+                                <div class="form-group os-span-6"><label for="os_local_servico">Local do serviço</label><input id="os_local_servico" name="os_local_servico" type="text" value="{{ os.local_servico or '' }}" class="form-control"></div>
+                            </div>
+                        </div>
                     </div>
+                    <div class="os-actions-line"><button type="button" class="btn-dark" onclick="adicionarEquipamento()">+ Adicionar equipamento</button></div>
                 </div>
             </section>
 
@@ -638,6 +680,52 @@ Motivo: Criar registro fotografico antes e depois do equipamento na OS.
                     exigirItemOuRelato: true
                 });
             });
+        </script>
+
+
+        <script>
+            let contadorEquipamentos = 1;
+
+            function adicionarEquipamento() {
+                contadorEquipamentos += 1;
+
+                const container = document.getElementById("equipamentos-container");
+                if (!container) {
+                    return;
+                }
+
+                const bloco = document.createElement("div");
+                bloco.className = "os-equipamento-bloco os-equipamento-bloco-extra";
+
+                bloco.innerHTML = `
+                    <div class="os-equipamento-topo">
+                        <span>Equipamento adicional ${contadorEquipamentos}</span>
+                        <button type="button" class="os-remove-equipment" title="Remover equipamento" aria-label="Remover equipamento" onclick="removerEquipamento(this)">×</button>
+                    </div>
+                    <div class="os-grid-6">
+                        <div class="form-group os-span-3"><label>Equipamento</label><input name="os_equipamento" type="text" placeholder="Ex.: portão, máquina, veículo" class="form-control"></div>
+                        <div class="form-group"><label>Marca</label><input name="os_marca" type="text" class="form-control"></div>
+                        <div class="form-group"><label>Modelo</label><input name="os_modelo" type="text" class="form-control"></div>
+                        <div class="form-group"><label>Série</label><input name="os_serie" type="text" class="form-control"></div>
+                        <div class="form-group os-span-3"><label>Condições</label><textarea name="os_condicoes" class="form-control os-textarea" placeholder="Condições encontradas"></textarea></div>
+                        <div class="form-group os-span-3"><label>Defeitos / relato do cliente</label><textarea name="os_relato_cliente" class="form-control os-textarea" placeholder="Problema informado pelo cliente"></textarea></div>
+                        <div class="form-group os-span-3"><label>Acessórios</label><textarea name="os_acessorios" class="form-control os-textarea" placeholder="Acessórios recebidos ou vinculados"></textarea></div>
+                        <div class="form-group os-span-3"><label>Solução / diagnóstico</label><textarea name="os_diagnostico" class="form-control os-textarea" placeholder="Diagnóstico técnico e solução proposta"></textarea></div>
+                        <div class="form-group os-span-3"><label>Laudo</label><textarea name="os_laudo" class="form-control os-textarea" placeholder="Laudo técnico, quando aplicável"></textarea></div>
+                        <div class="form-group os-span-3"><label>Termos</label><textarea name="os_termos" class="form-control os-textarea" placeholder="Termos e condições do atendimento"></textarea></div>
+                        <div class="form-group os-span-6"><label>Local do serviço</label><input name="os_local_servico" type="text" placeholder="Ex.: portaria principal, linha 2, área técnica" class="form-control"></div>
+                    </div>
+                `;
+
+                container.appendChild(bloco);
+            }
+
+            function removerEquipamento(botao) {
+                const bloco = botao.closest(".os-equipamento-bloco");
+                if (bloco) {
+                    bloco.remove();
+                }
+            }
         </script>
 
 
