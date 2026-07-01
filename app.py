@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-01 09:20 (America/Bahia)
-# Motivo: Integrar materiais e mão de obra ao Gerador de Orçamentos com cadastro rápido e custos de funcionários.
+# Último recode: 2026-07-01 12:20 (America/Bahia)
+# Motivo: Criar acompanhamento diário de OS com link temporário de 24 horas.
 
 from __future__ import annotations
 
@@ -265,6 +265,7 @@ def exigir_login_rotas_internas() -> Response | None:
         "login",
         "health",
         "twilio_webhook",
+        "acompanhamento_os_publico",
         "static",
     }
 
@@ -636,6 +637,34 @@ def iniciar_banco() -> None:
 
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS os_acompanhamentos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER,
+                ordem_servico_id INTEGER NOT NULL,
+                token TEXT NOT NULL UNIQUE,
+                data_acompanhamento TEXT,
+                responsavel TEXT,
+                status_link TEXT NOT NULL DEFAULT 'ativo',
+                status_dia TEXT NOT NULL DEFAULT 'aberto',
+                atividades_previstas TEXT,
+                equipe_prevista TEXT,
+                materiais_previstos TEXT,
+                atividades_executadas TEXT,
+                equipe_real TEXT,
+                materiais_utilizados TEXT,
+                observacoes TEXT,
+                aberto_em TEXT,
+                finalizado_em TEXT,
+                expira_em TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                atualizado_em TEXT,
+                FOREIGN KEY (ordem_servico_id) REFERENCES ordens_servico (id)
+            )
+            """
+        )
+
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS estoque_movimentacoes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 produto_id INTEGER,
@@ -990,6 +1019,7 @@ def iniciar_banco() -> None:
             "venda_itens",
             "ordens_servico",
             "ordem_servico_itens",
+            "os_acompanhamentos",
             "estoque_movimentacoes",
             "financeiro_titulos",
             "caixa_aberturas",
@@ -4144,6 +4174,303 @@ def listar_ordem_servico_itens(ordem_servico_id: int) -> list[dict[str, Any]]:
         ).fetchall()
 
     return [dict(row) for row in rows]
+
+
+def listar_acompanhamentos_ordem_servico(ordem_servico_id: int) -> list[dict[str, Any]]:
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                id,
+                empresa_id,
+                ordem_servico_id,
+                token,
+                data_acompanhamento,
+                responsavel,
+                status_link,
+                status_dia,
+                atividades_previstas,
+                equipe_prevista,
+                materiais_previstos,
+                atividades_executadas,
+                equipe_real,
+                materiais_utilizados,
+                observacoes,
+                aberto_em,
+                finalizado_em,
+                expira_em,
+                criado_em,
+                atualizado_em
+            FROM os_acompanhamentos
+            WHERE ordem_servico_id = ?
+              AND empresa_id = ?
+            ORDER BY id DESC
+            """,
+            (ordem_servico_id, empresa_id),
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def montar_url_acompanhamento_os(token: Any) -> str:
+    token_normalizado = str(token or "").strip()
+
+    if not token_normalizado:
+        return ""
+
+    base_url = request.url_root.rstrip("/") if request else ""
+
+    return f"{base_url}/os/acompanhamento/{token_normalizado}"
+
+
+def gerar_acompanhamento_diario_os(ordem_servico_id: int) -> tuple[bool, str, dict[str, Any] | None]:
+    ordem_servico = buscar_ordem_servico_por_id(ordem_servico_id)
+
+    if ordem_servico is None:
+        return False, "OS não encontrada.", None
+
+    status_os = str(ordem_servico.get("status") or "").strip().lower()
+
+    if status_os != "andamento":
+        return False, "O link de acompanhamento só pode ser gerado quando a OS estiver em andamento.", None
+
+    empresa_id = empresa_logada_id()
+    hoje = date.today().isoformat()
+    agora = datetime.now()
+    expira_em = agora + timedelta(hours=24)
+
+    with conectar_db() as conn:
+        acompanhamento_existente = conn.execute(
+            """
+            SELECT
+                id,
+                empresa_id,
+                ordem_servico_id,
+                token,
+                data_acompanhamento,
+                responsavel,
+                status_link,
+                status_dia,
+                atividades_previstas,
+                equipe_prevista,
+                materiais_previstos,
+                atividades_executadas,
+                equipe_real,
+                materiais_utilizados,
+                observacoes,
+                aberto_em,
+                finalizado_em,
+                expira_em,
+                criado_em,
+                atualizado_em
+            FROM os_acompanhamentos
+            WHERE ordem_servico_id = ?
+              AND empresa_id = ?
+              AND data_acompanhamento = ?
+              AND status_link = 'ativo'
+              AND status_dia <> 'finalizado'
+              AND datetime(expira_em) > datetime(?)
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            (ordem_servico_id, empresa_id, hoje, agora.isoformat(timespec="seconds")),
+        ).fetchone()
+
+        if acompanhamento_existente is not None:
+            return True, "Já existe um link ativo para o acompanhamento de hoje.", dict(acompanhamento_existente)
+
+        token = secrets.token_urlsafe(32)
+
+        cursor = conn.execute(
+            """
+            INSERT INTO os_acompanhamentos (
+                empresa_id,
+                ordem_servico_id,
+                token,
+                data_acompanhamento,
+                responsavel,
+                status_link,
+                status_dia,
+                aberto_em,
+                expira_em,
+                atualizado_em
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                empresa_id,
+                ordem_servico_id,
+                token,
+                hoje,
+                str(ordem_servico.get("responsavel") or ordem_servico.get("tecnico") or ""),
+                "ativo",
+                "aberto",
+                agora.isoformat(timespec="seconds"),
+                expira_em.isoformat(timespec="seconds"),
+                agora.isoformat(timespec="seconds"),
+            ),
+        )
+
+        acompanhamento_id = int(cursor.lastrowid)
+        conn.commit()
+
+        row = conn.execute(
+            """
+            SELECT
+                id,
+                empresa_id,
+                ordem_servico_id,
+                token,
+                data_acompanhamento,
+                responsavel,
+                status_link,
+                status_dia,
+                atividades_previstas,
+                equipe_prevista,
+                materiais_previstos,
+                atividades_executadas,
+                equipe_real,
+                materiais_utilizados,
+                observacoes,
+                aberto_em,
+                finalizado_em,
+                expira_em,
+                criado_em,
+                atualizado_em
+            FROM os_acompanhamentos
+            WHERE id = ?
+            LIMIT 1
+            """,
+            (acompanhamento_id,),
+        ).fetchone()
+
+    if row is None:
+        return False, "Não foi possível recuperar o link gerado.", None
+
+    return True, "Link de acompanhamento gerado com sucesso.", dict(row)
+
+
+def buscar_acompanhamento_os_por_token(token: Any) -> dict[str, Any] | None:
+    token_normalizado = str(token or "").strip()
+
+    if not token_normalizado:
+        return None
+
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                os_acompanhamentos.id,
+                os_acompanhamentos.empresa_id,
+                os_acompanhamentos.ordem_servico_id,
+                os_acompanhamentos.token,
+                os_acompanhamentos.data_acompanhamento,
+                os_acompanhamentos.responsavel,
+                os_acompanhamentos.status_link,
+                os_acompanhamentos.status_dia,
+                os_acompanhamentos.atividades_previstas,
+                os_acompanhamentos.equipe_prevista,
+                os_acompanhamentos.materiais_previstos,
+                os_acompanhamentos.atividades_executadas,
+                os_acompanhamentos.equipe_real,
+                os_acompanhamentos.materiais_utilizados,
+                os_acompanhamentos.observacoes,
+                os_acompanhamentos.aberto_em,
+                os_acompanhamentos.finalizado_em,
+                os_acompanhamentos.expira_em,
+                os_acompanhamentos.criado_em,
+                os_acompanhamentos.atualizado_em,
+                ordens_servico.numero AS os_numero,
+                ordens_servico.cliente AS os_cliente,
+                ordens_servico.local_servico AS os_local_servico,
+                ordens_servico.equipamento AS os_equipamento,
+                ordens_servico.status AS os_status,
+                ordens_servico.relato_cliente AS os_relato_cliente,
+                ordens_servico.diagnostico AS os_diagnostico,
+                ordens_servico.servico_executado AS os_servico_executado
+            FROM os_acompanhamentos
+            JOIN ordens_servico ON ordens_servico.id = os_acompanhamentos.ordem_servico_id
+            WHERE os_acompanhamentos.token = ?
+            LIMIT 1
+            """,
+            (token_normalizado,),
+        ).fetchone()
+
+    if row is None:
+        return None
+
+    return dict(row)
+
+
+def acompanhamento_os_esta_expirado(acompanhamento: dict[str, Any]) -> bool:
+    expira_em = str(acompanhamento.get("expira_em") or "").strip()
+
+    if not expira_em:
+        return True
+
+    try:
+        return datetime.fromisoformat(expira_em) < datetime.now()
+    except ValueError:
+        return True
+
+
+def atualizar_acompanhamento_os_publico(token: Any, dados: dict[str, str], finalizar: bool = False) -> bool:
+    acompanhamento = buscar_acompanhamento_os_por_token(token)
+
+    if acompanhamento is None:
+        return False
+
+    if acompanhamento_os_esta_expirado(acompanhamento):
+        return False
+
+    if str(acompanhamento.get("os_status") or "").strip().lower() != "andamento":
+        return False
+
+    if str(acompanhamento.get("status_dia") or "").strip().lower() == "finalizado":
+        return False
+
+    agora = datetime.now().isoformat(timespec="seconds")
+    status_dia = "finalizado" if finalizar else "aberto"
+    finalizado_em = agora if finalizar else str(acompanhamento.get("finalizado_em") or "")
+
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            UPDATE os_acompanhamentos
+            SET
+                responsavel = ?,
+                status_dia = ?,
+                atividades_previstas = ?,
+                equipe_prevista = ?,
+                materiais_previstos = ?,
+                atividades_executadas = ?,
+                equipe_real = ?,
+                materiais_utilizados = ?,
+                observacoes = ?,
+                finalizado_em = ?,
+                atualizado_em = ?
+            WHERE token = ?
+            """,
+            (
+                dados.get("responsavel", ""),
+                status_dia,
+                dados.get("atividades_previstas", ""),
+                dados.get("equipe_prevista", ""),
+                dados.get("materiais_previstos", ""),
+                dados.get("atividades_executadas", ""),
+                dados.get("equipe_real", ""),
+                dados.get("materiais_utilizados", ""),
+                dados.get("observacoes", ""),
+                finalizado_em,
+                agora,
+                str(token or "").strip(),
+            ),
+        )
+        conn.commit()
+
+    return True
+
 
 def _converter_data_iso(valor: Any) -> date | None:
     texto = str(valor or "").strip()
@@ -7767,6 +8094,11 @@ def ver_ordem_servico(ordem_servico_id: int) -> str | Response:
     itens = listar_ordem_servico_itens(ordem_servico_id)
     itens_produtos = [item for item in itens if item["tipo_item"] == "produto"]
     itens_servicos = [item for item in itens if item["tipo_item"] == "servico"]
+    acompanhamentos = listar_acompanhamentos_ordem_servico(ordem_servico_id)
+    token_gerado = (request.args.get("link") or "").strip()
+    acompanhamento_url_gerada = montar_url_acompanhamento_os(token_gerado)
+    acompanhamento_mensagem = (request.args.get("mensagem") or "").strip()
+    acompanhamento_erro = (request.args.get("erro") or "").strip()
 
     return render_template(
         "ordem_servico_detalhe.html",
@@ -7774,6 +8106,10 @@ def ver_ordem_servico(ordem_servico_id: int) -> str | Response:
         itens=itens,
         itens_produtos=itens_produtos,
         itens_servicos=itens_servicos,
+        acompanhamentos=acompanhamentos,
+        acompanhamento_url_gerada=acompanhamento_url_gerada,
+        acompanhamento_mensagem=acompanhamento_mensagem,
+        acompanhamento_erro=acompanhamento_erro,
     )
 
 
@@ -7822,6 +8158,84 @@ def imprimir_ordem_servico_cupom(ordem_servico_id: int) -> str | Response:
         empresa=contexto_impressao["empresa"],
         loja=contexto_impressao["loja"],
         cliente=contexto_impressao["cliente"],
+    )
+
+
+
+@app.get("/ordens-servico/<int:ordem_servico_id>/gerar/acompanhamento")
+def gerar_link_acompanhamento_ordem_servico(ordem_servico_id: int) -> Response:
+    sucesso, mensagem, acompanhamento = gerar_acompanhamento_diario_os(ordem_servico_id)
+
+    if not sucesso or acompanhamento is None:
+        return redirect(url_for("ver_ordem_servico", ordem_servico_id=ordem_servico_id, erro=mensagem))
+
+    return redirect(
+        url_for(
+            "ver_ordem_servico",
+            ordem_servico_id=ordem_servico_id,
+            link=str(acompanhamento.get("token") or ""),
+            mensagem=mensagem,
+        )
+    )
+
+
+@app.route("/os/acompanhamento/<token>", methods=["GET", "POST"])
+def acompanhamento_os_publico(token: str) -> str:
+    acompanhamento = buscar_acompanhamento_os_por_token(token)
+    mensagem = ""
+    erro = ""
+
+    if acompanhamento is None:
+        return render_template(
+            "os_acompanhamento_publico.html",
+            acompanhamento=None,
+            bloqueado=True,
+            erro="Link de acompanhamento não encontrado.",
+            mensagem="",
+        )
+
+    bloqueado = False
+
+    if acompanhamento_os_esta_expirado(acompanhamento):
+        bloqueado = True
+        erro = "Este link de acompanhamento expirou. Solicite um novo link."
+    elif str(acompanhamento.get("os_status") or "").strip().lower() != "andamento":
+        bloqueado = True
+        erro = "Esta Ordem de Serviço não está disponível para acompanhamento diário."
+    elif str(acompanhamento.get("status_dia") or "").strip().lower() == "finalizado":
+        bloqueado = True
+        mensagem = "A atividade do dia já foi finalizada."
+
+    if request.method == "POST" and not bloqueado:
+        acao = str(request.form.get("acao") or "salvar").strip().lower()
+        finalizar = acao == "finalizar"
+        dados = {
+            "responsavel": str(request.form.get("responsavel") or "").strip(),
+            "atividades_previstas": str(request.form.get("atividades_previstas") or "").strip(),
+            "equipe_prevista": str(request.form.get("equipe_prevista") or "").strip(),
+            "materiais_previstos": str(request.form.get("materiais_previstos") or "").strip(),
+            "atividades_executadas": str(request.form.get("atividades_executadas") or "").strip(),
+            "equipe_real": str(request.form.get("equipe_real") or "").strip(),
+            "materiais_utilizados": str(request.form.get("materiais_utilizados") or "").strip(),
+            "observacoes": str(request.form.get("observacoes") or "").strip(),
+        }
+
+        atualizado = atualizar_acompanhamento_os_publico(token, dados, finalizar=finalizar)
+
+        if atualizado:
+            mensagem = "Acompanhamento finalizado com sucesso." if finalizar else "Acompanhamento salvo com sucesso."
+            acompanhamento = buscar_acompanhamento_os_por_token(token) or acompanhamento
+            bloqueado = finalizar
+        else:
+            erro = "Não foi possível salvar o acompanhamento. Verifique se o link ainda está ativo."
+            acompanhamento = buscar_acompanhamento_os_por_token(token) or acompanhamento
+
+    return render_template(
+        "os_acompanhamento_publico.html",
+        acompanhamento=acompanhamento,
+        bloqueado=bloqueado,
+        erro=erro,
+        mensagem=mensagem,
     )
 
 

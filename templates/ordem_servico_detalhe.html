@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordem_servico_detalhe.html
-Último recode: 2026-06-18 21:20 (America/Bahia)
-Motivo: Padronizar links do menu lateral na primeira leva de telas.
+Último recode: 2026-07-01 12:20 (America/Bahia)
+Motivo: Exibir link e histórico de acompanhamento diário na OS.
 -->
 
 <!DOCTYPE html>
@@ -30,6 +30,9 @@ Motivo: Padronizar links do menu lateral na primeira leva de telas.
                 </div>
                 <div class="client-toolbar">
                     <a href="/ordens-servico" class="btn-light">Voltar para OS</a>
+                    {% if os.status == 'andamento' %}
+                        <a href="/ordens-servico/{{ os.id }}/gerar/acompanhamento" class="btn-primary-green">Gerar link diário</a>
+                    {% endif %}
                     <button type="button" class="btn-dark" disabled>Editar OS</button>
                     <button type="button" class="btn-primary-green" disabled>Imprimir</button>
                 </div>
@@ -134,6 +137,70 @@ Motivo: Padronizar links do menu lateral na primeira leva de telas.
                 <div class="form-group"><label>Observações internas</label><div class="form-control">{{ os.observacoes_internas or '-' }}</div></div>
             </div>
         </section>
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Acompanhamento diário</h3>
+                    <p class="page-subtitle">Link temporário de 24 horas para o responsável informar as atividades do dia.</p>
+                </div>
+                {% if os.status == 'andamento' %}
+                    <a href="/ordens-servico/{{ os.id }}/gerar/acompanhamento" class="btn-primary-green">Gerar link diário</a>
+                {% else %}
+                    <button type="button" class="btn-light" disabled>Disponível somente em andamento</button>
+                {% endif %}
+            </div>
+
+            {% if acompanhamento_erro %}
+                <div class="form-group">
+                    <div class="form-control" style="border-color:#fecaca;background:#fef2f2;color:#991b1b;font-weight:800;">{{ acompanhamento_erro }}</div>
+                </div>
+            {% endif %}
+
+            {% if acompanhamento_url_gerada %}
+                <div class="form-group">
+                    <label>Link gerado</label>
+                    <input type="text" class="form-control" value="{{ acompanhamento_url_gerada }}" readonly onclick="this.select();">
+                </div>
+                {% if acompanhamento_mensagem %}
+                    <div class="form-group">
+                        <div class="form-control" style="border-color:#bbf7d0;background:#f0fdf4;color:#166534;font-weight:800;">{{ acompanhamento_mensagem }}</div>
+                    </div>
+                {% endif %}
+            {% endif %}
+
+            <div class="table-shell">
+                <table class="client-table">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Responsável</th>
+                            <th>Status do dia</th>
+                            <th>Expira em</th>
+                            <th>Atividades previstas</th>
+                            <th>Atividades executadas</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if acompanhamentos %}
+                            {% for acompanhamento in acompanhamentos %}
+                                <tr>
+                                    <td>{{ acompanhamento.data_acompanhamento or '-' }}</td>
+                                    <td>{{ acompanhamento.responsavel or '-' }}</td>
+                                    <td>{{ acompanhamento.status_dia or '-' }}</td>
+                                    <td>{{ acompanhamento.expira_em or '-' }}</td>
+                                    <td>{{ acompanhamento.atividades_previstas or '-' }}</td>
+                                    <td>{{ acompanhamento.atividades_executadas or '-' }}</td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr><td colspan="6" class="empty-table">Nenhum acompanhamento diário registrado.</td></tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
     </main>
 </body>
 </html>

@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordens_servico.html
-Último recode: 2026-06-29 23:10 (America/Bahia)
-Motivo: Travar campos obrigatórios e totais automáticos no cadastro de OS.
+Último recode: 2026-07-01 12:20 (America/Bahia)
+Motivo: Criar menu Gerar na lista de OS com link de acompanhamento diário.
 -->
 
 <!DOCTYPE html>
@@ -655,6 +655,13 @@ Motivo: Travar campos obrigatórios e totais automáticos no cadastro de OS.
                                                                 <a href="/ordens-servico/{{ os.id }}/imprimir/cupom" target="_blank">Cupom</a>
                                                             </div>
                                                         </details>
+                                                        <details class="budget-action-submenu">
+                                                            <summary>↪ Gerar</summary>
+                                                            <div class="budget-action-subitems">
+                                                                <a href="/ordens-servico/{{ os.id }}/gerar/acompanhamento">Link de acompanhamento</a>
+                                                                <a href="/ordens-servico/{{ os.id }}/gerar/copia">Cópia</a>
+                                                            </div>
+                                                        </details>
                                                     </div>
                                                 </details>
                                             </div>
@@ -830,7 +837,7 @@ Motivo: Travar campos obrigatórios e totais automáticos no cadastro de OS.
                     left = window.innerWidth - largura - margem;
                 }
 
-                const alturaEstimativa = 120;
+                const alturaEstimativa = 180;
                 let top = rect.bottom + margem;
 
                 if (top + alturaEstimativa > window.innerHeight - margem) {

@@ -1,0 +1,238 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\os_acompanhamento_publico.html
+Último recode: 2026-07-01 12:20 (America/Bahia)
+Motivo: Criar tela pública para acompanhamento diário da Ordem de Serviço.
+-->
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Acompanhamento Diário da OS</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        body {
+            background: #eef4fb;
+        }
+
+        .public-os-wrapper {
+            width: min(980px, calc(100% - 28px));
+            margin: 28px auto;
+        }
+
+        .public-os-header {
+            background: #ffffff;
+            border: 1px solid #dbe3ef;
+            border-radius: 18px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+        }
+
+        .public-os-header h1 {
+            margin: 0 0 6px;
+            color: #0f172a;
+            font-size: 24px;
+        }
+
+        .public-os-header p {
+            margin: 0;
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        .public-os-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .public-os-info {
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 12px;
+            background: #f8fafc;
+        }
+
+        .public-os-info span {
+            display: block;
+            color: #64748b;
+            font-size: 12px;
+            margin-bottom: 4px;
+        }
+
+        .public-os-info strong {
+            color: #0f172a;
+            font-size: 14px;
+        }
+
+        .public-os-panel {
+            background: #ffffff;
+            border: 1px solid #dbe3ef;
+            border-radius: 18px;
+            padding: 20px;
+            box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+        }
+
+        .public-os-section-title {
+            margin: 0 0 14px;
+            color: #0f172a;
+            font-size: 18px;
+        }
+
+        .public-os-form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .public-os-span-2 {
+            grid-column: span 2;
+        }
+
+        .public-os-textarea {
+            min-height: 110px;
+            resize: vertical;
+        }
+
+        .public-os-alert {
+            border-radius: 12px;
+            padding: 12px 14px;
+            margin-bottom: 14px;
+            font-weight: 800;
+        }
+
+        .public-os-alert-error {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #991b1b;
+        }
+
+        .public-os-alert-success {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            color: #166534;
+        }
+
+        .public-os-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        @media (max-width: 760px) {
+            .public-os-grid,
+            .public-os-form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .public-os-span-2 {
+                grid-column: span 1;
+            }
+
+            .public-os-actions {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="public-os-wrapper">
+        <section class="public-os-header">
+            <h1>Acompanhamento diário da OS</h1>
+            <p>Preencha as atividades do dia, equipe envolvida, materiais utilizados e observações da execução.</p>
+
+            {% if acompanhamento %}
+                <div class="public-os-grid">
+                    <div class="public-os-info"><span>OS</span><strong>{{ acompanhamento.os_numero or acompanhamento.ordem_servico_id }}</strong></div>
+                    <div class="public-os-info"><span>Cliente</span><strong>{{ acompanhamento.os_cliente or '-' }}</strong></div>
+                    <div class="public-os-info"><span>Data</span><strong>{{ acompanhamento.data_acompanhamento or '-' }}</strong></div>
+                    <div class="public-os-info"><span>Local</span><strong>{{ acompanhamento.os_local_servico or '-' }}</strong></div>
+                    <div class="public-os-info"><span>Equipamento</span><strong>{{ acompanhamento.os_equipamento or '-' }}</strong></div>
+                    <div class="public-os-info"><span>Status da OS</span><strong>{{ acompanhamento.os_status or '-' }}</strong></div>
+                </div>
+            {% endif %}
+        </section>
+
+        <section class="public-os-panel">
+            {% if erro %}
+                <div class="public-os-alert public-os-alert-error">{{ erro }}</div>
+            {% endif %}
+
+            {% if mensagem %}
+                <div class="public-os-alert public-os-alert-success">{{ mensagem }}</div>
+            {% endif %}
+
+            {% if acompanhamento and not bloqueado %}
+                <form method="post">
+                    <h2 class="public-os-section-title">Registro do dia</h2>
+
+                    <div class="public-os-form-grid">
+                        <div class="form-group public-os-span-2">
+                            <label for="responsavel">Responsável pelo preenchimento</label>
+                            <input id="responsavel" name="responsavel" type="text" class="form-control" value="{{ acompanhamento.responsavel or '' }}" placeholder="Nome do responsável">
+                        </div>
+
+                        <div class="form-group public-os-span-2">
+                            <label for="atividades_previstas">Atividades previstas para hoje</label>
+                            <textarea id="atividades_previstas" name="atividades_previstas" class="form-control public-os-textarea" placeholder="Informe o que será feito hoje">{{ acompanhamento.atividades_previstas or '' }}</textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="equipe_prevista">Equipe prevista</label>
+                            <textarea id="equipe_prevista" name="equipe_prevista" class="form-control public-os-textarea" placeholder="Informe a equipe envolvida">{{ acompanhamento.equipe_prevista or '' }}</textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="materiais_previstos">Materiais previstos</label>
+                            <textarea id="materiais_previstos" name="materiais_previstos" class="form-control public-os-textarea" placeholder="Informe os materiais previstos para uso">{{ acompanhamento.materiais_previstos or '' }}</textarea>
+                        </div>
+
+                        <div class="form-group public-os-span-2">
+                            <label for="atividades_executadas">Atividades executadas no dia</label>
+                            <textarea id="atividades_executadas" name="atividades_executadas" class="form-control public-os-textarea" placeholder="Informe o que foi realmente executado">{{ acompanhamento.atividades_executadas or '' }}</textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="equipe_real">Equipe real envolvida</label>
+                            <textarea id="equipe_real" name="equipe_real" class="form-control public-os-textarea" placeholder="Informe quem participou da execução">{{ acompanhamento.equipe_real or '' }}</textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="materiais_utilizados">Materiais utilizados</label>
+                            <textarea id="materiais_utilizados" name="materiais_utilizados" class="form-control public-os-textarea" placeholder="Informe os materiais realmente utilizados">{{ acompanhamento.materiais_utilizados or '' }}</textarea>
+                        </div>
+
+                        <div class="form-group public-os-span-2">
+                            <label for="observacoes">Observações</label>
+                            <textarea id="observacoes" name="observacoes" class="form-control public-os-textarea" placeholder="Informe paradas, pendências, impedimentos ou observações importantes">{{ acompanhamento.observacoes or '' }}</textarea>
+                        </div>
+                    </div>
+
+                    <div class="public-os-actions">
+                        <button type="submit" name="acao" value="salvar" class="btn-dark">Salvar andamento</button>
+                        <button type="submit" name="acao" value="finalizar" class="btn-primary-green" onclick="return confirm('Deseja finalizar a atividade do dia? Depois disso o registro ficará bloqueado.');">Finalizar dia</button>
+                    </div>
+                </form>
+            {% elif acompanhamento %}
+                <h2 class="public-os-section-title">Resumo registrado</h2>
+                <div class="public-os-form-grid">
+                    <div class="form-group public-os-span-2"><label>Responsável</label><div class="form-control">{{ acompanhamento.responsavel or '-' }}</div></div>
+                    <div class="form-group public-os-span-2"><label>Atividades previstas</label><div class="form-control">{{ acompanhamento.atividades_previstas or '-' }}</div></div>
+                    <div class="form-group"><label>Equipe prevista</label><div class="form-control">{{ acompanhamento.equipe_prevista or '-' }}</div></div>
+                    <div class="form-group"><label>Materiais previstos</label><div class="form-control">{{ acompanhamento.materiais_previstos or '-' }}</div></div>
+                    <div class="form-group public-os-span-2"><label>Atividades executadas</label><div class="form-control">{{ acompanhamento.atividades_executadas or '-' }}</div></div>
+                    <div class="form-group"><label>Equipe real</label><div class="form-control">{{ acompanhamento.equipe_real or '-' }}</div></div>
+                    <div class="form-group"><label>Materiais utilizados</label><div class="form-control">{{ acompanhamento.materiais_utilizados or '-' }}</div></div>
+                    <div class="form-group public-os-span-2"><label>Observações</label><div class="form-control">{{ acompanhamento.observacoes or '-' }}</div></div>
+                </div>
+            {% else %}
+                <p>Não foi possível abrir o acompanhamento diário.</p>
+            {% endif %}
+        </section>
+    </main>
+</body>
+</html>
