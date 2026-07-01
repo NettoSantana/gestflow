@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-01 14:05 (America/Bahia)
-# Motivo: Exibir acompanhamento diário da OS também na impressão A4.
+# Último recode: 2026-07-01 14:35 (America/Bahia)
+# Motivo: Criar registro fotografico antes e depois vinculado a OS.
 
 from __future__ import annotations
 
@@ -29,7 +29,10 @@ DB_PATH = DATA_DIR / "gestflow.db"
 
 UPLOAD_DIR = DATA_DIR / "uploads" / "logos"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+OS_FOTOS_DIR = DATA_DIR / "uploads" / "os_fotos"
+OS_FOTOS_DIR.mkdir(parents=True, exist_ok=True)
 EXTENSOES_LOGO_PERMITIDAS = {"png", "jpg", "jpeg", "webp", "gif"}
+EXTENSOES_FOTO_OS_PERMITIDAS = {"png", "jpg", "jpeg", "webp"}
 
 
 def _twiml_message(text: str) -> str:
@@ -266,6 +269,7 @@ def exigir_login_rotas_internas() -> Response | None:
         "health",
         "twilio_webhook",
         "acompanhamento_os_publico",
+        "servir_foto_os",
         "static",
     }
 
@@ -630,6 +634,23 @@ def iniciar_banco() -> None:
                 desconto TEXT,
                 subtotal TEXT,
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (ordem_servico_id) REFERENCES ordens_servico (id)
+            )
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS os_fotos_equipamento (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER,
+                ordem_servico_id INTEGER NOT NULL,
+                titulo TEXT,
+                foto_antes_path TEXT,
+                foto_depois_path TEXT,
+                observacoes TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                atualizado_em TEXT,
                 FOREIGN KEY (ordem_servico_id) REFERENCES ordens_servico (id)
             )
             """
@@ -1072,6 +1093,7 @@ def iniciar_banco() -> None:
             "venda_itens",
             "ordens_servico",
             "ordem_servico_itens",
+            "os_fotos_equipamento",
             "os_acompanhamentos",
             "os_acompanhamento_equipe",
             "os_acompanhamento_materiais",
@@ -6100,6 +6122,186 @@ def salvar_upload_logo_empresa(arquivo) -> str:
     return f"/uploads/logos/{nome_final}"
 
 
+
+def _extensao_foto_os_permitida(nome_arquivo: str) -> bool:
+    if "." not in nome_arquivo:
+        return False
+
+    extensao = nome_arquivo.rsplit(".", 1)[1].lower()
+    return extensao in EXTENSOES_FOTO_OS_PERMITIDAS
+
+
+def salvar_upload_foto_os(arquivo, ordem_servico_id: int, tipo_foto: str) -> str:
+    nome_seguro = secure_filename(arquivo.filename or "")
+
+    if not nome_seguro:
+        return ""
+
+    if not _extensao_foto_os_permitida(nome_seguro):
+        raise ValueError("Formato de foto inválido. Use PNG, JPG, JPEG ou WEBP.")
+
+    extensao = nome_seguro.rsplit(".", 1)[1].lower()
+    empresa_id = empresa_logada_id()
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
+    tipo_limpo = "".join(caractere for caractere in str(tipo_foto or "foto") if caractere.isalnum())[:16] or "foto"
+    nome_final = f"os_{empresa_id}_{int(ordem_servico_id)}_{tipo_limpo}_{timestamp}.{extensao}"
+    destino = OS_FOTOS_DIR / nome_final
+
+    arquivo.save(destino)
+
+    return f"/uploads/os-fotos/{nome_final}"
+
+
+def listar_fotos_equipamento_os(ordem_servico_id: int) -> list[dict[str, Any]]:
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                id,
+                empresa_id,
+                ordem_servico_id,
+                titulo,
+                foto_antes_path,
+                foto_depois_path,
+                observacoes,
+                criado_em,
+                atualizado_em
+            FROM os_fotos_equipamento
+            WHERE ordem_servico_id = ?
+              AND empresa_id = ?
+            ORDER BY id ASC
+            """,
+            (ordem_servico_id, empresa_id),
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def atualizar_fotos_equipamento_os_formulario(ordem_servico_id: int) -> None:
+    empresa_id = empresa_logada_id()
+    ids = request.form.getlist("foto_os_id")
+    titulos = request.form.getlist("foto_os_titulo")
+    observacoes_lista = request.form.getlist("foto_os_observacoes")
+    remover_ids = {
+        int(valor)
+        for valor in request.form.getlist("foto_os_remover")
+        if str(valor or "").strip().isdigit()
+    }
+    arquivos_antes = request.files.getlist("foto_os_antes")
+    arquivos_depois = request.files.getlist("foto_os_depois")
+    agora = datetime.now().isoformat(timespec="seconds")
+
+    total_linhas = max(
+        len(ids),
+        len(titulos),
+        len(observacoes_lista),
+        len(arquivos_antes),
+        len(arquivos_depois),
+    )
+
+    with conectar_db() as conn:
+        for indice in range(total_linhas):
+            foto_id_texto = str(ids[indice] if indice < len(ids) else "").strip()
+            foto_id = int(foto_id_texto) if foto_id_texto.isdigit() else None
+            titulo = str(titulos[indice] if indice < len(titulos) else "").strip()
+            observacoes = str(observacoes_lista[indice] if indice < len(observacoes_lista) else "").strip()
+            arquivo_antes = arquivos_antes[indice] if indice < len(arquivos_antes) else None
+            arquivo_depois = arquivos_depois[indice] if indice < len(arquivos_depois) else None
+
+            if foto_id is not None and foto_id in remover_ids:
+                conn.execute(
+                    """
+                    DELETE FROM os_fotos_equipamento
+                    WHERE id = ?
+                      AND ordem_servico_id = ?
+                      AND empresa_id = ?
+                    """,
+                    (foto_id, ordem_servico_id, empresa_id),
+                )
+                continue
+
+            foto_antes_path = ""
+            foto_depois_path = ""
+
+            if arquivo_antes is not None and arquivo_antes.filename:
+                foto_antes_path = salvar_upload_foto_os(arquivo_antes, ordem_servico_id, "antes")
+
+            if arquivo_depois is not None and arquivo_depois.filename:
+                foto_depois_path = salvar_upload_foto_os(arquivo_depois, ordem_servico_id, "depois")
+
+            if foto_id is not None:
+                row_atual = conn.execute(
+                    """
+                    SELECT foto_antes_path, foto_depois_path
+                    FROM os_fotos_equipamento
+                    WHERE id = ?
+                      AND ordem_servico_id = ?
+                      AND empresa_id = ?
+                    LIMIT 1
+                    """,
+                    (foto_id, ordem_servico_id, empresa_id),
+                ).fetchone()
+
+                if row_atual is None:
+                    continue
+
+                conn.execute(
+                    """
+                    UPDATE os_fotos_equipamento
+                    SET
+                        titulo = ?,
+                        foto_antes_path = ?,
+                        foto_depois_path = ?,
+                        observacoes = ?,
+                        atualizado_em = ?
+                    WHERE id = ?
+                      AND ordem_servico_id = ?
+                      AND empresa_id = ?
+                    """,
+                    (
+                        titulo,
+                        foto_antes_path or row_atual["foto_antes_path"] or "",
+                        foto_depois_path or row_atual["foto_depois_path"] or "",
+                        observacoes,
+                        agora,
+                        foto_id,
+                        ordem_servico_id,
+                        empresa_id,
+                    ),
+                )
+                continue
+
+            if not titulo and not observacoes and not foto_antes_path and not foto_depois_path:
+                continue
+
+            conn.execute(
+                """
+                INSERT INTO os_fotos_equipamento (
+                    empresa_id,
+                    ordem_servico_id,
+                    titulo,
+                    foto_antes_path,
+                    foto_depois_path,
+                    observacoes,
+                    atualizado_em
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    empresa_id,
+                    ordem_servico_id,
+                    titulo,
+                    foto_antes_path,
+                    foto_depois_path,
+                    observacoes,
+                    agora,
+                ),
+            )
+
+        conn.commit()
+
+
 def usuario_logado_eh_admin_sistema() -> bool:
     email = str(session.get("usuario_email") or "").strip().lower()
     perfil = str(session.get("usuario_perfil") or "").strip().lower()
@@ -6670,6 +6872,11 @@ def salvar_configuracoes_marca() -> Response:
 @app.get("/uploads/logos/<path:nome_arquivo>")
 def servir_logo_empresa(nome_arquivo: str) -> Response:
     return send_from_directory(UPLOAD_DIR, nome_arquivo)
+
+
+@app.get("/uploads/os-fotos/<path:nome_arquivo>")
+def servir_foto_os(nome_arquivo: str) -> Response:
+    return send_from_directory(OS_FOTOS_DIR, nome_arquivo)
 
 
 
@@ -8569,6 +8776,7 @@ def ver_ordem_servico(ordem_servico_id: int) -> str | Response:
     itens_produtos = [item for item in itens if item["tipo_item"] == "produto"]
     itens_servicos = [item for item in itens if item["tipo_item"] == "servico"]
     acompanhamentos = anexar_itens_aos_acompanhamentos(listar_acompanhamentos_ordem_servico(ordem_servico_id))
+    fotos_equipamento = listar_fotos_equipamento_os(ordem_servico_id)
     token_gerado = (request.args.get("link") or "").strip()
     acompanhamento_url_gerada = montar_url_acompanhamento_os(token_gerado)
     acompanhamento_mensagem = (request.args.get("mensagem") or "").strip()
@@ -8581,6 +8789,7 @@ def ver_ordem_servico(ordem_servico_id: int) -> str | Response:
         itens_produtos=itens_produtos,
         itens_servicos=itens_servicos,
         acompanhamentos=acompanhamentos,
+        fotos_equipamento=fotos_equipamento,
         acompanhamento_url_gerada=acompanhamento_url_gerada,
         acompanhamento_mensagem=acompanhamento_mensagem,
         acompanhamento_erro=acompanhamento_erro,
@@ -8598,6 +8807,7 @@ def imprimir_ordem_servico_a4(ordem_servico_id: int) -> str | Response:
     itens_produtos = [item for item in itens if item["tipo_item"] == "produto"]
     itens_servicos = [item for item in itens if item["tipo_item"] == "servico"]
     acompanhamentos = anexar_itens_aos_acompanhamentos(listar_acompanhamentos_ordem_servico(ordem_servico_id))
+    fotos_equipamento = listar_fotos_equipamento_os(ordem_servico_id)
     contexto_impressao = montar_contexto_impressao(ordem_servico.get("cliente"))
 
     return render_template(
@@ -8607,6 +8817,7 @@ def imprimir_ordem_servico_a4(ordem_servico_id: int) -> str | Response:
         itens_produtos=itens_produtos,
         itens_servicos=itens_servicos,
         acompanhamentos=acompanhamentos,
+        fotos_equipamento=fotos_equipamento,
         empresa=contexto_impressao["empresa"],
         loja=contexto_impressao["loja"],
         cliente=contexto_impressao["cliente"],
@@ -8776,6 +8987,7 @@ def editar_ordem_servico(ordem_servico_id: int) -> str | Response:
     funcionarios_lista = listar_funcionarios()
     produtos_lista = listar_produtos()
     servicos_lista = listar_servicos()
+    fotos_equipamento = listar_fotos_equipamento_os(ordem_servico_id)
 
     return render_template(
         "ordem_servico_editar.html",
@@ -8785,6 +8997,7 @@ def editar_ordem_servico(ordem_servico_id: int) -> str | Response:
         funcionarios=funcionarios_lista,
         produtos=produtos_lista,
         servicos=servicos_lista,
+        fotos_equipamento=fotos_equipamento,
     )
 
 
@@ -8803,6 +9016,7 @@ def atualizar_ordem_servico(ordem_servico_id: int) -> Response:
         return redirect(url_for("editar_ordem_servico", ordem_servico_id=ordem_servico_id, erro=erro_validacao))
 
     atualizar_ordem_servico_db(ordem_servico_id, ordem_servico, itens)
+    atualizar_fotos_equipamento_os_formulario(ordem_servico_id)
 
     return redirect(url_for("ver_ordem_servico", ordem_servico_id=ordem_servico_id))
 

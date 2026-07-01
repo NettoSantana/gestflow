@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordem_servico_editar.html
-Último recode: 2026-06-29 23:10 (America/Bahia)
-Motivo: Travar campos obrigatórios e totais automáticos na edição de OS.
+Último recode: 2026-07-01 14:35 (America/Bahia)
+Motivo: Criar registro fotografico antes e depois do equipamento na OS.
 -->
 
 <!DOCTYPE html>
@@ -134,6 +134,32 @@ Motivo: Travar campos obrigatórios e totais automáticos na edição de OS.
             box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.12);
         }
 
+
+        .os-photo-table th,
+        .os-photo-table td {
+            vertical-align: top;
+        }
+
+        .os-photo-preview {
+            width: 120px;
+            height: 86px;
+            border: 1px solid #dbe3ef;
+            border-radius: 10px;
+            object-fit: cover;
+            display: block;
+            margin-bottom: 8px;
+            background: #f8fafc;
+        }
+
+        .os-photo-remove-check {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #991b1b;
+            font-weight: 800;
+        }
+
     </style>
 </head>
 <body>
@@ -159,7 +185,7 @@ Motivo: Travar campos obrigatórios e totais automáticos na edição de OS.
             </div>
         </section>
 
-        <form id="form-editar-os" action="/ordens-servico/{{ os.id }}/editar" method="post" class="client-form">
+        <form id="form-editar-os" action="/ordens-servico/{{ os.id }}/editar" method="post" enctype="multipart/form-data" class="client-form">
             <div class="gestflow-form-error{% if request.args.get('erro') %} show{% endif %}" data-form-error>{% if request.args.get('erro') %}{{ request.args.get('erro') }}{% endif %}</div>
             <section class="os-form-section">
                 <div class="os-section-title"><h3>✎ Dados gerais</h3><span>Campos principais da OS</span></div>
@@ -229,6 +255,60 @@ Motivo: Travar campos obrigatórios e totais automáticos na edição de OS.
                         <div class="form-group os-span-3"><label for="os_termos">Termos</label><textarea id="os_termos" name="os_termos" class="form-control os-textarea">{{ os.termos or '' }}</textarea></div>
                         <div class="form-group os-span-6"><label for="os_local_servico">Local do serviço</label><input id="os_local_servico" name="os_local_servico" type="text" value="{{ os.local_servico or '' }}" class="form-control"></div>
                     </div>
+                </div>
+            </section>
+
+            <section class="os-form-section">
+                <div class="os-section-title"><h3>▧ Fotos antes / depois</h3><span>Registro fotográfico do equipamento</span></div>
+                <div class="os-section-body">
+                    <div class="table-shell">
+                        <table class="client-table os-photo-table">
+                            <thead>
+                                <tr>
+                                    <th>Equipamento / item</th>
+                                    <th>Foto antes</th>
+                                    <th>Foto depois</th>
+                                    <th>Observação</th>
+                                    <th>Remover</th>
+                                </tr>
+                            </thead>
+                            <tbody id="fotos-equipamento-tbody">
+                                {% for foto in fotos_equipamento|default([]) %}
+                                    <tr>
+                                        <td>
+                                            <input type="hidden" name="foto_os_id" value="{{ foto.id }}">
+                                            <input type="text" name="foto_os_titulo" class="form-control" value="{{ foto.titulo or '' }}" placeholder="Ex.: Motor principal">
+                                        </td>
+                                        <td>
+                                            {% if foto.foto_antes_path %}
+                                                <img src="{{ foto.foto_antes_path }}" alt="Foto antes" class="os-photo-preview">
+                                            {% endif %}
+                                            <input type="file" name="foto_os_antes" class="form-control" accept="image/*">
+                                        </td>
+                                        <td>
+                                            {% if foto.foto_depois_path %}
+                                                <img src="{{ foto.foto_depois_path }}" alt="Foto depois" class="os-photo-preview">
+                                            {% endif %}
+                                            <input type="file" name="foto_os_depois" class="form-control" accept="image/*">
+                                        </td>
+                                        <td><textarea name="foto_os_observacoes" class="form-control os-textarea" placeholder="Observação da foto">{{ foto.observacoes or '' }}</textarea></td>
+                                        <td><label class="os-photo-remove-check"><input type="checkbox" name="foto_os_remover" value="{{ foto.id }}"> Remover</label></td>
+                                    </tr>
+                                {% endfor %}
+                                <tr>
+                                    <td>
+                                        <input type="hidden" name="foto_os_id" value="">
+                                        <input type="text" name="foto_os_titulo" class="form-control" placeholder="Ex.: Motor principal">
+                                    </td>
+                                    <td><input type="file" name="foto_os_antes" class="form-control" accept="image/*"></td>
+                                    <td><input type="file" name="foto_os_depois" class="form-control" accept="image/*"></td>
+                                    <td><textarea name="foto_os_observacoes" class="form-control os-textarea" placeholder="Observação da foto"></textarea></td>
+                                    <td></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="os-actions-line"><button type="button" class="btn-dark" onclick="adicionarLinhaFotoEquipamento()">+ Adicionar foto</button></div>
                 </div>
             </section>
 
@@ -558,6 +638,29 @@ Motivo: Travar campos obrigatórios e totais automáticos na edição de OS.
                     exigirItemOuRelato: true
                 });
             });
+        </script>
+
+
+        <script>
+            function adicionarLinhaFotoEquipamento() {
+                const corpo = document.getElementById("fotos-equipamento-tbody");
+                if (!corpo) {
+                    return;
+                }
+
+                const linha = document.createElement("tr");
+                linha.innerHTML = `
+                    <td>
+                        <input type="hidden" name="foto_os_id" value="">
+                        <input type="text" name="foto_os_titulo" class="form-control" placeholder="Ex.: Motor principal">
+                    </td>
+                    <td><input type="file" name="foto_os_antes" class="form-control" accept="image/*"></td>
+                    <td><input type="file" name="foto_os_depois" class="form-control" accept="image/*"></td>
+                    <td><textarea name="foto_os_observacoes" class="form-control os-textarea" placeholder="Observação da foto"></textarea></td>
+                    <td><button type="button" class="os-remove-equipment" onclick="this.closest('tr').remove()">×</button></td>
+                `;
+                corpo.appendChild(linha);
+            }
         </script>
 
 </body>
