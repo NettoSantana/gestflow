@@ -2989,77 +2989,79 @@ def gerar_orcamento_por_gerador_db(dados: dict[str, Any]) -> int:
     venda_material = float(dados.get("venda_material") or 0)
     venda_mao_obra = float(dados.get("venda_mao_obra") or 0)
     venda_custos = float(dados.get("venda_custos") or 0)
-    valor_demais = max(valor_total - venda_material - venda_mao_obra - venda_custos, 0)
 
-    itens: list[dict[str, str]] = []
+    # Mantém o padrão visual do orçamento manual: o cliente vê apenas os itens comerciais.
+    # Impostos, administrativo, reserva técnica e lucro ficam embutidos nesses itens
+    # e continuam registrados somente nas observações internas.
+    componentes_visiveis = []
 
     if venda_material > 0:
-        itens.append(
+        componentes_visiveis.append(
             {
-                "tipo_item": "servico",
                 "descricao": "Materiais aplicados no serviço",
-                "detalhes": "Valor consolidado a partir do Gerador de Orçamentos.",
-                "quantidade": "1",
-                "valor_unitario": _formatar_moeda_brl(venda_material),
-                "desconto": "0,00",
-                "subtotal": _formatar_moeda_brl(venda_material),
+                "detalhes": "Fornecimento e aplicação de materiais conforme escopo aprovado.",
+                "base": venda_material,
             }
         )
 
     if venda_mao_obra > 0:
-        itens.append(
+        componentes_visiveis.append(
             {
-                "tipo_item": "servico",
                 "descricao": "Mão de obra técnica",
-                "detalhes": "Equipe e tempo estimados conforme escopo do serviço.",
-                "quantidade": "1",
-                "valor_unitario": _formatar_moeda_brl(venda_mao_obra),
-                "desconto": "0,00",
-                "subtotal": _formatar_moeda_brl(venda_mao_obra),
+                "detalhes": "Equipe técnica, tempo de execução e mobilização conforme escopo do serviço.",
+                "base": venda_mao_obra,
             }
         )
 
     if venda_custos > 0:
-        itens.append(
+        componentes_visiveis.append(
             {
-                "tipo_item": "servico",
                 "descricao": "Custos operacionais",
-                "detalhes": "Transporte, alimentação, consumíveis, ferramentas ou custos complementares.",
-                "quantidade": "1",
-                "valor_unitario": _formatar_moeda_brl(venda_custos),
-                "desconto": "0,00",
-                "subtotal": _formatar_moeda_brl(venda_custos),
+                "detalhes": "Deslocamento, ferramentas, consumíveis e demais custos operacionais necessários à execução.",
+                "base": venda_custos,
             }
         )
 
-    if valor_demais > 0:
-        itens.append(
+    if not componentes_visiveis:
+        componentes_visiveis.append(
             {
-                "tipo_item": "servico",
-                "descricao": "Impostos, administrativo e reserva técnica",
-                "detalhes": "Composição comercial do orçamento técnico.",
-                "quantidade": "1",
-                "valor_unitario": _formatar_moeda_brl(valor_demais),
-                "desconto": "0,00",
-                "subtotal": _formatar_moeda_brl(valor_demais),
-            }
-        )
-
-    if not itens:
-        itens.append(
-            {
-                "tipo_item": "servico",
                 "descricao": "Serviço técnico conforme escopo",
-                "detalhes": str(dados.get("escopo") or "Orçamento gerado pelo Gerador de Orçamentos."),
+                "detalhes": str(dados.get("escopo") or "Serviço técnico gerado pelo Gerador de Orçamentos."),
+                "base": valor_total,
+            }
+        )
+
+    base_visivel = sum(float(item.get("base") or 0) for item in componentes_visiveis)
+    itens: list[dict[str, str]] = []
+    acumulado = 0.0
+
+    for indice, componente in enumerate(componentes_visiveis):
+        if indice == len(componentes_visiveis) - 1:
+            valor_item = max(valor_total - acumulado, 0)
+        elif base_visivel > 0:
+            valor_item = round(valor_total * (float(componente.get("base") or 0) / base_visivel), 2)
+            acumulado += valor_item
+        else:
+            valor_item = 0.0
+
+        if valor_item <= 0:
+            continue
+
+        itens.append(
+            {
+                "tipo_item": "servico",
+                "descricao": str(componente.get("descricao") or "Serviço técnico"),
+                "detalhes": str(componente.get("detalhes") or "Conforme escopo técnico."),
                 "quantidade": "1",
-                "valor_unitario": _formatar_moeda_brl(valor_total),
+                "valor_unitario": _formatar_moeda_brl(valor_item),
                 "desconto": "0,00",
-                "subtotal": _formatar_moeda_brl(valor_total),
+                "subtotal": _formatar_moeda_brl(valor_item),
             }
         )
 
     detalhes_internos = [
         "Orçamento gerado pelo Gerador de Orçamentos.",
+        "A composição de impostos, administrativo, reserva técnica e lucro foi embutida nos itens comerciais.",
         f"Tipo de serviço: {dados.get('tipo_servico') or '-'}",
         f"Valor escolhido: {dados.get('tipo_valor') or 'recomendado'}",
         f"Custo material: R$ {_formatar_moeda_brl(float(dados.get('custo_material') or 0))}",
@@ -3087,7 +3089,7 @@ def gerar_orcamento_por_gerador_db(dados: dict[str, Any]) -> int:
         "validade": str(dados.get("validade") or "15 dias"),
         "canal_venda": "Gerador de Orçamentos",
         "centro_custo": str(dados.get("tipo_servico") or "Serviço técnico"),
-        "introducao": "Proposta técnica e comercial gerada pelo GestFlow.",
+        "introducao": "GESTFLOW apresenta abaixo sua proposta comercial para fornecimento de produtos e/ou execução de serviços conforme solicitado:",
         "tipo": "servico",
         "status": "aberto",
         "total_produtos": "0,00",
