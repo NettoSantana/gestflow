@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\os_acompanhamento_publico.html
-Último recode: 2026-07-01 12:20 (America/Bahia)
-Motivo: Criar tela pública para acompanhamento diário da Ordem de Serviço.
+Último recode: 2026-07-01 13:40 (America/Bahia)
+Motivo: Criar listas vinculadas de equipe, materiais e serviços no acompanhamento diário da OS.
 -->
 
 <!DOCTYPE html>
@@ -17,7 +17,7 @@ Motivo: Criar tela pública para acompanhamento diário da Ordem de Serviço.
         }
 
         .public-os-wrapper {
-            width: min(980px, calc(100% - 28px));
+            width: min(1060px, calc(100% - 28px));
             margin: 28px auto;
         }
 
@@ -82,6 +82,12 @@ Motivo: Criar tela pública para acompanhamento diário da Ordem de Serviço.
             font-size: 18px;
         }
 
+        .public-os-subtitle {
+            margin: -6px 0 12px;
+            color: #64748b;
+            font-size: 13px;
+        }
+
         .public-os-form-grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -116,11 +122,88 @@ Motivo: Criar tela pública para acompanhamento diário da Ordem de Serviço.
             color: #166534;
         }
 
+        .public-os-list-section {
+            grid-column: span 2;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 14px;
+            background: #f8fafc;
+        }
+
+        .public-os-list-section h3 {
+            margin: 0 0 4px;
+            color: #0f172a;
+            font-size: 16px;
+        }
+
+        .public-os-list-section p {
+            margin: 0 0 12px;
+            color: #64748b;
+            font-size: 13px;
+        }
+
+        .public-os-item-row {
+            display: grid;
+            grid-template-columns: minmax(220px, 1.5fr) 120px minmax(160px, 1fr) 42px;
+            gap: 10px;
+            align-items: end;
+            margin-bottom: 10px;
+        }
+
+        .public-os-item-row.public-os-material-row {
+            grid-template-columns: minmax(220px, 1.5fr) 110px minmax(130px, 0.8fr) minmax(160px, 1fr) 42px;
+        }
+
+        .public-os-remove {
+            height: 38px;
+            border: 0;
+            border-radius: 10px;
+            background: #fee2e2;
+            color: #991b1b;
+            cursor: pointer;
+            font-weight: 900;
+        }
+
+        .public-os-add {
+            margin-top: 2px;
+        }
+
+        .public-os-empty {
+            border: 1px dashed #cbd5e1;
+            border-radius: 12px;
+            padding: 12px;
+            color: #64748b;
+            background: #ffffff;
+            font-size: 13px;
+        }
+
+        .public-os-summary-list {
+            margin: 0;
+            padding-left: 18px;
+            color: #0f172a;
+            font-size: 14px;
+        }
+
+        .public-os-summary-list li {
+            margin-bottom: 6px;
+        }
+
         .public-os-actions {
             display: flex;
             justify-content: flex-end;
             gap: 10px;
             margin-top: 16px;
+        }
+
+        @media (max-width: 900px) {
+            .public-os-item-row,
+            .public-os-item-row.public-os-material-row {
+                grid-template-columns: 1fr;
+            }
+
+            .public-os-remove {
+                width: 100%;
+            }
         }
 
         @media (max-width: 760px) {
@@ -129,7 +212,8 @@ Motivo: Criar tela pública para acompanhamento diário da Ordem de Serviço.
                 grid-template-columns: 1fr;
             }
 
-            .public-os-span-2 {
+            .public-os-span-2,
+            .public-os-list-section {
                 grid-column: span 1;
             }
 
@@ -143,7 +227,7 @@ Motivo: Criar tela pública para acompanhamento diário da Ordem de Serviço.
     <main class="public-os-wrapper">
         <section class="public-os-header">
             <h1>Acompanhamento diário da OS</h1>
-            <p>Preencha as atividades do dia, equipe envolvida, materiais utilizados e observações da execução.</p>
+            <p>Preencha as atividades do dia, equipe envolvida, materiais utilizados, serviços executados e observações da execução.</p>
 
             {% if acompanhamento %}
                 <div class="public-os-grid">
@@ -181,29 +265,182 @@ Motivo: Criar tela pública para acompanhamento diário da Ordem de Serviço.
                             <textarea id="atividades_previstas" name="atividades_previstas" class="form-control public-os-textarea" placeholder="Informe o que será feito hoje">{{ acompanhamento.atividades_previstas or '' }}</textarea>
                         </div>
 
-                        <div class="form-group">
-                            <label for="equipe_prevista">Equipe prevista</label>
-                            <textarea id="equipe_prevista" name="equipe_prevista" class="form-control public-os-textarea" placeholder="Informe a equipe envolvida">{{ acompanhamento.equipe_prevista or '' }}</textarea>
+                        <div class="public-os-list-section">
+                            <h3>Equipe envolvida</h3>
+                            <p>Selecione os funcionários cadastrados que participaram da execução.</p>
+
+                            <div data-lista="equipe">
+                                {% if equipe_acompanhamento %}
+                                    {% for item in equipe_acompanhamento %}
+                                        <div class="public-os-item-row">
+                                            <div class="form-group">
+                                                <label>Profissional</label>
+                                                <select name="equipe_funcionario_id[]" class="form-control">
+                                                    <option value="">Selecione</option>
+                                                    {% for funcionario in funcionarios|default([]) %}
+                                                        <option value="{{ funcionario.id }}" {% if funcionario.id == item.funcionario_id %}selected{% endif %}>{{ funcionario.nome }}{% if funcionario.cargo %} - {{ funcionario.cargo }}{% endif %}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Horas</label>
+                                                <input name="equipe_horas[]" type="text" class="form-control" value="{{ item.horas or '' }}" placeholder="8">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Observação</label>
+                                                <input name="equipe_observacoes[]" type="text" class="form-control" value="{{ item.observacoes or '' }}" placeholder="Opcional">
+                                            </div>
+                                            <button type="button" class="public-os-remove" data-remover-linha>×</button>
+                                        </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="public-os-item-row">
+                                        <div class="form-group">
+                                            <label>Profissional</label>
+                                            <select name="equipe_funcionario_id[]" class="form-control">
+                                                <option value="">Selecione</option>
+                                                {% for funcionario in funcionarios|default([]) %}
+                                                    <option value="{{ funcionario.id }}">{{ funcionario.nome }}{% if funcionario.cargo %} - {{ funcionario.cargo }}{% endif %}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Horas</label>
+                                            <input name="equipe_horas[]" type="text" class="form-control" placeholder="8">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Observação</label>
+                                            <input name="equipe_observacoes[]" type="text" class="form-control" placeholder="Opcional">
+                                        </div>
+                                        <button type="button" class="public-os-remove" data-remover-linha>×</button>
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <button type="button" class="btn-light public-os-add" data-adicionar-linha="equipe">+ Adicionar profissional</button>
                         </div>
 
-                        <div class="form-group">
-                            <label for="materiais_previstos">Materiais previstos</label>
-                            <textarea id="materiais_previstos" name="materiais_previstos" class="form-control public-os-textarea" placeholder="Informe os materiais previstos para uso">{{ acompanhamento.materiais_previstos or '' }}</textarea>
+                        <div class="public-os-list-section">
+                            <h3>Materiais utilizados</h3>
+                            <p>Selecione os produtos cadastrados e informe a quantidade utilizada no dia.</p>
+
+                            <div data-lista="materiais">
+                                {% if materiais_acompanhamento %}
+                                    {% for item in materiais_acompanhamento %}
+                                        <div class="public-os-item-row public-os-material-row">
+                                            <div class="form-group">
+                                                <label>Material</label>
+                                                <select name="material_produto_id[]" class="form-control">
+                                                    <option value="">Selecione</option>
+                                                    {% for produto in produtos|default([]) %}
+                                                        <option value="{{ produto.id }}" {% if produto.id == item.produto_id %}selected{% endif %}>{{ produto.nome }}{% if produto.unidade %} - {{ produto.unidade }}{% endif %}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Quantidade</label>
+                                                <input name="material_quantidade[]" type="text" class="form-control" value="{{ item.quantidade or '' }}" placeholder="1">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Unidade</label>
+                                                <input type="text" class="form-control" value="{{ item.unidade or '' }}" readonly>
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Observação</label>
+                                                <input name="material_observacoes[]" type="text" class="form-control" value="{{ item.observacoes or '' }}" placeholder="Opcional">
+                                            </div>
+                                            <button type="button" class="public-os-remove" data-remover-linha>×</button>
+                                        </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="public-os-item-row public-os-material-row">
+                                        <div class="form-group">
+                                            <label>Material</label>
+                                            <select name="material_produto_id[]" class="form-control">
+                                                <option value="">Selecione</option>
+                                                {% for produto in produtos|default([]) %}
+                                                    <option value="{{ produto.id }}">{{ produto.nome }}{% if produto.unidade %} - {{ produto.unidade }}{% endif %}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Quantidade</label>
+                                            <input name="material_quantidade[]" type="text" class="form-control" placeholder="1">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Unidade</label>
+                                            <input type="text" class="form-control" placeholder="Auto" readonly>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Observação</label>
+                                            <input name="material_observacoes[]" type="text" class="form-control" placeholder="Opcional">
+                                        </div>
+                                        <button type="button" class="public-os-remove" data-remover-linha>×</button>
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <button type="button" class="btn-light public-os-add" data-adicionar-linha="materiais">+ Adicionar material</button>
+                        </div>
+
+                        <div class="public-os-list-section">
+                            <h3>Serviços executados</h3>
+                            <p>Selecione os serviços cadastrados e informe a quantidade executada no dia.</p>
+
+                            <div data-lista="servicos">
+                                {% if servicos_acompanhamento %}
+                                    {% for item in servicos_acompanhamento %}
+                                        <div class="public-os-item-row">
+                                            <div class="form-group">
+                                                <label>Serviço</label>
+                                                <select name="servico_id[]" class="form-control">
+                                                    <option value="">Selecione</option>
+                                                    {% for servico in servicos_cadastrados|default([]) %}
+                                                        <option value="{{ servico.id }}" {% if servico.id == item.servico_id %}selected{% endif %}>{{ servico.nome }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Quantidade</label>
+                                                <input name="servico_quantidade[]" type="text" class="form-control" value="{{ item.quantidade or '' }}" placeholder="1">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Observação</label>
+                                                <input name="servico_observacoes[]" type="text" class="form-control" value="{{ item.observacoes or '' }}" placeholder="Opcional">
+                                            </div>
+                                            <button type="button" class="public-os-remove" data-remover-linha>×</button>
+                                        </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="public-os-item-row">
+                                        <div class="form-group">
+                                            <label>Serviço</label>
+                                            <select name="servico_id[]" class="form-control">
+                                                <option value="">Selecione</option>
+                                                {% for servico in servicos_cadastrados|default([]) %}
+                                                    <option value="{{ servico.id }}">{{ servico.nome }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Quantidade</label>
+                                            <input name="servico_quantidade[]" type="text" class="form-control" placeholder="1">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Observação</label>
+                                            <input name="servico_observacoes[]" type="text" class="form-control" placeholder="Opcional">
+                                        </div>
+                                        <button type="button" class="public-os-remove" data-remover-linha>×</button>
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <button type="button" class="btn-light public-os-add" data-adicionar-linha="servicos">+ Adicionar serviço</button>
                         </div>
 
                         <div class="form-group public-os-span-2">
                             <label for="atividades_executadas">Atividades executadas no dia</label>
                             <textarea id="atividades_executadas" name="atividades_executadas" class="form-control public-os-textarea" placeholder="Informe o que foi realmente executado">{{ acompanhamento.atividades_executadas or '' }}</textarea>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="equipe_real">Equipe real envolvida</label>
-                            <textarea id="equipe_real" name="equipe_real" class="form-control public-os-textarea" placeholder="Informe quem participou da execução">{{ acompanhamento.equipe_real or '' }}</textarea>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="materiais_utilizados">Materiais utilizados</label>
-                            <textarea id="materiais_utilizados" name="materiais_utilizados" class="form-control public-os-textarea" placeholder="Informe os materiais realmente utilizados">{{ acompanhamento.materiais_utilizados or '' }}</textarea>
                         </div>
 
                         <div class="form-group public-os-span-2">
@@ -222,11 +459,47 @@ Motivo: Criar tela pública para acompanhamento diário da Ordem de Serviço.
                 <div class="public-os-form-grid">
                     <div class="form-group public-os-span-2"><label>Responsável</label><div class="form-control">{{ acompanhamento.responsavel or '-' }}</div></div>
                     <div class="form-group public-os-span-2"><label>Atividades previstas</label><div class="form-control">{{ acompanhamento.atividades_previstas or '-' }}</div></div>
-                    <div class="form-group"><label>Equipe prevista</label><div class="form-control">{{ acompanhamento.equipe_prevista or '-' }}</div></div>
-                    <div class="form-group"><label>Materiais previstos</label><div class="form-control">{{ acompanhamento.materiais_previstos or '-' }}</div></div>
+
+                    <div class="public-os-list-section">
+                        <h3>Equipe envolvida</h3>
+                        {% if equipe_acompanhamento %}
+                            <ul class="public-os-summary-list">
+                                {% for item in equipe_acompanhamento %}
+                                    <li>{{ item.nome or '-' }}{% if item.cargo %} - {{ item.cargo }}{% endif %}{% if item.horas %} | {{ item.horas }}h{% endif %}{% if item.observacoes %} | {{ item.observacoes }}{% endif %}</li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <div class="public-os-empty">Nenhum profissional informado.</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="public-os-list-section">
+                        <h3>Materiais utilizados</h3>
+                        {% if materiais_acompanhamento %}
+                            <ul class="public-os-summary-list">
+                                {% for item in materiais_acompanhamento %}
+                                    <li>{{ item.nome or '-' }}{% if item.quantidade %} | Qtd.: {{ item.quantidade }}{% endif %}{% if item.unidade %} {{ item.unidade }}{% endif %}{% if item.observacoes %} | {{ item.observacoes }}{% endif %}</li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <div class="public-os-empty">Nenhum material informado.</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="public-os-list-section">
+                        <h3>Serviços executados</h3>
+                        {% if servicos_acompanhamento %}
+                            <ul class="public-os-summary-list">
+                                {% for item in servicos_acompanhamento %}
+                                    <li>{{ item.nome or '-' }}{% if item.quantidade %} | Qtd.: {{ item.quantidade }}{% endif %}{% if item.observacoes %} | {{ item.observacoes }}{% endif %}</li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <div class="public-os-empty">Nenhum serviço informado.</div>
+                        {% endif %}
+                    </div>
+
                     <div class="form-group public-os-span-2"><label>Atividades executadas</label><div class="form-control">{{ acompanhamento.atividades_executadas or '-' }}</div></div>
-                    <div class="form-group"><label>Equipe real</label><div class="form-control">{{ acompanhamento.equipe_real or '-' }}</div></div>
-                    <div class="form-group"><label>Materiais utilizados</label><div class="form-control">{{ acompanhamento.materiais_utilizados or '-' }}</div></div>
                     <div class="form-group public-os-span-2"><label>Observações</label><div class="form-control">{{ acompanhamento.observacoes or '-' }}</div></div>
                 </div>
             {% else %}
@@ -234,5 +507,103 @@ Motivo: Criar tela pública para acompanhamento diário da Ordem de Serviço.
             {% endif %}
         </section>
     </main>
+
+    <template id="template-equipe">
+        <div class="public-os-item-row">
+            <div class="form-group">
+                <label>Profissional</label>
+                <select name="equipe_funcionario_id[]" class="form-control">
+                    <option value="">Selecione</option>
+                    {% for funcionario in funcionarios|default([]) %}
+                        <option value="{{ funcionario.id }}">{{ funcionario.nome }}{% if funcionario.cargo %} - {{ funcionario.cargo }}{% endif %}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Horas</label>
+                <input name="equipe_horas[]" type="text" class="form-control" placeholder="8">
+            </div>
+            <div class="form-group">
+                <label>Observação</label>
+                <input name="equipe_observacoes[]" type="text" class="form-control" placeholder="Opcional">
+            </div>
+            <button type="button" class="public-os-remove" data-remover-linha>×</button>
+        </div>
+    </template>
+
+    <template id="template-materiais">
+        <div class="public-os-item-row public-os-material-row">
+            <div class="form-group">
+                <label>Material</label>
+                <select name="material_produto_id[]" class="form-control">
+                    <option value="">Selecione</option>
+                    {% for produto in produtos|default([]) %}
+                        <option value="{{ produto.id }}">{{ produto.nome }}{% if produto.unidade %} - {{ produto.unidade }}{% endif %}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Quantidade</label>
+                <input name="material_quantidade[]" type="text" class="form-control" placeholder="1">
+            </div>
+            <div class="form-group">
+                <label>Unidade</label>
+                <input type="text" class="form-control" placeholder="Auto" readonly>
+            </div>
+            <div class="form-group">
+                <label>Observação</label>
+                <input name="material_observacoes[]" type="text" class="form-control" placeholder="Opcional">
+            </div>
+            <button type="button" class="public-os-remove" data-remover-linha>×</button>
+        </div>
+    </template>
+
+    <template id="template-servicos">
+        <div class="public-os-item-row">
+            <div class="form-group">
+                <label>Serviço</label>
+                <select name="servico_id[]" class="form-control">
+                    <option value="">Selecione</option>
+                    {% for servico in servicos_cadastrados|default([]) %}
+                        <option value="{{ servico.id }}">{{ servico.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Quantidade</label>
+                <input name="servico_quantidade[]" type="text" class="form-control" placeholder="1">
+            </div>
+            <div class="form-group">
+                <label>Observação</label>
+                <input name="servico_observacoes[]" type="text" class="form-control" placeholder="Opcional">
+            </div>
+            <button type="button" class="public-os-remove" data-remover-linha>×</button>
+        </div>
+    </template>
+
+    <script>
+        document.addEventListener("click", function (event) {
+            const botaoAdicionar = event.target.closest("[data-adicionar-linha]");
+            const botaoRemover = event.target.closest("[data-remover-linha]");
+
+            if (botaoAdicionar) {
+                const tipo = botaoAdicionar.getAttribute("data-adicionar-linha");
+                const lista = document.querySelector('[data-lista="' + tipo + '"]');
+                const template = document.getElementById("template-" + tipo);
+
+                if (lista && template) {
+                    lista.appendChild(template.content.cloneNode(true));
+                }
+            }
+
+            if (botaoRemover) {
+                const linha = botaoRemover.closest(".public-os-item-row");
+
+                if (linha) {
+                    linha.remove();
+                }
+            }
+        });
+    </script>
 </body>
 </html>

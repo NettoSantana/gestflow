@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordem_servico_detalhe.html
-Último recode: 2026-07-01 12:20 (America/Bahia)
-Motivo: Exibir link e histórico de acompanhamento diário na OS.
+Último recode: 2026-07-01 13:40 (America/Bahia)
+Motivo: Exibir listas vinculadas de equipe, materiais e serviços no histórico de acompanhamento diário da OS.
 -->
 
 <!DOCTYPE html>
@@ -178,6 +178,9 @@ Motivo: Exibir link e histórico de acompanhamento diário na OS.
                             <th>Status do dia</th>
                             <th>Expira em</th>
                             <th>Atividades previstas</th>
+                            <th>Equipe</th>
+                            <th>Materiais</th>
+                            <th>Serviços</th>
                             <th>Atividades executadas</th>
                         </tr>
                     </thead>
@@ -190,11 +193,38 @@ Motivo: Exibir link e histórico de acompanhamento diário na OS.
                                     <td>{{ acompanhamento.status_dia or '-' }}</td>
                                     <td>{{ acompanhamento.expira_em or '-' }}</td>
                                     <td>{{ acompanhamento.atividades_previstas or '-' }}</td>
+                                    <td>
+                                        {% if acompanhamento.equipe_lista %}
+                                            {% for item in acompanhamento.equipe_lista %}
+                                                <div>{{ item.nome or '-' }}{% if item.horas %} | {{ item.horas }}h{% endif %}</div>
+                                            {% endfor %}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if acompanhamento.materiais_lista %}
+                                            {% for item in acompanhamento.materiais_lista %}
+                                                <div>{{ item.nome or '-' }}{% if item.quantidade %} | {{ item.quantidade }}{% endif %}{% if item.unidade %} {{ item.unidade }}{% endif %}</div>
+                                            {% endfor %}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if acompanhamento.servicos_lista %}
+                                            {% for item in acompanhamento.servicos_lista %}
+                                                <div>{{ item.nome or '-' }}{% if item.quantidade %} | {{ item.quantidade }}{% endif %}</div>
+                                            {% endfor %}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
                                     <td>{{ acompanhamento.atividades_executadas or '-' }}</td>
                                 </tr>
                             {% endfor %}
                         {% else %}
-                            <tr><td colspan="6" class="empty-table">Nenhum acompanhamento diário registrado.</td></tr>
+                            <tr><td colspan="9" class="empty-table">Nenhum acompanhamento diário registrado.</td></tr>
                         {% endif %}
                     </tbody>
                 </table>

@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-01 12:20 (America/Bahia)
-# Motivo: Criar acompanhamento diário de OS com link temporário de 24 horas.
+# Último recode: 2026-07-01 13:40 (America/Bahia)
+# Motivo: Criar listas vinculadas de equipe, materiais e serviços no acompanhamento diário da OS.
 
 from __future__ import annotations
 
@@ -665,6 +665,59 @@ def iniciar_banco() -> None:
 
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS os_acompanhamento_equipe (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER,
+                acompanhamento_id INTEGER NOT NULL,
+                funcionario_id INTEGER,
+                nome TEXT,
+                cargo TEXT,
+                horas TEXT,
+                observacoes TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (acompanhamento_id) REFERENCES os_acompanhamentos (id),
+                FOREIGN KEY (funcionario_id) REFERENCES funcionarios (id)
+            )
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS os_acompanhamento_materiais (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER,
+                acompanhamento_id INTEGER NOT NULL,
+                produto_id INTEGER,
+                nome TEXT,
+                unidade TEXT,
+                quantidade TEXT,
+                observacoes TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (acompanhamento_id) REFERENCES os_acompanhamentos (id),
+                FOREIGN KEY (produto_id) REFERENCES produtos (id)
+            )
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS os_acompanhamento_servicos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER,
+                acompanhamento_id INTEGER NOT NULL,
+                servico_id INTEGER,
+                nome TEXT,
+                quantidade TEXT,
+                observacoes TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (acompanhamento_id) REFERENCES os_acompanhamentos (id),
+                FOREIGN KEY (servico_id) REFERENCES servicos (id)
+            )
+            """
+        )
+
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS estoque_movimentacoes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 produto_id INTEGER,
@@ -1020,6 +1073,9 @@ def iniciar_banco() -> None:
             "ordens_servico",
             "ordem_servico_itens",
             "os_acompanhamentos",
+            "os_acompanhamento_equipe",
+            "os_acompanhamento_materiais",
+            "os_acompanhamento_servicos",
             "estoque_movimentacoes",
             "financeiro_titulos",
             "caixa_aberturas",
@@ -4214,6 +4270,420 @@ def listar_acompanhamentos_ordem_servico(ordem_servico_id: int) -> list[dict[str
     return [dict(row) for row in rows]
 
 
+def listar_equipe_acompanhamento(acompanhamento_id: int, empresa_id: int | None = None) -> list[dict[str, Any]]:
+    parametros: list[Any] = [acompanhamento_id]
+    filtro_empresa = ""
+
+    if empresa_id is not None:
+        filtro_empresa = " AND empresa_id = ?"
+        parametros.append(empresa_id)
+
+    with conectar_db() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT
+                id,
+                empresa_id,
+                acompanhamento_id,
+                funcionario_id,
+                nome,
+                cargo,
+                horas,
+                observacoes,
+                criado_em
+            FROM os_acompanhamento_equipe
+            WHERE acompanhamento_id = ?
+            {filtro_empresa}
+            ORDER BY id ASC
+            """,
+            parametros,
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def listar_materiais_acompanhamento(acompanhamento_id: int, empresa_id: int | None = None) -> list[dict[str, Any]]:
+    parametros: list[Any] = [acompanhamento_id]
+    filtro_empresa = ""
+
+    if empresa_id is not None:
+        filtro_empresa = " AND empresa_id = ?"
+        parametros.append(empresa_id)
+
+    with conectar_db() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT
+                id,
+                empresa_id,
+                acompanhamento_id,
+                produto_id,
+                nome,
+                unidade,
+                quantidade,
+                observacoes,
+                criado_em
+            FROM os_acompanhamento_materiais
+            WHERE acompanhamento_id = ?
+            {filtro_empresa}
+            ORDER BY id ASC
+            """,
+            parametros,
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def listar_servicos_acompanhamento(acompanhamento_id: int, empresa_id: int | None = None) -> list[dict[str, Any]]:
+    parametros: list[Any] = [acompanhamento_id]
+    filtro_empresa = ""
+
+    if empresa_id is not None:
+        filtro_empresa = " AND empresa_id = ?"
+        parametros.append(empresa_id)
+
+    with conectar_db() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT
+                id,
+                empresa_id,
+                acompanhamento_id,
+                servico_id,
+                nome,
+                quantidade,
+                observacoes,
+                criado_em
+            FROM os_acompanhamento_servicos
+            WHERE acompanhamento_id = ?
+            {filtro_empresa}
+            ORDER BY id ASC
+            """,
+            parametros,
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def listar_itens_acompanhamento(acompanhamento_id: int, empresa_id: int | None = None) -> dict[str, list[dict[str, Any]]]:
+    return {
+        "equipe": listar_equipe_acompanhamento(acompanhamento_id, empresa_id),
+        "materiais": listar_materiais_acompanhamento(acompanhamento_id, empresa_id),
+        "servicos": listar_servicos_acompanhamento(acompanhamento_id, empresa_id),
+    }
+
+
+def anexar_itens_aos_acompanhamentos(acompanhamentos: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if not acompanhamentos:
+        return []
+
+    acompanhamentos_normalizados = [dict(acompanhamento) for acompanhamento in acompanhamentos]
+
+    for acompanhamento in acompanhamentos_normalizados:
+        acompanhamento_id = int(acompanhamento.get("id") or 0)
+        empresa_id = int(acompanhamento.get("empresa_id") or empresa_logada_id())
+        itens = listar_itens_acompanhamento(acompanhamento_id, empresa_id)
+        acompanhamento["equipe_lista"] = itens["equipe"]
+        acompanhamento["materiais_lista"] = itens["materiais"]
+        acompanhamento["servicos_lista"] = itens["servicos"]
+
+    return acompanhamentos_normalizados
+
+
+def listar_funcionarios_acompanhamento_publico(empresa_id: int) -> list[dict[str, Any]]:
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                id,
+                empresa_id,
+                nome,
+                cargo,
+                status
+            FROM funcionarios
+            WHERE empresa_id = ?
+              AND LOWER(COALESCE(status, 'ativo')) = 'ativo'
+            ORDER BY nome ASC
+            """,
+            (empresa_id,),
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def listar_produtos_acompanhamento_publico(empresa_id: int) -> list[dict[str, Any]]:
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                id,
+                empresa_id,
+                nome,
+                codigo,
+                unidade,
+                status
+            FROM produtos
+            WHERE empresa_id = ?
+              AND LOWER(COALESCE(status, 'ativo')) = 'ativo'
+            ORDER BY nome ASC
+            """,
+            (empresa_id,),
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def listar_servicos_acompanhamento_publico(empresa_id: int) -> list[dict[str, Any]]:
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                id,
+                empresa_id,
+                nome,
+                unidade,
+                status
+            FROM servicos
+            WHERE empresa_id = ?
+              AND LOWER(COALESCE(status, 'ativo')) = 'ativo'
+            ORDER BY nome ASC
+            """,
+            (empresa_id,),
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def _converter_inteiro_positivo(valor: Any) -> int | None:
+    try:
+        numero = int(str(valor or "").strip())
+    except ValueError:
+        return None
+
+    if numero <= 0:
+        return None
+
+    return numero
+
+
+def montar_itens_acompanhamento_formulario(formulario: Any) -> dict[str, list[dict[str, str]]]:
+    equipe: list[dict[str, str]] = []
+    materiais: list[dict[str, str]] = []
+    servicos: list[dict[str, str]] = []
+
+    equipe_ids = formulario.getlist("equipe_funcionario_id[]")
+    equipe_horas = formulario.getlist("equipe_horas[]")
+    equipe_observacoes = formulario.getlist("equipe_observacoes[]")
+
+    for indice, funcionario_id in enumerate(equipe_ids):
+        funcionario_id_texto = str(funcionario_id or "").strip()
+
+        if not funcionario_id_texto:
+            continue
+
+        equipe.append(
+            {
+                "funcionario_id": funcionario_id_texto,
+                "horas": str(equipe_horas[indice] if indice < len(equipe_horas) else "").strip(),
+                "observacoes": str(equipe_observacoes[indice] if indice < len(equipe_observacoes) else "").strip(),
+            }
+        )
+
+    material_ids = formulario.getlist("material_produto_id[]")
+    material_quantidades = formulario.getlist("material_quantidade[]")
+    material_observacoes = formulario.getlist("material_observacoes[]")
+
+    for indice, produto_id in enumerate(material_ids):
+        produto_id_texto = str(produto_id or "").strip()
+
+        if not produto_id_texto:
+            continue
+
+        materiais.append(
+            {
+                "produto_id": produto_id_texto,
+                "quantidade": str(material_quantidades[indice] if indice < len(material_quantidades) else "").strip(),
+                "observacoes": str(material_observacoes[indice] if indice < len(material_observacoes) else "").strip(),
+            }
+        )
+
+    servico_ids = formulario.getlist("servico_id[]")
+    servico_quantidades = formulario.getlist("servico_quantidade[]")
+    servico_observacoes = formulario.getlist("servico_observacoes[]")
+
+    for indice, servico_id in enumerate(servico_ids):
+        servico_id_texto = str(servico_id or "").strip()
+
+        if not servico_id_texto:
+            continue
+
+        servicos.append(
+            {
+                "servico_id": servico_id_texto,
+                "quantidade": str(servico_quantidades[indice] if indice < len(servico_quantidades) else "").strip(),
+                "observacoes": str(servico_observacoes[indice] if indice < len(servico_observacoes) else "").strip(),
+            }
+        )
+
+    return {
+        "equipe": equipe,
+        "materiais": materiais,
+        "servicos": servicos,
+    }
+
+
+def salvar_itens_acompanhamento_os(
+    conn: sqlite3.Connection,
+    acompanhamento: dict[str, Any],
+    itens: dict[str, list[dict[str, str]]],
+) -> None:
+    acompanhamento_id = int(acompanhamento.get("id") or 0)
+    empresa_id = int(acompanhamento.get("empresa_id") or 0)
+
+    if acompanhamento_id <= 0 or empresa_id <= 0:
+        return
+
+    conn.execute(
+        "DELETE FROM os_acompanhamento_equipe WHERE acompanhamento_id = ? AND empresa_id = ?",
+        (acompanhamento_id, empresa_id),
+    )
+    conn.execute(
+        "DELETE FROM os_acompanhamento_materiais WHERE acompanhamento_id = ? AND empresa_id = ?",
+        (acompanhamento_id, empresa_id),
+    )
+    conn.execute(
+        "DELETE FROM os_acompanhamento_servicos WHERE acompanhamento_id = ? AND empresa_id = ?",
+        (acompanhamento_id, empresa_id),
+    )
+
+    for item in itens.get("equipe", []):
+        funcionario_id = _converter_inteiro_positivo(item.get("funcionario_id"))
+
+        if funcionario_id is None:
+            continue
+
+        funcionario = conn.execute(
+            """
+            SELECT id, nome, cargo
+            FROM funcionarios
+            WHERE id = ?
+              AND empresa_id = ?
+            LIMIT 1
+            """,
+            (funcionario_id, empresa_id),
+        ).fetchone()
+
+        if funcionario is None:
+            continue
+
+        conn.execute(
+            """
+            INSERT INTO os_acompanhamento_equipe (
+                empresa_id,
+                acompanhamento_id,
+                funcionario_id,
+                nome,
+                cargo,
+                horas,
+                observacoes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                empresa_id,
+                acompanhamento_id,
+                funcionario_id,
+                str(funcionario["nome"] or ""),
+                str(funcionario["cargo"] or ""),
+                str(item.get("horas") or ""),
+                str(item.get("observacoes") or ""),
+            ),
+        )
+
+    for item in itens.get("materiais", []):
+        produto_id = _converter_inteiro_positivo(item.get("produto_id"))
+
+        if produto_id is None:
+            continue
+
+        produto = conn.execute(
+            """
+            SELECT id, nome, unidade
+            FROM produtos
+            WHERE id = ?
+              AND empresa_id = ?
+            LIMIT 1
+            """,
+            (produto_id, empresa_id),
+        ).fetchone()
+
+        if produto is None:
+            continue
+
+        conn.execute(
+            """
+            INSERT INTO os_acompanhamento_materiais (
+                empresa_id,
+                acompanhamento_id,
+                produto_id,
+                nome,
+                unidade,
+                quantidade,
+                observacoes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                empresa_id,
+                acompanhamento_id,
+                produto_id,
+                str(produto["nome"] or ""),
+                str(produto["unidade"] or ""),
+                str(item.get("quantidade") or ""),
+                str(item.get("observacoes") or ""),
+            ),
+        )
+
+    for item in itens.get("servicos", []):
+        servico_id = _converter_inteiro_positivo(item.get("servico_id"))
+
+        if servico_id is None:
+            continue
+
+        servico = conn.execute(
+            """
+            SELECT id, nome
+            FROM servicos
+            WHERE id = ?
+              AND empresa_id = ?
+            LIMIT 1
+            """,
+            (servico_id, empresa_id),
+        ).fetchone()
+
+        if servico is None:
+            continue
+
+        conn.execute(
+            """
+            INSERT INTO os_acompanhamento_servicos (
+                empresa_id,
+                acompanhamento_id,
+                servico_id,
+                nome,
+                quantidade,
+                observacoes
+            ) VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                empresa_id,
+                acompanhamento_id,
+                servico_id,
+                str(servico["nome"] or ""),
+                str(item.get("quantidade") or ""),
+                str(item.get("observacoes") or ""),
+            ),
+        )
+
+
 def montar_url_acompanhamento_os(token: Any) -> str:
     token_normalizado = str(token or "").strip()
 
@@ -4415,7 +4885,7 @@ def acompanhamento_os_esta_expirado(acompanhamento: dict[str, Any]) -> bool:
         return True
 
 
-def atualizar_acompanhamento_os_publico(token: Any, dados: dict[str, str], finalizar: bool = False) -> bool:
+def atualizar_acompanhamento_os_publico(token: Any, dados: dict[str, str], finalizar: bool = False, itens: dict[str, list[dict[str, str]]] | None = None) -> bool:
     acompanhamento = buscar_acompanhamento_os_por_token(token)
 
     if acompanhamento is None:
@@ -4467,6 +4937,10 @@ def atualizar_acompanhamento_os_publico(token: Any, dados: dict[str, str], final
                 str(token or "").strip(),
             ),
         )
+
+        if itens is not None:
+            salvar_itens_acompanhamento_os(conn, acompanhamento, itens)
+
         conn.commit()
 
     return True
@@ -8094,7 +8568,7 @@ def ver_ordem_servico(ordem_servico_id: int) -> str | Response:
     itens = listar_ordem_servico_itens(ordem_servico_id)
     itens_produtos = [item for item in itens if item["tipo_item"] == "produto"]
     itens_servicos = [item for item in itens if item["tipo_item"] == "servico"]
-    acompanhamentos = listar_acompanhamentos_ordem_servico(ordem_servico_id)
+    acompanhamentos = anexar_itens_aos_acompanhamentos(listar_acompanhamentos_ordem_servico(ordem_servico_id))
     token_gerado = (request.args.get("link") or "").strip()
     acompanhamento_url_gerada = montar_url_acompanhamento_os(token_gerado)
     acompanhamento_mensagem = (request.args.get("mensagem") or "").strip()
@@ -8184,6 +8658,12 @@ def acompanhamento_os_publico(token: str) -> str:
     acompanhamento = buscar_acompanhamento_os_por_token(token)
     mensagem = ""
     erro = ""
+    funcionarios_acompanhamento: list[dict[str, Any]] = []
+    produtos_acompanhamento: list[dict[str, Any]] = []
+    servicos_cadastrados_acompanhamento: list[dict[str, Any]] = []
+    equipe_acompanhamento: list[dict[str, Any]] = []
+    materiais_acompanhamento: list[dict[str, Any]] = []
+    servicos_acompanhamento: list[dict[str, Any]] = []
 
     if acompanhamento is None:
         return render_template(
@@ -8192,7 +8672,27 @@ def acompanhamento_os_publico(token: str) -> str:
             bloqueado=True,
             erro="Link de acompanhamento não encontrado.",
             mensagem="",
+            funcionarios=[],
+            produtos=[],
+            servicos_cadastrados=[],
+            equipe_acompanhamento=[],
+            materiais_acompanhamento=[],
+            servicos_acompanhamento=[],
         )
+
+    empresa_acompanhamento_id = int(acompanhamento.get("empresa_id") or 0)
+    acompanhamento_id = int(acompanhamento.get("id") or 0)
+
+    if empresa_acompanhamento_id > 0:
+        funcionarios_acompanhamento = listar_funcionarios_acompanhamento_publico(empresa_acompanhamento_id)
+        produtos_acompanhamento = listar_produtos_acompanhamento_publico(empresa_acompanhamento_id)
+        servicos_cadastrados_acompanhamento = listar_servicos_acompanhamento_publico(empresa_acompanhamento_id)
+
+    if acompanhamento_id > 0:
+        itens_salvos = listar_itens_acompanhamento(acompanhamento_id, empresa_acompanhamento_id)
+        equipe_acompanhamento = itens_salvos["equipe"]
+        materiais_acompanhamento = itens_salvos["materiais"]
+        servicos_acompanhamento = itens_salvos["servicos"]
 
     bloqueado = False
 
@@ -8212,20 +8712,27 @@ def acompanhamento_os_publico(token: str) -> str:
         dados = {
             "responsavel": str(request.form.get("responsavel") or "").strip(),
             "atividades_previstas": str(request.form.get("atividades_previstas") or "").strip(),
-            "equipe_prevista": str(request.form.get("equipe_prevista") or "").strip(),
-            "materiais_previstos": str(request.form.get("materiais_previstos") or "").strip(),
+            "equipe_prevista": "",
+            "materiais_previstos": "",
             "atividades_executadas": str(request.form.get("atividades_executadas") or "").strip(),
-            "equipe_real": str(request.form.get("equipe_real") or "").strip(),
-            "materiais_utilizados": str(request.form.get("materiais_utilizados") or "").strip(),
+            "equipe_real": "",
+            "materiais_utilizados": "",
             "observacoes": str(request.form.get("observacoes") or "").strip(),
         }
+        itens_formulario = montar_itens_acompanhamento_formulario(request.form)
 
-        atualizado = atualizar_acompanhamento_os_publico(token, dados, finalizar=finalizar)
+        atualizado = atualizar_acompanhamento_os_publico(token, dados, finalizar=finalizar, itens=itens_formulario)
 
         if atualizado:
             mensagem = "Acompanhamento finalizado com sucesso." if finalizar else "Acompanhamento salvo com sucesso."
             acompanhamento = buscar_acompanhamento_os_por_token(token) or acompanhamento
             bloqueado = finalizar
+            acompanhamento_id = int(acompanhamento.get("id") or 0)
+            empresa_acompanhamento_id = int(acompanhamento.get("empresa_id") or 0)
+            itens_salvos = listar_itens_acompanhamento(acompanhamento_id, empresa_acompanhamento_id)
+            equipe_acompanhamento = itens_salvos["equipe"]
+            materiais_acompanhamento = itens_salvos["materiais"]
+            servicos_acompanhamento = itens_salvos["servicos"]
         else:
             erro = "Não foi possível salvar o acompanhamento. Verifique se o link ainda está ativo."
             acompanhamento = buscar_acompanhamento_os_por_token(token) or acompanhamento
@@ -8236,6 +8743,12 @@ def acompanhamento_os_publico(token: str) -> str:
         bloqueado=bloqueado,
         erro=erro,
         mensagem=mensagem,
+        funcionarios=funcionarios_acompanhamento,
+        produtos=produtos_acompanhamento,
+        servicos_cadastrados=servicos_cadastrados_acompanhamento,
+        equipe_acompanhamento=equipe_acompanhamento,
+        materiais_acompanhamento=materiais_acompanhamento,
+        servicos_acompanhamento=servicos_acompanhamento,
     )
 
 
