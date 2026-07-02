@@ -1201,6 +1201,82 @@ def iniciar_banco() -> None:
             if coluna not in colunas_funcionarios_existentes:
                 conn.execute(f"ALTER TABLE funcionarios ADD COLUMN {coluna} {tipo_coluna}")
 
+        migracoes_colunas_cadastros = {
+            "clientes": {
+                "documento": "TEXT",
+                "telefone": "TEXT",
+                "cidade": "TEXT",
+                "status": "TEXT DEFAULT 'ativo'",
+                "email": "TEXT",
+                "criado_em": "TEXT",
+            },
+            "fornecedores": {
+                "documento": "TEXT",
+                "telefone": "TEXT",
+                "cidade": "TEXT",
+                "status": "TEXT DEFAULT 'ativo'",
+                "email": "TEXT",
+                "categoria": "TEXT",
+                "observacoes": "TEXT",
+                "criado_em": "TEXT",
+            },
+            "funcionarios": {
+                "cpf": "TEXT",
+                "telefone": "TEXT",
+                "cidade": "TEXT",
+                "cargo": "TEXT",
+                "status": "TEXT DEFAULT 'ativo'",
+                "email": "TEXT",
+                "observacoes": "TEXT",
+                "salario_base": "TEXT",
+                "inss_percentual": "TEXT",
+                "fgts_percentual": "TEXT",
+                "ferias_percentual": "TEXT",
+                "decimo_percentual": "TEXT",
+                "beneficios": "TEXT",
+                "transporte": "TEXT",
+                "alimentacao": "TEXT",
+                "outros_custos": "TEXT",
+                "custo_mensal": "TEXT",
+                "custo_dia": "TEXT",
+                "custo_hora": "TEXT",
+                "criado_em": "TEXT",
+            },
+            "produtos": {
+                "codigo": "TEXT",
+                "categoria": "TEXT",
+                "unidade": "TEXT",
+                "estoque_atual": "TEXT",
+                "estoque_minimo": "TEXT",
+                "preco_custo": "TEXT",
+                "preco_venda": "TEXT",
+                "status": "TEXT DEFAULT 'ativo'",
+                "observacoes": "TEXT",
+                "criado_em": "TEXT",
+            },
+            "servicos": {
+                "codigo": "TEXT",
+                "categoria": "TEXT",
+                "unidade": "TEXT",
+                "custo": "TEXT",
+                "valor_venda": "TEXT",
+                "tempo_estimado": "TEXT",
+                "status": "TEXT DEFAULT 'ativo'",
+                "observacoes": "TEXT",
+                "criado_em": "TEXT",
+            },
+        }
+
+        for tabela, colunas_migracao in migracoes_colunas_cadastros.items():
+            colunas_tabela_existentes = {
+                str(row["name"])
+                for row in conn.execute(f"PRAGMA table_info({tabela})").fetchall()
+            }
+
+            for coluna, tipo_coluna in colunas_migracao.items():
+                if coluna not in colunas_tabela_existentes:
+                    conn.execute(f"ALTER TABLE {tabela} ADD COLUMN {coluna} {tipo_coluna}")
+
         empresas_sem_codigo = conn.execute(
             """
             SELECT id
