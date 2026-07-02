@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-01 19:55 (America/Bahia)
-# Motivo: Criar paginação e ordenação por cabeçalho na tela de clientes.
+# Último recode: 2026-07-02 09:20 (America/Bahia)
+# Motivo: Criar paginação e ordenação por cabeçalho nos cadastros principais.
 
 from __future__ import annotations
 
@@ -1495,6 +1495,194 @@ def montar_paginacao(total: int, pagina: int, por_pagina: int) -> dict[str, Any]
         "proxima": min(pagina + 1, total_paginas),
     }
 
+
+
+CADASTROS_PAGINADOS = {
+    "fornecedores": {
+        "tabela": "fornecedores",
+        "colunas": ["id", "empresa_id", "nome", "documento", "telefone", "cidade", "status", "email", "categoria", "observacoes", "criado_em"],
+        "busca": ["nome", "documento", "telefone", "cidade", "email", "categoria", "status"],
+        "ordenacao": {
+            "id": "id",
+            "nome": "nome",
+            "documento": "documento",
+            "telefone": "telefone",
+            "cidade": "cidade",
+            "categoria": "categoria",
+            "status": "status",
+        },
+    },
+    "funcionarios": {
+        "tabela": "funcionarios",
+        "colunas": ["id", "empresa_id", "nome", "cpf", "telefone", "cidade", "cargo", "status", "email", "observacoes", "salario_base", "inss_percentual", "fgts_percentual", "ferias_percentual", "decimo_percentual", "beneficios", "transporte", "alimentacao", "outros_custos", "custo_mensal", "custo_dia", "custo_hora", "criado_em"],
+        "busca": ["nome", "cpf", "telefone", "cidade", "cargo", "email", "status"],
+        "ordenacao": {
+            "id": "id",
+            "nome": "nome",
+            "cpf": "cpf",
+            "telefone": "telefone",
+            "cidade": "cidade",
+            "cargo": "cargo",
+            "custo_hora": "custo_hora",
+            "status": "status",
+        },
+    },
+    "produtos": {
+        "tabela": "produtos",
+        "colunas": ["id", "empresa_id", "nome", "codigo", "categoria", "unidade", "estoque_atual", "estoque_minimo", "preco_custo", "preco_venda", "status", "observacoes", "criado_em"],
+        "busca": ["nome", "codigo", "categoria", "unidade", "status"],
+        "ordenacao": {
+            "id": "id",
+            "nome": "nome",
+            "codigo": "codigo",
+            "categoria": "categoria",
+            "unidade": "unidade",
+            "estoque_atual": "estoque_atual",
+            "preco_venda": "preco_venda",
+            "status": "status",
+        },
+    },
+    "servicos": {
+        "tabela": "servicos",
+        "colunas": ["id", "empresa_id", "nome", "codigo", "categoria", "unidade", "custo", "valor_venda", "tempo_estimado", "status", "observacoes", "criado_em"],
+        "busca": ["nome", "codigo", "categoria", "unidade", "status"],
+        "ordenacao": {
+            "id": "id",
+            "nome": "nome",
+            "codigo": "codigo",
+            "categoria": "categoria",
+            "unidade": "unidade",
+            "custo": "custo",
+            "valor_venda": "valor_venda",
+            "status": "status",
+        },
+    },
+}
+
+
+def montar_filtros_cadastro_paginado(cadastro: str, busca: Any) -> tuple[str, list[Any]]:
+    config_cadastro = CADASTROS_PAGINADOS[cadastro]
+    empresa_id = empresa_logada_id()
+    termo = str(busca or "").strip()
+
+    where = "WHERE empresa_id = ?"
+    parametros: list[Any] = [empresa_id]
+
+    if termo:
+        termo_like = f"%{termo}%"
+        campos_busca = config_cadastro["busca"]
+        where += " AND (" + " OR ".join(f"{campo} LIKE ?" for campo in campos_busca) + ")"
+        parametros.extend([termo_like] * len(campos_busca))
+
+    return where, parametros
+
+
+def listar_cadastro_paginado(
+    cadastro: str,
+    busca: Any = "",
+    pagina: int = 1,
+    por_pagina: int = 20,
+    ordenar: str = "id",
+    direcao: str = "desc",
+) -> tuple[list[dict[str, Any]], int]:
+    config_cadastro = CADASTROS_PAGINADOS[cadastro]
+    tabela = config_cadastro["tabela"]
+    colunas = config_cadastro["colunas"]
+    colunas_ordenacao = config_cadastro["ordenacao"]
+
+    coluna_sql = colunas_ordenacao.get(str(ordenar or "").strip(), "id")
+    direcao_sql = "ASC" if str(direcao or "").strip().lower() == "asc" else "DESC"
+    pagina = max(int(pagina or 1), 1)
+    por_pagina = int(por_pagina or 20)
+    offset = (pagina - 1) * por_pagina
+    where, parametros = montar_filtros_cadastro_paginado(cadastro, busca)
+    colunas_sql = ",\n                ".join(colunas)
+
+    with conectar_db() as conn:
+        total = conn.execute(
+            f"""
+            SELECT COUNT(*) AS total
+            FROM {tabela}
+            {where}
+            """,
+            parametros,
+        ).fetchone()["total"]
+
+        rows = conn.execute(
+            f"""
+            SELECT
+                {colunas_sql}
+            FROM {tabela}
+            {where}
+            ORDER BY {coluna_sql} {direcao_sql}, id DESC
+            LIMIT ?
+            OFFSET ?
+            """,
+            [*parametros, por_pagina, offset],
+        ).fetchall()
+
+    return [dict(row) for row in rows], int(total or 0)
+
+
+def resumir_cadastro_paginado(cadastro: str) -> dict[str, int]:
+    tabela = CADASTROS_PAGINADOS[cadastro]["tabela"]
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        total = conn.execute(
+            f"SELECT COUNT(*) AS total FROM {tabela} WHERE empresa_id = ?",
+            (empresa_id,),
+        ).fetchone()["total"]
+
+        ativos = conn.execute(
+            f"SELECT COUNT(*) AS total FROM {tabela} WHERE empresa_id = ? AND status = ?",
+            (empresa_id, "ativo"),
+        ).fetchone()["total"]
+
+        pendentes = conn.execute(
+            f"SELECT COUNT(*) AS total FROM {tabela} WHERE empresa_id = ? AND status = ?",
+            (empresa_id, "pendente"),
+        ).fetchone()["total"]
+
+    return {
+        "total": int(total or 0),
+        "ativos": int(ativos or 0),
+        "pendentes": int(pendentes or 0),
+    }
+
+
+def montar_contexto_cadastro_paginado(cadastro: str, ordenacao_padrao: str = "id") -> dict[str, Any]:
+    busca = (request.args.get("busca") or "").strip()
+    pagina = _normalizar_inteiro_query(request.args.get("pagina"), 1)
+    por_pagina = _normalizar_inteiro_query(request.args.get("por_pagina"), 20)
+
+    if por_pagina not in {10, 20, 50, 100}:
+        por_pagina = 20
+
+    ordenar = (request.args.get("ordenar") or ordenacao_padrao).strip()
+    direcao = (request.args.get("direcao") or "desc").strip().lower()
+
+    if ordenar not in CADASTROS_PAGINADOS[cadastro]["ordenacao"]:
+        ordenar = ordenacao_padrao
+
+    if direcao not in {"asc", "desc"}:
+        direcao = "desc"
+
+    registros, total = listar_cadastro_paginado(cadastro, busca, pagina, por_pagina, ordenar, direcao)
+    paginacao = montar_paginacao(total, pagina, por_pagina)
+
+    if pagina != paginacao["pagina"] and total > 0:
+        registros, total = listar_cadastro_paginado(cadastro, busca, paginacao["pagina"], por_pagina, ordenar, direcao)
+
+    return {
+        "registros": registros,
+        "resumo": resumir_cadastro_paginado(cadastro),
+        "paginacao": paginacao,
+        "busca": busca,
+        "ordenar": ordenar,
+        "direcao": direcao,
+        "por_pagina": por_pagina,
+    }
 
 def buscar_cliente_por_id(cliente_id: int) -> dict[str, Any] | None:
     empresa_id = empresa_logada_id()
@@ -9614,8 +9802,17 @@ def excluir_cliente(cliente_id: int) -> Response:
 
 @app.get("/fornecedores")
 def fornecedores() -> str:
-    fornecedores_lista = listar_fornecedores()
-    return render_template("fornecedores.html", fornecedores=fornecedores_lista)
+    contexto = montar_contexto_cadastro_paginado("fornecedores")
+    return render_template(
+        "fornecedores.html",
+        fornecedores=contexto["registros"],
+        resumo_fornecedores=contexto["resumo"],
+        paginacao=contexto["paginacao"],
+        busca=contexto["busca"],
+        ordenar=contexto["ordenar"],
+        direcao=contexto["direcao"],
+        por_pagina=contexto["por_pagina"],
+    )
 
 
 @app.post("/fornecedores")
@@ -9788,8 +9985,17 @@ def excluir_fornecedor(fornecedor_id: int) -> Response:
 
 @app.get("/funcionarios")
 def funcionarios() -> str:
-    funcionarios_lista = listar_funcionarios()
-    return render_template("funcionarios.html", funcionarios=funcionarios_lista)
+    contexto = montar_contexto_cadastro_paginado("funcionarios")
+    return render_template(
+        "funcionarios.html",
+        funcionarios=contexto["registros"],
+        resumo_funcionarios=contexto["resumo"],
+        paginacao=contexto["paginacao"],
+        busca=contexto["busca"],
+        ordenar=contexto["ordenar"],
+        direcao=contexto["direcao"],
+        por_pagina=contexto["por_pagina"],
+    )
 
 
 @app.post("/funcionarios")
@@ -10169,8 +10375,17 @@ def validar_servico_para_salvar(servico: dict[str, str]) -> str:
 
 @app.get("/produtos")
 def produtos() -> str:
-    produtos_lista = listar_produtos()
-    return render_template("produtos.html", produtos=produtos_lista)
+    contexto = montar_contexto_cadastro_paginado("produtos")
+    return render_template(
+        "produtos.html",
+        produtos=contexto["registros"],
+        resumo_produtos=contexto["resumo"],
+        paginacao=contexto["paginacao"],
+        busca=contexto["busca"],
+        ordenar=contexto["ordenar"],
+        direcao=contexto["direcao"],
+        por_pagina=contexto["por_pagina"],
+    )
 
 
 @app.post("/produtos")
@@ -10437,8 +10652,17 @@ def excluir_produto(produto_id: int) -> Response:
 
 @app.get("/servicos")
 def servicos() -> str:
-    servicos_lista = listar_servicos()
-    return render_template("servicos.html", servicos=servicos_lista)
+    contexto = montar_contexto_cadastro_paginado("servicos")
+    return render_template(
+        "servicos.html",
+        servicos=contexto["registros"],
+        resumo_servicos=contexto["resumo"],
+        paginacao=contexto["paginacao"],
+        busca=contexto["busca"],
+        ordenar=contexto["ordenar"],
+        direcao=contexto["direcao"],
+        por_pagina=contexto["por_pagina"],
+    )
 
 
 @app.post("/servicos")

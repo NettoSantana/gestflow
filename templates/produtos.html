@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\produtos.html
-Último recode: 2026-07-02 11:55 (America/Bahia)
-Motivo: Corrigir abertura do menu Mais ações em produtos.
+Último recode: 2026-07-02 09:20 (America/Bahia)
+Motivo: Criar paginação e ordenação por cabeçalho na tela de produtos.
 -->
 
 <!DOCTYPE html>
@@ -104,6 +104,115 @@ Motivo: Corrigir abertura do menu Mais ações em produtos.
             background: #f1f5f9;
         }
 
+        .sortable-link {
+            color: #1e293b;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            text-decoration: none;
+            font-weight: 900;
+        }
+
+        .sortable-link:hover {
+            color: #0f62fe;
+        }
+
+        .sort-indicator {
+            color: #0f62fe;
+            font-size: 11px;
+            font-weight: 900;
+        }
+
+        .pagination-bar {
+            margin-top: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            font-size: 13px;
+            color: #475569;
+            font-weight: 800;
+        }
+
+        .pagination-links {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .pagination-links a,
+        .pagination-links span {
+            min-width: 34px;
+            height: 34px;
+            padding: 0 10px;
+            border: 1px solid #dbe4f0;
+            border-radius: 9px;
+            background: #ffffff;
+            color: #0f172a;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 900;
+            text-decoration: none;
+        }
+
+        .pagination-links a:hover {
+            background: #eff6ff;
+            border-color: #bfdbfe;
+            color: #0f62fe;
+        }
+
+        .pagination-links .current-page {
+            background: #0f62fe;
+            border-color: #0f62fe;
+            color: #ffffff;
+        }
+
+        .pagination-links .disabled-page {
+            color: #94a3b8;
+            background: #f8fafc;
+            cursor: not-allowed;
+        }
+
+        .client-search-form {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .client-search-form .client-search {
+            flex: 1 1 320px;
+        }
+
+        .per-page-select {
+            max-width: 130px;
+        }
+
+        .clear-search-link {
+            min-height: 38px;
+            padding: 0 12px;
+            border: 1px solid #dbe4f0;
+            border-radius: 10px;
+            background: #ffffff;
+            color: #64748b;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 900;
+            text-decoration: none;
+        }
+
+        .clear-search-link:hover {
+            background: #f8fafc;
+            color: #0f172a;
+        }
+
     </style>
 </head>
 <body>
@@ -122,15 +231,12 @@ Motivo: Corrigir abertura do menu Mais ações em produtos.
         {% endif %}
 
 {% set produtos_lista = produtos|default([]) %}
-        {% set resumo = namespace(ativos=0, pendentes=0) %}
-        {% for produto in produtos_lista %}
-            {% if produto.status == "ativo" %}
-                {% set resumo.ativos = resumo.ativos + 1 %}
-            {% endif %}
-            {% if produto.status == "pendente" %}
-                {% set resumo.pendentes = resumo.pendentes + 1 %}
-            {% endif %}
-        {% endfor %}
+        {% set resumo_geral = resumo_produtos|default({}, true) %}
+        {% set paginacao = paginacao|default({}, true) %}
+        {% set busca = busca|default('', true) %}
+        {% set ordenar = ordenar|default('id', true) %}
+        {% set direcao = direcao|default('desc', true) %}
+        {% set por_pagina = por_pagina|default(20, true) %}
 
         <section class="panel page-section">
             <div class="panel-header page-header">
@@ -148,27 +254,27 @@ Motivo: Corrigir abertura do menu Mais ações em produtos.
             <div class="card stat-card">
                 <div class="card-icon">☷</div>
                 <div class="card-info">
-                    <p>{{ produtos_lista|length }}</p>
+                    <p>{{ resumo_geral.total|default(0, true) }}</p>
                     <h3>Total de produtos</h3>
-                    <span>{% if produtos_lista|length == 1 %}1 produto cadastrado{% elif produtos_lista|length > 1 %}{{ produtos_lista|length }} produtos cadastrados{% else %}Nenhum produto cadastrado{% endif %}</span>
+                    <span>{% if produtos_lista|length == 1 %}1 produto cadastrado{% elif produtos_lista|length > 1 %}{{ resumo_geral.total|default(0, true) }} produtos cadastrados{% else %}Nenhum produto cadastrado{% endif %}</span>
                 </div>
             </div>
 
             <div class="card stat-card">
                 <div class="card-icon">✓</div>
                 <div class="card-info">
-                    <p>{{ resumo.ativos }}</p>
+                    <p>{{ resumo_geral.ativos|default(0, true) }}</p>
                     <h3>Produtos ativos</h3>
-                    <span>{% if resumo.ativos == 1 %}1 produto ativo{% elif resumo.ativos > 1 %}{{ resumo.ativos }} produtos ativos{% else %}Aguardando cadastro{% endif %}</span>
+                    <span>{% if resumo.ativos == 1 %}1 produto ativo{% elif resumo.ativos > 1 %}{{ resumo_geral.ativos|default(0, true) }} produtos ativos{% else %}Aguardando cadastro{% endif %}</span>
                 </div>
             </div>
 
             <div class="card stat-card">
                 <div class="card-icon">!</div>
                 <div class="card-info">
-                    <p>{{ resumo.pendentes }}</p>
+                    <p>{{ resumo_geral.pendentes|default(0, true) }}</p>
                     <h3>Pendências</h3>
-                    <span>{% if resumo.pendentes == 1 %}1 cadastro pendente{% elif resumo.pendentes > 1 %}{{ resumo.pendentes }} cadastros pendentes{% else %}Nenhuma pendência{% endif %}</span>
+                    <span>{% if resumo.pendentes == 1 %}1 cadastro pendente{% elif resumo.pendentes > 1 %}{{ resumo_geral.pendentes|default(0, true) }} cadastros pendentes{% else %}Nenhuma pendência{% endif %}</span>
                 </div>
             </div>
         </section>
@@ -290,22 +396,78 @@ Motivo: Corrigir abertura do menu Mais ações em produtos.
             </div>
 
             <div class="client-actions">
-                <input type="text" placeholder="Buscar por nome, código, categoria ou status" class="client-search">
-                <button type="button" class="btn-dark">Buscar</button>
+                <form action="/produtos" method="get" class="client-search-form">
+                    <input type="text" name="busca" value="{{ busca }}" placeholder="Buscar por nome, código, categoria, unidade ou status" class="client-search">
+                    <input type="hidden" name="ordenar" value="{{ ordenar }}">
+                    <input type="hidden" name="direcao" value="{{ direcao }}">
+
+                    <select name="por_pagina" class="form-control per-page-select" onchange="this.form.submit()">
+                        <option value="10" {% if por_pagina == 10 %}selected{% endif %}>10 por página</option>
+                        <option value="20" {% if por_pagina == 20 %}selected{% endif %}>20 por página</option>
+                        <option value="50" {% if por_pagina == 50 %}selected{% endif %}>50 por página</option>
+                        <option value="100" {% if por_pagina == 100 %}selected{% endif %}>100 por página</option>
+                    </select>
+
+                    <button type="submit" class="btn-dark">Buscar</button>
+
+                    {% if busca %}
+                        <a href="{{ url_for('produtos', por_pagina=por_pagina, ordenar=ordenar, direcao=direcao) }}" class="clear-search-link">Limpar</a>
+                    {% endif %}
+                </form>
             </div>
 
             <div class="table-shell">
                 <table class="client-table">
                     <thead>
                         <tr>
-                            <th>ID</th>
-                            <th>Produto</th>
-                            <th>Código interno</th>
-                            <th>Categoria</th>
-                            <th>Unidade</th>
-                            <th>Estoque</th>
-                            <th>Preço venda</th>
-                            <th>Status</th>
+                            <th>
+                                <a href="{{ url_for('produtos', pagina=1, por_pagina=por_pagina, ordenar='id', direcao='desc' if ordenar == 'id' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    ID
+                                    {% if ordenar == 'id' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('produtos', pagina=1, por_pagina=por_pagina, ordenar='nome', direcao='desc' if ordenar == 'nome' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    Produto
+                                    {% if ordenar == 'nome' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('produtos', pagina=1, por_pagina=por_pagina, ordenar='codigo', direcao='desc' if ordenar == 'codigo' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    Código interno
+                                    {% if ordenar == 'codigo' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('produtos', pagina=1, por_pagina=por_pagina, ordenar='categoria', direcao='desc' if ordenar == 'categoria' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    Categoria
+                                    {% if ordenar == 'categoria' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('produtos', pagina=1, por_pagina=por_pagina, ordenar='unidade', direcao='desc' if ordenar == 'unidade' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    Unidade
+                                    {% if ordenar == 'unidade' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('produtos', pagina=1, por_pagina=por_pagina, ordenar='estoque_atual', direcao='desc' if ordenar == 'estoque_atual' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    Estoque
+                                    {% if ordenar == 'estoque_atual' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('produtos', pagina=1, por_pagina=por_pagina, ordenar='preco_venda', direcao='desc' if ordenar == 'preco_venda' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    Preço venda
+                                    {% if ordenar == 'preco_venda' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('produtos', pagina=1, por_pagina=por_pagina, ordenar='status', direcao='desc' if ordenar == 'status' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    Status
+                                    {% if ordenar == 'status' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
                             <th>Ações</th>
                         </tr>
                     </thead>
@@ -350,6 +512,55 @@ Motivo: Corrigir abertura do menu Mais ações em produtos.
                     </tbody>
                 </table>
             </div>
+
+            <div class="pagination-bar">
+                <div>
+                    {% if paginacao.total|default(0, true) > 0 %}
+                        Mostrando {{ paginacao.inicio }} a {{ paginacao.fim }} de um total de {{ paginacao.total }}
+                    {% else %}
+                        Nenhum produto encontrado
+                    {% endif %}
+                </div>
+
+                {% if paginacao.total_paginas|default(1, true) > 1 %}
+                    <div class="pagination-links">
+                        {% if paginacao.tem_anterior %}
+                            <a href="{{ url_for('produtos', pagina=paginacao.anterior, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">‹</a>
+                        {% else %}
+                            <span class="disabled-page">‹</span>
+                        {% endif %}
+
+                        {% if 1 not in paginacao.paginas %}
+                            <a href="{{ url_for('produtos', pagina=1, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">1</a>
+                            {% if paginacao.paginas[0] > 2 %}
+                                <span class="disabled-page">...</span>
+                            {% endif %}
+                        {% endif %}
+
+                        {% for numero_pagina in paginacao.paginas %}
+                            {% if numero_pagina == paginacao.pagina %}
+                                <span class="current-page">{{ numero_pagina }}</span>
+                            {% else %}
+                                <a href="{{ url_for('produtos', pagina=numero_pagina, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">{{ numero_pagina }}</a>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if paginacao.total_paginas not in paginacao.paginas %}
+                            {% if paginacao.paginas[-1] < paginacao.total_paginas - 1 %}
+                                <span class="disabled-page">...</span>
+                            {% endif %}
+                            <a href="{{ url_for('produtos', pagina=paginacao.total_paginas, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">{{ paginacao.total_paginas }}</a>
+                        {% endif %}
+
+                        {% if paginacao.tem_proxima %}
+                            <a href="{{ url_for('produtos', pagina=paginacao.proxima, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">›</a>
+                        {% else %}
+                            <span class="disabled-page">›</span>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+
 
         </section>
 
