@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamentos.html
-Último recode: 2026-07-01 08:10 (America/Bahia)
-Motivo: Adicionar atalho para o Gerador de Orçamentos técnico.
+Último recode: 2026-07-01 10:25 (America/Bahia)
+Motivo: Remover linhas internas da lista de orçamentos e deixar visual em cartões.
 -->
 
 <!DOCTYPE html>
@@ -225,6 +225,53 @@ Motivo: Adicionar atalho para o Gerador de Orçamentos técnico.
             border-color: #dc2626 !important;
             box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.12);
         }
+
+        /* LISTA DE ORÇAMENTOS SEM LINHAS INTERNAS */
+        .orcamentos-lista-shell {
+            border: 0 !important;
+            border-radius: 16px;
+            overflow-x: auto;
+            background: #ffffff;
+        }
+
+        .orcamentos-lista-table {
+            border-collapse: separate !important;
+            border-spacing: 0 10px !important;
+            min-width: 900px;
+        }
+
+        .orcamentos-lista-table thead th {
+            border-bottom: 0 !important;
+            background: transparent;
+            padding-bottom: 10px;
+        }
+
+        .orcamentos-lista-table tbody tr {
+            background: #ffffff;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+            border-radius: 14px;
+        }
+
+        .orcamentos-lista-table tbody td {
+            border-bottom: 0 !important;
+            padding-top: 14px !important;
+            padding-bottom: 14px !important;
+        }
+
+        .orcamentos-lista-table tbody td:first-child {
+            border-top-left-radius: 14px;
+            border-bottom-left-radius: 14px;
+        }
+
+        .orcamentos-lista-table tbody td:last-child {
+            border-top-right-radius: 14px;
+            border-bottom-right-radius: 14px;
+        }
+
+        .orcamentos-lista-table .empty-table {
+            box-shadow: none;
+        }
+
 
     </style>
 </head>
@@ -643,8 +690,8 @@ Motivo: Adicionar atalho para o Gerador de Orçamentos técnico.
                 <button type="button" class="btn-dark">Buscar</button>
             </div>
 
-            <div class="table-shell">
-                <table class="client-table">
+            <div class="table-shell orcamentos-lista-shell">
+                <table class="client-table orcamentos-lista-table">
                     <thead>
                         <tr>
                             <th>ID</th>
