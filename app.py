@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-02 09:20 (America/Bahia)
-# Motivo: Criar paginação e ordenação por cabeçalho nos cadastros principais.
+# Último recode: 2026-07-02 09:45 (America/Bahia)
+# Motivo: Criar paginação e ordenação por cabeçalho na tela de orçamentos.
 
 from __future__ import annotations
 
@@ -3060,6 +3060,176 @@ def listar_orcamentos() -> list[dict[str, Any]]:
         ).fetchall()
 
     return [dict(row) for row in rows]
+
+
+def montar_filtros_orcamentos(busca: Any) -> tuple[str, list[Any]]:
+    empresa_id = empresa_logada_id()
+    termo = str(busca or "").strip()
+
+    where = "WHERE empresa_id = ?"
+    parametros: list[Any] = [empresa_id]
+
+    if termo:
+        termo_like = f"%{termo}%"
+        where += """
+          AND (
+                numero LIKE ?
+             OR cliente LIKE ?
+             OR responsavel LIKE ?
+             OR tipo LIKE ?
+             OR status LIKE ?
+             OR data LIKE ?
+             OR validade LIKE ?
+             OR valor_total LIKE ?
+          )
+        """
+        parametros.extend([
+            termo_like,
+            termo_like,
+            termo_like,
+            termo_like,
+            termo_like,
+            termo_like,
+            termo_like,
+            termo_like,
+        ])
+
+    return where, parametros
+
+
+def listar_orcamentos_paginado(
+    busca: Any = "",
+    pagina: int = 1,
+    por_pagina: int = 20,
+    ordenar: str = "id",
+    direcao: str = "desc",
+) -> tuple[list[dict[str, Any]], int]:
+    colunas_ordenacao = {
+        "id": "id",
+        "numero": "numero",
+        "cliente": "cliente",
+        "responsavel": "responsavel",
+        "tipo": "tipo",
+        "status": "status",
+        "data": "data",
+        "validade": "validade",
+        "valor_total": "valor_total",
+    }
+
+    coluna_sql = colunas_ordenacao.get(str(ordenar or "").strip(), "id")
+    direcao_sql = "ASC" if str(direcao or "").strip().lower() == "asc" else "DESC"
+    pagina = max(int(pagina or 1), 1)
+    por_pagina = int(por_pagina or 20)
+    offset = (pagina - 1) * por_pagina
+    where, parametros = montar_filtros_orcamentos(busca)
+
+    with conectar_db() as conn:
+        total = conn.execute(
+            f"""
+            SELECT COUNT(*) AS total
+            FROM orcamentos
+            {where}
+            """,
+            parametros,
+        ).fetchone()["total"]
+
+        rows = conn.execute(
+            f"""
+            SELECT
+                id,
+                empresa_id,
+                numero,
+                cliente,
+                responsavel,
+                data,
+                prazo_entrega,
+                validade,
+                canal_venda,
+                centro_custo,
+                introducao,
+                tipo,
+                status,
+                total_produtos,
+                total_servicos,
+                desconto_valor,
+                desconto_percentual,
+                valor_total,
+                forma_pagamento,
+                observacoes,
+                observacoes_internas,
+                criado_em
+            FROM orcamentos
+            {where}
+            ORDER BY {coluna_sql} {direcao_sql}, id DESC
+            LIMIT ?
+            OFFSET ?
+            """,
+            [*parametros, por_pagina, offset],
+        ).fetchall()
+
+    return [dict(row) for row in rows], int(total or 0)
+
+
+def resumir_orcamentos_cadastrados() -> dict[str, int]:
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        total = conn.execute(
+            "SELECT COUNT(*) AS total FROM orcamentos WHERE empresa_id = ?",
+            (empresa_id,),
+        ).fetchone()["total"]
+
+        abertos = conn.execute(
+            "SELECT COUNT(*) AS total FROM orcamentos WHERE empresa_id = ? AND status = ?",
+            (empresa_id, "aberto"),
+        ).fetchone()["total"]
+
+        aprovados = conn.execute(
+            "SELECT COUNT(*) AS total FROM orcamentos WHERE empresa_id = ? AND status = ?",
+            (empresa_id, "aprovado"),
+        ).fetchone()["total"]
+
+    return {
+        "total": int(total or 0),
+        "abertos": int(abertos or 0),
+        "aprovados": int(aprovados or 0),
+    }
+
+
+def montar_contexto_orcamentos_paginado() -> dict[str, Any]:
+    busca = (request.args.get("busca") or "").strip()
+    pagina = _normalizar_inteiro_query(request.args.get("pagina"), 1)
+    por_pagina = _normalizar_inteiro_query(request.args.get("por_pagina"), 20)
+
+    if por_pagina not in {10, 20, 50, 100}:
+        por_pagina = 20
+
+    ordenar = (request.args.get("ordenar") or "id").strip()
+    direcao = (request.args.get("direcao") or "desc").strip().lower()
+
+    if direcao not in {"asc", "desc"}:
+        direcao = "desc"
+
+    orcamentos_lista, total = listar_orcamentos_paginado(
+        busca=busca,
+        pagina=pagina,
+        por_pagina=por_pagina,
+        ordenar=ordenar,
+        direcao=direcao,
+    )
+    paginacao = montar_paginacao(total, pagina, por_pagina)
+
+    return {
+        "itens": orcamentos_lista,
+        "paginacao": paginacao,
+        "resumo_geral": resumir_orcamentos_cadastrados(),
+        "busca": busca,
+        "pagina": paginacao["pagina"],
+        "por_pagina": por_pagina,
+        "ordenar": ordenar,
+        "direcao": direcao,
+    }
+
 
 def buscar_orcamento_por_id(orcamento_id: int) -> dict[str, Any] | None:
     empresa_id = empresa_logada_id()
@@ -12337,7 +12507,7 @@ def gerador_orcamentos() -> str | Response:
 
 @app.get("/orcamentos")
 def orcamentos() -> str:
-    orcamentos_lista = listar_orcamentos()
+    contexto_orcamentos = montar_contexto_orcamentos_paginado()
     clientes_lista = listar_clientes()
     funcionarios_lista = listar_funcionarios()
     produtos_lista = listar_produtos()
@@ -12346,12 +12516,19 @@ def orcamentos() -> str:
 
     return render_template(
         "orcamentos.html",
-        orcamentos=orcamentos_lista,
+        orcamentos=contexto_orcamentos["itens"],
         clientes=clientes_lista,
         funcionarios=funcionarios_lista,
         produtos=produtos_lista,
         servicos=servicos_lista,
         proximo_numero=proximo_numero,
+        paginacao=contexto_orcamentos["paginacao"],
+        resumo_geral=contexto_orcamentos["resumo_geral"],
+        busca=contexto_orcamentos["busca"],
+        pagina=contexto_orcamentos["pagina"],
+        por_pagina=contexto_orcamentos["por_pagina"],
+        ordenar=contexto_orcamentos["ordenar"],
+        direcao=contexto_orcamentos["direcao"],
     )
 
 
