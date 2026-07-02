@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-01 19:45 (America/Bahia)
-# Motivo: Adicionar importação, modelo e exportação para produtos, serviços, fornecedores e funcionários.
+# Último recode: 2026-07-01 19:55 (America/Bahia)
+# Motivo: Criar paginação e ordenação por cabeçalho na tela de clientes.
 
 from __future__ import annotations
 
@@ -1350,6 +1350,150 @@ def listar_clientes() -> list[dict[str, Any]]:
         ).fetchall()
 
     return [dict(row) for row in rows]
+
+
+def _normalizar_inteiro_query(valor: Any, padrao: int, minimo: int = 1) -> int:
+    try:
+        numero = int(str(valor or "").strip())
+    except (TypeError, ValueError):
+        return padrao
+
+    return max(numero, minimo)
+
+
+def montar_filtros_clientes(busca: Any) -> tuple[str, list[Any]]:
+    empresa_id = empresa_logada_id()
+    termo = str(busca or "").strip()
+
+    where = "WHERE empresa_id = ?"
+    parametros: list[Any] = [empresa_id]
+
+    if termo:
+        termo_like = f"%{termo}%"
+        where += """
+          AND (
+                nome LIKE ?
+             OR documento LIKE ?
+             OR telefone LIKE ?
+             OR cidade LIKE ?
+             OR email LIKE ?
+          )
+        """
+        parametros.extend([termo_like, termo_like, termo_like, termo_like, termo_like])
+
+    return where, parametros
+
+
+def listar_clientes_paginado(
+    busca: Any = "",
+    pagina: int = 1,
+    por_pagina: int = 20,
+    ordenar: str = "id",
+    direcao: str = "desc",
+) -> tuple[list[dict[str, Any]], int]:
+    colunas_ordenacao = {
+        "id": "id",
+        "nome": "nome",
+        "documento": "documento",
+        "telefone": "telefone",
+        "cidade": "cidade",
+        "status": "status",
+    }
+
+    coluna_sql = colunas_ordenacao.get(str(ordenar or "").strip(), "id")
+    direcao_sql = "ASC" if str(direcao or "").strip().lower() == "asc" else "DESC"
+    pagina = max(int(pagina or 1), 1)
+    por_pagina = int(por_pagina or 20)
+    offset = (pagina - 1) * por_pagina
+    where, parametros = montar_filtros_clientes(busca)
+
+    with conectar_db() as conn:
+        total = conn.execute(
+            f"""
+            SELECT COUNT(*) AS total
+            FROM clientes
+            {where}
+            """,
+            parametros,
+        ).fetchone()["total"]
+
+        rows = conn.execute(
+            f"""
+            SELECT
+                id,
+                empresa_id,
+                nome,
+                documento,
+                telefone,
+                cidade,
+                status,
+                email,
+                criado_em
+            FROM clientes
+            {where}
+            ORDER BY {coluna_sql} {direcao_sql}, id DESC
+            LIMIT ?
+            OFFSET ?
+            """,
+            [*parametros, por_pagina, offset],
+        ).fetchall()
+
+    return [dict(row) for row in rows], int(total or 0)
+
+
+def resumir_clientes_cadastrados() -> dict[str, int]:
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        total = conn.execute(
+            "SELECT COUNT(*) AS total FROM clientes WHERE empresa_id = ?",
+            (empresa_id,),
+        ).fetchone()["total"]
+
+        ativos = conn.execute(
+            "SELECT COUNT(*) AS total FROM clientes WHERE empresa_id = ? AND status = ?",
+            (empresa_id, "ativo"),
+        ).fetchone()["total"]
+
+        pendentes = conn.execute(
+            "SELECT COUNT(*) AS total FROM clientes WHERE empresa_id = ? AND status = ?",
+            (empresa_id, "pendente"),
+        ).fetchone()["total"]
+
+    return {
+        "total": int(total or 0),
+        "ativos": int(ativos or 0),
+        "pendentes": int(pendentes or 0),
+    }
+
+
+def montar_paginacao(total: int, pagina: int, por_pagina: int) -> dict[str, Any]:
+    total = int(total or 0)
+    pagina = max(int(pagina or 1), 1)
+    por_pagina = max(int(por_pagina or 20), 1)
+    total_paginas = max((total + por_pagina - 1) // por_pagina, 1)
+
+    if pagina > total_paginas:
+        pagina = total_paginas
+
+    inicio = 0 if total == 0 else ((pagina - 1) * por_pagina) + 1
+    fim = min(pagina * por_pagina, total)
+
+    paginas = list(range(max(1, pagina - 2), min(total_paginas, pagina + 2) + 1))
+
+    return {
+        "pagina": pagina,
+        "por_pagina": por_pagina,
+        "total": total,
+        "total_paginas": total_paginas,
+        "inicio": inicio,
+        "fim": fim,
+        "paginas": paginas,
+        "tem_anterior": pagina > 1,
+        "tem_proxima": pagina < total_paginas,
+        "anterior": max(pagina - 1, 1),
+        "proxima": min(pagina + 1, total_paginas),
+    }
 
 
 def buscar_cliente_por_id(cliente_id: int) -> dict[str, Any] | None:
@@ -9161,8 +9305,53 @@ def validar_funcionario_para_salvar(funcionario: dict[str, str]) -> str:
 
 @app.get("/clientes")
 def clientes() -> str:
-    clientes_lista = listar_clientes()
-    return render_template("clientes.html", clientes=clientes_lista)
+    busca = (request.args.get("busca") or "").strip()
+    pagina = _normalizar_inteiro_query(request.args.get("pagina"), 1)
+    por_pagina = _normalizar_inteiro_query(request.args.get("por_pagina"), 20)
+
+    if por_pagina not in {10, 20, 50, 100}:
+        por_pagina = 20
+
+    ordenar = (request.args.get("ordenar") or "id").strip().lower()
+    if ordenar not in {"id", "nome", "documento", "telefone", "cidade", "status"}:
+        ordenar = "id"
+
+    direcao = (request.args.get("direcao") or "desc").strip().lower()
+    if direcao not in {"asc", "desc"}:
+        direcao = "desc"
+
+    clientes_lista, total_filtrado = listar_clientes_paginado(
+        busca=busca,
+        pagina=pagina,
+        por_pagina=por_pagina,
+        ordenar=ordenar,
+        direcao=direcao,
+    )
+    resumo_clientes = resumir_clientes_cadastrados()
+    paginacao = montar_paginacao(total_filtrado, pagina, por_pagina)
+
+    if pagina != paginacao["pagina"]:
+        return redirect(
+            url_for(
+                "clientes",
+                busca=busca,
+                pagina=paginacao["pagina"],
+                por_pagina=por_pagina,
+                ordenar=ordenar,
+                direcao=direcao,
+            )
+        )
+
+    return render_template(
+        "clientes.html",
+        clientes=clientes_lista,
+        resumo_clientes=resumo_clientes,
+        paginacao=paginacao,
+        busca=busca,
+        ordenar=ordenar,
+        direcao=direcao,
+        por_pagina=por_pagina,
+    )
 
 
 @app.post("/clientes")
