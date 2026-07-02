@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-02 19:20 (America/Bahia)
-# Motivo: Estender paginação, busca, seletor por página e cabeçalho ordenável para vendas, devoluções, ordens de serviço, estoque, financeiro, admin empresas e configurações.
+# Último recode: 2026-07-02 20:35 (America/Bahia)
+# Motivo: Revisar e corrigir cadastro rápido em telas operacionais, mantendo padrão funcional do orçamento para vendas, OS, estoque e financeiro.
 
 from __future__ import annotations
 
@@ -10869,6 +10869,87 @@ def excluir_fornecedor(fornecedor_id: int) -> Response:
     return redirect(url_for("fornecedores"))
 
 
+
+
+@app.post("/fornecedores/rapido")
+def salvar_fornecedor_rapido() -> Response:
+    nome = (request.form.get("nome") or request.form.get("fornecedor_nome") or "").strip()
+    documento = (request.form.get("documento") or request.form.get("fornecedor_documento") or "").strip()
+    telefone = (request.form.get("telefone") or request.form.get("fornecedor_telefone") or "").strip()
+    email = (request.form.get("email") or request.form.get("fornecedor_email") or "").strip()
+    categoria = (request.form.get("categoria") or request.form.get("fornecedor_categoria") or "").strip()
+
+    if not nome:
+        return jsonify({"ok": False, "erro": "Informe o nome do fornecedor."}), 400
+
+    fornecedor = {
+        "nome": nome,
+        "documento": documento,
+        "telefone": telefone,
+        "cidade": "",
+        "status": "ativo",
+        "email": email,
+        "categoria": categoria,
+        "observacoes": "Cadastro rápido gerado em tela operacional.",
+    }
+
+    fornecedor = normalizar_fornecedor_para_salvar(fornecedor)
+    erro_validacao = validar_fornecedor_para_salvar(fornecedor)
+
+    if erro_validacao:
+        return jsonify({"ok": False, "erro": erro_validacao}), 400
+
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO fornecedores (
+                empresa_id,
+                nome,
+                documento,
+                telefone,
+                cidade,
+                status,
+                email,
+                categoria,
+                observacoes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                empresa_id,
+                fornecedor["nome"],
+                fornecedor["documento"],
+                fornecedor["telefone"],
+                fornecedor["cidade"],
+                fornecedor["status"],
+                fornecedor["email"],
+                fornecedor["categoria"],
+                fornecedor["observacoes"],
+            ),
+        )
+        fornecedor_id = int(cursor.lastrowid)
+        conn.commit()
+
+    registrar_atividade_usuario("criacao", "fornecedores", f"Criou fornecedor rápido {fornecedor['nome']}", request.path)
+
+    fornecedor_resposta = {
+        "id": fornecedor_id,
+        "nome": fornecedor["nome"],
+        "documento": fornecedor["documento"],
+        "telefone": fornecedor["telefone"],
+        "email": fornecedor["email"],
+        "categoria": fornecedor["categoria"],
+    }
+
+    return jsonify(
+        {
+            "ok": True,
+            "fornecedor": fornecedor_resposta,
+            "item": fornecedor_resposta,
+        }
+    )
+
 @app.get("/funcionarios")
 def funcionarios() -> str:
     contexto = montar_contexto_cadastro_paginado("funcionarios")
@@ -11816,6 +11897,8 @@ def financeiro() -> str:
 
     painel = montar_painel_financeiro()
     contexto_financeiro = montar_contexto_financeiro_paginado("pagar" if aba == "pagar" else "receber")
+    clientes_lista = listar_clientes()
+    fornecedores_lista = listar_fornecedores()
 
     if aba == "pagar":
         painel["pagamentos"] = contexto_financeiro["itens"]
@@ -11831,6 +11914,8 @@ def financeiro() -> str:
         por_pagina=contexto_financeiro["por_pagina"],
         ordenar=contexto_financeiro["ordenar"],
         direcao=contexto_financeiro["direcao"],
+        clientes=clientes_lista,
+        fornecedores=fornecedores_lista,
         categorias_financeiro=[
             "Fornecedor",
             "Funcionário",

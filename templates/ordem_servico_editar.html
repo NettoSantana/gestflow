@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordem_servico_editar.html
-Último recode: 2026-07-01 15:25 (America/Bahia)
-Motivo: Vincular fotos antes/depois ao equipamento correspondente na edição da OS.
+Último recode: 2026-07-02 20:35 (America/Bahia)
+Motivo: Revisar e corrigir cadastro rápido em telas operacionais, mantendo padrão funcional do orçamento para vendas, OS, estoque e financeiro.
 -->
 
 <!DOCTYPE html>
@@ -514,6 +514,7 @@ Motivo: Vincular fotos antes/depois ao equipamento correspondente na edição da
                 if (dados.descricao && !opcoes.some(function(item) { return item.nome === dados.descricao; })) {
                     selectOptions += '<option value="' + dados.descricao + '" selected>' + dados.descricao + '</option>';
                 }
+                selectOptions += '<option value="__novo__" class="quick-new-option">+ Adicionar novo ' + tipoLabel.toLowerCase() + '</option>';
                 linha.innerHTML = `
                     <td><input type="hidden" name="item_tipo" value="${tipo}"><select name="item_descricao" class="form-control item-descricao">${selectOptions}</select></td>
                     <td><input name="item_detalhes" type="text" value="${dados.detalhes || ""}" placeholder="Detalhes" class="form-control"></td>
@@ -526,6 +527,11 @@ Motivo: Vincular fotos antes/depois ao equipamento correspondente na edição da
                 const selectDescricao = linha.querySelector(".item-descricao");
                 const inputValor = linha.querySelector(".item-valor");
                 selectDescricao.addEventListener("change", function() {
+                    if (selectDescricao.value === "__novo__") {
+                        abrirModalItemRapidoGeral(tipo, selectDescricao, linha);
+                        return;
+                    }
+
                     const itemSelecionado = opcoes.find(function(item) { return item.nome === selectDescricao.value; });
                     if (itemSelecionado && !inputValor.value) { inputValor.value = itemSelecionado.valor || ""; }
                 });
@@ -545,7 +551,57 @@ Motivo: Vincular fotos antes/depois ao equipamento correspondente na edição da
                 if (servicos.length) { servicos.forEach(function(item) { adicionarItem("servico", item); }); } else { adicionarItem("servico"); }
             });
         </script>
-    </main>
+    
+
+        <div id="quick-item-modal" class="quick-modal-backdrop" aria-hidden="true">
+            <div class="quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-item-title">
+                <div class="quick-modal-header">
+                    <div>
+                        <h3 id="quick-item-title">Novo item</h3>
+                        <p id="quick-item-subtitle">Cadastro rápido sem sair da tela.</p>
+                    </div>
+                    <button type="button" class="quick-modal-close" onclick="fecharModalItemRapidoGeral()">×</button>
+                </div>
+
+                <input id="quick-item-tipo" type="hidden" value="produto">
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="quick-item-nome">Nome *</label>
+                        <input id="quick-item-nome" type="text" class="form-control" placeholder="Ex: material, produto ou serviço">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-item-valor">Valor de venda</label>
+                        <input id="quick-item-valor" type="text" class="form-control" placeholder="0,00">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-item-categoria">Categoria</label>
+                        <input id="quick-item-categoria" type="text" class="form-control" placeholder="Ex: Serviço técnico">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-item-unidade">Unidade</label>
+                        <input id="quick-item-unidade" type="text" class="form-control" placeholder="un">
+                    </div>
+
+                    <div class="form-group form-span-2">
+                        <label for="quick-item-observacoes">Descrição / observação</label>
+                        <input id="quick-item-observacoes" type="text" class="form-control" placeholder="Resumo do item">
+                    </div>
+                </div>
+
+                <div id="quick-item-error" class="quick-modal-error"></div>
+
+                <div class="quick-modal-actions">
+                    <button type="button" class="btn-light" onclick="fecharModalItemRapidoGeral()">Cancelar</button>
+                    <button type="button" class="btn-primary-green" onclick="salvarItemRapidoGeral()">Salvar item</button>
+                </div>
+            </div>
+        </div>
+
+</main>
 
         <script>
             function gestflowValorNumero(valor) {
@@ -843,6 +899,514 @@ Motivo: Vincular fotos antes/depois ao equipamento correspondente na edição da
                 }
             });
         </script>
+
+
+
+<script>
+(function() {
+    "use strict";
+
+    let gestflowClienteSelectAtual = null;
+    let gestflowResponsavelSelectAtual = null;
+    let gestflowFornecedorSelectAtual = null;
+
+    function abrirModalPorId(id) {
+        const modal = document.getElementById(id);
+        if (!modal) {
+            return;
+        }
+        modal.classList.add("open");
+        modal.setAttribute("aria-hidden", "false");
+        const primeiroCampo = modal.querySelector("input, select, textarea");
+        if (primeiroCampo) {
+            setTimeout(function() { primeiroCampo.focus(); }, 80);
+        }
+    }
+
+    function fecharModalPorId(id) {
+        const modal = document.getElementById(id);
+        if (!modal) {
+            return;
+        }
+        modal.classList.remove("open");
+        modal.setAttribute("aria-hidden", "true");
+    }
+
+    function limparErro(id) {
+        const erroBox = document.getElementById(id);
+        if (erroBox) {
+            erroBox.textContent = "";
+            erroBox.classList.remove("show");
+        }
+    }
+
+    function mostrarErro(id, mensagem) {
+        const erroBox = document.getElementById(id);
+        if (erroBox) {
+            erroBox.textContent = mensagem;
+            erroBox.classList.add("show");
+        } else {
+            alert(mensagem);
+        }
+    }
+
+    function adicionarOpcaoSelecionada(selects, valor, texto, selectAtual) {
+        document.querySelectorAll(selects).forEach(function(select) {
+            let opcaoExistente = Array.from(select.options).find(function(opcao) {
+                return opcao.value === valor;
+            });
+
+            if (!opcaoExistente) {
+                opcaoExistente = document.createElement("option");
+                opcaoExistente.value = valor;
+                opcaoExistente.textContent = texto;
+                const primeiraOpcaoNova = Array.from(select.options).find(function(opcao) {
+                    return String(opcao.value || "").startsWith("__novo");
+                });
+                if (primeiraOpcaoNova) {
+                    select.insertBefore(opcaoExistente, primeiraOpcaoNova);
+                } else {
+                    select.appendChild(opcaoExistente);
+                }
+            }
+
+            if (select === selectAtual) {
+                select.value = valor;
+                select.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+        });
+    }
+
+    window.abrirModalClienteRapidoGeral = function(selectOrigem) {
+        gestflowClienteSelectAtual = selectOrigem || gestflowClienteSelectAtual || document.querySelector(".quick-cliente-select");
+        limparErro("quick-cliente-error");
+        ["quick-cliente-nome", "quick-cliente-documento", "quick-cliente-telefone", "quick-cliente-email"].forEach(function(id) {
+            const campo = document.getElementById(id);
+            if (campo) { campo.value = ""; }
+        });
+        abrirModalPorId("quick-cliente-modal");
+    };
+
+    window.fecharModalClienteRapidoGeral = function() {
+        fecharModalPorId("quick-cliente-modal");
+        if (gestflowClienteSelectAtual && String(gestflowClienteSelectAtual.value || "").startsWith("__novo")) {
+            gestflowClienteSelectAtual.value = "";
+        }
+    };
+
+    window.abrirModalResponsavelRapidoGeral = function(selectOrigem) {
+        gestflowResponsavelSelectAtual = selectOrigem || gestflowResponsavelSelectAtual || document.querySelector(".quick-responsavel-select");
+        limparErro("quick-responsavel-error");
+        ["quick-responsavel-nome", "quick-responsavel-cargo", "quick-responsavel-telefone", "quick-responsavel-email"].forEach(function(id) {
+            const campo = document.getElementById(id);
+            if (campo) { campo.value = ""; }
+        });
+        abrirModalPorId("quick-responsavel-modal");
+    };
+
+    window.fecharModalResponsavelRapidoGeral = function() {
+        fecharModalPorId("quick-responsavel-modal");
+        if (gestflowResponsavelSelectAtual && String(gestflowResponsavelSelectAtual.value || "").startsWith("__novo")) {
+            gestflowResponsavelSelectAtual.value = "";
+        }
+    };
+
+    window.abrirModalFornecedorRapidoGeral = function(selectOrigem) {
+        gestflowFornecedorSelectAtual = selectOrigem || gestflowFornecedorSelectAtual || document.querySelector(".quick-fornecedor-select");
+        limparErro("quick-fornecedor-error");
+        ["quick-fornecedor-nome", "quick-fornecedor-documento", "quick-fornecedor-telefone", "quick-fornecedor-email"].forEach(function(id) {
+            const campo = document.getElementById(id);
+            if (campo) { campo.value = ""; }
+        });
+        abrirModalPorId("quick-fornecedor-modal");
+    };
+
+    window.fecharModalFornecedorRapidoGeral = function() {
+        fecharModalPorId("quick-fornecedor-modal");
+        if (gestflowFornecedorSelectAtual && String(gestflowFornecedorSelectAtual.value || "").startsWith("__novo")) {
+            gestflowFornecedorSelectAtual.value = "";
+        }
+    };
+
+    window.salvarClienteRapidoGeral = function() {
+        const nome = (document.getElementById("quick-cliente-nome")?.value || "").trim();
+        const documento = (document.getElementById("quick-cliente-documento")?.value || "").trim();
+        const telefone = (document.getElementById("quick-cliente-telefone")?.value || "").trim();
+        const email = (document.getElementById("quick-cliente-email")?.value || "").trim();
+
+        if (!nome) {
+            mostrarErro("quick-cliente-error", "Informe o nome do cliente.");
+            return;
+        }
+
+        const dados = new URLSearchParams();
+        dados.append("nome", nome);
+        dados.append("documento", documento);
+        dados.append("telefone", telefone);
+        dados.append("email", email);
+
+        fetch("/clientes/rapido", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+            body: dados.toString()
+        })
+            .then(function(resposta) {
+                return resposta.json().then(function(payload) {
+                    if (!resposta.ok || !payload.ok) {
+                        throw new Error(payload.erro || "Não foi possível salvar o cliente.");
+                    }
+                    return payload.cliente || payload.item;
+                });
+            })
+            .then(function(cliente) {
+                adicionarOpcaoSelecionada(".quick-cliente-select", cliente.nome, cliente.nome, gestflowClienteSelectAtual);
+                fecharModalPorId("quick-cliente-modal");
+            })
+            .catch(function(erro) {
+                mostrarErro("quick-cliente-error", erro.message || "Não foi possível salvar o cliente.");
+            });
+    };
+
+    window.salvarResponsavelRapidoGeral = function() {
+        const nome = (document.getElementById("quick-responsavel-nome")?.value || "").trim();
+        const cargo = (document.getElementById("quick-responsavel-cargo")?.value || "").trim();
+        const telefone = (document.getElementById("quick-responsavel-telefone")?.value || "").trim();
+        const email = (document.getElementById("quick-responsavel-email")?.value || "").trim();
+
+        if (!nome) {
+            mostrarErro("quick-responsavel-error", "Informe o nome do responsável.");
+            return;
+        }
+
+        const dados = new URLSearchParams();
+        dados.append("nome", nome);
+        dados.append("cargo", cargo);
+        dados.append("telefone", telefone);
+        dados.append("email", email);
+
+        fetch("/funcionarios/rapido", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+            body: dados.toString()
+        })
+            .then(function(resposta) {
+                return resposta.json().then(function(payload) {
+                    if (!resposta.ok || !payload.ok) {
+                        throw new Error(payload.erro || "Não foi possível salvar o responsável.");
+                    }
+                    return payload.funcionario || payload.item;
+                });
+            })
+            .then(function(funcionario) {
+                adicionarOpcaoSelecionada(".quick-responsavel-select", funcionario.nome, funcionario.nome, gestflowResponsavelSelectAtual);
+                fecharModalPorId("quick-responsavel-modal");
+            })
+            .catch(function(erro) {
+                mostrarErro("quick-responsavel-error", erro.message || "Não foi possível salvar o responsável.");
+            });
+    };
+
+    window.salvarFornecedorRapidoGeral = function() {
+        const nome = (document.getElementById("quick-fornecedor-nome")?.value || "").trim();
+        const documento = (document.getElementById("quick-fornecedor-documento")?.value || "").trim();
+        const telefone = (document.getElementById("quick-fornecedor-telefone")?.value || "").trim();
+        const email = (document.getElementById("quick-fornecedor-email")?.value || "").trim();
+
+        if (!nome) {
+            mostrarErro("quick-fornecedor-error", "Informe o nome do fornecedor.");
+            return;
+        }
+
+        const dados = new URLSearchParams();
+        dados.append("nome", nome);
+        dados.append("documento", documento);
+        dados.append("telefone", telefone);
+        dados.append("email", email);
+
+        fetch("/fornecedores/rapido", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+            body: dados.toString()
+        })
+            .then(function(resposta) {
+                return resposta.json().then(function(payload) {
+                    if (!resposta.ok || !payload.ok) {
+                        throw new Error(payload.erro || "Não foi possível salvar o fornecedor.");
+                    }
+                    return payload.fornecedor || payload.item;
+                });
+            })
+            .then(function(fornecedor) {
+                adicionarOpcaoSelecionada(".quick-fornecedor-select", fornecedor.nome, fornecedor.nome, gestflowFornecedorSelectAtual);
+                fecharModalPorId("quick-fornecedor-modal");
+            })
+            .catch(function(erro) {
+                mostrarErro("quick-fornecedor-error", erro.message || "Não foi possível salvar o fornecedor.");
+            });
+    };
+
+    window.abrirModalClienteRapido = window.abrirModalClienteRapidoGeral;
+    window.fecharModalClienteRapido = window.fecharModalClienteRapidoGeral;
+    window.salvarClienteRapido = window.salvarClienteRapidoGeral;
+    window.abrirModalResponsavelRapido = window.abrirModalResponsavelRapidoGeral;
+    window.fecharModalResponsavelRapido = window.fecharModalResponsavelRapidoGeral;
+    window.salvarResponsavelRapido = window.salvarResponsavelRapidoGeral;
+    window.abrirModalFornecedorRapido = window.abrirModalFornecedorRapidoGeral;
+    window.fecharModalFornecedorRapido = window.fecharModalFornecedorRapidoGeral;
+    window.salvarFornecedorRapido = window.salvarFornecedorRapidoGeral;
+
+    document.addEventListener("change", function(evento) {
+        const alvo = evento.target;
+
+        if (!alvo || !alvo.matches) {
+            return;
+        }
+
+        if (alvo.matches(".quick-cliente-select") && alvo.value === "__novo_cliente__") {
+            window.abrirModalClienteRapidoGeral(alvo);
+            return;
+        }
+
+        if (alvo.matches(".quick-responsavel-select") && alvo.value === "__novo_responsavel__") {
+            window.abrirModalResponsavelRapidoGeral(alvo);
+            return;
+        }
+
+        if (alvo.matches(".quick-fornecedor-select") && alvo.value === "__novo_fornecedor__") {
+            window.abrirModalFornecedorRapidoGeral(alvo);
+        }
+    });
+})();
+</script>
+
+
+
+<script>
+(function() {
+    "use strict";
+
+    let gestflowItemSelectAtual = null;
+    let gestflowItemLinhaAtual = null;
+    let gestflowItemTipoAtual = "produto";
+
+    function abrirModalPorId(id) {
+        const modal = document.getElementById(id);
+        if (!modal) {
+            return;
+        }
+        modal.classList.add("open");
+        modal.setAttribute("aria-hidden", "false");
+        const primeiroCampo = modal.querySelector("input:not([type='hidden']), select, textarea");
+        if (primeiroCampo) {
+            setTimeout(function() { primeiroCampo.focus(); }, 80);
+        }
+    }
+
+    function fecharModalPorId(id) {
+        const modal = document.getElementById(id);
+        if (!modal) {
+            return;
+        }
+        modal.classList.remove("open");
+        modal.setAttribute("aria-hidden", "true");
+    }
+
+    function mostrarErro(id, mensagem) {
+        const erroBox = document.getElementById(id);
+        if (erroBox) {
+            erroBox.textContent = mensagem;
+            erroBox.classList.add("show");
+        } else {
+            alert(mensagem);
+        }
+    }
+
+    function limparCamposItemRapido() {
+        ["quick-item-nome", "quick-item-valor", "quick-item-categoria", "quick-item-unidade", "quick-item-observacoes"].forEach(function(id) {
+            const campo = document.getElementById(id);
+            if (campo) { campo.value = ""; }
+        });
+        const erroBox = document.getElementById("quick-item-error");
+        if (erroBox) {
+            erroBox.textContent = "";
+            erroBox.classList.remove("show");
+        }
+    }
+
+    function adicionarItemAosSelects(tipo, item, selectAtual) {
+        const nome = item.nome || "";
+        const id = item.id || nome;
+        const valor = selectAtual && (selectAtual.name === "estoque_produto_id" || selectAtual.name === "compra_produto_id") ? String(id) : nome;
+        const texto = tipo === "produto" && item.codigo ? nome + " - " + item.codigo : nome;
+        const seletor = tipo === "produto" ? 'select.item-descricao, select[name="estoque_produto_id"], select[name="compra_produto_id"]' : 'select.item-descricao';
+
+        if (tipo === "produto" && Array.isArray(window.opcoesProdutos)) {
+            window.opcoesProdutos.push({
+                id: item.id || "",
+                nome: nome,
+                valor: item.valor || item.preco_venda || "",
+                codigo: item.codigo || "",
+                unidade: item.unidade || ""
+            });
+        }
+
+        if (tipo === "servico" && Array.isArray(window.opcoesServicos)) {
+            window.opcoesServicos.push({
+                id: item.id || "",
+                nome: nome,
+                valor: item.valor || item.valor_venda || "",
+                unidade: item.unidade || ""
+            });
+        }
+
+        document.querySelectorAll(seletor).forEach(function(select) {
+            const ehSelectItem = select.classList.contains("item-descricao");
+            const linha = select.closest("tr");
+            const tipoLinha = linha ? (linha.querySelector('[name="item_tipo"]')?.value || "produto") : "produto";
+
+            if (ehSelectItem && tipoLinha !== tipo) {
+                return;
+            }
+
+            let opcaoExistente = Array.from(select.options).find(function(opcao) {
+                return opcao.value === valor || opcao.value === nome;
+            });
+
+            if (!opcaoExistente) {
+                opcaoExistente = document.createElement("option");
+                opcaoExistente.value = ehSelectItem ? nome : valor;
+                opcaoExistente.textContent = texto;
+                opcaoExistente.setAttribute("data-valor", item.valor || item.preco_venda || item.valor_venda || "");
+
+                const primeiraOpcaoNova = Array.from(select.options).find(function(opcao) {
+                    return String(opcao.value || "").startsWith("__novo");
+                });
+
+                if (primeiraOpcaoNova) {
+                    select.insertBefore(opcaoExistente, primeiraOpcaoNova);
+                } else {
+                    select.appendChild(opcaoExistente);
+                }
+            }
+
+            if (select === selectAtual) {
+                select.value = ehSelectItem ? nome : valor;
+                select.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+        });
+
+        if (selectAtual && selectAtual.classList.contains("item-descricao")) {
+            const linha = selectAtual.closest("tr");
+            const valorInput = linha ? linha.querySelector(".item-valor") : null;
+            const quantidadeInput = linha ? linha.querySelector(".item-quantidade") : null;
+
+            if (valorInput && (item.valor || item.preco_venda || item.valor_venda)) {
+                valorInput.value = item.valor || item.preco_venda || item.valor_venda || "";
+                valorInput.dispatchEvent(new Event("input", { bubbles: true }));
+            }
+
+            if (quantidadeInput && !quantidadeInput.value) {
+                quantidadeInput.value = "1";
+            }
+        }
+    }
+
+    window.abrirModalItemRapidoGeral = function(tipo, selectOrigem, linhaOrigem) {
+        gestflowItemTipoAtual = tipo === "servico" ? "servico" : "produto";
+        gestflowItemSelectAtual = selectOrigem || gestflowItemSelectAtual;
+        gestflowItemLinhaAtual = linhaOrigem || (selectOrigem ? selectOrigem.closest("tr") : null);
+
+        limparCamposItemRapido();
+
+        const tipoInput = document.getElementById("quick-item-tipo");
+        const titulo = document.getElementById("quick-item-title");
+        const subtitulo = document.getElementById("quick-item-subtitle");
+        const unidade = document.getElementById("quick-item-unidade");
+
+        if (tipoInput) { tipoInput.value = gestflowItemTipoAtual; }
+        if (titulo) { titulo.textContent = gestflowItemTipoAtual === "produto" ? "Novo produto" : "Novo serviço"; }
+        if (subtitulo) { subtitulo.textContent = "Cadastro rápido sem sair da tela."; }
+        if (unidade) { unidade.value = gestflowItemTipoAtual === "produto" ? "un" : "un"; }
+
+        abrirModalPorId("quick-item-modal");
+    };
+
+    window.fecharModalItemRapidoGeral = function() {
+        fecharModalPorId("quick-item-modal");
+        if (gestflowItemSelectAtual && String(gestflowItemSelectAtual.value || "").startsWith("__novo")) {
+            gestflowItemSelectAtual.value = "";
+        }
+    };
+
+    window.salvarItemRapidoGeral = function() {
+        const tipo = (document.getElementById("quick-item-tipo")?.value || gestflowItemTipoAtual || "produto") === "servico" ? "servico" : "produto";
+        const nome = (document.getElementById("quick-item-nome")?.value || "").trim();
+        const valor = (document.getElementById("quick-item-valor")?.value || "").trim();
+        const categoria = (document.getElementById("quick-item-categoria")?.value || "").trim();
+        const unidade = (document.getElementById("quick-item-unidade")?.value || "un").trim() || "un";
+        const observacoes = (document.getElementById("quick-item-observacoes")?.value || "").trim();
+
+        if (!nome) {
+            mostrarErro("quick-item-error", "Informe o nome do item.");
+            return;
+        }
+
+        const endpoint = tipo === "produto" ? "/produtos/rapido" : "/servicos/rapido";
+        const dados = new URLSearchParams();
+        dados.append("nome", nome);
+        dados.append("valor_venda", valor);
+        dados.append("preco_venda", valor);
+        dados.append("unidade", unidade);
+        dados.append("categoria", categoria);
+        dados.append("observacoes", observacoes);
+
+        fetch(endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+            body: dados.toString()
+        })
+            .then(function(resposta) {
+                return resposta.json().then(function(payload) {
+                    if (!resposta.ok || !payload.ok) {
+                        throw new Error(payload.erro || "Não foi possível salvar o item.");
+                    }
+                    return payload.item || payload.produto || payload.servico;
+                });
+            })
+            .then(function(item) {
+                adicionarItemAosSelects(tipo, item, gestflowItemSelectAtual);
+                fecharModalPorId("quick-item-modal");
+            })
+            .catch(function(erro) {
+                mostrarErro("quick-item-error", erro.message || "Não foi possível salvar o item.");
+            });
+    };
+
+    window.abrirModalItemRapido = window.abrirModalItemRapidoGeral;
+    window.fecharModalItemRapido = window.fecharModalItemRapidoGeral;
+    window.salvarItemRapido = window.salvarItemRapidoGeral;
+
+    document.addEventListener("change", function(evento) {
+        const alvo = evento.target;
+
+        if (!alvo || !alvo.matches) {
+            return;
+        }
+
+        if (alvo.matches("select.item-descricao")) {
+            if (alvo.value === "__novo__" || alvo.value === "__novo_produto__" || alvo.value === "__novo_servico__") {
+                const linha = alvo.closest("tr");
+                const tipoLinha = linha ? (linha.querySelector('[name="item_tipo"]')?.value || "produto") : (alvo.value === "__novo_servico__" ? "servico" : "produto");
+                window.abrirModalItemRapidoGeral(tipoLinha, alvo, linha);
+            }
+        }
+
+        if ((alvo.matches('select[name="estoque_produto_id"]') || alvo.matches('select[name="compra_produto_id"]')) && alvo.value === "__novo_produto__") {
+            window.abrirModalItemRapidoGeral("produto", alvo, null);
+        }
+    });
+})();
+</script>
 
 </body>
 </html>
