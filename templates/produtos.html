@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\produtos.html
-Último recode: 2026-07-01 19:45 (America/Bahia)
-Motivo: Criar menu Mais ações com importar, modelo e exportar produtos.
+Último recode: 2026-07-02 11:55 (America/Bahia)
+Motivo: Corrigir abertura do menu Mais ações em produtos.
 -->
 
 <!DOCTYPE html>
@@ -354,6 +354,49 @@ Motivo: Criar menu Mais ações com importar, modelo e exportar produtos.
         </section>
 
     </main>
+
+    <script>
+        function alternarMenuProdutos() {
+            const menu = document.getElementById("produtos-more-actions");
+
+            if (!menu) {
+                return;
+            }
+
+            menu.classList.toggle("open");
+        }
+
+        function abrirImportacaoProdutos() {
+            const input = document.getElementById("arquivo-produtos");
+            const menu = document.getElementById("produtos-more-actions");
+
+            if (menu) {
+                menu.classList.remove("open");
+            }
+
+            if (input) {
+                input.click();
+            }
+        }
+
+        function enviarImportacaoProdutos() {
+            const form = document.getElementById("form-importar-produtos");
+            const input = document.getElementById("arquivo-produtos");
+
+            if (form && input && input.files.length > 0) {
+                form.submit();
+            }
+        }
+
+        document.addEventListener("click", function(event) {
+            const menu = document.getElementById("produtos-more-actions");
+            const wrapper = document.querySelector(".more-actions-wrap");
+
+            if (menu && wrapper && !wrapper.contains(event.target)) {
+                menu.classList.remove("open");
+            }
+        });
+    </script>
 
 </body>
 </html>

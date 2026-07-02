@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\funcionarios.html
-Último recode: 2026-07-01 19:45 (America/Bahia)
-Motivo: Criar menu Mais ações com importar, modelo e exportar funcionários.
+Último recode: 2026-07-02 11:55 (America/Bahia)
+Motivo: Corrigir abertura do menu Mais ações em funcionarios.
 -->
 
 <!DOCTYPE html>
@@ -428,6 +428,49 @@ document.querySelectorAll('.funcionario-custo-input').forEach(function(input) {
     input.addEventListener('input', recalcularCustosFuncionario);
 });
 </script>
+
+    <script>
+        function alternarMenuFuncionarios() {
+            const menu = document.getElementById("funcionarios-more-actions");
+
+            if (!menu) {
+                return;
+            }
+
+            menu.classList.toggle("open");
+        }
+
+        function abrirImportacaoFuncionarios() {
+            const input = document.getElementById("arquivo-funcionarios");
+            const menu = document.getElementById("funcionarios-more-actions");
+
+            if (menu) {
+                menu.classList.remove("open");
+            }
+
+            if (input) {
+                input.click();
+            }
+        }
+
+        function enviarImportacaoFuncionarios() {
+            const form = document.getElementById("form-importar-funcionarios");
+            const input = document.getElementById("arquivo-funcionarios");
+
+            if (form && input && input.files.length > 0) {
+                form.submit();
+            }
+        }
+
+        document.addEventListener("click", function(event) {
+            const menu = document.getElementById("funcionarios-more-actions");
+            const wrapper = document.querySelector(".more-actions-wrap");
+
+            if (menu && wrapper && !wrapper.contains(event.target)) {
+                menu.classList.remove("open");
+            }
+        });
+    </script>
 
 </body>
 </html>
