@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-01 19:25 (America/Bahia)
-# Motivo: Criar importação, exportação e modelo de planilha para clientes.
+# Último recode: 2026-07-01 19:45 (America/Bahia)
+# Motivo: Adicionar importação, modelo e exportação para produtos, serviços, fornecedores e funcionários.
 
 from __future__ import annotations
 
@@ -8456,6 +8456,129 @@ COLUNAS_CLIENTES_MODELO = [
 ]
 
 
+COLUNAS_FORNECEDORES_EXPORTACAO = [
+    "Código",
+    "Nome / Razão Social",
+    "CPF/CNPJ",
+    "Telefone",
+    "Cidade",
+    "Categoria",
+    "Status",
+    "E-mail",
+    "Observações",
+]
+
+COLUNAS_FORNECEDORES_MODELO = [
+    "Nome / Razão Social",
+    "CPF/CNPJ",
+    "Telefone",
+    "Cidade",
+    "Categoria",
+    "Status",
+    "E-mail",
+    "Observações",
+]
+
+COLUNAS_FUNCIONARIOS_EXPORTACAO = [
+    "Código",
+    "Nome",
+    "CPF",
+    "Telefone",
+    "Cidade",
+    "Cargo",
+    "Status",
+    "E-mail",
+    "Observações",
+    "Salário base",
+    "INSS %",
+    "FGTS %",
+    "Férias %",
+    "13º %",
+    "Benefícios",
+    "Transporte",
+    "Alimentação",
+    "Outros custos",
+    "Custo mensal",
+    "Custo dia",
+    "Custo hora",
+]
+
+COLUNAS_FUNCIONARIOS_MODELO = [
+    "Nome",
+    "CPF",
+    "Telefone",
+    "Cidade",
+    "Cargo",
+    "Status",
+    "E-mail",
+    "Observações",
+    "Salário base",
+    "INSS %",
+    "FGTS %",
+    "Férias %",
+    "13º %",
+    "Benefícios",
+    "Transporte",
+    "Alimentação",
+    "Outros custos",
+    "Custo mensal",
+    "Custo dia",
+    "Custo hora",
+]
+
+COLUNAS_PRODUTOS_EXPORTACAO = [
+    "Código",
+    "Nome",
+    "Código interno",
+    "Categoria",
+    "Unidade",
+    "Estoque atual",
+    "Estoque mínimo",
+    "Preço custo",
+    "Preço venda",
+    "Status",
+    "Observações",
+]
+
+COLUNAS_PRODUTOS_MODELO = [
+    "Nome",
+    "Código interno",
+    "Categoria",
+    "Unidade",
+    "Estoque atual",
+    "Estoque mínimo",
+    "Preço custo",
+    "Preço venda",
+    "Status",
+    "Observações",
+]
+
+COLUNAS_SERVICOS_EXPORTACAO = [
+    "Código",
+    "Nome",
+    "Código interno",
+    "Categoria",
+    "Unidade",
+    "Custo",
+    "Valor venda",
+    "Tempo estimado",
+    "Status",
+    "Observações",
+]
+
+COLUNAS_SERVICOS_MODELO = [
+    "Nome",
+    "Código interno",
+    "Categoria",
+    "Unidade",
+    "Custo",
+    "Valor venda",
+    "Tempo estimado",
+    "Status",
+    "Observações",
+]
+
+
 def _coluna_excel(indice: int) -> str:
     letras = ""
 
@@ -8739,6 +8862,252 @@ def cliente_importado_ja_existe(cliente: dict[str, str]) -> bool:
             ).fetchone()
 
     return row is not None
+
+
+
+def carregar_linhas_planilha_importacao(arquivo: Any) -> tuple[list[list[str]], str]:
+    if arquivo is None or not getattr(arquivo, "filename", ""):
+        return [], "Selecione uma planilha para importar."
+
+    nome_arquivo = secure_filename(arquivo.filename or "")
+    extensao = nome_arquivo.rsplit(".", 1)[-1].lower() if "." in nome_arquivo else ""
+    conteudo = arquivo.read()
+
+    try:
+        if extensao == "xlsx":
+            linhas = ler_xlsx_simples(conteudo)
+        elif extensao == "csv":
+            linhas = ler_csv_simples(conteudo)
+        else:
+            return [], "Envie uma planilha .xlsx ou .csv."
+    except Exception:
+        return [], "Não foi possível ler a planilha enviada."
+
+    linhas = [linha for linha in linhas if any(str(celula or "").strip() for celula in linha)]
+
+    if len(linhas) < 2:
+        return [], "A planilha não possui dados para importar."
+
+    return linhas, ""
+
+
+def montar_mapa_cabecalhos(linhas: list[list[str]]) -> dict[str, int]:
+    cabecalhos = [normalizar_cabecalho_importacao(celula) for celula in linhas[0]]
+    return {cabecalho: indice for indice, cabecalho in enumerate(cabecalhos) if cabecalho}
+
+
+def fornecedor_importado_ja_existe(fornecedor: dict[str, str]) -> bool:
+    nome = str(fornecedor.get("nome") or "").strip().lower()
+    documento = str(fornecedor.get("documento") or "").strip().lower()
+
+    if not nome:
+        return False
+
+    with conectar_db() as conn:
+        if documento:
+            row = conn.execute(
+                """
+                SELECT id
+                FROM fornecedores
+                WHERE empresa_id = ?
+                  AND LOWER(nome) = ?
+                  AND LOWER(documento) = ?
+                LIMIT 1
+                """,
+                (empresa_logada_id(), nome, documento),
+            ).fetchone()
+        else:
+            row = conn.execute(
+                """
+                SELECT id
+                FROM fornecedores
+                WHERE empresa_id = ?
+                  AND LOWER(nome) = ?
+                LIMIT 1
+                """,
+                (empresa_logada_id(), nome),
+            ).fetchone()
+
+    return row is not None
+
+
+def montar_fornecedor_importado(linha: list[str], mapa: dict[str, int]) -> dict[str, str]:
+    fornecedor = {
+        "nome": _valor_linha_por_coluna(linha, mapa, ["nome razao social", "nome nome fantasia", "nome fantasia", "nome", "fornecedor", "razao social"]),
+        "documento": _valor_linha_por_coluna(linha, mapa, ["cpf cnpj", "documento", "cnpj", "cpf"]),
+        "telefone": _valor_linha_por_coluna(linha, mapa, ["telefone", "celular", "fone", "telefone celular"]),
+        "cidade": _valor_linha_por_coluna(linha, mapa, ["cidade", "municipio"]),
+        "status": normalizar_status_importacao(_valor_linha_por_coluna(linha, mapa, ["status", "situacao", "ativo"])),
+        "email": _valor_linha_por_coluna(linha, mapa, ["e mail", "email"]),
+        "categoria": _valor_linha_por_coluna(linha, mapa, ["categoria", "tipo", "grupo"]) or "Geral",
+        "observacoes": _valor_linha_por_coluna(linha, mapa, ["observacoes", "observacao", "obs"]),
+    }
+    return normalizar_fornecedor_para_salvar(fornecedor)
+
+
+def funcionario_importado_ja_existe(funcionario: dict[str, str]) -> bool:
+    nome = str(funcionario.get("nome") or "").strip().lower()
+    cpf = str(funcionario.get("cpf") or "").strip().lower()
+
+    if not nome:
+        return False
+
+    with conectar_db() as conn:
+        if cpf:
+            row = conn.execute(
+                """
+                SELECT id
+                FROM funcionarios
+                WHERE empresa_id = ?
+                  AND LOWER(nome) = ?
+                  AND LOWER(cpf) = ?
+                LIMIT 1
+                """,
+                (empresa_logada_id(), nome, cpf),
+            ).fetchone()
+        else:
+            row = conn.execute(
+                """
+                SELECT id
+                FROM funcionarios
+                WHERE empresa_id = ?
+                  AND LOWER(nome) = ?
+                LIMIT 1
+                """,
+                (empresa_logada_id(), nome),
+            ).fetchone()
+
+    return row is not None
+
+
+def montar_funcionario_importado(linha: list[str], mapa: dict[str, int]) -> dict[str, str]:
+    funcionario = {
+        "nome": _valor_linha_por_coluna(linha, mapa, ["nome", "funcionario", "colaborador"]),
+        "cpf": _valor_linha_por_coluna(linha, mapa, ["cpf", "documento"]),
+        "telefone": _valor_linha_por_coluna(linha, mapa, ["telefone", "celular", "fone"]),
+        "cidade": _valor_linha_por_coluna(linha, mapa, ["cidade", "municipio"]),
+        "cargo": _valor_linha_por_coluna(linha, mapa, ["cargo", "funcao", "função"] ) or "Geral",
+        "status": normalizar_status_importacao(_valor_linha_por_coluna(linha, mapa, ["status", "situacao", "ativo"])),
+        "email": _valor_linha_por_coluna(linha, mapa, ["e mail", "email"]),
+        "observacoes": _valor_linha_por_coluna(linha, mapa, ["observacoes", "observacao", "obs"]),
+        "salario_base": _valor_linha_por_coluna(linha, mapa, ["salario base", "salario", "salário base", "salário"]),
+        "inss_percentual": _valor_linha_por_coluna(linha, mapa, ["inss", "inss percentual", "inss %"]),
+        "fgts_percentual": _valor_linha_por_coluna(linha, mapa, ["fgts", "fgts percentual", "fgts %"]),
+        "ferias_percentual": _valor_linha_por_coluna(linha, mapa, ["ferias", "ferias percentual", "ferias %", "férias", "férias %"]),
+        "decimo_percentual": _valor_linha_por_coluna(linha, mapa, ["13", "13 %", "13o", "decimo", "decimo percentual", "13º %"]),
+        "beneficios": _valor_linha_por_coluna(linha, mapa, ["beneficios", "benefícios"]),
+        "transporte": _valor_linha_por_coluna(linha, mapa, ["transporte"]),
+        "alimentacao": _valor_linha_por_coluna(linha, mapa, ["alimentacao", "alimentação"]),
+        "outros_custos": _valor_linha_por_coluna(linha, mapa, ["outros custos", "outros"]),
+        "custo_mensal": _valor_linha_por_coluna(linha, mapa, ["custo mensal"]),
+        "custo_dia": _valor_linha_por_coluna(linha, mapa, ["custo dia", "custo diario", "custo diário"]),
+        "custo_hora": _valor_linha_por_coluna(linha, mapa, ["custo hora"]),
+    }
+    funcionario = normalizar_funcionario_para_salvar(funcionario)
+    return _normalizar_custos_funcionario(funcionario)
+
+
+def produto_importado_ja_existe(produto: dict[str, str]) -> bool:
+    nome = str(produto.get("nome") or "").strip().lower()
+    codigo = str(produto.get("codigo") or "").strip().lower()
+
+    if not nome:
+        return False
+
+    with conectar_db() as conn:
+        if codigo:
+            row = conn.execute(
+                """
+                SELECT id
+                FROM produtos
+                WHERE empresa_id = ?
+                  AND LOWER(codigo) = ?
+                LIMIT 1
+                """,
+                (empresa_logada_id(), codigo),
+            ).fetchone()
+            if row is not None:
+                return True
+
+        row = conn.execute(
+            """
+            SELECT id
+            FROM produtos
+            WHERE empresa_id = ?
+              AND LOWER(nome) = ?
+            LIMIT 1
+            """,
+            (empresa_logada_id(), nome),
+        ).fetchone()
+
+    return row is not None
+
+
+def montar_produto_importado(linha: list[str], mapa: dict[str, int]) -> dict[str, str]:
+    produto = {
+        "nome": _valor_linha_por_coluna(linha, mapa, ["nome", "produto", "descricao", "descrição"]),
+        "codigo": _valor_linha_por_coluna(linha, mapa, ["codigo interno", "codigo", "código", "sku", "referencia", "referência"]),
+        "categoria": _valor_linha_por_coluna(linha, mapa, ["categoria", "grupo", "tipo"]),
+        "unidade": _valor_linha_por_coluna(linha, mapa, ["unidade", "un", "und"]) or "un",
+        "estoque_atual": _valor_linha_por_coluna(linha, mapa, ["estoque atual", "estoque", "saldo"]),
+        "estoque_minimo": _valor_linha_por_coluna(linha, mapa, ["estoque minimo", "estoque mínimo", "minimo", "mínimo"]),
+        "preco_custo": _valor_linha_por_coluna(linha, mapa, ["preco custo", "preço custo", "custo", "valor custo"]),
+        "preco_venda": _valor_linha_por_coluna(linha, mapa, ["preco venda", "preço venda", "valor venda", "venda"]),
+        "status": normalizar_status_importacao(_valor_linha_por_coluna(linha, mapa, ["status", "situacao", "ativo"])),
+        "observacoes": _valor_linha_por_coluna(linha, mapa, ["observacoes", "observacao", "obs"]),
+    }
+    return normalizar_produto_para_salvar(produto)
+
+
+def servico_importado_ja_existe(servico: dict[str, str]) -> bool:
+    nome = str(servico.get("nome") or "").strip().lower()
+    codigo = str(servico.get("codigo") or "").strip().lower()
+
+    if not nome:
+        return False
+
+    with conectar_db() as conn:
+        if codigo:
+            row = conn.execute(
+                """
+                SELECT id
+                FROM servicos
+                WHERE empresa_id = ?
+                  AND LOWER(codigo) = ?
+                LIMIT 1
+                """,
+                (empresa_logada_id(), codigo),
+            ).fetchone()
+            if row is not None:
+                return True
+
+        row = conn.execute(
+            """
+            SELECT id
+            FROM servicos
+            WHERE empresa_id = ?
+              AND LOWER(nome) = ?
+            LIMIT 1
+            """,
+            (empresa_logada_id(), nome),
+        ).fetchone()
+
+    return row is not None
+
+
+def montar_servico_importado(linha: list[str], mapa: dict[str, int]) -> dict[str, str]:
+    servico = {
+        "nome": _valor_linha_por_coluna(linha, mapa, ["nome", "servico", "serviço", "descricao", "descrição"]),
+        "codigo": _valor_linha_por_coluna(linha, mapa, ["codigo interno", "codigo", "código", "referencia", "referência"]),
+        "categoria": _valor_linha_por_coluna(linha, mapa, ["categoria", "grupo", "tipo"]),
+        "unidade": _valor_linha_por_coluna(linha, mapa, ["unidade", "un", "und"]) or "un",
+        "custo": _valor_linha_por_coluna(linha, mapa, ["custo", "valor custo"]),
+        "valor_venda": _valor_linha_por_coluna(linha, mapa, ["valor venda", "preco venda", "preço venda", "venda"]),
+        "tempo_estimado": _valor_linha_por_coluna(linha, mapa, ["tempo estimado", "tempo", "prazo"]),
+        "status": normalizar_status_importacao(_valor_linha_por_coluna(linha, mapa, ["status", "situacao", "ativo"])),
+        "observacoes": _valor_linha_por_coluna(linha, mapa, ["observacoes", "observacao", "obs"]),
+    }
+    return normalizar_servico_para_salvar(servico)
 
 
 def normalizar_fornecedor_para_salvar(fornecedor: dict[str, str]) -> dict[str, str]:
@@ -9084,6 +9453,91 @@ def salvar_fornecedor() -> Response:
     return redirect(url_for("fornecedores"))
 
 
+
+@app.get("/fornecedores/modelo")
+def baixar_modelo_fornecedores() -> Response:
+    linhas = [
+        COLUNAS_FORNECEDORES_MODELO,
+        ["Fornecedor Exemplo LTDA", "00.000.000/0000-00", "(71) 99999-9999", "Salvador", "Geral", "ativo", "contato@fornecedor.com", "Observação opcional"],
+    ]
+    conteudo = gerar_xlsx_simples("Fornecedores", linhas)
+    registrar_atividade_usuario("exportacao", "fornecedores", "Baixou modelo de importação de fornecedores", request.path)
+
+    return send_file(
+        io.BytesIO(conteudo),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name="modelo_fornecedores_gestflow.xlsx",
+    )
+
+
+@app.get("/fornecedores/exportar")
+def exportar_fornecedores() -> Response:
+    fornecedores_lista = listar_fornecedores()
+    linhas = [COLUNAS_FORNECEDORES_EXPORTACAO]
+
+    for fornecedor in fornecedores_lista:
+        linhas.append([
+            fornecedor.get("id", ""),
+            fornecedor.get("nome", ""),
+            fornecedor.get("documento", ""),
+            fornecedor.get("telefone", ""),
+            fornecedor.get("cidade", ""),
+            fornecedor.get("categoria", ""),
+            fornecedor.get("status", ""),
+            fornecedor.get("email", ""),
+            fornecedor.get("observacoes", ""),
+        ])
+
+    conteudo = gerar_xlsx_simples("Fornecedores", linhas)
+    registrar_atividade_usuario("exportacao", "fornecedores", f"Exportou {len(fornecedores_lista)} fornecedores", request.path)
+
+    return send_file(
+        io.BytesIO(conteudo),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name=f"fornecedores_gestflow_{hoje_empresa().strftime('%Y%m%d')}.xlsx",
+    )
+
+
+@app.post("/fornecedores/importar")
+def importar_fornecedores() -> Response:
+    linhas, erro = carregar_linhas_planilha_importacao(request.files.get("arquivo_fornecedores"))
+
+    if erro:
+        return redirect(url_for("fornecedores", erro=erro))
+
+    mapa = montar_mapa_cabecalhos(linhas)
+    importados = 0
+    ignorados = 0
+    duplicados = 0
+
+    for linha in linhas[1:]:
+        fornecedor = montar_fornecedor_importado(linha, mapa)
+        erro_validacao = validar_fornecedor_para_salvar(fornecedor)
+
+        if erro_validacao:
+            ignorados += 1
+            continue
+
+        if fornecedor_importado_ja_existe(fornecedor):
+            duplicados += 1
+            continue
+
+        salvar_fornecedor_db(fornecedor)
+        importados += 1
+
+    registrar_atividade_usuario("importacao", "fornecedores", f"Importou {importados} fornecedores. Ignorados: {ignorados}. Duplicados: {duplicados}.", request.path)
+
+    mensagem = f"{importados} fornecedores importados com sucesso."
+    if duplicados:
+        mensagem += f" {duplicados} duplicados ignorados."
+    if ignorados:
+        mensagem += f" {ignorados} linhas ignoradas por falta de dados obrigatórios."
+
+    return redirect(url_for("fornecedores", sucesso=mensagem))
+
+
 @app.get("/fornecedores/<int:fornecedor_id>")
 def ver_fornecedor(fornecedor_id: int) -> str | Response:
     fornecedor = buscar_fornecedor_por_id(fornecedor_id)
@@ -9183,6 +9637,103 @@ def salvar_funcionario() -> Response:
     salvar_funcionario_db(funcionario)
 
     return redirect(url_for("funcionarios"))
+
+
+
+@app.get("/funcionarios/modelo")
+def baixar_modelo_funcionarios() -> Response:
+    linhas = [
+        COLUNAS_FUNCIONARIOS_MODELO,
+        ["Funcionário Exemplo", "000.000.000-00", "(71) 99999-9999", "Salvador", "Técnico", "ativo", "funcionario@email.com", "", "2500,00", "", "8", "", "", "", "", "", "", "", "", ""],
+    ]
+    conteudo = gerar_xlsx_simples("Funcionarios", linhas)
+    registrar_atividade_usuario("exportacao", "funcionarios", "Baixou modelo de importação de funcionários", request.path)
+
+    return send_file(
+        io.BytesIO(conteudo),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name="modelo_funcionarios_gestflow.xlsx",
+    )
+
+
+@app.get("/funcionarios/exportar")
+def exportar_funcionarios() -> Response:
+    funcionarios_lista = listar_funcionarios()
+    linhas = [COLUNAS_FUNCIONARIOS_EXPORTACAO]
+
+    for funcionario in funcionarios_lista:
+        linhas.append([
+            funcionario.get("id", ""),
+            funcionario.get("nome", ""),
+            funcionario.get("cpf", ""),
+            funcionario.get("telefone", ""),
+            funcionario.get("cidade", ""),
+            funcionario.get("cargo", ""),
+            funcionario.get("status", ""),
+            funcionario.get("email", ""),
+            funcionario.get("observacoes", ""),
+            funcionario.get("salario_base", ""),
+            funcionario.get("inss_percentual", ""),
+            funcionario.get("fgts_percentual", ""),
+            funcionario.get("ferias_percentual", ""),
+            funcionario.get("decimo_percentual", ""),
+            funcionario.get("beneficios", ""),
+            funcionario.get("transporte", ""),
+            funcionario.get("alimentacao", ""),
+            funcionario.get("outros_custos", ""),
+            funcionario.get("custo_mensal", ""),
+            funcionario.get("custo_dia", ""),
+            funcionario.get("custo_hora", ""),
+        ])
+
+    conteudo = gerar_xlsx_simples("Funcionarios", linhas)
+    registrar_atividade_usuario("exportacao", "funcionarios", f"Exportou {len(funcionarios_lista)} funcionários", request.path)
+
+    return send_file(
+        io.BytesIO(conteudo),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name=f"funcionarios_gestflow_{hoje_empresa().strftime('%Y%m%d')}.xlsx",
+    )
+
+
+@app.post("/funcionarios/importar")
+def importar_funcionarios() -> Response:
+    linhas, erro = carregar_linhas_planilha_importacao(request.files.get("arquivo_funcionarios"))
+
+    if erro:
+        return redirect(url_for("funcionarios", erro=erro))
+
+    mapa = montar_mapa_cabecalhos(linhas)
+    importados = 0
+    ignorados = 0
+    duplicados = 0
+
+    for linha in linhas[1:]:
+        funcionario = montar_funcionario_importado(linha, mapa)
+        erro_validacao = validar_funcionario_para_salvar(funcionario)
+
+        if erro_validacao:
+            ignorados += 1
+            continue
+
+        if funcionario_importado_ja_existe(funcionario):
+            duplicados += 1
+            continue
+
+        salvar_funcionario_db(funcionario)
+        importados += 1
+
+    registrar_atividade_usuario("importacao", "funcionarios", f"Importou {importados} funcionários. Ignorados: {ignorados}. Duplicados: {duplicados}.", request.path)
+
+    mensagem = f"{importados} funcionários importados com sucesso."
+    if duplicados:
+        mensagem += f" {duplicados} duplicados ignorados."
+    if ignorados:
+        mensagem += f" {ignorados} linhas ignoradas por falta de dados obrigatórios."
+
+    return redirect(url_for("funcionarios", sucesso=mensagem))
 
 
 @app.post("/funcionarios/rapido")
@@ -9547,6 +10098,93 @@ def salvar_produto_rapido() -> Response:
     )
 
 
+
+@app.get("/produtos/modelo")
+def baixar_modelo_produtos() -> Response:
+    linhas = [
+        COLUNAS_PRODUTOS_MODELO,
+        ["Produto Exemplo", "PROD-001", "Geral", "un", "10", "2", "50,00", "80,00", "ativo", "Observação opcional"],
+    ]
+    conteudo = gerar_xlsx_simples("Produtos", linhas)
+    registrar_atividade_usuario("exportacao", "produtos", "Baixou modelo de importação de produtos", request.path)
+
+    return send_file(
+        io.BytesIO(conteudo),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name="modelo_produtos_gestflow.xlsx",
+    )
+
+
+@app.get("/produtos/exportar")
+def exportar_produtos() -> Response:
+    produtos_lista = listar_produtos()
+    linhas = [COLUNAS_PRODUTOS_EXPORTACAO]
+
+    for produto in produtos_lista:
+        linhas.append([
+            produto.get("id", ""),
+            produto.get("nome", ""),
+            produto.get("codigo", ""),
+            produto.get("categoria", ""),
+            produto.get("unidade", ""),
+            produto.get("estoque_atual", ""),
+            produto.get("estoque_minimo", ""),
+            produto.get("preco_custo", ""),
+            produto.get("preco_venda", ""),
+            produto.get("status", ""),
+            produto.get("observacoes", ""),
+        ])
+
+    conteudo = gerar_xlsx_simples("Produtos", linhas)
+    registrar_atividade_usuario("exportacao", "produtos", f"Exportou {len(produtos_lista)} produtos", request.path)
+
+    return send_file(
+        io.BytesIO(conteudo),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name=f"produtos_gestflow_{hoje_empresa().strftime('%Y%m%d')}.xlsx",
+    )
+
+
+@app.post("/produtos/importar")
+def importar_produtos() -> Response:
+    linhas, erro = carregar_linhas_planilha_importacao(request.files.get("arquivo_produtos"))
+
+    if erro:
+        return redirect(url_for("produtos", erro=erro))
+
+    mapa = montar_mapa_cabecalhos(linhas)
+    importados = 0
+    ignorados = 0
+    duplicados = 0
+
+    for linha in linhas[1:]:
+        produto = montar_produto_importado(linha, mapa)
+        erro_validacao = validar_produto_para_salvar(produto)
+
+        if erro_validacao:
+            ignorados += 1
+            continue
+
+        if produto_importado_ja_existe(produto):
+            duplicados += 1
+            continue
+
+        salvar_produto_db(produto)
+        importados += 1
+
+    registrar_atividade_usuario("importacao", "produtos", f"Importou {importados} produtos. Ignorados: {ignorados}. Duplicados: {duplicados}.", request.path)
+
+    mensagem = f"{importados} produtos importados com sucesso."
+    if duplicados:
+        mensagem += f" {duplicados} duplicados ignorados."
+    if ignorados:
+        mensagem += f" {ignorados} linhas ignoradas por falta de dados obrigatórios."
+
+    return redirect(url_for("produtos", sucesso=mensagem))
+
+
 @app.get("/produtos/<int:produto_id>")
 def ver_produto(produto_id: int) -> str | Response:
     produto = buscar_produto_por_id(produto_id)
@@ -9717,6 +10355,92 @@ def salvar_servico_rapido() -> Response:
             },
         }
     )
+
+
+
+@app.get("/servicos/modelo")
+def baixar_modelo_servicos() -> Response:
+    linhas = [
+        COLUNAS_SERVICOS_MODELO,
+        ["Serviço Exemplo", "SERV-001", "Geral", "un", "50,00", "120,00", "2 horas", "ativo", "Observação opcional"],
+    ]
+    conteudo = gerar_xlsx_simples("Servicos", linhas)
+    registrar_atividade_usuario("exportacao", "servicos", "Baixou modelo de importação de serviços", request.path)
+
+    return send_file(
+        io.BytesIO(conteudo),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name="modelo_servicos_gestflow.xlsx",
+    )
+
+
+@app.get("/servicos/exportar")
+def exportar_servicos() -> Response:
+    servicos_lista = listar_servicos()
+    linhas = [COLUNAS_SERVICOS_EXPORTACAO]
+
+    for servico in servicos_lista:
+        linhas.append([
+            servico.get("id", ""),
+            servico.get("nome", ""),
+            servico.get("codigo", ""),
+            servico.get("categoria", ""),
+            servico.get("unidade", ""),
+            servico.get("custo", ""),
+            servico.get("valor_venda", ""),
+            servico.get("tempo_estimado", ""),
+            servico.get("status", ""),
+            servico.get("observacoes", ""),
+        ])
+
+    conteudo = gerar_xlsx_simples("Servicos", linhas)
+    registrar_atividade_usuario("exportacao", "servicos", f"Exportou {len(servicos_lista)} serviços", request.path)
+
+    return send_file(
+        io.BytesIO(conteudo),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name=f"servicos_gestflow_{hoje_empresa().strftime('%Y%m%d')}.xlsx",
+    )
+
+
+@app.post("/servicos/importar")
+def importar_servicos() -> Response:
+    linhas, erro = carregar_linhas_planilha_importacao(request.files.get("arquivo_servicos"))
+
+    if erro:
+        return redirect(url_for("servicos", erro=erro))
+
+    mapa = montar_mapa_cabecalhos(linhas)
+    importados = 0
+    ignorados = 0
+    duplicados = 0
+
+    for linha in linhas[1:]:
+        servico = montar_servico_importado(linha, mapa)
+        erro_validacao = validar_servico_para_salvar(servico)
+
+        if erro_validacao:
+            ignorados += 1
+            continue
+
+        if servico_importado_ja_existe(servico):
+            duplicados += 1
+            continue
+
+        salvar_servico_db(servico)
+        importados += 1
+
+    registrar_atividade_usuario("importacao", "servicos", f"Importou {importados} serviços. Ignorados: {ignorados}. Duplicados: {duplicados}.", request.path)
+
+    mensagem = f"{importados} serviços importados com sucesso."
+    if duplicados:
+        mensagem += f" {duplicados} duplicados ignorados."
+    if ignorados:
+        mensagem += f" {ignorados} linhas ignoradas por falta de dados obrigatórios."
+
+    return redirect(url_for("servicos", sucesso=mensagem))
 
 
 @app.get("/servicos/<int:servico_id>")

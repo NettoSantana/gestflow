@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\produtos.html
-Último recode: 2026-06-29 23:35 (America/Bahia)
-Motivo: Travar campos mínimos obrigatórios para cadastro de produto.
+Último recode: 2026-07-01 19:45 (America/Bahia)
+Motivo: Criar menu Mais ações com importar, modelo e exportar produtos.
 -->
 
 <!DOCTYPE html>
@@ -44,6 +44,66 @@ Motivo: Travar campos mínimos obrigatórios para cadastro de produto.
             font-weight: 800;
         }
 
+
+        .alert-success,
+        .form-alert-success {
+            margin: 0 0 18px;
+            padding: 12px 14px;
+            border: 1px solid #bbf7d0;
+            border-radius: 12px;
+            background: #f0fdf4;
+            color: #166534;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .more-actions-wrap {
+            position: relative;
+            display: inline-flex;
+        }
+
+        .more-actions-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            z-index: 20;
+            min-width: 230px;
+            padding: 8px;
+            border: 1px solid #dbe4f0;
+            border-radius: 12px;
+            background: #ffffff;
+            box-shadow: 0 18px 36px rgba(15, 23, 42, 0.16);
+            display: none;
+        }
+
+        .more-actions-menu.open {
+            display: block;
+        }
+
+        .more-actions-menu a,
+        .more-actions-menu button {
+            width: 100%;
+            min-height: 36px;
+            border: 0;
+            border-radius: 9px;
+            background: transparent;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            font-size: 13px;
+            font-weight: 800;
+            text-align: left;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .more-actions-menu a:hover,
+        .more-actions-menu button:hover {
+            background: #f1f5f9;
+        }
+
     </style>
 </head>
 <body>
@@ -55,6 +115,10 @@ Motivo: Travar campos mínimos obrigatórios para cadastro de produto.
 
         {% if request.args.get('erro') %}
             <div class="form-alert-error">{{ request.args.get('erro') }}</div>
+        {% endif %}
+
+        {% if request.args.get('sucesso') %}
+            <div class="form-alert-success">{{ request.args.get('sucesso') }}</div>
         {% endif %}
 
 {% set produtos_lista = produtos|default([]) %}
@@ -210,9 +274,19 @@ Motivo: Travar campos mínimos obrigatórios para cadastro de produto.
                 </div>
 
                 <div class="client-toolbar">
-                    <button type="button" class="btn-light">Exportar</button>
-                    <button type="button" class="btn-light">Filtros</button>
+                    <div class="more-actions-wrap">
+                        <button type="button" class="btn-light" onclick="alternarMenuProdutos()">⚙ Mais ações</button>
+                        <div id="produtos-more-actions" class="more-actions-menu">
+                            <button type="button" onclick="abrirImportacaoProdutos()">⬆ Importar de uma planilha</button>
+                            <a href="/produtos/modelo">⬇ Baixar modelo</a>
+                            <a href="/produtos/exportar">⬇ Exportar produtos</a>
+                        </div>
+                    </div>
                 </div>
+
+                <form id="form-importar-produtos" action="/produtos/importar" method="post" enctype="multipart/form-data" style="display:none;">
+                    <input id="arquivo-produtos" name="arquivo_produtos" type="file" accept=".xlsx,.csv" onchange="enviarImportacaoProdutos()">
+                </form>
             </div>
 
             <div class="client-actions">
