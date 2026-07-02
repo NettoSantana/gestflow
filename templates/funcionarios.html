@@ -269,7 +269,7 @@ Motivo: Criar paginação e ordenação por cabeçalho na tela de funcionários.
                 <div class="card-info">
                     <p>{{ resumo_geral.ativos|default(0, true) }}</p>
                     <h3>Funcionários ativos</h3>
-                    <span>{% if resumo.ativos == 1 %}1 funcionário ativo{% elif resumo.ativos > 1 %}{{ resumo_geral.ativos|default(0, true) }} funcionários ativos{% else %}Aguardando cadastro{% endif %}</span>
+                    <span>{% if resumo_geral.ativos == 1 %}1 funcionário ativo{% elif resumo_geral.ativos > 1 %}{{ resumo_geral.ativos|default(0, true) }} funcionários ativos{% else %}Aguardando cadastro{% endif %}</span>
                 </div>
             </div>
 
@@ -278,7 +278,7 @@ Motivo: Criar paginação e ordenação por cabeçalho na tela de funcionários.
                 <div class="card-info">
                     <p>{{ resumo_geral.pendentes|default(0, true) }}</p>
                     <h3>Pendências</h3>
-                    <span>{% if resumo.pendentes == 1 %}1 cadastro pendente{% elif resumo.pendentes > 1 %}{{ resumo_geral.pendentes|default(0, true) }} cadastros pendentes{% else %}Nenhuma pendência{% endif %}</span>
+                    <span>{% if resumo_geral.pendentes == 1 %}1 cadastro pendente{% elif resumo_geral.pendentes > 1 %}{{ resumo_geral.pendentes|default(0, true) }} cadastros pendentes{% else %}Nenhuma pendência{% endif %}</span>
                 </div>
             </div>
         </section>
