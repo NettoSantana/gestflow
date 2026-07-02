@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\estoque.html
-Último recode: 2026-06-29 23:10 (America/Bahia)
-Motivo: Travar campos obrigatórios nas movimentações e compras de estoque.
+Último recode: 2026-07-02 19:20 (America/Bahia)
+Motivo: Adicionar paginação, busca, seletor por página e cabeçalho ordenável em produtos e movimentações do estoque.
 -->
 
 <!DOCTYPE html>
@@ -459,6 +459,111 @@ Motivo: Travar campos obrigatórios nas movimentações e compras de estoque.
             box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.12);
         }
 
+
+        .list-toolbar-paginada {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin: 14px 0 16px;
+        }
+
+        .list-search-form {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .list-search-form input,
+        .list-search-form select {
+            height: 38px;
+            border: 1px solid #d8dee9;
+            border-radius: 10px;
+            padding: 0 12px;
+            font-family: inherit;
+            font-size: 13px;
+        }
+
+        .clear-search-link {
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 800;
+            text-decoration: none;
+        }
+
+        .sortable-link {
+            color: inherit;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            text-decoration: none;
+        }
+
+        .sortable-link:hover {
+            color: #0f62fe;
+        }
+
+        .sort-indicator {
+            color: #0f62fe;
+            font-weight: 900;
+        }
+
+        .pagination-bar {
+            margin-top: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            font-size: 13px;
+            color: #475569;
+            font-weight: 800;
+        }
+
+        .pagination-links {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .pagination-links a,
+        .pagination-links span {
+            min-width: 34px;
+            height: 34px;
+            padding: 0 10px;
+            border: 1px solid #dbe4f0;
+            border-radius: 9px;
+            background: #ffffff;
+            color: #0f172a;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 900;
+            text-decoration: none;
+        }
+
+        .pagination-links a:hover {
+            background: #eff6ff;
+            border-color: #bfdbfe;
+            color: #0f62fe;
+        }
+
+        .pagination-links .current-page {
+            background: #0f62fe;
+            border-color: #0f62fe;
+            color: #ffffff;
+        }
+
+        .pagination-links .disabled-page {
+            color: #94a3b8;
+            background: #f8fafc;
+            cursor: not-allowed;
+        }
+
     </style>
 </head>
 <body>
@@ -470,7 +575,18 @@ Motivo: Travar campos obrigatórios nas movimentações e compras de estoque.
 
         {% set painel_estoque = painel|default({}) %}
         {% set produtos_lista = produtos|default([]) %}
+        {% set produtos_lista_tabela = produtos_paginados|default(produtos_lista, true) %}
         {% set movimentacoes_lista = movimentacoes|default([]) %}
+        {% set paginacao_produtos = paginacao_produtos|default({}, true) %}
+        {% set busca_produtos = busca_produtos|default('', true) %}
+        {% set ordenar_produtos = ordenar_produtos|default('id', true) %}
+        {% set direcao_produtos = direcao_produtos|default('desc', true) %}
+        {% set por_pagina_produtos = por_pagina_produtos|default(20, true) %}
+        {% set paginacao_movimentacoes = paginacao_movimentacoes|default({}, true) %}
+        {% set busca_movimentacoes = busca_movimentacoes|default('', true) %}
+        {% set ordenar_movimentacoes = ordenar_movimentacoes|default('id', true) %}
+        {% set direcao_movimentacoes = direcao_movimentacoes|default('desc', true) %}
+        {% set por_pagina_movimentacoes = por_pagina_movimentacoes|default(20, true) %}
         {% set fornecedores_lista = fornecedores|default([]) %}
         {% set aba_atual = aba|default('movimentacoes') %}
 
@@ -545,18 +661,18 @@ Motivo: Travar campos obrigatórios nas movimentações e compras de estoque.
                     <table class="client-table" id="tabela-produtos-estoque">
                         <thead>
                             <tr>
-                                <th>Código</th>
-                                <th>Nome</th>
-                                <th>Valor</th>
-                                <th>Estoque</th>
+                                <th><a href="{{ url_for('estoque', pagina=1, por_pagina=por_pagina_produtos, ordenar='codigo', direcao='desc' if ordenar_produtos == 'codigo' and direcao_produtos == 'asc' else 'asc', busca=busca_produtos) }}" class="sortable-link">Código {% if ordenar_produtos == 'codigo' %}<span class="sort-indicator">{{ '↑' if direcao_produtos == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                                <th><a href="{{ url_for('estoque', pagina=1, por_pagina=por_pagina_produtos, ordenar='nome', direcao='desc' if ordenar_produtos == 'nome' and direcao_produtos == 'asc' else 'asc', busca=busca_produtos) }}" class="sortable-link">Nome {% if ordenar_produtos == 'nome' %}<span class="sort-indicator">{{ '↑' if direcao_produtos == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                                <th><a href="{{ url_for('estoque', pagina=1, por_pagina=por_pagina_produtos, ordenar='preco_venda', direcao='desc' if ordenar_produtos == 'preco_venda' and direcao_produtos == 'asc' else 'asc', busca=busca_produtos) }}" class="sortable-link">Valor {% if ordenar_produtos == 'preco_venda' %}<span class="sort-indicator">{{ '↑' if direcao_produtos == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                                <th><a href="{{ url_for('estoque', pagina=1, por_pagina=por_pagina_produtos, ordenar='estoque_atual', direcao='desc' if ordenar_produtos == 'estoque_atual' and direcao_produtos == 'asc' else 'asc', busca=busca_produtos) }}" class="sortable-link">Estoque {% if ordenar_produtos == 'estoque_atual' %}<span class="sort-indicator">{{ '↑' if direcao_produtos == 'asc' else '↓' }}</span>{% endif %}</a></th>
                                 <th>Mínimo</th>
-                                <th>Categoria</th>
+                                <th><a href="{{ url_for('estoque', pagina=1, por_pagina=por_pagina_produtos, ordenar='categoria', direcao='desc' if ordenar_produtos == 'categoria' and direcao_produtos == 'asc' else 'asc', busca=busca_produtos) }}" class="sortable-link">Categoria {% if ordenar_produtos == 'categoria' %}<span class="sort-indicator">{{ '↑' if direcao_produtos == 'asc' else '↓' }}</span>{% endif %}</a></th>
                                 <th>Ações</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% if produtos_lista %}
-                                {% for produto in produtos_lista %}
+                                {% for produto in produtos_lista_tabela %}
                                     <tr>
                                         <td>{{ produto.codigo or '-' }}</td>
                                         <td>{{ produto.nome }}</td>
@@ -576,6 +692,10 @@ Motivo: Travar campos obrigatórios nas movimentações e compras de estoque.
                             {% endif %}
                         </tbody>
                     </table>
+                    <div class="pagination-bar">
+                        <div>{% if paginacao_produtos.total|default(0, true) > 0 %}Mostrando {{ paginacao_produtos.inicio }} a {{ paginacao_produtos.fim }} de {{ paginacao_produtos.total }}{% else %}Nenhum produto encontrado{% endif %}</div>
+                        {% if paginacao_produtos.total_paginas|default(1, true) > 1 %}<div class="pagination-links">{% if paginacao_produtos.tem_anterior %}<a href="{{ url_for('estoque', pagina=paginacao_produtos.anterior, por_pagina=por_pagina_produtos, ordenar=ordenar_produtos, direcao=direcao_produtos, busca=busca_produtos) }}">‹</a>{% else %}<span class="disabled-page">‹</span>{% endif %}{% for numero_pagina in paginacao_produtos.paginas %}{% if numero_pagina == paginacao_produtos.pagina %}<span class="current-page">{{ numero_pagina }}</span>{% else %}<a href="{{ url_for('estoque', pagina=numero_pagina, por_pagina=por_pagina_produtos, ordenar=ordenar_produtos, direcao=direcao_produtos, busca=busca_produtos) }}">{{ numero_pagina }}</a>{% endif %}{% endfor %}{% if paginacao_produtos.tem_proxima %}<a href="{{ url_for('estoque', pagina=paginacao_produtos.proxima, por_pagina=por_pagina_produtos, ordenar=ordenar_produtos, direcao=direcao_produtos, busca=busca_produtos) }}">›</a>{% else %}<span class="disabled-page">›</span>{% endif %}</div>{% endif %}
+                    </div>
                 </div>
             </section>
 
@@ -603,15 +723,15 @@ Motivo: Travar campos obrigatórios nas movimentações e compras de estoque.
                     <table class="client-table">
                         <thead>
                             <tr>
-                                <th>ID</th>
-                                <th>Produto</th>
-                                <th>Tipo</th>
-                                <th>Quantidade</th>
+                                <th><a href="{{ url_for('estoque', pagina=1, por_pagina=por_pagina_movimentacoes, ordenar='id', direcao='desc' if ordenar_movimentacoes == 'id' and direcao_movimentacoes == 'asc' else 'asc', busca=busca_movimentacoes) }}" class="sortable-link">ID {% if ordenar_movimentacoes == 'id' %}<span class="sort-indicator">{{ '↑' if direcao_movimentacoes == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                                <th><a href="{{ url_for('estoque', pagina=1, por_pagina=por_pagina_movimentacoes, ordenar='produto_nome', direcao='desc' if ordenar_movimentacoes == 'produto_nome' and direcao_movimentacoes == 'asc' else 'asc', busca=busca_movimentacoes) }}" class="sortable-link">Produto {% if ordenar_movimentacoes == 'produto_nome' %}<span class="sort-indicator">{{ '↑' if direcao_movimentacoes == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                                <th><a href="{{ url_for('estoque', pagina=1, por_pagina=por_pagina_movimentacoes, ordenar='tipo', direcao='desc' if ordenar_movimentacoes == 'tipo' and direcao_movimentacoes == 'asc' else 'asc', busca=busca_movimentacoes) }}" class="sortable-link">Tipo {% if ordenar_movimentacoes == 'tipo' %}<span class="sort-indicator">{{ '↑' if direcao_movimentacoes == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                                <th><a href="{{ url_for('estoque', pagina=1, por_pagina=por_pagina_movimentacoes, ordenar='quantidade', direcao='desc' if ordenar_movimentacoes == 'quantidade' and direcao_movimentacoes == 'asc' else 'asc', busca=busca_movimentacoes) }}" class="sortable-link">Quantidade {% if ordenar_movimentacoes == 'quantidade' %}<span class="sort-indicator">{{ '↑' if direcao_movimentacoes == 'asc' else '↓' }}</span>{% endif %}</a></th>
                                 <th>Saldo anterior</th>
                                 <th>Saldo atual</th>
-                                <th>Motivo</th>
-                                <th>Responsável</th>
-                                <th>Data</th>
+                                <th><a href="{{ url_for('estoque', pagina=1, por_pagina=por_pagina_movimentacoes, ordenar='motivo', direcao='desc' if ordenar_movimentacoes == 'motivo' and direcao_movimentacoes == 'asc' else 'asc', busca=busca_movimentacoes) }}" class="sortable-link">Motivo {% if ordenar_movimentacoes == 'motivo' %}<span class="sort-indicator">{{ '↑' if direcao_movimentacoes == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                                <th><a href="{{ url_for('estoque', pagina=1, por_pagina=por_pagina_movimentacoes, ordenar='responsavel', direcao='desc' if ordenar_movimentacoes == 'responsavel' and direcao_movimentacoes == 'asc' else 'asc', busca=busca_movimentacoes) }}" class="sortable-link">Responsável {% if ordenar_movimentacoes == 'responsavel' %}<span class="sort-indicator">{{ '↑' if direcao_movimentacoes == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                                <th><a href="{{ url_for('estoque', pagina=1, por_pagina=por_pagina_movimentacoes, ordenar='criado_em', direcao='desc' if ordenar_movimentacoes == 'criado_em' and direcao_movimentacoes == 'asc' else 'asc', busca=busca_movimentacoes) }}" class="sortable-link">Data {% if ordenar_movimentacoes == 'criado_em' %}<span class="sort-indicator">{{ '↑' if direcao_movimentacoes == 'asc' else '↓' }}</span>{% endif %}</a></th>
                             </tr>
                         </thead>
                         <tbody>

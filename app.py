@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-02 09:45 (America/Bahia)
-# Motivo: Criar paginação e ordenação por cabeçalho na tela de orçamentos.
+# Último recode: 2026-07-02 19:20 (America/Bahia)
+# Motivo: Estender paginação, busca, seletor por página e cabeçalho ordenável para vendas, devoluções, ordens de serviço, estoque, financeiro, admin empresas e configurações.
 
 from __future__ import annotations
 
@@ -3229,6 +3229,631 @@ def montar_contexto_orcamentos_paginado() -> dict[str, Any]:
         "ordenar": ordenar,
         "direcao": direcao,
     }
+
+
+
+def _normalizar_parametros_listagem(ordenacao: dict[str, str], ordenacao_padrao: str = "id") -> dict[str, Any]:
+    busca = (request.args.get("busca") or "").strip()
+    pagina = _normalizar_inteiro_query(request.args.get("pagina"), 1)
+    por_pagina = _normalizar_inteiro_query(request.args.get("por_pagina"), 20)
+
+    if por_pagina not in {10, 20, 50, 100}:
+        por_pagina = 20
+
+    ordenar = (request.args.get("ordenar") or ordenacao_padrao).strip()
+    direcao = (request.args.get("direcao") or "desc").strip().lower()
+
+    if ordenar not in ordenacao:
+        ordenar = ordenacao_padrao
+
+    if direcao not in {"asc", "desc"}:
+        direcao = "desc"
+
+    return {
+        "busca": busca,
+        "pagina": pagina,
+        "por_pagina": por_pagina,
+        "ordenar": ordenar,
+        "direcao": direcao,
+    }
+
+
+VENDAS_ORDENACAO = {
+    "id": "id",
+    "numero": "numero",
+    "cliente": "cliente",
+    "responsavel": "responsavel",
+    "tipo": "tipo",
+    "status": "status",
+    "data": "data",
+    "valor_total": "valor_total",
+}
+
+
+def montar_filtros_vendas(busca: Any) -> tuple[str, list[Any]]:
+    empresa_id = empresa_logada_id()
+    termo = str(busca or "").strip()
+    where = "WHERE empresa_id = ?"
+    parametros: list[Any] = [empresa_id]
+
+    if termo:
+        termo_like = f"%{termo}%"
+        where += """
+          AND (
+                numero LIKE ?
+             OR cliente LIKE ?
+             OR responsavel LIKE ?
+             OR tipo LIKE ?
+             OR status LIKE ?
+             OR data LIKE ?
+             OR valor_total LIKE ?
+             OR forma_pagamento LIKE ?
+          )
+        """
+        parametros.extend([termo_like] * 8)
+
+    return where, parametros
+
+
+def listar_vendas_paginado(
+    busca: Any = "",
+    pagina: int = 1,
+    por_pagina: int = 20,
+    ordenar: str = "id",
+    direcao: str = "desc",
+) -> tuple[list[dict[str, Any]], int]:
+    coluna_sql = VENDAS_ORDENACAO.get(str(ordenar or "").strip(), "id")
+    direcao_sql = "ASC" if str(direcao or "").strip().lower() == "asc" else "DESC"
+    pagina = max(int(pagina or 1), 1)
+    por_pagina = int(por_pagina or 20)
+    offset = (pagina - 1) * por_pagina
+    where, parametros = montar_filtros_vendas(busca)
+
+    with conectar_db() as conn:
+        total = conn.execute(f"SELECT COUNT(*) AS total FROM vendas {where}", parametros).fetchone()["total"]
+        rows = conn.execute(
+            f"""
+            SELECT
+                id,
+                empresa_id,
+                numero,
+                cliente,
+                responsavel,
+                data,
+                prazo_entrega,
+                canal_venda,
+                centro_custo,
+                tipo,
+                status,
+                total_produtos,
+                total_servicos,
+                desconto_valor,
+                desconto_percentual,
+                valor_total,
+                forma_pagamento,
+                observacoes,
+                observacoes_internas,
+                criado_em
+            FROM vendas
+            {where}
+            ORDER BY {coluna_sql} {direcao_sql}, id DESC
+            LIMIT ?
+            OFFSET ?
+            """,
+            [*parametros, por_pagina, offset],
+        ).fetchall()
+
+    return [dict(row) for row in rows], int(total or 0)
+
+
+def resumir_vendas_cadastradas() -> dict[str, int]:
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        total = conn.execute("SELECT COUNT(*) AS total FROM vendas WHERE empresa_id = ?", (empresa_id,)).fetchone()["total"]
+        abertas = conn.execute("SELECT COUNT(*) AS total FROM vendas WHERE empresa_id = ? AND status = ?", (empresa_id, "aberta")).fetchone()["total"]
+        finalizadas = conn.execute("SELECT COUNT(*) AS total FROM vendas WHERE empresa_id = ? AND status = ?", (empresa_id, "finalizada")).fetchone()["total"]
+
+    return {"total": int(total or 0), "abertas": int(abertas or 0), "finalizadas": int(finalizadas or 0)}
+
+
+def montar_contexto_vendas_paginado() -> dict[str, Any]:
+    params = _normalizar_parametros_listagem(VENDAS_ORDENACAO, "id")
+    registros, total = listar_vendas_paginado(**params)
+    paginacao = montar_paginacao(total, params["pagina"], params["por_pagina"])
+
+    if params["pagina"] != paginacao["pagina"] and total > 0:
+        params["pagina"] = paginacao["pagina"]
+        registros, total = listar_vendas_paginado(**params)
+
+    return {
+        "itens": registros,
+        "paginacao": paginacao,
+        "resumo_geral": resumir_vendas_cadastradas(),
+        "busca": params["busca"],
+        "pagina": paginacao["pagina"],
+        "por_pagina": params["por_pagina"],
+        "ordenar": params["ordenar"],
+        "direcao": params["direcao"],
+    }
+
+
+ORDENS_SERVICO_ORDENACAO = {
+    "id": "id",
+    "numero": "numero",
+    "cliente": "cliente",
+    "equipamento": "equipamento",
+    "status": "status",
+    "prioridade": "prioridade",
+    "data_abertura": "data_abertura",
+    "data_previsao": "data_previsao",
+    "valor_total": "valor_total",
+}
+
+
+def montar_filtros_ordens_servico(busca: Any) -> tuple[str, list[Any]]:
+    empresa_id = empresa_logada_id()
+    termo = str(busca or "").strip()
+    where = "WHERE empresa_id = ?"
+    parametros: list[Any] = [empresa_id]
+
+    if termo:
+        termo_like = f"%{termo}%"
+        where += """
+          AND (
+                numero LIKE ?
+             OR cliente LIKE ?
+             OR responsavel LIKE ?
+             OR tecnico LIKE ?
+             OR equipamento LIKE ?
+             OR marca LIKE ?
+             OR modelo LIKE ?
+             OR status LIKE ?
+             OR prioridade LIKE ?
+             OR data_abertura LIKE ?
+             OR data_previsao LIKE ?
+             OR valor_total LIKE ?
+          )
+        """
+        parametros.extend([termo_like] * 12)
+
+    return where, parametros
+
+
+def listar_ordens_servico_paginado(
+    busca: Any = "",
+    pagina: int = 1,
+    por_pagina: int = 20,
+    ordenar: str = "id",
+    direcao: str = "desc",
+) -> tuple[list[dict[str, Any]], int]:
+    coluna_sql = ORDENS_SERVICO_ORDENACAO.get(str(ordenar or "").strip(), "id")
+    direcao_sql = "ASC" if str(direcao or "").strip().lower() == "asc" else "DESC"
+    pagina = max(int(pagina or 1), 1)
+    por_pagina = int(por_pagina or 20)
+    offset = (pagina - 1) * por_pagina
+    where, parametros = montar_filtros_ordens_servico(busca)
+
+    with conectar_db() as conn:
+        total = conn.execute(f"SELECT COUNT(*) AS total FROM ordens_servico {where}", parametros).fetchone()["total"]
+        rows = conn.execute(
+            f"""
+            SELECT
+                id,
+                empresa_id,
+                numero,
+                cliente,
+                responsavel,
+                tecnico,
+                data_abertura,
+                data_previsao,
+                data_saida,
+                hora_entrada,
+                hora_saida,
+                canal_venda,
+                centro_custo,
+                equipamento,
+                marca,
+                modelo,
+                serie,
+                local_servico,
+                condicoes,
+                acessorios,
+                laudo,
+                termos,
+                informar_endereco_entrega,
+                endereco_entrega,
+                bairro_entrega,
+                cidade_entrega,
+                origem_venda_id,
+                tipo,
+                status,
+                prioridade,
+                total_produtos,
+                total_servicos,
+                frete,
+                outros,
+                desconto_valor,
+                valor_total,
+                forma_pagamento,
+                exibir_valor_impressao,
+                relato_cliente,
+                diagnostico,
+                servico_executado,
+                observacoes,
+                observacoes_internas,
+                criado_em
+            FROM ordens_servico
+            {where}
+            ORDER BY {coluna_sql} {direcao_sql}, id DESC
+            LIMIT ?
+            OFFSET ?
+            """,
+            [*parametros, por_pagina, offset],
+        ).fetchall()
+
+    return [dict(row) for row in rows], int(total or 0)
+
+
+def resumir_ordens_servico_cadastradas() -> dict[str, int]:
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        total = conn.execute("SELECT COUNT(*) AS total FROM ordens_servico WHERE empresa_id = ?", (empresa_id,)).fetchone()["total"]
+        abertas = conn.execute("SELECT COUNT(*) AS total FROM ordens_servico WHERE empresa_id = ? AND status = ?", (empresa_id, "aberta")).fetchone()["total"]
+        andamento = conn.execute("SELECT COUNT(*) AS total FROM ordens_servico WHERE empresa_id = ? AND status = ?", (empresa_id, "andamento")).fetchone()["total"]
+
+    return {"total": int(total or 0), "abertas": int(abertas or 0), "andamento": int(andamento or 0)}
+
+
+def montar_contexto_ordens_servico_paginado() -> dict[str, Any]:
+    params = _normalizar_parametros_listagem(ORDENS_SERVICO_ORDENACAO, "id")
+    registros, total = listar_ordens_servico_paginado(**params)
+    paginacao = montar_paginacao(total, params["pagina"], params["por_pagina"])
+
+    if params["pagina"] != paginacao["pagina"] and total > 0:
+        params["pagina"] = paginacao["pagina"]
+        registros, total = listar_ordens_servico_paginado(**params)
+
+    return {
+        "itens": registros,
+        "paginacao": paginacao,
+        "resumo_geral": resumir_ordens_servico_cadastradas(),
+        "busca": params["busca"],
+        "pagina": paginacao["pagina"],
+        "por_pagina": params["por_pagina"],
+        "ordenar": params["ordenar"],
+        "direcao": params["direcao"],
+    }
+
+
+ESTOQUE_MOVIMENTACOES_ORDENACAO = {
+    "id": "id",
+    "produto_nome": "produto_nome",
+    "tipo": "tipo",
+    "quantidade": "quantidade",
+    "saldo_anterior": "saldo_anterior",
+    "saldo_atual": "saldo_atual",
+    "motivo": "motivo",
+    "responsavel": "responsavel",
+    "criado_em": "criado_em",
+}
+
+
+def montar_filtros_estoque_movimentacoes(busca: Any, produto_id: int | None = None) -> tuple[str, list[Any]]:
+    empresa_id = empresa_logada_id()
+    termo = str(busca or "").strip()
+    where = "WHERE empresa_id = ?"
+    parametros: list[Any] = [empresa_id]
+
+    if produto_id is not None:
+        where += " AND produto_id = ?"
+        parametros.append(produto_id)
+
+    if termo:
+        termo_like = f"%{termo}%"
+        where += """
+          AND (
+                produto_nome LIKE ?
+             OR tipo LIKE ?
+             OR quantidade LIKE ?
+             OR saldo_anterior LIKE ?
+             OR saldo_atual LIKE ?
+             OR motivo LIKE ?
+             OR documento LIKE ?
+             OR responsavel LIKE ?
+             OR criado_em LIKE ?
+          )
+        """
+        parametros.extend([termo_like] * 9)
+
+    return where, parametros
+
+
+def listar_estoque_movimentacoes_paginado(
+    busca: Any = "",
+    pagina: int = 1,
+    por_pagina: int = 20,
+    ordenar: str = "id",
+    direcao: str = "desc",
+    produto_id: int | None = None,
+) -> tuple[list[dict[str, Any]], int]:
+    coluna_sql = ESTOQUE_MOVIMENTACOES_ORDENACAO.get(str(ordenar or "").strip(), "id")
+    direcao_sql = "ASC" if str(direcao or "").strip().lower() == "asc" else "DESC"
+    pagina = max(int(pagina or 1), 1)
+    por_pagina = int(por_pagina or 20)
+    offset = (pagina - 1) * por_pagina
+    where, parametros = montar_filtros_estoque_movimentacoes(busca, produto_id)
+
+    with conectar_db() as conn:
+        total = conn.execute(f"SELECT COUNT(*) AS total FROM estoque_movimentacoes {where}", parametros).fetchone()["total"]
+        rows = conn.execute(
+            f"""
+            SELECT
+                id,
+                empresa_id,
+                produto_id,
+                produto_nome,
+                tipo,
+                quantidade,
+                saldo_anterior,
+                saldo_atual,
+                motivo,
+                documento,
+                responsavel,
+                observacoes,
+                criado_em
+            FROM estoque_movimentacoes
+            {where}
+            ORDER BY {coluna_sql} {direcao_sql}, id DESC
+            LIMIT ?
+            OFFSET ?
+            """,
+            [*parametros, por_pagina, offset],
+        ).fetchall()
+
+    return [dict(row) for row in rows], int(total or 0)
+
+
+def montar_contexto_estoque_paginado(produto_id: int | None = None) -> dict[str, Any]:
+    aba = "movimentacoes"
+
+    if request.path.endswith("/ajustes"):
+        aba = "ajustes"
+    elif request.path.endswith("/compras"):
+        aba = "compras"
+
+    params_produtos = _normalizar_parametros_listagem(CADASTROS_PAGINADOS["produtos"]["ordenacao"], "id")
+    produtos_paginados, total_produtos = listar_cadastro_paginado("produtos", **params_produtos)
+    paginacao_produtos = montar_paginacao(total_produtos, params_produtos["pagina"], params_produtos["por_pagina"])
+
+    params_mov = _normalizar_parametros_listagem(ESTOQUE_MOVIMENTACOES_ORDENACAO, "id")
+    movimentacoes_paginadas, total_movimentacoes = listar_estoque_movimentacoes_paginado(produto_id=produto_id, **params_mov)
+    paginacao_movimentacoes = montar_paginacao(total_movimentacoes, params_mov["pagina"], params_mov["por_pagina"])
+
+    return {
+        "aba": aba,
+        "produtos_paginados": produtos_paginados,
+        "paginacao_produtos": paginacao_produtos,
+        "busca_produtos": params_produtos["busca"],
+        "por_pagina_produtos": params_produtos["por_pagina"],
+        "ordenar_produtos": params_produtos["ordenar"],
+        "direcao_produtos": params_produtos["direcao"],
+        "movimentacoes_paginadas": movimentacoes_paginadas,
+        "paginacao_movimentacoes": paginacao_movimentacoes,
+        "busca_movimentacoes": params_mov["busca"],
+        "por_pagina_movimentacoes": params_mov["por_pagina"],
+        "ordenar_movimentacoes": params_mov["ordenar"],
+        "direcao_movimentacoes": params_mov["direcao"],
+    }
+
+
+FINANCEIRO_ORDENACAO = {
+    "id": "id",
+    "documento": "documento",
+    "descricao": "descricao",
+    "pessoa": "pessoa",
+    "data_vencimento": "data_vencimento",
+    "valor": "valor",
+    "status": "status",
+}
+
+
+def montar_filtros_financeiro_titulos(tipo: str, busca: Any) -> tuple[str, list[Any]]:
+    empresa_id = empresa_logada_id()
+    termo = str(busca or "").strip()
+    where = "WHERE empresa_id = ? AND tipo = ?"
+    parametros: list[Any] = [empresa_id, tipo]
+
+    if termo:
+        termo_like = f"%{termo}%"
+        where += """
+          AND (
+                documento LIKE ?
+             OR descricao LIKE ?
+             OR pessoa LIKE ?
+             OR categoria LIKE ?
+             OR data_vencimento LIKE ?
+             OR valor LIKE ?
+             OR status LIKE ?
+          )
+        """
+        parametros.extend([termo_like] * 7)
+
+    return where, parametros
+
+
+def listar_financeiro_titulos_paginado(
+    tipo: str,
+    busca: Any = "",
+    pagina: int = 1,
+    por_pagina: int = 20,
+    ordenar: str = "data_vencimento",
+    direcao: str = "asc",
+) -> tuple[list[dict[str, Any]], int]:
+    coluna_sql = FINANCEIRO_ORDENACAO.get(str(ordenar or "").strip(), "data_vencimento")
+    direcao_sql = "ASC" if str(direcao or "").strip().lower() == "asc" else "DESC"
+    pagina = max(int(pagina or 1), 1)
+    por_pagina = int(por_pagina or 20)
+    offset = (pagina - 1) * por_pagina
+    where, parametros = montar_filtros_financeiro_titulos(tipo, busca)
+
+    with conectar_db() as conn:
+        total = conn.execute(f"SELECT COUNT(*) AS total FROM financeiro_titulos {where}", parametros).fetchone()["total"]
+        rows = conn.execute(
+            f"""
+            SELECT
+                id,
+                empresa_id,
+                tipo,
+                descricao,
+                pessoa,
+                categoria,
+                origem,
+                origem_id,
+                documento,
+                data_emissao,
+                data_vencimento,
+                data_pagamento,
+                valor,
+                forma_pagamento,
+                status,
+                observacoes,
+                criado_em
+            FROM financeiro_titulos
+            {where}
+            ORDER BY {coluna_sql} {direcao_sql}, id DESC
+            LIMIT ?
+            OFFSET ?
+            """,
+            [*parametros, por_pagina, offset],
+        ).fetchall()
+
+    return [_normalizar_status_financeiro(dict(row)) for row in rows], int(total or 0)
+
+
+def montar_contexto_financeiro_paginado(tipo: str) -> dict[str, Any]:
+    params = _normalizar_parametros_listagem(FINANCEIRO_ORDENACAO, "data_vencimento")
+    if "direcao" not in request.args:
+        params["direcao"] = "asc"
+    registros, total = listar_financeiro_titulos_paginado(tipo=tipo, **params)
+    paginacao = montar_paginacao(total, params["pagina"], params["por_pagina"])
+
+    return {
+        "itens": registros,
+        "paginacao": paginacao,
+        "busca": params["busca"],
+        "pagina": paginacao["pagina"],
+        "por_pagina": params["por_pagina"],
+        "ordenar": params["ordenar"],
+        "direcao": params["direcao"],
+    }
+
+
+def _ordenar_lista_dict(registros: list[dict[str, Any]], ordenar: str, direcao: str) -> list[dict[str, Any]]:
+    reverso = str(direcao or "desc").lower() == "desc"
+    return sorted(registros, key=lambda item: str(item.get(ordenar) or "").casefold(), reverse=reverso)
+
+
+def _filtrar_lista_dict(registros: list[dict[str, Any]], busca: str, campos: list[str]) -> list[dict[str, Any]]:
+    termo = str(busca or "").strip().casefold()
+
+    if not termo:
+        return registros
+
+    return [
+        registro
+        for registro in registros
+        if any(termo in str(registro.get(campo) or "").casefold() for campo in campos)
+    ]
+
+
+def montar_contexto_lista_memoria(
+    registros: list[dict[str, Any]],
+    campos_busca: list[str],
+    colunas_ordenacao: dict[str, str],
+    ordenacao_padrao: str = "id",
+) -> dict[str, Any]:
+    params = _normalizar_parametros_listagem(colunas_ordenacao, ordenacao_padrao)
+    registros_filtrados = _filtrar_lista_dict(registros, params["busca"], campos_busca)
+    registros_ordenados = _ordenar_lista_dict(registros_filtrados, colunas_ordenacao.get(params["ordenar"], ordenacao_padrao), params["direcao"])
+    paginacao = montar_paginacao(len(registros_ordenados), params["pagina"], params["por_pagina"])
+    inicio = (paginacao["pagina"] - 1) * params["por_pagina"]
+    fim = inicio + params["por_pagina"]
+
+    return {
+        "itens": registros_ordenados[inicio:fim],
+        "paginacao": paginacao,
+        "busca": params["busca"],
+        "pagina": paginacao["pagina"],
+        "por_pagina": params["por_pagina"],
+        "ordenar": params["ordenar"],
+        "direcao": params["direcao"],
+    }
+
+
+ADMIN_EMPRESAS_ORDENACAO = {
+    "id": "id",
+    "nome_fantasia": "nome_fantasia",
+    "email": "email",
+    "plano": "plano",
+    "status": "status",
+    "trial_fim": "trial_fim",
+    "total_usuarios": "total_usuarios",
+    "total_lojas": "total_lojas",
+    "criado_em": "criado_em",
+}
+
+
+def montar_contexto_admin_empresas_paginado() -> dict[str, Any]:
+    return montar_contexto_lista_memoria(
+        listar_empresas_admin(),
+        ["nome_fantasia", "razao_social", "documento", "email", "telefone", "plano", "status", "trial_fim", "criado_em"],
+        ADMIN_EMPRESAS_ORDENACAO,
+        "id",
+    )
+
+
+CONFIG_USUARIOS_ORDENACAO = {
+    "id": "id",
+    "nome": "nome",
+    "email": "email",
+    "perfil": "perfil",
+    "status": "status",
+}
+
+CONFIG_LOJAS_ORDENACAO = {
+    "id": "id",
+    "nome": "nome",
+    "tipo": "tipo",
+    "cidade": "cidade",
+    "status": "status",
+}
+
+
+def montar_contexto_configuracoes_listas(contexto: dict[str, Any]) -> dict[str, Any]:
+    contexto = dict(contexto)
+    contexto_usuarios = montar_contexto_lista_memoria(
+        list(contexto.get("usuarios") or []),
+        ["nome", "email", "perfil", "status"],
+        CONFIG_USUARIOS_ORDENACAO,
+        "nome",
+    )
+    contexto_lojas = montar_contexto_lista_memoria(
+        list(contexto.get("lojas") or []),
+        ["nome", "tipo", "cidade", "status"],
+        CONFIG_LOJAS_ORDENACAO,
+        "nome",
+    )
+    contexto["usuarios_paginados"] = contexto_usuarios["itens"]
+    contexto["lojas_paginadas"] = contexto_lojas["itens"]
+    contexto["paginacao_usuarios"] = contexto_usuarios["paginacao"]
+    contexto["paginacao_lojas"] = contexto_lojas["paginacao"]
+    contexto["busca_config"] = contexto_usuarios["busca"]
+    contexto["por_pagina_config"] = contexto_usuarios["por_pagina"]
+    contexto["ordenar_config"] = contexto_usuarios["ordenar"]
+    contexto["direcao_config"] = contexto_usuarios["direcao"]
+    return contexto
 
 
 def buscar_orcamento_por_id(orcamento_id: int) -> dict[str, Any] | None:
@@ -8044,9 +8669,16 @@ def admin_empresas() -> str | Response:
                 "admin_senha": "",
             }
 
+    contexto_admin_empresas = montar_contexto_admin_empresas_paginado()
+
     return render_template(
         "admin_empresas.html",
-        empresas=listar_empresas_admin(),
+        empresas=contexto_admin_empresas["itens"],
+        paginacao=contexto_admin_empresas["paginacao"],
+        busca=contexto_admin_empresas["busca"],
+        por_pagina=contexto_admin_empresas["por_pagina"],
+        ordenar=contexto_admin_empresas["ordenar"],
+        direcao=contexto_admin_empresas["direcao"],
         erro=erro,
         sucesso=sucesso,
         formulario=formulario,
@@ -8099,7 +8731,7 @@ def configuracoes() -> str:
     elif request.path.endswith("/lojas"):
         aba = "lojas"
 
-    contexto = montar_configuracoes_contexto()
+    contexto = montar_contexto_configuracoes_listas(montar_configuracoes_contexto())
 
     return render_template(
         "configuracoes.html",
@@ -8107,6 +8739,14 @@ def configuracoes() -> str:
         empresa=contexto["empresa"],
         usuarios=contexto["usuarios"],
         lojas=contexto["lojas"],
+        usuarios_paginados=contexto["usuarios_paginados"],
+        lojas_paginadas=contexto["lojas_paginadas"],
+        paginacao_usuarios=contexto["paginacao_usuarios"],
+        paginacao_lojas=contexto["paginacao_lojas"],
+        busca= contexto["busca_config"],
+        por_pagina=contexto["por_pagina_config"],
+        ordenar=contexto["ordenar_config"],
+        direcao=contexto["direcao_config"],
         fusos_horarios=contexto["fusos_horarios"],
         erro=request.args.get("erro", ""),
         sucesso=request.args.get("sucesso", ""),
@@ -11175,11 +11815,22 @@ def financeiro() -> str:
         aba = "pagar"
 
     painel = montar_painel_financeiro()
+    contexto_financeiro = montar_contexto_financeiro_paginado("pagar" if aba == "pagar" else "receber")
+
+    if aba == "pagar":
+        painel["pagamentos"] = contexto_financeiro["itens"]
+    elif aba == "receber":
+        painel["recebimentos"] = contexto_financeiro["itens"]
 
     return render_template(
         "financeiro.html",
         aba=aba,
         painel=painel,
+        paginacao=contexto_financeiro["paginacao"],
+        busca=contexto_financeiro["busca"],
+        por_pagina=contexto_financeiro["por_pagina"],
+        ordenar=contexto_financeiro["ordenar"],
+        direcao=contexto_financeiro["direcao"],
         categorias_financeiro=[
             "Fornecedor",
             "Funcionário",
@@ -11238,12 +11889,6 @@ def estoque() -> str:
     fornecedores_lista = listar_fornecedores()
     funcionarios_lista = listar_funcionarios()
     painel = montar_painel_estoque()
-    aba = "movimentacoes"
-
-    if request.path.endswith("/ajustes"):
-        aba = "ajustes"
-    elif request.path.endswith("/compras"):
-        aba = "compras"
 
     produto_selecionado_id: int | None = None
     produto_selecionado = None
@@ -11256,18 +11901,29 @@ def estoque() -> str:
     if produto_selecionado_id is not None:
         produto_selecionado = buscar_produto_por_id(produto_selecionado_id)
 
-    movimentacoes = listar_estoque_movimentacoes(produto_id=produto_selecionado_id)
+    contexto_estoque = montar_contexto_estoque_paginado(produto_selecionado_id)
 
     return render_template(
         "estoque.html",
         produtos=produtos_lista,
+        produtos_paginados=contexto_estoque["produtos_paginados"],
         fornecedores=fornecedores_lista,
         funcionarios=funcionarios_lista,
-        movimentacoes=movimentacoes,
+        movimentacoes=contexto_estoque["movimentacoes_paginadas"],
         painel=painel,
-        aba=aba,
+        aba=contexto_estoque["aba"],
         produto_selecionado=produto_selecionado,
         produto_selecionado_id=produto_selecionado_id,
+        paginacao_produtos=contexto_estoque["paginacao_produtos"],
+        busca_produtos=contexto_estoque["busca_produtos"],
+        por_pagina_produtos=contexto_estoque["por_pagina_produtos"],
+        ordenar_produtos=contexto_estoque["ordenar_produtos"],
+        direcao_produtos=contexto_estoque["direcao_produtos"],
+        paginacao_movimentacoes=contexto_estoque["paginacao_movimentacoes"],
+        busca_movimentacoes=contexto_estoque["busca_movimentacoes"],
+        por_pagina_movimentacoes=contexto_estoque["por_pagina_movimentacoes"],
+        ordenar_movimentacoes=contexto_estoque["ordenar_movimentacoes"],
+        direcao_movimentacoes=contexto_estoque["direcao_movimentacoes"],
     )
 
 
@@ -11403,7 +12059,7 @@ def painel_ordens_servico() -> str:
 
 @app.get("/ordens-servico")
 def ordens_servico() -> str:
-    ordens_servico_lista = listar_ordens_servico()
+    contexto_ordens = montar_contexto_ordens_servico_paginado()
     clientes_lista = listar_clientes()
     funcionarios_lista = listar_funcionarios()
     produtos_lista = listar_produtos()
@@ -11412,7 +12068,13 @@ def ordens_servico() -> str:
 
     return render_template(
         "ordens_servico.html",
-        ordens_servico=ordens_servico_lista,
+        ordens_servico=contexto_ordens["itens"],
+        resumo_geral=contexto_ordens["resumo_geral"],
+        paginacao=contexto_ordens["paginacao"],
+        busca=contexto_ordens["busca"],
+        por_pagina=contexto_ordens["por_pagina"],
+        ordenar=contexto_ordens["ordenar"],
+        direcao=contexto_ordens["direcao"],
         clientes=clientes_lista,
         funcionarios=funcionarios_lista,
         produtos=produtos_lista,
@@ -12238,7 +12900,7 @@ def venda_balcao_salvar_fechamento_caixa() -> Response:
 
 @app.get("/vendas")
 def vendas() -> str:
-    vendas_lista = listar_vendas()
+    contexto_vendas = montar_contexto_vendas_paginado()
     clientes_lista = listar_clientes()
     funcionarios_lista = listar_funcionarios()
     produtos_lista = listar_produtos()
@@ -12247,7 +12909,14 @@ def vendas() -> str:
 
     return render_template(
         "vendas.html",
-        vendas=vendas_lista,
+        vendas=contexto_vendas["itens"],
+        resumo_geral=contexto_vendas["resumo_geral"],
+        paginacao=contexto_vendas["paginacao"],
+        busca=contexto_vendas["busca"],
+        por_pagina=contexto_vendas["por_pagina"],
+        ordenar=contexto_vendas["ordenar"],
+        direcao=contexto_vendas["direcao"],
+        listagem_endpoint="vendas",
         clientes=clientes_lista,
         funcionarios=funcionarios_lista,
         produtos=produtos_lista,
@@ -12258,7 +12927,7 @@ def vendas() -> str:
 
 @app.get("/vendas/devolucoes")
 def vendas_devolucoes() -> str:
-    vendas_lista = listar_vendas()
+    contexto_vendas = montar_contexto_vendas_paginado()
     clientes_lista = listar_clientes()
     funcionarios_lista = listar_funcionarios()
     produtos_lista = listar_produtos()
@@ -12267,7 +12936,14 @@ def vendas_devolucoes() -> str:
 
     return render_template(
         "vendas.html",
-        vendas=vendas_lista,
+        vendas=contexto_vendas["itens"],
+        resumo_geral=contexto_vendas["resumo_geral"],
+        paginacao=contexto_vendas["paginacao"],
+        busca=contexto_vendas["busca"],
+        por_pagina=contexto_vendas["por_pagina"],
+        ordenar=contexto_vendas["ordenar"],
+        direcao=contexto_vendas["direcao"],
+        listagem_endpoint="vendas_devolucoes",
         clientes=clientes_lista,
         funcionarios=funcionarios_lista,
         produtos=produtos_lista,

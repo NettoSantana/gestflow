@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\admin_empresas.html
-Último recode: 2026-06-30 23:10 (America/Bahia)
-Motivo: Adicionar atalho para controle administrativo de indicações e repasses.
+Último recode: 2026-07-02 19:20 (America/Bahia)
+Motivo: Adicionar paginação, busca, seletor por página e cabeçalho ordenável na lista de empresas.
 -->
 
 <!DOCTYPE html>
@@ -64,6 +64,111 @@ Motivo: Adicionar atalho para controle administrativo de indicações e repasses
             border-color: #fca5a5;
         }
 
+
+        .list-toolbar-paginada {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin: 14px 0 16px;
+        }
+
+        .list-search-form {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .list-search-form input,
+        .list-search-form select {
+            height: 38px;
+            border: 1px solid #d8dee9;
+            border-radius: 10px;
+            padding: 0 12px;
+            font-family: inherit;
+            font-size: 13px;
+        }
+
+        .clear-search-link {
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 800;
+            text-decoration: none;
+        }
+
+        .sortable-link {
+            color: inherit;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            text-decoration: none;
+        }
+
+        .sortable-link:hover {
+            color: #0f62fe;
+        }
+
+        .sort-indicator {
+            color: #0f62fe;
+            font-weight: 900;
+        }
+
+        .pagination-bar {
+            margin-top: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            font-size: 13px;
+            color: #475569;
+            font-weight: 800;
+        }
+
+        .pagination-links {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .pagination-links a,
+        .pagination-links span {
+            min-width: 34px;
+            height: 34px;
+            padding: 0 10px;
+            border: 1px solid #dbe4f0;
+            border-radius: 9px;
+            background: #ffffff;
+            color: #0f172a;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 900;
+            text-decoration: none;
+        }
+
+        .pagination-links a:hover {
+            background: #eff6ff;
+            border-color: #bfdbfe;
+            color: #0f62fe;
+        }
+
+        .pagination-links .current-page {
+            background: #0f62fe;
+            border-color: #0f62fe;
+            color: #ffffff;
+        }
+
+        .pagination-links .disabled-page {
+            color: #94a3b8;
+            background: #f8fafc;
+            cursor: not-allowed;
+        }
+
     </style>
 </head>
 <body>
@@ -72,6 +177,11 @@ Motivo: Adicionar atalho para controle administrativo de indicações e repasses
 <main class="content">
         {% set page_title = 'Admin Empresas' %}
         {% include "partials/topbar.html" %}
+        {% set paginacao = paginacao|default({}, true) %}
+        {% set busca = busca|default('', true) %}
+        {% set ordenar = ordenar|default('id', true) %}
+        {% set direcao = direcao|default('desc', true) %}
+        {% set por_pagina = por_pagina|default(20, true) %}
 
 <section class="panel page-section">
             <div class="panel-header page-header">
@@ -151,20 +261,33 @@ Motivo: Adicionar atalho para controle administrativo de indicações e repasses
                 </div>
             </div>
 
+            <div class="list-toolbar-paginada">
+                <form method="get" action="{{ url_for('admin_empresas') }}" class="list-search-form">
+                    <input type="text" name="busca" value="{{ busca }}" placeholder="Buscar empresa, login, plano ou status">
+                    <select name="por_pagina" onchange="this.form.submit()">
+                        {% for quantidade in [10, 20, 50, 100] %}<option value="{{ quantidade }}" {% if por_pagina == quantidade %}selected{% endif %}>{{ quantidade }} por página</option>{% endfor %}
+                    </select>
+                    <input type="hidden" name="ordenar" value="{{ ordenar }}">
+                    <input type="hidden" name="direcao" value="{{ direcao }}">
+                    <button type="submit" class="btn-dark">Buscar</button>
+                    {% if busca %}<a href="{{ url_for('admin_empresas', por_pagina=por_pagina, ordenar=ordenar, direcao=direcao) }}" class="clear-search-link">Limpar</a>{% endif %}
+                </form>
+            </div>
+
             <div class="table-shell">
                 <table class="client-table">
                     <thead>
                         <tr>
-                            <th>ID</th>
-                            <th>Cliente/Acesso</th>
-                            <th>Login</th>
-                            <th>Plano</th>
-                            <th>Status</th>
-                            <th>Fim do teste</th>
+                            <th><a href="{{ url_for('admin_empresas', pagina=1, por_pagina=por_pagina, ordenar='id', direcao='desc' if ordenar == 'id' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">ID {% if ordenar == 'id' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                            <th><a href="{{ url_for('admin_empresas', pagina=1, por_pagina=por_pagina, ordenar='nome_fantasia', direcao='desc' if ordenar == 'nome_fantasia' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Cliente/Acesso {% if ordenar == 'nome_fantasia' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                            <th><a href="{{ url_for('admin_empresas', pagina=1, por_pagina=por_pagina, ordenar='email', direcao='desc' if ordenar == 'email' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Login {% if ordenar == 'email' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                            <th><a href="{{ url_for('admin_empresas', pagina=1, por_pagina=por_pagina, ordenar='plano', direcao='desc' if ordenar == 'plano' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Plano {% if ordenar == 'plano' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                            <th><a href="{{ url_for('admin_empresas', pagina=1, por_pagina=por_pagina, ordenar='status', direcao='desc' if ordenar == 'status' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Status {% if ordenar == 'status' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                            <th><a href="{{ url_for('admin_empresas', pagina=1, por_pagina=por_pagina, ordenar='trial_fim', direcao='desc' if ordenar == 'trial_fim' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Fim do teste {% if ordenar == 'trial_fim' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
                             <th>Dias</th>
-                            <th>Usuários</th>
-                            <th>Lojas</th>
-                            <th>Criado em</th>
+                            <th><a href="{{ url_for('admin_empresas', pagina=1, por_pagina=por_pagina, ordenar='total_usuarios', direcao='desc' if ordenar == 'total_usuarios' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Usuários {% if ordenar == 'total_usuarios' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                            <th><a href="{{ url_for('admin_empresas', pagina=1, por_pagina=por_pagina, ordenar='total_lojas', direcao='desc' if ordenar == 'total_lojas' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Lojas {% if ordenar == 'total_lojas' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                            <th><a href="{{ url_for('admin_empresas', pagina=1, por_pagina=por_pagina, ordenar='criado_em', direcao='desc' if ordenar == 'criado_em' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Criado em {% if ordenar == 'criado_em' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
                             <th>Ação</th>
                         </tr>
                     </thead>
@@ -219,6 +342,10 @@ Motivo: Adicionar atalho para controle administrativo de indicações e repasses
                         {% endif %}
                     </tbody>
                 </table>
+                <div class="pagination-bar">
+                    <div>{% if paginacao.total|default(0, true) > 0 %}Mostrando {{ paginacao.inicio }} a {{ paginacao.fim }} de {{ paginacao.total }}{% else %}Nenhuma empresa encontrada{% endif %}</div>
+                    {% if paginacao.total_paginas|default(1, true) > 1 %}<div class="pagination-links">{% if paginacao.tem_anterior %}<a href="{{ url_for('admin_empresas', pagina=paginacao.anterior, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">‹</a>{% else %}<span class="disabled-page">‹</span>{% endif %}{% for numero_pagina in paginacao.paginas %}{% if numero_pagina == paginacao.pagina %}<span class="current-page">{{ numero_pagina }}</span>{% else %}<a href="{{ url_for('admin_empresas', pagina=numero_pagina, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">{{ numero_pagina }}</a>{% endif %}{% endfor %}{% if paginacao.tem_proxima %}<a href="{{ url_for('admin_empresas', pagina=paginacao.proxima, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">›</a>{% else %}<span class="disabled-page">›</span>{% endif %}</div>{% endif %}
+                </div>
             </div>
         </section>
 

@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordens_servico.html
-Último recode: 2026-07-01 15:25 (America/Bahia)
-Motivo: Vincular fotos antes/depois ao equipamento correspondente no cadastro da OS.
+Último recode: 2026-07-02 19:20 (America/Bahia)
+Motivo: Adicionar paginação, busca, seletor por página e cabeçalho ordenável na lista de Ordens de Serviço.
 -->
 
 <!DOCTYPE html>
@@ -462,6 +462,111 @@ Motivo: Vincular fotos antes/depois ao equipamento correspondente no cadastro da
             font-weight: 900;
         }
 
+
+        .list-toolbar-paginada {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin: 14px 0 16px;
+        }
+
+        .list-search-form {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .list-search-form input,
+        .list-search-form select {
+            height: 38px;
+            border: 1px solid #d8dee9;
+            border-radius: 10px;
+            padding: 0 12px;
+            font-family: inherit;
+            font-size: 13px;
+        }
+
+        .clear-search-link {
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 800;
+            text-decoration: none;
+        }
+
+        .sortable-link {
+            color: inherit;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            text-decoration: none;
+        }
+
+        .sortable-link:hover {
+            color: #0f62fe;
+        }
+
+        .sort-indicator {
+            color: #0f62fe;
+            font-weight: 900;
+        }
+
+        .pagination-bar {
+            margin-top: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            font-size: 13px;
+            color: #475569;
+            font-weight: 800;
+        }
+
+        .pagination-links {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .pagination-links a,
+        .pagination-links span {
+            min-width: 34px;
+            height: 34px;
+            padding: 0 10px;
+            border: 1px solid #dbe4f0;
+            border-radius: 9px;
+            background: #ffffff;
+            color: #0f172a;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 900;
+            text-decoration: none;
+        }
+
+        .pagination-links a:hover {
+            background: #eff6ff;
+            border-color: #bfdbfe;
+            color: #0f62fe;
+        }
+
+        .pagination-links .current-page {
+            background: #0f62fe;
+            border-color: #0f62fe;
+            color: #ffffff;
+        }
+
+        .pagination-links .disabled-page {
+            color: #94a3b8;
+            background: #f8fafc;
+            cursor: not-allowed;
+        }
+
     </style>
 </head>
 <body>
@@ -472,6 +577,11 @@ Motivo: Vincular fotos antes/depois ao equipamento correspondente no cadastro da
         {% include "partials/topbar.html" %}
 
 {% set ordens_lista = ordens_servico|default([]) %}
+        {% set paginacao = paginacao|default({}, true) %}
+        {% set busca = busca|default('', true) %}
+        {% set ordenar = ordenar|default('id', true) %}
+        {% set direcao = direcao|default('desc', true) %}
+        {% set por_pagina = por_pagina|default(20, true) %}
         {% set resumo = namespace(abertas=0, andamento=0, finalizadas=0) %}
         {% for os in ordens_lista %}
             {% if os.status == "aberta" %}{% set resumo.abertas = resumo.abertas + 1 %}{% endif %}
@@ -710,7 +820,17 @@ Motivo: Vincular fotos antes/depois ao equipamento correspondente no cadastro da
             <div class="client-actions"><input type="text" placeholder="Buscar por número, cliente, situação ou responsável" class="client-search"><button type="button" class="btn-dark">Buscar</button></div>
             <div class="table-shell os-table-actions-shell">
                 <table class="client-table">
-                    <thead><tr><th>ID</th><th>Número</th><th>Cliente</th><th>Equipamento</th><th>Situação</th><th>Prioridade</th><th>Data</th><th>Valor total</th><th>Ações</th></tr></thead>
+                    <thead><tr>
+                            <th><a href="{{ url_for('ordens_servico', pagina=1, por_pagina=por_pagina, ordenar='id', direcao='desc' if ordenar == 'id' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">ID {% if ordenar == 'id' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                            <th><a href="{{ url_for('ordens_servico', pagina=1, por_pagina=por_pagina, ordenar='numero', direcao='desc' if ordenar == 'numero' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Número {% if ordenar == 'numero' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                            <th><a href="{{ url_for('ordens_servico', pagina=1, por_pagina=por_pagina, ordenar='cliente', direcao='desc' if ordenar == 'cliente' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Cliente {% if ordenar == 'cliente' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                            <th><a href="{{ url_for('ordens_servico', pagina=1, por_pagina=por_pagina, ordenar='equipamento', direcao='desc' if ordenar == 'equipamento' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Equipamento {% if ordenar == 'equipamento' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                            <th><a href="{{ url_for('ordens_servico', pagina=1, por_pagina=por_pagina, ordenar='status', direcao='desc' if ordenar == 'status' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Situação {% if ordenar == 'status' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                            <th><a href="{{ url_for('ordens_servico', pagina=1, por_pagina=por_pagina, ordenar='prioridade', direcao='desc' if ordenar == 'prioridade' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Prioridade {% if ordenar == 'prioridade' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                            <th><a href="{{ url_for('ordens_servico', pagina=1, por_pagina=por_pagina, ordenar='data_abertura', direcao='desc' if ordenar == 'data_abertura' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Data {% if ordenar == 'data_abertura' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                            <th><a href="{{ url_for('ordens_servico', pagina=1, por_pagina=por_pagina, ordenar='valor_total', direcao='desc' if ordenar == 'valor_total' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Valor total {% if ordenar == 'valor_total' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                            <th>Ações</th>
+                        </tr></thead>
                     <tbody>
                         {% if ordens_lista %}
                             {% for os in ordens_lista %}
@@ -753,6 +873,10 @@ Motivo: Vincular fotos antes/depois ao equipamento correspondente no cadastro da
                         {% endif %}
                     </tbody>
                 </table>
+                <div class="pagination-bar">
+                    <div>{% if paginacao.total|default(0, true) > 0 %}Mostrando {{ paginacao.inicio }} a {{ paginacao.fim }} de {{ paginacao.total }}{% else %}Nenhum registro encontrado{% endif %}</div>
+                    {% if paginacao.total_paginas|default(1, true) > 1 %}<div class="pagination-links">{% if paginacao.tem_anterior %}<a href="{{ url_for('ordens_servico', pagina=paginacao.anterior, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">‹</a>{% else %}<span class="disabled-page">‹</span>{% endif %}{% for numero_pagina in paginacao.paginas %}{% if numero_pagina == paginacao.pagina %}<span class="current-page">{{ numero_pagina }}</span>{% else %}<a href="{{ url_for('ordens_servico', pagina=numero_pagina, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">{{ numero_pagina }}</a>{% endif %}{% endfor %}{% if paginacao.tem_proxima %}<a href="{{ url_for('ordens_servico', pagina=paginacao.proxima, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">›</a>{% else %}<span class="disabled-page">›</span>{% endif %}</div>{% endif %}
+                </div>
             </div>
         </section>
 
