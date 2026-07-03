@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordem_servico_detalhe.html
-Último recode: 2026-07-01 15:25 (America/Bahia)
-Motivo: Exibir fotos antes/depois abaixo do equipamento correspondente na OS.
+Último recode: 2026-07-02 22:50 (America/Bahia)
+Motivo: Exibir vínculo da OS com orçamento de origem.
 -->
 
 <!DOCTYPE html>
@@ -119,6 +119,18 @@ Motivo: Exibir fotos antes/depois abaixo do equipamento correspondente na OS.
                 <div class="form-group"><label>Canal de venda</label><div class="form-control">{{ os.canal_venda or '-' }}</div></div>
                 <div class="form-group"><label>Centro de custo</label><div class="form-control">{{ os.centro_custo or '-' }}</div></div>
                 <div class="form-group"><label>Venda de origem</label><div class="form-control">{{ os.origem_venda_id or '-' }}</div></div>
+                <div class="form-group">
+                    <label>Orçamento de origem</label>
+                    <div class="form-control">
+                        {% if os.origem_orcamento_id %}
+                            <a href="/orcamentos/{{ os.origem_orcamento_id }}" style="color:#0f62fe;font-weight:900;text-decoration:none;">
+                                Orçamento {{ os.origem_orcamento_numero or os.origem_orcamento_id }}
+                            </a>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </div>
+                </div>
                 <div class="form-group"><label>Tipo</label><div class="form-control">{{ os.tipo or '-' }}</div></div>
             </div>
         </section>

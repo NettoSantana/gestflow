@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-02 20:35 (America/Bahia)
-# Motivo: Revisar e corrigir cadastro rápido em telas operacionais, mantendo padrão funcional do orçamento para vendas, OS, estoque e financeiro.
+# Último recode: 2026-07-02 22:50 (America/Bahia)
+# Motivo: Gerar OS vinculada ao orçamento sem duplicidade, redirecionando para a OS e exibindo origem do orçamento.
 
 from __future__ import annotations
 
@@ -699,6 +699,7 @@ def iniciar_banco() -> None:
                 bairro_entrega TEXT,
                 cidade_entrega TEXT,
                 origem_venda_id INTEGER,
+                origem_orcamento_id INTEGER,
                 tipo TEXT NOT NULL DEFAULT 'misto',
                 status TEXT NOT NULL DEFAULT 'aberta',
                 prioridade TEXT NOT NULL DEFAULT 'normal',
@@ -3466,6 +3467,7 @@ def listar_ordens_servico_paginado(
                 bairro_entrega,
                 cidade_entrega,
                 origem_venda_id,
+                origem_orcamento_id,
                 tipo,
                 status,
                 prioridade,
@@ -5208,6 +5210,7 @@ def salvar_ordem_servico_db(ordem_servico: dict[str, str], itens: list[dict[str,
                 bairro_entrega,
                 cidade_entrega,
                 origem_venda_id,
+                origem_orcamento_id,
                 tipo,
                 status,
                 prioridade,
@@ -5224,7 +5227,7 @@ def salvar_ordem_servico_db(ordem_servico: dict[str, str], itens: list[dict[str,
                 servico_executado,
                 observacoes,
                 observacoes_internas
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id,
@@ -5252,7 +5255,8 @@ def salvar_ordem_servico_db(ordem_servico: dict[str, str], itens: list[dict[str,
                 ordem_servico["endereco_entrega"],
                 ordem_servico["bairro_entrega"],
                 ordem_servico["cidade_entrega"],
-                ordem_servico["origem_venda_id"],
+                ordem_servico.get("origem_venda_id", ""),
+                ordem_servico.get("origem_orcamento_id", ""),
                 ordem_servico["tipo"],
                 ordem_servico["status"],
                 ordem_servico["prioridade"],
@@ -5483,6 +5487,7 @@ def listar_ordens_servico() -> list[dict[str, Any]]:
                 bairro_entrega,
                 cidade_entrega,
                 origem_venda_id,
+                origem_orcamento_id,
                 tipo,
                 status,
                 prioridade,
@@ -5559,7 +5564,14 @@ def buscar_ordem_servico_por_id(ordem_servico_id: int) -> dict[str, Any] | None:
                 servico_executado,
                 observacoes,
                 observacoes_internas,
-                criado_em
+                criado_em,
+                (
+                    SELECT numero
+                    FROM orcamentos
+                    WHERE orcamentos.id = ordens_servico.origem_orcamento_id
+                      AND orcamentos.empresa_id = ordens_servico.empresa_id
+                    LIMIT 1
+                ) AS origem_orcamento_numero
             FROM ordens_servico
             WHERE id = ?
               AND empresa_id = ?
@@ -7042,6 +7054,7 @@ def montar_ordem_servico_formulario(numero_padrao: str = "") -> dict[str, str]:
         "bairro_entrega": (request.form.get("os_bairro_entrega") or "").strip(),
         "cidade_entrega": (request.form.get("os_cidade_entrega") or "").strip(),
         "origem_venda_id": (request.form.get("os_origem_venda_id") or "").strip(),
+        "origem_orcamento_id": (request.form.get("os_origem_orcamento_id") or "").strip(),
         "tipo": (request.form.get("os_tipo") or "misto").strip() or "misto",
         "status": (request.form.get("os_status") or "aberta").strip() or "aberta",
         "prioridade": (request.form.get("os_prioridade") or "normal").strip() or "normal",
@@ -7133,6 +7146,7 @@ def gerar_ordem_servico_por_venda_db(venda_id: int) -> int | None:
         "bairro_entrega": "",
         "cidade_entrega": "",
         "origem_venda_id": str(venda_id),
+        "origem_orcamento_id": "",
         "tipo": str(venda.get("tipo") or "misto"),
         "status": "aberta",
         "prioridade": "normal",
@@ -7154,6 +7168,129 @@ def gerar_ordem_servico_por_venda_db(venda_id: int) -> int | None:
     itens_os: list[dict[str, str]] = []
 
     for item in itens_venda:
+        itens_os.append(
+            {
+                "tipo_item": str(item.get("tipo_item") or "produto"),
+                "descricao": str(item.get("descricao") or ""),
+                "detalhes": str(item.get("detalhes") or ""),
+                "quantidade": str(item.get("quantidade") or ""),
+                "valor_unitario": str(item.get("valor_unitario") or ""),
+                "desconto": str(item.get("desconto") or ""),
+                "subtotal": str(item.get("subtotal") or ""),
+            }
+        )
+
+    return salvar_ordem_servico_db(ordem_servico, itens_os)
+
+
+
+def buscar_ordem_servico_por_orcamento_id(orcamento_id: int) -> dict[str, Any] | None:
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                id,
+                empresa_id,
+                numero,
+                cliente,
+                responsavel,
+                tecnico,
+                data_abertura,
+                data_previsao,
+                status,
+                prioridade,
+                origem_orcamento_id,
+                valor_total,
+                criado_em
+            FROM ordens_servico
+            WHERE empresa_id = ?
+              AND origem_orcamento_id = ?
+            ORDER BY id ASC
+            LIMIT 1
+            """,
+            (empresa_id, orcamento_id),
+        ).fetchone()
+
+    if row is None:
+        return None
+
+    return dict(row)
+
+
+def gerar_ordem_servico_por_orcamento_db(orcamento_id: int) -> int | None:
+    ordem_existente = buscar_ordem_servico_por_orcamento_id(orcamento_id)
+
+    if ordem_existente is not None:
+        return int(ordem_existente["id"])
+
+    orcamento = buscar_orcamento_por_id(orcamento_id)
+
+    if orcamento is None:
+        return None
+
+    itens_orcamento = listar_orcamento_itens(orcamento_id)
+    numero_orcamento = str(orcamento.get("numero") or orcamento_id).strip()
+    observacoes_orcamento = str(orcamento.get("observacoes") or "").strip()
+    observacoes_internas_orcamento = str(orcamento.get("observacoes_internas") or "").strip()
+
+    observacoes_os = f"OS gerada a partir do Orçamento {numero_orcamento}."
+    if observacoes_orcamento:
+        observacoes_os += f"\n\nObservações do orçamento:\n{observacoes_orcamento}"
+
+    ordem_servico = {
+        "numero": proximo_numero_ordem_servico(),
+        "cliente": str(orcamento.get("cliente") or ""),
+        "responsavel": str(orcamento.get("responsavel") or ""),
+        "tecnico": str(orcamento.get("responsavel") or ""),
+        "data_abertura": hoje_empresa().isoformat(),
+        "data_previsao": str(orcamento.get("prazo_entrega") or ""),
+        "data_saida": "",
+        "hora_entrada": "",
+        "hora_saida": "",
+        "canal_venda": str(orcamento.get("canal_venda") or ""),
+        "centro_custo": str(orcamento.get("centro_custo") or ""),
+        "equipamento": "Serviço conforme orçamento",
+        "marca": "",
+        "modelo": "",
+        "serie": "",
+        "local_servico": "",
+        "condicoes": "",
+        "acessorios": "",
+        "laudo": "",
+        "termos": "",
+        "informar_endereco_entrega": "nao",
+        "endereco_entrega": "",
+        "bairro_entrega": "",
+        "cidade_entrega": "",
+        "origem_venda_id": "",
+        "origem_orcamento_id": str(orcamento_id),
+        "tipo": str(orcamento.get("tipo") or "misto"),
+        "status": "aberta",
+        "prioridade": "normal",
+        "total_produtos": str(orcamento.get("total_produtos") or "0,00"),
+        "total_servicos": str(orcamento.get("total_servicos") or "0,00"),
+        "frete": "0,00",
+        "outros": "0,00",
+        "desconto_valor": str(orcamento.get("desconto_valor") or "0,00"),
+        "valor_total": str(orcamento.get("valor_total") or "0,00"),
+        "forma_pagamento": str(orcamento.get("forma_pagamento") or ""),
+        "exibir_valor_impressao": "sim",
+        "relato_cliente": str(orcamento.get("introducao") or ""),
+        "diagnostico": "",
+        "servico_executado": observacoes_os,
+        "observacoes": observacoes_os,
+        "observacoes_internas": (
+            observacoes_internas_orcamento
+            + ("\n" if observacoes_internas_orcamento else "")
+            + f"Origem: Orçamento ID {orcamento_id} / Nº {numero_orcamento}."
+        ),
+    }
+
+    itens_os: list[dict[str, str]] = []
+
+    for item in itens_orcamento:
         itens_os.append(
             {
                 "tipo_item": str(item.get("tipo_item") or "produto"),
@@ -7202,6 +7339,7 @@ def copiar_ordem_servico_db(ordem_servico_id: int) -> int | None:
         "bairro_entrega": str(ordem_servico_original.get("bairro_entrega") or ""),
         "cidade_entrega": str(ordem_servico_original.get("cidade_entrega") or ""),
         "origem_venda_id": str(ordem_servico_original.get("origem_venda_id") or ""),
+        "origem_orcamento_id": str(ordem_servico_original.get("origem_orcamento_id") or ""),
         "tipo": str(ordem_servico_original.get("tipo") or "misto"),
         "status": "aberta",
         "prioridade": str(ordem_servico_original.get("prioridade") or "normal"),
@@ -12181,7 +12319,7 @@ def salvar_ordem_servico() -> Response:
     atualizar_fotos_equipamento_os_formulario(nova_ordem_servico_id)
     registrar_atividade_usuario("criacao", "ordens_servico", f"Criou OS {ordem_servico.get('numero') or nova_ordem_servico_id}", request.path)
 
-    return redirect(url_for("ordens_servico"))
+    return redirect(url_for("ver_ordem_servico", ordem_servico_id=ordem_servico_id))
 
 
 @app.get("/ordens-servico/<int:ordem_servico_id>")
@@ -13310,6 +13448,9 @@ def salvar_orcamento() -> Response:
 
 @app.get("/orcamentos/<int:orcamento_id>")
 def ver_orcamento(orcamento_id: int) -> str | Response:
+    if str(request.args.get("gerar") or "").strip().lower() == "os":
+        return redirect(url_for("gerar_ordem_servico_por_orcamento", orcamento_id=orcamento_id))
+
     orcamento = buscar_orcamento_por_id(orcamento_id)
 
     if orcamento is None:
@@ -13319,6 +13460,16 @@ def ver_orcamento(orcamento_id: int) -> str | Response:
 
     return render_template("orcamento_detalhe.html", orcamento=orcamento, itens=itens)
 
+
+
+@app.get("/orcamentos/<int:orcamento_id>/gerar/os")
+def gerar_ordem_servico_por_orcamento(orcamento_id: int) -> Response:
+    ordem_servico_id = gerar_ordem_servico_por_orcamento_db(orcamento_id)
+
+    if ordem_servico_id is None:
+        return redirect(url_for("orcamentos"))
+
+    return redirect(url_for("ver_ordem_servico", ordem_servico_id=ordem_servico_id))
 
 @app.get("/orcamentos/<int:orcamento_id>/gerar/copia")
 def gerar_copia_orcamento(orcamento_id: int) -> Response:
