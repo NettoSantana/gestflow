@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordens_servico.html
-Último recode: 2026-07-02 20:35 (America/Bahia)
-Motivo: Revisar e corrigir cadastro rápido em telas operacionais, mantendo padrão funcional do orçamento para vendas, OS, estoque e financeiro.
+Último recode: 2026-07-02 23:02 (America/Bahia)
+Motivo: Recuperar padrão visual da tela de OS para ficar mais próxima da tela de Orçamentos, preservando campos e funcionalidades.
 -->
 
 <!DOCTYPE html>
@@ -567,6 +567,138 @@ Motivo: Revisar e corrigir cadastro rápido em telas operacionais, mantendo padr
             cursor: not-allowed;
         }
 
+
+        /* AJUSTE VISUAL - OS COM PADRAO MAIS PROXIMO DE ORCAMENTOS */
+        .os-page {
+            padding-bottom: 280px;
+        }
+
+        .os-page .table-panel {
+            margin-bottom: 180px;
+        }
+
+        .os-page .client-form {
+            display: block;
+        }
+
+        .os-form-section {
+            border: 0 !important;
+            border-radius: 16px !important;
+            background: #ffffff !important;
+            margin-bottom: 18px !important;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+        }
+
+        .os-section-title {
+            background: transparent !important;
+            border-bottom: 1px solid #eef2f7 !important;
+            padding: 18px 20px 12px !important;
+        }
+
+        .os-section-title h3 {
+            font-size: 15px !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.01em;
+        }
+
+        .os-section-title span {
+            font-size: 12px !important;
+            color: #64748b !important;
+        }
+
+        .os-section-body {
+            padding: 16px 20px 20px !important;
+        }
+
+        .os-page .form-control,
+        .os-page input,
+        .os-page select,
+        .os-page textarea {
+            border-radius: 10px;
+        }
+
+        .os-textarea {
+            min-height: 78px !important;
+        }
+
+        .os-equipamento-bloco {
+            border: 1px solid #e5eaf2 !important;
+            border-radius: 14px !important;
+            background: #ffffff !important;
+            padding: 16px !important;
+            margin-bottom: 14px !important;
+        }
+
+        .os-equipamento-topo {
+            margin-bottom: 14px !important;
+            font-size: 13px !important;
+            color: #0f172a !important;
+            text-transform: uppercase;
+        }
+
+        .os-foto-equipamento-bloco {
+            background: #f8fafc !important;
+            border: 1px solid #e5eaf2 !important;
+            border-radius: 14px !important;
+            margin-top: 16px !important;
+        }
+
+        .os-actions-line {
+            margin-top: 14px !important;
+        }
+
+        .os-page .btn-dark,
+        .os-page .btn-primary-green,
+        .os-page .btn-light {
+            border-radius: 10px;
+        }
+
+        .ordens-lista-shell {
+            border: 0 !important;
+            border-radius: 16px;
+            overflow-x: auto;
+            background: #ffffff;
+        }
+
+        .ordens-lista-table {
+            border-collapse: separate !important;
+            border-spacing: 0 10px !important;
+            min-width: 900px;
+        }
+
+        .ordens-lista-table thead th {
+            border-bottom: 0 !important;
+            background: transparent;
+            padding-bottom: 10px;
+        }
+
+        .ordens-lista-table tbody tr {
+            background: #ffffff;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+            border-radius: 14px;
+        }
+
+        .ordens-lista-table tbody td {
+            border-bottom: 0 !important;
+            padding-top: 14px !important;
+            padding-bottom: 14px !important;
+        }
+
+        .ordens-lista-table tbody td:first-child {
+            border-top-left-radius: 14px;
+            border-bottom-left-radius: 14px;
+        }
+
+        .ordens-lista-table tbody td:last-child {
+            border-top-right-radius: 14px;
+            border-bottom-right-radius: 14px;
+        }
+
+        .os-page .page-header .btn-primary-green {
+            min-height: 42px;
+            padding: 0 18px;
+        }
+
     </style>
 </head>
 <body>
@@ -593,8 +725,8 @@ Motivo: Revisar e corrigir cadastro rápido em telas operacionais, mantendo padr
             <div class="panel-header page-header">
                 <div>
                     <span class="page-kicker">Ordens de Serviço</span>
-                    <h3 class="page-title">Adicionar OS</h3>
-                    <p class="page-subtitle">Cadastre a ordem de serviço com dados gerais, responsáveis, equipamento, produtos, serviços e valores.</p>
+                    <h3 class="page-title">Ordens de Serviço</h3>
+                    <p class="page-subtitle">Cadastre, acompanhe e mantenha as ordens de serviço com dados técnicos, produtos, serviços e valores.</p>
                 </div>
                 <a href="#form-nova-os" class="btn-primary-green">+ Nova OS</a>
             </div>
@@ -1011,8 +1143,8 @@ Motivo: Revisar e corrigir cadastro rápido em telas operacionais, mantendo padr
                         <div class="os-foto-equipamento-titulo">
                             <span>Fotos antes / depois deste equipamento</span>
                         </div>
-                        <div class="table-shell">
-                            <table class="client-table os-photo-table">
+                        <div class="table-shell ordens-lista-shell">
+                            <table class="client-table ordens-lista-table os-photo-table">
                                 <thead>
                                     <tr>
                                         <th>Foto antes</th>
