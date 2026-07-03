@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamentos.html
-Último recode: 2026-07-02 23:31 (America/Bahia)
-Motivo: Ajustar Orçamentos como padrão visual principal, evitando overflow de campos e tabelas.
+Último recode: 2026-07-03 00:04 (America/Bahia)
+Motivo: Corrigir overflow das tabelas internas de produtos e serviços no formulário de Orçamentos.
 -->
 
 <!DOCTYPE html>
@@ -418,6 +418,78 @@ Motivo: Ajustar Orçamentos como padrão visual principal, evitando overflow de 
             min-width: 0;
         }
 
+
+        .orcamentos-page .orcamento-itens-shell {
+            width: 100%;
+            max-width: 100%;
+            overflow-x: auto;
+            overflow-y: hidden;
+        }
+
+        .orcamentos-page .orcamento-itens-table {
+            width: 100% !important;
+            min-width: 0 !important;
+            max-width: 100% !important;
+            table-layout: fixed;
+        }
+
+        .orcamentos-page .orcamento-itens-table th,
+        .orcamentos-page .orcamento-itens-table td {
+            min-width: 0;
+            overflow: hidden;
+            vertical-align: middle;
+        }
+
+        .orcamentos-page .orcamento-itens-table th:nth-child(1),
+        .orcamentos-page .orcamento-itens-table td:nth-child(1) {
+            width: 22%;
+        }
+
+        .orcamentos-page .orcamento-itens-table th:nth-child(2),
+        .orcamentos-page .orcamento-itens-table td:nth-child(2) {
+            width: 25%;
+        }
+
+        .orcamentos-page .orcamento-itens-table th:nth-child(3),
+        .orcamentos-page .orcamento-itens-table td:nth-child(3) {
+            width: 9%;
+        }
+
+        .orcamentos-page .orcamento-itens-table th:nth-child(4),
+        .orcamentos-page .orcamento-itens-table td:nth-child(4),
+        .orcamentos-page .orcamento-itens-table th:nth-child(5),
+        .orcamentos-page .orcamento-itens-table td:nth-child(5),
+        .orcamentos-page .orcamento-itens-table th:nth-child(6),
+        .orcamentos-page .orcamento-itens-table td:nth-child(6) {
+            width: 12%;
+        }
+
+        .orcamentos-page .orcamento-itens-table th:nth-child(7),
+        .orcamentos-page .orcamento-itens-table td:nth-child(7) {
+            width: 8%;
+            text-align: center;
+        }
+
+        .orcamentos-page .orcamento-itens-table .form-control {
+            width: 100%;
+            min-width: 0;
+            max-width: 100%;
+            padding-left: 10px;
+            padding-right: 10px;
+            font-size: 13px;
+        }
+
+        .orcamentos-page .orcamento-itens-table .action-button {
+            margin: 0 auto;
+        }
+
+        @media (max-width: 900px) {
+            .orcamentos-page .orcamento-itens-table {
+                min-width: 860px !important;
+                table-layout: auto;
+            }
+        }
+
     </style>
 </head>
 <body>
@@ -581,8 +653,8 @@ Motivo: Ajustar Orçamentos como padrão visual principal, evitando overflow de 
                         <button type="button" class="btn-primary-green" onclick="adicionarItem('servico')">+ Adicionar serviço</button>
                     </div>
 
-                    <div class="table-shell">
-                        <table class="client-table">
+                    <div class="table-shell orcamento-itens-shell">
+                        <table class="client-table orcamento-itens-table">
                             <thead>
                                 <tr>
                                     <th>Serviço</th>
@@ -610,8 +682,8 @@ Motivo: Ajustar Orçamentos como padrão visual principal, evitando overflow de 
                         <button type="button" class="btn-primary-green" onclick="adicionarItem('produto')">+ Adicionar produto</button>
                     </div>
 
-                    <div class="table-shell">
-                        <table class="client-table">
+                    <div class="table-shell orcamento-itens-shell">
+                        <table class="client-table orcamento-itens-table">
                             <thead>
                                 <tr>
                                     <th>Produto</th>
