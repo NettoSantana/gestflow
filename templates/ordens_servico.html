@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordens_servico.html
-Último recode: 2026-07-02 23:02 (America/Bahia)
-Motivo: Recuperar padrão visual da tela de OS para ficar mais próxima da tela de Orçamentos, preservando campos e funcionalidades.
+Último recode: 2026-07-02 23:08 (America/Bahia)
+Motivo: Reorganizar a tela de OS no padrão visual de Orçamentos, abrindo com cards e lista e deixando o cadastro completo recolhido por padrão.
 -->
 
 <!DOCTYPE html>
@@ -568,7 +568,7 @@ Motivo: Recuperar padrão visual da tela de OS para ficar mais próxima da tela 
         }
 
 
-        /* AJUSTE VISUAL - OS COM PADRAO MAIS PROXIMO DE ORCAMENTOS */
+        /* PADRAO VISUAL DA LISTA DE OS - BASEADO EM ORCAMENTOS */
         .os-page {
             padding-bottom: 280px;
         }
@@ -577,8 +577,71 @@ Motivo: Recuperar padrão visual da tela de OS para ficar mais próxima da tela 
             margin-bottom: 180px;
         }
 
-        .os-page .client-form {
+        .os-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .os-cadastro-toggle {
+            display: none;
+        }
+
+        .os-cadastro-resumo {
+            border: 1px solid #dbe3ef;
+            border-radius: 16px;
+            background: #ffffff;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
+            margin-bottom: 18px;
+            padding: 18px 20px;
+        }
+
+        .os-cadastro-resumo-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .os-cadastro-resumo h3 {
+            margin: 0 0 4px;
+            color: #0f172a;
+            font-size: 16px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .os-cadastro-resumo p {
+            margin: 0;
+            color: #64748b;
+            font-size: 13px;
+        }
+
+        .os-cadastro-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        #form-nova-os {
+            display: none;
+            margin-top: 0;
+        }
+
+        #os-cadastro-toggle:checked ~ #form-nova-os,
+        #form-nova-os:target {
             display: block;
+        }
+
+        #os-cadastro-toggle:checked ~ .os-cadastro-resumo .os-abrir-form {
+            display: none;
+        }
+
+        #os-cadastro-toggle:not(:checked) ~ .os-cadastro-resumo .os-fechar-form {
+            display: none;
         }
 
         .os-form-section {
@@ -643,16 +706,6 @@ Motivo: Recuperar padrão visual da tela de OS para ficar mais próxima da tela 
             margin-top: 16px !important;
         }
 
-        .os-actions-line {
-            margin-top: 14px !important;
-        }
-
-        .os-page .btn-dark,
-        .os-page .btn-primary-green,
-        .os-page .btn-light {
-            border-radius: 10px;
-        }
-
         .ordens-lista-shell {
             border: 0 !important;
             border-radius: 16px;
@@ -694,9 +747,35 @@ Motivo: Recuperar padrão visual da tela de OS para ficar mais próxima da tela 
             border-bottom-right-radius: 14px;
         }
 
-        .os-page .page-header .btn-primary-green {
-            min-height: 42px;
-            padding: 0 18px;
+        .ordens-search-form {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .ordens-search-form .client-search {
+            flex: 1 1 320px;
+        }
+
+        .per-page-select {
+            max-width: 130px;
+        }
+
+        @media (max-width: 720px) {
+            .os-cadastro-resumo-inner,
+            .os-header-actions {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .os-cadastro-actions .btn-dark,
+            .os-cadastro-actions .btn-light,
+            .os-header-actions .btn-primary-green {
+                width: 100%;
+                justify-content: center;
+            }
         }
 
     </style>
@@ -728,7 +807,7 @@ Motivo: Recuperar padrão visual da tela de OS para ficar mais próxima da tela 
                     <h3 class="page-title">Ordens de Serviço</h3>
                     <p class="page-subtitle">Cadastre, acompanhe e mantenha as ordens de serviço com dados técnicos, produtos, serviços e valores.</p>
                 </div>
-                <a href="#form-nova-os" class="btn-primary-green">+ Nova OS</a>
+                <div class="os-header-actions"><label for="os-cadastro-toggle" class="btn-primary-green">+ Nova OS</label></div>
             </div>
         </section>
 
@@ -736,6 +815,22 @@ Motivo: Recuperar padrão visual da tela de OS para ficar mais próxima da tela 
             <div class="card stat-card"><div class="card-icon">✚</div><div class="card-info"><p>{{ ordens_lista|length }}</p><h3>Total de OS</h3><span>{% if ordens_lista|length == 1 %}1 OS cadastrada{% elif ordens_lista|length > 1 %}{{ ordens_lista|length }} OS cadastradas{% else %}Nenhuma OS cadastrada{% endif %}</span></div></div>
             <div class="card stat-card"><div class="card-icon">⌁</div><div class="card-info"><p>{{ resumo.abertas }}</p><h3>Abertas</h3><span>{% if resumo.abertas == 1 %}1 OS aberta{% elif resumo.abertas > 1 %}{{ resumo.abertas }} OS abertas{% else %}Nenhuma OS aberta{% endif %}</span></div></div>
             <div class="card stat-card"><div class="card-icon">✓</div><div class="card-info"><p>{{ resumo.finalizadas }}</p><h3>Finalizadas</h3><span>{% if resumo.finalizadas == 1 %}1 OS finalizada{% elif resumo.finalizadas > 1 %}{{ resumo.finalizadas }} OS finalizadas{% else %}Nenhuma OS finalizada{% endif %}</span></div></div>
+        </section>
+
+        
+        <input type="checkbox" id="os-cadastro-toggle" class="os-cadastro-toggle">
+
+        <section class="os-cadastro-resumo">
+            <div class="os-cadastro-resumo-inner">
+                <div>
+                    <h3>Cadastro de OS</h3>
+                    <p>Use esta área apenas quando precisar abrir uma nova ordem de serviço manual. A lista permanece como tela principal.</p>
+                </div>
+                <div class="os-cadastro-actions">
+                    <label for="os-cadastro-toggle" class="btn-dark os-abrir-form">+ Abrir cadastro</label>
+                    <label for="os-cadastro-toggle" class="btn-light os-fechar-form">Fechar cadastro</label>
+                </div>
+            </div>
         </section>
 
         <form id="form-nova-os" action="/ordens-servico" method="post" enctype="multipart/form-data" class="client-form">
@@ -942,16 +1037,35 @@ Motivo: Recuperar padrão visual da tela de OS para ficar mais próxima da tela 
                         <div class="form-group"><label for="os_observacoes_internas">Observações internas</label><textarea id="os_observacoes_internas" name="os_observacoes_internas" class="form-control os-textarea" placeholder="Uso interno. Não será impresso no pedido"></textarea></div>
                         <div class="form-group os-span-2"><label for="os_servico_executado">Serviço executado</label><textarea id="os_servico_executado" name="os_servico_executado" class="form-control os-textarea" placeholder="Resumo da execução"></textarea></div>
                     </div>
-                    <div class="form-actions"><button type="reset" class="btn-light">Cancelar</button><button type="submit" class="btn-primary-green">Cadastrar</button></div>
+                    <div class="form-actions"><label for="os-cadastro-toggle" class="btn-light">Cancelar</label><button type="submit" class="btn-primary-green">Cadastrar</button></div>
                 </div>
             </section>
         </form>
 
         <section class="panel table-panel">
             <div class="panel-header page-header"><div><h3>Lista de OS</h3><p class="page-subtitle">Acompanhe as ordens de serviço cadastradas.</p></div><div class="client-toolbar"><button type="button" class="btn-light">Exportar</button><button type="button" class="btn-light">Filtros</button></div></div>
-            <div class="client-actions"><input type="text" placeholder="Buscar por número, cliente, situação ou responsável" class="client-search"><button type="button" class="btn-dark">Buscar</button></div>
-            <div class="table-shell os-table-actions-shell">
-                <table class="client-table">
+            <div class="client-actions">
+                <form action="/ordens-servico" method="get" class="ordens-search-form">
+                    <input type="text" name="busca" value="{{ busca }}" placeholder="Buscar por número, cliente, situação ou responsável" class="client-search">
+                    <input type="hidden" name="ordenar" value="{{ ordenar }}">
+                    <input type="hidden" name="direcao" value="{{ direcao }}">
+
+                    <select name="por_pagina" class="form-control per-page-select" onchange="this.form.submit()">
+                        <option value="10" {% if por_pagina == 10 %}selected{% endif %}>10 por página</option>
+                        <option value="20" {% if por_pagina == 20 %}selected{% endif %}>20 por página</option>
+                        <option value="50" {% if por_pagina == 50 %}selected{% endif %}>50 por página</option>
+                        <option value="100" {% if por_pagina == 100 %}selected{% endif %}>100 por página</option>
+                    </select>
+
+                    <button type="submit" class="btn-dark">Buscar</button>
+
+                    {% if busca %}
+                        <a href="{{ url_for('ordens_servico', por_pagina=por_pagina, ordenar=ordenar, direcao=direcao) }}" class="clear-search-link">Limpar</a>
+                    {% endif %}
+                </form>
+            </div>
+            <div class="table-shell os-table-actions-shell ordens-lista-shell">
+                <table class="client-table ordens-lista-table">
                     <thead><tr>
                             <th><a href="{{ url_for('ordens_servico', pagina=1, por_pagina=por_pagina, ordenar='id', direcao='desc' if ordenar == 'id' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">ID {% if ordenar == 'id' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
                             <th><a href="{{ url_for('ordens_servico', pagina=1, por_pagina=por_pagina, ordenar='numero', direcao='desc' if ordenar == 'numero' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Número {% if ordenar == 'numero' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
@@ -1351,6 +1465,21 @@ Motivo: Recuperar padrão visual da tela de OS para ficar mais próxima da tela 
                 </div>
             </div>
         </div>
+
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function() {
+                const toggleCadastro = document.getElementById("os-cadastro-toggle");
+                const formularioOS = document.getElementById("form-nova-os");
+
+                if (toggleCadastro && formularioOS && window.location.hash === "#form-nova-os") {
+                    toggleCadastro.checked = true;
+                    setTimeout(function() {
+                        formularioOS.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }, 80);
+                }
+            });
+        </script>
 
 </main>
 
