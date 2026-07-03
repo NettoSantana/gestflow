@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\dashboard.html
-Último recode: 2026-07-01 00:30 (America/Bahia)
-Motivo: Acionar tour guiado após onboarding inicial.
+Último recode: 2026-07-02 23:31 (America/Bahia)
+Motivo: Padronizar Dashboard no visual de Orçamentos, com tabelas client-table e blocos visuais consistentes.
 -->
 
 <!DOCTYPE html>
@@ -247,12 +247,67 @@ Motivo: Acionar tour guiado após onboarding inicial.
                 overflow-x: auto;
             }
         }
+
+        /* PADRAO VISUAL ORCAMENTOS - DASHBOARD */
+        .dashboard-page {
+            padding-bottom: 280px;
+        }
+
+        .dashboard-page .table-panel,
+        .dashboard-page .dashboard-panel {
+            border-radius: 16px;
+            background: #ffffff;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+        }
+
+        .dashboard-lista-shell {
+            border: 0 !important;
+            border-radius: 16px;
+            overflow-x: auto;
+            background: #ffffff;
+        }
+
+        .dashboard-lista-table {
+            width: 100% !important;
+            min-width: 100% !important;
+            border-collapse: separate !important;
+            border-spacing: 0 10px !important;
+        }
+
+        .dashboard-lista-table thead th {
+            border-bottom: 0 !important;
+            background: transparent;
+            padding-bottom: 10px;
+        }
+
+        .dashboard-lista-table tbody tr {
+            background: #ffffff;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+            border-radius: 14px;
+        }
+
+        .dashboard-lista-table tbody td {
+            border-bottom: 0 !important;
+            padding-top: 14px !important;
+            padding-bottom: 14px !important;
+        }
+
+        .dashboard-lista-table tbody td:first-child {
+            border-top-left-radius: 14px;
+            border-bottom-left-radius: 14px;
+        }
+
+        .dashboard-lista-table tbody td:last-child {
+            border-top-right-radius: 14px;
+            border-bottom-right-radius: 14px;
+        }
+
     </style>
 </head>
 <body>
     {% include "partials/sidebar.html" %}
 
-<main class="content">
+<main class="content dashboard-page">
 
         {% set dash = dashboard|default({}) %}
         {% set vendas_mes = dash.vendas_mes|default({"quantidade": 0, "valor_total": 0}) %}
@@ -429,7 +484,7 @@ Motivo: Acionar tour guiado após onboarding inicial.
 
             <div class="panel table-panel">
                 <h3>Últimas Ordens de Serviço</h3>
-                <table>
+                <table class="client-table dashboard-lista-table">
                     <thead>
                         <tr>
                             <th>Nº OS</th>
@@ -462,7 +517,7 @@ Motivo: Acionar tour guiado após onboarding inicial.
 
             <div class="panel table-panel">
                 <h3>Últimas Vendas</h3>
-                <table>
+                <table class="client-table dashboard-lista-table">
                     <thead>
                         <tr>
                             <th>Nº Venda</th>
@@ -497,7 +552,7 @@ Motivo: Acionar tour guiado após onboarding inicial.
 
         <section class="panel table-panel" style="margin-top: 18px;">
             <h3>Últimos títulos financeiros</h3>
-            <table>
+            <table class="client-table dashboard-lista-table">
                 <thead>
                     <tr>
                         <th>Tipo</th>

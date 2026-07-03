@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vendas.html
-Último recode: 2026-07-02 20:35 (America/Bahia)
-Motivo: Revisar e corrigir cadastro rápido em telas operacionais, mantendo padrão funcional do orçamento para vendas, OS, estoque e financeiro.
+Último recode: 2026-07-02 23:31 (America/Bahia)
+Motivo: Deixar tela de Vendas no padrão visual de Orçamentos, com cadastro recolhido, lista como foco e tabelas sem overflow.
 -->
 
 <!DOCTYPE html>
@@ -243,6 +243,172 @@ Motivo: Revisar e corrigir cadastro rápido em telas operacionais, mantendo padr
             cursor: not-allowed;
         }
 
+
+        /* PADRAO VISUAL ORCAMENTOS - VENDAS */
+        .vendas-page {
+            padding-bottom: 280px;
+        }
+
+        .vendas-page .table-panel {
+            margin-bottom: 180px;
+        }
+
+        .venda-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .venda-cadastro-toggle {
+            display: none;
+        }
+
+        .venda-cadastro-resumo {
+            border: 1px solid #dbe3ef;
+            border-radius: 16px;
+            background: #ffffff;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
+            margin-bottom: 18px;
+            padding: 18px 20px;
+        }
+
+        .venda-cadastro-resumo-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .venda-cadastro-resumo h3 {
+            margin: 0 0 4px;
+            color: #0f172a;
+            font-size: 16px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .venda-cadastro-resumo p {
+            margin: 0;
+            color: #64748b;
+            font-size: 13px;
+        }
+
+        .venda-cadastro-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        #form-nova-venda {
+            display: none;
+        }
+
+        #venda-cadastro-toggle:checked ~ #form-nova-venda,
+        #form-nova-venda:target {
+            display: block;
+        }
+
+        #venda-cadastro-toggle:checked ~ .venda-cadastro-resumo .venda-abrir-form {
+            display: none;
+        }
+
+        #venda-cadastro-toggle:not(:checked) ~ .venda-cadastro-resumo .venda-fechar-form {
+            display: none;
+        }
+
+        .vendas-lista-shell {
+            border: 0 !important;
+            border-radius: 16px;
+            overflow-x: auto;
+            background: #ffffff;
+        }
+
+        .vendas-lista-table {
+            width: 100% !important;
+            min-width: 100% !important;
+            border-collapse: separate !important;
+            border-spacing: 0 10px !important;
+        }
+
+        .vendas-lista-table thead th {
+            border-bottom: 0 !important;
+            background: transparent;
+            padding-bottom: 10px;
+        }
+
+        .vendas-lista-table tbody tr {
+            background: #ffffff;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+            border-radius: 14px;
+        }
+
+        .vendas-lista-table tbody td {
+            border-bottom: 0 !important;
+            padding-top: 14px !important;
+            padding-bottom: 14px !important;
+        }
+
+        .vendas-lista-table tbody td:first-child {
+            border-top-left-radius: 14px;
+            border-bottom-left-radius: 14px;
+        }
+
+        .vendas-lista-table tbody td:last-child {
+            border-top-right-radius: 14px;
+            border-bottom-right-radius: 14px;
+        }
+
+        .venda-search-form {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .venda-search-form input[name="busca"] {
+            flex: 1 1 320px;
+        }
+
+        .venda-search-form input,
+        .venda-search-form select {
+            height: 38px;
+            border: 1px solid #d8dee9;
+            border-radius: 10px;
+            padding: 0 12px;
+            font-family: inherit;
+            font-size: 13px;
+        }
+
+        .vendas-page .form-grid {
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        }
+
+        .vendas-page input,
+        .vendas-page select,
+        .vendas-page textarea {
+            min-width: 0;
+        }
+
+        @media (max-width: 720px) {
+            .venda-cadastro-resumo-inner,
+            .venda-header-actions {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .venda-cadastro-actions .btn-dark,
+            .venda-cadastro-actions .btn-light,
+            .venda-header-actions .btn-primary-green,
+            .venda-header-actions .btn-light {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
     </style>
 </head>
 <body>
@@ -280,9 +446,9 @@ Motivo: Revisar e corrigir cadastro rápido em telas operacionais, mantendo padr
                     <p class="page-subtitle">Cadastre vendas de produtos, serviços ou mistas, com cliente, itens, descontos, totais e forma de pagamento.</p>
                 </div>
 
-                <div class="client-toolbar">
+                <div class="client-toolbar venda-header-actions">
                     <a href="/vendas/balcao" class="btn-primary-green">▤ Venda Balcão / PDV</a>
-                    <a href="#form-nova-venda" class="btn-light">+ Nova Venda</a>
+                    <label for="venda-cadastro-toggle" class="btn-light">+ Nova Venda</label>
                 </div>
             </div>
         </section>
@@ -312,6 +478,22 @@ Motivo: Revisar e corrigir cadastro rápido em telas operacionais, mantendo padr
                     <p>{{ resumo.concretizadas }}</p>
                     <h3>Concretizadas</h3>
                     <span>{% if resumo.concretizadas == 1 %}1 venda concretizada{% elif resumo.concretizadas > 1 %}{{ resumo.concretizadas }} vendas concretizadas{% else %}Nenhuma venda concretizada{% endif %}</span>
+                </div>
+            </div>
+        </section>
+
+        
+        <input type="checkbox" id="venda-cadastro-toggle" class="venda-cadastro-toggle">
+
+        <section class="venda-cadastro-resumo">
+            <div class="venda-cadastro-resumo-inner">
+                <div>
+                    <h3>Cadastro de venda</h3>
+                    <p>Use esta área somente para nova venda manual. A lista permanece como tela principal, igual ao padrão de Orçamentos.</p>
+                </div>
+                <div class="venda-cadastro-actions">
+                    <label for="venda-cadastro-toggle" class="btn-dark venda-abrir-form">+ Abrir cadastro</label>
+                    <label for="venda-cadastro-toggle" class="btn-light venda-fechar-form">Fechar cadastro</label>
                 </div>
             </div>
         </section>
@@ -507,7 +689,7 @@ Motivo: Revisar e corrigir cadastro rápido em telas operacionais, mantendo padr
                 </div>
 
                 <div class="form-actions">
-                    <button type="reset" class="btn-light">Cancelar</button>
+                    <label for="venda-cadastro-toggle" class="btn-light">Cancelar</label>
                     <button type="submit" class="btn-primary-green">Salvar Venda</button>
                 </div>
             </section>
@@ -527,7 +709,7 @@ Motivo: Revisar e corrigir cadastro rápido em telas operacionais, mantendo padr
             </div>
 
             <div class="list-toolbar-paginada">
-                <form method="get" action="{{ url_for(listagem_endpoint) }}" class="list-search-form">
+                <form method="get" action="{{ url_for(listagem_endpoint) }}" class="list-search-form venda-search-form">
                     <input type="text" name="busca" value="{{ busca }}" placeholder="Buscar por número, cliente, situação ou responsável">
                     <select name="por_pagina" onchange="this.form.submit()">
                         {% for quantidade in [10, 20, 50, 100] %}
@@ -541,8 +723,8 @@ Motivo: Revisar e corrigir cadastro rápido em telas operacionais, mantendo padr
                 </form>
             </div>
 
-            <div class="table-shell">
-                <table class="client-table">
+            <div class="table-shell vendas-lista-shell">
+                <table class="client-table vendas-lista-table">
                     <thead>
                         <tr>
                             <th><a href="{{ url_for(listagem_endpoint, pagina=1, por_pagina=por_pagina, ordenar='id', direcao='desc' if ordenar == 'id' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">ID {% if ordenar == 'id' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
@@ -1240,7 +1422,22 @@ Motivo: Revisar e corrigir cadastro rápido em telas operacionais, mantendo padr
             });
         </script>
 
-    </main>
+    
+        <script>
+            document.addEventListener("DOMContentLoaded", function() {
+                const toggleVenda = document.getElementById("venda-cadastro-toggle");
+                const formularioVenda = document.getElementById("form-nova-venda");
+
+                if (toggleVenda && formularioVenda && window.location.hash === "#form-nova-venda") {
+                    toggleVenda.checked = true;
+                    setTimeout(function() {
+                        formularioVenda.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }, 80);
+                }
+            });
+        </script>
+
+</main>
 
 
         <script>

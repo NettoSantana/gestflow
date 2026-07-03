@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\estoque.html
-Último recode: 2026-07-02 20:35 (America/Bahia)
-Motivo: Revisar e corrigir cadastro rápido em telas operacionais, mantendo padrão funcional do orçamento para vendas, OS, estoque e financeiro.
+Último recode: 2026-07-02 23:31 (America/Bahia)
+Motivo: Aproximar Estoque do padrão visual de Orçamentos, com cards de resumo, tabelas e listas padronizadas.
 -->
 
 <!DOCTYPE html>
@@ -564,6 +564,65 @@ Motivo: Revisar e corrigir cadastro rápido em telas operacionais, mantendo padr
             cursor: not-allowed;
         }
 
+
+        /* PADRAO VISUAL ORCAMENTOS - ESTOQUE */
+        .estoque-page {
+            padding-bottom: 280px;
+        }
+
+        .estoque-page .table-panel {
+            margin-bottom: 180px;
+        }
+
+        .estoque-lista-shell {
+            border: 0 !important;
+            border-radius: 16px;
+            overflow-x: auto;
+            background: #ffffff;
+        }
+
+        .estoque-lista-table {
+            width: 100% !important;
+            min-width: 100% !important;
+            border-collapse: separate !important;
+            border-spacing: 0 10px !important;
+        }
+
+        .estoque-lista-table thead th {
+            border-bottom: 0 !important;
+            background: transparent;
+            padding-bottom: 10px;
+        }
+
+        .estoque-lista-table tbody tr {
+            background: #ffffff;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+            border-radius: 14px;
+        }
+
+        .estoque-lista-table tbody td {
+            border-bottom: 0 !important;
+            padding-top: 14px !important;
+            padding-bottom: 14px !important;
+        }
+
+        .estoque-lista-table tbody td:first-child {
+            border-top-left-radius: 14px;
+            border-bottom-left-radius: 14px;
+        }
+
+        .estoque-lista-table tbody td:last-child {
+            border-top-right-radius: 14px;
+            border-bottom-right-radius: 14px;
+        }
+
+        .estoque-page input,
+        .estoque-page select,
+        .estoque-page textarea {
+            min-width: 0;
+            border-radius: 10px;
+        }
+
     </style>
 </head>
 <body>
@@ -611,6 +670,34 @@ Motivo: Revisar e corrigir cadastro rápido em telas operacionais, mantendo padr
                 </div>
             </div>
         </section>
+
+        <section class="cards cards-secondary page-section">
+            <div class="card stat-card">
+                <div class="card-icon">▧</div>
+                <div class="card-info">
+                    <p>{{ produtos_lista|length }}</p>
+                    <h3>Produtos</h3>
+                    <span>Itens cadastrados no estoque</span>
+                </div>
+            </div>
+            <div class="card stat-card">
+                <div class="card-icon">⌁</div>
+                <div class="card-info">
+                    <p>{{ movimentacoes_lista|length }}</p>
+                    <h3>Movimentações</h3>
+                    <span>Entradas, saídas e ajustes</span>
+                </div>
+            </div>
+            <div class="card stat-card">
+                <div class="card-icon">✓</div>
+                <div class="card-info">
+                    <p>{{ fornecedores_lista|length }}</p>
+                    <h3>Fornecedores</h3>
+                    <span>Base de fornecedores vinculados</span>
+                </div>
+            </div>
+        </section>
+
 
         <section class="estoque-card-grid">
             <div class="estoque-card">

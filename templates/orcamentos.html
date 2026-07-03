@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamentos.html
-Último recode: 2026-07-02 09:45 (America/Bahia)
-Motivo: Criar paginação, busca e ordenação por cabeçalho na lista de orçamentos.
+Último recode: 2026-07-02 23:31 (America/Bahia)
+Motivo: Ajustar Orçamentos como padrão visual principal, evitando overflow de campos e tabelas.
 -->
 
 <!DOCTYPE html>
@@ -381,6 +381,42 @@ Motivo: Criar paginação, busca e ordenação por cabeçalho na lista de orçam
             cursor: not-allowed;
         }
 
+
+
+        /* PADRAO VISUAL BASE - ORCAMENTOS SEM OVERFLOW */
+        .orcamentos-page .form-grid {
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        }
+
+        .orcamentos-page input,
+        .orcamentos-page select,
+        .orcamentos-page textarea {
+            min-width: 0;
+        }
+
+        .orcamentos-page .table-shell {
+            max-width: 100%;
+            overflow-x: auto;
+        }
+
+        .orcamentos-lista-table {
+            width: 100% !important;
+            min-width: 100% !important;
+            table-layout: auto;
+        }
+
+        .orcamentos-lista-table th,
+        .orcamentos-lista-table td {
+            overflow-wrap: anywhere;
+        }
+
+        .orcamento-search-form {
+            max-width: 100%;
+        }
+
+        .orcamento-search-form .client-search {
+            min-width: 0;
+        }
 
     </style>
 </head>

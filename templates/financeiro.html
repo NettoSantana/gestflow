@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\financeiro.html
-Último recode: 2026-07-02 20:35 (America/Bahia)
-Motivo: Revisar e corrigir cadastro rápido em telas operacionais, mantendo padrão funcional do orçamento para vendas, OS, estoque e financeiro.
+Último recode: 2026-07-02 23:31 (America/Bahia)
+Motivo: Padronizar Financeiro no visual de Orçamentos, com cabeçalho, tabelas client-table e lista sem overflow.
 -->
 
 <!DOCTYPE html>
@@ -348,12 +348,94 @@ Motivo: Revisar e corrigir cadastro rápido em telas operacionais, mantendo padr
             width: 100%;
         }
 
+
+        /* PADRAO VISUAL ORCAMENTOS - FINANCEIRO */
+        .financeiro-page {
+            padding-bottom: 280px;
+        }
+
+        .financeiro-page .table-panel {
+            margin-bottom: 180px;
+        }
+
+        .financeiro-tabs {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 0 0 18px;
+        }
+
+        .financeiro-tabs a {
+            min-height: 38px;
+            padding: 0 14px;
+            border-radius: 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            font-weight: 900;
+        }
+
+        .financeiro-lista-shell {
+            border: 0 !important;
+            border-radius: 16px;
+            overflow-x: auto;
+            background: #ffffff;
+        }
+
+        .financeiro-lista-table {
+            width: 100% !important;
+            min-width: 100% !important;
+            border-collapse: separate !important;
+            border-spacing: 0 10px !important;
+        }
+
+        .financeiro-lista-table thead th {
+            border-bottom: 0 !important;
+            background: transparent;
+            padding-bottom: 10px;
+        }
+
+        .financeiro-lista-table tbody tr {
+            background: #ffffff;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+            border-radius: 14px;
+        }
+
+        .financeiro-lista-table tbody td {
+            border-bottom: 0 !important;
+            padding-top: 14px !important;
+            padding-bottom: 14px !important;
+        }
+
+        .financeiro-lista-table tbody td:first-child {
+            border-top-left-radius: 14px;
+            border-bottom-left-radius: 14px;
+        }
+
+        .financeiro-lista-table tbody td:last-child {
+            border-top-right-radius: 14px;
+            border-bottom-right-radius: 14px;
+        }
+
+        .financeiro-page input,
+        .financeiro-page select,
+        .financeiro-page textarea {
+            min-width: 0;
+            border-radius: 10px;
+        }
+
+        .financeiro-page .list-search-form {
+            width: 100%;
+        }
+
     </style>
 </head>
 <body>
     {% include "partials/sidebar.html" %}
 
-<main class="content">
+<main class="content financeiro-page">
         {% set page_title = 'Financeiro' %}
         {% include "partials/topbar.html" %}
         {% set paginacao = paginacao|default({}, true) %}
@@ -363,6 +445,22 @@ Motivo: Revisar e corrigir cadastro rápido em telas operacionais, mantendo padr
         {% set por_pagina = por_pagina|default(20, true) %}
         {% set financeiro_endpoint = 'financeiro' %}
         {% if aba == 'receber' %}{% set financeiro_endpoint = 'financeiro' %}{% elif aba == 'pagar' %}{% set financeiro_endpoint = 'financeiro' %}{% endif %}
+
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Financeiro</span>
+                    <h3 class="page-title">Financeiro</h3>
+                    <p class="page-subtitle">Acompanhe contas a receber, contas a pagar e fluxo de caixa no padrão visual do GestFlow.</p>
+                </div>
+                <div class="client-toolbar">
+                    <a href="/financeiro/receber" class="btn-light">Receber</a>
+                    <a href="/financeiro/pagar" class="btn-light">Pagar</a>
+                    <a href="/financeiro/fluxo-caixa" class="btn-dark">Fluxo de caixa</a>
+                </div>
+            </div>
+        </section>
 
 <div class="financeiro-tabs">
             <a class="{% if aba != 'receber' %}secondary{% endif %}" href="/financeiro/receber">Contas a receber</a>
@@ -517,7 +615,7 @@ Motivo: Revisar e corrigir cadastro rápido em telas operacionais, mantendo padr
             {% if aba in ['receber', 'fluxo-caixa'] %}
                 <div class="panel table-panel">
                     <h3>Recebimentos</h3>
-                    <table>
+                    <table class="client-table financeiro-lista-table">
                         <thead>
                             <tr>
                                 <th><a href="{{ ('/financeiro/pagar' if aba == 'pagar' else '/financeiro/receber') ~ '?pagina=1&por_pagina=' ~ por_pagina ~ '&ordenar=documento&direcao=' ~ ('desc' if ordenar == 'documento' and direcao == 'asc' else 'asc') ~ '&busca=' ~ busca }}" class="sortable-link">Documento {% if ordenar == 'documento' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
@@ -564,7 +662,7 @@ Motivo: Revisar e corrigir cadastro rápido em telas operacionais, mantendo padr
             {% if aba in ['pagar', 'fluxo-caixa'] %}
                 <div class="panel table-panel">
                     <h3>Pagamentos</h3>
-                    <table>
+                    <table class="client-table financeiro-lista-table">
                         <thead>
                             <tr>
                                 <th><a href="{{ ('/financeiro/pagar' if aba == 'pagar' else '/financeiro/receber') ~ '?pagina=1&por_pagina=' ~ por_pagina ~ '&ordenar=documento&direcao=' ~ ('desc' if ordenar == 'documento' and direcao == 'asc' else 'asc') ~ '&busca=' ~ busca }}" class="sortable-link">Documento {% if ordenar == 'documento' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
