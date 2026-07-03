@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\onboarding.html
-Último recode: 2026-07-01 00:30 (America/Bahia)
-Motivo: Criar questionário inicial de primeiro acesso do GestFlow.
+Último recode: 2026-07-02 23:41 (America/Bahia)
+Motivo: Padronizar tela pública no padrão visual de Orçamentos.
 -->
 
 <!DOCTYPE html>
@@ -201,6 +201,87 @@ Motivo: Criar questionário inicial de primeiro acesso do GestFlow.
             }
         }
     </style>
+
+    <style>
+        /* PADRAO VISUAL ORCAMENTOS - TELAS PUBLICAS */
+        body {
+            background: #f5f7fb;
+        }
+
+        main,
+        .portal-page,
+        .login-page,
+        .onboarding-page,
+        .plans-page {
+            color: #0f172a;
+        }
+
+        .portal-card,
+        .login-card,
+        .auth-card,
+        .onboarding-card,
+        .plan-card,
+        .card,
+        .panel {
+            border-radius: 18px !important;
+            box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+        }
+
+        input,
+        select,
+        textarea,
+        .form-control {
+            border-radius: 10px !important;
+        }
+
+        button,
+        .btn-primary-green,
+        .btn-dark,
+        .btn-light,
+        .primary-button,
+        .secondary-button {
+            border-radius: 10px !important;
+            text-decoration: none;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate !important;
+            border-spacing: 0 10px !important;
+        }
+
+        table thead th {
+            border-bottom: 0 !important;
+            background: transparent;
+            padding: 10px 12px;
+            color: #334155;
+            font-size: 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        table tbody tr {
+            background: #ffffff;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+            border-radius: 14px;
+        }
+
+        table tbody td {
+            border-bottom: 0 !important;
+            padding: 14px 12px !important;
+        }
+
+        table tbody td:first-child {
+            border-top-left-radius: 14px;
+            border-bottom-left-radius: 14px;
+        }
+
+        table tbody td:last-child {
+            border-top-right-radius: 14px;
+            border-bottom-right-radius: 14px;
+        }
+    </style>
+
 </head>
 <body class="onboarding-page">
     <div class="onboarding-trial">
