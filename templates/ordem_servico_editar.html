@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordem_servico_editar.html
-Último recode: 2026-07-02 23:41 (America/Bahia)
-Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
+Último recode: 2026-07-02 23:49 (America/Bahia)
+Motivo: Ajustar Editar OS para seguir o mesmo padrão visual da tela Editar Orçamento.
 -->
 
 <!DOCTYPE html>
@@ -219,230 +219,222 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
     </style>
 
     <style>
-        /* PADRAO VISUAL ORCAMENTOS - TELAS AUXILIARES */
-        .content {
-            padding-bottom: 220px;
+        /* PADRAO ESPECIFICO - EDITAR OS IGUAL EDITAR ORCAMENTO */
+        .os-page {
+            padding-bottom: 280px;
         }
 
-        .content > .panel.page-section:first-of-type {
-            margin-top: 0;
+        .os-page .panel.page-section,
+        .os-page .os-form-section {
+            border: 0 !important;
+            border-radius: 16px !important;
+            background: #ffffff !important;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+            margin-bottom: 18px !important;
+            overflow: visible !important;
+            padding: 18px;
         }
 
-        .panel,
-        .page-section,
-        .table-panel {
-            border-radius: 16px;
+        .os-page .panel-header.page-header,
+        .os-page .os-section-title {
+            display: flex !important;
+            align-items: flex-start !important;
+            justify-content: space-between !important;
+            gap: 14px !important;
+            background: transparent !important;
+            border-bottom: 0 !important;
+            padding: 0 !important;
+            margin: 0 0 14px !important;
         }
 
-        .panel-header.page-header,
-        .page-header {
-            gap: 14px;
+        .os-page .page-kicker {
+            color: #0f62fe;
+            font-size: 12px;
+            font-weight: 900;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
         }
 
-        .page-title {
-            letter-spacing: -0.02em;
+        .os-page .page-title,
+        .os-page .os-section-title h3 {
+            margin: 0;
+            color: #0f172a;
+            font-size: 16px;
+            font-weight: 900;
+            letter-spacing: -0.01em;
+            text-transform: uppercase;
         }
 
-        .page-subtitle {
-            max-width: 760px;
+        .os-page .page-header > div h3.page-title {
+            font-size: 18px;
         }
 
-        .client-toolbar,
-        .form-actions,
-        .client-actions {
+        .os-page .page-subtitle,
+        .os-page .os-section-title p {
+            margin: 6px 0 0;
+            color: #64748b;
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        .os-page .badge-info {
+            align-self: flex-start;
+            border-radius: 999px;
+            background: #eff6ff;
+            color: #0f62fe;
+            font-size: 12px;
+            font-weight: 900;
+            padding: 8px 12px;
+            white-space: nowrap;
+        }
+
+        .os-page .os-section-body {
+            padding: 0 !important;
+        }
+
+        .os-page .os-grid-6,
+        .os-page .os-grid-4,
+        .os-page .os-grid-2,
+        .os-page .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px 16px;
+            align-items: start;
+        }
+
+        .os-page .os-span-2,
+        .os-page .os-span-3,
+        .os-page .os-span-4,
+        .os-page .os-span-6 {
+            grid-column: span 2;
+        }
+
+        .os-page .form-group label {
+            color: #334155;
+            font-size: 12px;
+            font-weight: 900;
+        }
+
+        .os-page .form-control,
+        .os-page input,
+        .os-page select,
+        .os-page textarea {
+            border-radius: 10px !important;
+            max-width: 100%;
+        }
+
+        .os-page .os-textarea {
+            min-height: 84px !important;
+        }
+
+        .os-page .os-equipamento-bloco,
+        .os-page .os-foto-equipamento-bloco {
+            border: 1px solid #e5eaf2 !important;
+            border-radius: 14px !important;
+            background: #ffffff !important;
+            box-shadow: none !important;
+            padding: 14px !important;
+            margin-bottom: 14px !important;
+        }
+
+        .os-page .os-equipamento-topo,
+        .os-page .os-foto-equipamento-titulo {
+            color: #334155 !important;
+            font-size: 12px !important;
+            font-weight: 900 !important;
+            text-transform: uppercase;
+            margin-bottom: 12px !important;
+        }
+
+        .os-page .table-shell {
+            border: 0 !important;
+            border-radius: 16px !important;
+            background: #ffffff;
+            overflow-x: auto;
+        }
+
+        .os-page table.client-table {
+            width: 100%;
+            min-width: 900px;
+            border-collapse: separate !important;
+            border-spacing: 0 8px !important;
+        }
+
+        .os-page table.client-table thead th {
+            border-bottom: 0 !important;
+            background: transparent !important;
+            color: #334155 !important;
+            font-size: 12px !important;
+            font-weight: 900 !important;
+            text-transform: uppercase;
+            padding: 10px 12px !important;
+            white-space: nowrap;
+        }
+
+        .os-page table.client-table tbody tr {
+            background: #ffffff !important;
+            box-shadow: none !important;
+        }
+
+        .os-page table.client-table tbody td {
+            border-bottom: 0 !important;
+            padding: 8px 10px !important;
+            vertical-align: middle;
+        }
+
+        .os-page table.client-table .form-control {
+            min-height: 38px;
+        }
+
+        .os-page .btn-primary-green,
+        .os-page .btn-dark,
+        .os-page .btn-light,
+        .os-page .action-button {
+            border-radius: 10px !important;
+            text-decoration: none;
+        }
+
+        .os-page .form-actions,
+        .os-page .os-actions-line,
+        .os-page .client-toolbar {
             display: flex;
             align-items: center;
+            justify-content: flex-end;
             gap: 10px;
             flex-wrap: wrap;
         }
 
-        .btn-primary-green,
-        .btn-dark,
-        .btn-light,
-        .action-button {
+        .os-page .os-actions-line {
+            justify-content: flex-start;
+        }
+
+        .os-page .os-muted-check {
+            margin-bottom: 14px;
+        }
+
+        .os-page .os-remove-equipment {
             border-radius: 10px;
-            text-decoration: none;
         }
 
-        .form-control,
-        input,
-        select,
-        textarea {
-            border-radius: 10px;
-            max-width: 100%;
-        }
-
-        .client-form {
-            width: 100%;
-        }
-
-        .form-grid {
-            align-items: start;
-        }
-
-        .panel-summary {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 14px;
-        }
-
-        .panel-summary > div {
-            min-height: 74px;
-            border: 1px solid #e5eaf2;
-            border-radius: 14px;
-            background: #ffffff;
-            padding: 14px;
-            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
-        }
-
-        .panel-summary span {
-            display: block;
-            margin-bottom: 6px;
-            color: #64748b;
-            font-size: 12px;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 0.02em;
-        }
-
-        .panel-summary strong {
-            color: #0f172a;
-            font-size: 14px;
-            line-height: 1.35;
-            overflow-wrap: anywhere;
-        }
-
-        .table-shell {
-            border: 0 !important;
-            border-radius: 16px;
-            overflow-x: auto;
-            background: #ffffff;
-        }
-
-        .content table,
-        .content .client-table {
-            width: 100%;
-            border-collapse: separate !important;
-            border-spacing: 0 10px !important;
-            min-width: 760px;
-        }
-
-        .content table thead th,
-        .content .client-table thead th {
-            border-bottom: 0 !important;
-            background: transparent;
-            padding: 10px 12px;
-            color: #334155;
-            font-size: 12px;
-            font-weight: 900;
-            text-transform: uppercase;
-            white-space: nowrap;
-        }
-
-        .content table tbody tr,
-        .content .client-table tbody tr {
-            background: #ffffff;
-            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
-            border-radius: 14px;
-        }
-
-        .content table tbody td,
-        .content .client-table tbody td {
-            border-bottom: 0 !important;
-            padding: 14px 12px !important;
-            color: #334155;
-            vertical-align: middle;
-        }
-
-        .content table tbody td:first-child,
-        .content .client-table tbody td:first-child {
-            border-top-left-radius: 14px;
-            border-bottom-left-radius: 14px;
-        }
-
-        .content table tbody td:last-child,
-        .content .client-table tbody td:last-child {
-            border-top-right-radius: 14px;
-            border-bottom-right-radius: 14px;
-        }
-
-        .empty-table,
-        .empty-table-box {
-            border-radius: 14px;
-        }
-
-        .status-pill,
-        .badge-info {
-            border-radius: 999px;
-            white-space: nowrap;
-        }
-
-        .quick-modal,
-        .modal,
-        .dialog {
-            border-radius: 18px;
-        }
-
-        .config-grid,
-        .portal-grid,
-        .planos-grid,
-        .cards,
-        .cards-secondary {
-            gap: 16px;
-        }
-
-        .config-card,
-        .portal-card,
-        .plan-card,
-        .card,
-        .stat-card {
-            border-radius: 16px;
-        }
-
-        .auth-card,
-        .login-card,
-        .onboarding-card,
-        .portal-card,
-        .plan-card {
-            box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
-        }
-
-        @media (max-width: 1100px) {
-            .panel-summary {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-            }
-
-            .content table,
-            .content .client-table {
-                min-width: 720px;
-            }
-        }
-
-        @media (max-width: 720px) {
-            .panel-summary {
+        @media (max-width: 900px) {
+            .os-page .os-grid-6,
+            .os-page .os-grid-4,
+            .os-page .os-grid-2,
+            .os-page .form-grid {
                 grid-template-columns: 1fr;
             }
 
-            .client-toolbar,
-            .form-actions,
-            .client-actions {
-                align-items: stretch;
+            .os-page .os-span-2,
+            .os-page .os-span-3,
+            .os-page .os-span-4,
+            .os-page .os-span-6 {
+                grid-column: span 1;
+            }
+
+            .os-page .panel-header.page-header,
+            .os-page .os-section-title {
                 flex-direction: column;
-            }
-
-            .client-toolbar .btn-primary-green,
-            .client-toolbar .btn-dark,
-            .client-toolbar .btn-light,
-            .form-actions .btn-primary-green,
-            .form-actions .btn-dark,
-            .form-actions .btn-light {
-                width: 100%;
-                justify-content: center;
-            }
-
-            .content table,
-            .content .client-table {
-                min-width: 680px;
+                align-items: stretch !important;
             }
         }
     </style>
@@ -464,17 +456,21 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                     <h3 class="page-title">Editar OS {{ os.numero or os.id }}</h3>
                     <p class="page-subtitle">Atualize os dados da OS, produtos, serviços e totais.</p>
                 </div>
-                <div class="client-toolbar">
-                    <a href="/ordens-servico/{{ os.id }}" class="btn-light">Cancelar</a>
-                    <a href="/ordens-servico" class="btn-light">Lista de OS</a>
-                </div>
+                <a href="/ordens-servico/{{ os.id }}" class="btn-dark">Cancelar edição</a>
             </div>
         </section>
 
         <form id="form-editar-os" action="/ordens-servico/{{ os.id }}/editar" method="post" enctype="multipart/form-data" class="client-form">
             <div class="gestflow-form-error{% if request.args.get('erro') %} show{% endif %}" data-form-error>{% if request.args.get('erro') %}{{ request.args.get('erro') }}{% endif %}</div>
-            <section class="os-form-section">
-                <div class="os-section-title"><h3>✎ Dados gerais</h3><span>Campos principais da OS</span></div>
+            <section class="panel page-section os-form-section os-panel-orcamento">
+                <div class="panel-header page-header os-section-title">
+                    <div>
+                        <h3>OS {{ os.numero or os.id }}</h3>
+                        <p class="page-subtitle">Cliente: {{ os.cliente or '-' }}</p>
+                    </div>
+
+                    <span class="badge-info">Modo edição</span>
+                </div>
                 <div class="os-section-body">
                     <div class="os-grid-4">
                         <div class="form-group"><label for="os_numero">Número</label><input id="os_numero" name="os_numero" type="text" value="{{ os.numero or '' }}" class="form-control"></div>
@@ -502,8 +498,8 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                 </div>
             </section>
 
-            <section class="os-form-section">
-                <div class="os-section-title"><h3>♟ Responsáveis</h3><span>Responsável comercial e técnico</span></div>
+            <section class="panel page-section os-form-section os-panel-orcamento">
+                <div class="panel-header page-header os-section-title"><div><h3>Responsáveis</h3><p class="page-subtitle">Responsável comercial e técnico da execução.</p></div></div>
                 <div class="os-section-body"><div class="os-grid-2"><div class="form-group">
                         <label for="os_responsavel">Vendedor / Responsável</label>
                         <select id="os_responsavel" name="os_responsavel" class="form-control quick-responsavel-select" required>
@@ -525,8 +521,8 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                     </div></div></div>
             </section>
 
-            <section class="os-form-section">
-                <div class="os-section-title"><h3>♜ Equipamento</h3><span>Informações técnicas da OS</span></div>
+            <section class="panel page-section os-form-section os-panel-orcamento">
+                <div class="panel-header page-header os-section-title"><div><h3>Equipamento</h3><p class="page-subtitle">Informações do equipamento, objeto ou local atendido.</p></div></div>
                 <div class="os-section-body">
                     <div id="equipamentos-container">
                         {% for equipamento in equipamentos_os|default([]) %}
@@ -603,31 +599,31 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                                         </table>
                                     </div>
                                     <div class="os-actions-line">
-                                        <button type="button" class="btn-dark" onclick="adicionarLinhaFotoEquipamento(this)">+ Adicionar foto</button>
+                                        <button type="button" class="btn-primary-green" onclick="adicionarLinhaFotoEquipamento(this)">+ Adicionar foto</button>
                                     </div>
                                 </div>
                             </div>
                         {% endfor %}
                     </div>
-                    <div class="os-actions-line"><button type="button" class="btn-dark" onclick="adicionarEquipamento()">+ Adicionar equipamento</button></div>
+                    <div class="os-actions-line"><button type="button" class="btn-primary-green" onclick="adicionarEquipamento()">+ Adicionar equipamento</button></div>
                 </div>
             </section>
 
-            <section class="os-form-section"><div class="os-section-title"><h3>▣ Produtos / Peças</h3><span>Materiais aplicados ou previstos</span></div><div class="os-section-body"><div class="table-shell"><table class="client-table"><thead><tr><th>Produto</th><th>Detalhes</th><th>Quant.</th><th>Valor</th><th>Desconto</th><th>Subtotal</th><th>Ação</th></tr></thead><tbody id="produto-tbody"></tbody></table></div><div class="os-actions-line"><button type="button" class="btn-dark" onclick="adicionarItem('produto')">+ Adicionar produto</button></div></div></section>
-            <section class="os-form-section"><div class="os-section-title"><h3>⚒ Serviços / Mão de obra</h3><span>Serviços executados ou previstos</span></div><div class="os-section-body"><div class="table-shell"><table class="client-table"><thead><tr><th>Serviço</th><th>Detalhes</th><th>Quant.</th><th>Valor</th><th>Desconto</th><th>Subtotal</th><th>Ação</th></tr></thead><tbody id="servico-tbody"></tbody></table></div><div class="os-actions-line"><button type="button" class="btn-dark" onclick="adicionarItem('servico')">+ Adicionar serviço</button></div></div></section>
+            <section class="panel page-section os-form-section os-panel-orcamento"><div class="panel-header page-header os-section-title"><div><h3>Produtos</h3><p class="page-subtitle">Adicione produtos à OS. Use o botão para inserir novas linhas.</p></div></div><div class="os-section-body"><div class="table-shell"><table class="client-table"><thead><tr><th>Produto</th><th>Detalhes</th><th>Quant.</th><th>Valor</th><th>Desconto</th><th>Subtotal</th><th>Ação</th></tr></thead><tbody id="produto-tbody"></tbody></table></div><div class="os-actions-line"><button type="button" class="btn-primary-green" onclick="adicionarItem('produto')">+ Adicionar produto</button></div></div></section>
+            <section class="panel page-section os-form-section os-panel-orcamento"><div class="panel-header page-header os-section-title"><div><h3>Serviços</h3><p class="page-subtitle">Adicione serviços à OS. Use o botão para inserir novas linhas.</p></div></div><div class="os-section-body"><div class="table-shell"><table class="client-table"><thead><tr><th>Serviço</th><th>Detalhes</th><th>Quant.</th><th>Valor</th><th>Desconto</th><th>Subtotal</th><th>Ação</th></tr></thead><tbody id="servico-tbody"></tbody></table></div><div class="os-actions-line"><button type="button" class="btn-primary-green" onclick="adicionarItem('servico')">+ Adicionar serviço</button></div></div></section>
 
-            <section class="os-form-section">
-                <div class="os-section-title"><h3>⌖ Endereço de entrega</h3><span>Opcional para retirada ou entrega</span></div>
+            <section class="panel page-section os-form-section os-panel-orcamento">
+                <div class="panel-header page-header os-section-title"><div><h3>Endereço de entrega</h3><p class="page-subtitle">Opcional para retirada ou entrega de equipamento.</p></div></div>
                 <div class="os-section-body"><label class="os-muted-check"><input type="checkbox" name="os_informar_endereco_entrega" value="sim" {% if os.informar_endereco_entrega == 'sim' %}checked{% endif %}> Informar endereço de entrega</label><div class="os-grid-4" style="margin-top: 14px;"><div class="form-group os-span-2"><label for="os_endereco_entrega">Endereço</label><input id="os_endereco_entrega" name="os_endereco_entrega" type="text" value="{{ os.endereco_entrega or '' }}" class="form-control"></div><div class="form-group"><label for="os_bairro_entrega">Bairro</label><input id="os_bairro_entrega" name="os_bairro_entrega" type="text" value="{{ os.bairro_entrega or '' }}" class="form-control"></div><div class="form-group"><label for="os_cidade_entrega">Cidade</label><input id="os_cidade_entrega" name="os_cidade_entrega" type="text" value="{{ os.cidade_entrega or '' }}" class="form-control"></div></div></div>
             </section>
 
-            <section class="os-form-section">
-                <div class="os-section-title"><h3>▤ Total</h3><span>Valores e forma de pagamento</span></div>
+            <section class="panel page-section os-form-section os-panel-orcamento">
+                <div class="panel-header page-header os-section-title"><div><h3>Total</h3><p class="page-subtitle">Atualize os totais da OS.</p></div></div>
                 <div class="os-section-body"><label class="os-muted-check"><input type="checkbox" name="os_exibir_valor_impressao" value="sim" {% if os.exibir_valor_impressao == 'sim' %}checked{% endif %}> Exibir valor total na impressão</label><div class="os-grid-6" style="margin-top: 14px;"><div class="form-group"><label for="os_total_servicos">Mão de obra</label><input id="os_total_servicos" name="os_total_servicos" type="text" value="{{ os.total_servicos or '0,00' }}" class="form-control" readonly></div><div class="form-group"><label for="os_total_produtos">Peças</label><input id="os_total_produtos" name="os_total_produtos" type="text" value="{{ os.total_produtos or '0,00' }}" class="form-control" readonly></div><div class="form-group"><label for="os_frete">Frete</label><input id="os_frete" name="os_frete" type="text" value="{{ os.frete or '0,00' }}" class="form-control"></div><div class="form-group"><label for="os_outros">Outros</label><input id="os_outros" name="os_outros" type="text" value="{{ os.outros or '0,00' }}" class="form-control"></div><div class="form-group"><label for="os_desconto_valor">Desconto</label><input id="os_desconto_valor" name="os_desconto_valor" type="text" value="{{ os.desconto_valor or '0,00' }}" class="form-control"></div><div class="form-group"><label for="os_valor_total">Valor total</label><input id="os_valor_total" name="os_valor_total" type="text" value="{{ os.valor_total or '0,00' }}" class="form-control" readonly></div><div class="form-group os-span-2"><label for="os_forma_pagamento">Forma de pagamento</label><input id="os_forma_pagamento" name="os_forma_pagamento" type="text" value="{{ os.forma_pagamento or '' }}" class="form-control"></div><div class="form-group"><label for="os_tipo">Tipo</label><select id="os_tipo" name="os_tipo" class="form-control"><option value="misto" {% if os.tipo == 'misto' %}selected{% endif %}>Misto</option><option value="produto" {% if os.tipo == 'produto' %}selected{% endif %}>Produto</option><option value="servico" {% if os.tipo == 'servico' %}selected{% endif %}>Serviço</option></select></div></div></div>
             </section>
 
-            <section class="os-form-section">
-                <div class="os-section-title"><h3>✎ Observações</h3><span>Observações impressas e internas</span></div>
+            <section class="panel page-section os-form-section os-panel-orcamento">
+                <div class="panel-header page-header os-section-title"><div><h3>Observações</h3><p class="page-subtitle">Observações impressas e internas.</p></div></div>
                 <div class="os-section-body"><div class="os-grid-2"><div class="form-group"><label for="os_observacoes">Observações</label><textarea id="os_observacoes" name="os_observacoes" class="form-control os-textarea">{{ os.observacoes or '' }}</textarea></div><div class="form-group"><label for="os_observacoes_internas">Observações internas</label><textarea id="os_observacoes_internas" name="os_observacoes_internas" class="form-control os-textarea">{{ os.observacoes_internas or '' }}</textarea></div><div class="form-group os-span-2"><label for="os_servico_executado">Serviço executado</label><textarea id="os_servico_executado" name="os_servico_executado" class="form-control os-textarea">{{ os.servico_executado or '' }}</textarea></div></div><div class="form-actions"><a href="/ordens-servico/{{ os.id }}" class="btn-light">Cancelar</a><button type="submit" class="btn-primary-green">Salvar alterações</button></div></div>
             </section>
         </form>
@@ -1061,7 +1057,7 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                             </table>
                         </div>
                         <div class="os-actions-line">
-                            <button type="button" class="btn-dark" onclick="adicionarLinhaFotoEquipamento(this)">+ Adicionar foto</button>
+                            <button type="button" class="btn-primary-green" onclick="adicionarLinhaFotoEquipamento(this)">+ Adicionar foto</button>
                         </div>
                     </div>
                 `;
