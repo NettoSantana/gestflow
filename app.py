@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-02 22:50 (America/Bahia)
-# Motivo: Gerar OS vinculada ao orçamento sem duplicidade, redirecionando para a OS e exibindo origem do orçamento.
+# Último recode: 2026-07-02 22:56 (America/Bahia)
+# Motivo: Corrigir migração da coluna origem_orcamento_id em ordens_servico para evitar erro no Railway.
 
 from __future__ import annotations
 
@@ -1353,6 +1353,7 @@ def iniciar_banco() -> None:
             "outros": "TEXT",
             "desconto_valor": "TEXT",
             "exibir_valor_impressao": "TEXT",
+            "origem_orcamento_id": "INTEGER",
         }
         colunas_existentes = {
             str(row["name"])
@@ -13632,6 +13633,23 @@ def twilio_webhook() -> Response:
     return Response(_twiml_message(reply_text), status=200, mimetype="application/xml")
 
 
+
+def garantir_migracao_origem_orcamento_os() -> None:
+    try:
+        with conectar_db() as conn:
+            colunas = {
+                str(row["name"])
+                for row in conn.execute("PRAGMA table_info(ordens_servico)").fetchall()
+            }
+
+            if "origem_orcamento_id" not in colunas:
+                conn.execute("ALTER TABLE ordens_servico ADD COLUMN origem_orcamento_id INTEGER")
+                conn.commit()
+    except sqlite3.Error:
+        pass
+
+
+garantir_migracao_origem_orcamento_os()
 iniciar_banco()
 
 
