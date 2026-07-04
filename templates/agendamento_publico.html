@@ -1,7 +1,7 @@
 <!--
 Caminho: templates/agendamento_publico.html
 Último recode: 2026-07-04 17:55 (America/Bahia)
-Motivo: Criar tela pública para clientes marcarem horário pelo link da empresa.
+Motivo: Ajustar seleção de horários como botões e preservar serviço ao trocar profissional/data.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -10,6 +10,48 @@ Motivo: Criar tela pública para clientes marcarem horário pelo link da empresa
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agendar horário - GestFlow</title>
     <link rel="stylesheet" href="/static/css/dashboard.css">
+
+    <style>
+        /* Recode 2026-07-04 21:00 - Ajuste visual dos horários e preservação do serviço selecionado */
+        .public-schedule-body {
+            min-height: 100vh;
+            background: radial-gradient(circle at 20% 0%, rgba(15, 98, 254, 0.20), transparent 32%), linear-gradient(135deg, #071a2b, #0f172a) !important;
+        }
+        .public-schedule-page {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 28px 16px;
+        }
+        .public-schedule-card {
+            width: min(680px, 100%);
+            background: #ffffff;
+            border: 1px solid #e5eaf2;
+            border-radius: 24px;
+            box-shadow: 0 24px 70px rgba(0,0,0,.22);
+            padding: 26px;
+        }
+        .public-schedule-header { text-align: center; margin-bottom: 20px; }
+        .public-schedule-header h1 { margin: 8px 0; color: #0f172a; font-size: clamp(28px, 8vw, 42px); line-height: 1.05; font-weight: 900; }
+        .public-schedule-header p { margin: 0 auto; max-width: 500px; color: #64748b; font-weight: 700; line-height: 1.55; }
+        .public-schedule-form { display: grid; gap: 16px; }
+        .public-client-box { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 18px; padding: 14px; border: 1px solid #dbeafe; border-radius: 16px; background: #eff6ff; }
+        .public-client-box strong, .public-client-box span { display: block; }
+        .public-client-box span { margin-top: 4px; color: #475569; font-size: 13px; font-weight: 700; }
+        .public-time-grid { display: grid !important; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+        .public-time-option { position: relative; display: block; cursor: pointer; }
+        .public-time-option input[type="radio"] { position: absolute !important; opacity: 0 !important; width: 1px !important; height: 1px !important; margin: 0 !important; pointer-events: none !important; appearance: none !important; -webkit-appearance: none !important; }
+        .public-time-option span { min-height: 44px; display: flex; align-items: center; justify-content: center; border: 1px solid #dbe3ef; border-radius: 13px; background: #ffffff; color: #0f172a; font-weight: 900; box-shadow: 0 6px 16px rgba(15,23,42,.05); transition: .16s ease; }
+        .public-time-option:hover span { border-color: #93c5fd; background: #eff6ff; }
+        .public-time-option input[type="radio"]:checked + span { border-color: #0f62fe; background: #0f62fe; color: #ffffff; box-shadow: 0 10px 22px rgba(15,98,254,.24); }
+        .public-submit { width: 100%; height: 48px; }
+        @media (max-width: 640px) {
+            .public-schedule-card { padding: 18px; border-radius: 20px; }
+            .public-client-box { flex-direction: column; align-items: stretch; }
+            .public-time-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+    </style>
 </head>
 <body class="public-schedule-body">
     <main class="public-schedule-page">
@@ -49,7 +91,7 @@ Motivo: Criar tela pública para clientes marcarem horário pelo link da empresa
 
                             <div class="form-group">
                                 <label>Serviço</label>
-                                <select class="form-control" name="servico_nome" required>
+                                <select class="form-control" name="servico_nome" id="servicoPublico" required>
                                     <option value="">Selecione o serviço</option>
                                     {% for servico in servicos %}
                                     <option value="{{ servico.nome }}" data-valor="{{ servico.valor_venda }}">{{ servico.nome }}{% if servico.valor_venda %} - R$ {{ servico.valor_venda }}{% endif %}</option>
@@ -141,11 +183,19 @@ Motivo: Criar tela pública para clientes marcarem horário pelo link da empresa
 
         const data = document.getElementById('dataPublica');
         const profissional = document.getElementById('profissionalPublico');
+        const servico = document.getElementById('servicoPublico');
+        const parametrosAtuais = new URLSearchParams(window.location.search);
+        const servicoSelecionado = parametrosAtuais.get('servico_nome') || '';
+        if (servico && servicoSelecionado) {
+            servico.value = servicoSelecionado;
+        }
+
         function recarregarHorarios(){
             const params = new URLSearchParams();
             if (tokenServidor) params.set('token', tokenServidor);
             if (data && data.value) params.set('data', data.value);
             if (profissional && profissional.value) params.set('profissional_id', profissional.value);
+            if (servico && servico.value) params.set('servico_nome', servico.value);
             window.location.href = "/agendar/" + codigo + "?" + params.toString();
         }
         if (data) data.addEventListener('change', recarregarHorarios);
