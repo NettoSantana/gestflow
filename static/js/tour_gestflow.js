@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\static\js\tour_gestflow.js
-Último recode: 2026-07-01 00:30 (America/Bahia)
-Motivo: Criar tour guiado do primeiro acesso do GestFlow.
+Último recode: 2026-07-04 14:35 (America/Bahia)
+Motivo: Ajustar textos do tour para menu dinâmico por módulos.
 */
 
 (function () {
@@ -14,7 +14,7 @@ Motivo: Criar tour guiado do primeiro acesso do GestFlow.
     const passosBase = [
         {
             titulo: 'Menu principal',
-            texto: 'Este é o menu principal do sistema. Por ele você acessa cadastros, produtos, vendas, estoque, financeiro, configurações e demais módulos.',
+            texto: 'Este é o menu principal. Ele mostra apenas os módulos ativados para esta empresa.',
             seletor: '.sidebar'
         },
         {
@@ -39,7 +39,7 @@ Motivo: Criar tour guiado do primeiro acesso do GestFlow.
         },
         {
             titulo: 'Configurações',
-            texto: 'Em Configurações você ajusta dados da empresa, usuários, marca, plano e informações do sistema.',
+            texto: 'Em Configurações você ajusta dados da empresa, usuários, marca, plano e os módulos que aparecem no menu.',
             seletor: 'a[href="/configuracoes"]'
         }
     ];

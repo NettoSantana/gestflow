@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\configuracoes.html
-Último recode: 2026-07-02 19:20 (America/Bahia)
-Motivo: Criar aba de módulos para ativar ou ocultar recursos por empresa.
+Último recode: 2026-07-04 14:35 (America/Bahia)
+Motivo: Adicionar acesso para refazer anamnese de módulos da empresa.
 -->
 
 <!DOCTYPE html>
@@ -495,6 +495,16 @@ Motivo: Criar aba de módulos para ativar ou ocultar recursos por empresa.
                             </div>
                         </div>
 
+                        <div class="module-anamnese-box">
+                            <div>
+                                <strong>Anamnese de módulos</strong>
+                                <p class="page-subtitle">Use a anamnese para o sistema sugerir os módulos conforme segmento, operação, comercial, OS, estoque e financeiro.</p>
+                            </div>
+                            <button type="submit" form="refazer-anamnese-form" class="btn-dark">Refazer anamnese</button>
+                        </div>
+
+                        </div>
+
                         <div class="modules-grid">
                             {% for modulo in modulos_sistema %}
                                 {% set codigo_modulo = modulo.codigo %}
@@ -518,6 +528,8 @@ Motivo: Criar aba de módulos para ativar ou ocultar recursos por empresa.
                             <button type="submit" class="btn-primary-green">Salvar módulos</button>
                         </div>
                     </form>
+
+                    <form id="refazer-anamnese-form" action="/configuracoes/modulos/refazer-anamnese" method="post"></form>
 
                     <script>
                         document.addEventListener('DOMContentLoaded', function () {

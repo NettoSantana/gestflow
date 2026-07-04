@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-04 13:55 (America/Bahia)
-# Motivo: Criar controle de módulos por empresa, menu dinâmico e configuração manual dos módulos.
+# Último recode: 2026-07-04 14:35 (America/Bahia)
+# Motivo: Criar anamnese de módulos no primeiro acesso com sugestão automática por segmento.
 
 from __future__ import annotations
 
@@ -77,6 +77,66 @@ GESTFLOW_MODULOS_PADRAO = {modulo["codigo"]: True for modulo in GESTFLOW_MODULOS
 GESTFLOW_MODULOS_CODIGOS = set(GESTFLOW_MODULOS_PADRAO)
 
 
+GESTFLOW_SEGMENTOS = [
+    {"codigo": "mercadinho", "nome": "Mercadinho / Mercearia", "grupo": "Comércio / Varejo", "perfil": "comercio"},
+    {"codigo": "loja_roupas", "nome": "Loja de roupas / moda", "grupo": "Comércio / Varejo", "perfil": "comercio"},
+    {"codigo": "loja_calcados", "nome": "Loja de calçados", "grupo": "Comércio / Varejo", "perfil": "comercio"},
+    {"codigo": "loja_variedades", "nome": "Loja de variedades", "grupo": "Comércio / Varejo", "perfil": "comercio"},
+    {"codigo": "papelaria", "nome": "Papelaria", "grupo": "Comércio / Varejo", "perfil": "comercio"},
+    {"codigo": "materiais_construcao", "nome": "Materiais de construção", "grupo": "Comércio / Varejo", "perfil": "comercio"},
+    {"codigo": "autopecas", "nome": "Autopeças", "grupo": "Comércio / Varejo", "perfil": "distribuicao"},
+    {"codigo": "distribuidora", "nome": "Distribuidora / Atacado", "grupo": "Comércio / Varejo", "perfil": "distribuicao"},
+    {"codigo": "eletronicos", "nome": "Eletrônicos / Informática", "grupo": "Comércio / Varejo", "perfil": "comercio"},
+    {"codigo": "farmacia", "nome": "Farmácia / Perfumaria simples", "grupo": "Comércio / Varejo", "perfil": "comercio"},
+    {"codigo": "petshop", "nome": "Pet shop / Loja pet", "grupo": "Comércio / Varejo", "perfil": "comercio"},
+    {"codigo": "conveniencia", "nome": "Conveniência", "grupo": "Comércio / Varejo", "perfil": "comercio"},
+    {"codigo": "ecommerce", "nome": "Ecommerce / Loja online", "grupo": "Comércio / Varejo", "perfil": "comercio"},
+    {"codigo": "prestador_servico", "nome": "Prestador de serviço geral", "grupo": "Serviços", "perfil": "servicos"},
+    {"codigo": "assistencia_tecnica", "nome": "Assistência técnica", "grupo": "Serviços", "perfil": "assistencia"},
+    {"codigo": "oficina_auto", "nome": "Oficina automotiva", "grupo": "Serviços", "perfil": "assistencia"},
+    {"codigo": "oficina_motos", "nome": "Oficina de motos", "grupo": "Serviços", "perfil": "assistencia"},
+    {"codigo": "refrigeracao", "nome": "Refrigeração / Ar-condicionado", "grupo": "Serviços", "perfil": "assistencia"},
+    {"codigo": "manutencao_predial", "nome": "Elétrica / Hidráulica / Manutenção predial", "grupo": "Serviços", "perfil": "assistencia"},
+    {"codigo": "marcenaria_serralheria", "nome": "Marcenaria / Serralheria", "grupo": "Serviços", "perfil": "assistencia"},
+    {"codigo": "grafica", "nome": "Comunicação visual / Gráfica", "grupo": "Serviços", "perfil": "servicos"},
+    {"codigo": "estetica", "nome": "Estética / Salão / Barbearia", "grupo": "Serviços", "perfil": "servicos"},
+    {"codigo": "clinica", "nome": "Clínica / Consultório simples", "grupo": "Serviços", "perfil": "servicos"},
+    {"codigo": "academia", "nome": "Academia / Personal / Serviços recorrentes", "grupo": "Serviços", "perfil": "servicos"},
+    {"codigo": "manutencao_industrial", "nome": "Manutenção industrial", "grupo": "Industrial / Técnico", "perfil": "industrial"},
+    {"codigo": "engenharia", "nome": "Engenharia", "grupo": "Industrial / Técnico", "perfil": "industrial"},
+    {"codigo": "automacao_industrial", "nome": "Automação industrial", "grupo": "Industrial / Técnico", "perfil": "industrial"},
+    {"codigo": "montagem_industrial", "nome": "Montagem industrial", "grupo": "Industrial / Técnico", "perfil": "industrial"},
+    {"codigo": "caldeiraria", "nome": "Caldeiraria / Soldagem", "grupo": "Industrial / Técnico", "perfil": "industrial"},
+    {"codigo": "facilities", "nome": "Facilities / Manutenção terceirizada", "grupo": "Industrial / Técnico", "perfil": "industrial"},
+    {"codigo": "seguranca_eletronica", "nome": "Segurança eletrônica / CFTV / Alarmes", "grupo": "Industrial / Técnico", "perfil": "assistencia"},
+    {"codigo": "energia_solar", "nome": "Energia solar", "grupo": "Industrial / Técnico", "perfil": "industrial"},
+    {"codigo": "representacao", "nome": "Representação comercial", "grupo": "Administrativo / Outros", "perfil": "servicos"},
+    {"codigo": "transporte_logistica", "nome": "Transporte / Logística", "grupo": "Administrativo / Outros", "perfil": "distribuicao"},
+    {"codigo": "locacao_equipamentos", "nome": "Locação de equipamentos", "grupo": "Administrativo / Outros", "perfil": "locacao"},
+    {"codigo": "associacao", "nome": "Associação / Instituição", "grupo": "Administrativo / Outros", "perfil": "servicos"},
+    {"codigo": "outro", "nome": "Outro segmento", "grupo": "Administrativo / Outros", "perfil": "completo"},
+]
+
+GESTFLOW_SEGMENTOS_POR_CODIGO = {segmento["codigo"]: segmento for segmento in GESTFLOW_SEGMENTOS}
+
+GESTFLOW_PERFIS_MODULOS = {
+    "comercio": {"clientes", "fornecedores", "produtos", "vendas", "pdv", "devolucoes", "estoque", "financeiro"},
+    "servicos": {"clientes", "servicos", "orcamentos", "vendas", "financeiro"},
+    "assistencia": {"clientes", "fornecedores", "funcionarios", "produtos", "servicos", "orcamentos", "vendas", "ordens_servico", "estoque", "financeiro"},
+    "industrial": {"clientes", "fornecedores", "funcionarios", "produtos", "servicos", "orcamentos", "gerador_orcamentos", "vendas", "ordens_servico", "painel_os", "estoque", "financeiro"},
+    "distribuicao": {"clientes", "fornecedores", "produtos", "vendas", "devolucoes", "estoque", "financeiro"},
+    "locacao": {"clientes", "fornecedores", "funcionarios", "produtos", "servicos", "orcamentos", "vendas", "ordens_servico", "estoque", "financeiro"},
+    "completo": set(GESTFLOW_MODULOS_CODIGOS),
+}
+
+GESTFLOW_NIVEIS_ONBOARDING = {
+    "simples": "Simples - mostrar só o essencial",
+    "intermediario": "Intermediário - principais controles",
+    "completo": "Completo - liberar todos os módulos",
+}
+
+
+
 def normalizar_modulos_empresa(valor: Any) -> dict[str, bool]:
     modulos = dict(GESTFLOW_MODULOS_PADRAO)
 
@@ -151,6 +211,144 @@ def salvar_modulos_empresa(codigos_ativos: list[str]) -> None:
             (serializar_modulos_empresa(modulos), empresa_id),
         )
         conn.commit()
+
+
+
+def obter_segmento_onboarding(codigo: Any) -> dict[str, str]:
+    codigo_normalizado = str(codigo or "").strip()
+    return GESTFLOW_SEGMENTOS_POR_CODIGO.get(codigo_normalizado, GESTFLOW_SEGMENTOS_POR_CODIGO["outro"])
+
+
+def sugerir_modulos_por_anamnese(dados: dict[str, Any]) -> dict[str, bool]:
+    segmento = obter_segmento_onboarding(dados.get("segmento"))
+    perfil = str(dados.get("perfil") or segmento.get("perfil") or "completo").strip()
+    nivel = str(dados.get("nivel") or "intermediario").strip()
+    operacao = {str(item or "").strip() for item in dados.get("operacao", []) if str(item or "").strip()}
+    comercial = {str(item or "").strip() for item in dados.get("comercial", []) if str(item or "").strip()}
+    execucao = {str(item or "").strip() for item in dados.get("execucao", []) if str(item or "").strip()}
+    estoque = {str(item or "").strip() for item in dados.get("estoque", []) if str(item or "").strip()}
+    financeiro = {str(item or "").strip() for item in dados.get("financeiro", []) if str(item or "").strip()}
+    cadastros = {str(item or "").strip() for item in dados.get("cadastros", []) if str(item or "").strip()}
+
+    if nivel == "completo":
+        ativos = set(GESTFLOW_MODULOS_CODIGOS)
+    else:
+        ativos = set(GESTFLOW_PERFIS_MODULOS.get(perfil, GESTFLOW_PERFIS_MODULOS["completo"]))
+
+    if "produtos" in operacao or "balcao" in operacao or "estoque" in operacao:
+        ativos.update({"clientes", "produtos", "vendas", "estoque"})
+    if "servicos" in operacao:
+        ativos.update({"clientes", "servicos", "orcamentos"})
+    if "balcao" in operacao:
+        ativos.update({"pdv", "devolucoes"})
+    if "equipe_externa" in operacao or "ordem_servico" in operacao:
+        ativos.update({"clientes", "funcionarios", "servicos", "ordens_servico"})
+    if "projetos_obras" in operacao:
+        ativos.update({"clientes", "fornecedores", "funcionarios", "produtos", "servicos", "orcamentos", "gerador_orcamentos", "ordens_servico", "financeiro"})
+
+    if "orcamento" in comercial:
+        ativos.update({"clientes", "orcamentos"})
+    if "gerador" in comercial:
+        ativos.update({"clientes", "orcamentos", "gerador_orcamentos", "produtos", "servicos", "funcionarios"})
+    if "venda_direta" in comercial:
+        ativos.update({"clientes", "vendas"})
+    if "whatsapp" in comercial:
+        ativos.update({"clientes", "vendas"})
+
+    if "os_simples" in execucao or "os_completa" in execucao:
+        ativos.update({"clientes", "servicos", "ordens_servico"})
+    if "campo" in execucao or "fotos" in execucao or "acompanhamento" in execucao:
+        ativos.update({"clientes", "funcionarios", "servicos", "ordens_servico", "painel_os"})
+
+    if "estoque_simples" in estoque or "estoque_completo" in estoque:
+        ativos.update({"produtos", "estoque"})
+    if financeiro and "sem_financeiro" not in financeiro:
+        ativos.add("financeiro")
+
+    mapa_cadastros = {
+        "clientes": "clientes",
+        "fornecedores": "fornecedores",
+        "funcionarios": "funcionarios",
+        "produtos": "produtos",
+        "servicos": "servicos",
+    }
+    for item in cadastros:
+        if item in mapa_cadastros:
+            ativos.add(mapa_cadastros[item])
+
+    if nivel == "simples":
+        if "gerador" not in comercial:
+            ativos.discard("gerador_orcamentos")
+        if not ({"campo", "fotos", "acompanhamento"} & execucao):
+            ativos.discard("painel_os")
+        if "orcamento" not in comercial and "servicos" not in operacao:
+            ativos.discard("orcamentos")
+        if "ordem_servico" not in operacao and not execucao:
+            ativos.discard("ordens_servico")
+        if "funcionarios" not in cadastros and "equipe_externa" not in operacao and not ({"campo", "fotos", "acompanhamento"} & execucao):
+            ativos.discard("funcionarios")
+
+    if "produtos" in ativos:
+        ativos.add("clientes")
+    if "pdv" in ativos:
+        ativos.update({"produtos", "vendas"})
+    if "devolucoes" in ativos:
+        ativos.add("vendas")
+    if "gerador_orcamentos" in ativos:
+        ativos.add("orcamentos")
+    if "painel_os" in ativos:
+        ativos.add("ordens_servico")
+    if "estoque" in ativos:
+        ativos.add("produtos")
+
+    return {codigo: codigo in ativos for codigo in GESTFLOW_MODULOS_CODIGOS}
+
+
+def montar_onboarding_formulario() -> dict[str, Any]:
+    segmento = (request.form.get("segmento") or request.form.get("ramo") or "").strip() or "outro"
+    segmento_info = obter_segmento_onboarding(segmento)
+    nivel = (request.form.get("nivel") or "intermediario").strip()
+
+    if nivel not in GESTFLOW_NIVEIS_ONBOARDING:
+        nivel = "intermediario"
+
+    dados = {
+        "segmento": segmento,
+        "segmento_nome": segmento_info["nome"],
+        "perfil": segmento_info["perfil"],
+        "nivel": nivel,
+        "operacao": [item.strip() for item in request.form.getlist("operacao") if item.strip()],
+        "comercial": [item.strip() for item in request.form.getlist("comercial") if item.strip()],
+        "execucao": [item.strip() for item in request.form.getlist("execucao") if item.strip()],
+        "estoque": [item.strip() for item in request.form.getlist("estoque") if item.strip()],
+        "financeiro": [item.strip() for item in request.form.getlist("financeiro") if item.strip()],
+        "cadastros": [item.strip() for item in request.form.getlist("cadastros") if item.strip()],
+        "objetivos": [item.strip() for item in request.form.getlist("objetivos") if item.strip()],
+        "ferramenta_atual": (request.form.get("ferramenta_atual") or "").strip(),
+        "canal_contato": (request.form.get("canal_contato") or "").strip(),
+        "usar_configuracao_completa": (request.form.get("usar_configuracao_completa") or "").strip() == "sim",
+    }
+
+    if dados["usar_configuracao_completa"]:
+        dados["perfil"] = "completo"
+        dados["nivel"] = "completo"
+        dados["modulos"] = dict(GESTFLOW_MODULOS_PADRAO)
+    else:
+        dados["modulos"] = sugerir_modulos_por_anamnese(dados)
+
+    return dados
+
+
+def empresa_precisa_onboarding() -> bool:
+    if not session.get("usuario_id"):
+        return False
+
+    empresa = buscar_onboarding_empresa()
+    onboarding_modulos = str(empresa.get("onboarding_modulos_concluido") or "nao").strip().lower()
+    onboarding_basico = str(empresa.get("onboarding_concluido") or "nao").strip().lower()
+
+    return onboarding_modulos != "sim" or onboarding_basico != "sim"
+
 
 
 def modulo_por_rota(path: str) -> str:
@@ -502,6 +700,10 @@ def exigir_login_rotas_internas() -> Response | None:
         return None
 
     if session.get("usuario_id"):
+        rotas_liberadas_onboarding = {"onboarding", "sair", "concluir_tour", "static"}
+        if request.endpoint not in rotas_liberadas_onboarding and empresa_precisa_onboarding():
+            return redirect(url_for("onboarding"))
+
         codigo_modulo = modulo_por_rota(request.path)
         if codigo_modulo and not modulo_empresa_ativo(codigo_modulo):
             return redirect("/configuracoes/modulos?erro=Módulo desativado para esta empresa.")
@@ -1293,6 +1495,27 @@ def iniciar_banco() -> None:
 
         if "modulos_ativos" not in colunas_empresas:
             conn.execute("ALTER TABLE empresas ADD COLUMN modulos_ativos TEXT")
+
+        if "onboarding_modulos_concluido" not in colunas_empresas:
+            conn.execute("ALTER TABLE empresas ADD COLUMN onboarding_modulos_concluido TEXT DEFAULT 'nao'")
+
+        if "onboarding_segmento" not in colunas_empresas:
+            conn.execute("ALTER TABLE empresas ADD COLUMN onboarding_segmento TEXT")
+
+        if "onboarding_nivel" not in colunas_empresas:
+            conn.execute("ALTER TABLE empresas ADD COLUMN onboarding_nivel TEXT")
+
+        if "onboarding_operacao" not in colunas_empresas:
+            conn.execute("ALTER TABLE empresas ADD COLUMN onboarding_operacao TEXT")
+
+        if "onboarding_respostas" not in colunas_empresas:
+            conn.execute("ALTER TABLE empresas ADD COLUMN onboarding_respostas TEXT")
+
+        if "onboarding_perfil_sugerido" not in colunas_empresas:
+            conn.execute("ALTER TABLE empresas ADD COLUMN onboarding_perfil_sugerido TEXT")
+
+        if "onboarding_modulos_atualizado_em" not in colunas_empresas:
+            conn.execute("ALTER TABLE empresas ADD COLUMN onboarding_modulos_atualizado_em TEXT")
 
         conn.execute(
             """
@@ -7694,10 +7917,16 @@ def buscar_empresa_configuracoes() -> dict[str, Any]:
             "pix_indicador": "",
             "timezone": TIMEZONE_PADRAO_GESTFLOW,
             "onboarding_concluido": "nao",
+            "onboarding_modulos_concluido": "nao",
             "onboarding_ramo": "",
+            "onboarding_segmento": "",
+            "onboarding_nivel": "",
             "onboarding_objetivos": "",
+            "onboarding_operacao": "",
             "onboarding_ferramenta_atual": "",
             "onboarding_canal_contato": "",
+            "onboarding_respostas": "",
+            "onboarding_perfil_sugerido": "",
             "tour_concluido": "nao",
             "modulos_ativos": serializar_modulos_empresa(GESTFLOW_MODULOS_PADRAO),
             "plano": "Start",
@@ -9049,6 +9278,22 @@ def salvar_configuracoes_modulos() -> Response:
     return redirect("/configuracoes/modulos?sucesso=Módulos atualizados com sucesso.")
 
 
+@app.post("/configuracoes/modulos/refazer-anamnese")
+def refazer_anamnese_modulos() -> Response:
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            UPDATE empresas
+            SET onboarding_modulos_concluido = 'nao'
+            WHERE id = ?
+            """,
+            (empresa_logada_id(),),
+        )
+        conn.commit()
+
+    return redirect(url_for("onboarding"))
+
+
 @app.post("/configuracoes/gerais")
 def salvar_configuracoes_gerais() -> Response:
     timezone = request.form.get("geral_timezone") or request.form.get("geral_fuso") or TIMEZONE_PADRAO_GESTFLOW
@@ -9274,10 +9519,16 @@ def buscar_onboarding_empresa() -> dict[str, Any]:
                 id,
                 nome_fantasia,
                 onboarding_concluido,
+                onboarding_modulos_concluido,
                 onboarding_ramo,
+                onboarding_segmento,
+                onboarding_nivel,
                 onboarding_objetivos,
+                onboarding_operacao,
                 onboarding_ferramenta_atual,
                 onboarding_canal_contato,
+                onboarding_respostas,
+                onboarding_perfil_sugerido,
                 tour_concluido
             FROM empresas
             WHERE id = ?
@@ -9301,13 +9552,6 @@ def buscar_onboarding_empresa() -> dict[str, Any]:
     return dict(row)
 
 
-def empresa_precisa_onboarding() -> bool:
-    if not session.get("usuario_id"):
-        return False
-
-    empresa = buscar_onboarding_empresa()
-    return str(empresa.get("onboarding_concluido") or "nao").strip().lower() != "sim"
-
 
 def empresa_precisa_tour() -> bool:
     if not session.get("usuario_id"):
@@ -9319,40 +9563,64 @@ def empresa_precisa_tour() -> bool:
     return onboarding_ok and not tour_ok
 
 
-def montar_onboarding_formulario() -> dict[str, str]:
-    objetivos = request.form.getlist("objetivos")
+def salvar_onboarding_empresa_db(dados: dict[str, Any]) -> None:
+    modulos = dict(dados.get("modulos") or GESTFLOW_MODULOS_PADRAO)
+    objetivos_texto = ", ".join(dados.get("objetivos") or [])
+    respostas_json = json.dumps(
+        {
+            "segmento": dados.get("segmento"),
+            "segmento_nome": dados.get("segmento_nome"),
+            "perfil": dados.get("perfil"),
+            "nivel": dados.get("nivel"),
+            "operacao": dados.get("operacao", []),
+            "comercial": dados.get("comercial", []),
+            "execucao": dados.get("execucao", []),
+            "estoque": dados.get("estoque", []),
+            "financeiro": dados.get("financeiro", []),
+            "cadastros": dados.get("cadastros", []),
+            "objetivos": dados.get("objetivos", []),
+            "ferramenta_atual": dados.get("ferramenta_atual", ""),
+            "canal_contato": dados.get("canal_contato", ""),
+        },
+        ensure_ascii=False,
+    )
 
-    return {
-        "ramo": (request.form.get("ramo") or "").strip(),
-        "objetivos": ", ".join(item.strip() for item in objetivos if item.strip()),
-        "ferramenta_atual": (request.form.get("ferramenta_atual") or "").strip(),
-        "canal_contato": (request.form.get("canal_contato") or "").strip(),
-    }
-
-
-def salvar_onboarding_empresa_db(dados: dict[str, str]) -> None:
     with conectar_db() as conn:
         conn.execute(
             """
             UPDATE empresas
             SET
                 onboarding_concluido = 'sim',
+                onboarding_modulos_concluido = 'sim',
                 onboarding_ramo = ?,
+                onboarding_segmento = ?,
+                onboarding_nivel = ?,
                 onboarding_objetivos = ?,
+                onboarding_operacao = ?,
                 onboarding_ferramenta_atual = ?,
-                onboarding_canal_contato = ?
+                onboarding_canal_contato = ?,
+                onboarding_respostas = ?,
+                onboarding_perfil_sugerido = ?,
+                onboarding_modulos_atualizado_em = ?,
+                modulos_ativos = ?
             WHERE id = ?
             """,
             (
-                dados["ramo"],
-                dados["objetivos"],
-                dados["ferramenta_atual"],
-                dados["canal_contato"],
+                dados.get("segmento_nome", ""),
+                dados.get("segmento", ""),
+                dados.get("nivel", ""),
+                objetivos_texto,
+                ", ".join(dados.get("operacao") or []),
+                dados.get("ferramenta_atual", ""),
+                dados.get("canal_contato", ""),
+                respostas_json,
+                dados.get("perfil", ""),
+                agora_empresa().isoformat(timespec="seconds"),
+                serializar_modulos_empresa(modulos),
                 empresa_logada_id(),
             ),
         )
         conn.commit()
-
 
 def marcar_tour_concluido_db() -> None:
     with conectar_db() as conn:
@@ -9900,7 +10168,13 @@ def onboarding() -> str | Response:
         salvar_onboarding_empresa_db(dados)
         return redirect(url_for("dashboard", tour="1"))
 
-    return render_template("onboarding.html", empresa=empresa)
+    return render_template(
+        "onboarding.html",
+        empresa=empresa,
+        segmentos=GESTFLOW_SEGMENTOS,
+        niveis_onboarding=GESTFLOW_NIVEIS_ONBOARDING,
+        modulos_sistema=GESTFLOW_MODULOS,
+    )
 
 
 @app.post("/tour/concluir")
