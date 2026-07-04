@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-04 14:35 (America/Bahia)
-# Motivo: Criar anamnese de módulos no primeiro acesso com sugestão automática por segmento.
+# Último recode: 2026-07-04 16:30 (America/Bahia)
+# Motivo: Adicionar PWA básico do GestFlow com manifest, service worker e tela de instalação.
 
 from __future__ import annotations
 
@@ -686,6 +686,8 @@ def exigir_login_rotas_internas() -> Response | None:
         "novo_cadastro",
         "login",
         "esqueci_senha",
+        "pwa_instalar",
+        "service_worker",
         "health",
         "twilio_webhook",
         "acompanhamento_os_publico",
@@ -9958,6 +9960,21 @@ def admin_atualizar_status_comissao_indicacao(comissao_id: int) -> Response:
 @app.get("/portal")
 def portal() -> str:
     return render_template("portal.html")
+
+
+@app.get("/instalar")
+def pwa_instalar() -> str:
+    return render_template("pwa_instalar.html")
+
+
+@app.get("/service-worker.js")
+def service_worker() -> Response:
+    return send_from_directory(
+        BASE_DIR / "static",
+        "service-worker.js",
+        mimetype="application/javascript",
+        max_age=0,
+    )
 
 
 @app.get("/planos")

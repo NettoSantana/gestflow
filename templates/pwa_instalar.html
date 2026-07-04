@@ -1,0 +1,289 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\pwa_instalar.html
+Último recode: 2026-07-04 16:30 (America/Bahia)
+Motivo: Criar tela de instalação PWA do GestFlow para Android e iPhone.
+-->
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instalar GestFlow</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="apple-touch-icon" href="/static/img/gestflow-icon-180.png">
+    <meta name="theme-color" content="#071a2b">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="GestFlow">
+
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #071a2b 0%, #0f2f52 54%, #0f62fe 100%);
+            color: #0f172a;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        .install-page {
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            padding: 28px 16px;
+        }
+
+        .install-card {
+            width: min(920px, 100%);
+            background: #ffffff;
+            border-radius: 28px;
+            box-shadow: 0 28px 70px rgba(0, 0, 0, 0.26);
+            overflow: hidden;
+        }
+
+        .install-hero {
+            display: grid;
+            grid-template-columns: 0.9fr 1.1fr;
+            gap: 24px;
+            align-items: center;
+            padding: 36px;
+            background: linear-gradient(180deg, #ffffff 0%, #f4f8ff 100%);
+        }
+
+        .install-logo {
+            display: grid;
+            place-items: center;
+        }
+
+        .install-logo img {
+            width: min(230px, 72vw);
+            height: auto;
+            display: block;
+            object-fit: contain;
+        }
+
+        .install-copy span {
+            display: inline-flex;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: #eff6ff;
+            color: #1458f5;
+            font-size: 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+        }
+
+        .install-copy h1 {
+            margin: 14px 0 10px;
+            color: #071a2b;
+            font-size: clamp(30px, 5vw, 46px);
+            line-height: 1.02;
+            letter-spacing: -1.4px;
+        }
+
+        .install-copy p {
+            margin: 0;
+            max-width: 520px;
+            color: #475569;
+            font-size: 16px;
+            font-weight: 700;
+            line-height: 1.55;
+        }
+
+        .install-actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 22px;
+        }
+
+        .install-button,
+        .install-link {
+            min-height: 46px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            padding: 0 18px;
+            font-size: 14px;
+            font-weight: 900;
+            text-decoration: none;
+        }
+
+        .install-button {
+            border: 0;
+            background: #16a34a;
+            color: #ffffff;
+            cursor: pointer;
+        }
+
+        .install-button[hidden] {
+            display: none;
+        }
+
+        .install-link {
+            border: 1px solid #dbe4f0;
+            background: #ffffff;
+            color: #071a2b;
+        }
+
+        .install-steps {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            padding: 0 36px 36px;
+        }
+
+        .step-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 18px;
+            background: #ffffff;
+            padding: 20px;
+        }
+
+        .step-card h2 {
+            margin: 0 0 12px;
+            color: #071a2b;
+            font-size: 18px;
+        }
+
+        .step-card ol {
+            margin: 0;
+            padding-left: 20px;
+            color: #475569;
+            font-weight: 800;
+            line-height: 1.7;
+        }
+
+        .install-note {
+            margin: 0 36px 36px;
+            padding: 16px;
+            border: 1px solid #bfdbfe;
+            border-radius: 16px;
+            background: #eff6ff;
+            color: #1e3a8a;
+            font-size: 13px;
+            font-weight: 800;
+            line-height: 1.5;
+        }
+
+        @media (max-width: 760px) {
+            .install-card {
+                border-radius: 22px;
+            }
+
+            .install-hero,
+            .install-steps {
+                grid-template-columns: 1fr;
+                padding: 24px;
+            }
+
+            .install-logo {
+                order: -1;
+            }
+
+            .install-copy {
+                text-align: center;
+            }
+
+            .install-copy p {
+                margin: 0 auto;
+            }
+
+            .install-actions {
+                justify-content: center;
+            }
+
+            .install-button,
+            .install-link {
+                width: 100%;
+            }
+
+            .install-note {
+                margin: 0 24px 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="install-page">
+        <section class="install-card">
+            <div class="install-hero">
+                <div class="install-logo">
+                    <img src="/static/img/gestflow-icon-512.png" alt="GestFlow">
+                </div>
+
+                <div class="install-copy">
+                    <span>App sem loja</span>
+                    <h1>Instale o GestFlow no celular.</h1>
+                    <p>Use o GestFlow como aplicativo na tela inicial, sem precisar passar pela App Store ou Google Play.</p>
+
+                    <div class="install-actions">
+                        <button type="button" class="install-button" data-pwa-install hidden>Instalar automaticamente</button>
+                        <a href="/login" class="install-link">Entrar no sistema</a>
+                        <a href="/portal" class="install-link">Voltar ao site</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="install-steps">
+                <div class="step-card">
+                    <h2>Android</h2>
+                    <ol>
+                        <li>Abra o GestFlow no Chrome.</li>
+                        <li>Toque em Instalar ou Adicionar à tela inicial.</li>
+                        <li>Confirme e abra pelo ícone do GestFlow.</li>
+                    </ol>
+                </div>
+
+                <div class="step-card">
+                    <h2>iPhone</h2>
+                    <ol>
+                        <li>Abra o GestFlow pelo Safari.</li>
+                        <li>Toque no botão Compartilhar.</li>
+                        <li>Escolha Adicionar à Tela de Início.</li>
+                    </ol>
+                </div>
+            </div>
+
+            <p class="install-note">
+                No iPhone, a instalação precisa ser feita pelo Safari. No Android, o botão automático pode aparecer quando o navegador liberar a instalação.
+            </p>
+        </section>
+    </main>
+
+    <script>
+        let eventoInstalacaoGestFlow = null;
+        const botaoInstalar = document.querySelector("[data-pwa-install]");
+
+        window.addEventListener("beforeinstallprompt", function (event) {
+            event.preventDefault();
+            eventoInstalacaoGestFlow = event;
+
+            if (botaoInstalar) {
+                botaoInstalar.hidden = false;
+            }
+        });
+
+        if (botaoInstalar) {
+            botaoInstalar.addEventListener("click", async function () {
+                if (!eventoInstalacaoGestFlow) {
+                    return;
+                }
+
+                eventoInstalacaoGestFlow.prompt();
+                await eventoInstalacaoGestFlow.userChoice;
+                eventoInstalacaoGestFlow = null;
+                botaoInstalar.hidden = true;
+            });
+        }
+
+        if ("serviceWorker" in navigator) {
+            window.addEventListener("load", function () {
+                navigator.serviceWorker.register("/service-worker.js").catch(function () {});
+            });
+        }
+    </script>
+</body>
+</html>

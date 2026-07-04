@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\portal.html
 Último recode: 2026-07-02 23:41 (America/Bahia)
-Motivo: Padronizar tela pública no padrão visual de Orçamentos.
+Motivo: Adicionar suporte PWA e chamada para instalação do GestFlow.
 -->
 
 <!DOCTYPE html>
@@ -11,6 +11,11 @@ Motivo: Padronizar tela pública no padrão visual de Orçamentos.
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GestFlow - Sistema de Gestão Web</title>
     <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="apple-touch-icon" href="/static/img/gestflow-icon-180.png">
+    <meta name="theme-color" content="#071a2b">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="GestFlow">
     <style>
         :root {
             --portal-navy: #06162b;
@@ -125,6 +130,13 @@ Motivo: Padronizar tela pública no padrão visual de Orçamentos.
         .btn-dark {
             color: #ffffff;
             background: var(--portal-navy);
+        }
+
+
+        .btn-install {
+            color: var(--portal-navy);
+            background: #ffffff;
+            border: 1px solid #bfdbfe;
         }
 
         .btn-outline {
@@ -860,9 +872,18 @@ Motivo: Padronizar tela pública no padrão visual de Orçamentos.
             </div>
             <div>
                 <h4>Acesso</h4>
-                <p><a href="/login">Entrar no sistema</a><br><a href="/novo-cadastro">Experimentar grátis</a><br><a href="/planos">Ver planos</a></p>
+                <p><a href="/login">Entrar no sistema</a><br><a href="/novo-cadastro">Experimentar grátis</a><br><a href="/planos">Ver planos</a><br><a href="/instalar">Instalar app</a></p>
             </div>
         </div>
     </footer>
+
+    <script>
+        if ("serviceWorker" in navigator) {
+            window.addEventListener("load", function () {
+                navigator.serviceWorker.register("/service-worker.js").catch(function () {});
+            });
+        }
+    </script>
+
 </body>
 </html>

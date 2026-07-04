@@ -1,7 +1,7 @@
 {#
 Caminho: templates/partials/topbar.html
 Último recode: 2026-07-04 15:20 (America/Bahia)
-Motivo: Adicionar reforço responsivo global para telas internas no celular.
+Motivo: Adicionar suporte PWA e atalho de instalação nas telas internas.
 #}
 {% set _usuario_topbar = usuario_logado|default({}, true) %}
 {% set _data_topbar = data_hoje|default('', true) %}
@@ -46,6 +46,7 @@ Motivo: Adicionar reforço responsivo global para telas internas no celular.
             <span class="profile-arrow">⌄</span>
         </div>
 
+        <a href="/instalar" class="pwa-install-topbar" title="Instalar GestFlow no celular">Instalar app</a>
         <a href="/sair" class="logout-button">Sair</a>
     </div>
 </header>
@@ -321,4 +322,83 @@ Motivo: Adicionar reforço responsivo global para telas internas no celular.
             overflow-y: auto !important;
         }
     }
+
+    .pwa-install-topbar {
+        min-height: 34px;
+        padding: 0 12px;
+        border: 1px solid #bfdbfe;
+        border-radius: 999px;
+        background: #eff6ff;
+        color: #1458f5;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 900;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+
+    @media (max-width: 820px) {
+        .pwa-install-topbar {
+            display: none;
+        }
+    }
+
 </style>
+
+
+<script>
+(function () {
+    function garantirPwaHeadGestFlow() {
+        const head = document.head || document.getElementsByTagName("head")[0];
+
+        if (!head) {
+            return;
+        }
+
+        if (!document.querySelector('link[rel="manifest"]')) {
+            const manifest = document.createElement("link");
+            manifest.rel = "manifest";
+            manifest.href = "/static/manifest.json";
+            head.appendChild(manifest);
+        }
+
+        if (!document.querySelector('link[rel="apple-touch-icon"]')) {
+            const appleIcon = document.createElement("link");
+            appleIcon.rel = "apple-touch-icon";
+            appleIcon.href = "/static/img/gestflow-icon-180.png";
+            head.appendChild(appleIcon);
+        }
+
+        if (!document.querySelector('meta[name="theme-color"]')) {
+            const theme = document.createElement("meta");
+            theme.name = "theme-color";
+            theme.content = "#071a2b";
+            head.appendChild(theme);
+        }
+
+        if (!document.querySelector('meta[name="apple-mobile-web-app-capable"]')) {
+            const appleCapable = document.createElement("meta");
+            appleCapable.name = "apple-mobile-web-app-capable";
+            appleCapable.content = "yes";
+            head.appendChild(appleCapable);
+        }
+
+        if (!document.querySelector('meta[name="apple-mobile-web-app-title"]')) {
+            const appleTitle = document.createElement("meta");
+            appleTitle.name = "apple-mobile-web-app-title";
+            appleTitle.content = "GestFlow";
+            head.appendChild(appleTitle);
+        }
+    }
+
+    garantirPwaHeadGestFlow();
+
+    if ("serviceWorker" in navigator) {
+        window.addEventListener("load", function () {
+            navigator.serviceWorker.register("/service-worker.js").catch(function () {});
+        });
+    }
+})();
+</script>

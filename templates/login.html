@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\login.html
 Último recode: 2026-07-02 23:41 (America/Bahia)
-Motivo: Padronizar tela pública no padrão visual de Orçamentos.
+Motivo: Adicionar suporte PWA na tela pública de login.
 -->
 
 <!DOCTYPE html>
@@ -11,6 +11,11 @@ Motivo: Padronizar tela pública no padrão visual de Orçamentos.
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GestFlow - Login</title>
     <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="apple-touch-icon" href="/static/img/gestflow-icon-180.png">
+    <meta name="theme-color" content="#071a2b">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="GestFlow">
     <style>
         :root {
             --login-navy: #050a2b;
@@ -472,6 +477,18 @@ Motivo: Padronizar tela pública no padrão visual de Orçamentos.
             font-size: 13px;
         }
 
+
+        .install-app-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 14px;
+            color: var(--login-blue);
+            font-size: 14px;
+            font-weight: 900;
+            text-decoration: none;
+        }
+
         .login-alert {
             margin: -8px 0 18px;
             padding: 12px 14px;
@@ -739,7 +756,9 @@ Motivo: Padronizar tela pública no padrão visual de Orçamentos.
                     <p class="trial-text">Ainda não tem uma conta? <a href="/novo-cadastro">Experimente grátis!</a></p>
                 </form>
 
-                <div class="login-footer-links">
+                <a href="/instalar" class="install-app-link">Instalar GestFlow no celular</a>
+
+            <div class="login-footer-links">
                     <a href="/portal">Voltar ao portal</a>
                     <a href="/">Ir para dashboard</a>
                 </div>
@@ -802,5 +821,14 @@ Motivo: Padronizar tela pública no padrão visual de Orçamentos.
             iniciarSlides();
         });
     </script>
+
+    <script>
+        if ("serviceWorker" in navigator) {
+            window.addEventListener("load", function () {
+                navigator.serviceWorker.register("/service-worker.js").catch(function () {});
+            });
+        }
+    </script>
+
 </body>
 </html>

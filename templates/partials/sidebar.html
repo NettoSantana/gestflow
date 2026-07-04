@@ -1,7 +1,7 @@
 {#
 Caminho: templates/partials/sidebar.html
 Último recode: 2026-07-04 13:55 (America/Bahia)
-Motivo: Aplicar menu lateral dinâmico conforme módulos ativos da empresa.
+Motivo: Adicionar atalho para instalação PWA mantendo menu dinâmico por módulos.
 #}
 {% set _path = request.path if request is defined else '' %}
 {% set _usuario_sidebar = usuario_logado|default({}, true) %}
@@ -182,6 +182,7 @@ Motivo: Aplicar menu lateral dinâmico conforme módulos ativos da empresa.
 
     <div class="sidebar-footer">
         <a href="/configuracoes" class="footer-item {% if _path.startswith('/configuracoes') %}active{% endif %}" style="text-decoration: none;">⚙ Configurações</a>
+        <a href="/instalar" class="footer-item {% if _path.startswith('/instalar') %}active{% endif %}" style="text-decoration: none;">▣ Instalar app</a>
         <a href="/sair" class="footer-item" style="text-decoration: none;">Sair</a>
     </div>
 </aside>
