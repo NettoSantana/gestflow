@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\venda_balcao_pagamento.html
-Último recode: 2026-07-02 23:41 (America/Bahia)
-Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
+Último recode: 2026-07-04 15:20 (America/Bahia)
+Motivo: Corrigir renderização mobile do pagamento PDV.
 -->
 
 <!DOCTYPE html>
@@ -138,6 +138,60 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
             font-size: 12px;
             font-weight: 700;
             text-align: center;
+        }
+
+
+
+        @media (max-width: 720px) {
+            .pdv-pay-grid {
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 14px !important;
+            }
+
+            .pdv-pay-title {
+                font-size: 16px !important;
+                padding: 12px 14px !important;
+            }
+
+            .pdv-pay-body {
+                padding: 14px !important;
+            }
+
+            .pdv-pay-body[style] {
+                display: grid !important;
+                grid-template-columns: 1fr !important;
+                gap: 12px !important;
+            }
+
+            .pdv-confirm-line {
+                grid-template-columns: 1fr !important;
+                gap: 8px !important;
+            }
+
+            .pdv-confirm-line input,
+            .pdv-confirm-line button {
+                width: 100% !important;
+                border-radius: 8px !important;
+            }
+
+            .pdv-final-actions {
+                flex-direction: column !important;
+            }
+
+            .pdv-final-actions a,
+            .pdv-final-actions button {
+                width: 100% !important;
+                height: 44px !important;
+            }
+
+            .pdv-items-table {
+                min-width: 520px !important;
+            }
+
+            .pdv-footer-help {
+                display: none !important;
+            }
         }
 
         @media (max-width: 980px) {
