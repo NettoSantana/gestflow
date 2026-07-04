@@ -1,0 +1,105 @@
+<!--
+Caminho: templates/agendamentos.html
+Último recode: 2026-07-04 17:20 (America/Bahia)
+Motivo: Criar módulo Agendamentos para serviços com horário marcado.
+-->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GestFlow - Agendamentos</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .schedule-alert{margin:0 0 14px;padding:12px 14px;border-radius:12px;font-weight:900;font-size:13px}.schedule-alert.error{background:#fef2f2;border:1px solid #fecaca;color:#991b1b}.schedule-alert.success{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534}.schedule-layout{display:grid;grid-template-columns:380px 1fr;gap:16px}.schedule-day-list{display:grid;gap:10px}.schedule-card{border:1px solid #e5eaf2;border-radius:14px;background:#fff;padding:14px;display:grid;gap:10px}.schedule-card-top{display:flex;justify-content:space-between;gap:10px}.schedule-time{font-size:22px;font-weight:900;color:#0f172a}.schedule-client{font-weight:900;font-size:15px}.schedule-meta{color:#64748b;font-size:13px;font-weight:700}.schedule-actions{display:flex;gap:8px;flex-wrap:wrap}.status-agendado{background:#eff6ff;color:#1d4ed8}.status-confirmado{background:#dcfce7;color:#166534}.status-em_atendimento{background:#fef3c7;color:#92400e}.status-concluido{background:#e0f2fe;color:#075985}.status-cancelado,.status-nao_compareceu{background:#fee2e2;color:#991b1b}.pill-status{display:inline-flex;align-items:center;height:28px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:900;text-transform:capitalize}.mini-form{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.mini-form select{height:36px;border:1px solid #dbe3ef;border-radius:10px;padding:0 10px}.btn-small{height:34px;border:0;border-radius:10px;padding:0 11px;font-weight:900;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}.btn-small.dark{background:#0f172a;color:#fff}.btn-small.light{background:#fff;border:1px solid #dbe3ef;color:#334155}.btn-small.red{background:#ef4444;color:#fff}.filters-row{display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-bottom:14px}.filters-row .form-group{min-width:160px}@media(max-width:980px){.schedule-layout{grid-template-columns:1fr}.filters-row{flex-direction:column;align-items:stretch}.schedule-card-top{flex-direction:column}.schedule-actions,.mini-form{flex-direction:column;align-items:stretch}.schedule-actions a,.schedule-actions button,.mini-form select,.mini-form button{width:100%}}
+    </style>
+</head>
+<body>
+{% include "partials/sidebar.html" %}
+<main class="content">
+    {% set page_title = 'Agendamentos' %}
+    {% include "partials/topbar.html" %}
+
+    <section class="panel page-section">
+        <div class="panel-header page-header">
+            <div>
+                <span class="page-kicker">Agenda</span>
+                <h3 class="page-title">Agendamentos</h3>
+                <p class="page-subtitle">Controle horários de manicure, barbearia, estética, clínica, oficina ou atendimento técnico.</p>
+            </div>
+            <span class="badge-info">Agenda por profissional</span>
+        </div>
+    </section>
+
+    {% if erro %}<div class="schedule-alert error">{{ erro }}</div>{% endif %}
+    {% if sucesso %}<div class="schedule-alert success">{{ sucesso }}</div>{% endif %}
+
+    <section class="schedule-layout">
+        <div class="panel">
+            <h3>{{ 'Editar agendamento' if agendamento_edicao else 'Novo agendamento' }}</h3>
+            <form method="post" action="{{ '/agendamentos/' ~ agendamento_edicao.id ~ '/editar' if agendamento_edicao else '/agendamentos' }}" class="client-form">
+                <div class="form-grid" style="grid-template-columns:1fr;">
+                    <div class="form-group"><label>Cliente</label><input class="form-control" name="cliente_nome" value="{{ agendamento_edicao.cliente_nome if agendamento_edicao else '' }}" placeholder="Nome do cliente" required></div>
+                    <div class="form-group"><label>Telefone</label><input class="form-control" name="cliente_telefone" value="{{ agendamento_edicao.cliente_telefone if agendamento_edicao else '' }}" placeholder="WhatsApp / telefone"></div>
+                    <div class="form-group"><label>Serviço</label><input class="form-control" name="servico_nome" list="servicos-lista" value="{{ agendamento_edicao.servico_nome if agendamento_edicao else '' }}" placeholder="Corte, unha, manutenção..." required></div>
+                    <datalist id="servicos-lista">{% for servico in servicos %}<option value="{{ servico.nome }}">{% endfor %}</datalist>
+                    <div class="form-group"><label>Profissional</label><select class="form-control" name="profissional_id"><option value="">Selecione</option>{% for funcionario in funcionarios %}<option value="{{ funcionario.id }}" {% if agendamento_edicao and agendamento_edicao.profissional_id|string == funcionario.id|string %}selected{% endif %}>{{ funcionario.nome }}</option>{% endfor %}</select></div>
+                    <div class="form-grid">
+                        <div class="form-group"><label>Data</label><input class="form-control" type="date" name="data_agendamento" value="{{ agendamento_edicao.data_agendamento if agendamento_edicao else data_inicio }}" required></div>
+                        <div class="form-group"><label>Status</label><select class="form-control" name="status">{% for status in status_opcoes %}<option value="{{ status }}" {% if agendamento_edicao and agendamento_edicao.status == status %}selected{% endif %}>{{ status.replace('_',' ')|capitalize }}</option>{% endfor %}</select></div>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group"><label>Início</label><input class="form-control" type="time" name="hora_inicio" value="{{ agendamento_edicao.hora_inicio if agendamento_edicao else '' }}" required></div>
+                        <div class="form-group"><label>Fim</label><input class="form-control" type="time" name="hora_fim" value="{{ agendamento_edicao.hora_fim if agendamento_edicao else '' }}"></div>
+                    </div>
+                    <div class="form-group"><label>Valor</label><input class="form-control" name="valor" value="{{ agendamento_edicao.valor if agendamento_edicao else '' }}" placeholder="Ex: 80,00"></div>
+                    <div class="form-group"><label>Observações</label><textarea class="form-control" name="observacoes" style="height:96px;padding-top:12px;">{{ agendamento_edicao.observacoes if agendamento_edicao else '' }}</textarea></div>
+                </div>
+                <div class="form-actions">
+                    {% if agendamento_edicao %}<a href="/agendamentos" class="btn-light">Cancelar edição</a>{% endif %}
+                    <button class="btn-primary-green" type="submit">{{ 'Salvar edição' if agendamento_edicao else 'Salvar agendamento' }}</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header page-header">
+                <div><h3>Agenda</h3><p class="page-subtitle">Filtre por dia, período e status.</p></div>
+            </div>
+            <form method="get" action="/agendamentos" class="filters-row">
+                <div class="form-group"><label>De</label><input class="form-control" type="date" name="data_inicio" value="{{ data_inicio }}"></div>
+                <div class="form-group"><label>Até</label><input class="form-control" type="date" name="data_fim" value="{{ data_fim }}"></div>
+                <div class="form-group"><label>Status</label><select class="form-control" name="status"><option value="">Todos</option>{% for status in status_opcoes %}<option value="{{ status }}" {% if status_filtro == status %}selected{% endif %}>{{ status.replace('_',' ')|capitalize }}</option>{% endfor %}</select></div>
+                <button class="btn-dark" type="submit">Filtrar</button>
+            </form>
+
+            <div class="schedule-day-list">
+                {% if agendamentos %}
+                    {% for item in agendamentos %}
+                    <article class="schedule-card">
+                        <div class="schedule-card-top">
+                            <div>
+                                <div class="schedule-time">{{ item.hora_inicio or '--:--' }}{% if item.hora_fim %} - {{ item.hora_fim }}{% endif %}</div>
+                                <div class="schedule-client">{{ item.cliente_nome }}</div>
+                                <div class="schedule-meta">{{ item.servico_nome }} • {{ item.profissional_nome or 'Sem profissional' }} • {{ item.data_agendamento|default('') }}</div>
+                            </div>
+                            <span class="pill-status status-{{ item.status }}">{{ item.status.replace('_',' ') }}</span>
+                        </div>
+                        {% if item.observacoes %}<p class="page-subtitle">{{ item.observacoes }}</p>{% endif %}
+                        <div class="schedule-actions">
+                            <a class="btn-small light" href="/agendamentos?editar_id={{ item.id }}&data_inicio={{ data_inicio }}&data_fim={{ data_fim }}">Editar</a>
+                            <form class="mini-form" method="post" action="/agendamentos/{{ item.id }}/status"><select name="status">{% for status in status_opcoes %}<option value="{{ status }}" {% if item.status == status %}selected{% endif %}>{{ status.replace('_',' ') }}</option>{% endfor %}</select><button class="btn-small dark" type="submit">Atualizar</button></form>
+                            {% if not item.venda_id %}<form method="post" action="/agendamentos/{{ item.id }}/gerar-venda"><button class="btn-small dark" type="submit">Gerar venda</button></form>{% else %}<a class="btn-small light" href="/vendas/{{ item.venda_id }}">Ver venda</a>{% endif %}
+                            <form method="post" action="/agendamentos/{{ item.id }}/excluir" onsubmit="return confirm('Excluir este agendamento?');"><button class="btn-small red" type="submit">Excluir</button></form>
+                        </div>
+                    </article>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-chart">Nenhum agendamento encontrado para o filtro selecionado.</div>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+</main>
+</body>
+</html>

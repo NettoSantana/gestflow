@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
 # Último recode: 2026-07-04 16:30 (America/Bahia)
-# Motivo: Adicionar PWA básico do GestFlow com manifest, service worker e tela de instalação.
+# Motivo: Adicionar módulos de Agendamentos e Registro de Ponto.
 
 from __future__ import annotations
 
@@ -71,6 +71,8 @@ GESTFLOW_MODULOS = [
     {"codigo": "painel_os", "nome": "Painel de OS", "grupo": "Serviços", "descricao": "Painel operacional das ordens de serviço."},
     {"codigo": "estoque", "nome": "Estoque", "grupo": "Gestão", "descricao": "Movimentações, ajustes, compras e saldos de produtos."},
     {"codigo": "financeiro", "nome": "Financeiro", "grupo": "Gestão", "descricao": "Contas a pagar, contas a receber e fluxo de caixa."},
+    {"codigo": "agendamentos", "nome": "Agendamentos", "grupo": "Serviços", "descricao": "Agenda de atendimentos por cliente, profissional, data e horário."},
+    {"codigo": "registro_ponto", "nome": "Registro de Ponto", "grupo": "Equipe", "descricao": "Entrada, intervalo, retorno, saída e espelho de ponto dos funcionários."},
 ]
 
 GESTFLOW_MODULOS_PADRAO = {modulo["codigo"]: True for modulo in GESTFLOW_MODULOS}
@@ -121,9 +123,9 @@ GESTFLOW_SEGMENTOS_POR_CODIGO = {segmento["codigo"]: segmento for segmento in GE
 
 GESTFLOW_PERFIS_MODULOS = {
     "comercio": {"clientes", "fornecedores", "produtos", "vendas", "pdv", "devolucoes", "estoque", "financeiro"},
-    "servicos": {"clientes", "servicos", "orcamentos", "vendas", "financeiro"},
-    "assistencia": {"clientes", "fornecedores", "funcionarios", "produtos", "servicos", "orcamentos", "vendas", "ordens_servico", "estoque", "financeiro"},
-    "industrial": {"clientes", "fornecedores", "funcionarios", "produtos", "servicos", "orcamentos", "gerador_orcamentos", "vendas", "ordens_servico", "painel_os", "estoque", "financeiro"},
+    "servicos": {"clientes", "servicos", "orcamentos", "vendas", "financeiro", "agendamentos"},
+    "assistencia": {"clientes", "fornecedores", "funcionarios", "produtos", "servicos", "orcamentos", "vendas", "ordens_servico", "estoque", "financeiro", "agendamentos", "registro_ponto"},
+    "industrial": {"clientes", "fornecedores", "funcionarios", "produtos", "servicos", "orcamentos", "gerador_orcamentos", "vendas", "ordens_servico", "painel_os", "estoque", "financeiro", "registro_ponto"},
     "distribuicao": {"clientes", "fornecedores", "produtos", "vendas", "devolucoes", "estoque", "financeiro"},
     "locacao": {"clientes", "fornecedores", "funcionarios", "produtos", "servicos", "orcamentos", "vendas", "ordens_servico", "estoque", "financeiro"},
     "completo": set(GESTFLOW_MODULOS_CODIGOS),
@@ -238,13 +240,13 @@ def sugerir_modulos_por_anamnese(dados: dict[str, Any]) -> dict[str, bool]:
     if "produtos" in operacao or "balcao" in operacao or "estoque" in operacao:
         ativos.update({"clientes", "produtos", "vendas", "estoque"})
     if "servicos" in operacao:
-        ativos.update({"clientes", "servicos", "orcamentos"})
+        ativos.update({"clientes", "servicos", "orcamentos", "agendamentos"})
     if "balcao" in operacao:
         ativos.update({"pdv", "devolucoes"})
     if "equipe_externa" in operacao or "ordem_servico" in operacao:
-        ativos.update({"clientes", "funcionarios", "servicos", "ordens_servico"})
+        ativos.update({"clientes", "funcionarios", "servicos", "ordens_servico", "registro_ponto"})
     if "projetos_obras" in operacao:
-        ativos.update({"clientes", "fornecedores", "funcionarios", "produtos", "servicos", "orcamentos", "gerador_orcamentos", "ordens_servico", "financeiro"})
+        ativos.update({"clientes", "fornecedores", "funcionarios", "produtos", "servicos", "orcamentos", "gerador_orcamentos", "ordens_servico", "financeiro", "registro_ponto"})
 
     if "orcamento" in comercial:
         ativos.update({"clientes", "orcamentos"})
@@ -256,7 +258,7 @@ def sugerir_modulos_por_anamnese(dados: dict[str, Any]) -> dict[str, bool]:
         ativos.update({"clientes", "vendas"})
 
     if "os_simples" in execucao or "os_completa" in execucao:
-        ativos.update({"clientes", "servicos", "ordens_servico"})
+        ativos.update({"clientes", "servicos", "ordens_servico", "registro_ponto"})
     if "campo" in execucao or "fotos" in execucao or "acompanhamento" in execucao:
         ativos.update({"clientes", "funcionarios", "servicos", "ordens_servico", "painel_os"})
 
@@ -287,6 +289,7 @@ def sugerir_modulos_por_anamnese(dados: dict[str, Any]) -> dict[str, bool]:
             ativos.discard("ordens_servico")
         if "funcionarios" not in cadastros and "equipe_externa" not in operacao and not ({"campo", "fotos", "acompanhamento"} & execucao):
             ativos.discard("funcionarios")
+            ativos.discard("registro_ponto")
 
     if "produtos" in ativos:
         ativos.add("clientes")
@@ -300,6 +303,10 @@ def sugerir_modulos_por_anamnese(dados: dict[str, Any]) -> dict[str, bool]:
         ativos.add("ordens_servico")
     if "estoque" in ativos:
         ativos.add("produtos")
+    if "agendamentos" in ativos:
+        ativos.update({"clientes", "servicos"})
+    if "registro_ponto" in ativos:
+        ativos.add("funcionarios")
 
     return {codigo: codigo in ativos for codigo in GESTFLOW_MODULOS_CODIGOS}
 
@@ -368,6 +375,8 @@ def modulo_por_rota(path: str) -> str:
         ("/servicos", "servicos"),
         ("/estoque", "estoque"),
         ("/financeiro", "financeiro"),
+        ("/agendamentos", "agendamentos"),
+        ("/registro-ponto", "registro_ponto"),
     ]
 
     for prefixo, codigo in regras:
@@ -1348,6 +1357,51 @@ def iniciar_banco() -> None:
             """
         )
 
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS agendamentos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER,
+                cliente_nome TEXT,
+                cliente_telefone TEXT,
+                servico_nome TEXT,
+                profissional_id INTEGER,
+                profissional_nome TEXT,
+                data_agendamento TEXT,
+                hora_inicio TEXT,
+                hora_fim TEXT,
+                status TEXT NOT NULL DEFAULT 'agendado',
+                valor TEXT,
+                observacoes TEXT,
+                venda_id INTEGER,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                atualizado_em TEXT
+            )
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS registros_ponto (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER,
+                funcionario_id INTEGER,
+                funcionario_nome TEXT,
+                data_ponto TEXT,
+                entrada TEXT,
+                saida_intervalo TEXT,
+                retorno_intervalo TEXT,
+                saida TEXT,
+                total_trabalhado TEXT,
+                status TEXT NOT NULL DEFAULT 'incompleto',
+                observacoes TEXT,
+                ajustado_por TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                atualizado_em TEXT
+            )
+            """
+        )
+
         empresa_row = conn.execute(
             """
             SELECT id
@@ -1680,6 +1734,8 @@ def iniciar_banco() -> None:
             "caixa_movimentacoes",
             "usuario_atividades",
             "assistente_conversas",
+            "agendamentos",
+            "registros_ponto",
         ]
 
         for tabela in tabelas_com_empresa_id:
@@ -9125,6 +9181,383 @@ def excluir_empresa_cliente_admin_db(empresa_id: int) -> bool:
 
 
 
+AGENDAMENTOS_STATUS = ["agendado", "confirmado", "em_atendimento", "concluido", "cancelado", "nao_compareceu"]
+PONTO_ACOES = {
+    "entrada": "Entrada",
+    "saida_intervalo": "Saída para intervalo",
+    "retorno_intervalo": "Retorno do intervalo",
+    "saida": "Saída",
+}
+
+
+def _normalizar_data_iso(valor: Any, padrao: str | None = None) -> str:
+    texto = str(valor or "").strip()
+    if not texto:
+        return padrao or hoje_empresa().isoformat()
+    try:
+        return datetime.strptime(texto[:10], "%Y-%m-%d").date().isoformat()
+    except ValueError:
+        return padrao or hoje_empresa().isoformat()
+
+
+def _normalizar_hora_hhmm(valor: Any) -> str:
+    texto = str(valor or "").strip()
+    if not texto:
+        return ""
+    try:
+        return datetime.strptime(texto[:5], "%H:%M").strftime("%H:%M")
+    except ValueError:
+        return texto[:5]
+
+
+def _calcular_total_horas_ponto(entrada: Any, saida_intervalo: Any, retorno_intervalo: Any, saida: Any) -> str:
+    def minutos(valor: Any) -> int | None:
+        texto = _normalizar_hora_hhmm(valor)
+        if not texto:
+            return None
+        try:
+            hora, minuto = texto.split(":")
+            return int(hora) * 60 + int(minuto)
+        except (ValueError, AttributeError):
+            return None
+
+    entrada_min = minutos(entrada)
+    saida_min = minutos(saida)
+    pausa_inicio = minutos(saida_intervalo)
+    pausa_fim = minutos(retorno_intervalo)
+
+    if entrada_min is None or saida_min is None:
+        return ""
+
+    total = saida_min - entrada_min
+    if total < 0:
+        total += 24 * 60
+
+    if pausa_inicio is not None and pausa_fim is not None:
+        pausa = pausa_fim - pausa_inicio
+        if pausa < 0:
+            pausa += 24 * 60
+        total -= max(pausa, 0)
+
+    total = max(total, 0)
+    return f"{total // 60:02d}:{total % 60:02d}"
+
+
+def _status_ponto(entrada: Any, saida_intervalo: Any, retorno_intervalo: Any, saida: Any, ajustado: bool = False) -> str:
+    if ajustado:
+        return "ajustado"
+    if entrada and saida:
+        return "completo"
+    if entrada or saida_intervalo or retorno_intervalo or saida:
+        return "incompleto"
+    return "faltou"
+
+
+def montar_agendamento_formulario() -> dict[str, str]:
+    profissional_id = str(request.form.get("profissional_id") or "").strip()
+    profissional_nome = ""
+    if profissional_id:
+        funcionario = buscar_funcionario_por_id(int(profissional_id)) if profissional_id.isdigit() else None
+        if funcionario:
+            profissional_nome = str(funcionario.get("nome") or "")
+
+    return {
+        "cliente_nome": str(request.form.get("cliente_nome") or "").strip(),
+        "cliente_telefone": str(request.form.get("cliente_telefone") or "").strip(),
+        "servico_nome": str(request.form.get("servico_nome") or "").strip(),
+        "profissional_id": profissional_id,
+        "profissional_nome": profissional_nome or str(request.form.get("profissional_nome") or "").strip(),
+        "data_agendamento": _normalizar_data_iso(request.form.get("data_agendamento")),
+        "hora_inicio": _normalizar_hora_hhmm(request.form.get("hora_inicio")),
+        "hora_fim": _normalizar_hora_hhmm(request.form.get("hora_fim")),
+        "status": str(request.form.get("status") or "agendado").strip() or "agendado",
+        "valor": str(request.form.get("valor") or "").strip(),
+        "observacoes": str(request.form.get("observacoes") or "").strip(),
+    }
+
+
+def listar_agendamentos(data_inicio: Any = "", data_fim: Any = "", status: Any = "") -> list[dict[str, Any]]:
+    empresa_id = empresa_logada_id()
+    inicio = _normalizar_data_iso(data_inicio, hoje_empresa().isoformat())
+    fim = _normalizar_data_iso(data_fim, inicio)
+    status_texto = str(status or "").strip()
+    parametros: list[Any] = [empresa_id, inicio, fim]
+    filtro_status = ""
+    if status_texto:
+        filtro_status = " AND status = ?"
+        parametros.append(status_texto)
+
+    with conectar_db() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT *
+            FROM agendamentos
+            WHERE empresa_id = ?
+              AND data_agendamento BETWEEN ? AND ?
+              {filtro_status}
+            ORDER BY data_agendamento ASC, hora_inicio ASC, id ASC
+            """,
+            parametros,
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def buscar_agendamento_por_id(agendamento_id: int) -> dict[str, Any] | None:
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT *
+            FROM agendamentos
+            WHERE id = ?
+              AND empresa_id = ?
+            LIMIT 1
+            """,
+            (agendamento_id, empresa_logada_id()),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def salvar_agendamento_db(dados: dict[str, str]) -> int:
+    with conectar_db() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO agendamentos (
+                empresa_id, cliente_nome, cliente_telefone, servico_nome, profissional_id,
+                profissional_nome, data_agendamento, hora_inicio, hora_fim, status, valor,
+                observacoes, atualizado_em
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                empresa_logada_id(), dados["cliente_nome"], dados["cliente_telefone"], dados["servico_nome"],
+                dados["profissional_id"], dados["profissional_nome"], dados["data_agendamento"],
+                dados["hora_inicio"], dados["hora_fim"], dados["status"], dados["valor"],
+                dados["observacoes"], agora_empresa().isoformat(timespec="seconds"),
+            ),
+        )
+        conn.commit()
+        return int(cursor.lastrowid)
+
+
+def atualizar_agendamento_db(agendamento_id: int, dados: dict[str, str]) -> None:
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            UPDATE agendamentos
+            SET cliente_nome = ?, cliente_telefone = ?, servico_nome = ?, profissional_id = ?,
+                profissional_nome = ?, data_agendamento = ?, hora_inicio = ?, hora_fim = ?,
+                status = ?, valor = ?, observacoes = ?, atualizado_em = ?
+            WHERE id = ? AND empresa_id = ?
+            """,
+            (
+                dados["cliente_nome"], dados["cliente_telefone"], dados["servico_nome"], dados["profissional_id"],
+                dados["profissional_nome"], dados["data_agendamento"], dados["hora_inicio"], dados["hora_fim"],
+                dados["status"], dados["valor"], dados["observacoes"], agora_empresa().isoformat(timespec="seconds"),
+                agendamento_id, empresa_logada_id(),
+            ),
+        )
+        conn.commit()
+
+
+def atualizar_status_agendamento_db(agendamento_id: int, status: str) -> None:
+    status_normalizado = str(status or "").strip()
+    if status_normalizado not in AGENDAMENTOS_STATUS:
+        status_normalizado = "agendado"
+    with conectar_db() as conn:
+        conn.execute(
+            "UPDATE agendamentos SET status = ?, atualizado_em = ? WHERE id = ? AND empresa_id = ?",
+            (status_normalizado, agora_empresa().isoformat(timespec="seconds"), agendamento_id, empresa_logada_id()),
+        )
+        conn.commit()
+
+
+def excluir_agendamento_db(agendamento_id: int) -> None:
+    with conectar_db() as conn:
+        conn.execute("DELETE FROM agendamentos WHERE id = ? AND empresa_id = ?", (agendamento_id, empresa_logada_id()))
+        conn.commit()
+
+
+def gerar_venda_por_agendamento_db(agendamento_id: int) -> int | None:
+    agendamento = buscar_agendamento_por_id(agendamento_id)
+    if agendamento is None:
+        return None
+
+    valor = str(agendamento.get("valor") or "0,00").strip() or "0,00"
+    venda = {
+        "numero": proximo_numero_venda(),
+        "cliente": str(agendamento.get("cliente_nome") or "Cliente balcão"),
+        "responsavel": str(agendamento.get("profissional_nome") or session.get("usuario_nome") or ""),
+        "data": hoje_empresa().isoformat(),
+        "prazo_entrega": "",
+        "canal_venda": "Agendamento",
+        "centro_custo": "Serviço agendado",
+        "tipo": "servico",
+        "status": "finalizada",
+        "total_produtos": "0,00",
+        "total_servicos": valor,
+        "desconto_valor": "0,00",
+        "desconto_percentual": "0,00",
+        "valor_total": valor,
+        "forma_pagamento": "",
+        "observacoes": f"Venda gerada pelo agendamento #{agendamento_id}.",
+        "observacoes_internas": str(agendamento.get("observacoes") or ""),
+    }
+    itens = [{
+        "tipo_item": "servico",
+        "descricao": str(agendamento.get("servico_nome") or "Serviço agendado"),
+        "detalhes": f"Atendimento em {formatar_data_br(agendamento.get('data_agendamento'))} às {agendamento.get('hora_inicio') or ''}.",
+        "quantidade": "1",
+        "valor_unitario": valor,
+        "desconto": "0,00",
+        "subtotal": valor,
+    }]
+    venda_id = salvar_venda_db(venda, itens)
+    with conectar_db() as conn:
+        conn.execute(
+            "UPDATE agendamentos SET venda_id = ?, status = 'concluido', atualizado_em = ? WHERE id = ? AND empresa_id = ?",
+            (venda_id, agora_empresa().isoformat(timespec="seconds"), agendamento_id, empresa_logada_id()),
+        )
+        conn.commit()
+    return venda_id
+
+
+def buscar_registro_ponto(funcionario_id: int, data_ponto: str) -> dict[str, Any] | None:
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT *
+            FROM registros_ponto
+            WHERE empresa_id = ? AND funcionario_id = ? AND data_ponto = ?
+            LIMIT 1
+            """,
+            (empresa_logada_id(), funcionario_id, data_ponto),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def listar_registros_ponto(data_inicio: Any = "", data_fim: Any = "", funcionario_id: Any = "") -> list[dict[str, Any]]:
+    inicio = _normalizar_data_iso(data_inicio, hoje_empresa().isoformat())
+    fim = _normalizar_data_iso(data_fim, inicio)
+    parametros: list[Any] = [empresa_logada_id(), inicio, fim]
+    filtro_funcionario = ""
+    funcionario_texto = str(funcionario_id or "").strip()
+    if funcionario_texto.isdigit():
+        filtro_funcionario = " AND funcionario_id = ?"
+        parametros.append(int(funcionario_texto))
+
+    with conectar_db() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT *
+            FROM registros_ponto
+            WHERE empresa_id = ?
+              AND data_ponto BETWEEN ? AND ?
+              {filtro_funcionario}
+            ORDER BY data_ponto DESC, funcionario_nome ASC, id DESC
+            """,
+            parametros,
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def bater_ponto_db(funcionario_id: int, acao: str = "") -> tuple[bool, str]:
+    funcionario = buscar_funcionario_por_id(funcionario_id)
+    if funcionario is None:
+        return False, "Funcionário não encontrado."
+
+    hoje = hoje_empresa().isoformat()
+    agora_hora = agora_empresa().strftime("%H:%M")
+    registro = buscar_registro_ponto(funcionario_id, hoje)
+    ordem = ["entrada", "saida_intervalo", "retorno_intervalo", "saida"]
+
+    if acao not in ordem:
+        if registro is None:
+            acao = "entrada"
+        else:
+            acao = next((campo for campo in ordem if not registro.get(campo)), "")
+
+    if not acao:
+        return False, "Ponto de hoje já está completo."
+
+    if registro is not None and registro.get(acao):
+        return False, "Esse horário já foi registrado."
+
+    if registro is None and acao != "entrada":
+        return False, "Registre a entrada antes dos demais horários."
+
+    with conectar_db() as conn:
+        if registro is None:
+            conn.execute(
+                """
+                INSERT INTO registros_ponto (
+                    empresa_id, funcionario_id, funcionario_nome, data_ponto, entrada,
+                    status, atualizado_em
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (empresa_logada_id(), funcionario_id, funcionario["nome"], hoje, agora_hora, "incompleto", agora_empresa().isoformat(timespec="seconds")),
+            )
+        else:
+            dados = dict(registro)
+            dados[acao] = agora_hora
+            total = _calcular_total_horas_ponto(dados.get("entrada"), dados.get("saida_intervalo"), dados.get("retorno_intervalo"), dados.get("saida"))
+            status = _status_ponto(dados.get("entrada"), dados.get("saida_intervalo"), dados.get("retorno_intervalo"), dados.get("saida"))
+            conn.execute(
+                f"""
+                UPDATE registros_ponto
+                SET {acao} = ?, total_trabalhado = ?, status = ?, atualizado_em = ?
+                WHERE id = ? AND empresa_id = ?
+                """,
+                (agora_hora, total, status, agora_empresa().isoformat(timespec="seconds"), registro["id"], empresa_logada_id()),
+            )
+        conn.commit()
+
+    return True, f"{PONTO_ACOES.get(acao, 'Ponto')} registrado às {agora_hora}."
+
+
+def ajustar_ponto_db() -> tuple[bool, str]:
+    funcionario_id_texto = str(request.form.get("ajuste_funcionario_id") or "").strip()
+    if not funcionario_id_texto.isdigit():
+        return False, "Selecione o funcionário para ajustar o ponto."
+    funcionario = buscar_funcionario_por_id(int(funcionario_id_texto))
+    if funcionario is None:
+        return False, "Funcionário não encontrado."
+
+    data_ponto = _normalizar_data_iso(request.form.get("ajuste_data_ponto"))
+    entrada = _normalizar_hora_hhmm(request.form.get("ajuste_entrada"))
+    saida_intervalo = _normalizar_hora_hhmm(request.form.get("ajuste_saida_intervalo"))
+    retorno_intervalo = _normalizar_hora_hhmm(request.form.get("ajuste_retorno_intervalo"))
+    saida = _normalizar_hora_hhmm(request.form.get("ajuste_saida"))
+    observacoes = str(request.form.get("ajuste_observacoes") or "").strip()
+    total = _calcular_total_horas_ponto(entrada, saida_intervalo, retorno_intervalo, saida)
+    status = _status_ponto(entrada, saida_intervalo, retorno_intervalo, saida, ajustado=True)
+    existente = buscar_registro_ponto(int(funcionario_id_texto), data_ponto)
+
+    with conectar_db() as conn:
+        if existente:
+            conn.execute(
+                """
+                UPDATE registros_ponto
+                SET funcionario_nome = ?, entrada = ?, saida_intervalo = ?, retorno_intervalo = ?,
+                    saida = ?, total_trabalhado = ?, status = ?, observacoes = ?, ajustado_por = ?, atualizado_em = ?
+                WHERE id = ? AND empresa_id = ?
+                """,
+                (funcionario["nome"], entrada, saida_intervalo, retorno_intervalo, saida, total, status, observacoes, session.get("usuario_nome") or "Administrador", agora_empresa().isoformat(timespec="seconds"), existente["id"], empresa_logada_id()),
+            )
+        else:
+            conn.execute(
+                """
+                INSERT INTO registros_ponto (
+                    empresa_id, funcionario_id, funcionario_nome, data_ponto, entrada, saida_intervalo,
+                    retorno_intervalo, saida, total_trabalhado, status, observacoes, ajustado_por, atualizado_em
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (empresa_logada_id(), int(funcionario_id_texto), funcionario["nome"], data_ponto, entrada, saida_intervalo, retorno_intervalo, saida, total, status, observacoes, session.get("usuario_nome") or "Administrador", agora_empresa().isoformat(timespec="seconds")),
+            )
+        conn.commit()
+
+    return True, "Ponto ajustado com sucesso."
+
+
 @app.get("/admin/dashboard")
 def admin_dashboard() -> str | Response:
     if not usuario_logado_eh_admin_sistema():
@@ -14032,6 +14465,114 @@ def excluir_orcamento(orcamento_id: int) -> Response:
 
     return redirect(url_for("orcamentos"))
 
+
+
+@app.route("/agendamentos", methods=["GET", "POST"])
+def agendamentos() -> str | Response:
+    if request.method == "POST":
+        dados = montar_agendamento_formulario()
+        if not dados["cliente_nome"]:
+            return redirect(url_for("agendamentos", erro="Informe o cliente do agendamento."))
+        if not dados["servico_nome"]:
+            return redirect(url_for("agendamentos", erro="Informe o serviço do agendamento."))
+        if not dados["data_agendamento"] or not dados["hora_inicio"]:
+            return redirect(url_for("agendamentos", erro="Informe data e horário inicial."))
+        agendamento_id = salvar_agendamento_db(dados)
+        registrar_atividade_usuario("criacao", "agendamentos", f"Criou agendamento #{agendamento_id}", request.path)
+        return redirect(url_for("agendamentos", sucesso="Agendamento criado com sucesso."))
+
+    data_inicio = request.args.get("data_inicio") or hoje_empresa().isoformat()
+    data_fim = request.args.get("data_fim") or data_inicio
+    status = request.args.get("status") or ""
+    editar_id = request.args.get("editar_id") or ""
+    agendamento_edicao = buscar_agendamento_por_id(int(editar_id)) if str(editar_id).isdigit() else None
+
+    return render_template(
+        "agendamentos.html",
+        agendamentos=listar_agendamentos(data_inicio, data_fim, status),
+        funcionarios=listar_funcionarios(),
+        servicos=listar_servicos(),
+        data_inicio=_normalizar_data_iso(data_inicio),
+        data_fim=_normalizar_data_iso(data_fim, _normalizar_data_iso(data_inicio)),
+        status_filtro=status,
+        agendamento_edicao=agendamento_edicao,
+        status_opcoes=AGENDAMENTOS_STATUS,
+        erro=request.args.get("erro") or "",
+        sucesso=request.args.get("sucesso") or "",
+    )
+
+
+@app.post("/agendamentos/<int:agendamento_id>/editar")
+def editar_agendamento(agendamento_id: int) -> Response:
+    if buscar_agendamento_por_id(agendamento_id) is None:
+        return redirect(url_for("agendamentos", erro="Agendamento não encontrado."))
+    dados = montar_agendamento_formulario()
+    if not dados["cliente_nome"] or not dados["servico_nome"]:
+        return redirect(url_for("agendamentos", editar_id=agendamento_id, erro="Informe cliente e serviço."))
+    atualizar_agendamento_db(agendamento_id, dados)
+    registrar_atividade_usuario("edicao", "agendamentos", f"Editou agendamento #{agendamento_id}", request.path)
+    return redirect(url_for("agendamentos", sucesso="Agendamento atualizado com sucesso."))
+
+
+@app.post("/agendamentos/<int:agendamento_id>/status")
+def status_agendamento(agendamento_id: int) -> Response:
+    atualizar_status_agendamento_db(agendamento_id, request.form.get("status"))
+    return redirect(url_for("agendamentos"))
+
+
+@app.post("/agendamentos/<int:agendamento_id>/gerar-venda")
+def gerar_venda_agendamento(agendamento_id: int) -> Response:
+    venda_id = gerar_venda_por_agendamento_db(agendamento_id)
+    if venda_id is None:
+        return redirect(url_for("agendamentos", erro="Não foi possível gerar venda para este agendamento."))
+    registrar_atividade_usuario("criacao", "agendamentos", f"Gerou venda pelo agendamento #{agendamento_id}", request.path)
+    return redirect(url_for("ver_venda", venda_id=venda_id))
+
+
+@app.post("/agendamentos/<int:agendamento_id>/excluir")
+def excluir_agendamento(agendamento_id: int) -> Response:
+    excluir_agendamento_db(agendamento_id)
+    return redirect(url_for("agendamentos", sucesso="Agendamento excluído."))
+
+
+@app.route("/registro-ponto", methods=["GET", "POST"])
+def registro_ponto() -> str | Response:
+    if request.method == "POST":
+        funcionario_id_texto = str(request.form.get("funcionario_id") or "").strip()
+        acao = str(request.form.get("acao") or "").strip()
+        if not funcionario_id_texto.isdigit():
+            return redirect(url_for("registro_ponto", erro="Selecione o funcionário para bater ponto."))
+        ok, mensagem = bater_ponto_db(int(funcionario_id_texto), acao)
+        parametro = "sucesso" if ok else "erro"
+        return redirect(url_for("registro_ponto", funcionario_id=funcionario_id_texto, **{parametro: mensagem}))
+
+    funcionario_id = request.args.get("funcionario_id") or ""
+    data_inicio = request.args.get("data_inicio") or hoje_empresa().isoformat()
+    data_fim = request.args.get("data_fim") or data_inicio
+    registro_hoje = None
+    if str(funcionario_id).isdigit():
+        registro_hoje = buscar_registro_ponto(int(funcionario_id), hoje_empresa().isoformat())
+
+    return render_template(
+        "registro_ponto.html",
+        funcionarios=listar_funcionarios(),
+        funcionario_id=str(funcionario_id),
+        data_inicio=_normalizar_data_iso(data_inicio),
+        data_fim=_normalizar_data_iso(data_fim, _normalizar_data_iso(data_inicio)),
+        registros=listar_registros_ponto(data_inicio, data_fim, funcionario_id),
+        registro_hoje=registro_hoje,
+        acoes_ponto=PONTO_ACOES,
+        erro=request.args.get("erro") or "",
+        sucesso=request.args.get("sucesso") or "",
+    )
+
+
+@app.post("/registro-ponto/ajustar")
+def ajustar_registro_ponto() -> Response:
+    ok, mensagem = ajustar_ponto_db()
+    parametro = "sucesso" if ok else "erro"
+    funcionario_id = request.form.get("ajuste_funcionario_id") or ""
+    return redirect(url_for("registro_ponto", funcionario_id=funcionario_id, **{parametro: mensagem}))
 
 
 @app.post("/assistente/perguntar")

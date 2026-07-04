@@ -162,6 +162,36 @@ Motivo: Adicionar atalho para instalação PWA mantendo menu dinâmico por módu
             </li>
             {% endif %}
 
+            {% if _modulos.get('agendamentos', true) %}
+            <li class="menu-group {% if _path.startswith('/agendamentos') %}active{% endif %}">
+                <details {% if _path.startswith('/agendamentos') %}open{% endif %}>
+                    <summary>
+                        <span class="menu-label"><span class="menu-icon">◷</span><span>Agendamentos</span></span>
+                        <span class="arrow">⌄</span>
+                    </summary>
+                    <ul class="submenu">
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Agendamentos</strong></li>
+                        <li class="{% if _path.startswith('/agendamentos') %}submenu-active{% endif %}"><a href="/agendamentos">Agenda</a></li>
+                    </ul>
+                </details>
+            </li>
+            {% endif %}
+
+            {% if _modulos.get('registro_ponto', true) %}
+            <li class="menu-group {% if _path.startswith('/registro-ponto') %}active{% endif %}">
+                <details {% if _path.startswith('/registro-ponto') %}open{% endif %}>
+                    <summary>
+                        <span class="menu-label"><span class="menu-icon">◴</span><span>Registro de Ponto</span></span>
+                        <span class="arrow">⌄</span>
+                    </summary>
+                    <ul class="submenu">
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Registro de Ponto</strong></li>
+                        <li class="{% if _path.startswith('/registro-ponto') %}submenu-active{% endif %}"><a href="/registro-ponto">Bater ponto</a></li>
+                    </ul>
+                </details>
+            </li>
+            {% endif %}
+
             {% if _usuario_sidebar and _usuario_sidebar.email in ["admin@gestflow.local", "nettosantana@icloud.com"] %}
             <li class="menu-group {% if _path.startswith('/admin') %}active{% endif %}">
                 <details {% if _path.startswith('/admin') %}open{% endif %}>
