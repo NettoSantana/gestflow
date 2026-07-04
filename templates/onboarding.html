@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\onboarding.html
-Último recode: 2026-07-04 14:35 (America/Bahia)
-Motivo: Criar anamnese de módulos no primeiro acesso com sugestão automática por segmento.
+Último recode: 2026-07-04 15:10 (America/Bahia)
+Motivo: Transformar anamnese em assistente tela a tela, com uma pergunta por etapa e visual mais leve.
 -->
 
 <!DOCTYPE html>
@@ -11,6 +11,424 @@ Motivo: Criar anamnese de módulos no primeiro acesso com sugestão automática 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GESTFLOW - Anamnese da empresa</title>
     <link rel="stylesheet" href="/static/css/dashboard.css">
+
+    <style>
+        /* ANAMNESE TELA A TELA */
+        body.onboarding-modulos-page {
+            min-height: 100vh;
+            background: #eef3fb;
+            color: #0f172a;
+            overflow-x: hidden;
+        }
+
+        .onboarding-trial {
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 8px 16px;
+            background: #071a2b;
+            color: #e5eefb;
+            font-size: 13px;
+            font-weight: 800;
+            text-align: center;
+        }
+
+        .onboarding-trial button {
+            min-height: 32px;
+            padding: 0 12px;
+            border: 0;
+            border-radius: 999px;
+            background: #16a34a;
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 900;
+            cursor: pointer;
+        }
+
+        .onboarding-topbar {
+            height: 74px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 22px;
+            background: #ffffff;
+            border-bottom: 1px solid #e5eaf2;
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+        }
+
+        .onboarding-topbar img {
+            width: 176px;
+            max-width: 55vw;
+            height: auto;
+            display: block;
+            object-fit: contain;
+        }
+
+        .onboarding-topbar a {
+            color: #0f172a;
+            font-size: 13px;
+            font-weight: 900;
+            text-decoration: none;
+        }
+
+        .onboarding-wrap.onboarding-wide {
+            width: min(900px, calc(100% - 28px));
+            margin: 0 auto;
+            padding: 22px 0 44px;
+        }
+
+        .onboarding-intro-card {
+            margin-bottom: 14px;
+            padding: 18px;
+            border: 1px solid #e5eaf2;
+            border-radius: 18px;
+            background: #ffffff;
+            box-shadow: 0 14px 34px rgba(15, 23, 42, 0.07);
+        }
+
+        .onboarding-intro-card h1 {
+            margin: 5px 0 8px;
+            font-size: clamp(20px, 3vw, 28px);
+            line-height: 1.15;
+            font-weight: 900;
+        }
+
+        .onboarding-intro-card p {
+            max-width: 720px;
+            margin: 0;
+            color: #64748b;
+            font-size: 13px;
+            line-height: 1.45;
+            font-weight: 750;
+        }
+
+        .onboarding-progress-steps {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+            margin: 0 0 14px;
+        }
+
+        .onboarding-progress-steps span {
+            height: 9px;
+            border-radius: 999px;
+            background: #dbe3ef;
+        }
+
+        .onboarding-progress-steps span.active {
+            background: #0f62fe;
+        }
+
+        #onboarding-form {
+            display: block;
+        }
+
+        .onboarding-step {
+            display: none !important;
+        }
+
+        .onboarding-step.active {
+            min-height: 440px;
+            display: flex !important;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 18px;
+            padding: 22px;
+            border: 1px solid #e5eaf2;
+            border-radius: 18px;
+            background: #ffffff;
+            box-shadow: 0 14px 34px rgba(15, 23, 42, 0.07);
+        }
+
+        .onboarding-question {
+            margin: 0;
+            color: #0f172a;
+            font-size: clamp(19px, 2.5vw, 25px);
+            line-height: 1.2;
+            font-weight: 900;
+        }
+
+        .onboarding-question.small-question {
+            margin-top: 6px;
+            font-size: 17px;
+        }
+
+        .segment-filter-wrap {
+            margin-top: -6px;
+        }
+
+        .segment-filter-wrap .form-control {
+            width: min(420px, 100%);
+            height: 42px;
+            border: 1px solid #dbe3ef;
+            border-radius: 12px;
+            padding: 0 14px;
+            font-size: 14px;
+        }
+
+        .onboarding-options {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+            margin: 0;
+        }
+
+        .onboarding-options.two,
+        .onboarding-options.three,
+        .onboarding-options.single {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            width: 100%;
+        }
+
+        .segments-grid {
+            max-height: 430px;
+            overflow-y: auto;
+            padding-right: 6px;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .segments-grid::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .segments-grid::-webkit-scrollbar-thumb {
+            border-radius: 999px;
+            background: #cbd5e1;
+        }
+
+        .onboarding-option {
+            min-height: 72px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px;
+            border: 1px solid #dbe3ef;
+            border-radius: 14px;
+            background: #ffffff;
+            color: #0f172a;
+            box-shadow: 0 6px 16px rgba(15, 23, 42, 0.04);
+            cursor: pointer;
+            transition: border-color .15s ease, background .15s ease, box-shadow .15s ease, transform .15s ease;
+            user-select: none;
+            font-size: 14px;
+            font-weight: 900;
+        }
+
+        .onboarding-option:hover,
+        .onboarding-option.selected {
+            border-color: #0f62fe;
+            background: #eff6ff;
+            box-shadow: 0 10px 22px rgba(15, 98, 254, 0.10);
+            transform: translateY(-1px);
+        }
+
+        .onboarding-option input {
+            width: 18px;
+            height: 18px;
+            accent-color: #16a34a;
+            flex: 0 0 auto;
+        }
+
+        .onboarding-option strong {
+            display: block;
+            font-size: 14px;
+            line-height: 1.25;
+        }
+
+        .onboarding-option small {
+            display: block;
+            margin-top: 3px;
+            color: #64748b;
+            font-size: 11px;
+            font-weight: 900;
+        }
+
+        .onboarding-columns {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .onboarding-columns h3 {
+            margin: 0 0 10px;
+            color: #0f62fe;
+            font-size: 13px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .onboarding-review-subtitle {
+            margin-top: -8px;
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 750;
+        }
+
+        .onboarding-review-panel {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .onboarding-review-panel div {
+            padding: 14px;
+            border: 1px solid #e5eaf2;
+            border-radius: 14px;
+            background: #f8fafc;
+        }
+
+        .onboarding-review-panel strong {
+            display: block;
+            margin-bottom: 4px;
+            color: #64748b;
+            font-size: 11px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .onboarding-review-panel span {
+            color: #0f172a;
+            font-size: 14px;
+            font-weight: 900;
+        }
+
+        .onboarding-modules-preview {
+            max-height: 360px;
+            overflow-y: auto;
+            padding-right: 6px;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .module-disabled-preview {
+            opacity: .45;
+            filter: grayscale(.55);
+        }
+
+        .module-warning-box {
+            padding: 12px 14px;
+            border: 1px solid #fde68a;
+            border-radius: 12px;
+            background: #fffbeb;
+            color: #92400e;
+            font-size: 12px;
+            font-weight: 850;
+        }
+
+        .onboarding-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 4px;
+        }
+
+        .onboarding-back,
+        .onboarding-next,
+        .onboarding-finish {
+            min-width: 118px;
+            height: 42px;
+            border: 0;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 900;
+            cursor: pointer;
+        }
+
+        .onboarding-back {
+            background: #f1f5f9;
+            color: #334155;
+        }
+
+        .onboarding-next {
+            background: #0f62fe;
+            color: #ffffff;
+        }
+
+        .onboarding-finish {
+            background: #16a34a;
+            color: #ffffff;
+        }
+
+        .onboarding-skip {
+            display: block;
+            margin: 14px auto 0;
+            border: 0;
+            background: transparent;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 900;
+            cursor: pointer;
+        }
+
+        @media (max-width: 760px) {
+            .onboarding-trial {
+                align-items: stretch;
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .onboarding-topbar {
+                height: 66px;
+                padding: 0 14px;
+            }
+
+            .onboarding-topbar img {
+                width: 146px;
+            }
+
+            .onboarding-wrap.onboarding-wide {
+                width: min(100% - 18px, 900px);
+                padding-top: 12px;
+            }
+
+            .onboarding-intro-card {
+                padding: 14px;
+            }
+
+            .onboarding-intro-card p {
+                font-size: 12px;
+            }
+
+            .onboarding-step.active {
+                min-height: calc(100vh - 245px);
+                padding: 16px;
+            }
+
+            .onboarding-options,
+            .onboarding-options.two,
+            .onboarding-options.three,
+            .onboarding-options.single,
+            .segments-grid,
+            .onboarding-columns,
+            .onboarding-review-panel,
+            .onboarding-modules-preview {
+                grid-template-columns: 1fr;
+            }
+
+            .segments-grid {
+                max-height: calc(100vh - 380px);
+                min-height: 260px;
+            }
+
+            .onboarding-option {
+                min-height: 62px;
+            }
+
+            .onboarding-actions {
+                justify-content: stretch;
+            }
+
+            .onboarding-back,
+            .onboarding-next,
+            .onboarding-finish {
+                flex: 1;
+                min-width: 0;
+            }
+        }
+    </style>
+
 </head>
 <body class="onboarding-page onboarding-modulos-page">
     <div class="onboarding-trial">
@@ -27,7 +445,7 @@ Motivo: Criar anamnese de módulos no primeiro acesso com sugestão automática 
         <div class="onboarding-intro-card">
             <span class="page-kicker">Anamnese da empresa</span>
             <h1>Vamos deixar o GestFlow com a cara da sua operação{% if empresa.nome_fantasia %}, {{ empresa.nome_fantasia }}{% endif %}.</h1>
-            <p>Responda algumas perguntas rápidas. No final, o sistema sugere os módulos ideais e você pode revisar antes de salvar. Nada é apagado: os módulos podem ser reativados em Configurações.</p>
+            <p>Responda uma etapa por vez. No final, o sistema sugere os módulos ideais e você revisa antes de salvar. Nada é apagado.</p>
         </div>
 
         <form id="onboarding-form" action="/onboarding" method="post">
