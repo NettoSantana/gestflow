@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\configuracoes.html
 Último recode: 2026-07-04 14:35 (America/Bahia)
-Motivo: Adicionar acesso para refazer anamnese de módulos da empresa.
+Motivo: Corrigir bloco de módulos e deixar aviso compacto na tela de configurações.
 -->
 
 <!DOCTYPE html>
@@ -503,8 +503,6 @@ Motivo: Adicionar acesso para refazer anamnese de módulos da empresa.
                             <button type="submit" form="refazer-anamnese-form" class="btn-dark">Refazer anamnese</button>
                         </div>
 
-                        </div>
-
                         <div class="modules-grid">
                             {% for modulo in modulos_sistema %}
                                 {% set codigo_modulo = modulo.codigo %}
@@ -852,6 +850,33 @@ Motivo: Adicionar acesso para refazer anamnese de módulos da empresa.
             .config-menu-item.disabled {
                 opacity: 0.55;
                 cursor: not-allowed;
+            }
+
+
+            .module-warning-box {
+                width: 100%;
+                margin-top: 14px;
+                padding: 10px 12px;
+                min-height: 0;
+                border: 1px solid #fed7aa;
+                border-radius: 12px;
+                background: #fff7ed;
+                color: #9a3412;
+                font-size: 12px;
+                line-height: 1.35;
+                font-weight: 800;
+            }
+
+            .module-warning-box strong {
+                color: #7c2d12;
+            }
+
+            @media (max-width: 720px) {
+                .module-warning-box {
+                    margin-top: 12px;
+                    padding: 9px 10px;
+                    font-size: 11px;
+                }
             }
 
 
