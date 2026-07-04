@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-02 22:56 (America/Bahia)
-# Motivo: Corrigir migração da coluna origem_orcamento_id em ordens_servico para evitar erro no Railway.
+# Último recode: 2026-07-04 13:55 (America/Bahia)
+# Motivo: Criar controle de módulos por empresa, menu dinâmico e configuração manual dos módulos.
 
 from __future__ import annotations
 
@@ -56,6 +56,127 @@ FUSOS_HORARIOS_GESTFLOW = [
 ]
 FUSOS_HORARIOS_VALIDOS = {item["valor"] for item in FUSOS_HORARIOS_GESTFLOW}
 
+GESTFLOW_MODULOS = [
+    {"codigo": "clientes", "nome": "Clientes", "grupo": "Cadastros", "descricao": "Cadastro e histórico de clientes."},
+    {"codigo": "fornecedores", "nome": "Fornecedores", "grupo": "Cadastros", "descricao": "Cadastro de fornecedores e parceiros."},
+    {"codigo": "funcionarios", "nome": "Funcionários", "grupo": "Cadastros", "descricao": "Equipe, responsáveis, técnicos e custos de mão de obra."},
+    {"codigo": "produtos", "nome": "Produtos", "grupo": "Operação", "descricao": "Cadastro de produtos e itens comercializados."},
+    {"codigo": "servicos", "nome": "Serviços", "grupo": "Operação", "descricao": "Cadastro de serviços prestados."},
+    {"codigo": "orcamentos", "nome": "Orçamentos", "grupo": "Comercial", "descricao": "Propostas comerciais e orçamentos manuais."},
+    {"codigo": "gerador_orcamentos", "nome": "Gerador de Orçamentos", "grupo": "Comercial", "descricao": "Gerador técnico com materiais, mão de obra, custos e escopo."},
+    {"codigo": "vendas", "nome": "Vendas", "grupo": "Comercial", "descricao": "Registro de vendas completas."},
+    {"codigo": "pdv", "nome": "Balcão / PDV", "grupo": "Comercial", "descricao": "Venda rápida de balcão e caixa."},
+    {"codigo": "devolucoes", "nome": "Devoluções", "grupo": "Comercial", "descricao": "Devoluções vinculadas às vendas e retorno de estoque."},
+    {"codigo": "ordens_servico", "nome": "Ordens de Serviço", "grupo": "Serviços", "descricao": "Abertura, execução, acompanhamento e impressão de OS."},
+    {"codigo": "painel_os", "nome": "Painel de OS", "grupo": "Serviços", "descricao": "Painel operacional das ordens de serviço."},
+    {"codigo": "estoque", "nome": "Estoque", "grupo": "Gestão", "descricao": "Movimentações, ajustes, compras e saldos de produtos."},
+    {"codigo": "financeiro", "nome": "Financeiro", "grupo": "Gestão", "descricao": "Contas a pagar, contas a receber e fluxo de caixa."},
+]
+
+GESTFLOW_MODULOS_PADRAO = {modulo["codigo"]: True for modulo in GESTFLOW_MODULOS}
+GESTFLOW_MODULOS_CODIGOS = set(GESTFLOW_MODULOS_PADRAO)
+
+
+def normalizar_modulos_empresa(valor: Any) -> dict[str, bool]:
+    modulos = dict(GESTFLOW_MODULOS_PADRAO)
+
+    if not valor:
+        return modulos
+
+    try:
+        dados = json.loads(str(valor))
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return modulos
+
+    if isinstance(dados, dict):
+        for codigo in GESTFLOW_MODULOS_CODIGOS:
+            modulos[codigo] = bool(dados.get(codigo, True))
+    elif isinstance(dados, list):
+        ativos = {str(item) for item in dados}
+        for codigo in GESTFLOW_MODULOS_CODIGOS:
+            modulos[codigo] = codigo in ativos
+
+    return modulos
+
+
+def serializar_modulos_empresa(modulos: dict[str, bool]) -> str:
+    normalizado = {codigo: bool(modulos.get(codigo, True)) for codigo in sorted(GESTFLOW_MODULOS_CODIGOS)}
+    return json.dumps(normalizado, ensure_ascii=False, sort_keys=True)
+
+
+def buscar_modulos_empresa(empresa_id: int | None = None) -> dict[str, bool]:
+    empresa = int(empresa_id or empresa_logada_id())
+
+    try:
+        with conectar_db() as conn:
+            row = conn.execute(
+                """
+                SELECT modulos_ativos
+                FROM empresas
+                WHERE id = ?
+                LIMIT 1
+                """,
+                (empresa,),
+            ).fetchone()
+    except sqlite3.Error:
+        return dict(GESTFLOW_MODULOS_PADRAO)
+
+    if row is None:
+        return dict(GESTFLOW_MODULOS_PADRAO)
+
+    return normalizar_modulos_empresa(row["modulos_ativos"])
+
+
+def modulo_empresa_ativo(codigo: str) -> bool:
+    codigo_normalizado = str(codigo or "").strip()
+
+    if not codigo_normalizado:
+        return True
+
+    return bool(buscar_modulos_empresa().get(codigo_normalizado, True))
+
+
+def salvar_modulos_empresa(codigos_ativos: list[str]) -> None:
+    empresa_id = empresa_logada_id()
+    ativos = {str(codigo or "").strip() for codigo in codigos_ativos}
+    modulos = {codigo: codigo in ativos for codigo in GESTFLOW_MODULOS_CODIGOS}
+
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            UPDATE empresas
+            SET modulos_ativos = ?
+            WHERE id = ?
+            """,
+            (serializar_modulos_empresa(modulos), empresa_id),
+        )
+        conn.commit()
+
+
+def modulo_por_rota(path: str) -> str:
+    caminho = str(path or "")
+    regras = [
+        ("/orcamentos/gerador", "gerador_orcamentos"),
+        ("/orcamentos", "orcamentos"),
+        ("/vendas/balcao", "pdv"),
+        ("/vendas/devolucoes", "devolucoes"),
+        ("/vendas", "vendas"),
+        ("/ordens-servico/painel", "painel_os"),
+        ("/ordens-servico", "ordens_servico"),
+        ("/clientes", "clientes"),
+        ("/fornecedores", "fornecedores"),
+        ("/funcionarios", "funcionarios"),
+        ("/produtos", "produtos"),
+        ("/servicos", "servicos"),
+        ("/estoque", "estoque"),
+        ("/financeiro", "financeiro"),
+    ]
+
+    for prefixo, codigo in regras:
+        if caminho.startswith(prefixo):
+            return codigo
+
+    return ""
 
 
 def _twiml_message(text: str) -> str:
@@ -353,6 +474,9 @@ def injetar_usuario_logado() -> dict[str, Any]:
         "data_hoje": formatar_data_br(hoje_empresa()),
         "data_hora_atual": formatar_data_hora_br(agora_empresa().isoformat(timespec="seconds")),
         "timezone_empresa": timezone_empresa(),
+        "gestflow_modulos": GESTFLOW_MODULOS,
+        "gestflow_modulos_ativos": buscar_modulos_empresa() if session.get("usuario_id") else dict(GESTFLOW_MODULOS_PADRAO),
+        "modulo_ativo": modulo_empresa_ativo,
     }
 
 
@@ -378,6 +502,9 @@ def exigir_login_rotas_internas() -> Response | None:
         return None
 
     if session.get("usuario_id"):
+        codigo_modulo = modulo_por_rota(request.path)
+        if codigo_modulo and not modulo_empresa_ativo(codigo_modulo):
+            return redirect("/configuracoes/modulos?erro=Módulo desativado para esta empresa.")
         return None
 
     return redirect(url_for("login"))
@@ -1163,6 +1290,19 @@ def iniciar_banco() -> None:
 
         if "tour_concluido" not in colunas_empresas:
             conn.execute("ALTER TABLE empresas ADD COLUMN tour_concluido TEXT DEFAULT 'nao'")
+
+        if "modulos_ativos" not in colunas_empresas:
+            conn.execute("ALTER TABLE empresas ADD COLUMN modulos_ativos TEXT")
+
+        conn.execute(
+            """
+            UPDATE empresas
+            SET modulos_ativos = ?
+            WHERE modulos_ativos IS NULL
+               OR TRIM(modulos_ativos) = ''
+            """,
+            (serializar_modulos_empresa(GESTFLOW_MODULOS_PADRAO),),
+        )
 
         colunas_config_gerador = {
             "gerador_margem_material": "TEXT DEFAULT '30'",
@@ -7528,7 +7668,8 @@ def buscar_empresa_configuracoes() -> dict[str, Any]:
                 onboarding_objetivos,
                 onboarding_ferramenta_atual,
                 onboarding_canal_contato,
-                tour_concluido
+                tour_concluido,
+                modulos_ativos
             FROM empresas
             WHERE id = ?
             LIMIT 1
@@ -7558,6 +7699,7 @@ def buscar_empresa_configuracoes() -> dict[str, Any]:
             "onboarding_ferramenta_atual": "",
             "onboarding_canal_contato": "",
             "tour_concluido": "nao",
+            "modulos_ativos": serializar_modulos_empresa(GESTFLOW_MODULOS_PADRAO),
             "plano": "Start",
             "status": "ativo",
             "criado_em": "",
@@ -7565,6 +7707,7 @@ def buscar_empresa_configuracoes() -> dict[str, Any]:
 
     empresa = dict(row)
     empresa["timezone"] = normalizar_timezone_empresa(empresa.get("timezone"))
+    empresa["modulos_ativos"] = normalizar_modulos_empresa(empresa.get("modulos_ativos"))
     return empresa
 
 
@@ -7624,6 +7767,8 @@ def montar_configuracoes_contexto() -> dict[str, Any]:
         "usuarios": listar_usuarios_configuracoes(),
         "lojas": listar_lojas_configuracoes(),
         "fusos_horarios": FUSOS_HORARIOS_GESTFLOW,
+        "modulos_sistema": GESTFLOW_MODULOS,
+        "modulos_ativos": buscar_modulos_empresa(empresa_id),
     }
 
 
@@ -8856,6 +9001,7 @@ def admin_excluir_empresa(empresa_id: int) -> Response:
 @app.get("/configuracoes/empresa")
 @app.get("/configuracoes/marca")
 @app.get("/configuracoes/lojas")
+@app.get("/configuracoes/modulos")
 def configuracoes() -> str:
     aba = "gerais"
 
@@ -8869,6 +9015,8 @@ def configuracoes() -> str:
         aba = "marca"
     elif request.path.endswith("/lojas"):
         aba = "lojas"
+    elif request.path.endswith("/modulos"):
+        aba = "modulos"
 
     contexto = montar_contexto_configuracoes_listas(montar_configuracoes_contexto())
 
@@ -8887,9 +9035,18 @@ def configuracoes() -> str:
         ordenar=contexto["ordenar_config"],
         direcao=contexto["direcao_config"],
         fusos_horarios=contexto["fusos_horarios"],
+        modulos_sistema=contexto["modulos_sistema"],
+        modulos_ativos=contexto["modulos_ativos"],
         erro=request.args.get("erro", ""),
         sucesso=request.args.get("sucesso", ""),
     )
+
+
+@app.post("/configuracoes/modulos")
+def salvar_configuracoes_modulos() -> Response:
+    codigos_ativos = request.form.getlist("modulos_ativos")
+    salvar_modulos_empresa(codigos_ativos)
+    return redirect("/configuracoes/modulos?sucesso=Módulos atualizados com sucesso.")
 
 
 @app.post("/configuracoes/gerais")

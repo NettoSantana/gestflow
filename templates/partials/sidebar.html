@@ -1,7 +1,7 @@
 {#
 Caminho: templates/partials/sidebar.html
-Último recode: 2026-07-01 18:55 (America/Bahia)
-Motivo: Incluir widget flutuante do Assistente IA no sistema.
+Último recode: 2026-07-04 13:55 (America/Bahia)
+Motivo: Aplicar menu lateral dinâmico conforme módulos ativos da empresa.
 #}
 {% set _path = request.path if request is defined else '' %}
 {% set _usuario_sidebar = usuario_logado|default({}, true) %}
@@ -18,6 +18,12 @@ Motivo: Incluir widget flutuante do Assistente IA no sistema.
     <button class="mobile-submenu-floating-back" type="button" aria-label="Voltar para o menu principal">← VOLTAR</button>
 
     <nav class="sidebar-nav">
+        {% set _modulos = gestflow_modulos_ativos|default({}, true) %}
+        {% set _cadastros_ativo = _modulos.get('clientes', true) or _modulos.get('fornecedores', true) or _modulos.get('funcionarios', true) %}
+        {% set _vendas_ativo = _modulos.get('vendas', true) or _modulos.get('pdv', true) or _modulos.get('devolucoes', true) %}
+        {% set _orcamentos_ativo = _modulos.get('orcamentos', true) or _modulos.get('gerador_orcamentos', true) %}
+        {% set _os_ativo = _modulos.get('ordens_servico', true) or _modulos.get('painel_os', true) %}
+
         <ul class="menu">
             <li class="menu-item {% if _path == '/' %}active{% endif %}">
                 <a href="/">
@@ -26,6 +32,7 @@ Motivo: Incluir widget flutuante do Assistente IA no sistema.
                 </a>
             </li>
 
+            {% if _cadastros_ativo %}
             <li class="menu-group {% if _path.startswith('/clientes') or _path.startswith('/fornecedores') or _path.startswith('/funcionarios') %}active{% endif %}">
                 <details {% if _path.startswith('/clientes') or _path.startswith('/fornecedores') or _path.startswith('/funcionarios') %}open{% endif %}>
                     <summary>
@@ -34,15 +41,15 @@ Motivo: Incluir widget flutuante do Assistente IA no sistema.
                     </summary>
                     <ul class="submenu">
                         <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Cadastros</strong></li>
-                        <li class="{% if _path.startswith('/clientes') %}submenu-active{% endif %}"><a href="/clientes">Clientes</a></li>
-                        <li class="{% if _path.startswith('/fornecedores') %}submenu-active{% endif %}"><a href="/fornecedores">Fornecedores</a></li>
-                        <li class="{% if _path.startswith('/funcionarios') %}submenu-active{% endif %}"><a href="/funcionarios">Funcionários</a></li>
-                        <li>Veículos</li>
-                        <li>Opções auxiliares</li>
+                        {% if _modulos.get('clientes', true) %}<li class="{% if _path.startswith('/clientes') %}submenu-active{% endif %}"><a href="/clientes">Clientes</a></li>{% endif %}
+                        {% if _modulos.get('fornecedores', true) %}<li class="{% if _path.startswith('/fornecedores') %}submenu-active{% endif %}"><a href="/fornecedores">Fornecedores</a></li>{% endif %}
+                        {% if _modulos.get('funcionarios', true) %}<li class="{% if _path.startswith('/funcionarios') %}submenu-active{% endif %}"><a href="/funcionarios">Funcionários</a></li>{% endif %}
                     </ul>
                 </details>
             </li>
+            {% endif %}
 
+            {% if _modulos.get('produtos', true) %}
             <li class="menu-group {% if _path.startswith('/produtos') %}active{% endif %}">
                 <details {% if _path.startswith('/produtos') %}open{% endif %}>
                     <summary>
@@ -52,11 +59,12 @@ Motivo: Incluir widget flutuante do Assistente IA no sistema.
                     <ul class="submenu">
                         <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Produtos</strong></li>
                         <li class="{% if _path.startswith('/produtos') %}submenu-active{% endif %}"><a href="/produtos">Gerenciar produtos</a></li>
-                        <li>Opções auxiliares</li>
                     </ul>
                 </details>
             </li>
+            {% endif %}
 
+            {% if _modulos.get('servicos', true) %}
             <li class="menu-group {% if _path.startswith('/servicos') %}active{% endif %}">
                 <details {% if _path.startswith('/servicos') %}open{% endif %}>
                     <summary>
@@ -66,11 +74,12 @@ Motivo: Incluir widget flutuante do Assistente IA no sistema.
                     <ul class="submenu">
                         <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Serviços</strong></li>
                         <li class="{% if _path.startswith('/servicos') %}submenu-active{% endif %}"><a href="/servicos">Gerenciar serviços</a></li>
-                        <li>Opções auxiliares</li>
                     </ul>
                 </details>
             </li>
+            {% endif %}
 
+            {% if _orcamentos_ativo %}
             <li class="menu-group {% if _path.startswith('/orcamentos') %}active{% endif %}">
                 <details {% if _path.startswith('/orcamentos') %}open{% endif %}>
                     <summary>
@@ -79,13 +88,14 @@ Motivo: Incluir widget flutuante do Assistente IA no sistema.
                     </summary>
                     <ul class="submenu">
                         <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Orçamentos</strong></li>
-                        <li class="{% if _path == '/orcamentos' %}submenu-active{% endif %}"><a href="/orcamentos">Orçamentos</a></li>
-                        <li class="{% if _path.startswith('/orcamentos/gerador') %}submenu-active{% endif %}"><a href="/orcamentos/gerador">Gerador de Orçamentos</a></li>
-                        <li>Opções auxiliares</li>
+                        {% if _modulos.get('orcamentos', true) %}<li class="{% if _path == '/orcamentos' %}submenu-active{% endif %}"><a href="/orcamentos">Orçamentos</a></li>{% endif %}
+                        {% if _modulos.get('gerador_orcamentos', true) %}<li class="{% if _path.startswith('/orcamentos/gerador') %}submenu-active{% endif %}"><a href="/orcamentos/gerador">Gerador de Orçamentos</a></li>{% endif %}
                     </ul>
                 </details>
             </li>
+            {% endif %}
 
+            {% if _vendas_ativo %}
             <li class="menu-group {% if _path.startswith('/vendas') %}active{% endif %}">
                 <details {% if _path.startswith('/vendas') %}open{% endif %}>
                     <summary>
@@ -94,15 +104,15 @@ Motivo: Incluir widget flutuante do Assistente IA no sistema.
                     </summary>
                     <ul class="submenu">
                         <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Vendas</strong></li>
-                        <li class="{% if _path == '/vendas' %}submenu-active{% endif %}"><a href="/vendas">Produtos</a></li>
-                        <li class="{% if _path == '/vendas' %}submenu-active{% endif %}"><a href="/vendas">Serviços</a></li>
-                        <li class="{% if _path.startswith('/vendas/balcao') %}submenu-active{% endif %}"><a href="/vendas/balcao">Balcão / PDV</a></li>
-                        <li class="{% if _path.startswith('/vendas/devolucoes') %}submenu-active{% endif %}"><a href="/vendas/devolucoes">Devoluções</a></li>
-                        <li>Opções auxiliares</li>
+                        {% if _modulos.get('vendas', true) %}<li class="{% if _path == '/vendas' %}submenu-active{% endif %}"><a href="/vendas">Vendas</a></li>{% endif %}
+                        {% if _modulos.get('pdv', true) %}<li class="{% if _path.startswith('/vendas/balcao') %}submenu-active{% endif %}"><a href="/vendas/balcao">Balcão / PDV</a></li>{% endif %}
+                        {% if _modulos.get('devolucoes', true) %}<li class="{% if _path.startswith('/vendas/devolucoes') %}submenu-active{% endif %}"><a href="/vendas/devolucoes">Devoluções</a></li>{% endif %}
                     </ul>
                 </details>
             </li>
+            {% endif %}
 
+            {% if _os_ativo %}
             <li class="menu-group {% if _path.startswith('/ordens-servico') %}active{% endif %}">
                 <details {% if _path.startswith('/ordens-servico') %}open{% endif %}>
                     <summary>
@@ -111,13 +121,14 @@ Motivo: Incluir widget flutuante do Assistente IA no sistema.
                     </summary>
                     <ul class="submenu">
                         <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Ordens de Serviço</strong></li>
-                        <li class="{% if _path == '/ordens-servico' %}submenu-active{% endif %}"><a href="/ordens-servico">Gerenciar O.S.</a></li>
-                        <li class="{% if _path.startswith('/ordens-servico/painel') %}submenu-active{% endif %}"><a href="/ordens-servico/painel">Painel</a></li>
-                        <li>Opções auxiliares</li>
+                        {% if _modulos.get('ordens_servico', true) %}<li class="{% if _path == '/ordens-servico' %}submenu-active{% endif %}"><a href="/ordens-servico">Gerenciar O.S.</a></li>{% endif %}
+                        {% if _modulos.get('painel_os', true) %}<li class="{% if _path.startswith('/ordens-servico/painel') %}submenu-active{% endif %}"><a href="/ordens-servico/painel">Painel</a></li>{% endif %}
                     </ul>
                 </details>
             </li>
+            {% endif %}
 
+            {% if _modulos.get('estoque', true) %}
             <li class="menu-group {% if _path.startswith('/estoque') %}active{% endif %}">
                 <details {% if _path.startswith('/estoque') %}open{% endif %}>
                     <summary>
@@ -132,7 +143,9 @@ Motivo: Incluir widget flutuante do Assistente IA no sistema.
                     </ul>
                 </details>
             </li>
+            {% endif %}
 
+            {% if _modulos.get('financeiro', true) %}
             <li class="menu-group {% if _path.startswith('/financeiro') %}active{% endif %}">
                 <details {% if _path.startswith('/financeiro') %}open{% endif %}>
                     <summary>
@@ -144,11 +157,10 @@ Motivo: Incluir widget flutuante do Assistente IA no sistema.
                         <li class="{% if _path.startswith('/financeiro/pagar') %}submenu-active{% endif %}"><a href="/financeiro/pagar">Contas a pagar</a></li>
                         <li class="{% if _path.startswith('/financeiro/receber') %}submenu-active{% endif %}"><a href="/financeiro/receber">Contas a receber</a></li>
                         <li class="{% if _path.startswith('/financeiro/fluxo-caixa') or _path == '/financeiro' %}submenu-active{% endif %}"><a href="/financeiro/fluxo-caixa">Fluxo de caixa</a></li>
-                        <li>Contas bancárias</li>
-                        <li>Opções auxiliares</li>
                     </ul>
                 </details>
             </li>
+            {% endif %}
 
             {% if _usuario_sidebar and _usuario_sidebar.email in ["admin@gestflow.local", "nettosantana@icloud.com"] %}
             <li class="menu-group {% if _path.startswith('/admin') %}active{% endif %}">

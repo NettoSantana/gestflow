@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\configuracoes.html
 Último recode: 2026-07-02 19:20 (America/Bahia)
-Motivo: Adicionar paginação, busca, seletor por página e cabeçalho ordenável em usuários e lojas.
+Motivo: Criar aba de módulos para ativar ou ocultar recursos por empresa.
 -->
 
 <!DOCTYPE html>
@@ -177,6 +177,8 @@ Motivo: Adicionar paginação, busca, seletor por página e cabeçalho ordenáve
         {% set empresa = empresa|default({}) %}
         {% set usuarios = usuarios|default([]) %}
         {% set lojas = lojas|default([]) %}
+        {% set modulos_sistema = modulos_sistema|default([], true) %}
+        {% set modulos_ativos = modulos_ativos|default({}, true) %}
 
         <section class="panel page-section">
             <div class="panel-header page-header">
@@ -227,6 +229,15 @@ Motivo: Adicionar paginação, busca, seletor por página e cabeçalho ordenáve
                 </div>
             </a>
 
+            <a href="/configuracoes/modulos" class="card stat-card config-card-link {% if aba == 'modulos' %}config-active{% endif %}">
+                <div class="card-icon">▦</div>
+                <div class="card-info">
+                    <p>Módulos</p>
+                    <h3>Recursos ativos</h3>
+                    <span>Mostre apenas o necessário</span>
+                </div>
+            </a>
+
             <a href="/configuracoes/empresa" class="card stat-card config-card-link {% if aba == 'empresa' %}config-active{% endif %}">
                 <div class="card-icon">▣</div>
                 <div class="card-info">
@@ -271,6 +282,14 @@ Motivo: Adicionar paginação, busca, seletor por página e cabeçalho ordenáve
                         <div>
                             <strong>Usuários</strong>
                             <small>Equipe e permissões</small>
+                        </div>
+                    </a>
+
+                    <a href="/configuracoes/modulos" class="config-menu-item {% if aba == 'modulos' %}active{% endif %}">
+                        <span>▦</span>
+                        <div>
+                            <strong>Módulos do sistema</strong>
+                            <small>Ative só o que a empresa usa</small>
                         </div>
                     </a>
 
@@ -452,6 +471,77 @@ Motivo: Adicionar paginação, busca, seletor por página e cabeçalho ordenáve
                             <button type="submit" class="btn-primary-green">Redefinir senha</button>
                         </div>
                     </form>
+
+                {% elif aba == 'modulos' %}
+                    <div class="panel-header page-header">
+                        <div>
+                            <h3>Módulos do sistema</h3>
+                            <p class="page-subtitle">Escolha quais recursos esta empresa deve enxergar. Os módulos desativados somem do menu lateral e ficam bloqueados pelo link direto.</p>
+                        </div>
+                        <span class="badge-info">Menu inteligente</span>
+                    </div>
+
+                    <form class="client-form" action="/configuracoes/modulos" method="post">
+                        <div class="modules-toolbar">
+                            <div>
+                                <strong>Perfil da empresa</strong>
+                                <p class="page-subtitle">Exemplo: mercadinho pode ficar só com produtos, vendas, PDV, estoque e financeiro. Manutenção pode usar orçamento, OS, fotos e acompanhamento.</p>
+                            </div>
+                            <div class="modules-toolbar-actions">
+                                <button type="button" class="btn-light" data-module-action="commerce">Mercadinho / Loja</button>
+                                <button type="button" class="btn-light" data-module-action="service">Serviços / Manutenção</button>
+                                <button type="button" class="btn-light" data-module-action="all">Marcar todos</button>
+                                <button type="button" class="btn-light" data-module-action="none">Limpar</button>
+                            </div>
+                        </div>
+
+                        <div class="modules-grid">
+                            {% for modulo in modulos_sistema %}
+                                {% set codigo_modulo = modulo.codigo %}
+                                <label class="module-toggle-card" for="modulo_{{ codigo_modulo }}" data-module-code="{{ codigo_modulo }}">
+                                    <input id="modulo_{{ codigo_modulo }}" type="checkbox" name="modulos_ativos" value="{{ codigo_modulo }}" {% if modulos_ativos.get(codigo_modulo, true) %}checked{% endif %}>
+                                    <span class="module-toggle-visual"></span>
+                                    <div>
+                                        <strong>{{ modulo.nome }}</strong>
+                                        <small>{{ modulo.grupo }}</small>
+                                        <p>{{ modulo.descricao }}</p>
+                                    </div>
+                                </label>
+                            {% endfor %}
+                        </div>
+
+                        <div class="module-warning-box">
+                            <strong>Atenção:</strong> desativar um módulo não apaga dados. Ele apenas oculta do menu e bloqueia acesso direto. Você pode reativar quando quiser.
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn-primary-green">Salvar módulos</button>
+                        </div>
+                    </form>
+
+                    <script>
+                        document.addEventListener('DOMContentLoaded', function () {
+                            const perfis = {
+                                commerce: ['clientes', 'produtos', 'vendas', 'pdv', 'devolucoes', 'estoque', 'financeiro'],
+                                service: ['clientes', 'fornecedores', 'funcionarios', 'produtos', 'servicos', 'orcamentos', 'gerador_orcamentos', 'vendas', 'ordens_servico', 'painel_os', 'estoque', 'financeiro'],
+                                all: null,
+                                none: []
+                            };
+
+                            function aplicarPerfil(codigos) {
+                                document.querySelectorAll('.module-toggle-card input[type="checkbox"]').forEach(function (input) {
+                                    input.checked = codigos === null || codigos.includes(input.value);
+                                });
+                            }
+
+                            document.querySelectorAll('[data-module-action]').forEach(function (botao) {
+                                botao.addEventListener('click', function () {
+                                    const acao = botao.getAttribute('data-module-action');
+                                    aplicarPerfil(perfis[acao]);
+                                });
+                            });
+                        });
+                    </script>
 
                 {% elif aba == 'empresa' %}
                     <div class="panel-header page-header">
