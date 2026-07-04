@@ -1,0 +1,161 @@
+<!--
+Caminho: templates/agendamento_publico.html
+Último recode: 2026-07-04 17:55 (America/Bahia)
+Motivo: Criar tela pública para clientes marcarem horário pelo link da empresa.
+-->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agendar horário - GestFlow</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body class="public-schedule-body">
+    <main class="public-schedule-page">
+        <section class="public-schedule-card">
+            {% if empresa %}
+                <div class="public-schedule-header">
+                    {% if empresa.logo_path %}<img src="{{ empresa.logo_path }}" alt="{{ empresa.nome_fantasia }}" class="public-schedule-logo">{% endif %}
+                    <span class="page-kicker">Agenda online</span>
+                    <h1>{{ empresa.nome_fantasia }}</h1>
+                    <p>Marque seu horário de forma rápida. A empresa receberá sua solicitação no GestFlow.</p>
+                </div>
+
+                {% if mensagem %}<div class="schedule-alert error">{{ mensagem }}</div>{% endif %}
+                {% if sucesso %}<div class="schedule-alert success">{{ sucesso }}</div>{% endif %}
+
+                {% if sucesso %}
+                    <div class="public-schedule-success">
+                        <strong>Solicitação enviada</strong>
+                        <p>Seu agendamento foi registrado. Aguarde a confirmação da empresa pelo WhatsApp.</p>
+                        <a href="/agendar/{{ codigo_empresa }}" class="btn-dark">Fazer outro agendamento</a>
+                    </div>
+                {% else %}
+                    {% if cliente %}
+                        <div class="public-client-box">
+                            <div>
+                                <strong>Olá, {{ cliente.nome }}.</strong>
+                                <span>Escolha o serviço, data e horário.</span>
+                            </div>
+                            <button type="button" class="btn-light" onclick="trocarClientePublico()">Não sou eu</button>
+                        </div>
+
+                        <form method="post" class="public-schedule-form" id="bookingForm">
+                            <input type="hidden" name="etapa" value="confirmar">
+                            <input type="hidden" name="token_cliente" value="{{ token_cliente }}">
+                            <input type="hidden" name="nome" value="{{ cliente.nome }}">
+                            <input type="hidden" name="telefone" value="{{ cliente.telefone }}">
+
+                            <div class="form-group">
+                                <label>Serviço</label>
+                                <select class="form-control" name="servico_nome" required>
+                                    <option value="">Selecione o serviço</option>
+                                    {% for servico in servicos %}
+                                    <option value="{{ servico.nome }}" data-valor="{{ servico.valor_venda }}">{{ servico.nome }}{% if servico.valor_venda %} - R$ {{ servico.valor_venda }}{% endif %}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Profissional</label>
+                                <select class="form-control" name="profissional_id" id="profissionalPublico">
+                                    <option value="">Qualquer profissional disponível</option>
+                                    {% for funcionario in funcionarios %}
+                                    <option value="{{ funcionario.id }}" {% if profissional_id|string == funcionario.id|string %}selected{% endif %}>{{ funcionario.nome }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Data</label>
+                                <input class="form-control" type="date" name="data_agendamento" id="dataPublica" value="{{ data_agendamento }}" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Horários disponíveis</label>
+                                <div class="public-time-grid">
+                                    {% if horarios %}
+                                        {% for horario in horarios %}
+                                        <label class="public-time-option"><input type="radio" name="hora_inicio" value="{{ horario }}" required><span>{{ horario }}</span></label>
+                                        {% endfor %}
+                                    {% else %}
+                                        <div class="empty-chart">Nenhum horário disponível para essa data.</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Observações</label>
+                                <textarea class="form-control" name="observacoes" style="height:90px;padding-top:12px;" placeholder="Alguma observação para o atendimento?"></textarea>
+                            </div>
+
+                            <button class="btn-primary-green public-submit" type="submit">Confirmar agendamento</button>
+                        </form>
+                    {% else %}
+                        <form method="post" class="public-schedule-form">
+                            <input type="hidden" name="etapa" value="identificar">
+                            <input type="hidden" name="token_cliente" id="tokenClientePublico" value="">
+
+                            <div class="form-group">
+                                <label>Seu WhatsApp</label>
+                                <input class="form-control" name="telefone" inputmode="tel" placeholder="Ex: 71999998888" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Seu nome</label>
+                                <input class="form-control" name="nome" placeholder="Informe seu nome se for a primeira vez">
+                            </div>
+                            <button class="btn-primary-green public-submit" type="submit">Continuar</button>
+                        </form>
+                    {% endif %}
+                {% endif %}
+            {% else %}
+                <div class="public-schedule-header">
+                    <span class="page-kicker">Agenda online</span>
+                    <h1>Agenda indisponível</h1>
+                    <p>{{ mensagem or 'Não encontramos esta agenda.' }}</p>
+                </div>
+            {% endif %}
+        </section>
+    </main>
+
+    <script>
+    (function(){
+        const codigo = "{{ codigo_empresa }}";
+        const storageKey = "gestflow_cliente_token_" + codigo;
+        const tokenServidor = "{{ token_cliente }}";
+        const sucesso = "{{ sucesso }}";
+
+        if (tokenServidor) {
+            localStorage.setItem(storageKey, tokenServidor);
+        }
+
+        if (!tokenServidor && !sucesso) {
+            const tokenLocal = localStorage.getItem(storageKey);
+            const campoToken = document.getElementById('tokenClientePublico');
+            if (campoToken && tokenLocal) {
+                campoToken.value = tokenLocal;
+                window.location.href = "/agendar/" + codigo + "?token=" + encodeURIComponent(tokenLocal);
+            }
+        }
+
+        const data = document.getElementById('dataPublica');
+        const profissional = document.getElementById('profissionalPublico');
+        function recarregarHorarios(){
+            const params = new URLSearchParams();
+            if (tokenServidor) params.set('token', tokenServidor);
+            if (data && data.value) params.set('data', data.value);
+            if (profissional && profissional.value) params.set('profissional_id', profissional.value);
+            window.location.href = "/agendar/" + codigo + "?" + params.toString();
+        }
+        if (data) data.addEventListener('change', recarregarHorarios);
+        if (profissional) profissional.addEventListener('change', recarregarHorarios);
+
+        window.trocarClientePublico = function(){
+            localStorage.removeItem(storageKey);
+            window.location.href = "/agendar/" + codigo;
+        };
+    })();
+    </script>
+</body>
+</html>

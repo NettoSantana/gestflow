@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
 # Último recode: 2026-07-04 16:30 (America/Bahia)
-# Motivo: Adicionar módulos de Agendamentos e Registro de Ponto.
+# Motivo: Criar agenda pública por link com identificação por WhatsApp e token do cliente.
 
 from __future__ import annotations
 
@@ -696,6 +696,7 @@ def exigir_login_rotas_internas() -> Response | None:
         "login",
         "esqueci_senha",
         "pwa_instalar",
+        "agendamento_publico",
         "service_worker",
         "health",
         "twilio_webhook",
@@ -1362,6 +1363,7 @@ def iniciar_banco() -> None:
             CREATE TABLE IF NOT EXISTS agendamentos (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 empresa_id INTEGER,
+                cliente_id INTEGER,
                 cliente_nome TEXT,
                 cliente_telefone TEXT,
                 servico_nome TEXT,
@@ -1373,6 +1375,9 @@ def iniciar_banco() -> None:
                 status TEXT NOT NULL DEFAULT 'agendado',
                 valor TEXT,
                 observacoes TEXT,
+                origem TEXT DEFAULT 'manual',
+                token_publico_cliente TEXT,
+                criado_via_publico TEXT DEFAULT 'nao',
                 venda_id INTEGER,
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 atualizado_em TEXT
@@ -1696,6 +1701,29 @@ def iniciar_banco() -> None:
             for coluna, tipo_coluna in colunas_migracao.items():
                 if coluna not in colunas_tabela_existentes:
                     conn.execute(f"ALTER TABLE {tabela} ADD COLUMN {coluna} {tipo_coluna}")
+
+        colunas_clientes_agenda = {
+            str(row["name"])
+            for row in conn.execute("PRAGMA table_info(clientes)").fetchall()
+        }
+        if "token_publico" not in colunas_clientes_agenda:
+            conn.execute("ALTER TABLE clientes ADD COLUMN token_publico TEXT")
+        if "origem" not in colunas_clientes_agenda:
+            conn.execute("ALTER TABLE clientes ADD COLUMN origem TEXT")
+
+        colunas_agendamentos_existentes = {
+            str(row["name"])
+            for row in conn.execute("PRAGMA table_info(agendamentos)").fetchall()
+        }
+        colunas_agendamentos_publico = {
+            "cliente_id": "INTEGER",
+            "origem": "TEXT DEFAULT 'manual'",
+            "token_publico_cliente": "TEXT",
+            "criado_via_publico": "TEXT DEFAULT 'nao'",
+        }
+        for coluna, tipo_coluna in colunas_agendamentos_publico.items():
+            if coluna not in colunas_agendamentos_existentes:
+                conn.execute(f"ALTER TABLE agendamentos ADD COLUMN {coluna} {tipo_coluna}")
 
         empresas_sem_codigo = conn.execute(
             """
@@ -2268,6 +2296,285 @@ def buscar_cliente_por_nome(nome_cliente: str) -> dict[str, Any] | None:
         return None
 
     return dict(row)
+
+
+
+
+def normalizar_telefone_publico(valor: Any) -> str:
+    return re.sub(r"\D+", "", str(valor or ""))
+
+
+def gerar_token_publico_cliente() -> str:
+    return secrets.token_urlsafe(24)
+
+
+def buscar_empresa_agendamento_publico(codigo: Any) -> dict[str, Any] | None:
+    codigo_normalizado = normalizar_codigo_indicacao(codigo)
+
+    if not codigo_normalizado:
+        return None
+
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                id,
+                nome_fantasia,
+                razao_social,
+                email,
+                telefone,
+                plano,
+                status,
+                codigo_indicacao,
+                logo_path
+            FROM empresas
+            WHERE codigo_indicacao = ?
+            LIMIT 1
+            """,
+            (codigo_normalizado,),
+        ).fetchone()
+
+    return dict(row) if row else None
+
+
+def buscar_cliente_publico_por_token(empresa_id: int, token: Any) -> dict[str, Any] | None:
+    token_normalizado = str(token or "").strip()
+
+    if not token_normalizado:
+        return None
+
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT *
+            FROM clientes
+            WHERE empresa_id = ?
+              AND token_publico = ?
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            (empresa_id, token_normalizado),
+        ).fetchone()
+
+    return dict(row) if row else None
+
+
+def buscar_cliente_publico_por_telefone(empresa_id: int, telefone: Any) -> dict[str, Any] | None:
+    telefone_normalizado = normalizar_telefone_publico(telefone)
+
+    if not telefone_normalizado:
+        return None
+
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT *
+            FROM clientes
+            WHERE empresa_id = ?
+              AND telefone IS NOT NULL
+              AND TRIM(telefone) <> ''
+            ORDER BY id DESC
+            """,
+            (empresa_id,),
+        ).fetchall()
+
+    for row in rows:
+        cliente = dict(row)
+        if normalizar_telefone_publico(cliente.get("telefone")) == telefone_normalizado:
+            return cliente
+
+    return None
+
+
+def criar_ou_atualizar_cliente_publico(empresa_id: int, nome: Any, telefone: Any) -> dict[str, Any]:
+    nome_normalizado = str(nome or "").strip()
+    telefone_normalizado = str(telefone or "").strip()
+    cliente = buscar_cliente_publico_por_telefone(empresa_id, telefone_normalizado)
+    agora = agora_empresa().isoformat(timespec="seconds")
+
+    if cliente is not None:
+        token = str(cliente.get("token_publico") or "").strip() or gerar_token_publico_cliente()
+        nome_final = nome_normalizado or str(cliente.get("nome") or "")
+        with conectar_db() as conn:
+            conn.execute(
+                """
+                UPDATE clientes
+                SET nome = ?, telefone = ?, token_publico = ?, origem = COALESCE(NULLIF(origem, ''), 'agenda_publica')
+                WHERE id = ?
+                  AND empresa_id = ?
+                """,
+                (nome_final, telefone_normalizado, token, int(cliente["id"]), empresa_id),
+            )
+            conn.commit()
+        cliente["nome"] = nome_final
+        cliente["telefone"] = telefone_normalizado
+        cliente["token_publico"] = token
+        return cliente
+
+    token = gerar_token_publico_cliente()
+    with conectar_db() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO clientes (
+                empresa_id,
+                nome,
+                documento,
+                telefone,
+                cidade,
+                status,
+                email,
+                token_publico,
+                origem,
+                criado_em
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                empresa_id,
+                nome_normalizado or "Cliente agenda pública",
+                "",
+                telefone_normalizado,
+                "",
+                "ativo",
+                "",
+                token,
+                "agenda_publica",
+                agora,
+            ),
+        )
+        cliente_id = int(cursor.lastrowid)
+        conn.commit()
+
+    return {
+        "id": cliente_id,
+        "empresa_id": empresa_id,
+        "nome": nome_normalizado or "Cliente agenda pública",
+        "telefone": telefone_normalizado,
+        "token_publico": token,
+    }
+
+
+def listar_horarios_agendamento_publico(empresa_id: int, data_agendamento: Any, profissional_id: Any = "") -> list[str]:
+    data_iso = _normalizar_data_iso(data_agendamento, hoje_empresa().isoformat())
+    profissional_texto = str(profissional_id or "").strip()
+    parametros: list[Any] = [empresa_id, data_iso]
+    filtro_profissional = ""
+
+    if profissional_texto.isdigit():
+        filtro_profissional = " AND profissional_id = ?"
+        parametros.append(profissional_texto)
+
+    with conectar_db() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT hora_inicio
+            FROM agendamentos
+            WHERE empresa_id = ?
+              AND data_agendamento = ?
+              AND status NOT IN ('cancelado', 'nao_compareceu')
+              {filtro_profissional}
+            """,
+            parametros,
+        ).fetchall()
+
+    ocupados = {str(row["hora_inicio"] or "")[:5] for row in rows}
+    horarios: list[str] = []
+
+    inicio = 8 * 60
+    fim = 18 * 60
+    passo = 30
+
+    for minuto_total in range(inicio, fim + 1, passo):
+        hora = f"{minuto_total // 60:02d}:{minuto_total % 60:02d}"
+        if hora not in ocupados:
+            horarios.append(hora)
+
+    return horarios
+
+
+def salvar_agendamento_publico_db(empresa_id: int, cliente: dict[str, Any], dados: dict[str, str]) -> int:
+    profissional_id = str(dados.get("profissional_id") or "").strip()
+    profissional_nome = str(dados.get("profissional_nome") or "").strip()
+
+    if profissional_id.isdigit():
+        with conectar_db() as conn:
+            row = conn.execute(
+                """
+                SELECT nome
+                FROM funcionarios
+                WHERE id = ?
+                  AND empresa_id = ?
+                LIMIT 1
+                """,
+                (int(profissional_id), empresa_id),
+            ).fetchone()
+        if row is not None:
+            profissional_nome = str(row["nome"] or "")
+
+    data_agendamento = _normalizar_data_iso(dados.get("data_agendamento"), hoje_empresa().isoformat())
+    hora_inicio = _normalizar_hora_hhmm(dados.get("hora_inicio"))
+    hora_fim = _normalizar_hora_hhmm(dados.get("hora_fim"))
+
+    if not hora_fim and hora_inicio:
+        try:
+            base = datetime.strptime(hora_inicio, "%H:%M") + timedelta(minutes=30)
+            hora_fim = base.strftime("%H:%M")
+        except ValueError:
+            hora_fim = ""
+
+    with conectar_db() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO agendamentos (
+                empresa_id,
+                cliente_id,
+                cliente_nome,
+                cliente_telefone,
+                servico_nome,
+                profissional_id,
+                profissional_nome,
+                data_agendamento,
+                hora_inicio,
+                hora_fim,
+                status,
+                valor,
+                observacoes,
+                origem,
+                token_publico_cliente,
+                criado_via_publico,
+                atualizado_em
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                empresa_id,
+                int(cliente.get("id") or 0),
+                str(cliente.get("nome") or ""),
+                str(cliente.get("telefone") or ""),
+                str(dados.get("servico_nome") or ""),
+                profissional_id,
+                profissional_nome,
+                data_agendamento,
+                hora_inicio,
+                hora_fim,
+                "agendado",
+                str(dados.get("valor") or ""),
+                str(dados.get("observacoes") or ""),
+                "link_publico",
+                str(cliente.get("token_publico") or ""),
+                "sim",
+                agora_empresa().isoformat(timespec="seconds"),
+            ),
+        )
+        agendamento_id = int(cursor.lastrowid)
+        conn.commit()
+
+    return agendamento_id
+
+
+def montar_link_agendamento_publico() -> str:
+    empresa_id = empresa_logada_id()
+    codigo = garantir_codigo_indicacao_empresa(empresa_id)
+    base_url = request.url_root.rstrip("/") if request else ""
+    return f"{base_url}/agendar/{codigo}"
 
 
 def buscar_loja_principal_configuracoes() -> dict[str, Any]:
@@ -9323,16 +9630,17 @@ def salvar_agendamento_db(dados: dict[str, str]) -> int:
         cursor = conn.execute(
             """
             INSERT INTO agendamentos (
-                empresa_id, cliente_nome, cliente_telefone, servico_nome, profissional_id,
+                empresa_id, cliente_id, cliente_nome, cliente_telefone, servico_nome, profissional_id,
                 profissional_nome, data_agendamento, hora_inicio, hora_fim, status, valor,
-                observacoes, atualizado_em
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                observacoes, origem, token_publico_cliente, criado_via_publico, atualizado_em
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                empresa_logada_id(), dados["cliente_nome"], dados["cliente_telefone"], dados["servico_nome"],
+                empresa_logada_id(), dados.get("cliente_id", ""), dados["cliente_nome"], dados["cliente_telefone"], dados["servico_nome"],
                 dados["profissional_id"], dados["profissional_nome"], dados["data_agendamento"],
                 dados["hora_inicio"], dados["hora_fim"], dados["status"], dados["valor"],
-                dados["observacoes"], agora_empresa().isoformat(timespec="seconds"),
+                dados["observacoes"], dados.get("origem", "manual"), dados.get("token_publico_cliente", ""),
+                dados.get("criado_via_publico", "nao"), agora_empresa().isoformat(timespec="seconds"),
             ),
         )
         conn.commit()
@@ -14467,6 +14775,165 @@ def excluir_orcamento(orcamento_id: int) -> Response:
 
 
 
+@app.route("/agendar/<codigo_empresa>", methods=["GET", "POST"])
+def agendamento_publico(codigo_empresa: str) -> str | Response:
+    empresa = buscar_empresa_agendamento_publico(codigo_empresa)
+
+    if empresa is None or str(empresa.get("status") or "").strip().lower() not in {"ativo", "trial"}:
+        return render_template(
+            "agendamento_publico.html",
+            empresa=None,
+            codigo_empresa=normalizar_codigo_indicacao(codigo_empresa),
+            cliente=None,
+            servicos=[],
+            funcionarios=[],
+            horarios=[],
+            data_agendamento=hoje_empresa().isoformat(),
+            mensagem="Agenda não encontrada ou indisponível.",
+            sucesso="",
+            token_cliente="",
+            agendamento_id="",
+        )
+
+    empresa_id = int(empresa["id"])
+    hoje_iso = hoje_empresa().isoformat()
+    cliente = None
+    mensagem = ""
+    sucesso = ""
+    token_cliente = ""
+    agendamento_id = ""
+
+    if request.method == "GET":
+        token_get = str(request.args.get("token") or "").strip()
+        if token_get:
+            cliente = buscar_cliente_publico_por_token(empresa_id, token_get)
+            if cliente:
+                token_cliente = str(cliente.get("token_publico") or token_get)
+            else:
+                mensagem = "Não encontramos seu acesso salvo. Informe seu WhatsApp para continuar."
+
+    if request.method == "POST":
+        etapa = str(request.form.get("etapa") or "identificar").strip()
+        token_form = str(request.form.get("token_cliente") or "").strip()
+
+        if etapa == "identificar":
+            if token_form:
+                cliente = buscar_cliente_publico_por_token(empresa_id, token_form)
+
+            if cliente is None:
+                telefone = str(request.form.get("telefone") or "").strip()
+                nome = str(request.form.get("nome") or "").strip()
+
+                if not normalizar_telefone_publico(telefone):
+                    mensagem = "Informe seu WhatsApp para continuar."
+                else:
+                    cliente = buscar_cliente_publico_por_telefone(empresa_id, telefone)
+                    if cliente is None and not nome:
+                        mensagem = "Não encontramos seu cadastro. Informe seu nome para criar o agendamento."
+                    else:
+                        cliente = criar_ou_atualizar_cliente_publico(empresa_id, nome or (cliente or {}).get("nome", ""), telefone)
+
+            if cliente:
+                token_cliente = str(cliente.get("token_publico") or "")
+
+        elif etapa == "confirmar":
+            cliente = buscar_cliente_publico_por_token(empresa_id, token_form)
+            if cliente is None:
+                telefone = str(request.form.get("telefone") or "").strip()
+                nome = str(request.form.get("nome") or "").strip()
+                if not normalizar_telefone_publico(telefone):
+                    mensagem = "Identifique seu WhatsApp antes de confirmar."
+                else:
+                    cliente = criar_ou_atualizar_cliente_publico(empresa_id, nome, telefone)
+
+            dados = {
+                "servico_nome": str(request.form.get("servico_nome") or "").strip(),
+                "profissional_id": str(request.form.get("profissional_id") or "").strip(),
+                "data_agendamento": _normalizar_data_iso(request.form.get("data_agendamento"), hoje_iso),
+                "hora_inicio": _normalizar_hora_hhmm(request.form.get("hora_inicio")),
+                "hora_fim": _normalizar_hora_hhmm(request.form.get("hora_fim")),
+                "valor": str(request.form.get("valor") or "").strip(),
+                "observacoes": str(request.form.get("observacoes") or "").strip(),
+            }
+
+            if cliente is None:
+                mensagem = mensagem or "Não foi possível identificar seu cadastro."
+            elif not dados["servico_nome"]:
+                mensagem = "Escolha o serviço desejado."
+                token_cliente = str(cliente.get("token_publico") or "")
+            elif not dados["data_agendamento"] or not dados["hora_inicio"]:
+                mensagem = "Escolha data e horário para confirmar."
+                token_cliente = str(cliente.get("token_publico") or "")
+            else:
+                horarios_disponiveis = listar_horarios_agendamento_publico(
+                    empresa_id,
+                    dados["data_agendamento"],
+                    dados["profissional_id"],
+                )
+                if dados["hora_inicio"] not in horarios_disponiveis:
+                    mensagem = "Esse horário acabou de ficar indisponível. Escolha outro horário."
+                    token_cliente = str(cliente.get("token_publico") or "")
+                else:
+                    agendamento_id = str(salvar_agendamento_publico_db(empresa_id, cliente, dados))
+                    token_cliente = str(cliente.get("token_publico") or "")
+                    sucesso = "Agendamento solicitado com sucesso. Aguarde a confirmação da empresa."
+                    mensagem = ""
+
+    data_agendamento = _normalizar_data_iso(request.form.get("data_agendamento") or request.args.get("data") or hoje_iso, hoje_iso)
+    profissional_id = str(request.form.get("profissional_id") or request.args.get("profissional_id") or "").strip()
+
+    if cliente:
+        token_cliente = str(cliente.get("token_publico") or token_cliente)
+
+    funcionarios = []
+    servicos = []
+    with conectar_db() as conn:
+        funcionarios = [
+            dict(row)
+            for row in conn.execute(
+                """
+                SELECT id, nome, cargo
+                FROM funcionarios
+                WHERE empresa_id = ?
+                  AND LOWER(COALESCE(status, 'ativo')) = 'ativo'
+                ORDER BY nome ASC
+                """,
+                (empresa_id,),
+            ).fetchall()
+        ]
+        servicos = [
+            dict(row)
+            for row in conn.execute(
+                """
+                SELECT id, nome, valor_venda, tempo_estimado
+                FROM servicos
+                WHERE empresa_id = ?
+                  AND LOWER(COALESCE(status, 'ativo')) = 'ativo'
+                ORDER BY nome ASC
+                """,
+                (empresa_id,),
+            ).fetchall()
+        ]
+
+    horarios = listar_horarios_agendamento_publico(empresa_id, data_agendamento, profissional_id)
+
+    return render_template(
+        "agendamento_publico.html",
+        empresa=empresa,
+        codigo_empresa=normalizar_codigo_indicacao(codigo_empresa),
+        cliente=cliente,
+        servicos=servicos,
+        funcionarios=funcionarios,
+        horarios=horarios,
+        data_agendamento=data_agendamento,
+        profissional_id=profissional_id,
+        mensagem=mensagem,
+        sucesso=sucesso,
+        token_cliente=token_cliente,
+        agendamento_id=agendamento_id,
+    )
+
+
 @app.route("/agendamentos", methods=["GET", "POST"])
 def agendamentos() -> str | Response:
     if request.method == "POST":
@@ -14499,6 +14966,8 @@ def agendamentos() -> str | Response:
         status_opcoes=AGENDAMENTOS_STATUS,
         erro=request.args.get("erro") or "",
         sucesso=request.args.get("sucesso") or "",
+        link_agendamento_publico=montar_link_agendamento_publico(),
+        codigo_agendamento_publico=garantir_codigo_indicacao_empresa(empresa_logada_id()),
     )
 
 

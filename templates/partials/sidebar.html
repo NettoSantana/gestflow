@@ -1,7 +1,7 @@
 {#
 Caminho: templates/partials/sidebar.html
 Último recode: 2026-07-04 13:55 (America/Bahia)
-Motivo: Adicionar atalho para instalação PWA mantendo menu dinâmico por módulos.
+Motivo: Renomear Agendamentos para Atendimento e incluir foco em agenda pública.
 #}
 {% set _path = request.path if request is defined else '' %}
 {% set _usuario_sidebar = usuario_logado|default({}, true) %}
@@ -166,12 +166,12 @@ Motivo: Adicionar atalho para instalação PWA mantendo menu dinâmico por módu
             <li class="menu-group {% if _path.startswith('/agendamentos') %}active{% endif %}">
                 <details {% if _path.startswith('/agendamentos') %}open{% endif %}>
                     <summary>
-                        <span class="menu-label"><span class="menu-icon">◷</span><span>Agendamentos</span></span>
+                        <span class="menu-label"><span class="menu-icon">◷</span><span>Atendimento</span></span>
                         <span class="arrow">⌄</span>
                     </summary>
                     <ul class="submenu">
-                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Agendamentos</strong></li>
-                        <li class="{% if _path.startswith('/agendamentos') %}submenu-active{% endif %}"><a href="/agendamentos">Agenda</a></li>
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Atendimento</strong></li>
+                        <li class="{% if _path.startswith('/agendamentos') %}submenu-active{% endif %}"><a href="/agendamentos">Agenda / Atendimento</a></li>
                     </ul>
                 </details>
             </li>

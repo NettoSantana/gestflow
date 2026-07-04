@@ -1,40 +1,51 @@
 <!--
 Caminho: templates/agendamentos.html
-Último recode: 2026-07-04 17:20 (America/Bahia)
-Motivo: Criar módulo Agendamentos para serviços com horário marcado.
+Último recode: 2026-07-04 17:55 (America/Bahia)
+Motivo: Melhorar Atendimento e incluir link público de agenda para clientes.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GestFlow - Agendamentos</title>
+    <title>GestFlow - Atendimento</title>
     <link rel="stylesheet" href="/static/css/dashboard.css">
     <style>
-        .schedule-alert{margin:0 0 14px;padding:12px 14px;border-radius:12px;font-weight:900;font-size:13px}.schedule-alert.error{background:#fef2f2;border:1px solid #fecaca;color:#991b1b}.schedule-alert.success{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534}.schedule-layout{display:grid;grid-template-columns:380px 1fr;gap:16px}.schedule-day-list{display:grid;gap:10px}.schedule-card{border:1px solid #e5eaf2;border-radius:14px;background:#fff;padding:14px;display:grid;gap:10px}.schedule-card-top{display:flex;justify-content:space-between;gap:10px}.schedule-time{font-size:22px;font-weight:900;color:#0f172a}.schedule-client{font-weight:900;font-size:15px}.schedule-meta{color:#64748b;font-size:13px;font-weight:700}.schedule-actions{display:flex;gap:8px;flex-wrap:wrap}.status-agendado{background:#eff6ff;color:#1d4ed8}.status-confirmado{background:#dcfce7;color:#166534}.status-em_atendimento{background:#fef3c7;color:#92400e}.status-concluido{background:#e0f2fe;color:#075985}.status-cancelado,.status-nao_compareceu{background:#fee2e2;color:#991b1b}.pill-status{display:inline-flex;align-items:center;height:28px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:900;text-transform:capitalize}.mini-form{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.mini-form select{height:36px;border:1px solid #dbe3ef;border-radius:10px;padding:0 10px}.btn-small{height:34px;border:0;border-radius:10px;padding:0 11px;font-weight:900;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}.btn-small.dark{background:#0f172a;color:#fff}.btn-small.light{background:#fff;border:1px solid #dbe3ef;color:#334155}.btn-small.red{background:#ef4444;color:#fff}.filters-row{display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-bottom:14px}.filters-row .form-group{min-width:160px}@media(max-width:980px){.schedule-layout{grid-template-columns:1fr}.filters-row{flex-direction:column;align-items:stretch}.schedule-card-top{flex-direction:column}.schedule-actions,.mini-form{flex-direction:column;align-items:stretch}.schedule-actions a,.schedule-actions button,.mini-form select,.mini-form button{width:100%}}
+        .schedule-alert{margin:0 0 14px;padding:12px 14px;border-radius:12px;font-weight:900;font-size:13px}.schedule-alert.error{background:#fef2f2;border:1px solid #fecaca;color:#991b1b}.schedule-alert.success{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534}.attendance-grid{display:grid;grid-template-columns:360px 1fr;gap:16px}.attendance-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.public-link-box{display:grid;gap:10px;margin-top:14px;padding:14px;border:1px solid #dbeafe;border-radius:14px;background:#eff6ff}.public-link-row{display:flex;gap:8px;align-items:center}.public-link-input{flex:1;min-width:0;height:40px;border:1px solid #bfdbfe;border-radius:10px;padding:0 12px;font-weight:800;color:#0f172a;background:#fff}.attendance-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.attendance-tab{height:38px;display:inline-flex;align-items:center;justify-content:center;padding:0 14px;border:1px solid #dbe3ef;border-radius:999px;background:#fff;color:#334155;font-weight:900;text-decoration:none}.attendance-tab.active{background:#0f172a;color:#fff;border-color:#0f172a}.schedule-day-list{display:grid;gap:10px}.schedule-card{border:1px solid #e5eaf2;border-radius:14px;background:#fff;padding:14px;display:grid;gap:10px}.schedule-card.public{border-color:#bfdbfe;background:#f8fbff}.schedule-card-top{display:flex;justify-content:space-between;gap:10px}.schedule-time{font-size:22px;font-weight:900;color:#0f172a}.schedule-client{font-weight:900;font-size:15px}.schedule-meta{color:#64748b;font-size:13px;font-weight:700}.schedule-actions{display:flex;gap:8px;flex-wrap:wrap}.status-agendado{background:#eff6ff;color:#1d4ed8}.status-confirmado{background:#dcfce7;color:#166534}.status-em_atendimento{background:#fef3c7;color:#92400e}.status-concluido{background:#e0f2fe;color:#075985}.status-cancelado,.status-nao_compareceu{background:#fee2e2;color:#991b1b}.pill-status{display:inline-flex;align-items:center;height:28px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:900;text-transform:capitalize}.pill-origin{display:inline-flex;align-items:center;height:26px;padding:0 9px;border-radius:999px;background:#f1f5f9;color:#475569;font-size:11px;font-weight:900}.pill-origin.public{background:#dbeafe;color:#1d4ed8}.mini-form{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.mini-form select{height:36px;border:1px solid #dbe3ef;border-radius:10px;padding:0 10px}.btn-small{height:34px;border:0;border-radius:10px;padding:0 11px;font-weight:900;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}.btn-small.dark{background:#0f172a;color:#fff}.btn-small.light{background:#fff;border:1px solid #dbe3ef;color:#334155}.btn-small.red{background:#ef4444;color:#fff}.filters-row{display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-bottom:14px}.filters-row .form-group{min-width:150px}.attendance-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}.attendance-stat{border:1px solid #e5eaf2;border-radius:14px;background:#fff;padding:13px}.attendance-stat span{display:block;color:#64748b;font-size:12px;font-weight:900;text-transform:uppercase}.attendance-stat strong{display:block;margin-top:6px;font-size:23px;font-weight:900;color:#0f172a}@media(max-width:1080px){.attendance-grid{grid-template-columns:1fr}.filters-row,.public-link-row{flex-direction:column;align-items:stretch}.schedule-card-top{flex-direction:column}.schedule-actions,.mini-form{flex-direction:column;align-items:stretch}.schedule-actions a,.schedule-actions button,.mini-form select,.mini-form button{width:100%}.attendance-stats{grid-template-columns:1fr}}
     </style>
 </head>
 <body>
 {% include "partials/sidebar.html" %}
 <main class="content">
-    {% set page_title = 'Agendamentos' %}
+    {% set page_title = 'Atendimento' %}
     {% include "partials/topbar.html" %}
 
     <section class="panel page-section">
         <div class="panel-header page-header">
             <div>
-                <span class="page-kicker">Agenda</span>
-                <h3 class="page-title">Agendamentos</h3>
-                <p class="page-subtitle">Controle horários de manicure, barbearia, estética, clínica, oficina ou atendimento técnico.</p>
+                <span class="page-kicker">Agenda e atendimento</span>
+                <h3 class="page-title">Atendimento</h3>
+                <p class="page-subtitle">Controle a agenda interna e permita que o cliente marque horário pelo link público.</p>
             </div>
-            <span class="badge-info">Agenda por profissional</span>
+            <div class="attendance-toolbar">
+                <a class="btn-light" href="{{ link_agendamento_publico }}" target="_blank">Abrir agenda pública</a>
+                <span class="badge-info">Código: {{ codigo_agendamento_publico }}</span>
+            </div>
+        </div>
+        <div class="public-link-box">
+            <strong>Link público para clientes marcarem horário</strong>
+            <div class="public-link-row">
+                <input id="publicAgendaLink" class="public-link-input" value="{{ link_agendamento_publico }}" readonly>
+                <button type="button" class="btn-dark" onclick="copiarAgendaPublica()">Copiar link</button>
+            </div>
+            <p class="page-subtitle">Envie esse link pelo WhatsApp, coloque na bio do Instagram ou gere QR Code depois.</p>
         </div>
     </section>
 
     {% if erro %}<div class="schedule-alert error">{{ erro }}</div>{% endif %}
     {% if sucesso %}<div class="schedule-alert success">{{ sucesso }}</div>{% endif %}
 
-    <section class="schedule-layout">
+    <section class="attendance-grid">
         <div class="panel">
             <h3>{{ 'Editar agendamento' if agendamento_edicao else 'Novo agendamento' }}</h3>
             <form method="post" action="{{ '/agendamentos/' ~ agendamento_edicao.id ~ '/editar' if agendamento_edicao else '/agendamentos' }}" class="client-form">
@@ -63,9 +74,13 @@ Motivo: Criar módulo Agendamentos para serviços com horário marcado.
         </div>
 
         <div class="panel">
-            <div class="panel-header page-header">
-                <div><h3>Agenda</h3><p class="page-subtitle">Filtre por dia, período e status.</p></div>
+            <div class="attendance-tabs">
+                <a class="attendance-tab {% if not status_filtro %}active{% endif %}" href="/agendamentos?data_inicio={{ data_inicio }}&data_fim={{ data_fim }}">Agenda do dia</a>
+                <a class="attendance-tab {% if status_filtro == 'em_atendimento' %}active{% endif %}" href="/agendamentos?data_inicio={{ data_inicio }}&data_fim={{ data_fim }}&status=em_atendimento">Em atendimento</a>
+                <a class="attendance-tab {% if status_filtro == 'confirmado' %}active{% endif %}" href="/agendamentos?data_inicio={{ data_inicio }}&data_fim={{ data_fim }}&status=confirmado">Confirmados</a>
+                <a class="attendance-tab {% if status_filtro == 'agendado' %}active{% endif %}" href="/agendamentos?data_inicio={{ data_inicio }}&data_fim={{ data_fim }}&status=agendado">Solicitados</a>
             </div>
+
             <form method="get" action="/agendamentos" class="filters-row">
                 <div class="form-group"><label>De</label><input class="form-control" type="date" name="data_inicio" value="{{ data_inicio }}"></div>
                 <div class="form-group"><label>Até</label><input class="form-control" type="date" name="data_fim" value="{{ data_fim }}"></div>
@@ -73,18 +88,29 @@ Motivo: Criar módulo Agendamentos para serviços com horário marcado.
                 <button class="btn-dark" type="submit">Filtrar</button>
             </form>
 
+            <div class="attendance-stats">
+                <div class="attendance-stat"><span>Total no filtro</span><strong>{{ agendamentos|length }}</strong></div>
+                <div class="attendance-stat"><span>Em atendimento</span><strong>{{ agendamentos|selectattr('status','equalto','em_atendimento')|list|length }}</strong></div>
+                <div class="attendance-stat"><span>Link público</span><strong>{{ agendamentos|selectattr('origem','equalto','link_publico')|list|length }}</strong></div>
+            </div>
+
             <div class="schedule-day-list">
                 {% if agendamentos %}
                     {% for item in agendamentos %}
-                    <article class="schedule-card">
+                    {% set origem_publica = item.origem == 'link_publico' or item.criado_via_publico == 'sim' %}
+                    <article class="schedule-card {% if origem_publica %}public{% endif %}">
                         <div class="schedule-card-top">
                             <div>
                                 <div class="schedule-time">{{ item.hora_inicio or '--:--' }}{% if item.hora_fim %} - {{ item.hora_fim }}{% endif %}</div>
                                 <div class="schedule-client">{{ item.cliente_nome }}</div>
                                 <div class="schedule-meta">{{ item.servico_nome }} • {{ item.profissional_nome or 'Sem profissional' }} • {{ item.data_agendamento|default('') }}</div>
                             </div>
-                            <span class="pill-status status-{{ item.status }}">{{ item.status.replace('_',' ') }}</span>
+                            <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;justify-content:flex-end;">
+                                <span class="pill-origin {% if origem_publica %}public{% endif %}">{{ 'Link público' if origem_publica else 'Manual' }}</span>
+                                <span class="pill-status status-{{ item.status }}">{{ item.status.replace('_',' ') }}</span>
+                            </div>
                         </div>
+                        {% if item.cliente_telefone %}<div class="schedule-meta">WhatsApp: {{ item.cliente_telefone }}</div>{% endif %}
                         {% if item.observacoes %}<p class="page-subtitle">{{ item.observacoes }}</p>{% endif %}
                         <div class="schedule-actions">
                             <a class="btn-small light" href="/agendamentos?editar_id={{ item.id }}&data_inicio={{ data_inicio }}&data_fim={{ data_fim }}">Editar</a>
@@ -101,5 +127,15 @@ Motivo: Criar módulo Agendamentos para serviços com horário marcado.
         </div>
     </section>
 </main>
+<script>
+function copiarAgendaPublica(){
+    const campo = document.getElementById('publicAgendaLink');
+    if (!campo) return;
+    campo.select();
+    campo.setSelectionRange(0, 99999);
+    navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(campo.value) : document.execCommand('copy');
+    alert('Link da agenda copiado.');
+}
+</script>
 </body>
 </html>
