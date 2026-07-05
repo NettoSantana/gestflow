@@ -2923,7 +2923,7 @@ def salvar_funcionario_db(funcionario: dict[str, str]) -> None:
                 custo_mensal,
                 custo_dia,
                 custo_hora
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id,
@@ -2935,6 +2935,7 @@ def salvar_funcionario_db(funcionario: dict[str, str]) -> None:
                 funcionario["status"],
                 funcionario["email"],
                 funcionario["observacoes"],
+                gerar_token_ponto_funcionario(),
                 funcionario["salario_base"],
                 funcionario["inss_percentual"],
                 funcionario["fgts_percentual"],
