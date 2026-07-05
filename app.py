@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-04 18:40 (America/Bahia)
-# Motivo: Criar ponto público por link individual do funcionário com validação por celular.
+# Último recode: 2026-07-04 22:05 (America/Bahia)
+# Motivo: Atualizar backend da anamnese para reconhecer agenda/atendimento e registro de ponto.
 
 from __future__ import annotations
 
@@ -240,11 +240,15 @@ def sugerir_modulos_por_anamnese(dados: dict[str, Any]) -> dict[str, bool]:
     if "produtos" in operacao or "balcao" in operacao or "estoque" in operacao:
         ativos.update({"clientes", "produtos", "vendas", "estoque"})
     if "servicos" in operacao:
-        ativos.update({"clientes", "servicos", "orcamentos", "agendamentos"})
+        ativos.update({"clientes", "servicos", "orcamentos"})
+    if "agendamentos" in operacao:
+        ativos.update({"clientes", "funcionarios", "servicos", "agendamentos"})
     if "balcao" in operacao:
         ativos.update({"pdv", "devolucoes"})
     if "equipe_externa" in operacao or "ordem_servico" in operacao:
         ativos.update({"clientes", "funcionarios", "servicos", "ordens_servico", "registro_ponto"})
+    if "registro_ponto" in operacao:
+        ativos.update({"funcionarios", "registro_ponto"})
     if "projetos_obras" in operacao:
         ativos.update({"clientes", "fornecedores", "funcionarios", "produtos", "servicos", "orcamentos", "gerador_orcamentos", "ordens_servico", "financeiro", "registro_ponto"})
 
@@ -287,7 +291,7 @@ def sugerir_modulos_por_anamnese(dados: dict[str, Any]) -> dict[str, bool]:
             ativos.discard("orcamentos")
         if "ordem_servico" not in operacao and not execucao:
             ativos.discard("ordens_servico")
-        if "funcionarios" not in cadastros and "equipe_externa" not in operacao and not ({"campo", "fotos", "acompanhamento"} & execucao):
+        if "funcionarios" not in cadastros and "equipe_externa" not in operacao and "registro_ponto" not in operacao and "agendamentos" not in operacao and not ({"campo", "fotos", "acompanhamento"} & execucao):
             ativos.discard("funcionarios")
             ativos.discard("registro_ponto")
 
