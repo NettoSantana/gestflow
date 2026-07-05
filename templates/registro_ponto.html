@@ -1,7 +1,7 @@
 <!--
 Caminho: templates/registro_ponto.html
-Último recode: 2026-07-04 18:40 (America/Bahia)
-Motivo: Exibir links individuais do ponto público por funcionário.
+Último recode: 2026-07-04 21:55 (America/Bahia)
+Motivo: Exibir link individual somente do funcionário selecionado no Registro de Ponto.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -63,6 +63,9 @@ Motivo: Exibir links individuais do ponto público por funcionário.
         .ponto-link-card span{color:#64748b;font-size:12px;font-weight:800}
         .ponto-link-actions{display:flex;gap:8px;flex-wrap:wrap}
         .ponto-link-input{width:100%;min-height:38px;border:1px solid #e5eaf2;border-radius:10px;background:#f8fafc;color:#334155;font-size:12px;font-weight:800;padding:0 10px}
+        .ponto-link-selecionado{margin:12px 0 14px;background:#f8fafc}
+        .ponto-link-vazio{border-style:dashed;color:#64748b;font-size:13px;font-weight:800}
+        .ponto-copy-btn{border:0;cursor:pointer}
         @media(max-width:1100px){.ponto-layout{grid-template-columns:1fr}}
         @media(max-width:760px){.ponto-layout{gap:12px}.ponto-atalhos{width:100%}.ponto-chip{flex:1 1 auto}.clock-time{font-size:44px}.ponto-filters{grid-template-columns:1fr}.ponto-filters button{width:100%;min-height:44px}.ponto-admin-head{flex-direction:column}.ponto-table-desktop{display:none}.ponto-mobile-lista{display:block}.ponto-btn{min-height:68px}}
         @media(max-width:460px){.ponto-status-grid,.ponto-mobile-times{grid-template-columns:1fr}.ponto-topo-funcionario{margin-left:-14px;margin-right:-14px}}
@@ -111,33 +114,6 @@ Motivo: Exibir links individuais do ponto público por funcionário.
     {% if erro %}<div class="ponto-alert error">{{ erro }}</div>{% endif %}
     {% if sucesso %}<div class="ponto-alert success">{{ sucesso }}</div>{% endif %}
 
-    <section class="panel page-section">
-        <div class="panel-header page-header">
-            <div>
-                <span class="page-kicker">Ponto público</span>
-                <h3 class="page-title">Links individuais dos funcionários</h3>
-                <p class="page-subtitle">Envie o link correto para cada funcionário. Ao abrir, ele valida o celular cadastrado e bate ponto sem escolher nome em lista.</p>
-            </div>
-            <span class="badge-info">Validado por celular</span>
-        </div>
-        <div class="ponto-links-grid">
-            {% for funcionario in funcionarios %}
-            <div class="ponto-link-card">
-                <div>
-                    <strong>{{ funcionario.nome }}</strong>
-                    <span>Celular: {{ funcionario.telefone_ponto_mascarado }}</span>
-                </div>
-                <input class="ponto-link-input" value="{{ funcionario.link_ponto_publico }}" readonly onclick="this.select()">
-                <div class="ponto-link-actions">
-                    <a class="ponto-chip admin" href="{{ funcionario.link_ponto_publico }}" target="_blank" rel="noopener">Abrir</a>
-                    <span class="ponto-chip">Copie o link</span>
-                </div>
-            </div>
-            {% else %}
-            <div class="empty-table">Nenhum funcionário cadastrado.</div>
-            {% endfor %}
-        </div>
-    </section>
 
     <section class="ponto-layout">
         <div class="panel ponto-funcionario" id="bater-ponto">
@@ -155,6 +131,33 @@ Motivo: Exibir links individuais do ponto público por funcionário.
                     {% endfor %}
                 </select>
             </form>
+
+            {% if tem_funcionario %}
+                {% for funcionario in funcionarios %}
+                    {% if funcionario_id|string == funcionario.id|string %}
+                    {% set token_ponto = funcionario.token_ponto_publico or '' %}
+                    <div class="ponto-link-card ponto-link-selecionado">
+                        <div>
+                            <strong>Link individual do funcionário</strong>
+                            <span>Envie este link para {{ funcionario.nome }}. Celular cadastrado: {{ funcionario.telefone or 'sem celular cadastrado' }}.</span>
+                        </div>
+                        {% if token_ponto %}
+                        <input class="ponto-link-input" id="link-ponto-selecionado" value="{{ request.url_root.rstrip('/') }}/ponto/{{ token_ponto }}" readonly onclick="this.select()">
+                        <div class="ponto-link-actions">
+                            <a class="ponto-chip admin" href="{{ request.url_root.rstrip('/') }}/ponto/{{ token_ponto }}" target="_blank" rel="noopener">Abrir</a>
+                            <button class="ponto-chip ponto-copy-btn" type="button" data-copy-target="link-ponto-selecionado">Copiar link</button>
+                        </div>
+                        {% else %}
+                        <div class="ponto-link-vazio">Este funcionário ainda não tem token de ponto. Recarregue a página ou abra o cadastro do funcionário para atualizar.</div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            {% else %}
+            <div class="ponto-link-card ponto-link-selecionado ponto-link-vazio">
+                Selecione um funcionário acima para exibir o link individual de ponto.
+            </div>
+            {% endif %}
 
             <div class="ponto-selecionado">
                 <div class="ponto-avatar">👤</div>
@@ -337,6 +340,21 @@ Motivo: Exibir links individuais do ponto público por funcionário.
     }
     tick();
     setInterval(tick,15000);
+
+    document.querySelectorAll('[data-copy-target]').forEach(function(botao){
+        botao.addEventListener('click', function(){
+            var alvo = document.getElementById(botao.getAttribute('data-copy-target'));
+            if(!alvo){return;}
+            alvo.select();
+            if(navigator.clipboard && navigator.clipboard.writeText){
+                navigator.clipboard.writeText(alvo.value);
+            }else{
+                document.execCommand('copy');
+            }
+            botao.textContent = 'Copiado';
+            setTimeout(function(){botao.textContent = 'Copiar link';}, 1600);
+        });
+    });
 }());
 </script>
 </body>
