@@ -1,7 +1,7 @@
 <!--
 Caminho: templates/registro_ponto.html
-Último recode: 2026-07-04 17:55 (America/Bahia)
-Motivo: Melhorar visual e usabilidade do Registro de Ponto com visão do funcionário, espelho administrativo e ajuste manual com justificativa.
+Último recode: 2026-07-04 18:40 (America/Bahia)
+Motivo: Exibir links individuais do ponto público por funcionário.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -56,6 +56,13 @@ Motivo: Melhorar visual e usabilidade do Registro de Ponto com visão do funcion
         .ponto-mobile-top{display:flex;justify-content:space-between;gap:10px;margin-bottom:12px}.ponto-mobile-top strong{display:block;color:#0f172a;font-size:14px}.ponto-mobile-top span{display:block;margin-top:3px;color:#64748b;font-size:12px;font-weight:800}
         .ponto-mobile-times{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.ponto-mobile-times div{padding:9px;border-radius:12px;background:#f8fafc}.ponto-mobile-times span{display:block;color:#64748b;font-size:10px;font-weight:900;text-transform:uppercase}.ponto-mobile-times strong{display:block;margin-top:3px;color:#0f172a;font-size:14px}
         .ponto-ajuste{border-top:1px solid #e5eaf2;padding-top:16px}
+
+        .ponto-links-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-top:12px}
+        .ponto-link-card{border:1px solid #e5eaf2;border-radius:16px;background:#fff;padding:14px;display:grid;gap:9px}
+        .ponto-link-card strong{color:#0f172a;font-size:14px}
+        .ponto-link-card span{color:#64748b;font-size:12px;font-weight:800}
+        .ponto-link-actions{display:flex;gap:8px;flex-wrap:wrap}
+        .ponto-link-input{width:100%;min-height:38px;border:1px solid #e5eaf2;border-radius:10px;background:#f8fafc;color:#334155;font-size:12px;font-weight:800;padding:0 10px}
         @media(max-width:1100px){.ponto-layout{grid-template-columns:1fr}}
         @media(max-width:760px){.ponto-layout{gap:12px}.ponto-atalhos{width:100%}.ponto-chip{flex:1 1 auto}.clock-time{font-size:44px}.ponto-filters{grid-template-columns:1fr}.ponto-filters button{width:100%;min-height:44px}.ponto-admin-head{flex-direction:column}.ponto-table-desktop{display:none}.ponto-mobile-lista{display:block}.ponto-btn{min-height:68px}}
         @media(max-width:460px){.ponto-status-grid,.ponto-mobile-times{grid-template-columns:1fr}.ponto-topo-funcionario{margin-left:-14px;margin-right:-14px}}
@@ -103,6 +110,34 @@ Motivo: Melhorar visual e usabilidade do Registro de Ponto com visão do funcion
 
     {% if erro %}<div class="ponto-alert error">{{ erro }}</div>{% endif %}
     {% if sucesso %}<div class="ponto-alert success">{{ sucesso }}</div>{% endif %}
+
+    <section class="panel page-section">
+        <div class="panel-header page-header">
+            <div>
+                <span class="page-kicker">Ponto público</span>
+                <h3 class="page-title">Links individuais dos funcionários</h3>
+                <p class="page-subtitle">Envie o link correto para cada funcionário. Ao abrir, ele valida o celular cadastrado e bate ponto sem escolher nome em lista.</p>
+            </div>
+            <span class="badge-info">Validado por celular</span>
+        </div>
+        <div class="ponto-links-grid">
+            {% for funcionario in funcionarios %}
+            <div class="ponto-link-card">
+                <div>
+                    <strong>{{ funcionario.nome }}</strong>
+                    <span>Celular: {{ funcionario.telefone_ponto_mascarado }}</span>
+                </div>
+                <input class="ponto-link-input" value="{{ funcionario.link_ponto_publico }}" readonly onclick="this.select()">
+                <div class="ponto-link-actions">
+                    <a class="ponto-chip admin" href="{{ funcionario.link_ponto_publico }}" target="_blank" rel="noopener">Abrir</a>
+                    <span class="ponto-chip">Copie o link</span>
+                </div>
+            </div>
+            {% else %}
+            <div class="empty-table">Nenhum funcionário cadastrado.</div>
+            {% endfor %}
+        </div>
+    </section>
 
     <section class="ponto-layout">
         <div class="panel ponto-funcionario" id="bater-ponto">
