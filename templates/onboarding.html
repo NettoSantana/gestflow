@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\onboarding.html
-Último recode: 2026-07-04 15:10 (America/Bahia)
-Motivo: Transformar anamnese em assistente tela a tela, com uma pergunta por etapa e visual mais leve.
+Último recode: 2026-07-04 21:55 (America/Bahia)
+Motivo: Atualizar anamnese para considerar Agendamentos e Registro de Ponto.
 -->
 
 <!DOCTYPE html>
@@ -485,11 +485,13 @@ Motivo: Transformar anamnese em assistente tela a tela, com uma pergunta por eta
                 <div class="onboarding-options">
                     <label class="onboarding-option"><input type="checkbox" name="operacao" value="produtos" data-modules="clientes,produtos,vendas"> Vendo produtos</label>
                     <label class="onboarding-option"><input type="checkbox" name="operacao" value="servicos" data-modules="clientes,servicos,orcamentos"> Presto serviços</label>
+                    <label class="onboarding-option"><input type="checkbox" name="operacao" value="agendamentos" data-modules="clientes,funcionarios,servicos,agendamentos"> Trabalho com agenda/atendimento marcado</label>
                     <label class="onboarding-option"><input type="checkbox" name="operacao" value="balcao" data-modules="clientes,produtos,vendas,pdv,devolucoes,estoque"> Tenho venda rápida no balcão/caixa</label>
                     <label class="onboarding-option"><input type="checkbox" name="operacao" value="estoque" data-modules="produtos,estoque"> Preciso controlar estoque</label>
                     <label class="onboarding-option"><input type="checkbox" name="operacao" value="ordem_servico" data-modules="clientes,servicos,ordens_servico"> Uso ordem de serviço</label>
                     <label class="onboarding-option"><input type="checkbox" name="operacao" value="equipe_externa" data-modules="clientes,funcionarios,servicos,ordens_servico,painel_os"> Tenho equipe externa/técnica</label>
-                    <label class="onboarding-option"><input type="checkbox" name="operacao" value="projetos_obras" data-modules="clientes,fornecedores,funcionarios,produtos,servicos,orcamentos,gerador_orcamentos,ordens_servico,financeiro"> Trabalho com projetos, obras ou contratos</label>
+                    <label class="onboarding-option"><input type="checkbox" name="operacao" value="registro_ponto" data-modules="funcionarios,registro_ponto"> Preciso controlar ponto da equipe</label>
+                    <label class="onboarding-option"><input type="checkbox" name="operacao" value="projetos_obras" data-modules="clientes,fornecedores,funcionarios,produtos,servicos,orcamentos,gerador_orcamentos,ordens_servico,financeiro,registro_ponto"> Trabalho com projetos, obras ou contratos</label>
                 </div>
                 <div class="onboarding-actions">
                     <button type="button" class="onboarding-back" onclick="voltarPassoOnboarding()">Voltar</button>
@@ -622,12 +624,12 @@ Motivo: Transformar anamnese em assistente tela a tela, com uma pergunta por eta
     </main>
 
     <script>
-        const MODULOS_PADRAO = ['clientes', 'fornecedores', 'funcionarios', 'produtos', 'servicos', 'orcamentos', 'gerador_orcamentos', 'vendas', 'pdv', 'devolucoes', 'ordens_servico', 'painel_os', 'estoque', 'financeiro'];
+        const MODULOS_PADRAO = ['clientes', 'fornecedores', 'funcionarios', 'produtos', 'servicos', 'orcamentos', 'gerador_orcamentos', 'vendas', 'pdv', 'devolucoes', 'ordens_servico', 'painel_os', 'estoque', 'financeiro', 'agendamentos', 'registro_ponto'];
         const PERFIS_SEGMENTO = {
             comercio: ['clientes', 'fornecedores', 'produtos', 'vendas', 'pdv', 'devolucoes', 'estoque', 'financeiro'],
-            servicos: ['clientes', 'servicos', 'orcamentos', 'vendas', 'financeiro'],
-            assistencia: ['clientes', 'fornecedores', 'funcionarios', 'produtos', 'servicos', 'orcamentos', 'vendas', 'ordens_servico', 'estoque', 'financeiro'],
-            industrial: ['clientes', 'fornecedores', 'funcionarios', 'produtos', 'servicos', 'orcamentos', 'gerador_orcamentos', 'vendas', 'ordens_servico', 'painel_os', 'estoque', 'financeiro'],
+            servicos: ['clientes', 'servicos', 'orcamentos', 'vendas', 'financeiro', 'agendamentos'],
+            assistencia: ['clientes', 'fornecedores', 'funcionarios', 'produtos', 'servicos', 'orcamentos', 'vendas', 'ordens_servico', 'estoque', 'financeiro', 'agendamentos', 'registro_ponto'],
+            industrial: ['clientes', 'fornecedores', 'funcionarios', 'produtos', 'servicos', 'orcamentos', 'gerador_orcamentos', 'vendas', 'ordens_servico', 'painel_os', 'estoque', 'financeiro', 'registro_ponto'],
             distribuicao: ['clientes', 'fornecedores', 'produtos', 'vendas', 'devolucoes', 'estoque', 'financeiro'],
             locacao: ['clientes', 'fornecedores', 'funcionarios', 'produtos', 'servicos', 'orcamentos', 'vendas', 'ordens_servico', 'estoque', 'financeiro'],
             completo: MODULOS_PADRAO
@@ -702,6 +704,8 @@ Motivo: Transformar anamnese em assistente tela a tela, com uma pergunta por eta
             if (modulos.has('gerador_orcamentos')) modulos.add('orcamentos');
             if (modulos.has('painel_os')) modulos.add('ordens_servico');
             if (modulos.has('estoque')) modulos.add('produtos');
+            if (modulos.has('agendamentos')) { modulos.add('clientes'); modulos.add('funcionarios'); modulos.add('servicos'); }
+            if (modulos.has('registro_ponto')) modulos.add('funcionarios');
 
             return modulos;
         }
