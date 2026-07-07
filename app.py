@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-07 20:45 (America/Bahia)
-# Motivo: Permitir salvar a configuração inicial da Vitrine Online por empresa.
+# Último recode: 2026-07-07 21:35 (America/Bahia)
+# Motivo: Implantar vitrine pública com catálogo, carrinho, pedidos e métricas básicas por empresa.
 
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ import secrets
 import sqlite3
 import unicodedata
 import urllib.error
+import urllib.parse
 import urllib.request
 import zipfile
 import xml.etree.ElementTree as ET
@@ -45,6 +46,7 @@ VITRINE_UPLOAD_DIR = DATA_DIR / "uploads" / "vitrines"
 VITRINE_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 EXTENSOES_LOGO_PERMITIDAS = {"png", "jpg", "jpeg", "webp", "gif"}
 EXTENSOES_FOTO_OS_PERMITIDAS = {"png", "jpg", "jpeg", "webp"}
+EXTENSOES_FOTO_VITRINE_PERMITIDAS = {"png", "jpg", "jpeg", "webp"}
 
 TIMEZONE_PADRAO_GESTFLOW = "America/Bahia"
 FUSOS_HORARIOS_GESTFLOW = [
@@ -708,6 +710,10 @@ def exigir_login_rotas_internas() -> Response | None:
         "twilio_webhook",
         "acompanhamento_os_publico",
         "servir_foto_os",
+        "vitrine_publica",
+        "vitrine_pedido_publico",
+        "vitrine_evento_publico",
+        "servir_upload_vitrine_publico",
         "static",
     }
 
@@ -1392,6 +1398,84 @@ def iniciar_banco() -> None:
 
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS vitrine_produtos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER NOT NULL,
+                produto_id INTEGER,
+                nome TEXT NOT NULL,
+                descricao TEXT,
+                categoria TEXT,
+                preco TEXT,
+                imagem_path TEXT,
+                destaque TEXT NOT NULL DEFAULT 'nao',
+                status TEXT NOT NULL DEFAULT 'publicado',
+                acessos INTEGER NOT NULL DEFAULT 0,
+                carrinhos INTEGER NOT NULL DEFAULT 0,
+                pedidos INTEGER NOT NULL DEFAULT 0,
+                criado_em TEXT DEFAULT CURRENT_TIMESTAMP,
+                atualizado_em TEXT,
+                FOREIGN KEY (empresa_id) REFERENCES empresas (id),
+                FOREIGN KEY (produto_id) REFERENCES produtos (id)
+            )
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS vitrine_pedidos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER NOT NULL,
+                cliente_nome TEXT,
+                cliente_whatsapp TEXT,
+                tipo_entrega TEXT,
+                endereco TEXT,
+                forma_pagamento TEXT,
+                observacoes TEXT,
+                total TEXT,
+                status TEXT NOT NULL DEFAULT 'novo',
+                origem TEXT NOT NULL DEFAULT 'vitrine',
+                criado_em TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (empresa_id) REFERENCES empresas (id)
+            )
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS vitrine_pedido_itens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER NOT NULL,
+                pedido_id INTEGER NOT NULL,
+                produto_id INTEGER,
+                produto_nome TEXT,
+                quantidade TEXT,
+                valor_unitario TEXT,
+                subtotal TEXT,
+                criado_em TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (pedido_id) REFERENCES vitrine_pedidos (id),
+                FOREIGN KEY (produto_id) REFERENCES produtos (id)
+            )
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS vitrine_eventos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER NOT NULL,
+                produto_id INTEGER,
+                tipo TEXT NOT NULL,
+                origem TEXT,
+                user_agent TEXT,
+                criado_em TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (empresa_id) REFERENCES empresas (id),
+                FOREIGN KEY (produto_id) REFERENCES produtos (id)
+            )
+            """
+        )
+
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS agendamentos (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 empresa_id INTEGER,
@@ -1795,6 +1879,10 @@ def iniciar_banco() -> None:
             "usuario_atividades",
             "assistente_conversas",
             "vitrine_configuracoes",
+            "vitrine_produtos",
+            "vitrine_pedidos",
+            "vitrine_pedido_itens",
+            "vitrine_eventos",
             "agendamentos",
             "registros_ponto",
         ]
@@ -11191,6 +11279,478 @@ def salvar_vitrine_configuracao_db(dados: dict[str, str]) -> None:
         conn.commit()
 
 
+
+def buscar_vitrine_configuracao_por_slug(slug: Any) -> dict[str, Any] | None:
+    slug_normalizado = normalizar_slug_vitrine(slug)
+
+    if not slug_normalizado:
+        return None
+
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT *
+            FROM vitrine_configuracoes
+            WHERE slug = ?
+              AND LOWER(COALESCE(status, 'rascunho')) = 'publicado'
+            LIMIT 1
+            """,
+            (slug_normalizado,),
+        ).fetchone()
+
+    return dict(row) if row else None
+
+
+def listar_produtos_vitrine_empresa(empresa_id: int) -> list[dict[str, Any]]:
+    with conectar_db() as conn:
+        publicados = conn.execute(
+            """
+            SELECT
+                id,
+                empresa_id,
+                produto_id,
+                nome,
+                descricao,
+                categoria,
+                preco,
+                imagem_path,
+                destaque,
+                status,
+                acessos,
+                carrinhos,
+                pedidos
+            FROM vitrine_produtos
+            WHERE empresa_id = ?
+              AND LOWER(COALESCE(status, 'publicado')) = 'publicado'
+            ORDER BY
+                CASE WHEN LOWER(COALESCE(destaque, 'nao')) = 'sim' THEN 0 ELSE 1 END,
+                nome ASC
+            """,
+            (empresa_id,),
+        ).fetchall()
+
+        if publicados:
+            return [dict(row) for row in publicados]
+
+        produtos_base = conn.execute(
+            """
+            SELECT
+                id,
+                empresa_id,
+                nome,
+                categoria,
+                unidade,
+                preco_venda,
+                observacoes,
+                status
+            FROM produtos
+            WHERE empresa_id = ?
+              AND LOWER(COALESCE(status, 'ativo')) = 'ativo'
+            ORDER BY nome ASC
+            """,
+            (empresa_id,),
+        ).fetchall()
+
+    produtos: list[dict[str, Any]] = []
+    for row in produtos_base:
+        produto = dict(row)
+        produtos.append(
+            {
+                "id": int(produto.get("id") or 0),
+                "empresa_id": empresa_id,
+                "produto_id": int(produto.get("id") or 0),
+                "nome": str(produto.get("nome") or ""),
+                "descricao": str(produto.get("observacoes") or ""),
+                "categoria": str(produto.get("categoria") or "Produtos"),
+                "preco": str(produto.get("preco_venda") or "0,00"),
+                "imagem_path": "",
+                "destaque": "nao",
+                "status": "publicado",
+                "acessos": 0,
+                "carrinhos": 0,
+                "pedidos": 0,
+            }
+        )
+
+    return produtos
+
+
+def listar_ranking_produtos_vitrine(empresa_id: int, limite: int = 10) -> list[dict[str, Any]]:
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                nome,
+                acessos,
+                carrinhos,
+                pedidos
+            FROM vitrine_produtos
+            WHERE empresa_id = ?
+            ORDER BY acessos DESC, carrinhos DESC, pedidos DESC, nome ASC
+            LIMIT ?
+            """,
+            (empresa_id, limite),
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def registrar_evento_vitrine(empresa_id: int, tipo: str, produto_id: Any = "", origem: Any = "") -> None:
+    tipo_normalizado = str(tipo or "").strip().lower()
+    if tipo_normalizado not in {"visita", "produto", "carrinho", "pedido"}:
+        return
+
+    produto_numero = None
+    try:
+        if str(produto_id or "").strip():
+            produto_numero = int(str(produto_id).strip())
+    except ValueError:
+        produto_numero = None
+
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            INSERT INTO vitrine_eventos (
+                empresa_id,
+                produto_id,
+                tipo,
+                origem,
+                user_agent
+            ) VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                empresa_id,
+                produto_numero,
+                tipo_normalizado,
+                str(origem or "").strip()[:120],
+                str(request.headers.get("User-Agent") or "")[:240],
+            ),
+        )
+
+        if tipo_normalizado == "visita":
+            conn.execute(
+                "UPDATE vitrine_configuracoes SET visitas = COALESCE(visitas, 0) + 1 WHERE empresa_id = ?",
+                (empresa_id,),
+            )
+        elif tipo_normalizado == "produto":
+            conn.execute(
+                "UPDATE vitrine_configuracoes SET produtos_vistos = COALESCE(produtos_vistos, 0) + 1 WHERE empresa_id = ?",
+                (empresa_id,),
+            )
+            if produto_numero is not None:
+                conn.execute(
+                    "UPDATE vitrine_produtos SET acessos = COALESCE(acessos, 0) + 1 WHERE empresa_id = ? AND (id = ? OR produto_id = ?)",
+                    (empresa_id, produto_numero, produto_numero),
+                )
+        elif tipo_normalizado == "carrinho":
+            conn.execute(
+                "UPDATE vitrine_configuracoes SET itens_carrinho = COALESCE(itens_carrinho, 0) + 1 WHERE empresa_id = ?",
+                (empresa_id,),
+            )
+            if produto_numero is not None:
+                conn.execute(
+                    "UPDATE vitrine_produtos SET carrinhos = COALESCE(carrinhos, 0) + 1 WHERE empresa_id = ? AND (id = ? OR produto_id = ?)",
+                    (empresa_id, produto_numero, produto_numero),
+                )
+        elif tipo_normalizado == "pedido":
+            conn.execute(
+                "UPDATE vitrine_configuracoes SET pedidos_gerados = COALESCE(pedidos_gerados, 0) + 1 WHERE empresa_id = ?",
+                (empresa_id,),
+            )
+
+        conn.commit()
+
+
+def salvar_pedido_vitrine_db(empresa_id: int, dados: dict[str, Any], itens: list[dict[str, Any]]) -> int:
+    total = sum(float(item.get("subtotal_numero") or 0) for item in itens)
+
+    with conectar_db() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO vitrine_pedidos (
+                empresa_id,
+                cliente_nome,
+                cliente_whatsapp,
+                tipo_entrega,
+                endereco,
+                forma_pagamento,
+                observacoes,
+                total,
+                status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                empresa_id,
+                str(dados.get("cliente_nome") or "").strip(),
+                str(dados.get("cliente_whatsapp") or "").strip(),
+                str(dados.get("tipo_entrega") or "").strip(),
+                str(dados.get("endereco") or "").strip(),
+                str(dados.get("forma_pagamento") or "").strip(),
+                str(dados.get("observacoes") or "").strip(),
+                _formatar_moeda_brl(total),
+                "novo",
+            ),
+        )
+        pedido_id = int(cursor.lastrowid)
+
+        for item in itens:
+            produto_id = int(item.get("produto_id") or 0)
+            conn.execute(
+                """
+                INSERT INTO vitrine_pedido_itens (
+                    empresa_id,
+                    pedido_id,
+                    produto_id,
+                    produto_nome,
+                    quantidade,
+                    valor_unitario,
+                    subtotal
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    empresa_id,
+                    pedido_id,
+                    produto_id,
+                    str(item.get("nome") or ""),
+                    str(item.get("quantidade") or "1"),
+                    str(item.get("preco") or "0,00"),
+                    _formatar_moeda_brl(float(item.get("subtotal_numero") or 0)),
+                ),
+            )
+            conn.execute(
+                "UPDATE vitrine_produtos SET pedidos = COALESCE(pedidos, 0) + 1 WHERE empresa_id = ? AND (id = ? OR produto_id = ?)",
+                (empresa_id, produto_id, produto_id),
+            )
+
+        conn.execute(
+            "UPDATE vitrine_configuracoes SET pedidos_gerados = COALESCE(pedidos_gerados, 0) + 1 WHERE empresa_id = ?",
+            (empresa_id,),
+        )
+        conn.commit()
+
+    return pedido_id
+
+
+def montar_itens_pedido_vitrine(empresa_id: int, itens_json: Any) -> list[dict[str, Any]]:
+    try:
+        itens_recebidos = json.loads(str(itens_json or "[]"))
+    except json.JSONDecodeError:
+        itens_recebidos = []
+
+    produtos = listar_produtos_vitrine_empresa(empresa_id)
+    produtos_por_id = {int(produto.get("id") or produto.get("produto_id") or 0): produto for produto in produtos}
+    itens: list[dict[str, Any]] = []
+
+    if not isinstance(itens_recebidos, list):
+        return itens
+
+    for item in itens_recebidos:
+        if not isinstance(item, dict):
+            continue
+
+        try:
+            produto_id = int(item.get("id") or 0)
+            quantidade = int(item.get("quantidade") or 1)
+        except (TypeError, ValueError):
+            continue
+
+        quantidade = max(quantidade, 1)
+        produto = produtos_por_id.get(produto_id)
+        if produto is None:
+            continue
+
+        preco_numero = _converter_valor_brl(produto.get("preco"))
+        subtotal = preco_numero * quantidade
+        itens.append(
+            {
+                "produto_id": produto_id,
+                "nome": str(produto.get("nome") or ""),
+                "quantidade": str(quantidade),
+                "preco": str(produto.get("preco") or "0,00"),
+                "subtotal_numero": subtotal,
+            }
+        )
+
+    return itens
+
+
+def montar_whatsapp_pedido_vitrine(config_vitrine: dict[str, Any], pedido_id: int, dados: dict[str, Any], itens: list[dict[str, Any]]) -> str:
+    linhas = [
+        f"Olá, recebi um novo pedido pela vitrine #{pedido_id}.",
+        "",
+        f"Cliente: {dados.get('cliente_nome') or '-'}",
+        f"WhatsApp: {dados.get('cliente_whatsapp') or '-'}",
+        f"Entrega: {dados.get('tipo_entrega') or '-'}",
+        f"Pagamento: {dados.get('forma_pagamento') or '-'}",
+    ]
+
+    endereco = str(dados.get("endereco") or "").strip()
+    if endereco:
+        linhas.append(f"Endereço: {endereco}")
+
+    linhas.append("")
+    linhas.append("Itens:")
+
+    total = 0.0
+    for item in itens:
+        subtotal = float(item.get("subtotal_numero") or 0)
+        total += subtotal
+        linhas.append(f"- {item.get('quantidade')}x {item.get('nome')} - R$ {_formatar_moeda_brl(subtotal)}")
+
+    linhas.append("")
+    linhas.append(f"Total: R$ {_formatar_moeda_brl(total)}")
+
+    observacoes = str(dados.get("observacoes") or "").strip()
+    if observacoes:
+        linhas.append(f"Observações: {observacoes}")
+
+    telefone = normalizar_telefone_publico(config_vitrine.get("whatsapp"))
+    if telefone and not telefone.startswith("55"):
+        telefone = f"55{telefone}"
+
+    texto = urllib.parse.quote("\n".join(linhas))
+    return f"https://wa.me/{telefone}?text={texto}" if telefone else ""
+
+
+def renderizar_vitrine_publica_html(config_vitrine: dict[str, Any], produtos: list[dict[str, Any]], mensagem: str = "", whatsapp_url: str = "") -> str:
+    cor_principal = html.escape(str(config_vitrine.get("cor_principal") or "#111827"))
+    cor_secundaria = html.escape(str(config_vitrine.get("cor_secundaria") or "#f59e0b"))
+    nome_loja = html.escape(str(config_vitrine.get("nome_loja") or "Loja online"))
+    instagram = html.escape(str(config_vitrine.get("instagram") or ""))
+    categoria = html.escape(str(config_vitrine.get("categoria") or "Catálogo"))
+    logo_path = str(config_vitrine.get("logo_path") or "").strip()
+    logo_html = f'<img src="/vitrine-upload/{html.escape(logo_path)}" alt="{nome_loja}">' if logo_path else nome_loja[:2].upper()
+
+    cards = []
+    categorias = sorted({str(produto.get("categoria") or "Produtos").strip() or "Produtos" for produto in produtos})
+    for produto in produtos:
+        produto_id = int(produto.get("id") or produto.get("produto_id") or 0)
+        nome = html.escape(str(produto.get("nome") or "Produto"))
+        descricao = html.escape(str(produto.get("descricao") or ""))
+        categoria_produto = html.escape(str(produto.get("categoria") or "Produtos"))
+        preco = html.escape(str(produto.get("preco") or "0,00"))
+        imagem_path = str(produto.get("imagem_path") or "").strip()
+        imagem_html = f'<img src="/vitrine-upload/{html.escape(imagem_path)}" alt="{nome}">' if imagem_path else '<span>Produto</span>'
+        cards.append(
+            f"""
+            <article class="produto-card" data-produto-id="{produto_id}" data-categoria="{categoria_produto}" data-nome="{nome.lower()}">
+                <button class="produto-imagem" type="button" onclick="registrarProduto({produto_id})">{imagem_html}</button>
+                <div class="produto-info">
+                    <small>{categoria_produto}</small>
+                    <h3>{nome}</h3>
+                    <p>{descricao}</p>
+                    <strong>R$ {preco}</strong>
+                    <button type="button" onclick="adicionarCarrinho({produto_id}, '{nome}', '{preco}')">Adicionar ao carrinho</button>
+                </div>
+            </article>
+            """
+        )
+
+    categorias_html = "".join(
+        f"<button type=\"button\" onclick=\"filtrarCategoria('{html.escape(cat)}')\">{html.escape(cat)}</button>"
+        for cat in categorias
+    )
+    cards_html = "\n".join(cards) or '<div class="vazio">Nenhum produto publicado ainda.</div>'
+    mensagem_html = f'<div class="mensagem">{html.escape(mensagem)}</div>' if mensagem else ""
+    whatsapp_html = f'<a class="whatsapp-final" href="{html.escape(whatsapp_url)}" target="_blank" rel="noopener">Enviar pedido no WhatsApp</a>' if whatsapp_url else ""
+    slug = html.escape(str(config_vitrine.get("slug") or ""))
+
+    return f"""<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{nome_loja}</title>
+<style>
+*{{box-sizing:border-box}}body{{margin:0;font-family:Arial,sans-serif;background:#f3f4f6;color:#111827}}.topo{{background:linear-gradient(135deg,{cor_principal},{cor_secundaria});color:#fff;padding:28px 18px 34px}}.topo-inner{{max-width:1120px;margin:auto;display:flex;align-items:center;gap:16px}}.logo{{width:76px;height:76px;border-radius:22px;background:#fff;color:{cor_principal};display:grid;place-items:center;font-weight:900;font-size:22px;overflow:hidden}}.logo img{{width:100%;height:100%;object-fit:cover}}.topo h1{{margin:0;font-size:30px}}.topo p{{margin:6px 0 0;opacity:.9}}.container{{max-width:1120px;margin:-22px auto 40px;padding:0 18px}}.barra{{background:#fff;border-radius:22px;padding:16px;box-shadow:0 12px 30px rgba(0,0,0,.08);display:grid;gap:12px}}.busca{{width:100%;min-height:46px;border:1px solid #e5e7eb;border-radius:14px;padding:0 14px;font-size:16px}}.categorias{{display:flex;gap:8px;overflow:auto}}.categorias button{{border:0;border-radius:999px;padding:10px 14px;background:#eef2ff;font-weight:800;white-space:nowrap}}.conteudo{{display:grid;grid-template-columns:1fr 340px;gap:18px;margin-top:18px}}.produtos{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}}.produto-card{{background:#fff;border-radius:22px;overflow:hidden;border:1px solid #e5e7eb}}.produto-imagem{{width:100%;height:170px;border:0;background:#e5e7eb;display:grid;place-items:center;color:#6b7280;font-weight:900;cursor:pointer}}.produto-imagem img{{width:100%;height:100%;object-fit:cover}}.produto-info{{padding:14px;display:grid;gap:8px}}.produto-info small{{color:#6b7280;font-weight:800}}.produto-info h3{{margin:0;font-size:17px}}.produto-info p{{margin:0;color:#6b7280;min-height:38px}}.produto-info strong{{font-size:20px}}.produto-info button,.finalizar,.whatsapp-final{{border:0;border-radius:14px;padding:12px;background:{cor_principal};color:#fff;font-weight:900;cursor:pointer;text-align:center;text-decoration:none}}.carrinho{{background:#fff;border-radius:22px;border:1px solid #e5e7eb;padding:16px;position:sticky;top:16px;align-self:start}}.carrinho h2{{margin:0 0 12px}}.item-carrinho{{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid #e5e7eb;padding:10px 0}}.form-pedido{{display:grid;gap:10px;margin-top:14px}}.form-pedido input,.form-pedido select,.form-pedido textarea{{width:100%;min-height:42px;border:1px solid #d1d5db;border-radius:12px;padding:10px}}.mensagem{{background:#ecfdf5;color:#047857;border-radius:16px;padding:12px;margin-bottom:14px;font-weight:800}}.whatsapp-final{{display:block;margin-bottom:14px;background:#16a34a}}.vazio{{background:#fff;border-radius:22px;padding:30px;text-align:center;color:#6b7280}}@media(max-width:900px){{.conteudo{{grid-template-columns:1fr}}.produtos{{grid-template-columns:1fr}}.topo-inner{{align-items:flex-start}}}}
+</style>
+</head>
+<body>
+<header class="topo"><div class="topo-inner"><div class="logo">{logo_html}</div><div><h1>{nome_loja}</h1><p>{categoria} {("• " + instagram) if instagram else ""}</p></div></div></header>
+<main class="container">
+{mensagem_html}
+{whatsapp_html}
+<section class="barra"><input class="busca" id="busca" placeholder="Buscar produto..." oninput="filtrarProdutos()"><div class="categorias"><button type="button" onclick="filtrarCategoria('')">Todos</button>{categorias_html}</div></section>
+<section class="conteudo"><div class="produtos" id="produtos">{cards_html}</div><aside class="carrinho"><h2>Carrinho</h2><div id="itensCarrinho">Nenhum item adicionado.</div><strong id="totalCarrinho">Total: R$ 0,00</strong><form class="form-pedido" method="post" action="/loja/{slug}/pedido" onsubmit="return prepararPedido()"><input name="cliente_nome" placeholder="Seu nome" required><input name="cliente_whatsapp" placeholder="Seu WhatsApp" required><select name="tipo_entrega"><option value="retirada">Retirada</option><option value="entrega">Entrega</option></select><input name="endereco" placeholder="Endereço, se for entrega"><select name="forma_pagamento"><option value="pix">PIX</option><option value="dinheiro">Dinheiro</option><option value="cartao">Cartão</option></select><textarea name="observacoes" placeholder="Observações"></textarea><input type="hidden" name="itens_json" id="itensJson"><button class="finalizar" type="submit">Confirmar pedido</button></form></aside></section>
+</main>
+<script>
+let carrinho=[];
+function moedaNumero(valor){{return parseFloat(String(valor).replace(/\\./g,'').replace(',','.'))||0}}
+function moedaBR(valor){{return valor.toFixed(2).replace('.',',')}}
+function registrar(tipo,id){{fetch('/loja/{slug}/evento',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{tipo:tipo,produto_id:id||''}})}}).catch(()=>{{}})}}
+function registrarProduto(id){{registrar('produto',id)}}
+function adicionarCarrinho(id,nome,preco){{registrar('carrinho',id);const item=carrinho.find(i=>i.id===id);if(item){{item.quantidade+=1}}else{{carrinho.push({{id:id,nome:nome,preco:preco,quantidade:1}})}}renderCarrinho()}}
+function renderCarrinho(){{const el=document.getElementById('itensCarrinho');if(!carrinho.length){{el.innerHTML='Nenhum item adicionado.';document.getElementById('totalCarrinho').innerText='Total: R$ 0,00';return}}let total=0;el.innerHTML=carrinho.map(i=>{{const sub=moedaNumero(i.preco)*i.quantidade;total+=sub;return `<div class="item-carrinho"><span>${{i.quantidade}}x ${{i.nome}}</span><strong>R$ ${{moedaBR(sub)}}</strong></div>`}}).join('');document.getElementById('totalCarrinho').innerText='Total: R$ '+moedaBR(total)}}
+function prepararPedido(){{if(!carrinho.length){{alert('Adicione pelo menos um produto.');return false}}document.getElementById('itensJson').value=JSON.stringify(carrinho);return true}}
+function filtrarCategoria(cat){{document.querySelectorAll('.produto-card').forEach(card=>{{card.style.display=(!cat||card.dataset.categoria===cat)?'block':'none'}})}}
+function filtrarProdutos(){{const termo=document.getElementById('busca').value.toLowerCase();document.querySelectorAll('.produto-card').forEach(card=>{{card.style.display=card.dataset.nome.includes(termo)?'block':'none'}})}}
+</script>
+</body>
+</html>"""
+
+
+@app.route("/vitrine-upload/<path:caminho>")
+def servir_upload_vitrine_publico(caminho: str) -> Response:
+    caminho_normalizado = str(caminho or "").replace("\\", "/").lstrip("/")
+    if caminho_normalizado.startswith("uploads/vitrines/"):
+        caminho_normalizado = caminho_normalizado.split("uploads/vitrines/", 1)[1]
+    return send_from_directory(VITRINE_UPLOAD_DIR, caminho_normalizado)
+
+
+@app.route("/loja/<slug>")
+def vitrine_publica(slug: str) -> str | Response:
+    config_vitrine = buscar_vitrine_configuracao_por_slug(slug)
+    if config_vitrine is None:
+        return Response("Vitrine não encontrada ou ainda não publicada.", status=404)
+
+    empresa_id = int(config_vitrine.get("empresa_id") or 0)
+    registrar_evento_vitrine(empresa_id, "visita", origem=request.args.get("utm") or request.referrer or "")
+    produtos = listar_produtos_vitrine_empresa(empresa_id)
+    return renderizar_vitrine_publica_html(config_vitrine, produtos)
+
+
+@app.route("/loja/<slug>/evento", methods=["POST"])
+def vitrine_evento_publico(slug: str) -> Response:
+    config_vitrine = buscar_vitrine_configuracao_por_slug(slug)
+    if config_vitrine is None:
+        return jsonify({"ok": False}), 404
+
+    payload = request.get_json(silent=True) or {}
+    registrar_evento_vitrine(
+        int(config_vitrine.get("empresa_id") or 0),
+        str(payload.get("tipo") or ""),
+        payload.get("produto_id") or "",
+        request.referrer or "",
+    )
+    return jsonify({"ok": True})
+
+
+@app.route("/loja/<slug>/pedido", methods=["POST"])
+def vitrine_pedido_publico(slug: str) -> str | Response:
+    config_vitrine = buscar_vitrine_configuracao_por_slug(slug)
+    if config_vitrine is None:
+        return Response("Vitrine não encontrada ou ainda não publicada.", status=404)
+
+    empresa_id = int(config_vitrine.get("empresa_id") or 0)
+    dados = {
+        "cliente_nome": request.form.get("cliente_nome") or "",
+        "cliente_whatsapp": request.form.get("cliente_whatsapp") or "",
+        "tipo_entrega": request.form.get("tipo_entrega") or "",
+        "endereco": request.form.get("endereco") or "",
+        "forma_pagamento": request.form.get("forma_pagamento") or "",
+        "observacoes": request.form.get("observacoes") or "",
+    }
+    itens = montar_itens_pedido_vitrine(empresa_id, request.form.get("itens_json") or "[]")
+
+    if not itens:
+        produtos = listar_produtos_vitrine_empresa(empresa_id)
+        return renderizar_vitrine_publica_html(config_vitrine, produtos, "Adicione pelo menos um produto ao carrinho.")
+
+    pedido_id = salvar_pedido_vitrine_db(empresa_id, dados, itens)
+    whatsapp_url = montar_whatsapp_pedido_vitrine(config_vitrine, pedido_id, dados, itens)
+    produtos = listar_produtos_vitrine_empresa(empresa_id)
+    return renderizar_vitrine_publica_html(config_vitrine, produtos, f"Pedido #{pedido_id} gerado com sucesso.", whatsapp_url)
+
 @app.route("/vitrine", methods=["GET", "POST"])
 def vitrine() -> str | Response:
     config_vitrine = buscar_vitrine_configuracao()
@@ -11200,9 +11760,13 @@ def vitrine() -> str | Response:
         salvar_vitrine_configuracao_db(dados)
         return redirect(url_for("vitrine", mensagem="Configuração da vitrine salva com sucesso."))
 
+    empresa_id = empresa_logada_id()
     return render_template(
         "vitrine.html",
         vitrine=config_vitrine,
+        produtos_vitrine=listar_produtos_vitrine_empresa(empresa_id),
+        ranking_vitrine=listar_ranking_produtos_vitrine(empresa_id),
+        link_publico=(f"{request.url_root.rstrip('/')}/loja/{config_vitrine.get('slug')}" if config_vitrine.get("slug") else ""),
         mensagem=(request.args.get("mensagem") or "").strip(),
         erro=(request.args.get("erro") or "").strip(),
     )
