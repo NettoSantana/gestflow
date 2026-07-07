@@ -1,0 +1,609 @@
+{#
+Caminho completo: templates/vitrine.html
+Data/hora do último recode: 07/07/2026 14:00
+Motivo da alteração: Criar tela inicial do módulo Vitrine Online com templates, personalização, produtos, métricas e prévia pública.
+#}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vitrine Online - GestFlow</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+
+    <main class="main-content">
+        <header class="page-header">
+            <div>
+                <p class="page-kicker">Vitrine Online</p>
+                <h1>Monte sua loja virtual para vender pelo WhatsApp</h1>
+                <p class="page-subtitle">Escolha um modelo, personalize as cores da loja, publique produtos e acompanhe os itens mais acessados.</p>
+            </div>
+            <div class="page-actions">
+                <a class="btn btn-secondary" href="#previa-publica">Ver prévia</a>
+                <a class="btn btn-primary" href="#produtos-vitrine">Adicionar produto</a>
+            </div>
+        </header>
+
+        <section class="vitrine-grid vitrine-grid-destaque">
+            <article class="vitrine-card vitrine-card-principal">
+                <div class="vitrine-card-header">
+                    <div>
+                        <p class="card-kicker">Configuração rápida</p>
+                        <h2>Dados da vitrine</h2>
+                    </div>
+                    <span class="status-pill status-rascunho">Rascunho</span>
+                </div>
+
+                <form class="vitrine-form" method="post" action="#" enctype="multipart/form-data">
+                    <div class="form-grid-2">
+                        <label>
+                            Nome da loja
+                            <input type="text" name="nome_loja" placeholder="Ex.: Ale Vieira Fragrâncias">
+                        </label>
+                        <label>
+                            WhatsApp para pedidos
+                            <input type="text" name="whatsapp" placeholder="Ex.: 71999999999">
+                        </label>
+                    </div>
+
+                    <div class="form-grid-2">
+                        <label>
+                            Instagram
+                            <input type="text" name="instagram" placeholder="Ex.: @minhaloja">
+                        </label>
+                        <label>
+                            Link público desejado
+                            <input type="text" name="slug" placeholder="Ex.: ale-vieira-fragrancias">
+                        </label>
+                    </div>
+
+                    <div class="form-grid-2">
+                        <label>
+                            Logo ou foto da loja
+                            <input type="file" name="logo_loja" accept="image/*">
+                        </label>
+                        <label>
+                            Categoria principal
+                            <select name="categoria">
+                                <option value="">Selecionar categoria</option>
+                                <option value="perfumaria">Perfumaria e cosméticos</option>
+                                <option value="moda">Moda e roupas</option>
+                                <option value="mercado">Mercado e variedades</option>
+                                <option value="servicos">Serviços</option>
+                                <option value="pecas">Peças e oficina</option>
+                            </select>
+                        </label>
+                    </div>
+
+                    <div class="form-grid-3">
+                        <label>
+                            Cor principal
+                            <input type="color" name="cor_principal" value="#111827">
+                        </label>
+                        <label>
+                            Cor secundária
+                            <input type="color" name="cor_secundaria" value="#f59e0b">
+                        </label>
+                        <label>
+                            Modelo visual
+                            <select name="template">
+                                <option value="catalogo-premium">Catálogo Premium</option>
+                                <option value="loja-clean">Loja Clean</option>
+                                <option value="whatsapp-direto">WhatsApp Direto</option>
+                            </select>
+                        </label>
+                    </div>
+
+                    <div class="form-actions">
+                        <button class="btn btn-primary" type="submit">Salvar vitrine</button>
+                        <button class="btn btn-secondary" type="button">Publicar depois</button>
+                    </div>
+                </form>
+            </article>
+
+            <aside class="vitrine-card vitrine-resumo-card">
+                <p class="card-kicker">Desempenho</p>
+                <h2>Resumo da vitrine</h2>
+                <div class="metric-list">
+                    <div class="metric-item">
+                        <span>Visitas</span>
+                        <strong>0</strong>
+                    </div>
+                    <div class="metric-item">
+                        <span>Produtos vistos</span>
+                        <strong>0</strong>
+                    </div>
+                    <div class="metric-item">
+                        <span>Itens no carrinho</span>
+                        <strong>0</strong>
+                    </div>
+                    <div class="metric-item">
+                        <span>Pedidos gerados</span>
+                        <strong>0</strong>
+                    </div>
+                </div>
+                <p class="hint-text">Assim que a vitrine for publicada, os acessos e produtos mais clicados aparecerão aqui.</p>
+            </aside>
+        </section>
+
+        <section class="vitrine-card" id="templates-vitrine">
+            <div class="vitrine-card-header">
+                <div>
+                    <p class="card-kicker">Modelos prontos</p>
+                    <h2>Escolha um template para começar</h2>
+                </div>
+            </div>
+
+            <div class="template-grid">
+                <button class="template-card active" type="button">
+                    <span class="template-preview template-premium"></span>
+                    <strong>Catálogo Premium</strong>
+                    <small>Ideal para perfumaria, cosméticos e produtos com imagem forte.</small>
+                </button>
+                <button class="template-card" type="button">
+                    <span class="template-preview template-clean"></span>
+                    <strong>Loja Clean</strong>
+                    <small>Visual direto para variedades, mercado e loja pequena.</small>
+                </button>
+                <button class="template-card" type="button">
+                    <span class="template-preview template-whatsapp"></span>
+                    <strong>WhatsApp Direto</strong>
+                    <small>Modelo simples para vender rápido pelo atendimento.</small>
+                </button>
+            </div>
+        </section>
+
+        <section class="vitrine-grid" id="produtos-vitrine">
+            <article class="vitrine-card">
+                <div class="vitrine-card-header">
+                    <div>
+                        <p class="card-kicker">Catálogo</p>
+                        <h2>Produtos da vitrine</h2>
+                    </div>
+                    <button class="btn btn-primary" type="button">Novo produto</button>
+                </div>
+
+                <div class="empty-state">
+                    <div class="empty-icon">▧</div>
+                    <h3>Nenhum produto publicado ainda</h3>
+                    <p>Na próxima etapa, os produtos cadastrados no GestFlow poderão ser marcados para aparecer automaticamente na vitrine.</p>
+                </div>
+            </article>
+
+            <article class="vitrine-card">
+                <div class="vitrine-card-header">
+                    <div>
+                        <p class="card-kicker">Acessos</p>
+                        <h2>Itens mais acessados</h2>
+                    </div>
+                </div>
+
+                <div class="ranking-list">
+                    <div class="ranking-row muted">
+                        <span>Produto</span>
+                        <strong>Acessos</strong>
+                    </div>
+                    <div class="ranking-row">
+                        <span>Aguardando acessos reais</span>
+                        <strong>0</strong>
+                    </div>
+                </div>
+            </article>
+        </section>
+
+        <section class="vitrine-card" id="previa-publica">
+            <div class="vitrine-card-header">
+                <div>
+                    <p class="card-kicker">Prévia</p>
+                    <h2>Como o cliente verá a loja</h2>
+                </div>
+                <span class="status-pill">Modo demonstração</span>
+            </div>
+
+            <div class="preview-store">
+                <div class="preview-hero">
+                    <div class="preview-logo">GF</div>
+                    <div>
+                        <h3>Sua loja online</h3>
+                        <p>Produtos, promoções e pedido direto pelo WhatsApp.</p>
+                    </div>
+                </div>
+
+                <div class="preview-search">Buscar produto...</div>
+
+                <div class="preview-products">
+                    <div class="preview-product-card">
+                        <div class="preview-product-img"></div>
+                        <strong>Produto destaque</strong>
+                        <span>R$ 0,00</span>
+                        <button type="button">Adicionar</button>
+                    </div>
+                    <div class="preview-product-card">
+                        <div class="preview-product-img"></div>
+                        <strong>Produto popular</strong>
+                        <span>R$ 0,00</span>
+                        <button type="button">Adicionar</button>
+                    </div>
+                    <div class="preview-product-card">
+                        <div class="preview-product-img"></div>
+                        <strong>Promoção</strong>
+                        <span>R$ 0,00</span>
+                        <button type="button">Adicionar</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <style>
+        .main-content {
+            padding: 28px;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .page-kicker,
+        .card-kicker {
+            margin: 0 0 6px;
+            color: #6b7280;
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .page-header h1,
+        .vitrine-card h2,
+        .preview-hero h3,
+        .empty-state h3 {
+            margin: 0;
+            color: #111827;
+        }
+
+        .page-subtitle {
+            max-width: 760px;
+            margin: 8px 0 0;
+            color: #6b7280;
+        }
+
+        .page-actions,
+        .form-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 42px;
+            padding: 10px 16px;
+            border-radius: 12px;
+            border: 1px solid transparent;
+            font-weight: 800;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: #111827;
+            color: #ffffff;
+        }
+
+        .btn-secondary {
+            background: #ffffff;
+            color: #111827;
+            border-color: #e5e7eb;
+        }
+
+        .vitrine-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(280px, 380px);
+            gap: 18px;
+            margin-bottom: 18px;
+        }
+
+        .vitrine-grid-destaque {
+            align-items: stretch;
+        }
+
+        .vitrine-card {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 22px;
+            padding: 20px;
+            box-shadow: 0 14px 38px rgba(15, 23, 42, 0.06);
+        }
+
+        .vitrine-card-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 14px;
+            margin-bottom: 18px;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            white-space: nowrap;
+            padding: 7px 10px;
+            border-radius: 999px;
+            background: #ecfdf5;
+            color: #047857;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .status-rascunho {
+            background: #fffbeb;
+            color: #b45309;
+        }
+
+        .vitrine-form {
+            display: grid;
+            gap: 16px;
+        }
+
+        .form-grid-2,
+        .form-grid-3 {
+            display: grid;
+            gap: 14px;
+        }
+
+        .form-grid-2 {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .form-grid-3 {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .vitrine-form label {
+            display: grid;
+            gap: 8px;
+            color: #374151;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .vitrine-form input,
+        .vitrine-form select {
+            width: 100%;
+            min-height: 42px;
+            border: 1px solid #d1d5db;
+            border-radius: 12px;
+            padding: 10px 12px;
+            color: #111827;
+            background: #ffffff;
+        }
+
+        .vitrine-form input[type="color"] {
+            padding: 4px;
+        }
+
+        .metric-list,
+        .ranking-list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .metric-item,
+        .ranking-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px;
+            border-radius: 14px;
+            background: #f9fafb;
+        }
+
+        .metric-item span,
+        .ranking-row span,
+        .hint-text,
+        .empty-state p,
+        .template-card small,
+        .preview-hero p {
+            color: #6b7280;
+        }
+
+        .metric-item strong,
+        .ranking-row strong {
+            color: #111827;
+            font-size: 20px;
+        }
+
+        .hint-text {
+            margin: 14px 0 0;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .template-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .template-card {
+            display: grid;
+            gap: 10px;
+            text-align: left;
+            border: 1px solid #e5e7eb;
+            border-radius: 18px;
+            background: #ffffff;
+            padding: 14px;
+            cursor: pointer;
+        }
+
+        .template-card.active {
+            border-color: #111827;
+            box-shadow: inset 0 0 0 1px #111827;
+        }
+
+        .template-preview {
+            display: block;
+            min-height: 88px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #111827, #f59e0b);
+        }
+
+        .template-clean {
+            background: linear-gradient(135deg, #f9fafb, #d1d5db);
+        }
+
+        .template-whatsapp {
+            background: linear-gradient(135deg, #16a34a, #bbf7d0);
+        }
+
+        .empty-state {
+            display: grid;
+            place-items: center;
+            min-height: 240px;
+            text-align: center;
+            border: 1px dashed #d1d5db;
+            border-radius: 18px;
+            padding: 22px;
+            background: #f9fafb;
+        }
+
+        .empty-icon {
+            display: grid;
+            place-items: center;
+            width: 54px;
+            height: 54px;
+            border-radius: 18px;
+            background: #ffffff;
+            color: #111827;
+            font-size: 28px;
+            font-weight: 900;
+        }
+
+        .ranking-row.muted {
+            background: transparent;
+            padding-top: 0;
+            padding-bottom: 0;
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .preview-store {
+            overflow: hidden;
+            border: 1px solid #e5e7eb;
+            border-radius: 24px;
+            background: #f9fafb;
+        }
+
+        .preview-hero {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 22px;
+            background: linear-gradient(135deg, #111827, #374151);
+            color: #ffffff;
+        }
+
+        .preview-hero h3,
+        .preview-hero p {
+            color: #ffffff;
+        }
+
+        .preview-logo {
+            display: grid;
+            place-items: center;
+            width: 58px;
+            height: 58px;
+            border-radius: 18px;
+            background: #ffffff;
+            color: #111827;
+            font-weight: 900;
+        }
+
+        .preview-search {
+            margin: 16px;
+            padding: 13px 15px;
+            border-radius: 14px;
+            background: #ffffff;
+            color: #9ca3af;
+            border: 1px solid #e5e7eb;
+        }
+
+        .preview-products {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            padding: 0 16px 16px;
+        }
+
+        .preview-product-card {
+            display: grid;
+            gap: 8px;
+            padding: 12px;
+            border-radius: 16px;
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+        }
+
+        .preview-product-img {
+            min-height: 90px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #e5e7eb, #f9fafb);
+        }
+
+        .preview-product-card span {
+            color: #111827;
+            font-weight: 900;
+        }
+
+        .preview-product-card button {
+            min-height: 36px;
+            border: 0;
+            border-radius: 10px;
+            background: #111827;
+            color: #ffffff;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                padding: 20px;
+            }
+
+            .page-header,
+            .vitrine-card-header {
+                flex-direction: column;
+            }
+
+            .vitrine-grid,
+            .form-grid-2,
+            .form-grid-3,
+            .template-grid,
+            .preview-products {
+                grid-template-columns: 1fr;
+            }
+
+            .page-actions,
+            .form-actions {
+                width: 100%;
+            }
+
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</body>
+</html>
