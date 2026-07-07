@@ -1,7 +1,7 @@
 {#
 Caminho: templates/partials/sidebar.html
-Último recode: 2026-07-04 13:55 (America/Bahia)
-Motivo: Renomear Agendamentos para Atendimento e incluir foco em agenda pública.
+Último recode: 2026-07-07 14:15 (America/Bahia)
+Motivo: Incluir acesso à Vitrine Online no menu lateral.
 #}
 {% set _path = request.path if request is defined else '' %}
 {% set _usuario_sidebar = usuario_logado|default({}, true) %}
@@ -161,6 +161,13 @@ Motivo: Renomear Agendamentos para Atendimento e incluir foco em agenda pública
                 </details>
             </li>
             {% endif %}
+
+            <li class="menu-item {% if _path.startswith('/vitrine') %}active{% endif %}">
+                <a href="/vitrine">
+                    <span class="menu-icon">▦</span>
+                    <span>Vitrine Online</span>
+                </a>
+            </li>
 
             {% if _modulos.get('agendamentos', true) %}
             <li class="menu-group {% if _path.startswith('/agendamentos') %}active{% endif %}">
