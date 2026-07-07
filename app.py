@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-07 14:58 (America/Bahia)
-# Motivo: Criar rota interna /vitrine para abrir a tela inicial da Vitrine Online.
+# Último recode: 2026-07-07 20:45 (America/Bahia)
+# Motivo: Permitir salvar a configuração inicial da Vitrine Online por empresa.
 
 from __future__ import annotations
 
@@ -41,6 +41,8 @@ UPLOAD_DIR = DATA_DIR / "uploads" / "logos"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 OS_FOTOS_DIR = DATA_DIR / "uploads" / "os_fotos"
 OS_FOTOS_DIR.mkdir(parents=True, exist_ok=True)
+VITRINE_UPLOAD_DIR = DATA_DIR / "uploads" / "vitrines"
+VITRINE_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 EXTENSOES_LOGO_PERMITIDAS = {"png", "jpg", "jpeg", "webp", "gif"}
 EXTENSOES_FOTO_OS_PERMITIDAS = {"png", "jpg", "jpeg", "webp"}
 
@@ -1364,6 +1366,32 @@ def iniciar_banco() -> None:
 
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS vitrine_configuracoes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER NOT NULL UNIQUE,
+                nome_loja TEXT,
+                whatsapp TEXT,
+                instagram TEXT,
+                slug TEXT,
+                logo_path TEXT,
+                categoria TEXT,
+                cor_principal TEXT,
+                cor_secundaria TEXT,
+                template TEXT,
+                status TEXT NOT NULL DEFAULT 'rascunho',
+                visitas INTEGER NOT NULL DEFAULT 0,
+                produtos_vistos INTEGER NOT NULL DEFAULT 0,
+                itens_carrinho INTEGER NOT NULL DEFAULT 0,
+                pedidos_gerados INTEGER NOT NULL DEFAULT 0,
+                criado_em TEXT DEFAULT CURRENT_TIMESTAMP,
+                atualizado_em TEXT,
+                FOREIGN KEY (empresa_id) REFERENCES empresas (id)
+            )
+            """
+        )
+
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS agendamentos (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 empresa_id INTEGER,
@@ -1766,6 +1794,7 @@ def iniciar_banco() -> None:
             "caixa_movimentacoes",
             "usuario_atividades",
             "assistente_conversas",
+            "vitrine_configuracoes",
             "agendamentos",
             "registros_ponto",
         ]
@@ -10963,9 +10992,220 @@ def dashboard() -> str | Response:
     )
 
 
-@app.get("/vitrine")
-def vitrine() -> str:
-    return render_template("vitrine.html")
+
+def normalizar_slug_vitrine(valor: Any) -> str:
+    texto = str(valor or "").strip().lower()
+    texto = unicodedata.normalize("NFKD", texto)
+    texto = "".join(caractere for caractere in texto if not unicodedata.combining(caractere))
+    texto = re.sub(r"[^a-z0-9]+", "-", texto)
+    texto = texto.strip("-")
+    return texto[:80]
+
+
+def extensao_arquivo_permitida(nome_arquivo: str, extensoes: set[str]) -> bool:
+    nome = str(nome_arquivo or "").strip().lower()
+    return "." in nome and nome.rsplit(".", 1)[-1] in extensoes
+
+
+def salvar_logo_vitrine_upload() -> str:
+    arquivo = request.files.get("logo_loja")
+
+    if arquivo is None or not arquivo.filename:
+        return ""
+
+    if not extensao_arquivo_permitida(arquivo.filename, EXTENSOES_LOGO_PERMITIDAS):
+        return ""
+
+    empresa_id = empresa_logada_id()
+    nome_seguro = secure_filename(arquivo.filename)
+    extensao = nome_seguro.rsplit(".", 1)[-1].lower()
+    nome_final = f"vitrine_empresa_{empresa_id}_{int(datetime.now().timestamp())}.{extensao}"
+    caminho_final = VITRINE_UPLOAD_DIR / nome_final
+    arquivo.save(caminho_final)
+    return f"uploads/vitrines/{nome_final}"
+
+
+def montar_vitrine_formulario(config_atual: dict[str, Any] | None = None) -> dict[str, str]:
+    config_atual = config_atual or {}
+    nome_loja = (request.form.get("nome_loja") or "").strip()
+    slug = normalizar_slug_vitrine(request.form.get("slug") or nome_loja)
+
+    if not slug:
+        slug = f"loja-{empresa_logada_id()}"
+
+    logo_path = salvar_logo_vitrine_upload() or str(config_atual.get("logo_path") or "")
+
+    return {
+        "nome_loja": nome_loja,
+        "whatsapp": (request.form.get("whatsapp") or "").strip(),
+        "instagram": (request.form.get("instagram") or "").strip(),
+        "slug": slug,
+        "logo_path": logo_path,
+        "categoria": (request.form.get("categoria") or "").strip(),
+        "cor_principal": (request.form.get("cor_principal") or "#111827").strip() or "#111827",
+        "cor_secundaria": (request.form.get("cor_secundaria") or "#f59e0b").strip() or "#f59e0b",
+        "template": (request.form.get("template") or "catalogo-premium").strip() or "catalogo-premium",
+        "status": (request.form.get("status") or "rascunho").strip() or "rascunho",
+    }
+
+
+def buscar_vitrine_configuracao() -> dict[str, Any]:
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                id,
+                empresa_id,
+                nome_loja,
+                whatsapp,
+                instagram,
+                slug,
+                logo_path,
+                categoria,
+                cor_principal,
+                cor_secundaria,
+                template,
+                status,
+                visitas,
+                produtos_vistos,
+                itens_carrinho,
+                pedidos_gerados,
+                criado_em,
+                atualizado_em
+            FROM vitrine_configuracoes
+            WHERE empresa_id = ?
+            LIMIT 1
+            """,
+            (empresa_id,),
+        ).fetchone()
+
+    if row is None:
+        return {
+            "id": "",
+            "empresa_id": empresa_id,
+            "nome_loja": "",
+            "whatsapp": "",
+            "instagram": "",
+            "slug": "",
+            "logo_path": "",
+            "categoria": "",
+            "cor_principal": "#111827",
+            "cor_secundaria": "#f59e0b",
+            "template": "catalogo-premium",
+            "status": "rascunho",
+            "visitas": 0,
+            "produtos_vistos": 0,
+            "itens_carrinho": 0,
+            "pedidos_gerados": 0,
+            "criado_em": "",
+            "atualizado_em": "",
+        }
+
+    return dict(row)
+
+
+def salvar_vitrine_configuracao_db(dados: dict[str, str]) -> None:
+    empresa_id = empresa_logada_id()
+    atualizado_em = agora_empresa().isoformat(timespec="seconds")
+
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT id
+            FROM vitrine_configuracoes
+            WHERE empresa_id = ?
+            LIMIT 1
+            """,
+            (empresa_id,),
+        ).fetchone()
+
+        if row is None:
+            conn.execute(
+                """
+                INSERT INTO vitrine_configuracoes (
+                    empresa_id,
+                    nome_loja,
+                    whatsapp,
+                    instagram,
+                    slug,
+                    logo_path,
+                    categoria,
+                    cor_principal,
+                    cor_secundaria,
+                    template,
+                    status,
+                    atualizado_em
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    empresa_id,
+                    dados["nome_loja"],
+                    dados["whatsapp"],
+                    dados["instagram"],
+                    dados["slug"],
+                    dados["logo_path"],
+                    dados["categoria"],
+                    dados["cor_principal"],
+                    dados["cor_secundaria"],
+                    dados["template"],
+                    dados["status"],
+                    atualizado_em,
+                ),
+            )
+        else:
+            conn.execute(
+                """
+                UPDATE vitrine_configuracoes
+                SET
+                    nome_loja = ?,
+                    whatsapp = ?,
+                    instagram = ?,
+                    slug = ?,
+                    logo_path = ?,
+                    categoria = ?,
+                    cor_principal = ?,
+                    cor_secundaria = ?,
+                    template = ?,
+                    status = ?,
+                    atualizado_em = ?
+                WHERE empresa_id = ?
+                """,
+                (
+                    dados["nome_loja"],
+                    dados["whatsapp"],
+                    dados["instagram"],
+                    dados["slug"],
+                    dados["logo_path"],
+                    dados["categoria"],
+                    dados["cor_principal"],
+                    dados["cor_secundaria"],
+                    dados["template"],
+                    dados["status"],
+                    atualizado_em,
+                    empresa_id,
+                ),
+            )
+
+        conn.commit()
+
+
+@app.route("/vitrine", methods=["GET", "POST"])
+def vitrine() -> str | Response:
+    config_vitrine = buscar_vitrine_configuracao()
+
+    if request.method == "POST":
+        dados = montar_vitrine_formulario(config_vitrine)
+        salvar_vitrine_configuracao_db(dados)
+        return redirect(url_for("vitrine", mensagem="Configuração da vitrine salva com sucesso."))
+
+    return render_template(
+        "vitrine.html",
+        vitrine=config_vitrine,
+        mensagem=(request.args.get("mensagem") or "").strip(),
+        erro=(request.args.get("erro") or "").strip(),
+    )
 
 
 
