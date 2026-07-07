@@ -1,7 +1,7 @@
 {#
 Caminho completo: templates/vitrine.html
-Data/hora do último recode: 07/07/2026 14:00
-Motivo da alteração: Criar tela inicial do módulo Vitrine Online com templates, personalização, produtos, métricas e prévia pública.
+Data/hora do último recode: 07/07/2026 15:30
+Motivo da alteração: Corrigir largura e posicionamento da tela da Vitrine Online ao lado do menu lateral.
 #}
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -240,6 +240,10 @@ Motivo da alteração: Criar tela inicial do módulo Vitrine Online com template
 
     <style>
         .main-content {
+            box-sizing: border-box;
+            width: calc(100% - 190px);
+            margin-left: 190px;
+            min-height: 100vh;
             padding: 28px;
         }
 
@@ -579,6 +583,8 @@ Motivo da alteração: Criar tela inicial do módulo Vitrine Online com template
 
         @media (max-width: 1024px) {
             .main-content {
+                width: 100%;
+                margin-left: 0;
                 padding: 20px;
             }
 
