@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-04 22:05 (America/Bahia)
-# Motivo: Atualizar backend da anamnese para reconhecer agenda/atendimento e registro de ponto.
+# Último recode: 2026-07-07 14:58 (America/Bahia)
+# Motivo: Criar rota interna /vitrine para abrir a tela inicial da Vitrine Online.
 
 from __future__ import annotations
 
@@ -65,6 +65,7 @@ GESTFLOW_MODULOS = [
     {"codigo": "orcamentos", "nome": "Orçamentos", "grupo": "Comercial", "descricao": "Propostas comerciais e orçamentos manuais."},
     {"codigo": "gerador_orcamentos", "nome": "Gerador de Orçamentos", "grupo": "Comercial", "descricao": "Gerador técnico com materiais, mão de obra, custos e escopo."},
     {"codigo": "vendas", "nome": "Vendas", "grupo": "Comercial", "descricao": "Registro de vendas completas."},
+    {"codigo": "vitrine", "nome": "Vitrine Online", "grupo": "Comercial", "descricao": "Catálogo online com produtos, templates, personalização e métricas."},
     {"codigo": "pdv", "nome": "Balcão / PDV", "grupo": "Comercial", "descricao": "Venda rápida de balcão e caixa."},
     {"codigo": "devolucoes", "nome": "Devoluções", "grupo": "Comercial", "descricao": "Devoluções vinculadas às vendas e retorno de estoque."},
     {"codigo": "ordens_servico", "nome": "Ordens de Serviço", "grupo": "Serviços", "descricao": "Abertura, execução, acompanhamento e impressão de OS."},
@@ -122,11 +123,11 @@ GESTFLOW_SEGMENTOS = [
 GESTFLOW_SEGMENTOS_POR_CODIGO = {segmento["codigo"]: segmento for segmento in GESTFLOW_SEGMENTOS}
 
 GESTFLOW_PERFIS_MODULOS = {
-    "comercio": {"clientes", "fornecedores", "produtos", "vendas", "pdv", "devolucoes", "estoque", "financeiro"},
-    "servicos": {"clientes", "servicos", "orcamentos", "vendas", "financeiro", "agendamentos"},
-    "assistencia": {"clientes", "fornecedores", "funcionarios", "produtos", "servicos", "orcamentos", "vendas", "ordens_servico", "estoque", "financeiro", "agendamentos", "registro_ponto"},
+    "comercio": {"clientes", "fornecedores", "produtos", "vendas", "vitrine", "pdv", "devolucoes", "estoque", "financeiro"},
+    "servicos": {"clientes", "servicos", "orcamentos", "vendas", "vitrine", "financeiro", "agendamentos"},
+    "assistencia": {"clientes", "fornecedores", "funcionarios", "produtos", "servicos", "orcamentos", "vendas", "vitrine", "ordens_servico", "estoque", "financeiro", "agendamentos", "registro_ponto"},
     "industrial": {"clientes", "fornecedores", "funcionarios", "produtos", "servicos", "orcamentos", "gerador_orcamentos", "vendas", "ordens_servico", "painel_os", "estoque", "financeiro", "registro_ponto"},
-    "distribuicao": {"clientes", "fornecedores", "produtos", "vendas", "devolucoes", "estoque", "financeiro"},
+    "distribuicao": {"clientes", "fornecedores", "produtos", "vendas", "vitrine", "devolucoes", "estoque", "financeiro"},
     "locacao": {"clientes", "fornecedores", "funcionarios", "produtos", "servicos", "orcamentos", "vendas", "ordens_servico", "estoque", "financeiro"},
     "completo": set(GESTFLOW_MODULOS_CODIGOS),
 }
@@ -240,15 +241,11 @@ def sugerir_modulos_por_anamnese(dados: dict[str, Any]) -> dict[str, bool]:
     if "produtos" in operacao or "balcao" in operacao or "estoque" in operacao:
         ativos.update({"clientes", "produtos", "vendas", "estoque"})
     if "servicos" in operacao:
-        ativos.update({"clientes", "servicos", "orcamentos"})
-    if "agendamentos" in operacao:
-        ativos.update({"clientes", "funcionarios", "servicos", "agendamentos"})
+        ativos.update({"clientes", "servicos", "orcamentos", "agendamentos"})
     if "balcao" in operacao:
         ativos.update({"pdv", "devolucoes"})
     if "equipe_externa" in operacao or "ordem_servico" in operacao:
         ativos.update({"clientes", "funcionarios", "servicos", "ordens_servico", "registro_ponto"})
-    if "registro_ponto" in operacao:
-        ativos.update({"funcionarios", "registro_ponto"})
     if "projetos_obras" in operacao:
         ativos.update({"clientes", "fornecedores", "funcionarios", "produtos", "servicos", "orcamentos", "gerador_orcamentos", "ordens_servico", "financeiro", "registro_ponto"})
 
@@ -259,7 +256,7 @@ def sugerir_modulos_por_anamnese(dados: dict[str, Any]) -> dict[str, bool]:
     if "venda_direta" in comercial:
         ativos.update({"clientes", "vendas"})
     if "whatsapp" in comercial:
-        ativos.update({"clientes", "vendas"})
+        ativos.update({"clientes", "vendas", "vitrine"})
 
     if "os_simples" in execucao or "os_completa" in execucao:
         ativos.update({"clientes", "servicos", "ordens_servico", "registro_ponto"})
@@ -291,7 +288,7 @@ def sugerir_modulos_por_anamnese(dados: dict[str, Any]) -> dict[str, bool]:
             ativos.discard("orcamentos")
         if "ordem_servico" not in operacao and not execucao:
             ativos.discard("ordens_servico")
-        if "funcionarios" not in cadastros and "equipe_externa" not in operacao and "registro_ponto" not in operacao and "agendamentos" not in operacao and not ({"campo", "fotos", "acompanhamento"} & execucao):
+        if "funcionarios" not in cadastros and "equipe_externa" not in operacao and not ({"campo", "fotos", "acompanhamento"} & execucao):
             ativos.discard("funcionarios")
             ativos.discard("registro_ponto")
 
@@ -301,6 +298,8 @@ def sugerir_modulos_por_anamnese(dados: dict[str, Any]) -> dict[str, bool]:
         ativos.update({"produtos", "vendas"})
     if "devolucoes" in ativos:
         ativos.add("vendas")
+    if "vitrine" in ativos:
+        ativos.update({"clientes", "produtos", "vendas"})
     if "gerador_orcamentos" in ativos:
         ativos.add("orcamentos")
     if "painel_os" in ativos:
@@ -370,6 +369,7 @@ def modulo_por_rota(path: str) -> str:
         ("/vendas/balcao", "pdv"),
         ("/vendas/devolucoes", "devolucoes"),
         ("/vendas", "vendas"),
+        ("/vitrine", "vitrine"),
         ("/ordens-servico/painel", "painel_os"),
         ("/ordens-servico", "ordens_servico"),
         ("/clientes", "clientes"),
@@ -701,7 +701,6 @@ def exigir_login_rotas_internas() -> Response | None:
         "esqueci_senha",
         "pwa_instalar",
         "agendamento_publico",
-        "ponto_funcionario_publico",
         "service_worker",
         "health",
         "twilio_webhook",
@@ -875,7 +874,6 @@ def iniciar_banco() -> None:
                 email TEXT,
                 categoria TEXT,
                 observacoes TEXT,
-                token_ponto_publico TEXT,
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
             """
@@ -1626,7 +1624,6 @@ def iniciar_banco() -> None:
             "custo_mensal": "TEXT",
             "custo_dia": "TEXT",
             "custo_hora": "TEXT",
-            "token_ponto_publico": "TEXT",
         }
 
         for coluna, tipo_coluna in colunas_custos_funcionarios.items():
@@ -1672,7 +1669,6 @@ def iniciar_banco() -> None:
                 "custo_mensal": "TEXT",
                 "custo_dia": "TEXT",
                 "custo_hora": "TEXT",
-                "token_ponto_publico": "TEXT",
                 "criado_em": "TEXT",
             },
             "produtos": {
@@ -1745,28 +1741,6 @@ def iniciar_banco() -> None:
 
         for empresa_sem_codigo in empresas_sem_codigo:
             garantir_codigo_indicacao_empresa(int(empresa_sem_codigo["id"]), conn)
-
-        funcionarios_sem_token = conn.execute(
-            """
-            SELECT id
-            FROM funcionarios
-            WHERE token_ponto_publico IS NULL
-               OR TRIM(token_ponto_publico) = ''
-            ORDER BY id ASC
-            """
-        ).fetchall()
-
-        for funcionario_sem_token in funcionarios_sem_token:
-            token_funcionario = gerar_token_ponto_funcionario()
-            while conn.execute(
-                "SELECT id FROM funcionarios WHERE token_ponto_publico = ? LIMIT 1",
-                (token_funcionario,),
-            ).fetchone():
-                token_funcionario = gerar_token_ponto_funcionario()
-            conn.execute(
-                "UPDATE funcionarios SET token_ponto_publico = ? WHERE id = ?",
-                (token_funcionario, int(funcionario_sem_token["id"])),
-            )
 
 
         tabelas_com_empresa_id = [
@@ -2334,34 +2308,6 @@ def normalizar_telefone_publico(valor: Any) -> str:
     return re.sub(r"\D+", "", str(valor or ""))
 
 
-def normalizar_telefone_ponto(valor: Any) -> str:
-    telefone = normalizar_telefone_publico(valor)
-    if telefone.startswith("55") and len(telefone) > 11:
-        telefone = telefone[2:]
-    while telefone.startswith("0") and len(telefone) > 10:
-        telefone = telefone[1:]
-    return telefone
-
-
-def telefones_ponto_compativeis(informado: Any, cadastrado: Any) -> bool:
-    telefone_informado = normalizar_telefone_ponto(informado)
-    telefone_cadastrado = normalizar_telefone_ponto(cadastrado)
-    if not telefone_informado or not telefone_cadastrado:
-        return False
-    return telefone_informado == telefone_cadastrado
-
-
-def mascarar_telefone_ponto(valor: Any) -> str:
-    telefone = normalizar_telefone_ponto(valor)
-    if len(telefone) < 8:
-        return "não cadastrado"
-    return f"(**) *****-{telefone[-4:]}"
-
-
-def gerar_token_ponto_funcionario() -> str:
-    return secrets.token_urlsafe(24)
-
-
 def gerar_token_publico_cliente() -> str:
     return secrets.token_urlsafe(24)
 
@@ -2914,7 +2860,6 @@ def salvar_funcionario_db(funcionario: dict[str, str]) -> None:
                 status,
                 email,
                 observacoes,
-                token_ponto_publico,
                 salario_base,
                 inss_percentual,
                 fgts_percentual,
@@ -2927,7 +2872,7 @@ def salvar_funcionario_db(funcionario: dict[str, str]) -> None:
                 custo_mensal,
                 custo_dia,
                 custo_hora
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id,
@@ -2939,7 +2884,6 @@ def salvar_funcionario_db(funcionario: dict[str, str]) -> None:
                 funcionario["status"],
                 funcionario["email"],
                 funcionario["observacoes"],
-                gerar_token_ponto_funcionario(),
                 funcionario["salario_base"],
                 funcionario["inss_percentual"],
                 funcionario["fgts_percentual"],
@@ -2973,7 +2917,6 @@ def listar_funcionarios() -> list[dict[str, Any]]:
                 status,
                 email,
                 observacoes,
-                token_ponto_publico,
                 salario_base,
                 inss_percentual,
                 fgts_percentual,
@@ -3037,108 +2980,6 @@ def buscar_funcionario_por_id(funcionario_id: int) -> dict[str, Any] | None:
         return None
 
     return dict(row)
-
-def buscar_funcionario_por_id_empresa(funcionario_id: int, empresa_id: int) -> dict[str, Any] | None:
-    with conectar_db() as conn:
-        row = conn.execute(
-            """
-            SELECT *
-            FROM funcionarios
-            WHERE id = ?
-              AND empresa_id = ?
-            LIMIT 1
-            """,
-            (funcionario_id, empresa_id),
-        ).fetchone()
-
-    return dict(row) if row else None
-
-
-def buscar_funcionario_ponto_por_token(token: Any) -> dict[str, Any] | None:
-    token_normalizado = str(token or "").strip()
-
-    if not token_normalizado:
-        return None
-
-    with conectar_db() as conn:
-        row = conn.execute(
-            """
-            SELECT
-                funcionarios.*,
-                empresas.nome_fantasia AS empresa_nome,
-                empresas.status AS empresa_status
-            FROM funcionarios
-            JOIN empresas ON empresas.id = funcionarios.empresa_id
-            WHERE funcionarios.token_ponto_publico = ?
-              AND LOWER(COALESCE(funcionarios.status, 'ativo')) = 'ativo'
-              AND LOWER(COALESCE(empresas.status, 'ativo')) IN ('ativo', 'trial')
-            LIMIT 1
-            """,
-            (token_normalizado,),
-        ).fetchone()
-
-    return dict(row) if row else None
-
-
-def garantir_token_ponto_funcionario(funcionario_id: int, empresa_id: int | None = None) -> str:
-    empresa = int(empresa_id or empresa_logada_id())
-
-    with conectar_db() as conn:
-        row = conn.execute(
-            """
-            SELECT id, token_ponto_publico
-            FROM funcionarios
-            WHERE id = ?
-              AND empresa_id = ?
-            LIMIT 1
-            """,
-            (funcionario_id, empresa),
-        ).fetchone()
-
-        if row is None:
-            return ""
-
-        token_atual = str(row["token_ponto_publico"] or "").strip()
-        if token_atual:
-            return token_atual
-
-        token_novo = gerar_token_ponto_funcionario()
-        while conn.execute(
-            "SELECT id FROM funcionarios WHERE token_ponto_publico = ? LIMIT 1",
-            (token_novo,),
-        ).fetchone():
-            token_novo = gerar_token_ponto_funcionario()
-
-        conn.execute(
-            "UPDATE funcionarios SET token_ponto_publico = ? WHERE id = ? AND empresa_id = ?",
-            (token_novo, funcionario_id, empresa),
-        )
-        conn.commit()
-
-    return token_novo
-
-
-def montar_link_ponto_funcionario(token: Any) -> str:
-    token_normalizado = str(token or "").strip()
-    if not token_normalizado:
-        return ""
-    base_url = request.url_root.rstrip("/") if request else ""
-    return f"{base_url}/ponto/{token_normalizado}"
-
-
-def complementar_funcionarios_com_link_ponto(funcionarios: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    funcionarios_com_link: list[dict[str, Any]] = []
-    for funcionario in funcionarios:
-        item = dict(funcionario)
-        token = str(item.get("token_ponto_publico") or "").strip()
-        if not token:
-            token = garantir_token_ponto_funcionario(int(item["id"]), int(item.get("empresa_id") or empresa_logada_id()))
-            item["token_ponto_publico"] = token
-        item["link_ponto_publico"] = montar_link_ponto_funcionario(token)
-        item["telefone_ponto_mascarado"] = mascarar_telefone_ponto(item.get("telefone"))
-        funcionarios_com_link.append(item)
-    return funcionarios_com_link
-
 
 def atualizar_funcionario_db(funcionario_id: int, funcionario: dict[str, str]) -> None:
     empresa_id = empresa_logada_id()
@@ -9892,8 +9733,7 @@ def gerar_venda_por_agendamento_db(agendamento_id: int) -> int | None:
     return venda_id
 
 
-def buscar_registro_ponto(funcionario_id: int, data_ponto: str, empresa_id: int | None = None) -> dict[str, Any] | None:
-    empresa = int(empresa_id or empresa_logada_id())
+def buscar_registro_ponto(funcionario_id: int, data_ponto: str) -> dict[str, Any] | None:
     with conectar_db() as conn:
         row = conn.execute(
             """
@@ -9902,7 +9742,7 @@ def buscar_registro_ponto(funcionario_id: int, data_ponto: str, empresa_id: int 
             WHERE empresa_id = ? AND funcionario_id = ? AND data_ponto = ?
             LIMIT 1
             """,
-            (empresa, funcionario_id, data_ponto),
+            (empresa_logada_id(), funcionario_id, data_ponto),
         ).fetchone()
     return dict(row) if row else None
 
@@ -9932,15 +9772,14 @@ def listar_registros_ponto(data_inicio: Any = "", data_fim: Any = "", funcionari
     return [dict(row) for row in rows]
 
 
-def bater_ponto_db(funcionario_id: int, acao: str = "", empresa_id: int | None = None) -> tuple[bool, str]:
-    empresa = int(empresa_id or empresa_logada_id())
-    funcionario = buscar_funcionario_por_id_empresa(funcionario_id, empresa)
+def bater_ponto_db(funcionario_id: int, acao: str = "") -> tuple[bool, str]:
+    funcionario = buscar_funcionario_por_id(funcionario_id)
     if funcionario is None:
         return False, "Funcionário não encontrado."
 
     hoje = hoje_empresa().isoformat()
     agora_hora = agora_empresa().strftime("%H:%M")
-    registro = buscar_registro_ponto(funcionario_id, hoje, empresa)
+    registro = buscar_registro_ponto(funcionario_id, hoje)
     ordem = ["entrada", "saida_intervalo", "retorno_intervalo", "saida"]
 
     if acao not in ordem:
@@ -9958,12 +9797,6 @@ def bater_ponto_db(funcionario_id: int, acao: str = "", empresa_id: int | None =
     if registro is None and acao != "entrada":
         return False, "Registre a entrada antes dos demais horários."
 
-    if registro is not None:
-        indice_acao = ordem.index(acao)
-        pendente_anterior = next((campo for campo in ordem[:indice_acao] if not registro.get(campo)), "")
-        if pendente_anterior:
-            return False, f"Registre {PONTO_ACOES.get(pendente_anterior, 'o horário anterior')} antes."
-
     with conectar_db() as conn:
         if registro is None:
             conn.execute(
@@ -9973,7 +9806,7 @@ def bater_ponto_db(funcionario_id: int, acao: str = "", empresa_id: int | None =
                     status, atualizado_em
                 ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
-                (empresa, funcionario_id, funcionario["nome"], hoje, agora_hora, "incompleto", agora_empresa().isoformat(timespec="seconds")),
+                (empresa_logada_id(), funcionario_id, funcionario["nome"], hoje, agora_hora, "incompleto", agora_empresa().isoformat(timespec="seconds")),
             )
         else:
             dados = dict(registro)
@@ -9986,7 +9819,7 @@ def bater_ponto_db(funcionario_id: int, acao: str = "", empresa_id: int | None =
                 SET {acao} = ?, total_trabalhado = ?, status = ?, atualizado_em = ?
                 WHERE id = ? AND empresa_id = ?
                 """,
-                (agora_hora, total, status, agora_empresa().isoformat(timespec="seconds"), registro["id"], empresa),
+                (agora_hora, total, status, agora_empresa().isoformat(timespec="seconds"), registro["id"], empresa_logada_id()),
             )
         conn.commit()
 
@@ -10007,8 +9840,6 @@ def ajustar_ponto_db() -> tuple[bool, str]:
     retorno_intervalo = _normalizar_hora_hhmm(request.form.get("ajuste_retorno_intervalo"))
     saida = _normalizar_hora_hhmm(request.form.get("ajuste_saida"))
     observacoes = str(request.form.get("ajuste_observacoes") or "").strip()
-    if not observacoes:
-        return False, "Informe a justificativa do ajuste manual."
     total = _calcular_total_horas_ponto(entrada, saida_intervalo, retorno_intervalo, saida)
     status = _status_ponto(entrada, saida_intervalo, retorno_intervalo, saida, ajustado=True)
     existente = buscar_registro_ponto(int(funcionario_id_texto), data_ponto)
@@ -11130,6 +10961,11 @@ def dashboard() -> str | Response:
         dashboard=dados_dashboard,
         iniciar_tour=iniciar_tour,
     )
+
+
+@app.get("/vitrine")
+def vitrine() -> str:
+    return render_template("vitrine.html")
 
 
 
@@ -14334,7 +14170,7 @@ def venda_balcao() -> str:
         movimentacoes_caixa=movimentacoes_caixa,
         total_entradas_caixa=_formatar_moeda_brl(total_entradas_caixa),
         clientes=listar_clientes(),
-        funcionarios=complementar_funcionarios_com_link_ponto(listar_funcionarios()),
+        funcionarios=listar_funcionarios(),
         produtos=listar_produtos_pdv(),
     )
 
@@ -15215,65 +15051,6 @@ def ajustar_registro_ponto() -> Response:
     parametro = "sucesso" if ok else "erro"
     funcionario_id = request.form.get("ajuste_funcionario_id") or ""
     return redirect(url_for("registro_ponto", funcionario_id=funcionario_id, **{parametro: mensagem}))
-
-
-@app.route("/ponto/<token>", methods=["GET", "POST"])
-def ponto_funcionario_publico(token: str) -> str | Response:
-    funcionario = buscar_funcionario_ponto_por_token(token)
-    if funcionario is None:
-        return render_template(
-            "ponto_funcionario.html",
-            funcionario=None,
-            registro_hoje=None,
-            telefone_validado=False,
-            token=str(token or "").strip(),
-            erro="Link de ponto inválido ou funcionário inativo.",
-            sucesso="",
-            data_hoje=formatar_data_br(hoje_empresa()),
-            telefone_mascarado="",
-            acoes_ponto=PONTO_ACOES,
-        ), 404
-
-    token_normalizado = str(token or "").strip()
-    sessao_chave = f"ponto_funcionario_validado_{token_normalizado}"
-    telefone_validado = session.get(sessao_chave) == "sim"
-    erro = request.args.get("erro") or ""
-    sucesso = request.args.get("sucesso") or ""
-
-    if request.method == "POST":
-        etapa = str(request.form.get("etapa") or "").strip()
-
-        if etapa == "validar_celular":
-            telefone_informado = request.form.get("telefone") or ""
-            if not normalizar_telefone_ponto(funcionario.get("telefone")):
-                return redirect(url_for("ponto_funcionario_publico", token=token_normalizado, erro="Funcionário sem celular cadastrado. Fale com o administrador."))
-            if not telefones_ponto_compativeis(telefone_informado, funcionario.get("telefone")):
-                return redirect(url_for("ponto_funcionario_publico", token=token_normalizado, erro="Celular informado não confere com o cadastro."))
-            session[sessao_chave] = "sim"
-            return redirect(url_for("ponto_funcionario_publico", token=token_normalizado, sucesso="Celular validado. Agora você pode bater o ponto."))
-
-        if not telefone_validado:
-            return redirect(url_for("ponto_funcionario_publico", token=token_normalizado, erro="Valide seu celular antes de bater o ponto."))
-
-        acao = str(request.form.get("acao") or "").strip()
-        ok, mensagem = bater_ponto_db(int(funcionario["id"]), acao, int(funcionario["empresa_id"]))
-        parametro = "sucesso" if ok else "erro"
-        return redirect(url_for("ponto_funcionario_publico", token=token_normalizado, **{parametro: mensagem}))
-
-    registro_hoje = buscar_registro_ponto(int(funcionario["id"]), hoje_empresa().isoformat(), int(funcionario["empresa_id"]))
-
-    return render_template(
-        "ponto_funcionario.html",
-        funcionario=funcionario,
-        registro_hoje=registro_hoje,
-        telefone_validado=telefone_validado,
-        token=token_normalizado,
-        erro=erro,
-        sucesso=sucesso,
-        data_hoje=formatar_data_br(hoje_empresa()),
-        telefone_mascarado=mascarar_telefone_ponto(funcionario.get("telefone")),
-        acoes_ponto=PONTO_ACOES,
-    )
 
 
 @app.post("/assistente/perguntar")
