@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-07 21:35 (America/Bahia)
-# Motivo: Implantar vitrine pública com catálogo, carrinho, pedidos e métricas básicas por empresa.
+# Último recode: 2026-07-07 22:05 (America/Bahia)
+# Motivo: Conectar a Vitrine Online aos produtos cadastrados, publicação, pedidos e métricas internas.
 
 from __future__ import annotations
 
@@ -11303,7 +11303,7 @@ def buscar_vitrine_configuracao_por_slug(slug: Any) -> dict[str, Any] | None:
 
 def listar_produtos_vitrine_empresa(empresa_id: int) -> list[dict[str, Any]]:
     with conectar_db() as conn:
-        publicados = conn.execute(
+        rows = conn.execute(
             """
             SELECT
                 id,
@@ -11329,50 +11329,259 @@ def listar_produtos_vitrine_empresa(empresa_id: int) -> list[dict[str, Any]]:
             (empresa_id,),
         ).fetchall()
 
-        if publicados:
-            return [dict(row) for row in publicados]
+    return [dict(row) for row in rows]
 
-        produtos_base = conn.execute(
+
+def listar_produtos_vitrine_admin(empresa_id: int) -> list[dict[str, Any]]:
+    with conectar_db() as conn:
+        rows = conn.execute(
             """
             SELECT
-                id,
-                empresa_id,
-                nome,
-                categoria,
-                unidade,
-                preco_venda,
-                observacoes,
-                status
+                produtos.id AS produto_id,
+                produtos.nome AS produto_nome,
+                produtos.codigo AS produto_codigo,
+                produtos.categoria AS produto_categoria,
+                produtos.unidade AS produto_unidade,
+                produtos.estoque_atual AS produto_estoque_atual,
+                produtos.preco_venda AS produto_preco_venda,
+                produtos.observacoes AS produto_observacoes,
+                produtos.status AS produto_status,
+                vitrine_produtos.id AS vitrine_id,
+                vitrine_produtos.nome AS vitrine_nome,
+                vitrine_produtos.descricao AS vitrine_descricao,
+                vitrine_produtos.categoria AS vitrine_categoria,
+                vitrine_produtos.preco AS vitrine_preco,
+                vitrine_produtos.imagem_path AS vitrine_imagem_path,
+                vitrine_produtos.destaque AS vitrine_destaque,
+                vitrine_produtos.status AS vitrine_status,
+                COALESCE(vitrine_produtos.acessos, 0) AS acessos,
+                COALESCE(vitrine_produtos.carrinhos, 0) AS carrinhos,
+                COALESCE(vitrine_produtos.pedidos, 0) AS pedidos
             FROM produtos
-            WHERE empresa_id = ?
-              AND LOWER(COALESCE(status, 'ativo')) = 'ativo'
-            ORDER BY nome ASC
+            LEFT JOIN vitrine_produtos
+              ON vitrine_produtos.produto_id = produtos.id
+             AND vitrine_produtos.empresa_id = produtos.empresa_id
+            WHERE produtos.empresa_id = ?
+              AND LOWER(COALESCE(produtos.status, 'ativo')) = 'ativo'
+            ORDER BY produtos.nome ASC
             """,
             (empresa_id,),
         ).fetchall()
 
     produtos: list[dict[str, Any]] = []
-    for row in produtos_base:
-        produto = dict(row)
+    for row in rows:
+        item = dict(row)
+        publicado = str(item.get("vitrine_status") or "").strip().lower() == "publicado"
         produtos.append(
             {
-                "id": int(produto.get("id") or 0),
-                "empresa_id": empresa_id,
-                "produto_id": int(produto.get("id") or 0),
-                "nome": str(produto.get("nome") or ""),
-                "descricao": str(produto.get("observacoes") or ""),
-                "categoria": str(produto.get("categoria") or "Produtos"),
-                "preco": str(produto.get("preco_venda") or "0,00"),
-                "imagem_path": "",
-                "destaque": "nao",
-                "status": "publicado",
-                "acessos": 0,
-                "carrinhos": 0,
-                "pedidos": 0,
+                "produto_id": int(item.get("produto_id") or 0),
+                "vitrine_id": item.get("vitrine_id") or "",
+                "nome": str(item.get("vitrine_nome") or item.get("produto_nome") or ""),
+                "codigo": str(item.get("produto_codigo") or ""),
+                "categoria": str(item.get("vitrine_categoria") or item.get("produto_categoria") or "Produtos"),
+                "unidade": str(item.get("produto_unidade") or ""),
+                "estoque_atual": str(item.get("produto_estoque_atual") or ""),
+                "descricao": str(item.get("vitrine_descricao") or item.get("produto_observacoes") or ""),
+                "preco": str(item.get("vitrine_preco") or item.get("produto_preco_venda") or "0,00"),
+                "imagem_path": str(item.get("vitrine_imagem_path") or ""),
+                "destaque": str(item.get("vitrine_destaque") or "nao"),
+                "status": str(item.get("vitrine_status") or "nao_publicado"),
+                "publicado": publicado,
+                "acessos": int(item.get("acessos") or 0),
+                "carrinhos": int(item.get("carrinhos") or 0),
+                "pedidos": int(item.get("pedidos") or 0),
             }
         )
 
     return produtos
+
+
+def buscar_produto_vitrine_admin(produto_id: int) -> dict[str, Any] | None:
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                id,
+                empresa_id,
+                nome,
+                codigo,
+                categoria,
+                unidade,
+                estoque_atual,
+                preco_venda,
+                observacoes,
+                status
+            FROM produtos
+            WHERE id = ?
+              AND empresa_id = ?
+            LIMIT 1
+            """,
+            (produto_id, empresa_id),
+        ).fetchone()
+
+    return dict(row) if row else None
+
+
+def salvar_imagem_produto_vitrine_upload(produto_id: int) -> str:
+    arquivo = request.files.get("imagem_produto")
+
+    if arquivo is None or not arquivo.filename:
+        return ""
+
+    if not extensao_arquivo_permitida(arquivo.filename, EXTENSOES_FOTO_VITRINE_PERMITIDAS):
+        return ""
+
+    empresa_id = empresa_logada_id()
+    nome_seguro = secure_filename(arquivo.filename)
+    extensao = nome_seguro.rsplit(".", 1)[-1].lower()
+    nome_final = f"vitrine_produto_{empresa_id}_{produto_id}_{int(datetime.now().timestamp())}.{extensao}"
+    caminho_final = VITRINE_UPLOAD_DIR / nome_final
+    arquivo.save(caminho_final)
+    return f"uploads/vitrines/{nome_final}"
+
+
+def salvar_produto_vitrine_publicacao_db(produto_id: int, dados: dict[str, str]) -> None:
+    empresa_id = empresa_logada_id()
+    produto = buscar_produto_vitrine_admin(produto_id)
+
+    if produto is None:
+        return
+
+    atualizado_em = agora_empresa().isoformat(timespec="seconds")
+
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT id, imagem_path
+            FROM vitrine_produtos
+            WHERE empresa_id = ?
+              AND produto_id = ?
+            LIMIT 1
+            """,
+            (empresa_id, produto_id),
+        ).fetchone()
+
+        imagem_path = str(dados.get("imagem_path") or "").strip()
+        if not imagem_path and row is not None:
+            imagem_path = str(row["imagem_path"] or "")
+
+        valores = (
+            str(dados.get("nome") or produto.get("nome") or "").strip(),
+            str(dados.get("descricao") or produto.get("observacoes") or "").strip(),
+            str(dados.get("categoria") or produto.get("categoria") or "Produtos").strip(),
+            str(dados.get("preco") or produto.get("preco_venda") or "0,00").strip(),
+            imagem_path,
+            str(dados.get("destaque") or "nao").strip() or "nao",
+            str(dados.get("status") or "publicado").strip() or "publicado",
+            atualizado_em,
+        )
+
+        if row is None:
+            conn.execute(
+                """
+                INSERT INTO vitrine_produtos (
+                    empresa_id,
+                    produto_id,
+                    nome,
+                    descricao,
+                    categoria,
+                    preco,
+                    imagem_path,
+                    destaque,
+                    status,
+                    atualizado_em
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (empresa_id, produto_id, *valores),
+            )
+        else:
+            conn.execute(
+                """
+                UPDATE vitrine_produtos
+                SET
+                    nome = ?,
+                    descricao = ?,
+                    categoria = ?,
+                    preco = ?,
+                    imagem_path = ?,
+                    destaque = ?,
+                    status = ?,
+                    atualizado_em = ?
+                WHERE empresa_id = ?
+                  AND produto_id = ?
+                """,
+                (*valores, empresa_id, produto_id),
+            )
+
+        conn.commit()
+
+
+def alterar_status_produto_vitrine_db(produto_id: int, status: str) -> None:
+    empresa_id = empresa_logada_id()
+    status_normalizado = str(status or "publicado").strip().lower()
+
+    if status_normalizado not in {"publicado", "rascunho", "oculto"}:
+        status_normalizado = "publicado"
+
+    produto = buscar_produto_vitrine_admin(produto_id)
+    if produto is None:
+        return
+
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT id
+            FROM vitrine_produtos
+            WHERE empresa_id = ?
+              AND produto_id = ?
+            LIMIT 1
+            """,
+            (empresa_id, produto_id),
+        ).fetchone()
+
+        if row is None:
+            conn.execute(
+                """
+                INSERT INTO vitrine_produtos (
+                    empresa_id,
+                    produto_id,
+                    nome,
+                    descricao,
+                    categoria,
+                    preco,
+                    imagem_path,
+                    destaque,
+                    status,
+                    atualizado_em
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    empresa_id,
+                    produto_id,
+                    str(produto.get("nome") or ""),
+                    str(produto.get("observacoes") or ""),
+                    str(produto.get("categoria") or "Produtos"),
+                    str(produto.get("preco_venda") or "0,00"),
+                    "",
+                    "nao",
+                    status_normalizado,
+                    agora_empresa().isoformat(timespec="seconds"),
+                ),
+            )
+        else:
+            conn.execute(
+                """
+                UPDATE vitrine_produtos
+                SET status = ?, atualizado_em = ?
+                WHERE empresa_id = ?
+                  AND produto_id = ?
+                """,
+                (status_normalizado, agora_empresa().isoformat(timespec="seconds"), empresa_id, produto_id),
+            )
+
+        conn.commit()
 
 
 def listar_ranking_produtos_vitrine(empresa_id: int, limite: int = 10) -> list[dict[str, Any]]:
@@ -11751,6 +11960,53 @@ def vitrine_pedido_publico(slug: str) -> str | Response:
     produtos = listar_produtos_vitrine_empresa(empresa_id)
     return renderizar_vitrine_publica_html(config_vitrine, produtos, f"Pedido #{pedido_id} gerado com sucesso.", whatsapp_url)
 
+@app.post("/vitrine/produtos/publicar")
+def vitrine_produto_publicar() -> Response:
+    produto_id_texto = str(request.form.get("produto_id") or "").strip()
+
+    if not produto_id_texto.isdigit():
+        return redirect(url_for("vitrine", erro="Selecione um produto válido para publicar."))
+
+    produto_id = int(produto_id_texto)
+    imagem_path = salvar_imagem_produto_vitrine_upload(produto_id)
+    produto = buscar_produto_vitrine_admin(produto_id)
+
+    if produto is None:
+        return redirect(url_for("vitrine", erro="Produto não encontrado nesta empresa."))
+
+    dados = {
+        "nome": request.form.get("nome") or produto.get("nome") or "",
+        "descricao": request.form.get("descricao") or produto.get("observacoes") or "",
+        "categoria": request.form.get("categoria") or produto.get("categoria") or "Produtos",
+        "preco": request.form.get("preco") or produto.get("preco_venda") or "0,00",
+        "imagem_path": imagem_path,
+        "destaque": "sim" if request.form.get("destaque") == "sim" else "nao",
+        "status": request.form.get("status") or "publicado",
+    }
+    salvar_produto_vitrine_publicacao_db(produto_id, dados)
+    return redirect(url_for("vitrine", mensagem="Produto atualizado na vitrine com sucesso."))
+
+
+@app.post("/vitrine/produtos/status")
+def vitrine_produto_status() -> Response:
+    produto_id_texto = str(request.form.get("produto_id") or "").strip()
+    status = str(request.form.get("status") or "publicado").strip()
+
+    if not produto_id_texto.isdigit():
+        return redirect(url_for("vitrine", erro="Produto inválido para alterar status."))
+
+    alterar_status_produto_vitrine_db(int(produto_id_texto), status)
+
+    if status == "publicado":
+        mensagem = "Produto publicado na vitrine."
+    elif status == "oculto":
+        mensagem = "Produto removido da vitrine pública."
+    else:
+        mensagem = "Produto salvo como rascunho na vitrine."
+
+    return redirect(url_for("vitrine", mensagem=mensagem))
+
+
 @app.route("/vitrine", methods=["GET", "POST"])
 def vitrine() -> str | Response:
     config_vitrine = buscar_vitrine_configuracao()
@@ -11765,6 +12021,7 @@ def vitrine() -> str | Response:
         "vitrine.html",
         vitrine=config_vitrine,
         produtos_vitrine=listar_produtos_vitrine_empresa(empresa_id),
+        produtos_vitrine_admin=listar_produtos_vitrine_admin(empresa_id),
         ranking_vitrine=listar_ranking_produtos_vitrine(empresa_id),
         link_publico=(f"{request.url_root.rstrip('/')}/loja/{config_vitrine.get('slug')}" if config_vitrine.get("slug") else ""),
         mensagem=(request.args.get("mensagem") or "").strip(),
