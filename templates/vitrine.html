@@ -1,7 +1,7 @@
 {#
-Caminho completo: templates/vitrine.html
-Data/hora do último recode: 07/07/2026 15:30
-Motivo da alteração: Corrigir largura e posicionamento da tela da Vitrine Online ao lado do menu lateral.
+Caminho completo: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vitrine.html
+Data/hora do último recode: 07/07/2026 21:10
+Motivo da alteração: Conectar a tela da Vitrine Online aos produtos cadastrados, publicação, status, prévia, link público e métricas.
 #}
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -13,6 +13,15 @@ Motivo da alteração: Corrigir largura e posicionamento da tela da Vitrine Onli
 </head>
 <body>
     {% include "partials/sidebar.html" %}
+
+    {% set vitrine = vitrine or {} %}
+    {% set produtos_vitrine = produtos_vitrine or [] %}
+    {% set produtos_vitrine_admin = produtos_vitrine_admin or [] %}
+    {% set ranking_vitrine = ranking_vitrine or [] %}
+    {% set cor_principal = vitrine.get('cor_principal') or '#111827' %}
+    {% set cor_secundaria = vitrine.get('cor_secundaria') or '#f59e0b' %}
+    {% set status_vitrine = vitrine.get('status') or 'rascunho' %}
+    {% set template_atual = vitrine.get('template') or 'catalogo-premium' %}
 
     <main class="main-content">
         <header class="page-header">
@@ -27,6 +36,14 @@ Motivo da alteração: Corrigir largura e posicionamento da tela da Vitrine Onli
             </div>
         </header>
 
+        {% if mensagem %}
+            <div class="alert alert-success">{{ mensagem }}</div>
+        {% endif %}
+
+        {% if erro %}
+            <div class="alert alert-error">{{ erro }}</div>
+        {% endif %}
+
         <section class="vitrine-grid vitrine-grid-destaque">
             <article class="vitrine-card vitrine-card-principal">
                 <div class="vitrine-card-header">
@@ -34,29 +51,31 @@ Motivo da alteração: Corrigir largura e posicionamento da tela da Vitrine Onli
                         <p class="card-kicker">Configuração rápida</p>
                         <h2>Dados da vitrine</h2>
                     </div>
-                    <span class="status-pill status-rascunho">Rascunho</span>
+                    <span class="status-pill {% if status_vitrine == 'rascunho' %}status-rascunho{% endif %}">
+                        {{ status_vitrine|replace('_', ' ')|title }}
+                    </span>
                 </div>
 
-                <form class="vitrine-form" method="post" action="#" enctype="multipart/form-data">
+                <form class="vitrine-form" method="post" action="{{ url_for('vitrine') }}" enctype="multipart/form-data">
                     <div class="form-grid-2">
                         <label>
                             Nome da loja
-                            <input type="text" name="nome_loja" placeholder="Ex.: Ale Vieira Fragrâncias">
+                            <input type="text" name="nome_loja" value="{{ vitrine.get('nome_loja') or '' }}" placeholder="Ex.: Ale Vieira Fragrâncias">
                         </label>
                         <label>
                             WhatsApp para pedidos
-                            <input type="text" name="whatsapp" placeholder="Ex.: 71999999999">
+                            <input type="text" name="whatsapp" value="{{ vitrine.get('whatsapp') or '' }}" placeholder="Ex.: 71999999999">
                         </label>
                     </div>
 
                     <div class="form-grid-2">
                         <label>
                             Instagram
-                            <input type="text" name="instagram" placeholder="Ex.: @minhaloja">
+                            <input type="text" name="instagram" value="{{ vitrine.get('instagram') or '' }}" placeholder="Ex.: @minhaloja">
                         </label>
                         <label>
                             Link público desejado
-                            <input type="text" name="slug" placeholder="Ex.: ale-vieira-fragrancias">
+                            <input type="text" name="slug" value="{{ vitrine.get('slug') or '' }}" placeholder="Ex.: ale-vieira-fragrancias">
                         </label>
                     </div>
 
@@ -69,11 +88,11 @@ Motivo da alteração: Corrigir largura e posicionamento da tela da Vitrine Onli
                             Categoria principal
                             <select name="categoria">
                                 <option value="">Selecionar categoria</option>
-                                <option value="perfumaria">Perfumaria e cosméticos</option>
-                                <option value="moda">Moda e roupas</option>
-                                <option value="mercado">Mercado e variedades</option>
-                                <option value="servicos">Serviços</option>
-                                <option value="pecas">Peças e oficina</option>
+                                <option value="perfumaria" {% if vitrine.get('categoria') == 'perfumaria' %}selected{% endif %}>Perfumaria e cosméticos</option>
+                                <option value="moda" {% if vitrine.get('categoria') == 'moda' %}selected{% endif %}>Moda e roupas</option>
+                                <option value="mercado" {% if vitrine.get('categoria') == 'mercado' %}selected{% endif %}>Mercado e variedades</option>
+                                <option value="servicos" {% if vitrine.get('categoria') == 'servicos' %}selected{% endif %}>Serviços</option>
+                                <option value="pecas" {% if vitrine.get('categoria') == 'pecas' %}selected{% endif %}>Peças e oficina</option>
                             </select>
                         </label>
                     </div>
@@ -81,27 +100,34 @@ Motivo da alteração: Corrigir largura e posicionamento da tela da Vitrine Onli
                     <div class="form-grid-3">
                         <label>
                             Cor principal
-                            <input type="color" name="cor_principal" value="#111827">
+                            <input type="color" name="cor_principal" value="{{ cor_principal }}">
                         </label>
                         <label>
                             Cor secundária
-                            <input type="color" name="cor_secundaria" value="#f59e0b">
+                            <input type="color" name="cor_secundaria" value="{{ cor_secundaria }}">
                         </label>
                         <label>
                             Modelo visual
                             <select name="template">
-                                <option value="catalogo-premium">Catálogo Premium</option>
-                                <option value="loja-clean">Loja Clean</option>
-                                <option value="whatsapp-direto">WhatsApp Direto</option>
+                                <option value="catalogo-premium" {% if template_atual == 'catalogo-premium' %}selected{% endif %}>Catálogo Premium</option>
+                                <option value="loja-clean" {% if template_atual == 'loja-clean' %}selected{% endif %}>Loja Clean</option>
+                                <option value="whatsapp-direto" {% if template_atual == 'whatsapp-direto' %}selected{% endif %}>WhatsApp Direto</option>
                             </select>
                         </label>
                     </div>
 
                     <div class="form-actions">
-                        <button class="btn btn-primary" type="submit">Salvar vitrine</button>
-                        <button class="btn btn-secondary" type="button">Publicar depois</button>
+                        <button class="btn btn-primary" type="submit" name="status" value="publicado">Salvar e publicar</button>
+                        <button class="btn btn-secondary" type="submit" name="status" value="rascunho">Salvar rascunho</button>
                     </div>
                 </form>
+
+                {% if link_publico %}
+                    <div class="public-link-box">
+                        <span>Link público da vitrine</span>
+                        <a href="{{ link_publico }}" target="_blank" rel="noopener">{{ link_publico }}</a>
+                    </div>
+                {% endif %}
             </article>
 
             <aside class="vitrine-card vitrine-resumo-card">
@@ -110,22 +136,22 @@ Motivo da alteração: Corrigir largura e posicionamento da tela da Vitrine Onli
                 <div class="metric-list">
                     <div class="metric-item">
                         <span>Visitas</span>
-                        <strong>0</strong>
+                        <strong>{{ vitrine.get('visitas') or 0 }}</strong>
                     </div>
                     <div class="metric-item">
                         <span>Produtos vistos</span>
-                        <strong>0</strong>
+                        <strong>{{ vitrine.get('produtos_vistos') or 0 }}</strong>
                     </div>
                     <div class="metric-item">
                         <span>Itens no carrinho</span>
-                        <strong>0</strong>
+                        <strong>{{ vitrine.get('itens_carrinho') or 0 }}</strong>
                     </div>
                     <div class="metric-item">
                         <span>Pedidos gerados</span>
-                        <strong>0</strong>
+                        <strong>{{ vitrine.get('pedidos_gerados') or 0 }}</strong>
                     </div>
                 </div>
-                <p class="hint-text">Assim que a vitrine for publicada, os acessos e produtos mais clicados aparecerão aqui.</p>
+                <p class="hint-text">Os números serão atualizados conforme os clientes acessarem a vitrine pública.</p>
             </aside>
         </section>
 
@@ -138,17 +164,17 @@ Motivo da alteração: Corrigir largura e posicionamento da tela da Vitrine Onli
             </div>
 
             <div class="template-grid">
-                <button class="template-card active" type="button">
+                <button class="template-card {% if template_atual == 'catalogo-premium' %}active{% endif %}" type="button">
                     <span class="template-preview template-premium"></span>
                     <strong>Catálogo Premium</strong>
                     <small>Ideal para perfumaria, cosméticos e produtos com imagem forte.</small>
                 </button>
-                <button class="template-card" type="button">
+                <button class="template-card {% if template_atual == 'loja-clean' %}active{% endif %}" type="button">
                     <span class="template-preview template-clean"></span>
                     <strong>Loja Clean</strong>
                     <small>Visual direto para variedades, mercado e loja pequena.</small>
                 </button>
-                <button class="template-card" type="button">
+                <button class="template-card {% if template_atual == 'whatsapp-direto' %}active{% endif %}" type="button">
                     <span class="template-preview template-whatsapp"></span>
                     <strong>WhatsApp Direto</strong>
                     <small>Modelo simples para vender rápido pelo atendimento.</small>
@@ -163,14 +189,88 @@ Motivo da alteração: Corrigir largura e posicionamento da tela da Vitrine Onli
                         <p class="card-kicker">Catálogo</p>
                         <h2>Produtos da vitrine</h2>
                     </div>
-                    <button class="btn btn-primary" type="button">Novo produto</button>
+                    <a class="btn btn-primary" href="{{ url_for('produtos') }}">Cadastrar produto</a>
                 </div>
 
-                <div class="empty-state">
-                    <div class="empty-icon">▧</div>
-                    <h3>Nenhum produto publicado ainda</h3>
-                    <p>Na próxima etapa, os produtos cadastrados no GestFlow poderão ser marcados para aparecer automaticamente na vitrine.</p>
-                </div>
+                {% if produtos_vitrine_admin %}
+                    <div class="product-admin-list">
+                        {% for produto in produtos_vitrine_admin %}
+                            <form class="product-admin-card" method="post" action="{{ url_for('vitrine_produto_publicar') }}" enctype="multipart/form-data">
+                                <input type="hidden" name="produto_id" value="{{ produto.get('produto_id') }}">
+
+                                <div class="product-admin-top">
+                                    <div>
+                                        <strong>{{ produto.get('nome') }}</strong>
+                                        <small>
+                                            Código: {{ produto.get('codigo') or '-' }} |
+                                            Estoque: {{ produto.get('estoque_atual') or '-' }} |
+                                            Status: {{ produto.get('status') or 'não publicado' }}
+                                        </small>
+                                    </div>
+                                    {% if produto.get('publicado') %}
+                                        <span class="status-pill">Publicado</span>
+                                    {% else %}
+                                        <span class="status-pill status-rascunho">Fora da vitrine</span>
+                                    {% endif %}
+                                </div>
+
+                                <div class="form-grid-2 product-admin-fields">
+                                    <label>
+                                        Nome na vitrine
+                                        <input type="text" name="nome" value="{{ produto.get('nome') or '' }}">
+                                    </label>
+                                    <label>
+                                        Preço
+                                        <input type="text" name="preco" value="{{ produto.get('preco') or '0,00' }}">
+                                    </label>
+                                </div>
+
+                                <div class="form-grid-2 product-admin-fields">
+                                    <label>
+                                        Categoria
+                                        <input type="text" name="categoria" value="{{ produto.get('categoria') or 'Produtos' }}">
+                                    </label>
+                                    <label>
+                                        Foto do produto
+                                        <input type="file" name="imagem_produto" accept="image/*">
+                                    </label>
+                                </div>
+
+                                <label class="product-admin-description">
+                                    Descrição
+                                    <textarea name="descricao" rows="3" placeholder="Descrição curta para a vitrine">{{ produto.get('descricao') or '' }}</textarea>
+                                </label>
+
+                                <div class="product-admin-actions">
+                                    <label class="inline-check">
+                                        <input type="checkbox" name="destaque" value="sim" {% if produto.get('destaque') == 'sim' %}checked{% endif %}>
+                                        Destaque
+                                    </label>
+                                    <select name="status">
+                                        <option value="publicado" {% if produto.get('status') == 'publicado' %}selected{% endif %}>Publicado</option>
+                                        <option value="rascunho" {% if produto.get('status') == 'rascunho' %}selected{% endif %}>Rascunho</option>
+                                        <option value="oculto" {% if produto.get('status') == 'oculto' %}selected{% endif %}>Oculto</option>
+                                    </select>
+                                    <button class="btn btn-primary" type="submit">Salvar na vitrine</button>
+                                </div>
+
+                                {% if produto.get('publicado') %}
+                                    <div class="product-admin-status-actions">
+                                        <button class="btn btn-secondary btn-small" type="submit" formaction="{{ url_for('vitrine_produto_status') }}" name="status" value="oculto">Remover da vitrine</button>
+                                        <button class="btn btn-secondary btn-small" type="submit" formaction="{{ url_for('vitrine_produto_status') }}" name="status" value="rascunho">Salvar como rascunho</button>
+                                    </div>
+                                {% endif %}
+                            </form>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        <div class="empty-icon">▧</div>
+                        <h3>Nenhum produto cadastrado ainda</h3>
+                        <p>Cadastre produtos no GestFlow e volte aqui para publicar na vitrine.</p>
+                        <a class="btn btn-primary" href="{{ url_for('produtos') }}">Cadastrar produto</a>
+                    </div>
+                {% endif %}
             </article>
 
             <article class="vitrine-card">
@@ -186,10 +286,19 @@ Motivo da alteração: Corrigir largura e posicionamento da tela da Vitrine Onli
                         <span>Produto</span>
                         <strong>Acessos</strong>
                     </div>
-                    <div class="ranking-row">
-                        <span>Aguardando acessos reais</span>
-                        <strong>0</strong>
-                    </div>
+                    {% if ranking_vitrine %}
+                        {% for item in ranking_vitrine %}
+                            <div class="ranking-row">
+                                <span>{{ item.get('nome') }}</span>
+                                <strong>{{ item.get('acessos') or 0 }}</strong>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="ranking-row">
+                            <span>Aguardando acessos reais</span>
+                            <strong>0</strong>
+                        </div>
+                    {% endif %}
                 </div>
             </article>
         </section>
@@ -200,14 +309,24 @@ Motivo da alteração: Corrigir largura e posicionamento da tela da Vitrine Onli
                     <p class="card-kicker">Prévia</p>
                     <h2>Como o cliente verá a loja</h2>
                 </div>
-                <span class="status-pill">Modo demonstração</span>
+                {% if link_publico %}
+                    <a class="status-pill" href="{{ link_publico }}" target="_blank" rel="noopener">Abrir vitrine pública</a>
+                {% else %}
+                    <span class="status-pill">Defina o slug para gerar link</span>
+                {% endif %}
             </div>
 
-            <div class="preview-store">
+            <div class="preview-store" style="--vitrine-primary: {{ cor_principal }}; --vitrine-secondary: {{ cor_secundaria }};">
                 <div class="preview-hero">
-                    <div class="preview-logo">GF</div>
+                    <div class="preview-logo">
+                        {% if vitrine.get('logo_path') %}
+                            <img src="{{ url_for('servir_upload_vitrine_publico', caminho=vitrine.get('logo_path')) }}" alt="Logo da loja">
+                        {% else %}
+                            {{ (vitrine.get('nome_loja') or 'GF')[:2]|upper }}
+                        {% endif %}
+                    </div>
                     <div>
-                        <h3>Sua loja online</h3>
+                        <h3>{{ vitrine.get('nome_loja') or 'Sua loja online' }}</h3>
                         <p>Produtos, promoções e pedido direto pelo WhatsApp.</p>
                     </div>
                 </div>
@@ -215,24 +334,39 @@ Motivo da alteração: Corrigir largura e posicionamento da tela da Vitrine Onli
                 <div class="preview-search">Buscar produto...</div>
 
                 <div class="preview-products">
-                    <div class="preview-product-card">
-                        <div class="preview-product-img"></div>
-                        <strong>Produto destaque</strong>
-                        <span>R$ 0,00</span>
-                        <button type="button">Adicionar</button>
-                    </div>
-                    <div class="preview-product-card">
-                        <div class="preview-product-img"></div>
-                        <strong>Produto popular</strong>
-                        <span>R$ 0,00</span>
-                        <button type="button">Adicionar</button>
-                    </div>
-                    <div class="preview-product-card">
-                        <div class="preview-product-img"></div>
-                        <strong>Promoção</strong>
-                        <span>R$ 0,00</span>
-                        <button type="button">Adicionar</button>
-                    </div>
+                    {% if produtos_vitrine %}
+                        {% for produto in produtos_vitrine[:6] %}
+                            <div class="preview-product-card">
+                                {% if produto.get('imagem_path') %}
+                                    <img class="preview-product-img real-img" src="{{ url_for('servir_upload_vitrine_publico', caminho=produto.get('imagem_path')) }}" alt="{{ produto.get('nome') }}">
+                                {% else %}
+                                    <div class="preview-product-img"></div>
+                                {% endif %}
+                                <strong>{{ produto.get('nome') }}</strong>
+                                <span>R$ {{ produto.get('preco') or '0,00' }}</span>
+                                <button type="button">Adicionar</button>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="preview-product-card">
+                            <div class="preview-product-img"></div>
+                            <strong>Produto destaque</strong>
+                            <span>R$ 0,00</span>
+                            <button type="button">Adicionar</button>
+                        </div>
+                        <div class="preview-product-card">
+                            <div class="preview-product-img"></div>
+                            <strong>Produto popular</strong>
+                            <span>R$ 0,00</span>
+                            <button type="button">Adicionar</button>
+                        </div>
+                        <div class="preview-product-card">
+                            <div class="preview-product-img"></div>
+                            <strong>Promoção</strong>
+                            <span>R$ 0,00</span>
+                            <button type="button">Adicionar</button>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
         </section>
@@ -286,6 +420,25 @@ Motivo da alteração: Corrigir largura e posicionamento da tela da Vitrine Onli
             gap: 10px;
         }
 
+        .alert {
+            margin: 0 0 18px;
+            padding: 12px 14px;
+            border-radius: 14px;
+            font-weight: 800;
+        }
+
+        .alert-success {
+            background: #ecfdf5;
+            color: #047857;
+            border: 1px solid #a7f3d0;
+        }
+
+        .alert-error {
+            background: #fef2f2;
+            color: #b91c1c;
+            border: 1px solid #fecaca;
+        }
+
         .btn {
             display: inline-flex;
             align-items: center;
@@ -308,6 +461,12 @@ Motivo da alteração: Corrigir largura e posicionamento da tela da Vitrine Onli
             background: #ffffff;
             color: #111827;
             border-color: #e5e7eb;
+        }
+
+        .btn-small {
+            min-height: 34px;
+            padding: 8px 12px;
+            font-size: 12px;
         }
 
         .vitrine-grid {
@@ -347,6 +506,7 @@ Motivo da alteração: Corrigir largura e posicionamento da tela da Vitrine Onli
             color: #047857;
             font-size: 12px;
             font-weight: 800;
+            text-decoration: none;
         }
 
         .status-rascunho {
@@ -354,7 +514,8 @@ Motivo da alteração: Corrigir largura e posicionamento da tela da Vitrine Onli
             color: #b45309;
         }
 
-        .vitrine-form {
+        .vitrine-form,
+        .product-admin-card {
             display: grid;
             gap: 16px;
         }
@@ -373,7 +534,8 @@ Motivo da alteração: Corrigir largura e posicionamento da tela da Vitrine Onli
             grid-template-columns: repeat(3, minmax(0, 1fr));
         }
 
-        .vitrine-form label {
+        .vitrine-form label,
+        .product-admin-card label {
             display: grid;
             gap: 8px;
             color: #374151;
@@ -382,7 +544,10 @@ Motivo da alteração: Corrigir largura e posicionamento da tela da Vitrine Onli
         }
 
         .vitrine-form input,
-        .vitrine-form select {
+        .vitrine-form select,
+        .product-admin-card input,
+        .product-admin-card select,
+        .product-admin-card textarea {
             width: 100%;
             min-height: 42px;
             border: 1px solid #d1d5db;
@@ -390,14 +555,44 @@ Motivo da alteração: Corrigir largura e posicionamento da tela da Vitrine Onli
             padding: 10px 12px;
             color: #111827;
             background: #ffffff;
+            box-sizing: border-box;
+        }
+
+        .product-admin-card textarea {
+            resize: vertical;
+            min-height: 84px;
         }
 
         .vitrine-form input[type="color"] {
             padding: 4px;
         }
 
+        .public-link-box {
+            display: grid;
+            gap: 6px;
+            margin-top: 16px;
+            padding: 12px;
+            border-radius: 14px;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+        }
+
+        .public-link-box span {
+            color: #6b7280;
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .public-link-box a {
+            color: #111827;
+            font-weight: 800;
+            word-break: break-all;
+        }
+
         .metric-list,
-        .ranking-list {
+        .ranking-list,
+        .product-admin-list {
             display: grid;
             gap: 10px;
         }
@@ -418,7 +613,8 @@ Motivo da alteração: Corrigir largura e posicionamento da tela da Vitrine Onli
         .hint-text,
         .empty-state p,
         .template-card small,
-        .preview-hero p {
+        .preview-hero p,
+        .product-admin-top small {
             color: #6b7280;
         }
 
@@ -471,6 +667,52 @@ Motivo da alteração: Corrigir largura e posicionamento da tela da Vitrine Onli
             background: linear-gradient(135deg, #16a34a, #bbf7d0);
         }
 
+        .product-admin-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 18px;
+            padding: 14px;
+            background: #f9fafb;
+        }
+
+        .product-admin-top,
+        .product-admin-actions,
+        .product-admin-status-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .product-admin-top strong {
+            display: block;
+            color: #111827;
+            font-size: 16px;
+        }
+
+        .product-admin-top small {
+            display: block;
+            margin-top: 4px;
+            font-size: 12px;
+        }
+
+        .product-admin-description {
+            display: grid;
+        }
+
+        .inline-check {
+            display: inline-flex !important;
+            grid-template-columns: auto 1fr;
+            align-items: center;
+            width: auto;
+            gap: 8px;
+        }
+
+        .inline-check input {
+            width: auto;
+            min-height: auto;
+        }
+
         .empty-state {
             display: grid;
             place-items: center;
@@ -515,7 +757,7 @@ Motivo da alteração: Corrigir largura e posicionamento da tela da Vitrine Onli
             align-items: center;
             gap: 14px;
             padding: 22px;
-            background: linear-gradient(135deg, #111827, #374151);
+            background: linear-gradient(135deg, var(--vitrine-primary), var(--vitrine-secondary));
             color: #ffffff;
         }
 
@@ -527,12 +769,20 @@ Motivo da alteração: Corrigir largura e posicionamento da tela da Vitrine Onli
         .preview-logo {
             display: grid;
             place-items: center;
+            overflow: hidden;
             width: 58px;
             height: 58px;
             border-radius: 18px;
             background: #ffffff;
             color: #111827;
             font-weight: 900;
+        }
+
+        .preview-logo img,
+        .preview-product-img.real-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
 
         .preview-search {
@@ -561,7 +811,9 @@ Motivo da alteração: Corrigir largura e posicionamento da tela da Vitrine Onli
         }
 
         .preview-product-img {
+            display: block;
             min-height: 90px;
+            height: 90px;
             border-radius: 12px;
             background: linear-gradient(135deg, #e5e7eb, #f9fafb);
         }
@@ -575,7 +827,7 @@ Motivo da alteração: Corrigir largura e posicionamento da tela da Vitrine Onli
             min-height: 36px;
             border: 0;
             border-radius: 10px;
-            background: #111827;
+            background: var(--vitrine-primary);
             color: #ffffff;
             font-weight: 800;
             cursor: pointer;
@@ -602,11 +854,14 @@ Motivo da alteração: Corrigir largura e posicionamento da tela da Vitrine Onli
             }
 
             .page-actions,
-            .form-actions {
+            .form-actions,
+            .product-admin-actions,
+            .product-admin-status-actions {
                 width: 100%;
             }
 
-            .btn {
+            .btn,
+            .product-admin-actions select {
                 width: 100%;
             }
         }
