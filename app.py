@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-07 22:05 (America/Bahia)
-# Motivo: Conectar a Vitrine Online aos produtos cadastrados, publicação, pedidos e métricas internas.
+# Último recode: 2026-07-09 10:00 (America/Bahia)
+# Motivo: Adicionar registro de ponto público offline com PWA, fila local e sincronização automática.
 
 from __future__ import annotations
 
@@ -704,6 +704,9 @@ def exigir_login_rotas_internas() -> Response | None:
         "login",
         "esqueci_senha",
         "pwa_instalar",
+        "manifest_json",
+        "ponto_publico",
+        "api_ponto_offline_sincronizar",
         "agendamento_publico",
         "service_worker",
         "health",
@@ -1522,6 +1525,64 @@ def iniciar_banco() -> None:
             )
             """
         )
+
+        colunas_registros_ponto = {
+            str(row["name"])
+            for row in conn.execute("PRAGMA table_info(registros_ponto)").fetchall()
+        }
+
+        colunas_registros_ponto_offline = {
+            "origem": "TEXT DEFAULT 'online'",
+            "offline_uuid": "TEXT",
+            "sincronizado_em": "TEXT",
+            "dispositivo_info": "TEXT",
+        }
+
+        for coluna, tipo_coluna in colunas_registros_ponto_offline.items():
+            if coluna not in colunas_registros_ponto:
+                conn.execute(f"ALTER TABLE registros_ponto ADD COLUMN {coluna} {tipo_coluna}")
+
+        colunas_funcionarios_ponto = {
+            str(row["name"])
+            for row in conn.execute("PRAGMA table_info(funcionarios)").fetchall()
+        }
+
+        if "token_ponto" not in colunas_funcionarios_ponto:
+            conn.execute("ALTER TABLE funcionarios ADD COLUMN token_ponto TEXT")
+
+        funcionarios_sem_token_ponto = conn.execute(
+            """
+            SELECT id
+            FROM funcionarios
+            WHERE token_ponto IS NULL
+               OR TRIM(token_ponto) = ''
+            ORDER BY id ASC
+            """
+        ).fetchall()
+
+        for funcionario_sem_token in funcionarios_sem_token_ponto:
+            while True:
+                token_ponto_novo = gerar_token_ponto_funcionario()
+                conflito_token_ponto = conn.execute(
+                    """
+                    SELECT id
+                    FROM funcionarios
+                    WHERE token_ponto = ?
+                    LIMIT 1
+                    """,
+                    (token_ponto_novo,),
+                ).fetchone()
+                if conflito_token_ponto is None:
+                    break
+
+            conn.execute(
+                """
+                UPDATE funcionarios
+                SET token_ponto = ?
+                WHERE id = ?
+                """,
+                (token_ponto_novo, int(funcionario_sem_token["id"])),
+            )
 
         empresa_row = conn.execute(
             """
@@ -9889,6 +9950,229 @@ def listar_registros_ponto(data_inicio: Any = "", data_fim: Any = "", funcionari
     return [dict(row) for row in rows]
 
 
+def gerar_token_ponto_funcionario() -> str:
+    return secrets.token_urlsafe(24)
+
+
+def mascarar_telefone_ponto(valor: Any) -> str:
+    telefone = normalizar_telefone_publico(valor)
+    if len(telefone) <= 4:
+        return "****"
+    return f"****{telefone[-4:]}"
+
+
+def buscar_funcionario_por_token_ponto(token: Any) -> dict[str, Any] | None:
+    token_normalizado = str(token or "").strip()
+    if not token_normalizado:
+        return None
+
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                funcionarios.*,
+                empresas.nome_fantasia AS empresa_nome
+            FROM funcionarios
+            LEFT JOIN empresas ON empresas.id = funcionarios.empresa_id
+            WHERE funcionarios.token_ponto = ?
+              AND funcionarios.status = 'ativo'
+            LIMIT 1
+            """,
+            (token_normalizado,),
+        ).fetchone()
+
+    return dict(row) if row else None
+
+
+def garantir_token_ponto_funcionario(funcionario_id: int) -> str:
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT token_ponto
+            FROM funcionarios
+            WHERE id = ?
+              AND empresa_id = ?
+            LIMIT 1
+            """,
+            (funcionario_id, empresa_id),
+        ).fetchone()
+
+        if row is None:
+            return ""
+
+        token_atual = str(row["token_ponto"] or "").strip()
+        if token_atual:
+            return token_atual
+
+        while True:
+            token_novo = gerar_token_ponto_funcionario()
+            conflito = conn.execute(
+                """
+                SELECT id
+                FROM funcionarios
+                WHERE token_ponto = ?
+                LIMIT 1
+                """,
+                (token_novo,),
+            ).fetchone()
+            if conflito is None:
+                break
+
+        conn.execute(
+            """
+            UPDATE funcionarios
+            SET token_ponto = ?
+            WHERE id = ?
+              AND empresa_id = ?
+            """,
+            (token_novo, funcionario_id, empresa_id),
+        )
+        conn.commit()
+
+    return token_novo
+
+
+def buscar_registro_ponto_publico(empresa_id: int, funcionario_id: int, data_ponto: str) -> dict[str, Any] | None:
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT *
+            FROM registros_ponto
+            WHERE empresa_id = ? AND funcionario_id = ? AND data_ponto = ?
+            LIMIT 1
+            """,
+            (empresa_id, funcionario_id, data_ponto),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def registrar_batida_ponto_publico(
+    funcionario: dict[str, Any],
+    acao: str,
+    data_ponto: Any = "",
+    hora_ponto: Any = "",
+    origem: str = "online",
+    offline_uuid: Any = "",
+    dispositivo_info: Any = "",
+) -> tuple[bool, str, dict[str, Any] | None]:
+    funcionario_id = int(funcionario.get("id") or 0)
+    empresa_id = int(funcionario.get("empresa_id") or 0)
+    acao = str(acao or "").strip()
+    data_final = _normalizar_data_iso(data_ponto, hoje_empresa().isoformat())
+    hora_final = _normalizar_hora_hhmm(hora_ponto) or agora_empresa().strftime("%H:%M")
+    origem_final = "offline" if str(origem or "").strip() == "offline" else "online"
+    uuid_final = str(offline_uuid or "").strip()
+    dispositivo_final = str(dispositivo_info or "").strip()[:500]
+    ordem = ["entrada", "saida_intervalo", "retorno_intervalo", "saida"]
+
+    if acao not in ordem:
+        return False, "Ação de ponto inválida.", None
+
+    if not funcionario_id or not empresa_id:
+        return False, "Funcionário inválido.", None
+
+    with conectar_db() as conn:
+        if uuid_final:
+            duplicado = conn.execute(
+                """
+                SELECT *
+                FROM registros_ponto
+                WHERE empresa_id = ?
+                  AND offline_uuid = ?
+                LIMIT 1
+                """,
+                (empresa_id, uuid_final),
+            ).fetchone()
+            if duplicado is not None:
+                return True, "Batida offline já sincronizada.", dict(duplicado)
+
+        row = conn.execute(
+            """
+            SELECT *
+            FROM registros_ponto
+            WHERE empresa_id = ? AND funcionario_id = ? AND data_ponto = ?
+            LIMIT 1
+            """,
+            (empresa_id, funcionario_id, data_final),
+        ).fetchone()
+        registro = dict(row) if row else None
+
+        if registro is not None and registro.get(acao):
+            if origem_final == "offline" and str(registro.get(acao) or "").strip() == hora_final:
+                return True, "Batida offline já estava registrada.", registro
+            return False, "Esse horário já foi registrado.", registro
+
+        if registro is None and acao != "entrada":
+            return False, "Registre a entrada antes dos demais horários.", None
+
+        agora_iso = agora_empresa().isoformat(timespec="seconds")
+
+        if registro is None:
+            conn.execute(
+                """
+                INSERT INTO registros_ponto (
+                    empresa_id, funcionario_id, funcionario_nome, data_ponto, entrada,
+                    status, observacoes, atualizado_em, origem, offline_uuid, sincronizado_em, dispositivo_info
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    empresa_id,
+                    funcionario_id,
+                    str(funcionario.get("nome") or ""),
+                    data_final,
+                    hora_final,
+                    "incompleto",
+                    "Batida registrada offline." if origem_final == "offline" else "",
+                    agora_iso,
+                    origem_final,
+                    uuid_final,
+                    agora_iso if origem_final == "offline" else "",
+                    dispositivo_final,
+                ),
+            )
+        else:
+            dados = dict(registro)
+            dados[acao] = hora_final
+            total = _calcular_total_horas_ponto(dados.get("entrada"), dados.get("saida_intervalo"), dados.get("retorno_intervalo"), dados.get("saida"))
+            status = _status_ponto(dados.get("entrada"), dados.get("saida_intervalo"), dados.get("retorno_intervalo"), dados.get("saida"))
+            observacoes = str(registro.get("observacoes") or "").strip()
+            if origem_final == "offline" and "Batida registrada offline." not in observacoes:
+                observacoes = (observacoes + "\n" if observacoes else "") + "Batida registrada offline."
+
+            conn.execute(
+                f"""
+                UPDATE registros_ponto
+                SET {acao} = ?, total_trabalhado = ?, status = ?, observacoes = ?, atualizado_em = ?,
+                    origem = CASE WHEN origem = 'offline' OR ? = 'offline' THEN 'offline' ELSE COALESCE(NULLIF(origem, ''), 'online') END,
+                    offline_uuid = COALESCE(NULLIF(offline_uuid, ''), ?),
+                    sincronizado_em = CASE WHEN ? = 'offline' THEN ? ELSE sincronizado_em END,
+                    dispositivo_info = COALESCE(NULLIF(dispositivo_info, ''), ?)
+                WHERE id = ? AND empresa_id = ?
+                """,
+                (
+                    hora_final,
+                    total,
+                    status,
+                    observacoes,
+                    agora_iso,
+                    origem_final,
+                    uuid_final,
+                    origem_final,
+                    agora_iso,
+                    dispositivo_final,
+                    registro["id"],
+                    empresa_id,
+                ),
+            )
+
+        conn.commit()
+
+    atualizado = buscar_registro_ponto_publico(empresa_id, funcionario_id, data_final)
+    return True, f"{PONTO_ACOES.get(acao, 'Ponto')} registrado às {hora_final}.", atualizado
+
+
 def bater_ponto_db(funcionario_id: int, acao: str = "") -> tuple[bool, str]:
     funcionario = buscar_funcionario_por_id(funcionario_id)
     if funcionario is None:
@@ -10827,6 +11111,16 @@ def portal() -> str:
 @app.get("/instalar")
 def pwa_instalar() -> str:
     return render_template("pwa_instalar.html")
+
+
+@app.get("/manifest.json")
+def manifest_json() -> Response:
+    return send_from_directory(
+        BASE_DIR / "static",
+        "manifest.json",
+        mimetype="application/manifest+json",
+        max_age=0,
+    )
 
 
 @app.get("/service-worker.js")
@@ -16072,6 +16366,105 @@ def gerar_venda_agendamento(agendamento_id: int) -> Response:
 def excluir_agendamento(agendamento_id: int) -> Response:
     excluir_agendamento_db(agendamento_id)
     return redirect(url_for("agendamentos", sucesso="Agendamento excluído."))
+
+
+@app.route("/ponto/<token>", methods=["GET", "POST"])
+def ponto_publico(token: str) -> str | Response:
+    funcionario = buscar_funcionario_por_token_ponto(token)
+    erro = ""
+    sucesso = ""
+    telefone_validado = session.get(f"ponto_validado_{token}") == "sim"
+    registro_hoje = None
+
+    if funcionario is None:
+        erro = "Link de ponto inválido ou funcionário inativo."
+    else:
+        registro_hoje = buscar_registro_ponto_publico(
+            int(funcionario["empresa_id"]),
+            int(funcionario["id"]),
+            hoje_empresa().isoformat(),
+        )
+
+        if request.method == "POST":
+            etapa = str(request.form.get("etapa") or "").strip()
+
+            if etapa == "validar_celular":
+                telefone_digitado = normalizar_telefone_publico(request.form.get("telefone"))
+                telefone_cadastrado = normalizar_telefone_publico(funcionario.get("telefone"))
+
+                if telefone_cadastrado and telefone_digitado == telefone_cadastrado:
+                    session[f"ponto_validado_{token}"] = "sim"
+                    return redirect(url_for("ponto_publico", token=token, sucesso="Celular validado com sucesso."))
+
+                erro = "WhatsApp informado não confere com o cadastro do funcionário."
+            else:
+                if not telefone_validado:
+                    erro = "Valide seu WhatsApp antes de bater o ponto."
+                else:
+                    acao = str(request.form.get("acao") or "").strip()
+                    ok, mensagem, registro_hoje = registrar_batida_ponto_publico(funcionario, acao)
+                    parametro = "sucesso" if ok else "erro"
+                    return redirect(url_for("ponto_publico", token=token, **{parametro: mensagem}))
+
+    erro = erro or str(request.args.get("erro") or "")
+    sucesso = sucesso or str(request.args.get("sucesso") or "")
+
+    return render_template(
+        "ponto_funcionario.html",
+        token=token,
+        funcionario=funcionario,
+        registro_hoje=registro_hoje,
+        telefone_validado=telefone_validado,
+        telefone_mascarado=mascarar_telefone_ponto(funcionario.get("telefone") if funcionario else ""),
+        data_hoje=formatar_data_br(hoje_empresa()),
+        erro=erro,
+        sucesso=sucesso,
+    )
+
+
+@app.post("/api/ponto/offline/sincronizar")
+def api_ponto_offline_sincronizar() -> Response:
+    dados = request.get_json(silent=True) or {}
+    token = str(dados.get("token") or "").strip()
+    batidas = dados.get("batidas") or []
+    funcionario = buscar_funcionario_por_token_ponto(token)
+
+    if funcionario is None:
+        return jsonify({"ok": False, "erro": "Link de ponto inválido ou funcionário inativo."}), 404
+
+    if not isinstance(batidas, list):
+        return jsonify({"ok": False, "erro": "Lista de batidas inválida."}), 400
+
+    resultados = []
+    sincronizadas = 0
+
+    for batida in batidas:
+        if not isinstance(batida, dict):
+            continue
+
+        ok, mensagem, registro = registrar_batida_ponto_publico(
+            funcionario,
+            str(batida.get("acao") or ""),
+            batida.get("data_ponto") or "",
+            batida.get("hora_ponto") or "",
+            origem="offline",
+            offline_uuid=batida.get("uuid") or "",
+            dispositivo_info=batida.get("dispositivo") or request.headers.get("User-Agent") or "",
+        )
+
+        if ok:
+            sincronizadas += 1
+
+        resultados.append(
+            {
+                "uuid": str(batida.get("uuid") or ""),
+                "ok": ok,
+                "mensagem": mensagem,
+                "registro": registro or {},
+            }
+        )
+
+    return jsonify({"ok": True, "sincronizadas": sincronizadas, "resultados": resultados})
 
 
 @app.route("/registro-ponto", methods=["GET", "POST"])

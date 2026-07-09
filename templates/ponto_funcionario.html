@@ -1,7 +1,7 @@
 <!--
 Caminho: templates/ponto_funcionario.html
-Último recode: 2026-07-04 18:40 (America/Bahia)
-Motivo: Criar tela pública simplificada para funcionário bater ponto por link individual validado pelo celular.
+Último recode: 2026-07-09 10:00 (America/Bahia)
+Motivo: Adicionar funcionamento offline com fila local, status de sincronização e instalação PWA.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -9,6 +9,8 @@ Motivo: Criar tela pública simplificada para funcionário bater ponto por link 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GestFlow - Bater Ponto</title>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0f62fe">
     <link rel="stylesheet" href="/static/css/dashboard.css">
     <style>
         body{min-height:100vh;background:linear-gradient(180deg,#071a2b 0,#0f62fe 42%,#f3f6fb 42%);padding:18px}
@@ -46,7 +48,14 @@ Motivo: Criar tela pública simplificada para funcionário bater ponto por link 
         .ponto-status-item{border:1px solid #e5eaf2;border-radius:14px;background:#fff;padding:12px}
         .ponto-status-item span{display:block;color:#64748b;font-size:11px;font-weight:900;text-transform:uppercase}
         .ponto-status-item strong{display:block;margin-top:5px;font-size:20px;color:#0f172a}
-        .ponto-footer{margin-top:14px;text-align:center;color:#64748b;font-size:12px;font-weight:800;line-height:1.35}
+        .ponto-sync-box{margin-top:12px;padding:12px;border-radius:14px;border:1px solid #e5eaf2;background:#f8fafc;color:#334155;font-size:12px;font-weight:900;line-height:1.35}
+        .ponto-sync-box.online{border-color:#bbf7d0;background:#f0fdf4;color:#166534}
+        .ponto-sync-box.offline{border-color:#fed7aa;background:#fff7ed;color:#9a3412}
+        .ponto-sync-box.pending{border-color:#bfdbfe;background:#eff6ff;color:#1d4ed8}
+        .ponto-pendente-lista{display:grid;gap:8px;margin-top:10px}
+        .ponto-pendente-item{display:flex;justify-content:space-between;gap:10px;padding:9px 10px;border-radius:12px;background:#fff;border:1px solid #e5eaf2;color:#334155}
+        .ponto-pendente-item span{font-weight:900}
+        .ponto-pendente-item small{color:#64748b;font-weight:800}
         @media(max-width:460px){body{padding:12px}.ponto-publico-top h1{font-size:22px}.clock-time{font-size:46px}.ponto-status-grid{grid-template-columns:1fr}.ponto-publico-body{padding:14px}}
     </style>
 </head>
@@ -94,8 +103,10 @@ Motivo: Criar tela pública simplificada para funcionário bater ponto por link 
             </form>
             {% else %}
             <div class="ponto-status-ok">Celular validado. Use os botões abaixo para bater o ponto de hoje.</div>
+            <div class="ponto-sync-box" id="ponto-sync-status">Verificando conexão...</div>
+            <div class="ponto-pendente-lista" id="ponto-pendente-lista"></div>
 
-            <form method="post" action="/ponto/{{ token }}" class="ponto-buttons">
+            <form method="post" action="/ponto/{{ token }}" class="ponto-buttons" id="ponto-form-batida" data-token="{{ token }}">
                 <button class="ponto-btn entrada" name="acao" value="entrada" type="submit" {% if entrada_marcada %}disabled{% endif %}>
                     <span class="ponto-icone">↦</span><span class="ponto-texto"><strong>Entrada</strong><span>Iniciar expediente</span></span>
                 </button>
@@ -115,10 +126,10 @@ Motivo: Criar tela pública simplificada para funcionário bater ponto por link 
             {% endif %}
 
             <div class="ponto-status-grid">
-                <div class="ponto-status-item"><span>Entrada</span><strong>{{ registro_hoje.entrada if registro_hoje and registro_hoje.entrada else '--:--' }}</strong></div>
-                <div class="ponto-status-item"><span>Saída intervalo</span><strong>{{ registro_hoje.saida_intervalo if registro_hoje and registro_hoje.saida_intervalo else '--:--' }}</strong></div>
-                <div class="ponto-status-item"><span>Retorno intervalo</span><strong>{{ registro_hoje.retorno_intervalo if registro_hoje and registro_hoje.retorno_intervalo else '--:--' }}</strong></div>
-                <div class="ponto-status-item"><span>Saída</span><strong>{{ registro_hoje.saida if registro_hoje and registro_hoje.saida else '--:--' }}</strong></div>
+                <div class="ponto-status-item"><span>Entrada</span><strong data-ponto-campo="entrada">{{ registro_hoje.entrada if registro_hoje and registro_hoje.entrada else '--:--' }}</strong></div>
+                <div class="ponto-status-item"><span>Saída intervalo</span><strong data-ponto-campo="saida_intervalo">{{ registro_hoje.saida_intervalo if registro_hoje and registro_hoje.saida_intervalo else '--:--' }}</strong></div>
+                <div class="ponto-status-item"><span>Retorno intervalo</span><strong data-ponto-campo="retorno_intervalo">{{ registro_hoje.retorno_intervalo if registro_hoje and registro_hoje.retorno_intervalo else '--:--' }}</strong></div>
+                <div class="ponto-status-item"><span>Saída</span><strong data-ponto-campo="saida">{{ registro_hoje.saida if registro_hoje and registro_hoje.saida else '--:--' }}</strong></div>
             </div>
 
             <div class="ponto-footer">Este link é individual. Não compartilhe com outro funcionário.</div>
@@ -139,5 +150,6 @@ function atualizarRelogioPonto(){
 atualizarRelogioPonto();
 setInterval(atualizarRelogioPonto, 1000);
 </script>
+<script src="/static/js/ponto_offline.js"></script>
 </body>
 </html>

@@ -1,90 +1,34 @@
-/*
-Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\static\service-worker.js
-Último recode: 2026-07-04 16:30 (America/Bahia)
-Motivo: Criar service worker básico do PWA GestFlow.
-*/
-
-const GESTFLOW_CACHE = "gestflow-pwa-v1";
-const GESTFLOW_ASSETS = [
-    "/static/manifest.json",
-    "/static/css/dashboard.css",
-    "/static/img/gestflow-icon-180.png",
-    "/static/img/gestflow-icon-192.png",
-    "/static/img/gestflow-icon-512.png",
-    "/static/img/gestflow-logo.png"
+// Caminho: static/service-worker.js
+// Último recode: 2026-07-09 10:00 (America/Bahia)
+// Motivo: Permitir carregamento offline básico da tela pública de ponto.
+const GESTFLOW_CACHE = 'gestflow-ponto-offline-v1';
+const ARQUIVOS_FIXOS = [
+    '/manifest.json',
+    '/static/css/dashboard.css',
+    '/static/js/ponto_offline.js'
 ];
 
-self.addEventListener("install", function (event) {
+self.addEventListener('install', event => {
     event.waitUntil(
-        caches.open(GESTFLOW_CACHE).then(function (cache) {
-            return cache.addAll(GESTFLOW_ASSETS);
-        }).catch(function () {
-            return Promise.resolve();
-        })
+        caches.open(GESTFLOW_CACHE).then(cache => cache.addAll(ARQUIVOS_FIXOS)).then(() => self.skipWaiting())
     );
-    self.skipWaiting();
 });
 
-self.addEventListener("activate", function (event) {
+self.addEventListener('activate', event => {
     event.waitUntil(
-        caches.keys().then(function (keys) {
-            return Promise.all(
-                keys
-                    .filter(function (key) {
-                        return key !== GESTFLOW_CACHE;
-                    })
-                    .map(function (key) {
-                        return caches.delete(key);
-                    })
-            );
-        })
+        caches.keys().then(keys => Promise.all(keys.filter(key => key !== GESTFLOW_CACHE).map(key => caches.delete(key)))).then(() => self.clients.claim())
     );
-    self.clients.claim();
 });
 
-self.addEventListener("fetch", function (event) {
+self.addEventListener('fetch', event => {
     const request = event.request;
+    if(request.method !== 'GET'){return;}
 
-    if (request.method !== "GET") {
-        return;
-    }
-
-    const url = new URL(request.url);
-
-    if (url.origin !== self.location.origin) {
-        return;
-    }
-
-    if (request.mode === "navigate") {
-        event.respondWith(
-            fetch(request)
-                .then(function (response) {
-                    const responseClone = response.clone();
-                    caches.open(GESTFLOW_CACHE).then(function (cache) {
-                        cache.put(request, responseClone);
-                    });
-                    return response;
-                })
-                .catch(function () {
-                    return caches.match(request).then(function (cached) {
-                        return cached || caches.match("/login");
-                    });
-                })
-        );
-        return;
-    }
-
-    if (url.pathname.startsWith("/static/")) {
-        event.respondWith(
-            caches.match(request).then(function (cached) {
-                return cached || fetch(request).then(function (response) {
-                    const responseClone = response.clone();
-                    caches.open(GESTFLOW_CACHE).then(function (cache) {
-                        cache.put(request, responseClone);
-                    });
-                    return response;
-                });
-            })
-        );
-    }
+    event.respondWith(
+        fetch(request).then(response => {
+            const copia = response.clone();
+            caches.open(GESTFLOW_CACHE).then(cache => cache.put(request, copia));
+            return response;
+        }).catch(() => caches.match(request).then(response => response || caches.match('/static/js/ponto_offline.js')))
+    );
 });
