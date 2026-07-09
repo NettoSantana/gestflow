@@ -1,7 +1,7 @@
 <!--
 Caminho: templates/ponto_funcionario.html
-Último recode: 2026-07-09 10:00 (America/Bahia)
-Motivo: Adicionar funcionamento offline com fila local, status de sincronização e instalação PWA.
+Último recode: 2026-07-09 11:30 (America/Bahia)
+Motivo: Corrigir validação offline do celular e ajustar botões conforme exigência de intervalo/almoço.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -56,6 +56,8 @@ Motivo: Adicionar funcionamento offline com fila local, status de sincronizaçã
         .ponto-pendente-item{display:flex;justify-content:space-between;gap:10px;padding:9px 10px;border-radius:12px;background:#fff;border:1px solid #e5eaf2;color:#334155}
         .ponto-pendente-item span{font-weight:900}
         .ponto-pendente-item small{color:#64748b;font-weight:800}
+        .ponto-offline-hidden{display:none !important}
+        .ponto-config-info{margin-top:10px;padding:10px 12px;border-radius:12px;background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;font-size:12px;font-weight:900}
         @media(max-width:460px){body{padding:12px}.ponto-publico-top h1{font-size:22px}.clock-time{font-size:46px}.ponto-status-grid{grid-template-columns:1fr}.ponto-publico-body{padding:14px}}
     </style>
 </head>
@@ -64,6 +66,7 @@ Motivo: Adicionar funcionamento offline com fila local, status de sincronizaçã
     <div class="ponto-publico-brand">GestFlow</div>
 
     {% set entrada_marcada = registro_hoje and registro_hoje.entrada %}
+    {% set exigir_intervalo = exigir_intervalo_ponto|default(true) %}
     {% set saida_intervalo_marcada = registro_hoje and registro_hoje.saida_intervalo %}
     {% set retorno_intervalo_marcado = registro_hoje and registro_hoje.retorno_intervalo %}
     {% set saida_marcada = registro_hoje and registro_hoje.saida %}
@@ -93,42 +96,47 @@ Motivo: Adicionar funcionamento offline com fila local, status de sincronizaçã
                 <div class="clock-date">{{ data_hoje }}</div>
             </div>
 
-            {% if not telefone_validado %}
-            <form method="post" action="/ponto/{{ token }}" class="ponto-validacao">
+            <form method="post" action="/ponto/{{ token }}" class="ponto-validacao {% if telefone_validado %}ponto-offline-hidden{% endif %}" id="ponto-form-validacao" data-token="{{ token }}">
                 <input type="hidden" name="etapa" value="validar_celular">
                 <label>Confirme seu WhatsApp</label>
                 <input class="form-control" type="tel" name="telefone" placeholder="Digite seu WhatsApp cadastrado" required autocomplete="tel">
                 <small>Por segurança, este ponto só é liberado para o celular cadastrado no funcionário. Cadastro atual: {{ telefone_mascarado }}.</small>
                 <button class="btn-primary-green" type="submit">Validar celular</button>
             </form>
-            {% else %}
-            <div class="ponto-status-ok">Celular validado. Use os botões abaixo para bater o ponto de hoje.</div>
-            <div class="ponto-sync-box" id="ponto-sync-status">Verificando conexão...</div>
-            <div class="ponto-pendente-lista" id="ponto-pendente-lista"></div>
 
-            <form method="post" action="/ponto/{{ token }}" class="ponto-buttons" id="ponto-form-batida" data-token="{{ token }}">
-                <button class="ponto-btn entrada" name="acao" value="entrada" type="submit" {% if entrada_marcada %}disabled{% endif %}>
-                    <span class="ponto-icone">↦</span><span class="ponto-texto"><strong>Entrada</strong><span>Iniciar expediente</span></span>
-                </button>
+            <div id="ponto-area-batida" class="{% if not telefone_validado %}ponto-offline-hidden{% endif %}">
+                <div class="ponto-status-ok">Celular validado. Use os botões abaixo para bater o ponto de hoje.</div>
+                <div class="ponto-config-info">Intervalo/almoço: {% if exigir_intervalo %}exigido neste funcionário{% else %}não exigido neste funcionário{% endif %}.</div>
+                <div class="ponto-sync-box" id="ponto-sync-status">Verificando conexão...</div>
+                <div class="ponto-pendente-lista" id="ponto-pendente-lista"></div>
 
-                <button class="ponto-btn" name="acao" value="saida_intervalo" type="submit" {% if not entrada_marcada or saida_intervalo_marcada %}disabled{% endif %}>
-                    <span class="ponto-icone">☕</span><span class="ponto-texto"><strong>Saída intervalo</strong><span>Pausar expediente</span></span>
-                </button>
+                <form method="post" action="/ponto/{{ token }}" class="ponto-buttons" id="ponto-form-batida" data-token="{{ token }}" data-telefone-validado="{{ 'sim' if telefone_validado else 'nao' }}" data-funcionario-nome="{{ funcionario.nome }}" data-empresa-nome="{{ funcionario.empresa_nome or 'GestFlow' }}" data-exigir-intervalo="{{ 'sim' if exigir_intervalo else 'nao' }}">
+                    <button class="ponto-btn entrada" name="acao" value="entrada" type="submit" {% if entrada_marcada %}disabled{% endif %}>
+                        <span class="ponto-icone">↦</span><span class="ponto-texto"><strong>Entrada</strong><span>Iniciar expediente</span></span>
+                    </button>
 
-                <button class="ponto-btn" name="acao" value="retorno_intervalo" type="submit" {% if not saida_intervalo_marcada or retorno_intervalo_marcado %}disabled{% endif %}>
-                    <span class="ponto-icone">↩</span><span class="ponto-texto"><strong>Retorno intervalo</strong><span>Voltar ao trabalho</span></span>
-                </button>
+                    {% if exigir_intervalo %}
+                    <button class="ponto-btn" name="acao" value="saida_intervalo" type="submit" {% if not entrada_marcada or saida_intervalo_marcada %}disabled{% endif %}>
+                        <span class="ponto-icone">☕</span><span class="ponto-texto"><strong>Saída intervalo</strong><span>Pausar expediente</span></span>
+                    </button>
 
-                <button class="ponto-btn saida" name="acao" value="saida" type="submit" {% if not retorno_intervalo_marcado or saida_marcada %}disabled{% endif %}>
-                    <span class="ponto-icone">⇥</span><span class="ponto-texto"><strong>Saída</strong><span>Encerrar expediente</span></span>
-                </button>
-            </form>
-            {% endif %}
+                    <button class="ponto-btn" name="acao" value="retorno_intervalo" type="submit" {% if not saida_intervalo_marcada or retorno_intervalo_marcado %}disabled{% endif %}>
+                        <span class="ponto-icone">↩</span><span class="ponto-texto"><strong>Retorno intervalo</strong><span>Voltar ao trabalho</span></span>
+                    </button>
+                    {% endif %}
+
+                    <button class="ponto-btn saida" name="acao" value="saida" type="submit" {% if (exigir_intervalo and not retorno_intervalo_marcado) or ((not exigir_intervalo) and not entrada_marcada) or saida_marcada %}disabled{% endif %}>
+                        <span class="ponto-icone">⇥</span><span class="ponto-texto"><strong>Saída</strong><span>Encerrar expediente</span></span>
+                    </button>
+                </form>
+            </div>
 
             <div class="ponto-status-grid">
                 <div class="ponto-status-item"><span>Entrada</span><strong data-ponto-campo="entrada">{{ registro_hoje.entrada if registro_hoje and registro_hoje.entrada else '--:--' }}</strong></div>
+                {% if exigir_intervalo %}
                 <div class="ponto-status-item"><span>Saída intervalo</span><strong data-ponto-campo="saida_intervalo">{{ registro_hoje.saida_intervalo if registro_hoje and registro_hoje.saida_intervalo else '--:--' }}</strong></div>
                 <div class="ponto-status-item"><span>Retorno intervalo</span><strong data-ponto-campo="retorno_intervalo">{{ registro_hoje.retorno_intervalo if registro_hoje and registro_hoje.retorno_intervalo else '--:--' }}</strong></div>
+                {% endif %}
                 <div class="ponto-status-item"><span>Saída</span><strong data-ponto-campo="saida">{{ registro_hoje.saida if registro_hoje and registro_hoje.saida else '--:--' }}</strong></div>
             </div>
 

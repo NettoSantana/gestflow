@@ -1,22 +1,57 @@
 // Caminho: static/js/ponto_offline.js
-// Último recode: 2026-07-09 10:00 (America/Bahia)
-// Motivo: Criar fila offline do registro de ponto com sincronização automática ao voltar internet.
+// Último recode: 2026-07-09 11:30 (America/Bahia)
+// Motivo: Permitir ponto offline após validação do celular e respeitar configuração de intervalo/almoço.
 (function(){
     const form = document.getElementById('ponto-form-batida');
+    const validationForm = document.getElementById('ponto-form-validacao');
+    const pointArea = document.getElementById('ponto-area-batida');
     const statusBox = document.getElementById('ponto-sync-status');
     const pendingList = document.getElementById('ponto-pendente-lista');
     if(!form || !statusBox){return;}
 
     const token = form.dataset.token || '';
     const storageKey = `gestflow_ponto_offline_${token}`;
-    const campos = ['entrada','saida_intervalo','retorno_intervalo','saida'];
+    const authKey = `gestflow_ponto_validado_${token}`;
+    const exigeIntervalo = (form.dataset.exigirIntervalo || 'sim') !== 'nao';
+    const campos = exigeIntervalo ? ['entrada','saida_intervalo','retorno_intervalo','saida'] : ['entrada','saida'];
+
+    function carregarJson(chave, padrao){
+        try{return JSON.parse(localStorage.getItem(chave) || JSON.stringify(padrao));}catch(e){return padrao;}
+    }
+
+    function salvarJson(chave, valor){
+        localStorage.setItem(chave, JSON.stringify(valor));
+    }
 
     function carregarFila(){
-        try{return JSON.parse(localStorage.getItem(storageKey) || '[]') || [];}catch(e){return [];}
+        return carregarJson(storageKey, []);
     }
 
     function salvarFila(fila){
-        localStorage.setItem(storageKey, JSON.stringify(fila || []));
+        salvarJson(storageKey, fila || []);
+        atualizarStatus();
+    }
+
+    function salvarValidacaoLocal(){
+        salvarJson(authKey, {
+            validado: true,
+            token: token,
+            funcionario_nome: form.dataset.funcionarioNome || '',
+            empresa_nome: form.dataset.empresaNome || '',
+            exigir_intervalo: exigeIntervalo ? 'sim' : 'nao',
+            validado_em: new Date().toISOString()
+        });
+    }
+
+    function validacaoLocalExiste(){
+        const dados = carregarJson(authKey, {});
+        return !!dados.validado && dados.token === token;
+    }
+
+    function liberarTelaValidada(){
+        if(validationForm){validationForm.classList.add('ponto-offline-hidden');}
+        if(pointArea){pointArea.classList.remove('ponto-offline-hidden');}
+        liberarProximoBotao();
         atualizarStatus();
     }
 
@@ -53,18 +88,25 @@
         liberarProximoBotao();
     }
 
+    function campoMarcado(campo){
+        const el = document.querySelector(`[data-ponto-campo="${campo}"]`);
+        return !!(el && el.textContent.trim() !== '--:--');
+    }
+
     function liberarProximoBotao(){
         const valores = {};
-        campos.forEach(campo => {
-            const el = document.querySelector(`[data-ponto-campo="${campo}"]`);
-            valores[campo] = el && el.textContent.trim() !== '--:--';
-        });
-        const regras = {
+        campos.forEach(campo => {valores[campo] = campoMarcado(campo);});
+
+        const regras = exigeIntervalo ? {
             entrada: true,
             saida_intervalo: valores.entrada,
             retorno_intervalo: valores.saida_intervalo,
             saida: valores.retorno_intervalo
+        } : {
+            entrada: true,
+            saida: valores.entrada
         };
+
         campos.forEach(campo => {
             const botao = form.querySelector(`button[name="acao"][value="${campo}"]`);
             if(botao && !valores[campo]){botao.disabled = !regras[campo];}
@@ -123,19 +165,43 @@
         }
     }
 
+    if((form.dataset.telefoneValidado || '') === 'sim'){
+        salvarValidacaoLocal();
+    }
+
+    if(validacaoLocalExiste()){
+        liberarTelaValidada();
+    }else if(!navigator.onLine && validationForm){
+        validationForm.classList.remove('ponto-offline-hidden');
+    }
+
+    if(validationForm){
+        validationForm.addEventListener('submit', function(event){
+            if(navigator.onLine){return;}
+            event.preventDefault();
+            alert('Primeiro acesso precisa de internet para validar o celular. Depois disso, este aparelho bate ponto offline.');
+        });
+    }
+
     form.addEventListener('submit', function(event){
         const botao = event.submitter;
         if(!botao || navigator.onLine){return;}
         event.preventDefault();
 
+        if(!validacaoLocalExiste()){
+            alert('Valide este celular com internet antes de usar o ponto offline.');
+            return;
+        }
+
         const acao = botao.value;
-        if(!acao){return;}
+        if(!acao || !campos.includes(acao)){return;}
         const hora = horaAgora();
         const batida = {
             uuid: uuid(),
             acao: acao,
             data_ponto: dataHoje(),
             hora_ponto: hora,
+            exigir_intervalo: exigeIntervalo ? 'sim' : 'nao',
             dispositivo: navigator.userAgent || ''
         };
         const fila = carregarFila();
@@ -144,13 +210,17 @@
         marcarTela(acao, hora);
     });
 
-    window.addEventListener('online', sincronizarFila);
+    window.addEventListener('online', function(){
+        if(validacaoLocalExiste()){liberarTelaValidada();}
+        sincronizarFila();
+    });
     window.addEventListener('offline', atualizarStatus);
 
     if('serviceWorker' in navigator){
         navigator.serviceWorker.register('/service-worker.js').catch(function(){});
     }
 
+    liberarProximoBotao();
     atualizarStatus();
     sincronizarFila();
 })();
