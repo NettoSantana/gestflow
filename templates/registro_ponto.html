@@ -1,7 +1,7 @@
 <!--
 Caminho: templates/registro_ponto.html
-Último recode: 2026-07-04 21:55 (America/Bahia)
-Motivo: Exibir link individual somente do funcionário selecionado no Registro de Ponto.
+Último recode: 2026-07-09 16:31 (America/Bahia)
+Motivo: Corrigir link individual e ocultar botões/campos de intervalo conforme configuração do funcionário.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -78,24 +78,11 @@ Motivo: Exibir link individual somente do funcionário selecionado no Registro d
     {% include "partials/topbar.html" %}
 
     {% set tem_funcionario = funcionario_id|string and funcionario_id|string != '' %}
+    {% set exigir_intervalo = exigir_intervalo_ponto|default(true) %}
     {% set entrada_marcada = registro_hoje and registro_hoje.entrada %}
     {% set saida_intervalo_marcada = registro_hoje and registro_hoje.saida_intervalo %}
     {% set retorno_intervalo_marcado = registro_hoje and registro_hoje.retorno_intervalo %}
     {% set saida_marcada = registro_hoje and registro_hoje.saida %}
-
-    {% if not tem_funcionario %}
-        {% set proxima_marcacao = 'Selecione o funcionário para liberar os botões de ponto.' %}
-    {% elif not entrada_marcada %}
-        {% set proxima_marcacao = 'Próxima marcação: Entrada' %}
-    {% elif not saida_intervalo_marcada %}
-        {% set proxima_marcacao = 'Próxima marcação: Saída para intervalo' %}
-    {% elif not retorno_intervalo_marcado %}
-        {% set proxima_marcacao = 'Próxima marcação: Retorno do intervalo' %}
-    {% elif not saida_marcada %}
-        {% set proxima_marcacao = 'Próxima marcação: Saída' %}
-    {% else %}
-        {% set proxima_marcacao = 'Ponto de hoje completo.' %}
-    {% endif %}
 
     <section class="panel page-section">
         <div class="panel-header page-header">
@@ -119,7 +106,7 @@ Motivo: Exibir link individual somente do funcionário selecionado no Registro d
         <div class="panel ponto-funcionario" id="bater-ponto">
             <div class="ponto-topo-funcionario">
                 <h3>Bater ponto</h3>
-                <p>Entrada, intervalo, retorno e saída em poucos cliques.</p>
+                <p>{% if exigir_intervalo %}Entrada, intervalo, retorno e saída em poucos cliques.{% else %}Entrada e saída em poucos cliques.{% endif %}</p>
             </div>
 
             <form method="get" action="/registro-ponto" class="ponto-identificacao">
@@ -135,7 +122,7 @@ Motivo: Exibir link individual somente do funcionário selecionado no Registro d
             {% if tem_funcionario %}
                 {% for funcionario in funcionarios %}
                     {% if funcionario_id|string == funcionario.id|string %}
-                    {% set token_ponto = funcionario.token_ponto_publico or '' %}
+                    {% set token_ponto = funcionario.token_ponto or funcionario.token_ponto_publico or '' %}
                     <div class="ponto-link-card ponto-link-selecionado">
                         <div>
                             <strong>Link individual do funcionário</strong>
@@ -164,16 +151,20 @@ Motivo: Exibir link individual somente do funcionário selecionado no Registro d
                 <div>
                     <span>Funcionário selecionado</span>
                     <strong>
-                        {% if tem_funcionario %}
-                            {% for funcionario in funcionarios %}
-                                {% if funcionario_id|string == funcionario.id|string %}{{ funcionario.nome }}{% endif %}
-                            {% endfor %}
+                        {% if funcionario_selecionado %}
+                            {{ funcionario_selecionado.nome }}
                         {% else %}
                             Nenhum funcionário selecionado
                         {% endif %}
                     </strong>
                 </div>
             </div>
+
+            {% if tem_funcionario %}
+            <div class="ponto-proximo" style="background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8;">
+                <span>Intervalo/almoço: {% if exigir_intervalo %}exigido para este funcionário{% else %}não exigido para este funcionário{% endif %}</span>
+            </div>
+            {% endif %}
 
             <div class="clock-box">
                 <div class="clock-time" id="ponto-relogio">--:--</div>
@@ -191,6 +182,7 @@ Motivo: Exibir link individual somente do funcionário selecionado no Registro d
                     <span class="ponto-icone">↦</span><span class="ponto-texto"><strong>Entrada</strong><span>Iniciar expediente</span></span>
                 </button>
 
+                {% if exigir_intervalo %}
                 <button class="ponto-btn" name="acao" value="saida_intervalo" type="submit" {% if not tem_funcionario or not entrada_marcada or saida_intervalo_marcada %}disabled{% endif %}>
                     <span class="ponto-icone">☕</span><span class="ponto-texto"><strong>Saída intervalo</strong><span>Pausar expediente</span></span>
                 </button>
@@ -198,16 +190,19 @@ Motivo: Exibir link individual somente do funcionário selecionado no Registro d
                 <button class="ponto-btn" name="acao" value="retorno_intervalo" type="submit" {% if not tem_funcionario or not saida_intervalo_marcada or retorno_intervalo_marcado %}disabled{% endif %}>
                     <span class="ponto-icone">↩</span><span class="ponto-texto"><strong>Retorno intervalo</strong><span>Voltar ao trabalho</span></span>
                 </button>
+                {% endif %}
 
-                <button class="ponto-btn saida" name="acao" value="saida" type="submit" {% if not tem_funcionario or not retorno_intervalo_marcado or saida_marcada %}disabled{% endif %}>
+                <button class="ponto-btn saida" name="acao" value="saida" type="submit" {% if not tem_funcionario or (exigir_intervalo and not retorno_intervalo_marcado) or ((not exigir_intervalo) and not entrada_marcada) or saida_marcada %}disabled{% endif %}>
                     <span class="ponto-icone">⇥</span><span class="ponto-texto"><strong>Saída</strong><span>Encerrar expediente</span></span>
                 </button>
             </form>
 
             <div class="ponto-status-grid">
                 <div class="ponto-status-item"><span>Entrada</span><strong>{{ registro_hoje.entrada if registro_hoje and registro_hoje.entrada else '--:--' }}</strong></div>
+                {% if exigir_intervalo %}
                 <div class="ponto-status-item"><span>Saída intervalo</span><strong>{{ registro_hoje.saida_intervalo if registro_hoje and registro_hoje.saida_intervalo else '--:--' }}</strong></div>
                 <div class="ponto-status-item"><span>Retorno intervalo</span><strong>{{ registro_hoje.retorno_intervalo if registro_hoje and registro_hoje.retorno_intervalo else '--:--' }}</strong></div>
+                {% endif %}
                 <div class="ponto-status-item"><span>Saída</span><strong>{{ registro_hoje.saida if registro_hoje and registro_hoje.saida else '--:--' }}</strong></div>
             </div>
         </div>
@@ -310,8 +305,10 @@ Motivo: Exibir link individual somente do funcionário selecionado no Registro d
                         </div>
                         <div class="form-group"><label>Data</label><input class="form-control" type="date" name="ajuste_data_ponto" value="{{ data_inicio }}" required></div>
                         <div class="form-group"><label>Entrada</label><input class="form-control" type="time" name="ajuste_entrada"></div>
+                        {% if exigir_intervalo %}
                         <div class="form-group"><label>Saída intervalo</label><input class="form-control" type="time" name="ajuste_saida_intervalo"></div>
                         <div class="form-group"><label>Retorno intervalo</label><input class="form-control" type="time" name="ajuste_retorno_intervalo"></div>
+                        {% endif %}
                         <div class="form-group"><label>Saída</label><input class="form-control" type="time" name="ajuste_saida"></div>
                     </div>
 
