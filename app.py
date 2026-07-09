@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-09 14:08 (America/Bahia)
-# Motivo: Garantir token de ponto para funcionários antigos e corrigir exclusão sem bloquear por vínculos.
+# Último recode: 2026-07-09 14:20 (America/Bahia)
+# Motivo: Corrigir criação/exclusão de funcionários antigos, garantir colunas do ponto e estabilizar seleção no registro de ponto.
 
 from __future__ import annotations
 
@@ -1549,6 +1549,11 @@ def iniciar_banco() -> None:
 
         if "token_ponto" not in colunas_funcionarios_ponto:
             conn.execute("ALTER TABLE funcionarios ADD COLUMN token_ponto TEXT")
+            colunas_funcionarios_ponto.add("token_ponto")
+
+        if "exigir_intervalo_ponto" not in colunas_funcionarios_ponto:
+            conn.execute("ALTER TABLE funcionarios ADD COLUMN exigir_intervalo_ponto TEXT DEFAULT 'sim'")
+            colunas_funcionarios_ponto.add("exigir_intervalo_ponto")
 
         funcionarios_sem_token_ponto = conn.execute(
             """
@@ -1830,6 +1835,8 @@ def iniciar_banco() -> None:
                 "status": "TEXT DEFAULT 'ativo'",
                 "email": "TEXT",
                 "observacoes": "TEXT",
+                "token_ponto": "TEXT",
+                "exigir_intervalo_ponto": "TEXT DEFAULT 'sim'",
                 "salario_base": "TEXT",
                 "inss_percentual": "TEXT",
                 "fgts_percentual": "TEXT",
@@ -3232,20 +3239,44 @@ def excluir_funcionario_db(funcionario_id: int) -> bool:
     empresa_id = empresa_logada_id()
 
     with conectar_db() as conn:
+        funcionario = conn.execute(
+            """
+            SELECT id, empresa_id
+            FROM funcionarios
+            WHERE id = ?
+              AND (empresa_id = ? OR empresa_id IS NULL)
+            LIMIT 1
+            """,
+            (funcionario_id, empresa_id),
+        ).fetchone()
+
+        if funcionario is None:
+            return False
+
+        conn.execute(
+            """
+            UPDATE funcionarios
+            SET empresa_id = ?
+            WHERE id = ?
+              AND empresa_id IS NULL
+            """,
+            (empresa_id, funcionario_id),
+        )
+
         conn.execute(
             """
             DELETE FROM os_acompanhamento_equipe
             WHERE funcionario_id = ?
-              AND empresa_id = ?
+              AND (empresa_id = ? OR empresa_id IS NULL)
             """,
             (funcionario_id, empresa_id),
         )
         conn.execute(
             """
             UPDATE agendamentos
-            SET profissional_id = NULL
+            SET profissional_id = NULL, profissional_nome = COALESCE(NULLIF(profissional_nome, ''), 'Funcionário removido')
             WHERE profissional_id = ?
-              AND empresa_id = ?
+              AND (empresa_id = ? OR empresa_id IS NULL)
             """,
             (funcionario_id, empresa_id),
         )
@@ -3253,7 +3284,7 @@ def excluir_funcionario_db(funcionario_id: int) -> bool:
             """
             DELETE FROM registros_ponto
             WHERE funcionario_id = ?
-              AND empresa_id = ?
+              AND (empresa_id = ? OR empresa_id IS NULL)
             """,
             (funcionario_id, empresa_id),
         )
@@ -10076,6 +10107,41 @@ def garantir_tokens_ponto_funcionarios_empresa() -> int:
     atualizados = 0
 
     with conectar_db() as conn:
+        colunas_funcionarios = {
+            str(row["name"])
+            for row in conn.execute("PRAGMA table_info(funcionarios)").fetchall()
+        }
+
+        if "empresa_id" not in colunas_funcionarios:
+            conn.execute("ALTER TABLE funcionarios ADD COLUMN empresa_id INTEGER")
+            colunas_funcionarios.add("empresa_id")
+
+        if "token_ponto" not in colunas_funcionarios:
+            conn.execute("ALTER TABLE funcionarios ADD COLUMN token_ponto TEXT")
+            colunas_funcionarios.add("token_ponto")
+
+        if "exigir_intervalo_ponto" not in colunas_funcionarios:
+            conn.execute("ALTER TABLE funcionarios ADD COLUMN exigir_intervalo_ponto TEXT DEFAULT 'sim'")
+            colunas_funcionarios.add("exigir_intervalo_ponto")
+
+        conn.execute(
+            """
+            UPDATE funcionarios
+            SET empresa_id = ?
+            WHERE empresa_id IS NULL
+            """,
+            (empresa_id,),
+        )
+
+        conn.execute(
+            """
+            UPDATE funcionarios
+            SET exigir_intervalo_ponto = 'sim'
+            WHERE exigir_intervalo_ponto IS NULL
+               OR TRIM(exigir_intervalo_ponto) = ''
+            """
+        )
+
         funcionarios_sem_token = conn.execute(
             """
             SELECT id
@@ -14058,10 +14124,7 @@ def atualizar_funcionario(funcionario_id: int) -> Response:
 
 @app.post("/funcionarios/<int:funcionario_id>/excluir")
 def excluir_funcionario(funcionario_id: int) -> Response:
-    funcionario = buscar_funcionario_por_id(funcionario_id)
-
-    if funcionario is None:
-        return redirect(url_for("funcionarios", erro="Funcionário não encontrado."))
+    funcionario = buscar_funcionario_por_id(funcionario_id) or {"nome": f"ID {funcionario_id}"}
 
     try:
         excluido = excluir_funcionario_db(funcionario_id)
@@ -14069,7 +14132,7 @@ def excluir_funcionario(funcionario_id: int) -> Response:
         return redirect(url_for("funcionarios", erro=f"Não foi possível excluir o funcionário: {erro_db}"))
 
     if not excluido:
-        return redirect(url_for("funcionarios", erro="Funcionário não foi excluído."))
+        return redirect(url_for("funcionarios", erro="Funcionário não encontrado ou já excluído."))
 
     registrar_atividade_usuario("exclusao", "funcionarios", f"Excluiu funcionário {funcionario.get('nome') or funcionario_id}", request.path)
     return redirect(url_for("funcionarios", sucesso="Funcionário excluído com sucesso."))
@@ -16583,18 +16646,24 @@ def registro_ponto() -> str | Response:
         return redirect(url_for("registro_ponto", funcionario_id=funcionario_id_texto, **{parametro: mensagem}))
 
     funcionario_id = request.args.get("funcionario_id") or ""
-    data_inicio = request.args.get("data_inicio") or hoje_empresa().isoformat()
-    data_fim = request.args.get("data_fim") or data_inicio
+    data_inicio = _normalizar_data_iso(request.args.get("data_inicio") or hoje_empresa().isoformat())
+    data_fim = _normalizar_data_iso(request.args.get("data_fim") or data_inicio, data_inicio)
+    funcionarios_lista = listar_funcionarios()
+    ids_validos = {str(funcionario.get("id") or "") for funcionario in funcionarios_lista}
+
+    if str(funcionario_id) not in ids_validos:
+        funcionario_id = ""
+
     registro_hoje = None
     if str(funcionario_id).isdigit():
         registro_hoje = buscar_registro_ponto(int(funcionario_id), hoje_empresa().isoformat())
 
     return render_template(
         "registro_ponto.html",
-        funcionarios=listar_funcionarios(),
+        funcionarios=funcionarios_lista,
         funcionario_id=str(funcionario_id),
-        data_inicio=_normalizar_data_iso(data_inicio),
-        data_fim=_normalizar_data_iso(data_fim, _normalizar_data_iso(data_inicio)),
+        data_inicio=data_inicio,
+        data_fim=data_fim,
         registros=listar_registros_ponto(data_inicio, data_fim, funcionario_id),
         registro_hoje=registro_hoje,
         acoes_ponto=PONTO_ACOES,
