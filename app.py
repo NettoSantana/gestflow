@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-09 11:30 (America/Bahia)
-# Motivo: Corrigir ponto offline após validação do celular e permitir configurar exigência de intervalo/almoço por funcionário.
+# Último recode: 2026-07-09 10:00 (America/Bahia)
+# Motivo: Adicionar registro de ponto público offline com PWA, fila local e sincronização automática.
 
 from __future__ import annotations
 
@@ -1550,9 +1550,6 @@ def iniciar_banco() -> None:
         if "token_ponto" not in colunas_funcionarios_ponto:
             conn.execute("ALTER TABLE funcionarios ADD COLUMN token_ponto TEXT")
 
-        if "exigir_intervalo_ponto" not in colunas_funcionarios_ponto:
-            conn.execute("ALTER TABLE funcionarios ADD COLUMN exigir_intervalo_ponto TEXT DEFAULT 'sim'")
-
         funcionarios_sem_token_ponto = conn.execute(
             """
             SELECT id
@@ -1845,7 +1842,6 @@ def iniciar_banco() -> None:
                 "custo_mensal": "TEXT",
                 "custo_dia": "TEXT",
                 "custo_hora": "TEXT",
-                "exigir_intervalo_ponto": "TEXT DEFAULT 'sim'",
                 "criado_em": "TEXT",
             },
             "produtos": {
@@ -2227,7 +2223,7 @@ CADASTROS_PAGINADOS = {
     },
     "funcionarios": {
         "tabela": "funcionarios",
-        "colunas": ["id", "empresa_id", "nome", "cpf", "telefone", "cidade", "cargo", "status", "email", "observacoes", "salario_base", "inss_percentual", "fgts_percentual", "ferias_percentual", "decimo_percentual", "beneficios", "transporte", "alimentacao", "outros_custos", "custo_mensal", "custo_dia", "custo_hora", "exigir_intervalo_ponto", "criado_em"],
+        "colunas": ["id", "empresa_id", "nome", "cpf", "telefone", "cidade", "cargo", "status", "email", "observacoes", "salario_base", "inss_percentual", "fgts_percentual", "ferias_percentual", "decimo_percentual", "beneficios", "transporte", "alimentacao", "outros_custos", "custo_mensal", "custo_dia", "custo_hora", "criado_em"],
         "busca": ["nome", "cpf", "telefone", "cidade", "cargo", "email", "status"],
         "ordenacao": {
             "id": "id",
@@ -3053,9 +3049,8 @@ def salvar_funcionario_db(funcionario: dict[str, str]) -> None:
                 outros_custos,
                 custo_mensal,
                 custo_dia,
-                custo_hora,
-                exigir_intervalo_ponto
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                custo_hora
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id,
@@ -3079,7 +3074,6 @@ def salvar_funcionario_db(funcionario: dict[str, str]) -> None:
                 funcionario["custo_mensal"],
                 funcionario["custo_dia"],
                 funcionario["custo_hora"],
-                funcionario.get("exigir_intervalo_ponto", "sim"),
             ),
         )
         conn.commit()
@@ -3113,7 +3107,6 @@ def listar_funcionarios() -> list[dict[str, Any]]:
                 custo_mensal,
                 custo_dia,
                 custo_hora,
-                exigir_intervalo_ponto,
                 criado_em
             FROM funcionarios
             WHERE empresa_id = ?
@@ -3153,7 +3146,6 @@ def buscar_funcionario_por_id(funcionario_id: int) -> dict[str, Any] | None:
                 custo_mensal,
                 custo_dia,
                 custo_hora,
-                exigir_intervalo_ponto,
                 criado_em
             FROM funcionarios
             WHERE id = ?
@@ -3195,8 +3187,7 @@ def atualizar_funcionario_db(funcionario_id: int, funcionario: dict[str, str]) -
                 outros_custos = ?,
                 custo_mensal = ?,
                 custo_dia = ?,
-                custo_hora = ?,
-                exigir_intervalo_ponto = ?
+                custo_hora = ?
             WHERE id = ?
               AND empresa_id = ?
             """,
@@ -3221,7 +3212,6 @@ def atualizar_funcionario_db(funcionario_id: int, funcionario: dict[str, str]) -
                 funcionario["custo_mensal"],
                 funcionario["custo_dia"],
                 funcionario["custo_hora"],
-                funcionario.get("exigir_intervalo_ponto", "sim"),
                 funcionario_id,
                 empresa_id,
             ),
@@ -10058,17 +10048,6 @@ def buscar_registro_ponto_publico(empresa_id: int, funcionario_id: int, data_pon
     return dict(row) if row else None
 
 
-
-def funcionario_exige_intervalo_ponto(funcionario: dict[str, Any] | None) -> bool:
-    if not funcionario:
-        return True
-    valor = str(funcionario.get("exigir_intervalo_ponto") or "sim").strip().lower()
-    return valor not in {"nao", "não", "0", "false", "off"}
-
-
-def ordem_ponto_funcionario(funcionario: dict[str, Any] | None) -> list[str]:
-    return ["entrada", "saida_intervalo", "retorno_intervalo", "saida"] if funcionario_exige_intervalo_ponto(funcionario) else ["entrada", "saida"]
-
 def registrar_batida_ponto_publico(
     funcionario: dict[str, Any],
     acao: str,
@@ -10086,11 +10065,9 @@ def registrar_batida_ponto_publico(
     origem_final = "offline" if str(origem or "").strip() == "offline" else "online"
     uuid_final = str(offline_uuid or "").strip()
     dispositivo_final = str(dispositivo_info or "").strip()[:500]
-    ordem = ordem_ponto_funcionario(funcionario)
+    ordem = ["entrada", "saida_intervalo", "retorno_intervalo", "saida"]
 
     if acao not in ordem:
-        if not funcionario_exige_intervalo_ponto(funcionario) and acao in {"saida_intervalo", "retorno_intervalo"}:
-            return False, "Intervalo/almoço não é exigido para este funcionário.", None
         return False, "Ação de ponto inválida.", None
 
     if not funcionario_id or not empresa_id:
@@ -10129,12 +10106,6 @@ def registrar_batida_ponto_publico(
 
         if registro is None and acao != "entrada":
             return False, "Registre a entrada antes dos demais horários.", None
-
-        if registro is not None and acao != "entrada":
-            indice_acao = ordem.index(acao)
-            campo_anterior = ordem[indice_acao - 1]
-            if not registro.get(campo_anterior):
-                return False, f"Registre {PONTO_ACOES.get(campo_anterior, 'o horário anterior').lower()} antes.", registro
 
         agora_iso = agora_empresa().isoformat(timespec="seconds")
 
@@ -10210,7 +10181,7 @@ def bater_ponto_db(funcionario_id: int, acao: str = "") -> tuple[bool, str]:
     hoje = hoje_empresa().isoformat()
     agora_hora = agora_empresa().strftime("%H:%M")
     registro = buscar_registro_ponto(funcionario_id, hoje)
-    ordem = ordem_ponto_funcionario(funcionario)
+    ordem = ["entrada", "saida_intervalo", "retorno_intervalo", "saida"]
 
     if acao not in ordem:
         if registro is None:
@@ -10226,12 +10197,6 @@ def bater_ponto_db(funcionario_id: int, acao: str = "") -> tuple[bool, str]:
 
     if registro is None and acao != "entrada":
         return False, "Registre a entrada antes dos demais horários."
-
-    if registro is not None and acao != "entrada":
-        indice_acao = ordem.index(acao)
-        campo_anterior = ordem[indice_acao - 1]
-        if not registro.get(campo_anterior):
-            return False, f"Registre {PONTO_ACOES.get(campo_anterior, 'o horário anterior').lower()} antes."
 
     with conectar_db() as conn:
         if registro is None:
@@ -13089,9 +13054,6 @@ def normalizar_funcionario_para_salvar(funcionario: dict[str, str]) -> dict[str,
     if funcionario_normalizado["status"] not in {"ativo", "inativo", "pendente"}:
         funcionario_normalizado["status"] = "ativo"
 
-    intervalo = str(funcionario_normalizado.get("exigir_intervalo_ponto") or "sim").strip().lower()
-    funcionario_normalizado["exigir_intervalo_ponto"] = "nao" if intervalo in {"nao", "não", "0", "false", "off"} else "sim"
-
     return funcionario_normalizado
 
 
@@ -13718,7 +13680,6 @@ def salvar_funcionario() -> Response:
         "custo_mensal": (request.form.get("funcionario_custo_mensal") or "").strip(),
         "custo_dia": (request.form.get("funcionario_custo_dia") or "").strip(),
         "custo_hora": (request.form.get("funcionario_custo_hora") or "").strip(),
-        "exigir_intervalo_ponto": "sim" if request.form.get("funcionario_exigir_intervalo_ponto") == "sim" else "nao",
     }
 
     funcionario = normalizar_funcionario_para_salvar(funcionario)
@@ -13860,10 +13821,9 @@ def salvar_funcionario_rapido() -> Response:
         "custo_mensal": (request.form.get("custo_mensal") or "").strip(),
         "custo_dia": (request.form.get("custo_dia") or "").strip(),
         "custo_hora": (request.form.get("custo_hora") or "").strip(),
-        "exigir_intervalo_ponto": "sim",
     }
 
-    funcionario = _normalizar_custos_funcionario(normalizar_funcionario_para_salvar(funcionario))
+    funcionario = _normalizar_custos_funcionario(funcionario)
     empresa_id = empresa_logada_id()
 
     with conectar_db() as conn:
@@ -13890,9 +13850,8 @@ def salvar_funcionario_rapido() -> Response:
                 outros_custos,
                 custo_mensal,
                 custo_dia,
-                custo_hora,
-                exigir_intervalo_ponto
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                custo_hora
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id,
@@ -13916,7 +13875,6 @@ def salvar_funcionario_rapido() -> Response:
                 funcionario["custo_mensal"],
                 funcionario["custo_dia"],
                 funcionario["custo_hora"],
-                funcionario.get("exigir_intervalo_ponto", "sim"),
             ),
         )
         funcionario_id = int(cursor.lastrowid)
@@ -13991,7 +13949,6 @@ def atualizar_funcionario(funcionario_id: int) -> Response:
         "custo_mensal": (request.form.get("funcionario_custo_mensal") or "").strip(),
         "custo_dia": (request.form.get("funcionario_custo_dia") or "").strip(),
         "custo_hora": (request.form.get("funcionario_custo_hora") or "").strip(),
-        "exigir_intervalo_ponto": "sim" if request.form.get("funcionario_exigir_intervalo_ponto") == "sim" else "nao",
     }
 
     funcionario = normalizar_funcionario_para_salvar(funcionario)
@@ -16459,7 +16416,6 @@ def ponto_publico(token: str) -> str | Response:
         registro_hoje=registro_hoje,
         telefone_validado=telefone_validado,
         telefone_mascarado=mascarar_telefone_ponto(funcionario.get("telefone") if funcionario else ""),
-        exigir_intervalo_ponto=funcionario_exige_intervalo_ponto(funcionario),
         data_hoje=formatar_data_br(hoje_empresa()),
         erro=erro,
         sucesso=sucesso,
