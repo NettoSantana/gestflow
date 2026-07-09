@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-09 14:20 (America/Bahia)
-# Motivo: Corrigir criação/exclusão de funcionários antigos, garantir colunas do ponto e estabilizar seleção no registro de ponto.
+# Último recode: 2026-07-09 14:23 (America/Bahia)
+# Motivo: Tornar exclusão de funcionário idempotente, limpar vínculos legados e ocultar registros excluídos.
 
 from __future__ import annotations
 
@@ -2284,6 +2284,9 @@ def montar_filtros_cadastro_paginado(cadastro: str, busca: Any) -> tuple[str, li
     where = "WHERE empresa_id = ?"
     parametros: list[Any] = [empresa_id]
 
+    if cadastro == "funcionarios":
+        where += " AND LOWER(COALESCE(status, '')) <> 'excluido'"
+
     if termo:
         termo_like = f"%{termo}%"
         campos_busca = config_cadastro["busca"]
@@ -2343,20 +2346,21 @@ def listar_cadastro_paginado(
 def resumir_cadastro_paginado(cadastro: str) -> dict[str, int]:
     tabela = CADASTROS_PAGINADOS[cadastro]["tabela"]
     empresa_id = empresa_logada_id()
+    filtro_excluidos = " AND LOWER(COALESCE(status, '')) <> 'excluido'" if cadastro == "funcionarios" else ""
 
     with conectar_db() as conn:
         total = conn.execute(
-            f"SELECT COUNT(*) AS total FROM {tabela} WHERE empresa_id = ?",
+            f"SELECT COUNT(*) AS total FROM {tabela} WHERE empresa_id = ?{filtro_excluidos}",
             (empresa_id,),
         ).fetchone()["total"]
 
         ativos = conn.execute(
-            f"SELECT COUNT(*) AS total FROM {tabela} WHERE empresa_id = ? AND status = ?",
+            f"SELECT COUNT(*) AS total FROM {tabela} WHERE empresa_id = ? AND status = ?{filtro_excluidos}",
             (empresa_id, "ativo"),
         ).fetchone()["total"]
 
         pendentes = conn.execute(
-            f"SELECT COUNT(*) AS total FROM {tabela} WHERE empresa_id = ? AND status = ?",
+            f"SELECT COUNT(*) AS total FROM {tabela} WHERE empresa_id = ? AND status = ?{filtro_excluidos}",
             (empresa_id, "pendente"),
         ).fetchone()["total"]
 
@@ -3123,6 +3127,7 @@ def listar_funcionarios() -> list[dict[str, Any]]:
                 criado_em
             FROM funcionarios
             WHERE empresa_id = ?
+              AND LOWER(COALESCE(status, '')) <> 'excluido'
             ORDER BY id DESC
             """,
             (empresa_id,),
@@ -3165,6 +3170,7 @@ def buscar_funcionario_por_id(funcionario_id: int) -> dict[str, Any] | None:
             FROM funcionarios
             WHERE id = ?
               AND empresa_id = ?
+              AND LOWER(COALESCE(status, '')) <> 'excluido'
             """,
             (funcionario_id, empresa_id),
         ).fetchone()
@@ -3236,7 +3242,10 @@ def atualizar_funcionario_db(funcionario_id: int, funcionario: dict[str, str]) -
         conn.commit()
 
 def excluir_funcionario_db(funcionario_id: int) -> bool:
-    empresa_id = empresa_logada_id()
+    funcionario_id = int(funcionario_id or 0)
+
+    if funcionario_id <= 0:
+        return False
 
     with conectar_db() as conn:
         funcionario = conn.execute(
@@ -3244,61 +3253,93 @@ def excluir_funcionario_db(funcionario_id: int) -> bool:
             SELECT id, empresa_id
             FROM funcionarios
             WHERE id = ?
-              AND (empresa_id = ? OR empresa_id IS NULL)
             LIMIT 1
             """,
-            (funcionario_id, empresa_id),
+            (funcionario_id,),
         ).fetchone()
 
         if funcionario is None:
-            return False
+            return True
+
+        empresa_id_funcionario = funcionario["empresa_id"]
+        if empresa_id_funcionario is None or str(empresa_id_funcionario).strip() == "":
+            empresa_id_funcionario = empresa_logada_id()
 
         conn.execute(
             """
             UPDATE funcionarios
             SET empresa_id = ?
             WHERE id = ?
-              AND empresa_id IS NULL
+              AND (empresa_id IS NULL OR TRIM(CAST(empresa_id AS TEXT)) = '')
             """,
-            (empresa_id, funcionario_id),
+            (empresa_id_funcionario, funcionario_id),
         )
 
         conn.execute(
             """
             DELETE FROM os_acompanhamento_equipe
             WHERE funcionario_id = ?
-              AND (empresa_id = ? OR empresa_id IS NULL)
             """,
-            (funcionario_id, empresa_id),
+            (funcionario_id,),
         )
         conn.execute(
             """
             UPDATE agendamentos
-            SET profissional_id = NULL, profissional_nome = COALESCE(NULLIF(profissional_nome, ''), 'Funcionário removido')
+            SET profissional_id = NULL,
+                profissional_nome = COALESCE(NULLIF(profissional_nome, ''), 'Funcionário removido')
             WHERE profissional_id = ?
-              AND (empresa_id = ? OR empresa_id IS NULL)
             """,
-            (funcionario_id, empresa_id),
+            (funcionario_id,),
         )
         conn.execute(
             """
             DELETE FROM registros_ponto
             WHERE funcionario_id = ?
-              AND (empresa_id = ? OR empresa_id IS NULL)
             """,
-            (funcionario_id, empresa_id),
+            (funcionario_id,),
         )
-        cursor = conn.execute(
+        conn.execute(
             """
             DELETE FROM funcionarios
             WHERE id = ?
-              AND empresa_id = ?
             """,
-            (funcionario_id, empresa_id),
+            (funcionario_id,),
         )
+
+        ainda_existe = conn.execute(
+            """
+            SELECT id
+            FROM funcionarios
+            WHERE id = ?
+            LIMIT 1
+            """,
+            (funcionario_id,),
+        ).fetchone()
+
+        if ainda_existe is not None:
+            conn.execute(
+                """
+                UPDATE funcionarios
+                SET status = 'excluido'
+                WHERE id = ?
+                """,
+                (funcionario_id,),
+            )
+
         conn.commit()
 
-    return cursor.rowcount > 0
+        ainda_existe_ativo = conn.execute(
+            """
+            SELECT id
+            FROM funcionarios
+            WHERE id = ?
+              AND LOWER(COALESCE(status, '')) <> 'excluido'
+            LIMIT 1
+            """,
+            (funcionario_id,),
+        ).fetchone()
+
+    return ainda_existe_ativo is None
 
 def salvar_produto_db(produto: dict[str, str]) -> None:
     empresa_id = empresa_logada_id()
@@ -14132,7 +14173,7 @@ def excluir_funcionario(funcionario_id: int) -> Response:
         return redirect(url_for("funcionarios", erro=f"Não foi possível excluir o funcionário: {erro_db}"))
 
     if not excluido:
-        return redirect(url_for("funcionarios", erro="Funcionário não encontrado ou já excluído."))
+        return redirect(url_for("funcionarios", erro="Não foi possível excluir o funcionário. Atualize a página e tente novamente."))
 
     registrar_atividade_usuario("exclusao", "funcionarios", f"Excluiu funcionário {funcionario.get('nome') or funcionario_id}", request.path)
     return redirect(url_for("funcionarios", sucesso="Funcionário excluído com sucesso."))
