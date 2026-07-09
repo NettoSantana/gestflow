@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-09 10:00 (America/Bahia)
-# Motivo: Adicionar registro de ponto público offline com PWA, fila local e sincronização automática.
+# Último recode: 2026-07-09 14:08 (America/Bahia)
+# Motivo: Garantir token de ponto para funcionários antigos e corrigir exclusão sem bloquear por vínculos.
 
 from __future__ import annotations
 
@@ -2223,7 +2223,7 @@ CADASTROS_PAGINADOS = {
     },
     "funcionarios": {
         "tabela": "funcionarios",
-        "colunas": ["id", "empresa_id", "nome", "cpf", "telefone", "cidade", "cargo", "status", "email", "observacoes", "salario_base", "inss_percentual", "fgts_percentual", "ferias_percentual", "decimo_percentual", "beneficios", "transporte", "alimentacao", "outros_custos", "custo_mensal", "custo_dia", "custo_hora", "criado_em"],
+        "colunas": ["id", "empresa_id", "nome", "cpf", "telefone", "cidade", "cargo", "status", "email", "observacoes", "salario_base", "inss_percentual", "fgts_percentual", "ferias_percentual", "decimo_percentual", "beneficios", "transporte", "alimentacao", "outros_custos", "custo_mensal", "custo_dia", "custo_hora", "token_ponto", "exigir_intervalo_ponto", "criado_em"],
         "busca": ["nome", "cpf", "telefone", "cidade", "cargo", "email", "status"],
         "ordenacao": {
             "id": "id",
@@ -3049,8 +3049,10 @@ def salvar_funcionario_db(funcionario: dict[str, str]) -> None:
                 outros_custos,
                 custo_mensal,
                 custo_dia,
-                custo_hora
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                custo_hora,
+                token_ponto,
+                exigir_intervalo_ponto
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id,
@@ -3074,6 +3076,8 @@ def salvar_funcionario_db(funcionario: dict[str, str]) -> None:
                 funcionario["custo_mensal"],
                 funcionario["custo_dia"],
                 funcionario["custo_hora"],
+                funcionario.get("token_ponto") or gerar_token_ponto_funcionario(),
+                funcionario.get("exigir_intervalo_ponto", "sim"),
             ),
         )
         conn.commit()
@@ -3107,6 +3111,8 @@ def listar_funcionarios() -> list[dict[str, Any]]:
                 custo_mensal,
                 custo_dia,
                 custo_hora,
+                token_ponto,
+                exigir_intervalo_ponto,
                 criado_em
             FROM funcionarios
             WHERE empresa_id = ?
@@ -3146,6 +3152,8 @@ def buscar_funcionario_por_id(funcionario_id: int) -> dict[str, Any] | None:
                 custo_mensal,
                 custo_dia,
                 custo_hora,
+                token_ponto,
+                exigir_intervalo_ponto,
                 criado_em
             FROM funcionarios
             WHERE id = ?
@@ -3187,7 +3195,8 @@ def atualizar_funcionario_db(funcionario_id: int, funcionario: dict[str, str]) -
                 outros_custos = ?,
                 custo_mensal = ?,
                 custo_dia = ?,
-                custo_hora = ?
+                custo_hora = ?,
+                exigir_intervalo_ponto = ?
             WHERE id = ?
               AND empresa_id = ?
             """,
@@ -3212,17 +3221,43 @@ def atualizar_funcionario_db(funcionario_id: int, funcionario: dict[str, str]) -
                 funcionario["custo_mensal"],
                 funcionario["custo_dia"],
                 funcionario["custo_hora"],
+                funcionario.get("exigir_intervalo_ponto", "sim"),
                 funcionario_id,
                 empresa_id,
             ),
         )
         conn.commit()
 
-def excluir_funcionario_db(funcionario_id: int) -> None:
+def excluir_funcionario_db(funcionario_id: int) -> bool:
     empresa_id = empresa_logada_id()
 
     with conectar_db() as conn:
         conn.execute(
+            """
+            DELETE FROM os_acompanhamento_equipe
+            WHERE funcionario_id = ?
+              AND empresa_id = ?
+            """,
+            (funcionario_id, empresa_id),
+        )
+        conn.execute(
+            """
+            UPDATE agendamentos
+            SET profissional_id = NULL
+            WHERE profissional_id = ?
+              AND empresa_id = ?
+            """,
+            (funcionario_id, empresa_id),
+        )
+        conn.execute(
+            """
+            DELETE FROM registros_ponto
+            WHERE funcionario_id = ?
+              AND empresa_id = ?
+            """,
+            (funcionario_id, empresa_id),
+        )
+        cursor = conn.execute(
             """
             DELETE FROM funcionarios
             WHERE id = ?
@@ -3231,6 +3266,8 @@ def excluir_funcionario_db(funcionario_id: int) -> None:
             (funcionario_id, empresa_id),
         )
         conn.commit()
+
+    return cursor.rowcount > 0
 
 def salvar_produto_db(produto: dict[str, str]) -> None:
     empresa_id = empresa_logada_id()
@@ -10034,6 +10071,53 @@ def garantir_token_ponto_funcionario(funcionario_id: int) -> str:
     return token_novo
 
 
+def garantir_tokens_ponto_funcionarios_empresa() -> int:
+    empresa_id = empresa_logada_id()
+    atualizados = 0
+
+    with conectar_db() as conn:
+        funcionarios_sem_token = conn.execute(
+            """
+            SELECT id
+            FROM funcionarios
+            WHERE empresa_id = ?
+              AND (token_ponto IS NULL OR TRIM(token_ponto) = '')
+            ORDER BY id ASC
+            """,
+            (empresa_id,),
+        ).fetchall()
+
+        for funcionario in funcionarios_sem_token:
+            while True:
+                token_novo = gerar_token_ponto_funcionario()
+                conflito = conn.execute(
+                    """
+                    SELECT id
+                    FROM funcionarios
+                    WHERE token_ponto = ?
+                    LIMIT 1
+                    """,
+                    (token_novo,),
+                ).fetchone()
+                if conflito is None:
+                    break
+
+            conn.execute(
+                """
+                UPDATE funcionarios
+                SET token_ponto = ?
+                WHERE id = ?
+                  AND empresa_id = ?
+                """,
+                (token_novo, int(funcionario["id"]), empresa_id),
+            )
+            atualizados += 1
+
+        conn.commit()
+
+    return atualizados
+
+
 def buscar_registro_ponto_publico(empresa_id: int, funcionario_id: int, data_ponto: str) -> dict[str, Any] | None:
     with conectar_db() as conn:
         row = conn.execute(
@@ -13054,6 +13138,9 @@ def normalizar_funcionario_para_salvar(funcionario: dict[str, str]) -> dict[str,
     if funcionario_normalizado["status"] not in {"ativo", "inativo", "pendente"}:
         funcionario_normalizado["status"] = "ativo"
 
+    exigir_intervalo = str(funcionario_normalizado.get("exigir_intervalo_ponto") or "sim").strip().lower()
+    funcionario_normalizado["exigir_intervalo_ponto"] = "nao" if exigir_intervalo in {"nao", "não", "0", "false", "off"} else "sim"
+
     return funcionario_normalizado
 
 
@@ -13644,6 +13731,7 @@ def salvar_fornecedor_rapido() -> Response:
 
 @app.get("/funcionarios")
 def funcionarios() -> str:
+    garantir_tokens_ponto_funcionarios_empresa()
     contexto = montar_contexto_cadastro_paginado("funcionarios")
     return render_template(
         "funcionarios.html",
@@ -13680,6 +13768,7 @@ def salvar_funcionario() -> Response:
         "custo_mensal": (request.form.get("funcionario_custo_mensal") or "").strip(),
         "custo_dia": (request.form.get("funcionario_custo_dia") or "").strip(),
         "custo_hora": (request.form.get("funcionario_custo_hora") or "").strip(),
+        "exigir_intervalo_ponto": "sim" if request.form.get("funcionario_exigir_intervalo_ponto") == "sim" else "nao",
     }
 
     funcionario = normalizar_funcionario_para_salvar(funcionario)
@@ -13850,8 +13939,10 @@ def salvar_funcionario_rapido() -> Response:
                 outros_custos,
                 custo_mensal,
                 custo_dia,
-                custo_hora
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                custo_hora,
+                token_ponto,
+                exigir_intervalo_ponto
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id,
@@ -13875,6 +13966,8 @@ def salvar_funcionario_rapido() -> Response:
                 funcionario["custo_mensal"],
                 funcionario["custo_dia"],
                 funcionario["custo_hora"],
+                gerar_token_ponto_funcionario(),
+                "sim",
             ),
         )
         funcionario_id = int(cursor.lastrowid)
@@ -13949,6 +14042,7 @@ def atualizar_funcionario(funcionario_id: int) -> Response:
         "custo_mensal": (request.form.get("funcionario_custo_mensal") or "").strip(),
         "custo_dia": (request.form.get("funcionario_custo_dia") or "").strip(),
         "custo_hora": (request.form.get("funcionario_custo_hora") or "").strip(),
+        "exigir_intervalo_ponto": "sim" if request.form.get("funcionario_exigir_intervalo_ponto") == "sim" else "nao",
     }
 
     funcionario = normalizar_funcionario_para_salvar(funcionario)
@@ -13966,10 +14060,19 @@ def atualizar_funcionario(funcionario_id: int) -> Response:
 def excluir_funcionario(funcionario_id: int) -> Response:
     funcionario = buscar_funcionario_por_id(funcionario_id)
 
-    if funcionario is not None:
-        excluir_funcionario_db(funcionario_id)
+    if funcionario is None:
+        return redirect(url_for("funcionarios", erro="Funcionário não encontrado."))
 
-    return redirect(url_for("funcionarios"))
+    try:
+        excluido = excluir_funcionario_db(funcionario_id)
+    except sqlite3.Error as erro_db:
+        return redirect(url_for("funcionarios", erro=f"Não foi possível excluir o funcionário: {erro_db}"))
+
+    if not excluido:
+        return redirect(url_for("funcionarios", erro="Funcionário não foi excluído."))
+
+    registrar_atividade_usuario("exclusao", "funcionarios", f"Excluiu funcionário {funcionario.get('nome') or funcionario_id}", request.path)
+    return redirect(url_for("funcionarios", sucesso="Funcionário excluído com sucesso."))
 
 
 
@@ -16469,6 +16572,7 @@ def api_ponto_offline_sincronizar() -> Response:
 
 @app.route("/registro-ponto", methods=["GET", "POST"])
 def registro_ponto() -> str | Response:
+    garantir_tokens_ponto_funcionarios_empresa()
     if request.method == "POST":
         funcionario_id_texto = str(request.form.get("funcionario_id") or "").strip()
         acao = str(request.form.get("acao") or "").strip()
