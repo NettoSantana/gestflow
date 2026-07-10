@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-10 11:45 (America/Bahia)
-# Motivo: Corrigir token/link individual do ponto, configuração de intervalo e múltiplas jornadas sem regressão.
+# Último recode: 2026-07-10 12:25 (America/Bahia)
+# Motivo: Corrigir envio da ação do ponto público e fallback seguro para sequência de marcação.
 
 from __future__ import annotations
 
@@ -10508,7 +10508,10 @@ def registrar_batida_ponto_publico(
             return True, f"Entrada registrada às {hora_final}.", atualizado
 
         if registro is None:
-            return False, "Registre a entrada antes dos demais horários.", None
+            bloqueio = segundos_bloqueio_nova_entrada(funcionario_id, data_final, empresa_id)
+            if bloqueio > 0:
+                return False, f"Jornada já finalizada. Aguarde {bloqueio} segundo(s) para registrar nova entrada.", buscar_ultimo_registro_ponto_dia(funcionario_id, data_final, empresa_id)
+            return False, "Inicie uma nova entrada antes de registrar essa marcação.", None
 
         if str(registro.get(acao) or "").strip():
             if origem_final == "offline" and str(registro.get(acao) or "").strip() == hora_final:
@@ -16791,7 +16794,25 @@ def ponto_publico(token: str) -> str | Response:
                     erro = "Valide seu WhatsApp antes de bater o ponto."
                 else:
                     acao = str(request.form.get("acao") or "").strip()
-                    ok, mensagem, registro_hoje = registrar_batida_ponto_publico(funcionario, acao)
+
+                    if acao not in PONTO_ACOES:
+                        registro_aberto = buscar_registro_ponto_aberto(
+                            int(funcionario["id"]),
+                            hoje_empresa().isoformat(),
+                            int(funcionario["empresa_id"]),
+                        )
+                        ordem_ponto = ["entrada", "saida_intervalo", "retorno_intervalo", "saida"] if exigir_intervalo else ["entrada", "saida"]
+
+                        if registro_aberto is None:
+                            acao = "entrada" if bloqueio_nova_entrada_segundos <= 0 else ""
+                        else:
+                            acao = next((campo for campo in ordem_ponto if not str(registro_aberto.get(campo) or "").strip()), "")
+
+                    if not acao:
+                        ok, mensagem, registro_hoje = False, "Aguarde a liberação para iniciar uma nova entrada.", registro_hoje
+                    else:
+                        ok, mensagem, registro_hoje = registrar_batida_ponto_publico(funcionario, acao)
+
                     parametro = "sucesso" if ok else "erro"
                     return redirect(url_for("ponto_publico", token=token, **{parametro: mensagem}))
 
@@ -16993,4 +17014,4 @@ iniciar_banco()
 if __name__ == "__main__":
     # Somente para uso local. No Railway usaremos o wsgi.py com waitress.
     app.run(host="0.0.0.0", port=5000, debug=config.DEBUG)
-     
+  

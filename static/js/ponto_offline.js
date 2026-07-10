@@ -1,6 +1,6 @@
 // Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\static\js\ponto_offline.js
-// Último recode: 2026-07-10 12:15 (America/Bahia)
-// Motivo: Corrigir conflito entre estado offline salvo no navegador e estado online vindo do servidor.
+// Último recode: 2026-07-10 12:25 (America/Bahia)
+// Motivo: Evitar envio online sem acao ao bloquear visualmente o botao clicado.
 (function(){
     const form = document.getElementById('ponto-form-batida');
     const validationForm = document.getElementById('ponto-form-validacao');
@@ -298,15 +298,35 @@
         });
     }
 
+    function garantirAcaoAntesDoSubmit(acao){
+        let input = form.querySelector('input[data-ponto-acao-hidden="sim"]');
+        if(!input){
+            input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'acao';
+            input.setAttribute('data-ponto-acao-hidden', 'sim');
+            form.appendChild(input);
+        }
+        input.value = acao || '';
+    }
+
     form.addEventListener('submit', function(event){
         const botao = event.submitter;
         if(!botao){return;}
         if(botao.disabled || enviandoOnline){event.preventDefault(); return;}
 
+        const acao = botao.value || botao.getAttribute('value') || '';
+        if(!acao || !campos.includes(acao)){
+            event.preventDefault();
+            return;
+        }
+
         if(navigator.onLine){
+            garantirAcaoAntesDoSubmit(acao);
             enviandoOnline = true;
-            botao.disabled = true;
+            botao.setAttribute('aria-disabled', 'true');
             botao.style.opacity = '.55';
+            botao.style.pointerEvents = 'none';
             return;
         }
 
@@ -317,8 +337,6 @@
             return;
         }
 
-        const acao = botao.value;
-        if(!acao || !campos.includes(acao)){return;}
         const hora = horaAgora();
         const batida = {uuid: uuid(), acao: acao, data_ponto: dataHoje(), hora_ponto: hora, exigir_intervalo: exigeIntervalo ? 'sim' : 'nao', dispositivo: navigator.userAgent || ''};
         const fila = carregarFila();
