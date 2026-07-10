@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-10 10:50 (America/Bahia)
-# Motivo: Permitir múltiplas jornadas de ponto no mesmo dia com bloqueio de 60 segundos após a saída.
+# Último recode: 2026-07-10 10:40 (America/Bahia)
+# Motivo: Corrigir saída do ponto público, permitir múltiplas jornadas no dia e bloquear nova entrada por 60 segundos.
 
 from __future__ import annotations
 
@@ -1549,11 +1549,6 @@ def iniciar_banco() -> None:
 
         if "token_ponto" not in colunas_funcionarios_ponto:
             conn.execute("ALTER TABLE funcionarios ADD COLUMN token_ponto TEXT")
-            colunas_funcionarios_ponto.add("token_ponto")
-
-        if "exigir_intervalo_ponto" not in colunas_funcionarios_ponto:
-            conn.execute("ALTER TABLE funcionarios ADD COLUMN exigir_intervalo_ponto TEXT DEFAULT 'sim'")
-            colunas_funcionarios_ponto.add("exigir_intervalo_ponto")
 
         funcionarios_sem_token_ponto = conn.execute(
             """
@@ -1835,8 +1830,6 @@ def iniciar_banco() -> None:
                 "status": "TEXT DEFAULT 'ativo'",
                 "email": "TEXT",
                 "observacoes": "TEXT",
-                "token_ponto": "TEXT",
-                "exigir_intervalo_ponto": "TEXT DEFAULT 'sim'",
                 "salario_base": "TEXT",
                 "inss_percentual": "TEXT",
                 "fgts_percentual": "TEXT",
@@ -2230,7 +2223,7 @@ CADASTROS_PAGINADOS = {
     },
     "funcionarios": {
         "tabela": "funcionarios",
-        "colunas": ["id", "empresa_id", "nome", "cpf", "telefone", "cidade", "cargo", "status", "email", "observacoes", "salario_base", "inss_percentual", "fgts_percentual", "ferias_percentual", "decimo_percentual", "beneficios", "transporte", "alimentacao", "outros_custos", "custo_mensal", "custo_dia", "custo_hora", "token_ponto", "exigir_intervalo_ponto", "criado_em"],
+        "colunas": ["id", "empresa_id", "nome", "cpf", "telefone", "cidade", "cargo", "status", "email", "observacoes", "salario_base", "inss_percentual", "fgts_percentual", "ferias_percentual", "decimo_percentual", "beneficios", "transporte", "alimentacao", "outros_custos", "custo_mensal", "custo_dia", "custo_hora", "criado_em"],
         "busca": ["nome", "cpf", "telefone", "cidade", "cargo", "email", "status"],
         "ordenacao": {
             "id": "id",
@@ -2283,9 +2276,6 @@ def montar_filtros_cadastro_paginado(cadastro: str, busca: Any) -> tuple[str, li
 
     where = "WHERE empresa_id = ?"
     parametros: list[Any] = [empresa_id]
-
-    if cadastro == "funcionarios":
-        where += " AND LOWER(COALESCE(status, '')) <> 'excluido'"
 
     if termo:
         termo_like = f"%{termo}%"
@@ -2346,21 +2336,20 @@ def listar_cadastro_paginado(
 def resumir_cadastro_paginado(cadastro: str) -> dict[str, int]:
     tabela = CADASTROS_PAGINADOS[cadastro]["tabela"]
     empresa_id = empresa_logada_id()
-    filtro_excluidos = " AND LOWER(COALESCE(status, '')) <> 'excluido'" if cadastro == "funcionarios" else ""
 
     with conectar_db() as conn:
         total = conn.execute(
-            f"SELECT COUNT(*) AS total FROM {tabela} WHERE empresa_id = ?{filtro_excluidos}",
+            f"SELECT COUNT(*) AS total FROM {tabela} WHERE empresa_id = ?",
             (empresa_id,),
         ).fetchone()["total"]
 
         ativos = conn.execute(
-            f"SELECT COUNT(*) AS total FROM {tabela} WHERE empresa_id = ? AND status = ?{filtro_excluidos}",
+            f"SELECT COUNT(*) AS total FROM {tabela} WHERE empresa_id = ? AND status = ?",
             (empresa_id, "ativo"),
         ).fetchone()["total"]
 
         pendentes = conn.execute(
-            f"SELECT COUNT(*) AS total FROM {tabela} WHERE empresa_id = ? AND status = ?{filtro_excluidos}",
+            f"SELECT COUNT(*) AS total FROM {tabela} WHERE empresa_id = ? AND status = ?",
             (empresa_id, "pendente"),
         ).fetchone()["total"]
 
@@ -3060,10 +3049,8 @@ def salvar_funcionario_db(funcionario: dict[str, str]) -> None:
                 outros_custos,
                 custo_mensal,
                 custo_dia,
-                custo_hora,
-                token_ponto,
-                exigir_intervalo_ponto
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                custo_hora
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id,
@@ -3087,8 +3074,6 @@ def salvar_funcionario_db(funcionario: dict[str, str]) -> None:
                 funcionario["custo_mensal"],
                 funcionario["custo_dia"],
                 funcionario["custo_hora"],
-                funcionario.get("token_ponto") or gerar_token_ponto_funcionario(),
-                funcionario.get("exigir_intervalo_ponto", "sim"),
             ),
         )
         conn.commit()
@@ -3122,12 +3107,9 @@ def listar_funcionarios() -> list[dict[str, Any]]:
                 custo_mensal,
                 custo_dia,
                 custo_hora,
-                token_ponto,
-                exigir_intervalo_ponto,
                 criado_em
             FROM funcionarios
             WHERE empresa_id = ?
-              AND LOWER(COALESCE(status, '')) <> 'excluido'
             ORDER BY id DESC
             """,
             (empresa_id,),
@@ -3164,13 +3146,10 @@ def buscar_funcionario_por_id(funcionario_id: int) -> dict[str, Any] | None:
                 custo_mensal,
                 custo_dia,
                 custo_hora,
-                token_ponto,
-                exigir_intervalo_ponto,
                 criado_em
             FROM funcionarios
             WHERE id = ?
               AND empresa_id = ?
-              AND LOWER(COALESCE(status, '')) <> 'excluido'
             """,
             (funcionario_id, empresa_id),
         ).fetchone()
@@ -3208,8 +3187,7 @@ def atualizar_funcionario_db(funcionario_id: int, funcionario: dict[str, str]) -
                 outros_custos = ?,
                 custo_mensal = ?,
                 custo_dia = ?,
-                custo_hora = ?,
-                exigir_intervalo_ponto = ?
+                custo_hora = ?
             WHERE id = ?
               AND empresa_id = ?
             """,
@@ -3234,112 +3212,25 @@ def atualizar_funcionario_db(funcionario_id: int, funcionario: dict[str, str]) -
                 funcionario["custo_mensal"],
                 funcionario["custo_dia"],
                 funcionario["custo_hora"],
-                funcionario.get("exigir_intervalo_ponto", "sim"),
                 funcionario_id,
                 empresa_id,
             ),
         )
         conn.commit()
 
-def excluir_funcionario_db(funcionario_id: int) -> bool:
-    funcionario_id = int(funcionario_id or 0)
-
-    if funcionario_id <= 0:
-        return False
+def excluir_funcionario_db(funcionario_id: int) -> None:
+    empresa_id = empresa_logada_id()
 
     with conectar_db() as conn:
-        funcionario = conn.execute(
-            """
-            SELECT id, empresa_id
-            FROM funcionarios
-            WHERE id = ?
-            LIMIT 1
-            """,
-            (funcionario_id,),
-        ).fetchone()
-
-        if funcionario is None:
-            return True
-
-        empresa_id_funcionario = funcionario["empresa_id"]
-        if empresa_id_funcionario is None or str(empresa_id_funcionario).strip() == "":
-            empresa_id_funcionario = empresa_logada_id()
-
-        conn.execute(
-            """
-            UPDATE funcionarios
-            SET empresa_id = ?
-            WHERE id = ?
-              AND (empresa_id IS NULL OR TRIM(CAST(empresa_id AS TEXT)) = '')
-            """,
-            (empresa_id_funcionario, funcionario_id),
-        )
-
-        conn.execute(
-            """
-            DELETE FROM os_acompanhamento_equipe
-            WHERE funcionario_id = ?
-            """,
-            (funcionario_id,),
-        )
-        conn.execute(
-            """
-            UPDATE agendamentos
-            SET profissional_id = NULL,
-                profissional_nome = COALESCE(NULLIF(profissional_nome, ''), 'Funcionário removido')
-            WHERE profissional_id = ?
-            """,
-            (funcionario_id,),
-        )
-        conn.execute(
-            """
-            DELETE FROM registros_ponto
-            WHERE funcionario_id = ?
-            """,
-            (funcionario_id,),
-        )
         conn.execute(
             """
             DELETE FROM funcionarios
             WHERE id = ?
+              AND empresa_id = ?
             """,
-            (funcionario_id,),
+            (funcionario_id, empresa_id),
         )
-
-        ainda_existe = conn.execute(
-            """
-            SELECT id
-            FROM funcionarios
-            WHERE id = ?
-            LIMIT 1
-            """,
-            (funcionario_id,),
-        ).fetchone()
-
-        if ainda_existe is not None:
-            conn.execute(
-                """
-                UPDATE funcionarios
-                SET status = 'excluido'
-                WHERE id = ?
-                """,
-                (funcionario_id,),
-            )
-
         conn.commit()
-
-        ainda_existe_ativo = conn.execute(
-            """
-            SELECT id
-            FROM funcionarios
-            WHERE id = ?
-              AND LOWER(COALESCE(status, '')) <> 'excluido'
-            LIMIT 1
-            """,
-            (funcionario_id,),
-        ).fetchone()
-
-    return ainda_existe_ativo is None
 
 def salvar_produto_db(produto: dict[str, str]) -> None:
     empresa_id = empresa_logada_id()
@@ -9786,98 +9677,71 @@ PONTO_ACOES = {
     "retorno_intervalo": "Retorno do intervalo",
     "saida": "Saída",
 }
+
 PONTO_BLOQUEIO_NOVA_ENTRADA_SEGUNDOS = 60
 
 
-def ponto_exige_intervalo(funcionario: dict[str, Any] | None) -> bool:
+def _ponto_exige_intervalo(funcionario: dict[str, Any] | None) -> bool:
     valor = str((funcionario or {}).get("exigir_intervalo_ponto") or "sim").strip().lower()
-    return valor not in {"nao", "não", "0", "false", "off"}
+    return valor not in {"nao", "não", "n", "no", "0", "false", "off", "sem", "dispensado"}
 
 
-def ordem_ponto_funcionario(funcionario: dict[str, Any] | None) -> list[str]:
-    if ponto_exige_intervalo(funcionario):
+def _ponto_ordem_funcionario(funcionario: dict[str, Any] | None) -> list[str]:
+    if _ponto_exige_intervalo(funcionario):
         return ["entrada", "saida_intervalo", "retorno_intervalo", "saida"]
     return ["entrada", "saida"]
 
 
-def rotulo_proxima_acao_ponto(acao: str) -> str:
-    rotulos = {
-        "entrada": "Próxima marcação: Entrada",
-        "saida_intervalo": "Próxima marcação: Saída para intervalo",
-        "retorno_intervalo": "Próxima marcação: Retorno do intervalo",
-        "saida": "Próxima marcação: Saída",
-    }
-    return rotulos.get(str(acao or ""), "Ponto de hoje completo.")
+def _ponto_registro_tem_saida(registro: dict[str, Any] | None) -> bool:
+    return bool(registro and str(registro.get("saida") or "").strip())
 
 
-def proxima_acao_ponto(registro: dict[str, Any] | None, funcionario: dict[str, Any] | None) -> str:
-    ordem = ordem_ponto_funcionario(funcionario)
-    if registro is None:
-        return "entrada"
-    return next((campo for campo in ordem if not registro.get(campo)), "")
-
-
-def _registro_ponto_tem_valor(valor: Any) -> bool:
-    return bool(str(valor or "").strip())
-
-
-def _registro_ponto_completo(registro: dict[str, Any] | None) -> bool:
-    if not registro:
-        return False
-    return _registro_ponto_tem_valor(registro.get("entrada")) and _registro_ponto_tem_valor(registro.get("saida"))
-
-
-def _datetime_ponto(valor: Any) -> datetime | None:
-    texto = str(valor or "").strip()
-    if not texto:
+def _ponto_parse_data_hora(data_ponto: Any, hora_ponto: Any) -> datetime | None:
+    data_iso = _normalizar_data_iso(data_ponto, hoje_empresa().isoformat())
+    hora = _normalizar_hora_hhmm(hora_ponto)
+    if not data_iso or not hora:
+        return None
+    try:
+        return datetime.strptime(f"{data_iso} {hora}", "%Y-%m-%d %H:%M")
+    except ValueError:
         return None
 
-    texto = texto.replace("Z", "").replace("T", " ")
 
-    try:
-        return datetime.fromisoformat(texto)
-    except ValueError:
-        pass
+def _ponto_segundos_desde_saida(registro: dict[str, Any] | None, data_ponto: Any = "", hora_referencia: Any = "") -> int:
+    if not _ponto_registro_tem_saida(registro):
+        return PONTO_BLOQUEIO_NOVA_ENTRADA_SEGUNDOS
 
-    formatos = ["%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d"]
-    for formato in formatos:
+    data_iso = _normalizar_data_iso(data_ponto or (registro or {}).get("data_ponto"), hoje_empresa().isoformat())
+    saida_dt = _ponto_parse_data_hora(data_iso, (registro or {}).get("saida"))
+
+    referencia_hora = _normalizar_hora_hhmm(hora_referencia)
+    if referencia_hora:
+        referencia_dt = _ponto_parse_data_hora(data_iso, referencia_hora)
+    else:
+        referencia_dt = agora_empresa()
+
+    if saida_dt is None or referencia_dt is None:
+        atualizado_em = str((registro or {}).get("atualizado_em") or (registro or {}).get("criado_em") or "").strip()
         try:
-            return datetime.strptime(texto[: len(formato)], formato)
-        except ValueError:
-            continue
+            saida_dt = datetime.fromisoformat(atualizado_em[:19])
+            referencia_dt = agora_empresa()
+        except (TypeError, ValueError):
+            return PONTO_BLOQUEIO_NOVA_ENTRADA_SEGUNDOS
 
-    return None
+    if referencia_dt < saida_dt:
+        referencia_dt = referencia_dt + timedelta(days=1)
+
+    return max(int((referencia_dt - saida_dt).total_seconds()), 0)
 
 
-def _restante_bloqueio_nova_entrada(registro: dict[str, Any] | None, agora_referencia: datetime | None = None) -> int:
-    if not _registro_ponto_completo(registro):
+def _ponto_tempo_restante_nova_entrada(registro: dict[str, Any] | None, data_ponto: Any = "", hora_referencia: Any = "") -> int:
+    if not _ponto_registro_tem_saida(registro):
         return 0
-
-    referencia = _datetime_ponto((registro or {}).get("atualizado_em")) or _datetime_ponto((registro or {}).get("criado_em"))
-    if referencia is None:
-        return 0
-
-    agora_base = agora_referencia or agora_empresa()
-    decorrido = int((agora_base - referencia).total_seconds())
-    if decorrido < 0:
-        decorrido = 0
-
+    decorrido = _ponto_segundos_desde_saida(registro, data_ponto, hora_referencia)
     return max(PONTO_BLOQUEIO_NOVA_ENTRADA_SEGUNDOS - decorrido, 0)
 
 
-def _mensagem_bloqueio_nova_entrada(segundos: int) -> str:
-    segundos = max(int(segundos or 0), 1)
-    if segundos == 1:
-        return "Aguarde 1 segundo para iniciar uma nova entrada."
-    return f"Aguarde {segundos} segundos para iniciar uma nova entrada."
-
-
-def _buscar_registro_ponto_aberto_conn(
-    conn: sqlite3.Connection,
-    empresa_id: int,
-    funcionario_id: int,
-    data_ponto: str,
-) -> dict[str, Any] | None:
+def _buscar_registro_ponto_aberto(conn: sqlite3.Connection, empresa_id: int, funcionario_id: int, data_ponto: str) -> dict[str, Any] | None:
     row = conn.execute(
         """
         SELECT *
@@ -9891,16 +9755,10 @@ def _buscar_registro_ponto_aberto_conn(
         """,
         (empresa_id, funcionario_id, data_ponto),
     ).fetchone()
-
     return dict(row) if row else None
 
 
-def _buscar_ultimo_registro_ponto_conn(
-    conn: sqlite3.Connection,
-    empresa_id: int,
-    funcionario_id: int,
-    data_ponto: str,
-) -> dict[str, Any] | None:
+def _buscar_ultimo_registro_ponto(conn: sqlite3.Connection, empresa_id: int, funcionario_id: int, data_ponto: str) -> dict[str, Any] | None:
     row = conn.execute(
         """
         SELECT *
@@ -9913,26 +9771,51 @@ def _buscar_ultimo_registro_ponto_conn(
         """,
         (empresa_id, funcionario_id, data_ponto),
     ).fetchone()
-
     return dict(row) if row else None
 
 
-def _buscar_registro_ponto_operacional_conn(
-    conn: sqlite3.Connection,
-    empresa_id: int,
-    funcionario_id: int,
-    data_ponto: str,
-    agora_referencia: datetime | None = None,
-) -> dict[str, Any] | None:
-    registro_aberto = _buscar_registro_ponto_aberto_conn(conn, empresa_id, funcionario_id, data_ponto)
-    if registro_aberto is not None:
-        return registro_aberto
+def _buscar_registro_ponto_por_id(conn: sqlite3.Connection, empresa_id: int, registro_id: int) -> dict[str, Any] | None:
+    row = conn.execute(
+        """
+        SELECT *
+        FROM registros_ponto
+        WHERE empresa_id = ?
+          AND id = ?
+        LIMIT 1
+        """,
+        (empresa_id, registro_id),
+    ).fetchone()
+    return dict(row) if row else None
 
-    ultimo_registro = _buscar_ultimo_registro_ponto_conn(conn, empresa_id, funcionario_id, data_ponto)
-    if _restante_bloqueio_nova_entrada(ultimo_registro, agora_referencia) > 0:
-        return ultimo_registro
+
+def _registro_ponto_para_tela(empresa_id: int, funcionario_id: int, data_ponto: str) -> dict[str, Any] | None:
+    with conectar_db() as conn:
+        aberto = _buscar_registro_ponto_aberto(conn, empresa_id, funcionario_id, data_ponto)
+        if aberto is not None:
+            return aberto
+
+        ultimo = _buscar_ultimo_registro_ponto(conn, empresa_id, funcionario_id, data_ponto)
+        if _ponto_tempo_restante_nova_entrada(ultimo, data_ponto) > 0:
+            return ultimo
 
     return None
+
+
+def _mensagem_proxima_marcacao(funcionario_id: Any, registro: dict[str, Any] | None, exigir_intervalo: bool, bloqueio: int = 0) -> str:
+    if not str(funcionario_id or "").strip():
+        return "Selecione o funcionário para liberar os botões de ponto."
+    if bloqueio > 0:
+        return f"Jornada encerrada. Nova entrada liberada em {bloqueio} segundo(s)."
+    if not registro or not registro.get("entrada"):
+        return "Próxima marcação: Entrada"
+    if exigir_intervalo:
+        if not registro.get("saida_intervalo"):
+            return "Próxima marcação: Saída para intervalo"
+        if not registro.get("retorno_intervalo"):
+            return "Próxima marcação: Retorno do intervalo"
+    if not registro.get("saida"):
+        return "Próxima marcação: Saída"
+    return "Ponto de hoje completo."
 
 
 def _normalizar_data_iso(valor: Any, padrao: str | None = None) -> str:
@@ -10168,17 +10051,8 @@ def gerar_venda_por_agendamento_db(agendamento_id: int) -> int | None:
 
 
 def buscar_registro_ponto(funcionario_id: int, data_ponto: str) -> dict[str, Any] | None:
-    empresa_id = empresa_logada_id()
+    return _registro_ponto_para_tela(empresa_logada_id(), int(funcionario_id), _normalizar_data_iso(data_ponto, hoje_empresa().isoformat()))
 
-    with conectar_db() as conn:
-        return _buscar_registro_ponto_operacional_conn(conn, empresa_id, funcionario_id, data_ponto)
-
-
-def buscar_ultimo_registro_ponto(funcionario_id: int, data_ponto: str) -> dict[str, Any] | None:
-    empresa_id = empresa_logada_id()
-
-    with conectar_db() as conn:
-        return _buscar_ultimo_registro_ponto_conn(conn, empresa_id, funcionario_id, data_ponto)
 
 
 def listar_registros_ponto(data_inicio: Any = "", data_fim: Any = "", funcionario_id: Any = "") -> list[dict[str, Any]]:
@@ -10290,91 +10164,9 @@ def garantir_token_ponto_funcionario(funcionario_id: int) -> str:
     return token_novo
 
 
-def garantir_tokens_ponto_funcionarios_empresa() -> int:
-    empresa_id = empresa_logada_id()
-    atualizados = 0
-
-    with conectar_db() as conn:
-        colunas_funcionarios = {
-            str(row["name"])
-            for row in conn.execute("PRAGMA table_info(funcionarios)").fetchall()
-        }
-
-        if "empresa_id" not in colunas_funcionarios:
-            conn.execute("ALTER TABLE funcionarios ADD COLUMN empresa_id INTEGER")
-            colunas_funcionarios.add("empresa_id")
-
-        if "token_ponto" not in colunas_funcionarios:
-            conn.execute("ALTER TABLE funcionarios ADD COLUMN token_ponto TEXT")
-            colunas_funcionarios.add("token_ponto")
-
-        if "exigir_intervalo_ponto" not in colunas_funcionarios:
-            conn.execute("ALTER TABLE funcionarios ADD COLUMN exigir_intervalo_ponto TEXT DEFAULT 'sim'")
-            colunas_funcionarios.add("exigir_intervalo_ponto")
-
-        conn.execute(
-            """
-            UPDATE funcionarios
-            SET empresa_id = ?
-            WHERE empresa_id IS NULL
-            """,
-            (empresa_id,),
-        )
-
-        conn.execute(
-            """
-            UPDATE funcionarios
-            SET exigir_intervalo_ponto = 'sim'
-            WHERE exigir_intervalo_ponto IS NULL
-               OR TRIM(exigir_intervalo_ponto) = ''
-            """
-        )
-
-        funcionarios_sem_token = conn.execute(
-            """
-            SELECT id
-            FROM funcionarios
-            WHERE empresa_id = ?
-              AND (token_ponto IS NULL OR TRIM(token_ponto) = '')
-            ORDER BY id ASC
-            """,
-            (empresa_id,),
-        ).fetchall()
-
-        for funcionario in funcionarios_sem_token:
-            while True:
-                token_novo = gerar_token_ponto_funcionario()
-                conflito = conn.execute(
-                    """
-                    SELECT id
-                    FROM funcionarios
-                    WHERE token_ponto = ?
-                    LIMIT 1
-                    """,
-                    (token_novo,),
-                ).fetchone()
-                if conflito is None:
-                    break
-
-            conn.execute(
-                """
-                UPDATE funcionarios
-                SET token_ponto = ?
-                WHERE id = ?
-                  AND empresa_id = ?
-                """,
-                (token_novo, int(funcionario["id"]), empresa_id),
-            )
-            atualizados += 1
-
-        conn.commit()
-
-    return atualizados
-
-
 def buscar_registro_ponto_publico(empresa_id: int, funcionario_id: int, data_ponto: str) -> dict[str, Any] | None:
-    with conectar_db() as conn:
-        return _buscar_registro_ponto_operacional_conn(conn, empresa_id, funcionario_id, data_ponto)
+    return _registro_ponto_para_tela(int(empresa_id), int(funcionario_id), _normalizar_data_iso(data_ponto, hoje_empresa().isoformat()))
+
 
 
 def registrar_batida_ponto_publico(
@@ -10394,11 +10186,13 @@ def registrar_batida_ponto_publico(
     origem_final = "offline" if str(origem or "").strip() == "offline" else "online"
     uuid_final = str(offline_uuid or "").strip()
     dispositivo_final = str(dispositivo_info or "").strip()[:500]
-    ordem = ordem_ponto_funcionario(funcionario)
+    ordem = _ponto_ordem_funcionario(funcionario)
+    exigir_intervalo = _ponto_exige_intervalo(funcionario)
+
+    if acao not in {"entrada", "saida_intervalo", "retorno_intervalo", "saida"}:
+        return False, "Ação de ponto inválida.", None
 
     if acao not in ordem:
-        if ponto_exige_intervalo(funcionario):
-            return False, "Ação de ponto inválida.", None
         return False, "Este funcionário não exige marcação de intervalo/almoço.", None
 
     if not funcionario_id or not empresa_id:
@@ -10419,41 +10213,20 @@ def registrar_batida_ponto_publico(
             if duplicado is not None:
                 return True, "Batida offline já sincronizada.", dict(duplicado)
 
-        momento_batida = _datetime_ponto(f"{data_final} {hora_final}:00") or agora_empresa()
-        referencia_bloqueio = momento_batida if origem_final == "offline" else agora_empresa()
-        registro_aberto = _buscar_registro_ponto_aberto_conn(conn, empresa_id, funcionario_id, data_final)
-        ultimo_registro = _buscar_ultimo_registro_ponto_conn(conn, empresa_id, funcionario_id, data_final)
+        registro_aberto = _buscar_registro_ponto_aberto(conn, empresa_id, funcionario_id, data_final)
+        ultimo_registro = _buscar_ultimo_registro_ponto(conn, empresa_id, funcionario_id, data_final)
+        agora_iso = agora_empresa().isoformat(timespec="seconds")
+        registro_id_resultado = 0
 
         if acao == "entrada":
-            if registro_aberto is None:
-                bloqueio_restante = _restante_bloqueio_nova_entrada(ultimo_registro, referencia_bloqueio)
-                if bloqueio_restante > 0:
-                    return False, _mensagem_bloqueio_nova_entrada(bloqueio_restante), ultimo_registro
-                registro = None
-            else:
-                registro = registro_aberto
-        else:
-            registro = registro_aberto
+            if registro_aberto is not None:
+                return False, "Já existe uma jornada aberta. Registre a saída antes de iniciar outra entrada.", registro_aberto
 
-        if registro is not None and registro.get(acao):
-            if origem_final == "offline" and str(registro.get(acao) or "").strip() == hora_final:
-                return True, "Batida offline já estava registrada.", registro
-            return False, "Esse horário já foi registrado.", registro
+            restante = _ponto_tempo_restante_nova_entrada(ultimo_registro, data_final, hora_final)
+            if restante > 0:
+                return False, f"Aguarde {restante} segundo(s) para registrar nova entrada.", ultimo_registro
 
-        if registro is None and acao != "entrada":
-            return False, "Registre a entrada antes dos demais horários.", None
-
-        if registro is not None and acao != "entrada":
-            indice_acao = ordem.index(acao)
-            campo_anterior = ordem[indice_acao - 1]
-            if not registro.get(campo_anterior):
-                return False, f"Registre {PONTO_ACOES.get(campo_anterior, 'o horário anterior').lower()} antes.", registro
-
-        agora_iso = agora_empresa().isoformat(timespec="seconds")
-        atualizado_iso = momento_batida.isoformat(timespec="seconds") if origem_final == "offline" else agora_iso
-
-        if registro is None:
-            conn.execute(
+            cursor = conn.execute(
                 """
                 INSERT INTO registros_ponto (
                     empresa_id, funcionario_id, funcionario_nome, data_ponto, entrada,
@@ -10468,14 +10241,39 @@ def registrar_batida_ponto_publico(
                     hora_final,
                     "incompleto",
                     "Batida registrada offline." if origem_final == "offline" else "",
-                    atualizado_iso,
+                    agora_iso,
                     origem_final,
                     uuid_final,
                     agora_iso if origem_final == "offline" else "",
                     dispositivo_final,
                 ),
             )
+            registro_id_resultado = int(cursor.lastrowid)
         else:
+            registro = registro_aberto
+            if registro is None:
+                return False, "Registre a entrada antes dos demais horários.", None
+
+            if registro.get(acao):
+                if origem_final == "offline" and str(registro.get(acao) or "").strip() == hora_final:
+                    return True, "Batida offline já estava registrada.", registro
+                return False, "Esse horário já foi registrado.", registro
+
+            if not registro.get("entrada"):
+                return False, "Registre a entrada antes dos demais horários.", registro
+
+            if acao == "saida_intervalo" and not exigir_intervalo:
+                return False, "Este funcionário não exige marcação de intervalo/almoço.", registro
+
+            if acao == "retorno_intervalo":
+                if not exigir_intervalo:
+                    return False, "Este funcionário não exige marcação de intervalo/almoço.", registro
+                if not registro.get("saida_intervalo"):
+                    return False, "Registre a saída para intervalo antes do retorno.", registro
+
+            if acao == "saida" and exigir_intervalo and not registro.get("retorno_intervalo"):
+                return False, "Registre o retorno do intervalo antes da saída.", registro
+
             dados = dict(registro)
             dados[acao] = hora_final
             total = _calcular_total_horas_ponto(dados.get("entrada"), dados.get("saida_intervalo"), dados.get("retorno_intervalo"), dados.get("saida"))
@@ -10499,7 +10297,7 @@ def registrar_batida_ponto_publico(
                     total,
                     status,
                     observacoes,
-                    atualizado_iso,
+                    agora_iso,
                     origem_final,
                     uuid_final,
                     origem_final,
@@ -10509,11 +10307,13 @@ def registrar_batida_ponto_publico(
                     empresa_id,
                 ),
             )
+            registro_id_resultado = int(registro["id"])
 
         conn.commit()
+        atualizado = _buscar_registro_ponto_por_id(conn, empresa_id, registro_id_resultado) if registro_id_resultado else None
 
-    atualizado = buscar_registro_ponto_publico(empresa_id, funcionario_id, data_final)
     return True, f"{PONTO_ACOES.get(acao, 'Ponto')} registrado às {hora_final}.", atualizado
+
 
 def bater_ponto_db(funcionario_id: int, acao: str = "") -> tuple[bool, str]:
     funcionario = buscar_funcionario_por_id(funcionario_id)
@@ -10522,64 +10322,28 @@ def bater_ponto_db(funcionario_id: int, acao: str = "") -> tuple[bool, str]:
 
     hoje = hoje_empresa().isoformat()
     agora_hora = agora_empresa().strftime("%H:%M")
+    ordem = _ponto_ordem_funcionario(funcionario)
     registro = buscar_registro_ponto(funcionario_id, hoje)
-    ordem = ordem_ponto_funcionario(funcionario)
-
-    if acao == "entrada" and _registro_ponto_completo(registro):
-        bloqueio_restante = _restante_bloqueio_nova_entrada(registro)
-        if bloqueio_restante > 0:
-            return False, _mensagem_bloqueio_nova_entrada(bloqueio_restante)
 
     if acao not in ordem:
-        if acao in {"saida_intervalo", "retorno_intervalo"} and not ponto_exige_intervalo(funcionario):
-            return False, "Este funcionário não exige marcação de intervalo/almoço. Use Saída para encerrar o expediente."
         if registro is None:
             acao = "entrada"
         else:
-            acao = proxima_acao_ponto(registro, funcionario)
+            acao = next((campo for campo in ordem if not registro.get(campo)), "")
 
     if not acao:
-        return False, "Ponto de hoje já está completo."
+        return False, "Ponto de hoje já está completo. Aguarde 60 segundos para iniciar nova entrada."
 
-    if registro is not None and registro.get(acao):
-        return False, "Esse horário já foi registrado."
+    ok, mensagem, _registro = registrar_batida_ponto_publico(
+        funcionario,
+        acao,
+        hoje,
+        agora_hora,
+        origem="online",
+        dispositivo_info=request.headers.get("User-Agent") or "admin",
+    )
+    return ok, mensagem
 
-    if registro is None and acao != "entrada":
-        return False, "Registre a entrada antes dos demais horários."
-
-    if registro is not None and acao != "entrada":
-        indice_acao = ordem.index(acao)
-        campo_anterior = ordem[indice_acao - 1]
-        if not registro.get(campo_anterior):
-            return False, f"Registre {PONTO_ACOES.get(campo_anterior, 'o horário anterior').lower()} antes."
-
-    with conectar_db() as conn:
-        if registro is None:
-            conn.execute(
-                """
-                INSERT INTO registros_ponto (
-                    empresa_id, funcionario_id, funcionario_nome, data_ponto, entrada,
-                    status, atualizado_em
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
-                """,
-                (empresa_logada_id(), funcionario_id, funcionario["nome"], hoje, agora_hora, "incompleto", agora_empresa().isoformat(timespec="seconds")),
-            )
-        else:
-            dados = dict(registro)
-            dados[acao] = agora_hora
-            total = _calcular_total_horas_ponto(dados.get("entrada"), dados.get("saida_intervalo"), dados.get("retorno_intervalo"), dados.get("saida"))
-            status = _status_ponto(dados.get("entrada"), dados.get("saida_intervalo"), dados.get("retorno_intervalo"), dados.get("saida"))
-            conn.execute(
-                f"""
-                UPDATE registros_ponto
-                SET {acao} = ?, total_trabalhado = ?, status = ?, atualizado_em = ?
-                WHERE id = ? AND empresa_id = ?
-                """,
-                (agora_hora, total, status, agora_empresa().isoformat(timespec="seconds"), registro["id"], empresa_logada_id()),
-            )
-        conn.commit()
-
-    return True, f"{PONTO_ACOES.get(acao, 'Ponto')} registrado às {agora_hora}."
 
 def ajustar_ponto_db() -> tuple[bool, str]:
     funcionario_id_texto = str(request.form.get("ajuste_funcionario_id") or "").strip()
@@ -10597,7 +10361,7 @@ def ajustar_ponto_db() -> tuple[bool, str]:
     observacoes = str(request.form.get("ajuste_observacoes") or "").strip()
     total = _calcular_total_horas_ponto(entrada, saida_intervalo, retorno_intervalo, saida)
     status = _status_ponto(entrada, saida_intervalo, retorno_intervalo, saida, ajustado=True)
-    existente = buscar_ultimo_registro_ponto(int(funcionario_id_texto), data_ponto)
+    existente = buscar_registro_ponto(int(funcionario_id_texto), data_ponto)
 
     with conectar_db() as conn:
         if existente:
@@ -13408,9 +13172,6 @@ def normalizar_funcionario_para_salvar(funcionario: dict[str, str]) -> dict[str,
     if funcionario_normalizado["status"] not in {"ativo", "inativo", "pendente"}:
         funcionario_normalizado["status"] = "ativo"
 
-    exigir_intervalo = str(funcionario_normalizado.get("exigir_intervalo_ponto") or "sim").strip().lower()
-    funcionario_normalizado["exigir_intervalo_ponto"] = "nao" if exigir_intervalo in {"nao", "não", "0", "false", "off"} else "sim"
-
     return funcionario_normalizado
 
 
@@ -14001,7 +13762,6 @@ def salvar_fornecedor_rapido() -> Response:
 
 @app.get("/funcionarios")
 def funcionarios() -> str:
-    garantir_tokens_ponto_funcionarios_empresa()
     contexto = montar_contexto_cadastro_paginado("funcionarios")
     return render_template(
         "funcionarios.html",
@@ -14038,7 +13798,6 @@ def salvar_funcionario() -> Response:
         "custo_mensal": (request.form.get("funcionario_custo_mensal") or "").strip(),
         "custo_dia": (request.form.get("funcionario_custo_dia") or "").strip(),
         "custo_hora": (request.form.get("funcionario_custo_hora") or "").strip(),
-        "exigir_intervalo_ponto": "sim" if request.form.get("funcionario_exigir_intervalo_ponto") == "sim" else "nao",
     }
 
     funcionario = normalizar_funcionario_para_salvar(funcionario)
@@ -14209,10 +13968,8 @@ def salvar_funcionario_rapido() -> Response:
                 outros_custos,
                 custo_mensal,
                 custo_dia,
-                custo_hora,
-                token_ponto,
-                exigir_intervalo_ponto
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                custo_hora
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id,
@@ -14236,8 +13993,6 @@ def salvar_funcionario_rapido() -> Response:
                 funcionario["custo_mensal"],
                 funcionario["custo_dia"],
                 funcionario["custo_hora"],
-                gerar_token_ponto_funcionario(),
-                "sim",
             ),
         )
         funcionario_id = int(cursor.lastrowid)
@@ -14312,7 +14067,6 @@ def atualizar_funcionario(funcionario_id: int) -> Response:
         "custo_mensal": (request.form.get("funcionario_custo_mensal") or "").strip(),
         "custo_dia": (request.form.get("funcionario_custo_dia") or "").strip(),
         "custo_hora": (request.form.get("funcionario_custo_hora") or "").strip(),
-        "exigir_intervalo_ponto": "sim" if request.form.get("funcionario_exigir_intervalo_ponto") == "sim" else "nao",
     }
 
     funcionario = normalizar_funcionario_para_salvar(funcionario)
@@ -14328,18 +14082,12 @@ def atualizar_funcionario(funcionario_id: int) -> Response:
 
 @app.post("/funcionarios/<int:funcionario_id>/excluir")
 def excluir_funcionario(funcionario_id: int) -> Response:
-    funcionario = buscar_funcionario_por_id(funcionario_id) or {"nome": f"ID {funcionario_id}"}
+    funcionario = buscar_funcionario_por_id(funcionario_id)
 
-    try:
-        excluido = excluir_funcionario_db(funcionario_id)
-    except sqlite3.Error as erro_db:
-        return redirect(url_for("funcionarios", erro=f"Não foi possível excluir o funcionário: {erro_db}"))
+    if funcionario is not None:
+        excluir_funcionario_db(funcionario_id)
 
-    if not excluido:
-        return redirect(url_for("funcionarios", erro="Não foi possível excluir o funcionário. Atualize a página e tente novamente."))
-
-    registrar_atividade_usuario("exclusao", "funcionarios", f"Excluiu funcionário {funcionario.get('nome') or funcionario_id}", request.path)
-    return redirect(url_for("funcionarios", sucesso="Funcionário excluído com sucesso."))
+    return redirect(url_for("funcionarios"))
 
 
 
@@ -16745,12 +16493,10 @@ def ponto_publico(token: str) -> str | Response:
     sucesso = ""
     telefone_validado = session.get(f"ponto_validado_{token}") == "sim"
     registro_hoje = None
-    exigir_intervalo = True
 
     if funcionario is None:
         erro = "Link de ponto inválido ou funcionário inativo."
     else:
-        exigir_intervalo = ponto_exige_intervalo(funcionario)
         registro_hoje = buscar_registro_ponto_publico(
             int(funcionario["empresa_id"]),
             int(funcionario["id"]),
@@ -16780,6 +16526,8 @@ def ponto_publico(token: str) -> str | Response:
 
     erro = erro or str(request.args.get("erro") or "")
     sucesso = sucesso or str(request.args.get("sucesso") or "")
+    exigir_intervalo_ponto = _ponto_exige_intervalo(funcionario)
+    bloqueio_nova_entrada_segundos = _ponto_tempo_restante_nova_entrada(registro_hoje, hoje_empresa().isoformat())
 
     return render_template(
         "ponto_funcionario.html",
@@ -16788,11 +16536,13 @@ def ponto_publico(token: str) -> str | Response:
         registro_hoje=registro_hoje,
         telefone_validado=telefone_validado,
         telefone_mascarado=mascarar_telefone_ponto(funcionario.get("telefone") if funcionario else ""),
-        exigir_intervalo_ponto=exigir_intervalo,
         data_hoje=formatar_data_br(hoje_empresa()),
+        exigir_intervalo_ponto=exigir_intervalo_ponto,
+        bloqueio_nova_entrada_segundos=bloqueio_nova_entrada_segundos,
         erro=erro,
         sucesso=sucesso,
     )
+
 
 @app.post("/api/ponto/offline/sincronizar")
 def api_ponto_offline_sincronizar() -> Response:
@@ -16841,7 +16591,6 @@ def api_ponto_offline_sincronizar() -> Response:
 
 @app.route("/registro-ponto", methods=["GET", "POST"])
 def registro_ponto() -> str | Response:
-    garantir_tokens_ponto_funcionarios_empresa()
     if request.method == "POST":
         funcionario_id_texto = str(request.form.get("funcionario_id") or "").strip()
         acao = str(request.form.get("acao") or "").strip()
@@ -16852,47 +16601,41 @@ def registro_ponto() -> str | Response:
         return redirect(url_for("registro_ponto", funcionario_id=funcionario_id_texto, **{parametro: mensagem}))
 
     funcionario_id = request.args.get("funcionario_id") or ""
-    data_inicio = _normalizar_data_iso(request.args.get("data_inicio") or hoje_empresa().isoformat())
-    data_fim = _normalizar_data_iso(request.args.get("data_fim") or data_inicio, data_inicio)
+    data_inicio = request.args.get("data_inicio") or hoje_empresa().isoformat()
+    data_fim = request.args.get("data_fim") or data_inicio
     funcionarios_lista = listar_funcionarios()
-
-    for funcionario in funcionarios_lista:
-        funcionario["token_ponto_publico"] = str(funcionario.get("token_ponto") or "").strip()
-        funcionario["exigir_intervalo_bool"] = ponto_exige_intervalo(funcionario)
-
-    ids_validos = {str(funcionario.get("id") or "") for funcionario in funcionarios_lista}
-
-    if str(funcionario_id) not in ids_validos:
-        funcionario_id = ""
-
-    funcionario_selecionado = next(
-        (funcionario for funcionario in funcionarios_lista if str(funcionario.get("id") or "") == str(funcionario_id)),
-        None,
-    )
-    exigir_intervalo = ponto_exige_intervalo(funcionario_selecionado) if funcionario_selecionado else True
-
+    funcionario_selecionado = None
     registro_hoje = None
-    proxima_acao = ""
+
     if str(funcionario_id).isdigit():
-        registro_hoje = buscar_registro_ponto(int(funcionario_id), hoje_empresa().isoformat())
-        proxima_acao = proxima_acao_ponto(registro_hoje, funcionario_selecionado)
+        for item_funcionario in funcionarios_lista:
+            if str(item_funcionario.get("id")) == str(funcionario_id):
+                funcionario_selecionado = item_funcionario
+                break
+        if funcionario_selecionado is not None:
+            registro_hoje = buscar_registro_ponto(int(funcionario_id), hoje_empresa().isoformat())
+
+    exigir_intervalo_ponto = _ponto_exige_intervalo(funcionario_selecionado)
+    bloqueio_nova_entrada_segundos = _ponto_tempo_restante_nova_entrada(registro_hoje, hoje_empresa().isoformat())
+    proxima_marcacao = _mensagem_proxima_marcacao(funcionario_id, registro_hoje, exigir_intervalo_ponto, bloqueio_nova_entrada_segundos)
 
     return render_template(
         "registro_ponto.html",
         funcionarios=funcionarios_lista,
         funcionario_selecionado=funcionario_selecionado,
-        funcionario_id=str(funcionario_id),
-        exigir_intervalo_ponto=exigir_intervalo,
-        proxima_acao_ponto=proxima_acao,
-        proxima_marcacao=rotulo_proxima_acao_ponto(proxima_acao) if funcionario_selecionado else "Selecione o funcionário para liberar os botões de ponto.",
-        data_inicio=data_inicio,
-        data_fim=data_fim,
+        funcionario_id=str(funcionario_id) if funcionario_selecionado is not None else "",
+        data_inicio=_normalizar_data_iso(data_inicio),
+        data_fim=_normalizar_data_iso(data_fim, _normalizar_data_iso(data_inicio)),
         registros=listar_registros_ponto(data_inicio, data_fim, funcionario_id),
         registro_hoje=registro_hoje,
+        exigir_intervalo_ponto=exigir_intervalo_ponto,
+        bloqueio_nova_entrada_segundos=bloqueio_nova_entrada_segundos,
+        proxima_marcacao=proxima_marcacao,
         acoes_ponto=PONTO_ACOES,
         erro=request.args.get("erro") or "",
         sucesso=request.args.get("sucesso") or "",
     )
+
 
 @app.post("/registro-ponto/ajustar")
 def ajustar_registro_ponto() -> Response:

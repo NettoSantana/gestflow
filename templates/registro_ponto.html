@@ -1,7 +1,7 @@
 <!--
 Caminho: templates/registro_ponto.html
-Último recode: 2026-07-09 16:31 (America/Bahia)
-Motivo: Corrigir link individual e ocultar botões/campos de intervalo conforme configuração do funcionário.
+Último recode: 2026-07-10 10:40 (America/Bahia)
+Motivo: Ajustar botões para múltiplas jornadas e bloqueio de nova entrada por 60 segundos.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -83,6 +83,7 @@ Motivo: Corrigir link individual e ocultar botões/campos de intervalo conforme 
     {% set saida_intervalo_marcada = registro_hoje and registro_hoje.saida_intervalo %}
     {% set retorno_intervalo_marcado = registro_hoje and registro_hoje.retorno_intervalo %}
     {% set saida_marcada = registro_hoje and registro_hoje.saida %}
+    {% set entrada_bloqueada = (bloqueio_nova_entrada_segundos|default(0)|int) > 0 %}
 
     <section class="panel page-section">
         <div class="panel-header page-header">
@@ -178,7 +179,7 @@ Motivo: Corrigir link individual e ocultar botões/campos de intervalo conforme 
             <form method="post" action="/registro-ponto" class="ponto-buttons">
                 <input type="hidden" name="funcionario_id" value="{{ funcionario_id }}">
 
-                <button class="ponto-btn entrada" name="acao" value="entrada" type="submit" {% if not tem_funcionario or entrada_marcada %}disabled{% endif %}>
+                <button class="ponto-btn entrada" name="acao" value="entrada" type="submit" {% if not tem_funcionario or entrada_bloqueada or entrada_marcada %}disabled{% endif %}>
                     <span class="ponto-icone">↦</span><span class="ponto-texto"><strong>Entrada</strong><span>Iniciar expediente</span></span>
                 </button>
 

@@ -1,7 +1,7 @@
 <!--
 Caminho: templates/ponto_funcionario.html
-Último recode: 2026-07-09 11:30 (America/Bahia)
-Motivo: Corrigir validação offline do celular e ajustar botões conforme exigência de intervalo/almoço.
+Último recode: 2026-07-10 10:40 (America/Bahia)
+Motivo: Ajustar botões para múltiplas jornadas e bloqueio de nova entrada por 60 segundos.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -70,6 +70,7 @@ Motivo: Corrigir validação offline do celular e ajustar botões conforme exig�
     {% set saida_intervalo_marcada = registro_hoje and registro_hoje.saida_intervalo %}
     {% set retorno_intervalo_marcado = registro_hoje and registro_hoje.retorno_intervalo %}
     {% set saida_marcada = registro_hoje and registro_hoje.saida %}
+    {% set entrada_bloqueada = (bloqueio_nova_entrada_segundos|default(0)|int) > 0 %}
 
     <div class="ponto-publico-card">
         <div class="ponto-publico-top">
@@ -107,11 +108,12 @@ Motivo: Corrigir validação offline do celular e ajustar botões conforme exig�
             <div id="ponto-area-batida" class="{% if not telefone_validado %}ponto-offline-hidden{% endif %}">
                 <div class="ponto-status-ok">Celular validado. Use os botões abaixo para bater o ponto de hoje.</div>
                 <div class="ponto-config-info">Intervalo/almoço: {% if exigir_intervalo %}exigido neste funcionário{% else %}não exigido neste funcionário{% endif %}.</div>
+                {% if entrada_bloqueada %}<div class="ponto-config-info" style="background:#fff7ed;border-color:#fed7aa;color:#9a3412;">Nova entrada liberada em {{ bloqueio_nova_entrada_segundos }} segundo(s).</div>{% endif %}
                 <div class="ponto-sync-box" id="ponto-sync-status">Verificando conexão...</div>
                 <div class="ponto-pendente-lista" id="ponto-pendente-lista"></div>
 
                 <form method="post" action="/ponto/{{ token }}" class="ponto-buttons" id="ponto-form-batida" data-token="{{ token }}" data-telefone-validado="{{ 'sim' if telefone_validado else 'nao' }}" data-funcionario-nome="{{ funcionario.nome }}" data-empresa-nome="{{ funcionario.empresa_nome or 'GestFlow' }}" data-exigir-intervalo="{{ 'sim' if exigir_intervalo else 'nao' }}">
-                    <button class="ponto-btn entrada" name="acao" value="entrada" type="submit" {% if entrada_marcada %}disabled{% endif %}>
+                    <button class="ponto-btn entrada" name="acao" value="entrada" type="submit" {% if entrada_bloqueada or entrada_marcada %}disabled{% endif %}>
                         <span class="ponto-icone">↦</span><span class="ponto-texto"><strong>Entrada</strong><span>Iniciar expediente</span></span>
                     </button>
 
