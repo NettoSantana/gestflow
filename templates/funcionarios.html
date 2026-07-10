@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\funcionarios.html
-Último recode: 2026-07-09 11:30 (America/Bahia)
-Motivo: Adicionar configuração de exigência de intervalo/almoço no registro de ponto.
+Último recode: 2026-07-10 11:45 (America/Bahia)
+Motivo: Corrigir coluna Almoço e exibir configuração de intervalo dos funcionários.
 -->
 
 <!DOCTYPE html>
@@ -554,6 +554,14 @@ Motivo: Adicionar configuração de exigência de intervalo/almoço no registro 
                                         </span>
                                     </td>
                                     <td>
+                                        {% set exige_almoco = funcionario.exigir_intervalo_ponto|default('sim', true)|string|lower %}
+                                        {% if exige_almoco in ['nao', 'não', 'n', 'no', 'false', '0', 'off', 'sem', 'sem_intervalo'] %}
+                                            Não
+                                        {% else %}
+                                            Sim
+                                        {% endif %}
+                                    </td>
+                                    <td>
                                         <div class="action-buttons">
                                             <a href="/funcionarios/{{ funcionario.id }}" title="Ver funcionário" aria-label="Ver funcionário" class="action-button view">🔍</a>
                                             <a href="/funcionarios/{{ funcionario.id }}/editar" title="Editar funcionário" aria-label="Editar funcionário" class="action-button edit">✎</a>
@@ -566,7 +574,7 @@ Motivo: Adicionar configuração de exigência de intervalo/almoço no registro 
                             {% endfor %}
                         {% else %}
                             <tr>
-                                <td colspan="9" class="empty-table empty-table-box">
+                                <td colspan="10" class="empty-table empty-table-box">
                                     <div class="empty-table-content">
                                         <div class="empty-table-icon">☷</div>
                                         <strong>Nenhum funcionário cadastrado.</strong>

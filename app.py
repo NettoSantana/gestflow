@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-09 10:00 (America/Bahia)
-# Motivo: Adicionar registro de ponto público offline com PWA, fila local e sincronização automática.
+# Último recode: 2026-07-10 11:45 (America/Bahia)
+# Motivo: Corrigir token/link individual do ponto, configuração de intervalo e múltiplas jornadas sem regressão.
 
 from __future__ import annotations
 
@@ -1549,6 +1549,11 @@ def iniciar_banco() -> None:
 
         if "token_ponto" not in colunas_funcionarios_ponto:
             conn.execute("ALTER TABLE funcionarios ADD COLUMN token_ponto TEXT")
+            colunas_funcionarios_ponto.add("token_ponto")
+
+        if "exigir_intervalo_ponto" not in colunas_funcionarios_ponto:
+            conn.execute("ALTER TABLE funcionarios ADD COLUMN exigir_intervalo_ponto TEXT DEFAULT 'sim'")
+            colunas_funcionarios_ponto.add("exigir_intervalo_ponto")
 
         funcionarios_sem_token_ponto = conn.execute(
             """
@@ -1842,6 +1847,8 @@ def iniciar_banco() -> None:
                 "custo_mensal": "TEXT",
                 "custo_dia": "TEXT",
                 "custo_hora": "TEXT",
+                "token_ponto": "TEXT",
+                "exigir_intervalo_ponto": "TEXT DEFAULT 'sim'",
                 "criado_em": "TEXT",
             },
             "produtos": {
@@ -2077,6 +2084,9 @@ def montar_filtros_clientes(busca: Any) -> tuple[str, list[Any]]:
     where = "WHERE empresa_id = ?"
     parametros: list[Any] = [empresa_id]
 
+    if cadastro == "funcionarios":
+        where += " AND LOWER(COALESCE(status, '')) <> 'excluido'"
+
     if termo:
         termo_like = f"%{termo}%"
         where += """
@@ -2223,7 +2233,7 @@ CADASTROS_PAGINADOS = {
     },
     "funcionarios": {
         "tabela": "funcionarios",
-        "colunas": ["id", "empresa_id", "nome", "cpf", "telefone", "cidade", "cargo", "status", "email", "observacoes", "salario_base", "inss_percentual", "fgts_percentual", "ferias_percentual", "decimo_percentual", "beneficios", "transporte", "alimentacao", "outros_custos", "custo_mensal", "custo_dia", "custo_hora", "criado_em"],
+        "colunas": ["id", "empresa_id", "nome", "cpf", "telefone", "cidade", "cargo", "status", "email", "observacoes", "salario_base", "inss_percentual", "fgts_percentual", "ferias_percentual", "decimo_percentual", "beneficios", "transporte", "alimentacao", "outros_custos", "custo_mensal", "custo_dia", "custo_hora", "token_ponto", "exigir_intervalo_ponto", "criado_em"],
         "busca": ["nome", "cpf", "telefone", "cidade", "cargo", "email", "status"],
         "ordenacao": {
             "id": "id",
@@ -2336,20 +2346,21 @@ def listar_cadastro_paginado(
 def resumir_cadastro_paginado(cadastro: str) -> dict[str, int]:
     tabela = CADASTROS_PAGINADOS[cadastro]["tabela"]
     empresa_id = empresa_logada_id()
+    filtro_excluidos = " AND LOWER(COALESCE(status, '')) <> 'excluido'" if cadastro == "funcionarios" else ""
 
     with conectar_db() as conn:
         total = conn.execute(
-            f"SELECT COUNT(*) AS total FROM {tabela} WHERE empresa_id = ?",
+            f"SELECT COUNT(*) AS total FROM {tabela} WHERE empresa_id = ?{filtro_excluidos}",
             (empresa_id,),
         ).fetchone()["total"]
 
         ativos = conn.execute(
-            f"SELECT COUNT(*) AS total FROM {tabela} WHERE empresa_id = ? AND status = ?",
+            f"SELECT COUNT(*) AS total FROM {tabela} WHERE empresa_id = ? AND status = ?{filtro_excluidos}",
             (empresa_id, "ativo"),
         ).fetchone()["total"]
 
         pendentes = conn.execute(
-            f"SELECT COUNT(*) AS total FROM {tabela} WHERE empresa_id = ? AND status = ?",
+            f"SELECT COUNT(*) AS total FROM {tabela} WHERE empresa_id = ? AND status = ?{filtro_excluidos}",
             (empresa_id, "pendente"),
         ).fetchone()["total"]
 
@@ -2358,7 +2369,6 @@ def resumir_cadastro_paginado(cadastro: str) -> dict[str, int]:
         "ativos": int(ativos or 0),
         "pendentes": int(pendentes or 0),
     }
-
 
 def montar_contexto_cadastro_paginado(cadastro: str, ordenacao_padrao: str = "id") -> dict[str, Any]:
     busca = (request.args.get("busca") or "").strip()
@@ -3023,9 +3033,26 @@ def _normalizar_custos_funcionario(funcionario: dict[str, str]) -> dict[str, str
 
 def salvar_funcionario_db(funcionario: dict[str, str]) -> None:
     empresa_id = empresa_logada_id()
+    funcionario = normalizar_funcionario_para_salvar(funcionario)
     funcionario = _normalizar_custos_funcionario(funcionario)
+    token_ponto = str(funcionario.get("token_ponto") or "").strip() or gerar_token_ponto_funcionario()
+    exigir_intervalo = funcionario.get("exigir_intervalo_ponto", "sim")
 
     with conectar_db() as conn:
+        while True:
+            conflito = conn.execute(
+                """
+                SELECT id
+                FROM funcionarios
+                WHERE token_ponto = ?
+                LIMIT 1
+                """,
+                (token_ponto,),
+            ).fetchone()
+            if conflito is None:
+                break
+            token_ponto = gerar_token_ponto_funcionario()
+
         conn.execute(
             """
             INSERT INTO funcionarios (
@@ -3049,8 +3076,10 @@ def salvar_funcionario_db(funcionario: dict[str, str]) -> None:
                 outros_custos,
                 custo_mensal,
                 custo_dia,
-                custo_hora
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                custo_hora,
+                token_ponto,
+                exigir_intervalo_ponto
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id,
@@ -3074,12 +3103,15 @@ def salvar_funcionario_db(funcionario: dict[str, str]) -> None:
                 funcionario["custo_mensal"],
                 funcionario["custo_dia"],
                 funcionario["custo_hora"],
+                token_ponto,
+                exigir_intervalo,
             ),
         )
         conn.commit()
 
 def listar_funcionarios() -> list[dict[str, Any]]:
     empresa_id = empresa_logada_id()
+    garantir_tokens_ponto_funcionarios_empresa()
 
     with conectar_db() as conn:
         rows = conn.execute(
@@ -3107,9 +3139,12 @@ def listar_funcionarios() -> list[dict[str, Any]]:
                 custo_mensal,
                 custo_dia,
                 custo_hora,
+                token_ponto,
+                exigir_intervalo_ponto,
                 criado_em
             FROM funcionarios
             WHERE empresa_id = ?
+              AND LOWER(COALESCE(status, '')) <> 'excluido'
             ORDER BY id DESC
             """,
             (empresa_id,),
@@ -3119,6 +3154,7 @@ def listar_funcionarios() -> list[dict[str, Any]]:
 
 def buscar_funcionario_por_id(funcionario_id: int) -> dict[str, Any] | None:
     empresa_id = empresa_logada_id()
+    garantir_token_ponto_funcionario(funcionario_id)
 
     with conectar_db() as conn:
         row = conn.execute(
@@ -3146,10 +3182,13 @@ def buscar_funcionario_por_id(funcionario_id: int) -> dict[str, Any] | None:
                 custo_mensal,
                 custo_dia,
                 custo_hora,
+                token_ponto,
+                exigir_intervalo_ponto,
                 criado_em
             FROM funcionarios
             WHERE id = ?
               AND empresa_id = ?
+              AND LOWER(COALESCE(status, '')) <> 'excluido'
             """,
             (funcionario_id, empresa_id),
         ).fetchone()
@@ -3161,6 +3200,7 @@ def buscar_funcionario_por_id(funcionario_id: int) -> dict[str, Any] | None:
 
 def atualizar_funcionario_db(funcionario_id: int, funcionario: dict[str, str]) -> None:
     empresa_id = empresa_logada_id()
+    funcionario = normalizar_funcionario_para_salvar(funcionario)
     funcionario = _normalizar_custos_funcionario(funcionario)
 
     with conectar_db() as conn:
@@ -3187,7 +3227,8 @@ def atualizar_funcionario_db(funcionario_id: int, funcionario: dict[str, str]) -
                 outros_custos = ?,
                 custo_mensal = ?,
                 custo_dia = ?,
-                custo_hora = ?
+                custo_hora = ?,
+                exigir_intervalo_ponto = ?
             WHERE id = ?
               AND empresa_id = ?
             """,
@@ -3212,25 +3253,112 @@ def atualizar_funcionario_db(funcionario_id: int, funcionario: dict[str, str]) -
                 funcionario["custo_mensal"],
                 funcionario["custo_dia"],
                 funcionario["custo_hora"],
+                funcionario.get("exigir_intervalo_ponto", "sim"),
                 funcionario_id,
                 empresa_id,
             ),
         )
         conn.commit()
 
-def excluir_funcionario_db(funcionario_id: int) -> None:
-    empresa_id = empresa_logada_id()
+def excluir_funcionario_db(funcionario_id: int) -> bool:
+    funcionario_id = int(funcionario_id or 0)
+
+    if funcionario_id <= 0:
+        return False
 
     with conectar_db() as conn:
+        funcionario = conn.execute(
+            """
+            SELECT id, empresa_id
+            FROM funcionarios
+            WHERE id = ?
+            LIMIT 1
+            """,
+            (funcionario_id,),
+        ).fetchone()
+
+        if funcionario is None:
+            return True
+
+        empresa_id_funcionario = funcionario["empresa_id"]
+        if empresa_id_funcionario is None or str(empresa_id_funcionario).strip() == "":
+            empresa_id_funcionario = empresa_logada_id()
+
+        conn.execute(
+            """
+            UPDATE funcionarios
+            SET empresa_id = ?
+            WHERE id = ?
+              AND (empresa_id IS NULL OR TRIM(CAST(empresa_id AS TEXT)) = '')
+            """,
+            (empresa_id_funcionario, funcionario_id),
+        )
+
+        conn.execute(
+            """
+            DELETE FROM os_acompanhamento_equipe
+            WHERE funcionario_id = ?
+            """,
+            (funcionario_id,),
+        )
+        conn.execute(
+            """
+            UPDATE agendamentos
+            SET profissional_id = NULL,
+                profissional_nome = COALESCE(NULLIF(profissional_nome, ''), 'Funcionário removido')
+            WHERE profissional_id = ?
+            """,
+            (funcionario_id,),
+        )
+        conn.execute(
+            """
+            DELETE FROM registros_ponto
+            WHERE funcionario_id = ?
+            """,
+            (funcionario_id,),
+        )
         conn.execute(
             """
             DELETE FROM funcionarios
             WHERE id = ?
-              AND empresa_id = ?
             """,
-            (funcionario_id, empresa_id),
+            (funcionario_id,),
         )
+
+        ainda_existe = conn.execute(
+            """
+            SELECT id
+            FROM funcionarios
+            WHERE id = ?
+            LIMIT 1
+            """,
+            (funcionario_id,),
+        ).fetchone()
+
+        if ainda_existe is not None:
+            conn.execute(
+                """
+                UPDATE funcionarios
+                SET status = 'excluido'
+                WHERE id = ?
+                """,
+                (funcionario_id,),
+            )
+
         conn.commit()
+
+        ainda_existe_ativo = conn.execute(
+            """
+            SELECT id
+            FROM funcionarios
+            WHERE id = ?
+              AND LOWER(COALESCE(status, '')) <> 'excluido'
+            LIMIT 1
+            """,
+            (funcionario_id,),
+        ).fetchone()
+
+    return ainda_existe_ativo is None
 
 def salvar_produto_db(produto: dict[str, str]) -> None:
     empresa_id = empresa_logada_id()
@@ -10131,25 +10259,67 @@ def buscar_funcionario_por_token_ponto(token: Any) -> dict[str, Any] | None:
 
 
 def garantir_token_ponto_funcionario(funcionario_id: int) -> str:
+    funcionario_id = int(funcionario_id or 0)
     empresa_id = empresa_logada_id()
 
+    if funcionario_id <= 0:
+        return ""
+
     with conectar_db() as conn:
+        colunas = {str(row["name"]) for row in conn.execute("PRAGMA table_info(funcionarios)").fetchall()}
+        if "empresa_id" not in colunas:
+            conn.execute("ALTER TABLE funcionarios ADD COLUMN empresa_id INTEGER")
+            colunas.add("empresa_id")
+        if "token_ponto" not in colunas:
+            conn.execute("ALTER TABLE funcionarios ADD COLUMN token_ponto TEXT")
+            colunas.add("token_ponto")
+        if "exigir_intervalo_ponto" not in colunas:
+            conn.execute("ALTER TABLE funcionarios ADD COLUMN exigir_intervalo_ponto TEXT DEFAULT 'sim'")
+            colunas.add("exigir_intervalo_ponto")
+
         row = conn.execute(
             """
-            SELECT token_ponto
+            SELECT id, empresa_id, token_ponto
             FROM funcionarios
             WHERE id = ?
-              AND empresa_id = ?
             LIMIT 1
             """,
-            (funcionario_id, empresa_id),
+            (funcionario_id,),
         ).fetchone()
 
         if row is None:
+            conn.commit()
             return ""
+
+        empresa_atual = row["empresa_id"]
+        if empresa_atual is None or str(empresa_atual).strip() == "":
+            conn.execute(
+                """
+                UPDATE funcionarios
+                SET empresa_id = ?
+                WHERE id = ?
+                """,
+                (empresa_id, funcionario_id),
+            )
+            empresa_atual = empresa_id
+
+        if int(empresa_atual or 0) != int(empresa_id):
+            conn.commit()
+            return ""
+
+        conn.execute(
+            """
+            UPDATE funcionarios
+            SET exigir_intervalo_ponto = 'sim'
+            WHERE id = ?
+              AND (exigir_intervalo_ponto IS NULL OR TRIM(exigir_intervalo_ponto) = '')
+            """,
+            (funcionario_id,),
+        )
 
         token_atual = str(row["token_ponto"] or "").strip()
         if token_atual:
+            conn.commit()
             return token_atual
 
         while True:
@@ -10179,21 +10349,20 @@ def garantir_token_ponto_funcionario(funcionario_id: int) -> str:
 
     return token_novo
 
-
 def garantir_tokens_ponto_funcionarios_empresa() -> None:
     empresa_id = empresa_logada_id()
 
     with conectar_db() as conn:
         colunas = {str(row["name"]) for row in conn.execute("PRAGMA table_info(funcionarios)").fetchall()}
+        if "empresa_id" not in colunas:
+            conn.execute("ALTER TABLE funcionarios ADD COLUMN empresa_id INTEGER")
+            colunas.add("empresa_id")
         if "token_ponto" not in colunas:
             conn.execute("ALTER TABLE funcionarios ADD COLUMN token_ponto TEXT")
             colunas.add("token_ponto")
         if "exigir_intervalo_ponto" not in colunas:
             conn.execute("ALTER TABLE funcionarios ADD COLUMN exigir_intervalo_ponto TEXT DEFAULT 'sim'")
             colunas.add("exigir_intervalo_ponto")
-        if "empresa_id" not in colunas:
-            conn.execute("ALTER TABLE funcionarios ADD COLUMN empresa_id INTEGER")
-            colunas.add("empresa_id")
 
         conn.execute(
             """
@@ -10252,7 +10421,6 @@ def garantir_tokens_ponto_funcionarios_empresa() -> None:
             )
 
         conn.commit()
-
 
 def buscar_registro_ponto_publico(empresa_id: int, funcionario_id: int, data_ponto: str) -> dict[str, Any] | None:
     return buscar_registro_ponto_visivel(funcionario_id, data_ponto, int(empresa_id))
@@ -13108,6 +13276,7 @@ def montar_funcionario_importado(linha: list[str], mapa: dict[str, int]) -> dict
         "custo_mensal": _valor_linha_por_coluna(linha, mapa, ["custo mensal"]),
         "custo_dia": _valor_linha_por_coluna(linha, mapa, ["custo dia", "custo diario", "custo diário"]),
         "custo_hora": _valor_linha_por_coluna(linha, mapa, ["custo hora"]),
+        "exigir_intervalo_ponto": _valor_linha_por_coluna(linha, mapa, ["exigir intervalo", "intervalo", "almoco", "almoço"]) or "sim",
     }
     funcionario = normalizar_funcionario_para_salvar(funcionario)
     return _normalizar_custos_funcionario(funcionario)
@@ -13244,14 +13413,19 @@ def validar_fornecedor_para_salvar(fornecedor: dict[str, str]) -> str:
 def normalizar_funcionario_para_salvar(funcionario: dict[str, str]) -> dict[str, str]:
     funcionario_normalizado = dict(funcionario)
 
-    if not funcionario_normalizado["status"]:
+    if not funcionario_normalizado.get("status"):
         funcionario_normalizado["status"] = "ativo"
 
-    if funcionario_normalizado["status"] not in {"ativo", "inativo", "pendente"}:
+    if funcionario_normalizado["status"] not in {"ativo", "inativo", "pendente", "excluido"}:
         funcionario_normalizado["status"] = "ativo"
+
+    intervalo = str(funcionario_normalizado.get("exigir_intervalo_ponto", "sim") or "sim").strip().lower()
+    funcionario_normalizado["exigir_intervalo_ponto"] = "nao" if intervalo in {"nao", "não", "n", "no", "false", "0", "off", "sem", "sem_intervalo"} else "sim"
+
+    if not str(funcionario_normalizado.get("token_ponto") or "").strip():
+        funcionario_normalizado["token_ponto"] = ""
 
     return funcionario_normalizado
-
 
 def validar_funcionario_para_salvar(funcionario: dict[str, str]) -> str:
     if not funcionario["nome"]:
@@ -13840,6 +14014,7 @@ def salvar_fornecedor_rapido() -> Response:
 
 @app.get("/funcionarios")
 def funcionarios() -> str:
+    garantir_tokens_ponto_funcionarios_empresa()
     contexto = montar_contexto_cadastro_paginado("funcionarios")
     return render_template(
         "funcionarios.html",
@@ -13876,6 +14051,7 @@ def salvar_funcionario() -> Response:
         "custo_mensal": (request.form.get("funcionario_custo_mensal") or "").strip(),
         "custo_dia": (request.form.get("funcionario_custo_dia") or "").strip(),
         "custo_hora": (request.form.get("funcionario_custo_hora") or "").strip(),
+        "exigir_intervalo_ponto": "sim" if (request.form.get("funcionario_exigir_intervalo_ponto") or "").strip() == "sim" else "nao",
     }
 
     funcionario = normalizar_funcionario_para_salvar(funcionario)
@@ -14017,8 +14193,10 @@ def salvar_funcionario_rapido() -> Response:
         "custo_mensal": (request.form.get("custo_mensal") or "").strip(),
         "custo_dia": (request.form.get("custo_dia") or "").strip(),
         "custo_hora": (request.form.get("custo_hora") or "").strip(),
+        "exigir_intervalo_ponto": "sim",
     }
 
+    funcionario = normalizar_funcionario_para_salvar(funcionario)
     funcionario = _normalizar_custos_funcionario(funcionario)
     empresa_id = empresa_logada_id()
 
@@ -14046,8 +14224,10 @@ def salvar_funcionario_rapido() -> Response:
                 outros_custos,
                 custo_mensal,
                 custo_dia,
-                custo_hora
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                custo_hora,
+                token_ponto,
+                exigir_intervalo_ponto
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id,
@@ -14071,6 +14251,8 @@ def salvar_funcionario_rapido() -> Response:
                 funcionario["custo_mensal"],
                 funcionario["custo_dia"],
                 funcionario["custo_hora"],
+                gerar_token_ponto_funcionario(),
+                funcionario.get("exigir_intervalo_ponto", "sim"),
             ),
         )
         funcionario_id = int(cursor.lastrowid)
@@ -14145,6 +14327,11 @@ def atualizar_funcionario(funcionario_id: int) -> Response:
         "custo_mensal": (request.form.get("funcionario_custo_mensal") or "").strip(),
         "custo_dia": (request.form.get("funcionario_custo_dia") or "").strip(),
         "custo_hora": (request.form.get("funcionario_custo_hora") or "").strip(),
+        "exigir_intervalo_ponto": (
+            "sim" if (request.form.get("funcionario_exigir_intervalo_ponto") or "").strip() == "sim"
+            else "nao" if "funcionario_exigir_intervalo_ponto" in request.form
+            else str(funcionario_atual.get("exigir_intervalo_ponto") or "sim")
+        ),
     }
 
     funcionario = normalizar_funcionario_para_salvar(funcionario)
@@ -14160,12 +14347,12 @@ def atualizar_funcionario(funcionario_id: int) -> Response:
 
 @app.post("/funcionarios/<int:funcionario_id>/excluir")
 def excluir_funcionario(funcionario_id: int) -> Response:
-    funcionario = buscar_funcionario_por_id(funcionario_id)
+    sucesso_exclusao = excluir_funcionario_db(funcionario_id)
 
-    if funcionario is not None:
-        excluir_funcionario_db(funcionario_id)
+    if not sucesso_exclusao:
+        return redirect(url_for("funcionarios", erro="Funcionário não encontrado ou já excluído."))
 
-    return redirect(url_for("funcionarios"))
+    return redirect(url_for("funcionarios", sucesso="Funcionário excluído com sucesso."))
 
 
 
