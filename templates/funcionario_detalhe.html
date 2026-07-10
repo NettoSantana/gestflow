@@ -1,9 +1,8 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\funcionario_detalhe.html
-Último recode: 2026-07-02 23:41 (America/Bahia)
-Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
+Último recode: 2026-07-10 13:05 (America/Bahia)
+Motivo: Exibir configuração de intervalo/almoço no detalhe do funcionário.
 -->
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -12,274 +11,34 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
     <title>GESTFLOW - Detalhes do Funcionário</title>
     <link rel="stylesheet" href="/static/css/dashboard.css">
     <style>
-        .logout-button {
-            height: 36px;
-            padding: 0 14px;
-            border: 1px solid #d7e1ef;
-            border-radius: 10px;
-            background: #ffffff;
-            color: #dc2626;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 13px;
-            font-weight: 900;
-            text-decoration: none;
-            transition: background 0.2s ease, border-color 0.2s ease;
-        }
-
-        .logout-button:hover {
-            background: #fff1f2;
-            border-color: #fecdd3;
-        }
-
+        .content{padding-bottom:220px}
+        .panel,.page-section,.table-panel{border-radius:16px}
+        .panel-header.page-header,.page-header{gap:14px}
+        .page-subtitle{max-width:760px}
+        .panel-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+        .panel-summary>div{min-height:74px;border:1px solid #e5eaf2;border-radius:14px;background:#fff;padding:14px;box-shadow:0 6px 18px rgba(15,23,42,.04)}
+        .panel-summary span{display:block;margin-bottom:6px;color:#64748b;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.02em}
+        .panel-summary strong{color:#0f172a;font-size:14px;line-height:1.35;overflow-wrap:anywhere}
+        .btn-primary-green,.btn-dark,.btn-light{border-radius:10px;text-decoration:none}
+        @media(max-width:1100px){.panel-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+        @media(max-width:720px){.panel-summary{grid-template-columns:1fr}}
     </style>
-
-    <style>
-        /* PADRAO VISUAL ORCAMENTOS - TELAS AUXILIARES */
-        .content {
-            padding-bottom: 220px;
-        }
-
-        .content > .panel.page-section:first-of-type {
-            margin-top: 0;
-        }
-
-        .panel,
-        .page-section,
-        .table-panel {
-            border-radius: 16px;
-        }
-
-        .panel-header.page-header,
-        .page-header {
-            gap: 14px;
-        }
-
-        .page-title {
-            letter-spacing: -0.02em;
-        }
-
-        .page-subtitle {
-            max-width: 760px;
-        }
-
-        .client-toolbar,
-        .form-actions,
-        .client-actions {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .btn-primary-green,
-        .btn-dark,
-        .btn-light,
-        .action-button {
-            border-radius: 10px;
-            text-decoration: none;
-        }
-
-        .form-control,
-        input,
-        select,
-        textarea {
-            border-radius: 10px;
-            max-width: 100%;
-        }
-
-        .client-form {
-            width: 100%;
-        }
-
-        .form-grid {
-            align-items: start;
-        }
-
-        .panel-summary {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 14px;
-        }
-
-        .panel-summary > div {
-            min-height: 74px;
-            border: 1px solid #e5eaf2;
-            border-radius: 14px;
-            background: #ffffff;
-            padding: 14px;
-            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
-        }
-
-        .panel-summary span {
-            display: block;
-            margin-bottom: 6px;
-            color: #64748b;
-            font-size: 12px;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 0.02em;
-        }
-
-        .panel-summary strong {
-            color: #0f172a;
-            font-size: 14px;
-            line-height: 1.35;
-            overflow-wrap: anywhere;
-        }
-
-        .table-shell {
-            border: 0 !important;
-            border-radius: 16px;
-            overflow-x: auto;
-            background: #ffffff;
-        }
-
-        .content table,
-        .content .client-table {
-            width: 100%;
-            border-collapse: separate !important;
-            border-spacing: 0 10px !important;
-            min-width: 760px;
-        }
-
-        .content table thead th,
-        .content .client-table thead th {
-            border-bottom: 0 !important;
-            background: transparent;
-            padding: 10px 12px;
-            color: #334155;
-            font-size: 12px;
-            font-weight: 900;
-            text-transform: uppercase;
-            white-space: nowrap;
-        }
-
-        .content table tbody tr,
-        .content .client-table tbody tr {
-            background: #ffffff;
-            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
-            border-radius: 14px;
-        }
-
-        .content table tbody td,
-        .content .client-table tbody td {
-            border-bottom: 0 !important;
-            padding: 14px 12px !important;
-            color: #334155;
-            vertical-align: middle;
-        }
-
-        .content table tbody td:first-child,
-        .content .client-table tbody td:first-child {
-            border-top-left-radius: 14px;
-            border-bottom-left-radius: 14px;
-        }
-
-        .content table tbody td:last-child,
-        .content .client-table tbody td:last-child {
-            border-top-right-radius: 14px;
-            border-bottom-right-radius: 14px;
-        }
-
-        .empty-table,
-        .empty-table-box {
-            border-radius: 14px;
-        }
-
-        .status-pill,
-        .badge-info {
-            border-radius: 999px;
-            white-space: nowrap;
-        }
-
-        .quick-modal,
-        .modal,
-        .dialog {
-            border-radius: 18px;
-        }
-
-        .config-grid,
-        .portal-grid,
-        .planos-grid,
-        .cards,
-        .cards-secondary {
-            gap: 16px;
-        }
-
-        .config-card,
-        .portal-card,
-        .plan-card,
-        .card,
-        .stat-card {
-            border-radius: 16px;
-        }
-
-        .auth-card,
-        .login-card,
-        .onboarding-card,
-        .portal-card,
-        .plan-card {
-            box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
-        }
-
-        @media (max-width: 1100px) {
-            .panel-summary {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-            }
-
-            .content table,
-            .content .client-table {
-                min-width: 720px;
-            }
-        }
-
-        @media (max-width: 720px) {
-            .panel-summary {
-                grid-template-columns: 1fr;
-            }
-
-            .client-toolbar,
-            .form-actions,
-            .client-actions {
-                align-items: stretch;
-                flex-direction: column;
-            }
-
-            .client-toolbar .btn-primary-green,
-            .client-toolbar .btn-dark,
-            .client-toolbar .btn-light,
-            .form-actions .btn-primary-green,
-            .form-actions .btn-dark,
-            .form-actions .btn-light {
-                width: 100%;
-                justify-content: center;
-            }
-
-            .content table,
-            .content .client-table {
-                min-width: 680px;
-            }
-        }
-    </style>
-
 </head>
 <body>
     {% include "partials/sidebar.html" %}
 
-<main class="content">
+    <main class="content">
         {% set page_title = 'Funcionário' %}
         {% include "partials/topbar.html" %}
+        {% set exige_intervalo_ponto = (funcionario.exigir_intervalo_ponto|default('sim', true)|lower) not in ['nao', 'não', 'n', 'no', 'false', '0', 'off', 'sem', 'sem_intervalo'] %}
 
-<section class="panel page-section">
+        <section class="panel page-section">
             <div class="panel-header page-header">
                 <div>
                     <span class="page-kicker">Cadastros</span>
                     <h3 class="page-title">Detalhes do funcionário</h3>
                     <p class="page-subtitle">Visualize os dados principais do funcionário cadastrado no GESTFLOW.</p>
                 </div>
-
                 <a href="/funcionarios" class="btn-dark">Voltar para Funcionários</a>
             </div>
         </section>
@@ -290,52 +49,19 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                     <h3>{{ funcionario.nome }}</h3>
                     <p class="page-subtitle">Código do funcionário: {{ funcionario.id }}</p>
                 </div>
-
-                <span class="status-pill {{ funcionario.status }}">
-                    {{ funcionario.status }}
-                </span>
+                <span class="status-pill {{ funcionario.status }}">{{ funcionario.status }}</span>
             </div>
 
             <div class="panel-summary">
-                <div>
-                    <span>Nome completo</span>
-                    <strong>{{ funcionario.nome or '-' }}</strong>
-                </div>
-
-                <div>
-                    <span>CPF</span>
-                    <strong>{{ funcionario.cpf or '-' }}</strong>
-                </div>
-
-                <div>
-                    <span>Telefone</span>
-                    <strong>{{ funcionario.telefone or '-' }}</strong>
-                </div>
-
-                <div>
-                    <span>Cidade</span>
-                    <strong>{{ funcionario.cidade or '-' }}</strong>
-                </div>
-
-                <div>
-                    <span>Cargo / Função</span>
-                    <strong>{{ funcionario.cargo or '-' }}</strong>
-                </div>
-
-                <div>
-                    <span>E-mail</span>
-                    <strong>{{ funcionario.email or '-' }}</strong>
-                </div>
-
-                <div>
-                    <span>Observações</span>
-                    <strong>{{ funcionario.observacoes or '-' }}</strong>
-                </div>
-
-                <div>
-                    <span>Data de cadastro</span>
-                    <strong>{{ funcionario.criado_em or '-' }}</strong>
-                </div>
+                <div><span>Nome completo</span><strong>{{ funcionario.nome or '-' }}</strong></div>
+                <div><span>CPF</span><strong>{{ funcionario.cpf or '-' }}</strong></div>
+                <div><span>Telefone</span><strong>{{ funcionario.telefone or '-' }}</strong></div>
+                <div><span>Cidade</span><strong>{{ funcionario.cidade or '-' }}</strong></div>
+                <div><span>Cargo / Função</span><strong>{{ funcionario.cargo or '-' }}</strong></div>
+                <div><span>E-mail</span><strong>{{ funcionario.email or '-' }}</strong></div>
+                <div><span>Registro de ponto</span><strong>{% if exige_intervalo_ponto %}Com intervalo/almoço{% else %}Sem intervalo/almoço{% endif %}</strong></div>
+                <div><span>Observações</span><strong>{{ funcionario.observacoes or '-' }}</strong></div>
+                <div><span>Data de cadastro</span><strong>{{ funcionario.criado_em or '-' }}</strong></div>
             </div>
         </section>
 
@@ -345,7 +71,6 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                     <h3>Custos</h3>
                     <p class="page-subtitle">Valores internos usados para calcular mão de obra no Gerador de Orçamentos.</p>
                 </div>
-
                 <a href="/funcionarios/{{ funcionario.id }}/editar" class="btn-primary-green">Editar custos</a>
             </div>
 
@@ -364,8 +89,6 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                 <div><span>Custo hora</span><strong>{{ funcionario.custo_hora or '-' }}</strong></div>
             </div>
         </section>
-
     </main>
-
 </body>
 </html>

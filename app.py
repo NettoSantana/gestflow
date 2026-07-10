@@ -13413,6 +13413,20 @@ def validar_fornecedor_para_salvar(fornecedor: dict[str, str]) -> str:
     return ""
 
 
+
+def obter_exigir_intervalo_ponto_formulario(padrao: Any = "sim") -> str:
+    valores = [
+        str(valor or "").strip().lower()
+        for valor in request.form.getlist("funcionario_exigir_intervalo_ponto")
+        if str(valor or "").strip()
+    ]
+
+    if not valores:
+        return "sim" if funcionario_exige_intervalo_ponto(padrao) else "nao"
+
+    return "sim" if "sim" in valores else "nao"
+
+
 def normalizar_funcionario_para_salvar(funcionario: dict[str, str]) -> dict[str, str]:
     funcionario_normalizado = dict(funcionario)
 
@@ -14054,7 +14068,7 @@ def salvar_funcionario() -> Response:
         "custo_mensal": (request.form.get("funcionario_custo_mensal") or "").strip(),
         "custo_dia": (request.form.get("funcionario_custo_dia") or "").strip(),
         "custo_hora": (request.form.get("funcionario_custo_hora") or "").strip(),
-        "exigir_intervalo_ponto": "sim" if (request.form.get("funcionario_exigir_intervalo_ponto") or "").strip() == "sim" else "nao",
+        "exigir_intervalo_ponto": obter_exigir_intervalo_ponto_formulario("sim"),
     }
 
     funcionario = normalizar_funcionario_para_salvar(funcionario)
@@ -14330,11 +14344,7 @@ def atualizar_funcionario(funcionario_id: int) -> Response:
         "custo_mensal": (request.form.get("funcionario_custo_mensal") or "").strip(),
         "custo_dia": (request.form.get("funcionario_custo_dia") or "").strip(),
         "custo_hora": (request.form.get("funcionario_custo_hora") or "").strip(),
-        "exigir_intervalo_ponto": (
-            "sim" if (request.form.get("funcionario_exigir_intervalo_ponto") or "").strip() == "sim"
-            else "nao" if "funcionario_exigir_intervalo_ponto" in request.form
-            else str(funcionario_atual.get("exigir_intervalo_ponto") or "sim")
-        ),
+        "exigir_intervalo_ponto": obter_exigir_intervalo_ponto_formulario(funcionario_atual.get("exigir_intervalo_ponto") or "sim"),
     }
 
     funcionario = normalizar_funcionario_para_salvar(funcionario)
