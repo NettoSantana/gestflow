@@ -1,8 +1,8 @@
 // Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\static\service-worker.js
-// Último recode: 2026-07-10 12:15 (America/Bahia)
-// Motivo: Forçar atualização do JavaScript offline sem interferir na tela online.
+// Último recode: 2026-07-10 12:25 (America/Bahia)
+// Motivo: Forçar atualização do ponto_offline.js com envio seguro da acao online.
 
-const GESTFLOW_CACHE = 'gestflow-ponto-offline-v9';
+const GESTFLOW_CACHE = 'gestflow-ponto-offline-v10';
 const ARQUIVOS_FIXOS = [
     '/manifest.json',
     '/static/css/dashboard.css',

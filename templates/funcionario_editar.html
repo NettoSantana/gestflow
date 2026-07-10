@@ -1,9 +1,8 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\funcionario_editar.html
-Último recode: 2026-07-02 23:41 (America/Bahia)
-Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
+Último recode: 2026-07-10 13:05 (America/Bahia)
+Motivo: Adicionar configuração de intervalo/almoço no editar funcionário.
 -->
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -12,275 +11,30 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
     <title>GESTFLOW - Editar Funcionário</title>
     <link rel="stylesheet" href="/static/css/dashboard.css">
     <style>
-        .logout-button {
-            height: 36px;
-            padding: 0 14px;
-            border: 1px solid #d7e1ef;
-            border-radius: 10px;
-            background: #ffffff;
-            color: #dc2626;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 13px;
-            font-weight: 900;
-            text-decoration: none;
-            transition: background 0.2s ease, border-color 0.2s ease;
-        }
-
-        .logout-button:hover {
-            background: #fff1f2;
-            border-color: #fecdd3;
-        }
-
-        .alert-error {
-            padding: 12px 14px;
-            border: 1px solid #fecaca;
-            border-radius: 12px;
-            background: #fef2f2;
-            color: #b91c1c;
-            font-size: 13px;
-            font-weight: 800;
-        }
-
+        .alert-error{padding:12px 14px;border:1px solid #fecaca;border-radius:12px;background:#fef2f2;color:#b91c1c;font-size:13px;font-weight:800}
+        .content{padding-bottom:220px}
+        .panel,.page-section,.table-panel{border-radius:16px}
+        .panel-header.page-header,.page-header{gap:14px}
+        .page-subtitle{max-width:760px}
+        .form-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+        .btn-primary-green,.btn-dark,.btn-light{border-radius:10px;text-decoration:none}
+        .form-control,input,select,textarea{border-radius:10px;max-width:100%}
+        .client-form{width:100%}
+        .form-grid{align-items:start}
+        .ponto-config-check{min-height:44px;display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #dbe4f0;border-radius:12px;background:#f8fafc;color:#334155;font-size:13px;font-weight:900;cursor:pointer}
+        .ponto-config-check input{width:18px;height:18px}
+        .ponto-config-help{display:block;margin-top:7px;color:#64748b;font-size:12px;font-weight:800;line-height:1.35}
+        .cost-section{margin-top:18px;padding-top:18px;border-top:1px solid #e5eaf2}
+        @media(max-width:720px){.form-actions{align-items:stretch;flex-direction:column}.form-actions .btn-primary-green,.form-actions .btn-light{width:100%;justify-content:center}}
     </style>
-
-    <style>
-        /* PADRAO VISUAL ORCAMENTOS - TELAS AUXILIARES */
-        .content {
-            padding-bottom: 220px;
-        }
-
-        .content > .panel.page-section:first-of-type {
-            margin-top: 0;
-        }
-
-        .panel,
-        .page-section,
-        .table-panel {
-            border-radius: 16px;
-        }
-
-        .panel-header.page-header,
-        .page-header {
-            gap: 14px;
-        }
-
-        .page-title {
-            letter-spacing: -0.02em;
-        }
-
-        .page-subtitle {
-            max-width: 760px;
-        }
-
-        .client-toolbar,
-        .form-actions,
-        .client-actions {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .btn-primary-green,
-        .btn-dark,
-        .btn-light,
-        .action-button {
-            border-radius: 10px;
-            text-decoration: none;
-        }
-
-        .form-control,
-        input,
-        select,
-        textarea {
-            border-radius: 10px;
-            max-width: 100%;
-        }
-
-        .client-form {
-            width: 100%;
-        }
-
-        .form-grid {
-            align-items: start;
-        }
-
-        .panel-summary {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 14px;
-        }
-
-        .panel-summary > div {
-            min-height: 74px;
-            border: 1px solid #e5eaf2;
-            border-radius: 14px;
-            background: #ffffff;
-            padding: 14px;
-            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
-        }
-
-        .panel-summary span {
-            display: block;
-            margin-bottom: 6px;
-            color: #64748b;
-            font-size: 12px;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 0.02em;
-        }
-
-        .panel-summary strong {
-            color: #0f172a;
-            font-size: 14px;
-            line-height: 1.35;
-            overflow-wrap: anywhere;
-        }
-
-        .table-shell {
-            border: 0 !important;
-            border-radius: 16px;
-            overflow-x: auto;
-            background: #ffffff;
-        }
-
-        .content table,
-        .content .client-table {
-            width: 100%;
-            border-collapse: separate !important;
-            border-spacing: 0 10px !important;
-            min-width: 760px;
-        }
-
-        .content table thead th,
-        .content .client-table thead th {
-            border-bottom: 0 !important;
-            background: transparent;
-            padding: 10px 12px;
-            color: #334155;
-            font-size: 12px;
-            font-weight: 900;
-            text-transform: uppercase;
-            white-space: nowrap;
-        }
-
-        .content table tbody tr,
-        .content .client-table tbody tr {
-            background: #ffffff;
-            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
-            border-radius: 14px;
-        }
-
-        .content table tbody td,
-        .content .client-table tbody td {
-            border-bottom: 0 !important;
-            padding: 14px 12px !important;
-            color: #334155;
-            vertical-align: middle;
-        }
-
-        .content table tbody td:first-child,
-        .content .client-table tbody td:first-child {
-            border-top-left-radius: 14px;
-            border-bottom-left-radius: 14px;
-        }
-
-        .content table tbody td:last-child,
-        .content .client-table tbody td:last-child {
-            border-top-right-radius: 14px;
-            border-bottom-right-radius: 14px;
-        }
-
-        .empty-table,
-        .empty-table-box {
-            border-radius: 14px;
-        }
-
-        .status-pill,
-        .badge-info {
-            border-radius: 999px;
-            white-space: nowrap;
-        }
-
-        .quick-modal,
-        .modal,
-        .dialog {
-            border-radius: 18px;
-        }
-
-        .config-grid,
-        .portal-grid,
-        .planos-grid,
-        .cards,
-        .cards-secondary {
-            gap: 16px;
-        }
-
-        .config-card,
-        .portal-card,
-        .plan-card,
-        .card,
-        .stat-card {
-            border-radius: 16px;
-        }
-
-        .auth-card,
-        .login-card,
-        .onboarding-card,
-        .portal-card,
-        .plan-card {
-            box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
-        }
-
-        @media (max-width: 1100px) {
-            .panel-summary {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-            }
-
-            .content table,
-            .content .client-table {
-                min-width: 720px;
-            }
-        }
-
-        @media (max-width: 720px) {
-            .panel-summary {
-                grid-template-columns: 1fr;
-            }
-
-            .client-toolbar,
-            .form-actions,
-            .client-actions {
-                align-items: stretch;
-                flex-direction: column;
-            }
-
-            .client-toolbar .btn-primary-green,
-            .client-toolbar .btn-dark,
-            .client-toolbar .btn-light,
-            .form-actions .btn-primary-green,
-            .form-actions .btn-dark,
-            .form-actions .btn-light {
-                width: 100%;
-                justify-content: center;
-            }
-
-            .content table,
-            .content .client-table {
-                min-width: 680px;
-            }
-        }
-    </style>
-
 </head>
 <body>
     {% include "partials/sidebar.html" %}
 
-<main class="content">
+    <main class="content">
         {% set page_title = 'Editar Funcionário' %}
         {% include "partials/topbar.html" %}
+        {% set exige_intervalo_ponto = (funcionario.exigir_intervalo_ponto|default('sim', true)|lower) not in ['nao', 'não', 'n', 'no', 'false', '0', 'off', 'sem', 'sem_intervalo'] %}
 
         {% if request.args.get("erro") %}
             <section class="panel page-section">
@@ -288,15 +42,13 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
             </section>
         {% endif %}
 
-
-<section class="panel page-section">
+        <section class="panel page-section">
             <div class="panel-header page-header">
                 <div>
                     <span class="page-kicker">Cadastros</span>
                     <h3 class="page-title">Editar funcionário</h3>
-                    <p class="page-subtitle">Atualize os dados principais do funcionário selecionado.</p>
+                    <p class="page-subtitle">Atualize os dados principais, custos e configuração do registro de ponto.</p>
                 </div>
-
                 <a href="/funcionarios/{{ funcionario.id }}" class="btn-dark">Cancelar edição</a>
             </div>
         </section>
@@ -307,7 +59,6 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                     <h3>{{ funcionario.nome }}</h3>
                     <p class="page-subtitle">Código do funcionário: {{ funcionario.id }}</p>
                 </div>
-
                 <span class="badge-info">Modo edição</span>
             </div>
 
@@ -353,6 +104,16 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                     </div>
 
                     <div class="form-group">
+                        <label for="funcionario_exigir_intervalo_ponto">Registro de ponto</label>
+                        <input type="hidden" name="funcionario_exigir_intervalo_ponto" value="nao">
+                        <label class="ponto-config-check" for="funcionario_exigir_intervalo_ponto">
+                            <input id="funcionario_exigir_intervalo_ponto" name="funcionario_exigir_intervalo_ponto" type="checkbox" value="sim" {% if exige_intervalo_ponto %}checked{% endif %}>
+                            Exigir marcação de intervalo/almoço
+                        </label>
+                        <span class="ponto-config-help">Marcado: entrada, intervalo, retorno e saída. Desmarcado: apenas entrada e saída.</span>
+                    </div>
+
+                    <div class="form-group">
                         <label for="funcionario_observacoes">Observações</label>
                         <input id="funcionario_observacoes" name="funcionario_observacoes" type="text" value="{{ funcionario.observacoes or '' }}" placeholder="Ex: Treinamentos, documentos ou observações" class="form-control">
                     </div>
@@ -389,7 +150,6 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                 </div>
             </form>
         </section>
-
     </main>
 
 <script>
@@ -428,6 +188,5 @@ document.querySelectorAll('.funcionario-custo-input').forEach(function(input) {
     input.addEventListener('input', recalcularCustosFuncionario);
 });
 </script>
-
 </body>
 </html>
