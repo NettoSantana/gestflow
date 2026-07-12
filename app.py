@@ -16349,6 +16349,41 @@ def painel_ordens_servico() -> str:
 
 
 
+@app.post("/equipamentos/rapido")
+def salvar_equipamento_rapido() -> Response:
+    dados = montar_dados_equipamento_formulario()
+    if not dados.get("nome"):
+        return jsonify({"ok": False, "erro": "Informe o nome do equipamento."}), 400
+
+    try:
+        equipamento_id = salvar_equipamento_db({**dados, "origem": "rapido_os"})
+    except ValueError as exc:
+        return jsonify({"ok": False, "erro": str(exc)}), 400
+    except sqlite3.Error:
+        return jsonify({"ok": False, "erro": "Não foi possível salvar o equipamento."}), 500
+
+    equipamento = buscar_equipamento_por_id(equipamento_id) or {}
+    registrar_atividade_usuario("criacao", "equipamentos", f"Cadastrou equipamento rápido {equipamento.get('nome') or dados.get('nome')}", request.path)
+
+    return jsonify({
+        "ok": True,
+        "equipamento": {
+            "id": equipamento.get("id") or equipamento_id,
+            "cliente_nome": equipamento.get("cliente_nome") or dados.get("cliente_nome") or "",
+            "nome": equipamento.get("nome") or dados.get("nome") or "",
+            "marca": equipamento.get("marca") or dados.get("marca") or "",
+            "modelo": equipamento.get("modelo") or dados.get("modelo") or "",
+            "serie": equipamento.get("serie") or dados.get("serie") or "",
+            "tag": equipamento.get("tag") or dados.get("tag") or "",
+            "local_instalacao": equipamento.get("local_instalacao") or dados.get("local_instalacao") or "",
+            "status": equipamento.get("status") or dados.get("status") or "ativo",
+            "token_qrcode": equipamento.get("token_qrcode") or "",
+            "historico_url": montar_link_equipamento_historico_por_token(equipamento.get("token_qrcode")),
+            "qrcode_url": montar_link_qrcode_equipamento_por_token(equipamento.get("token_qrcode")),
+        },
+    })
+
+
 @app.route("/equipamentos", methods=["GET", "POST"])
 def equipamentos() -> str | Response:
     if request.method == "POST":

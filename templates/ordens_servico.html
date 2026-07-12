@@ -1101,12 +1101,13 @@ Motivo: Alinhar bloco de equipamento da nova OS ao mesmo padrão visual da tela 
                                         <tr class="os-equipamento-linha" data-equipamento-indice="0">
                                             <td>
                                                 <select name="os_equipamento_id" class="form-control os-equipamento-select" onchange="preencherEquipamentoCadastro(this)">
-                                                    <option value="">Cadastrar novo pelo formulário</option>
+                                                    <option value="">Selecione</option>
                                                     {% for equipamento_cadastrado in equipamentos_cadastrados|default([]) %}
                                                         <option value="{{ equipamento_cadastrado.id }}" data-nome="{{ equipamento_cadastrado.nome|e }}" data-marca="{{ equipamento_cadastrado.marca|e }}" data-modelo="{{ equipamento_cadastrado.modelo|e }}" data-serie="{{ equipamento_cadastrado.serie|e }}" data-local="{{ equipamento_cadastrado.local_instalacao|e }}">
                                                             {{ equipamento_cadastrado.cliente_nome or 'Sem cliente' }} - {{ equipamento_cadastrado.nome }}{% if equipamento_cadastrado.serie %} / {{ equipamento_cadastrado.serie }}{% endif %}
                                                         </option>
                                                     {% endfor %}
+                                                        <option value="__novo_equipamento__" class="quick-new-option">+ Adicionar novo equipamento</option>
                                                 </select>
                                             </td>
                                             <td><input id="os_equipamento" name="os_equipamento" type="text" placeholder="Ex: portão, máquina, veículo" class="form-control"></td>
@@ -1453,12 +1454,13 @@ Motivo: Alinhar bloco de equipamento da nova OS ao mesmo padrão visual da tela 
                                 <tr class="os-equipamento-linha" data-equipamento-indice="${equipamentoIndice}">
                                     <td>
                                         <select name="os_equipamento_id" class="form-control os-equipamento-select" onchange="preencherEquipamentoCadastro(this)">
-                                            <option value="">Cadastrar novo pelo formulário</option>
+                                            <option value="">Selecione</option>
                                             {% for equipamento_cadastrado in equipamentos_cadastrados|default([]) %}
                                                 <option value="{{ equipamento_cadastrado.id }}" data-nome="{{ equipamento_cadastrado.nome|e }}" data-marca="{{ equipamento_cadastrado.marca|e }}" data-modelo="{{ equipamento_cadastrado.modelo|e }}" data-serie="{{ equipamento_cadastrado.serie|e }}" data-local="{{ equipamento_cadastrado.local_instalacao|e }}">
                                                     {{ equipamento_cadastrado.cliente_nome or 'Sem cliente' }} - {{ equipamento_cadastrado.nome }}{% if equipamento_cadastrado.serie %} / {{ equipamento_cadastrado.serie }}{% endif %}
                                                 </option>
                                             {% endfor %}
+                                                <option value="__novo_equipamento__" class="quick-new-option">+ Adicionar novo equipamento</option>
                                         </select>
                                     </td>
                                     <td><input name="os_equipamento" type="text" placeholder="Ex.: portão, máquina, veículo" class="form-control"></td>
@@ -1639,6 +1641,259 @@ Motivo: Alinhar bloco de equipamento da nova OS ao mesmo padrão visual da tela 
         </script>
 
     
+
+
+        <div id="quick-equipamento-modal" class="quick-modal-backdrop" aria-hidden="true">
+            <div class="quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-equipamento-title">
+                <div class="quick-modal-header">
+                    <div>
+                        <h3 id="quick-equipamento-title">Novo equipamento</h3>
+                        <p>Cadastro rápido sem sair da ordem de serviço.</p>
+                    </div>
+                    <button type="button" class="quick-modal-close" onclick="fecharModalEquipamentoRapidoGeral()">×</button>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group form-span-2">
+                        <label for="quick-equipamento-cliente">Cliente</label>
+                        <select id="quick-equipamento-cliente" class="form-control">
+                            <option value="">Sem cliente definido</option>
+                            {% for cliente in clientes|default([]) %}
+                                <option value="{{ cliente.nome }}">{{ cliente.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="quick-equipamento-nome">Nome do equipamento *</label>
+                        <input id="quick-equipamento-nome" type="text" class="form-control" placeholder="Ex.: Portão principal">
+                    </div>
+                    <div class="form-group">
+                        <label for="quick-equipamento-marca">Marca</label>
+                        <input id="quick-equipamento-marca" type="text" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="quick-equipamento-modelo">Modelo</label>
+                        <input id="quick-equipamento-modelo" type="text" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="quick-equipamento-serie">Série / número</label>
+                        <input id="quick-equipamento-serie" type="text" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="quick-equipamento-tag">TAG / patrimônio</label>
+                        <input id="quick-equipamento-tag" type="text" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="quick-equipamento-local">Local de instalação</label>
+                        <input id="quick-equipamento-local" type="text" class="form-control" placeholder="Ex.: Portaria 02">
+                    </div>
+                    <div class="form-group form-span-2">
+                        <label for="quick-equipamento-observacoes">Observações</label>
+                        <textarea id="quick-equipamento-observacoes" class="form-control textarea-control" placeholder="Observações do equipamento"></textarea>
+                    </div>
+                </div>
+
+                <div id="quick-equipamento-error" class="quick-modal-error"></div>
+
+                <div class="quick-modal-actions">
+                    <button type="button" class="btn-light" onclick="fecharModalEquipamentoRapidoGeral()">Cancelar</button>
+                    <button type="button" class="btn-primary-green" onclick="salvarEquipamentoRapidoGeral()">Salvar equipamento</button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+        (function() {
+            "use strict";
+
+            let gestflowEquipamentoSelectAtual = null;
+
+            function abrirModalPorIdEquipamento(id) {
+                const modal = document.getElementById(id);
+                if (!modal) { return; }
+                modal.classList.add("open");
+                modal.setAttribute("aria-hidden", "false");
+                const primeiroCampo = modal.querySelector("input:not([type='hidden']), select, textarea");
+                if (primeiroCampo) {
+                    setTimeout(function() { primeiroCampo.focus(); }, 80);
+                }
+            }
+
+            function fecharModalPorIdEquipamento(id) {
+                const modal = document.getElementById(id);
+                if (!modal) { return; }
+                modal.classList.remove("open");
+                modal.setAttribute("aria-hidden", "true");
+            }
+
+            function valorCampoEquipamento(id) {
+                const campo = document.getElementById(id);
+                return campo ? String(campo.value || "").trim() : "";
+            }
+
+            function setValorCampoEquipamento(id, valor) {
+                const campo = document.getElementById(id);
+                if (campo) { campo.value = valor || ""; }
+            }
+
+            function mostrarErroEquipamento(mensagem) {
+                const erroBox = document.getElementById("quick-equipamento-error");
+                if (erroBox) {
+                    erroBox.textContent = mensagem;
+                    erroBox.classList.add("show");
+                } else {
+                    alert(mensagem);
+                }
+            }
+
+            function limparErroEquipamento() {
+                const erroBox = document.getElementById("quick-equipamento-error");
+                if (erroBox) {
+                    erroBox.textContent = "";
+                    erroBox.classList.remove("show");
+                }
+            }
+
+            function limparCamposEquipamentoRapido() {
+                [
+                    "quick-equipamento-nome",
+                    "quick-equipamento-marca",
+                    "quick-equipamento-modelo",
+                    "quick-equipamento-serie",
+                    "quick-equipamento-tag",
+                    "quick-equipamento-local",
+                    "quick-equipamento-observacoes"
+                ].forEach(function(id) { setValorCampoEquipamento(id, ""); });
+                limparErroEquipamento();
+            }
+
+            function clienteAtualDaOS() {
+                const campoCliente = document.querySelector('[name="os_cliente"]');
+                return campoCliente ? String(campoCliente.value || "").trim() : "";
+            }
+
+            function preencherModalPelaLinha(selectOrigem) {
+                const bloco = selectOrigem ? selectOrigem.closest(".os-equipamento-bloco") : null;
+                const cliente = clienteAtualDaOS();
+                const clienteModal = document.getElementById("quick-equipamento-cliente");
+                if (clienteModal && cliente) { clienteModal.value = cliente; }
+                if (!bloco) { return; }
+                const mapa = {
+                    "quick-equipamento-nome": bloco.querySelector('[name="os_equipamento"]')?.value || "",
+                    "quick-equipamento-marca": bloco.querySelector('[name="os_marca"]')?.value || "",
+                    "quick-equipamento-modelo": bloco.querySelector('[name="os_modelo"]')?.value || "",
+                    "quick-equipamento-serie": bloco.querySelector('[name="os_serie"]')?.value || "",
+                    "quick-equipamento-local": bloco.querySelector('[name="os_local_servico"]')?.value || "",
+                    "quick-equipamento-observacoes": bloco.querySelector('[name="os_condicoes"]')?.value || ""
+                };
+                Object.keys(mapa).forEach(function(id) { setValorCampoEquipamento(id, mapa[id]); });
+            }
+
+            function textoEquipamentoOpcao(item) {
+                const cliente = item.cliente_nome || "Sem cliente";
+                const nome = item.nome || "Equipamento";
+                const serie = item.serie ? " / " + item.serie : "";
+                return cliente + " - " + nome + serie;
+            }
+
+            function aplicarDadosEquipamentoNaOpcao(opcao, item) {
+                opcao.value = String(item.id || "");
+                opcao.textContent = textoEquipamentoOpcao(item);
+                opcao.dataset.nome = item.nome || "";
+                opcao.dataset.marca = item.marca || "";
+                opcao.dataset.modelo = item.modelo || "";
+                opcao.dataset.serie = item.serie || "";
+                opcao.dataset.local = item.local_instalacao || "";
+            }
+
+            function adicionarEquipamentoAosSelects(item, selectAtual) {
+                const id = String(item.id || "");
+                if (!id) { return; }
+
+                document.querySelectorAll("select.os-equipamento-select").forEach(function(select) {
+                    let opcao = Array.from(select.options).find(function(opcaoExistente) {
+                        return String(opcaoExistente.value || "") === id;
+                    });
+
+                    if (!opcao) {
+                        opcao = document.createElement("option");
+                        const opcaoNovo = Array.from(select.options).find(function(opcaoExistente) {
+                            return opcaoExistente.value === "__novo_equipamento__";
+                        });
+                        if (opcaoNovo) {
+                            select.insertBefore(opcao, opcaoNovo);
+                        } else {
+                            select.appendChild(opcao);
+                        }
+                    }
+
+                    aplicarDadosEquipamentoNaOpcao(opcao, item);
+
+                    if (select === selectAtual) {
+                        select.value = id;
+                        if (typeof window.preencherEquipamentoCadastro === "function") {
+                            window.preencherEquipamentoCadastro(select);
+                        }
+                    }
+                });
+            }
+
+            window.abrirModalEquipamentoRapidoGeral = function(selectOrigem) {
+                gestflowEquipamentoSelectAtual = selectOrigem || null;
+                limparCamposEquipamentoRapido();
+                preencherModalPelaLinha(selectOrigem);
+                abrirModalPorIdEquipamento("quick-equipamento-modal");
+            };
+
+            window.fecharModalEquipamentoRapidoGeral = function() {
+                fecharModalPorIdEquipamento("quick-equipamento-modal");
+                if (gestflowEquipamentoSelectAtual && gestflowEquipamentoSelectAtual.value === "__novo_equipamento__") {
+                    gestflowEquipamentoSelectAtual.value = "";
+                }
+            };
+
+            window.salvarEquipamentoRapidoGeral = function() {
+                const nome = valorCampoEquipamento("quick-equipamento-nome");
+                if (!nome) {
+                    mostrarErroEquipamento("Informe o nome do equipamento.");
+                    return;
+                }
+
+                const dados = new URLSearchParams();
+                dados.append("cliente_nome", valorCampoEquipamento("quick-equipamento-cliente") || clienteAtualDaOS());
+                dados.append("nome", nome);
+                dados.append("marca", valorCampoEquipamento("quick-equipamento-marca"));
+                dados.append("modelo", valorCampoEquipamento("quick-equipamento-modelo"));
+                dados.append("serie", valorCampoEquipamento("quick-equipamento-serie"));
+                dados.append("tag", valorCampoEquipamento("quick-equipamento-tag"));
+                dados.append("local_instalacao", valorCampoEquipamento("quick-equipamento-local"));
+                dados.append("status", "ativo");
+                dados.append("observacoes", valorCampoEquipamento("quick-equipamento-observacoes"));
+
+                fetch("/equipamentos/rapido", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+                    body: dados.toString()
+                })
+                    .then(function(resposta) {
+                        return resposta.json().then(function(payload) {
+                            if (!resposta.ok || !payload.ok) {
+                                throw new Error(payload.erro || "Não foi possível salvar o equipamento.");
+                            }
+                            return payload.equipamento;
+                        });
+                    })
+                    .then(function(equipamento) {
+                        adicionarEquipamentoAosSelects(equipamento, gestflowEquipamentoSelectAtual);
+                        fecharModalPorIdEquipamento("quick-equipamento-modal");
+                    })
+                    .catch(function(erro) {
+                        mostrarErroEquipamento(erro.message || "Não foi possível salvar o equipamento.");
+                    });
+            };
+        })();
+        </script>
+
 
         <div id="quick-item-modal" class="quick-modal-backdrop" aria-hidden="true">
             <div class="quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-item-title">
@@ -1901,6 +2156,14 @@ Motivo: Alinhar bloco de equipamento da nova OS ao mesmo padrão visual da tela 
             function preencherEquipamentoCadastro(select) {
                 const option = select && select.options ? select.options[select.selectedIndex] : null;
                 const bloco = select ? select.closest(".os-equipamento-bloco") : null;
+
+                if (select && select.value === "__novo_equipamento__") {
+                    if (typeof window.abrirModalEquipamentoRapidoGeral === "function") {
+                        window.abrirModalEquipamentoRapidoGeral(select);
+                    }
+                    return;
+                }
+
                 if (!option || !bloco || !select.value) {
                     return;
                 }
@@ -1919,7 +2182,11 @@ Motivo: Alinhar bloco de equipamento da nova OS ao mesmo padrão visual da tela 
                         campo.value = mapa[nomeCampo];
                     }
                 });
+
+                prepararTitulosFotosEquipamento();
             }
+
+            window.preencherEquipamentoCadastro = preencherEquipamentoCadastro;
 
             function prepararTitulosFotosEquipamento() {
                 document.querySelectorAll(".os-equipamento-bloco").forEach(function(bloco, indice) {
