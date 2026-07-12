@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordens_servico.html
 Último recode: 2026-07-02 23:08 (America/Bahia)
-Motivo: Reorganizar a tela de OS no padrão visual de Orçamentos, abrindo com cards e lista e deixando o cadastro completo recolhido por padrão.
+Motivo: Alinhar bloco de equipamento da nova OS ao mesmo padrão visual da tela Editar OS.
 -->
 
 <!DOCTYPE html>
@@ -761,6 +761,50 @@ Motivo: Reorganizar a tela de OS no padrão visual de Orçamentos, abrindo com c
 
         .per-page-select {
             max-width: 130px;
+        }
+
+
+
+        /* AJUSTE: EQUIPAMENTO NA NOVA OS NO MESMO ALINHAMENTO DO EDITAR OS */
+        .os-page .os-grid-6,
+        .os-page .os-grid-4,
+        .os-page .os-grid-3,
+        .os-page .os-grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px 16px;
+            align-items: start;
+        }
+
+        .os-page .os-span-2,
+        .os-page .os-span-3,
+        .os-page .os-span-4,
+        .os-page .os-span-6 {
+            grid-column: span 2;
+        }
+
+        .os-page .os-equipamento-bloco .form-control,
+        .os-page .os-equipamento-bloco input,
+        .os-page .os-equipamento-bloco select,
+        .os-page .os-equipamento-bloco textarea {
+            width: 100%;
+            max-width: 100%;
+        }
+
+        @media (max-width: 900px) {
+            .os-page .os-grid-6,
+            .os-page .os-grid-4,
+            .os-page .os-grid-3,
+            .os-page .os-grid-2 {
+                grid-template-columns: 1fr;
+            }
+
+            .os-page .os-span-2,
+            .os-page .os-span-3,
+            .os-page .os-span-4,
+            .os-page .os-span-6 {
+                grid-column: span 1;
+            }
         }
 
         @media (max-width: 720px) {
