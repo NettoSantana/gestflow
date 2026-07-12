@@ -765,45 +765,115 @@ Motivo: Alinhar bloco de equipamento da nova OS ao mesmo padrão visual da tela 
 
 
 
-        /* AJUSTE: EQUIPAMENTO NA NOVA OS NO MESMO ALINHAMENTO DO EDITAR OS */
-        .os-page .os-grid-6,
-        .os-page .os-grid-4,
-        .os-page .os-grid-3,
-        .os-page .os-grid-2 {
+
+
+        /* EQUIPAMENTOS DA OS - PADRAO PRODUTOS/SERVICOS */
+        .os-equipamentos-container {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 14px 16px;
-            align-items: start;
+            gap: 16px;
         }
 
-        .os-page .os-span-2,
-        .os-page .os-span-3,
-        .os-page .os-span-4,
-        .os-page .os-span-6 {
-            grid-column: span 2;
+        .os-equipamento-bloco {
+            border: 1px solid #e5eaf2 !important;
+            border-radius: 16px !important;
+            background: #ffffff !important;
+            padding: 16px !important;
+            margin-bottom: 14px !important;
+            overflow: hidden;
         }
 
-        .os-page .os-equipamento-bloco .form-control,
-        .os-page .os-equipamento-bloco input,
-        .os-page .os-equipamento-bloco select,
-        .os-page .os-equipamento-bloco textarea {
+        .os-equipamento-topo {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px !important;
+            color: #0f172a !important;
+            font-size: 13px !important;
+            font-weight: 900 !important;
+            text-transform: uppercase;
+        }
+
+        .os-equipamento-topo small {
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: none;
+        }
+
+        .os-equipamentos-table-shell {
+            width: 100%;
+            max-width: 100%;
+            border: 0 !important;
+            border-radius: 14px !important;
+            background: #ffffff;
+            overflow-x: auto;
+            overflow-y: visible;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .os-equipamentos-table {
+            width: 100%;
+            min-width: 1040px;
+            border-collapse: separate !important;
+            border-spacing: 0 8px !important;
+        }
+
+        .os-equipamentos-table thead th {
+            border-bottom: 0 !important;
+            background: transparent !important;
+            color: #334155 !important;
+            font-size: 12px !important;
+            font-weight: 900 !important;
+            text-transform: uppercase;
+            padding: 8px 10px !important;
+            white-space: nowrap;
+        }
+
+        .os-equipamentos-table tbody td {
+            border-bottom: 0 !important;
+            padding: 0 6px 8px !important;
+            vertical-align: middle;
+        }
+
+        .os-equipamentos-table .form-control,
+        .os-equipamentos-table input,
+        .os-equipamentos-table select {
+            min-height: 42px;
             width: 100%;
             max-width: 100%;
         }
 
+        .os-equipamento-detalhes-card {
+            margin-top: 10px;
+            border: 1px solid #e5eaf2;
+            border-radius: 14px;
+            background: #f8fafc;
+            padding: 14px;
+        }
+
+        .os-equipamento-detalhes-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px 14px;
+        }
+
+        .os-equipamento-detalhes-grid .os-detalhe-full {
+            grid-column: 1 / -1;
+        }
+
+        .os-equipamento-remover-cell {
+            width: 54px;
+            text-align: center;
+        }
+
         @media (max-width: 900px) {
-            .os-page .os-grid-6,
-            .os-page .os-grid-4,
-            .os-page .os-grid-3,
-            .os-page .os-grid-2 {
+            .os-equipamento-detalhes-grid {
                 grid-template-columns: 1fr;
             }
 
-            .os-page .os-span-2,
-            .os-page .os-span-3,
-            .os-page .os-span-4,
-            .os-page .os-span-6 {
-                grid-column: span 1;
+            .os-equipamentos-table {
+                min-width: 920px;
             }
         }
 
@@ -1004,96 +1074,84 @@ Motivo: Alinhar bloco de equipamento da nova OS ao mesmo padrão visual da tela 
                     <span>Adicione um ou vários equipamentos atendidos nesta OS</span>
                 </div>
                 <div class="os-section-body">
-                    <p class="page-subtitle" style="margin-bottom: 14px;">Selecione um equipamento já cadastrado ou preencha uma nova linha. Use o botão para inserir novos equipamentos.</p>
-                    <div class="os-actions-line" style="margin-bottom: 12px;">
-                        <button type="button" class="btn-primary-green" onclick="adicionarEquipamento()">+ Adicionar equipamento</button>
+                    <p class="page-subtitle" style="margin-bottom: 14px;">Selecione equipamentos cadastrados ou cadastre novos equipamentos diretamente na OS, no mesmo padrão de produtos e serviços.</p>
+
+                    <div id="equipamentos-container" class="os-equipamentos-container">
+                        <div class="os-equipamento-bloco" data-equipamento-indice="0">
+                            <div class="os-equipamento-topo">
+                                <div>
+                                    <span>Equipamento principal</span>
+                                    <small>Preencha a linha principal e detalhe abaixo.</small>
+                                </div>
+                            </div>
+
+                            <div class="table-shell os-equipamentos-table-shell">
+                                <table class="client-table os-equipamentos-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Equipamento cadastrado</th>
+                                            <th>Equipamento</th>
+                                            <th>Marca</th>
+                                            <th>Modelo</th>
+                                            <th>Série</th>
+                                            <th>Ação</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr class="os-equipamento-linha" data-equipamento-indice="0">
+                                            <td>
+                                                <select name="os_equipamento_id" class="form-control os-equipamento-select" onchange="preencherEquipamentoCadastro(this)">
+                                                    <option value="">Cadastrar novo pelo formulário</option>
+                                                    {% for equipamento_cadastrado in equipamentos_cadastrados|default([]) %}
+                                                        <option value="{{ equipamento_cadastrado.id }}" data-nome="{{ equipamento_cadastrado.nome|e }}" data-marca="{{ equipamento_cadastrado.marca|e }}" data-modelo="{{ equipamento_cadastrado.modelo|e }}" data-serie="{{ equipamento_cadastrado.serie|e }}" data-local="{{ equipamento_cadastrado.local_instalacao|e }}">
+                                                            {{ equipamento_cadastrado.cliente_nome or 'Sem cliente' }} - {{ equipamento_cadastrado.nome }}{% if equipamento_cadastrado.serie %} / {{ equipamento_cadastrado.serie }}{% endif %}
+                                                        </option>
+                                                    {% endfor %}
+                                                </select>
+                                            </td>
+                                            <td><input id="os_equipamento" name="os_equipamento" type="text" placeholder="Ex: portão, máquina, veículo" class="form-control"></td>
+                                            <td><input id="os_marca" name="os_marca" type="text" class="form-control"></td>
+                                            <td><input id="os_modelo" name="os_modelo" type="text" class="form-control"></td>
+                                            <td><input id="os_serie" name="os_serie" type="text" class="form-control"></td>
+                                            <td class="os-equipamento-remover-cell"></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="os-equipamento-detalhes-card">
+                                <div class="os-equipamento-detalhes-grid">
+                                    <div class="form-group os-detalhe-full"><label for="os_local_servico">Local do serviço</label><input id="os_local_servico" name="os_local_servico" type="text" placeholder="Ex: portaria principal, linha 2, área técnica" class="form-control"></div>
+                                    <div class="form-group"><label for="os_condicoes">Condições</label><textarea id="os_condicoes" name="os_condicoes" class="form-control os-textarea" placeholder="Condições encontradas"></textarea></div>
+                                    <div class="form-group"><label for="os_relato_cliente">Defeitos / relato do cliente</label><textarea id="os_relato_cliente" name="os_relato_cliente" class="form-control os-textarea" placeholder="Problema informado pelo cliente"></textarea></div>
+                                    <div class="form-group"><label for="os_acessorios">Acessórios</label><textarea id="os_acessorios" name="os_acessorios" class="form-control os-textarea" placeholder="Acessórios recebidos ou vinculados"></textarea></div>
+                                    <div class="form-group"><label for="os_diagnostico">Solução / diagnóstico</label><textarea id="os_diagnostico" name="os_diagnostico" class="form-control os-textarea" placeholder="Diagnóstico técnico e solução proposta"></textarea></div>
+                                    <div class="form-group"><label for="os_laudo">Laudo</label><textarea id="os_laudo" name="os_laudo" class="form-control os-textarea" placeholder="Laudo técnico, quando aplicável"></textarea></div>
+                                    <div class="form-group"><label for="os_termos">Termos</label><textarea id="os_termos" name="os_termos" class="form-control os-textarea" placeholder="Termos e condições do atendimento"></textarea></div>
+                                </div>
+                                <div class="os-foto-equipamento-bloco" data-foto-bloco>
+                                    <div class="os-foto-equipamento-titulo"><span>Fotos antes / depois deste equipamento</span></div>
+                                    <div class="table-shell ordens-lista-shell">
+                                        <table class="client-table ordens-lista-table os-photo-table">
+                                            <thead><tr><th>Foto antes</th><th>Foto depois</th><th>Observação</th><th>Ação</th></tr></thead>
+                                            <tbody class="fotos-equipamento-tbody" data-equipamento-indice="0">
+                                                <tr>
+                                                    <td><input type="hidden" name="foto_os_id" value=""><input type="hidden" name="foto_os_equipamento_indice" value="0"><input type="hidden" name="foto_os_titulo" value=""><input type="hidden" name="foto_os_equipamento_id" value=""><input type="hidden" name="foto_os_vinculo_id" value=""><input type="file" name="foto_os_antes" class="form-control" accept="image/*"></td>
+                                                    <td><input type="file" name="foto_os_depois" class="form-control" accept="image/*"></td>
+                                                    <td><textarea name="foto_os_observacoes" class="form-control os-textarea" placeholder="Observação da foto"></textarea></td>
+                                                    <td></td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="os-actions-line"><button type="button" class="btn-dark" onclick="adicionarLinhaFotoEquipamento(this)">+ Adicionar foto</button></div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="table-shell os-equipamentos-table-shell">
-                        <table class="client-table os-equipamentos-table">
-                            <thead>
-                                <tr>
-                                    <th>Equipamento cadastrado</th>
-                                    <th>Equipamento</th>
-                                    <th>Marca</th>
-                                    <th>Modelo</th>
-                                    <th>Série</th>
-                                    <th>Ação</th>
-                                </tr>
-                            </thead>
-                            <tbody id="equipamentos-container">
-                                <tr class="os-equipamento-linha" data-equipamento-indice="0">
-                                    <td>
-                                        <select name="os_equipamento_id" class="form-control os-equipamento-select" onchange="preencherEquipamentoCadastro(this)">
-                                            <option value="">Cadastrar novo pelo formulário</option>
-                                            {% for equipamento_cadastrado in equipamentos_cadastrados|default([]) %}
-                                                <option value="{{ equipamento_cadastrado.id }}" data-nome="{{ equipamento_cadastrado.nome|e }}" data-marca="{{ equipamento_cadastrado.marca|e }}" data-modelo="{{ equipamento_cadastrado.modelo|e }}" data-serie="{{ equipamento_cadastrado.serie|e }}" data-local="{{ equipamento_cadastrado.local_instalacao|e }}">
-                                                    {{ equipamento_cadastrado.cliente_nome or 'Sem cliente' }} - {{ equipamento_cadastrado.nome }}{% if equipamento_cadastrado.serie %} / {{ equipamento_cadastrado.serie }}{% endif %}
-                                                </option>
-                                            {% endfor %}
-                                        </select>
-                                    </td>
-                                    <td><input id="os_equipamento" name="os_equipamento" type="text" placeholder="Ex: portão, máquina, veículo" class="form-control"></td>
-                                    <td><input id="os_marca" name="os_marca" type="text" class="form-control"></td>
-                                    <td><input id="os_modelo" name="os_modelo" type="text" class="form-control"></td>
-                                    <td><input id="os_serie" name="os_serie" type="text" class="form-control"></td>
-                                    <td></td>
-                                </tr>
-                                <tr class="os-equipamento-detalhes-row" data-equipamento-indice="0">
-                                    <td colspan="6">
-                                        <div class="os-equipamento-detalhes-card">
-                                            <div class="os-equipamento-detalhes-grid">
-                                                <div class="form-group os-detalhe-full"><label for="os_local_servico">Local do serviço</label><input id="os_local_servico" name="os_local_servico" type="text" placeholder="Ex: portaria principal, linha 2, área técnica" class="form-control"></div>
-                                                <div class="form-group"><label for="os_condicoes">Condições</label><textarea id="os_condicoes" name="os_condicoes" class="form-control os-textarea" placeholder="Condições encontradas"></textarea></div>
-                                                <div class="form-group"><label for="os_relato_cliente">Defeitos / relato do cliente</label><textarea id="os_relato_cliente" name="os_relato_cliente" class="form-control os-textarea" placeholder="Problema informado pelo cliente"></textarea></div>
-                                                <div class="form-group"><label for="os_acessorios">Acessórios</label><textarea id="os_acessorios" name="os_acessorios" class="form-control os-textarea" placeholder="Acessórios recebidos ou vinculados"></textarea></div>
-                                                <div class="form-group"><label for="os_diagnostico">Solução / diagnóstico</label><textarea id="os_diagnostico" name="os_diagnostico" class="form-control os-textarea" placeholder="Diagnóstico técnico e solução proposta"></textarea></div>
-                                                <div class="form-group"><label for="os_laudo">Laudo</label><textarea id="os_laudo" name="os_laudo" class="form-control os-textarea" placeholder="Laudo técnico, quando aplicável"></textarea></div>
-                                                <div class="form-group"><label for="os_termos">Termos</label><textarea id="os_termos" name="os_termos" class="form-control os-textarea" placeholder="Termos e condições do atendimento"></textarea></div>
-                                            </div>
-                                            <div class="os-foto-equipamento-bloco" data-foto-bloco>
-                                                <div class="os-foto-equipamento-titulo">
-                                                    <span>Fotos antes / depois deste equipamento</span>
-                                                </div>
-                                                <div class="table-shell ordens-lista-shell">
-                                                    <table class="client-table ordens-lista-table os-photo-table">
-                                                        <thead>
-                                                            <tr>
-                                                                <th>Foto antes</th>
-                                                                <th>Foto depois</th>
-                                                                <th>Observação</th>
-                                                                <th>Ação</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody class="fotos-equipamento-tbody" data-equipamento-indice="0">
-                                                            <tr>
-                                                                <td>
-                                                                    <input type="hidden" name="foto_os_id" value="">
-                                                                    <input type="hidden" name="foto_os_equipamento_indice" value="0">
-                                                                    <input type="hidden" name="foto_os_titulo" value="">
-                                                                    <input type="hidden" name="foto_os_equipamento_id" value="">
-                                                                    <input type="hidden" name="foto_os_vinculo_id" value="">
-                                                                    <input type="file" name="foto_os_antes" class="form-control" accept="image/*">
-                                                                </td>
-                                                                <td><input type="file" name="foto_os_depois" class="form-control" accept="image/*"></td>
-                                                                <td><textarea name="foto_os_observacoes" class="form-control os-textarea" placeholder="Observação da foto"></textarea></td>
-                                                                <td></td>
-                                                            </tr>
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                                <div class="os-actions-line">
-                                                    <button type="button" class="btn-dark" onclick="adicionarLinhaFotoEquipamento(this)">+ Adicionar foto</button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+                    <div class="os-actions-line"><button type="button" class="btn-primary-green" onclick="adicionarEquipamento()">+ Adicionar equipamento</button></div>
                 </div>
             </section>
-
             <section class="os-form-section">
                 <div class="os-section-title">
                     <h3>▣ Produtos / Peças</h3>
@@ -1367,107 +1425,103 @@ Motivo: Alinhar bloco de equipamento da nova OS ao mesmo padrão visual da tela 
         <script>
             let contadorEquipamentos = 1;
 
+            function criarBlocoEquipamento(equipamentoIndice, rotulo) {
+                const bloco = document.createElement("div");
+                bloco.className = "os-equipamento-bloco os-equipamento-bloco-extra";
+                bloco.dataset.equipamentoIndice = String(equipamentoIndice);
+                bloco.innerHTML = `
+                    <div class="os-equipamento-topo">
+                        <div>
+                            <span>${rotulo}</span>
+                            <small>Dados principais na linha, detalhes abaixo.</small>
+                        </div>
+                        <button type="button" class="action-button delete" title="Remover equipamento" aria-label="Remover equipamento" onclick="removerEquipamento(this)">×</button>
+                    </div>
+                    <div class="table-shell os-equipamentos-table-shell">
+                        <table class="client-table os-equipamentos-table">
+                            <thead>
+                                <tr>
+                                    <th>Equipamento cadastrado</th>
+                                    <th>Equipamento</th>
+                                    <th>Marca</th>
+                                    <th>Modelo</th>
+                                    <th>Série</th>
+                                    <th>Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="os-equipamento-linha" data-equipamento-indice="${equipamentoIndice}">
+                                    <td>
+                                        <select name="os_equipamento_id" class="form-control os-equipamento-select" onchange="preencherEquipamentoCadastro(this)">
+                                            <option value="">Cadastrar novo pelo formulário</option>
+                                            {% for equipamento_cadastrado in equipamentos_cadastrados|default([]) %}
+                                                <option value="{{ equipamento_cadastrado.id }}" data-nome="{{ equipamento_cadastrado.nome|e }}" data-marca="{{ equipamento_cadastrado.marca|e }}" data-modelo="{{ equipamento_cadastrado.modelo|e }}" data-serie="{{ equipamento_cadastrado.serie|e }}" data-local="{{ equipamento_cadastrado.local_instalacao|e }}">
+                                                    {{ equipamento_cadastrado.cliente_nome or 'Sem cliente' }} - {{ equipamento_cadastrado.nome }}{% if equipamento_cadastrado.serie %} / {{ equipamento_cadastrado.serie }}{% endif %}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td><input name="os_equipamento" type="text" placeholder="Ex.: portão, máquina, veículo" class="form-control"></td>
+                                    <td><input name="os_marca" type="text" class="form-control"></td>
+                                    <td><input name="os_modelo" type="text" class="form-control"></td>
+                                    <td><input name="os_serie" type="text" class="form-control"></td>
+                                    <td class="os-equipamento-remover-cell"><button type="button" class="action-button delete" title="Remover equipamento" aria-label="Remover equipamento" onclick="removerEquipamento(this)">×</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="os-equipamento-detalhes-card">
+                        <div class="os-equipamento-detalhes-grid">
+                            <div class="form-group os-detalhe-full"><label>Local do serviço</label><input name="os_local_servico" type="text" placeholder="Ex: portaria principal, linha 2, área técnica" class="form-control"></div>
+                            <div class="form-group"><label>Condições</label><textarea name="os_condicoes" class="form-control os-textarea" placeholder="Condições encontradas"></textarea></div>
+                            <div class="form-group"><label>Defeitos / relato do cliente</label><textarea name="os_relato_cliente" class="form-control os-textarea" placeholder="Problema informado pelo cliente"></textarea></div>
+                            <div class="form-group"><label>Acessórios</label><textarea name="os_acessorios" class="form-control os-textarea" placeholder="Acessórios recebidos ou vinculados"></textarea></div>
+                            <div class="form-group"><label>Solução / diagnóstico</label><textarea name="os_diagnostico" class="form-control os-textarea" placeholder="Diagnóstico técnico e solução proposta"></textarea></div>
+                            <div class="form-group"><label>Laudo</label><textarea name="os_laudo" class="form-control os-textarea" placeholder="Laudo técnico, quando aplicável"></textarea></div>
+                            <div class="form-group"><label>Termos</label><textarea name="os_termos" class="form-control os-textarea" placeholder="Termos e condições do atendimento"></textarea></div>
+                        </div>
+                        <div class="os-foto-equipamento-bloco" data-foto-bloco>
+                            <div class="os-foto-equipamento-titulo"><span>Fotos antes / depois deste equipamento</span></div>
+                            <div class="table-shell ordens-lista-shell">
+                                <table class="client-table ordens-lista-table os-photo-table">
+                                    <thead><tr><th>Foto antes</th><th>Foto depois</th><th>Observação</th><th>Ação</th></tr></thead>
+                                    <tbody class="fotos-equipamento-tbody" data-equipamento-indice="${equipamentoIndice}">
+                                        <tr>
+                                            <td><input type="hidden" name="foto_os_id" value=""><input type="hidden" name="foto_os_equipamento_indice" value="${equipamentoIndice}"><input type="hidden" name="foto_os_titulo" value=""><input type="hidden" name="foto_os_equipamento_id" value=""><input type="hidden" name="foto_os_vinculo_id" value=""><input type="file" name="foto_os_antes" class="form-control" accept="image/*"></td>
+                                            <td><input type="file" name="foto_os_depois" class="form-control" accept="image/*"></td>
+                                            <td><textarea name="foto_os_observacoes" class="form-control os-textarea" placeholder="Observação da foto"></textarea></td>
+                                            <td></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="os-actions-line"><button type="button" class="btn-dark" onclick="adicionarLinhaFotoEquipamento(this)">+ Adicionar foto</button></div>
+                        </div>
+                    </div>
+                `;
+                return bloco;
+            }
+
             function adicionarEquipamento() {
                 contadorEquipamentos += 1;
-
-                const corpo = document.getElementById("equipamentos-container");
+                const container = document.getElementById("equipamentos-container");
+                if (!container) {
+                    return;
+                }
                 const equipamentoIndice = contadorEquipamentos - 1;
-
-                const linha = document.createElement("tr");
-                linha.className = "os-equipamento-linha";
-                linha.dataset.equipamentoIndice = String(equipamentoIndice);
-                linha.innerHTML = `
-                    <td>
-                        <select name="os_equipamento_id" class="form-control os-equipamento-select" onchange="preencherEquipamentoCadastro(this)">
-                            <option value="">Cadastrar novo pelo formulário</option>
-                            {% for equipamento_cadastrado in equipamentos_cadastrados|default([]) %}
-                                <option value="{{ equipamento_cadastrado.id }}" data-nome="{{ equipamento_cadastrado.nome|e }}" data-marca="{{ equipamento_cadastrado.marca|e }}" data-modelo="{{ equipamento_cadastrado.modelo|e }}" data-serie="{{ equipamento_cadastrado.serie|e }}" data-local="{{ equipamento_cadastrado.local_instalacao|e }}">
-                                    {{ equipamento_cadastrado.cliente_nome or 'Sem cliente' }} - {{ equipamento_cadastrado.nome }}{% if equipamento_cadastrado.serie %} / {{ equipamento_cadastrado.serie }}{% endif %}
-                                </option>
-                            {% endfor %}
-                        </select>
-                    </td>
-                    <td><input name="os_equipamento" type="text" placeholder="Ex.: portão, máquina, veículo" class="form-control"></td>
-                    <td><input name="os_marca" type="text" class="form-control"></td>
-                    <td><input name="os_modelo" type="text" class="form-control"></td>
-                    <td><input name="os_serie" type="text" class="form-control"></td>
-                    <td><button type="button" class="action-button delete" title="Remover equipamento" aria-label="Remover equipamento" onclick="removerEquipamento(this)">×</button></td>
-                `;
-
-                const detalhes = document.createElement("tr");
-                detalhes.className = "os-equipamento-detalhes-row";
-                detalhes.dataset.equipamentoIndice = String(equipamentoIndice);
-                detalhes.innerHTML = `
-                    <td colspan="6">
-                        <div class="os-equipamento-detalhes-card">
-                            <div class="os-equipamento-detalhes-grid">
-                                <div class="form-group os-detalhe-full"><label>Local do serviço</label><input name="os_local_servico" type="text" placeholder="Ex: portaria principal, linha 2, área técnica" class="form-control"></div>
-                                <div class="form-group"><label>Condições</label><textarea name="os_condicoes" class="form-control os-textarea" placeholder="Condições encontradas"></textarea></div>
-                                <div class="form-group"><label>Defeitos / relato do cliente</label><textarea name="os_relato_cliente" class="form-control os-textarea" placeholder="Problema informado pelo cliente"></textarea></div>
-                                <div class="form-group"><label>Acessórios</label><textarea name="os_acessorios" class="form-control os-textarea" placeholder="Acessórios recebidos ou vinculados"></textarea></div>
-                                <div class="form-group"><label>Solução / diagnóstico</label><textarea name="os_diagnostico" class="form-control os-textarea" placeholder="Diagnóstico técnico e solução proposta"></textarea></div>
-                                <div class="form-group"><label>Laudo</label><textarea name="os_laudo" class="form-control os-textarea" placeholder="Laudo técnico, quando aplicável"></textarea></div>
-                                <div class="form-group"><label>Termos</label><textarea name="os_termos" class="form-control os-textarea" placeholder="Termos e condições do atendimento"></textarea></div>
-                            </div>
-                            <div class="os-foto-equipamento-bloco" data-foto-bloco>
-                                <div class="os-foto-equipamento-titulo">
-                                    <span>Fotos antes / depois deste equipamento</span>
-                                </div>
-                                <div class="table-shell ordens-lista-shell">
-                                    <table class="client-table ordens-lista-table os-photo-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Foto antes</th>
-                                                <th>Foto depois</th>
-                                                <th>Observação</th>
-                                                <th>Ação</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody class="fotos-equipamento-tbody" data-equipamento-indice="${equipamentoIndice}">
-                                            <tr>
-                                                <td>
-                                                    <input type="hidden" name="foto_os_id" value="">
-                                                    <input type="hidden" name="foto_os_equipamento_indice" value="${equipamentoIndice}">
-                                                    <input type="hidden" name="foto_os_titulo" value="">
-                                                    <input type="hidden" name="foto_os_equipamento_id" value="">
-                                                    <input type="hidden" name="foto_os_vinculo_id" value="">
-                                                    <input type="file" name="foto_os_antes" class="form-control" accept="image/*">
-                                                </td>
-                                                <td><input type="file" name="foto_os_depois" class="form-control" accept="image/*"></td>
-                                                <td><textarea name="foto_os_observacoes" class="form-control os-textarea" placeholder="Observação da foto"></textarea></td>
-                                                <td></td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <div class="os-actions-line">
-                                    <button type="button" class="btn-dark" onclick="adicionarLinhaFotoEquipamento(this)">+ Adicionar foto</button>
-                                </div>
-                            </div>
-                        </div>
-                    </td>
-                `;
-
-                corpo.appendChild(linha);
-                corpo.appendChild(detalhes);
+                container.appendChild(criarBlocoEquipamento(equipamentoIndice, "Equipamento adicional " + contadorEquipamentos));
             }
 
             function removerEquipamento(botao) {
-                const linha = botao.closest(".os-equipamento-linha");
-                if (!linha) {
-                    return;
+                const bloco = botao.closest(".os-equipamento-bloco");
+                if (bloco) {
+                    bloco.remove();
+                    prepararTitulosFotosEquipamento();
                 }
-                const indice = linha.dataset.equipamentoIndice || "";
-                const detalhes = document.querySelector('.os-equipamento-detalhes-row[data-equipamento-indice="' + indice + '"]');
-                linha.remove();
-                if (detalhes) {
-                    detalhes.remove();
-                }
-                prepararTitulosFotosEquipamento();
             }
 
 
-            function posicionarMenuOrcamento(menu) {
+                        function posicionarMenuOrcamento(menu) {
                 const trigger = menu.querySelector(".budget-action-trigger");
                 const panel = menu.querySelector(".budget-action-panel");
 
@@ -1844,64 +1898,55 @@ Motivo: Alinhar bloco de equipamento da nova OS ao mesmo padrão visual da tela 
             }
 
 
-            function obterDetalhesLinhaEquipamento(linha) {
-                if (!linha) {
-                    return null;
-                }
-                const indice = linha.dataset.equipamentoIndice || "0";
-                return document.querySelector('.os-equipamento-detalhes-row[data-equipamento-indice="' + indice + '"]');
-            }
-
             function preencherEquipamentoCadastro(select) {
                 const option = select && select.options ? select.options[select.selectedIndex] : null;
-                const linha = select ? select.closest(".os-equipamento-linha") : null;
-                const detalhes = obterDetalhesLinhaEquipamento(linha);
-                if (!option || !linha || !select.value) {
+                const bloco = select ? select.closest(".os-equipamento-bloco") : null;
+                if (!option || !bloco || !select.value) {
                     return;
                 }
 
-                const mapaLinha = {
+                const mapa = {
                     os_equipamento: option.dataset.nome || "",
                     os_marca: option.dataset.marca || "",
                     os_modelo: option.dataset.modelo || "",
-                    os_serie: option.dataset.serie || ""
+                    os_serie: option.dataset.serie || "",
+                    os_local_servico: option.dataset.local || ""
                 };
-                Object.keys(mapaLinha).forEach(function(nomeCampo) {
-                    const campo = linha.querySelector('[name="' + nomeCampo + '"]');
-                    if (campo && mapaLinha[nomeCampo]) {
-                        campo.value = mapaLinha[nomeCampo];
+
+                Object.keys(mapa).forEach(function(nomeCampo) {
+                    const campo = bloco.querySelector('[name="' + nomeCampo + '"]');
+                    if (campo && mapa[nomeCampo]) {
+                        campo.value = mapa[nomeCampo];
                     }
                 });
-
-                if (detalhes) {
-                    const campoLocal = detalhes.querySelector('[name="os_local_servico"]');
-                    if (campoLocal && option.dataset.local) {
-                        campoLocal.value = option.dataset.local;
-                    }
-                }
             }
 
             function prepararTitulosFotosEquipamento() {
-                document.querySelectorAll(".os-equipamento-linha").forEach(function(linha, indice) {
-                    const detalhes = obterDetalhesLinhaEquipamento(linha);
-                    const equipamentoInput = linha.querySelector('[name="os_equipamento"]');
-                    const equipamentoSelect = linha.querySelector('[name="os_equipamento_id"]');
+                document.querySelectorAll(".os-equipamento-bloco").forEach(function(bloco, indice) {
+                    bloco.dataset.equipamentoIndice = String(indice);
+                    const linha = bloco.querySelector(".os-equipamento-linha");
+                    if (linha) {
+                        linha.dataset.equipamentoIndice = String(indice);
+                    }
+
+                    const equipamentoInput = bloco.querySelector('[name="os_equipamento"]');
+                    const equipamentoSelect = bloco.querySelector('[name="os_equipamento_id"]');
                     const equipamentoCadastroId = equipamentoSelect && equipamentoSelect.value ? equipamentoSelect.value : "";
                     const equipamentoNome = equipamentoInput && equipamentoInput.value.trim() ? equipamentoInput.value.trim() : (indice === 0 ? "Equipamento principal" : "Equipamento adicional " + (indice + 1));
-                    const alvoFotos = detalhes || linha;
 
-                    alvoFotos.querySelectorAll('[name="foto_os_titulo"]').forEach(function(inputTitulo) {
+                    bloco.querySelectorAll('[name="foto_os_titulo"]').forEach(function(inputTitulo) {
                         inputTitulo.value = equipamentoNome;
                     });
 
-                    alvoFotos.querySelectorAll('[name="foto_os_equipamento_indice"]').forEach(function(inputIndice) {
+                    bloco.querySelectorAll('[name="foto_os_equipamento_indice"]').forEach(function(inputIndice) {
                         inputIndice.value = String(indice);
                     });
-                    alvoFotos.querySelectorAll('[name="foto_os_equipamento_id"]').forEach(function(inputEquipamentoId) {
+
+                    bloco.querySelectorAll('[name="foto_os_equipamento_id"]').forEach(function(inputEquipamentoId) {
                         inputEquipamentoId.value = equipamentoCadastroId;
                     });
 
-                    alvoFotos.querySelectorAll(".fotos-equipamento-tbody").forEach(function(corpo) {
+                    bloco.querySelectorAll(".fotos-equipamento-tbody").forEach(function(corpo) {
                         corpo.dataset.equipamentoIndice = String(indice);
                     });
                 });
