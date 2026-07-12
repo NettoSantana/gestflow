@@ -3207,3 +3207,7 @@ canvas {
         display: none;
     }
 }
+
+
+/* OS PUBLICA / QR / LINKS */
+.os-link-grid,.os-public-grid,.campo-readonly-grid,.hist-grid{min-width:0}.os-link-card,.os-public-card,.campo-info,.hist-info{min-width:0;overflow-wrap:anywhere}@media(max-width:820px){.os-link-grid,.os-public-grid,.campo-readonly-grid,.hist-grid{grid-template-columns:1fr!important}}

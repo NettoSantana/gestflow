@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import html
 import io
 import json
@@ -712,6 +713,10 @@ def exigir_login_rotas_internas() -> Response | None:
         "health",
         "twilio_webhook",
         "acompanhamento_os_publico",
+        "os_cliente_publico",
+        "os_campo_publico",
+        "equipamento_historico_publico",
+        "qrcode_equipamento_publico",
         "servir_foto_os",
         "vitrine_publica",
         "vitrine_pedido_publico",
@@ -1189,6 +1194,25 @@ def iniciar_banco() -> None:
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (acompanhamento_id) REFERENCES os_acompanhamentos (id),
                 FOREIGN KEY (servico_id) REFERENCES servicos (id)
+            )
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS os_equipamentos_tokens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER,
+                token TEXT NOT NULL UNIQUE,
+                equipamento_chave TEXT NOT NULL,
+                equipamento_nome TEXT,
+                cliente TEXT,
+                marca TEXT,
+                modelo TEXT,
+                serie TEXT,
+                ultimo_ordem_servico_id INTEGER,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                atualizado_em TEXT
             )
             """
         )
@@ -1940,6 +1964,7 @@ def iniciar_banco() -> None:
             "os_acompanhamento_equipe",
             "os_acompanhamento_materiais",
             "os_acompanhamento_servicos",
+            "os_equipamentos_tokens",
             "estoque_movimentacoes",
             "financeiro_titulos",
             "caixa_aberturas",
@@ -1970,6 +1995,8 @@ def iniciar_banco() -> None:
             )
 
         colunas_ordens_servico = {
+            "token_cliente": "TEXT",
+            "token_campo": "TEXT",
             "tecnico": "TEXT",
             "data_saida": "TEXT",
             "hora_entrada": "TEXT",
@@ -4481,6 +4508,8 @@ def listar_ordens_servico_paginado(
             SELECT
                 id,
                 empresa_id,
+                token_cliente,
+                token_campo,
                 numero,
                 cliente,
                 responsavel,
@@ -6199,6 +6228,271 @@ def montar_venda_itens_formulario() -> list[dict[str, str]]:
     return itens
 
 
+
+def _normalizar_texto_chave_os(valor: Any) -> str:
+    texto = unicodedata.normalize("NFKD", str(valor or "").strip().lower())
+    texto = "".join(caractere for caractere in texto if not unicodedata.combining(caractere))
+    texto = re.sub(r"[^a-z0-9]+", "-", texto)
+    return texto.strip("-")
+
+
+def montar_chave_equipamento_os(empresa_id: int, cliente: Any, equipamento: dict[str, Any] | None) -> str:
+    equipamento = equipamento or {}
+    serie = _normalizar_texto_chave_os(equipamento.get("serie"))
+    modelo = _normalizar_texto_chave_os(equipamento.get("modelo"))
+    marca = _normalizar_texto_chave_os(equipamento.get("marca"))
+    nome = _normalizar_texto_chave_os(equipamento.get("equipamento"))
+    cliente_chave = _normalizar_texto_chave_os(cliente)
+
+    if serie:
+        base = "|".join(["serie", serie, modelo, marca])
+    else:
+        base = "|".join(["cliente", cliente_chave, nome, modelo, marca])
+
+    base = base.strip("|") or f"os-{empresa_id}"
+    return f"{int(empresa_id)}|{base}"
+
+
+def gerar_token_equipamento_os(equipamento_chave: str) -> str:
+    return hashlib.sha256(str(equipamento_chave or "").encode("utf-8")).hexdigest()[:32]
+
+
+def gerar_token_publico_os() -> str:
+    return secrets.token_urlsafe(32)
+
+
+def garantir_tokens_publicos_ordem_servico(ordem_servico_id: int) -> dict[str, Any] | None:
+    empresa_id = empresa_logada_id()
+    agora = agora_empresa().isoformat(timespec="seconds")
+
+    with conectar_db() as conn:
+        os_row = conn.execute(
+            """
+            SELECT *
+            FROM ordens_servico
+            WHERE id = ?
+              AND empresa_id = ?
+            LIMIT 1
+            """,
+            (ordem_servico_id, empresa_id),
+        ).fetchone()
+
+        if os_row is None:
+            return None
+
+        os_dict = dict(os_row)
+        token_cliente = str(os_dict.get("token_cliente") or "").strip() or gerar_token_publico_os()
+        token_campo = str(os_dict.get("token_campo") or "").strip() or gerar_token_publico_os()
+
+        conn.execute(
+            """
+            UPDATE ordens_servico
+            SET token_cliente = ?, token_campo = ?
+            WHERE id = ?
+              AND empresa_id = ?
+            """,
+            (token_cliente, token_campo, ordem_servico_id, empresa_id),
+        )
+
+        os_dict["token_cliente"] = token_cliente
+        os_dict["token_campo"] = token_campo
+
+        for equipamento in montar_equipamentos_ordem_servico(os_dict):
+            chave = montar_chave_equipamento_os(empresa_id, os_dict.get("cliente"), equipamento)
+            token = gerar_token_equipamento_os(chave)
+            existente = conn.execute("SELECT id FROM os_equipamentos_tokens WHERE token = ? LIMIT 1", (token,)).fetchone()
+
+            if existente is None:
+                conn.execute(
+                    """
+                    INSERT INTO os_equipamentos_tokens (
+                        empresa_id, token, equipamento_chave, equipamento_nome, cliente,
+                        marca, modelo, serie, ultimo_ordem_servico_id, atualizado_em
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        empresa_id,
+                        token,
+                        chave,
+                        str(equipamento.get("equipamento") or ""),
+                        str(os_dict.get("cliente") or ""),
+                        str(equipamento.get("marca") or ""),
+                        str(equipamento.get("modelo") or ""),
+                        str(equipamento.get("serie") or ""),
+                        ordem_servico_id,
+                        agora,
+                    ),
+                )
+            else:
+                conn.execute(
+                    """
+                    UPDATE os_equipamentos_tokens
+                    SET empresa_id = ?, equipamento_chave = ?, equipamento_nome = ?, cliente = ?,
+                        marca = ?, modelo = ?, serie = ?, ultimo_ordem_servico_id = ?, atualizado_em = ?
+                    WHERE token = ?
+                    """,
+                    (
+                        empresa_id,
+                        chave,
+                        str(equipamento.get("equipamento") or ""),
+                        str(os_dict.get("cliente") or ""),
+                        str(equipamento.get("marca") or ""),
+                        str(equipamento.get("modelo") or ""),
+                        str(equipamento.get("serie") or ""),
+                        ordem_servico_id,
+                        agora,
+                        token,
+                    ),
+                )
+
+        conn.commit()
+
+    return buscar_ordem_servico_por_id(ordem_servico_id)
+
+
+def montar_url_os_cliente(token: Any) -> str:
+    token_normalizado = str(token or "").strip()
+    return f"{request.url_root.rstrip('/')}/os/cliente/{token_normalizado}" if token_normalizado and request else ""
+
+
+def montar_url_os_campo(token: Any) -> str:
+    token_normalizado = str(token or "").strip()
+    return f"{request.url_root.rstrip('/')}/os/campo/{token_normalizado}" if token_normalizado and request else ""
+
+
+def montar_url_equipamento_historico(token: Any) -> str:
+    token_normalizado = str(token or "").strip()
+    return f"{request.url_root.rstrip('/')}/os/equipamento/{token_normalizado}" if token_normalizado and request else ""
+
+
+def montar_url_qrcode_equipamento(token: Any) -> str:
+    token_normalizado = str(token or "").strip()
+    return f"{request.url_root.rstrip('/')}/os/equipamento/{token_normalizado}/qrcode.svg" if token_normalizado and request else ""
+
+
+def montar_links_publicos_ordem_servico(ordem_servico: dict[str, Any] | None) -> dict[str, str]:
+    if not ordem_servico:
+        return {"cliente_url": "", "campo_url": ""}
+    return {
+        "cliente_url": montar_url_os_cliente(ordem_servico.get("token_cliente")),
+        "campo_url": montar_url_os_campo(ordem_servico.get("token_campo")),
+    }
+
+
+def anexar_tokens_a_equipamentos_os(ordem_servico: dict[str, Any], equipamentos: list[dict[str, str]]) -> list[dict[str, Any]]:
+    empresa_id = int(ordem_servico.get("empresa_id") or empresa_logada_id())
+    resultado: list[dict[str, Any]] = []
+    for equipamento in equipamentos:
+        item = dict(equipamento)
+        chave = montar_chave_equipamento_os(empresa_id, ordem_servico.get("cliente"), item)
+        token = gerar_token_equipamento_os(chave)
+        item["token_equipamento"] = token
+        item["historico_url"] = montar_url_equipamento_historico(token)
+        item["qrcode_url"] = montar_url_qrcode_equipamento(token)
+        resultado.append(item)
+    return resultado
+
+
+def buscar_ordem_servico_por_token_cliente(token: Any) -> dict[str, Any] | None:
+    token_normalizado = str(token or "").strip()
+    if not token_normalizado:
+        return None
+    with conectar_db() as conn:
+        row = conn.execute("SELECT * FROM ordens_servico WHERE token_cliente = ? LIMIT 1", (token_normalizado,)).fetchone()
+    return dict(row) if row else None
+
+
+def buscar_ordem_servico_por_token_campo(token: Any) -> dict[str, Any] | None:
+    token_normalizado = str(token or "").strip()
+    if not token_normalizado:
+        return None
+    with conectar_db() as conn:
+        row = conn.execute("SELECT * FROM ordens_servico WHERE token_campo = ? LIMIT 1", (token_normalizado,)).fetchone()
+    return dict(row) if row else None
+
+
+def buscar_equipamento_token_publico(token: Any) -> dict[str, Any] | None:
+    token_normalizado = str(token or "").strip()
+    if not token_normalizado:
+        return None
+    with conectar_db() as conn:
+        row = conn.execute("SELECT * FROM os_equipamentos_tokens WHERE token = ? LIMIT 1", (token_normalizado,)).fetchone()
+    return dict(row) if row else None
+
+
+def listar_ordens_servico_empresa_publico(empresa_id: int) -> list[dict[str, Any]]:
+    with conectar_db() as conn:
+        rows = conn.execute(
+            "SELECT * FROM ordens_servico WHERE empresa_id = ? ORDER BY data_abertura DESC, id DESC",
+            (empresa_id,),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def montar_historico_equipamento_publico(token: Any) -> dict[str, Any] | None:
+    token_info = buscar_equipamento_token_publico(token)
+    if token_info is None:
+        return None
+    empresa_id = int(token_info.get("empresa_id") or 0)
+    chave_alvo = str(token_info.get("equipamento_chave") or "")
+    if empresa_id <= 0 or not chave_alvo:
+        return None
+
+    historico: list[dict[str, Any]] = []
+    for os_item in listar_ordens_servico_empresa_publico(empresa_id):
+        for equipamento in montar_equipamentos_ordem_servico(os_item):
+            chave = montar_chave_equipamento_os(empresa_id, os_item.get("cliente"), equipamento)
+            if chave != chave_alvo:
+                continue
+            os_id = int(os_item.get("id") or 0)
+            fotos = listar_fotos_equipamento_os(os_id, empresa_id_param=empresa_id)
+            fotos_por_equipamento = agrupar_fotos_por_equipamento(fotos)
+            registro = dict(os_item)
+            registro["equipamento_match"] = equipamento
+            registro["fotos"] = fotos_por_equipamento.get(str(equipamento.get("indice") or "0"), [])
+            registro["acompanhamentos"] = anexar_itens_aos_acompanhamentos(
+                listar_acompanhamentos_ordem_servico(os_id, empresa_id_param=empresa_id)
+            )
+            historico.append(registro)
+            break
+    return {"token": str(token or ""), "equipamento": token_info, "historico": historico}
+
+
+def atualizar_execucao_os_campo(token: Any, dados: dict[str, str]) -> bool:
+    ordem_servico = buscar_ordem_servico_por_token_campo(token)
+    if ordem_servico is None:
+        return False
+    empresa_id = int(ordem_servico.get("empresa_id") or 0)
+    ordem_servico_id = int(ordem_servico.get("id") or 0)
+    if empresa_id <= 0 or ordem_servico_id <= 0:
+        return False
+
+    status_permitidos = {"aberta", "andamento", "aguardando", "finalizada", "cancelada"}
+    status = str(dados.get("status") or ordem_servico.get("status") or "andamento").strip().lower()
+    if status not in status_permitidos:
+        status = str(ordem_servico.get("status") or "andamento")
+
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            UPDATE ordens_servico
+            SET status = ?, diagnostico = ?, servico_executado = ?, observacoes = ?
+            WHERE id = ? AND empresa_id = ?
+            """,
+            (
+                status,
+                dados.get("diagnostico", ""),
+                dados.get("servico_executado", ""),
+                dados.get("observacoes", ""),
+                ordem_servico_id,
+                empresa_id,
+            ),
+        )
+        conn.commit()
+
+    atualizar_fotos_equipamento_os_formulario(ordem_servico_id, empresa_id_param=empresa_id)
+    return True
+
 def proximo_numero_ordem_servico() -> str:
     empresa_id = empresa_logada_id()
 
@@ -6349,6 +6643,7 @@ def salvar_ordem_servico_db(ordem_servico: dict[str, str], itens: list[dict[str,
 
         conn.commit()
 
+    garantir_tokens_publicos_ordem_servico(ordem_servico_id)
     return ordem_servico_id
 
 def atualizar_ordem_servico_db(ordem_servico_id: int, ordem_servico: dict[str, str], itens: list[dict[str, str]]) -> None:
@@ -6492,6 +6787,8 @@ def atualizar_ordem_servico_db(ordem_servico_id: int, ordem_servico: dict[str, s
 
         conn.commit()
 
+    garantir_tokens_publicos_ordem_servico(ordem_servico_id)
+
 def listar_ordens_servico() -> list[dict[str, Any]]:
     empresa_id = empresa_logada_id()
 
@@ -6501,6 +6798,8 @@ def listar_ordens_servico() -> list[dict[str, Any]]:
             SELECT
                 id,
                 empresa_id,
+                token_cliente,
+                token_campo,
                 numero,
                 cliente,
                 responsavel,
@@ -6562,6 +6861,8 @@ def buscar_ordem_servico_por_id(ordem_servico_id: int) -> dict[str, Any] | None:
             SELECT
                 id,
                 empresa_id,
+                token_cliente,
+                token_campo,
                 numero,
                 cliente,
                 responsavel,
@@ -6587,6 +6888,7 @@ def buscar_ordem_servico_por_id(ordem_servico_id: int) -> dict[str, Any] | None:
                 bairro_entrega,
                 cidade_entrega,
                 origem_venda_id,
+                origem_orcamento_id,
                 tipo,
                 status,
                 prioridade,
@@ -6623,8 +6925,8 @@ def buscar_ordem_servico_por_id(ordem_servico_id: int) -> dict[str, Any] | None:
 
     return dict(row)
 
-def listar_ordem_servico_itens(ordem_servico_id: int) -> list[dict[str, Any]]:
-    empresa_id = empresa_logada_id()
+def listar_ordem_servico_itens(ordem_servico_id: int, empresa_id_param: int | None = None) -> list[dict[str, Any]]:
+    empresa_id = int(empresa_id_param or empresa_logada_id())
 
     with conectar_db() as conn:
         rows = conn.execute(
@@ -6652,8 +6954,8 @@ def listar_ordem_servico_itens(ordem_servico_id: int) -> list[dict[str, Any]]:
     return [dict(row) for row in rows]
 
 
-def listar_acompanhamentos_ordem_servico(ordem_servico_id: int) -> list[dict[str, Any]]:
-    empresa_id = empresa_logada_id()
+def listar_acompanhamentos_ordem_servico(ordem_servico_id: int, empresa_id_param: int | None = None) -> list[dict[str, Any]]:
+    empresa_id = int(empresa_id_param or empresa_logada_id())
 
     with conectar_db() as conn:
         rows = conn.execute(
@@ -8794,7 +9096,7 @@ def salvar_upload_logo_empresa(arquivo) -> str:
         raise ValueError("Formato de logo inválido. Use PNG, JPG, JPEG, WEBP ou GIF.")
 
     extensao = nome_seguro.rsplit(".", 1)[1].lower()
-    empresa_id = empresa_logada_id()
+    empresa_id = int(empresa_id_param or empresa_logada_id())
     timestamp = agora_empresa().strftime("%Y%m%d%H%M%S")
     nome_final = f"empresa_{empresa_id}_{timestamp}.{extensao}"
     destino = UPLOAD_DIR / nome_final
@@ -8813,7 +9115,7 @@ def _extensao_foto_os_permitida(nome_arquivo: str) -> bool:
     return extensao in EXTENSOES_FOTO_OS_PERMITIDAS
 
 
-def salvar_upload_foto_os(arquivo, ordem_servico_id: int, tipo_foto: str) -> str:
+def salvar_upload_foto_os(arquivo, ordem_servico_id: int, tipo_foto: str, empresa_id_param: int | None = None) -> str:
     nome_seguro = secure_filename(arquivo.filename or "")
 
     if not nome_seguro:
@@ -8834,8 +9136,8 @@ def salvar_upload_foto_os(arquivo, ordem_servico_id: int, tipo_foto: str) -> str
     return f"/uploads/os-fotos/{nome_final}"
 
 
-def listar_fotos_equipamento_os(ordem_servico_id: int) -> list[dict[str, Any]]:
-    empresa_id = empresa_logada_id()
+def listar_fotos_equipamento_os(ordem_servico_id: int, empresa_id_param: int | None = None) -> list[dict[str, Any]]:
+    empresa_id = int(empresa_id_param or empresa_logada_id())
 
     with conectar_db() as conn:
         rows = conn.execute(
@@ -8862,8 +9164,8 @@ def listar_fotos_equipamento_os(ordem_servico_id: int) -> list[dict[str, Any]]:
     return [dict(row) for row in rows]
 
 
-def atualizar_fotos_equipamento_os_formulario(ordem_servico_id: int) -> None:
-    empresa_id = empresa_logada_id()
+def atualizar_fotos_equipamento_os_formulario(ordem_servico_id: int, empresa_id_param: int | None = None) -> None:
+    empresa_id = int(empresa_id_param or empresa_logada_id())
     ids = request.form.getlist("foto_os_id")
     titulos = request.form.getlist("foto_os_titulo")
     indices_equipamento = request.form.getlist("foto_os_equipamento_indice")
@@ -8912,10 +9214,10 @@ def atualizar_fotos_equipamento_os_formulario(ordem_servico_id: int) -> None:
             foto_depois_path = ""
 
             if arquivo_antes is not None and arquivo_antes.filename:
-                foto_antes_path = salvar_upload_foto_os(arquivo_antes, ordem_servico_id, "antes")
+                foto_antes_path = salvar_upload_foto_os(arquivo_antes, ordem_servico_id, "antes", empresa_id_param=empresa_id)
 
             if arquivo_depois is not None and arquivo_depois.filename:
-                foto_depois_path = salvar_upload_foto_os(arquivo_depois, ordem_servico_id, "depois")
+                foto_depois_path = salvar_upload_foto_os(arquivo_depois, ordem_servico_id, "depois", empresa_id_param=empresa_id)
 
             if foto_id is not None:
                 row_atual = conn.execute(
@@ -15233,6 +15535,12 @@ def painel_ordens_servico() -> str:
 @app.get("/ordens-servico")
 def ordens_servico() -> str:
     contexto_ordens = montar_contexto_ordens_servico_paginado()
+    for os_item in contexto_ordens.get("itens", []):
+        try:
+            garantir_tokens_publicos_ordem_servico(int(os_item.get("id") or 0))
+        except Exception:
+            pass
+    contexto_ordens = montar_contexto_ordens_servico_paginado()
     clientes_lista = listar_clientes()
     funcionarios_lista = listar_funcionarios()
     produtos_lista = listar_produtos()
@@ -15269,12 +15577,12 @@ def salvar_ordem_servico() -> Response:
     atualizar_fotos_equipamento_os_formulario(nova_ordem_servico_id)
     registrar_atividade_usuario("criacao", "ordens_servico", f"Criou OS {ordem_servico.get('numero') or nova_ordem_servico_id}", request.path)
 
-    return redirect(url_for("ver_ordem_servico", ordem_servico_id=ordem_servico_id))
+    return redirect(url_for("ver_ordem_servico", ordem_servico_id=nova_ordem_servico_id))
 
 
 @app.get("/ordens-servico/<int:ordem_servico_id>")
 def ver_ordem_servico(ordem_servico_id: int) -> str | Response:
-    ordem_servico = buscar_ordem_servico_por_id(ordem_servico_id)
+    ordem_servico = garantir_tokens_publicos_ordem_servico(ordem_servico_id)
 
     if ordem_servico is None:
         return redirect(url_for("ordens_servico"))
@@ -15284,8 +15592,9 @@ def ver_ordem_servico(ordem_servico_id: int) -> str | Response:
     itens_servicos = [item for item in itens if item["tipo_item"] == "servico"]
     acompanhamentos = anexar_itens_aos_acompanhamentos(listar_acompanhamentos_ordem_servico(ordem_servico_id))
     fotos_equipamento = listar_fotos_equipamento_os(ordem_servico_id)
-    equipamentos_os = montar_equipamentos_ordem_servico(ordem_servico)
+    equipamentos_os = anexar_tokens_a_equipamentos_os(ordem_servico, montar_equipamentos_ordem_servico(ordem_servico))
     fotos_por_equipamento = agrupar_fotos_por_equipamento(fotos_equipamento)
+    os_publico_links = montar_links_publicos_ordem_servico(ordem_servico)
     token_gerado = (request.args.get("link") or "").strip()
     acompanhamento_url_gerada = montar_url_acompanhamento_os(token_gerado)
     acompanhamento_mensagem = (request.args.get("mensagem") or "").strip()
@@ -15301,6 +15610,7 @@ def ver_ordem_servico(ordem_servico_id: int) -> str | Response:
         equipamentos_os=equipamentos_os,
         fotos_equipamento=fotos_equipamento,
         fotos_por_equipamento=fotos_por_equipamento,
+        os_publico_links=os_publico_links,
         acompanhamento_url_gerada=acompanhamento_url_gerada,
         acompanhamento_mensagem=acompanhamento_mensagem,
         acompanhamento_erro=acompanhamento_erro,
@@ -15319,7 +15629,9 @@ def imprimir_ordem_servico_a4(ordem_servico_id: int) -> str | Response:
     itens_servicos = [item for item in itens if item["tipo_item"] == "servico"]
     acompanhamentos = anexar_itens_aos_acompanhamentos(listar_acompanhamentos_ordem_servico(ordem_servico_id))
     fotos_equipamento = listar_fotos_equipamento_os(ordem_servico_id)
-    equipamentos_os = montar_equipamentos_ordem_servico(ordem_servico)
+    garantir_tokens_publicos_ordem_servico(ordem_servico_id)
+    ordem_servico = buscar_ordem_servico_por_id(ordem_servico_id) or ordem_servico
+    equipamentos_os = anexar_tokens_a_equipamentos_os(ordem_servico, montar_equipamentos_ordem_servico(ordem_servico))
     fotos_por_equipamento = agrupar_fotos_por_equipamento(fotos_equipamento)
     contexto_impressao = montar_contexto_impressao(ordem_servico.get("cliente"))
 
@@ -15480,6 +15792,101 @@ def acompanhamento_os_publico(token: str) -> str:
     )
 
 
+
+@app.get("/ordens-servico/<int:ordem_servico_id>/links")
+def gerar_links_publicos_ordem_servico(ordem_servico_id: int) -> Response:
+    ordem_servico = garantir_tokens_publicos_ordem_servico(ordem_servico_id)
+    if ordem_servico is None:
+        return redirect(url_for("ordens_servico"))
+    return redirect(url_for("ver_ordem_servico", ordem_servico_id=ordem_servico_id, mensagem="Links públicos atualizados."))
+
+
+@app.route("/os/cliente/<token>", methods=["GET"])
+def os_cliente_publico(token: str) -> str:
+    ordem_servico = buscar_ordem_servico_por_token_cliente(token)
+    if ordem_servico is None:
+        return render_template("os_cliente_publico.html", ordem_servico=None, erro="Link de cliente não encontrado.")
+
+    empresa_id = int(ordem_servico.get("empresa_id") or 0)
+    ordem_servico_id = int(ordem_servico.get("id") or 0)
+    itens = listar_ordem_servico_itens(ordem_servico_id, empresa_id_param=empresa_id)
+    fotos_equipamento = listar_fotos_equipamento_os(ordem_servico_id, empresa_id_param=empresa_id)
+    equipamentos_os = anexar_tokens_a_equipamentos_os(ordem_servico, montar_equipamentos_ordem_servico(ordem_servico))
+    acompanhamentos = anexar_itens_aos_acompanhamentos(listar_acompanhamentos_ordem_servico(ordem_servico_id, empresa_id_param=empresa_id))
+    return render_template(
+        "os_cliente_publico.html",
+        ordem_servico=ordem_servico,
+        erro="",
+        itens_produtos=[item for item in itens if item["tipo_item"] == "produto"],
+        itens_servicos=[item for item in itens if item["tipo_item"] == "servico"],
+        acompanhamentos=acompanhamentos,
+        equipamentos_os=equipamentos_os,
+        fotos_por_equipamento=agrupar_fotos_por_equipamento(fotos_equipamento),
+    )
+
+
+@app.route("/os/campo/<token>", methods=["GET", "POST"])
+def os_campo_publico(token: str) -> str:
+    ordem_servico = buscar_ordem_servico_por_token_campo(token)
+    mensagem = ""
+    erro = ""
+    if ordem_servico is None:
+        return render_template("os_campo_execucao.html", ordem_servico=None, erro="Link de campo não encontrado.", mensagem="")
+
+    empresa_id = int(ordem_servico.get("empresa_id") or 0)
+    ordem_servico_id = int(ordem_servico.get("id") or 0)
+
+    if request.method == "POST":
+        dados = {
+            "status": str(request.form.get("os_status") or ordem_servico.get("status") or "andamento").strip(),
+            "diagnostico": str(request.form.get("os_diagnostico") or "").strip(),
+            "servico_executado": str(request.form.get("os_servico_executado") or "").strip(),
+            "observacoes": str(request.form.get("os_observacoes") or "").strip(),
+        }
+        if atualizar_execucao_os_campo(token, dados):
+            mensagem = "Execução da OS salva com sucesso."
+            ordem_servico = buscar_ordem_servico_por_token_campo(token) or ordem_servico
+        else:
+            erro = "Não foi possível salvar a execução da OS."
+
+    itens = listar_ordem_servico_itens(ordem_servico_id, empresa_id_param=empresa_id)
+    fotos_equipamento = listar_fotos_equipamento_os(ordem_servico_id, empresa_id_param=empresa_id)
+    equipamentos_os = anexar_tokens_a_equipamentos_os(ordem_servico, montar_equipamentos_ordem_servico(ordem_servico))
+    return render_template(
+        "os_campo_execucao.html",
+        ordem_servico=ordem_servico,
+        erro=erro,
+        mensagem=mensagem,
+        itens_produtos=[item for item in itens if item["tipo_item"] == "produto"],
+        itens_servicos=[item for item in itens if item["tipo_item"] == "servico"],
+        equipamentos_os=equipamentos_os,
+        fotos_equipamento=fotos_equipamento,
+        fotos_por_equipamento=agrupar_fotos_por_equipamento(fotos_equipamento),
+    )
+
+
+@app.get("/os/equipamento/<token>")
+def equipamento_historico_publico(token: str) -> str:
+    contexto = montar_historico_equipamento_publico(token)
+    if contexto is None:
+        return render_template("equipamento_historico_publico.html", contexto=None, erro="Histórico do equipamento não encontrado.")
+    return render_template("equipamento_historico_publico.html", contexto=contexto, erro="")
+
+
+@app.get("/os/equipamento/<token>/qrcode.svg")
+def qrcode_equipamento_publico(token: str) -> Response:
+    url_destino = montar_url_equipamento_historico(token)
+    try:
+        import qrcode
+        import qrcode.image.svg
+        imagem = qrcode.make(url_destino, image_factory=qrcode.image.svg.SvgPathImage)
+        saida = io.BytesIO()
+        imagem.save(saida)
+        return Response(saida.getvalue(), mimetype="image/svg+xml")
+    except Exception:
+        qrcode_externo = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=" + urllib.parse.quote(url_destino)
+        return redirect(qrcode_externo)
+
 @app.get("/ordens-servico/<int:ordem_servico_id>/gerar/copia")
 def gerar_copia_ordem_servico(ordem_servico_id: int) -> Response:
     nova_ordem_servico_id = copiar_ordem_servico_db(ordem_servico_id)
@@ -15492,7 +15899,7 @@ def gerar_copia_ordem_servico(ordem_servico_id: int) -> Response:
 
 @app.get("/ordens-servico/<int:ordem_servico_id>/editar")
 def editar_ordem_servico(ordem_servico_id: int) -> str | Response:
-    ordem_servico = buscar_ordem_servico_por_id(ordem_servico_id)
+    ordem_servico = garantir_tokens_publicos_ordem_servico(ordem_servico_id)
 
     if ordem_servico is None:
         return redirect(url_for("ordens_servico"))

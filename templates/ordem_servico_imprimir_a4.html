@@ -48,6 +48,10 @@ Motivo: Exibir fotos antes/depois abaixo do equipamento correspondente na impres
         .mini-list li { margin-bottom: 3px; }
         .muted { color: #64748b; }
         .foto-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 10px; }
+        .qr-equipamento { display: grid; grid-template-columns: 86px 1fr; gap: 10px; align-items: center; padding: 10px; border-top: 1px solid #e5eaf2; }
+        .qr-equipamento img { width: 86px; height: 86px; border: 1px solid #dbe3ef; border-radius: 8px; padding: 5px; }
+        .qr-equipamento strong { display: block; margin-bottom: 4px; }
+        .qr-equipamento span { display: block; color: #475569; font-size: 10px; }
         .foto-card { border: 1px solid #e5eaf2; border-radius: 8px; overflow: hidden; page-break-inside: avoid; }
         .foto-card-title { padding: 7px 8px; background: #f8fafc; border-bottom: 1px solid #e5eaf2; font-weight: 800; color: #0f172a; }
         .foto-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 8px; }
@@ -108,6 +112,17 @@ Motivo: Exibir fotos antes/depois abaixo do equipamento correspondente na impres
                     <div class="field span-2"><span class="label">Diagnóstico / solução</span><div class="value">{{ equipamento.diagnostico or '-' }}</div></div>
                     <div class="field span-2"><span class="label">Laudo</span><div class="value">{{ equipamento.laudo or '-' }}</div></div>
                 </div>
+
+                {% if equipamento.qrcode_url %}
+                    <div class="qr-equipamento">
+                        <img src="{{ equipamento.qrcode_url }}" alt="QR Code do equipamento">
+                        <div>
+                            <strong>QR Code do equipamento</strong>
+                            <span>Escaneie para acessar o histórico de manutenções deste equipamento.</span>
+                            <span>{{ equipamento.historico_url }}</span>
+                        </div>
+                    </div>
+                {% endif %}
 
                 {% if fotos_do_equipamento %}
                     <h3>Registro fotográfico</h3>

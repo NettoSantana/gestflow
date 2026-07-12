@@ -1103,8 +1103,12 @@ Motivo: Reorganizar a tela de OS no padrão visual de Orçamentos, abrindo com c
                                                         <details class="budget-action-submenu">
                                                             <summary>↪ Gerar</summary>
                                                             <div class="budget-action-subitems">
-                                                                <a href="/ordens-servico/{{ os.id }}/gerar/acompanhamento">Link de acompanhamento</a>
+                                                                <a href="/ordens-servico/{{ os.id }}/links">Atualizar links públicos</a>
+                                                                <a href="/os/cliente/{{ os.token_cliente }}" target="_blank">Link do cliente</a>
+                                                                <a href="/os/campo/{{ os.token_campo }}" target="_blank">Link do técnico/campo</a>
+                                                                <a href="/ordens-servico/{{ os.id }}/gerar/acompanhamento">Link diário antigo</a>
                                                                 <a href="/ordens-servico/{{ os.id }}/gerar/copia">Cópia</a>
+                                                            
                                                             </div>
                                                         </details>
                                                     </div>
