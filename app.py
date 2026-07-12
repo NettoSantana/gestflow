@@ -6750,6 +6750,29 @@ def atualizar_equipamento_db(equipamento_id: int, dados: dict[str, Any]) -> bool
     return True
 
 
+def excluir_equipamento_db(equipamento_id: int) -> bool:
+    empresa_id = empresa_logada_id()
+    equipamento = buscar_equipamento_por_id(equipamento_id, empresa_id)
+
+    if equipamento is None:
+        return False
+
+    agora = agora_empresa().isoformat(timespec="seconds")
+
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            UPDATE equipamentos
+            SET status = ?, atualizado_em = ?
+            WHERE id = ? AND empresa_id = ?
+            """,
+            ("baixado", agora, int(equipamento_id), empresa_id),
+        )
+        conn.commit()
+
+    return True
+
+
 def montar_dados_equipamento_formulario(prefixo: str = "") -> dict[str, str]:
     return {
         "cliente_nome": normalizar_texto_equipamento(request.form.get(prefixo + "cliente_nome") or request.form.get("cliente_nome")),
@@ -16394,6 +16417,12 @@ def editar_equipamento(equipamento_id: int) -> str | Response:
         clientes=listar_clientes(),
         erro=str(request.args.get("erro") or "").strip(),
     )
+
+
+@app.post("/equipamentos/<int:equipamento_id>/excluir")
+def excluir_equipamento(equipamento_id: int) -> Response:
+    excluir_equipamento_db(equipamento_id)
+    return redirect(url_for("equipamentos"))
 
 
 @app.get("/equipamentos/<int:equipamento_id>/qrcode.svg")
