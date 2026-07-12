@@ -3211,3 +3211,60 @@ canvas {
 
 /* OS PUBLICA / QR / LINKS */
 .os-link-grid,.os-public-grid,.campo-readonly-grid,.hist-grid{min-width:0}.os-link-card,.os-public-card,.campo-info,.hist-info{min-width:0;overflow-wrap:anywhere}@media(max-width:820px){.os-link-grid,.os-public-grid,.campo-readonly-grid,.hist-grid{grid-template-columns:1fr!important}}
+
+/* EQUIPAMENTOS / QR CODE */
+.equipamentos-page .equipamento-mini-qr {
+    width: 54px;
+    height: 54px;
+    border: 1px solid #dbe3ef;
+    border-radius: 10px;
+    background: #ffffff;
+    padding: 4px;
+}
+
+.equipamento-detalhe-grid {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+}
+
+.equipamento-qr-box {
+    border: 1px solid #dbeafe;
+    border-radius: 16px;
+    background: #eff6ff;
+    padding: 16px;
+    display: grid;
+    gap: 12px;
+}
+
+.equipamento-qr-box img {
+    width: 220px;
+    height: 220px;
+    max-width: 100%;
+    justify-self: center;
+    border: 1px solid #bfdbfe;
+    border-radius: 14px;
+    background: #ffffff;
+    padding: 10px;
+}
+
+.equipamento-summary {
+    margin-top: 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.os-equipamento-bloco .os-equipamento-select {
+    background: #f8fafc;
+    border-color: #bfdbfe;
+    font-weight: 800;
+}
+
+@media (max-width: 900px) {
+    .equipamento-detalhe-grid,
+    .equipamento-summary {
+        grid-template-columns: 1fr;
+    }
+}
+.form-span-2 { grid-column: span 2; }
+@media (max-width: 900px) { .form-span-2 { grid-column: span 1; } }

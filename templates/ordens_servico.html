@@ -907,7 +907,18 @@ Motivo: Reorganizar a tela de OS no padrão visual de Orçamentos, abrindo com c
                         <div class="os-equipamento-bloco">
                             <div class="os-equipamento-topo"><span>Equipamento principal</span></div>
                             <div class="os-grid-6">
-                                <div class="form-group os-span-3"><label for="os_equipamento">Equipamento</label><input id="os_equipamento" name="os_equipamento" type="text" placeholder="Ex: portão, máquina, veículo" class="form-control"></div>
+                                <div class="form-group os-span-2">
+                                    <label>Equipamento cadastrado</label>
+                                    <select name="os_equipamento_id" class="form-control os-equipamento-select" onchange="preencherEquipamentoCadastro(this)">
+                                        <option value="">Cadastrar novo pelo formulário</option>
+                                        {% for equipamento_cadastrado in equipamentos_cadastrados|default([]) %}
+                                            <option value="{{ equipamento_cadastrado.id }}" data-nome="{{ equipamento_cadastrado.nome|e }}" data-marca="{{ equipamento_cadastrado.marca|e }}" data-modelo="{{ equipamento_cadastrado.modelo|e }}" data-serie="{{ equipamento_cadastrado.serie|e }}" data-local="{{ equipamento_cadastrado.local_instalacao|e }}">
+                                                {{ equipamento_cadastrado.cliente_nome or 'Sem cliente' }} - {{ equipamento_cadastrado.nome }}{% if equipamento_cadastrado.serie %} / {{ equipamento_cadastrado.serie }}{% endif %}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="form-group os-span-2"><label for="os_equipamento">Equipamento</label><input id="os_equipamento" name="os_equipamento" type="text" placeholder="Ex: portão, máquina, veículo" class="form-control"></div>
                         <div class="form-group"><label for="os_marca">Marca</label><input id="os_marca" name="os_marca" type="text" class="form-control"></div>
                         <div class="form-group"><label for="os_modelo">Modelo</label><input id="os_modelo" name="os_modelo" type="text" class="form-control"></div>
                         <div class="form-group"><label for="os_serie">Série</label><input id="os_serie" name="os_serie" type="text" class="form-control"></div>
@@ -939,6 +950,8 @@ Motivo: Reorganizar a tela de OS no padrão visual de Orçamentos, abrindo com c
                                                     <input type="hidden" name="foto_os_id" value="">
                                                     <input type="hidden" name="foto_os_equipamento_indice" value="0">
                                                     <input type="hidden" name="foto_os_titulo" value="">
+                                                    <input type="hidden" name="foto_os_equipamento_id" value="">
+                                                    <input type="hidden" name="foto_os_vinculo_id" value="">
                                                     <input type="file" name="foto_os_antes" class="form-control" accept="image/*">
                                                 </td>
                                                 <td><input type="file" name="foto_os_depois" class="form-control" accept="image/*"></td>
@@ -1245,7 +1258,18 @@ Motivo: Reorganizar a tela de OS no padrão visual de Orçamentos, abrindo com c
                         <button type="button" class="action-button delete" title="Remover equipamento" aria-label="Remover equipamento" onclick="removerEquipamento(this)">×</button>
                     </div>
                     <div class="os-grid-6">
-                        <div class="form-group os-span-3"><label>Equipamento</label><input name="os_equipamento" type="text" placeholder="Ex: portão, máquina, veículo" class="form-control"></div>
+                        <div class="form-group os-span-2">
+                            <label>Equipamento cadastrado</label>
+                            <select name="os_equipamento_id" class="form-control os-equipamento-select" onchange="preencherEquipamentoCadastro(this)">
+                                <option value="">Cadastrar novo pelo formulário</option>
+                                {% for equipamento_cadastrado in equipamentos_cadastrados|default([]) %}
+                                    <option value="{{ equipamento_cadastrado.id }}" data-nome="{{ equipamento_cadastrado.nome|e }}" data-marca="{{ equipamento_cadastrado.marca|e }}" data-modelo="{{ equipamento_cadastrado.modelo|e }}" data-serie="{{ equipamento_cadastrado.serie|e }}" data-local="{{ equipamento_cadastrado.local_instalacao|e }}">
+                                        {{ equipamento_cadastrado.cliente_nome or 'Sem cliente' }} - {{ equipamento_cadastrado.nome }}{% if equipamento_cadastrado.serie %} / {{ equipamento_cadastrado.serie }}{% endif %}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group os-span-2"><label>Equipamento</label><input name="os_equipamento" type="text" placeholder="Ex.: portão, máquina, veículo" class="form-control"></div>
                         <div class="form-group"><label>Marca</label><input name="os_marca" type="text" class="form-control"></div>
                         <div class="form-group"><label>Modelo</label><input name="os_modelo" type="text" class="form-control"></div>
                         <div class="form-group"><label>Série</label><input name="os_serie" type="text" class="form-control"></div>
@@ -1277,6 +1301,8 @@ Motivo: Reorganizar a tela de OS no padrão visual de Orçamentos, abrindo com c
                                             <input type="hidden" name="foto_os_id" value="">
                                             <input type="hidden" name="foto_os_equipamento_indice" value="${equipamentoIndice}">
                                             <input type="hidden" name="foto_os_titulo" value="">
+                                                    <input type="hidden" name="foto_os_equipamento_id" value="">
+                                                    <input type="hidden" name="foto_os_vinculo_id" value="">
                                             <input type="file" name="foto_os_antes" class="form-control" accept="image/*">
                                         </td>
                                         <td><input type="file" name="foto_os_depois" class="form-control" accept="image/*"></td>
@@ -1668,6 +1694,8 @@ Motivo: Reorganizar a tela de OS no padrão visual de Orçamentos, abrindo com c
                         <input type="hidden" name="foto_os_id" value="">
                         <input type="hidden" name="foto_os_equipamento_indice" value="${equipamentoIndice}">
                         <input type="hidden" name="foto_os_titulo" value="">
+                                                    <input type="hidden" name="foto_os_equipamento_id" value="">
+                                                    <input type="hidden" name="foto_os_vinculo_id" value="">
                         <input type="file" name="foto_os_antes" class="form-control" accept="image/*">
                     </td>
                     <td><input type="file" name="foto_os_depois" class="form-control" accept="image/*"></td>
@@ -1677,9 +1705,33 @@ Motivo: Reorganizar a tela de OS no padrão visual de Orçamentos, abrindo com c
                 corpo.appendChild(linha);
             }
 
+
+            function preencherEquipamentoCadastro(select) {
+                const option = select && select.options ? select.options[select.selectedIndex] : null;
+                const bloco = select ? select.closest(".os-equipamento-bloco") : null;
+                if (!option || !bloco || !select.value) {
+                    return;
+                }
+                const mapa = {
+                    os_equipamento: option.dataset.nome || "",
+                    os_marca: option.dataset.marca || "",
+                    os_modelo: option.dataset.modelo || "",
+                    os_serie: option.dataset.serie || "",
+                    os_local_servico: option.dataset.local || ""
+                };
+                Object.keys(mapa).forEach(function(nomeCampo) {
+                    const campo = bloco.querySelector('[name="' + nomeCampo + '"]');
+                    if (campo && mapa[nomeCampo]) {
+                        campo.value = mapa[nomeCampo];
+                    }
+                });
+            }
+
             function prepararTitulosFotosEquipamento() {
                 document.querySelectorAll(".os-equipamento-bloco").forEach(function(bloco, indice) {
                     const equipamentoInput = bloco.querySelector('[name="os_equipamento"]');
+                    const equipamentoSelect = bloco.querySelector('[name="os_equipamento_id"]');
+                    const equipamentoCadastroId = equipamentoSelect && equipamentoSelect.value ? equipamentoSelect.value : "";
                     const equipamentoNome = equipamentoInput && equipamentoInput.value.trim() ? equipamentoInput.value.trim() : (indice === 0 ? "Equipamento principal" : "Equipamento adicional " + (indice + 1));
 
                     bloco.querySelectorAll('[name="foto_os_titulo"]').forEach(function(inputTitulo) {
@@ -1688,6 +1740,9 @@ Motivo: Reorganizar a tela de OS no padrão visual de Orçamentos, abrindo com c
 
                     bloco.querySelectorAll('[name="foto_os_equipamento_indice"]').forEach(function(inputIndice) {
                         inputIndice.value = String(indice);
+                    });
+                    bloco.querySelectorAll('[name="foto_os_equipamento_id"]').forEach(function(inputEquipamentoId) {
+                        inputEquipamentoId.value = equipamentoCadastroId;
                     });
 
                     bloco.querySelectorAll(".fotos-equipamento-tbody").forEach(function(corpo) {

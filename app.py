@@ -65,6 +65,7 @@ GESTFLOW_MODULOS = [
     {"codigo": "clientes", "nome": "Clientes", "grupo": "Cadastros", "descricao": "Cadastro e histórico de clientes."},
     {"codigo": "fornecedores", "nome": "Fornecedores", "grupo": "Cadastros", "descricao": "Cadastro de fornecedores e parceiros."},
     {"codigo": "funcionarios", "nome": "Funcionários", "grupo": "Cadastros", "descricao": "Equipe, responsáveis, técnicos e custos de mão de obra."},
+    {"codigo": "equipamentos", "nome": "Equipamentos", "grupo": "Cadastros", "descricao": "Cadastro técnico de equipamentos com QR Code e histórico de manutenções."},
     {"codigo": "produtos", "nome": "Produtos", "grupo": "Operação", "descricao": "Cadastro de produtos e itens comercializados."},
     {"codigo": "servicos", "nome": "Serviços", "grupo": "Operação", "descricao": "Cadastro de serviços prestados."},
     {"codigo": "orcamentos", "nome": "Orçamentos", "grupo": "Comercial", "descricao": "Propostas comerciais e orçamentos manuais."},
@@ -130,10 +131,10 @@ GESTFLOW_SEGMENTOS_POR_CODIGO = {segmento["codigo"]: segmento for segmento in GE
 GESTFLOW_PERFIS_MODULOS = {
     "comercio": {"clientes", "fornecedores", "produtos", "vendas", "vitrine", "pdv", "devolucoes", "estoque", "financeiro"},
     "servicos": {"clientes", "servicos", "orcamentos", "vendas", "vitrine", "financeiro", "agendamentos"},
-    "assistencia": {"clientes", "fornecedores", "funcionarios", "produtos", "servicos", "orcamentos", "vendas", "vitrine", "ordens_servico", "estoque", "financeiro", "agendamentos", "registro_ponto"},
-    "industrial": {"clientes", "fornecedores", "funcionarios", "produtos", "servicos", "orcamentos", "gerador_orcamentos", "vendas", "ordens_servico", "painel_os", "estoque", "financeiro", "registro_ponto"},
+    "assistencia": {"clientes", "fornecedores", "funcionarios", "equipamentos", "produtos", "servicos", "orcamentos", "vendas", "vitrine", "ordens_servico", "estoque", "financeiro", "agendamentos", "registro_ponto"},
+    "industrial": {"clientes", "fornecedores", "funcionarios", "equipamentos", "produtos", "servicos", "orcamentos", "gerador_orcamentos", "vendas", "ordens_servico", "painel_os", "estoque", "financeiro", "registro_ponto"},
     "distribuicao": {"clientes", "fornecedores", "produtos", "vendas", "vitrine", "devolucoes", "estoque", "financeiro"},
-    "locacao": {"clientes", "fornecedores", "funcionarios", "produtos", "servicos", "orcamentos", "vendas", "ordens_servico", "estoque", "financeiro"},
+    "locacao": {"clientes", "fornecedores", "funcionarios", "equipamentos", "produtos", "servicos", "orcamentos", "vendas", "ordens_servico", "estoque", "financeiro"},
     "completo": set(GESTFLOW_MODULOS_CODIGOS),
 }
 
@@ -250,7 +251,7 @@ def sugerir_modulos_por_anamnese(dados: dict[str, Any]) -> dict[str, bool]:
     if "balcao" in operacao:
         ativos.update({"pdv", "devolucoes"})
     if "equipe_externa" in operacao or "ordem_servico" in operacao:
-        ativos.update({"clientes", "funcionarios", "servicos", "ordens_servico", "registro_ponto"})
+        ativos.update({"clientes", "funcionarios", "equipamentos", "servicos", "ordens_servico", "registro_ponto"})
     if "projetos_obras" in operacao:
         ativos.update({"clientes", "fornecedores", "funcionarios", "produtos", "servicos", "orcamentos", "gerador_orcamentos", "ordens_servico", "financeiro", "registro_ponto"})
 
@@ -264,9 +265,9 @@ def sugerir_modulos_por_anamnese(dados: dict[str, Any]) -> dict[str, bool]:
         ativos.update({"clientes", "vendas", "vitrine"})
 
     if "os_simples" in execucao or "os_completa" in execucao:
-        ativos.update({"clientes", "servicos", "ordens_servico", "registro_ponto"})
+        ativos.update({"clientes", "equipamentos", "servicos", "ordens_servico", "registro_ponto"})
     if "campo" in execucao or "fotos" in execucao or "acompanhamento" in execucao:
-        ativos.update({"clientes", "funcionarios", "servicos", "ordens_servico", "painel_os"})
+        ativos.update({"clientes", "funcionarios", "equipamentos", "servicos", "ordens_servico", "painel_os"})
 
     if "estoque_simples" in estoque or "estoque_completo" in estoque:
         ativos.update({"produtos", "estoque"})
@@ -313,6 +314,9 @@ def sugerir_modulos_por_anamnese(dados: dict[str, Any]) -> dict[str, bool]:
         ativos.add("produtos")
     if "agendamentos" in ativos:
         ativos.update({"clientes", "servicos"})
+    if "ordens_servico" in ativos:
+        ativos.add("equipamentos")
+
     if "registro_ponto" in ativos:
         ativos.add("funcionarios")
 
@@ -380,6 +384,7 @@ def modulo_por_rota(path: str) -> str:
         ("/clientes", "clientes"),
         ("/fornecedores", "fornecedores"),
         ("/funcionarios", "funcionarios"),
+        ("/equipamentos", "equipamentos"),
         ("/produtos", "produtos"),
         ("/servicos", "servicos"),
         ("/estoque", "estoque"),
@@ -907,6 +912,47 @@ def iniciar_banco() -> None:
                 email TEXT,
                 observacoes TEXT,
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS equipamentos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER,
+                cliente_id INTEGER,
+                cliente_nome TEXT,
+                nome TEXT NOT NULL,
+                marca TEXT,
+                modelo TEXT,
+                serie TEXT,
+                tag TEXT,
+                local_instalacao TEXT,
+                status TEXT NOT NULL DEFAULT 'ativo',
+                token_qrcode TEXT,
+                origem TEXT DEFAULT 'cadastro',
+                observacoes TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                atualizado_em TEXT
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS ordem_servico_equipamentos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER,
+                ordem_servico_id INTEGER NOT NULL,
+                equipamento_id INTEGER,
+                equipamento_indice TEXT DEFAULT '0',
+                origem TEXT DEFAULT 'os',
+                observacoes TEXT,
+                diagnostico TEXT,
+                servico_executado TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                atualizado_em TEXT,
+                FOREIGN KEY (ordem_servico_id) REFERENCES ordens_servico (id),
+                FOREIGN KEY (equipamento_id) REFERENCES equipamentos (id)
             )
             """
         )
@@ -1951,6 +1997,8 @@ def iniciar_banco() -> None:
             "clientes",
             "fornecedores",
             "funcionarios",
+            "equipamentos",
+            "ordem_servico_equipamentos",
             "produtos",
             "servicos",
             "orcamentos",
@@ -2036,6 +2084,56 @@ def iniciar_banco() -> None:
 
         if "equipamento_indice" not in colunas_fotos_equipamento:
             conn.execute("ALTER TABLE os_fotos_equipamento ADD COLUMN equipamento_indice TEXT DEFAULT '0'")
+
+
+        colunas_equipamentos_existentes = {
+            str(row["name"])
+            for row in conn.execute("PRAGMA table_info(equipamentos)").fetchall()
+        }
+        colunas_equipamentos_migracao = {
+            "empresa_id": "INTEGER",
+            "cliente_id": "INTEGER",
+            "cliente_nome": "TEXT",
+            "nome": "TEXT",
+            "marca": "TEXT",
+            "modelo": "TEXT",
+            "serie": "TEXT",
+            "tag": "TEXT",
+            "local_instalacao": "TEXT",
+            "status": "TEXT DEFAULT 'ativo'",
+            "token_qrcode": "TEXT",
+            "origem": "TEXT DEFAULT 'cadastro'",
+            "observacoes": "TEXT",
+            "atualizado_em": "TEXT",
+        }
+        for coluna, tipo_coluna in colunas_equipamentos_migracao.items():
+            if coluna not in colunas_equipamentos_existentes:
+                conn.execute(f"ALTER TABLE equipamentos ADD COLUMN {coluna} {tipo_coluna}")
+
+        colunas_os_equipamentos_existentes = {
+            str(row["name"])
+            for row in conn.execute("PRAGMA table_info(ordem_servico_equipamentos)").fetchall()
+        }
+        colunas_os_equipamentos_migracao = {
+            "empresa_id": "INTEGER",
+            "ordem_servico_id": "INTEGER",
+            "equipamento_id": "INTEGER",
+            "equipamento_indice": "TEXT DEFAULT '0'",
+            "origem": "TEXT DEFAULT 'os'",
+            "observacoes": "TEXT",
+            "diagnostico": "TEXT",
+            "servico_executado": "TEXT",
+            "atualizado_em": "TEXT",
+        }
+        for coluna, tipo_coluna in colunas_os_equipamentos_migracao.items():
+            if coluna not in colunas_os_equipamentos_existentes:
+                conn.execute(f"ALTER TABLE ordem_servico_equipamentos ADD COLUMN {coluna} {tipo_coluna}")
+
+        if "equipamento_id" not in colunas_fotos_equipamento:
+            conn.execute("ALTER TABLE os_fotos_equipamento ADD COLUMN equipamento_id INTEGER")
+
+        if "os_equipamento_vinculo_id" not in colunas_fotos_equipamento:
+            conn.execute("ALTER TABLE os_fotos_equipamento ADD COLUMN os_equipamento_vinculo_id INTEGER")
 
         conn.commit()
 
@@ -6458,6 +6556,668 @@ def montar_historico_equipamento_publico(token: Any) -> dict[str, Any] | None:
     return {"token": str(token or ""), "equipamento": token_info, "historico": historico}
 
 
+
+# -----------------------------------------------------------------------------
+# EQUIPAMENTOS - cadastro real + vínculo com OS
+# -----------------------------------------------------------------------------
+
+def gerar_token_qrcode_equipamento() -> str:
+    return secrets.token_urlsafe(28)
+
+
+def normalizar_status_equipamento(valor: Any) -> str:
+    status = str(valor or "ativo").strip().lower()
+    return status if status in {"ativo", "inativo", "manutencao", "baixado"} else "ativo"
+
+
+def normalizar_texto_equipamento(valor: Any) -> str:
+    return str(valor or "").strip()
+
+
+def gerar_token_qrcode_unico_equipamento(conn: sqlite3.Connection) -> str:
+    for _ in range(40):
+        token = gerar_token_qrcode_equipamento()
+        conflito = conn.execute("SELECT id FROM equipamentos WHERE token_qrcode = ? LIMIT 1", (token,)).fetchone()
+        if conflito is None:
+            return token
+    return gerar_token_qrcode_equipamento() + secrets.token_urlsafe(8)
+
+
+def listar_equipamentos_cadastrados(status: str | None = None, cliente_nome: Any = "") -> list[dict[str, Any]]:
+    empresa_id = empresa_logada_id()
+    filtros = ["empresa_id = ?"]
+    parametros: list[Any] = [empresa_id]
+    status_normalizado = str(status or "").strip().lower()
+    cliente_normalizado = str(cliente_nome or "").strip()
+
+    if status_normalizado:
+        filtros.append("LOWER(COALESCE(status, 'ativo')) = ?")
+        parametros.append(status_normalizado)
+    else:
+        filtros.append("LOWER(COALESCE(status, 'ativo')) <> 'baixado'")
+
+    if cliente_normalizado:
+        filtros.append("LOWER(COALESCE(cliente_nome, '')) = LOWER(?)")
+        parametros.append(cliente_normalizado)
+
+    where = " AND ".join(filtros)
+    with conectar_db() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT *
+            FROM equipamentos
+            WHERE {where}
+            ORDER BY cliente_nome COLLATE NOCASE ASC, nome COLLATE NOCASE ASC, id DESC
+            """,
+            parametros,
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def buscar_equipamento_por_id(equipamento_id: int, empresa_id_param: int | None = None) -> dict[str, Any] | None:
+    empresa_id = int(empresa_id_param or empresa_logada_id())
+    try:
+        equipamento = int(equipamento_id)
+    except (TypeError, ValueError):
+        return None
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT *
+            FROM equipamentos
+            WHERE id = ? AND empresa_id = ?
+            LIMIT 1
+            """,
+            (equipamento, empresa_id),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def buscar_equipamento_por_token_qrcode(token: Any) -> dict[str, Any] | None:
+    token_normalizado = str(token or "").strip()
+    if not token_normalizado:
+        return None
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT *
+            FROM equipamentos
+            WHERE token_qrcode = ?
+            LIMIT 1
+            """,
+            (token_normalizado,),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def montar_link_equipamento_historico_por_token(token: Any) -> str:
+    token_normalizado = str(token or "").strip()
+    return f"{request.url_root.rstrip('/')}/os/equipamento/{token_normalizado}" if token_normalizado and request else ""
+
+
+def montar_link_qrcode_equipamento_por_token(token: Any) -> str:
+    token_normalizado = str(token or "").strip()
+    return f"{request.url_root.rstrip('/')}/os/equipamento/{token_normalizado}/qrcode.svg" if token_normalizado and request else ""
+
+
+def salvar_equipamento_db(dados: dict[str, Any]) -> int:
+    empresa_id = empresa_logada_id()
+    nome = normalizar_texto_equipamento(dados.get("nome"))
+    if not nome:
+        raise ValueError("Informe o nome do equipamento.")
+
+    cliente_nome = normalizar_texto_equipamento(dados.get("cliente_nome"))
+    cliente_id = None
+    if cliente_nome:
+        cliente = buscar_cliente_por_nome(cliente_nome)
+        if cliente:
+            cliente_id = int(cliente.get("id") or 0) or None
+
+    agora = agora_empresa().isoformat(timespec="seconds")
+    with conectar_db() as conn:
+        token = gerar_token_qrcode_unico_equipamento(conn)
+        cursor = conn.execute(
+            """
+            INSERT INTO equipamentos (
+                empresa_id, cliente_id, cliente_nome, nome, marca, modelo, serie, tag,
+                local_instalacao, status, token_qrcode, origem, observacoes, atualizado_em
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                empresa_id,
+                cliente_id,
+                cliente_nome,
+                nome,
+                normalizar_texto_equipamento(dados.get("marca")),
+                normalizar_texto_equipamento(dados.get("modelo")),
+                normalizar_texto_equipamento(dados.get("serie")),
+                normalizar_texto_equipamento(dados.get("tag")),
+                normalizar_texto_equipamento(dados.get("local_instalacao")),
+                normalizar_status_equipamento(dados.get("status")),
+                token,
+                normalizar_texto_equipamento(dados.get("origem") or "cadastro"),
+                normalizar_texto_equipamento(dados.get("observacoes")),
+                agora,
+            ),
+        )
+        equipamento_id = int(cursor.lastrowid)
+        conn.commit()
+    return equipamento_id
+
+
+def atualizar_equipamento_db(equipamento_id: int, dados: dict[str, Any]) -> bool:
+    empresa_id = empresa_logada_id()
+    equipamento = buscar_equipamento_por_id(equipamento_id, empresa_id)
+    if equipamento is None:
+        return False
+
+    nome = normalizar_texto_equipamento(dados.get("nome"))
+    if not nome:
+        return False
+
+    cliente_nome = normalizar_texto_equipamento(dados.get("cliente_nome"))
+    cliente_id = None
+    if cliente_nome:
+        cliente = buscar_cliente_por_nome(cliente_nome)
+        if cliente:
+            cliente_id = int(cliente.get("id") or 0) or None
+
+    agora = agora_empresa().isoformat(timespec="seconds")
+    with conectar_db() as conn:
+        token_atual = str(equipamento.get("token_qrcode") or "").strip() or gerar_token_qrcode_unico_equipamento(conn)
+        conn.execute(
+            """
+            UPDATE equipamentos
+            SET cliente_id = ?, cliente_nome = ?, nome = ?, marca = ?, modelo = ?, serie = ?, tag = ?,
+                local_instalacao = ?, status = ?, token_qrcode = ?, observacoes = ?, atualizado_em = ?
+            WHERE id = ? AND empresa_id = ?
+            """,
+            (
+                cliente_id,
+                cliente_nome,
+                nome,
+                normalizar_texto_equipamento(dados.get("marca")),
+                normalizar_texto_equipamento(dados.get("modelo")),
+                normalizar_texto_equipamento(dados.get("serie")),
+                normalizar_texto_equipamento(dados.get("tag")),
+                normalizar_texto_equipamento(dados.get("local_instalacao")),
+                normalizar_status_equipamento(dados.get("status")),
+                token_atual,
+                normalizar_texto_equipamento(dados.get("observacoes")),
+                agora,
+                int(equipamento_id),
+                empresa_id,
+            ),
+        )
+        conn.commit()
+    return True
+
+
+def montar_dados_equipamento_formulario(prefixo: str = "") -> dict[str, str]:
+    return {
+        "cliente_nome": normalizar_texto_equipamento(request.form.get(prefixo + "cliente_nome") or request.form.get("cliente_nome")),
+        "nome": normalizar_texto_equipamento(request.form.get(prefixo + "nome") or request.form.get("nome")),
+        "marca": normalizar_texto_equipamento(request.form.get(prefixo + "marca") or request.form.get("marca")),
+        "modelo": normalizar_texto_equipamento(request.form.get(prefixo + "modelo") or request.form.get("modelo")),
+        "serie": normalizar_texto_equipamento(request.form.get(prefixo + "serie") or request.form.get("serie")),
+        "tag": normalizar_texto_equipamento(request.form.get(prefixo + "tag") or request.form.get("tag")),
+        "local_instalacao": normalizar_texto_equipamento(request.form.get(prefixo + "local_instalacao") or request.form.get("local_instalacao")),
+        "status": normalizar_texto_equipamento(request.form.get(prefixo + "status") or request.form.get("status") or "ativo"),
+        "observacoes": normalizar_texto_equipamento(request.form.get(prefixo + "observacoes") or request.form.get("observacoes")),
+    }
+
+
+def _equipamento_form_listas() -> list[dict[str, Any]]:
+    nomes = request.form.getlist("os_equipamento")
+    marcas = request.form.getlist("os_marca")
+    modelos = request.form.getlist("os_modelo")
+    series = request.form.getlist("os_serie")
+    locais = request.form.getlist("os_local_servico")
+    condicoes = request.form.getlist("os_condicoes")
+    relatos = request.form.getlist("os_relato_cliente")
+    acessorios = request.form.getlist("os_acessorios")
+    diagnosticos = request.form.getlist("os_diagnostico")
+    laudos = request.form.getlist("os_laudo")
+    termos = request.form.getlist("os_termos")
+    ids = request.form.getlist("os_equipamento_id")
+    total = max(len(nomes), len(marcas), len(modelos), len(series), len(locais), len(ids), 1)
+    itens: list[dict[str, Any]] = []
+    for indice in range(total):
+        itens.append({
+            "indice": str(indice),
+            "equipamento_id": str(ids[indice] if indice < len(ids) else "").strip(),
+            "nome": str(nomes[indice] if indice < len(nomes) else "").strip(),
+            "marca": str(marcas[indice] if indice < len(marcas) else "").strip(),
+            "modelo": str(modelos[indice] if indice < len(modelos) else "").strip(),
+            "serie": str(series[indice] if indice < len(series) else "").strip(),
+            "local_instalacao": str(locais[indice] if indice < len(locais) else "").strip(),
+            "condicoes": str(condicoes[indice] if indice < len(condicoes) else "").strip(),
+            "relato_cliente": str(relatos[indice] if indice < len(relatos) else "").strip(),
+            "acessorios": str(acessorios[indice] if indice < len(acessorios) else "").strip(),
+            "diagnostico": str(diagnosticos[indice] if indice < len(diagnosticos) else "").strip(),
+            "laudo": str(laudos[indice] if indice < len(laudos) else "").strip(),
+            "termos": str(termos[indice] if indice < len(termos) else "").strip(),
+        })
+    return itens
+
+
+def _criar_ou_atualizar_equipamento_os(conn: sqlite3.Connection, empresa_id: int, cliente_nome: str, dados: dict[str, Any], origem: str = "os") -> int | None:
+    nome = normalizar_texto_equipamento(dados.get("nome") or dados.get("equipamento"))
+    equipamento_id_texto = str(dados.get("equipamento_id") or "").strip()
+    equipamento_id = int(equipamento_id_texto) if equipamento_id_texto.isdigit() else None
+
+    if not nome and equipamento_id is None:
+        return None
+
+    cliente_id = None
+    if cliente_nome:
+        cliente_row = conn.execute(
+            """
+            SELECT id
+            FROM clientes
+            WHERE empresa_id = ? AND LOWER(nome) = LOWER(?)
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            (empresa_id, cliente_nome),
+        ).fetchone()
+        if cliente_row is not None:
+            cliente_id = int(cliente_row["id"] or 0) or None
+
+    agora = agora_empresa().isoformat(timespec="seconds")
+
+    if equipamento_id is not None:
+        row = conn.execute(
+            "SELECT * FROM equipamentos WHERE id = ? AND empresa_id = ? LIMIT 1",
+            (equipamento_id, empresa_id),
+        ).fetchone()
+        if row is not None:
+            atual = dict(row)
+            token = str(atual.get("token_qrcode") or "").strip() or gerar_token_qrcode_unico_equipamento(conn)
+            conn.execute(
+                """
+                UPDATE equipamentos
+                SET cliente_id = COALESCE(?, cliente_id), cliente_nome = COALESCE(NULLIF(?, ''), cliente_nome),
+                    nome = COALESCE(NULLIF(?, ''), nome), marca = COALESCE(NULLIF(?, ''), marca),
+                    modelo = COALESCE(NULLIF(?, ''), modelo), serie = COALESCE(NULLIF(?, ''), serie),
+                    local_instalacao = COALESCE(NULLIF(?, ''), local_instalacao), token_qrcode = ?, atualizado_em = ?
+                WHERE id = ? AND empresa_id = ?
+                """,
+                (
+                    cliente_id,
+                    cliente_nome,
+                    nome,
+                    normalizar_texto_equipamento(dados.get("marca")),
+                    normalizar_texto_equipamento(dados.get("modelo")),
+                    normalizar_texto_equipamento(dados.get("serie")),
+                    normalizar_texto_equipamento(dados.get("local_instalacao")),
+                    token,
+                    agora,
+                    equipamento_id,
+                    empresa_id,
+                ),
+            )
+            return equipamento_id
+
+    serie = normalizar_texto_equipamento(dados.get("serie"))
+    marca = normalizar_texto_equipamento(dados.get("marca"))
+    modelo = normalizar_texto_equipamento(dados.get("modelo"))
+    existente = None
+    if serie:
+        existente = conn.execute(
+            """
+            SELECT id FROM equipamentos
+            WHERE empresa_id = ? AND LOWER(COALESCE(cliente_nome, '')) = LOWER(?)
+              AND LOWER(COALESCE(serie, '')) = LOWER(?)
+            LIMIT 1
+            """,
+            (empresa_id, cliente_nome, serie),
+        ).fetchone()
+    if existente is None and nome:
+        existente = conn.execute(
+            """
+            SELECT id FROM equipamentos
+            WHERE empresa_id = ? AND LOWER(COALESCE(cliente_nome, '')) = LOWER(?)
+              AND LOWER(COALESCE(nome, '')) = LOWER(?)
+              AND LOWER(COALESCE(marca, '')) = LOWER(?)
+              AND LOWER(COALESCE(modelo, '')) = LOWER(?)
+            LIMIT 1
+            """,
+            (empresa_id, cliente_nome, nome, marca, modelo),
+        ).fetchone()
+    if existente is not None:
+        equipamento_id = int(existente["id"])
+        conn.execute(
+            """
+            UPDATE equipamentos
+            SET marca = COALESCE(NULLIF(?, ''), marca), modelo = COALESCE(NULLIF(?, ''), modelo),
+                serie = COALESCE(NULLIF(?, ''), serie), local_instalacao = COALESCE(NULLIF(?, ''), local_instalacao),
+                atualizado_em = ?
+            WHERE id = ? AND empresa_id = ?
+            """,
+            (marca, modelo, serie, normalizar_texto_equipamento(dados.get("local_instalacao")), agora, equipamento_id, empresa_id),
+        )
+        return equipamento_id
+
+    token = gerar_token_qrcode_unico_equipamento(conn)
+    cursor = conn.execute(
+        """
+        INSERT INTO equipamentos (
+            empresa_id, cliente_id, cliente_nome, nome, marca, modelo, serie, local_instalacao,
+            status, token_qrcode, origem, observacoes, atualizado_em
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            empresa_id,
+            cliente_id,
+            cliente_nome,
+            nome,
+            marca,
+            modelo,
+            serie,
+            normalizar_texto_equipamento(dados.get("local_instalacao")),
+            "ativo",
+            token,
+            origem,
+            normalizar_texto_equipamento(dados.get("observacoes")),
+            agora,
+        ),
+    )
+    return int(cursor.lastrowid)
+
+
+def sincronizar_equipamentos_os(ordem_servico_id: int, ordem_servico: dict[str, Any] | None = None, empresa_id_param: int | None = None, origem: str = "os") -> None:
+    empresa_id = int(empresa_id_param or empresa_logada_id())
+    if ordem_servico is None:
+        ordem_servico = buscar_ordem_servico_por_id(ordem_servico_id)
+    if not ordem_servico:
+        return
+
+    cliente_nome = normalizar_texto_equipamento(ordem_servico.get("cliente"))
+    agora = agora_empresa().isoformat(timespec="seconds")
+
+    if request and request.method == "POST" and request.form.getlist("os_equipamento"):
+        itens = _equipamento_form_listas()
+    else:
+        itens = []
+        for item in montar_equipamentos_ordem_servico(ordem_servico):
+            itens.append({
+                "indice": str(item.get("indice") or "0"),
+                "equipamento_id": str(item.get("equipamento_id") or ""),
+                "nome": str(item.get("equipamento") or ""),
+                "marca": str(item.get("marca") or ""),
+                "modelo": str(item.get("modelo") or ""),
+                "serie": str(item.get("serie") or ""),
+                "local_instalacao": str(item.get("local_servico") or ""),
+                "condicoes": str(item.get("condicoes") or ""),
+                "relato_cliente": str(item.get("relato_cliente") or ""),
+                "diagnostico": str(item.get("diagnostico") or ""),
+                "observacoes": str(item.get("observacoes") or ""),
+            })
+
+    with conectar_db() as conn:
+        # Se o formulário foi enviado, refaz os vínculos da OS para não carregar equipamento removido.
+        if request and request.method == "POST" and request.form.getlist("os_equipamento"):
+            conn.execute(
+                "DELETE FROM ordem_servico_equipamentos WHERE ordem_servico_id = ? AND empresa_id = ?",
+                (ordem_servico_id, empresa_id),
+            )
+
+        existentes = conn.execute(
+            """
+            SELECT equipamento_indice, equipamento_id, id
+            FROM ordem_servico_equipamentos
+            WHERE ordem_servico_id = ? AND empresa_id = ?
+            """,
+            (ordem_servico_id, empresa_id),
+        ).fetchall()
+        mapa_existentes = {str(row["equipamento_indice"] or "0"): dict(row) for row in existentes}
+
+        for item in itens:
+            if not normalizar_texto_equipamento(item.get("nome")) and not str(item.get("equipamento_id") or "").strip():
+                continue
+            indice = str(item.get("indice") or "0").strip() or "0"
+            equipamento_id = _criar_ou_atualizar_equipamento_os(conn, empresa_id, cliente_nome, item, origem=origem)
+            if equipamento_id is None:
+                continue
+            existente = mapa_existentes.get(indice)
+            if existente:
+                vinculo_id = int(existente["id"])
+                conn.execute(
+                    """
+                    UPDATE ordem_servico_equipamentos
+                    SET equipamento_id = ?, origem = ?, diagnostico = ?, observacoes = ?, atualizado_em = ?
+                    WHERE id = ? AND empresa_id = ?
+                    """,
+                    (
+                        equipamento_id,
+                        origem,
+                        normalizar_texto_equipamento(item.get("diagnostico")),
+                        normalizar_texto_equipamento(item.get("observacoes") or item.get("condicoes") or item.get("relato_cliente")),
+                        agora,
+                        vinculo_id,
+                        empresa_id,
+                    ),
+                )
+            else:
+                cursor = conn.execute(
+                    """
+                    INSERT INTO ordem_servico_equipamentos (
+                        empresa_id, ordem_servico_id, equipamento_id, equipamento_indice, origem,
+                        diagnostico, observacoes, atualizado_em
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        empresa_id,
+                        ordem_servico_id,
+                        equipamento_id,
+                        indice,
+                        origem,
+                        normalizar_texto_equipamento(item.get("diagnostico")),
+                        normalizar_texto_equipamento(item.get("observacoes") or item.get("condicoes") or item.get("relato_cliente")),
+                        agora,
+                    ),
+                )
+                vinculo_id = int(cursor.lastrowid)
+            conn.execute(
+                """
+                UPDATE os_fotos_equipamento
+                SET equipamento_id = ?, os_equipamento_vinculo_id = ?
+                WHERE empresa_id = ? AND ordem_servico_id = ? AND COALESCE(equipamento_indice, '0') = ?
+                """,
+                (equipamento_id, vinculo_id, empresa_id, ordem_servico_id, indice),
+            )
+        conn.commit()
+
+
+def listar_equipamentos_os_contexto(ordem_servico: dict[str, Any] | None) -> list[dict[str, Any]]:
+    if not ordem_servico:
+        return []
+    ordem_servico_id = int(ordem_servico.get("id") or 0)
+    empresa_id = int(ordem_servico.get("empresa_id") or empresa_logada_id())
+    if ordem_servico_id <= 0:
+        return anexar_tokens_a_equipamentos_os(ordem_servico, montar_equipamentos_ordem_servico(ordem_servico))
+
+    sincronizar_equipamentos_os(ordem_servico_id, ordem_servico, empresa_id_param=empresa_id)
+    base = montar_equipamentos_ordem_servico(ordem_servico)
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                ose.id AS vinculo_id,
+                ose.equipamento_indice,
+                ose.origem AS vinculo_origem,
+                ose.observacoes AS vinculo_observacoes,
+                ose.diagnostico AS vinculo_diagnostico,
+                e.*
+            FROM ordem_servico_equipamentos ose
+            LEFT JOIN equipamentos e ON e.id = ose.equipamento_id
+            WHERE ose.empresa_id = ? AND ose.ordem_servico_id = ?
+            ORDER BY CAST(COALESCE(ose.equipamento_indice, '0') AS INTEGER), ose.id
+            """,
+            (empresa_id, ordem_servico_id),
+        ).fetchall()
+    vinculos = {str(row["equipamento_indice"] or "0"): dict(row) for row in rows}
+    resultado: list[dict[str, Any]] = []
+    usados = set()
+    for item in base:
+        indice = str(item.get("indice") or "0")
+        enriquecido = dict(item)
+        vinculo = vinculos.get(indice)
+        if vinculo:
+            usados.add(indice)
+            enriquecido["vinculo_id"] = vinculo.get("vinculo_id")
+            enriquecido["equipamento_id"] = vinculo.get("id") or vinculo.get("equipamento_id")
+            enriquecido["token_qrcode"] = vinculo.get("token_qrcode") or ""
+            enriquecido["historico_url"] = montar_link_equipamento_historico_por_token(vinculo.get("token_qrcode"))
+            enriquecido["qrcode_url"] = montar_link_qrcode_equipamento_por_token(vinculo.get("token_qrcode"))
+            enriquecido["cadastro_nome"] = vinculo.get("nome") or ""
+            enriquecido["origem_vinculo"] = vinculo.get("vinculo_origem") or "os"
+        resultado.append(enriquecido)
+    for indice, vinculo in vinculos.items():
+        if indice in usados:
+            continue
+        resultado.append({
+            "indice": indice,
+            "titulo": f"Equipamento {int(indice) + 1 if str(indice).isdigit() else indice}",
+            "equipamento": vinculo.get("nome") or "Equipamento",
+            "marca": vinculo.get("marca") or "",
+            "modelo": vinculo.get("modelo") or "",
+            "serie": vinculo.get("serie") or "",
+            "local_servico": vinculo.get("local_instalacao") or "",
+            "equipamento_id": vinculo.get("id") or vinculo.get("equipamento_id"),
+            "vinculo_id": vinculo.get("vinculo_id"),
+            "token_qrcode": vinculo.get("token_qrcode") or "",
+            "historico_url": montar_link_equipamento_historico_por_token(vinculo.get("token_qrcode")),
+            "qrcode_url": montar_link_qrcode_equipamento_por_token(vinculo.get("token_qrcode")),
+            "origem_vinculo": vinculo.get("vinculo_origem") or "os",
+        })
+    return resultado
+
+
+def anexar_tokens_a_equipamentos_os(ordem_servico: dict[str, Any], equipamentos: list[dict[str, str]]) -> list[dict[str, Any]]:
+    resultado: list[dict[str, Any]] = []
+    ordem_servico_id = int((ordem_servico or {}).get("id") or 0)
+    if ordem_servico_id > 0:
+        return listar_equipamentos_os_contexto(ordem_servico)
+    for equipamento in equipamentos:
+        item = dict(equipamento)
+        token = str(item.get("token_qrcode") or item.get("token_equipamento") or "").strip()
+        item["token_equipamento"] = token
+        item["historico_url"] = montar_link_equipamento_historico_por_token(token)
+        item["qrcode_url"] = montar_link_qrcode_equipamento_por_token(token)
+        resultado.append(item)
+    return resultado
+
+
+def buscar_equipamento_token_publico(token: Any) -> dict[str, Any] | None:
+    return buscar_equipamento_por_token_qrcode(token)
+
+
+def montar_historico_equipamento_publico(token: Any) -> dict[str, Any] | None:
+    equipamento = buscar_equipamento_por_token_qrcode(token)
+    if equipamento is None:
+        return None
+    empresa_id = int(equipamento.get("empresa_id") or 0)
+    equipamento_id = int(equipamento.get("id") or 0)
+    if empresa_id <= 0 or equipamento_id <= 0:
+        return None
+
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                os.*,
+                ose.equipamento_indice,
+                ose.origem AS origem_vinculo,
+                ose.observacoes AS observacoes_vinculo,
+                ose.diagnostico AS diagnostico_vinculo
+            FROM ordem_servico_equipamentos ose
+            JOIN ordens_servico os ON os.id = ose.ordem_servico_id
+            WHERE ose.empresa_id = ? AND ose.equipamento_id = ?
+            ORDER BY os.data_abertura DESC, os.id DESC
+            """,
+            (empresa_id, equipamento_id),
+        ).fetchall()
+    historico: list[dict[str, Any]] = []
+    for row in rows:
+        registro = dict(row)
+        os_id = int(registro.get("id") or 0)
+        indice = str(registro.get("equipamento_indice") or "0")
+        fotos = listar_fotos_equipamento_os(os_id, empresa_id_param=empresa_id)
+        fotos_por_equipamento = agrupar_fotos_por_equipamento(fotos)
+        registro["equipamento_match"] = {
+            "indice": indice,
+            "equipamento": equipamento.get("nome") or "",
+            "marca": equipamento.get("marca") or "",
+            "modelo": equipamento.get("modelo") or "",
+            "serie": equipamento.get("serie") or "",
+            "local_servico": equipamento.get("local_instalacao") or "",
+            "equipamento_id": equipamento_id,
+            "historico_url": montar_link_equipamento_historico_por_token(equipamento.get("token_qrcode")),
+            "qrcode_url": montar_link_qrcode_equipamento_por_token(equipamento.get("token_qrcode")),
+        }
+        registro["fotos"] = [foto for foto in fotos if int(foto.get("equipamento_id") or 0) == equipamento_id] or fotos_por_equipamento.get(indice, [])
+        registro["acompanhamentos"] = anexar_itens_aos_acompanhamentos(
+            listar_acompanhamentos_ordem_servico(os_id, empresa_id_param=empresa_id)
+        )
+        historico.append(registro)
+    return {"token": str(token or ""), "equipamento": equipamento, "historico": historico}
+
+
+def adicionar_equipamento_campo_os(ordem_servico: dict[str, Any], empresa_id: int, ordem_servico_id: int) -> None:
+    nome = normalizar_texto_equipamento(request.form.get("novo_equipamento_nome"))
+    if not nome:
+        return
+    dados = {
+        "nome": nome,
+        "marca": request.form.get("novo_equipamento_marca"),
+        "modelo": request.form.get("novo_equipamento_modelo"),
+        "serie": request.form.get("novo_equipamento_serie"),
+        "local_instalacao": request.form.get("novo_equipamento_local"),
+        "observacoes": request.form.get("novo_equipamento_observacoes"),
+    }
+    cliente_nome = normalizar_texto_equipamento(ordem_servico.get("cliente"))
+    agora = agora_empresa().isoformat(timespec="seconds")
+    with conectar_db() as conn:
+        equipamento_id = _criar_ou_atualizar_equipamento_os(conn, empresa_id, cliente_nome, dados, origem="campo")
+        if equipamento_id is None:
+            conn.commit()
+            return
+        ultimo = conn.execute(
+            "SELECT COALESCE(MAX(CAST(equipamento_indice AS INTEGER)), -1) + 1 AS proximo FROM ordem_servico_equipamentos WHERE empresa_id = ? AND ordem_servico_id = ?",
+            (empresa_id, ordem_servico_id),
+        ).fetchone()
+        novo_indice = str(int(ultimo["proximo"] if ultimo and ultimo["proximo"] is not None else 0))
+        cursor = conn.execute(
+            """
+            INSERT INTO ordem_servico_equipamentos (
+                empresa_id, ordem_servico_id, equipamento_id, equipamento_indice, origem, observacoes, atualizado_em
+            ) VALUES (?, ?, ?, ?, 'campo', ?, ?)
+            """,
+            (empresa_id, ordem_servico_id, equipamento_id, novo_indice, normalizar_texto_equipamento(dados.get("observacoes")), agora),
+        )
+        vinculo_id = int(cursor.lastrowid)
+
+        foto_antes = request.files.get("novo_equipamento_foto_antes")
+        foto_depois = request.files.get("novo_equipamento_foto_depois")
+        foto_antes_path = salvar_upload_foto_os(foto_antes, ordem_servico_id, "antes", empresa_id_param=empresa_id) if foto_antes and foto_antes.filename else ""
+        foto_depois_path = salvar_upload_foto_os(foto_depois, ordem_servico_id, "depois", empresa_id_param=empresa_id) if foto_depois and foto_depois.filename else ""
+        obs_foto = normalizar_texto_equipamento(request.form.get("novo_equipamento_observacoes"))
+        if foto_antes_path or foto_depois_path or obs_foto:
+            conn.execute(
+                """
+                INSERT INTO os_fotos_equipamento (
+                    empresa_id, ordem_servico_id, titulo, equipamento_indice, equipamento_id,
+                    os_equipamento_vinculo_id, foto_antes_path, foto_depois_path, observacoes, atualizado_em
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (empresa_id, ordem_servico_id, nome, novo_indice, equipamento_id, vinculo_id, foto_antes_path, foto_depois_path, obs_foto, agora),
+            )
+        conn.commit()
+
+
+
 def atualizar_execucao_os_campo(token: Any, dados: dict[str, str]) -> bool:
     ordem_servico = buscar_ordem_servico_por_token_campo(token)
     if ordem_servico is None:
@@ -6490,7 +7250,9 @@ def atualizar_execucao_os_campo(token: Any, dados: dict[str, str]) -> bool:
         )
         conn.commit()
 
+    sincronizar_equipamentos_os(ordem_servico_id, ordem_servico, empresa_id_param=empresa_id, origem="campo")
     atualizar_fotos_equipamento_os_formulario(ordem_servico_id, empresa_id_param=empresa_id)
+    adicionar_equipamento_campo_os(ordem_servico, empresa_id, ordem_servico_id)
     return True
 
 def proximo_numero_ordem_servico() -> str:
@@ -9136,9 +9898,9 @@ def salvar_upload_foto_os(arquivo, ordem_servico_id: int, tipo_foto: str, empres
     return f"/uploads/os-fotos/{nome_final}"
 
 
+
 def listar_fotos_equipamento_os(ordem_servico_id: int, empresa_id_param: int | None = None) -> list[dict[str, Any]]:
     empresa_id = int(empresa_id_param or empresa_logada_id())
-
     with conectar_db() as conn:
         rows = conn.execute(
             """
@@ -9148,6 +9910,8 @@ def listar_fotos_equipamento_os(ordem_servico_id: int, empresa_id_param: int | N
                 ordem_servico_id,
                 titulo,
                 equipamento_indice,
+                equipamento_id,
+                os_equipamento_vinculo_id,
                 foto_antes_path,
                 foto_depois_path,
                 observacoes,
@@ -9156,7 +9920,7 @@ def listar_fotos_equipamento_os(ordem_servico_id: int, empresa_id_param: int | N
             FROM os_fotos_equipamento
             WHERE ordem_servico_id = ?
               AND empresa_id = ?
-            ORDER BY id ASC
+            ORDER BY CAST(COALESCE(equipamento_indice, '0') AS INTEGER), id ASC
             """,
             (ordem_servico_id, empresa_id),
         ).fetchall()
@@ -9169,6 +9933,8 @@ def atualizar_fotos_equipamento_os_formulario(ordem_servico_id: int, empresa_id_
     ids = request.form.getlist("foto_os_id")
     titulos = request.form.getlist("foto_os_titulo")
     indices_equipamento = request.form.getlist("foto_os_equipamento_indice")
+    equipamentos_ids = request.form.getlist("foto_os_equipamento_id")
+    vinculos_ids = request.form.getlist("foto_os_vinculo_id")
     observacoes_lista = request.form.getlist("foto_os_observacoes")
     remover_ids = {
         int(valor)
@@ -9179,21 +9945,42 @@ def atualizar_fotos_equipamento_os_formulario(ordem_servico_id: int, empresa_id_
     arquivos_depois = request.files.getlist("foto_os_depois")
     agora = agora_empresa().isoformat(timespec="seconds")
 
-    total_linhas = max(
-        len(ids),
-        len(titulos),
-        len(indices_equipamento),
-        len(observacoes_lista),
-        len(arquivos_antes),
-        len(arquivos_depois),
-    )
-
     with conectar_db() as conn:
+        vinculos = conn.execute(
+            """
+            SELECT id, equipamento_id, equipamento_indice
+            FROM ordem_servico_equipamentos
+            WHERE empresa_id = ? AND ordem_servico_id = ?
+            """,
+            (empresa_id, ordem_servico_id),
+        ).fetchall()
+        vinculos_por_indice = {str(row["equipamento_indice"] or "0"): dict(row) for row in vinculos}
+
+        total_linhas = max(
+            len(ids),
+            len(titulos),
+            len(indices_equipamento),
+            len(equipamentos_ids),
+            len(vinculos_ids),
+            len(observacoes_lista),
+            len(arquivos_antes),
+            len(arquivos_depois),
+        )
+
         for indice in range(total_linhas):
             foto_id_texto = str(ids[indice] if indice < len(ids) else "").strip()
             foto_id = int(foto_id_texto) if foto_id_texto.isdigit() else None
             titulo = str(titulos[indice] if indice < len(titulos) else "").strip()
             equipamento_indice = str(indices_equipamento[indice] if indice < len(indices_equipamento) else "0").strip() or "0"
+            equipamento_id_texto = str(equipamentos_ids[indice] if indice < len(equipamentos_ids) else "").strip()
+            vinculo_id_texto = str(vinculos_ids[indice] if indice < len(vinculos_ids) else "").strip()
+            equipamento_id = int(equipamento_id_texto) if equipamento_id_texto.isdigit() else None
+            vinculo_id = int(vinculo_id_texto) if vinculo_id_texto.isdigit() else None
+            if equipamento_id is None or vinculo_id is None:
+                vinculo = vinculos_por_indice.get(equipamento_indice)
+                if vinculo:
+                    equipamento_id = equipamento_id or int(vinculo.get("equipamento_id") or 0) or None
+                    vinculo_id = vinculo_id or int(vinculo.get("id") or 0) or None
             observacoes = str(observacoes_lista[indice] if indice < len(observacoes_lista) else "").strip()
             arquivo_antes = arquivos_antes[indice] if indice < len(arquivos_antes) else None
             arquivo_depois = arquivos_depois[indice] if indice < len(arquivos_depois) else None
@@ -9241,6 +10028,8 @@ def atualizar_fotos_equipamento_os_formulario(ordem_servico_id: int, empresa_id_
                     SET
                         titulo = ?,
                         equipamento_indice = ?,
+                        equipamento_id = ?,
+                        os_equipamento_vinculo_id = ?,
                         foto_antes_path = ?,
                         foto_depois_path = ?,
                         observacoes = ?,
@@ -9252,6 +10041,8 @@ def atualizar_fotos_equipamento_os_formulario(ordem_servico_id: int, empresa_id_
                     (
                         titulo,
                         equipamento_indice,
+                        equipamento_id,
+                        vinculo_id,
                         foto_antes_path or row_atual["foto_antes_path"] or "",
                         foto_depois_path or row_atual["foto_depois_path"] or "",
                         observacoes,
@@ -9273,17 +10064,21 @@ def atualizar_fotos_equipamento_os_formulario(ordem_servico_id: int, empresa_id_
                     ordem_servico_id,
                     titulo,
                     equipamento_indice,
+                    equipamento_id,
+                    os_equipamento_vinculo_id,
                     foto_antes_path,
                     foto_depois_path,
                     observacoes,
                     atualizado_em
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     empresa_id,
                     ordem_servico_id,
                     titulo,
                     equipamento_indice,
+                    equipamento_id,
+                    vinculo_id,
                     foto_antes_path,
                     foto_depois_path,
                     observacoes,
@@ -9292,7 +10087,6 @@ def atualizar_fotos_equipamento_os_formulario(ordem_servico_id: int, empresa_id_
             )
 
         conn.commit()
-
 
 def usuario_logado_eh_admin_sistema() -> bool:
     email = str(session.get("usuario_email") or "").strip().lower()
@@ -10040,6 +10834,8 @@ def excluir_empresa_cliente_admin_db(empresa_id: int) -> bool:
             "clientes",
             "fornecedores",
             "funcionarios",
+            "equipamentos",
+            "ordem_servico_equipamentos",
             "produtos",
             "servicos",
         ]
@@ -15532,6 +16328,88 @@ def painel_ordens_servico() -> str:
     )
 
 
+
+@app.route("/equipamentos", methods=["GET", "POST"])
+def equipamentos() -> str | Response:
+    if request.method == "POST":
+        dados = montar_dados_equipamento_formulario()
+        try:
+            equipamento_id = salvar_equipamento_db(dados)
+            registrar_atividade_usuario("criacao", "equipamentos", f"Cadastrou equipamento {dados.get('nome')}", request.path)
+            return redirect(url_for("detalhe_equipamento", equipamento_id=equipamento_id))
+        except ValueError as exc:
+            return redirect(url_for("equipamentos", erro=str(exc)))
+
+    busca = str(request.args.get("busca") or "").strip()
+    status = str(request.args.get("status") or "").strip().lower()
+    equipamentos_lista = listar_equipamentos_cadastrados(status=status or None)
+    if busca:
+        termo = busca.lower()
+        equipamentos_lista = [
+            equipamento for equipamento in equipamentos_lista
+            if termo in str(equipamento.get("nome") or "").lower()
+            or termo in str(equipamento.get("cliente_nome") or "").lower()
+            or termo in str(equipamento.get("marca") or "").lower()
+            or termo in str(equipamento.get("modelo") or "").lower()
+            or termo in str(equipamento.get("serie") or "").lower()
+            or termo in str(equipamento.get("tag") or "").lower()
+        ]
+
+    return render_template(
+        "equipamentos.html",
+        equipamentos=equipamentos_lista,
+        clientes=listar_clientes(),
+        busca=busca,
+        status=status,
+        erro=str(request.args.get("erro") or "").strip(),
+    )
+
+
+@app.get("/equipamentos/<int:equipamento_id>")
+def detalhe_equipamento(equipamento_id: int) -> str | Response:
+    equipamento = buscar_equipamento_por_id(equipamento_id)
+    if equipamento is None:
+        return redirect(url_for("equipamentos", erro="Equipamento não encontrado."))
+    contexto = montar_historico_equipamento_publico(equipamento.get("token_qrcode")) or {"historico": []}
+    return render_template(
+        "equipamento_detalhe.html",
+        equipamento=equipamento,
+        historico=contexto.get("historico", []),
+        historico_url=montar_link_equipamento_historico_por_token(equipamento.get("token_qrcode")),
+        qrcode_url=montar_link_qrcode_equipamento_por_token(equipamento.get("token_qrcode")),
+    )
+
+
+@app.route("/equipamentos/<int:equipamento_id>/editar", methods=["GET", "POST"])
+def editar_equipamento(equipamento_id: int) -> str | Response:
+    equipamento = buscar_equipamento_por_id(equipamento_id)
+    if equipamento is None:
+        return redirect(url_for("equipamentos", erro="Equipamento não encontrado."))
+    if request.method == "POST":
+        dados = montar_dados_equipamento_formulario()
+        if atualizar_equipamento_db(equipamento_id, dados):
+            registrar_atividade_usuario("edicao", "equipamentos", f"Editou equipamento {dados.get('nome')}", request.path)
+            return redirect(url_for("detalhe_equipamento", equipamento_id=equipamento_id))
+        return redirect(url_for("editar_equipamento", equipamento_id=equipamento_id, erro="Não foi possível salvar o equipamento."))
+    return render_template(
+        "equipamento_editar.html",
+        equipamento=equipamento,
+        clientes=listar_clientes(),
+        erro=str(request.args.get("erro") or "").strip(),
+    )
+
+
+@app.get("/equipamentos/<int:equipamento_id>/qrcode.svg")
+def qrcode_equipamento_cadastrado(equipamento_id: int) -> Response:
+    equipamento = buscar_equipamento_por_id(equipamento_id)
+    if equipamento is None:
+        return Response("Equipamento não encontrado", status=404)
+    token = str(equipamento.get("token_qrcode") or "").strip()
+    if not token:
+        return Response("QR Code não gerado", status=404)
+    return qrcode_equipamento_publico(token)
+
+
 @app.get("/ordens-servico")
 def ordens_servico() -> str:
     contexto_ordens = montar_contexto_ordens_servico_paginado()
@@ -15561,6 +16439,7 @@ def ordens_servico() -> str:
         produtos=produtos_lista,
         servicos=servicos_lista,
         proximo_numero=proximo_numero,
+        equipamentos_cadastrados=listar_equipamentos_cadastrados(status="ativo"),
     )
 
 
@@ -15574,6 +16453,7 @@ def salvar_ordem_servico() -> Response:
         return redirect(url_for("ordens_servico", erro=erro_validacao))
 
     nova_ordem_servico_id = salvar_ordem_servico_db(ordem_servico, itens)
+    sincronizar_equipamentos_os(nova_ordem_servico_id, buscar_ordem_servico_por_id(nova_ordem_servico_id))
     atualizar_fotos_equipamento_os_formulario(nova_ordem_servico_id)
     registrar_atividade_usuario("criacao", "ordens_servico", f"Criou OS {ordem_servico.get('numero') or nova_ordem_servico_id}", request.path)
 
@@ -15592,7 +16472,7 @@ def ver_ordem_servico(ordem_servico_id: int) -> str | Response:
     itens_servicos = [item for item in itens if item["tipo_item"] == "servico"]
     acompanhamentos = anexar_itens_aos_acompanhamentos(listar_acompanhamentos_ordem_servico(ordem_servico_id))
     fotos_equipamento = listar_fotos_equipamento_os(ordem_servico_id)
-    equipamentos_os = anexar_tokens_a_equipamentos_os(ordem_servico, montar_equipamentos_ordem_servico(ordem_servico))
+    equipamentos_os = listar_equipamentos_os_contexto(ordem_servico)
     fotos_por_equipamento = agrupar_fotos_por_equipamento(fotos_equipamento)
     os_publico_links = montar_links_publicos_ordem_servico(ordem_servico)
     token_gerado = (request.args.get("link") or "").strip()
@@ -15631,7 +16511,7 @@ def imprimir_ordem_servico_a4(ordem_servico_id: int) -> str | Response:
     fotos_equipamento = listar_fotos_equipamento_os(ordem_servico_id)
     garantir_tokens_publicos_ordem_servico(ordem_servico_id)
     ordem_servico = buscar_ordem_servico_por_id(ordem_servico_id) or ordem_servico
-    equipamentos_os = anexar_tokens_a_equipamentos_os(ordem_servico, montar_equipamentos_ordem_servico(ordem_servico))
+    equipamentos_os = listar_equipamentos_os_contexto(ordem_servico)
     fotos_por_equipamento = agrupar_fotos_por_equipamento(fotos_equipamento)
     contexto_impressao = montar_contexto_impressao(ordem_servico.get("cliente"))
 
@@ -15811,7 +16691,7 @@ def os_cliente_publico(token: str) -> str:
     ordem_servico_id = int(ordem_servico.get("id") or 0)
     itens = listar_ordem_servico_itens(ordem_servico_id, empresa_id_param=empresa_id)
     fotos_equipamento = listar_fotos_equipamento_os(ordem_servico_id, empresa_id_param=empresa_id)
-    equipamentos_os = anexar_tokens_a_equipamentos_os(ordem_servico, montar_equipamentos_ordem_servico(ordem_servico))
+    equipamentos_os = listar_equipamentos_os_contexto(ordem_servico)
     acompanhamentos = anexar_itens_aos_acompanhamentos(listar_acompanhamentos_ordem_servico(ordem_servico_id, empresa_id_param=empresa_id))
     return render_template(
         "os_cliente_publico.html",
@@ -15851,7 +16731,7 @@ def os_campo_publico(token: str) -> str:
 
     itens = listar_ordem_servico_itens(ordem_servico_id, empresa_id_param=empresa_id)
     fotos_equipamento = listar_fotos_equipamento_os(ordem_servico_id, empresa_id_param=empresa_id)
-    equipamentos_os = anexar_tokens_a_equipamentos_os(ordem_servico, montar_equipamentos_ordem_servico(ordem_servico))
+    equipamentos_os = listar_equipamentos_os_contexto(ordem_servico)
     return render_template(
         "os_campo_execucao.html",
         ordem_servico=ordem_servico,
@@ -15910,7 +16790,7 @@ def editar_ordem_servico(ordem_servico_id: int) -> str | Response:
     produtos_lista = listar_produtos()
     servicos_lista = listar_servicos()
     fotos_equipamento = listar_fotos_equipamento_os(ordem_servico_id)
-    equipamentos_os = montar_equipamentos_ordem_servico(ordem_servico)
+    equipamentos_os = listar_equipamentos_os_contexto(ordem_servico)
     fotos_por_equipamento = agrupar_fotos_por_equipamento(fotos_equipamento)
 
     return render_template(
@@ -15924,6 +16804,7 @@ def editar_ordem_servico(ordem_servico_id: int) -> str | Response:
         equipamentos_os=equipamentos_os,
         fotos_equipamento=fotos_equipamento,
         fotos_por_equipamento=fotos_por_equipamento,
+        equipamentos_cadastrados=listar_equipamentos_cadastrados(status="ativo"),
     )
 
 
@@ -15942,6 +16823,7 @@ def atualizar_ordem_servico(ordem_servico_id: int) -> Response:
         return redirect(url_for("editar_ordem_servico", ordem_servico_id=ordem_servico_id, erro=erro_validacao))
 
     atualizar_ordem_servico_db(ordem_servico_id, ordem_servico, itens)
+    sincronizar_equipamentos_os(ordem_servico_id, buscar_ordem_servico_por_id(ordem_servico_id))
     atualizar_fotos_equipamento_os_formulario(ordem_servico_id)
 
     return redirect(url_for("ver_ordem_servico", ordem_servico_id=ordem_servico_id))
