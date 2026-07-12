@@ -2209,9 +2209,6 @@ def montar_filtros_clientes(busca: Any) -> tuple[str, list[Any]]:
     where = "WHERE empresa_id = ?"
     parametros: list[Any] = [empresa_id]
 
-    if cadastro == "funcionarios":
-        where += " AND LOWER(COALESCE(status, '')) <> 'excluido'"
-
     if termo:
         termo_like = f"%{termo}%"
         where += """
