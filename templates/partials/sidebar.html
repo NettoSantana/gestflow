@@ -19,7 +19,7 @@ Motivo: Incluir acesso à Vitrine Online no menu lateral.
 
     <nav class="sidebar-nav">
         {% set _modulos = gestflow_modulos_ativos|default({}, true) %}
-        {% set _cadastros_ativo = _modulos.get('clientes', true) or _modulos.get('fornecedores', true) or _modulos.get('funcionarios', true) %}
+        {% set _cadastros_ativo = _modulos.get('clientes', true) or _modulos.get('fornecedores', true) or _modulos.get('funcionarios', true) or _modulos.get('equipamentos', true) %}
         {% set _vendas_ativo = _modulos.get('vendas', true) or _modulos.get('pdv', true) or _modulos.get('devolucoes', true) %}
         {% set _orcamentos_ativo = _modulos.get('orcamentos', true) or _modulos.get('gerador_orcamentos', true) %}
         {% set _os_ativo = _modulos.get('ordens_servico', true) or _modulos.get('painel_os', true) %}
@@ -33,8 +33,8 @@ Motivo: Incluir acesso à Vitrine Online no menu lateral.
             </li>
 
             {% if _cadastros_ativo %}
-            <li class="menu-group {% if _path.startswith('/clientes') or _path.startswith('/fornecedores') or _path.startswith('/funcionarios') %}active{% endif %}">
-                <details {% if _path.startswith('/clientes') or _path.startswith('/fornecedores') or _path.startswith('/funcionarios') %}open{% endif %}>
+            <li class="menu-group {% if _path.startswith('/clientes') or _path.startswith('/fornecedores') or _path.startswith('/funcionarios') or _path.startswith('/equipamentos') %}active{% endif %}">
+                <details {% if _path.startswith('/clientes') or _path.startswith('/fornecedores') or _path.startswith('/funcionarios') or _path.startswith('/equipamentos') %}open{% endif %}>
                     <summary>
                         <span class="menu-label"><span class="menu-icon">☷</span><span>Cadastros</span></span>
                         <span class="arrow">⌄</span>
@@ -44,6 +44,7 @@ Motivo: Incluir acesso à Vitrine Online no menu lateral.
                         {% if _modulos.get('clientes', true) %}<li class="{% if _path.startswith('/clientes') %}submenu-active{% endif %}"><a href="/clientes">Clientes</a></li>{% endif %}
                         {% if _modulos.get('fornecedores', true) %}<li class="{% if _path.startswith('/fornecedores') %}submenu-active{% endif %}"><a href="/fornecedores">Fornecedores</a></li>{% endif %}
                         {% if _modulos.get('funcionarios', true) %}<li class="{% if _path.startswith('/funcionarios') %}submenu-active{% endif %}"><a href="/funcionarios">Funcionários</a></li>{% endif %}
+                        {% if _modulos.get('equipamentos', true) %}<li class="{% if _path.startswith('/equipamentos') %}submenu-active{% endif %}"><a href="/equipamentos">Equipamentos</a></li>{% endif %}
                     </ul>
                 </details>
             </li>

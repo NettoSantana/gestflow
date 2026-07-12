@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordens_servico.html
 Último recode: 2026-07-02 23:08 (America/Bahia)
-Motivo: Reorganizar a tela de OS no padrão visual de Orçamentos, abrindo com cards e lista e deixando o cadastro completo recolhido por padrão.
+Motivo: Alinhar bloco de equipamento da nova OS ao mesmo padrão visual da tela Editar OS.
 -->
 
 <!DOCTYPE html>
@@ -763,6 +763,120 @@ Motivo: Reorganizar a tela de OS no padrão visual de Orçamentos, abrindo com c
             max-width: 130px;
         }
 
+
+
+
+
+        /* EQUIPAMENTOS DA OS - PADRAO PRODUTOS/SERVICOS */
+        .os-equipamentos-container {
+            display: grid;
+            gap: 16px;
+        }
+
+        .os-equipamento-bloco {
+            border: 1px solid #e5eaf2 !important;
+            border-radius: 16px !important;
+            background: #ffffff !important;
+            padding: 16px !important;
+            margin-bottom: 14px !important;
+            overflow: hidden;
+        }
+
+        .os-equipamento-topo {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px !important;
+            color: #0f172a !important;
+            font-size: 13px !important;
+            font-weight: 900 !important;
+            text-transform: uppercase;
+        }
+
+        .os-equipamento-topo small {
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: none;
+        }
+
+        .os-equipamentos-table-shell {
+            width: 100%;
+            max-width: 100%;
+            border: 0 !important;
+            border-radius: 14px !important;
+            background: #ffffff;
+            overflow-x: auto;
+            overflow-y: visible;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .os-equipamentos-table {
+            width: 100%;
+            min-width: 1040px;
+            border-collapse: separate !important;
+            border-spacing: 0 8px !important;
+        }
+
+        .os-equipamentos-table thead th {
+            border-bottom: 0 !important;
+            background: transparent !important;
+            color: #334155 !important;
+            font-size: 12px !important;
+            font-weight: 900 !important;
+            text-transform: uppercase;
+            padding: 8px 10px !important;
+            white-space: nowrap;
+        }
+
+        .os-equipamentos-table tbody td {
+            border-bottom: 0 !important;
+            padding: 0 6px 8px !important;
+            vertical-align: middle;
+        }
+
+        .os-equipamentos-table .form-control,
+        .os-equipamentos-table input,
+        .os-equipamentos-table select {
+            min-height: 42px;
+            width: 100%;
+            max-width: 100%;
+        }
+
+        .os-equipamento-detalhes-card {
+            margin-top: 10px;
+            border: 1px solid #e5eaf2;
+            border-radius: 14px;
+            background: #f8fafc;
+            padding: 14px;
+        }
+
+        .os-equipamento-detalhes-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px 14px;
+        }
+
+        .os-equipamento-detalhes-grid .os-detalhe-full {
+            grid-column: 1 / -1;
+        }
+
+        .os-equipamento-remover-cell {
+            width: 54px;
+            text-align: center;
+        }
+
+        @media (max-width: 900px) {
+            .os-equipamento-detalhes-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .os-equipamentos-table {
+                min-width: 920px;
+            }
+        }
+
         @media (max-width: 720px) {
             .os-cadastro-resumo-inner,
             .os-header-actions {
@@ -775,6 +889,63 @@ Motivo: Reorganizar a tela de OS no padrão visual de Orçamentos, abrindo com c
             .os-header-actions .btn-primary-green {
                 width: 100%;
                 justify-content: center;
+            }
+        }
+
+        .os-page .os-equipamento-bloco textarea {
+            width: 100%;
+        }
+
+
+        /* Equipamentos na OS no mesmo padrão de Produtos/Serviços */
+        .os-equipamentos-table-shell {
+            border-radius: 16px;
+            overflow-x: auto;
+        }
+
+        .os-equipamentos-table {
+            min-width: 1180px;
+            border-collapse: separate !important;
+            border-spacing: 0 8px !important;
+        }
+
+        .os-equipamentos-table th {
+            white-space: nowrap;
+        }
+
+        .os-equipamentos-table td {
+            vertical-align: top;
+        }
+
+        .os-equipamentos-table .form-control {
+            min-height: 42px;
+            width: 100%;
+        }
+
+        .os-equipamento-detalhes-row td {
+            padding-top: 0 !important;
+        }
+
+        .os-equipamento-detalhes-card {
+            border: 1px solid #e5eaf2;
+            border-radius: 14px;
+            background: #f8fafc;
+            padding: 14px;
+        }
+
+        .os-equipamento-detalhes-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px 14px;
+        }
+
+        .os-equipamento-detalhes-grid .os-detalhe-full {
+            grid-column: 1 / -1;
+        }
+
+        @media (max-width: 900px) {
+            .os-equipamento-detalhes-grid {
+                grid-template-columns: 1fr;
             }
         }
 
@@ -899,65 +1070,89 @@ Motivo: Reorganizar a tela de OS no padrão visual de Orçamentos, abrindo com c
 
             <section class="os-form-section">
                 <div class="os-section-title">
-                    <h3>♜ Equipamento</h3>
-                    <span>Informações do equipamento, objeto ou local atendido</span>
+                    <h3>♜ Equipamentos</h3>
+                    <span>Adicione um ou vários equipamentos atendidos nesta OS</span>
                 </div>
                 <div class="os-section-body">
-                    <div id="equipamentos-container">
-                        <div class="os-equipamento-bloco">
-                            <div class="os-equipamento-topo"><span>Equipamento principal</span></div>
-                            <div class="os-grid-6">
-                                <div class="form-group os-span-3"><label for="os_equipamento">Equipamento</label><input id="os_equipamento" name="os_equipamento" type="text" placeholder="Ex: portão, máquina, veículo" class="form-control"></div>
-                        <div class="form-group"><label for="os_marca">Marca</label><input id="os_marca" name="os_marca" type="text" class="form-control"></div>
-                        <div class="form-group"><label for="os_modelo">Modelo</label><input id="os_modelo" name="os_modelo" type="text" class="form-control"></div>
-                        <div class="form-group"><label for="os_serie">Série</label><input id="os_serie" name="os_serie" type="text" class="form-control"></div>
-                        <div class="form-group os-span-3"><label for="os_condicoes">Condições</label><textarea id="os_condicoes" name="os_condicoes" class="form-control os-textarea" placeholder="Condições encontradas"></textarea></div>
-                        <div class="form-group os-span-3"><label for="os_relato_cliente">Defeitos / relato do cliente</label><textarea id="os_relato_cliente" name="os_relato_cliente" class="form-control os-textarea" placeholder="Problema informado pelo cliente"></textarea></div>
-                        <div class="form-group os-span-3"><label for="os_acessorios">Acessórios</label><textarea id="os_acessorios" name="os_acessorios" class="form-control os-textarea" placeholder="Acessórios recebidos ou vinculados"></textarea></div>
-                        <div class="form-group os-span-3"><label for="os_diagnostico">Solução / diagnóstico</label><textarea id="os_diagnostico" name="os_diagnostico" class="form-control os-textarea" placeholder="Diagnóstico técnico e solução proposta"></textarea></div>
-                        <div class="form-group os-span-3"><label for="os_laudo">Laudo</label><textarea id="os_laudo" name="os_laudo" class="form-control os-textarea" placeholder="Laudo técnico, quando aplicável"></textarea></div>
-                        <div class="form-group os-span-3"><label for="os_termos">Termos</label><textarea id="os_termos" name="os_termos" class="form-control os-textarea" placeholder="Termos e condições do atendimento"></textarea></div>
-                                <div class="form-group os-span-6"><label for="os_local_servico">Local do serviço</label><input id="os_local_servico" name="os_local_servico" type="text" placeholder="Ex: portaria principal, linha 2, área técnica" class="form-control"></div>
+                    <p class="page-subtitle" style="margin-bottom: 14px;">Selecione equipamentos cadastrados ou cadastre novos equipamentos diretamente na OS, no mesmo padrão de produtos e serviços.</p>
+
+                    <div id="equipamentos-container" class="os-equipamentos-container">
+                        <div class="os-equipamento-bloco" data-equipamento-indice="0">
+                            <div class="os-equipamento-topo">
+                                <div>
+                                    <span>Equipamento principal</span>
+                                    <small>Preencha a linha principal e detalhe abaixo.</small>
+                                </div>
                             </div>
-                            <div class="os-foto-equipamento-bloco" data-foto-bloco>
-                                <div class="os-foto-equipamento-titulo">
-                                    <span>Fotos antes / depois deste equipamento</span>
+
+                            <div class="table-shell os-equipamentos-table-shell">
+                                <table class="client-table os-equipamentos-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Equipamento cadastrado</th>
+                                            <th>Equipamento</th>
+                                            <th>Marca</th>
+                                            <th>Modelo</th>
+                                            <th>Série</th>
+                                            <th>Ação</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr class="os-equipamento-linha" data-equipamento-indice="0">
+                                            <td>
+                                                <select name="os_equipamento_id" class="form-control os-equipamento-select" onchange="preencherEquipamentoCadastro(this)">
+                                                    <option value="">Selecione</option>
+                                                    {% for equipamento_cadastrado in equipamentos_cadastrados|default([]) %}
+                                                        <option value="{{ equipamento_cadastrado.id }}" data-nome="{{ equipamento_cadastrado.nome|e }}" data-marca="{{ equipamento_cadastrado.marca|e }}" data-modelo="{{ equipamento_cadastrado.modelo|e }}" data-serie="{{ equipamento_cadastrado.serie|e }}" data-local="{{ equipamento_cadastrado.local_instalacao|e }}">
+                                                            {{ equipamento_cadastrado.cliente_nome or 'Sem cliente' }} - {{ equipamento_cadastrado.nome }}{% if equipamento_cadastrado.serie %} / {{ equipamento_cadastrado.serie }}{% endif %}
+                                                        </option>
+                                                    {% endfor %}
+                                                        <option value="__novo_equipamento__" class="quick-new-option">+ Adicionar novo equipamento</option>
+                                                </select>
+                                            </td>
+                                            <td><input id="os_equipamento" name="os_equipamento" type="text" placeholder="Ex: portão, máquina, veículo" class="form-control"></td>
+                                            <td><input id="os_marca" name="os_marca" type="text" class="form-control"></td>
+                                            <td><input id="os_modelo" name="os_modelo" type="text" class="form-control"></td>
+                                            <td><input id="os_serie" name="os_serie" type="text" class="form-control"></td>
+                                            <td class="os-equipamento-remover-cell"></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="os-equipamento-detalhes-card">
+                                <div class="os-equipamento-detalhes-grid">
+                                    <div class="form-group os-detalhe-full"><label for="os_local_servico">Local do serviço</label><input id="os_local_servico" name="os_local_servico" type="text" placeholder="Ex: portaria principal, linha 2, área técnica" class="form-control"></div>
+                                    <div class="form-group"><label for="os_condicoes">Condições</label><textarea id="os_condicoes" name="os_condicoes" class="form-control os-textarea" placeholder="Condições encontradas"></textarea></div>
+                                    <div class="form-group"><label for="os_relato_cliente">Defeitos / relato do cliente</label><textarea id="os_relato_cliente" name="os_relato_cliente" class="form-control os-textarea" placeholder="Problema informado pelo cliente"></textarea></div>
+                                    <div class="form-group"><label for="os_acessorios">Acessórios</label><textarea id="os_acessorios" name="os_acessorios" class="form-control os-textarea" placeholder="Acessórios recebidos ou vinculados"></textarea></div>
+                                    <div class="form-group"><label for="os_diagnostico">Solução / diagnóstico</label><textarea id="os_diagnostico" name="os_diagnostico" class="form-control os-textarea" placeholder="Diagnóstico técnico e solução proposta"></textarea></div>
+                                    <div class="form-group"><label for="os_laudo">Laudo</label><textarea id="os_laudo" name="os_laudo" class="form-control os-textarea" placeholder="Laudo técnico, quando aplicável"></textarea></div>
+                                    <div class="form-group"><label for="os_termos">Termos</label><textarea id="os_termos" name="os_termos" class="form-control os-textarea" placeholder="Termos e condições do atendimento"></textarea></div>
                                 </div>
-                                <div class="table-shell">
-                                    <table class="client-table os-photo-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Foto antes</th>
-                                                <th>Foto depois</th>
-                                                <th>Observação</th>
-                                                <th>Ação</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody class="fotos-equipamento-tbody" data-equipamento-indice="0">
-                                            <tr>
-                                                <td>
-                                                    <input type="hidden" name="foto_os_id" value="">
-                                                    <input type="hidden" name="foto_os_equipamento_indice" value="0">
-                                                    <input type="hidden" name="foto_os_titulo" value="">
-                                                    <input type="file" name="foto_os_antes" class="form-control" accept="image/*">
-                                                </td>
-                                                <td><input type="file" name="foto_os_depois" class="form-control" accept="image/*"></td>
-                                                <td><textarea name="foto_os_observacoes" class="form-control os-textarea" placeholder="Observação da foto"></textarea></td>
-                                                <td></td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <div class="os-actions-line">
-                                    <button type="button" class="btn-dark" onclick="adicionarLinhaFotoEquipamento(this)">+ Adicionar foto</button>
+                                <div class="os-foto-equipamento-bloco" data-foto-bloco>
+                                    <div class="os-foto-equipamento-titulo"><span>Fotos antes / depois deste equipamento</span></div>
+                                    <div class="table-shell ordens-lista-shell">
+                                        <table class="client-table ordens-lista-table os-photo-table">
+                                            <thead><tr><th>Foto antes</th><th>Foto depois</th><th>Observação</th><th>Ação</th></tr></thead>
+                                            <tbody class="fotos-equipamento-tbody" data-equipamento-indice="0">
+                                                <tr>
+                                                    <td><input type="hidden" name="foto_os_id" value=""><input type="hidden" name="foto_os_equipamento_indice" value="0"><input type="hidden" name="foto_os_titulo" value=""><input type="hidden" name="foto_os_equipamento_id" value=""><input type="hidden" name="foto_os_vinculo_id" value=""><input type="file" name="foto_os_antes" class="form-control" accept="image/*"></td>
+                                                    <td><input type="file" name="foto_os_depois" class="form-control" accept="image/*"></td>
+                                                    <td><textarea name="foto_os_observacoes" class="form-control os-textarea" placeholder="Observação da foto"></textarea></td>
+                                                    <td></td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="os-actions-line"><button type="button" class="btn-dark" onclick="adicionarLinhaFotoEquipamento(this)">+ Adicionar foto</button></div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <div class="os-actions-line"><button type="button" class="btn-dark" onclick="adicionarEquipamento()">+ Adicionar equipamento</button></div>
+                    <div class="os-actions-line"><button type="button" class="btn-primary-green" onclick="adicionarEquipamento()">+ Adicionar equipamento</button></div>
                 </div>
             </section>
-
             <section class="os-form-section">
                 <div class="os-section-title">
                     <h3>▣ Produtos / Peças</h3>
@@ -1103,8 +1298,12 @@ Motivo: Reorganizar a tela de OS no padrão visual de Orçamentos, abrindo com c
                                                         <details class="budget-action-submenu">
                                                             <summary>↪ Gerar</summary>
                                                             <div class="budget-action-subitems">
-                                                                <a href="/ordens-servico/{{ os.id }}/gerar/acompanhamento">Link de acompanhamento</a>
+                                                                <a href="/ordens-servico/{{ os.id }}/links">Atualizar links públicos</a>
+                                                                <a href="/os/cliente/{{ os.token_cliente }}" target="_blank">Link do cliente</a>
+                                                                <a href="/os/campo/{{ os.token_campo }}" target="_blank">Link do técnico/campo</a>
+                                                                <a href="/ordens-servico/{{ os.id }}/gerar/acompanhamento">Link diário antigo</a>
                                                                 <a href="/ordens-servico/{{ os.id }}/gerar/copia">Cópia</a>
+                                                            
                                                             </div>
                                                         </details>
                                                     </div>
@@ -1227,79 +1426,104 @@ Motivo: Reorganizar a tela de OS no padrão visual de Orçamentos, abrindo com c
         <script>
             let contadorEquipamentos = 1;
 
-            function adicionarEquipamento() {
-                contadorEquipamentos += 1;
-
-                const container = document.getElementById("equipamentos-container");
+            function criarBlocoEquipamento(equipamentoIndice, rotulo) {
                 const bloco = document.createElement("div");
-                const equipamentoIndice = contadorEquipamentos - 1;
                 bloco.className = "os-equipamento-bloco os-equipamento-bloco-extra";
-
+                bloco.dataset.equipamentoIndice = String(equipamentoIndice);
                 bloco.innerHTML = `
                     <div class="os-equipamento-topo">
-                        <span>Equipamento adicional ${contadorEquipamentos}</span>
+                        <div>
+                            <span>${rotulo}</span>
+                            <small>Dados principais na linha, detalhes abaixo.</small>
+                        </div>
                         <button type="button" class="action-button delete" title="Remover equipamento" aria-label="Remover equipamento" onclick="removerEquipamento(this)">×</button>
                     </div>
-                    <div class="os-grid-6">
-                        <div class="form-group os-span-3"><label>Equipamento</label><input name="os_equipamento" type="text" placeholder="Ex: portão, máquina, veículo" class="form-control"></div>
-                        <div class="form-group"><label>Marca</label><input name="os_marca" type="text" class="form-control"></div>
-                        <div class="form-group"><label>Modelo</label><input name="os_modelo" type="text" class="form-control"></div>
-                        <div class="form-group"><label>Série</label><input name="os_serie" type="text" class="form-control"></div>
-                        <div class="form-group os-span-3"><label>Condições</label><textarea name="os_condicoes" class="form-control os-textarea" placeholder="Condições encontradas"></textarea></div>
-                        <div class="form-group os-span-3"><label>Defeitos / relato do cliente</label><textarea name="os_relato_cliente" class="form-control os-textarea" placeholder="Problema informado pelo cliente"></textarea></div>
-                        <div class="form-group os-span-3"><label>Acessórios</label><textarea name="os_acessorios" class="form-control os-textarea" placeholder="Acessórios recebidos ou vinculados"></textarea></div>
-                        <div class="form-group os-span-3"><label>Solução / diagnóstico</label><textarea name="os_diagnostico" class="form-control os-textarea" placeholder="Diagnóstico técnico e solução proposta"></textarea></div>
-                        <div class="form-group os-span-3"><label>Laudo</label><textarea name="os_laudo" class="form-control os-textarea" placeholder="Laudo técnico, quando aplicável"></textarea></div>
-                        <div class="form-group os-span-3"><label>Termos</label><textarea name="os_termos" class="form-control os-textarea" placeholder="Termos e condições do atendimento"></textarea></div>
-                        <div class="form-group os-span-6"><label>Local do serviço</label><input name="os_local_servico" type="text" placeholder="Ex: portaria principal, linha 2, área técnica" class="form-control"></div>
+                    <div class="table-shell os-equipamentos-table-shell">
+                        <table class="client-table os-equipamentos-table">
+                            <thead>
+                                <tr>
+                                    <th>Equipamento cadastrado</th>
+                                    <th>Equipamento</th>
+                                    <th>Marca</th>
+                                    <th>Modelo</th>
+                                    <th>Série</th>
+                                    <th>Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="os-equipamento-linha" data-equipamento-indice="${equipamentoIndice}">
+                                    <td>
+                                        <select name="os_equipamento_id" class="form-control os-equipamento-select" onchange="preencherEquipamentoCadastro(this)">
+                                            <option value="">Selecione</option>
+                                            {% for equipamento_cadastrado in equipamentos_cadastrados|default([]) %}
+                                                <option value="{{ equipamento_cadastrado.id }}" data-nome="{{ equipamento_cadastrado.nome|e }}" data-marca="{{ equipamento_cadastrado.marca|e }}" data-modelo="{{ equipamento_cadastrado.modelo|e }}" data-serie="{{ equipamento_cadastrado.serie|e }}" data-local="{{ equipamento_cadastrado.local_instalacao|e }}">
+                                                    {{ equipamento_cadastrado.cliente_nome or 'Sem cliente' }} - {{ equipamento_cadastrado.nome }}{% if equipamento_cadastrado.serie %} / {{ equipamento_cadastrado.serie }}{% endif %}
+                                                </option>
+                                            {% endfor %}
+                                                <option value="__novo_equipamento__" class="quick-new-option">+ Adicionar novo equipamento</option>
+                                        </select>
+                                    </td>
+                                    <td><input name="os_equipamento" type="text" placeholder="Ex.: portão, máquina, veículo" class="form-control"></td>
+                                    <td><input name="os_marca" type="text" class="form-control"></td>
+                                    <td><input name="os_modelo" type="text" class="form-control"></td>
+                                    <td><input name="os_serie" type="text" class="form-control"></td>
+                                    <td class="os-equipamento-remover-cell"><button type="button" class="action-button delete" title="Remover equipamento" aria-label="Remover equipamento" onclick="removerEquipamento(this)">×</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
-                    <div class="os-foto-equipamento-bloco" data-foto-bloco>
-                        <div class="os-foto-equipamento-titulo">
-                            <span>Fotos antes / depois deste equipamento</span>
+                    <div class="os-equipamento-detalhes-card">
+                        <div class="os-equipamento-detalhes-grid">
+                            <div class="form-group os-detalhe-full"><label>Local do serviço</label><input name="os_local_servico" type="text" placeholder="Ex: portaria principal, linha 2, área técnica" class="form-control"></div>
+                            <div class="form-group"><label>Condições</label><textarea name="os_condicoes" class="form-control os-textarea" placeholder="Condições encontradas"></textarea></div>
+                            <div class="form-group"><label>Defeitos / relato do cliente</label><textarea name="os_relato_cliente" class="form-control os-textarea" placeholder="Problema informado pelo cliente"></textarea></div>
+                            <div class="form-group"><label>Acessórios</label><textarea name="os_acessorios" class="form-control os-textarea" placeholder="Acessórios recebidos ou vinculados"></textarea></div>
+                            <div class="form-group"><label>Solução / diagnóstico</label><textarea name="os_diagnostico" class="form-control os-textarea" placeholder="Diagnóstico técnico e solução proposta"></textarea></div>
+                            <div class="form-group"><label>Laudo</label><textarea name="os_laudo" class="form-control os-textarea" placeholder="Laudo técnico, quando aplicável"></textarea></div>
+                            <div class="form-group"><label>Termos</label><textarea name="os_termos" class="form-control os-textarea" placeholder="Termos e condições do atendimento"></textarea></div>
                         </div>
-                        <div class="table-shell ordens-lista-shell">
-                            <table class="client-table ordens-lista-table os-photo-table">
-                                <thead>
-                                    <tr>
-                                        <th>Foto antes</th>
-                                        <th>Foto depois</th>
-                                        <th>Observação</th>
-                                        <th>Ação</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="fotos-equipamento-tbody" data-equipamento-indice="${equipamentoIndice}">
-                                    <tr>
-                                        <td>
-                                            <input type="hidden" name="foto_os_id" value="">
-                                            <input type="hidden" name="foto_os_equipamento_indice" value="${equipamentoIndice}">
-                                            <input type="hidden" name="foto_os_titulo" value="">
-                                            <input type="file" name="foto_os_antes" class="form-control" accept="image/*">
-                                        </td>
-                                        <td><input type="file" name="foto_os_depois" class="form-control" accept="image/*"></td>
-                                        <td><textarea name="foto_os_observacoes" class="form-control os-textarea" placeholder="Observação da foto"></textarea></td>
-                                        <td></td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="os-actions-line">
-                            <button type="button" class="btn-dark" onclick="adicionarLinhaFotoEquipamento(this)">+ Adicionar foto</button>
+                        <div class="os-foto-equipamento-bloco" data-foto-bloco>
+                            <div class="os-foto-equipamento-titulo"><span>Fotos antes / depois deste equipamento</span></div>
+                            <div class="table-shell ordens-lista-shell">
+                                <table class="client-table ordens-lista-table os-photo-table">
+                                    <thead><tr><th>Foto antes</th><th>Foto depois</th><th>Observação</th><th>Ação</th></tr></thead>
+                                    <tbody class="fotos-equipamento-tbody" data-equipamento-indice="${equipamentoIndice}">
+                                        <tr>
+                                            <td><input type="hidden" name="foto_os_id" value=""><input type="hidden" name="foto_os_equipamento_indice" value="${equipamentoIndice}"><input type="hidden" name="foto_os_titulo" value=""><input type="hidden" name="foto_os_equipamento_id" value=""><input type="hidden" name="foto_os_vinculo_id" value=""><input type="file" name="foto_os_antes" class="form-control" accept="image/*"></td>
+                                            <td><input type="file" name="foto_os_depois" class="form-control" accept="image/*"></td>
+                                            <td><textarea name="foto_os_observacoes" class="form-control os-textarea" placeholder="Observação da foto"></textarea></td>
+                                            <td></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="os-actions-line"><button type="button" class="btn-dark" onclick="adicionarLinhaFotoEquipamento(this)">+ Adicionar foto</button></div>
                         </div>
                     </div>
                 `;
+                return bloco;
+            }
 
-                container.appendChild(bloco);
+            function adicionarEquipamento() {
+                contadorEquipamentos += 1;
+                const container = document.getElementById("equipamentos-container");
+                if (!container) {
+                    return;
+                }
+                const equipamentoIndice = contadorEquipamentos - 1;
+                container.appendChild(criarBlocoEquipamento(equipamentoIndice, "Equipamento adicional " + contadorEquipamentos));
             }
 
             function removerEquipamento(botao) {
                 const bloco = botao.closest(".os-equipamento-bloco");
                 if (bloco) {
                     bloco.remove();
+                    prepararTitulosFotosEquipamento();
                 }
             }
 
 
-            function posicionarMenuOrcamento(menu) {
+                        function posicionarMenuOrcamento(menu) {
                 const trigger = menu.querySelector(".budget-action-trigger");
                 const panel = menu.querySelector(".budget-action-panel");
 
@@ -1417,6 +1641,259 @@ Motivo: Reorganizar a tela de OS no padrão visual de Orçamentos, abrindo com c
         </script>
 
     
+
+
+        <div id="quick-equipamento-modal" class="quick-modal-backdrop" aria-hidden="true">
+            <div class="quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-equipamento-title">
+                <div class="quick-modal-header">
+                    <div>
+                        <h3 id="quick-equipamento-title">Novo equipamento</h3>
+                        <p>Cadastro rápido sem sair da ordem de serviço.</p>
+                    </div>
+                    <button type="button" class="quick-modal-close" onclick="fecharModalEquipamentoRapidoGeral()">×</button>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group form-span-2">
+                        <label for="quick-equipamento-cliente">Cliente</label>
+                        <select id="quick-equipamento-cliente" class="form-control">
+                            <option value="">Sem cliente definido</option>
+                            {% for cliente in clientes|default([]) %}
+                                <option value="{{ cliente.nome }}">{{ cliente.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="quick-equipamento-nome">Nome do equipamento *</label>
+                        <input id="quick-equipamento-nome" type="text" class="form-control" placeholder="Ex.: Portão principal">
+                    </div>
+                    <div class="form-group">
+                        <label for="quick-equipamento-marca">Marca</label>
+                        <input id="quick-equipamento-marca" type="text" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="quick-equipamento-modelo">Modelo</label>
+                        <input id="quick-equipamento-modelo" type="text" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="quick-equipamento-serie">Série / número</label>
+                        <input id="quick-equipamento-serie" type="text" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="quick-equipamento-tag">TAG / patrimônio</label>
+                        <input id="quick-equipamento-tag" type="text" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="quick-equipamento-local">Local de instalação</label>
+                        <input id="quick-equipamento-local" type="text" class="form-control" placeholder="Ex.: Portaria 02">
+                    </div>
+                    <div class="form-group form-span-2">
+                        <label for="quick-equipamento-observacoes">Observações</label>
+                        <textarea id="quick-equipamento-observacoes" class="form-control textarea-control" placeholder="Observações do equipamento"></textarea>
+                    </div>
+                </div>
+
+                <div id="quick-equipamento-error" class="quick-modal-error"></div>
+
+                <div class="quick-modal-actions">
+                    <button type="button" class="btn-light" onclick="fecharModalEquipamentoRapidoGeral()">Cancelar</button>
+                    <button type="button" class="btn-primary-green" onclick="salvarEquipamentoRapidoGeral()">Salvar equipamento</button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+        (function() {
+            "use strict";
+
+            let gestflowEquipamentoSelectAtual = null;
+
+            function abrirModalPorIdEquipamento(id) {
+                const modal = document.getElementById(id);
+                if (!modal) { return; }
+                modal.classList.add("open");
+                modal.setAttribute("aria-hidden", "false");
+                const primeiroCampo = modal.querySelector("input:not([type='hidden']), select, textarea");
+                if (primeiroCampo) {
+                    setTimeout(function() { primeiroCampo.focus(); }, 80);
+                }
+            }
+
+            function fecharModalPorIdEquipamento(id) {
+                const modal = document.getElementById(id);
+                if (!modal) { return; }
+                modal.classList.remove("open");
+                modal.setAttribute("aria-hidden", "true");
+            }
+
+            function valorCampoEquipamento(id) {
+                const campo = document.getElementById(id);
+                return campo ? String(campo.value || "").trim() : "";
+            }
+
+            function setValorCampoEquipamento(id, valor) {
+                const campo = document.getElementById(id);
+                if (campo) { campo.value = valor || ""; }
+            }
+
+            function mostrarErroEquipamento(mensagem) {
+                const erroBox = document.getElementById("quick-equipamento-error");
+                if (erroBox) {
+                    erroBox.textContent = mensagem;
+                    erroBox.classList.add("show");
+                } else {
+                    alert(mensagem);
+                }
+            }
+
+            function limparErroEquipamento() {
+                const erroBox = document.getElementById("quick-equipamento-error");
+                if (erroBox) {
+                    erroBox.textContent = "";
+                    erroBox.classList.remove("show");
+                }
+            }
+
+            function limparCamposEquipamentoRapido() {
+                [
+                    "quick-equipamento-nome",
+                    "quick-equipamento-marca",
+                    "quick-equipamento-modelo",
+                    "quick-equipamento-serie",
+                    "quick-equipamento-tag",
+                    "quick-equipamento-local",
+                    "quick-equipamento-observacoes"
+                ].forEach(function(id) { setValorCampoEquipamento(id, ""); });
+                limparErroEquipamento();
+            }
+
+            function clienteAtualDaOS() {
+                const campoCliente = document.querySelector('[name="os_cliente"]');
+                return campoCliente ? String(campoCliente.value || "").trim() : "";
+            }
+
+            function preencherModalPelaLinha(selectOrigem) {
+                const bloco = selectOrigem ? selectOrigem.closest(".os-equipamento-bloco") : null;
+                const cliente = clienteAtualDaOS();
+                const clienteModal = document.getElementById("quick-equipamento-cliente");
+                if (clienteModal && cliente) { clienteModal.value = cliente; }
+                if (!bloco) { return; }
+                const mapa = {
+                    "quick-equipamento-nome": bloco.querySelector('[name="os_equipamento"]')?.value || "",
+                    "quick-equipamento-marca": bloco.querySelector('[name="os_marca"]')?.value || "",
+                    "quick-equipamento-modelo": bloco.querySelector('[name="os_modelo"]')?.value || "",
+                    "quick-equipamento-serie": bloco.querySelector('[name="os_serie"]')?.value || "",
+                    "quick-equipamento-local": bloco.querySelector('[name="os_local_servico"]')?.value || "",
+                    "quick-equipamento-observacoes": bloco.querySelector('[name="os_condicoes"]')?.value || ""
+                };
+                Object.keys(mapa).forEach(function(id) { setValorCampoEquipamento(id, mapa[id]); });
+            }
+
+            function textoEquipamentoOpcao(item) {
+                const cliente = item.cliente_nome || "Sem cliente";
+                const nome = item.nome || "Equipamento";
+                const serie = item.serie ? " / " + item.serie : "";
+                return cliente + " - " + nome + serie;
+            }
+
+            function aplicarDadosEquipamentoNaOpcao(opcao, item) {
+                opcao.value = String(item.id || "");
+                opcao.textContent = textoEquipamentoOpcao(item);
+                opcao.dataset.nome = item.nome || "";
+                opcao.dataset.marca = item.marca || "";
+                opcao.dataset.modelo = item.modelo || "";
+                opcao.dataset.serie = item.serie || "";
+                opcao.dataset.local = item.local_instalacao || "";
+            }
+
+            function adicionarEquipamentoAosSelects(item, selectAtual) {
+                const id = String(item.id || "");
+                if (!id) { return; }
+
+                document.querySelectorAll("select.os-equipamento-select").forEach(function(select) {
+                    let opcao = Array.from(select.options).find(function(opcaoExistente) {
+                        return String(opcaoExistente.value || "") === id;
+                    });
+
+                    if (!opcao) {
+                        opcao = document.createElement("option");
+                        const opcaoNovo = Array.from(select.options).find(function(opcaoExistente) {
+                            return opcaoExistente.value === "__novo_equipamento__";
+                        });
+                        if (opcaoNovo) {
+                            select.insertBefore(opcao, opcaoNovo);
+                        } else {
+                            select.appendChild(opcao);
+                        }
+                    }
+
+                    aplicarDadosEquipamentoNaOpcao(opcao, item);
+
+                    if (select === selectAtual) {
+                        select.value = id;
+                        if (typeof window.preencherEquipamentoCadastro === "function") {
+                            window.preencherEquipamentoCadastro(select);
+                        }
+                    }
+                });
+            }
+
+            window.abrirModalEquipamentoRapidoGeral = function(selectOrigem) {
+                gestflowEquipamentoSelectAtual = selectOrigem || null;
+                limparCamposEquipamentoRapido();
+                preencherModalPelaLinha(selectOrigem);
+                abrirModalPorIdEquipamento("quick-equipamento-modal");
+            };
+
+            window.fecharModalEquipamentoRapidoGeral = function() {
+                fecharModalPorIdEquipamento("quick-equipamento-modal");
+                if (gestflowEquipamentoSelectAtual && gestflowEquipamentoSelectAtual.value === "__novo_equipamento__") {
+                    gestflowEquipamentoSelectAtual.value = "";
+                }
+            };
+
+            window.salvarEquipamentoRapidoGeral = function() {
+                const nome = valorCampoEquipamento("quick-equipamento-nome");
+                if (!nome) {
+                    mostrarErroEquipamento("Informe o nome do equipamento.");
+                    return;
+                }
+
+                const dados = new URLSearchParams();
+                dados.append("cliente_nome", valorCampoEquipamento("quick-equipamento-cliente") || clienteAtualDaOS());
+                dados.append("nome", nome);
+                dados.append("marca", valorCampoEquipamento("quick-equipamento-marca"));
+                dados.append("modelo", valorCampoEquipamento("quick-equipamento-modelo"));
+                dados.append("serie", valorCampoEquipamento("quick-equipamento-serie"));
+                dados.append("tag", valorCampoEquipamento("quick-equipamento-tag"));
+                dados.append("local_instalacao", valorCampoEquipamento("quick-equipamento-local"));
+                dados.append("status", "ativo");
+                dados.append("observacoes", valorCampoEquipamento("quick-equipamento-observacoes"));
+
+                fetch("/equipamentos/rapido", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+                    body: dados.toString()
+                })
+                    .then(function(resposta) {
+                        return resposta.json().then(function(payload) {
+                            if (!resposta.ok || !payload.ok) {
+                                throw new Error(payload.erro || "Não foi possível salvar o equipamento.");
+                            }
+                            return payload.equipamento;
+                        });
+                    })
+                    .then(function(equipamento) {
+                        adicionarEquipamentoAosSelects(equipamento, gestflowEquipamentoSelectAtual);
+                        fecharModalPorIdEquipamento("quick-equipamento-modal");
+                    })
+                    .catch(function(erro) {
+                        mostrarErroEquipamento(erro.message || "Não foi possível salvar o equipamento.");
+                    });
+            };
+        })();
+        </script>
+
 
         <div id="quick-item-modal" class="quick-modal-backdrop" aria-hidden="true">
             <div class="quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-item-title">
@@ -1664,6 +2141,8 @@ Motivo: Reorganizar a tela de OS no padrão visual de Orçamentos, abrindo com c
                         <input type="hidden" name="foto_os_id" value="">
                         <input type="hidden" name="foto_os_equipamento_indice" value="${equipamentoIndice}">
                         <input type="hidden" name="foto_os_titulo" value="">
+                                                    <input type="hidden" name="foto_os_equipamento_id" value="">
+                                                    <input type="hidden" name="foto_os_vinculo_id" value="">
                         <input type="file" name="foto_os_antes" class="form-control" accept="image/*">
                     </td>
                     <td><input type="file" name="foto_os_depois" class="form-control" accept="image/*"></td>
@@ -1673,9 +2152,53 @@ Motivo: Reorganizar a tela de OS no padrão visual de Orçamentos, abrindo com c
                 corpo.appendChild(linha);
             }
 
+
+            function preencherEquipamentoCadastro(select) {
+                const option = select && select.options ? select.options[select.selectedIndex] : null;
+                const bloco = select ? select.closest(".os-equipamento-bloco") : null;
+
+                if (select && select.value === "__novo_equipamento__") {
+                    if (typeof window.abrirModalEquipamentoRapidoGeral === "function") {
+                        window.abrirModalEquipamentoRapidoGeral(select);
+                    }
+                    return;
+                }
+
+                if (!option || !bloco || !select.value) {
+                    return;
+                }
+
+                const mapa = {
+                    os_equipamento: option.dataset.nome || "",
+                    os_marca: option.dataset.marca || "",
+                    os_modelo: option.dataset.modelo || "",
+                    os_serie: option.dataset.serie || "",
+                    os_local_servico: option.dataset.local || ""
+                };
+
+                Object.keys(mapa).forEach(function(nomeCampo) {
+                    const campo = bloco.querySelector('[name="' + nomeCampo + '"]');
+                    if (campo && mapa[nomeCampo]) {
+                        campo.value = mapa[nomeCampo];
+                    }
+                });
+
+                prepararTitulosFotosEquipamento();
+            }
+
+            window.preencherEquipamentoCadastro = preencherEquipamentoCadastro;
+
             function prepararTitulosFotosEquipamento() {
                 document.querySelectorAll(".os-equipamento-bloco").forEach(function(bloco, indice) {
+                    bloco.dataset.equipamentoIndice = String(indice);
+                    const linha = bloco.querySelector(".os-equipamento-linha");
+                    if (linha) {
+                        linha.dataset.equipamentoIndice = String(indice);
+                    }
+
                     const equipamentoInput = bloco.querySelector('[name="os_equipamento"]');
+                    const equipamentoSelect = bloco.querySelector('[name="os_equipamento_id"]');
+                    const equipamentoCadastroId = equipamentoSelect && equipamentoSelect.value ? equipamentoSelect.value : "";
                     const equipamentoNome = equipamentoInput && equipamentoInput.value.trim() ? equipamentoInput.value.trim() : (indice === 0 ? "Equipamento principal" : "Equipamento adicional " + (indice + 1));
 
                     bloco.querySelectorAll('[name="foto_os_titulo"]').forEach(function(inputTitulo) {
@@ -1684,6 +2207,10 @@ Motivo: Reorganizar a tela de OS no padrão visual de Orçamentos, abrindo com c
 
                     bloco.querySelectorAll('[name="foto_os_equipamento_indice"]').forEach(function(inputIndice) {
                         inputIndice.value = String(indice);
+                    });
+
+                    bloco.querySelectorAll('[name="foto_os_equipamento_id"]').forEach(function(inputEquipamentoId) {
+                        inputEquipamentoId.value = equipamentoCadastroId;
                     });
 
                     bloco.querySelectorAll(".fotos-equipamento-tbody").forEach(function(corpo) {

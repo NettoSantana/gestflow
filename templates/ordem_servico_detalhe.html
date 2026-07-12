@@ -70,6 +70,18 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                 grid-template-columns: 1fr;
             }
         }
+
+        .os-link-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:14px; }
+        .os-link-card { border:1px solid #e5eaf2; border-radius:14px; background:#f8fafc; padding:14px; display:grid; gap:8px; min-width:0; }
+        .os-link-card strong { color:#0f172a; font-size:14px; }
+        .os-link-card span { color:#64748b; font-size:12px; font-weight:800; line-height:1.35; }
+        .os-link-card input { width:100%; height:40px; border:1px solid #dbe3ef; border-radius:10px; padding:0 10px; font-size:12px; font-weight:800; color:#334155; background:#fff; }
+        .os-link-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+        .os-qr-card { display:grid; grid-template-columns:112px minmax(0,1fr); gap:14px; align-items:center; margin-top:14px; padding:14px; border:1px solid #dbeafe; border-radius:14px; background:#eff6ff; }
+        .os-qr-card img { width:112px; height:112px; border-radius:12px; background:#fff; border:1px solid #bfdbfe; padding:7px; }
+        .os-qr-card strong, .os-qr-card span { display:block; }
+        .os-qr-card span { margin-top:4px; color:#475569; font-size:12px; font-weight:800; }
+        @media(max-width:820px){ .os-link-grid, .os-qr-card { grid-template-columns:1fr; } .os-qr-card img { width:150px; height:150px; } }
     </style>
 
     <style>
@@ -320,11 +332,12 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                 </div>
                 <div class="client-toolbar">
                     <a href="/ordens-servico" class="btn-light">Voltar para OS</a>
+                    <a href="/ordens-servico/{{ os.id }}/links" class="btn-primary-green">Gerar links</a>
                     {% if os.status == 'andamento' %}
                         <a href="/ordens-servico/{{ os.id }}/gerar/acompanhamento" class="btn-primary-green">Gerar link diário</a>
                     {% endif %}
-                    <button type="button" class="btn-dark" disabled>Editar OS</button>
-                    <button type="button" class="btn-primary-green" disabled>Imprimir</button>
+                    <a href="/ordens-servico/{{ os.id }}/editar" class="btn-dark">Editar OS</a>
+                    <a href="/ordens-servico/{{ os.id }}/imprimir/a4" target="_blank" class="btn-primary-green">Imprimir</a>
                 </div>
             </div>
         </section>
@@ -333,6 +346,30 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
             <div class="card stat-card"><div class="card-icon">✚</div><div class="card-info"><p>{{ os.numero or '-' }}</p><h3>Número</h3><span>Registro da OS</span></div></div>
             <div class="card stat-card"><div class="card-icon">⌁</div><div class="card-info"><p>{{ os.status or '-' }}</p><h3>Situação</h3><span>Prioridade: {{ os.prioridade or '-' }}</span></div></div>
             <div class="card stat-card"><div class="card-icon">R$</div><div class="card-info"><p>{{ os.valor_total or '0,00' }}</p><h3>Valor total</h3><span>Produtos e serviços</span></div></div>
+        </section>
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Links de acompanhamento</h3>
+                    <p class="page-subtitle">Compartilhe com o cliente ou com o técnico de campo sem liberar a edição completa da OS.</p>
+                </div>
+                <a href="/ordens-servico/{{ os.id }}/links" class="btn-light">Atualizar links</a>
+            </div>
+            <div class="os-link-grid">
+                <div class="os-link-card">
+                    <strong>Link do cliente</strong>
+                    <span>Somente leitura. O cliente acompanha status, atividades, materiais, fotos e evolução da OS.</span>
+                    <input id="os-link-cliente" value="{{ os_publico_links.cliente_url if os_publico_links else '' }}" readonly onclick="this.select()">
+                    <div class="os-link-actions"><a class="btn-primary-green" href="{{ os_publico_links.cliente_url if os_publico_links else '#' }}" target="_blank">Abrir</a><button type="button" class="btn-light" onclick="navigator.clipboard && navigator.clipboard.writeText(document.getElementById('os-link-cliente').value)">Copiar</button></div>
+                </div>
+                <div class="os-link-card">
+                    <strong>Link do técnico/campo</strong>
+                    <span>Edita somente execução, atividades, diagnóstico, observações e fotos. O cabeçalho comercial da OS fica bloqueado.</span>
+                    <input id="os-link-campo" value="{{ os_publico_links.campo_url if os_publico_links else '' }}" readonly onclick="this.select()">
+                    <div class="os-link-actions"><a class="btn-dark" href="{{ os_publico_links.campo_url if os_publico_links else '#' }}" target="_blank">Abrir</a><button type="button" class="btn-light" onclick="navigator.clipboard && navigator.clipboard.writeText(document.getElementById('os-link-campo').value)">Copiar</button></div>
+                </div>
+            </div>
         </section>
 
         <section class="panel page-section">
@@ -387,6 +424,20 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                     <div class="form-group"><label>Laudo</label><div class="form-control">{{ equipamento.laudo or '-' }}</div></div>
                     <div class="form-group"><label>Termos</label><div class="form-control">{{ equipamento.termos or '-' }}</div></div>
                 </div>
+
+                {% if equipamento.historico_url %}
+                <div class="os-qr-card">
+                    <img src="{{ equipamento.qrcode_url }}" alt="QR Code do equipamento">
+                    <div>
+                        <strong>QR Code do equipamento</strong>
+                        <span>Ao escanear, abre o histórico completo de manutenções deste equipamento.</span>
+                        <div class="os-link-actions" style="margin-top:10px;">
+                            <a class="btn-primary-green" href="{{ equipamento.historico_url }}" target="_blank">Abrir histórico</a>
+                            <input style="max-width:360px;" value="{{ equipamento.historico_url }}" readonly onclick="this.select()">
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
 
                 {% if fotos_do_equipamento %}
                     <div class="panel-header page-header" style="margin-top: 14px;">

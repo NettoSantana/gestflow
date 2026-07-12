@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Equipamento</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+    <main class="content equipamentos-page">
+        {% set page_title = 'Detalhe do Equipamento' %}
+        {% include "partials/topbar.html" %}
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div><span class="page-kicker">Equipamentos</span><h3 class="page-title">{{ equipamento.nome }}</h3><p class="page-subtitle">QR Code e histórico de manutenção do equipamento.</p></div>
+                <div class="client-toolbar"><a href="/equipamentos" class="btn-light">Voltar</a><a href="/equipamentos/{{ equipamento.id }}/editar" class="btn-dark">Editar</a></div>
+            </div>
+        </section>
+        <section class="panel page-section equipamento-detalhe-grid">
+            <div class="equipamento-qr-box">
+                {% if equipamento.token_qrcode %}<img src="{{ qrcode_url }}" alt="QR Code do equipamento"><input class="form-control" readonly value="{{ historico_url }}"><a href="{{ historico_url }}" target="_blank" class="btn-primary-green">Abrir histórico público</a>{% else %}<p>QR Code não gerado.</p>{% endif %}
+            </div>
+            <div class="panel-summary equipamento-summary">
+                <div><span>Cliente</span><strong>{{ equipamento.cliente_nome or '-' }}</strong></div>
+                <div><span>Marca</span><strong>{{ equipamento.marca or '-' }}</strong></div>
+                <div><span>Modelo</span><strong>{{ equipamento.modelo or '-' }}</strong></div>
+                <div><span>Série</span><strong>{{ equipamento.serie or '-' }}</strong></div>
+                <div><span>TAG</span><strong>{{ equipamento.tag or '-' }}</strong></div>
+                <div><span>Local</span><strong>{{ equipamento.local_instalacao or '-' }}</strong></div>
+                <div><span>Status</span><strong>{{ equipamento.status or 'ativo' }}</strong></div>
+                <div><span>Origem</span><strong>{{ equipamento.origem or '-' }}</strong></div>
+            </div>
+        </section>
+        <section class="panel table-panel page-section">
+            <div class="panel-header page-header"><div><h3>Histórico de OS</h3><p class="page-subtitle">Manutenções vinculadas a este equipamento.</p></div></div>
+            <div class="table-shell"><table class="client-table"><thead><tr><th>OS</th><th>Cliente</th><th>Status</th><th>Data</th><th>Diagnóstico</th><th>Ação</th></tr></thead><tbody>{% if historico %}{% for os in historico %}<tr><td>{{ os.numero or os.id }}</td><td>{{ os.cliente or '-' }}</td><td>{{ os.status or '-' }}</td><td>{{ os.data_abertura or '-' }}</td><td>{{ os.diagnostico or os.diagnostico_vinculo or '-' }}</td><td><a href="/ordens-servico/{{ os.id }}" class="action-button view">Ver OS</a></td></tr>{% endfor %}{% else %}<tr><td colspan="6" class="empty-table">Nenhuma OS vinculada ainda.</td></tr>{% endif %}</tbody></table></div>
+        </section>
+    </main>
+    {% include "partials/assistente_ia_widget.html" %}
+</body>
+</html>
