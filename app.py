@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-09 10:00 (America/Bahia)
-# Motivo: Adicionar registro de ponto público offline com PWA, fila local e sincronização automática.
+# Último recode: 2026-07-13 19:22 (America/Bahia)
+# Motivo: Exibir datas de Orçamentos e Ordens de Serviço no padrão brasileiro DD/MM/AAAA.
 
 from __future__ import annotations
 
@@ -595,6 +595,32 @@ def formatar_data_hora_br(valor: Any) -> str:
         return datetime.fromisoformat(texto).strftime("%d/%m/%Y %H:%M")
     except (TypeError, ValueError):
         return texto
+
+
+def formatar_datas_documento_exibicao(
+    registro: dict[str, Any] | None,
+    campos: tuple[str, ...],
+) -> dict[str, Any] | None:
+    if registro is None:
+        return None
+
+    registro_exibicao = dict(registro)
+
+    for campo in campos:
+        if campo in registro_exibicao:
+            registro_exibicao[campo] = formatar_data_br(registro_exibicao.get(campo))
+
+    return registro_exibicao
+
+
+def formatar_lista_datas_documento_exibicao(
+    registros: list[dict[str, Any]],
+    campos: tuple[str, ...],
+) -> list[dict[str, Any]]:
+    return [
+        formatar_datas_documento_exibicao(registro, campos) or {}
+        for registro in registros
+    ]
 
 
 def _converter_data_simples(valor: Any) -> date | None:
@@ -4131,8 +4157,13 @@ def montar_contexto_orcamentos_paginado() -> dict[str, Any]:
     )
     paginacao = montar_paginacao(total, pagina, por_pagina)
 
+    orcamentos_exibicao = formatar_lista_datas_documento_exibicao(
+        orcamentos_lista,
+        ("data", "validade"),
+    )
+
     return {
-        "itens": orcamentos_lista,
+        "itens": orcamentos_exibicao,
         "paginacao": paginacao,
         "resumo_geral": resumir_orcamentos_cadastrados(),
         "busca": busca,
@@ -4428,8 +4459,13 @@ def montar_contexto_ordens_servico_paginado() -> dict[str, Any]:
         params["pagina"] = paginacao["pagina"]
         registros, total = listar_ordens_servico_paginado(**params)
 
+    registros_exibicao = formatar_lista_datas_documento_exibicao(
+        registros,
+        ("data_abertura", "data_previsao", "data_saida"),
+    )
+
     return {
-        "itens": registros,
+        "itens": registros_exibicao,
         "paginacao": paginacao,
         "resumo_geral": resumir_ordens_servico_cadastradas(),
         "busca": params["busca"],
@@ -14896,6 +14932,11 @@ def ver_ordem_servico(ordem_servico_id: int) -> str | Response:
     if ordem_servico is None:
         return redirect(url_for("ordens_servico"))
 
+    ordem_servico = formatar_datas_documento_exibicao(
+        ordem_servico,
+        ("data_abertura", "data_previsao", "data_saida"),
+    )
+
     itens = listar_ordem_servico_itens(ordem_servico_id)
     itens_produtos = [item for item in itens if item["tipo_item"] == "produto"]
     itens_servicos = [item for item in itens if item["tipo_item"] == "servico"]
@@ -14931,6 +14972,11 @@ def imprimir_ordem_servico_a4(ordem_servico_id: int) -> str | Response:
     if ordem_servico is None:
         return redirect(url_for("ordens_servico"))
 
+    ordem_servico = formatar_datas_documento_exibicao(
+        ordem_servico,
+        ("data_abertura", "data_previsao", "data_saida"),
+    )
+
     itens = listar_ordem_servico_itens(ordem_servico_id)
     itens_produtos = [item for item in itens if item["tipo_item"] == "produto"]
     itens_servicos = [item for item in itens if item["tipo_item"] == "servico"]
@@ -14962,6 +15008,11 @@ def imprimir_ordem_servico_cupom(ordem_servico_id: int) -> str | Response:
 
     if ordem_servico is None:
         return redirect(url_for("ordens_servico"))
+
+    ordem_servico = formatar_datas_documento_exibicao(
+        ordem_servico,
+        ("data_abertura", "data_previsao", "data_saida"),
+    )
 
     itens = listar_ordem_servico_itens(ordem_servico_id)
     itens_produtos = [item for item in itens if item["tipo_item"] == "produto"]
@@ -16023,6 +16074,11 @@ def ver_orcamento(orcamento_id: int) -> str | Response:
     if orcamento is None:
         return redirect(url_for("orcamentos"))
 
+    orcamento = formatar_datas_documento_exibicao(
+        orcamento,
+        ("data", "validade"),
+    )
+
     itens = listar_orcamento_itens(orcamento_id)
 
     return render_template("orcamento_detalhe.html", orcamento=orcamento, itens=itens)
@@ -16055,6 +16111,11 @@ def imprimir_orcamento_a4(orcamento_id: int) -> str | Response:
     if orcamento is None:
         return redirect(url_for("orcamentos"))
 
+    orcamento = formatar_datas_documento_exibicao(
+        orcamento,
+        ("data", "validade"),
+    )
+
     itens = listar_orcamento_itens(orcamento_id)
     itens_produtos = [item for item in itens if item["tipo_item"] == "produto"]
     itens_servicos = [item for item in itens if item["tipo_item"] == "servico"]
@@ -16079,6 +16140,11 @@ def imprimir_orcamento_cupom(orcamento_id: int) -> str | Response:
 
     if orcamento is None:
         return redirect(url_for("orcamentos"))
+
+    orcamento = formatar_datas_documento_exibicao(
+        orcamento,
+        ("data", "validade"),
+    )
 
     itens = listar_orcamento_itens(orcamento_id)
     itens_produtos = [item for item in itens if item["tipo_item"] == "produto"]
