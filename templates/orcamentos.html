@@ -400,9 +400,26 @@ Motivo: Corrigir overflow das tabelas internas de produtos e serviços no formul
         }
 
         .orcamentos-lista-table {
-            width: 100% !important;
-            min-width: 100% !important;
+            width: max-content !important;
+            min-width: 900px !important;
             table-layout: auto;
+        }
+
+        @media (max-width: 768px) {
+            .orcamentos-lista-shell {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                padding-bottom: 56px;
+            }
+
+            .orcamentos-lista-table {
+                min-width: 1100px !important;
+            }
+
+            .orcamentos-lista-table th,
+            .orcamentos-lista-table td {
+                white-space: nowrap;
+            }
         }
 
         .orcamentos-lista-table th,
