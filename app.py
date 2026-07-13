@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-13 19:22 (America/Bahia)
-# Motivo: Exibir datas de Orçamentos e Ordens de Serviço no padrão brasileiro DD/MM/AAAA.
+# Último recode: 2026-07-13 20:02 (America/Bahia)
+# Motivo: Corrigir geração e acesso aos links públicos de cliente e técnico da Ordem de Serviço.
 
 from __future__ import annotations
 
@@ -738,6 +738,8 @@ def exigir_login_rotas_internas() -> Response | None:
         "health",
         "twilio_webhook",
         "acompanhamento_os_publico",
+        "os_cliente_publico",
+        "os_campo_publico",
         "servir_foto_os",
         "vitrine_publica",
         "vitrine_pedido_publico",
@@ -7021,6 +7023,23 @@ def montar_url_acompanhamento_os(token: Any) -> str:
     base_url = request.url_root.rstrip("/") if request else ""
 
     return f"{base_url}/os/acompanhamento/{token_normalizado}"
+
+
+def montar_links_publicos_os(token: Any) -> dict[str, str]:
+    token_normalizado = str(token or "").strip()
+
+    if not token_normalizado:
+        return {
+            "cliente_url": "",
+            "campo_url": "",
+        }
+
+    base_url = request.url_root.rstrip("/") if request else ""
+
+    return {
+        "cliente_url": f"{base_url}/os/cliente/{token_normalizado}",
+        "campo_url": f"{base_url}/os/campo/{token_normalizado}",
+    }
 
 
 def gerar_acompanhamento_diario_os(ordem_servico_id: int) -> tuple[bool, str, dict[str, Any] | None]:
@@ -14946,6 +14965,7 @@ def ver_ordem_servico(ordem_servico_id: int) -> str | Response:
     fotos_por_equipamento = agrupar_fotos_por_equipamento(fotos_equipamento)
     token_gerado = (request.args.get("link") or "").strip()
     acompanhamento_url_gerada = montar_url_acompanhamento_os(token_gerado)
+    os_publico_links = montar_links_publicos_os(token_gerado)
     acompanhamento_mensagem = (request.args.get("mensagem") or "").strip()
     acompanhamento_erro = (request.args.get("erro") or "").strip()
 
@@ -14960,6 +14980,7 @@ def ver_ordem_servico(ordem_servico_id: int) -> str | Response:
         fotos_equipamento=fotos_equipamento,
         fotos_por_equipamento=fotos_por_equipamento,
         acompanhamento_url_gerada=acompanhamento_url_gerada,
+        os_publico_links=os_publico_links,
         acompanhamento_mensagem=acompanhamento_mensagem,
         acompanhamento_erro=acompanhamento_erro,
     )
@@ -15032,6 +15053,29 @@ def imprimir_ordem_servico_cupom(ordem_servico_id: int) -> str | Response:
 
 
 
+@app.get("/ordens-servico/<int:ordem_servico_id>/links")
+def gerar_links_publicos_ordem_servico(ordem_servico_id: int) -> Response:
+    sucesso, mensagem, acompanhamento = gerar_acompanhamento_diario_os(ordem_servico_id)
+
+    if not sucesso or acompanhamento is None:
+        return redirect(
+            url_for(
+                "ver_ordem_servico",
+                ordem_servico_id=ordem_servico_id,
+                erro=mensagem,
+            )
+        )
+
+    return redirect(
+        url_for(
+            "ver_ordem_servico",
+            ordem_servico_id=ordem_servico_id,
+            link=str(acompanhamento.get("token") or ""),
+            mensagem="Links do cliente e do técnico gerados com sucesso.",
+        )
+    )
+
+
 @app.get("/ordens-servico/<int:ordem_servico_id>/gerar/acompanhamento")
 def gerar_link_acompanhamento_ordem_servico(ordem_servico_id: int) -> Response:
     sucesso, mensagem, acompanhamento = gerar_acompanhamento_diario_os(ordem_servico_id)
@@ -15047,6 +15091,16 @@ def gerar_link_acompanhamento_ordem_servico(ordem_servico_id: int) -> Response:
             mensagem=mensagem,
         )
     )
+
+
+@app.get("/os/cliente/<token>")
+def os_cliente_publico(token: str) -> Response:
+    return redirect(url_for("acompanhamento_os_publico", token=token, modo="cliente"))
+
+
+@app.get("/os/campo/<token>")
+def os_campo_publico(token: str) -> Response:
+    return redirect(url_for("acompanhamento_os_publico", token=token, modo="campo"))
 
 
 @app.route("/os/acompanhamento/<token>", methods=["GET", "POST"])
@@ -15090,7 +15144,12 @@ def acompanhamento_os_publico(token: str) -> str:
         materiais_acompanhamento = itens_salvos["materiais"]
         servicos_acompanhamento = itens_salvos["servicos"]
 
-    bloqueado = False
+    modo_publico = str(request.args.get("modo") or "campo").strip().lower()
+    modo_cliente = modo_publico == "cliente"
+    bloqueado = modo_cliente
+
+    if modo_cliente:
+        mensagem = "Acompanhamento disponível somente para consulta do cliente."
 
     if acompanhamento_os_esta_expirado(acompanhamento):
         bloqueado = True
