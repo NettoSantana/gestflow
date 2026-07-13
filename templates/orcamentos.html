@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamentos.html
-Último recode: 2026-07-03 00:04 (America/Bahia)
-Motivo: Corrigir overflow das tabelas internas de produtos e serviços no formulário de Orçamentos.
+Último recode: 2026-07-13 19:16 (America/Bahia)
+Motivo: Corrigir abertura do menu Gerar/Imprimir no celular movendo o painel para fora da área rolável da tabela.
 -->
 
 <!DOCTYPE html>
@@ -64,7 +64,8 @@ Motivo: Corrigir overflow das tabelas internas de produtos e serviços no formul
             display: none;
         }
 
-        .budget-action-dropdown[open] .budget-action-panel {
+        .budget-action-dropdown[open] .budget-action-panel,
+        .budget-action-panel.is-open {
             display: block;
         }
 
@@ -400,26 +401,9 @@ Motivo: Corrigir overflow das tabelas internas de produtos e serviços no formul
         }
 
         .orcamentos-lista-table {
-            width: max-content !important;
-            min-width: 900px !important;
+            width: 100% !important;
+            min-width: 100% !important;
             table-layout: auto;
-        }
-
-        @media (max-width: 768px) {
-            .orcamentos-lista-shell {
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
-                padding-bottom: 56px;
-            }
-
-            .orcamentos-lista-table {
-                min-width: 1100px !important;
-            }
-
-            .orcamentos-lista-table th,
-            .orcamentos-lista-table td {
-                white-space: nowrap;
-            }
         }
 
         .orcamentos-lista-table th,
@@ -1742,16 +1726,56 @@ Motivo: Corrigir overflow das tabelas internas de produtos e serviços no formul
         </script>
 
         <script>
+            function obterPainelMenuOrcamento(menu) {
+                if (!menu.dataset.budgetMenuId) {
+                    menu.dataset.budgetMenuId = "budget-menu-" + Math.random().toString(36).slice(2);
+                }
+
+                return menu.querySelector(".budget-action-panel")
+                    || document.querySelector('.budget-action-panel[data-budget-owner="' + menu.dataset.budgetMenuId + '"]');
+            }
+
+            function abrirPainelMenuOrcamento(menu) {
+                const panel = obterPainelMenuOrcamento(menu);
+
+                if (!panel) {
+                    return;
+                }
+
+                panel.dataset.budgetOwner = menu.dataset.budgetMenuId;
+                panel.classList.add("is-open");
+
+                if (panel.parentElement !== document.body) {
+                    document.body.appendChild(panel);
+                }
+            }
+
+            function fecharPainelMenuOrcamento(menu) {
+                const panel = obterPainelMenuOrcamento(menu);
+
+                if (!panel) {
+                    return;
+                }
+
+                panel.classList.remove("is-open");
+                panel.style.top = "";
+                panel.style.left = "";
+
+                if (panel.parentElement === document.body) {
+                    menu.appendChild(panel);
+                }
+            }
+
             function posicionarMenuOrcamento(menu) {
                 const trigger = menu.querySelector(".budget-action-trigger");
-                const panel = menu.querySelector(".budget-action-panel");
+                const panel = obterPainelMenuOrcamento(menu);
 
                 if (!trigger || !panel) {
                     return;
                 }
 
                 const rect = trigger.getBoundingClientRect();
-                const largura = 190;
+                const largura = Math.max(panel.offsetWidth || 190, 190);
                 const margem = 8;
                 let left = rect.right - largura;
 
@@ -1763,11 +1787,11 @@ Motivo: Corrigir overflow das tabelas internas de produtos e serviços no formul
                     left = window.innerWidth - largura - margem;
                 }
 
-                const alturaEstimativa = 210;
+                const altura = panel.offsetHeight || 210;
                 let top = rect.bottom + margem;
 
-                if (top + alturaEstimativa > window.innerHeight - margem) {
-                    top = rect.top - alturaEstimativa - margem;
+                if (top + altura > window.innerHeight - margem) {
+                    top = rect.top - altura - margem;
                 }
 
                 if (top < margem) {
@@ -1789,20 +1813,27 @@ Motivo: Corrigir overflow das tabelas internas de produtos e serviços no formul
                     document.querySelectorAll(".budget-action-dropdown[open]").forEach(function(outroMenu) {
                         if (outroMenu !== menu) {
                             outroMenu.removeAttribute("open");
+                            fecharPainelMenuOrcamento(outroMenu);
                         }
                     });
 
-                    posicionarMenuOrcamento(menu);
+                    abrirPainelMenuOrcamento(menu);
+                    requestAnimationFrame(function() {
+                        posicionarMenuOrcamento(menu);
+                    });
+                } else {
+                    fecharPainelMenuOrcamento(menu);
                 }
             }, true);
 
             document.addEventListener("click", function(event) {
-                if (event.target.closest(".budget-action-menu")) {
+                if (event.target.closest(".budget-action-menu") || event.target.closest(".budget-action-panel")) {
                     return;
                 }
 
                 document.querySelectorAll(".budget-action-dropdown[open]").forEach(function(menu) {
                     menu.removeAttribute("open");
+                    fecharPainelMenuOrcamento(menu);
                 });
             });
 
@@ -1813,7 +1844,7 @@ Motivo: Corrigir overflow das tabelas internas de produtos e serviços no formul
             window.addEventListener("resize", function() {
                 document.querySelectorAll(".budget-action-dropdown[open]").forEach(posicionarMenuOrcamento);
             });
-        </script>
+        </script>        </script>
 
 
     </main>
