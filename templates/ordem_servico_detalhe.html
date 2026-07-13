@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordem_servico_detalhe.html
-Último recode: 2026-07-02 23:41 (America/Bahia)
-Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
+Último recode: 2026-07-13 20:00 (America/Bahia)
+Motivo: Corrigir altura dos campos de observações para evitar sobreposição do acompanhamento diário.
 -->
 
 <!DOCTYPE html>
@@ -311,6 +311,18 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                 min-width: 680px;
             }
         }
+    
+        .observacao-box{
+            min-height:160px !important;
+            height:auto !important;
+            white-space:pre-wrap;
+            overflow-wrap:anywhere;
+            overflow:auto;
+            align-items:flex-start;
+            padding-top:12px;
+            line-height:1.45;
+        }
+
     </style>
 
 </head>
@@ -532,8 +544,8 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                 <div class="form-group"><label>Endereço de entrega</label><div class="form-control">{{ os.endereco_entrega or '-' }}</div></div>
                 <div class="form-group"><label>Bairro</label><div class="form-control">{{ os.bairro_entrega or '-' }}</div></div>
                 <div class="form-group"><label>Cidade</label><div class="form-control">{{ os.cidade_entrega or '-' }}</div></div>
-                <div class="form-group"><label>Observações</label><div class="form-control">{{ os.observacoes or '-' }}</div></div>
-                <div class="form-group"><label>Observações internas</label><div class="form-control">{{ os.observacoes_internas or '-' }}</div></div>
+                <div class="form-group"><label>Observações</label><div class="form-control observacao-box">{{ os.observacoes or "-" }}</div></div>
+                <div class="form-group"><label>Observações internas</label><div class="form-control observacao-box">{{ os.observacoes_internas or "-" }}</div></div>
             </div>
         </section>
 
