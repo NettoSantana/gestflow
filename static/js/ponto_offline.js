@@ -1,6 +1,6 @@
 // Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\static\js\ponto_offline.js
-// Último recode: 2026-07-10 12:25 (America/Bahia)
-// Motivo: Evitar envio online sem acao ao bloquear visualmente o botao clicado.
+// Último recode: 2026-07-14 19:05 (America/Bahia)
+// Motivo: Priorizar a validação do backend online e usar a validação local somente no modo offline.
 (function(){
     const form = document.getElementById('ponto-form-batida');
     const validationForm = document.getElementById('ponto-form-validacao');
@@ -107,6 +107,16 @@
     function validacaoLocalExiste(){
         const dados = carregarJson(authKey, {});
         return !!dados.validado && dados.token === token;
+    }
+
+    function limparValidacaoLocal(){
+        localStorage.removeItem(authKey);
+    }
+
+    function mostrarTelaNaoValidada(){
+        if(validationForm){validationForm.classList.remove('ponto-offline-hidden');}
+        if(pointArea){pointArea.classList.add('ponto-offline-hidden');}
+        atualizarStatus();
     }
 
     function nomeAcao(acao){
@@ -286,9 +296,19 @@
         }
     }
 
-    if((form.dataset.telefoneValidado || '') === 'sim'){salvarValidacaoLocal();}
-    if(validacaoLocalExiste()){liberarTelaValidada();}
-    else if(!navigator.onLine && validationForm){validationForm.classList.remove('ponto-offline-hidden');}
+    const telefoneValidadoServidor = (form.dataset.telefoneValidado || '') === 'sim';
+
+    if(telefoneValidadoServidor){
+        salvarValidacaoLocal();
+        liberarTelaValidada();
+    }else if(navigator.onLine){
+        limparValidacaoLocal();
+        mostrarTelaNaoValidada();
+    }else if(validacaoLocalExiste()){
+        liberarTelaValidada();
+    }else{
+        mostrarTelaNaoValidada();
+    }
 
     if(validationForm){
         validationForm.addEventListener('submit', function(event){
@@ -346,7 +366,13 @@
     });
 
     window.addEventListener('online', function(){
-        if(validacaoLocalExiste()){liberarTelaValidada();}
+        if((form.dataset.telefoneValidado || '') === 'sim'){
+            salvarValidacaoLocal();
+            liberarTelaValidada();
+        }else{
+            limparValidacaoLocal();
+            mostrarTelaNaoValidada();
+        }
         sincronizarFila();
     });
     window.addEventListener('offline', function(){atualizarStatus(); renderizarEstadoOffline();});
