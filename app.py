@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-13 20:02 (America/Bahia)
-# Motivo: Corrigir geração e acesso aos links públicos de cliente e técnico da Ordem de Serviço.
+# Último recode: 2026-07-14 09:09 (America/Bahia)
+# Motivo: Corrigir tokens vazios e abertura dos links públicos de cliente e técnico na lista de Ordens de Serviço.
 
 from __future__ import annotations
 
@@ -4465,6 +4465,7 @@ def montar_contexto_ordens_servico_paginado() -> dict[str, Any]:
         registros,
         ("data_abertura", "data_previsao", "data_saida"),
     )
+    registros_exibicao = anexar_tokens_publicos_ordens_servico(registros_exibicao)
 
     return {
         "itens": registros_exibicao,
@@ -7040,6 +7041,60 @@ def montar_links_publicos_os(token: Any) -> dict[str, str]:
         "cliente_url": f"{base_url}/os/cliente/{token_normalizado}",
         "campo_url": f"{base_url}/os/campo/{token_normalizado}",
     }
+
+
+def anexar_tokens_publicos_ordens_servico(
+    registros: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    registros_exibicao = [dict(registro) for registro in registros]
+    ids_ordens = sorted(
+        {
+            int(registro.get("id") or 0)
+            for registro in registros_exibicao
+            if int(registro.get("id") or 0) > 0
+        }
+    )
+
+    tokens_por_ordem: dict[int, str] = {}
+
+    if ids_ordens:
+        marcadores = ", ".join("?" for _ in ids_ordens)
+        agora = agora_empresa().isoformat(timespec="seconds")
+
+        with conectar_db() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT
+                    ordem_servico_id,
+                    token
+                FROM os_acompanhamentos
+                WHERE empresa_id = ?
+                  AND ordem_servico_id IN ({marcadores})
+                  AND status_link = 'ativo'
+                  AND status_dia <> 'finalizado'
+                  AND datetime(expira_em) > datetime(?)
+                ORDER BY ordem_servico_id ASC, id DESC
+                """,
+                [empresa_logada_id(), *ids_ordens, agora],
+            ).fetchall()
+
+        for row in rows:
+            ordem_servico_id = int(row["ordem_servico_id"] or 0)
+            token = str(row["token"] or "").strip()
+
+            if ordem_servico_id > 0 and token:
+                tokens_por_ordem.setdefault(ordem_servico_id, token)
+
+    for registro in registros_exibicao:
+        ordem_servico_id = int(registro.get("id") or 0)
+        token_ativo = tokens_por_ordem.get(ordem_servico_id, "")
+        token_geracao = f"gerar-{ordem_servico_id}" if ordem_servico_id > 0 else ""
+
+        registro["token_publico_os"] = token_ativo
+        registro["token_cliente"] = token_ativo or token_geracao
+        registro["token_campo"] = token_ativo or token_geracao
+
+    return registros_exibicao
 
 
 def gerar_acompanhamento_diario_os(ordem_servico_id: int) -> tuple[bool, str, dict[str, Any] | None]:
@@ -14955,6 +15010,7 @@ def ver_ordem_servico(ordem_servico_id: int) -> str | Response:
         ordem_servico,
         ("data_abertura", "data_previsao", "data_saida"),
     )
+    ordem_servico = anexar_tokens_publicos_ordens_servico([ordem_servico or {}])[0]
 
     itens = listar_ordem_servico_itens(ordem_servico_id)
     itens_produtos = [item for item in itens if item["tipo_item"] == "produto"]
@@ -14963,7 +15019,10 @@ def ver_ordem_servico(ordem_servico_id: int) -> str | Response:
     fotos_equipamento = listar_fotos_equipamento_os(ordem_servico_id)
     equipamentos_os = montar_equipamentos_ordem_servico(ordem_servico)
     fotos_por_equipamento = agrupar_fotos_por_equipamento(fotos_equipamento)
-    token_gerado = (request.args.get("link") or "").strip()
+    token_gerado = (
+        (request.args.get("link") or "").strip()
+        or str(ordem_servico.get("token_publico_os") or "").strip()
+    )
     acompanhamento_url_gerada = montar_url_acompanhamento_os(token_gerado)
     os_publico_links = montar_links_publicos_os(token_gerado)
     acompanhamento_mensagem = (request.args.get("mensagem") or "").strip()
@@ -15093,14 +15152,77 @@ def gerar_link_acompanhamento_ordem_servico(ordem_servico_id: int) -> Response:
     )
 
 
+def resolver_acesso_publico_os(token: str, modo: str) -> Response:
+    token_normalizado = str(token or "").strip()
+    correspondencia_geracao = re.fullmatch(r"gerar-(\d+)", token_normalizado)
+
+    if correspondencia_geracao:
+        if not session.get("usuario_id"):
+            return redirect(url_for("login"))
+
+        ordem_servico_id = int(correspondencia_geracao.group(1))
+        sucesso, mensagem, acompanhamento = gerar_acompanhamento_diario_os(ordem_servico_id)
+
+        if not sucesso or acompanhamento is None:
+            return redirect(
+                url_for(
+                    "ver_ordem_servico",
+                    ordem_servico_id=ordem_servico_id,
+                    erro=mensagem,
+                )
+            )
+
+        token_normalizado = str(acompanhamento.get("token") or "").strip()
+
+        if not token_normalizado:
+            return redirect(
+                url_for(
+                    "ver_ordem_servico",
+                    ordem_servico_id=ordem_servico_id,
+                    erro="Não foi possível recuperar o token público da OS.",
+                )
+            )
+
+        endpoint = "os_cliente_publico" if modo == "cliente" else "os_campo_publico"
+        return redirect(url_for(endpoint, token=token_normalizado))
+
+    return redirect(
+        url_for(
+            "acompanhamento_os_publico",
+            token=token_normalizado,
+            modo=modo,
+        )
+    )
+
+
+@app.get("/os/cliente/")
+def os_cliente_sem_token() -> Response:
+    return redirect(
+        url_for(
+            "ordens_servico",
+            erro="O link do cliente estava vazio. Abra novamente o menu da OS para gerar o acesso correto.",
+        )
+    )
+
+
 @app.get("/os/cliente/<token>")
 def os_cliente_publico(token: str) -> Response:
-    return redirect(url_for("acompanhamento_os_publico", token=token, modo="cliente"))
+    return resolver_acesso_publico_os(token, "cliente")
+
+
+@app.get("/os/campo/")
+def os_campo_sem_token() -> Response:
+    return redirect(
+        url_for(
+            "ordens_servico",
+            erro="O link do técnico estava vazio. Abra novamente o menu da OS para gerar o acesso correto.",
+        )
+    )
 
 
 @app.get("/os/campo/<token>")
 def os_campo_publico(token: str) -> Response:
-    return redirect(url_for("acompanhamento_os_publico", token=token, modo="campo"))
+    return resolver_acesso_publico_os(token, "campo")
 
 
 @app.route("/os/acompanhamento/<token>", methods=["GET", "POST"])
