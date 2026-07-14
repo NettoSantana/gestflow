@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-14 09:09 (America/Bahia)
-# Motivo: Corrigir tokens vazios e abertura dos links públicos de cliente e técnico na lista de Ordens de Serviço.
+# Último recode: 2026-07-14 09:57 (America/Bahia)
+# Motivo: Restaurar o módulo de Equipamentos, a rota /equipamentos, o cadastro rápido e o histórico por QR Code.
 
 from __future__ import annotations
 
@@ -64,6 +64,7 @@ GESTFLOW_MODULOS = [
     {"codigo": "clientes", "nome": "Clientes", "grupo": "Cadastros", "descricao": "Cadastro e histórico de clientes."},
     {"codigo": "fornecedores", "nome": "Fornecedores", "grupo": "Cadastros", "descricao": "Cadastro de fornecedores e parceiros."},
     {"codigo": "funcionarios", "nome": "Funcionários", "grupo": "Cadastros", "descricao": "Equipe, responsáveis, técnicos e custos de mão de obra."},
+    {"codigo": "equipamentos", "nome": "Equipamentos", "grupo": "Cadastros", "descricao": "Cadastro técnico de equipamentos com QR Code e histórico de manutenções."},
     {"codigo": "produtos", "nome": "Produtos", "grupo": "Operação", "descricao": "Cadastro de produtos e itens comercializados."},
     {"codigo": "servicos", "nome": "Serviços", "grupo": "Operação", "descricao": "Cadastro de serviços prestados."},
     {"codigo": "orcamentos", "nome": "Orçamentos", "grupo": "Comercial", "descricao": "Propostas comerciais e orçamentos manuais."},
@@ -129,10 +130,10 @@ GESTFLOW_SEGMENTOS_POR_CODIGO = {segmento["codigo"]: segmento for segmento in GE
 GESTFLOW_PERFIS_MODULOS = {
     "comercio": {"clientes", "fornecedores", "produtos", "vendas", "vitrine", "pdv", "devolucoes", "estoque", "financeiro"},
     "servicos": {"clientes", "servicos", "orcamentos", "vendas", "vitrine", "financeiro", "agendamentos"},
-    "assistencia": {"clientes", "fornecedores", "funcionarios", "produtos", "servicos", "orcamentos", "vendas", "vitrine", "ordens_servico", "estoque", "financeiro", "agendamentos", "registro_ponto"},
-    "industrial": {"clientes", "fornecedores", "funcionarios", "produtos", "servicos", "orcamentos", "gerador_orcamentos", "vendas", "ordens_servico", "painel_os", "estoque", "financeiro", "registro_ponto"},
+    "assistencia": {"clientes", "fornecedores", "funcionarios", "equipamentos", "produtos", "servicos", "orcamentos", "vendas", "vitrine", "ordens_servico", "estoque", "financeiro", "agendamentos", "registro_ponto"},
+    "industrial": {"clientes", "fornecedores", "funcionarios", "equipamentos", "produtos", "servicos", "orcamentos", "gerador_orcamentos", "vendas", "ordens_servico", "painel_os", "estoque", "financeiro", "registro_ponto"},
     "distribuicao": {"clientes", "fornecedores", "produtos", "vendas", "vitrine", "devolucoes", "estoque", "financeiro"},
-    "locacao": {"clientes", "fornecedores", "funcionarios", "produtos", "servicos", "orcamentos", "vendas", "ordens_servico", "estoque", "financeiro"},
+    "locacao": {"clientes", "fornecedores", "funcionarios", "equipamentos", "produtos", "servicos", "orcamentos", "vendas", "ordens_servico", "estoque", "financeiro"},
     "completo": set(GESTFLOW_MODULOS_CODIGOS),
 }
 
@@ -249,7 +250,7 @@ def sugerir_modulos_por_anamnese(dados: dict[str, Any]) -> dict[str, bool]:
     if "balcao" in operacao:
         ativos.update({"pdv", "devolucoes"})
     if "equipe_externa" in operacao or "ordem_servico" in operacao:
-        ativos.update({"clientes", "funcionarios", "servicos", "ordens_servico", "registro_ponto"})
+        ativos.update({"clientes", "funcionarios", "equipamentos", "servicos", "ordens_servico", "registro_ponto"})
     if "projetos_obras" in operacao:
         ativos.update({"clientes", "fornecedores", "funcionarios", "produtos", "servicos", "orcamentos", "gerador_orcamentos", "ordens_servico", "financeiro", "registro_ponto"})
 
@@ -263,9 +264,9 @@ def sugerir_modulos_por_anamnese(dados: dict[str, Any]) -> dict[str, bool]:
         ativos.update({"clientes", "vendas", "vitrine"})
 
     if "os_simples" in execucao or "os_completa" in execucao:
-        ativos.update({"clientes", "servicos", "ordens_servico", "registro_ponto"})
+        ativos.update({"clientes", "equipamentos", "servicos", "ordens_servico", "registro_ponto"})
     if "campo" in execucao or "fotos" in execucao or "acompanhamento" in execucao:
-        ativos.update({"clientes", "funcionarios", "servicos", "ordens_servico", "painel_os"})
+        ativos.update({"clientes", "funcionarios", "equipamentos", "servicos", "ordens_servico", "painel_os"})
 
     if "estoque_simples" in estoque or "estoque_completo" in estoque:
         ativos.update({"produtos", "estoque"})
@@ -276,6 +277,7 @@ def sugerir_modulos_por_anamnese(dados: dict[str, Any]) -> dict[str, bool]:
         "clientes": "clientes",
         "fornecedores": "fornecedores",
         "funcionarios": "funcionarios",
+        "equipamentos": "equipamentos",
         "produtos": "produtos",
         "servicos": "servicos",
     }
@@ -312,6 +314,8 @@ def sugerir_modulos_por_anamnese(dados: dict[str, Any]) -> dict[str, bool]:
         ativos.add("produtos")
     if "agendamentos" in ativos:
         ativos.update({"clientes", "servicos"})
+    if "ordens_servico" in ativos:
+        ativos.add("equipamentos")
     if "registro_ponto" in ativos:
         ativos.add("funcionarios")
 
@@ -379,6 +383,7 @@ def modulo_por_rota(path: str) -> str:
         ("/clientes", "clientes"),
         ("/fornecedores", "fornecedores"),
         ("/funcionarios", "funcionarios"),
+        ("/equipamentos", "equipamentos"),
         ("/produtos", "produtos"),
         ("/servicos", "servicos"),
         ("/estoque", "estoque"),
@@ -740,6 +745,8 @@ def exigir_login_rotas_internas() -> Response | None:
         "acompanhamento_os_publico",
         "os_cliente_publico",
         "os_campo_publico",
+        "equipamento_historico_publico",
+        "qrcode_equipamento_publico",
         "servir_foto_os",
         "vitrine_publica",
         "vitrine_pedido_publico",
@@ -930,6 +937,28 @@ def iniciar_banco() -> None:
                 email TEXT,
                 observacoes TEXT,
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS equipamentos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER,
+                cliente_id INTEGER,
+                cliente_nome TEXT,
+                nome TEXT NOT NULL,
+                marca TEXT,
+                modelo TEXT,
+                serie TEXT,
+                tag TEXT,
+                local_instalacao TEXT,
+                status TEXT NOT NULL DEFAULT 'ativo',
+                token_qrcode TEXT,
+                origem TEXT DEFAULT 'cadastro',
+                observacoes TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                atualizado_em TEXT
             )
             """
         )
@@ -1948,6 +1977,7 @@ def iniciar_banco() -> None:
             "clientes",
             "fornecedores",
             "funcionarios",
+            "equipamentos",
             "produtos",
             "servicos",
             "orcamentos",
@@ -1988,6 +2018,24 @@ def iniciar_banco() -> None:
             conn.execute(
                 f"UPDATE {tabela} SET empresa_id = ? WHERE empresa_id IS NULL",
                 (empresa_id_inicial,),
+            )
+
+        equipamentos_sem_token = conn.execute(
+            """
+            SELECT id
+            FROM equipamentos
+            WHERE token_qrcode IS NULL OR TRIM(token_qrcode) = ''
+            ORDER BY id ASC
+            """
+        ).fetchall()
+        for equipamento_sem_token in equipamentos_sem_token:
+            conn.execute(
+                "UPDATE equipamentos SET token_qrcode = ?, atualizado_em = ? WHERE id = ?",
+                (
+                    gerar_token_qrcode_unico_equipamento(conn),
+                    agora_empresa().isoformat(timespec="seconds"),
+                    int(equipamento_sem_token["id"]),
+                ),
             )
 
         colunas_ordens_servico = {
@@ -14947,6 +14995,455 @@ def comprar_produto_estoque() -> Response:
     return redirect(url_for("estoque") + "/compras")
 
 
+
+# -----------------------------------------------------------------------------
+# EQUIPAMENTOS - cadastro, QR Code e histórico de Ordens de Serviço
+# -----------------------------------------------------------------------------
+
+def gerar_token_qrcode_equipamento() -> str:
+    return secrets.token_urlsafe(28)
+
+
+def normalizar_status_equipamento(valor: Any) -> str:
+    status = str(valor or "ativo").strip().lower()
+    return status if status in {"ativo", "inativo", "manutencao", "baixado"} else "ativo"
+
+
+def normalizar_texto_equipamento(valor: Any) -> str:
+    return str(valor or "").strip()
+
+
+def normalizar_chave_equipamento(valor: Any) -> str:
+    texto = unicodedata.normalize("NFKD", str(valor or ""))
+    texto = "".join(caractere for caractere in texto if not unicodedata.combining(caractere))
+    return re.sub(r"[^a-z0-9]+", "", texto.lower())
+
+
+def gerar_token_qrcode_unico_equipamento(conn: sqlite3.Connection) -> str:
+    for _ in range(40):
+        token = gerar_token_qrcode_equipamento()
+        conflito = conn.execute(
+            "SELECT id FROM equipamentos WHERE token_qrcode = ? LIMIT 1",
+            (token,),
+        ).fetchone()
+        if conflito is None:
+            return token
+    return gerar_token_qrcode_equipamento() + secrets.token_urlsafe(8)
+
+
+def listar_equipamentos_cadastrados(status: str | None = None, cliente_nome: Any = "") -> list[dict[str, Any]]:
+    empresa_id = empresa_logada_id()
+    filtros = ["empresa_id = ?"]
+    parametros: list[Any] = [empresa_id]
+    status_normalizado = str(status or "").strip().lower()
+    cliente_normalizado = str(cliente_nome or "").strip()
+
+    if status_normalizado:
+        filtros.append("LOWER(COALESCE(status, 'ativo')) = ?")
+        parametros.append(status_normalizado)
+    else:
+        filtros.append("LOWER(COALESCE(status, 'ativo')) <> 'baixado'")
+
+    if cliente_normalizado:
+        filtros.append("LOWER(COALESCE(cliente_nome, '')) = LOWER(?)")
+        parametros.append(cliente_normalizado)
+
+    where = " AND ".join(filtros)
+    with conectar_db() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT *
+            FROM equipamentos
+            WHERE {where}
+            ORDER BY cliente_nome COLLATE NOCASE ASC, nome COLLATE NOCASE ASC, id DESC
+            """,
+            parametros,
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def buscar_equipamento_por_id(equipamento_id: int, empresa_id_param: int | None = None) -> dict[str, Any] | None:
+    empresa_id = int(empresa_id_param or empresa_logada_id())
+    try:
+        identificador = int(equipamento_id)
+    except (TypeError, ValueError):
+        return None
+
+    with conectar_db() as conn:
+        row = conn.execute(
+            "SELECT * FROM equipamentos WHERE id = ? AND empresa_id = ? LIMIT 1",
+            (identificador, empresa_id),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def buscar_equipamento_por_token_qrcode(token: Any) -> dict[str, Any] | None:
+    token_normalizado = str(token or "").strip()
+    if not token_normalizado:
+        return None
+
+    with conectar_db() as conn:
+        row = conn.execute(
+            "SELECT * FROM equipamentos WHERE token_qrcode = ? LIMIT 1",
+            (token_normalizado,),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def montar_dados_equipamento_formulario() -> dict[str, str]:
+    return {
+        "cliente_nome": normalizar_texto_equipamento(request.form.get("cliente_nome")),
+        "nome": normalizar_texto_equipamento(request.form.get("nome")),
+        "marca": normalizar_texto_equipamento(request.form.get("marca")),
+        "modelo": normalizar_texto_equipamento(request.form.get("modelo")),
+        "serie": normalizar_texto_equipamento(request.form.get("serie")),
+        "tag": normalizar_texto_equipamento(request.form.get("tag")),
+        "local_instalacao": normalizar_texto_equipamento(request.form.get("local_instalacao")),
+        "status": normalizar_status_equipamento(request.form.get("status")),
+        "origem": normalizar_texto_equipamento(request.form.get("origem") or "cadastro"),
+        "observacoes": normalizar_texto_equipamento(request.form.get("observacoes")),
+    }
+
+
+def salvar_equipamento_db(dados: dict[str, Any]) -> int:
+    empresa_id = empresa_logada_id()
+    nome = normalizar_texto_equipamento(dados.get("nome"))
+    if not nome:
+        raise ValueError("Informe o nome do equipamento.")
+
+    cliente_nome = normalizar_texto_equipamento(dados.get("cliente_nome"))
+    cliente_id = None
+    if cliente_nome:
+        cliente = buscar_cliente_por_nome(cliente_nome)
+        if cliente:
+            cliente_id = int(cliente.get("id") or 0) or None
+
+    agora_iso = agora_empresa().isoformat(timespec="seconds")
+    with conectar_db() as conn:
+        token = gerar_token_qrcode_unico_equipamento(conn)
+        cursor = conn.execute(
+            """
+            INSERT INTO equipamentos (
+                empresa_id, cliente_id, cliente_nome, nome, marca, modelo, serie, tag,
+                local_instalacao, status, token_qrcode, origem, observacoes, atualizado_em
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                empresa_id,
+                cliente_id,
+                cliente_nome,
+                nome,
+                normalizar_texto_equipamento(dados.get("marca")),
+                normalizar_texto_equipamento(dados.get("modelo")),
+                normalizar_texto_equipamento(dados.get("serie")),
+                normalizar_texto_equipamento(dados.get("tag")),
+                normalizar_texto_equipamento(dados.get("local_instalacao")),
+                normalizar_status_equipamento(dados.get("status")),
+                token,
+                normalizar_texto_equipamento(dados.get("origem") or "cadastro"),
+                normalizar_texto_equipamento(dados.get("observacoes")),
+                agora_iso,
+            ),
+        )
+        equipamento_id = int(cursor.lastrowid)
+        conn.commit()
+    return equipamento_id
+
+
+def atualizar_equipamento_db(equipamento_id: int, dados: dict[str, Any]) -> bool:
+    equipamento = buscar_equipamento_por_id(equipamento_id)
+    if equipamento is None:
+        return False
+
+    nome = normalizar_texto_equipamento(dados.get("nome"))
+    if not nome:
+        return False
+
+    cliente_nome = normalizar_texto_equipamento(dados.get("cliente_nome"))
+    cliente_id = None
+    if cliente_nome:
+        cliente = buscar_cliente_por_nome(cliente_nome)
+        if cliente:
+            cliente_id = int(cliente.get("id") or 0) or None
+
+    with conectar_db() as conn:
+        cursor = conn.execute(
+            """
+            UPDATE equipamentos
+            SET cliente_id = ?, cliente_nome = ?, nome = ?, marca = ?, modelo = ?, serie = ?,
+                tag = ?, local_instalacao = ?, status = ?, observacoes = ?, atualizado_em = ?
+            WHERE id = ? AND empresa_id = ?
+            """,
+            (
+                cliente_id,
+                cliente_nome,
+                nome,
+                normalizar_texto_equipamento(dados.get("marca")),
+                normalizar_texto_equipamento(dados.get("modelo")),
+                normalizar_texto_equipamento(dados.get("serie")),
+                normalizar_texto_equipamento(dados.get("tag")),
+                normalizar_texto_equipamento(dados.get("local_instalacao")),
+                normalizar_status_equipamento(dados.get("status")),
+                normalizar_texto_equipamento(dados.get("observacoes")),
+                agora_empresa().isoformat(timespec="seconds"),
+                int(equipamento_id),
+                empresa_logada_id(),
+            ),
+        )
+        conn.commit()
+    return cursor.rowcount > 0
+
+
+def excluir_equipamento_db(equipamento_id: int) -> bool:
+    with conectar_db() as conn:
+        cursor = conn.execute(
+            "DELETE FROM equipamentos WHERE id = ? AND empresa_id = ?",
+            (int(equipamento_id), empresa_logada_id()),
+        )
+        conn.commit()
+    return cursor.rowcount > 0
+
+
+def montar_link_equipamento_historico_por_token(token: Any) -> str:
+    token_normalizado = str(token or "").strip()
+    if not token_normalizado:
+        return ""
+    return f"{request.url_root.rstrip('/')}/os/equipamento/{token_normalizado}"
+
+
+def montar_link_qrcode_equipamento_por_token(token: Any) -> str:
+    token_normalizado = str(token or "").strip()
+    if not token_normalizado:
+        return ""
+    return f"{request.url_root.rstrip('/')}/os/equipamento/{token_normalizado}/qrcode.svg"
+
+
+def equipamento_corresponde_item_os(equipamento: dict[str, Any], item_os: dict[str, Any]) -> bool:
+    nome_cadastro = normalizar_chave_equipamento(equipamento.get("nome"))
+    nome_os = normalizar_chave_equipamento(item_os.get("equipamento"))
+    if not nome_cadastro or nome_cadastro != nome_os:
+        return False
+
+    serie_cadastro = normalizar_chave_equipamento(equipamento.get("serie"))
+    serie_os = normalizar_chave_equipamento(item_os.get("serie"))
+    if serie_cadastro and serie_os and serie_cadastro != serie_os:
+        return False
+
+    modelo_cadastro = normalizar_chave_equipamento(equipamento.get("modelo"))
+    modelo_os = normalizar_chave_equipamento(item_os.get("modelo"))
+    if modelo_cadastro and modelo_os and modelo_cadastro != modelo_os:
+        return False
+
+    return True
+
+
+def montar_historico_equipamento_publico(token: Any) -> dict[str, Any] | None:
+    equipamento = buscar_equipamento_por_token_qrcode(token)
+    if equipamento is None:
+        return None
+
+    empresa_id = int(equipamento.get("empresa_id") or 0)
+    if empresa_id <= 0:
+        return None
+
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT *
+            FROM ordens_servico
+            WHERE empresa_id = ?
+            ORDER BY data_abertura DESC, id DESC
+            """,
+            (empresa_id,),
+        ).fetchall()
+
+    historico: list[dict[str, Any]] = []
+    for row in rows:
+        ordem_servico = dict(row)
+        itens_equipamento = montar_equipamentos_ordem_servico(ordem_servico)
+        item_encontrado = next(
+            (item for item in itens_equipamento if equipamento_corresponde_item_os(equipamento, item)),
+            None,
+        )
+        if item_encontrado is None:
+            continue
+
+        registro = formatar_datas_documento_exibicao(
+            ordem_servico,
+            ("data_abertura", "data_previsao", "data_saida"),
+        )
+        registro["equipamento_match"] = item_encontrado
+        registro["diagnostico_vinculo"] = registro.get("diagnostico") or ""
+        registro["servico_executado_vinculo"] = registro.get("servico_executado") or ""
+        historico.append(registro)
+
+    return {
+        "token": str(token or "").strip(),
+        "equipamento": equipamento,
+        "historico": historico,
+    }
+
+
+@app.route("/equipamentos", methods=["GET", "POST"])
+def equipamentos() -> str | Response:
+    if request.method == "POST":
+        dados = montar_dados_equipamento_formulario()
+        try:
+            equipamento_id = salvar_equipamento_db(dados)
+            registrar_atividade_usuario(
+                "criacao",
+                "equipamentos",
+                f"Cadastrou equipamento {dados.get('nome')}",
+                request.path,
+            )
+            return redirect(url_for("detalhe_equipamento", equipamento_id=equipamento_id))
+        except ValueError as exc:
+            return redirect(url_for("equipamentos", erro=str(exc)))
+
+    busca = str(request.args.get("busca") or "").strip()
+    status = str(request.args.get("status") or "").strip().lower()
+    equipamentos_lista = listar_equipamentos_cadastrados(status=status or None)
+
+    if busca:
+        termo = busca.lower()
+        equipamentos_lista = [
+            equipamento
+            for equipamento in equipamentos_lista
+            if termo in str(equipamento.get("nome") or "").lower()
+            or termo in str(equipamento.get("cliente_nome") or "").lower()
+            or termo in str(equipamento.get("marca") or "").lower()
+            or termo in str(equipamento.get("modelo") or "").lower()
+            or termo in str(equipamento.get("serie") or "").lower()
+            or termo in str(equipamento.get("tag") or "").lower()
+        ]
+
+    return render_template(
+        "equipamentos.html",
+        equipamentos=equipamentos_lista,
+        clientes=listar_clientes(),
+        busca=busca,
+        status=status,
+        erro=str(request.args.get("erro") or "").strip(),
+    )
+
+
+@app.post("/equipamentos/rapido")
+def salvar_equipamento_rapido() -> Response:
+    dados = montar_dados_equipamento_formulario()
+    dados["origem"] = "os"
+    try:
+        equipamento_id = salvar_equipamento_db(dados)
+    except ValueError as exc:
+        return jsonify({"ok": False, "erro": str(exc)}), 400
+
+    equipamento = buscar_equipamento_por_id(equipamento_id)
+    if equipamento is None:
+        return jsonify({"ok": False, "erro": "Equipamento não encontrado após o cadastro."}), 500
+
+    return jsonify({"ok": True, "equipamento": equipamento})
+
+
+@app.get("/equipamentos/<int:equipamento_id>")
+def detalhe_equipamento(equipamento_id: int) -> str | Response:
+    equipamento = buscar_equipamento_por_id(equipamento_id)
+    if equipamento is None:
+        return redirect(url_for("equipamentos", erro="Equipamento não encontrado."))
+
+    contexto = montar_historico_equipamento_publico(equipamento.get("token_qrcode")) or {"historico": []}
+    return render_template(
+        "equipamento_detalhe.html",
+        equipamento=equipamento,
+        historico=contexto.get("historico", []),
+        historico_url=montar_link_equipamento_historico_por_token(equipamento.get("token_qrcode")),
+        qrcode_url=montar_link_qrcode_equipamento_por_token(equipamento.get("token_qrcode")),
+    )
+
+
+@app.route("/equipamentos/<int:equipamento_id>/editar", methods=["GET", "POST"])
+def editar_equipamento(equipamento_id: int) -> str | Response:
+    equipamento = buscar_equipamento_por_id(equipamento_id)
+    if equipamento is None:
+        return redirect(url_for("equipamentos", erro="Equipamento não encontrado."))
+
+    if request.method == "POST":
+        dados = montar_dados_equipamento_formulario()
+        if atualizar_equipamento_db(equipamento_id, dados):
+            registrar_atividade_usuario(
+                "edicao",
+                "equipamentos",
+                f"Editou equipamento {dados.get('nome')}",
+                request.path,
+            )
+            return redirect(url_for("detalhe_equipamento", equipamento_id=equipamento_id))
+        return redirect(
+            url_for(
+                "editar_equipamento",
+                equipamento_id=equipamento_id,
+                erro="Não foi possível salvar o equipamento.",
+            )
+        )
+
+    return render_template(
+        "equipamento_editar.html",
+        equipamento=equipamento,
+        clientes=listar_clientes(),
+        erro=str(request.args.get("erro") or "").strip(),
+    )
+
+
+@app.post("/equipamentos/<int:equipamento_id>/excluir")
+def excluir_equipamento(equipamento_id: int) -> Response:
+    excluir_equipamento_db(equipamento_id)
+    return redirect(url_for("equipamentos"))
+
+
+@app.get("/equipamentos/<int:equipamento_id>/qrcode.svg")
+def qrcode_equipamento_cadastrado(equipamento_id: int) -> Response:
+    equipamento = buscar_equipamento_por_id(equipamento_id)
+    if equipamento is None:
+        return Response("Equipamento não encontrado", status=404)
+
+    token = str(equipamento.get("token_qrcode") or "").strip()
+    if not token:
+        return Response("QR Code não gerado", status=404)
+    return qrcode_equipamento_publico(token)
+
+
+@app.get("/os/equipamento/<token>")
+def equipamento_historico_publico(token: str) -> str:
+    contexto = montar_historico_equipamento_publico(token)
+    if contexto is None:
+        return render_template(
+            "equipamento_historico_publico.html",
+            contexto=None,
+            erro="Histórico do equipamento não encontrado.",
+        )
+    return render_template("equipamento_historico_publico.html", contexto=contexto, erro="")
+
+
+@app.get("/os/equipamento/<token>/qrcode.svg")
+def qrcode_equipamento_publico(token: str) -> Response:
+    equipamento = buscar_equipamento_por_token_qrcode(token)
+    if equipamento is None:
+        return Response("Equipamento não encontrado", status=404)
+
+    url_destino = montar_link_equipamento_historico_por_token(token)
+    try:
+        import qrcode
+        import qrcode.image.svg
+
+        imagem = qrcode.make(url_destino, image_factory=qrcode.image.svg.SvgPathImage)
+        saida = io.BytesIO()
+        imagem.save(saida)
+        return Response(saida.getvalue(), mimetype="image/svg+xml")
+    except Exception:
+        qrcode_externo = (
+            "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data="
+            + urllib.parse.quote(url_destino)
+        )
+        return redirect(qrcode_externo)
+
+
 @app.get("/ordens-servico/painel")
 def painel_ordens_servico() -> str:
     painel = montar_painel_ordens_servico()
@@ -14964,6 +15461,7 @@ def ordens_servico() -> str:
     funcionarios_lista = listar_funcionarios()
     produtos_lista = listar_produtos()
     servicos_lista = listar_servicos()
+    equipamentos_cadastrados = listar_equipamentos_cadastrados(status="ativo")
     proximo_numero = proximo_numero_ordem_servico()
 
     return render_template(
@@ -14979,6 +15477,7 @@ def ordens_servico() -> str:
         funcionarios=funcionarios_lista,
         produtos=produtos_lista,
         servicos=servicos_lista,
+        equipamentos_cadastrados=equipamentos_cadastrados,
         proximo_numero=proximo_numero,
     )
 
@@ -15351,6 +15850,7 @@ def editar_ordem_servico(ordem_servico_id: int) -> str | Response:
     funcionarios_lista = listar_funcionarios()
     produtos_lista = listar_produtos()
     servicos_lista = listar_servicos()
+    equipamentos_cadastrados = listar_equipamentos_cadastrados(status="ativo")
     fotos_equipamento = listar_fotos_equipamento_os(ordem_servico_id)
     equipamentos_os = montar_equipamentos_ordem_servico(ordem_servico)
     fotos_por_equipamento = agrupar_fotos_por_equipamento(fotos_equipamento)
@@ -15363,6 +15863,7 @@ def editar_ordem_servico(ordem_servico_id: int) -> str | Response:
         funcionarios=funcionarios_lista,
         produtos=produtos_lista,
         servicos=servicos_lista,
+        equipamentos_cadastrados=equipamentos_cadastrados,
         equipamentos_os=equipamentos_os,
         fotos_equipamento=fotos_equipamento,
         fotos_por_equipamento=fotos_por_equipamento,
