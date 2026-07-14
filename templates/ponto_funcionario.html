@@ -1,7 +1,7 @@
 <!--
 Caminho: templates/ponto_funcionario.html
-Último recode: 2026-07-14 09:00 (America/Bahia)
-Motivo: Capturar GPS antes de cada batida e enviar latitude, longitude e precisão ao backend.
+Último recode: 2026-07-14 18:47 (America/Bahia)
+Motivo: Evitar mensagem contraditória de validação quando o celular já está validado.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -84,7 +84,8 @@ Motivo: Capturar GPS antes de cada batida e enviar latitude, longitude e precis�
         </div>
 
         <div class="ponto-publico-body">
-            {% if erro %}<div class="ponto-alert error">{{ erro }}</div>{% endif %}
+            {% set erro_validacao_whatsapp = erro and ('Valide seu WhatsApp' in erro) %}
+            {% if erro and not (telefone_validado and erro_validacao_whatsapp) %}<div class="ponto-alert error">{{ erro }}</div>{% endif %}
             {% if sucesso %}<div class="ponto-alert success">{{ sucesso }}</div>{% endif %}
 
             {% if funcionario %}
