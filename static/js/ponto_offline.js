@@ -1,6 +1,6 @@
 // Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\static\js\ponto_offline.js
-// Último recode: 2026-07-14 19:35 (America/Bahia)
-// Motivo: Reduzir o bloqueio entre jornadas para 10 segundos e liberar nova entrada para hora extra.
+// Último recode: 2026-07-14 19:42 (America/Bahia)
+// Motivo: Impedir que o JavaScript limpe uma jornada ativa e liberar corretamente a saída após a entrada.
 (function(){
     const form = document.getElementById('ponto-form-batida');
     const validationForm = document.getElementById('ponto-form-validacao');
@@ -162,16 +162,19 @@
         atualizarAvisoBloqueio(segundos);
 
         if(segundos <= 0){
-            const atual = carregarEstado();
-            atual.campos = {};
-            atual.bloqueioAte = 0;
-            salvarEstado(atual);
-            campos.forEach(campo => {
-                const botao = botaoAcao(campo);
-                if(botao){botao.disabled = campo !== 'entrada';}
-            });
-            const entrada = botaoAcao('entrada');
-            if(entrada){entrada.disabled = false;}
+            if(estado.campos && estado.campos.saida){
+                const atual = carregarEstado();
+                atual.campos = {};
+                atual.bloqueioAte = 0;
+                salvarEstado(atual);
+
+                if(navigator.onLine){
+                    window.location.reload();
+                    return;
+                }
+
+                renderizarEstadoOffline();
+            }
             return;
         }
 
@@ -181,10 +184,12 @@
                 atual.campos = {};
                 atual.bloqueioAte = 0;
                 salvarEstado(atual);
+
                 if(navigator.onLine){
                     window.location.reload();
                     return;
                 }
+
                 renderizarEstadoOffline();
                 return;
             }
