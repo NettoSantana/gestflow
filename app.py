@@ -16884,6 +16884,11 @@ def venda_balcao_finalizar() -> Response:
         return redirect(url_for("venda_balcao"))
 
     forma_pagamento = (request.form.get("forma_pagamento") or "").strip()
+    condicao_pagamento = _normalizar_condicao_pagamento_venda(request.form.get("condicao_pagamento") or "avista")
+    valor_entrada = (request.form.get("valor_entrada") or "0,00").strip()
+    meio_pagamento_entrada = (request.form.get("meio_pagamento_entrada") or "").strip()
+    quantidade_parcelas = (request.form.get("quantidade_parcelas") or "1").strip()
+    primeiro_vencimento = (request.form.get("primeiro_vencimento") or hoje_empresa().isoformat()).strip()
     desconto_valor = (request.form.get("desconto_valor") or "0,00").strip()
     desconto_percentual = (request.form.get("desconto_percentual") or "0,00").strip()
     valor_pago = (request.form.get("valor_pago") or "0,00").strip()
@@ -16891,8 +16896,12 @@ def venda_balcao_finalizar() -> Response:
     if not forma_pagamento:
         return redirect(url_for("venda_balcao_pagamento_get"))
 
+    cliente_pdv = str(session.get("pdv_cliente") or "AO CONSUMIDOR").strip() or "AO CONSUMIDOR"
+    if condicao_pagamento != "avista" and cliente_pdv.upper() == "AO CONSUMIDOR":
+        return redirect(url_for("venda_balcao_pagamento_get", erro="Selecione um cliente identificado para venda a prazo ou parcelada."))
+
     resumo = montar_resumo_pdv(itens, desconto_valor, desconto_percentual, valor_pago)
-    cliente = str(session.get("pdv_cliente") or "AO CONSUMIDOR").strip() or "AO CONSUMIDOR"
+    cliente = cliente_pdv
     responsavel = str(session.get("pdv_responsavel") or session.get("usuario_nome") or "").strip()
 
     venda = {
@@ -16911,21 +16920,38 @@ def venda_balcao_finalizar() -> Response:
         "desconto_percentual": _formatar_moeda_brl(_converter_valor_brl(desconto_percentual)),
         "valor_total": resumo["total_formatado"],
         "forma_pagamento": forma_pagamento,
-        "observacoes": f"Venda balcão. Valor recebido: R$ {resumo['valor_pago_formatado']}. Troco: R$ {resumo['troco_formatado']}.",
+        "condicao_pagamento": condicao_pagamento,
+        "meio_pagamento": forma_pagamento,
+        "valor_entrada": valor_entrada if condicao_pagamento == "entrada_parcelas" else "0,00",
+        "meio_pagamento_entrada": meio_pagamento_entrada,
+        "data_entrada": hoje_empresa().isoformat(),
+        "quantidade_parcelas": quantidade_parcelas,
+        "primeiro_vencimento": primeiro_vencimento,
+        "intervalo_parcelas": "mensal",
+        "observacoes": f"Venda balcão. Valor recebido agora: R$ {resumo['valor_pago_formatado']}. Troco: R$ {resumo['troco_formatado']}.",
         "observacoes_internas": f"Caixa Nº {caixa_aberto['id']}",
     }
 
+    erro_pagamento = validar_pagamento_venda(venda)
+    if erro_pagamento:
+        return redirect(url_for("venda_balcao_pagamento_get", erro=erro_pagamento))
+
     venda_id = salvar_venda_db(venda, itens)
     baixar_estoque_por_venda_db(venda_id, venda, itens)
-    gerar_recebimento_pdv_pago_db(venda_id, venda)
-    registrar_caixa_movimentacao_db(
-        int(caixa_aberto["id"]),
-        venda_id,
-        "venda",
-        f"Venda balcão Nº {venda['numero']}",
-        forma_pagamento,
-        resumo["total_formatado"],
+    gerar_conta_receber_por_venda_db(venda_id, venda, recriar=True)
+
+    valor_caixa = resumo["total_formatado"] if condicao_pagamento == "avista" else (
+        valor_entrada if condicao_pagamento == "entrada_parcelas" else "0,00"
     )
+    if _converter_valor_brl(valor_caixa) > 0:
+        registrar_caixa_movimentacao_db(
+            int(caixa_aberto["id"]),
+            venda_id,
+            "venda",
+            f"Venda balcão Nº {venda['numero']}",
+            meio_pagamento_entrada if condicao_pagamento == "entrada_parcelas" else forma_pagamento,
+            valor_caixa,
+        )
 
     session.pop("pdv_carrinho", None)
     session.pop("pdv_cliente", None)

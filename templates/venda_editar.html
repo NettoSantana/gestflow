@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\venda_editar.html
-Último recode: 2026-07-02 23:41 (America/Bahia)
-Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
+Último recode: 2026-07-14 21:10 (America/Bahia)
+Motivo: Permitir editar condição, entrada e parcelamento da venda.
 -->
 
 <!DOCTYPE html>
@@ -346,6 +346,16 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                 min-width: 680px;
             }
         }
+
+        .pagamento-venda-box{grid-column:1/-1;border:1px solid #dbe5f1;border-radius:16px;background:#f8fafc;padding:16px}
+        .pagamento-venda-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+        .pagamento-campo-condicional{display:none}
+        .pagamento-campo-condicional.ativo{display:block}
+        .pagamento-previa{grid-column:1/-1;margin-top:4px;border:1px solid #dbe5f1;border-radius:12px;background:#fff;padding:12px}
+        .pagamento-previa strong{display:block;margin-bottom:6px;color:#0f172a}
+        .pagamento-previa-lista{display:grid;gap:5px;color:#475569;font-size:12px;font-weight:700}
+        @media(max-width:720px){.pagamento-venda-grid{grid-template-columns:1fr}}
+
     </style>
 
 </head>
@@ -413,7 +423,75 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                     <div class="form-group"><label for="venda_desconto_valor">Desconto R$</label><input id="venda_desconto_valor" name="venda_desconto_valor" type="text" value="{{ venda.desconto_valor or '0,00' }}" class="form-control"></div>
                     <div class="form-group"><label for="venda_desconto_percentual">Desconto %</label><input id="venda_desconto_percentual" name="venda_desconto_percentual" type="text" value="{{ venda.desconto_percentual or '0,00' }}" class="form-control"></div>
                     <div class="form-group"><label for="venda_valor_total">Valor total</label><input id="venda_valor_total" name="venda_valor_total" type="text" value="{{ venda.valor_total or '0,00' }}" class="form-control" readonly></div>
-                    <div class="form-group"><label for="venda_forma_pagamento">Forma de pagamento</label><input id="venda_forma_pagamento" name="venda_forma_pagamento" type="text" value="{{ venda.forma_pagamento or '' }}" class="form-control" required></div>
+                    
+                    <div class="pagamento-venda-box">
+                        <div class="pagamento-venda-grid">
+                            <div class="form-group">
+                                <label for="venda_condicao_pagamento">Condição de pagamento</label>
+                                <select id="venda_condicao_pagamento" name="venda_condicao_pagamento" class="form-control" required>
+                                    <option value="avista"{% if (venda.condicao_pagamento or "avista") == "avista" %} selected{% endif %}>À vista</option>
+                                    <option value="prazo"{% if venda.condicao_pagamento == "prazo" %} selected{% endif %}>Pagamento único a prazo</option>
+                                    <option value="parcelado"{% if venda.condicao_pagamento == "parcelado" %} selected{% endif %}>Parcelado</option>
+                                    <option value="entrada_parcelas"{% if venda.condicao_pagamento == "entrada_parcelas" %} selected{% endif %}>Entrada + parcelas</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="venda_meio_pagamento">Meio de pagamento</label>
+                                <select id="venda_meio_pagamento" name="venda_meio_pagamento" class="form-control" required>
+                                    <option value="">Selecione</option>
+                                    <option value="Dinheiro"{% if (venda.meio_pagamento or venda.forma_pagamento) == "Dinheiro" %} selected{% endif %}>Dinheiro</option>
+                                    <option value="Pix"{% if (venda.meio_pagamento or venda.forma_pagamento) == "Pix" %} selected{% endif %}>Pix</option>
+                                    <option value="Cartão de débito"{% if (venda.meio_pagamento or venda.forma_pagamento) == "Cartão de débito" %} selected{% endif %}>Cartão de débito</option>
+                                    <option value="Cartão de crédito"{% if (venda.meio_pagamento or venda.forma_pagamento) == "Cartão de crédito" %} selected{% endif %}>Cartão de crédito</option>
+                                    <option value="Transferência"{% if (venda.meio_pagamento or venda.forma_pagamento) == "Transferência" %} selected{% endif %}>Transferência</option>
+                                    <option value="Boleto"{% if (venda.meio_pagamento or venda.forma_pagamento) == "Boleto" %} selected{% endif %}>Boleto</option>
+                                    <option value="Outro"{% if (venda.meio_pagamento or venda.forma_pagamento) == "Outro" %} selected{% endif %}>Outro</option>
+                                </select>
+                                <input type="hidden" id="venda_forma_pagamento" name="venda_forma_pagamento" value="{{ venda.forma_pagamento or venda.meio_pagamento or '' }}">
+                            </div>
+
+                            <div class="form-group pagamento-campo-condicional" data-pagamento-campo="entrada">
+                                <label for="venda_valor_entrada">Valor da entrada</label>
+                                <input id="venda_valor_entrada" name="venda_valor_entrada" type="text" value="{{ venda.valor_entrada or '0,00' }}" class="form-control" inputmode="decimal">
+                            </div>
+
+                            <div class="form-group pagamento-campo-condicional" data-pagamento-campo="entrada">
+                                <label for="venda_meio_pagamento_entrada">Meio da entrada</label>
+                                <select id="venda_meio_pagamento_entrada" name="venda_meio_pagamento_entrada" class="form-control">
+                                    <option value="">Selecione</option>
+                                    <option value="Dinheiro"{% if venda.meio_pagamento_entrada == "Dinheiro" %} selected{% endif %}>Dinheiro</option>
+                                    <option value="Pix"{% if venda.meio_pagamento_entrada == "Pix" %} selected{% endif %}>Pix</option>
+                                    <option value="Cartão de débito"{% if venda.meio_pagamento_entrada == "Cartão de débito" %} selected{% endif %}>Cartão de débito</option>
+                                    <option value="Cartão de crédito"{% if venda.meio_pagamento_entrada == "Cartão de crédito" %} selected{% endif %}>Cartão de crédito</option>
+                                    <option value="Transferência"{% if venda.meio_pagamento_entrada == "Transferência" %} selected{% endif %}>Transferência</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group pagamento-campo-condicional" data-pagamento-campo="entrada">
+                                <label for="venda_data_entrada">Data da entrada</label>
+                                <input id="venda_data_entrada" name="venda_data_entrada" type="date" value="{{ venda.data_entrada or venda.data or '' }}" class="form-control">
+                            </div>
+
+                            <div class="form-group pagamento-campo-condicional" data-pagamento-campo="parcelas">
+                                <label for="venda_quantidade_parcelas">Quantidade de parcelas</label>
+                                <input id="venda_quantidade_parcelas" name="venda_quantidade_parcelas" type="number" min="1" max="120" value="{{ venda.quantidade_parcelas or 1 }}" class="form-control">
+                            </div>
+
+                            <div class="form-group pagamento-campo-condicional" data-pagamento-campo="vencimento">
+                                <label for="venda_primeiro_vencimento">Primeiro vencimento</label>
+                                <input id="venda_primeiro_vencimento" name="venda_primeiro_vencimento" type="date" value="{{ venda.primeiro_vencimento or venda.data or '' }}" class="form-control">
+                            </div>
+
+                            <input type="hidden" name="venda_intervalo_parcelas" value="mensal">
+
+                            <div class="pagamento-previa">
+                                <strong>Resumo do pagamento</strong>
+                                <div class="pagamento-previa-lista" id="pagamento-previa-lista">À vista.</div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="form-group"><label for="venda_observacoes">Observações para o cliente</label><input id="venda_observacoes" name="venda_observacoes" type="text" value="{{ venda.observacoes or '' }}" class="form-control"></div>
                     <div class="form-group"><label for="venda_observacoes_internas">Observações internas</label><input id="venda_observacoes_internas" name="venda_observacoes_internas" type="text" value="{{ venda.observacoes_internas or '' }}" class="form-control"></div>
                 </div>
@@ -1310,6 +1388,65 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
             window.abrirModalItemRapidoGeral("produto", alvo, null);
         }
     });
+})();
+</script>
+
+
+<script>
+(function(){
+    const condicao = document.getElementById("venda_condicao_pagamento");
+    const meio = document.getElementById("venda_meio_pagamento");
+    const forma = document.getElementById("venda_forma_pagamento");
+    const valorTotal = document.getElementById("venda_valor_total");
+    const valorEntrada = document.getElementById("venda_valor_entrada");
+    const quantidade = document.getElementById("venda_quantidade_parcelas");
+    const previa = document.getElementById("pagamento-previa-lista");
+    const dataVenda = document.getElementById("venda_data");
+    const dataEntrada = document.getElementById("venda_data_entrada");
+    const primeiroVencimento = document.getElementById("venda_primeiro_vencimento");
+
+    function numeroMoeda(valor){
+        let texto=String(valor||"").replace("R$","").replace(/\s/g,"");
+        if(texto.includes(",")){texto=texto.replace(/\./g,"").replace(",",".");}
+        const numero=Number(texto);
+        return Number.isFinite(numero)?numero:0;
+    }
+    function moeda(valor){
+        return Number(valor||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+    }
+    function atualizarPagamento(){
+        if(!condicao){return;}
+        const tipo=condicao.value;
+        document.querySelectorAll("[data-pagamento-campo]").forEach(function(campo){
+            const grupo=campo.dataset.pagamentoCampo;
+            const ativo=(grupo==="entrada"&&tipo==="entrada_parcelas")
+                ||(grupo==="parcelas"&&(tipo==="parcelado"||tipo==="entrada_parcelas"))
+                ||(grupo==="vencimento"&&(tipo==="prazo"||tipo==="parcelado"||tipo==="entrada_parcelas"));
+            campo.classList.toggle("ativo",ativo);
+        });
+        if(forma){forma.value=meio ? meio.value : "";}
+        if(dataVenda && dataVenda.value){
+            if(dataEntrada && !dataEntrada.value){dataEntrada.value=dataVenda.value;}
+            if(primeiroVencimento && !primeiroVencimento.value){primeiroVencimento.value=dataVenda.value;}
+        }
+        if(!previa){return;}
+        const total=numeroMoeda(valorTotal ? valorTotal.value : 0);
+        const entrada=tipo==="entrada_parcelas" ? numeroMoeda(valorEntrada ? valorEntrada.value : 0) : 0;
+        const parcelas=Math.max(1,parseInt(quantidade ? quantidade.value : "1",10)||1);
+        const saldo=Math.max(total-entrada,0);
+        const valorParcela=saldo/parcelas;
+        if(tipo==="avista"){previa.textContent="À vista · R$ "+moeda(total)+" · "+((meio&&meio.value)||"meio não selecionado");}
+        else if(tipo==="prazo"){previa.textContent="Pagamento único de R$ "+moeda(total)+" no vencimento informado.";}
+        else if(tipo==="parcelado"){previa.textContent=parcelas+" parcela(s) aproximada(s) de R$ "+moeda(valorParcela)+".";}
+        else{previa.textContent="Entrada de R$ "+moeda(entrada)+" + "+parcelas+" parcela(s) aproximada(s) de R$ "+moeda(valorParcela)+".";}
+    }
+    ["change","input"].forEach(function(evento){
+        [condicao,meio,valorTotal,valorEntrada,quantidade,dataVenda].forEach(function(campo){
+            if(campo){campo.addEventListener(evento,atualizarPagamento);}
+        });
+    });
+    document.addEventListener("DOMContentLoaded",atualizarPagamento);
+    setTimeout(atualizarPagamento,0);
 })();
 </script>
 

@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\venda_imprimir_cupom.html
-Último recode: 2026-06-19 08:45 (America/Bahia)
-Motivo: Buscar dados cadastrados da empresa e do cliente no cupom da venda.
+Último recode: 2026-07-14 21:10 (America/Bahia)
+Motivo: Exibir condição e parcelas do pagamento no cupom.
 -->
 
 <!DOCTYPE html>
@@ -148,7 +148,8 @@ Motivo: Buscar dados cadastrados da empresa e do cliente no cupom da venda.
             <div class="row"><span class="label">Telefone</span><span class="value">{{ cliente.telefone if cliente and cliente.telefone else '-' }}</span></div>
             <div class="row"><span class="label">Data</span><span class="value">{{ venda.data or '-' }}</span></div>
             <div class="row"><span class="label">Situação</span><span class="value">{{ venda.status or '-' }}</span></div>
-            <div class="row"><span class="label">Pagamento</span><span class="value">{{ venda.forma_pagamento or '-' }}</span></div>
+            <div class="row"><span class="label">Condição</span><span class="value">{{ venda.condicao_pagamento or 'avista' }}</span></div>
+            <div class="row"><span class="label">Meio</span><span class="value">{{ venda.meio_pagamento or venda.forma_pagamento or '-' }}</span></div>
         </section>
 
         <div class="line"></div>
@@ -186,6 +187,21 @@ Motivo: Buscar dados cadastrados da empresa e do cliente no cupom da venda.
             <div class="row"><span>Desconto R$</span><span class="value">R$ {{ venda.desconto_valor or '0,00' }}</span></div>
             <div class="row total"><span>VALOR TOTAL</span><span>R$ {{ venda.valor_total or '0,00' }}</span></div>
         </section>
+
+
+        {% if pagamentos %}
+        <div class="line"></div>
+        <section>
+            <strong>PLANO DE PAGAMENTO</strong>
+            {% for pagamento in pagamentos %}
+            <div class="row">
+                <span>{{ pagamento.numero or '-' }} · {{ pagamento.vencimento or '-' }}</span>
+                <span class="value">R$ {{ pagamento.valor or '0,00' }}</span>
+            </div>
+            <div class="row"><span class="label">{{ pagamento.meio or '-' }}</span><span>{{ pagamento.status or '-' }}</span></div>
+            {% endfor %}
+        </section>
+        {% endif %}
 
         {% if venda.observacoes %}
         <div class="line"></div>

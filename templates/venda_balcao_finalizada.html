@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\venda_balcao_finalizada.html
-Último recode: 2026-07-02 23:41 (America/Bahia)
-Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
+Último recode: 2026-07-14 21:10 (America/Bahia)
+Motivo: Exibir a condição de pagamento após finalizar a venda no PDV.
 -->
 
 <!DOCTYPE html>
@@ -370,7 +370,9 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
 
                     <p class="pdv-success-info">
                         Venda Nº <strong>{{ venda.numero or venda.id }}</strong> registrada como concretizada.
-                        Total: <strong>R$ {{ venda.valor_total or '0,00' }}</strong>.
+                        Total: <strong>R$ {{ venda.valor_total or '0,00' }}</strong>.<br>
+                        Pagamento: <strong>{{ venda.condicao_pagamento or 'avista' }}</strong>
+                        por <strong>{{ venda.meio_pagamento or venda.forma_pagamento or '-' }}</strong>.
                     </p>
 
                     <div class="pdv-success-actions">

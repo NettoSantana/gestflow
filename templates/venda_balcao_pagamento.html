@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\venda_balcao_pagamento.html
-Último recode: 2026-07-04 15:20 (America/Bahia)
-Motivo: Corrigir renderização mobile do pagamento PDV.
+Último recode: 2026-07-14 21:10 (America/Bahia)
+Motivo: Adicionar pagamento à vista, a prazo, parcelado e entrada mais parcelas no PDV.
 -->
 
 <!DOCTYPE html>
@@ -197,6 +197,13 @@ Motivo: Corrigir renderização mobile do pagamento PDV.
         @media (max-width: 980px) {
             .pdv-pay-grid { grid-template-columns: 1fr; }
         }
+
+        .pdv-payment-extra{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+        .pdv-payment-extra .pdv-pay-input,.pdv-payment-extra .pdv-pay-select{margin-bottom:0}
+        .pdv-pay-field-hidden{display:none!important}
+        .pdv-pay-preview{margin-top:14px;padding:12px;border:1px solid #dbe5f1;border-radius:10px;background:#f8fafc;color:#334155;font-weight:800;font-size:13px}
+        @media(max-width:720px){.pdv-payment-extra{grid-template-columns:1fr}}
+
     </style>
 
     <style>
@@ -442,20 +449,53 @@ Motivo: Corrigir renderização mobile do pagamento PDV.
                     <div class="pdv-pay-panel">
                         <div class="pdv-pay-title">▣ Forma de pagamento</div>
                         <div class="pdv-pay-body">
-                            <select name="forma_pagamento" class="pdv-pay-select" required>
+                            <label class="pdv-pay-label">Condição</label>
+                            <select id="condicao_pagamento" name="condicao_pagamento" class="pdv-pay-select" required>
+                                <option value="avista">À vista</option>
+                                <option value="prazo">Pagamento único a prazo</option>
+                                <option value="parcelado">Parcelado</option>
+                                <option value="entrada_parcelas">Entrada + parcelas</option>
+                            </select>
+
+                            <label class="pdv-pay-label">Meio de pagamento</label>
+                            <select id="forma_pagamento" name="forma_pagamento" class="pdv-pay-select" required>
                                 <option value="">Selecione</option>
                                 <option value="Dinheiro">Dinheiro</option>
                                 <option value="Pix">Pix</option>
                                 <option value="Cartão de débito">Cartão de débito</option>
                                 <option value="Cartão de crédito">Cartão de crédito</option>
                                 <option value="Transferência">Transferência</option>
+                                <option value="Boleto">Boleto</option>
                             </select>
 
-                            <label class="pdv-pay-label">Total a pagar</label>
+                            <div class="pdv-payment-extra">
+                                <div data-pdv-field="entrada" class="pdv-pay-field-hidden">
+                                    <label>Valor da entrada</label>
+                                    <input id="valor_entrada" name="valor_entrada" class="pdv-pay-input" type="text" value="0,00" inputmode="decimal">
+                                </div>
+                                <div data-pdv-field="entrada" class="pdv-pay-field-hidden">
+                                    <label>Meio da entrada</label>
+                                    <select id="meio_pagamento_entrada" name="meio_pagamento_entrada" class="pdv-pay-select">
+                                        <option value="">Selecione</option><option>Dinheiro</option><option>Pix</option><option>Cartão de débito</option><option>Cartão de crédito</option><option>Transferência</option>
+                                    </select>
+                                </div>
+                                <div data-pdv-field="parcelas" class="pdv-pay-field-hidden">
+                                    <label>Parcelas</label>
+                                    <input id="quantidade_parcelas" name="quantidade_parcelas" class="pdv-pay-input" type="number" min="1" max="120" value="1">
+                                </div>
+                                <div data-pdv-field="vencimento" class="pdv-pay-field-hidden">
+                                    <label>Primeiro vencimento</label>
+                                    <input id="primeiro_vencimento" name="primeiro_vencimento" class="pdv-pay-input" type="date">
+                                </div>
+                            </div>
+                            <input type="hidden" name="intervalo_parcelas" value="mensal">
+
+                            <label class="pdv-pay-label">Valor recebido agora</label>
                             <div class="pdv-confirm-line">
                                 <input id="valor_pago" name="valor_pago" class="pdv-pay-input" type="text" value="{{ resumo.total_formatado }}" inputmode="decimal">
                                 <button type="button" onclick="recalcularPagamento()">» Confirmar</button>
                             </div>
+                            <div id="pdv-pay-preview" class="pdv-pay-preview">Pagamento à vista.</div>
                         </div>
                     </div>
 
@@ -548,8 +588,44 @@ Motivo: Corrigir renderização mobile do pagamento PDV.
                 document.getElementById("total_pagar").textContent = formatarMoeda(total);
             }
 
+            function atualizarCamposPagamentoPdv() {
+                const condicao = document.getElementById("condicao_pagamento").value;
+                document.querySelectorAll("[data-pdv-field]").forEach(function(campo) {
+                    const grupo = campo.dataset.pdvField;
+                    const mostrar = (grupo === "entrada" && condicao === "entrada_parcelas")
+                        || (grupo === "parcelas" && (condicao === "parcelado" || condicao === "entrada_parcelas"))
+                        || (grupo === "vencimento" && condicao !== "avista");
+                    campo.classList.toggle("pdv-pay-field-hidden", !mostrar);
+                });
+
+                const total = converterMoeda(document.getElementById("total_pagar").textContent);
+                const entrada = condicao === "entrada_parcelas" ? converterMoeda(document.getElementById("valor_entrada").value) : 0;
+                const parcelas = Math.max(1, parseInt(document.getElementById("quantidade_parcelas").value || "1", 10));
+                const saldo = Math.max(total - entrada, 0);
+                const preview = document.getElementById("pdv-pay-preview");
+
+                if (condicao === "avista") {
+                    preview.textContent = "À vista · R$ " + formatarMoeda(total);
+                    document.getElementById("valor_pago").value = formatarMoeda(total);
+                } else if (condicao === "prazo") {
+                    preview.textContent = "Pagamento único futuro de R$ " + formatarMoeda(total);
+                    document.getElementById("valor_pago").value = "0,00";
+                } else if (condicao === "parcelado") {
+                    preview.textContent = parcelas + " parcela(s) aproximada(s) de R$ " + formatarMoeda(saldo / parcelas);
+                    document.getElementById("valor_pago").value = "0,00";
+                } else {
+                    preview.textContent = "Entrada de R$ " + formatarMoeda(entrada) + " + " + parcelas + " parcela(s) aproximada(s) de R$ " + formatarMoeda(saldo / parcelas);
+                    document.getElementById("valor_pago").value = formatarMoeda(entrada);
+                }
+                recalcularPagamento();
+            }
+
+            ["condicao_pagamento","valor_entrada","quantidade_parcelas"].forEach(function(id){
+                document.getElementById(id).addEventListener("input", atualizarCamposPagamentoPdv);
+                document.getElementById(id).addEventListener("change", atualizarCamposPagamentoPdv);
+            });
             document.getElementById("valor_pago").addEventListener("input", recalcularPagamento);
-            recalcularPagamento();
+            atualizarCamposPagamentoPdv();
 
             document.addEventListener("keydown", function (event) {
                 if (event.key === "F3") {

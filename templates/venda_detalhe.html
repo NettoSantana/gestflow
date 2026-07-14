@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\venda_detalhe.html
-Último recode: 2026-07-02 23:41 (America/Bahia)
-Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
+Último recode: 2026-07-14 21:10 (America/Bahia)
+Motivo: Exibir condição de pagamento e cronograma financeiro da venda.
 -->
 
 <!DOCTYPE html>
@@ -385,7 +385,10 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                 <div><span>Situação</span><strong>{{ venda.status or '-' }}</strong></div>
                 <div><span>Canal de venda</span><strong>{{ venda.canal_venda or '-' }}</strong></div>
                 <div><span>Centro de custo</span><strong>{{ venda.centro_custo or '-' }}</strong></div>
-                <div><span>Forma de pagamento</span><strong>{{ venda.forma_pagamento or '-' }}</strong></div>
+                <div><span>Condição de pagamento</span><strong>{{ venda.condicao_pagamento or 'avista' }}</strong></div>
+                <div><span>Meio de pagamento</span><strong>{{ venda.meio_pagamento or venda.forma_pagamento or '-' }}</strong></div>
+                <div><span>Entrada</span><strong>R$ {{ venda.valor_entrada or '0,00' }}</strong></div>
+                <div><span>Quantidade de parcelas</span><strong>{{ venda.quantidade_parcelas or 1 }}</strong></div>
             </div>
         </section>
 
@@ -454,6 +457,34 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                             <tr>
                                 <td colspan="7" class="empty-table">Nenhum item informado.</td>
                             </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+
+        <section class="panel table-panel">
+            <div class="panel-header page-header">
+                <div><h3>Plano de pagamento</h3><p class="page-subtitle">Entrada, parcelas, vencimentos e situação financeira.</p></div>
+            </div>
+            <div class="table-shell">
+                <table class="client-table">
+                    <thead><tr><th>Parcela</th><th>Tipo</th><th>Vencimento</th><th>Meio</th><th>Valor</th><th>Status</th></tr></thead>
+                    <tbody>
+                        {% if pagamentos %}
+                            {% for pagamento in pagamentos %}
+                            <tr>
+                                <td>{{ pagamento.numero or '-' }}</td>
+                                <td>{{ pagamento.tipo or '-' }}</td>
+                                <td>{{ pagamento.vencimento or '-' }}</td>
+                                <td>{{ pagamento.meio or '-' }}</td>
+                                <td>R$ {{ pagamento.valor or '0,00' }}</td>
+                                <td><span class="status-pill {{ pagamento.status }}">{{ pagamento.status or '-' }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr><td colspan="6" class="empty-table">Nenhum pagamento gerado.</td></tr>
                         {% endif %}
                     </tbody>
                 </table>

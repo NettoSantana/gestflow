@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\venda_imprimir_a4.html
-Último recode: 2026-06-16 20:50 (America/Bahia)
-Motivo: Criar impressão A4 da venda com dados gerais, itens, totais e observações.
+Último recode: 2026-07-14 21:10 (America/Bahia)
+Motivo: Exibir condição e parcelas do pagamento na impressão A4.
 -->
 
 <!DOCTYPE html>
@@ -271,7 +271,8 @@ Motivo: Criar impressão A4 da venda com dados gerais, itens, totais e observaç
                 <div class="info-box"><span class="info-label">Prazo de entrega</span><span class="info-value">{{ venda.prazo_entrega or '-' }}</span></div>
                 <div class="info-box"><span class="info-label">Canal de venda</span><span class="info-value">{{ venda.canal_venda or '-' }}</span></div>
                 <div class="info-box"><span class="info-label">Centro de custo</span><span class="info-value">{{ venda.centro_custo or '-' }}</span></div>
-                <div class="info-box"><span class="info-label">Forma de pagamento</span><span class="info-value">{{ venda.forma_pagamento or '-' }}</span></div>
+                <div class="info-box"><span class="info-label">Condição de pagamento</span><span class="info-value">{{ venda.condicao_pagamento or 'avista' }}</span></div>
+                <div class="info-box"><span class="info-label">Meio de pagamento</span><span class="info-value">{{ venda.meio_pagamento or venda.forma_pagamento or '-' }}</span></div>
             </div>
         </section>
 
@@ -352,6 +353,27 @@ Motivo: Criar impressão A4 da venda com dados gerais, itens, totais e observaç
                 <div class="total-box grand-total"><span>Valor total</span><strong>R$ {{ venda.valor_total or '0,00' }}</strong></div>
             </div>
         </section>
+
+
+        {% if pagamentos %}
+        <section class="section">
+            <h3 class="section-title">Plano de pagamento</h3>
+            <table>
+                <thead><tr><th>Parcela</th><th>Vencimento</th><th>Meio</th><th>Status</th><th class="text-right">Valor</th></tr></thead>
+                <tbody>
+                    {% for pagamento in pagamentos %}
+                    <tr>
+                        <td>{{ pagamento.numero or '-' }}</td>
+                        <td>{{ pagamento.vencimento or '-' }}</td>
+                        <td>{{ pagamento.meio or '-' }}</td>
+                        <td>{{ pagamento.status or '-' }}</td>
+                        <td class="text-right">R$ {{ pagamento.valor or '0,00' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+        {% endif %}
 
         <section class="section">
             <h3 class="section-title">Observações</h3>
