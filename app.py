@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-14 20:35 (America/Bahia)
-# Motivo: Adicionar exportação, edição e exclusão individual das marcações do espelho de ponto.
+# Último recode: 2026-07-14 21:20 (America/Bahia)
+# Motivo: Preparar vendas à vista, a prazo, parceladas e com entrada integrada ao financeiro.
 
 from __future__ import annotations
 
@@ -19,6 +19,7 @@ import urllib.request
 import zipfile
 import xml.etree.ElementTree as ET
 from datetime import date, datetime, timedelta
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -1062,6 +1063,14 @@ def iniciar_banco() -> None:
                 desconto_percentual TEXT,
                 valor_total TEXT,
                 forma_pagamento TEXT,
+                condicao_pagamento TEXT NOT NULL DEFAULT 'avista',
+                meio_pagamento TEXT,
+                valor_entrada TEXT,
+                meio_pagamento_entrada TEXT,
+                data_entrada TEXT,
+                quantidade_parcelas INTEGER NOT NULL DEFAULT 1,
+                primeiro_vencimento TEXT,
+                intervalo_parcelas TEXT NOT NULL DEFAULT 'mensal',
                 observacoes TEXT,
                 observacoes_internas TEXT,
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -2008,6 +2017,35 @@ def iniciar_banco() -> None:
         for empresa_sem_codigo in empresas_sem_codigo:
             garantir_codigo_indicacao_empresa(int(empresa_sem_codigo["id"]), conn)
 
+
+        colunas_vendas_pagamento_existentes = {
+            str(row["name"])
+            for row in conn.execute("PRAGMA table_info(vendas)").fetchall()
+        }
+        colunas_vendas_pagamento = {
+            "condicao_pagamento": "TEXT NOT NULL DEFAULT 'avista'",
+            "meio_pagamento": "TEXT",
+            "valor_entrada": "TEXT",
+            "meio_pagamento_entrada": "TEXT",
+            "data_entrada": "TEXT",
+            "quantidade_parcelas": "INTEGER NOT NULL DEFAULT 1",
+            "primeiro_vencimento": "TEXT",
+            "intervalo_parcelas": "TEXT NOT NULL DEFAULT 'mensal'",
+        }
+        for coluna, tipo_coluna in colunas_vendas_pagamento.items():
+            if coluna not in colunas_vendas_pagamento_existentes:
+                conn.execute(f"ALTER TABLE vendas ADD COLUMN {coluna} {tipo_coluna}")
+
+        conn.execute(
+            """
+            UPDATE vendas
+            SET
+                condicao_pagamento = COALESCE(NULLIF(TRIM(condicao_pagamento), ''), 'avista'),
+                meio_pagamento = COALESCE(NULLIF(TRIM(meio_pagamento), ''), forma_pagamento, ''),
+                quantidade_parcelas = COALESCE(quantidade_parcelas, 1),
+                intervalo_parcelas = COALESCE(NULLIF(TRIM(intervalo_parcelas), ''), 'mensal')
+            """
+        )
 
         tabelas_com_empresa_id = [
             "clientes",
@@ -5226,6 +5264,96 @@ def validar_orcamento_para_salvar(orcamento: dict[str, str], itens: list[dict[st
     return ""
 
 
+def _decimal_moeda(valor: Any) -> Decimal:
+    texto = str(valor or "").strip().replace("R$", "").replace(" ", "")
+    if not texto:
+        return Decimal("0.00")
+    if "," in texto:
+        texto = texto.replace(".", "").replace(",", ".")
+    try:
+        return Decimal(texto).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    except (InvalidOperation, ValueError):
+        return Decimal("0.00")
+
+
+def _formatar_decimal_brl(valor: Decimal) -> str:
+    texto = f"{valor.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP):,.2f}"
+    return texto.replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def _normalizar_condicao_pagamento_venda(valor: Any) -> str:
+    condicao = str(valor or "").strip().lower()
+    aliases = {"a_vista": "avista", "à vista": "avista", "a vista": "avista", "a_prazo": "prazo", "a prazo": "prazo", "entrada + parcelas": "entrada_parcelas"}
+    condicao = aliases.get(condicao, condicao)
+    return condicao if condicao in {"avista", "prazo", "parcelado", "entrada_parcelas"} else "avista"
+
+
+def validar_pagamento_venda(venda: dict[str, str]) -> str:
+    condicao = _normalizar_condicao_pagamento_venda(venda.get("condicao_pagamento"))
+    meio = str(venda.get("meio_pagamento") or venda.get("forma_pagamento") or "").strip()
+    total = _decimal_moeda(venda.get("valor_total"))
+    entrada = _decimal_moeda(venda.get("valor_entrada"))
+    try:
+        parcelas = int(venda.get("quantidade_parcelas") or 1)
+    except (TypeError, ValueError):
+        parcelas = 0
+    if not meio:
+        return "Informe o meio de pagamento."
+    if condicao == "prazo" and not _converter_data_iso(venda.get("primeiro_vencimento")):
+        return "Informe o vencimento do pagamento a prazo."
+    if condicao in {"parcelado", "entrada_parcelas"}:
+        if parcelas < 1 or parcelas > 120:
+            return "Informe uma quantidade de parcelas entre 1 e 120."
+        if not _converter_data_iso(venda.get("primeiro_vencimento")):
+            return "Informe o primeiro vencimento das parcelas."
+    if condicao == "entrada_parcelas":
+        if entrada <= 0:
+            return "Informe um valor de entrada maior que zero."
+        if entrada >= total:
+            return "A entrada precisa ser menor que o valor total da venda."
+        if not str(venda.get("meio_pagamento_entrada") or "").strip():
+            return "Informe o meio de pagamento da entrada."
+    return ""
+
+
+def _adicionar_meses_preservando_dia(data_base: date, meses: int) -> date:
+    mes_total = data_base.month - 1 + meses
+    ano = data_base.year + mes_total // 12
+    mes = mes_total % 12 + 1
+    proximo_mes = date(ano + (1 if mes == 12 else 0), 1 if mes == 12 else mes + 1, 1)
+    ultimo_dia = (proximo_mes - timedelta(days=1)).day
+    return date(ano, mes, min(data_base.day, ultimo_dia))
+
+
+def montar_parcelas_venda(venda: dict[str, str]) -> list[dict[str, str]]:
+    condicao = _normalizar_condicao_pagamento_venda(venda.get("condicao_pagamento"))
+    total = _decimal_moeda(venda.get("valor_total"))
+    entrada = _decimal_moeda(venda.get("valor_entrada")) if condicao == "entrada_parcelas" else Decimal("0.00")
+    data_emissao = _converter_data_iso(venda.get("data")) or hoje_empresa()
+    primeiro_vencimento = _converter_data_iso(venda.get("primeiro_vencimento")) or data_emissao
+    meio = str(venda.get("meio_pagamento") or venda.get("forma_pagamento") or "").strip()
+    meio_entrada = str(venda.get("meio_pagamento_entrada") or meio).strip()
+    try:
+        quantidade = max(1, min(int(venda.get("quantidade_parcelas") or 1), 120))
+    except (TypeError, ValueError):
+        quantidade = 1
+    if condicao == "avista":
+        return [{"numero":"1/1","tipo":"avista","valor":_formatar_decimal_brl(total),"vencimento":data_emissao.isoformat(),"pagamento":data_emissao.isoformat(),"meio":meio,"status":"pago"}]
+    if condicao == "prazo":
+        return [{"numero":"1/1","tipo":"prazo","valor":_formatar_decimal_brl(total),"vencimento":primeiro_vencimento.isoformat(),"pagamento":"","meio":meio,"status":"aberto"}]
+    parcelas=[]
+    if entrada > 0:
+        data_entrada = str(venda.get("data_entrada") or data_emissao.isoformat())
+        parcelas.append({"numero":"Entrada","tipo":"entrada","valor":_formatar_decimal_brl(entrada),"vencimento":data_entrada,"pagamento":data_entrada,"meio":meio_entrada,"status":"pago"})
+    saldo=total-entrada
+    valor_base=(saldo/Decimal(quantidade)).quantize(Decimal("0.01"),rounding=ROUND_HALF_UP)
+    valores=[valor_base for _ in range(quantidade)]
+    valores[-1]=(valores[-1]+(saldo-sum(valores,Decimal("0.00")))).quantize(Decimal("0.01"),rounding=ROUND_HALF_UP)
+    for indice,valor_parcela in enumerate(valores):
+        parcelas.append({"numero":f"{indice+1}/{quantidade}","tipo":"parcela","valor":_formatar_decimal_brl(valor_parcela),"vencimento":_adicionar_meses_preservando_dia(primeiro_vencimento,indice).isoformat(),"pagamento":"","meio":meio,"status":"aberto"})
+    return parcelas
+
+
 def validar_venda_para_salvar(venda: dict[str, str], itens: list[dict[str, str]]) -> str:
     if not venda["cliente"]:
         return "Selecione um cliente para salvar a venda."
@@ -5245,8 +5373,9 @@ def validar_venda_para_salvar(venda: dict[str, str], itens: list[dict[str, str]]
     if not venda["canal_venda"]:
         return "Informe o canal de venda."
 
-    if not venda["forma_pagamento"]:
-        return "Informe a forma de pagamento."
+    erro_pagamento = validar_pagamento_venda(venda)
+    if erro_pagamento:
+        return erro_pagamento
 
     if not _existe_item_documento_valido(itens, exigir_valor=True):
         return "Adicione pelo menos um produto ou serviço com quantidade e valor unitário maiores que zero."
@@ -5836,9 +5965,17 @@ def salvar_venda_db(venda: dict[str, str], itens: list[dict[str, str]]) -> int:
                 desconto_percentual,
                 valor_total,
                 forma_pagamento,
+                condicao_pagamento,
+                meio_pagamento,
+                valor_entrada,
+                meio_pagamento_entrada,
+                data_entrada,
+                quantidade_parcelas,
+                primeiro_vencimento,
+                intervalo_parcelas,
                 observacoes,
                 observacoes_internas
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id,
@@ -5857,6 +5994,14 @@ def salvar_venda_db(venda: dict[str, str], itens: list[dict[str, str]]) -> int:
                 venda["desconto_percentual"],
                 venda["valor_total"],
                 venda["forma_pagamento"],
+                venda["condicao_pagamento"],
+                venda["meio_pagamento"],
+                venda["valor_entrada"],
+                venda["meio_pagamento_entrada"],
+                venda["data_entrada"],
+                venda["quantidade_parcelas"],
+                venda["primeiro_vencimento"],
+                venda["intervalo_parcelas"],
                 venda["observacoes"],
                 venda["observacoes_internas"],
             ),
@@ -5923,6 +6068,14 @@ def copiar_venda_db(venda_id: int) -> int | None:
         "desconto_percentual": str(venda_original.get("desconto_percentual") or "0,00"),
         "valor_total": str(venda_original.get("valor_total") or "0,00"),
         "forma_pagamento": str(venda_original.get("forma_pagamento") or ""),
+        "condicao_pagamento": str(venda_original.get("condicao_pagamento") or "avista"),
+        "meio_pagamento": str(venda_original.get("meio_pagamento") or venda_original.get("forma_pagamento") or ""),
+        "valor_entrada": str(venda_original.get("valor_entrada") or "0,00"),
+        "meio_pagamento_entrada": str(venda_original.get("meio_pagamento_entrada") or ""),
+        "data_entrada": str(venda_original.get("data_entrada") or ""),
+        "quantidade_parcelas": str(venda_original.get("quantidade_parcelas") or "1"),
+        "primeiro_vencimento": str(venda_original.get("primeiro_vencimento") or ""),
+        "intervalo_parcelas": str(venda_original.get("intervalo_parcelas") or "mensal"),
         "observacoes": str(venda_original.get("observacoes") or ""),
         "observacoes_internas": str(venda_original.get("observacoes_internas") or ""),
     }
@@ -5968,6 +6121,14 @@ def listar_vendas() -> list[dict[str, Any]]:
                 desconto_percentual,
                 valor_total,
                 forma_pagamento,
+                condicao_pagamento,
+                meio_pagamento,
+                valor_entrada,
+                meio_pagamento_entrada,
+                data_entrada,
+                quantidade_parcelas,
+                primeiro_vencimento,
+                intervalo_parcelas,
                 observacoes,
                 observacoes_internas,
                 criado_em
@@ -6004,6 +6165,14 @@ def buscar_venda_por_id(venda_id: int) -> dict[str, Any] | None:
                 desconto_percentual,
                 valor_total,
                 forma_pagamento,
+                condicao_pagamento,
+                meio_pagamento,
+                valor_entrada,
+                meio_pagamento_entrada,
+                data_entrada,
+                quantidade_parcelas,
+                primeiro_vencimento,
+                intervalo_parcelas,
                 observacoes,
                 observacoes_internas,
                 criado_em
@@ -6070,6 +6239,14 @@ def atualizar_venda_db(venda_id: int, venda: dict[str, str], itens: list[dict[st
                 desconto_percentual = ?,
                 valor_total = ?,
                 forma_pagamento = ?,
+                condicao_pagamento = ?,
+                meio_pagamento = ?,
+                valor_entrada = ?,
+                meio_pagamento_entrada = ?,
+                data_entrada = ?,
+                quantidade_parcelas = ?,
+                primeiro_vencimento = ?,
+                intervalo_parcelas = ?,
                 observacoes = ?,
                 observacoes_internas = ?
             WHERE id = ?
@@ -6091,6 +6268,14 @@ def atualizar_venda_db(venda_id: int, venda: dict[str, str], itens: list[dict[st
                 venda["desconto_percentual"],
                 venda["valor_total"],
                 venda["forma_pagamento"],
+                venda["condicao_pagamento"],
+                venda["meio_pagamento"],
+                venda["valor_entrada"],
+                venda["meio_pagamento_entrada"],
+                venda["data_entrada"],
+                venda["quantidade_parcelas"],
+                venda["primeiro_vencimento"],
+                venda["intervalo_parcelas"],
                 venda["observacoes"],
                 venda["observacoes_internas"],
                 venda_id,
@@ -6178,7 +6363,15 @@ def montar_venda_formulario(numero_padrao: str = "") -> dict[str, str]:
         "desconto_valor": (request.form.get("venda_desconto_valor") or "0,00").strip(),
         "desconto_percentual": (request.form.get("venda_desconto_percentual") or "0,00").strip(),
         "valor_total": (request.form.get("venda_valor_total") or "0,00").strip(),
-        "forma_pagamento": (request.form.get("venda_forma_pagamento") or "").strip(),
+        "forma_pagamento": (request.form.get("venda_forma_pagamento") or request.form.get("venda_meio_pagamento") or "").strip(),
+        "condicao_pagamento": _normalizar_condicao_pagamento_venda(request.form.get("venda_condicao_pagamento") or "avista"),
+        "meio_pagamento": (request.form.get("venda_meio_pagamento") or request.form.get("venda_forma_pagamento") or "").strip(),
+        "valor_entrada": (request.form.get("venda_valor_entrada") or "0,00").strip(),
+        "meio_pagamento_entrada": (request.form.get("venda_meio_pagamento_entrada") or "").strip(),
+        "data_entrada": (request.form.get("venda_data_entrada") or request.form.get("venda_data") or "").strip(),
+        "quantidade_parcelas": (request.form.get("venda_quantidade_parcelas") or "1").strip(),
+        "primeiro_vencimento": (request.form.get("venda_primeiro_vencimento") or request.form.get("venda_data") or "").strip(),
+        "intervalo_parcelas": (request.form.get("venda_intervalo_parcelas") or "mensal").strip() or "mensal",
         "observacoes": (request.form.get("venda_observacoes") or "").strip(),
         "observacoes_internas": (request.form.get("venda_observacoes_internas") or "").strip(),
     }
@@ -7698,40 +7891,33 @@ def montar_financeiro_titulo_formulario(tipo_padrao: str = "receber") -> dict[st
     }
 
 
-def gerar_conta_receber_por_venda_db(venda_id: int, venda: dict[str, str]) -> None:
-    status_venda = str(venda.get("status") or "").strip()
+def cancelar_titulos_financeiros_venda_db(venda_id: int) -> None:
+    with conectar_db() as conn:
+        conn.execute("""UPDATE financeiro_titulos SET status = 'cancelado', data_pagamento = '' WHERE empresa_id = ? AND origem = 'venda' AND origem_id = ? AND status <> 'cancelado'""", (empresa_logada_id(), venda_id))
+        conn.commit()
 
-    if status_venda == "cancelada":
+
+def gerar_conta_receber_por_venda_db(venda_id: int, venda: dict[str, str], recriar: bool = False) -> None:
+    if recriar:
+        cancelar_titulos_financeiros_venda_db(venda_id)
+    if str(venda.get("status") or "").strip() == "cancelada":
+        cancelar_titulos_financeiros_venda_db(venda_id)
         return
-
-    valor_total = _converter_valor_brl(venda.get("valor_total"))
-
-    if valor_total <= 0:
-        return
-
     numero_venda = str(venda.get("numero") or venda_id).strip() or str(venda_id)
     data_emissao = str(venda.get("data") or "").strip() or hoje_empresa().isoformat()
-    prazo_entrega = str(venda.get("prazo_entrega") or "").strip()
-    data_vencimento = prazo_entrega if _converter_data_iso(prazo_entrega) is not None else data_emissao
+    for parcela in montar_parcelas_venda(venda):
+        salvar_financeiro_titulo_db({
+            "tipo":"receber", "descricao":f"Venda Nº {numero_venda} - {parcela['numero']}", "pessoa":str(venda.get("cliente") or "").strip(),
+            "categoria":"Venda", "origem":"venda", "origem_id":str(venda_id), "documento":f"Venda Nº {numero_venda} - {parcela['numero']}",
+            "data_emissao":data_emissao, "data_vencimento":parcela["vencimento"], "data_pagamento":parcela["pagamento"], "valor":parcela["valor"],
+            "forma_pagamento":parcela["meio"], "status":parcela["status"], "observacoes":f"Título gerado automaticamente. Condição: {venda.get('condicao_pagamento') or 'avista'}."
+        })
 
-    titulo = {
-        "tipo": "receber",
-        "descricao": f"Recebimento de venda Nº {numero_venda}",
-        "pessoa": str(venda.get("cliente") or "").strip(),
-        "categoria": "Venda",
-        "origem": "venda",
-        "origem_id": str(venda_id),
-        "documento": f"Venda Nº {numero_venda}",
-        "data_emissao": data_emissao,
-        "data_vencimento": data_vencimento,
-        "data_pagamento": "",
-        "valor": _formatar_moeda_brl(valor_total),
-        "forma_pagamento": str(venda.get("forma_pagamento") or "").strip(),
-        "status": "aberto",
-        "observacoes": "Conta a receber gerada automaticamente ao salvar a venda.",
-    }
 
-    salvar_financeiro_titulo_db(titulo)
+def listar_pagamentos_venda(venda_id: int) -> list[dict[str, Any]]:
+    with conectar_db() as conn:
+        rows = conn.execute("""SELECT * FROM financeiro_titulos WHERE empresa_id = ? AND origem = 'venda' AND origem_id = ? AND status <> 'cancelado' ORDER BY data_vencimento ASC, id ASC""", (empresa_logada_id(), venda_id)).fetchall()
+    return [_normalizar_status_financeiro(dict(row)) for row in rows]
 
 
 def _adicionar_meses(data_base: date, meses: int) -> date:
@@ -16852,7 +17038,7 @@ def ver_venda(venda_id: int) -> str | Response:
 
     itens = listar_venda_itens(venda_id)
 
-    return render_template("venda_detalhe.html", venda=venda, itens=itens)
+    return render_template("venda_detalhe.html", venda=venda, itens=itens, pagamentos=listar_pagamentos_venda(venda_id))
 
 
 @app.get("/vendas/<int:venda_id>/devolucao")
@@ -16941,6 +17127,7 @@ def imprimir_venda_a4(venda_id: int) -> str | Response:
         itens=itens,
         itens_produtos=itens_produtos,
         itens_servicos=itens_servicos,
+        pagamentos=listar_pagamentos_venda(venda_id),
         empresa=contexto_impressao["empresa"],
         loja=contexto_impressao["loja"],
         cliente=contexto_impressao["cliente"],
@@ -16966,6 +17153,7 @@ def imprimir_venda_cupom(venda_id: int) -> str | Response:
         itens=itens,
         itens_produtos=itens_produtos,
         itens_servicos=itens_servicos,
+        pagamentos=listar_pagamentos_venda(venda_id),
         empresa=contexto_impressao["empresa"],
         loja=contexto_impressao["loja"],
         cliente=contexto_impressao["cliente"],
@@ -16993,6 +17181,7 @@ def editar_venda(venda_id: int) -> str | Response:
         funcionarios=funcionarios_lista,
         produtos=produtos_lista,
         servicos=servicos_lista,
+        pagamentos=listar_pagamentos_venda(venda_id),
     )
 
 
@@ -17011,6 +17200,7 @@ def atualizar_venda(venda_id: int) -> Response:
         return redirect(url_for("editar_venda", venda_id=venda_id, erro=erro_validacao))
 
     atualizar_venda_db(venda_id, venda, itens)
+    gerar_conta_receber_por_venda_db(venda_id, venda, recriar=True)
 
     return redirect(url_for("vendas"))
 
@@ -17020,6 +17210,7 @@ def excluir_venda(venda_id: int) -> Response:
     venda = buscar_venda_por_id(venda_id)
 
     if venda is not None:
+        cancelar_titulos_financeiros_venda_db(venda_id)
         excluir_venda_db(venda_id)
 
     return redirect(url_for("vendas"))
