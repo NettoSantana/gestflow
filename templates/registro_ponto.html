@@ -1,7 +1,7 @@
 <!--
 Caminho: templates/registro_ponto.html
-Último recode: 2026-07-12 09:25 (America/Bahia)
-Motivo: Corrigir estouro lateral da tela de Registro de Ponto e manter apenas rolagem vertical da página.
+Último recode: 2026-07-14 19:15 (America/Bahia)
+Motivo: Exibir GPS, precisão e acesso ao mapa nas marcações do espelho de ponto.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -55,6 +55,19 @@ Motivo: Corrigir estouro lateral da tela de Registro de Ponto e manter apenas ro
         .ponto-mobile-lista{display:none}.ponto-mobile-card{border:1px solid #e5eaf2;border-radius:16px;background:#fff;padding:14px}.ponto-mobile-card+.ponto-mobile-card{margin-top:10px}
         .ponto-mobile-top{display:flex;justify-content:space-between;gap:10px;margin-bottom:12px}.ponto-mobile-top strong{display:block;color:#0f172a;font-size:14px}.ponto-mobile-top span{display:block;margin-top:3px;color:#64748b;font-size:12px;font-weight:800}
         .ponto-mobile-times{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.ponto-mobile-times div{padding:9px;border-radius:12px;background:#f8fafc}.ponto-mobile-times span{display:block;color:#64748b;font-size:10px;font-weight:900;text-transform:uppercase}.ponto-mobile-times strong{display:block;margin-top:3px;color:#0f172a;font-size:14px}
+        .ponto-localizacoes{display:grid;gap:8px;margin-top:10px}
+        .ponto-localizacao-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid #dbeafe;border-radius:12px;background:#eff6ff}
+        .ponto-localizacao-item.sem-gps{border-color:#e5e7eb;background:#f8fafc}
+        .ponto-localizacao-info{min-width:0}
+        .ponto-localizacao-info span{display:block;color:#1d4ed8;font-size:10px;font-weight:900;text-transform:uppercase}
+        .ponto-localizacao-item.sem-gps .ponto-localizacao-info span{color:#64748b}
+        .ponto-localizacao-info strong{display:block;margin-top:3px;color:#0f172a;font-size:12px}
+        .ponto-mapa-link{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;min-height:32px;padding:0 10px;border-radius:999px;background:#fff;border:1px solid #bfdbfe;color:#1d4ed8;font-size:11px;font-weight:900;text-decoration:none}
+        .ponto-gps-resumo{display:grid;gap:6px;min-width:180px}
+        .ponto-gps-linha{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px}
+        .ponto-gps-linha span{color:#64748b;font-weight:900}
+        .ponto-gps-linha a{color:#1d4ed8;font-weight:900;text-decoration:none}
+        .ponto-gps-linha em{color:#94a3b8;font-style:normal;font-weight:800}
         .ponto-ajuste{border-top:1px solid #e5eaf2;padding-top:16px}
 
         .ponto-links-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-top:12px}
@@ -237,7 +250,7 @@ Motivo: Corrigir estouro lateral da tela de Registro de Ponto e manter apenas ro
                 <div class="table-shell ponto-table-desktop">
                     <table class="client-table">
                         <thead>
-                            <tr><th>Data</th><th>Funcionário</th><th>Entrada</th><th>Intervalo</th><th>Retorno</th><th>Saída</th><th>Total</th><th>Status</th><th>Ajuste</th></tr>
+                            <tr><th>Data</th><th>Funcionário</th><th>Entrada</th><th>Intervalo</th><th>Retorno</th><th>Saída</th><th>Localização</th><th>Total</th><th>Status</th><th>Ajuste</th></tr>
                         </thead>
                         <tbody>
                         {% if registros %}
@@ -249,13 +262,49 @@ Motivo: Corrigir estouro lateral da tela de Registro de Ponto e manter apenas ro
                                 <td>{{ item.saida_intervalo or '-' }}</td>
                                 <td>{{ item.retorno_intervalo or '-' }}</td>
                                 <td>{{ item.saida or '-' }}</td>
+                                <td>
+                                    <div class="ponto-gps-resumo">
+                                        <div class="ponto-gps-linha">
+                                            <span>Entrada</span>
+                                            {% if item.entrada_latitude and item.entrada_longitude %}
+                                            <a href="https://www.google.com/maps?q={{ item.entrada_latitude }},{{ item.entrada_longitude }}" target="_blank" rel="noopener">Mapa{% if item.entrada_precisao %} · {{ item.entrada_precisao }} m{% endif %}</a>
+                                            {% else %}
+                                            <em>Sem GPS</em>
+                                            {% endif %}
+                                        </div>
+                                        <div class="ponto-gps-linha">
+                                            <span>Intervalo</span>
+                                            {% if item.saida_intervalo_latitude and item.saida_intervalo_longitude %}
+                                            <a href="https://www.google.com/maps?q={{ item.saida_intervalo_latitude }},{{ item.saida_intervalo_longitude }}" target="_blank" rel="noopener">Mapa{% if item.saida_intervalo_precisao %} · {{ item.saida_intervalo_precisao }} m{% endif %}</a>
+                                            {% else %}
+                                            <em>Sem GPS</em>
+                                            {% endif %}
+                                        </div>
+                                        <div class="ponto-gps-linha">
+                                            <span>Retorno</span>
+                                            {% if item.retorno_intervalo_latitude and item.retorno_intervalo_longitude %}
+                                            <a href="https://www.google.com/maps?q={{ item.retorno_intervalo_latitude }},{{ item.retorno_intervalo_longitude }}" target="_blank" rel="noopener">Mapa{% if item.retorno_intervalo_precisao %} · {{ item.retorno_intervalo_precisao }} m{% endif %}</a>
+                                            {% else %}
+                                            <em>Sem GPS</em>
+                                            {% endif %}
+                                        </div>
+                                        <div class="ponto-gps-linha">
+                                            <span>Saída</span>
+                                            {% if item.saida_latitude and item.saida_longitude %}
+                                            <a href="https://www.google.com/maps?q={{ item.saida_latitude }},{{ item.saida_longitude }}" target="_blank" rel="noopener">Mapa{% if item.saida_precisao %} · {{ item.saida_precisao }} m{% endif %}</a>
+                                            {% else %}
+                                            <em>Sem GPS</em>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </td>
                                 <td>{{ item.total_trabalhado or '-' }}</td>
                                 <td><span class="ponto-pill status-{{ item.status }}">{{ item.status }}</span></td>
                                 <td>{{ item.ajustado_por or '-' }}</td>
                             </tr>
                             {% endfor %}
                         {% else %}
-                            <tr><td colspan="9" class="empty-table">Nenhum registro encontrado.</td></tr>
+                            <tr><td colspan="10" class="empty-table">Nenhum registro encontrado.</td></tr>
                         {% endif %}
                         </tbody>
                     </table>
@@ -276,6 +325,48 @@ Motivo: Corrigir estouro lateral da tela de Registro de Ponto e manter apenas ro
                                 <div><span>Saída</span><strong>{{ item.saida or '-' }}</strong></div>
                                 <div><span>Total</span><strong>{{ item.total_trabalhado or '-' }}</strong></div>
                                 <div><span>Ajuste</span><strong>{{ item.ajustado_por or '-' }}</strong></div>
+                            </div>
+
+                            <div class="ponto-localizacoes">
+                                <div class="ponto-localizacao-item {% if not item.entrada_latitude or not item.entrada_longitude %}sem-gps{% endif %}">
+                                    <div class="ponto-localizacao-info">
+                                        <span>GPS da entrada</span>
+                                        <strong>{% if item.entrada_latitude and item.entrada_longitude %}Precisão aproximada: {{ item.entrada_precisao or '-' }} m{% else %}Localização não registrada{% endif %}</strong>
+                                    </div>
+                                    {% if item.entrada_latitude and item.entrada_longitude %}
+                                    <a class="ponto-mapa-link" href="https://www.google.com/maps?q={{ item.entrada_latitude }},{{ item.entrada_longitude }}" target="_blank" rel="noopener">Ver mapa</a>
+                                    {% endif %}
+                                </div>
+
+                                <div class="ponto-localizacao-item {% if not item.saida_intervalo_latitude or not item.saida_intervalo_longitude %}sem-gps{% endif %}">
+                                    <div class="ponto-localizacao-info">
+                                        <span>GPS do intervalo</span>
+                                        <strong>{% if item.saida_intervalo_latitude and item.saida_intervalo_longitude %}Precisão aproximada: {{ item.saida_intervalo_precisao or '-' }} m{% else %}Localização não registrada{% endif %}</strong>
+                                    </div>
+                                    {% if item.saida_intervalo_latitude and item.saida_intervalo_longitude %}
+                                    <a class="ponto-mapa-link" href="https://www.google.com/maps?q={{ item.saida_intervalo_latitude }},{{ item.saida_intervalo_longitude }}" target="_blank" rel="noopener">Ver mapa</a>
+                                    {% endif %}
+                                </div>
+
+                                <div class="ponto-localizacao-item {% if not item.retorno_intervalo_latitude or not item.retorno_intervalo_longitude %}sem-gps{% endif %}">
+                                    <div class="ponto-localizacao-info">
+                                        <span>GPS do retorno</span>
+                                        <strong>{% if item.retorno_intervalo_latitude and item.retorno_intervalo_longitude %}Precisão aproximada: {{ item.retorno_intervalo_precisao or '-' }} m{% else %}Localização não registrada{% endif %}</strong>
+                                    </div>
+                                    {% if item.retorno_intervalo_latitude and item.retorno_intervalo_longitude %}
+                                    <a class="ponto-mapa-link" href="https://www.google.com/maps?q={{ item.retorno_intervalo_latitude }},{{ item.retorno_intervalo_longitude }}" target="_blank" rel="noopener">Ver mapa</a>
+                                    {% endif %}
+                                </div>
+
+                                <div class="ponto-localizacao-item {% if not item.saida_latitude or not item.saida_longitude %}sem-gps{% endif %}">
+                                    <div class="ponto-localizacao-info">
+                                        <span>GPS da saída</span>
+                                        <strong>{% if item.saida_latitude and item.saida_longitude %}Precisão aproximada: {{ item.saida_precisao or '-' }} m{% else %}Localização não registrada{% endif %}</strong>
+                                    </div>
+                                    {% if item.saida_latitude and item.saida_longitude %}
+                                    <a class="ponto-mapa-link" href="https://www.google.com/maps?q={{ item.saida_latitude }},{{ item.saida_longitude }}" target="_blank" rel="noopener">Ver mapa</a>
+                                    {% endif %}
+                                </div>
                             </div>
                         </div>
                         {% endfor %}
