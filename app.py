@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-14 20:05 (America/Bahia)
-# Motivo: Preparar nova jornada na tela após o bloqueio de 10 segundos sem apagar o registro anterior.
+# Último recode: 2026-07-14 20:35 (America/Bahia)
+# Motivo: Adicionar exportação, edição e exclusão individual das marcações do espelho de ponto.
 
 from __future__ import annotations
 
@@ -10212,6 +10212,75 @@ def listar_registros_ponto(data_inicio: Any = "", data_fim: Any = "", funcionari
     return [dict(row) for row in rows]
 
 
+def buscar_registro_ponto_por_id(registro_id: int) -> dict[str, Any] | None:
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT *
+            FROM registros_ponto
+            WHERE id = ?
+              AND empresa_id = ?
+            LIMIT 1
+            """,
+            (registro_id, empresa_logada_id()),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def atualizar_registro_ponto_individual_db(registro_id: int) -> tuple[bool, str, dict[str, Any] | None]:
+    registro = buscar_registro_ponto_por_id(registro_id)
+    if registro is None:
+        return False, "Marcação de ponto não encontrada.", None
+    entrada = _normalizar_hora_hhmm(request.form.get("editar_entrada"))
+    saida_intervalo = _normalizar_hora_hhmm(request.form.get("editar_saida_intervalo"))
+    retorno_intervalo = _normalizar_hora_hhmm(request.form.get("editar_retorno_intervalo"))
+    saida = _normalizar_hora_hhmm(request.form.get("editar_saida"))
+    justificativa = str(request.form.get("editar_justificativa") or "").strip()
+    if not justificativa:
+        return False, "Informe a justificativa da edição.", registro
+    total = _calcular_total_horas_ponto(entrada, saida_intervalo, retorno_intervalo, saida)
+    status = _status_ponto(entrada, saida_intervalo, retorno_intervalo, saida, ajustado=True)
+    usuario = str(session.get("usuario_nome") or "Administrador").strip()
+    anterior = str(registro.get("observacoes") or "").strip()
+    historico = f"Edição individual: {justificativa}"
+    observacoes = f"{anterior}\n{historico}" if anterior else historico
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            UPDATE registros_ponto
+            SET entrada = ?, saida_intervalo = ?, retorno_intervalo = ?, saida = ?,
+                total_trabalhado = ?, status = ?, observacoes = ?, ajustado_por = ?, atualizado_em = ?
+            WHERE id = ? AND empresa_id = ?
+            """,
+            (entrada, saida_intervalo, retorno_intervalo, saida, total, status, observacoes, usuario, agora_empresa().isoformat(timespec="seconds"), registro_id, empresa_logada_id()),
+        )
+        conn.commit()
+    return True, "Marcação editada com sucesso.", buscar_registro_ponto_por_id(registro_id)
+
+
+def excluir_registro_ponto_individual_db(registro_id: int) -> tuple[bool, str]:
+    if buscar_registro_ponto_por_id(registro_id) is None:
+        return False, "Marcação de ponto não encontrada."
+    with conectar_db() as conn:
+        conn.execute("DELETE FROM registros_ponto WHERE id = ? AND empresa_id = ?", (registro_id, empresa_logada_id()))
+        conn.commit()
+    return True, "Marcação excluída com sucesso."
+
+
+def montar_url_mapa_ponto(latitude: Any, longitude: Any) -> str:
+    lat = str(latitude or "").strip(); lon = str(longitude or "").strip()
+    return f"https://www.google.com/maps?q={lat},{lon}" if lat and lon else ""
+
+
+def gerar_csv_registros_ponto(registros: list[dict[str, Any]]) -> io.BytesIO:
+    texto = io.StringIO(newline="")
+    escritor = csv.writer(texto, delimiter=";", quoting=csv.QUOTE_MINIMAL)
+    escritor.writerow(["ID","Data","Funcionário","Entrada","Saída intervalo","Retorno intervalo","Saída","Total trabalhado","Status","Ajustado por","Observações","Origem","Mapa entrada","Precisão entrada (m)","Mapa intervalo","Precisão intervalo (m)","Mapa retorno","Precisão retorno (m)","Mapa saída","Precisão saída (m)"])
+    for r in registros:
+        escritor.writerow([r.get("id") or "",formatar_data_br(r.get("data_ponto")),r.get("funcionario_nome") or "",r.get("entrada") or "",r.get("saida_intervalo") or "",r.get("retorno_intervalo") or "",r.get("saida") or "",r.get("total_trabalhado") or "",r.get("status") or "",r.get("ajustado_por") or "",r.get("observacoes") or "",r.get("origem") or "",montar_url_mapa_ponto(r.get("entrada_latitude"),r.get("entrada_longitude")),r.get("entrada_precisao") or "",montar_url_mapa_ponto(r.get("saida_intervalo_latitude"),r.get("saida_intervalo_longitude")),r.get("saida_intervalo_precisao") or "",montar_url_mapa_ponto(r.get("retorno_intervalo_latitude"),r.get("retorno_intervalo_longitude")),r.get("retorno_intervalo_precisao") or "",montar_url_mapa_ponto(r.get("saida_latitude"),r.get("saida_longitude")),r.get("saida_precisao") or ""])
+    binario = io.BytesIO(("\ufeff" + texto.getvalue()).encode("utf-8")); binario.seek(0); return binario
+
+
 def gerar_token_ponto_funcionario() -> str:
     return secrets.token_urlsafe(24)
 
@@ -17645,6 +17714,32 @@ def ajustar_registro_ponto() -> Response:
     parametro = "sucesso" if ok else "erro"
     funcionario_id = request.form.get("ajuste_funcionario_id") or ""
     return redirect(url_for("registro_ponto", funcionario_id=funcionario_id, **{parametro: mensagem}))
+
+
+@app.get("/registro-ponto/exportar")
+def exportar_registros_ponto() -> Response:
+    funcionario_id = str(request.args.get("funcionario_id") or "").strip()
+    data_inicio = _normalizar_data_iso(request.args.get("data_inicio") or hoje_empresa().isoformat())
+    data_fim = _normalizar_data_iso(request.args.get("data_fim") or data_inicio, data_inicio)
+    registros = listar_registros_ponto(data_inicio, data_fim, funcionario_id)
+    return send_file(gerar_csv_registros_ponto(registros), mimetype="text/csv; charset=utf-8", as_attachment=True, download_name=f"espelho_ponto_{data_inicio}_a_{data_fim}.csv")
+
+
+@app.post("/registro-ponto/<int:registro_id>/editar")
+def editar_registro_ponto_individual(registro_id: int) -> Response:
+    ok, mensagem, registro = atualizar_registro_ponto_individual_db(registro_id)
+    parametro = "sucesso" if ok else "erro"
+    funcionario_id = str(request.form.get("funcionario_id") or (registro or {}).get("funcionario_id") or "").strip()
+    return redirect(url_for("registro_ponto", funcionario_id=funcionario_id, data_inicio=str(request.form.get("data_inicio") or ""), data_fim=str(request.form.get("data_fim") or ""), **{parametro: mensagem}))
+
+
+@app.post("/registro-ponto/<int:registro_id>/excluir")
+def excluir_registro_ponto_individual(registro_id: int) -> Response:
+    registro = buscar_registro_ponto_por_id(registro_id)
+    ok, mensagem = excluir_registro_ponto_individual_db(registro_id)
+    parametro = "sucesso" if ok else "erro"
+    funcionario_id = str(request.form.get("funcionario_id") or (registro or {}).get("funcionario_id") or "").strip()
+    return redirect(url_for("registro_ponto", funcionario_id=funcionario_id, data_inicio=str(request.form.get("data_inicio") or ""), data_fim=str(request.form.get("data_fim") or ""), **{parametro: mensagem}))
 
 
 @app.post("/assistente/perguntar")

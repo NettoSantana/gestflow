@@ -1,7 +1,7 @@
 <!--
 Caminho: templates/registro_ponto.html
-Último recode: 2026-07-14 19:28 (America/Bahia)
-Motivo: Organizar a localização do ponto em detalhes expansíveis para limpar o espelho.
+Último recode: 2026-07-14 20:35 (America/Bahia)
+Motivo: Adicionar exportação e ações de editar e excluir em cada marcação do espelho.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -71,6 +71,7 @@ Motivo: Organizar a localização do ponto em detalhes expansíveis para limpar 
         .ponto-mobile-detalhe{display:none;margin-top:10px}
         .ponto-mobile-detalhe.aberto{display:block}
         .ponto-ajuste{border-top:1px solid #e5eaf2;padding-top:16px}
+        .ponto-acoes{display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:145px}.ponto-acao-btn{display:inline-flex;align-items:center;justify-content:center;min-height:32px;padding:0 10px;border:1px solid #dbeafe;border-radius:999px;background:#eff6ff;color:#1d4ed8;font-size:11px;font-weight:900;cursor:pointer;text-decoration:none}.ponto-acao-btn.excluir{border-color:#fecaca;background:#fef2f2;color:#991b1b}.ponto-exportar{white-space:nowrap}.ponto-modal{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(15,23,42,.66)}.ponto-modal.aberto{display:flex}.ponto-modal-card{width:min(620px,100%);max-height:calc(100vh - 36px);overflow-y:auto;border-radius:20px;background:#fff;box-shadow:0 24px 70px rgba(15,23,42,.34)}.ponto-modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:18px;border-bottom:1px solid #e5eaf2}.ponto-modal-head h3{margin:0 0 4px}.ponto-modal-head p{margin:0;color:#64748b;font-size:12px;font-weight:800}.ponto-modal-fechar{width:36px;height:36px;border:0;border-radius:999px;background:#f1f5f9;color:#0f172a;font-size:20px;font-weight:900;cursor:pointer}.ponto-modal-body{padding:18px}.ponto-modal-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 
         .ponto-links-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-top:12px}
         .ponto-link-card{border:1px solid #e5eaf2;border-radius:16px;background:#fff;padding:14px;display:grid;gap:9px}
@@ -83,7 +84,7 @@ Motivo: Organizar a localização do ponto em detalhes expansíveis para limpar 
         .ponto-copy-btn{border:0;cursor:pointer}
         @media(max-width:1320px){.ponto-layout{grid-template-columns:minmax(260px,360px) minmax(0,1fr)}.ponto-table-desktop .client-table{min-width:680px}}
         @media(max-width:1180px){.ponto-layout{grid-template-columns:1fr}}
-        @media(max-width:760px){.ponto-page-content{overflow-x:hidden}.ponto-layout{gap:12px}.ponto-atalhos{width:100%}.ponto-chip{flex:1 1 auto}.clock-time{font-size:44px}.ponto-filters{grid-template-columns:1fr}.ponto-filters button{width:100%;min-height:44px}.ponto-admin-head{flex-direction:column}.ponto-table-desktop{display:none}.ponto-mobile-lista{display:block}.ponto-btn{min-height:68px}}
+        @media(max-width:760px){.ponto-page-content{overflow-x:hidden}.ponto-layout{gap:12px}.ponto-atalhos{width:100%}.ponto-chip{flex:1 1 auto}.clock-time{font-size:44px}.ponto-filters{grid-template-columns:1fr}.ponto-filters button{width:100%;min-height:44px}.ponto-admin-head{flex-direction:column}.ponto-table-desktop{display:none}.ponto-mobile-lista{display:block}.ponto-btn{min-height:68px}.ponto-modal-grid{grid-template-columns:1fr}.ponto-acoes{width:100%}.ponto-acao-btn{flex:1}}
         @media(max-width:460px){.ponto-status-grid,.ponto-mobile-times{grid-template-columns:1fr}.ponto-topo-funcionario{margin-left:-14px;margin-right:-14px}}
     </style>
 </head>
@@ -247,12 +248,13 @@ Motivo: Organizar a localização do ponto em detalhes expansíveis para limpar 
                     <div class="form-group"><label>De</label><input class="form-control" type="date" name="data_inicio" value="{{ data_inicio }}"></div>
                     <div class="form-group"><label>Até</label><input class="form-control" type="date" name="data_fim" value="{{ data_fim }}"></div>
                     <button class="btn-dark" type="submit">Filtrar</button>
+                    <a class="btn-primary-green ponto-exportar" href="/registro-ponto/exportar?funcionario_id={{ funcionario_id }}&data_inicio={{ data_inicio }}&data_fim={{ data_fim }}">Exportar planilha</a>
                 </form>
 
                 <div class="table-shell ponto-table-desktop">
                     <table class="client-table">
                         <thead>
-                            <tr><th>Data</th><th>Funcionário</th><th>Entrada</th><th>Intervalo</th><th>Retorno</th><th>Saída</th><th>Localização</th><th>Total</th><th>Status</th><th>Ajuste</th></tr>
+                            <tr><th>Data</th><th>Funcionário</th><th>Entrada</th><th>Intervalo</th><th>Retorno</th><th>Saída</th><th>Localização</th><th>Total</th><th>Status</th><th>Ajuste</th><th>Ações</th></tr>
                         </thead>
                         <tbody>
                         {% if registros %}
@@ -273,9 +275,10 @@ Motivo: Organizar a localização do ponto em detalhes expansíveis para limpar 
                                 <td>{{ item.total_trabalhado or '-' }}</td>
                                 <td><span class="ponto-pill status-{{ item.status }}">{{ item.status }}</span></td>
                                 <td>{{ item.ajustado_por or '-' }}</td>
+                                <td><div class="ponto-acoes"><button class="ponto-acao-btn" type="button" data-editar-ponto data-id="{{ item.id }}" data-funcionario="{{ item.funcionario_nome|e }}" data-data="{{ item.data_ponto }}" data-entrada="{{ item.entrada or '' }}" data-saida-intervalo="{{ item.saida_intervalo or '' }}" data-retorno-intervalo="{{ item.retorno_intervalo or '' }}" data-saida="{{ item.saida or '' }}">Editar</button><form method="post" action="/registro-ponto/{{ item.id }}/excluir" onsubmit="return confirm('Excluir somente esta marcação? Esta ação não poderá ser desfeita.');"><input type="hidden" name="funcionario_id" value="{{ funcionario_id }}"><input type="hidden" name="data_inicio" value="{{ data_inicio }}"><input type="hidden" name="data_fim" value="{{ data_fim }}"><button class="ponto-acao-btn excluir" type="submit">Excluir</button></form></div></td>
                             </tr>
                             <tr class="ponto-detalhe-row" id="gps-{{ item.id }}">
-                                <td colspan="10" class="ponto-detalhe-cell">
+                                <td colspan="11" class="ponto-detalhe-cell">
                                     <div class="ponto-localizacoes">
                                         <div class="ponto-localizacao-item {% if not item.entrada_latitude or not item.entrada_longitude %}sem-gps{% endif %}">
                                             <div class="ponto-localizacao-info">
@@ -321,7 +324,7 @@ Motivo: Organizar a localização do ponto em detalhes expansíveis para limpar 
                             </tr>
                             {% endfor %}
                         {% else %}
-                            <tr><td colspan="10" class="empty-table">Nenhum registro encontrado.</td></tr>
+                            <tr><td colspan="11" class="empty-table">Nenhum registro encontrado.</td></tr>
                         {% endif %}
                         </tbody>
                     </table>
@@ -343,6 +346,8 @@ Motivo: Organizar a localização do ponto em detalhes expansíveis para limpar 
                                 <div><span>Total</span><strong>{{ item.total_trabalhado or '-' }}</strong></div>
                                 <div><span>Ajuste</span><strong>{{ item.ajustado_por or '-' }}</strong></div>
                             </div>
+
+                            <div class="ponto-acoes" style="margin-top:10px;"><button class="ponto-acao-btn" type="button" data-editar-ponto data-id="{{ item.id }}" data-funcionario="{{ item.funcionario_nome|e }}" data-data="{{ item.data_ponto }}" data-entrada="{{ item.entrada or '' }}" data-saida-intervalo="{{ item.saida_intervalo or '' }}" data-retorno-intervalo="{{ item.retorno_intervalo or '' }}" data-saida="{{ item.saida or '' }}">Editar</button><form method="post" action="/registro-ponto/{{ item.id }}/excluir" onsubmit="return confirm('Excluir somente esta marcação? Esta ação não poderá ser desfeita.');"><input type="hidden" name="funcionario_id" value="{{ funcionario_id }}"><input type="hidden" name="data_inicio" value="{{ data_inicio }}"><input type="hidden" name="data_fim" value="{{ data_fim }}"><button class="ponto-acao-btn excluir" type="submit">Excluir</button></form></div>
 
                             {% set tem_gps_mobile = (item.entrada_latitude and item.entrada_longitude) or (item.saida_intervalo_latitude and item.saida_intervalo_longitude) or (item.retorno_intervalo_latitude and item.retorno_intervalo_longitude) or (item.saida_latitude and item.saida_longitude) %}
                             <button class="ponto-localizacao-toggle {% if not tem_gps_mobile %}sem-gps{% endif %}" type="button" data-localizacao-target="gps-mobile-{{ item.id }}" style="margin-top:10px;">
@@ -443,6 +448,8 @@ Motivo: Organizar a localização do ponto em detalhes expansíveis para limpar 
     </section>
 </main>
 
+<div class="ponto-modal" id="ponto-modal-editar" aria-hidden="true"><div class="ponto-modal-card"><div class="ponto-modal-head"><div><h3>Editar marcação</h3><p id="ponto-modal-resumo">Ajuste somente esta jornada. A justificativa será registrada.</p></div><button class="ponto-modal-fechar" type="button" data-fechar-modal aria-label="Fechar">×</button></div><form method="post" id="ponto-form-editar"><div class="ponto-modal-body"><input type="hidden" name="funcionario_id" value="{{ funcionario_id }}"><input type="hidden" name="data_inicio" value="{{ data_inicio }}"><input type="hidden" name="data_fim" value="{{ data_fim }}"><div class="ponto-modal-grid"><div class="form-group"><label>Entrada</label><input class="form-control" type="time" name="editar_entrada" id="editar-entrada"></div><div class="form-group"><label>Saída intervalo</label><input class="form-control" type="time" name="editar_saida_intervalo" id="editar-saida-intervalo"></div><div class="form-group"><label>Retorno intervalo</label><input class="form-control" type="time" name="editar_retorno_intervalo" id="editar-retorno-intervalo"></div><div class="form-group"><label>Saída</label><input class="form-control" type="time" name="editar_saida" id="editar-saida"></div></div><div class="form-group" style="margin-top:14px;"><label>Justificativa da edição</label><textarea class="form-control" name="editar_justificativa" required style="height:90px;padding-top:12px;" placeholder="Explique por que esta marcação está sendo alterada."></textarea></div><div class="form-actions"><button class="btn-primary-green" type="submit">Salvar alteração</button><button class="btn-dark" type="button" data-fechar-modal>Cancelar</button></div></div></form></div></div>
+
 <script>
 (function(){
     function tick(){
@@ -478,6 +485,8 @@ Motivo: Organizar a localização do ponto em detalhes expansíveis para limpar 
             botao.textContent = aberto ? 'Ocultar localização' : 'Ver localização';
         });
     });
+
+    var modalEditar=document.getElementById('ponto-modal-editar');var formEditar=document.getElementById('ponto-form-editar');var resumoEditar=document.getElementById('ponto-modal-resumo');function fecharModalEditar(){if(!modalEditar){return;}modalEditar.classList.remove('aberto');modalEditar.setAttribute('aria-hidden','true');}document.querySelectorAll('[data-editar-ponto]').forEach(function(botao){botao.addEventListener('click',function(){if(!modalEditar||!formEditar){return;}formEditar.action='/registro-ponto/'+botao.dataset.id+'/editar';document.getElementById('editar-entrada').value=botao.dataset.entrada||'';document.getElementById('editar-saida-intervalo').value=botao.dataset.saidaIntervalo||'';document.getElementById('editar-retorno-intervalo').value=botao.dataset.retornoIntervalo||'';document.getElementById('editar-saida').value=botao.dataset.saida||'';if(resumoEditar){resumoEditar.textContent=(botao.dataset.funcionario||'Funcionário')+' · '+(botao.dataset.data||'');}modalEditar.classList.add('aberto');modalEditar.setAttribute('aria-hidden','false');});});document.querySelectorAll('[data-fechar-modal]').forEach(function(botao){botao.addEventListener('click',fecharModalEditar);});if(modalEditar){modalEditar.addEventListener('click',function(evento){if(evento.target===modalEditar){fecharModalEditar();}});}
 
     var bloqueio = document.getElementById('ponto-bloqueio-admin');
     var segundos = parseInt((bloqueio && bloqueio.dataset.bloqueioSegundos) || '0', 10);
