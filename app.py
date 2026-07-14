@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-14 11:31 (America/Bahia)
-# Motivo: Flexibilizar a validação do WhatsApp do ponto para aceitar celular com ou sem o nono dígito.
+# Último recode: 2026-07-14 09:00 (America/Bahia)
+# Motivo: Preparar o backend do Registro de Ponto para salvar GPS/localização em cada batida online e offline.
 
 from __future__ import annotations
 
@@ -1595,7 +1595,27 @@ def iniciar_banco() -> None:
             "dispositivo_info": "TEXT",
         }
 
+        colunas_registros_ponto_localizacao = {
+            "entrada_latitude": "TEXT",
+            "entrada_longitude": "TEXT",
+            "entrada_precisao": "TEXT",
+            "saida_intervalo_latitude": "TEXT",
+            "saida_intervalo_longitude": "TEXT",
+            "saida_intervalo_precisao": "TEXT",
+            "retorno_intervalo_latitude": "TEXT",
+            "retorno_intervalo_longitude": "TEXT",
+            "retorno_intervalo_precisao": "TEXT",
+            "saida_latitude": "TEXT",
+            "saida_longitude": "TEXT",
+            "saida_precisao": "TEXT",
+        }
+
         for coluna, tipo_coluna in colunas_registros_ponto_offline.items():
+            if coluna not in colunas_registros_ponto:
+                conn.execute(f"ALTER TABLE registros_ponto ADD COLUMN {coluna} {tipo_coluna}")
+
+
+        for coluna, tipo_coluna in colunas_registros_ponto_localizacao.items():
             if coluna not in colunas_registros_ponto:
                 conn.execute(f"ALTER TABLE registros_ponto ADD COLUMN {coluna} {tipo_coluna}")
 
@@ -10336,6 +10356,40 @@ def buscar_registro_ponto_publico(empresa_id: int, funcionario_id: int, data_pon
     return dict(row) if row else None
 
 
+def normalizar_coordenada_ponto(valor: Any, minimo: float, maximo: float) -> str:
+    texto = str(valor or "").strip().replace(",", ".")
+
+    if not texto:
+        return ""
+
+    try:
+        numero = float(texto)
+    except (TypeError, ValueError):
+        return ""
+
+    if numero < minimo or numero > maximo:
+        return ""
+
+    return f"{numero:.7f}"
+
+
+def normalizar_precisao_ponto(valor: Any) -> str:
+    texto = str(valor or "").strip().replace(",", ".")
+
+    if not texto:
+        return ""
+
+    try:
+        numero = float(texto)
+    except (TypeError, ValueError):
+        return ""
+
+    if numero < 0:
+        return ""
+
+    return f"{numero:.2f}"
+
+
 def registrar_batida_ponto_publico(
     funcionario: dict[str, Any],
     acao: str,
@@ -10344,6 +10398,9 @@ def registrar_batida_ponto_publico(
     origem: str = "online",
     offline_uuid: Any = "",
     dispositivo_info: Any = "",
+    latitude: Any = "",
+    longitude: Any = "",
+    precisao: Any = "",
 ) -> tuple[bool, str, dict[str, Any] | None]:
     funcionario_id = int(funcionario.get("id") or 0)
     empresa_id = int(funcionario.get("empresa_id") or 0)
@@ -10353,6 +10410,13 @@ def registrar_batida_ponto_publico(
     origem_final = "offline" if str(origem or "").strip() == "offline" else "online"
     uuid_final = str(offline_uuid or "").strip()
     dispositivo_final = str(dispositivo_info or "").strip()[:500]
+    latitude_final = normalizar_coordenada_ponto(latitude, -90, 90)
+    longitude_final = normalizar_coordenada_ponto(longitude, -180, 180)
+    precisao_final = normalizar_precisao_ponto(precisao)
+    localizacao_valida = bool(latitude_final and longitude_final)
+    coluna_latitude = f"{acao}_latitude"
+    coluna_longitude = f"{acao}_longitude"
+    coluna_precisao = f"{acao}_precisao"
     ordem = ordem_ponto_funcionario(funcionario)
 
     if acao not in ordem:
@@ -10412,8 +10476,9 @@ def registrar_batida_ponto_publico(
                 """
                 INSERT INTO registros_ponto (
                     empresa_id, funcionario_id, funcionario_nome, data_ponto, entrada,
-                    status, observacoes, atualizado_em, origem, offline_uuid, sincronizado_em, dispositivo_info
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    status, observacoes, atualizado_em, origem, offline_uuid, sincronizado_em, dispositivo_info,
+                    entrada_latitude, entrada_longitude, entrada_precisao
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     empresa_id,
@@ -10428,6 +10493,9 @@ def registrar_batida_ponto_publico(
                     uuid_final,
                     agora_iso if origem_final == "offline" else "",
                     dispositivo_final,
+                    latitude_final if localizacao_valida else "",
+                    longitude_final if localizacao_valida else "",
+                    precisao_final if localizacao_valida else "",
                 ),
             )
         else:
@@ -10446,7 +10514,10 @@ def registrar_batida_ponto_publico(
                     origem = CASE WHEN origem = 'offline' OR ? = 'offline' THEN 'offline' ELSE COALESCE(NULLIF(origem, ''), 'online') END,
                     offline_uuid = COALESCE(NULLIF(offline_uuid, ''), ?),
                     sincronizado_em = CASE WHEN ? = 'offline' THEN ? ELSE sincronizado_em END,
-                    dispositivo_info = COALESCE(NULLIF(dispositivo_info, ''), ?)
+                    dispositivo_info = COALESCE(NULLIF(dispositivo_info, ''), ?),
+                    {coluna_latitude} = CASE WHEN ? THEN ? ELSE {coluna_latitude} END,
+                    {coluna_longitude} = CASE WHEN ? THEN ? ELSE {coluna_longitude} END,
+                    {coluna_precisao} = CASE WHEN ? THEN ? ELSE {coluna_precisao} END
                 WHERE id = ? AND empresa_id = ?
                 """,
                 (
@@ -10460,6 +10531,12 @@ def registrar_batida_ponto_publico(
                     origem_final,
                     agora_iso,
                     dispositivo_final,
+                    localizacao_valida,
+                    latitude_final,
+                    localizacao_valida,
+                    longitude_final,
+                    localizacao_valida,
+                    precisao_final,
                     registro["id"],
                     empresa_id,
                 ),
@@ -17318,7 +17395,14 @@ def ponto_publico(token: str) -> str | Response:
                     erro = "Valide seu WhatsApp antes de bater o ponto."
                 else:
                     acao = str(request.form.get("acao") or "").strip()
-                    ok, mensagem, registro_hoje = registrar_batida_ponto_publico(funcionario, acao)
+                    ok, mensagem, registro_hoje = registrar_batida_ponto_publico(
+                        funcionario,
+                        acao,
+                        latitude=request.form.get("latitude") or "",
+                        longitude=request.form.get("longitude") or "",
+                        precisao=request.form.get("precisao") or "",
+                        dispositivo_info=request.headers.get("User-Agent") or "",
+                    )
                     parametro = "sucesso" if ok else "erro"
                     return redirect(url_for("ponto_publico", token=token, **{parametro: mensagem}))
 
@@ -17368,6 +17452,9 @@ def api_ponto_offline_sincronizar() -> Response:
             origem="offline",
             offline_uuid=batida.get("uuid") or "",
             dispositivo_info=batida.get("dispositivo") or request.headers.get("User-Agent") or "",
+            latitude=batida.get("latitude") or "",
+            longitude=batida.get("longitude") or "",
+            precisao=batida.get("precisao") or "",
         )
 
         if ok:
