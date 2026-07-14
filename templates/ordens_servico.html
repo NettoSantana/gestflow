@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordens_servico.html
-Último recode: 2026-07-14 09:15 (America/Bahia)
-Motivo: Remover o link diário antigo do menu Gerar na lista de Ordens de Serviço.
+Último recode: 2026-07-14 09:36 (America/Bahia)
+Motivo: Corrigir abertura do menu Gerar/Imprimir no celular movendo o painel para fora da área rolável da lista de OS.
 -->
 
 <!DOCTYPE html>
@@ -196,7 +196,8 @@ Motivo: Remover o link diário antigo do menu Gerar na lista de Ordens de Servi�
             display: none;
         }
 
-        .budget-action-dropdown[open] .budget-action-panel {
+        .budget-action-dropdown[open] .budget-action-panel,
+        .budget-action-panel.is-open {
             display: block;
         }
 
@@ -1522,16 +1523,56 @@ Motivo: Remover o link diário antigo do menu Gerar na lista de Ordens de Servi�
             }
 
 
-                        function posicionarMenuOrcamento(menu) {
+            function obterPainelMenuOrcamento(menu) {
+                if (!menu.dataset.budgetMenuId) {
+                    menu.dataset.budgetMenuId = "budget-menu-" + Math.random().toString(36).slice(2);
+                }
+
+                return menu.querySelector(".budget-action-panel")
+                    || document.querySelector('.budget-action-panel[data-budget-owner="' + menu.dataset.budgetMenuId + '"]');
+            }
+
+            function abrirPainelMenuOrcamento(menu) {
+                const panel = obterPainelMenuOrcamento(menu);
+
+                if (!panel) {
+                    return;
+                }
+
+                panel.dataset.budgetOwner = menu.dataset.budgetMenuId;
+                panel.classList.add("is-open");
+
+                if (panel.parentElement !== document.body) {
+                    document.body.appendChild(panel);
+                }
+            }
+
+            function fecharPainelMenuOrcamento(menu) {
+                const panel = obterPainelMenuOrcamento(menu);
+
+                if (!panel) {
+                    return;
+                }
+
+                panel.classList.remove("is-open");
+                panel.style.top = "";
+                panel.style.left = "";
+
+                if (panel.parentElement === document.body) {
+                    menu.appendChild(panel);
+                }
+            }
+
+            function posicionarMenuOrcamento(menu) {
                 const trigger = menu.querySelector(".budget-action-trigger");
-                const panel = menu.querySelector(".budget-action-panel");
+                const panel = obterPainelMenuOrcamento(menu);
 
                 if (!trigger || !panel) {
                     return;
                 }
 
                 const rect = trigger.getBoundingClientRect();
-                const largura = 190;
+                const largura = Math.max(panel.offsetWidth || 190, 190);
                 const margem = 8;
                 let left = rect.right - largura;
 
@@ -1543,11 +1584,11 @@ Motivo: Remover o link diário antigo do menu Gerar na lista de Ordens de Servi�
                     left = window.innerWidth - largura - margem;
                 }
 
-                const alturaEstimativa = 180;
+                const altura = panel.offsetHeight || 210;
                 let top = rect.bottom + margem;
 
-                if (top + alturaEstimativa > window.innerHeight - margem) {
-                    top = rect.top - alturaEstimativa - margem;
+                if (top + altura > window.innerHeight - margem) {
+                    top = rect.top - altura - margem;
                 }
 
                 if (top < margem) {
@@ -1569,20 +1610,28 @@ Motivo: Remover o link diário antigo do menu Gerar na lista de Ordens de Servi�
                     document.querySelectorAll(".budget-action-dropdown[open]").forEach(function(outroMenu) {
                         if (outroMenu !== menu) {
                             outroMenu.removeAttribute("open");
+                            fecharPainelMenuOrcamento(outroMenu);
                         }
                     });
 
-                    posicionarMenuOrcamento(menu);
+                    abrirPainelMenuOrcamento(menu);
+
+                    requestAnimationFrame(function() {
+                        posicionarMenuOrcamento(menu);
+                    });
+                } else {
+                    fecharPainelMenuOrcamento(menu);
                 }
             }, true);
 
             document.addEventListener("click", function(evento) {
-                if (evento.target.closest(".budget-action-menu")) {
+                if (evento.target.closest(".budget-action-menu") || evento.target.closest(".budget-action-panel")) {
                     return;
                 }
 
                 document.querySelectorAll(".budget-action-dropdown[open]").forEach(function(menu) {
                     menu.removeAttribute("open");
+                    fecharPainelMenuOrcamento(menu);
                 });
             });
 
