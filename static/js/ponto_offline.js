@@ -1,6 +1,6 @@
 // Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\static\js\ponto_offline.js
-// Último recode: 2026-07-14 19:05 (America/Bahia)
-// Motivo: Priorizar a validação do backend online e usar a validação local somente no modo offline.
+// Último recode: 2026-07-14 19:35 (America/Bahia)
+// Motivo: Reduzir o bloqueio entre jornadas para 10 segundos e liberar nova entrada para hora extra.
 (function(){
     const form = document.getElementById('ponto-form-batida');
     const validationForm = document.getElementById('ponto-form-validacao');
@@ -16,7 +16,7 @@
     const stateKey = `gestflow_ponto_estado_${token}`;
     const exigeIntervalo = (form.dataset.exigirIntervalo || 'sim') !== 'nao';
     const campos = exigeIntervalo ? ['entrada','saida_intervalo','retorno_intervalo','saida'] : ['entrada','saida'];
-    const BLOQUEIO_SEGUNDOS = 60;
+    const BLOQUEIO_SEGUNDOS = 10;
     let bloqueioTimer = null;
     let enviandoOnline = false;
 
@@ -149,7 +149,7 @@
     function atualizarAvisoBloqueio(segundos){
         if(!avisoBloqueio){return;}
         if(segundos > 0){
-            avisoBloqueio.textContent = `Nova entrada liberada em ${segundos} segundo(s).`;
+            avisoBloqueio.textContent = `Nova entrada para hora extra liberada em ${segundos} segundo(s).`;
             avisoBloqueio.classList.remove('ponto-offline-hidden');
         }else{
             avisoBloqueio.classList.add('ponto-offline-hidden');
@@ -160,18 +160,36 @@
         if(bloqueioTimer){clearTimeout(bloqueioTimer);}
         const segundos = bloqueioRestanteSegundos(estado);
         atualizarAvisoBloqueio(segundos);
-        if(segundos <= 0){return;}
-        bloqueioTimer = setTimeout(function(){
-            if(navigator.onLine){
-                window.location.reload();
-                return;
-            }
+
+        if(segundos <= 0){
             const atual = carregarEstado();
             atual.campos = {};
             atual.bloqueioAte = 0;
             salvarEstado(atual);
-            renderizarEstadoOffline();
-        }, (segundos + 1) * 1000);
+            campos.forEach(campo => {
+                const botao = botaoAcao(campo);
+                if(botao){botao.disabled = campo !== 'entrada';}
+            });
+            const entrada = botaoAcao('entrada');
+            if(entrada){entrada.disabled = false;}
+            return;
+        }
+
+        bloqueioTimer = setTimeout(function(){
+            const atual = carregarEstado();
+            if(bloqueioRestanteSegundos(atual) <= 0){
+                atual.campos = {};
+                atual.bloqueioAte = 0;
+                salvarEstado(atual);
+                if(navigator.onLine){
+                    window.location.reload();
+                    return;
+                }
+                renderizarEstadoOffline();
+                return;
+            }
+            agendarFimBloqueio(atual);
+        }, 1000);
     }
 
     function renderizarEstadoOffline(){

@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-14 09:00 (America/Bahia)
-# Motivo: Preparar o backend do Registro de Ponto para salvar GPS/localização em cada batida online e offline.
+# Último recode: 2026-07-14 19:35 (America/Bahia)
+# Motivo: Liberar nova jornada de ponto após bloqueio preventivo de 10 segundos.
 
 from __future__ import annotations
 
@@ -83,6 +83,8 @@ GESTFLOW_MODULOS = [
 
 GESTFLOW_MODULOS_PADRAO = {modulo["codigo"]: True for modulo in GESTFLOW_MODULOS}
 GESTFLOW_MODULOS_CODIGOS = set(GESTFLOW_MODULOS_PADRAO)
+
+PONTO_BLOQUEIO_NOVA_JORNADA_SEGUNDOS = 10
 
 
 GESTFLOW_SEGMENTOS = [
@@ -10177,6 +10179,7 @@ def buscar_registro_ponto(funcionario_id: int, data_ponto: str) -> dict[str, Any
             SELECT *
             FROM registros_ponto
             WHERE empresa_id = ? AND funcionario_id = ? AND data_ponto = ?
+            ORDER BY id DESC
             LIMIT 1
             """,
             (empresa_logada_id(), funcionario_id, data_ponto),
@@ -10349,11 +10352,31 @@ def buscar_registro_ponto_publico(empresa_id: int, funcionario_id: int, data_pon
             SELECT *
             FROM registros_ponto
             WHERE empresa_id = ? AND funcionario_id = ? AND data_ponto = ?
+            ORDER BY id DESC
             LIMIT 1
             """,
             (empresa_id, funcionario_id, data_ponto),
         ).fetchone()
     return dict(row) if row else None
+
+
+def bloqueio_nova_jornada_ponto_segundos(registro: dict[str, Any] | None) -> int:
+    if not registro or not str(registro.get("saida") or "").strip():
+        return 0
+
+    atualizado_em = str(registro.get("atualizado_em") or "").strip()
+    if not atualizado_em:
+        return 0
+
+    try:
+        finalizado_em = datetime.fromisoformat(atualizado_em)
+    except ValueError:
+        return 0
+
+    restante = PONTO_BLOQUEIO_NOVA_JORNADA_SEGUNDOS - int(
+        (agora_empresa() - finalizado_em).total_seconds()
+    )
+    return max(restante, 0)
 
 
 def normalizar_coordenada_ponto(valor: Any, minimo: float, maximo: float) -> str:
@@ -10461,6 +10484,20 @@ def registrar_batida_ponto_publico(
         ).fetchone()
         registro = dict(row) if row else None
 
+        if registro is not None and str(registro.get("saida") or "").strip():
+            if acao != "entrada":
+                return False, "A jornada anterior foi finalizada. Registre uma nova entrada.", registro
+
+            bloqueio_restante = bloqueio_nova_jornada_ponto_segundos(registro)
+            if bloqueio_restante > 0:
+                return (
+                    False,
+                    f"Nova entrada para hora extra liberada em {bloqueio_restante} segundo(s).",
+                    registro,
+                )
+
+            registro = None
+
         if registro is not None and registro.get(acao):
             if origem_final == "offline" and str(registro.get(acao) or "").strip() == hora_final:
                 return True, "Batida offline já estava registrada.", registro
@@ -10557,6 +10594,17 @@ def bater_ponto_db(funcionario_id: int, acao: str = "") -> tuple[bool, str]:
     agora_hora = agora_empresa().strftime("%H:%M")
     registro = buscar_registro_ponto(funcionario_id, hoje)
     ordem = ordem_ponto_funcionario(funcionario)
+
+    if registro is not None and str(registro.get("saida") or "").strip():
+        if acao and acao != "entrada":
+            return False, "A jornada anterior foi finalizada. Registre uma nova entrada."
+
+        bloqueio_restante = bloqueio_nova_jornada_ponto_segundos(registro)
+        if bloqueio_restante > 0:
+            return False, f"Nova entrada para hora extra liberada em {bloqueio_restante} segundo(s)."
+
+        registro = None
+        acao = "entrada"
 
     if acao not in ordem:
         if registro is None:
@@ -17419,6 +17467,7 @@ def ponto_publico(token: str) -> str | Response:
         data_hoje=formatar_data_br(hoje_empresa()),
         exigir_intervalo_ponto=ponto_exige_intervalo(funcionario),
         proxima_acao_ponto=proxima_acao_ponto(registro_hoje, funcionario),
+        bloqueio_nova_entrada_segundos=bloqueio_nova_jornada_ponto_segundos(registro_hoje),
         erro=erro,
         sucesso=sucesso,
     )
@@ -17557,6 +17606,7 @@ def registro_ponto() -> str | Response:
         funcionario_id=funcionario_id,
         exigir_intervalo_ponto=exigir_intervalo,
         proxima_acao_ponto=proxima_acao,
+        bloqueio_nova_entrada_segundos=bloqueio_nova_jornada_ponto_segundos(registro_hoje),
         proxima_marcacao=(
             rotulo_proxima_acao_ponto(proxima_acao)
             if funcionario_selecionado
