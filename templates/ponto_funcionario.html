@@ -1,7 +1,7 @@
 <!--
 Caminho: templates/ponto_funcionario.html
-Último recode: 2026-07-10 10:40 (America/Bahia)
-Motivo: Ajustar botões para múltiplas jornadas e bloqueio de nova entrada por 60 segundos.
+Último recode: 2026-07-14 09:00 (America/Bahia)
+Motivo: Capturar GPS antes de cada batida e enviar latitude, longitude e precisão ao backend.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -58,6 +58,10 @@ Motivo: Ajustar botões para múltiplas jornadas e bloqueio de nova entrada por 
         .ponto-pendente-item small{color:#64748b;font-weight:800}
         .ponto-offline-hidden{display:none !important}
         .ponto-config-info{margin-top:10px;padding:10px 12px;border-radius:12px;background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;font-size:12px;font-weight:900}
+        .ponto-gps-status{margin-top:10px;padding:10px 12px;border-radius:12px;border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;font-size:12px;font-weight:900;line-height:1.35}
+        .ponto-gps-status.localizando{border-color:#fde68a;background:#fffbeb;color:#92400e}
+        .ponto-gps-status.localizado{border-color:#bbf7d0;background:#f0fdf4;color:#166534}
+        .ponto-gps-status.indisponivel{border-color:#fecaca;background:#fef2f2;color:#991b1b}
         @media(max-width:460px){body{padding:12px}.ponto-publico-top h1{font-size:22px}.clock-time{font-size:46px}.ponto-status-grid{grid-template-columns:1fr}.ponto-publico-body{padding:14px}}
     </style>
 </head>
@@ -110,9 +114,13 @@ Motivo: Ajustar botões para múltiplas jornadas e bloqueio de nova entrada por 
                 <div class="ponto-config-info">Intervalo/almoço: {% if exigir_intervalo %}exigido neste funcionário{% else %}não exigido neste funcionário{% endif %}.</div>
                 {% if entrada_bloqueada %}<div class="ponto-config-info" style="background:#fff7ed;border-color:#fed7aa;color:#9a3412;">Nova entrada liberada em {{ bloqueio_nova_entrada_segundos }} segundo(s).</div>{% endif %}
                 <div class="ponto-sync-box" id="ponto-sync-status">Verificando conexão...</div>
+                <div class="ponto-gps-status" id="ponto-gps-status">📍 A localização será solicitada antes de cada batida.</div>
                 <div class="ponto-pendente-lista" id="ponto-pendente-lista"></div>
 
                 <form method="post" action="/ponto/{{ token }}" class="ponto-buttons" id="ponto-form-batida" data-token="{{ token }}" data-telefone-validado="{{ 'sim' if telefone_validado else 'nao' }}" data-funcionario-nome="{{ funcionario.nome }}" data-empresa-nome="{{ funcionario.empresa_nome or 'GestFlow' }}" data-exigir-intervalo="{{ 'sim' if exigir_intervalo else 'nao' }}">
+                    <input type="hidden" name="latitude" id="ponto-latitude" value="">
+                    <input type="hidden" name="longitude" id="ponto-longitude" value="">
+                    <input type="hidden" name="precisao" id="ponto-precisao" value="">
                     <button class="ponto-btn entrada" name="acao" value="entrada" type="submit" {% if entrada_bloqueada or entrada_marcada %}disabled{% endif %}>
                         <span class="ponto-icone">↦</span><span class="ponto-texto"><strong>Entrada</strong><span>Iniciar expediente</span></span>
                     </button>
@@ -157,8 +165,92 @@ function atualizarRelogioPonto(){
     const minutos = String(agora.getMinutes()).padStart(2,'0');
     el.textContent = `${horas}:${minutos}`;
 }
+
+function atualizarStatusGps(tipo, mensagem){
+    const status = document.getElementById('ponto-gps-status');
+    if(!status){return;}
+    status.className = `ponto-gps-status ${tipo || ''}`.trim();
+    status.textContent = mensagem;
+}
+
+function limparCamposGps(){
+    const latitude = document.getElementById('ponto-latitude');
+    const longitude = document.getElementById('ponto-longitude');
+    const precisao = document.getElementById('ponto-precisao');
+    if(latitude){latitude.value = '';}
+    if(longitude){longitude.value = '';}
+    if(precisao){precisao.value = '';}
+}
+
+function mensagemErroGps(erro){
+    if(!erro){return 'Localização indisponível. O ponto será registrado sem GPS.';}
+    if(erro.code === 1){return 'Permissão de localização negada. O ponto será registrado sem GPS.';}
+    if(erro.code === 2){return 'Não foi possível determinar sua localização. O ponto será registrado sem GPS.';}
+    if(erro.code === 3){return 'Tempo esgotado ao buscar localização. O ponto será registrado sem GPS.';}
+    return 'Localização indisponível. O ponto será registrado sem GPS.';
+}
+
+function capturarGpsAntesDaBatida(){
+    return new Promise((resolve) => {
+        limparCamposGps();
+
+        if(!navigator.geolocation){
+            atualizarStatusGps('indisponivel', '📍 Este aparelho não oferece localização. O ponto será registrado sem GPS.');
+            resolve();
+            return;
+        }
+
+        atualizarStatusGps('localizando', '📍 Buscando sua localização...');
+
+        navigator.geolocation.getCurrentPosition(
+            (posicao) => {
+                const latitude = document.getElementById('ponto-latitude');
+                const longitude = document.getElementById('ponto-longitude');
+                const precisao = document.getElementById('ponto-precisao');
+                const coords = posicao.coords;
+
+                if(latitude){latitude.value = String(coords.latitude);}
+                if(longitude){longitude.value = String(coords.longitude);}
+                if(precisao){precisao.value = String(Math.round(coords.accuracy || 0));}
+
+                atualizarStatusGps('localizado', `📍 Localização obtida com precisão aproximada de ${Math.round(coords.accuracy || 0)} metro(s).`);
+                resolve();
+            },
+            (erro) => {
+                limparCamposGps();
+                atualizarStatusGps('indisponivel', `📍 ${mensagemErroGps(erro)}`);
+                resolve();
+            },
+            {enableHighAccuracy:true,timeout:12000,maximumAge:0}
+        );
+    });
+}
+
+function prepararGpsPonto(){
+    const formulario = document.getElementById('ponto-form-batida');
+    if(!formulario){return;}
+
+    formulario.addEventListener('click', async (evento) => {
+        const botao = evento.target.closest('button[type="submit"][name="acao"]');
+        if(!botao || botao.disabled || formulario.dataset.gpsPronto === 'sim'){return;}
+
+        evento.preventDefault();
+        evento.stopImmediatePropagation();
+
+        const botoes = Array.from(formulario.querySelectorAll('button[type="submit"]'));
+        botoes.forEach((item) => {item.dataset.estadoGps = item.disabled ? 'desabilitado' : 'habilitado'; item.disabled = true;});
+
+        await capturarGpsAntesDaBatida();
+
+        botoes.forEach((item) => {item.disabled = item.dataset.estadoGps === 'desabilitado'; delete item.dataset.estadoGps;});
+        formulario.dataset.gpsPronto = 'sim';
+        formulario.requestSubmit(botao);
+    }, true);
+}
+
 atualizarRelogioPonto();
 setInterval(atualizarRelogioPonto, 1000);
+prepararGpsPonto();
 </script>
 <script src="/static/js/ponto_offline.js"></script>
 </body>
