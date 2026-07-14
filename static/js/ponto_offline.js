@@ -1,6 +1,6 @@
 // Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\static\js\ponto_offline.js
-// Último recode: 2026-07-14 19:52 (America/Bahia)
-// Motivo: Respeitar o backend no modo online e controlar botões localmente somente no modo offline.
+// Último recode: 2026-07-14 20:05 (America/Bahia)
+// Motivo: Executar a contagem de 10 segundos enviada pelo backend e recarregar a nova jornada.
 (function(){
     const form = document.getElementById('ponto-form-batida');
     const validationForm = document.getElementById('ponto-form-validacao');
@@ -162,18 +162,17 @@
         atualizarAvisoBloqueio(segundos);
 
         if(segundos <= 0){
+            const atual = carregarEstado();
+            atual.campos = {};
+            atual.bloqueioAte = 0;
+            salvarEstado(atual);
+
             if(navigator.onLine){
-                window.location.reload();
+                window.location.replace(window.location.pathname);
                 return;
             }
 
-            if(estado.campos && estado.campos.saida){
-                const atual = carregarEstado();
-                atual.campos = {};
-                atual.bloqueioAte = 0;
-                salvarEstado(atual);
-                renderizarEstadoOffline();
-            }
+            renderizarEstadoOffline();
             return;
         }
 

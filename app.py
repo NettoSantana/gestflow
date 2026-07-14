@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-14 19:52 (America/Bahia)
-# Motivo: Usar sempre a jornada mais recente e estabilizar entrada, saída e hora extra no ponto.
+# Último recode: 2026-07-14 20:05 (America/Bahia)
+# Motivo: Preparar nova jornada na tela após o bloqueio de 10 segundos sem apagar o registro anterior.
 
 from __future__ import annotations
 
@@ -17417,6 +17417,8 @@ def ponto_publico(token: str) -> str | Response:
     sucesso = ""
     telefone_validado = session.get(f"ponto_validado_{token}") == "sim"
     registro_hoje = None
+    registro_exibicao = None
+    bloqueio_nova_entrada_segundos = 0
 
     if funcionario is None:
         erro = "Link de ponto inválido ou funcionário inativo."
@@ -17458,17 +17460,27 @@ def ponto_publico(token: str) -> str | Response:
     erro = erro or str(request.args.get("erro") or "")
     sucesso = sucesso or str(request.args.get("sucesso") or "")
 
+    registro_exibicao = registro_hoje
+    bloqueio_nova_entrada_segundos = bloqueio_nova_jornada_ponto_segundos(registro_hoje)
+
+    if (
+        registro_hoje
+        and str(registro_hoje.get("saida") or "").strip()
+        and bloqueio_nova_entrada_segundos <= 0
+    ):
+        registro_exibicao = None
+
     return render_template(
         "ponto_funcionario.html",
         token=token,
         funcionario=funcionario,
-        registro_hoje=registro_hoje,
+        registro_hoje=registro_exibicao,
         telefone_validado=telefone_validado,
         telefone_mascarado=mascarar_telefone_ponto(funcionario.get("telefone") if funcionario else ""),
         data_hoje=formatar_data_br(hoje_empresa()),
         exigir_intervalo_ponto=ponto_exige_intervalo(funcionario),
-        proxima_acao_ponto=proxima_acao_ponto(registro_hoje, funcionario),
-        bloqueio_nova_entrada_segundos=bloqueio_nova_jornada_ponto_segundos(registro_hoje),
+        proxima_acao_ponto=proxima_acao_ponto(registro_exibicao, funcionario),
+        bloqueio_nova_entrada_segundos=bloqueio_nova_entrada_segundos,
         erro=erro,
         sucesso=sucesso,
     )

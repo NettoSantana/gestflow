@@ -1,7 +1,7 @@
 <!--
 Caminho: templates/ponto_funcionario.html
-Último recode: 2026-07-14 18:47 (America/Bahia)
-Motivo: Evitar mensagem contraditória de validação quando o celular já está validado.
+Último recode: 2026-07-14 20:05 (America/Bahia)
+Motivo: Entregar o bloqueio de 10 segundos ao JavaScript e liberar nova jornada após a contagem.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -113,12 +113,16 @@ Motivo: Evitar mensagem contraditória de validação quando o celular já está
             <div id="ponto-area-batida" class="{% if not telefone_validado %}ponto-offline-hidden{% endif %}">
                 <div class="ponto-status-ok">Celular validado. Use os botões abaixo para bater o ponto de hoje.</div>
                 <div class="ponto-config-info">Intervalo/almoço: {% if exigir_intervalo %}exigido neste funcionário{% else %}não exigido neste funcionário{% endif %}.</div>
-                {% if entrada_bloqueada %}<div class="ponto-config-info" style="background:#fff7ed;border-color:#fed7aa;color:#9a3412;">Nova entrada liberada em {{ bloqueio_nova_entrada_segundos }} segundo(s).</div>{% endif %}
+                <div
+                    class="ponto-config-info {% if not entrada_bloqueada %}ponto-offline-hidden{% endif %}"
+                    id="ponto-bloqueio-aviso"
+                    style="background:#fff7ed;border-color:#fed7aa;color:#9a3412;"
+                >Nova entrada para hora extra liberada em {{ bloqueio_nova_entrada_segundos }} segundo(s).</div>
                 <div class="ponto-sync-box" id="ponto-sync-status">Verificando conexão...</div>
                 <div class="ponto-gps-status" id="ponto-gps-status">📍 A localização será solicitada antes de cada batida.</div>
                 <div class="ponto-pendente-lista" id="ponto-pendente-lista"></div>
 
-                <form method="post" action="/ponto/{{ token }}" class="ponto-buttons" id="ponto-form-batida" data-token="{{ token }}" data-telefone-validado="{{ 'sim' if telefone_validado else 'nao' }}" data-funcionario-nome="{{ funcionario.nome }}" data-empresa-nome="{{ funcionario.empresa_nome or 'GestFlow' }}" data-exigir-intervalo="{{ 'sim' if exigir_intervalo else 'nao' }}">
+                <form method="post" action="/ponto/{{ token }}" class="ponto-buttons" id="ponto-form-batida" data-token="{{ token }}" data-telefone-validado="{{ 'sim' if telefone_validado else 'nao' }}" data-funcionario-nome="{{ funcionario.nome }}" data-empresa-nome="{{ funcionario.empresa_nome or 'GestFlow' }}" data-exigir-intervalo="{{ 'sim' if exigir_intervalo else 'nao' }}" data-bloqueio-segundos="{{ bloqueio_nova_entrada_segundos|default(0)|int }}">
                     <input type="hidden" name="latitude" id="ponto-latitude" value="">
                     <input type="hidden" name="longitude" id="ponto-longitude" value="">
                     <input type="hidden" name="precisao" id="ponto-precisao" value="">
