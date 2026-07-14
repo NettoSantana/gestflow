@@ -1,6 +1,6 @@
 // Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\static\js\ponto_offline.js
-// Último recode: 2026-07-14 19:42 (America/Bahia)
-// Motivo: Impedir que o JavaScript limpe uma jornada ativa e liberar corretamente a saída após a entrada.
+// Último recode: 2026-07-14 19:52 (America/Bahia)
+// Motivo: Respeitar o backend no modo online e controlar botões localmente somente no modo offline.
 (function(){
     const form = document.getElementById('ponto-form-batida');
     const validationForm = document.getElementById('ponto-form-validacao');
@@ -162,17 +162,16 @@
         atualizarAvisoBloqueio(segundos);
 
         if(segundos <= 0){
+            if(navigator.onLine){
+                window.location.reload();
+                return;
+            }
+
             if(estado.campos && estado.campos.saida){
                 const atual = carregarEstado();
                 atual.campos = {};
                 atual.bloqueioAte = 0;
                 salvarEstado(atual);
-
-                if(navigator.onLine){
-                    window.location.reload();
-                    return;
-                }
-
                 renderizarEstadoOffline();
             }
             return;
@@ -180,19 +179,6 @@
 
         bloqueioTimer = setTimeout(function(){
             const atual = carregarEstado();
-            if(bloqueioRestanteSegundos(atual) <= 0){
-                atual.campos = {};
-                atual.bloqueioAte = 0;
-                salvarEstado(atual);
-
-                if(navigator.onLine){
-                    window.location.reload();
-                    return;
-                }
-
-                renderizarEstadoOffline();
-                return;
-            }
             agendarFimBloqueio(atual);
         }, 1000);
     }
@@ -232,7 +218,14 @@
     function prepararEstadoOnline(){
         const estado = estadoServidorAtual();
         salvarEstado(estado);
-        agendarFimBloqueio(estado);
+
+        const segundos = bloqueioRestanteSegundos(estado);
+        atualizarAvisoBloqueio(segundos);
+
+        if(segundos > 0){
+            desabilitarTodos();
+            agendarFimBloqueio(estado);
+        }
     }
 
     function liberarTelaValidada(){
@@ -391,19 +384,18 @@
     window.addEventListener('online', function(){
         if((form.dataset.telefoneValidado || '') === 'sim'){
             salvarValidacaoLocal();
-            liberarTelaValidada();
-        }else{
-            limparValidacaoLocal();
-            mostrarTelaNaoValidada();
+            window.location.reload();
+            return;
         }
-        sincronizarFila();
+
+        limparValidacaoLocal();
+        mostrarTelaNaoValidada();
     });
     window.addEventListener('offline', function(){atualizarStatus(); renderizarEstadoOffline();});
 
     if('serviceWorker' in navigator){navigator.serviceWorker.register('/service-worker.js').catch(function(){});}
 
-    if(navigator.onLine){prepararEstadoOnline();}
-    else{renderizarEstadoOffline();}
+    if(!navigator.onLine){renderizarEstadoOffline();}
     atualizarStatus();
     sincronizarFila();
 })();

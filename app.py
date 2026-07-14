@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-14 19:35 (America/Bahia)
-# Motivo: Liberar nova jornada de ponto após bloqueio preventivo de 10 segundos.
+# Último recode: 2026-07-14 19:52 (America/Bahia)
+# Motivo: Usar sempre a jornada mais recente e estabilizar entrada, saída e hora extra no ponto.
 
 from __future__ import annotations
 
@@ -10478,6 +10478,7 @@ def registrar_batida_ponto_publico(
             SELECT *
             FROM registros_ponto
             WHERE empresa_id = ? AND funcionario_id = ? AND data_ponto = ?
+            ORDER BY id DESC
             LIMIT 1
             """,
             (empresa_id, funcionario_id, data_final),
