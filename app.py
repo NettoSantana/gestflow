@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-14 11:04 (America/Bahia)
-# Motivo: Restaurar a geração do link individual e a seleção do funcionário no Registro de Ponto.
+# Último recode: 2026-07-14 11:31 (America/Bahia)
+# Motivo: Flexibilizar a validação do WhatsApp do ponto para aceitar celular com ou sem o nono dígito.
 
 from __future__ import annotations
 
@@ -2574,6 +2574,20 @@ def buscar_cliente_por_nome(nome_cliente: str) -> dict[str, Any] | None:
 
 def normalizar_telefone_publico(valor: Any) -> str:
     return re.sub(r"\D+", "", str(valor or ""))
+
+
+def normalizar_telefone_validacao_ponto(valor: Any) -> str:
+    telefone = normalizar_telefone_publico(valor)
+
+    if telefone.startswith("55") and len(telefone) in {12, 13}:
+        telefone = telefone[2:]
+
+    if len(telefone) not in {10, 11}:
+        return ""
+
+    ddd = telefone[:2]
+    numero_base = telefone[-8:]
+    return f"{ddd}{numero_base}"
 
 
 def gerar_token_publico_cliente() -> str:
@@ -17291,8 +17305,8 @@ def ponto_publico(token: str) -> str | Response:
             etapa = str(request.form.get("etapa") or "").strip()
 
             if etapa == "validar_celular":
-                telefone_digitado = normalizar_telefone_publico(request.form.get("telefone"))
-                telefone_cadastrado = normalizar_telefone_publico(funcionario.get("telefone"))
+                telefone_digitado = normalizar_telefone_validacao_ponto(request.form.get("telefone"))
+                telefone_cadastrado = normalizar_telefone_validacao_ponto(funcionario.get("telefone"))
 
                 if telefone_cadastrado and telefone_digitado == telefone_cadastrado:
                     session[f"ponto_validado_{token}"] = "sim"
