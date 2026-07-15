@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\produto_editar.html
-Último recode: 2026-07-02 23:41 (America/Bahia)
-Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
+Último recode: 2026-07-14 21:59 (America/Bahia)
+Motivo: Adicionar ficha técnica, composição do CMV e acesso à produção no cadastro do produto.
 -->
 
 <!DOCTYPE html>
@@ -253,6 +253,367 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
         }
     </style>
 
+    <style>
+        .cost-origin-note {
+            margin-top: 7px;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1.45;
+        }
+
+        .cmv-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px;
+            margin-top: 16px;
+        }
+
+        .cmv-summary-card {
+            min-height: 94px;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            background: #ffffff;
+            padding: 14px;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+        }
+
+        .cmv-summary-card span {
+            display: block;
+            margin-bottom: 8px;
+            color: #64748b;
+            font-size: 11px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .cmv-summary-card strong {
+            display: block;
+            color: #0f172a;
+            font-size: 20px;
+            line-height: 1.2;
+            overflow-wrap: anywhere;
+        }
+
+        .cmv-summary-card small {
+            display: block;
+            margin-top: 6px;
+            color: #64748b;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1.35;
+        }
+
+        .cmv-summary-card.primary {
+            border-color: #86efac;
+            background: #f0fdf4;
+        }
+
+        .cmv-summary-card.primary strong {
+            color: #15803d;
+        }
+
+        .composition-intro {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 16px;
+            padding: 14px;
+            border: 1px solid #dbeafe;
+            border-radius: 14px;
+            background: #eff6ff;
+        }
+
+        .composition-intro strong {
+            display: block;
+            margin-bottom: 4px;
+            color: #1e3a8a;
+            font-size: 14px;
+        }
+
+        .composition-intro p {
+            margin: 0;
+            color: #475569;
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 1.45;
+        }
+
+        .composition-block + .composition-block {
+            margin-top: 24px;
+            padding-top: 22px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .composition-block-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .composition-block-header h4 {
+            margin: 0 0 4px;
+            color: #0f172a;
+            font-size: 15px;
+        }
+
+        .composition-block-header p {
+            margin: 0;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .table-shell {
+            border: 1px solid #e2e8f0 !important;
+            border-radius: 14px;
+            overflow-x: auto;
+            background: #ffffff;
+        }
+
+        .composition-table {
+            width: 100%;
+            min-width: 1020px;
+            border-collapse: collapse;
+        }
+
+        .composition-table thead th {
+            padding: 11px 10px;
+            border-bottom: 1px solid #e2e8f0;
+            background: #f8fafc;
+            color: #334155;
+            font-size: 11px;
+            font-weight: 900;
+            text-align: left;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .composition-table tbody td {
+            padding: 10px;
+            border-bottom: 1px solid #eef2f7;
+            color: #334155;
+            vertical-align: middle;
+        }
+
+        .composition-table tbody tr:last-child td {
+            border-bottom: 0;
+        }
+
+        .composition-table .form-control {
+            min-width: 90px;
+            height: 40px;
+            padding: 8px 10px;
+            font-size: 12px;
+        }
+
+        .component-select {
+            min-width: 260px !important;
+        }
+
+        .component-observation {
+            min-width: 210px !important;
+        }
+
+        .component-info {
+            min-width: 110px;
+            color: #475569;
+            font-size: 12px;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        .component-total {
+            min-width: 110px;
+            color: #0f172a;
+            font-size: 13px;
+            font-weight: 900;
+            white-space: nowrap;
+        }
+
+        .composition-remove {
+            width: 34px;
+            height: 34px;
+            border: 0;
+            border-radius: 9px;
+            background: #fee2e2;
+            color: #dc2626;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 900;
+            cursor: pointer;
+        }
+
+        .composition-remove:hover {
+            background: #fecaca;
+        }
+
+        .empty-composition {
+            padding: 20px;
+            color: #64748b;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .composition-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #e2e8f0;
+            flex-wrap: wrap;
+        }
+
+        .composition-total-box {
+            min-width: 280px;
+            padding: 14px;
+            border: 1px solid #bbf7d0;
+            border-radius: 14px;
+            background: #f0fdf4;
+        }
+
+        .composition-total-box span {
+            display: block;
+            margin-bottom: 4px;
+            color: #166534;
+            font-size: 11px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .composition-total-box strong {
+            display: block;
+            color: #15803d;
+            font-size: 24px;
+            line-height: 1.2;
+        }
+
+        .composition-total-box small {
+            display: block;
+            margin-top: 4px;
+            color: #166534;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .danger-zone {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            margin-top: 16px;
+            padding: 14px;
+            border: 1px solid #fecaca;
+            border-radius: 14px;
+            background: #fff7f7;
+            flex-wrap: wrap;
+        }
+
+        .danger-zone strong {
+            display: block;
+            margin-bottom: 4px;
+            color: #991b1b;
+            font-size: 13px;
+        }
+
+        .danger-zone p {
+            margin: 0;
+            color: #7f1d1d;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .btn-danger-light {
+            min-height: 38px;
+            padding: 0 14px;
+            border: 1px solid #fecaca;
+            border-radius: 10px;
+            background: #ffffff;
+            color: #dc2626;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 900;
+            cursor: pointer;
+        }
+
+        .btn-danger-light:hover {
+            background: #fee2e2;
+        }
+
+        .composition-warning {
+            margin-top: 12px;
+            padding: 12px 14px;
+            border: 1px solid #fde68a;
+            border-radius: 12px;
+            background: #fffbeb;
+            color: #92400e;
+            font-size: 12px;
+            font-weight: 800;
+            line-height: 1.45;
+        }
+
+        @media (max-width: 1100px) {
+            .cmv-summary-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 720px) {
+            .client-toolbar,
+            .form-actions,
+            .client-actions,
+            .composition-actions {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .client-toolbar .btn-primary-green,
+            .client-toolbar .btn-dark,
+            .client-toolbar .btn-light,
+            .form-actions .btn-primary-green,
+            .form-actions .btn-dark,
+            .form-actions .btn-light,
+            .composition-actions .btn-primary-green,
+            .composition-actions .btn-dark,
+            .composition-actions .btn-light {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .cmv-summary-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .composition-intro {
+                grid-template-columns: 1fr;
+            }
+
+            .composition-block-header,
+            .composition-footer,
+            .danger-zone {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .composition-total-box {
+                min-width: 0;
+                width: 100%;
+            }
+        }
+
+    </style>
+
 </head>
 <body>
     {% include "partials/sidebar.html" %}
@@ -265,15 +626,27 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
             <div class="form-alert-error">{{ request.args.get('erro') }}</div>
         {% endif %}
 
+        {% if request.args.get('sucesso') %}
+            <div class="form-alert-success">{{ request.args.get('sucesso') }}</div>
+        {% endif %}
+
+        {% set resumo = resumo_composicao|default({}, true) %}
+        {% set tem_composicao = resumo.possui_composicao|default(false, true) %}
+
 <section class="panel page-section">
             <div class="panel-header page-header">
                 <div>
                     <span class="page-kicker">Cadastros</span>
                     <h3 class="page-title">Editar produto</h3>
-                    <p class="page-subtitle">Atualize os dados principais do produto selecionado.</p>
+                    <p class="page-subtitle">Atualize os dados do produto, monte a ficha técnica e calcule o CMV unitário.</p>
                 </div>
 
-                <a href="/produtos/{{ produto.id }}" class="btn-dark">Cancelar edição</a>
+                <div class="client-toolbar">
+                    {% if tem_composicao %}
+                        <a href="/produtos/{{ produto.id }}/producao" class="btn-primary-green">Produzir produto</a>
+                    {% endif %}
+                    <a href="/produtos/{{ produto.id }}" class="btn-dark">Cancelar edição</a>
+                </div>
             </div>
         </section>
 
@@ -338,8 +711,15 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                     </div>
 
                     <div class="form-group">
-                        <label for="produto_preco_custo">Preço de custo</label>
-                        <input id="produto_preco_custo" name="produto_preco_custo" type="text" value="{{ produto.preco_custo or '' }}" placeholder="Ex: 25,00" class="form-control">
+                        <label for="produto_preco_custo">Custo manual</label>
+                        <input id="produto_preco_custo" name="produto_preco_custo" type="text" value="{{ produto.preco_custo_manual or produto.preco_custo or '' }}" placeholder="Ex: 25,00" class="form-control">
+                        <div class="cost-origin-note">
+                            {% if tem_composicao %}
+                                O custo efetivo está sendo calculado pela ficha técnica. Este valor manual ficará guardado caso a composição seja removida.
+                            {% else %}
+                                Este valor será usado enquanto o produto não possuir uma ficha técnica.
+                            {% endif %}
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -364,12 +744,342 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
 
                 <div class="form-actions">
                     <a href="/produtos/{{ produto.id }}" class="btn-light">Cancelar</a>
-                    <button type="submit" class="btn-primary-green">Salvar Alterações</button>
+                    <button type="submit" class="btn-primary-green">Salvar dados do produto</button>
                 </div>
             </form>
+
+            <div class="cmv-summary-grid">
+                <div class="cmv-summary-card">
+                    <span>Custo manual</span>
+                    <strong>R$ {{ produto.preco_custo_manual or produto.preco_custo or '0,00' }}</strong>
+                    <small>Valor de segurança para produto sem composição.</small>
+                </div>
+                <div class="cmv-summary-card">
+                    <span>Componentes</span>
+                    <strong id="resumo-custo-componentes">R$ {{ '%.2f'|format(resumo.custo_componentes|default(0, true))|replace('.', ',') }}</strong>
+                    <small>{{ resumo.quantidade_componentes|default(0, true) }} componente(s) na ficha.</small>
+                </div>
+                <div class="cmv-summary-card">
+                    <span>Custos diretos</span>
+                    <strong id="resumo-custos-diretos">R$ {{ '%.2f'|format(resumo.custos_diretos|default(0, true))|replace('.', ',') }}</strong>
+                    <small>{{ resumo.quantidade_custos|default(0, true) }} custo(s) direto(s).</small>
+                </div>
+                <div class="cmv-summary-card primary">
+                    <span>CMV unitário efetivo</span>
+                    <strong id="resumo-cmv-unitario">R$ {{ '%.2f'|format(resumo.custo_efetivo|default(0, true))|replace('.', ',') }}</strong>
+                    <small>{{ 'Calculado pela ficha técnica.' if tem_composicao else 'Utilizando o custo manual.' }}</small>
+                </div>
+            </div>
+
+        </section>
+
+        <section class="panel page-section" id="ficha-tecnica">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Composição do CMV</span>
+                    <h3 class="page-title">Ficha técnica do produto</h3>
+                    <p class="page-subtitle">Defina os componentes consumidos e os custos diretos necessários para produzir uma unidade deste produto.</p>
+                </div>
+
+                {% if tem_composicao %}
+                    <span class="status-pill ativo">Ficha ativa</span>
+                {% else %}
+                    <span class="badge-info">Sem composição</span>
+                {% endif %}
+            </div>
+
+            <div class="composition-intro">
+                <div>
+                    <strong>O cálculo abaixo representa uma unidade produzida.</strong>
+                    <p>Ao produzir, o sistema dará baixa nos componentes e entrada no estoque do produto final.</p>
+                </div>
+
+                {% if tem_composicao %}
+                    <a href="/produtos/{{ produto.id }}/producao" class="btn-primary-green">Abrir produção</a>
+                {% endif %}
+            </div>
+
+            <form action="/produtos/{{ produto.id }}/composicao" method="post" id="form-composicao" class="client-form">
+                <div class="composition-block">
+                    <div class="composition-block-header">
+                        <div>
+                            <h4>Componentes e insumos</h4>
+                            <p>Selecione produtos cadastrados que serão consumidos durante a produção.</p>
+                        </div>
+                        <button type="button" class="btn-primary-green" onclick="adicionarComponente()">+ Adicionar componente</button>
+                    </div>
+
+                    <div class="table-shell">
+                        <table class="composition-table">
+                            <thead>
+                                <tr>
+                                    <th>Componente</th>
+                                    <th>Unidade</th>
+                                    <th>Qtd. por unidade</th>
+                                    <th>Perda %</th>
+                                    <th>Custo unitário</th>
+                                    <th>Custo total</th>
+                                    <th>Observação</th>
+                                    <th>Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody id="componentes-body"></tbody>
+                        </table>
+                        <div id="componentes-vazio" class="empty-composition">Nenhum componente adicionado.</div>
+                    </div>
+                </div>
+
+                <div class="composition-block">
+                    <div class="composition-block-header">
+                        <div>
+                            <h4>Custos diretos</h4>
+                            <p>Inclua mão de obra, embalagem, frete, consumíveis, energia ou outro custo direto por unidade produzida.</p>
+                        </div>
+                        <button type="button" class="btn-primary-green" onclick="adicionarCustoDireto()">+ Adicionar custo</button>
+                    </div>
+
+                    <div class="table-shell">
+                        <table class="composition-table" style="min-width: 720px;">
+                            <thead>
+                                <tr>
+                                    <th>Tipo</th>
+                                    <th>Descrição</th>
+                                    <th>Valor por unidade</th>
+                                    <th>Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody id="custos-diretos-body"></tbody>
+                        </table>
+                        <div id="custos-diretos-vazio" class="empty-composition">Nenhum custo direto adicionado.</div>
+                    </div>
+                </div>
+
+                <div class="composition-footer">
+                    <div class="composition-actions">
+                        <button type="button" class="btn-light" onclick="adicionarComponente()">+ Componente</button>
+                        <button type="button" class="btn-light" onclick="adicionarCustoDireto()">+ Custo direto</button>
+                        <button type="submit" class="btn-primary-green">Salvar ficha técnica</button>
+                    </div>
+
+                    <div class="composition-total-box">
+                        <span>CMV unitário calculado</span>
+                        <strong id="cmv-total-preview">R$ 0,00</strong>
+                        <small>Componentes com perdas + custos diretos.</small>
+                    </div>
+                </div>
+            </form>
+
+            {% if not produtos_componentes|default([]) %}
+                <div class="composition-warning">
+                    Cadastre pelo menos outro produto ativo para utilizá-lo como componente desta ficha técnica.
+                </div>
+            {% endif %}
+
+            {% if tem_composicao %}
+                <div class="danger-zone">
+                    <div>
+                        <strong>Remover ficha técnica</strong>
+                        <p>O custo efetivo voltará a usar o custo manual cadastrado no produto.</p>
+                    </div>
+                    <form action="/produtos/{{ produto.id }}/composicao/remover" method="post" onsubmit="return confirm('Remover toda a ficha técnica deste produto?');">
+                        <button type="submit" class="btn-danger-light">Remover composição</button>
+                    </form>
+                </div>
+            {% endif %}
         </section>
 
     </main>
 
+
+    <script>
+        const catalogoComponentes = {{ produtos_componentes|default([])|tojson }};
+        const componentesIniciais = {{ composicao_itens|default([])|tojson }};
+        const custosIniciais = {{ composicao_custos|default([])|tojson }};
+
+        function textoSeguro(valor) {
+            return String(valor ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function numeroBr(valor) {
+            let texto = String(valor ?? '').trim().replace('R$', '').replace(/\s/g, '');
+            if (!texto) return 0;
+            if (texto.includes(',')) texto = texto.replace(/\./g, '').replace(',', '.');
+            const numero = Number.parseFloat(texto);
+            return Number.isFinite(numero) ? numero : 0;
+        }
+
+        function moedaBr(valor) {
+            const numero = Number.isFinite(valor) ? valor : 0;
+            return numero.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+
+        function valorCampo(valor) {
+            const numero = numeroBr(valor);
+            if (!numero) return '';
+            return numero.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+        }
+
+        function opcoesComponentes(selecionado = '', fallback = {}) {
+            let html = '<option value="">Selecione um componente</option>';
+            let encontrado = false;
+
+            catalogoComponentes.forEach(function(item) {
+                const id = String(item.id ?? '');
+                const ativo = id === String(selecionado) ? ' selected' : '';
+                if (ativo) encontrado = true;
+                const codigo = item.codigo ? ` - ${textoSeguro(item.codigo)}` : '';
+                html += `<option value="${textoSeguro(id)}" data-unidade="${textoSeguro(item.unidade || 'un')}" data-custo="${textoSeguro(item.preco_custo || item.preco_custo_manual || '0,00')}" data-estoque="${textoSeguro(item.estoque_atual || '0')}"${ativo}>${textoSeguro(item.nome || '')}${codigo}</option>`;
+            });
+
+            if (selecionado && !encontrado) {
+                html += `<option value="${textoSeguro(selecionado)}" data-unidade="${textoSeguro(fallback.unidade || 'un')}" data-custo="${textoSeguro(fallback.custo_unitario_atual || fallback.custo_unitario || '0,00')}" data-estoque="${textoSeguro(fallback.componente_estoque_atual || '0')}" selected>${textoSeguro(fallback.componente_nome || 'Componente cadastrado')}</option>`;
+            }
+
+            return html;
+        }
+
+        function adicionarComponente(dados = {}) {
+            const body = document.getElementById('componentes-body');
+            const tr = document.createElement('tr');
+            const componenteId = dados.componente_produto_id ?? '';
+            const quantidade = dados.quantidade ?? dados.quantidade_numero ?? '1';
+            const perda = dados.perda_percentual ?? dados.perda_percentual_numero ?? '0';
+
+            tr.innerHTML = `
+                <td>
+                    <select name="componente_produto_id" class="form-control component-select" required>
+                        ${opcoesComponentes(componenteId, dados)}
+                    </select>
+                </td>
+                <td><span class="component-info componente-unidade">${textoSeguro(dados.unidade || '-')}</span></td>
+                <td><input name="componente_quantidade" type="text" class="form-control componente-calculo" value="${textoSeguro(quantidade)}" placeholder="1" required></td>
+                <td><input name="componente_perda_percentual" type="text" class="form-control componente-calculo" value="${textoSeguro(perda)}" placeholder="0"></td>
+                <td><span class="component-info componente-custo">R$ 0,00</span></td>
+                <td><strong class="component-total">R$ 0,00</strong></td>
+                <td><input name="componente_observacoes" type="text" class="form-control component-observation" value="${textoSeguro(dados.observacoes || '')}" placeholder="Opcional"></td>
+                <td><button type="button" class="composition-remove" onclick="removerLinhaComposicao(this)" aria-label="Remover componente">×</button></td>
+            `;
+
+            body.appendChild(tr);
+            conectarEventosComponente(tr);
+            atualizarLinhaComponente(tr);
+            atualizarVazios();
+            recalcularComposicao();
+        }
+
+        function adicionarCustoDireto(dados = {}) {
+            const body = document.getElementById('custos-diretos-body');
+            const tr = document.createElement('tr');
+            const tipo = String(dados.tipo || 'outro');
+
+            tr.innerHTML = `
+                <td>
+                    <select name="composicao_custo_tipo" class="form-control custo-direto-calculo">
+                        <option value="mao_obra"${tipo === 'mao_obra' ? ' selected' : ''}>Mão de obra</option>
+                        <option value="embalagem"${tipo === 'embalagem' ? ' selected' : ''}>Embalagem</option>
+                        <option value="frete"${tipo === 'frete' ? ' selected' : ''}>Frete</option>
+                        <option value="consumivel"${tipo === 'consumivel' ? ' selected' : ''}>Consumível</option>
+                        <option value="energia"${tipo === 'energia' ? ' selected' : ''}>Energia</option>
+                        <option value="outro"${tipo === 'outro' ? ' selected' : ''}>Outro</option>
+                    </select>
+                </td>
+                <td><input name="composicao_custo_descricao" type="text" class="form-control" value="${textoSeguro(dados.descricao || '')}" placeholder="Ex: Montagem e testes" required></td>
+                <td><input name="composicao_custo_valor" type="text" class="form-control custo-direto-calculo" value="${textoSeguro(dados.valor || dados.valor_numero || '')}" placeholder="0,00" required></td>
+                <td><button type="button" class="composition-remove" onclick="removerLinhaComposicao(this)" aria-label="Remover custo">×</button></td>
+            `;
+
+            body.appendChild(tr);
+            tr.querySelectorAll('input, select').forEach(function(campo) {
+                campo.addEventListener('input', recalcularComposicao);
+                campo.addEventListener('change', recalcularComposicao);
+            });
+            atualizarVazios();
+            recalcularComposicao();
+        }
+
+        function conectarEventosComponente(tr) {
+            const select = tr.querySelector('[name="componente_produto_id"]');
+            select.addEventListener('change', function() {
+                atualizarLinhaComponente(tr);
+                recalcularComposicao();
+            });
+
+            tr.querySelectorAll('.componente-calculo').forEach(function(campo) {
+                campo.addEventListener('input', function() {
+                    atualizarLinhaComponente(tr);
+                    recalcularComposicao();
+                });
+                campo.addEventListener('change', function() {
+                    atualizarLinhaComponente(tr);
+                    recalcularComposicao();
+                });
+            });
+        }
+
+        function atualizarLinhaComponente(tr) {
+            const select = tr.querySelector('[name="componente_produto_id"]');
+            const option = select?.selectedOptions?.[0];
+            const quantidade = numeroBr(tr.querySelector('[name="componente_quantidade"]')?.value);
+            const perda = Math.max(numeroBr(tr.querySelector('[name="componente_perda_percentual"]')?.value), 0);
+            const custo = numeroBr(option?.dataset?.custo || '0');
+            const unidade = option?.dataset?.unidade || '-';
+            const total = quantidade * (1 + perda / 100) * custo;
+
+            tr.dataset.totalComponente = String(total);
+            tr.querySelector('.componente-unidade').textContent = unidade;
+            tr.querySelector('.componente-custo').textContent = moedaBr(custo);
+            tr.querySelector('.component-total').textContent = moedaBr(total);
+        }
+
+        function removerLinhaComposicao(botao) {
+            const linha = botao.closest('tr');
+            if (linha) linha.remove();
+            atualizarVazios();
+            recalcularComposicao();
+        }
+
+        function atualizarVazios() {
+            const temComponentes = document.querySelectorAll('#componentes-body tr').length > 0;
+            const temCustos = document.querySelectorAll('#custos-diretos-body tr').length > 0;
+            document.getElementById('componentes-vazio').style.display = temComponentes ? 'none' : 'block';
+            document.getElementById('custos-diretos-vazio').style.display = temCustos ? 'none' : 'block';
+        }
+
+        function recalcularComposicao() {
+            let componentes = 0;
+            let custos = 0;
+
+            document.querySelectorAll('#componentes-body tr').forEach(function(tr) {
+                componentes += numeroBr(tr.dataset.totalComponente || '0');
+            });
+
+            document.querySelectorAll('#custos-diretos-body [name="composicao_custo_valor"]').forEach(function(campo) {
+                custos += numeroBr(campo.value);
+            });
+
+            const total = componentes + custos;
+            document.getElementById('cmv-total-preview').textContent = moedaBr(total);
+            document.getElementById('resumo-custo-componentes').textContent = moedaBr(componentes);
+            document.getElementById('resumo-custos-diretos').textContent = moedaBr(custos);
+            document.getElementById('resumo-cmv-unitario').textContent = moedaBr(total || numeroBr('{{ produto.preco_custo_manual or produto.preco_custo or "0" }}'));
+        }
+
+        window.addEventListener('DOMContentLoaded', function() {
+            componentesIniciais.forEach(function(item) {
+                adicionarComponente(item);
+            });
+
+            custosIniciais.forEach(function(item) {
+                adicionarCustoDireto(item);
+            });
+
+            atualizarVazios();
+            recalcularComposicao();
+        });
+    </script>
 </body>
 </html>
