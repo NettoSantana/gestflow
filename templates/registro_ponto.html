@@ -1,14 +1,14 @@
 <!--
-Caminho: templates/registro_ponto.html
-Último recode: 2026-07-14 20:35 (America/Bahia)
-Motivo: Adicionar exportação e ações de editar e excluir em cada marcação do espelho.
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\registro_ponto.html
+Último recode: 2026-07-15 12:40 (America/Bahia)
+Motivo: Remover a área interna de bater ponto e ampliar o gerenciamento administrativo do ponto.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GestFlow - Registro de Ponto</title>
+    <title>GestFlow - Gerenciamento de Ponto</title>
     <link rel="stylesheet" href="/static/css/dashboard.css">
     <style>
         .ponto-alert{margin:0 0 14px;padding:12px 14px;border-radius:12px;font-weight:900;font-size:13px}
@@ -17,7 +17,7 @@ Motivo: Adicionar exportação e ações de editar e excluir em cada marcação 
         .ponto-atalhos{display:flex;gap:10px;flex-wrap:wrap}
         .ponto-chip{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:0 12px;border-radius:999px;border:1px solid #dbeafe;background:#eff6ff;color:#1d4ed8;font-size:12px;font-weight:900;text-decoration:none}
         .ponto-chip.admin{border-color:#bbf7d0;background:#f0fdf4;color:#166534}
-        .ponto-page-content{overflow-x:hidden}.ponto-layout{width:100%;max-width:100%;display:grid;grid-template-columns:minmax(280px,400px) minmax(0,1fr);gap:16px;align-items:start;overflow:visible}.ponto-layout>*{min-width:0;max-width:100%}
+        .ponto-page-content{overflow-x:hidden}.ponto-layout{width:100%;max-width:100%;display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:start;overflow:visible}.ponto-layout>*{min-width:0;max-width:100%}
         .ponto-funcionario{min-width:0;max-width:100%;overflow:hidden}
         .ponto-topo-funcionario{margin:-18px -18px 16px;padding:20px 18px;background:linear-gradient(135deg,#071a2b,#0f62fe);color:#fff}
         .ponto-topo-funcionario h3{margin:0 0 6px;color:#fff;font-size:18px;text-transform:none}
@@ -91,27 +91,17 @@ Motivo: Adicionar exportação e ações de editar e excluir em cada marcação 
 <body>
 {% include "partials/sidebar.html" %}
 <main class="content ponto-page-content">
-    {% set page_title = 'Registro de Ponto' %}
+    {% set page_title = 'Gerenciamento de Ponto' %}
     {% include "partials/topbar.html" %}
 
-    {% set tem_funcionario = funcionario_id|string and funcionario_id|string != '' %}
     {% set exigir_intervalo = exigir_intervalo_ponto|default(true) %}
-    {% set entrada_marcada = registro_hoje and registro_hoje.entrada %}
-    {% set saida_intervalo_marcada = registro_hoje and registro_hoje.saida_intervalo %}
-    {% set retorno_intervalo_marcado = registro_hoje and registro_hoje.retorno_intervalo %}
-    {% set saida_marcada = registro_hoje and registro_hoje.saida %}
-    {% set entrada_bloqueada = (bloqueio_nova_entrada_segundos|default(0)|int) > 0 %}
 
     <section class="panel page-section">
         <div class="panel-header page-header">
             <div>
                 <span class="page-kicker">Equipe</span>
-                <h3 class="page-title">Registro de Ponto</h3>
-                <p class="page-subtitle">Tela simples para o funcionário bater cartão e área administrativa para conferir espelho e corrigir marcações.</p>
-            </div>
-            <div class="ponto-atalhos">
-                <a class="ponto-chip" href="#bater-ponto">Visão funcionário</a>
-                <a class="ponto-chip admin" href="#espelho-ponto">Visão administrador</a>
+                <h3 class="page-title">Gerenciamento de Ponto</h3>
+                <p class="page-subtitle">Consulte o espelho, exporte registros e faça ajustes administrativos das marcações.</p>
             </div>
         </div>
     </section>
@@ -121,110 +111,6 @@ Motivo: Adicionar exportação e ações de editar e excluir em cada marcação 
 
 
     <section class="ponto-layout">
-        <div class="panel ponto-funcionario" id="bater-ponto">
-            <div class="ponto-topo-funcionario">
-                <h3>Bater ponto</h3>
-                <p>{% if exigir_intervalo %}Entrada, intervalo, retorno e saída em poucos cliques.{% else %}Entrada e saída em poucos cliques.{% endif %}</p>
-            </div>
-
-            <form method="get" action="/registro-ponto" class="ponto-identificacao">
-                <label>Identificação do funcionário</label>
-                <select class="form-control" name="funcionario_id" onchange="this.form.submit()">
-                    <option value="">Selecione o funcionário</option>
-                    {% for funcionario in funcionarios %}
-                    <option value="{{ funcionario.id }}" {% if funcionario_id|string == funcionario.id|string %}selected{% endif %}>{{ funcionario.nome }}</option>
-                    {% endfor %}
-                </select>
-            </form>
-
-            {% if tem_funcionario %}
-                {% for funcionario in funcionarios %}
-                    {% if funcionario_id|string == funcionario.id|string %}
-                    {% set token_ponto = funcionario.token_ponto or funcionario.token_ponto_publico or '' %}
-                    <div class="ponto-link-card ponto-link-selecionado">
-                        <div>
-                            <strong>Link individual do funcionário</strong>
-                            <span>Envie este link para {{ funcionario.nome }}. Celular cadastrado: {{ funcionario.telefone or 'sem celular cadastrado' }}.</span>
-                        </div>
-                        {% if token_ponto %}
-                        <input class="ponto-link-input" id="link-ponto-selecionado" value="{{ request.url_root.rstrip('/') }}/ponto/{{ token_ponto }}" readonly onclick="this.select()">
-                        <div class="ponto-link-actions">
-                            <a class="ponto-chip admin" href="{{ request.url_root.rstrip('/') }}/ponto/{{ token_ponto }}" target="_blank" rel="noopener">Abrir</a>
-                            <button class="ponto-chip ponto-copy-btn" type="button" data-copy-target="link-ponto-selecionado">Copiar link</button>
-                        </div>
-                        {% else %}
-                        <div class="ponto-link-vazio">Este funcionário ainda não tem token de ponto. Recarregue a página ou abra o cadastro do funcionário para atualizar.</div>
-                        {% endif %}
-                    </div>
-                    {% endif %}
-                {% endfor %}
-            {% else %}
-            <div class="ponto-link-card ponto-link-selecionado ponto-link-vazio">
-                Selecione um funcionário acima para exibir o link individual de ponto.
-            </div>
-            {% endif %}
-
-            <div class="ponto-selecionado">
-                <div class="ponto-avatar">👤</div>
-                <div>
-                    <span>Funcionário selecionado</span>
-                    <strong>
-                        {% if funcionario_selecionado %}
-                            {{ funcionario_selecionado.nome }}
-                        {% else %}
-                            Nenhum funcionário selecionado
-                        {% endif %}
-                    </strong>
-                </div>
-            </div>
-
-            {% if tem_funcionario %}
-            <div class="ponto-proximo" style="background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8;">
-                <span>Intervalo/almoço: {% if exigir_intervalo %}exigido para este funcionário{% else %}não exigido para este funcionário{% endif %}</span>
-            </div>
-            {% endif %}
-
-            <div class="clock-box">
-                <div class="clock-time" id="ponto-relogio">--:--</div>
-                <div class="clock-date">{{ data_hoje }}</div>
-            </div>
-
-            <div class="ponto-proximo {% if not tem_funcionario or entrada_bloqueada %}alerta{% endif %}" id="ponto-bloqueio-admin" data-bloqueio-segundos="{{ bloqueio_nova_entrada_segundos|default(0)|int }}">
-                <span>{{ proxima_marcacao }}</span>
-            </div>
-
-            <form method="post" action="/registro-ponto" class="ponto-buttons">
-                <input type="hidden" name="funcionario_id" value="{{ funcionario_id }}">
-
-                <button class="ponto-btn entrada" name="acao" value="entrada" type="submit" {% if not tem_funcionario or entrada_bloqueada or entrada_marcada %}disabled{% endif %}>
-                    <span class="ponto-icone">↦</span><span class="ponto-texto"><strong>Entrada</strong><span>Iniciar expediente</span></span>
-                </button>
-
-                {% if exigir_intervalo %}
-                <button class="ponto-btn" name="acao" value="saida_intervalo" type="submit" {% if not tem_funcionario or entrada_bloqueada or not entrada_marcada or saida_intervalo_marcada %}disabled{% endif %}>
-                    <span class="ponto-icone">☕</span><span class="ponto-texto"><strong>Saída intervalo</strong><span>Pausar expediente</span></span>
-                </button>
-
-                <button class="ponto-btn" name="acao" value="retorno_intervalo" type="submit" {% if not tem_funcionario or entrada_bloqueada or not saida_intervalo_marcada or retorno_intervalo_marcado %}disabled{% endif %}>
-                    <span class="ponto-icone">↩</span><span class="ponto-texto"><strong>Retorno intervalo</strong><span>Voltar ao trabalho</span></span>
-                </button>
-                {% endif %}
-
-                <button class="ponto-btn saida" name="acao" value="saida" type="submit" {% if not tem_funcionario or entrada_bloqueada or (exigir_intervalo and not retorno_intervalo_marcado) or ((not exigir_intervalo) and not entrada_marcada) or saida_marcada %}disabled{% endif %}>
-                    <span class="ponto-icone">⇥</span><span class="ponto-texto"><strong>Saída</strong><span>Encerrar expediente</span></span>
-                </button>
-            </form>
-
-            <div class="ponto-status-grid">
-                <div class="ponto-status-item"><span>Entrada</span><strong>{{ registro_hoje.entrada if registro_hoje and registro_hoje.entrada else '--:--' }}</strong></div>
-                {% if exigir_intervalo %}
-                <div class="ponto-status-item"><span>Saída intervalo</span><strong>{{ registro_hoje.saida_intervalo if registro_hoje and registro_hoje.saida_intervalo else '--:--' }}</strong></div>
-                <div class="ponto-status-item"><span>Retorno intervalo</span><strong>{{ registro_hoje.retorno_intervalo if registro_hoje and registro_hoje.retorno_intervalo else '--:--' }}</strong></div>
-                {% endif %}
-                <div class="ponto-status-item"><span>Saída</span><strong>{{ registro_hoje.saida if registro_hoje and registro_hoje.saida else '--:--' }}</strong></div>
-            </div>
-        </div>
-
         <div class="ponto-admin" id="espelho-ponto">
             <div class="panel">
                 <div class="ponto-admin-head">
@@ -452,16 +338,6 @@ Motivo: Adicionar exportação e ações de editar e excluir em cada marcação 
 
 <script>
 (function(){
-    function tick(){
-        var d = new Date();
-        var h = String(d.getHours()).padStart(2,'0');
-        var m = String(d.getMinutes()).padStart(2,'0');
-        var el = document.getElementById('ponto-relogio');
-        if(el){el.textContent = h + ':' + m;}
-    }
-    tick();
-    setInterval(tick,15000);
-
     document.querySelectorAll('[data-copy-target]').forEach(function(botao){
         botao.addEventListener('click', function(){
             var alvo = document.getElementById(botao.getAttribute('data-copy-target'));
@@ -488,13 +364,6 @@ Motivo: Adicionar exportação e ações de editar e excluir em cada marcação 
 
     var modalEditar=document.getElementById('ponto-modal-editar');var formEditar=document.getElementById('ponto-form-editar');var resumoEditar=document.getElementById('ponto-modal-resumo');function fecharModalEditar(){if(!modalEditar){return;}modalEditar.classList.remove('aberto');modalEditar.setAttribute('aria-hidden','true');}document.querySelectorAll('[data-editar-ponto]').forEach(function(botao){botao.addEventListener('click',function(){if(!modalEditar||!formEditar){return;}formEditar.action='/registro-ponto/'+botao.dataset.id+'/editar';document.getElementById('editar-entrada').value=botao.dataset.entrada||'';document.getElementById('editar-saida-intervalo').value=botao.dataset.saidaIntervalo||'';document.getElementById('editar-retorno-intervalo').value=botao.dataset.retornoIntervalo||'';document.getElementById('editar-saida').value=botao.dataset.saida||'';if(resumoEditar){resumoEditar.textContent=(botao.dataset.funcionario||'Funcionário')+' · '+(botao.dataset.data||'');}modalEditar.classList.add('aberto');modalEditar.setAttribute('aria-hidden','false');});});document.querySelectorAll('[data-fechar-modal]').forEach(function(botao){botao.addEventListener('click',fecharModalEditar);});if(modalEditar){modalEditar.addEventListener('click',function(evento){if(evento.target===modalEditar){fecharModalEditar();}});}
 
-    var bloqueio = document.getElementById('ponto-bloqueio-admin');
-    var segundos = parseInt((bloqueio && bloqueio.dataset.bloqueioSegundos) || '0', 10);
-    if(segundos > 0){
-        setTimeout(function(){
-            window.location.reload();
-        }, (segundos + 1) * 1000);
-    }
 }());
 </script>
 </body>

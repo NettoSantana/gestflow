@@ -1,7 +1,7 @@
 {#
-Caminho: templates/partials/sidebar.html
-Último recode: 2026-07-07 14:15 (America/Bahia)
-Motivo: Incluir acesso à Vitrine Online no menu lateral.
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\partials\sidebar.html
+Último recode: 2026-07-15 12:40 (America/Bahia)
+Motivo: Renomear o acesso de Bater ponto para Gerenciamento de Ponto.
 #}
 {% set _path = request.path if request is defined else '' %}
 {% set _usuario_sidebar = usuario_logado|default({}, true) %}
@@ -194,7 +194,7 @@ Motivo: Incluir acesso à Vitrine Online no menu lateral.
                     </summary>
                     <ul class="submenu">
                         <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Registro de Ponto</strong></li>
-                        <li class="{% if _path.startswith('/registro-ponto') %}submenu-active{% endif %}"><a href="/registro-ponto">Bater ponto</a></li>
+                        <li class="{% if _path.startswith('/registro-ponto') %}submenu-active{% endif %}"><a href="/registro-ponto">Gerenciamento de Ponto</a></li>
                     </ul>
                 </details>
             </li>
