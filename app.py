@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-14 21:49 (America/Bahia)
-# Motivo: Adicionar ficha técnica de CMV e produção de produtos com baixa automática dos componentes.
+# Último recode: 2026-07-15 08:04 (America/Bahia)
+# Motivo: Adicionar consulta automática de CNPJ pela BrasilAPI no cadastro e edição de clientes.
 
 from __future__ import annotations
 
@@ -48,6 +48,12 @@ VITRINE_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 EXTENSOES_LOGO_PERMITIDAS = {"png", "jpg", "jpeg", "webp", "gif", "jfif", "avif"}
 EXTENSOES_FOTO_OS_PERMITIDAS = {"png", "jpg", "jpeg", "webp"}
 EXTENSOES_FOTO_VITRINE_PERMITIDAS = {"png", "jpg", "jpeg", "webp"}
+
+
+BRASILAPI_CNPJ_URL = "https://brasilapi.com.br/api/cnpj/v1/{cnpj}"
+BRASILAPI_CNPJ_TIMEOUT_SEGUNDOS = 8
+BRASILAPI_CNPJ_CACHE_MINUTOS = 30
+_BRASILAPI_CNPJ_CACHE: dict[str, tuple[datetime, dict[str, Any]]] = {}
 
 TIMEZONE_PADRAO_GESTFLOW = "America/Bahia"
 FUSOS_HORARIOS_GESTFLOW = [
@@ -14539,6 +14545,219 @@ def vitrine() -> str | Response:
     )
 
 
+
+
+def normalizar_cnpj_consulta(valor: Any) -> str:
+    return re.sub(r"[^A-Z0-9]", "", str(valor or "").strip().upper())
+
+
+def validar_cnpj_numerico_legado(cnpj: str) -> bool:
+    if len(cnpj) != 14 or not cnpj.isdigit() or len(set(cnpj)) == 1:
+        return False
+
+    def calcular_digito(base: str, pesos: tuple[int, ...]) -> str:
+        soma = sum(int(numero) * peso for numero, peso in zip(base, pesos))
+        resto = soma % 11
+        return "0" if resto < 2 else str(11 - resto)
+
+    primeiro = calcular_digito(cnpj[:12], (5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2))
+    segundo = calcular_digito(cnpj[:12] + primeiro, (6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2))
+    return cnpj[-2:] == primeiro + segundo
+
+
+def validar_cnpj_para_consulta(cnpj: str) -> str:
+    if len(cnpj) != 14:
+        return "Para buscar os dados, informe um CNPJ com 14 caracteres."
+
+    if not cnpj.isalnum():
+        return "O CNPJ deve conter somente letras e números."
+
+    if cnpj.isdigit() and not validar_cnpj_numerico_legado(cnpj):
+        return "O CNPJ informado é inválido. Confira os números digitados."
+
+    if not cnpj.isdigit() and not cnpj[-2:].isdigit():
+        return "No CNPJ alfanumérico, os dois últimos caracteres devem ser números."
+
+    return ""
+
+
+def formatar_cnpj_exibicao(cnpj: str) -> str:
+    if len(cnpj) == 14 and cnpj.isdigit():
+        return f"{cnpj[:2]}.{cnpj[2:5]}.{cnpj[5:8]}/{cnpj[8:12]}-{cnpj[12:]}"
+    return cnpj
+
+
+def formatar_telefone_cnpj(valor: Any) -> str:
+    digitos = re.sub(r"\D+", "", str(valor or ""))
+
+    if digitos.startswith("55") and len(digitos) in {12, 13}:
+        digitos = digitos[2:]
+
+    if len(digitos) == 11:
+        return f"({digitos[:2]}) {digitos[2:7]}-{digitos[7:]}"
+
+    if len(digitos) == 10:
+        return f"({digitos[:2]}) {digitos[2:6]}-{digitos[6:]}"
+
+    return str(valor or "").strip()
+
+
+def buscar_cliente_existente_por_documento(
+    documento: str,
+    ignorar_cliente_id: int | None = None,
+) -> dict[str, Any] | None:
+    documento_normalizado = normalizar_cnpj_consulta(documento)
+
+    if not documento_normalizado:
+        return None
+
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, nome, documento
+            FROM clientes
+            WHERE empresa_id = ?
+            ORDER BY id DESC
+            """,
+            (empresa_logada_id(),),
+        ).fetchall()
+
+    for row in rows:
+        cliente = dict(row)
+
+        if ignorar_cliente_id is not None and int(cliente["id"]) == ignorar_cliente_id:
+            continue
+
+        if normalizar_cnpj_consulta(cliente.get("documento")) == documento_normalizado:
+            return cliente
+
+    return None
+
+
+def consultar_cnpj_brasilapi(cnpj: str) -> dict[str, Any]:
+    agora = agora_empresa()
+    cache = _BRASILAPI_CNPJ_CACHE.get(cnpj)
+
+    if cache is not None:
+        consultado_em, dados_cache = cache
+        if agora - consultado_em <= timedelta(minutes=BRASILAPI_CNPJ_CACHE_MINUTOS):
+            return dict(dados_cache)
+        _BRASILAPI_CNPJ_CACHE.pop(cnpj, None)
+
+    url = BRASILAPI_CNPJ_URL.format(cnpj=urllib.parse.quote(cnpj, safe=""))
+    requisicao = urllib.request.Request(
+        url,
+        headers={
+            "Accept": "application/json",
+            "User-Agent": "GestFlow/1.0",
+        },
+        method="GET",
+    )
+
+    try:
+        with urllib.request.urlopen(
+            requisicao,
+            timeout=BRASILAPI_CNPJ_TIMEOUT_SEGUNDOS,
+        ) as resposta:
+            conteudo = resposta.read().decode("utf-8", errors="replace")
+    except urllib.error.HTTPError as exc:
+        if exc.code in {400, 404}:
+            raise ValueError("CNPJ não encontrado na base consultada.") from exc
+        if exc.code == 429:
+            raise RuntimeError("O serviço recebeu muitas consultas. Aguarde alguns segundos e tente novamente.") from exc
+        raise RuntimeError("A consulta de CNPJ está temporariamente indisponível.") from exc
+    except (urllib.error.URLError, TimeoutError) as exc:
+        raise RuntimeError("Não foi possível conectar ao serviço de consulta de CNPJ.") from exc
+
+    try:
+        dados = json.loads(conteudo)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("O serviço de consulta retornou uma resposta inválida.") from exc
+
+    if not isinstance(dados, dict):
+        raise RuntimeError("O serviço de consulta retornou uma resposta inválida.")
+
+    razao_social = str(dados.get("razao_social") or "").strip()
+    nome_fantasia = str(dados.get("nome_fantasia") or "").strip()
+    municipio = str(dados.get("municipio") or "").strip()
+    uf = str(dados.get("uf") or "").strip().upper()
+    cidade = municipio
+
+    if municipio and uf:
+        cidade = f"{municipio} - {uf}"
+
+    telefone = formatar_telefone_cnpj(
+        dados.get("ddd_telefone_1") or dados.get("ddd_telefone_2") or ""
+    )
+    email = str(dados.get("email") or "").strip().lower()
+    situacao = str(
+        dados.get("descricao_situacao_cadastral")
+        or dados.get("situacao_cadastral")
+        or ""
+    ).strip()
+
+    resultado = {
+        "cnpj": normalizar_cnpj_consulta(dados.get("cnpj") or cnpj),
+        "cnpj_formatado": formatar_cnpj_exibicao(
+            normalizar_cnpj_consulta(dados.get("cnpj") or cnpj)
+        ),
+        "razao_social": razao_social,
+        "nome_fantasia": nome_fantasia,
+        "telefone": telefone,
+        "email": email,
+        "cidade": cidade,
+        "municipio": municipio,
+        "uf": uf,
+        "situacao_cadastral": situacao,
+        "cep": str(dados.get("cep") or "").strip(),
+        "logradouro": str(dados.get("logradouro") or "").strip(),
+        "numero": str(dados.get("numero") or "").strip(),
+        "bairro": str(dados.get("bairro") or "").strip(),
+        "complemento": str(dados.get("complemento") or "").strip(),
+        "fonte": "BrasilAPI",
+        "consultado_em": agora.isoformat(timespec="seconds"),
+    }
+    _BRASILAPI_CNPJ_CACHE[cnpj] = (agora, dict(resultado))
+    return resultado
+
+
+@app.get("/api/clientes/consultar-cnpj")
+def api_consultar_cnpj_cliente() -> Response | tuple[Response, int]:
+    cnpj = normalizar_cnpj_consulta(request.args.get("cnpj"))
+    erro_validacao = validar_cnpj_para_consulta(cnpj)
+
+    if erro_validacao:
+        return jsonify({"ok": False, "erro": erro_validacao}), 400
+
+    cliente_id_texto = str(request.args.get("cliente_id") or "").strip()
+    cliente_id = int(cliente_id_texto) if cliente_id_texto.isdigit() else None
+
+    try:
+        dados = consultar_cnpj_brasilapi(cnpj)
+    except ValueError as exc:
+        return jsonify({"ok": False, "erro": str(exc)}), 404
+    except RuntimeError as exc:
+        return jsonify({"ok": False, "erro": str(exc)}), 503
+
+    cliente_existente = buscar_cliente_existente_por_documento(
+        cnpj,
+        ignorar_cliente_id=cliente_id,
+    )
+
+    return jsonify(
+        {
+            "ok": True,
+            "dados": dados,
+            "cliente_existente": (
+                {
+                    "id": int(cliente_existente["id"]),
+                    "nome": str(cliente_existente.get("nome") or ""),
+                }
+                if cliente_existente
+                else None
+            ),
+        }
+    )
 
 def normalizar_cliente_para_salvar(cliente: dict[str, str]) -> dict[str, str]:
     cliente_normalizado = dict(cliente)

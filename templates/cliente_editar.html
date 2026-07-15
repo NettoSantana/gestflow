@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\cliente_editar.html
-Último recode: 2026-07-02 23:41 (America/Bahia)
-Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
+Último recode: 2026-07-15 08:04 (America/Bahia)
+Motivo: Adicionar consulta automática de CNPJ também durante a edição do cliente.
 -->
 
 <!DOCTYPE html>
@@ -250,6 +250,94 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                 min-width: 680px;
             }
         }
+    
+        .cnpj-lookup-row {
+            display: flex;
+            align-items: stretch;
+            gap: 8px;
+        }
+
+        .cnpj-lookup-row .form-control {
+            min-width: 0;
+            flex: 1 1 auto;
+        }
+
+        .btn-cnpj-lookup {
+            min-width: 118px;
+            min-height: 42px;
+            padding: 0 14px;
+            border: 1px solid #bfdbfe;
+            border-radius: 10px;
+            background: #eff6ff;
+            color: #1d4ed8;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 900;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
+        }
+
+        .btn-cnpj-lookup:hover:not(:disabled) {
+            background: #dbeafe;
+            border-color: #93c5fd;
+        }
+
+        .btn-cnpj-lookup:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .cnpj-lookup-status {
+            display: none;
+            margin-top: 7px;
+            padding: 9px 11px;
+            border-radius: 9px;
+            font-size: 11px;
+            font-weight: 800;
+            line-height: 1.4;
+        }
+
+        .cnpj-lookup-status.show {
+            display: block;
+        }
+
+        .cnpj-lookup-status.loading {
+            border: 1px solid #bfdbfe;
+            background: #eff6ff;
+            color: #1d4ed8;
+        }
+
+        .cnpj-lookup-status.success {
+            border: 1px solid #bbf7d0;
+            background: #f0fdf4;
+            color: #166534;
+        }
+
+        .cnpj-lookup-status.warning {
+            border: 1px solid #fde68a;
+            background: #fffbeb;
+            color: #92400e;
+        }
+
+        .cnpj-lookup-status.error {
+            border: 1px solid #fecaca;
+            background: #fef2f2;
+            color: #991b1b;
+        }
+
+        @media (max-width: 620px) {
+            .cnpj-lookup-row {
+                flex-direction: column;
+            }
+
+            .btn-cnpj-lookup {
+                width: 100%;
+            }
+        }
+
     </style>
 
 </head>
@@ -298,7 +386,11 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
 
                     <div class="form-group">
                         <label for="cliente_documento">CPF/CNPJ</label>
-                        <input id="cliente_documento" name="cliente_documento" type="text" value="{{ cliente.documento or '' }}" placeholder="Ex: 00.000.000/0000-00" class="form-control">
+                        <div class="cnpj-lookup-row">
+                            <input id="cliente_documento" name="cliente_documento" data-cliente-id="{{ cliente.id }}" type="text" value="{{ cliente.documento or '' }}" placeholder="Ex: 00.000.000/0000-00" class="form-control" maxlength="18" autocomplete="off">
+                            <button id="btn_consultar_cnpj" type="button" class="btn-cnpj-lookup">Buscar CNPJ</button>
+                        </div>
+                        <div id="cliente_cnpj_status" class="cnpj-lookup-status" role="status" aria-live="polite"></div>
                     </div>
 
                     <div class="form-group">
@@ -334,6 +426,178 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
         </section>
 
     </main>
+
+    <script>
+
+        function normalizarCnpjConsulta(valor) {
+            return String(valor || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+        }
+
+        function formatarCnpjNumerico(valor) {
+            const cnpj = normalizarCnpjConsulta(valor);
+
+            if (!/^\d{14}$/.test(cnpj)) {
+                return cnpj;
+            }
+
+            return `${cnpj.slice(0, 2)}.${cnpj.slice(2, 5)}.${cnpj.slice(5, 8)}/${cnpj.slice(8, 12)}-${cnpj.slice(12)}`;
+        }
+
+        function mostrarStatusCnpj(tipo, mensagem) {
+            const status = document.getElementById("cliente_cnpj_status");
+
+            if (!status) {
+                return;
+            }
+
+            status.className = `cnpj-lookup-status show ${tipo}`;
+            status.textContent = mensagem;
+        }
+
+        function limparStatusCnpj() {
+            const status = document.getElementById("cliente_cnpj_status");
+
+            if (!status) {
+                return;
+            }
+
+            status.className = "cnpj-lookup-status";
+            status.textContent = "";
+        }
+
+        function preencherCampoCnpj(id, valor) {
+            const campo = document.getElementById(id);
+            const texto = String(valor || "").trim();
+
+            if (campo && texto) {
+                campo.value = texto;
+                campo.dispatchEvent(new Event("input", { bubbles: true }));
+                campo.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+        }
+
+        async function consultarCnpjCliente(forcarConsulta = true) {
+            const documento = document.getElementById("cliente_documento");
+            const botao = document.getElementById("btn_consultar_cnpj");
+
+            if (!documento || !botao) {
+                return;
+            }
+
+            const cnpj = normalizarCnpjConsulta(documento.value);
+
+            if (cnpj.length !== 14) {
+                if (forcarConsulta) {
+                    mostrarStatusCnpj("error", "Informe um CNPJ com 14 caracteres para realizar a busca.");
+                }
+                return;
+            }
+
+            botao.disabled = true;
+            botao.textContent = "Consultando...";
+            mostrarStatusCnpj("loading", "Buscando dados públicos do CNPJ...");
+
+            try {
+                const parametros = new URLSearchParams({ cnpj });
+                const clienteId = documento.dataset.clienteId || "";
+
+                if (clienteId) {
+                    parametros.set("cliente_id", clienteId);
+                }
+
+                const resposta = await fetch(`/api/clientes/consultar-cnpj?${parametros.toString()}`, {
+                    method: "GET",
+                    credentials: "same-origin",
+                    cache: "no-store",
+                    headers: { "Accept": "application/json" }
+                });
+
+                let retorno = null;
+
+                try {
+                    retorno = await resposta.json();
+                } catch (erroJson) {
+                    retorno = null;
+                }
+
+                if (!resposta.ok || !retorno || !retorno.ok) {
+                    throw new Error(retorno?.erro || "Não foi possível consultar o CNPJ.");
+                }
+
+                const dados = retorno.dados || {};
+                documento.value = dados.cnpj_formatado || formatarCnpjNumerico(cnpj);
+                documento.dataset.ultimoCnpjConsultado = cnpj;
+
+                preencherCampoCnpj("cliente_nome", dados.razao_social || dados.nome_fantasia);
+                preencherCampoCnpj("cliente_telefone", dados.telefone);
+                preencherCampoCnpj("cliente_cidade", dados.cidade);
+                preencherCampoCnpj("cliente_email", dados.email);
+
+                const situacao = dados.situacao_cadastral
+                    ? ` Situação cadastral: ${dados.situacao_cadastral}.`
+                    : "";
+
+                if (retorno.cliente_existente) {
+                    mostrarStatusCnpj(
+                        "warning",
+                        `Dados encontrados, mas este CNPJ já está cadastrado para ${retorno.cliente_existente.nome}.${situacao}`
+                    );
+                } else {
+                    mostrarStatusCnpj(
+                        "success",
+                        `Dados encontrados e preenchidos automaticamente.${situacao}`
+                    );
+                }
+            } catch (erro) {
+                mostrarStatusCnpj(
+                    "error",
+                    erro?.message || "Falha ao consultar o CNPJ. Preencha os dados manualmente."
+                );
+            } finally {
+                botao.disabled = false;
+                botao.textContent = "Buscar CNPJ";
+            }
+        }
+
+        function configurarConsultaCnpj() {
+            const documento = document.getElementById("cliente_documento");
+            const botao = document.getElementById("btn_consultar_cnpj");
+
+            if (!documento || !botao) {
+                return;
+            }
+
+            botao.addEventListener("click", function() {
+                consultarCnpjCliente(true);
+            });
+
+            documento.addEventListener("input", function() {
+                const cnpj = normalizarCnpjConsulta(documento.value);
+                botao.disabled = cnpj.length !== 14;
+
+                if (cnpj !== documento.dataset.ultimoCnpjConsultado) {
+                    limparStatusCnpj();
+                }
+            });
+
+            documento.addEventListener("blur", function() {
+                const cnpj = normalizarCnpjConsulta(documento.value);
+
+                if (
+                    cnpj.length === 14
+                    && cnpj !== documento.dataset.ultimoCnpjConsultado
+                ) {
+                    consultarCnpjCliente(false);
+                }
+            });
+
+            botao.disabled = normalizarCnpjConsulta(documento.value).length !== 14;
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            configurarConsultaCnpj();
+        });
+    </script>
 
 </body>
 </html>
