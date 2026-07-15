@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_imprimir_a4.html
-Último recode: 2026-07-15 10:32 (America/Bahia)
-Motivo: Respeitar apresentação agrupada, global ou detalhada sem expor a composição interna do orçamento.
+Último recode: 2026-07-15 10:23 (America/Bahia)
+Motivo: Formatar o escopo técnico em seções, parágrafos e listas na impressão A4.
 -->
 
 <!DOCTYPE html>
@@ -214,9 +214,96 @@ Motivo: Respeitar apresentação agrupada, global ou detalhada sem expor a compo
 
         .observacoes {
             white-space: pre-wrap;
-            line-height: 1.35;
-            min-height: 120px;
+            line-height: 1.55;
+            min-height: 80px;
             padding: 8px 0;
+        }
+
+        .scope-content {
+            display: grid;
+            gap: 10px;
+            padding-top: 8px;
+        }
+
+        .scope-free-text,
+        .scope-extra-notes {
+            display: grid;
+            gap: 7px;
+        }
+
+        .scope-section {
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            overflow: hidden;
+            break-inside: auto;
+            page-break-inside: auto;
+        }
+
+        .scope-heading {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 0;
+            padding: 6px 8px;
+            background: #f1f5f9;
+            color: #111827;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            break-after: avoid;
+            page-break-after: avoid;
+        }
+
+        .scope-heading-number {
+            min-width: 22px;
+            height: 22px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 3px;
+            background: #334155;
+            color: #ffffff;
+        }
+
+        .scope-body {
+            display: grid;
+            gap: 7px;
+            padding: 8px 10px;
+        }
+
+        .scope-body p,
+        .scope-free-text p,
+        .scope-extra-notes p {
+            margin: 0;
+            line-height: 1.55;
+            text-align: justify;
+            white-space: pre-wrap;
+            orphans: 3;
+            widows: 3;
+        }
+
+        .scope-body ul {
+            margin: 0;
+            padding-left: 19px;
+            display: grid;
+            gap: 5px;
+        }
+
+        .scope-body li {
+            line-height: 1.45;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+
+        .scope-extra-title {
+            margin: 2px 0 0;
+            padding: 7px 0 0;
+            border-top: 1px solid #d1d5db;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            break-after: avoid;
+            page-break-after: avoid;
         }
 
         .assinatura {
@@ -458,8 +545,37 @@ Motivo: Respeitar apresentação agrupada, global ou detalhada sem expor a compo
             </div>
         </div>
 
-        <div class="section-title">OBSERVAÇÕES</div>
-        <div class="observacoes">{{ orcamento.observacoes or '-' }}</div>
+        <div class="section-title">ESCOPO E OBSERVAÇÕES</div>
+        {% if escopo_formatado.secoes or escopo_formatado.texto_livre or escopo_formatado.observacoes_adicionais %}
+            <div class="scope-content">
+                {% if escopo_formatado.texto_livre %}
+                    <div class="scope-free-text">
+                        {% for paragrafo in escopo_formatado.texto_livre %}<p>{{ paragrafo }}</p>{% endfor %}
+                    </div>
+                {% endif %}
+
+                {% for secao in escopo_formatado.secoes %}
+                    <section class="scope-section">
+                        <h3 class="scope-heading"><span class="scope-heading-number">{{ secao.numero }}</span>{{ secao.titulo }}</h3>
+                        <div class="scope-body">
+                            {% for paragrafo in secao.paragrafos %}<p>{{ paragrafo }}</p>{% endfor %}
+                            {% if secao.itens %}
+                                <ul>{% for item in secao.itens %}<li>{{ item }}</li>{% endfor %}</ul>
+                            {% endif %}
+                        </div>
+                    </section>
+                {% endfor %}
+
+                {% if escopo_formatado.observacoes_adicionais %}
+                    <h3 class="scope-extra-title">Observações adicionais</h3>
+                    <div class="scope-extra-notes">
+                        {% for paragrafo in escopo_formatado.observacoes_adicionais %}<p>{{ paragrafo }}</p>{% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+        {% else %}
+            <div class="observacoes">-</div>
+        {% endif %}
 
         <div class="assinatura">
             <div class="assinatura-line"></div>

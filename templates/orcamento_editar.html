@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_editar.html
-Último recode: 2026-07-15 10:32 (America/Bahia)
-Motivo: Adicionar abas, apresentação comercial editável e acesso aos dados salvos do Gerador.
+Último recode: 2026-07-15 10:23 (America/Bahia)
+Motivo: Permitir edição multilinha do escopo e das observações sem perder a formatação.
 -->
 
 <!DOCTYPE html>
@@ -364,6 +364,9 @@ Motivo: Adicionar abas, apresentação comercial editável e acesso aos dados sa
         .generator-summary-box strong { display:block; margin-top:5px; color:#0f172a; }
         @media(max-width:900px){.generator-summary-box{grid-template-columns:repeat(2,minmax(0,1fr))}}
         @media(max-width:720px){.budget-tabs{flex-direction:column}.budget-tab{width:100%}.generator-summary-box{grid-template-columns:1fr}}
+        .budget-long-field { grid-column: 1 / -1; }
+        .budget-long-text { min-height: 180px !important; height: auto !important; padding: 12px 14px !important; line-height: 1.55; resize: vertical; white-space: pre-wrap; }
+        .budget-field-hint { color:#64748b; font-size:11px; line-height:1.4; }
 </style>
 
 </head>
@@ -603,8 +606,15 @@ Motivo: Adicionar abas, apresentação comercial editável e acesso aos dados sa
                     <div class="form-group"><label for="orcamento_desconto_percentual">Desconto %</label><input id="orcamento_desconto_percentual" name="orcamento_desconto_percentual" type="text" value="{{ orcamento.desconto_percentual or '' }}" class="form-control"></div>
                     <div class="form-group"><label for="orcamento_valor_total">Valor total</label><input id="orcamento_valor_total" name="orcamento_valor_total" type="text" value="{{ orcamento.valor_total or '' }}" class="form-control" readonly></div>
                     <div class="form-group"><label for="orcamento_forma_pagamento">Forma de pagamento</label><input id="orcamento_forma_pagamento" name="orcamento_forma_pagamento" type="text" value="{{ orcamento.forma_pagamento or '' }}" class="form-control"></div>
-                    <div class="form-group"><label for="orcamento_observacoes">Observações para o cliente</label><input id="orcamento_observacoes" name="orcamento_observacoes" type="text" value="{{ orcamento.observacoes or '' }}" class="form-control"></div>
-                    <div class="form-group"><label for="orcamento_observacoes_internas">Observações internas</label><input id="orcamento_observacoes_internas" name="orcamento_observacoes_internas" type="text" value="{{ orcamento.observacoes_internas or '' }}" class="form-control"></div>
+                    <div class="form-group budget-long-field">
+                        <label for="orcamento_observacoes">Escopo e observações para o cliente</label>
+                        <textarea id="orcamento_observacoes" name="orcamento_observacoes" class="form-control budget-long-text">{{ orcamento.observacoes or '' }}</textarea>
+                        <small class="budget-field-hint">Use uma linha em branco entre os parágrafos. Nas seções de serviços e materiais, inicie cada item com “-”.</small>
+                    </div>
+                    <div class="form-group budget-long-field">
+                        <label for="orcamento_observacoes_internas">Observações internas</label>
+                        <textarea id="orcamento_observacoes_internas" name="orcamento_observacoes_internas" class="form-control budget-long-text" style="min-height:130px !important;">{{ orcamento.observacoes_internas or '' }}</textarea>
+                    </div>
                 </div>
 
                 <div class="form-actions">
