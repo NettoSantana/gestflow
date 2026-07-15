@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\produtos.html
-Último recode: 2026-07-02 09:20 (America/Bahia)
-Motivo: Criar paginação e ordenação por cabeçalho na tela de produtos.
+Último recode: 2026-07-14 22:10 (America/Bahia)
+Motivo: Integrar ficha técnica, CMV calculado e acesso à produção na listagem de produtos.
 -->
 
 <!DOCTYPE html>
@@ -213,6 +213,75 @@ Motivo: Criar paginação e ordenação por cabeçalho na tela de produtos.
             color: #0f172a;
         }
 
+    
+        .product-cost-note {
+            margin-top: 6px;
+            color: #64748b;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1.4;
+        }
+
+        .cmv-cell {
+            min-width: 126px;
+        }
+
+        .cmv-cell strong {
+            display: block;
+            color: #0f172a;
+            font-size: 13px;
+            white-space: nowrap;
+        }
+
+        .cmv-origin {
+            display: inline-flex;
+            align-items: center;
+            min-height: 22px;
+            margin-top: 5px;
+            padding: 0 8px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 900;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .cmv-origin.composicao {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .cmv-origin.manual {
+            background: #e2e8f0;
+            color: #475569;
+        }
+
+        .action-button.production {
+            background: #16a34a;
+            color: #ffffff;
+        }
+
+        .action-button.production:hover {
+            background: #15803d;
+        }
+
+        .product-name-wrap {
+            min-width: 170px;
+        }
+
+        .product-name-wrap strong {
+            display: block;
+            color: #0f172a;
+        }
+
+        .product-name-wrap small {
+            display: block;
+            margin-top: 4px;
+            color: #64748b;
+            font-size: 10px;
+            font-weight: 800;
+        }
+
     </style>
 </head>
 <body>
@@ -243,7 +312,7 @@ Motivo: Criar paginação e ordenação por cabeçalho na tela de produtos.
                 <div>
                     <span class="page-kicker">Cadastros</span>
                     <h3 class="page-title">Produtos</h3>
-                    <p class="page-subtitle">Controle os produtos, códigos, categorias, estoque, custos, venda e status de cadastro do GESTFLOW.</p>
+                    <p class="page-subtitle">Controle produtos, estoque, ficha técnica, CMV calculado, produção, preço de venda e status de cadastro do GESTFLOW.</p>
                 </div>
 
                 <a href="#form-novo-produto" class="btn-primary-green">+ Novo Produto</a>
@@ -340,8 +409,9 @@ Motivo: Criar paginação e ordenação por cabeçalho na tela de produtos.
                     </div>
 
                     <div class="form-group">
-                        <label for="produto_preco_custo">Preço de custo</label>
+                        <label for="produto_preco_custo">Custo manual</label>
                         <input id="produto_preco_custo" name="produto_preco_custo" type="text" placeholder="Ex: 25,00" class="form-control">
+                        <div class="product-cost-note">Usado até que uma ficha técnica seja cadastrada para o produto.</div>
                     </div>
 
                     <div class="form-group">
@@ -456,6 +526,7 @@ Motivo: Criar paginação e ordenação por cabeçalho na tela de produtos.
                                     {% if ordenar == 'estoque_atual' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
                                 </a>
                             </th>
+                            <th>CMV / custo</th>
                             <th>
                                 <a href="{{ url_for('produtos', pagina=1, por_pagina=por_pagina, ordenar='preco_venda', direcao='desc' if ordenar == 'preco_venda' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
                                     Preço venda
@@ -476,11 +547,26 @@ Motivo: Criar paginação e ordenação por cabeçalho na tela de produtos.
                             {% for produto in produtos_lista %}
                                 <tr>
                                     <td>{{ produto.id }}</td>
-                                    <td>{{ produto.nome }}</td>
+                                    <td>
+                                        <div class="product-name-wrap">
+                                            <strong>{{ produto.nome }}</strong>
+                                            {% if produto.possui_composicao == 'sim' %}
+                                                <small>Ficha técnica ativa</small>
+                                            {% endif %}
+                                        </div>
+                                    </td>
                                     <td>{{ produto.codigo }}</td>
                                     <td>{{ produto.categoria }}</td>
                                     <td>{{ produto.unidade }}</td>
                                     <td>{{ produto.estoque_atual }}</td>
+                                    <td class="cmv-cell">
+                                        <strong>R$ {{ produto.preco_custo or '0,00' }}</strong>
+                                        {% if produto.possui_composicao == 'sim' %}
+                                            <span class="cmv-origin composicao">Composição</span>
+                                        {% else %}
+                                            <span class="cmv-origin manual">Manual</span>
+                                        {% endif %}
+                                    </td>
                                     <td>{{ produto.preco_venda }}</td>
                                     <td>
                                         <span class="status-pill {{ produto.status }}">
@@ -490,7 +576,10 @@ Motivo: Criar paginação e ordenação por cabeçalho na tela de produtos.
                                     <td>
                                         <div class="action-buttons">
                                             <a href="/produtos/{{ produto.id }}" title="Ver produto" aria-label="Ver produto" class="action-button view">🔍</a>
-                                            <a href="/produtos/{{ produto.id }}/editar" title="Editar produto" aria-label="Editar produto" class="action-button edit">✎</a>
+                                            <a href="/produtos/{{ produto.id }}/editar" title="Editar produto e ficha técnica" aria-label="Editar produto" class="action-button edit">✎</a>
+                                            {% if produto.possui_composicao == 'sim' %}
+                                                <a href="/produtos/{{ produto.id }}/producao" title="Produzir produto" aria-label="Produzir produto" class="action-button production">⚙</a>
+                                            {% endif %}
                                             <form action="/produtos/{{ produto.id }}/excluir" method="post" onsubmit="return confirm('Tem certeza que deseja excluir este produto?');" class="action-form">
                                                 <button type="submit" title="Excluir produto" aria-label="Excluir produto" class="action-button delete">×</button>
                                             </form>
@@ -500,7 +589,7 @@ Motivo: Criar paginação e ordenação por cabeçalho na tela de produtos.
                             {% endfor %}
                         {% else %}
                             <tr>
-                                <td colspan="9" class="empty-table empty-table-box">
+                                <td colspan="10" class="empty-table empty-table-box">
                                     <div class="empty-table-content">
                                         <div class="empty-table-icon">☷</div>
                                         <strong>Nenhum produto cadastrado.</strong>
