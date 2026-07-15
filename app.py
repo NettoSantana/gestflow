@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-15 10:23 (America/Bahia)
-# Motivo: Organizar o escopo técnico em seções, parágrafos e listas nas telas e impressões de orçamento.
+# Último recode: 2026-07-15 11:45 (America/Bahia)
+# Motivo: Corrigir redirecionamento após criar OS para usar o ID recém-salvo e eliminar erro 500.
 
 from __future__ import annotations
 
@@ -18697,7 +18697,7 @@ def salvar_ordem_servico() -> Response:
     atualizar_fotos_equipamento_os_formulario(nova_ordem_servico_id)
     registrar_atividade_usuario("criacao", "ordens_servico", f"Criou OS {ordem_servico.get('numero') or nova_ordem_servico_id}", request.path)
 
-    return redirect(url_for("ver_ordem_servico", ordem_servico_id=ordem_servico_id))
+    return redirect(url_for("ver_ordem_servico", ordem_servico_id=nova_ordem_servico_id))
 
 
 @app.get("/ordens-servico/<int:ordem_servico_id>")
