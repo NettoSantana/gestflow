@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_editar.html
-Último recode: 2026-07-15 10:23 (America/Bahia)
-Motivo: Permitir edição multilinha do escopo e das observações sem perder a formatação.
+Último recode: 2026-07-15 14:05 (America/Bahia)
+Motivo: Permitir que o valor final editado prevaleça e sincronize orçamento, apresentação e margem.
 -->
 
 <!DOCTYPE html>
@@ -367,6 +367,10 @@ Motivo: Permitir edição multilinha do escopo e das observações sem perder a 
         .budget-long-field { grid-column: 1 / -1; }
         .budget-long-text { min-height: 180px !important; height: auto !important; padding: 12px 14px !important; line-height: 1.55; resize: vertical; white-space: pre-wrap; }
         .budget-field-hint { color:#64748b; font-size:11px; line-height:1.4; }
+        .budget-final-value { border-color:#86efac !important; background:#f0fdf4 !important; color:#166534 !important; font-size:17px !important; font-weight:900 !important; }
+        .budget-final-hint { display:block; margin-top:6px; color:#166534; font-size:11px; font-weight:800; line-height:1.4; }
+        .budget-value-changed { display:none; margin-top:10px; padding:10px 12px; border:1px solid #bfdbfe; border-radius:10px; background:#eff6ff; color:#1d4ed8; font-size:12px; font-weight:800; }
+        .budget-value-changed.show { display:block; }
 </style>
 
 </head>
@@ -398,7 +402,9 @@ Motivo: Permitir edição multilinha do escopo e das observações sem perder a 
             </div>
         </section>
 
-        <form action="/orcamentos/{{ orcamento.id }}/editar" method="post" class="client-form">
+        <form id="form-editar-orcamento" action="/orcamentos/{{ orcamento.id }}/editar" method="post" class="client-form">
+            <input id="orcamento_valor_final_editado" name="orcamento_valor_final_editado" type="hidden" value="{{ orcamento.valor_total or '0,00' }}">
+            <input id="orcamento_valor_final_manual" name="orcamento_valor_final_manual" type="hidden" value="nao">
             <section class="panel page-section">
                 <div class="panel-header page-header">
                     <div>
@@ -523,10 +529,10 @@ Motivo: Permitir edição multilinha do escopo e das observações sem perder a 
 
                     {% if dados_gerador %}
                         <div class="generator-summary-box">
-                            <div><span>Custo total interno</span><strong>R$ {{ dados_gerador.custo_total|default('0') }}</strong></div>
-                            <div><span>Valor escolhido</span><strong>R$ {{ dados_gerador.valor_escolhido|default('0') }}</strong></div>
-                            <div><span>Lucro estimado</span><strong>R$ {{ dados_gerador.lucro_estimado|default('0') }}</strong></div>
-                            <div><span>Margem estimada</span><strong>{{ dados_gerador.margem_estimado|default('0') }}%</strong></div>
+                            <div><span>Custo total interno</span><strong id="gerador-custo-total" data-custo="{{ dados_gerador.custo_total|default('0') }}">R$ {{ dados_gerador.custo_total|default('0') }}</strong></div>
+                            <div><span>Valor final atual</span><strong id="gerador-valor-escolhido">R$ {{ dados_gerador.valor_escolhido|default('0') }}</strong></div>
+                            <div><span>Lucro estimado</span><strong id="gerador-lucro-estimado">R$ {{ dados_gerador.lucro_estimado|default('0') }}</strong></div>
+                            <div><span>Margem estimada</span><strong id="gerador-margem-estimada">{{ dados_gerador.margem_estimado|default('0') }}%</strong></div>
                         </div>
                         <div class="form-actions"><a href="/orcamentos/{{ orcamento.id }}/gerador/revisao" class="btn-dark">Editar dados completos do Gerador</a></div>
                     {% endif %}
@@ -604,7 +610,12 @@ Motivo: Permitir edição multilinha do escopo e das observações sem perder a 
                     <div class="form-group"><label for="orcamento_total_servicos">Total serviços</label><input id="orcamento_total_servicos" name="orcamento_total_servicos" type="text" value="{{ orcamento.total_servicos or '' }}" class="form-control" readonly></div>
                     <div class="form-group"><label for="orcamento_desconto_valor">Desconto R$</label><input id="orcamento_desconto_valor" name="orcamento_desconto_valor" type="text" value="{{ orcamento.desconto_valor or '' }}" class="form-control"></div>
                     <div class="form-group"><label for="orcamento_desconto_percentual">Desconto %</label><input id="orcamento_desconto_percentual" name="orcamento_desconto_percentual" type="text" value="{{ orcamento.desconto_percentual or '' }}" class="form-control"></div>
-                    <div class="form-group"><label for="orcamento_valor_total">Valor total</label><input id="orcamento_valor_total" name="orcamento_valor_total" type="text" value="{{ orcamento.valor_total or '' }}" class="form-control" readonly></div>
+                    <div class="form-group">
+                        <label for="orcamento_valor_total">Valor final de venda</label>
+                        <input id="orcamento_valor_total" name="orcamento_valor_total" type="text" value="{{ orcamento.valor_total or '' }}" data-valor-original="{{ orcamento.valor_total or '0,00' }}" class="form-control budget-final-value">
+                        <small class="budget-final-hint">O valor digitado aqui prevalece. Ao salvar, apresentação, itens internos, lucro e margem serão atualizados.</small>
+                        <div id="budget-value-changed" class="budget-value-changed"></div>
+                    </div>
                     <div class="form-group"><label for="orcamento_forma_pagamento">Forma de pagamento</label><input id="orcamento_forma_pagamento" name="orcamento_forma_pagamento" type="text" value="{{ orcamento.forma_pagamento or '' }}" class="form-control"></div>
                     <div class="form-group budget-long-field">
                         <label for="orcamento_observacoes">Escopo e observações para o cliente</label>
@@ -808,6 +819,46 @@ Motivo: Permitir edição multilinha do escopo e das observações sem perder a 
                 });
             }
 
+            function atualizarResumoValorFinal(valor) {
+                const custoEl = document.getElementById("gerador-custo-total");
+                const valorEl = document.getElementById("gerador-valor-escolhido");
+                const lucroEl = document.getElementById("gerador-lucro-estimado");
+                const margemEl = document.getElementById("gerador-margem-estimada");
+                const custo = normalizarNumero(custoEl ? custoEl.dataset.custo : "0");
+                const lucro = valor - custo;
+                const margem = valor > 0 ? (lucro / valor) * 100 : 0;
+
+                if (valorEl) valorEl.textContent = "R$ " + formatarMoeda(valor);
+                if (lucroEl) lucroEl.textContent = "R$ " + formatarMoeda(lucro);
+                if (margemEl) margemEl.textContent = formatarMoeda(margem) + "%";
+            }
+
+            function definirValorFinalManual(valor, origem, formatarCampo) {
+                const valorNumero = Math.max(normalizarNumero(valor), 0);
+                const valorInput = document.getElementById("orcamento_valor_total");
+                const valorFinalEditadoInput = document.getElementById("orcamento_valor_final_editado");
+                const valorFinalManualInput = document.getElementById("orcamento_valor_final_manual");
+                const aviso = document.getElementById("budget-value-changed");
+
+                if (valorInput && formatarCampo !== false) valorInput.value = formatarMoeda(valorNumero);
+                if (valorFinalEditadoInput) valorFinalEditadoInput.value = formatarMoeda(valorNumero);
+                if (valorFinalManualInput) valorFinalManualInput.value = "sim";
+
+                atualizarResumoValorFinal(valorNumero);
+
+                if (aviso) {
+                    const original = normalizarNumero(valorInput ? valorInput.dataset.valorOriginal : "0");
+                    const diferenca = valorNumero - original;
+                    aviso.textContent =
+                        "Novo valor vigente: R$ " + formatarMoeda(valorNumero)
+                        + " | Valor anterior: R$ " + formatarMoeda(original)
+                        + " | Diferença: " + (diferenca >= 0 ? "+" : "-") + "R$ "
+                        + formatarMoeda(Math.abs(diferenca))
+                        + (origem ? " | Alterado pela " + origem + "." : ".");
+                    aviso.classList.add("show");
+                }
+            }
+
             function buscarOpcaoPorNome(tipo, nome) {
                 const opcoes = tipo === "produto" ? window.opcoesProdutos : window.opcoesServicos;
                 const nomeNormalizado = String(nome || "").trim().toLowerCase();
@@ -873,8 +924,20 @@ Motivo: Permitir edição multilinha do escopo e das observações sem perder a 
                     totalServicosInput.value = formatarMoeda(totalServicos);
                 }
 
-                if (valorTotalInput) {
+                const valorFinalManualInput = document.getElementById("orcamento_valor_final_manual");
+                const valorFinalEditadoInput = document.getElementById("orcamento_valor_final_editado");
+                const valorFinalManual = valorFinalManualInput && valorFinalManualInput.value === "sim";
+
+                if (valorTotalInput && !valorFinalManual) {
                     valorTotalInput.value = formatarMoeda(valorTotal);
+                }
+
+                if (valorFinalEditadoInput && !valorFinalManual) {
+                    valorFinalEditadoInput.value = formatarMoeda(valorTotal);
+                }
+
+                if (!valorFinalManual) {
+                    atualizarResumoValorFinal(valorTotal);
                 }
             }
 
@@ -1181,6 +1244,20 @@ Motivo: Permitir edição multilinha do escopo e das observações sem perder a 
                         recalcularTotaisOrcamento();
                     });
                 });
+
+                const valorFinalInput = document.getElementById("orcamento_valor_total");
+                if (valorFinalInput) {
+                    valorFinalInput.addEventListener("input", function() {
+                        valorFinalInput.dataset.editado = "sim";
+                        definirValorFinalManual(valorFinalInput.value, "edição do valor final", false);
+                    });
+                    valorFinalInput.addEventListener("blur", function() {
+                        if (valorFinalInput.dataset.editado !== "sim") return;
+                        const valor = normalizarNumero(valorFinalInput.value);
+                        definirValorFinalManual(valor, "edição do valor final", true);
+                        sincronizarApresentacaoComValorFinal(valor);
+                    });
+                }
             });
         </script>
 
@@ -1367,8 +1444,8 @@ Motivo: Permitir edição multilinha do escopo e das observações sem perder a 
                     <td><button type="button" class="action-button delete" onclick="removerItemApresentacao(this)">×</button></td>
                 `;
                 tr.querySelectorAll('.apresentacao-quantidade, .apresentacao-valor').forEach(function(input) {
-                    input.addEventListener('input', function() { recalcularLinhaApresentacao(tr); });
-                    input.addEventListener('blur', function() { input.value = formatarMoeda(normalizarNumero(input.value)); recalcularLinhaApresentacao(tr); });
+                    input.addEventListener('input', function() { recalcularLinhaApresentacao(tr, true); });
+                    input.addEventListener('blur', function() { input.value = formatarMoeda(normalizarNumero(input.value)); recalcularLinhaApresentacao(tr, true); });
                 });
                 return tr;
             }
@@ -1377,36 +1454,81 @@ Motivo: Permitir edição multilinha do escopo e das observações sem perder a 
                 return String(valor || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
             }
 
-            function adicionarItemApresentacao(dados) {
+            function adicionarItemApresentacao(dados, sincronizarValorFinal) {
                 const body = document.getElementById('apresentacao-tbody');
                 if (!body) return;
                 const tr = criarLinhaApresentacao(dados || {});
                 body.appendChild(tr);
-                recalcularLinhaApresentacao(tr);
+                recalcularLinhaApresentacao(tr, Boolean(sincronizarValorFinal));
             }
 
             function removerItemApresentacao(botao) {
                 botao.closest('tr')?.remove();
                 const body = document.getElementById('apresentacao-tbody');
                 if (body && !body.children.length && document.getElementById('orcamento_modo_apresentacao')?.value !== 'detalhado') adicionarItemApresentacao();
-                recalcularTotalApresentacao();
+                recalcularTotalApresentacao(true);
             }
 
-            function recalcularLinhaApresentacao(tr) {
+            function recalcularLinhaApresentacao(tr, sincronizarValorFinal) {
                 const qtd = normalizarNumero(tr.querySelector('.apresentacao-quantidade')?.value) || 1;
                 const valor = normalizarNumero(tr.querySelector('.apresentacao-valor')?.value);
                 const subtotal = qtd * valor;
                 const campo = tr.querySelector('.apresentacao-subtotal');
                 if (campo) campo.value = formatarMoeda(subtotal);
-                recalcularTotalApresentacao();
+                recalcularTotalApresentacao(Boolean(sincronizarValorFinal));
             }
 
-            function recalcularTotalApresentacao() {
+            function recalcularTotalApresentacao(sincronizarValorFinal) {
                 let total = 0;
                 document.querySelectorAll('.apresentacao-subtotal').forEach(function(input) { total += normalizarNumero(input.value); });
                 const el = document.getElementById('apresentacao-total');
                 if (el) el.textContent = 'R$ ' + formatarMoeda(total);
+                if (sincronizarValorFinal && total > 0) {
+                    definirValorFinalManual(total, "apresentação comercial");
+                }
                 return total;
+            }
+
+            function sincronizarApresentacaoComValorFinal(valorFinal) {
+                const modo = document.getElementById('orcamento_modo_apresentacao')?.value || 'agrupado';
+                const body = document.getElementById('apresentacao-tbody');
+                const valor = Math.max(normalizarNumero(valorFinal), 0);
+                if (modo === 'detalhado' || !body || valor <= 0) return;
+
+                if (!body.children.length) {
+                    const descricao = document.getElementById('orcamento_descricao_comercial')?.value || 'Fornecimento e execução conforme escopo técnico';
+                    adicionarItemApresentacao({ descricao, quantidade: '1', valor_unitario: formatarMoeda(valor), subtotal: formatarMoeda(valor) }, false);
+                }
+
+                if (modo === 'global') {
+                    while (body.children.length > 1) body.lastElementChild.remove();
+                }
+
+                const linhas = Array.from(body.children);
+                const bases = linhas.map(function(linha) {
+                    return normalizarNumero(linha.querySelector('.apresentacao-subtotal')?.value);
+                });
+                const somaBases = bases.reduce(function(total, base) { return total + Math.max(base, 0); }, 0);
+                let acumulado = 0;
+
+                linhas.forEach(function(linha, indice) {
+                    let valorLinha;
+                    if (indice === linhas.length - 1) {
+                        valorLinha = Math.max(valor - acumulado, 0);
+                    } else if (somaBases > 0) {
+                        valorLinha = Math.round((valor * (Math.max(bases[indice], 0) / somaBases)) * 100) / 100;
+                        acumulado += valorLinha;
+                    } else {
+                        valorLinha = Math.round((valor / linhas.length) * 100) / 100;
+                        acumulado += valorLinha;
+                    }
+
+                    linha.querySelector('.apresentacao-quantidade').value = '1';
+                    linha.querySelector('.apresentacao-valor').value = formatarMoeda(valorLinha);
+                    linha.querySelector('.apresentacao-subtotal').value = formatarMoeda(valorLinha);
+                });
+
+                recalcularTotalApresentacao(false);
             }
 
             function atualizarModoApresentacao() {
@@ -1421,7 +1543,7 @@ Motivo: Permitir edição multilinha do escopo e das observações sem perder a 
                 const body = document.getElementById('apresentacao-tbody');
                 if (!desativado && body && !body.children.length) {
                     const descricao = document.getElementById('orcamento_descricao_comercial')?.value || 'Fornecimento e execução conforme escopo técnico';
-                    adicionarItemApresentacao({ descricao, quantidade: '1', valor_unitario: document.getElementById('orcamento_valor_total')?.value || '0,00' });
+                    adicionarItemApresentacao({ descricao, quantidade: '1', valor_unitario: document.getElementById('orcamento_valor_total')?.value || '0,00' }, false);
                 }
                 if (modo === 'global' && body && body.children.length > 1) {
                     while (body.children.length > 1) body.lastElementChild.remove();
@@ -1429,14 +1551,14 @@ Motivo: Permitir edição multilinha do escopo e das observações sem perder a 
                     if (primeira) {
                         primeira.querySelector('.apresentacao-quantidade').value = '1';
                         primeira.querySelector('.apresentacao-valor').value = document.getElementById('orcamento_valor_total')?.value || '0,00';
-                        recalcularLinhaApresentacao(primeira);
+                        recalcularLinhaApresentacao(primeira, false);
                     }
                 }
             }
 
             window.addEventListener('DOMContentLoaded', function() {
                 const iniciais = Array.isArray(window.itensApresentacaoIniciais) ? window.itensApresentacaoIniciais : [];
-                iniciais.forEach(adicionarItemApresentacao);
+                iniciais.forEach(function(item) { adicionarItemApresentacao(item, false); });
                 atualizarModoApresentacao();
                 document.getElementById('orcamento_descricao_comercial')?.addEventListener('input', function() {
                     const primeiro = document.querySelector('.apresentacao-descricao');
@@ -1444,16 +1566,16 @@ Motivo: Permitir edição multilinha do escopo e das observações sem perder a 
                 });
                 document.querySelectorAll('.apresentacao-descricao').forEach(function(input) { input.addEventListener('input', function(){ input.dataset.editado='sim'; }); });
 
-                document.querySelector('form.client-form')?.addEventListener('submit', function(event) {
+                document.querySelector('form.client-form')?.addEventListener('submit', function() {
                     const modo = document.getElementById('orcamento_modo_apresentacao')?.value || 'agrupado';
-                    if (modo === 'detalhado') return;
-                    const totalApresentacao = recalcularTotalApresentacao();
-                    const totalOrcamento = normalizarNumero(document.getElementById('orcamento_valor_total')?.value);
-                    if (Math.abs(totalApresentacao - totalOrcamento) > 0.02) {
-                        event.preventDefault();
-                        alert('O total da apresentação ao cliente precisa ser igual ao valor total do orçamento.');
-                        document.getElementById('aba-apresentacao')?.scrollIntoView({ behavior: 'smooth' });
+                    const valorFinal = normalizarNumero(document.getElementById('orcamento_valor_total')?.value);
+
+                    if (modo !== 'detalhado') {
+                        sincronizarApresentacaoComValorFinal(valorFinal);
                     }
+
+                    const campoFinal = document.getElementById('orcamento_valor_final_editado');
+                    if (campoFinal) campoFinal.value = formatarMoeda(valorFinal);
                 });
             });
         </script>

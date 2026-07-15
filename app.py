@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-15 11:45 (America/Bahia)
-# Motivo: Corrigir redirecionamento após criar OS para usar o ID recém-salvo e eliminar erro 500.
+# Último recode: 2026-07-15 14:05 (America/Bahia)
+# Motivo: Fazer o valor final editado prevalecer no orçamento, sincronizar apresentação, margem e histórico.
 
 from __future__ import annotations
 
@@ -6698,6 +6698,181 @@ def montar_orcamento_apresentacao_formulario() -> list[dict[str, str]]:
     return itens
 
 
+def total_orcamento_apresentacao(itens: list[dict[str, Any]]) -> float:
+    return round(
+        sum(
+            max(_converter_valor_brl(item.get("subtotal")), 0.0)
+            for item in itens
+            if str(item.get("descricao") or "").strip()
+        ),
+        2,
+    )
+
+
+def redistribuir_itens_orcamento_valor_final(
+    itens: list[dict[str, str]],
+    valor_final: float,
+) -> tuple[list[dict[str, str]], float, float]:
+    valor_final = max(round(float(valor_final or 0), 2), 0.0)
+    itens_recalculados = [dict(item) for item in itens]
+    indices_validos: list[int] = []
+    bases: list[float] = []
+
+    for indice, item in enumerate(itens_recalculados):
+        if not str(item.get("descricao") or "").strip():
+            continue
+
+        quantidade = _converter_valor_brl(item.get("quantidade"))
+        if quantidade <= 0:
+            continue
+
+        subtotal = _converter_valor_brl(item.get("subtotal"))
+        if subtotal <= 0:
+            subtotal = max(
+                (quantidade * _converter_valor_brl(item.get("valor_unitario")))
+                - _converter_valor_brl(item.get("desconto")),
+                0.0,
+            )
+
+        indices_validos.append(indice)
+        bases.append(subtotal if subtotal > 0 else 1.0)
+
+    if not indices_validos or valor_final <= 0:
+        return itens_recalculados, 0.0, 0.0
+
+    valores_distribuidos = _gerador_alocar_total(valor_final, bases)
+    total_produtos = 0.0
+    total_servicos = 0.0
+
+    for indice, subtotal_novo in zip(indices_validos, valores_distribuidos):
+        item = itens_recalculados[indice]
+        quantidade = max(_converter_valor_brl(item.get("quantidade")), 1.0)
+        subtotal_decimal = Decimal(str(round(subtotal_novo, 2))).quantize(
+            Decimal("0.01"),
+            rounding=ROUND_HALF_UP,
+        )
+        quantidade_decimal = Decimal(str(quantidade))
+        valor_unitario_decimal = (subtotal_decimal / quantidade_decimal).quantize(
+            Decimal("0.01"),
+            rounding=ROUND_HALF_UP,
+        )
+        subtotal_calculado = (valor_unitario_decimal * quantidade_decimal).quantize(
+            Decimal("0.01"),
+            rounding=ROUND_HALF_UP,
+        )
+
+        if subtotal_calculado < subtotal_decimal:
+            valor_unitario_decimal += Decimal("0.01")
+            subtotal_calculado = (valor_unitario_decimal * quantidade_decimal).quantize(
+                Decimal("0.01"),
+                rounding=ROUND_HALF_UP,
+            )
+
+        desconto_decimal = max(subtotal_calculado - subtotal_decimal, Decimal("0.00"))
+
+        item["valor_unitario"] = _formatar_moeda_brl(float(valor_unitario_decimal))
+        item["desconto"] = _formatar_moeda_brl(float(desconto_decimal))
+        item["subtotal"] = _formatar_moeda_brl(float(subtotal_decimal))
+
+        if str(item.get("tipo_item") or "produto") == "servico":
+            total_servicos += float(subtotal_decimal)
+        else:
+            total_produtos += float(subtotal_decimal)
+
+    return itens_recalculados, round(total_produtos, 2), round(total_servicos, 2)
+
+
+def ajustar_itens_apresentacao_ao_total(
+    itens: list[dict[str, Any]],
+    valor_final: float,
+    modo: str,
+) -> list[dict[str, Any]]:
+    validos = [
+        dict(item)
+        for item in itens
+        if str(item.get("descricao") or "").strip()
+    ]
+
+    if not validos or valor_final <= 0:
+        return []
+
+    if modo == "global":
+        primeiro = validos[0]
+        primeiro["quantidade"] = "1"
+        primeiro["valor_unitario"] = _formatar_moeda_brl(valor_final)
+        primeiro["subtotal"] = _formatar_moeda_brl(valor_final)
+        return [primeiro]
+
+    bases = [
+        max(_converter_valor_brl(item.get("subtotal")), 0.0)
+        for item in validos
+    ]
+    if not any(base > 0 for base in bases):
+        bases = [1.0] * len(validos)
+
+    valores = _gerador_alocar_total(valor_final, bases)
+    ajustados: list[dict[str, Any]] = []
+
+    for item, valor in zip(validos, valores):
+        item["quantidade"] = "1"
+        item["valor_unitario"] = _formatar_moeda_brl(valor)
+        item["subtotal"] = _formatar_moeda_brl(valor)
+        ajustados.append(item)
+
+    return ajustados
+
+
+def atualizar_dados_gerador_apos_edicao_orcamento(
+    orcamento_id: int,
+    orcamento_atual: dict[str, Any],
+    orcamento_novo: dict[str, Any],
+) -> None:
+    dados_anteriores = buscar_orcamento_gerador_dados(orcamento_id)
+    if dados_anteriores is None:
+        return
+
+    valor_anterior = _converter_valor_brl(
+        dados_anteriores.get("valor_escolhido")
+        or orcamento_atual.get("valor_total")
+    )
+    valor_novo = _converter_valor_brl(orcamento_novo.get("valor_total"))
+    custo_total = _converter_valor_brl(dados_anteriores.get("custo_total"))
+    lucro_estimado = valor_novo - custo_total
+    margem_estimada = (lucro_estimado / valor_novo * 100) if valor_novo > 0 else 0.0
+
+    dados_novos = dict(dados_anteriores)
+    dados_novos.update(
+        {
+            "cliente": str(orcamento_novo.get("cliente") or ""),
+            "responsavel": str(orcamento_novo.get("responsavel") or ""),
+            "data": str(orcamento_novo.get("data") or ""),
+            "prazo": str(orcamento_novo.get("prazo_entrega") or ""),
+            "validade": str(orcamento_novo.get("validade") or ""),
+            "forma_pagamento": str(orcamento_novo.get("forma_pagamento") or ""),
+            "modo_apresentacao": normalizar_modo_apresentacao(
+                orcamento_novo.get("modo_apresentacao"),
+                "agrupado",
+            ),
+            "descricao_comercial": str(
+                orcamento_novo.get("descricao_comercial") or ""
+            ),
+            "tipo_valor": "customizado",
+            "valor_escolhido": valor_novo,
+            "lucro_estimado": lucro_estimado,
+            "margem_estimado": margem_estimada,
+        }
+    )
+
+    salvar_orcamento_gerador_dados_db(orcamento_id, dados_novos)
+
+    if abs(valor_novo - valor_anterior) > 0.009:
+        registrar_historico_gerador_db(
+            orcamento_id,
+            dados_anteriores,
+            dados_novos,
+        )
+
+
 def montar_apresentacao_padrao_orcamento(
     orcamento: dict[str, Any],
     itens_internos: list[dict[str, Any]],
@@ -6775,7 +6950,11 @@ def sincronizar_apresentacao_orcamento_db(
         if str(item.get("descricao") or "").strip() and _converter_valor_brl(item.get("subtotal")) > 0
     ]
     if validos:
-        salvar_orcamento_apresentacao_itens_db(orcamento_id, validos)
+        valor_final = _converter_valor_brl(orcamento.get("valor_total"))
+        salvar_orcamento_apresentacao_itens_db(
+            orcamento_id,
+            ajustar_itens_apresentacao_ao_total(validos, valor_final, modo),
+        )
         return
 
     existentes = listar_orcamento_apresentacao_itens(orcamento_id) if preservar_descricoes else []
@@ -20180,6 +20359,33 @@ def atualizar_orcamento(orcamento_id: int) -> Response:
     orcamento = montar_orcamento_formulario(numero_padrao=str(orcamento_atual["numero"] or ""))
     orcamento["origem"] = str(orcamento_atual.get("origem") or "manual")
     itens = montar_orcamento_itens_formulario()
+    itens_apresentacao = montar_orcamento_apresentacao_formulario()
+    valor_final_manual = (
+        str(request.form.get("orcamento_valor_final_manual") or "").strip().lower()
+        == "sim"
+    )
+    valor_final_informado = _converter_valor_brl(
+        request.form.get("orcamento_valor_final_editado")
+    )
+
+    if valor_final_manual and valor_final_informado > 0:
+        valor_final = valor_final_informado
+    else:
+        valor_final = _converter_valor_brl(orcamento.get("valor_total"))
+
+    if valor_final_manual and valor_final > 0:
+        itens, total_produtos, total_servicos = redistribuir_itens_orcamento_valor_final(
+            itens,
+            valor_final,
+        )
+        orcamento["total_produtos"] = _formatar_moeda_brl(total_produtos)
+        orcamento["total_servicos"] = _formatar_moeda_brl(total_servicos)
+        orcamento["desconto_valor"] = "0,00"
+        orcamento["desconto_percentual"] = "0,00"
+        orcamento["valor_total"] = _formatar_moeda_brl(
+            total_produtos + total_servicos
+        )
+
     erro_validacao = validar_orcamento_para_salvar(orcamento, itens)
     if erro_validacao:
         return redirect(url_for("editar_orcamento", orcamento_id=orcamento_id, erro=erro_validacao))
@@ -20189,10 +20395,35 @@ def atualizar_orcamento(orcamento_id: int) -> Response:
         orcamento_id,
         orcamento,
         itens,
-        itens_informados=montar_orcamento_apresentacao_formulario(),
+        itens_informados=itens_apresentacao,
         preservar_descricoes=True,
     )
-    return redirect(url_for("ver_orcamento", orcamento_id=orcamento_id, sucesso="Orçamento atualizado."))
+    atualizar_dados_gerador_apos_edicao_orcamento(
+        orcamento_id,
+        orcamento_atual,
+        orcamento,
+    )
+
+    valor_anterior = _converter_valor_brl(orcamento_atual.get("valor_total"))
+    valor_novo = _converter_valor_brl(orcamento.get("valor_total"))
+    registrar_atividade_usuario(
+        "edicao",
+        "orcamentos",
+        (
+            f"Alterou orçamento {orcamento.get('numero') or orcamento_id}: "
+            f"R$ {_formatar_moeda_brl(valor_anterior)} para "
+            f"R$ {_formatar_moeda_brl(valor_novo)}"
+        ),
+        request.path,
+    )
+
+    return redirect(
+        url_for(
+            "ver_orcamento",
+            orcamento_id=orcamento_id,
+            sucesso="Orçamento atualizado com o valor final informado.",
+        )
+    )
 
 
 
