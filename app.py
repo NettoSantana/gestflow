@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-14 21:15 (America/Bahia)
-# Motivo: Adicionar suporte aos adicionais de mão de obra no Gerador de Orçamentos.
+# Último recode: 2026-07-14 21:49 (America/Bahia)
+# Motivo: Adicionar ficha técnica de CMV e produção de produtos com baixa automática dos componentes.
 
 from __future__ import annotations
 
@@ -1005,10 +1005,92 @@ def iniciar_banco() -> None:
                 estoque_atual TEXT,
                 estoque_minimo TEXT,
                 preco_custo TEXT,
+                preco_custo_manual TEXT,
+                cmv_calculado TEXT,
+                custo_origem TEXT NOT NULL DEFAULT 'manual',
+                possui_composicao TEXT NOT NULL DEFAULT 'nao',
+                cmv_atualizado_em TEXT,
                 preco_venda TEXT,
                 status TEXT NOT NULL DEFAULT 'ativo',
                 observacoes TEXT,
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS produto_composicao_itens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER,
+                produto_id INTEGER NOT NULL,
+                componente_produto_id INTEGER NOT NULL,
+                componente_nome TEXT,
+                unidade TEXT,
+                quantidade TEXT,
+                perda_percentual TEXT,
+                custo_unitario TEXT,
+                custo_total TEXT,
+                observacoes TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                atualizado_em TEXT,
+                FOREIGN KEY (produto_id) REFERENCES produtos (id),
+                FOREIGN KEY (componente_produto_id) REFERENCES produtos (id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS produto_composicao_custos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER,
+                produto_id INTEGER NOT NULL,
+                tipo TEXT NOT NULL DEFAULT 'outro',
+                descricao TEXT,
+                valor TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                atualizado_em TEXT,
+                FOREIGN KEY (produto_id) REFERENCES produtos (id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS produto_producoes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER,
+                produto_id INTEGER NOT NULL,
+                produto_nome TEXT,
+                quantidade_produzida TEXT,
+                cmv_unitario TEXT,
+                custo_total TEXT,
+                estoque_anterior TEXT,
+                estoque_atual TEXT,
+                responsavel TEXT,
+                observacoes TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (produto_id) REFERENCES produtos (id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS produto_producao_consumos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER,
+                producao_id INTEGER NOT NULL,
+                produto_id INTEGER NOT NULL,
+                componente_produto_id INTEGER NOT NULL,
+                componente_nome TEXT,
+                unidade TEXT,
+                quantidade_consumida TEXT,
+                custo_unitario TEXT,
+                custo_total TEXT,
+                estoque_anterior TEXT,
+                estoque_atual TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (producao_id) REFERENCES produto_producoes (id),
+                FOREIGN KEY (produto_id) REFERENCES produtos (id),
+                FOREIGN KEY (componente_produto_id) REFERENCES produtos (id)
             )
             """
         )
@@ -2005,6 +2087,11 @@ def iniciar_banco() -> None:
                 "estoque_atual": "TEXT",
                 "estoque_minimo": "TEXT",
                 "preco_custo": "TEXT",
+                "preco_custo_manual": "TEXT",
+                "cmv_calculado": "TEXT",
+                "custo_origem": "TEXT DEFAULT 'manual'",
+                "possui_composicao": "TEXT DEFAULT 'nao'",
+                "cmv_atualizado_em": "TEXT",
                 "preco_venda": "TEXT",
                 "status": "TEXT DEFAULT 'ativo'",
                 "observacoes": "TEXT",
@@ -2056,6 +2143,17 @@ def iniciar_banco() -> None:
             if coluna not in colunas_agendamentos_existentes:
                 conn.execute(f"ALTER TABLE agendamentos ADD COLUMN {coluna} {tipo_coluna}")
 
+        conn.execute(
+            """
+            UPDATE produtos
+            SET
+                preco_custo_manual = COALESCE(NULLIF(TRIM(preco_custo_manual), ''), preco_custo, '0,00'),
+                cmv_calculado = COALESCE(NULLIF(TRIM(cmv_calculado), ''), '0,00'),
+                custo_origem = COALESCE(NULLIF(TRIM(custo_origem), ''), 'manual'),
+                possui_composicao = COALESCE(NULLIF(TRIM(possui_composicao), ''), 'nao')
+            """
+        )
+
         empresas_sem_codigo = conn.execute(
             """
             SELECT id
@@ -2105,6 +2203,10 @@ def iniciar_banco() -> None:
             "funcionarios",
             "equipamentos",
             "produtos",
+            "produto_composicao_itens",
+            "produto_composicao_custos",
+            "produto_producoes",
+            "produto_producao_consumos",
             "servicos",
             "orcamentos",
             "orcamento_itens",
@@ -2441,8 +2543,8 @@ CADASTROS_PAGINADOS = {
     },
     "produtos": {
         "tabela": "produtos",
-        "colunas": ["id", "empresa_id", "nome", "codigo", "categoria", "unidade", "estoque_atual", "estoque_minimo", "preco_custo", "preco_venda", "status", "observacoes", "criado_em"],
-        "busca": ["nome", "codigo", "categoria", "unidade", "status"],
+        "colunas": ["id", "empresa_id", "nome", "codigo", "categoria", "unidade", "estoque_atual", "estoque_minimo", "preco_custo", "preco_custo_manual", "cmv_calculado", "custo_origem", "possui_composicao", "cmv_atualizado_em", "preco_venda", "status", "observacoes", "criado_em"],
+        "busca": ["nome", "codigo", "categoria", "unidade", "status", "custo_origem", "possui_composicao"],
         "ordenacao": {
             "id": "id",
             "nome": "nome",
@@ -2450,6 +2552,8 @@ CADASTROS_PAGINADOS = {
             "categoria": "categoria",
             "unidade": "unidade",
             "estoque_atual": "estoque_atual",
+            "preco_custo": "preco_custo",
+            "cmv_calculado": "cmv_calculado",
             "preco_venda": "preco_venda",
             "status": "status",
         },
@@ -3463,11 +3567,12 @@ def excluir_funcionario_db(funcionario_id: int) -> None:
         )
         conn.commit()
 
-def salvar_produto_db(produto: dict[str, str]) -> None:
+def salvar_produto_db(produto: dict[str, str]) -> int:
     empresa_id = empresa_logada_id()
+    preco_custo_manual = str(produto.get("preco_custo_manual") or produto.get("preco_custo") or "").strip()
 
     with conectar_db() as conn:
-        conn.execute(
+        cursor = conn.execute(
             """
             INSERT INTO produtos (
                 empresa_id,
@@ -3478,10 +3583,15 @@ def salvar_produto_db(produto: dict[str, str]) -> None:
                 estoque_atual,
                 estoque_minimo,
                 preco_custo,
+                preco_custo_manual,
+                cmv_calculado,
+                custo_origem,
+                possui_composicao,
+                cmv_atualizado_em,
                 preco_venda,
                 status,
                 observacoes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id,
@@ -3491,13 +3601,22 @@ def salvar_produto_db(produto: dict[str, str]) -> None:
                 produto["unidade"],
                 produto["estoque_atual"],
                 produto["estoque_minimo"],
-                produto["preco_custo"],
+                preco_custo_manual,
+                preco_custo_manual,
+                "0,00",
+                "manual",
+                "nao",
+                "",
                 produto["preco_venda"],
                 produto["status"],
                 produto["observacoes"],
             ),
         )
+        produto_id = int(cursor.lastrowid)
         conn.commit()
+
+    return produto_id
+
 
 def listar_produtos() -> list[dict[str, Any]]:
     empresa_id = empresa_logada_id()
@@ -3515,6 +3634,11 @@ def listar_produtos() -> list[dict[str, Any]]:
                 estoque_atual,
                 estoque_minimo,
                 preco_custo,
+                preco_custo_manual,
+                cmv_calculado,
+                custo_origem,
+                possui_composicao,
+                cmv_atualizado_em,
                 preco_venda,
                 status,
                 observacoes,
@@ -3527,6 +3651,7 @@ def listar_produtos() -> list[dict[str, Any]]:
         ).fetchall()
 
     return [dict(row) for row in rows]
+
 
 def buscar_produto_por_id(produto_id: int) -> dict[str, Any] | None:
     empresa_id = empresa_logada_id()
@@ -3544,6 +3669,11 @@ def buscar_produto_por_id(produto_id: int) -> dict[str, Any] | None:
                 estoque_atual,
                 estoque_minimo,
                 preco_custo,
+                preco_custo_manual,
+                cmv_calculado,
+                custo_origem,
+                possui_composicao,
+                cmv_atualizado_em,
                 preco_venda,
                 status,
                 observacoes,
@@ -3560,8 +3690,550 @@ def buscar_produto_por_id(produto_id: int) -> dict[str, Any] | None:
 
     return dict(row)
 
+
+def listar_produtos_componentes_disponiveis(produto_id: int | None = None) -> list[dict[str, Any]]:
+    empresa_id = empresa_logada_id()
+    consulta = """
+        SELECT
+            id,
+            nome,
+            codigo,
+            unidade,
+            estoque_atual,
+            preco_custo,
+            preco_custo_manual,
+            cmv_calculado,
+            custo_origem,
+            status
+        FROM produtos
+        WHERE empresa_id = ?
+          AND LOWER(COALESCE(status, 'ativo')) = 'ativo'
+    """
+    parametros: list[Any] = [empresa_id]
+
+    if produto_id is not None:
+        consulta += " AND id <> ?"
+        parametros.append(produto_id)
+
+    consulta += " ORDER BY nome ASC, id ASC"
+
+    with conectar_db() as conn:
+        rows = conn.execute(consulta, parametros).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def listar_produto_composicao_itens(produto_id: int) -> list[dict[str, Any]]:
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                pci.id,
+                pci.empresa_id,
+                pci.produto_id,
+                pci.componente_produto_id,
+                COALESCE(NULLIF(TRIM(p.nome), ''), pci.componente_nome) AS componente_nome,
+                COALESCE(NULLIF(TRIM(p.unidade), ''), pci.unidade, 'un') AS unidade,
+                pci.quantidade,
+                pci.perda_percentual,
+                COALESCE(NULLIF(TRIM(p.preco_custo), ''), pci.custo_unitario, '0,00') AS custo_unitario_atual,
+                pci.custo_unitario,
+                pci.custo_total,
+                pci.observacoes,
+                pci.criado_em,
+                pci.atualizado_em,
+                p.estoque_atual AS componente_estoque_atual,
+                p.status AS componente_status
+            FROM produto_composicao_itens pci
+            LEFT JOIN produtos p
+              ON p.id = pci.componente_produto_id
+             AND p.empresa_id = pci.empresa_id
+            WHERE pci.produto_id = ?
+              AND pci.empresa_id = ?
+            ORDER BY pci.id ASC
+            """,
+            (produto_id, empresa_id),
+        ).fetchall()
+
+    itens: list[dict[str, Any]] = []
+    for row in rows:
+        item = dict(row)
+        quantidade = _converter_valor_brl(item.get("quantidade"))
+        perda = _converter_valor_brl(item.get("perda_percentual"))
+        custo_unitario = _converter_valor_brl(item.get("custo_unitario_atual"))
+        quantidade_com_perda = quantidade * (1 + (perda / 100))
+        item["quantidade_numero"] = quantidade
+        item["perda_percentual_numero"] = perda
+        item["quantidade_com_perda"] = quantidade_com_perda
+        item["custo_unitario_numero"] = custo_unitario
+        item["custo_total_numero"] = quantidade_com_perda * custo_unitario
+        itens.append(item)
+
+    return itens
+
+
+def listar_produto_composicao_custos(produto_id: int) -> list[dict[str, Any]]:
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                id,
+                empresa_id,
+                produto_id,
+                tipo,
+                descricao,
+                valor,
+                criado_em,
+                atualizado_em
+            FROM produto_composicao_custos
+            WHERE produto_id = ?
+              AND empresa_id = ?
+            ORDER BY id ASC
+            """,
+            (produto_id, empresa_id),
+        ).fetchall()
+
+    custos: list[dict[str, Any]] = []
+    for row in rows:
+        custo = dict(row)
+        custo["valor_numero"] = _converter_valor_brl(custo.get("valor"))
+        custos.append(custo)
+
+    return custos
+
+
+def produto_composicao_cria_ciclo(
+    produto_id: int,
+    componente_produto_id: int,
+    conn: sqlite3.Connection,
+) -> bool:
+    empresa_id = empresa_logada_id()
+
+    if produto_id == componente_produto_id:
+        return True
+
+    row = conn.execute(
+        """
+        WITH RECURSIVE dependencias(produto_id) AS (
+            SELECT componente_produto_id
+            FROM produto_composicao_itens
+            WHERE produto_id = ?
+              AND empresa_id = ?
+
+            UNION
+
+            SELECT pci.componente_produto_id
+            FROM produto_composicao_itens pci
+            JOIN dependencias d
+              ON pci.produto_id = d.produto_id
+            WHERE pci.empresa_id = ?
+        )
+        SELECT 1
+        FROM dependencias
+        WHERE produto_id = ?
+        LIMIT 1
+        """,
+        (componente_produto_id, empresa_id, empresa_id, produto_id),
+    ).fetchone()
+
+    return row is not None
+
+
+def calcular_cmv_produto(
+    produto_id: int,
+    atualizar_produto: bool = True,
+    conn: sqlite3.Connection | None = None,
+) -> dict[str, Any]:
+    empresa_id = empresa_logada_id()
+    conexao_propria = conn is None
+    conexao = conn or conectar_db()
+
+    try:
+        produto_row = conexao.execute(
+            """
+            SELECT
+                id,
+                nome,
+                preco_custo,
+                preco_custo_manual
+            FROM produtos
+            WHERE id = ?
+              AND empresa_id = ?
+            LIMIT 1
+            """,
+            (produto_id, empresa_id),
+        ).fetchone()
+
+        if produto_row is None:
+            return {
+                "possui_composicao": False,
+                "custo_componentes": 0.0,
+                "custos_diretos": 0.0,
+                "cmv_unitario": 0.0,
+                "quantidade_componentes": 0,
+                "quantidade_custos": 0,
+            }
+
+        itens_rows = conexao.execute(
+            """
+            SELECT
+                pci.id,
+                pci.quantidade,
+                pci.perda_percentual,
+                COALESCE(NULLIF(TRIM(p.preco_custo), ''), pci.custo_unitario, '0,00') AS custo_unitario
+            FROM produto_composicao_itens pci
+            LEFT JOIN produtos p
+              ON p.id = pci.componente_produto_id
+             AND p.empresa_id = pci.empresa_id
+            WHERE pci.produto_id = ?
+              AND pci.empresa_id = ?
+            ORDER BY pci.id ASC
+            """,
+            (produto_id, empresa_id),
+        ).fetchall()
+        custos_rows = conexao.execute(
+            """
+            SELECT id, valor
+            FROM produto_composicao_custos
+            WHERE produto_id = ?
+              AND empresa_id = ?
+            ORDER BY id ASC
+            """,
+            (produto_id, empresa_id),
+        ).fetchall()
+
+        custo_componentes = 0.0
+        for item in itens_rows:
+            quantidade = _converter_valor_brl(item["quantidade"])
+            perda = _converter_valor_brl(item["perda_percentual"])
+            custo_unitario = _converter_valor_brl(item["custo_unitario"])
+            custo_componentes += quantidade * (1 + (perda / 100)) * custo_unitario
+
+        custos_diretos = sum(_converter_valor_brl(row["valor"]) for row in custos_rows)
+        possui_composicao = bool(itens_rows or custos_rows)
+        cmv_unitario = custo_componentes + custos_diretos
+        custo_manual = _converter_valor_brl(
+            produto_row["preco_custo_manual"]
+            if produto_row["preco_custo_manual"] is not None
+            else produto_row["preco_custo"]
+        )
+        custo_efetivo = cmv_unitario if possui_composicao else custo_manual
+        agora = agora_empresa().isoformat(timespec="seconds")
+
+        if atualizar_produto:
+            conexao.execute(
+                """
+                UPDATE produtos
+                SET
+                    preco_custo = ?,
+                    cmv_calculado = ?,
+                    custo_origem = ?,
+                    possui_composicao = ?,
+                    cmv_atualizado_em = ?
+                WHERE id = ?
+                  AND empresa_id = ?
+                """,
+                (
+                    _formatar_moeda_brl(custo_efetivo),
+                    _formatar_moeda_brl(cmv_unitario),
+                    "composicao" if possui_composicao else "manual",
+                    "sim" if possui_composicao else "nao",
+                    agora if possui_composicao else "",
+                    produto_id,
+                    empresa_id,
+                ),
+            )
+            if conexao_propria:
+                conexao.commit()
+
+        return {
+            "possui_composicao": possui_composicao,
+            "custo_componentes": custo_componentes,
+            "custos_diretos": custos_diretos,
+            "cmv_unitario": cmv_unitario,
+            "custo_manual": custo_manual,
+            "custo_efetivo": custo_efetivo,
+            "quantidade_componentes": len(itens_rows),
+            "quantidade_custos": len(custos_rows),
+        }
+    finally:
+        if conexao_propria:
+            conexao.close()
+
+
+def recalcular_produtos_dependentes(
+    componente_produto_id: int,
+    conn: sqlite3.Connection,
+    visitados: set[int] | None = None,
+) -> None:
+    empresa_id = empresa_logada_id()
+    visitados = visitados or set()
+
+    if componente_produto_id in visitados:
+        return
+
+    visitados.add(componente_produto_id)
+    rows = conn.execute(
+        """
+        SELECT DISTINCT produto_id
+        FROM produto_composicao_itens
+        WHERE componente_produto_id = ?
+          AND empresa_id = ?
+        ORDER BY produto_id ASC
+        """,
+        (componente_produto_id, empresa_id),
+    ).fetchall()
+
+    for row in rows:
+        produto_dependente_id = int(row["produto_id"])
+        if produto_dependente_id in visitados:
+            continue
+
+        calcular_cmv_produto(produto_dependente_id, atualizar_produto=True, conn=conn)
+        recalcular_produtos_dependentes(produto_dependente_id, conn, visitados)
+
+
+def montar_resumo_composicao_produto(produto_id: int) -> dict[str, Any]:
+    resumo = calcular_cmv_produto(produto_id, atualizar_produto=True)
+    itens = listar_produto_composicao_itens(produto_id)
+    capacidade_producao: float | None = None
+    componentes_insuficientes = 0
+
+    for item in itens:
+        consumo_unitario = float(item.get("quantidade_com_perda") or 0)
+        estoque = _converter_valor_brl(item.get("componente_estoque_atual"))
+
+        if consumo_unitario <= 0:
+            continue
+
+        capacidade_item = max(estoque, 0) / consumo_unitario
+        capacidade_producao = capacidade_item if capacidade_producao is None else min(capacidade_producao, capacidade_item)
+
+        if estoque < consumo_unitario:
+            componentes_insuficientes += 1
+
+    resumo["capacidade_producao"] = int(capacidade_producao or 0)
+    resumo["componentes_insuficientes"] = componentes_insuficientes
+    resumo["itens"] = itens
+    resumo["custos"] = listar_produto_composicao_custos(produto_id)
+    return resumo
+
+
+def montar_produto_composicao_formulario(produto_id: int) -> tuple[list[dict[str, Any]], list[dict[str, Any]], str]:
+    componente_ids = [str(valor or "").strip() for valor in request.form.getlist("componente_produto_id")]
+    quantidades = [str(valor or "").strip() for valor in request.form.getlist("componente_quantidade")]
+    perdas = [str(valor or "").strip() for valor in request.form.getlist("componente_perda_percentual")]
+    observacoes = [str(valor or "").strip() for valor in request.form.getlist("componente_observacoes")]
+
+    custo_tipos = [str(valor or "").strip() for valor in request.form.getlist("composicao_custo_tipo")]
+    custo_descricoes = [str(valor or "").strip() for valor in request.form.getlist("composicao_custo_descricao")]
+    custo_valores = [str(valor or "").strip() for valor in request.form.getlist("composicao_custo_valor")]
+
+    total_componentes = max(len(componente_ids), len(quantidades), len(perdas), len(observacoes), 0)
+    total_custos = max(len(custo_tipos), len(custo_descricoes), len(custo_valores), 0)
+    empresa_id = empresa_logada_id()
+    itens: list[dict[str, Any]] = []
+    custos: list[dict[str, Any]] = []
+    ids_adicionados: set[int] = set()
+
+    with conectar_db() as conn:
+        for indice in range(total_componentes):
+            componente_id_texto = componente_ids[indice] if indice < len(componente_ids) else ""
+            quantidade_texto = quantidades[indice] if indice < len(quantidades) else ""
+            perda_texto = perdas[indice] if indice < len(perdas) else ""
+            observacao = observacoes[indice] if indice < len(observacoes) else ""
+
+            if not componente_id_texto:
+                continue
+
+            try:
+                componente_id = int(componente_id_texto)
+            except (TypeError, ValueError):
+                return [], [], "Selecione um componente válido para a ficha técnica."
+
+            if componente_id == produto_id:
+                return [], [], "O produto não pode ser componente de si mesmo."
+
+            if componente_id in ids_adicionados:
+                return [], [], "O mesmo componente foi informado mais de uma vez."
+
+            quantidade = _converter_valor_brl(quantidade_texto)
+            perda = max(_converter_valor_brl(perda_texto), 0.0)
+
+            if quantidade <= 0:
+                return [], [], "A quantidade de cada componente precisa ser maior que zero."
+
+            componente = conn.execute(
+                """
+                SELECT
+                    id,
+                    nome,
+                    unidade,
+                    preco_custo,
+                    status
+                FROM produtos
+                WHERE id = ?
+                  AND empresa_id = ?
+                LIMIT 1
+                """,
+                (componente_id, empresa_id),
+            ).fetchone()
+
+            if componente is None:
+                return [], [], "Um dos componentes selecionados não existe nesta empresa."
+
+            if str(componente["status"] or "ativo").strip().lower() != "ativo":
+                return [], [], f"O componente {componente['nome']} está inativo."
+
+            if produto_composicao_cria_ciclo(produto_id, componente_id, conn):
+                return [], [], (
+                    f"O componente {componente['nome']} criaria uma composição circular. "
+                    "Revise as fichas técnicas envolvidas."
+                )
+
+            custo_unitario = _converter_valor_brl(componente["preco_custo"])
+            quantidade_com_perda = quantidade * (1 + (perda / 100))
+            itens.append(
+                {
+                    "componente_produto_id": componente_id,
+                    "componente_nome": str(componente["nome"] or ""),
+                    "unidade": str(componente["unidade"] or "un"),
+                    "quantidade": quantidade,
+                    "perda_percentual": perda,
+                    "custo_unitario": custo_unitario,
+                    "custo_total": quantidade_com_perda * custo_unitario,
+                    "observacoes": observacao,
+                }
+            )
+            ids_adicionados.add(componente_id)
+
+    tipos_validos = {"mao_obra", "embalagem", "frete", "consumivel", "energia", "outro"}
+    for indice in range(total_custos):
+        descricao = custo_descricoes[indice] if indice < len(custo_descricoes) else ""
+        valor = _converter_valor_brl(custo_valores[indice] if indice < len(custo_valores) else "")
+        tipo = custo_tipos[indice] if indice < len(custo_tipos) else "outro"
+        tipo = tipo if tipo in tipos_validos else "outro"
+
+        if not descricao and valor <= 0:
+            continue
+
+        if not descricao:
+            return [], [], "Informe a descrição do custo direto."
+
+        if valor <= 0:
+            return [], [], f"Informe um valor maior que zero para o custo direto {descricao}."
+
+        custos.append({"tipo": tipo, "descricao": descricao, "valor": valor})
+
+    if not itens and not custos:
+        return [], [], "Adicione ao menos um componente ou custo direto à ficha técnica."
+
+    return itens, custos, ""
+
+
+def salvar_produto_composicao_db(
+    produto_id: int,
+    itens: list[dict[str, Any]],
+    custos: list[dict[str, Any]],
+) -> None:
+    empresa_id = empresa_logada_id()
+    agora = agora_empresa().isoformat(timespec="seconds")
+
+    with conectar_db() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        conn.execute(
+            "DELETE FROM produto_composicao_itens WHERE produto_id = ? AND empresa_id = ?",
+            (produto_id, empresa_id),
+        )
+        conn.execute(
+            "DELETE FROM produto_composicao_custos WHERE produto_id = ? AND empresa_id = ?",
+            (produto_id, empresa_id),
+        )
+
+        for item in itens:
+            conn.execute(
+                """
+                INSERT INTO produto_composicao_itens (
+                    empresa_id,
+                    produto_id,
+                    componente_produto_id,
+                    componente_nome,
+                    unidade,
+                    quantidade,
+                    perda_percentual,
+                    custo_unitario,
+                    custo_total,
+                    observacoes,
+                    atualizado_em
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    empresa_id,
+                    produto_id,
+                    int(item["componente_produto_id"]),
+                    str(item.get("componente_nome") or ""),
+                    str(item.get("unidade") or "un"),
+                    _formatar_numero_estoque(float(item.get("quantidade") or 0)),
+                    _formatar_percentual_simples(float(item.get("perda_percentual") or 0)),
+                    _formatar_moeda_brl(float(item.get("custo_unitario") or 0)),
+                    _formatar_moeda_brl(float(item.get("custo_total") or 0)),
+                    str(item.get("observacoes") or ""),
+                    agora,
+                ),
+            )
+
+        for custo in custos:
+            conn.execute(
+                """
+                INSERT INTO produto_composicao_custos (
+                    empresa_id,
+                    produto_id,
+                    tipo,
+                    descricao,
+                    valor,
+                    atualizado_em
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    empresa_id,
+                    produto_id,
+                    str(custo.get("tipo") or "outro"),
+                    str(custo.get("descricao") or ""),
+                    _formatar_moeda_brl(float(custo.get("valor") or 0)),
+                    agora,
+                ),
+            )
+
+        calcular_cmv_produto(produto_id, atualizar_produto=True, conn=conn)
+        recalcular_produtos_dependentes(produto_id, conn)
+        conn.commit()
+
+
+def remover_produto_composicao_db(produto_id: int) -> None:
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        conn.execute(
+            "DELETE FROM produto_composicao_itens WHERE produto_id = ? AND empresa_id = ?",
+            (produto_id, empresa_id),
+        )
+        conn.execute(
+            "DELETE FROM produto_composicao_custos WHERE produto_id = ? AND empresa_id = ?",
+            (produto_id, empresa_id),
+        )
+        calcular_cmv_produto(produto_id, atualizar_produto=True, conn=conn)
+        recalcular_produtos_dependentes(produto_id, conn)
+        conn.commit()
+
+
 def atualizar_produto_db(produto_id: int, produto: dict[str, str]) -> None:
     empresa_id = empresa_logada_id()
+    preco_custo_manual = str(produto.get("preco_custo_manual") or produto.get("preco_custo") or "").strip()
 
     with conectar_db() as conn:
         conn.execute(
@@ -3574,7 +4246,7 @@ def atualizar_produto_db(produto_id: int, produto: dict[str, str]) -> None:
                 unidade = ?,
                 estoque_atual = ?,
                 estoque_minimo = ?,
-                preco_custo = ?,
+                preco_custo_manual = ?,
                 preco_venda = ?,
                 status = ?,
                 observacoes = ?
@@ -3588,7 +4260,7 @@ def atualizar_produto_db(produto_id: int, produto: dict[str, str]) -> None:
                 produto["unidade"],
                 produto["estoque_atual"],
                 produto["estoque_minimo"],
-                produto["preco_custo"],
+                preco_custo_manual,
                 produto["preco_venda"],
                 produto["status"],
                 produto["observacoes"],
@@ -3596,18 +4268,398 @@ def atualizar_produto_db(produto_id: int, produto: dict[str, str]) -> None:
                 empresa_id,
             ),
         )
+        calcular_cmv_produto(produto_id, atualizar_produto=True, conn=conn)
+        recalcular_produtos_dependentes(produto_id, conn)
         conn.commit()
+
+
+def produto_usado_como_componente(produto_id: int) -> list[dict[str, Any]]:
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT DISTINCT
+                p.id,
+                p.nome,
+                p.codigo
+            FROM produto_composicao_itens pci
+            JOIN produtos p
+              ON p.id = pci.produto_id
+             AND p.empresa_id = pci.empresa_id
+            WHERE pci.componente_produto_id = ?
+              AND pci.empresa_id = ?
+            ORDER BY p.nome ASC
+            """,
+            (produto_id, empresa_id),
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def listar_produto_producoes(produto_id: int, limite: int = 50) -> list[dict[str, Any]]:
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                id,
+                empresa_id,
+                produto_id,
+                produto_nome,
+                quantidade_produzida,
+                cmv_unitario,
+                custo_total,
+                estoque_anterior,
+                estoque_atual,
+                responsavel,
+                observacoes,
+                criado_em
+            FROM produto_producoes
+            WHERE produto_id = ?
+              AND empresa_id = ?
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (produto_id, empresa_id, limite),
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def listar_produto_producao_consumos(producao_id: int) -> list[dict[str, Any]]:
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                id,
+                empresa_id,
+                producao_id,
+                produto_id,
+                componente_produto_id,
+                componente_nome,
+                unidade,
+                quantidade_consumida,
+                custo_unitario,
+                custo_total,
+                estoque_anterior,
+                estoque_atual,
+                criado_em
+            FROM produto_producao_consumos
+            WHERE producao_id = ?
+              AND empresa_id = ?
+            ORDER BY id ASC
+            """,
+            (producao_id, empresa_id),
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def produzir_produto_db(
+    produto_id: int,
+    quantidade_produzir: float,
+    responsavel: str = "",
+    observacoes: str = "",
+) -> tuple[int | None, str]:
+    empresa_id = empresa_logada_id()
+
+    if quantidade_produzir <= 0:
+        return None, "Informe uma quantidade de produção maior que zero."
+
+    with conectar_db() as conn:
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            produto = conn.execute(
+                """
+                SELECT
+                    id,
+                    nome,
+                    unidade,
+                    estoque_atual,
+                    preco_custo_manual
+                FROM produtos
+                WHERE id = ?
+                  AND empresa_id = ?
+                LIMIT 1
+                """,
+                (produto_id, empresa_id),
+            ).fetchone()
+
+            if produto is None:
+                conn.rollback()
+                return None, "Produto não encontrado."
+
+            itens = conn.execute(
+                """
+                SELECT
+                    pci.componente_produto_id,
+                    COALESCE(NULLIF(TRIM(p.nome), ''), pci.componente_nome) AS componente_nome,
+                    COALESCE(NULLIF(TRIM(p.unidade), ''), pci.unidade, 'un') AS unidade,
+                    pci.quantidade,
+                    pci.perda_percentual,
+                    COALESCE(NULLIF(TRIM(p.preco_custo), ''), pci.custo_unitario, '0,00') AS custo_unitario,
+                    p.estoque_atual,
+                    p.status
+                FROM produto_composicao_itens pci
+                JOIN produtos p
+                  ON p.id = pci.componente_produto_id
+                 AND p.empresa_id = pci.empresa_id
+                WHERE pci.produto_id = ?
+                  AND pci.empresa_id = ?
+                ORDER BY pci.id ASC
+                """,
+                (produto_id, empresa_id),
+            ).fetchall()
+
+            if not itens:
+                conn.rollback()
+                return None, "Cadastre ao menos um componente na ficha técnica antes de produzir."
+
+            resumo_cmv = calcular_cmv_produto(produto_id, atualizar_produto=True, conn=conn)
+            cmv_unitario = float(resumo_cmv.get("cmv_unitario") or 0)
+            consumos: list[dict[str, Any]] = []
+
+            for item in itens:
+                quantidade_base = _converter_valor_brl(item["quantidade"])
+                perda = _converter_valor_brl(item["perda_percentual"])
+                quantidade_consumida = quantidade_base * (1 + (perda / 100)) * quantidade_produzir
+                estoque_anterior = _converter_valor_brl(item["estoque_atual"])
+                custo_unitario = _converter_valor_brl(item["custo_unitario"])
+
+                if str(item["status"] or "ativo").strip().lower() != "ativo":
+                    conn.rollback()
+                    return None, f"O componente {item['componente_nome']} está inativo."
+
+                if estoque_anterior + 1e-9 < quantidade_consumida:
+                    conn.rollback()
+                    falta = quantidade_consumida - estoque_anterior
+                    return None, (
+                        f"Estoque insuficiente de {item['componente_nome']}. "
+                        f"Necessário: {_formatar_numero_estoque(quantidade_consumida)} {item['unidade']}; "
+                        f"disponível: {_formatar_numero_estoque(estoque_anterior)}; "
+                        f"falta: {_formatar_numero_estoque(falta)}."
+                    )
+
+                consumos.append(
+                    {
+                        "componente_produto_id": int(item["componente_produto_id"]),
+                        "componente_nome": str(item["componente_nome"] or ""),
+                        "unidade": str(item["unidade"] or "un"),
+                        "quantidade_consumida": quantidade_consumida,
+                        "custo_unitario": custo_unitario,
+                        "custo_total": quantidade_consumida * custo_unitario,
+                        "estoque_anterior": estoque_anterior,
+                        "estoque_atual": estoque_anterior - quantidade_consumida,
+                    }
+                )
+
+            estoque_anterior_produto = _converter_valor_brl(produto["estoque_atual"])
+            estoque_atual_produto = estoque_anterior_produto + quantidade_produzir
+            custo_total = cmv_unitario * quantidade_produzir
+
+            cursor = conn.execute(
+                """
+                INSERT INTO produto_producoes (
+                    empresa_id,
+                    produto_id,
+                    produto_nome,
+                    quantidade_produzida,
+                    cmv_unitario,
+                    custo_total,
+                    estoque_anterior,
+                    estoque_atual,
+                    responsavel,
+                    observacoes
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    empresa_id,
+                    produto_id,
+                    str(produto["nome"] or ""),
+                    _formatar_numero_estoque(quantidade_produzir),
+                    _formatar_moeda_brl(cmv_unitario),
+                    _formatar_moeda_brl(custo_total),
+                    _formatar_numero_estoque(estoque_anterior_produto),
+                    _formatar_numero_estoque(estoque_atual_produto),
+                    responsavel,
+                    observacoes,
+                ),
+            )
+            producao_id = int(cursor.lastrowid)
+            documento = f"Produção Nº {producao_id}"
+
+            for consumo in consumos:
+                conn.execute(
+                    """
+                    UPDATE produtos
+                    SET estoque_atual = ?
+                    WHERE id = ?
+                      AND empresa_id = ?
+                    """,
+                    (
+                        _formatar_numero_estoque(float(consumo["estoque_atual"])),
+                        int(consumo["componente_produto_id"]),
+                        empresa_id,
+                    ),
+                )
+                conn.execute(
+                    """
+                    INSERT INTO estoque_movimentacoes (
+                        empresa_id,
+                        produto_id,
+                        produto_nome,
+                        tipo,
+                        quantidade,
+                        saldo_anterior,
+                        saldo_atual,
+                        motivo,
+                        documento,
+                        responsavel,
+                        observacoes
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        empresa_id,
+                        int(consumo["componente_produto_id"]),
+                        str(consumo["componente_nome"]),
+                        "saida",
+                        _formatar_numero_estoque(float(consumo["quantidade_consumida"])),
+                        _formatar_numero_estoque(float(consumo["estoque_anterior"])),
+                        _formatar_numero_estoque(float(consumo["estoque_atual"])),
+                        "Produção - consumo de componente",
+                        documento,
+                        responsavel,
+                        f"Consumo automático para produzir {quantidade_produzir:g} unidade(s) de {produto['nome']}.",
+                    ),
+                )
+                conn.execute(
+                    """
+                    INSERT INTO produto_producao_consumos (
+                        empresa_id,
+                        producao_id,
+                        produto_id,
+                        componente_produto_id,
+                        componente_nome,
+                        unidade,
+                        quantidade_consumida,
+                        custo_unitario,
+                        custo_total,
+                        estoque_anterior,
+                        estoque_atual
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        empresa_id,
+                        producao_id,
+                        produto_id,
+                        int(consumo["componente_produto_id"]),
+                        str(consumo["componente_nome"]),
+                        str(consumo["unidade"]),
+                        _formatar_numero_estoque(float(consumo["quantidade_consumida"])),
+                        _formatar_moeda_brl(float(consumo["custo_unitario"])),
+                        _formatar_moeda_brl(float(consumo["custo_total"])),
+                        _formatar_numero_estoque(float(consumo["estoque_anterior"])),
+                        _formatar_numero_estoque(float(consumo["estoque_atual"])),
+                    ),
+                )
+
+            conn.execute(
+                """
+                UPDATE produtos
+                SET
+                    estoque_atual = ?,
+                    preco_custo = ?,
+                    cmv_calculado = ?,
+                    custo_origem = 'composicao',
+                    possui_composicao = 'sim',
+                    cmv_atualizado_em = ?
+                WHERE id = ?
+                  AND empresa_id = ?
+                """,
+                (
+                    _formatar_numero_estoque(estoque_atual_produto),
+                    _formatar_moeda_brl(cmv_unitario),
+                    _formatar_moeda_brl(cmv_unitario),
+                    agora_empresa().isoformat(timespec="seconds"),
+                    produto_id,
+                    empresa_id,
+                ),
+            )
+            recalcular_produtos_dependentes(produto_id, conn)
+            conn.execute(
+                """
+                INSERT INTO estoque_movimentacoes (
+                    empresa_id,
+                    produto_id,
+                    produto_nome,
+                    tipo,
+                    quantidade,
+                    saldo_anterior,
+                    saldo_atual,
+                    motivo,
+                    documento,
+                    responsavel,
+                    observacoes
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    empresa_id,
+                    produto_id,
+                    str(produto["nome"] or ""),
+                    "entrada",
+                    _formatar_numero_estoque(quantidade_produzir),
+                    _formatar_numero_estoque(estoque_anterior_produto),
+                    _formatar_numero_estoque(estoque_atual_produto),
+                    "Produção de produto",
+                    documento,
+                    responsavel,
+                    "Entrada automática do produto final após consumo dos componentes da ficha técnica.",
+                ),
+            )
+
+            conn.commit()
+            return producao_id, ""
+        except sqlite3.Error as exc:
+            conn.rollback()
+            return None, f"Não foi possível concluir a produção: {exc}."
+
 
 def excluir_produto_db(produto_id: int) -> None:
     empresa_id = empresa_logada_id()
 
     with conectar_db() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        producoes = conn.execute(
+            "SELECT id FROM produto_producoes WHERE produto_id = ? AND empresa_id = ?",
+            (produto_id, empresa_id),
+        ).fetchall()
+        producao_ids = [int(row["id"]) for row in producoes]
+
+        if producao_ids:
+            placeholders = ",".join("?" for _ in producao_ids)
+            conn.execute(
+                f"DELETE FROM produto_producao_consumos WHERE empresa_id = ? AND producao_id IN ({placeholders})",
+                [empresa_id, *producao_ids],
+            )
+
         conn.execute(
-            """
-            DELETE FROM produtos
-            WHERE id = ?
-              AND empresa_id = ?
-            """,
+            "DELETE FROM produto_producoes WHERE produto_id = ? AND empresa_id = ?",
+            (produto_id, empresa_id),
+        )
+        conn.execute(
+            "DELETE FROM produto_composicao_itens WHERE produto_id = ? AND empresa_id = ?",
+            (produto_id, empresa_id),
+        )
+        conn.execute(
+            "DELETE FROM produto_composicao_custos WHERE produto_id = ? AND empresa_id = ?",
+            (produto_id, empresa_id),
+        )
+        conn.execute(
+            "DELETE FROM produtos WHERE id = ? AND empresa_id = ?",
             (produto_id, empresa_id),
         )
         conn.commit()
@@ -15302,10 +16354,15 @@ def salvar_produto_rapido() -> Response:
                 estoque_atual,
                 estoque_minimo,
                 preco_custo,
+                preco_custo_manual,
+                cmv_calculado,
+                custo_origem,
+                possui_composicao,
+                cmv_atualizado_em,
                 preco_venda,
                 status,
                 observacoes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id,
@@ -15316,6 +16373,11 @@ def salvar_produto_rapido() -> Response:
                 produto["estoque_atual"],
                 produto["estoque_minimo"],
                 produto["preco_custo"],
+                produto["preco_custo"],
+                "0,00",
+                "manual",
+                "nao",
+                "",
                 produto["preco_venda"],
                 produto["status"],
                 produto["observacoes"],
@@ -15437,7 +16499,18 @@ def ver_produto(produto_id: int) -> str | Response:
     if produto is None:
         return redirect(url_for("produtos"))
 
-    return render_template("produto_detalhe.html", produto=produto)
+    resumo_composicao = montar_resumo_composicao_produto(produto_id)
+    produto = buscar_produto_por_id(produto_id) or produto
+
+    return render_template(
+        "produto_detalhe.html",
+        produto=produto,
+        composicao_itens=resumo_composicao["itens"],
+        composicao_custos=resumo_composicao["custos"],
+        resumo_composicao=resumo_composicao,
+        producoes=listar_produto_producoes(produto_id),
+        usado_em_produtos=produto_usado_como_componente(produto_id),
+    )
 
 
 @app.get("/produtos/<int:produto_id>/editar")
@@ -15447,7 +16520,17 @@ def editar_produto(produto_id: int) -> str | Response:
     if produto is None:
         return redirect(url_for("produtos"))
 
-    return render_template("produto_editar.html", produto=produto)
+    resumo_composicao = montar_resumo_composicao_produto(produto_id)
+    produto = buscar_produto_por_id(produto_id) or produto
+
+    return render_template(
+        "produto_editar.html",
+        produto=produto,
+        composicao_itens=resumo_composicao["itens"],
+        composicao_custos=resumo_composicao["custos"],
+        resumo_composicao=resumo_composicao,
+        produtos_componentes=listar_produtos_componentes_disponiveis(produto_id),
+    )
 
 
 @app.post("/produtos/<int:produto_id>/editar")
@@ -15481,12 +16564,134 @@ def atualizar_produto(produto_id: int) -> Response:
     return redirect(url_for("ver_produto", produto_id=produto_id))
 
 
+@app.post("/produtos/<int:produto_id>/composicao")
+def salvar_produto_composicao(produto_id: int) -> Response:
+    produto = buscar_produto_por_id(produto_id)
+
+    if produto is None:
+        return redirect(url_for("produtos"))
+
+    itens, custos, erro = montar_produto_composicao_formulario(produto_id)
+
+    if erro:
+        return redirect(url_for("editar_produto", produto_id=produto_id, erro=erro))
+
+    salvar_produto_composicao_db(produto_id, itens, custos)
+    registrar_atividade_usuario(
+        "edicao",
+        "produtos",
+        f"Atualizou ficha técnica e CMV do produto {produto['nome']}",
+        request.path,
+    )
+
+    return redirect(
+        url_for(
+            "editar_produto",
+            produto_id=produto_id,
+            sucesso="Ficha técnica e CMV atualizados com sucesso.",
+        )
+    )
+
+
+@app.post("/produtos/<int:produto_id>/composicao/remover")
+def remover_produto_composicao(produto_id: int) -> Response:
+    produto = buscar_produto_por_id(produto_id)
+
+    if produto is None:
+        return redirect(url_for("produtos"))
+
+    remover_produto_composicao_db(produto_id)
+    registrar_atividade_usuario(
+        "edicao",
+        "produtos",
+        f"Removeu ficha técnica do produto {produto['nome']}",
+        request.path,
+    )
+
+    return redirect(
+        url_for(
+            "editar_produto",
+            produto_id=produto_id,
+            sucesso="Ficha técnica removida. O custo manual voltou a ser utilizado.",
+        )
+    )
+
+
+@app.get("/produtos/<int:produto_id>/producao")
+def producao_produto(produto_id: int) -> str | Response:
+    produto = buscar_produto_por_id(produto_id)
+
+    if produto is None:
+        return redirect(url_for("produtos"))
+
+    resumo_composicao = montar_resumo_composicao_produto(produto_id)
+    produto = buscar_produto_por_id(produto_id) or produto
+
+    return render_template(
+        "produto_producao.html",
+        produto=produto,
+        composicao_itens=resumo_composicao["itens"],
+        composicao_custos=resumo_composicao["custos"],
+        resumo_composicao=resumo_composicao,
+        producoes=listar_produto_producoes(produto_id),
+    )
+
+
+@app.post("/produtos/<int:produto_id>/producao")
+def salvar_producao_produto(produto_id: int) -> Response:
+    produto = buscar_produto_por_id(produto_id)
+
+    if produto is None:
+        return redirect(url_for("produtos"))
+
+    quantidade = _converter_valor_brl(request.form.get("producao_quantidade"))
+    responsavel = (request.form.get("producao_responsavel") or "").strip()
+    observacoes = (request.form.get("producao_observacoes") or "").strip()
+    producao_id, erro = produzir_produto_db(
+        produto_id,
+        quantidade,
+        responsavel=responsavel,
+        observacoes=observacoes,
+    )
+
+    if erro:
+        return redirect(url_for("producao_produto", produto_id=produto_id, erro=erro))
+
+    registrar_atividade_usuario(
+        "criacao",
+        "produtos",
+        f"Produziu {_formatar_numero_estoque(quantidade)} unidade(s) de {produto['nome']}",
+        request.path,
+    )
+
+    return redirect(
+        url_for(
+            "producao_produto",
+            produto_id=produto_id,
+            sucesso=f"Produção Nº {producao_id} concluída com sucesso.",
+        )
+    )
+
+
 @app.post("/produtos/<int:produto_id>/excluir")
 def excluir_produto(produto_id: int) -> Response:
     produto = buscar_produto_por_id(produto_id)
 
-    if produto is not None:
-        excluir_produto_db(produto_id)
+    if produto is None:
+        return redirect(url_for("produtos"))
+
+    produtos_vinculados = produto_usado_como_componente(produto_id)
+    if produtos_vinculados:
+        nomes = ", ".join(str(item.get("nome") or "") for item in produtos_vinculados[:5])
+        return redirect(
+            url_for(
+                "produtos",
+                erro=f"Este produto é componente de: {nomes}. Remova-o dessas fichas técnicas antes de excluir.",
+            )
+        )
+
+    excluir_produto_db(produto_id)
+    registrar_atividade_usuario("exclusao", "produtos", f"Excluiu produto {produto['nome']}", request.path)
 
     return redirect(url_for("produtos"))
 
