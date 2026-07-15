@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\static\css\dashboard.css
-Último recode: 2026-07-12 09:25 (America/Bahia)
-Motivo: Corrigir estouro lateral das telas internas e manter rolagem horizontal apenas dentro das tabelas.
+Último recode: 2026-07-15 10:32 (America/Bahia)
+Motivo: Adicionar estilos compartilhados para abas e alertas do orçamento com apresentação comercial.
 */
 
 :root {
@@ -3268,3 +3268,48 @@ canvas {
 }
 .form-span-2 { grid-column: span 2; }
 @media (max-width: 900px) { .form-span-2 { grid-column: span 1; } }
+
+
+/* ORCAMENTOS - APRESENTACAO COMERCIAL E ABAS */
+.form-alert-success,
+.form-alert-error {
+    margin: 0 0 18px;
+    padding: 12px 14px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.form-alert-success {
+    border: 1px solid #bbf7d0;
+    background: #f0fdf4;
+    color: #166534;
+}
+
+.form-alert-error {
+    border: 1px solid #fecaca;
+    background: #fef2f2;
+    color: #991b1b;
+}
+
+.budget-header-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+@media (max-width: 720px) {
+    .budget-header-actions {
+        width: 100%;
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .budget-header-actions .btn-primary-green,
+    .budget-header-actions .btn-dark,
+    .budget-header-actions .btn-light {
+        width: 100%;
+    }
+}

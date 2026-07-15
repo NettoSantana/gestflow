@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_gerador.html
-Último recode: 2026-07-14 21:19 (America/Bahia)
-Motivo: Adicionar cálculo detalhado de adicionais de mão de obra no Gerador de Orçamentos.
+Último recode: 2026-07-15 10:32 (America/Bahia)
+Motivo: Salvar apresentação comercial e permitir reabrir, recalcular e atualizar os dados internos do Gerador.
 -->
 
 <!DOCTYPE html>
@@ -352,35 +352,97 @@ Motivo: Adicionar cálculo detalhado de adicionais de mão de obra no Gerador de
                 grid-template-columns: 1fr;
             }
         }
-    </style>
+    
+        .budget-tabs {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+            padding: 8px;
+            border: 1px solid #dbe4f0;
+            border-radius: 14px;
+            background: #ffffff;
+        }
+        .budget-tab {
+            min-height: 38px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 14px;
+            border-radius: 10px;
+            color: #475569;
+            font-size: 12px;
+            font-weight: 900;
+            text-decoration: none;
+        }
+        .budget-tab:hover { background: #f1f5f9; color: #0f172a; }
+        .budget-tab.active { background: #0f62fe; color: #ffffff; }
+        .commercial-presentation-grid {
+            display: grid;
+            grid-template-columns: minmax(220px, .55fr) minmax(0, 1.45fr);
+            gap: 14px;
+            align-items: start;
+        }
+        .commercial-presentation-note {
+            margin-top: 8px;
+            padding: 12px 14px;
+            border: 1px solid #bfdbfe;
+            border-radius: 12px;
+            background: #eff6ff;
+            color: #1e40af;
+            font-size: 12px;
+            font-weight: 800;
+            line-height: 1.45;
+        }
+        @media (max-width: 720px) {
+            .commercial-presentation-grid { grid-template-columns: 1fr; }
+            .budget-tabs { flex-direction: column; }
+            .budget-tab { width: 100%; }
+        }
+</style>
 
 </head>
 <body>
     {% include "partials/sidebar.html" %}
 
     <main class="content gerador-page">
-        {% set page_title = 'Gerador de Orçamentos' %}
+        {% set gerador_inicial = gerador_dados|default({}, true) %}
+        {% set revisao = modo_revisao|default(false) %}
+        {% set page_title = 'Revisão do Gerador' if revisao else 'Gerador de Orçamentos' %}
         {% include "partials/topbar.html" %}
 
         <section class="panel page-section">
             <div class="panel-header page-header">
                 <div>
                     <span class="page-kicker">Orçamentos</span>
-                    <h3 class="page-title">Gerador de Orçamentos</h3>
-                    <p class="page-subtitle">Monte custo real com materiais cadastrados, mão de obra por funcionário, margens, impostos e gere um orçamento normal.</p>
+                    <h3 class="page-title">{{ 'Revisar dados do Gerador' if revisao else 'Gerador de Orçamentos' }}</h3>
+                    <p class="page-subtitle">{{ 'Altere a composição interna, recalcule custos e atualize o mesmo orçamento sem criar uma cópia.' if revisao else 'Monte o custo real, escolha como o cliente verá a proposta e gere um orçamento comercial.' }}</p>
                 </div>
 
                 <div class="budget-header-actions">
-                    <a href="/orcamentos" class="btn-light">Voltar para orçamentos</a>
+                    {% if revisao and orcamento %}
+                        <a href="/orcamentos/{{ orcamento.id }}" class="btn-light">Voltar ao orçamento</a>
+                    {% else %}
+                        <a href="/orcamentos" class="btn-light">Voltar para orçamentos</a>
+                    {% endif %}
                 </div>
             </div>
         </section>
+
+        {% if revisao and orcamento %}
+            <nav class="budget-tabs" aria-label="Abas do orçamento">
+                <a class="budget-tab" href="/orcamentos/{{ orcamento.id }}/editar">Orçamento</a>
+                <a class="budget-tab" href="/orcamentos/{{ orcamento.id }}/editar#aba-apresentacao">Apresentação ao cliente</a>
+                <a class="budget-tab active" href="/orcamentos/{{ orcamento.id }}/gerador/revisao">Dados do Gerador</a>
+                <a class="budget-tab" href="/orcamentos/{{ orcamento.id }}/gerador/historico">Histórico</a>
+            </nav>
+        {% endif %}
 
         {% if request.args.get('erro') %}
             <div class="gerador-form-error">{{ request.args.get('erro') }}</div>
         {% endif %}
 
-        <form id="gerador-form" action="/orcamentos/gerador" method="post">
+        <form id="gerador-form" action="{{ form_action|default('/orcamentos/gerador') }}" method="post">
             <div class="gerador-layout">
                 <div class="gerador-stack">
                     <section class="panel page-section">
@@ -398,7 +460,7 @@ Motivo: Adicionar cálculo detalhado de adicionais de mão de obra no Gerador de
                                 <select id="gerador_cliente" name="gerador_cliente" class="form-control" required>
                                     <option value="">Selecione</option>
                                     {% for cliente in clientes|default([]) %}
-                                        <option value="{{ cliente.nome }}">{{ cliente.nome }}</option>
+                                        <option value="{{ cliente.nome }}" {% if gerador_inicial.cliente == cliente.nome %}selected{% endif %}>{{ cliente.nome }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
@@ -408,50 +470,50 @@ Motivo: Adicionar cálculo detalhado de adicionais de mão de obra no Gerador de
                                 <select id="gerador_responsavel" name="gerador_responsavel" class="form-control" required>
                                     <option value="">Selecione</option>
                                     {% for funcionario in funcionarios|default([]) %}
-                                        <option value="{{ funcionario.nome }}">{{ funcionario.nome }}</option>
+                                        <option value="{{ funcionario.nome }}" {% if gerador_inicial.responsavel == funcionario.nome %}selected{% endif %}>{{ funcionario.nome }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
 
                             <div class="form-group">
                                 <label for="gerador_data">Data</label>
-                                <input id="gerador_data" name="gerador_data" type="date" value="{{ data_hoje }}" class="form-control">
+                                <input id="gerador_data" name="gerador_data" type="date" value="{{ gerador_inicial.data|default(data_hoje, true) }}" class="form-control">
                             </div>
 
                             <div class="form-group">
                                 <label for="gerador_tipo_servico">Tipo de serviço</label>
                                 <select id="gerador_tipo_servico" name="gerador_tipo_servico" class="form-control">
-                                    <option value="Elétrica">Elétrica</option>
-                                    <option value="Mecânica">Mecânica</option>
-                                    <option value="Caldeiraria / Solda">Caldeiraria / Solda</option>
-                                    <option value="Civil">Civil</option>
-                                    <option value="Usinagem">Usinagem</option>
-                                    <option value="Automação">Automação</option>
-                                    <option value="SPDA">SPDA</option>
-                                    <option value="Subestação">Subestação</option>
-                                    <option value="Outros">Outros</option>
+                                    <option value="Elétrica" {% if gerador_inicial.tipo_servico == 'Elétrica' %}selected{% endif %}>Elétrica</option>
+                                    <option value="Mecânica" {% if gerador_inicial.tipo_servico == 'Mecânica' %}selected{% endif %}>Mecânica</option>
+                                    <option value="Caldeiraria / Solda" {% if gerador_inicial.tipo_servico == 'Caldeiraria / Solda' %}selected{% endif %}>Caldeiraria / Solda</option>
+                                    <option value="Civil" {% if gerador_inicial.tipo_servico == 'Civil' %}selected{% endif %}>Civil</option>
+                                    <option value="Usinagem" {% if gerador_inicial.tipo_servico == 'Usinagem' %}selected{% endif %}>Usinagem</option>
+                                    <option value="Automação" {% if gerador_inicial.tipo_servico == 'Automação' %}selected{% endif %}>Automação</option>
+                                    <option value="SPDA" {% if gerador_inicial.tipo_servico == 'SPDA' %}selected{% endif %}>SPDA</option>
+                                    <option value="Subestação" {% if gerador_inicial.tipo_servico == 'Subestação' %}selected{% endif %}>Subestação</option>
+                                    <option value="Outros" {% if gerador_inicial.tipo_servico == 'Outros' %}selected{% endif %}>Outros</option>
                                 </select>
                             </div>
 
                             <div class="form-group">
                                 <label for="gerador_prazo">Prazo</label>
-                                <input id="gerador_prazo" name="gerador_prazo" type="text" class="form-control" placeholder="Ex: 5 dias úteis">
+                                <input id="gerador_prazo" name="gerador_prazo" type="text" value="{{ gerador_inicial.prazo|default('') }}" class="form-control" placeholder="Ex: 5 dias úteis">
                             </div>
 
                             <div class="form-group">
                                 <label for="gerador_validade">Validade</label>
-                                <input id="gerador_validade" name="gerador_validade" type="text" value="15 dias" class="form-control">
+                                <input id="gerador_validade" name="gerador_validade" type="text" value="{{ gerador_inicial.validade|default('15 dias', true) }}" class="form-control">
                             </div>
 
                             <div class="form-group">
                                 <label for="gerador_forma_pagamento">Forma de pagamento</label>
-                                <input id="gerador_forma_pagamento" name="gerador_forma_pagamento" type="text" class="form-control" placeholder="Ex: 50% entrada + 50% entrega">
+                                <input id="gerador_forma_pagamento" name="gerador_forma_pagamento" type="text" value="{{ gerador_inicial.forma_pagamento|default('') }}" class="form-control" placeholder="Ex: 50% entrada + 50% entrega">
                             </div>
                         </div>
 
                         <div class="form-group">
                             <label for="gerador_resumo_servico">Resumo do serviço</label>
-                            <textarea id="gerador_resumo_servico" class="form-control textarea-control resumo-servico-control" placeholder="Ex: Modificação em 05 racks metálicos, alterando de 120 x 240 cm para 160 x 240 cm."></textarea>
+                            <textarea id="gerador_resumo_servico" name="gerador_resumo_servico" class="form-control textarea-control resumo-servico-control" placeholder="Ex: Modificação em 05 racks metálicos, alterando de 120 x 240 cm para 160 x 240 cm.">{{ gerador_inicial.resumo_servico|default('') }}</textarea>
                             <small class="field-hint">Use este campo como base para o botão Gerar escopo. Quanto mais claro o resumo, melhor fica o texto técnico.</small>
                         </div>
 
@@ -460,7 +522,7 @@ Motivo: Adicionar cálculo detalhado de adicionais de mão de obra no Gerador de
                                 <label for="gerador_escopo">Escopo do serviço</label>
                                 <button type="button" class="btn-dark btn-compact" onclick="gerarEscopoAutomatico()">Gerar escopo</button>
                             </div>
-                            <textarea id="gerador_escopo" name="gerador_escopo" class="form-control textarea-control escopo-tecnico-control" placeholder="Descreva o que será executado. Essa informação pode aparecer no orçamento do cliente."></textarea>
+                            <textarea id="gerador_escopo" name="gerador_escopo" class="form-control textarea-control escopo-tecnico-control" placeholder="Descreva o que será executado. Essa informação pode aparecer no orçamento do cliente.">{{ gerador_inicial.escopo|default('') }}</textarea>
                         </div>
                     </section>
 
@@ -571,6 +633,31 @@ Motivo: Adicionar cálculo detalhado de adicionais de mão de obra no Gerador de
                     <section class="panel page-section">
                         <div class="panel-header page-header">
                             <div>
+                                <h3>Apresentação ao cliente</h3>
+                                <p class="page-subtitle">Defina o que será mostrado no PDF. A composição de materiais e mão de obra continuará salva apenas para controle interno.</p>
+                            </div>
+                        </div>
+
+                        <div class="commercial-presentation-grid">
+                            <div class="form-group">
+                                <label for="gerador_modo_apresentacao">Forma de apresentação</label>
+                                <select id="gerador_modo_apresentacao" name="gerador_modo_apresentacao" class="form-control">
+                                    {% for modo in modos_apresentacao|default([]) %}
+                                        <option value="{{ modo.codigo }}" {% if gerador_inicial.modo_apresentacao|default('agrupado', true) == modo.codigo %}selected{% endif %}>{{ modo.nome }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="gerador_descricao_comercial">Descrição comercial</label>
+                                <textarea id="gerador_descricao_comercial" name="gerador_descricao_comercial" class="form-control textarea-control" placeholder="Ex: Adequação elétrica e mecânica NR-12 em 03 serras-fita, incluindo materiais, instalação, ajustes e testes.">{{ gerador_inicial.descricao_comercial|default(gerador_inicial.resumo_servico|default(''), true) }}</textarea>
+                            </div>
+                        </div>
+                        <div class="commercial-presentation-note">No modo Agrupado, o cliente verá somente grupos comerciais. No modo Valor global, verá uma única linha. O modo Detalhado mantém a impressão atual com todos os itens.</div>
+                    </section>
+
+                    <section class="panel page-section">
+                        <div class="panel-header page-header">
+                            <div>
                                 <h3>Parâmetros comerciais</h3>
                                 <p class="page-subtitle">Defina as margens e percentuais usados no cálculo sugerido.</p>
                             </div>
@@ -579,33 +666,33 @@ Motivo: Adicionar cálculo detalhado de adicionais de mão de obra no Gerador de
                         <div class="form-grid">
                             <div class="form-group">
                                 <label for="margem_material">Margem material %</label>
-                                <input id="margem_material" name="margem_material" type="text" value="{{ gerador_config.margem_material|default('30') }}" class="form-control gerador-parametro">
+                                <input id="margem_material" name="margem_material" type="text" value="{{ gerador_inicial.margem_material|default(gerador_config.margem_material|default('30'), true) }}" class="form-control gerador-parametro">
                             </div>
                             <div class="form-group">
                                 <label for="margem_mao_obra">Margem mão de obra %</label>
-                                <input id="margem_mao_obra" name="margem_mao_obra" type="text" value="{{ gerador_config.margem_mao_obra|default('40') }}" class="form-control gerador-parametro">
+                                <input id="margem_mao_obra" name="margem_mao_obra" type="text" value="{{ gerador_inicial.margem_mao_obra|default(gerador_config.margem_mao_obra|default('40'), true) }}" class="form-control gerador-parametro">
                             </div>
                             <div class="form-group">
                                 <label for="margem_custos">Margem custos %</label>
-                                <input id="margem_custos" name="margem_custos" type="text" value="{{ gerador_config.margem_custos|default('20') }}" class="form-control gerador-parametro">
+                                <input id="margem_custos" name="margem_custos" type="text" value="{{ gerador_inicial.margem_custos|default(gerador_config.margem_custos|default('20'), true) }}" class="form-control gerador-parametro">
                             </div>
                             <div class="form-group">
                                 <label for="imposto_percentual">Imposto %</label>
-                                <input id="imposto_percentual" name="imposto_percentual" type="text" value="{{ gerador_config.imposto_percentual|default('8') }}" class="form-control gerador-parametro">
+                                <input id="imposto_percentual" name="imposto_percentual" type="text" value="{{ gerador_inicial.imposto_percentual|default(gerador_config.imposto_percentual|default('8'), true) }}" class="form-control gerador-parametro">
                             </div>
                             <div class="form-group">
                                 <label for="administrativo_percentual">Administrativo %</label>
-                                <input id="administrativo_percentual" name="administrativo_percentual" type="text" value="{{ gerador_config.administrativo_percentual|default('10') }}" class="form-control gerador-parametro">
+                                <input id="administrativo_percentual" name="administrativo_percentual" type="text" value="{{ gerador_inicial.administrativo_percentual|default(gerador_config.administrativo_percentual|default('10'), true) }}" class="form-control gerador-parametro">
                             </div>
                             <div class="form-group">
                                 <label for="reserva_percentual">Reserva técnica %</label>
-                                <input id="reserva_percentual" name="reserva_percentual" type="text" value="{{ gerador_config.reserva_percentual|default('5') }}" class="form-control gerador-parametro">
+                                <input id="reserva_percentual" name="reserva_percentual" type="text" value="{{ gerador_inicial.reserva_percentual|default(gerador_config.reserva_percentual|default('5'), true) }}" class="form-control gerador-parametro">
                             </div>
                         </div>
 
                         <div class="form-group">
                             <label for="gerador_observacoes_cliente">Observações para o cliente</label>
-                            <input id="gerador_observacoes_cliente" name="gerador_observacoes_cliente" type="text" class="form-control" placeholder="Ex: Valores sujeitos à aprovação técnica em campo.">
+                            <input id="gerador_observacoes_cliente" name="gerador_observacoes_cliente" type="text" value="{{ gerador_inicial.observacoes_cliente|default('') }}" class="form-control" placeholder="Ex: Valores sujeitos à aprovação técnica em campo.">
                         </div>
                     </section>
                 </div>
@@ -624,20 +711,20 @@ Motivo: Adicionar cálculo detalhado de adicionais de mão de obra no Gerador de
                         <h3>Preço sugerido</h3>
                         <div class="gerador-precos">
                             <label class="gerador-preco-opcao">
-                                <input type="radio" name="valor_escolhido_tipo" value="minimo">
+                                <input type="radio" name="valor_escolhido_tipo" value="minimo" {% if gerador_inicial.tipo_valor == 'minimo' %}checked{% endif %}>
                                 <span><strong>Mínimo</strong><span>Cobre custos e deixa margem baixa.</span><b id="preco-minimo">R$ 0,00</b></span>
                             </label>
                             <label class="gerador-preco-opcao">
-                                <input type="radio" name="valor_escolhido_tipo" value="recomendado" checked>
+                                <input type="radio" name="valor_escolhido_tipo" value="recomendado" {% if gerador_inicial.tipo_valor|default('recomendado', true) == 'recomendado' %}checked{% endif %}>
                                 <span><strong>Recomendado</strong><span>Preço saudável para proposta normal.</span><b id="preco-recomendado">R$ 0,00</b></span>
                             </label>
                             <label class="gerador-preco-opcao">
-                                <input type="radio" name="valor_escolhido_tipo" value="ideal">
+                                <input type="radio" name="valor_escolhido_tipo" value="ideal" {% if gerador_inicial.tipo_valor == 'ideal' %}checked{% endif %}>
                                 <span><strong>Ideal</strong><span>Melhor para urgência, risco ou cliente grande.</span><b id="preco-ideal">R$ 0,00</b></span>
                             </label>
                             <label class="gerador-preco-opcao">
-                                <input type="radio" name="valor_escolhido_tipo" value="customizado">
-                                <span><strong>Customizado</strong><span>Defina o valor manualmente.</span><input id="valor_customizado" name="valor_customizado" type="text" class="form-control" placeholder="0,00"></span>
+                                <input type="radio" name="valor_escolhido_tipo" value="customizado" {% if gerador_inicial.tipo_valor == 'customizado' %}checked{% endif %}>
+                                <span><strong>Customizado</strong><span>Defina o valor manualmente.</span><input id="valor_customizado" name="valor_customizado" type="text" value="{{ gerador_inicial.valor_escolhido if gerador_inicial.tipo_valor == 'customizado' else '' }}" class="form-control" placeholder="0,00"></span>
                             </label>
                         </div>
                     </div>
@@ -649,8 +736,8 @@ Motivo: Adicionar cálculo detalhado de adicionais de mão de obra no Gerador de
                         <div class="gerador-indicador"><span>Margem estimada</span><strong id="res-margem">0,00%</strong></div>
 
                         <div class="gerador-final-actions">
-                            <button type="submit" class="btn-primary-green">Gerar orçamento</button>
-                            <button type="button" class="btn-light" onclick="window.location.href='/orcamentos'">Cancelar</button>
+                            <button type="submit" class="btn-primary-green">{{ 'Atualizar orçamento' if revisao else 'Gerar orçamento' }}</button>
+                            {% if revisao and orcamento %}<a href="/orcamentos/{{ orcamento.id }}/gerador/historico" class="btn-light">Histórico</a>{% else %}<button type="button" class="btn-light" onclick="window.location.href='/orcamentos'">Cancelar</button>{% endif %}
                         </div>
                     </div>
                 </aside>
@@ -786,6 +873,7 @@ Motivo: Adicionar cálculo detalhado de adicionais de mão de obra no Gerador de
     </div>
 
 <script>
+const geradorInicial = {{ gerador_inicial|tojson }};
 const materiaisCatalogo = {{ produtos|default([])|tojson }};
 const funcionariosCatalogo = {{ funcionarios|default([])|tojson }};
 const adicionaisMaoObraTiposBackend = {{ adicionais_mao_obra_tipos|default([])|tojson }};
@@ -896,13 +984,22 @@ function adicionarMaterial(dados = {}) {
         <td><select name="material_descricao" class="form-control gerador-input material-select">${opcoesMateriais()}</select></td>
         <td><input name="material_unidade" type="text" class="form-control gerador-input" value="${textoSeguro(dados.unidade || 'un')}"></td>
         <td><input name="material_quantidade" type="text" class="form-control gerador-input" value="${textoSeguro(dados.quantidade || '1')}"></td>
-        <td><input name="material_valor_unitario" type="text" class="form-control gerador-input" placeholder="0,00" value="${textoSeguro(dados.valor || '')}"></td>
-        <td><input name="material_perda_percentual" type="text" class="form-control gerador-input" value="${textoSeguro(dados.perda || '0')}"></td>
+        <td><input name="material_valor_unitario" type="text" class="form-control gerador-input" placeholder="0,00" value="${textoSeguro(dados.valor ?? dados.valor_unitario ?? '')}"></td>
+        <td><input name="material_perda_percentual" type="text" class="form-control gerador-input" value="${textoSeguro(dados.perda ?? dados.perda_percentual ?? '0')}"></td>
         <td><strong class="linha-total">R$ 0,00</strong></td>
         <td><button type="button" class="gerador-remove" onclick="removerLinha(this)">×</button></td>
     `;
     body.appendChild(tr);
-    if (dados.descricao) tr.querySelector('.material-select').value = dados.descricao;
+    if (dados.descricao) {
+        const select = tr.querySelector('.material-select');
+        if (!Array.from(select.options).some(option => option.value === dados.descricao)) {
+            const option = document.createElement('option');
+            option.value = dados.descricao;
+            option.textContent = dados.descricao;
+            select.insertBefore(option, select.lastElementChild);
+        }
+        select.value = dados.descricao;
+    }
     conectarEventosGerador(tr);
     recalcularGerador();
 }
@@ -915,12 +1012,23 @@ function adicionarMaoObra(dados = {}) {
         <td><input name="mao_pessoas" type="text" class="form-control gerador-input" value="${textoSeguro(dados.pessoas || '1')}"></td>
         <td><input name="mao_tempo" type="text" class="form-control gerador-input" value="${textoSeguro(dados.tempo || '1')}"></td>
         <td><select name="mao_unidade" class="form-control gerador-input mao-unidade"><option value="hora">hora</option><option value="dia" selected>dia</option><option value="semana">semana</option><option value="mes">mês</option></select></td>
-        <td><input name="mao_custo_unitario" type="text" class="form-control gerador-input" placeholder="0,00" value="${textoSeguro(dados.custo || '')}"></td>
+        <td><input name="mao_custo_unitario" type="text" class="form-control gerador-input" placeholder="0,00" value="${textoSeguro(dados.custo_unitario ?? dados.custo ?? '')}"></td>
         <td><strong class="linha-total">R$ 0,00</strong></td>
         <td><button type="button" class="gerador-remove" onclick="removerLinha(this)">×</button></td>
     `;
     body.appendChild(tr);
-    if (dados.funcao) tr.querySelector('.mao-select').value = dados.funcao;
+    const unidadeSelect = tr.querySelector('.mao-unidade');
+    if (unidadeSelect) unidadeSelect.value = dados.unidade || 'dia';
+    if (dados.funcao) {
+        const select = tr.querySelector('.mao-select');
+        if (!Array.from(select.options).some(option => option.value === dados.funcao)) {
+            const option = document.createElement('option');
+            option.value = dados.funcao;
+            option.textContent = dados.funcao;
+            select.insertBefore(option, select.lastElementChild);
+        }
+        select.value = dados.funcao;
+    }
     conectarEventosGerador(tr);
     atualizarOpcoesFuncoesAdicionais();
     recalcularGerador();
@@ -948,7 +1056,7 @@ function adicionarAdicionalMaoObra(dados = {}) {
             </div>
             <div class="form-group adicional-campo-duplo">
                 <label>Funcionário / função</label>
-                <select name="adicional_funcao" class="form-control gerador-input adicional-funcao" data-valor-inicial="${textoSeguro(dados.funcao || '')}"></select>
+                <select name="adicional_funcao" class="form-control gerador-input adicional-funcao" data-valor-inicial="${textoSeguro(dados.funcao ?? dados.funcionario_funcao ?? '')}"></select>
                 <small class="adicional-ajuda">Deixe em “Toda a mão de obra” para usar o custo completo da equipe.</small>
             </div>
             <div class="form-group adicional-campo-duplo">
@@ -1187,7 +1295,7 @@ function adicionarCusto(dados = {}) {
     const tr = document.createElement('tr');
     tr.innerHTML = `
         <td><input name="custo_descricao" type="text" class="form-control gerador-descricao gerador-input" placeholder="Ex: Transporte" value="${textoSeguro(dados.descricao || '')}"></td>
-        <td><input name="custo_valor" type="text" class="form-control gerador-input" placeholder="0,00" value="${textoSeguro(dados.valor || '')}"></td>
+        <td><input name="custo_valor" type="text" class="form-control gerador-input" placeholder="0,00" value="${textoSeguro(dados.valor ?? dados.valor_unitario ?? '')}"></td>
         <td><button type="button" class="gerador-remove" onclick="removerLinha(this)">×</button></td>
     `;
     body.appendChild(tr);
@@ -1663,10 +1771,18 @@ function conectarEventosGlobaisGerador() {
 
 window.addEventListener('DOMContentLoaded', function() {
     conectarEventosGlobaisGerador();
-    adicionarMaterial();
-    adicionarMaoObra();
-    adicionarAdicionalMaoObra();
-    adicionarCusto();
+
+    const materiais = Array.isArray(geradorInicial.materiais) ? geradorInicial.materiais : [];
+    const maoObra = Array.isArray(geradorInicial.mao_obra) ? geradorInicial.mao_obra : [];
+    const adicionais = Array.isArray(geradorInicial.adicionais_mao_obra) ? geradorInicial.adicionais_mao_obra : [];
+    const custos = Array.isArray(geradorInicial.custos_adicionais) ? geradorInicial.custos_adicionais : [];
+
+    if (materiais.length) materiais.forEach(adicionarMaterial); else adicionarMaterial();
+    if (maoObra.length) maoObra.forEach(adicionarMaoObra); else adicionarMaoObra();
+    if (adicionais.length) adicionais.forEach(adicionarAdicionalMaoObra); else adicionarAdicionalMaoObra();
+    if (custos.length) custos.forEach(adicionarCusto); else adicionarCusto();
+
+    recalcularGerador();
 });
 </script>
 </body>

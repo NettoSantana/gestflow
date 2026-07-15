@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_imprimir_a4.html
-Último recode: 2026-07-13 19:34 (America/Bahia)
-Motivo: Exibir a descrição detalhada dos serviços e produtos na impressão A4 do orçamento.
+Último recode: 2026-07-15 10:32 (America/Bahia)
+Motivo: Respeitar apresentação agrupada, global ou detalhada sem expor a composição interna do orçamento.
 -->
 
 <!DOCTYPE html>
@@ -328,6 +328,8 @@ Motivo: Exibir a descrição detalhada dos serviços e produtos na impressão A4
             </tbody>
         </table>
 
+        {% set modo_apresentacao = orcamento.modo_apresentacao|default('agrupado', true) %}
+        {% if modo_apresentacao == 'detalhado' %}
         {% if itens_servicos %}
             <div class="section-title">SERVIÇOS</div>
             <table class="items-table">
@@ -402,15 +404,50 @@ Motivo: Exibir a descrição detalhada dos serviços e produtos na impressão A4
             </table>
         {% endif %}
 
+        {% else %}
+            <div class="section-title">PROPOSTA COMERCIAL</div>
+            <table class="items-table">
+                <thead>
+                    <tr>
+                        <th class="center">ITEM</th>
+                        <th>DESCRIÇÃO</th>
+                        <th class="center">QTD.</th>
+                        <th class="num">VR. UNIT.</th>
+                        <th class="num">SUBTOTAL</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in itens_apresentacao|default([]) %}
+                        <tr>
+                            <td class="center">{{ loop.index }}</td>
+                            <td>
+                                <span class="item-nome">{{ item.descricao or '-' }}</span>
+                                {% if item.detalhes %}<span class="item-detalhes">{{ item.detalhes }}</span>{% endif %}
+                            </td>
+                            <td class="center">{{ item.quantidade or '1' }}</td>
+                            <td class="num">{{ item.valor_unitario or '0,00' }}</td>
+                            <td class="num">{{ item.subtotal or '0,00' }}</td>
+                        </tr>
+                    {% endfor %}
+                    <tr class="total-row">
+                        <td colspan="4">TOTAL DA PROPOSTA</td>
+                        <td class="num">R$ {{ orcamento.valor_total or '0,00' }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        {% endif %}
+
         <div class="total-box">
-            <div class="total-line">
-                <div>SERVIÇOS:</div>
-                <div class="value">{{ orcamento.total_servicos or '0,00' }}</div>
-            </div>
-            <div class="total-line">
-                <div>PRODUTOS:</div>
-                <div class="value">{{ orcamento.total_produtos or '0,00' }}</div>
-            </div>
+            {% if modo_apresentacao == 'detalhado' %}
+                <div class="total-line">
+                    <div>SERVIÇOS:</div>
+                    <div class="value">{{ orcamento.total_servicos or '0,00' }}</div>
+                </div>
+                <div class="total-line">
+                    <div>PRODUTOS:</div>
+                    <div class="value">{{ orcamento.total_produtos or '0,00' }}</div>
+                </div>
+            {% endif %}
             <div class="total-line">
                 <div>DESCONTO:</div>
                 <div class="value">{{ orcamento.desconto_valor or '0,00' }}</div>

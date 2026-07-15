@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-15 08:04 (America/Bahia)
-# Motivo: Adicionar consulta automática de CNPJ pela BrasilAPI no cadastro e edição de clientes.
+# Último recode: 2026-07-15 10:32 (America/Bahia)
+# Motivo: Adicionar apresentação comercial agrupada e revisão completa dos dados do Gerador de Orçamentos.
 
 from __future__ import annotations
 
@@ -121,6 +121,13 @@ GERADOR_ADICIONAIS_MAO_OBRA_TIPOS_POR_CODIGO = {
 GERADOR_ADICIONAIS_MAO_OBRA_FORMAS_POR_CODIGO = {
     item["codigo"]: item["nome"] for item in GERADOR_ADICIONAIS_MAO_OBRA_FORMAS_CALCULO
 }
+
+ORCAMENTO_MODOS_APRESENTACAO = [
+    {"codigo": "agrupado", "nome": "Agrupado", "descricao": "Mostra somente grupos comerciais, sem revelar a composição interna."},
+    {"codigo": "global", "nome": "Valor global", "descricao": "Mostra uma única linha comercial com o valor total."},
+    {"codigo": "detalhado", "nome": "Detalhado", "descricao": "Mostra todos os produtos e serviços do orçamento."},
+]
+ORCAMENTO_MODOS_APRESENTACAO_VALIDOS = {item["codigo"] for item in ORCAMENTO_MODOS_APRESENTACAO}
 
 
 GESTFLOW_SEGMENTOS = [
@@ -1140,6 +1147,9 @@ def iniciar_banco() -> None:
                 forma_pagamento TEXT,
                 observacoes TEXT,
                 observacoes_internas TEXT,
+                origem TEXT NOT NULL DEFAULT 'manual',
+                modo_apresentacao TEXT NOT NULL DEFAULT 'agrupado',
+                descricao_comercial TEXT,
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
             """
@@ -1184,6 +1194,94 @@ def iniciar_banco() -> None:
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS orcamento_apresentacao_itens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER,
+                orcamento_id INTEGER NOT NULL,
+                descricao TEXT,
+                detalhes TEXT,
+                quantidade TEXT,
+                valor_unitario TEXT,
+                subtotal TEXT,
+                ordem INTEGER NOT NULL DEFAULT 1,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (orcamento_id) REFERENCES orcamentos (id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS orcamento_gerador_dados (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER,
+                orcamento_id INTEGER NOT NULL UNIQUE,
+                cliente TEXT,
+                responsavel TEXT,
+                tipo_servico TEXT,
+                data TEXT,
+                prazo TEXT,
+                validade TEXT,
+                forma_pagamento TEXT,
+                resumo_servico TEXT,
+                escopo TEXT,
+                observacoes_cliente TEXT,
+                modo_apresentacao TEXT,
+                descricao_comercial TEXT,
+                materiais_json TEXT,
+                mao_obra_json TEXT,
+                adicionais_json TEXT,
+                custos_json TEXT,
+                margem_material TEXT,
+                margem_mao_obra TEXT,
+                margem_custos TEXT,
+                imposto_percentual TEXT,
+                administrativo_percentual TEXT,
+                reserva_percentual TEXT,
+                custo_material TEXT,
+                custo_mao_obra TEXT,
+                custo_adicionais_mao_obra TEXT,
+                custo_adicional TEXT,
+                custo_total TEXT,
+                venda_material TEXT,
+                venda_mao_obra TEXT,
+                venda_adicionais_mao_obra TEXT,
+                venda_custos TEXT,
+                administrativo_valor TEXT,
+                reserva_valor TEXT,
+                valor_minimo TEXT,
+                valor_recomendado TEXT,
+                valor_ideal TEXT,
+                tipo_valor TEXT,
+                valor_escolhido TEXT,
+                lucro_estimado TEXT,
+                margem_estimado TEXT,
+                atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (orcamento_id) REFERENCES orcamentos (id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS orcamento_gerador_historico (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER,
+                orcamento_id INTEGER NOT NULL,
+                valor_anterior TEXT,
+                valor_novo TEXT,
+                margem_anterior TEXT,
+                margem_nova TEXT,
+                diferenca_valor TEXT,
+                dados_anteriores_json TEXT,
+                dados_novos_json TEXT,
+                responsavel TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (orcamento_id) REFERENCES orcamentos (id)
+            )
+            """
+        )
+
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS vendas (
@@ -2174,6 +2272,31 @@ def iniciar_banco() -> None:
             garantir_codigo_indicacao_empresa(int(empresa_sem_codigo["id"]), conn)
 
 
+        colunas_orcamentos_existentes = {
+            str(row["name"])
+            for row in conn.execute("PRAGMA table_info(orcamentos)").fetchall()
+        }
+        colunas_orcamentos_apresentacao = {
+            "origem": "TEXT NOT NULL DEFAULT 'manual'",
+            "modo_apresentacao": "TEXT NOT NULL DEFAULT 'agrupado'",
+            "descricao_comercial": "TEXT",
+        }
+        for coluna, tipo_coluna in colunas_orcamentos_apresentacao.items():
+            if coluna not in colunas_orcamentos_existentes:
+                conn.execute(f"ALTER TABLE orcamentos ADD COLUMN {coluna} {tipo_coluna}")
+
+        conn.execute(
+            """
+            UPDATE orcamentos
+            SET
+                origem = CASE
+                    WHEN canal_venda = 'Gerador de Orçamentos' THEN 'gerador'
+                    ELSE COALESCE(NULLIF(TRIM(origem), ''), 'manual')
+                END,
+                modo_apresentacao = COALESCE(NULLIF(TRIM(modo_apresentacao), ''), 'agrupado')
+            """
+        )
+
         colunas_vendas_pagamento_existentes = {
             str(row["name"])
             for row in conn.execute("PRAGMA table_info(vendas)").fetchall()
@@ -2217,6 +2340,9 @@ def iniciar_banco() -> None:
             "orcamentos",
             "orcamento_itens",
             "orcamento_adicionais_mao_obra",
+            "orcamento_apresentacao_itens",
+            "orcamento_gerador_dados",
+            "orcamento_gerador_historico",
             "vendas",
             "venda_itens",
             "ordens_servico",
@@ -5161,8 +5287,11 @@ def salvar_orcamento_db(orcamento: dict[str, str], itens: list[dict[str, str]]) 
                 valor_total,
                 forma_pagamento,
                 observacoes,
-                observacoes_internas
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                observacoes_internas,
+                origem,
+                modo_apresentacao,
+                descricao_comercial
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id,
@@ -5185,6 +5314,9 @@ def salvar_orcamento_db(orcamento: dict[str, str], itens: list[dict[str, str]]) 
                 orcamento["forma_pagamento"],
                 orcamento["observacoes"],
                 orcamento["observacoes_internas"],
+                str(orcamento.get("origem") or "manual"),
+                normalizar_modo_apresentacao(orcamento.get("modo_apresentacao"), "agrupado"),
+                str(orcamento.get("descricao_comercial") or ""),
             ),
         )
         orcamento_id = int(cursor.lastrowid)
@@ -5224,6 +5356,7 @@ def salvar_orcamento_db(orcamento: dict[str, str], itens: list[dict[str, str]]) 
 
     return orcamento_id
 
+
 def listar_orcamentos() -> list[dict[str, Any]]:
     empresa_id = empresa_logada_id()
 
@@ -5252,6 +5385,9 @@ def listar_orcamentos() -> list[dict[str, Any]]:
                 forma_pagamento,
                 observacoes,
                 observacoes_internas,
+                origem,
+                modo_apresentacao,
+                descricao_comercial,
                 criado_em
             FROM orcamentos
             WHERE empresa_id = ?
@@ -5358,6 +5494,9 @@ def listar_orcamentos_paginado(
                 forma_pagamento,
                 observacoes,
                 observacoes_internas,
+                origem,
+                modo_apresentacao,
+                descricao_comercial,
                 criado_em
             FROM orcamentos
             {where}
@@ -6097,6 +6236,9 @@ def buscar_orcamento_por_id(orcamento_id: int) -> dict[str, Any] | None:
                 forma_pagamento,
                 observacoes,
                 observacoes_internas,
+                origem,
+                modo_apresentacao,
+                descricao_comercial,
                 criado_em
             FROM orcamentos
             WHERE id = ?
@@ -6239,6 +6381,338 @@ def salvar_orcamento_adicionais_mao_obra_db(
         conn.commit()
 
 
+def normalizar_modo_apresentacao(valor: Any, padrao: str = "agrupado") -> str:
+    modo = str(valor or "").strip().lower()
+    if modo in ORCAMENTO_MODOS_APRESENTACAO_VALIDOS:
+        return modo
+    return padrao if padrao in ORCAMENTO_MODOS_APRESENTACAO_VALIDOS else "agrupado"
+
+
+def listar_orcamento_apresentacao_itens(orcamento_id: int) -> list[dict[str, Any]]:
+    empresa_id = empresa_logada_id()
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, empresa_id, orcamento_id, descricao, detalhes, quantidade,
+                   valor_unitario, subtotal, ordem, criado_em
+            FROM orcamento_apresentacao_itens
+            WHERE orcamento_id = ? AND empresa_id = ?
+            ORDER BY ordem ASC, id ASC
+            """,
+            (orcamento_id, empresa_id),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def salvar_orcamento_apresentacao_itens_db(
+    orcamento_id: int,
+    itens: list[dict[str, Any]],
+) -> None:
+    empresa_id = empresa_logada_id()
+    with conectar_db() as conn:
+        conn.execute(
+            "DELETE FROM orcamento_apresentacao_itens WHERE orcamento_id = ? AND empresa_id = ?",
+            (orcamento_id, empresa_id),
+        )
+        ordem = 0
+        for item in itens:
+            descricao = str(item.get("descricao") or "").strip()
+            subtotal = _converter_valor_brl(item.get("subtotal"))
+            quantidade = _converter_valor_brl(item.get("quantidade")) or 1
+            valor_unitario = _converter_valor_brl(item.get("valor_unitario"))
+            if not descricao or subtotal <= 0:
+                continue
+            if valor_unitario <= 0:
+                valor_unitario = subtotal / quantidade if quantidade > 0 else subtotal
+            ordem += 1
+            conn.execute(
+                """
+                INSERT INTO orcamento_apresentacao_itens (
+                    empresa_id, orcamento_id, descricao, detalhes, quantidade,
+                    valor_unitario, subtotal, ordem
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    empresa_id,
+                    orcamento_id,
+                    descricao,
+                    str(item.get("detalhes") or "").strip(),
+                    _formatar_numero_estoque(quantidade),
+                    _formatar_moeda_brl(valor_unitario),
+                    _formatar_moeda_brl(subtotal),
+                    ordem,
+                ),
+            )
+        conn.commit()
+
+
+def montar_orcamento_apresentacao_formulario() -> list[dict[str, str]]:
+    descricoes = request.form.getlist("apresentacao_descricao")
+    detalhes = request.form.getlist("apresentacao_detalhes")
+    quantidades = request.form.getlist("apresentacao_quantidade")
+    valores = request.form.getlist("apresentacao_valor_unitario")
+    subtotais = request.form.getlist("apresentacao_subtotal")
+    total = max(len(descricoes), len(detalhes), len(quantidades), len(valores), len(subtotais), 0)
+    itens: list[dict[str, str]] = []
+    for indice in range(total):
+        itens.append(
+            {
+                "descricao": (descricoes[indice] if indice < len(descricoes) else "").strip(),
+                "detalhes": (detalhes[indice] if indice < len(detalhes) else "").strip(),
+                "quantidade": (quantidades[indice] if indice < len(quantidades) else "1").strip() or "1",
+                "valor_unitario": (valores[indice] if indice < len(valores) else "").strip(),
+                "subtotal": (subtotais[indice] if indice < len(subtotais) else "").strip(),
+            }
+        )
+    return itens
+
+
+def montar_apresentacao_padrao_orcamento(
+    orcamento: dict[str, Any],
+    itens_internos: list[dict[str, Any]],
+) -> list[dict[str, str]]:
+    modo = normalizar_modo_apresentacao(orcamento.get("modo_apresentacao"), "agrupado")
+    if modo == "detalhado":
+        return []
+
+    descricao_comercial = str(orcamento.get("descricao_comercial") or "").strip()
+    total = _converter_valor_brl(orcamento.get("valor_total"))
+    total_produtos = _converter_valor_brl(orcamento.get("total_produtos"))
+    total_servicos = _converter_valor_brl(orcamento.get("total_servicos"))
+
+    primeira_descricao = ""
+    for item in itens_internos:
+        if str(item.get("tipo_item") or "") == "servico" and str(item.get("detalhes") or "").strip():
+            primeira_descricao = str(item.get("detalhes") or "").strip()
+            break
+        if not primeira_descricao and str(item.get("descricao") or "").strip():
+            primeira_descricao = str(item.get("descricao") or "").strip()
+
+    descricao_base = descricao_comercial or primeira_descricao or "Fornecimento e execução conforme escopo técnico"
+
+    if modo == "global":
+        return [{
+            "descricao": descricao_base,
+            "detalhes": "Valor global da proposta, contemplando os materiais, serviços e custos previstos no escopo.",
+            "quantidade": "1",
+            "valor_unitario": _formatar_moeda_brl(total),
+            "subtotal": _formatar_moeda_brl(total),
+        }]
+
+    itens: list[dict[str, str]] = []
+    if total_servicos > 0:
+        itens.append({
+            "descricao": descricao_base,
+            "detalhes": "Serviços técnicos, mão de obra, mobilização e custos operacionais conforme escopo.",
+            "quantidade": "1",
+            "valor_unitario": _formatar_moeda_brl(total_servicos),
+            "subtotal": _formatar_moeda_brl(total_servicos),
+        })
+    if total_produtos > 0:
+        itens.append({
+            "descricao": "Fornecimento de materiais e componentes necessários",
+            "detalhes": "Materiais e componentes previstos para execução, sem abertura da composição interna.",
+            "quantidade": "1",
+            "valor_unitario": _formatar_moeda_brl(total_produtos),
+            "subtotal": _formatar_moeda_brl(total_produtos),
+        })
+    if not itens and total > 0:
+        itens.append({
+            "descricao": descricao_base,
+            "detalhes": "Proposta comercial conforme escopo técnico.",
+            "quantidade": "1",
+            "valor_unitario": _formatar_moeda_brl(total),
+            "subtotal": _formatar_moeda_brl(total),
+        })
+    return itens
+
+
+def sincronizar_apresentacao_orcamento_db(
+    orcamento_id: int,
+    orcamento: dict[str, Any],
+    itens_internos: list[dict[str, Any]],
+    itens_informados: list[dict[str, Any]] | None = None,
+    preservar_descricoes: bool = False,
+) -> None:
+    modo = normalizar_modo_apresentacao(orcamento.get("modo_apresentacao"), "agrupado")
+    if modo == "detalhado":
+        salvar_orcamento_apresentacao_itens_db(orcamento_id, [])
+        return
+
+    validos = [
+        item for item in (itens_informados or [])
+        if str(item.get("descricao") or "").strip() and _converter_valor_brl(item.get("subtotal")) > 0
+    ]
+    if validos:
+        salvar_orcamento_apresentacao_itens_db(orcamento_id, validos)
+        return
+
+    existentes = listar_orcamento_apresentacao_itens(orcamento_id) if preservar_descricoes else []
+    total_novo = _converter_valor_brl(orcamento.get("valor_total"))
+    if existentes and total_novo > 0:
+        if modo == "global":
+            primeiro = dict(existentes[0])
+            primeiro["quantidade"] = "1"
+            primeiro["valor_unitario"] = _formatar_moeda_brl(total_novo)
+            primeiro["subtotal"] = _formatar_moeda_brl(total_novo)
+            salvar_orcamento_apresentacao_itens_db(orcamento_id, [primeiro])
+            return
+
+        bases = [_converter_valor_brl(item.get("subtotal")) for item in existentes]
+        valores = _gerador_alocar_total(total_novo, bases)
+        ajustados: list[dict[str, Any]] = []
+        for item, valor in zip(existentes, valores):
+            novo = dict(item)
+            novo["quantidade"] = "1"
+            novo["valor_unitario"] = _formatar_moeda_brl(valor)
+            novo["subtotal"] = _formatar_moeda_brl(valor)
+            ajustados.append(novo)
+        salvar_orcamento_apresentacao_itens_db(orcamento_id, ajustados)
+        return
+
+    salvar_orcamento_apresentacao_itens_db(
+        orcamento_id,
+        montar_apresentacao_padrao_orcamento(orcamento, itens_internos),
+    )
+
+
+def _json_lista_segura(valor: Any) -> list[dict[str, Any]]:
+    if isinstance(valor, list):
+        return [dict(item) for item in valor if isinstance(item, dict)]
+    try:
+        dados = json.loads(str(valor or "[]"))
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return []
+    return [dict(item) for item in dados if isinstance(item, dict)] if isinstance(dados, list) else []
+
+
+def buscar_orcamento_gerador_dados(orcamento_id: int) -> dict[str, Any] | None:
+    empresa_id = empresa_logada_id()
+    with conectar_db() as conn:
+        row = conn.execute(
+            "SELECT * FROM orcamento_gerador_dados WHERE orcamento_id = ? AND empresa_id = ? LIMIT 1",
+            (orcamento_id, empresa_id),
+        ).fetchone()
+    if row is None:
+        return None
+    dados = dict(row)
+    dados["materiais"] = _json_lista_segura(dados.get("materiais_json"))
+    dados["mao_obra"] = _json_lista_segura(dados.get("mao_obra_json"))
+    dados["adicionais_mao_obra"] = _json_lista_segura(dados.get("adicionais_json"))
+    dados["custos_adicionais"] = _json_lista_segura(dados.get("custos_json"))
+    return dados
+
+
+def salvar_orcamento_gerador_dados_db(orcamento_id: int, dados: dict[str, Any]) -> None:
+    empresa_id = empresa_logada_id()
+    campos = {
+        "cliente": str(dados.get("cliente") or ""),
+        "responsavel": str(dados.get("responsavel") or ""),
+        "tipo_servico": str(dados.get("tipo_servico") or ""),
+        "data": str(dados.get("data") or ""),
+        "prazo": str(dados.get("prazo") or ""),
+        "validade": str(dados.get("validade") or ""),
+        "forma_pagamento": str(dados.get("forma_pagamento") or ""),
+        "resumo_servico": str(dados.get("resumo_servico") or ""),
+        "escopo": str(dados.get("escopo") or ""),
+        "observacoes_cliente": str(dados.get("observacoes_cliente") or ""),
+        "modo_apresentacao": normalizar_modo_apresentacao(dados.get("modo_apresentacao"), "agrupado"),
+        "descricao_comercial": str(dados.get("descricao_comercial") or ""),
+        "materiais_json": json.dumps(list(dados.get("materiais") or []), ensure_ascii=False),
+        "mao_obra_json": json.dumps(list(dados.get("mao_obra") or []), ensure_ascii=False),
+        "adicionais_json": json.dumps(list(dados.get("adicionais_mao_obra") or []), ensure_ascii=False),
+        "custos_json": json.dumps(list(dados.get("custos_adicionais") or []), ensure_ascii=False),
+    }
+    numericos = [
+        "margem_material", "margem_mao_obra", "margem_custos", "imposto_percentual",
+        "administrativo_percentual", "reserva_percentual", "custo_material", "custo_mao_obra",
+        "custo_adicionais_mao_obra", "custo_adicional", "custo_total", "venda_material",
+        "venda_mao_obra", "venda_adicionais_mao_obra", "venda_custos", "administrativo_valor",
+        "reserva_valor", "valor_minimo", "valor_recomendado", "valor_ideal", "valor_escolhido",
+        "lucro_estimado", "margem_estimado",
+    ]
+    for campo in numericos:
+        campos[campo] = str(float(dados.get(campo) or 0))
+    campos["tipo_valor"] = str(dados.get("tipo_valor") or "recomendado")
+
+    nomes = list(campos.keys())
+    colunas = ", ".join(nomes)
+    placeholders = ", ".join("?" for _ in nomes)
+    atualizacoes = ", ".join(f"{nome} = excluded.{nome}" for nome in nomes)
+    valores = [campos[nome] for nome in nomes]
+
+    with conectar_db() as conn:
+        conn.execute(
+            f"""
+            INSERT INTO orcamento_gerador_dados (
+                empresa_id, orcamento_id, {colunas}, atualizado_em
+            ) VALUES (?, ?, {placeholders}, ?)
+            ON CONFLICT(orcamento_id) DO UPDATE SET
+                empresa_id = excluded.empresa_id,
+                {atualizacoes},
+                atualizado_em = excluded.atualizado_em
+            """,
+            [empresa_id, orcamento_id, *valores, agora_empresa().isoformat(timespec="seconds")],
+        )
+        conn.commit()
+
+
+def registrar_historico_gerador_db(
+    orcamento_id: int,
+    dados_anteriores: dict[str, Any] | None,
+    dados_novos: dict[str, Any],
+) -> None:
+    empresa_id = empresa_logada_id()
+    anterior = dados_anteriores or {}
+    valor_anterior = _converter_valor_brl(anterior.get("valor_escolhido"))
+    valor_novo = _converter_valor_brl(dados_novos.get("valor_escolhido"))
+    margem_anterior = _converter_valor_brl(anterior.get("margem_estimado"))
+    margem_nova = _converter_valor_brl(dados_novos.get("margem_estimado"))
+    usuario = usuario_logado() or {}
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            INSERT INTO orcamento_gerador_historico (
+                empresa_id, orcamento_id, valor_anterior, valor_novo,
+                margem_anterior, margem_nova, diferenca_valor,
+                dados_anteriores_json, dados_novos_json, responsavel
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                empresa_id,
+                orcamento_id,
+                _formatar_moeda_brl(valor_anterior),
+                _formatar_moeda_brl(valor_novo),
+                _formatar_percentual_simples(margem_anterior),
+                _formatar_percentual_simples(margem_nova),
+                _formatar_moeda_brl(valor_novo - valor_anterior),
+                json.dumps(anterior, ensure_ascii=False, default=str),
+                json.dumps(dados_novos, ensure_ascii=False, default=str),
+                str(usuario.get("nome") or "Usuário"),
+            ),
+        )
+        conn.commit()
+
+
+def listar_historico_gerador(orcamento_id: int) -> list[dict[str, Any]]:
+    empresa_id = empresa_logada_id()
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, orcamento_id, valor_anterior, valor_novo, margem_anterior,
+                   margem_nova, diferenca_valor, responsavel, criado_em
+            FROM orcamento_gerador_historico
+            WHERE orcamento_id = ? AND empresa_id = ?
+            ORDER BY id DESC
+            """,
+            (orcamento_id, empresa_id),
+        ).fetchall()
+    resultado = [dict(row) for row in rows]
+    for item in resultado:
+        item["criado_em"] = formatar_data_hora_br(item.get("criado_em"))
+    return resultado
+
+
 def atualizar_orcamento_db(orcamento_id: int, orcamento: dict[str, str], itens: list[dict[str, str]]) -> None:
     empresa_id = empresa_logada_id()
 
@@ -6265,7 +6739,10 @@ def atualizar_orcamento_db(orcamento_id: int, orcamento: dict[str, str], itens: 
                 valor_total = ?,
                 forma_pagamento = ?,
                 observacoes = ?,
-                observacoes_internas = ?
+                observacoes_internas = ?,
+                origem = ?,
+                modo_apresentacao = ?,
+                descricao_comercial = ?
             WHERE id = ?
               AND empresa_id = ?
             """,
@@ -6289,6 +6766,9 @@ def atualizar_orcamento_db(orcamento_id: int, orcamento: dict[str, str], itens: 
                 orcamento["forma_pagamento"],
                 orcamento["observacoes"],
                 orcamento["observacoes_internas"],
+                str(orcamento.get("origem") or "manual"),
+                normalizar_modo_apresentacao(orcamento.get("modo_apresentacao"), "agrupado"),
+                str(orcamento.get("descricao_comercial") or ""),
                 orcamento_id,
                 empresa_id,
             ),
@@ -6336,35 +6816,28 @@ def atualizar_orcamento_db(orcamento_id: int, orcamento: dict[str, str], itens: 
 
         conn.commit()
 
+
 def excluir_orcamento_db(orcamento_id: int) -> None:
     empresa_id = empresa_logada_id()
 
     with conectar_db() as conn:
+        for tabela in (
+            "orcamento_gerador_historico",
+            "orcamento_gerador_dados",
+            "orcamento_apresentacao_itens",
+            "orcamento_adicionais_mao_obra",
+            "orcamento_itens",
+        ):
+            conn.execute(
+                f"DELETE FROM {tabela} WHERE orcamento_id = ? AND empresa_id = ?",
+                (orcamento_id, empresa_id),
+            )
         conn.execute(
-            """
-            DELETE FROM orcamento_adicionais_mao_obra
-            WHERE orcamento_id = ?
-              AND empresa_id = ?
-            """,
-            (orcamento_id, empresa_id),
-        )
-        conn.execute(
-            """
-            DELETE FROM orcamento_itens
-            WHERE orcamento_id = ?
-              AND empresa_id = ?
-            """,
-            (orcamento_id, empresa_id),
-        )
-        conn.execute(
-            """
-            DELETE FROM orcamentos
-            WHERE id = ?
-              AND empresa_id = ?
-            """,
+            "DELETE FROM orcamentos WHERE id = ? AND empresa_id = ?",
             (orcamento_id, empresa_id),
         )
         conn.commit()
+
 
 def montar_orcamento_formulario(numero_padrao: str = "") -> dict[str, str]:
     return {
@@ -6387,7 +6860,11 @@ def montar_orcamento_formulario(numero_padrao: str = "") -> dict[str, str]:
         "forma_pagamento": (request.form.get("orcamento_forma_pagamento") or "").strip(),
         "observacoes": (request.form.get("orcamento_observacoes") or "").strip(),
         "observacoes_internas": (request.form.get("orcamento_observacoes_internas") or "").strip(),
+        "origem": "manual",
+        "modo_apresentacao": normalizar_modo_apresentacao(request.form.get("orcamento_modo_apresentacao"), "agrupado"),
+        "descricao_comercial": (request.form.get("orcamento_descricao_comercial") or "").strip(),
     }
+
 
 
 def montar_orcamento_itens_formulario() -> list[dict[str, str]]:
@@ -6649,15 +7126,12 @@ def validar_ordem_servico_para_salvar(ordem_servico: dict[str, str], itens: list
 
 def copiar_orcamento_db(orcamento_id: int) -> int | None:
     orcamento_original = buscar_orcamento_por_id(orcamento_id)
-
     if orcamento_original is None:
         return None
 
     itens_originais = listar_orcamento_itens(orcamento_id)
-    novo_numero = proximo_numero_orcamento()
-
     novo_orcamento = {
-        "numero": novo_numero,
+        "numero": proximo_numero_orcamento(),
         "cliente": str(orcamento_original.get("cliente") or ""),
         "responsavel": str(orcamento_original.get("responsavel") or ""),
         "data": str(orcamento_original.get("data") or ""),
@@ -6676,30 +7150,40 @@ def copiar_orcamento_db(orcamento_id: int) -> int | None:
         "forma_pagamento": str(orcamento_original.get("forma_pagamento") or ""),
         "observacoes": str(orcamento_original.get("observacoes") or ""),
         "observacoes_internas": str(orcamento_original.get("observacoes_internas") or ""),
+        "origem": str(orcamento_original.get("origem") or "manual"),
+        "modo_apresentacao": normalizar_modo_apresentacao(orcamento_original.get("modo_apresentacao"), "agrupado"),
+        "descricao_comercial": str(orcamento_original.get("descricao_comercial") or ""),
     }
+    novos_itens = [
+        {
+            "tipo_item": str(item.get("tipo_item") or "produto"),
+            "descricao": str(item.get("descricao") or ""),
+            "detalhes": str(item.get("detalhes") or ""),
+            "quantidade": str(item.get("quantidade") or ""),
+            "valor_unitario": str(item.get("valor_unitario") or ""),
+            "desconto": str(item.get("desconto") or ""),
+            "subtotal": str(item.get("subtotal") or ""),
+        }
+        for item in itens_originais
+    ]
+    novo_id = salvar_orcamento_db(novo_orcamento, novos_itens)
 
-    novos_itens: list[dict[str, str]] = []
+    adicionais = listar_orcamento_adicionais_mao_obra(orcamento_id)
+    if adicionais:
+        salvar_orcamento_adicionais_mao_obra_db(novo_id, adicionais)
 
-    for item in itens_originais:
-        novos_itens.append(
-            {
-                "tipo_item": str(item.get("tipo_item") or "produto"),
-                "descricao": str(item.get("descricao") or ""),
-                "detalhes": str(item.get("detalhes") or ""),
-                "quantidade": str(item.get("quantidade") or ""),
-                "valor_unitario": str(item.get("valor_unitario") or ""),
-                "desconto": str(item.get("desconto") or ""),
-                "subtotal": str(item.get("subtotal") or ""),
-            }
-        )
+    apresentacao = listar_orcamento_apresentacao_itens(orcamento_id)
+    if apresentacao:
+        salvar_orcamento_apresentacao_itens_db(novo_id, apresentacao)
+    else:
+        sincronizar_apresentacao_orcamento_db(novo_id, novo_orcamento, novos_itens)
 
-    novo_orcamento_id = salvar_orcamento_db(novo_orcamento, novos_itens)
-    adicionais_originais = listar_orcamento_adicionais_mao_obra(orcamento_id)
+    dados_gerador = buscar_orcamento_gerador_dados(orcamento_id)
+    if dados_gerador:
+        salvar_orcamento_gerador_dados_db(novo_id, dados_gerador)
 
-    if adicionais_originais:
-        salvar_orcamento_adicionais_mao_obra_db(novo_orcamento_id, adicionais_originais)
+    return novo_id
 
-    return novo_orcamento_id
 
 
 
@@ -7164,8 +7648,11 @@ def montar_gerador_orcamento_formulario() -> dict[str, Any]:
         "prazo": str(request.form.get("gerador_prazo") or "").strip(),
         "validade": str(request.form.get("gerador_validade") or "15 dias").strip(),
         "forma_pagamento": str(request.form.get("gerador_forma_pagamento") or "").strip(),
+        "resumo_servico": str(request.form.get("gerador_resumo_servico") or "").strip(),
         "escopo": str(request.form.get("gerador_escopo") or "").strip(),
         "observacoes_cliente": str(request.form.get("gerador_observacoes_cliente") or "").strip(),
+        "modo_apresentacao": normalizar_modo_apresentacao(request.form.get("gerador_modo_apresentacao"), "agrupado"),
+        "descricao_comercial": str(request.form.get("gerador_descricao_comercial") or "").strip(),
         "materiais": materiais,
         "mao_obra": mao_obra,
         "adicionais_mao_obra": adicionais_mao_obra,
@@ -7218,7 +7705,11 @@ def _gerador_alocar_total(valor_total: float, bases: list[float]) -> list[float]
     return valores
 
 
-def gerar_orcamento_por_gerador_db(dados: dict[str, Any]) -> int:
+def montar_orcamento_por_gerador(
+    dados: dict[str, Any],
+    numero: str | None = None,
+    status: str = "aberto",
+) -> tuple[dict[str, str], list[dict[str, str]], list[dict[str, Any]]]:
     valor_total = float(dados.get("valor_escolhido") or 0)
     venda_material = float(dados.get("venda_material") or 0)
     venda_mao_obra = float(dados.get("venda_mao_obra") or 0)
@@ -7228,10 +7719,8 @@ def gerar_orcamento_por_gerador_db(dados: dict[str, Any]) -> int:
     materiais = list(dados.get("materiais") or [])
     adicionais_mao_obra = list(dados.get("adicionais_mao_obra") or [])
 
-    # Padrão igual ao orçamento manual:
-    # - materiais aparecem na seção PRODUTOS;
-    # - mão de obra, adicionais e custos aparecem na seção SERVIÇOS;
-    # - impostos, administrativo, reserva técnica e lucro ficam embutidos nos valores.
+    # A composição abaixo é interna. A impressão usa a apresentação comercial escolhida,
+    # sem revelar produtos, quantidades e custos quando o modo for agrupado ou global.
     bases_grupos = []
     nomes_grupos = []
 
@@ -7433,7 +7922,7 @@ def gerar_orcamento_por_gerador_db(dados: dict[str, Any]) -> int:
         tipo_orcamento = "servico"
 
     orcamento = {
-        "numero": proximo_numero_orcamento(),
+        "numero": numero or proximo_numero_orcamento(),
         "cliente": str(dados.get("cliente") or ""),
         "responsavel": str(dados.get("responsavel") or ""),
         "data": str(dados.get("data") or hoje_empresa().isoformat()),
@@ -7443,7 +7932,7 @@ def gerar_orcamento_por_gerador_db(dados: dict[str, Any]) -> int:
         "centro_custo": str(dados.get("tipo_servico") or "Serviço técnico"),
         "introducao": "GESTFLOW apresenta abaixo sua proposta comercial para fornecimento de produtos e/ou execução de serviços conforme solicitado:",
         "tipo": tipo_orcamento,
-        "status": "aberto",
+        "status": status or "aberto",
         "total_produtos": _formatar_moeda_brl(total_produtos_numero),
         "total_servicos": _formatar_moeda_brl(total_servicos_numero),
         "desconto_valor": "0,00",
@@ -7452,11 +7941,58 @@ def gerar_orcamento_por_gerador_db(dados: dict[str, Any]) -> int:
         "forma_pagamento": str(dados.get("forma_pagamento") or ""),
         "observacoes": observacoes,
         "observacoes_internas": "\n".join(detalhes_internos),
+        "origem": "gerador",
+        "modo_apresentacao": normalizar_modo_apresentacao(dados.get("modo_apresentacao"), "agrupado"),
+        "descricao_comercial": str(dados.get("descricao_comercial") or dados.get("resumo_servico") or "").strip(),
     }
 
+    return orcamento, itens, adicionais_mao_obra
+
+
+def gerar_orcamento_por_gerador_db(dados: dict[str, Any]) -> int:
+    orcamento, itens, adicionais = montar_orcamento_por_gerador(dados)
     orcamento_id = salvar_orcamento_db(orcamento, itens)
-    salvar_orcamento_adicionais_mao_obra_db(orcamento_id, adicionais_mao_obra)
+    salvar_orcamento_adicionais_mao_obra_db(orcamento_id, adicionais)
+    salvar_orcamento_gerador_dados_db(orcamento_id, dados)
+    sincronizar_apresentacao_orcamento_db(orcamento_id, orcamento, itens)
     return orcamento_id
+
+
+def atualizar_orcamento_por_gerador_db(orcamento_id: int, dados: dict[str, Any]) -> bool:
+    orcamento_atual = buscar_orcamento_por_id(orcamento_id)
+    if orcamento_atual is None:
+        return False
+    dados_anteriores = buscar_orcamento_gerador_dados(orcamento_id)
+    orcamento, itens, adicionais = montar_orcamento_por_gerador(
+        dados,
+        numero=str(orcamento_atual.get("numero") or ""),
+        status=str(orcamento_atual.get("status") or "aberto"),
+    )
+    orcamento["introducao"] = str(orcamento_atual.get("introducao") or orcamento.get("introducao") or "")
+    atualizar_orcamento_db(orcamento_id, orcamento, itens)
+    salvar_orcamento_adicionais_mao_obra_db(orcamento_id, adicionais)
+    salvar_orcamento_gerador_dados_db(orcamento_id, dados)
+
+    sincronizar_apresentacao_orcamento_db(
+        orcamento_id,
+        orcamento,
+        itens,
+        preservar_descricoes=True,
+    )
+
+    descricao_nova = str(dados.get("descricao_comercial") or dados.get("resumo_servico") or "").strip()
+    if descricao_nova:
+        itens_comerciais = listar_orcamento_apresentacao_itens(orcamento_id)
+        if itens_comerciais:
+            itens_comerciais[0]["descricao"] = descricao_nova
+            salvar_orcamento_apresentacao_itens_db(orcamento_id, itens_comerciais)
+
+    registrar_historico_gerador_db(orcamento_id, dados_anteriores, dados)
+    return True
+
+
+
+
 
 def proximo_numero_venda() -> str:
     empresa_id = empresa_logada_id()
@@ -19150,17 +19686,13 @@ def gerador_orcamentos() -> str | Response:
 
         if not dados["cliente"]:
             return redirect(url_for("gerador_orcamentos", erro="Selecione um cliente para gerar o orçamento."))
-
         if not dados["responsavel"]:
             return redirect(url_for("gerador_orcamentos", erro="Selecione um responsável para gerar o orçamento."))
-
         if float(dados.get("valor_escolhido") or 0) <= 0:
-            return redirect(
-                url_for(
-                    "gerador_orcamentos",
-                    erro="Informe materiais, mão de obra, adicionais de mão de obra ou custos para formar um valor de orçamento.",
-                )
-            )
+            return redirect(url_for(
+                "gerador_orcamentos",
+                erro="Informe materiais, mão de obra, adicionais de mão de obra ou custos para formar um valor de orçamento.",
+            ))
 
         novo_orcamento_id = gerar_orcamento_por_gerador_db(dados)
         return redirect(url_for("ver_orcamento", orcamento_id=novo_orcamento_id))
@@ -19173,9 +19705,61 @@ def gerador_orcamentos() -> str | Response:
         gerador_config=buscar_configuracao_gerador_empresa(),
         adicionais_mao_obra_tipos=GERADOR_ADICIONAIS_MAO_OBRA_TIPOS,
         adicionais_mao_obra_formas=GERADOR_ADICIONAIS_MAO_OBRA_FORMAS_CALCULO,
+        modos_apresentacao=ORCAMENTO_MODOS_APRESENTACAO,
         proximo_numero=proximo_numero_orcamento(),
         data_hoje=hoje_empresa().isoformat(),
+        gerador_dados={},
+        modo_revisao=False,
+        orcamento=None,
+        form_action=url_for("gerador_orcamentos"),
     )
+
+
+@app.route("/orcamentos/<int:orcamento_id>/gerador/revisao", methods=["GET", "POST"])
+def revisar_gerador_orcamento(orcamento_id: int) -> str | Response:
+    orcamento = buscar_orcamento_por_id(orcamento_id)
+    dados_gerador = buscar_orcamento_gerador_dados(orcamento_id)
+    if orcamento is None or dados_gerador is None:
+        return redirect(url_for("editar_orcamento", orcamento_id=orcamento_id, erro="Este orçamento não possui dados salvos do Gerador."))
+
+    if request.method == "POST":
+        dados = montar_gerador_orcamento_formulario()
+        if not dados["cliente"] or not dados["responsavel"]:
+            return redirect(url_for("revisar_gerador_orcamento", orcamento_id=orcamento_id, erro="Cliente e responsável são obrigatórios."))
+        if float(dados.get("valor_escolhido") or 0) <= 0:
+            return redirect(url_for("revisar_gerador_orcamento", orcamento_id=orcamento_id, erro="O valor recalculado precisa ser maior que zero."))
+        atualizar_orcamento_por_gerador_db(orcamento_id, dados)
+        return redirect(url_for("ver_orcamento", orcamento_id=orcamento_id, sucesso="Dados do Gerador atualizados e orçamento recalculado."))
+
+    return render_template(
+        "orcamento_gerador.html",
+        clientes=listar_clientes(),
+        funcionarios=listar_funcionarios(),
+        produtos=listar_produtos(),
+        gerador_config=buscar_configuracao_gerador_empresa(),
+        adicionais_mao_obra_tipos=GERADOR_ADICIONAIS_MAO_OBRA_TIPOS,
+        adicionais_mao_obra_formas=GERADOR_ADICIONAIS_MAO_OBRA_FORMAS_CALCULO,
+        modos_apresentacao=ORCAMENTO_MODOS_APRESENTACAO,
+        proximo_numero=str(orcamento.get("numero") or orcamento_id),
+        data_hoje=str(dados_gerador.get("data") or hoje_empresa().isoformat()),
+        gerador_dados=dados_gerador,
+        modo_revisao=True,
+        orcamento=orcamento,
+        form_action=url_for("revisar_gerador_orcamento", orcamento_id=orcamento_id),
+    )
+
+
+@app.get("/orcamentos/<int:orcamento_id>/gerador/historico")
+def historico_calculos_gerador(orcamento_id: int) -> str | Response:
+    orcamento = buscar_orcamento_por_id(orcamento_id)
+    if orcamento is None:
+        return redirect(url_for("orcamentos"))
+    return render_template(
+        "orcamento_historico_calculos.html",
+        orcamento=orcamento,
+        historico=listar_historico_gerador(orcamento_id),
+    )
+
 
 @app.get("/orcamentos")
 def orcamentos() -> str:
@@ -19207,16 +19791,22 @@ def orcamentos() -> str:
 @app.post("/orcamentos")
 def salvar_orcamento() -> Response:
     orcamento = montar_orcamento_formulario(numero_padrao=proximo_numero_orcamento())
+    orcamento["origem"] = "manual"
     itens = montar_orcamento_itens_formulario()
     erro_validacao = validar_orcamento_para_salvar(orcamento, itens)
-
     if erro_validacao:
         return redirect(url_for("orcamentos", erro=erro_validacao))
 
     orcamento_id = salvar_orcamento_db(orcamento, itens)
+    sincronizar_apresentacao_orcamento_db(
+        orcamento_id,
+        orcamento,
+        itens,
+        itens_informados=montar_orcamento_apresentacao_formulario(),
+    )
     registrar_atividade_usuario("criacao", "orcamentos", f"Criou orçamento {orcamento.get('numero') or orcamento_id}", request.path)
-
     return redirect(url_for("orcamentos"))
+
 
 
 @app.get("/orcamentos/<int:orcamento_id>")
@@ -19225,18 +19815,24 @@ def ver_orcamento(orcamento_id: int) -> str | Response:
         return redirect(url_for("gerar_ordem_servico_por_orcamento", orcamento_id=orcamento_id))
 
     orcamento = buscar_orcamento_por_id(orcamento_id)
-
     if orcamento is None:
         return redirect(url_for("orcamentos"))
 
-    orcamento = formatar_datas_documento_exibicao(
-        orcamento,
-        ("data", "validade"),
+    orcamento = formatar_datas_documento_exibicao(orcamento, ("data", "validade"))
+    itens = listar_orcamento_itens(orcamento_id)
+    itens_apresentacao = listar_orcamento_apresentacao_itens(orcamento_id)
+    if normalizar_modo_apresentacao(orcamento.get("modo_apresentacao"), "agrupado") != "detalhado" and not itens_apresentacao:
+        itens_apresentacao = montar_apresentacao_padrao_orcamento(orcamento, itens)
+
+    return render_template(
+        "orcamento_detalhe.html",
+        orcamento=orcamento,
+        itens=itens,
+        itens_apresentacao=itens_apresentacao,
+        dados_gerador=buscar_orcamento_gerador_dados(orcamento_id),
+        historico_gerador=listar_historico_gerador(orcamento_id)[:3],
     )
 
-    itens = listar_orcamento_itens(orcamento_id)
-
-    return render_template("orcamento_detalhe.html", orcamento=orcamento, itens=itens)
 
 
 
@@ -19262,19 +19858,16 @@ def gerar_copia_orcamento(orcamento_id: int) -> Response:
 @app.get("/orcamentos/<int:orcamento_id>/imprimir/a4")
 def imprimir_orcamento_a4(orcamento_id: int) -> str | Response:
     orcamento = buscar_orcamento_por_id(orcamento_id)
-
     if orcamento is None:
         return redirect(url_for("orcamentos"))
 
-    orcamento = formatar_datas_documento_exibicao(
-        orcamento,
-        ("data", "validade"),
-    )
-
+    orcamento = formatar_datas_documento_exibicao(orcamento, ("data", "validade"))
     itens = listar_orcamento_itens(orcamento_id)
     itens_produtos = [item for item in itens if item["tipo_item"] == "produto"]
     itens_servicos = [item for item in itens if item["tipo_item"] == "servico"]
-
+    itens_apresentacao = listar_orcamento_apresentacao_itens(orcamento_id)
+    if normalizar_modo_apresentacao(orcamento.get("modo_apresentacao"), "agrupado") != "detalhado" and not itens_apresentacao:
+        itens_apresentacao = montar_apresentacao_padrao_orcamento(orcamento, itens)
     contexto_impressao = montar_contexto_impressao(orcamento.get("cliente"))
 
     return render_template(
@@ -19283,28 +19876,27 @@ def imprimir_orcamento_a4(orcamento_id: int) -> str | Response:
         itens=itens,
         itens_produtos=itens_produtos,
         itens_servicos=itens_servicos,
+        itens_apresentacao=itens_apresentacao,
         empresa=contexto_impressao["empresa"],
         loja=contexto_impressao["loja"],
         cliente=contexto_impressao["cliente"],
     )
 
 
+
 @app.get("/orcamentos/<int:orcamento_id>/imprimir/cupom")
 def imprimir_orcamento_cupom(orcamento_id: int) -> str | Response:
     orcamento = buscar_orcamento_por_id(orcamento_id)
-
     if orcamento is None:
         return redirect(url_for("orcamentos"))
 
-    orcamento = formatar_datas_documento_exibicao(
-        orcamento,
-        ("data", "validade"),
-    )
-
+    orcamento = formatar_datas_documento_exibicao(orcamento, ("data", "validade"))
     itens = listar_orcamento_itens(orcamento_id)
     itens_produtos = [item for item in itens if item["tipo_item"] == "produto"]
     itens_servicos = [item for item in itens if item["tipo_item"] == "servico"]
-
+    itens_apresentacao = listar_orcamento_apresentacao_itens(orcamento_id)
+    if normalizar_modo_apresentacao(orcamento.get("modo_apresentacao"), "agrupado") != "detalhado" and not itens_apresentacao:
+        itens_apresentacao = montar_apresentacao_padrao_orcamento(orcamento, itens)
     contexto_impressao = montar_contexto_impressao(orcamento.get("cliente"))
 
     return render_template(
@@ -19313,53 +19905,58 @@ def imprimir_orcamento_cupom(orcamento_id: int) -> str | Response:
         itens=itens,
         itens_produtos=itens_produtos,
         itens_servicos=itens_servicos,
+        itens_apresentacao=itens_apresentacao,
         empresa=contexto_impressao["empresa"],
         loja=contexto_impressao["loja"],
         cliente=contexto_impressao["cliente"],
     )
 
 
+
 @app.get("/orcamentos/<int:orcamento_id>/editar")
 def editar_orcamento(orcamento_id: int) -> str | Response:
     orcamento = buscar_orcamento_por_id(orcamento_id)
-
     if orcamento is None:
         return redirect(url_for("orcamentos"))
-
-    itens = listar_orcamento_itens(orcamento_id)
-    clientes_lista = listar_clientes()
-    funcionarios_lista = listar_funcionarios()
-    produtos_lista = listar_produtos()
-    servicos_lista = listar_servicos()
 
     return render_template(
         "orcamento_editar.html",
         orcamento=orcamento,
-        itens=itens,
-        clientes=clientes_lista,
-        funcionarios=funcionarios_lista,
-        produtos=produtos_lista,
-        servicos=servicos_lista,
+        itens=listar_orcamento_itens(orcamento_id),
+        itens_apresentacao=listar_orcamento_apresentacao_itens(orcamento_id),
+        dados_gerador=buscar_orcamento_gerador_dados(orcamento_id),
+        modos_apresentacao=ORCAMENTO_MODOS_APRESENTACAO,
+        clientes=listar_clientes(),
+        funcionarios=listar_funcionarios(),
+        produtos=listar_produtos(),
+        servicos=listar_servicos(),
     )
+
 
 
 @app.post("/orcamentos/<int:orcamento_id>/editar")
 def atualizar_orcamento(orcamento_id: int) -> Response:
     orcamento_atual = buscar_orcamento_por_id(orcamento_id)
-
     if orcamento_atual is None:
         return redirect(url_for("orcamentos"))
 
     orcamento = montar_orcamento_formulario(numero_padrao=str(orcamento_atual["numero"] or ""))
+    orcamento["origem"] = str(orcamento_atual.get("origem") or "manual")
     itens = montar_orcamento_itens_formulario()
     erro_validacao = validar_orcamento_para_salvar(orcamento, itens)
-
     if erro_validacao:
         return redirect(url_for("editar_orcamento", orcamento_id=orcamento_id, erro=erro_validacao))
 
     atualizar_orcamento_db(orcamento_id, orcamento, itens)
+    sincronizar_apresentacao_orcamento_db(
+        orcamento_id,
+        orcamento,
+        itens,
+        itens_informados=montar_orcamento_apresentacao_formulario(),
+        preservar_descricoes=True,
+    )
+    return redirect(url_for("ver_orcamento", orcamento_id=orcamento_id, sucesso="Orçamento atualizado."))
 
-    return redirect(url_for("ver_orcamento", orcamento_id=orcamento_id))
 
 
 @app.post("/orcamentos/<int:orcamento_id>/excluir")

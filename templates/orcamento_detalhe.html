@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_detalhe.html
-Último recode: 2026-07-02 23:41 (America/Bahia)
-Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
+Último recode: 2026-07-15 10:32 (America/Bahia)
+Motivo: Separar apresentação ao cliente da composição interna e adicionar acesso à revisão do Gerador.
 -->
 
 <!DOCTYPE html>
@@ -341,7 +341,22 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                 min-width: 680px;
             }
         }
-    </style>
+    
+        .budget-tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px; padding:8px; border:1px solid #dbe4f0; border-radius:14px; background:#fff; }
+        .budget-tab { min-height:38px; display:inline-flex; align-items:center; justify-content:center; padding:0 14px; border-radius:10px; color:#475569; font-size:12px; font-weight:900; text-decoration:none; }
+        .budget-tab:hover { background:#f1f5f9; color:#0f172a; }
+        .budget-tab.active { background:#0f62fe; color:#fff; }
+        .origin-badge, .presentation-badge { display:inline-flex; align-items:center; min-height:28px; padding:0 10px; border-radius:999px; font-size:11px; font-weight:900; text-transform:uppercase; }
+        .origin-badge.gerador { background:#dbeafe; color:#1d4ed8; }
+        .origin-badge.manual { background:#e2e8f0; color:#475569; }
+        .presentation-badge { background:#dcfce7; color:#166534; }
+        .internal-warning { margin-bottom:14px; padding:12px 14px; border:1px solid #fde68a; border-radius:12px; background:#fffbeb; color:#92400e; font-size:12px; font-weight:800; line-height:1.45; }
+        .history-list { display:grid; gap:10px; }
+        .history-item { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; padding:12px; border:1px solid #e2e8f0; border-radius:12px; background:#f8fafc; font-size:12px; }
+        .history-item span { color:#64748b; font-weight:700; }
+        .history-item strong { display:block; margin-top:4px; color:#0f172a; }
+        @media(max-width:720px){.budget-tabs{flex-direction:column}.budget-tab{width:100%}.history-item{grid-template-columns:1fr}}
+</style>
 
 </head>
 <body>
@@ -350,36 +365,53 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
 <main class="content">
         {% set page_title = 'Orçamento' %}
         {% include "partials/topbar.html" %}
+        {% set origem = orcamento.origem|default('manual', true) %}
+        {% set modo = orcamento.modo_apresentacao|default('agrupado', true) %}
 
-<section class="panel page-section"><div class="panel-header page-header"><div><span class="page-kicker">Orçamentos</span><h3 class="page-title">Detalhes do orçamento</h3><p class="page-subtitle">Visualize os dados principais, itens e totais do orçamento.</p></div><a href="/orcamentos" class="btn-dark">Voltar para Orçamentos</a></div></section>
-        <section class="panel page-section"><div class="panel-header page-header"><div><h3>Orçamento {{ orcamento.numero or orcamento.id }}</h3><p class="page-subtitle">Cliente: {{ orcamento.cliente or '-' }}</p></div><span class="status-pill {{ orcamento.status }}">{{ orcamento.status }}</span></div><div class="panel-summary"><div><span>Número</span><strong>{{ orcamento.numero or '-' }}</strong></div><div><span>Cliente</span><strong>{{ orcamento.cliente or '-' }}</strong></div><div><span>Responsável</span><strong>{{ orcamento.responsavel or '-' }}</strong></div><div><span>Data</span><strong>{{ orcamento.data or '-' }}</strong></div><div><span>Prazo de entrega</span><strong>{{ orcamento.prazo_entrega or '-' }}</strong></div><div><span>Validade</span><strong>{{ orcamento.validade or '-' }}</strong></div><div><span>Tipo</span><strong>{{ orcamento.tipo or '-' }}</strong></div><div><span>Canal de venda</span><strong>{{ orcamento.canal_venda or '-' }}</strong></div><div><span>Centro de custo</span><strong>{{ orcamento.centro_custo or '-' }}</strong></div><div><span>Forma de pagamento</span><strong>{{ orcamento.forma_pagamento or '-' }}</strong></div></div></section>
-        <section class="panel table-panel"><div class="panel-header page-header"><div><h3>Itens do orçamento</h3><p class="page-subtitle">Produtos e serviços incluídos neste orçamento.</p></div><div class="budget-action-row">
-                    <a href="/orcamentos/{{ orcamento.id }}/editar" class="btn-primary-green">Editar Orçamento</a>
-                    <div class="budget-action-menu">
-                                                    <details class="budget-action-dropdown">
-                                                        <summary class="budget-action-trigger" title="Mais ações do orçamento" aria-label="Mais ações do orçamento">⌄</summary>
-                                                        <div class="budget-action-panel">
-                                                            <details class="budget-action-submenu">
-                                                                <summary>🖨 Imprimir</summary>
-                                                                <div class="budget-action-subitems">
-                                                                    <a href="/orcamentos/{{ orcamento.id }}/imprimir/a4" target="_blank">A4</a>
-                                                                    <a href="/orcamentos/{{ orcamento.id }}/imprimir/cupom" target="_blank">Cupom</a>
-                                                                </div>
-                                                            </details>
+        {% if request.args.get('sucesso') %}<div class="form-alert-success">{{ request.args.get('sucesso') }}</div>{% endif %}
 
-                                                            <details class="budget-action-submenu">
-                                                                <summary>↻ Gerar</summary>
-                                                                <div class="budget-action-subitems">
-                                                                    <a href="/orcamentos/{{ orcamento.id }}/gerar/copia">Cópia</a>
-                                                                    <a href="/orcamentos/{{ orcamento.id }}?gerar=venda">Venda</a>
-                                                                    <a href="/orcamentos/{{ orcamento.id }}?gerar=os">OS</a>
-                                                                </div>
-                                                            </details>
-                                                        </div>
-                                                    </details>
-                                                </div>
-                </div></div><div class="table-shell"><table class="client-table"><thead><tr><th>Tipo</th><th>Nome</th><th>Descrição do item</th><th>Qtd</th><th>Valor unit.</th><th>Desconto</th><th>Subtotal</th></tr></thead><tbody>{% if itens %}{% for item in itens %}<tr><td>{{ item.tipo_item }}</td><td>{{ item.descricao }}</td><td>{{ item.detalhes }}</td><td>{{ item.quantidade }}</td><td>{{ item.valor_unitario }}</td><td>{{ item.desconto }}</td><td>{{ item.subtotal }}</td></tr>{% endfor %}{% else %}<tr><td colspan="7" class="empty-table">Nenhum item informado.</td></tr>{% endif %}</tbody></table></div></section>
-        <section class="panel page-section"><div class="panel-header page-header"><div><h3>Totais e observações</h3><p class="page-subtitle">Resumo financeiro e informações complementares.</p></div></div><div class="panel-summary"><div><span>Total produtos</span><strong>{{ orcamento.total_produtos or '0,00' }}</strong></div><div><span>Total serviços</span><strong>{{ orcamento.total_servicos or '0,00' }}</strong></div><div><span>Desconto R$</span><strong>{{ orcamento.desconto_valor or '0,00' }}</strong></div><div><span>Desconto %</span><strong>{{ orcamento.desconto_percentual or '0' }}</strong></div><div><span>Valor total</span><strong>{{ orcamento.valor_total or '0,00' }}</strong></div><div><span>Introdução</span><strong>{{ orcamento.introducao or '-' }}</strong></div><div><span>Observações</span><strong>{{ orcamento.observacoes or '-' }}</strong></div><div><span>Observações internas</span><strong>{{ orcamento.observacoes_internas or '-' }}</strong></div><div><span>Data de cadastro</span><strong>{{ orcamento.criado_em or '-' }}</strong></div></div></section>
+        <nav class="budget-tabs" aria-label="Abas do orçamento">
+            <a class="budget-tab active" href="/orcamentos/{{ orcamento.id }}">Visão geral</a>
+            <a class="budget-tab" href="/orcamentos/{{ orcamento.id }}/editar">Orçamento</a>
+            <a class="budget-tab" href="/orcamentos/{{ orcamento.id }}/editar#aba-apresentacao">Apresentação ao cliente</a>
+            {% if dados_gerador %}<a class="budget-tab" href="/orcamentos/{{ orcamento.id }}/gerador/revisao">Dados do Gerador</a>{% endif %}
+            {% if dados_gerador %}<a class="budget-tab" href="/orcamentos/{{ orcamento.id }}/gerador/historico">Histórico</a>{% endif %}
+        </nav>
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div><span class="page-kicker">Orçamentos</span><h3 class="page-title">Orçamento {{ orcamento.numero or orcamento.id }}</h3><p class="page-subtitle">Cliente: {{ orcamento.cliente or '-' }}</p></div>
+                <div class="client-toolbar"><span class="origin-badge {{ origem }}">{{ 'Gerador' if origem == 'gerador' else 'Manual' }}</span><span class="presentation-badge">{{ modo|replace('_',' ') }}</span><span class="status-pill {{ orcamento.status }}">{{ orcamento.status }}</span></div>
+            </div>
+            <div class="panel-summary">
+                <div><span>Número</span><strong>{{ orcamento.numero or '-' }}</strong></div><div><span>Responsável</span><strong>{{ orcamento.responsavel or '-' }}</strong></div><div><span>Data</span><strong>{{ orcamento.data or '-' }}</strong></div><div><span>Prazo</span><strong>{{ orcamento.prazo_entrega or '-' }}</strong></div><div><span>Validade</span><strong>{{ orcamento.validade or '-' }}</strong></div><div><span>Pagamento</span><strong>{{ orcamento.forma_pagamento or '-' }}</strong></div><div><span>Valor total</span><strong>R$ {{ orcamento.valor_total or '0,00' }}</strong></div><div><span>Modo de apresentação</span><strong>{{ modo|replace('_',' ')|title }}</strong></div><div><span>Origem</span><strong>{{ 'Gerador de Orçamentos' if origem == 'gerador' else 'Orçamento comum' }}</strong></div>
+            </div>
+        </section>
+
+        <section class="panel table-panel">
+            <div class="panel-header page-header">
+                <div><h3>Apresentação ao cliente</h3><p class="page-subtitle">Esta é a composição que será exibida no PDF e no cupom.</p></div>
+                <div class="budget-action-row"><a href="/orcamentos/{{ orcamento.id }}/editar#aba-apresentacao" class="btn-primary-green">Editar apresentação</a><div class="budget-action-menu"><details class="budget-action-dropdown"><summary class="budget-action-trigger">⌄</summary><div class="budget-action-panel"><details class="budget-action-submenu"><summary>🖨 Imprimir</summary><div class="budget-action-subitems"><a href="/orcamentos/{{ orcamento.id }}/imprimir/a4" target="_blank">A4</a><a href="/orcamentos/{{ orcamento.id }}/imprimir/cupom" target="_blank">Cupom</a></div></details><details class="budget-action-submenu"><summary>↻ Gerar</summary><div class="budget-action-subitems"><a href="/orcamentos/{{ orcamento.id }}/gerar/copia">Cópia</a><a href="/orcamentos/{{ orcamento.id }}?gerar=venda">Venda</a><a href="/orcamentos/{{ orcamento.id }}?gerar=os">OS</a></div></details></div></details></div></div>
+            </div>
+            {% if modo == 'detalhado' %}
+                <div class="internal-warning">O modo detalhado exibe todos os produtos e serviços ao cliente.</div>
+                <div class="table-shell"><table class="client-table"><thead><tr><th>Tipo</th><th>Nome</th><th>Descrição</th><th>Qtd.</th><th>Valor unit.</th><th>Subtotal</th></tr></thead><tbody>{% for item in itens %}<tr><td>{{ item.tipo_item }}</td><td>{{ item.descricao }}</td><td>{{ item.detalhes }}</td><td>{{ item.quantidade }}</td><td>{{ item.valor_unitario }}</td><td>{{ item.subtotal }}</td></tr>{% else %}<tr><td colspan="6" class="empty-table">Nenhum item informado.</td></tr>{% endfor %}</tbody></table></div>
+            {% else %}
+                <div class="table-shell"><table class="client-table"><thead><tr><th>Descrição comercial</th><th>Detalhes</th><th>Qtd.</th><th>Valor</th><th>Subtotal</th></tr></thead><tbody>{% for item in itens_apresentacao %}<tr><td><strong>{{ item.descricao }}</strong></td><td>{{ item.detalhes }}</td><td>{{ item.quantidade }}</td><td>{{ item.valor_unitario }}</td><td>{{ item.subtotal }}</td></tr>{% else %}<tr><td colspan="5" class="empty-table">A apresentação será gerada automaticamente ao imprimir.</td></tr>{% endfor %}</tbody></table></div>
+            {% endif %}
+        </section>
+
+        <section class="panel table-panel">
+            <div class="panel-header page-header"><div><h3>Composição interna</h3><p class="page-subtitle">Produtos e serviços usados nos cálculos. Estes itens não aparecem ao cliente nos modos agrupado e global.</p></div>{% if dados_gerador %}<a href="/orcamentos/{{ orcamento.id }}/gerador/revisao" class="btn-dark">Editar dados do Gerador</a>{% endif %}</div>
+            <div class="internal-warning">Uso interno: custos, quantidades e composição técnica devem ser mantidos aqui para cálculo, estoque, OS e análise de margem.</div>
+            <div class="table-shell"><table class="client-table"><thead><tr><th>Tipo</th><th>Nome</th><th>Descrição</th><th>Qtd.</th><th>Valor unit.</th><th>Desconto</th><th>Subtotal</th></tr></thead><tbody>{% for item in itens %}<tr><td>{{ item.tipo_item }}</td><td>{{ item.descricao }}</td><td>{{ item.detalhes }}</td><td>{{ item.quantidade }}</td><td>{{ item.valor_unitario }}</td><td>{{ item.desconto }}</td><td>{{ item.subtotal }}</td></tr>{% else %}<tr><td colspan="7" class="empty-table">Nenhum item interno informado.</td></tr>{% endfor %}</tbody></table></div>
+        </section>
+
+        <section class="panel page-section"><div class="panel-header page-header"><div><h3>Totais e observações</h3><p class="page-subtitle">Resumo financeiro e informações complementares.</p></div></div><div class="panel-summary"><div><span>Total produtos interno</span><strong>{{ orcamento.total_produtos or '0,00' }}</strong></div><div><span>Total serviços interno</span><strong>{{ orcamento.total_servicos or '0,00' }}</strong></div><div><span>Desconto</span><strong>{{ orcamento.desconto_valor or '0,00' }}</strong></div><div><span>Valor total</span><strong>R$ {{ orcamento.valor_total or '0,00' }}</strong></div><div><span>Descrição comercial</span><strong>{{ orcamento.descricao_comercial or '-' }}</strong></div><div><span>Observações para o cliente</span><strong>{{ orcamento.observacoes or '-' }}</strong></div><div><span>Observações internas</span><strong>{{ orcamento.observacoes_internas or '-' }}</strong></div><div><span>Cadastro</span><strong>{{ orcamento.criado_em or '-' }}</strong></div></div></section>
+
+        {% if dados_gerador %}
+        <section class="panel page-section"><div class="panel-header page-header"><div><h3>Últimos recálculos</h3><p class="page-subtitle">Histórico das alterações feitas nos dados internos do Gerador.</p></div><a href="/orcamentos/{{ orcamento.id }}/gerador/historico" class="btn-light">Ver histórico completo</a></div><div class="history-list">{% for registro in historico_gerador %}<div class="history-item"><div><span>Data / responsável</span><strong>{{ registro.criado_em }} · {{ registro.responsavel }}</strong></div><div><span>Valor</span><strong>{{ registro.valor_anterior }} → {{ registro.valor_novo }}</strong></div><div><span>Margem</span><strong>{{ registro.margem_anterior }}% → {{ registro.margem_nova }}%</strong></div></div>{% else %}<div class="empty-table-box">Nenhum recálculo registrado.</div>{% endfor %}</div></section>
+        {% endif %}
 
         <script>
             function posicionarMenuOrcamento(menu) {

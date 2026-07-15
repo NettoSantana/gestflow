@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_imprimir_cupom.html
-Último recode: 2026-06-13 22:45 (America/Bahia)
-Motivo: Criar impressão Cupom do orçamento em HTML pronta para impressão e futura geração de PDF.
+Último recode: 2026-07-15 10:32 (America/Bahia)
+Motivo: Respeitar apresentação agrupada, global ou detalhada sem expor a composição interna do orçamento.
 -->
 
 <!DOCTYPE html>
@@ -183,6 +183,8 @@ Motivo: Criar impressão Cupom do orçamento em HTML pronta para impressão e fu
             <p><strong>Pagamento:</strong> {{ orcamento.forma_pagamento or '-' }}</p>
         </div>
 
+        {% set modo_apresentacao = orcamento.modo_apresentacao|default('agrupado', true) %}
+        {% if modo_apresentacao == 'detalhado' %}
         {% if itens_servicos %}
             <div class="linha"></div>
             <div class="titulo">Detalhes do serviço</div>
@@ -238,11 +240,30 @@ Motivo: Criar impressão Cupom do orçamento em HTML pronta para impressão e fu
             </table>
         {% endif %}
 
+        {% else %}
+            <div class="linha"></div>
+            <div class="titulo">Proposta comercial</div>
+            <table>
+                <thead><tr><th>Descrição</th><th class="num">Qtd</th><th class="num">Total</th></tr></thead>
+                <tbody>
+                    {% for item in itens_apresentacao|default([]) %}
+                        <tr>
+                            <td>{{ item.descricao or '-' }}{% if item.detalhes %}<br><em>({{ item.detalhes }})</em>{% endif %}</td>
+                            <td class="num">{{ item.quantidade or '1' }}</td>
+                            <td class="num">{{ item.subtotal or '0,00' }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+
         <div class="linha"></div>
 
         <div class="dados">
-            <p><strong>Serviços:</strong> {{ orcamento.total_servicos or '0,00' }}</p>
-            <p><strong>Produtos:</strong> {{ orcamento.total_produtos or '0,00' }}</p>
+            {% if modo_apresentacao == 'detalhado' %}
+                <p><strong>Serviços:</strong> {{ orcamento.total_servicos or '0,00' }}</p>
+                <p><strong>Produtos:</strong> {{ orcamento.total_produtos or '0,00' }}</p>
+            {% endif %}
             <p><strong>Desconto:</strong> {{ orcamento.desconto_valor or '0,00' }}</p>
             <p><strong>Total do orçamento:</strong> {{ orcamento.valor_total or '0,00' }}</p>
         </div>

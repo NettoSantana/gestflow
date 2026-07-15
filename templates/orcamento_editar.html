@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_editar.html
-Último recode: 2026-07-02 23:41 (America/Bahia)
-Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
+Último recode: 2026-07-15 10:32 (America/Bahia)
+Motivo: Adicionar abas, apresentação comercial editável e acesso aos dados salvos do Gerador.
 -->
 
 <!DOCTYPE html>
@@ -346,7 +346,25 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                 min-width: 680px;
             }
         }
-    </style>
+    
+        .budget-tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px; padding:8px; border:1px solid #dbe4f0; border-radius:14px; background:#fff; }
+        .budget-tab { min-height:38px; display:inline-flex; align-items:center; justify-content:center; padding:0 14px; border-radius:10px; color:#475569; font-size:12px; font-weight:900; text-decoration:none; }
+        .budget-tab:hover { background:#f1f5f9; color:#0f172a; }
+        .budget-tab.active { background:#0f62fe; color:#fff; }
+        .presentation-table { min-width:900px !important; }
+        .presentation-note { margin:12px 0; padding:12px 14px; border:1px solid #bfdbfe; border-radius:12px; background:#eff6ff; color:#1e40af; font-size:12px; font-weight:800; line-height:1.45; }
+        .presentation-total { display:flex; align-items:center; justify-content:flex-end; gap:12px; margin-top:12px; font-size:13px; font-weight:900; }
+        .presentation-total strong { color:#15803d; font-size:18px; }
+        .origin-badge { display:inline-flex; align-items:center; min-height:28px; padding:0 10px; border-radius:999px; font-size:11px; font-weight:900; text-transform:uppercase; }
+        .origin-badge.gerador { background:#dbeafe; color:#1d4ed8; }
+        .origin-badge.manual { background:#e2e8f0; color:#475569; }
+        .generator-summary-box { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-top:14px; }
+        .generator-summary-box div { padding:12px; border:1px solid #e2e8f0; border-radius:12px; background:#f8fafc; }
+        .generator-summary-box span { display:block; color:#64748b; font-size:10px; font-weight:900; text-transform:uppercase; }
+        .generator-summary-box strong { display:block; margin-top:5px; color:#0f172a; }
+        @media(max-width:900px){.generator-summary-box{grid-template-columns:repeat(2,minmax(0,1fr))}}
+        @media(max-width:720px){.budget-tabs{flex-direction:column}.budget-tab{width:100%}.generator-summary-box{grid-template-columns:1fr}}
+</style>
 
 </head>
 <body>
@@ -355,8 +373,17 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
 <main class="content">
         {% set page_title = 'Editar Orçamento' %}
         {% include "partials/topbar.html" %}
+        {% set origem = orcamento.origem|default('manual', true) %}
 
-<section class="panel page-section">
+        <nav class="budget-tabs" aria-label="Abas do orçamento">
+            <a class="budget-tab active" href="#aba-orcamento">Orçamento</a>
+            <a class="budget-tab" href="#aba-apresentacao">Apresentação ao cliente</a>
+            {% if dados_gerador %}<a class="budget-tab" href="/orcamentos/{{ orcamento.id }}/gerador/revisao">Dados do Gerador</a>{% endif %}
+            <a class="budget-tab" href="#aba-escopo">Escopo e observações</a>
+            {% if dados_gerador %}<a class="budget-tab" href="/orcamentos/{{ orcamento.id }}/gerador/historico">Histórico</a>{% endif %}
+        </nav>
+
+<section id="aba-orcamento" class="panel page-section">
             <div class="panel-header page-header">
                 <div>
                     <span class="page-kicker">Orçamentos</span>
@@ -376,7 +403,7 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                         <p class="page-subtitle">Cliente: {{ orcamento.cliente or '-' }}</p>
                     </div>
 
-                    <span class="badge-info">Modo edição</span>
+                    <div class="client-toolbar"><span class="origin-badge {{ origem }}">{{ 'Gerador' if origem == 'gerador' else 'Manual' }}</span><span class="badge-info">Modo edição</span></div>
                 </div>
 
                 <div class="form-grid">
@@ -457,6 +484,51 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                     <input id="orcamento_introducao" name="orcamento_introducao" type="text" value="{{ orcamento.introducao or '' }}" class="form-control">
                 </div>
             </section>
+                <section id="aba-apresentacao" class="panel page-section">
+                    <div class="panel-header page-header">
+                        <div>
+                            <h3>Apresentação ao cliente</h3>
+                            <p class="page-subtitle">Defina o que será impresso. A composição interna de produtos e serviços continuará salva separadamente.</p>
+                        </div>
+                        <button type="button" class="btn-primary-green" onclick="adicionarItemApresentacao()">+ Linha comercial</button>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="orcamento_modo_apresentacao">Forma de apresentação</label>
+                            <select id="orcamento_modo_apresentacao" name="orcamento_modo_apresentacao" class="form-control" onchange="atualizarModoApresentacao()">
+                                {% for modo in modos_apresentacao|default([]) %}
+                                    <option value="{{ modo.codigo }}" {% if orcamento.modo_apresentacao|default('agrupado', true) == modo.codigo %}selected{% endif %}>{{ modo.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="orcamento_descricao_comercial">Descrição comercial principal</label>
+                            <textarea id="orcamento_descricao_comercial" name="orcamento_descricao_comercial" class="form-control" style="min-height:96px; padding-top:12px; resize:vertical;">{{ orcamento.descricao_comercial or '' }}</textarea>
+                        </div>
+                    </div>
+
+                    <div class="presentation-note">Agrupado mostra linhas comerciais resumidas. Valor global mostra apenas uma linha. Detalhado exibe os produtos e serviços da composição interna.</div>
+
+                    <div id="presentation-lines-area" class="table-shell">
+                        <table class="client-table presentation-table">
+                            <thead><tr><th>Descrição comercial</th><th>Detalhes</th><th>Qtd.</th><th>Valor unit.</th><th>Subtotal</th><th>Ação</th></tr></thead>
+                            <tbody id="apresentacao-tbody"></tbody>
+                        </table>
+                    </div>
+                    <div class="presentation-total"><span>Total da apresentação:</span><strong id="apresentacao-total">R$ 0,00</strong></div>
+
+                    {% if dados_gerador %}
+                        <div class="generator-summary-box">
+                            <div><span>Custo total interno</span><strong>R$ {{ dados_gerador.custo_total|default('0') }}</strong></div>
+                            <div><span>Valor escolhido</span><strong>R$ {{ dados_gerador.valor_escolhido|default('0') }}</strong></div>
+                            <div><span>Lucro estimado</span><strong>R$ {{ dados_gerador.lucro_estimado|default('0') }}</strong></div>
+                            <div><span>Margem estimada</span><strong>{{ dados_gerador.margem_estimado|default('0') }}%</strong></div>
+                        </div>
+                        <div class="form-actions"><a href="/orcamentos/{{ orcamento.id }}/gerador/revisao" class="btn-dark">Editar dados completos do Gerador</a></div>
+                    {% endif %}
+                </section>
+
                 <section class="panel page-section">
                     <div class="panel-header page-header">
                         <div>
@@ -516,10 +588,10 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                     </div>
                 </section>
 
-            <section class="panel page-section">
+            <section id="aba-escopo" class="panel page-section">
                 <div class="panel-header page-header">
                     <div>
-                        <h3>Total</h3>
+                        <h3>Total, escopo e observações</h3>
                         <p class="page-subtitle">Atualize os totais do orçamento.</p>
                     </div>
                 </div>
@@ -683,6 +755,8 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                     { nome: "{{ servico.nome }}", valor: "{{ servico.valor_venda or '' }}" }{% if not loop.last %},{% endif %}
                 {% endfor %}
             ];
+
+            window.itensApresentacaoIniciais = {{ itens_apresentacao|default([])|tojson }};
 
             window.itensIniciais = [
                 {% for item in itens|default([]) %}
@@ -1265,6 +1339,111 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                     totalSeletor: '[name="orcamento_valor_total"]',
                     mensagemItem: "Adicione pelo menos um produto ou serviço com quantidade e valor unitário maiores que zero.",
                     mensagemTotal: "O valor total do orçamento precisa ser maior que zero."
+                });
+            });
+        </script>
+
+
+        <script>
+            function criarLinhaApresentacao(dados) {
+                const tr = document.createElement('tr');
+                const item = dados || {};
+                tr.innerHTML = `
+                    <td><input name="apresentacao_descricao" type="text" class="form-control apresentacao-descricao" value="${textoSeguroApresentacao(item.descricao || '')}" placeholder="Ex: Adequação NR-12 conforme escopo"></td>
+                    <td><input name="apresentacao_detalhes" type="text" class="form-control" value="${textoSeguroApresentacao(item.detalhes || '')}" placeholder="Descrição opcional"></td>
+                    <td><input name="apresentacao_quantidade" type="text" class="form-control apresentacao-quantidade" value="${textoSeguroApresentacao(item.quantidade || '1')}"></td>
+                    <td><input name="apresentacao_valor_unitario" type="text" class="form-control apresentacao-valor" value="${textoSeguroApresentacao(item.valor_unitario || item.subtotal || '')}"></td>
+                    <td><input name="apresentacao_subtotal" type="text" class="form-control apresentacao-subtotal" value="${textoSeguroApresentacao(item.subtotal || '')}" readonly></td>
+                    <td><button type="button" class="action-button delete" onclick="removerItemApresentacao(this)">×</button></td>
+                `;
+                tr.querySelectorAll('.apresentacao-quantidade, .apresentacao-valor').forEach(function(input) {
+                    input.addEventListener('input', function() { recalcularLinhaApresentacao(tr); });
+                    input.addEventListener('blur', function() { input.value = formatarMoeda(normalizarNumero(input.value)); recalcularLinhaApresentacao(tr); });
+                });
+                return tr;
+            }
+
+            function textoSeguroApresentacao(valor) {
+                return String(valor || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            }
+
+            function adicionarItemApresentacao(dados) {
+                const body = document.getElementById('apresentacao-tbody');
+                if (!body) return;
+                const tr = criarLinhaApresentacao(dados || {});
+                body.appendChild(tr);
+                recalcularLinhaApresentacao(tr);
+            }
+
+            function removerItemApresentacao(botao) {
+                botao.closest('tr')?.remove();
+                const body = document.getElementById('apresentacao-tbody');
+                if (body && !body.children.length && document.getElementById('orcamento_modo_apresentacao')?.value !== 'detalhado') adicionarItemApresentacao();
+                recalcularTotalApresentacao();
+            }
+
+            function recalcularLinhaApresentacao(tr) {
+                const qtd = normalizarNumero(tr.querySelector('.apresentacao-quantidade')?.value) || 1;
+                const valor = normalizarNumero(tr.querySelector('.apresentacao-valor')?.value);
+                const subtotal = qtd * valor;
+                const campo = tr.querySelector('.apresentacao-subtotal');
+                if (campo) campo.value = formatarMoeda(subtotal);
+                recalcularTotalApresentacao();
+            }
+
+            function recalcularTotalApresentacao() {
+                let total = 0;
+                document.querySelectorAll('.apresentacao-subtotal').forEach(function(input) { total += normalizarNumero(input.value); });
+                const el = document.getElementById('apresentacao-total');
+                if (el) el.textContent = 'R$ ' + formatarMoeda(total);
+                return total;
+            }
+
+            function atualizarModoApresentacao() {
+                const modo = document.getElementById('orcamento_modo_apresentacao')?.value || 'agrupado';
+                const area = document.getElementById('presentation-lines-area');
+                const total = document.querySelector('.presentation-total');
+                const botao = document.querySelector('#aba-apresentacao .btn-primary-green');
+                const desativado = modo === 'detalhado';
+                if (area) area.style.display = desativado ? 'none' : '';
+                if (total) total.style.display = desativado ? 'none' : '';
+                if (botao) botao.style.display = desativado ? 'none' : '';
+                const body = document.getElementById('apresentacao-tbody');
+                if (!desativado && body && !body.children.length) {
+                    const descricao = document.getElementById('orcamento_descricao_comercial')?.value || 'Fornecimento e execução conforme escopo técnico';
+                    adicionarItemApresentacao({ descricao, quantidade: '1', valor_unitario: document.getElementById('orcamento_valor_total')?.value || '0,00' });
+                }
+                if (modo === 'global' && body && body.children.length > 1) {
+                    while (body.children.length > 1) body.lastElementChild.remove();
+                    const primeira = body.firstElementChild;
+                    if (primeira) {
+                        primeira.querySelector('.apresentacao-quantidade').value = '1';
+                        primeira.querySelector('.apresentacao-valor').value = document.getElementById('orcamento_valor_total')?.value || '0,00';
+                        recalcularLinhaApresentacao(primeira);
+                    }
+                }
+            }
+
+            window.addEventListener('DOMContentLoaded', function() {
+                const iniciais = Array.isArray(window.itensApresentacaoIniciais) ? window.itensApresentacaoIniciais : [];
+                iniciais.forEach(adicionarItemApresentacao);
+                atualizarModoApresentacao();
+                document.getElementById('orcamento_descricao_comercial')?.addEventListener('input', function() {
+                    const primeiro = document.querySelector('.apresentacao-descricao');
+                    if (primeiro && !primeiro.dataset.editado) primeiro.value = this.value;
+                });
+                document.querySelectorAll('.apresentacao-descricao').forEach(function(input) { input.addEventListener('input', function(){ input.dataset.editado='sim'; }); });
+
+                document.querySelector('form.client-form')?.addEventListener('submit', function(event) {
+                    const modo = document.getElementById('orcamento_modo_apresentacao')?.value || 'agrupado';
+                    if (modo === 'detalhado') return;
+                    const totalApresentacao = recalcularTotalApresentacao();
+                    const totalOrcamento = normalizarNumero(document.getElementById('orcamento_valor_total')?.value);
+                    if (Math.abs(totalApresentacao - totalOrcamento) > 0.02) {
+                        event.preventDefault();
+                        alert('O total da apresentação ao cliente precisa ser igual ao valor total do orçamento.');
+                        document.getElementById('aba-apresentacao')?.scrollIntoView({ behavior: 'smooth' });
+                    }
                 });
             });
         </script>
