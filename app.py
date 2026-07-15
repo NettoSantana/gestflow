@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-15 10:32 (America/Bahia)
-# Motivo: Adicionar apresentação comercial agrupada e revisão completa dos dados do Gerador de Orçamentos.
+# Último recode: 2026-07-15 10:23 (America/Bahia)
+# Motivo: Organizar o escopo técnico em seções, parágrafos e listas nas telas e impressões de orçamento.
 
 from __future__ import annotations
 
@@ -6388,6 +6388,237 @@ def normalizar_modo_apresentacao(valor: Any, padrao: str = "agrupado") -> str:
     return padrao if padrao in ORCAMENTO_MODOS_APRESENTACAO_VALIDOS else "agrupado"
 
 
+def normalizar_texto_multilinha(valor: Any) -> str:
+    texto = str(valor or "")
+    texto = texto.replace("\r\n", "\n").replace("\r", "\n").replace("\\n", "\n")
+
+    linhas_normalizadas: list[str] = []
+    linha_anterior_vazia = False
+
+    for linha in texto.split("\n"):
+        linha_limpa = re.sub(r"[ \t\f\v]+", " ", linha).strip()
+
+        if not linha_limpa:
+            if linhas_normalizadas and not linha_anterior_vazia:
+                linhas_normalizadas.append("")
+            linha_anterior_vazia = True
+            continue
+
+        linhas_normalizadas.append(linha_limpa)
+        linha_anterior_vazia = False
+
+    while linhas_normalizadas and not linhas_normalizadas[-1]:
+        linhas_normalizadas.pop()
+
+    return "\n".join(linhas_normalizadas).strip()
+
+
+ORCAMENTO_ESCOPO_TITULOS = {
+    "1": "OBJETIVO DO SERVIÇO",
+    "2": "DESCRIÇÃO DO SERVIÇO",
+    "3": "DIAGNÓSTICO TÉCNICO",
+    "4": "SERVIÇOS PREVISTOS",
+    "5": "MATERIAIS E COMPONENTES",
+    "6": "CONDIÇÕES DO SERVIÇO",
+    "7": "PRAZO",
+}
+
+ORCAMENTO_ESCOPO_CABECALHO_REGEX = re.compile(
+    r"(?<!\w)(?P<numero>[1-7])\s*[\.\-:]?\s*"
+    r"(?P<titulo>"
+    r"OBJETIVO\s+DO\s+SERVI[CÇ]O|"
+    r"DESCRI[CÇ][AÃ]O\s+DO\s+SERVI[CÇ]O|"
+    r"DIAGN[OÓ]STICO\s+T[EÉ]CNICO|"
+    r"SERVI[CÇ]OS\s+(?:EXECUTADOS|PREVISTOS)|"
+    r"MATERIAIS\s+E\s+COMPONENTES|"
+    r"CONDI[CÇ][OÕ]ES\s+DO\s+SERVI[CÇ]O|"
+    r"PRAZO"
+    r")(?=\s|$)",
+    re.IGNORECASE,
+)
+
+ORCAMENTO_ESCOPO_INICIOS_SERVICOS = (
+    "INTERLIGACAO, AJUSTES, TESTES E VALIDACAO FINAL",
+    "INTERLIGAÇÃO, AJUSTES, TESTES E VALIDAÇÃO FINAL",
+    "AJUSTES, TESTES E VERIFICACAO FINAL",
+    "AJUSTES, TESTES E VERIFICAÇÃO FINAL",
+    "TESTES E VALIDACAO FINAL",
+    "TESTES E VALIDAÇÃO FINAL",
+    "MOBILIZACAO",
+    "MOBILIZAÇÃO",
+    "LEVANTAMENTO",
+    "EXECUCAO",
+    "EXECUÇÃO",
+    "ADEQUACAO",
+    "ADEQUAÇÃO",
+    "FABRICACAO",
+    "FABRICAÇÃO",
+    "INSTALACAO",
+    "INSTALAÇÃO",
+    "MONTAGEM",
+    "APLICACAO",
+    "APLICAÇÃO",
+    "INTERLIGACAO",
+    "INTERLIGAÇÃO",
+    "AJUSTES",
+    "TESTES",
+    "VERIFICACAO",
+    "VERIFICAÇÃO",
+    "VALIDACAO",
+    "VALIDAÇÃO",
+    "LIBERACAO",
+    "LIBERAÇÃO",
+    "DESMONTAGEM",
+    "SUBSTITUICAO",
+    "SUBSTITUIÇÃO",
+    "UTILIZACAO",
+    "UTILIZAÇÃO",
+    "ADICIONAL DE MAO DE OBRA",
+    "ADICIONAL DE MÃO DE OBRA",
+    "CUSTO OPERACIONAL",
+)
+
+
+def _limpar_item_escopo(valor: Any) -> str:
+    texto = normalizar_texto_multilinha(valor)
+    texto = re.sub(r"^\s*(?:[-–—•*▪◦]+|\d+[.)])\s*", "", texto)
+    return re.sub(r"\s+", " ", texto).strip(" ;")
+
+
+def _segmentar_servicos_escopo(texto: str) -> list[str]:
+    padrao = "|".join(
+        sorted((re.escape(item) for item in ORCAMENTO_ESCOPO_INICIOS_SERVICOS), key=len, reverse=True)
+    )
+    ocorrencias = list(re.finditer(rf"(?<!\w)(?:{padrao})\b", texto, re.IGNORECASE))
+
+    if len(ocorrencias) < 2:
+        return []
+
+    itens: list[str] = []
+    for indice, ocorrencia in enumerate(ocorrencias):
+        fim = ocorrencias[indice + 1].start() if indice + 1 < len(ocorrencias) else len(texto)
+        item = _limpar_item_escopo(texto[ocorrencia.start():fim])
+        if item:
+            itens.append(item)
+
+    return itens
+
+
+def _extrair_itens_escopo(texto: str, numero_secao: str) -> list[str]:
+    texto_normalizado = normalizar_texto_multilinha(texto)
+    if not texto_normalizado:
+        return []
+
+    linhas = [
+        _limpar_item_escopo(linha)
+        for linha in texto_normalizado.split("\n")
+        if _limpar_item_escopo(linha)
+    ]
+
+    possui_marcadores = any(
+        re.match(r"^\s*(?:[-–—•*▪◦]+|\d+[.)])\s+", linha)
+        for linha in texto_normalizado.split("\n")
+        if linha.strip()
+    )
+
+    if possui_marcadores or len(linhas) > 1:
+        return linhas
+
+    partes_pontuadas = [
+        _limpar_item_escopo(parte)
+        for parte in re.split(r"\s*(?:;|•|▪|\|)\s*", texto_normalizado)
+        if _limpar_item_escopo(parte)
+    ]
+    if len(partes_pontuadas) > 1:
+        return partes_pontuadas
+
+    if numero_secao == "4":
+        return _segmentar_servicos_escopo(texto_normalizado)
+
+    return []
+
+
+def _extrair_paragrafos_escopo(texto: str) -> list[str]:
+    texto_normalizado = normalizar_texto_multilinha(texto)
+    if not texto_normalizado:
+        return []
+
+    blocos = [
+        re.sub(r"\s*\n\s*", " ", bloco).strip()
+        for bloco in re.split(r"\n\s*\n+", texto_normalizado)
+        if bloco.strip()
+    ]
+
+    if len(blocos) > 1:
+        return blocos
+
+    texto_unico = blocos[0] if blocos else texto_normalizado
+    sentencas = [
+        sentenca.strip()
+        for sentenca in re.split(r"(?<=[.!?])\s+(?=[A-ZÁÀÂÃÉÊÍÓÔÕÚÇ0-9])", texto_unico)
+        if sentenca.strip()
+    ]
+
+    if len(sentencas) <= 1:
+        return [texto_unico]
+
+    return sentencas
+
+
+def formatar_escopo_orcamento(
+    observacoes: Any,
+    dados_gerador: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    dados = dados_gerador or {}
+    escopo_salvo = normalizar_texto_multilinha(dados.get("escopo"))
+    observacoes_salvas = normalizar_texto_multilinha(dados.get("observacoes_cliente"))
+
+    texto_origem = escopo_salvo or normalizar_texto_multilinha(observacoes)
+    texto_origem = re.sub(r"^\s*ESCOPO\s*:\s*", "", texto_origem, flags=re.IGNORECASE).strip()
+
+    resultado: dict[str, Any] = {
+        "secoes": [],
+        "texto_livre": [],
+        "observacoes_adicionais": _extrair_paragrafos_escopo(observacoes_salvas),
+    }
+
+    if not texto_origem:
+        return resultado
+
+    cabecalhos = list(ORCAMENTO_ESCOPO_CABECALHO_REGEX.finditer(texto_origem))
+
+    if not cabecalhos:
+        resultado["texto_livre"] = _extrair_paragrafos_escopo(texto_origem)
+        return resultado
+
+    texto_antes = texto_origem[:cabecalhos[0].start()].strip()
+    if texto_antes:
+        resultado["texto_livre"] = _extrair_paragrafos_escopo(texto_antes)
+
+    secoes: list[dict[str, Any]] = []
+
+    for indice, cabecalho in enumerate(cabecalhos):
+        numero = str(cabecalho.group("numero"))
+        inicio_corpo = cabecalho.end()
+        fim_corpo = cabecalhos[indice + 1].start() if indice + 1 < len(cabecalhos) else len(texto_origem)
+        corpo = texto_origem[inicio_corpo:fim_corpo].strip(" \n:-")
+
+        itens = _extrair_itens_escopo(corpo, numero) if numero in {"4", "5"} else []
+        paragrafos = [] if itens else _extrair_paragrafos_escopo(corpo)
+
+        secoes.append(
+            {
+                "numero": numero,
+                "titulo": ORCAMENTO_ESCOPO_TITULOS.get(numero, str(cabecalho.group("titulo") or "").upper()),
+                "paragrafos": paragrafos,
+                "itens": itens,
+            }
+        )
+
+    resultado["secoes"] = secoes
+    return resultado
+
+
 def listar_orcamento_apresentacao_itens(orcamento_id: int) -> list[dict[str, Any]]:
     empresa_id = empresa_logada_id()
     with conectar_db() as conn:
@@ -6858,8 +7089,8 @@ def montar_orcamento_formulario(numero_padrao: str = "") -> dict[str, str]:
         "desconto_percentual": (request.form.get("orcamento_desconto_percentual") or "0,00").strip(),
         "valor_total": (request.form.get("orcamento_valor_total") or "0,00").strip(),
         "forma_pagamento": (request.form.get("orcamento_forma_pagamento") or "").strip(),
-        "observacoes": (request.form.get("orcamento_observacoes") or "").strip(),
-        "observacoes_internas": (request.form.get("orcamento_observacoes_internas") or "").strip(),
+        "observacoes": normalizar_texto_multilinha(request.form.get("orcamento_observacoes")),
+        "observacoes_internas": normalizar_texto_multilinha(request.form.get("orcamento_observacoes_internas")),
         "origem": "manual",
         "modo_apresentacao": normalizar_modo_apresentacao(request.form.get("orcamento_modo_apresentacao"), "agrupado"),
         "descricao_comercial": (request.form.get("orcamento_descricao_comercial") or "").strip(),
@@ -7648,9 +7879,9 @@ def montar_gerador_orcamento_formulario() -> dict[str, Any]:
         "prazo": str(request.form.get("gerador_prazo") or "").strip(),
         "validade": str(request.form.get("gerador_validade") or "15 dias").strip(),
         "forma_pagamento": str(request.form.get("gerador_forma_pagamento") or "").strip(),
-        "resumo_servico": str(request.form.get("gerador_resumo_servico") or "").strip(),
-        "escopo": str(request.form.get("gerador_escopo") or "").strip(),
-        "observacoes_cliente": str(request.form.get("gerador_observacoes_cliente") or "").strip(),
+        "resumo_servico": normalizar_texto_multilinha(request.form.get("gerador_resumo_servico")),
+        "escopo": normalizar_texto_multilinha(request.form.get("gerador_escopo")),
+        "observacoes_cliente": normalizar_texto_multilinha(request.form.get("gerador_observacoes_cliente")),
         "modo_apresentacao": normalizar_modo_apresentacao(request.form.get("gerador_modo_apresentacao"), "agrupado"),
         "descricao_comercial": str(request.form.get("gerador_descricao_comercial") or "").strip(),
         "materiais": materiais,
@@ -19821,6 +20052,7 @@ def ver_orcamento(orcamento_id: int) -> str | Response:
     orcamento = formatar_datas_documento_exibicao(orcamento, ("data", "validade"))
     itens = listar_orcamento_itens(orcamento_id)
     itens_apresentacao = listar_orcamento_apresentacao_itens(orcamento_id)
+    dados_gerador = buscar_orcamento_gerador_dados(orcamento_id)
     if normalizar_modo_apresentacao(orcamento.get("modo_apresentacao"), "agrupado") != "detalhado" and not itens_apresentacao:
         itens_apresentacao = montar_apresentacao_padrao_orcamento(orcamento, itens)
 
@@ -19829,8 +20061,9 @@ def ver_orcamento(orcamento_id: int) -> str | Response:
         orcamento=orcamento,
         itens=itens,
         itens_apresentacao=itens_apresentacao,
-        dados_gerador=buscar_orcamento_gerador_dados(orcamento_id),
+        dados_gerador=dados_gerador,
         historico_gerador=listar_historico_gerador(orcamento_id)[:3],
+        escopo_formatado=formatar_escopo_orcamento(orcamento.get("observacoes"), dados_gerador),
     )
 
 
@@ -19866,6 +20099,7 @@ def imprimir_orcamento_a4(orcamento_id: int) -> str | Response:
     itens_produtos = [item for item in itens if item["tipo_item"] == "produto"]
     itens_servicos = [item for item in itens if item["tipo_item"] == "servico"]
     itens_apresentacao = listar_orcamento_apresentacao_itens(orcamento_id)
+    dados_gerador = buscar_orcamento_gerador_dados(orcamento_id)
     if normalizar_modo_apresentacao(orcamento.get("modo_apresentacao"), "agrupado") != "detalhado" and not itens_apresentacao:
         itens_apresentacao = montar_apresentacao_padrao_orcamento(orcamento, itens)
     contexto_impressao = montar_contexto_impressao(orcamento.get("cliente"))
@@ -19880,6 +20114,7 @@ def imprimir_orcamento_a4(orcamento_id: int) -> str | Response:
         empresa=contexto_impressao["empresa"],
         loja=contexto_impressao["loja"],
         cliente=contexto_impressao["cliente"],
+        escopo_formatado=formatar_escopo_orcamento(orcamento.get("observacoes"), dados_gerador),
     )
 
 
@@ -19895,6 +20130,7 @@ def imprimir_orcamento_cupom(orcamento_id: int) -> str | Response:
     itens_produtos = [item for item in itens if item["tipo_item"] == "produto"]
     itens_servicos = [item for item in itens if item["tipo_item"] == "servico"]
     itens_apresentacao = listar_orcamento_apresentacao_itens(orcamento_id)
+    dados_gerador = buscar_orcamento_gerador_dados(orcamento_id)
     if normalizar_modo_apresentacao(orcamento.get("modo_apresentacao"), "agrupado") != "detalhado" and not itens_apresentacao:
         itens_apresentacao = montar_apresentacao_padrao_orcamento(orcamento, itens)
     contexto_impressao = montar_contexto_impressao(orcamento.get("cliente"))
@@ -19909,6 +20145,7 @@ def imprimir_orcamento_cupom(orcamento_id: int) -> str | Response:
         empresa=contexto_impressao["empresa"],
         loja=contexto_impressao["loja"],
         cliente=contexto_impressao["cliente"],
+        escopo_formatado=formatar_escopo_orcamento(orcamento.get("observacoes"), dados_gerador),
     )
 
 

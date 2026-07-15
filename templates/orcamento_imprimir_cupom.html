@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_imprimir_cupom.html
-Último recode: 2026-07-15 10:32 (America/Bahia)
-Motivo: Respeitar apresentação agrupada, global ou detalhada sem expor a composição interna do orçamento.
+Último recode: 2026-07-15 10:23 (America/Bahia)
+Motivo: Exibir o escopo em seções e listas compactas na impressão em cupom.
 -->
 
 <!DOCTYPE html>
@@ -112,8 +112,43 @@ Motivo: Respeitar apresentação agrupada, global ou detalhada sem expor a compo
 
         .obs {
             white-space: pre-wrap;
-            line-height: 1.25;
+            line-height: 1.35;
             word-break: break-word;
+        }
+
+        .scope-cupom {
+            display: grid;
+            gap: 8px;
+        }
+
+        .scope-cupom-section {
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+
+        .scope-cupom-title {
+            margin: 0 0 4px;
+            padding-bottom: 3px;
+            border-bottom: 1px solid #d1d5db;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .scope-cupom p {
+            margin: 0 0 4px;
+            line-height: 1.35;
+            text-align: left;
+        }
+
+        .scope-cupom ul {
+            margin: 0;
+            padding-left: 16px;
+        }
+
+        .scope-cupom li {
+            margin-bottom: 3px;
+            line-height: 1.3;
         }
 
         .assinatura {
@@ -270,8 +305,29 @@ Motivo: Respeitar apresentação agrupada, global ou detalhada sem expor a compo
 
         <div class="linha"></div>
 
-        <div class="titulo">Observações</div>
-        <div class="obs">{{ orcamento.observacoes or '-' }}</div>
+        <div class="titulo">Escopo e observações</div>
+        {% if escopo_formatado.secoes or escopo_formatado.texto_livre or escopo_formatado.observacoes_adicionais %}
+            <div class="scope-cupom">
+                {% for paragrafo in escopo_formatado.texto_livre %}<p>{{ paragrafo }}</p>{% endfor %}
+
+                {% for secao in escopo_formatado.secoes %}
+                    <section class="scope-cupom-section">
+                        <h3 class="scope-cupom-title">{{ secao.numero }} {{ secao.titulo }}</h3>
+                        {% for paragrafo in secao.paragrafos %}<p>{{ paragrafo }}</p>{% endfor %}
+                        {% if secao.itens %}<ul>{% for item in secao.itens %}<li>{{ item }}</li>{% endfor %}</ul>{% endif %}
+                    </section>
+                {% endfor %}
+
+                {% if escopo_formatado.observacoes_adicionais %}
+                    <section class="scope-cupom-section">
+                        <h3 class="scope-cupom-title">Observações adicionais</h3>
+                        {% for paragrafo in escopo_formatado.observacoes_adicionais %}<p>{{ paragrafo }}</p>{% endfor %}
+                    </section>
+                {% endif %}
+            </div>
+        {% else %}
+            <div class="obs">-</div>
+        {% endif %}
 
         <div class="aviso">*** Este cupom não é documento fiscal ***</div>
 
