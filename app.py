@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-14 21:15 (America/Bahia)
-# Motivo: Adicionar suporte aos adicionais de mão de obra no Gerador de Orçamentos.
+# Último recode: 2026-07-15 10:32 (America/Bahia)
+# Motivo: Adicionar apresentação comercial agrupada e revisão completa dos dados do Gerador de Orçamentos.
 
 from __future__ import annotations
 
@@ -48,6 +48,12 @@ VITRINE_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 EXTENSOES_LOGO_PERMITIDAS = {"png", "jpg", "jpeg", "webp", "gif", "jfif", "avif"}
 EXTENSOES_FOTO_OS_PERMITIDAS = {"png", "jpg", "jpeg", "webp"}
 EXTENSOES_FOTO_VITRINE_PERMITIDAS = {"png", "jpg", "jpeg", "webp"}
+
+
+BRASILAPI_CNPJ_URL = "https://brasilapi.com.br/api/cnpj/v1/{cnpj}"
+BRASILAPI_CNPJ_TIMEOUT_SEGUNDOS = 8
+BRASILAPI_CNPJ_CACHE_MINUTOS = 30
+_BRASILAPI_CNPJ_CACHE: dict[str, tuple[datetime, dict[str, Any]]] = {}
 
 TIMEZONE_PADRAO_GESTFLOW = "America/Bahia"
 FUSOS_HORARIOS_GESTFLOW = [
@@ -115,6 +121,13 @@ GERADOR_ADICIONAIS_MAO_OBRA_TIPOS_POR_CODIGO = {
 GERADOR_ADICIONAIS_MAO_OBRA_FORMAS_POR_CODIGO = {
     item["codigo"]: item["nome"] for item in GERADOR_ADICIONAIS_MAO_OBRA_FORMAS_CALCULO
 }
+
+ORCAMENTO_MODOS_APRESENTACAO = [
+    {"codigo": "agrupado", "nome": "Agrupado", "descricao": "Mostra somente grupos comerciais, sem revelar a composição interna."},
+    {"codigo": "global", "nome": "Valor global", "descricao": "Mostra uma única linha comercial com o valor total."},
+    {"codigo": "detalhado", "nome": "Detalhado", "descricao": "Mostra todos os produtos e serviços do orçamento."},
+]
+ORCAMENTO_MODOS_APRESENTACAO_VALIDOS = {item["codigo"] for item in ORCAMENTO_MODOS_APRESENTACAO}
 
 
 GESTFLOW_SEGMENTOS = [
@@ -1005,10 +1018,92 @@ def iniciar_banco() -> None:
                 estoque_atual TEXT,
                 estoque_minimo TEXT,
                 preco_custo TEXT,
+                preco_custo_manual TEXT,
+                cmv_calculado TEXT,
+                custo_origem TEXT NOT NULL DEFAULT 'manual',
+                possui_composicao TEXT NOT NULL DEFAULT 'nao',
+                cmv_atualizado_em TEXT,
                 preco_venda TEXT,
                 status TEXT NOT NULL DEFAULT 'ativo',
                 observacoes TEXT,
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS produto_composicao_itens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER,
+                produto_id INTEGER NOT NULL,
+                componente_produto_id INTEGER NOT NULL,
+                componente_nome TEXT,
+                unidade TEXT,
+                quantidade TEXT,
+                perda_percentual TEXT,
+                custo_unitario TEXT,
+                custo_total TEXT,
+                observacoes TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                atualizado_em TEXT,
+                FOREIGN KEY (produto_id) REFERENCES produtos (id),
+                FOREIGN KEY (componente_produto_id) REFERENCES produtos (id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS produto_composicao_custos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER,
+                produto_id INTEGER NOT NULL,
+                tipo TEXT NOT NULL DEFAULT 'outro',
+                descricao TEXT,
+                valor TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                atualizado_em TEXT,
+                FOREIGN KEY (produto_id) REFERENCES produtos (id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS produto_producoes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER,
+                produto_id INTEGER NOT NULL,
+                produto_nome TEXT,
+                quantidade_produzida TEXT,
+                cmv_unitario TEXT,
+                custo_total TEXT,
+                estoque_anterior TEXT,
+                estoque_atual TEXT,
+                responsavel TEXT,
+                observacoes TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (produto_id) REFERENCES produtos (id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS produto_producao_consumos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER,
+                producao_id INTEGER NOT NULL,
+                produto_id INTEGER NOT NULL,
+                componente_produto_id INTEGER NOT NULL,
+                componente_nome TEXT,
+                unidade TEXT,
+                quantidade_consumida TEXT,
+                custo_unitario TEXT,
+                custo_total TEXT,
+                estoque_anterior TEXT,
+                estoque_atual TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (producao_id) REFERENCES produto_producoes (id),
+                FOREIGN KEY (produto_id) REFERENCES produtos (id),
+                FOREIGN KEY (componente_produto_id) REFERENCES produtos (id)
             )
             """
         )
@@ -1052,6 +1147,9 @@ def iniciar_banco() -> None:
                 forma_pagamento TEXT,
                 observacoes TEXT,
                 observacoes_internas TEXT,
+                origem TEXT NOT NULL DEFAULT 'manual',
+                modo_apresentacao TEXT NOT NULL DEFAULT 'agrupado',
+                descricao_comercial TEXT,
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
             """
@@ -1096,6 +1194,94 @@ def iniciar_banco() -> None:
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS orcamento_apresentacao_itens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER,
+                orcamento_id INTEGER NOT NULL,
+                descricao TEXT,
+                detalhes TEXT,
+                quantidade TEXT,
+                valor_unitario TEXT,
+                subtotal TEXT,
+                ordem INTEGER NOT NULL DEFAULT 1,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (orcamento_id) REFERENCES orcamentos (id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS orcamento_gerador_dados (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER,
+                orcamento_id INTEGER NOT NULL UNIQUE,
+                cliente TEXT,
+                responsavel TEXT,
+                tipo_servico TEXT,
+                data TEXT,
+                prazo TEXT,
+                validade TEXT,
+                forma_pagamento TEXT,
+                resumo_servico TEXT,
+                escopo TEXT,
+                observacoes_cliente TEXT,
+                modo_apresentacao TEXT,
+                descricao_comercial TEXT,
+                materiais_json TEXT,
+                mao_obra_json TEXT,
+                adicionais_json TEXT,
+                custos_json TEXT,
+                margem_material TEXT,
+                margem_mao_obra TEXT,
+                margem_custos TEXT,
+                imposto_percentual TEXT,
+                administrativo_percentual TEXT,
+                reserva_percentual TEXT,
+                custo_material TEXT,
+                custo_mao_obra TEXT,
+                custo_adicionais_mao_obra TEXT,
+                custo_adicional TEXT,
+                custo_total TEXT,
+                venda_material TEXT,
+                venda_mao_obra TEXT,
+                venda_adicionais_mao_obra TEXT,
+                venda_custos TEXT,
+                administrativo_valor TEXT,
+                reserva_valor TEXT,
+                valor_minimo TEXT,
+                valor_recomendado TEXT,
+                valor_ideal TEXT,
+                tipo_valor TEXT,
+                valor_escolhido TEXT,
+                lucro_estimado TEXT,
+                margem_estimado TEXT,
+                atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (orcamento_id) REFERENCES orcamentos (id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS orcamento_gerador_historico (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER,
+                orcamento_id INTEGER NOT NULL,
+                valor_anterior TEXT,
+                valor_novo TEXT,
+                margem_anterior TEXT,
+                margem_nova TEXT,
+                diferenca_valor TEXT,
+                dados_anteriores_json TEXT,
+                dados_novos_json TEXT,
+                responsavel TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (orcamento_id) REFERENCES orcamentos (id)
+            )
+            """
+        )
+
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS vendas (
@@ -2005,6 +2191,11 @@ def iniciar_banco() -> None:
                 "estoque_atual": "TEXT",
                 "estoque_minimo": "TEXT",
                 "preco_custo": "TEXT",
+                "preco_custo_manual": "TEXT",
+                "cmv_calculado": "TEXT",
+                "custo_origem": "TEXT DEFAULT 'manual'",
+                "possui_composicao": "TEXT DEFAULT 'nao'",
+                "cmv_atualizado_em": "TEXT",
                 "preco_venda": "TEXT",
                 "status": "TEXT DEFAULT 'ativo'",
                 "observacoes": "TEXT",
@@ -2056,6 +2247,17 @@ def iniciar_banco() -> None:
             if coluna not in colunas_agendamentos_existentes:
                 conn.execute(f"ALTER TABLE agendamentos ADD COLUMN {coluna} {tipo_coluna}")
 
+        conn.execute(
+            """
+            UPDATE produtos
+            SET
+                preco_custo_manual = COALESCE(NULLIF(TRIM(preco_custo_manual), ''), preco_custo, '0,00'),
+                cmv_calculado = COALESCE(NULLIF(TRIM(cmv_calculado), ''), '0,00'),
+                custo_origem = COALESCE(NULLIF(TRIM(custo_origem), ''), 'manual'),
+                possui_composicao = COALESCE(NULLIF(TRIM(possui_composicao), ''), 'nao')
+            """
+        )
+
         empresas_sem_codigo = conn.execute(
             """
             SELECT id
@@ -2069,6 +2271,31 @@ def iniciar_banco() -> None:
         for empresa_sem_codigo in empresas_sem_codigo:
             garantir_codigo_indicacao_empresa(int(empresa_sem_codigo["id"]), conn)
 
+
+        colunas_orcamentos_existentes = {
+            str(row["name"])
+            for row in conn.execute("PRAGMA table_info(orcamentos)").fetchall()
+        }
+        colunas_orcamentos_apresentacao = {
+            "origem": "TEXT NOT NULL DEFAULT 'manual'",
+            "modo_apresentacao": "TEXT NOT NULL DEFAULT 'agrupado'",
+            "descricao_comercial": "TEXT",
+        }
+        for coluna, tipo_coluna in colunas_orcamentos_apresentacao.items():
+            if coluna not in colunas_orcamentos_existentes:
+                conn.execute(f"ALTER TABLE orcamentos ADD COLUMN {coluna} {tipo_coluna}")
+
+        conn.execute(
+            """
+            UPDATE orcamentos
+            SET
+                origem = CASE
+                    WHEN canal_venda = 'Gerador de Orçamentos' THEN 'gerador'
+                    ELSE COALESCE(NULLIF(TRIM(origem), ''), 'manual')
+                END,
+                modo_apresentacao = COALESCE(NULLIF(TRIM(modo_apresentacao), ''), 'agrupado')
+            """
+        )
 
         colunas_vendas_pagamento_existentes = {
             str(row["name"])
@@ -2105,10 +2332,17 @@ def iniciar_banco() -> None:
             "funcionarios",
             "equipamentos",
             "produtos",
+            "produto_composicao_itens",
+            "produto_composicao_custos",
+            "produto_producoes",
+            "produto_producao_consumos",
             "servicos",
             "orcamentos",
             "orcamento_itens",
             "orcamento_adicionais_mao_obra",
+            "orcamento_apresentacao_itens",
+            "orcamento_gerador_dados",
+            "orcamento_gerador_historico",
             "vendas",
             "venda_itens",
             "ordens_servico",
@@ -2441,8 +2675,8 @@ CADASTROS_PAGINADOS = {
     },
     "produtos": {
         "tabela": "produtos",
-        "colunas": ["id", "empresa_id", "nome", "codigo", "categoria", "unidade", "estoque_atual", "estoque_minimo", "preco_custo", "preco_venda", "status", "observacoes", "criado_em"],
-        "busca": ["nome", "codigo", "categoria", "unidade", "status"],
+        "colunas": ["id", "empresa_id", "nome", "codigo", "categoria", "unidade", "estoque_atual", "estoque_minimo", "preco_custo", "preco_custo_manual", "cmv_calculado", "custo_origem", "possui_composicao", "cmv_atualizado_em", "preco_venda", "status", "observacoes", "criado_em"],
+        "busca": ["nome", "codigo", "categoria", "unidade", "status", "custo_origem", "possui_composicao"],
         "ordenacao": {
             "id": "id",
             "nome": "nome",
@@ -2450,6 +2684,8 @@ CADASTROS_PAGINADOS = {
             "categoria": "categoria",
             "unidade": "unidade",
             "estoque_atual": "estoque_atual",
+            "preco_custo": "preco_custo",
+            "cmv_calculado": "cmv_calculado",
             "preco_venda": "preco_venda",
             "status": "status",
         },
@@ -3463,11 +3699,12 @@ def excluir_funcionario_db(funcionario_id: int) -> None:
         )
         conn.commit()
 
-def salvar_produto_db(produto: dict[str, str]) -> None:
+def salvar_produto_db(produto: dict[str, str]) -> int:
     empresa_id = empresa_logada_id()
+    preco_custo_manual = str(produto.get("preco_custo_manual") or produto.get("preco_custo") or "").strip()
 
     with conectar_db() as conn:
-        conn.execute(
+        cursor = conn.execute(
             """
             INSERT INTO produtos (
                 empresa_id,
@@ -3478,10 +3715,15 @@ def salvar_produto_db(produto: dict[str, str]) -> None:
                 estoque_atual,
                 estoque_minimo,
                 preco_custo,
+                preco_custo_manual,
+                cmv_calculado,
+                custo_origem,
+                possui_composicao,
+                cmv_atualizado_em,
                 preco_venda,
                 status,
                 observacoes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id,
@@ -3491,13 +3733,22 @@ def salvar_produto_db(produto: dict[str, str]) -> None:
                 produto["unidade"],
                 produto["estoque_atual"],
                 produto["estoque_minimo"],
-                produto["preco_custo"],
+                preco_custo_manual,
+                preco_custo_manual,
+                "0,00",
+                "manual",
+                "nao",
+                "",
                 produto["preco_venda"],
                 produto["status"],
                 produto["observacoes"],
             ),
         )
+        produto_id = int(cursor.lastrowid)
         conn.commit()
+
+    return produto_id
+
 
 def listar_produtos() -> list[dict[str, Any]]:
     empresa_id = empresa_logada_id()
@@ -3515,6 +3766,11 @@ def listar_produtos() -> list[dict[str, Any]]:
                 estoque_atual,
                 estoque_minimo,
                 preco_custo,
+                preco_custo_manual,
+                cmv_calculado,
+                custo_origem,
+                possui_composicao,
+                cmv_atualizado_em,
                 preco_venda,
                 status,
                 observacoes,
@@ -3527,6 +3783,7 @@ def listar_produtos() -> list[dict[str, Any]]:
         ).fetchall()
 
     return [dict(row) for row in rows]
+
 
 def buscar_produto_por_id(produto_id: int) -> dict[str, Any] | None:
     empresa_id = empresa_logada_id()
@@ -3544,6 +3801,11 @@ def buscar_produto_por_id(produto_id: int) -> dict[str, Any] | None:
                 estoque_atual,
                 estoque_minimo,
                 preco_custo,
+                preco_custo_manual,
+                cmv_calculado,
+                custo_origem,
+                possui_composicao,
+                cmv_atualizado_em,
                 preco_venda,
                 status,
                 observacoes,
@@ -3560,8 +3822,550 @@ def buscar_produto_por_id(produto_id: int) -> dict[str, Any] | None:
 
     return dict(row)
 
+
+def listar_produtos_componentes_disponiveis(produto_id: int | None = None) -> list[dict[str, Any]]:
+    empresa_id = empresa_logada_id()
+    consulta = """
+        SELECT
+            id,
+            nome,
+            codigo,
+            unidade,
+            estoque_atual,
+            preco_custo,
+            preco_custo_manual,
+            cmv_calculado,
+            custo_origem,
+            status
+        FROM produtos
+        WHERE empresa_id = ?
+          AND LOWER(COALESCE(status, 'ativo')) = 'ativo'
+    """
+    parametros: list[Any] = [empresa_id]
+
+    if produto_id is not None:
+        consulta += " AND id <> ?"
+        parametros.append(produto_id)
+
+    consulta += " ORDER BY nome ASC, id ASC"
+
+    with conectar_db() as conn:
+        rows = conn.execute(consulta, parametros).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def listar_produto_composicao_itens(produto_id: int) -> list[dict[str, Any]]:
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                pci.id,
+                pci.empresa_id,
+                pci.produto_id,
+                pci.componente_produto_id,
+                COALESCE(NULLIF(TRIM(p.nome), ''), pci.componente_nome) AS componente_nome,
+                COALESCE(NULLIF(TRIM(p.unidade), ''), pci.unidade, 'un') AS unidade,
+                pci.quantidade,
+                pci.perda_percentual,
+                COALESCE(NULLIF(TRIM(p.preco_custo), ''), pci.custo_unitario, '0,00') AS custo_unitario_atual,
+                pci.custo_unitario,
+                pci.custo_total,
+                pci.observacoes,
+                pci.criado_em,
+                pci.atualizado_em,
+                p.estoque_atual AS componente_estoque_atual,
+                p.status AS componente_status
+            FROM produto_composicao_itens pci
+            LEFT JOIN produtos p
+              ON p.id = pci.componente_produto_id
+             AND p.empresa_id = pci.empresa_id
+            WHERE pci.produto_id = ?
+              AND pci.empresa_id = ?
+            ORDER BY pci.id ASC
+            """,
+            (produto_id, empresa_id),
+        ).fetchall()
+
+    itens: list[dict[str, Any]] = []
+    for row in rows:
+        item = dict(row)
+        quantidade = _converter_valor_brl(item.get("quantidade"))
+        perda = _converter_valor_brl(item.get("perda_percentual"))
+        custo_unitario = _converter_valor_brl(item.get("custo_unitario_atual"))
+        quantidade_com_perda = quantidade * (1 + (perda / 100))
+        item["quantidade_numero"] = quantidade
+        item["perda_percentual_numero"] = perda
+        item["quantidade_com_perda"] = quantidade_com_perda
+        item["custo_unitario_numero"] = custo_unitario
+        item["custo_total_numero"] = quantidade_com_perda * custo_unitario
+        itens.append(item)
+
+    return itens
+
+
+def listar_produto_composicao_custos(produto_id: int) -> list[dict[str, Any]]:
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                id,
+                empresa_id,
+                produto_id,
+                tipo,
+                descricao,
+                valor,
+                criado_em,
+                atualizado_em
+            FROM produto_composicao_custos
+            WHERE produto_id = ?
+              AND empresa_id = ?
+            ORDER BY id ASC
+            """,
+            (produto_id, empresa_id),
+        ).fetchall()
+
+    custos: list[dict[str, Any]] = []
+    for row in rows:
+        custo = dict(row)
+        custo["valor_numero"] = _converter_valor_brl(custo.get("valor"))
+        custos.append(custo)
+
+    return custos
+
+
+def produto_composicao_cria_ciclo(
+    produto_id: int,
+    componente_produto_id: int,
+    conn: sqlite3.Connection,
+) -> bool:
+    empresa_id = empresa_logada_id()
+
+    if produto_id == componente_produto_id:
+        return True
+
+    row = conn.execute(
+        """
+        WITH RECURSIVE dependencias(produto_id) AS (
+            SELECT componente_produto_id
+            FROM produto_composicao_itens
+            WHERE produto_id = ?
+              AND empresa_id = ?
+
+            UNION
+
+            SELECT pci.componente_produto_id
+            FROM produto_composicao_itens pci
+            JOIN dependencias d
+              ON pci.produto_id = d.produto_id
+            WHERE pci.empresa_id = ?
+        )
+        SELECT 1
+        FROM dependencias
+        WHERE produto_id = ?
+        LIMIT 1
+        """,
+        (componente_produto_id, empresa_id, empresa_id, produto_id),
+    ).fetchone()
+
+    return row is not None
+
+
+def calcular_cmv_produto(
+    produto_id: int,
+    atualizar_produto: bool = True,
+    conn: sqlite3.Connection | None = None,
+) -> dict[str, Any]:
+    empresa_id = empresa_logada_id()
+    conexao_propria = conn is None
+    conexao = conn or conectar_db()
+
+    try:
+        produto_row = conexao.execute(
+            """
+            SELECT
+                id,
+                nome,
+                preco_custo,
+                preco_custo_manual
+            FROM produtos
+            WHERE id = ?
+              AND empresa_id = ?
+            LIMIT 1
+            """,
+            (produto_id, empresa_id),
+        ).fetchone()
+
+        if produto_row is None:
+            return {
+                "possui_composicao": False,
+                "custo_componentes": 0.0,
+                "custos_diretos": 0.0,
+                "cmv_unitario": 0.0,
+                "quantidade_componentes": 0,
+                "quantidade_custos": 0,
+            }
+
+        itens_rows = conexao.execute(
+            """
+            SELECT
+                pci.id,
+                pci.quantidade,
+                pci.perda_percentual,
+                COALESCE(NULLIF(TRIM(p.preco_custo), ''), pci.custo_unitario, '0,00') AS custo_unitario
+            FROM produto_composicao_itens pci
+            LEFT JOIN produtos p
+              ON p.id = pci.componente_produto_id
+             AND p.empresa_id = pci.empresa_id
+            WHERE pci.produto_id = ?
+              AND pci.empresa_id = ?
+            ORDER BY pci.id ASC
+            """,
+            (produto_id, empresa_id),
+        ).fetchall()
+        custos_rows = conexao.execute(
+            """
+            SELECT id, valor
+            FROM produto_composicao_custos
+            WHERE produto_id = ?
+              AND empresa_id = ?
+            ORDER BY id ASC
+            """,
+            (produto_id, empresa_id),
+        ).fetchall()
+
+        custo_componentes = 0.0
+        for item in itens_rows:
+            quantidade = _converter_valor_brl(item["quantidade"])
+            perda = _converter_valor_brl(item["perda_percentual"])
+            custo_unitario = _converter_valor_brl(item["custo_unitario"])
+            custo_componentes += quantidade * (1 + (perda / 100)) * custo_unitario
+
+        custos_diretos = sum(_converter_valor_brl(row["valor"]) for row in custos_rows)
+        possui_composicao = bool(itens_rows or custos_rows)
+        cmv_unitario = custo_componentes + custos_diretos
+        custo_manual = _converter_valor_brl(
+            produto_row["preco_custo_manual"]
+            if produto_row["preco_custo_manual"] is not None
+            else produto_row["preco_custo"]
+        )
+        custo_efetivo = cmv_unitario if possui_composicao else custo_manual
+        agora = agora_empresa().isoformat(timespec="seconds")
+
+        if atualizar_produto:
+            conexao.execute(
+                """
+                UPDATE produtos
+                SET
+                    preco_custo = ?,
+                    cmv_calculado = ?,
+                    custo_origem = ?,
+                    possui_composicao = ?,
+                    cmv_atualizado_em = ?
+                WHERE id = ?
+                  AND empresa_id = ?
+                """,
+                (
+                    _formatar_moeda_brl(custo_efetivo),
+                    _formatar_moeda_brl(cmv_unitario),
+                    "composicao" if possui_composicao else "manual",
+                    "sim" if possui_composicao else "nao",
+                    agora if possui_composicao else "",
+                    produto_id,
+                    empresa_id,
+                ),
+            )
+            if conexao_propria:
+                conexao.commit()
+
+        return {
+            "possui_composicao": possui_composicao,
+            "custo_componentes": custo_componentes,
+            "custos_diretos": custos_diretos,
+            "cmv_unitario": cmv_unitario,
+            "custo_manual": custo_manual,
+            "custo_efetivo": custo_efetivo,
+            "quantidade_componentes": len(itens_rows),
+            "quantidade_custos": len(custos_rows),
+        }
+    finally:
+        if conexao_propria:
+            conexao.close()
+
+
+def recalcular_produtos_dependentes(
+    componente_produto_id: int,
+    conn: sqlite3.Connection,
+    visitados: set[int] | None = None,
+) -> None:
+    empresa_id = empresa_logada_id()
+    visitados = visitados or set()
+
+    if componente_produto_id in visitados:
+        return
+
+    visitados.add(componente_produto_id)
+    rows = conn.execute(
+        """
+        SELECT DISTINCT produto_id
+        FROM produto_composicao_itens
+        WHERE componente_produto_id = ?
+          AND empresa_id = ?
+        ORDER BY produto_id ASC
+        """,
+        (componente_produto_id, empresa_id),
+    ).fetchall()
+
+    for row in rows:
+        produto_dependente_id = int(row["produto_id"])
+        if produto_dependente_id in visitados:
+            continue
+
+        calcular_cmv_produto(produto_dependente_id, atualizar_produto=True, conn=conn)
+        recalcular_produtos_dependentes(produto_dependente_id, conn, visitados)
+
+
+def montar_resumo_composicao_produto(produto_id: int) -> dict[str, Any]:
+    resumo = calcular_cmv_produto(produto_id, atualizar_produto=True)
+    itens = listar_produto_composicao_itens(produto_id)
+    capacidade_producao: float | None = None
+    componentes_insuficientes = 0
+
+    for item in itens:
+        consumo_unitario = float(item.get("quantidade_com_perda") or 0)
+        estoque = _converter_valor_brl(item.get("componente_estoque_atual"))
+
+        if consumo_unitario <= 0:
+            continue
+
+        capacidade_item = max(estoque, 0) / consumo_unitario
+        capacidade_producao = capacidade_item if capacidade_producao is None else min(capacidade_producao, capacidade_item)
+
+        if estoque < consumo_unitario:
+            componentes_insuficientes += 1
+
+    resumo["capacidade_producao"] = int(capacidade_producao or 0)
+    resumo["componentes_insuficientes"] = componentes_insuficientes
+    resumo["itens"] = itens
+    resumo["custos"] = listar_produto_composicao_custos(produto_id)
+    return resumo
+
+
+def montar_produto_composicao_formulario(produto_id: int) -> tuple[list[dict[str, Any]], list[dict[str, Any]], str]:
+    componente_ids = [str(valor or "").strip() for valor in request.form.getlist("componente_produto_id")]
+    quantidades = [str(valor or "").strip() for valor in request.form.getlist("componente_quantidade")]
+    perdas = [str(valor or "").strip() for valor in request.form.getlist("componente_perda_percentual")]
+    observacoes = [str(valor or "").strip() for valor in request.form.getlist("componente_observacoes")]
+
+    custo_tipos = [str(valor or "").strip() for valor in request.form.getlist("composicao_custo_tipo")]
+    custo_descricoes = [str(valor or "").strip() for valor in request.form.getlist("composicao_custo_descricao")]
+    custo_valores = [str(valor or "").strip() for valor in request.form.getlist("composicao_custo_valor")]
+
+    total_componentes = max(len(componente_ids), len(quantidades), len(perdas), len(observacoes), 0)
+    total_custos = max(len(custo_tipos), len(custo_descricoes), len(custo_valores), 0)
+    empresa_id = empresa_logada_id()
+    itens: list[dict[str, Any]] = []
+    custos: list[dict[str, Any]] = []
+    ids_adicionados: set[int] = set()
+
+    with conectar_db() as conn:
+        for indice in range(total_componentes):
+            componente_id_texto = componente_ids[indice] if indice < len(componente_ids) else ""
+            quantidade_texto = quantidades[indice] if indice < len(quantidades) else ""
+            perda_texto = perdas[indice] if indice < len(perdas) else ""
+            observacao = observacoes[indice] if indice < len(observacoes) else ""
+
+            if not componente_id_texto:
+                continue
+
+            try:
+                componente_id = int(componente_id_texto)
+            except (TypeError, ValueError):
+                return [], [], "Selecione um componente válido para a ficha técnica."
+
+            if componente_id == produto_id:
+                return [], [], "O produto não pode ser componente de si mesmo."
+
+            if componente_id in ids_adicionados:
+                return [], [], "O mesmo componente foi informado mais de uma vez."
+
+            quantidade = _converter_valor_brl(quantidade_texto)
+            perda = max(_converter_valor_brl(perda_texto), 0.0)
+
+            if quantidade <= 0:
+                return [], [], "A quantidade de cada componente precisa ser maior que zero."
+
+            componente = conn.execute(
+                """
+                SELECT
+                    id,
+                    nome,
+                    unidade,
+                    preco_custo,
+                    status
+                FROM produtos
+                WHERE id = ?
+                  AND empresa_id = ?
+                LIMIT 1
+                """,
+                (componente_id, empresa_id),
+            ).fetchone()
+
+            if componente is None:
+                return [], [], "Um dos componentes selecionados não existe nesta empresa."
+
+            if str(componente["status"] or "ativo").strip().lower() != "ativo":
+                return [], [], f"O componente {componente['nome']} está inativo."
+
+            if produto_composicao_cria_ciclo(produto_id, componente_id, conn):
+                return [], [], (
+                    f"O componente {componente['nome']} criaria uma composição circular. "
+                    "Revise as fichas técnicas envolvidas."
+                )
+
+            custo_unitario = _converter_valor_brl(componente["preco_custo"])
+            quantidade_com_perda = quantidade * (1 + (perda / 100))
+            itens.append(
+                {
+                    "componente_produto_id": componente_id,
+                    "componente_nome": str(componente["nome"] or ""),
+                    "unidade": str(componente["unidade"] or "un"),
+                    "quantidade": quantidade,
+                    "perda_percentual": perda,
+                    "custo_unitario": custo_unitario,
+                    "custo_total": quantidade_com_perda * custo_unitario,
+                    "observacoes": observacao,
+                }
+            )
+            ids_adicionados.add(componente_id)
+
+    tipos_validos = {"mao_obra", "embalagem", "frete", "consumivel", "energia", "outro"}
+    for indice in range(total_custos):
+        descricao = custo_descricoes[indice] if indice < len(custo_descricoes) else ""
+        valor = _converter_valor_brl(custo_valores[indice] if indice < len(custo_valores) else "")
+        tipo = custo_tipos[indice] if indice < len(custo_tipos) else "outro"
+        tipo = tipo if tipo in tipos_validos else "outro"
+
+        if not descricao and valor <= 0:
+            continue
+
+        if not descricao:
+            return [], [], "Informe a descrição do custo direto."
+
+        if valor <= 0:
+            return [], [], f"Informe um valor maior que zero para o custo direto {descricao}."
+
+        custos.append({"tipo": tipo, "descricao": descricao, "valor": valor})
+
+    if not itens and not custos:
+        return [], [], "Adicione ao menos um componente ou custo direto à ficha técnica."
+
+    return itens, custos, ""
+
+
+def salvar_produto_composicao_db(
+    produto_id: int,
+    itens: list[dict[str, Any]],
+    custos: list[dict[str, Any]],
+) -> None:
+    empresa_id = empresa_logada_id()
+    agora = agora_empresa().isoformat(timespec="seconds")
+
+    with conectar_db() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        conn.execute(
+            "DELETE FROM produto_composicao_itens WHERE produto_id = ? AND empresa_id = ?",
+            (produto_id, empresa_id),
+        )
+        conn.execute(
+            "DELETE FROM produto_composicao_custos WHERE produto_id = ? AND empresa_id = ?",
+            (produto_id, empresa_id),
+        )
+
+        for item in itens:
+            conn.execute(
+                """
+                INSERT INTO produto_composicao_itens (
+                    empresa_id,
+                    produto_id,
+                    componente_produto_id,
+                    componente_nome,
+                    unidade,
+                    quantidade,
+                    perda_percentual,
+                    custo_unitario,
+                    custo_total,
+                    observacoes,
+                    atualizado_em
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    empresa_id,
+                    produto_id,
+                    int(item["componente_produto_id"]),
+                    str(item.get("componente_nome") or ""),
+                    str(item.get("unidade") or "un"),
+                    _formatar_numero_estoque(float(item.get("quantidade") or 0)),
+                    _formatar_percentual_simples(float(item.get("perda_percentual") or 0)),
+                    _formatar_moeda_brl(float(item.get("custo_unitario") or 0)),
+                    _formatar_moeda_brl(float(item.get("custo_total") or 0)),
+                    str(item.get("observacoes") or ""),
+                    agora,
+                ),
+            )
+
+        for custo in custos:
+            conn.execute(
+                """
+                INSERT INTO produto_composicao_custos (
+                    empresa_id,
+                    produto_id,
+                    tipo,
+                    descricao,
+                    valor,
+                    atualizado_em
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    empresa_id,
+                    produto_id,
+                    str(custo.get("tipo") or "outro"),
+                    str(custo.get("descricao") or ""),
+                    _formatar_moeda_brl(float(custo.get("valor") or 0)),
+                    agora,
+                ),
+            )
+
+        calcular_cmv_produto(produto_id, atualizar_produto=True, conn=conn)
+        recalcular_produtos_dependentes(produto_id, conn)
+        conn.commit()
+
+
+def remover_produto_composicao_db(produto_id: int) -> None:
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        conn.execute(
+            "DELETE FROM produto_composicao_itens WHERE produto_id = ? AND empresa_id = ?",
+            (produto_id, empresa_id),
+        )
+        conn.execute(
+            "DELETE FROM produto_composicao_custos WHERE produto_id = ? AND empresa_id = ?",
+            (produto_id, empresa_id),
+        )
+        calcular_cmv_produto(produto_id, atualizar_produto=True, conn=conn)
+        recalcular_produtos_dependentes(produto_id, conn)
+        conn.commit()
+
+
 def atualizar_produto_db(produto_id: int, produto: dict[str, str]) -> None:
     empresa_id = empresa_logada_id()
+    preco_custo_manual = str(produto.get("preco_custo_manual") or produto.get("preco_custo") or "").strip()
 
     with conectar_db() as conn:
         conn.execute(
@@ -3574,7 +4378,7 @@ def atualizar_produto_db(produto_id: int, produto: dict[str, str]) -> None:
                 unidade = ?,
                 estoque_atual = ?,
                 estoque_minimo = ?,
-                preco_custo = ?,
+                preco_custo_manual = ?,
                 preco_venda = ?,
                 status = ?,
                 observacoes = ?
@@ -3588,7 +4392,7 @@ def atualizar_produto_db(produto_id: int, produto: dict[str, str]) -> None:
                 produto["unidade"],
                 produto["estoque_atual"],
                 produto["estoque_minimo"],
-                produto["preco_custo"],
+                preco_custo_manual,
                 produto["preco_venda"],
                 produto["status"],
                 produto["observacoes"],
@@ -3596,18 +4400,398 @@ def atualizar_produto_db(produto_id: int, produto: dict[str, str]) -> None:
                 empresa_id,
             ),
         )
+        calcular_cmv_produto(produto_id, atualizar_produto=True, conn=conn)
+        recalcular_produtos_dependentes(produto_id, conn)
         conn.commit()
+
+
+def produto_usado_como_componente(produto_id: int) -> list[dict[str, Any]]:
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT DISTINCT
+                p.id,
+                p.nome,
+                p.codigo
+            FROM produto_composicao_itens pci
+            JOIN produtos p
+              ON p.id = pci.produto_id
+             AND p.empresa_id = pci.empresa_id
+            WHERE pci.componente_produto_id = ?
+              AND pci.empresa_id = ?
+            ORDER BY p.nome ASC
+            """,
+            (produto_id, empresa_id),
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def listar_produto_producoes(produto_id: int, limite: int = 50) -> list[dict[str, Any]]:
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                id,
+                empresa_id,
+                produto_id,
+                produto_nome,
+                quantidade_produzida,
+                cmv_unitario,
+                custo_total,
+                estoque_anterior,
+                estoque_atual,
+                responsavel,
+                observacoes,
+                criado_em
+            FROM produto_producoes
+            WHERE produto_id = ?
+              AND empresa_id = ?
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (produto_id, empresa_id, limite),
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def listar_produto_producao_consumos(producao_id: int) -> list[dict[str, Any]]:
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                id,
+                empresa_id,
+                producao_id,
+                produto_id,
+                componente_produto_id,
+                componente_nome,
+                unidade,
+                quantidade_consumida,
+                custo_unitario,
+                custo_total,
+                estoque_anterior,
+                estoque_atual,
+                criado_em
+            FROM produto_producao_consumos
+            WHERE producao_id = ?
+              AND empresa_id = ?
+            ORDER BY id ASC
+            """,
+            (producao_id, empresa_id),
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def produzir_produto_db(
+    produto_id: int,
+    quantidade_produzir: float,
+    responsavel: str = "",
+    observacoes: str = "",
+) -> tuple[int | None, str]:
+    empresa_id = empresa_logada_id()
+
+    if quantidade_produzir <= 0:
+        return None, "Informe uma quantidade de produção maior que zero."
+
+    with conectar_db() as conn:
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            produto = conn.execute(
+                """
+                SELECT
+                    id,
+                    nome,
+                    unidade,
+                    estoque_atual,
+                    preco_custo_manual
+                FROM produtos
+                WHERE id = ?
+                  AND empresa_id = ?
+                LIMIT 1
+                """,
+                (produto_id, empresa_id),
+            ).fetchone()
+
+            if produto is None:
+                conn.rollback()
+                return None, "Produto não encontrado."
+
+            itens = conn.execute(
+                """
+                SELECT
+                    pci.componente_produto_id,
+                    COALESCE(NULLIF(TRIM(p.nome), ''), pci.componente_nome) AS componente_nome,
+                    COALESCE(NULLIF(TRIM(p.unidade), ''), pci.unidade, 'un') AS unidade,
+                    pci.quantidade,
+                    pci.perda_percentual,
+                    COALESCE(NULLIF(TRIM(p.preco_custo), ''), pci.custo_unitario, '0,00') AS custo_unitario,
+                    p.estoque_atual,
+                    p.status
+                FROM produto_composicao_itens pci
+                JOIN produtos p
+                  ON p.id = pci.componente_produto_id
+                 AND p.empresa_id = pci.empresa_id
+                WHERE pci.produto_id = ?
+                  AND pci.empresa_id = ?
+                ORDER BY pci.id ASC
+                """,
+                (produto_id, empresa_id),
+            ).fetchall()
+
+            if not itens:
+                conn.rollback()
+                return None, "Cadastre ao menos um componente na ficha técnica antes de produzir."
+
+            resumo_cmv = calcular_cmv_produto(produto_id, atualizar_produto=True, conn=conn)
+            cmv_unitario = float(resumo_cmv.get("cmv_unitario") or 0)
+            consumos: list[dict[str, Any]] = []
+
+            for item in itens:
+                quantidade_base = _converter_valor_brl(item["quantidade"])
+                perda = _converter_valor_brl(item["perda_percentual"])
+                quantidade_consumida = quantidade_base * (1 + (perda / 100)) * quantidade_produzir
+                estoque_anterior = _converter_valor_brl(item["estoque_atual"])
+                custo_unitario = _converter_valor_brl(item["custo_unitario"])
+
+                if str(item["status"] or "ativo").strip().lower() != "ativo":
+                    conn.rollback()
+                    return None, f"O componente {item['componente_nome']} está inativo."
+
+                if estoque_anterior + 1e-9 < quantidade_consumida:
+                    conn.rollback()
+                    falta = quantidade_consumida - estoque_anterior
+                    return None, (
+                        f"Estoque insuficiente de {item['componente_nome']}. "
+                        f"Necessário: {_formatar_numero_estoque(quantidade_consumida)} {item['unidade']}; "
+                        f"disponível: {_formatar_numero_estoque(estoque_anterior)}; "
+                        f"falta: {_formatar_numero_estoque(falta)}."
+                    )
+
+                consumos.append(
+                    {
+                        "componente_produto_id": int(item["componente_produto_id"]),
+                        "componente_nome": str(item["componente_nome"] or ""),
+                        "unidade": str(item["unidade"] or "un"),
+                        "quantidade_consumida": quantidade_consumida,
+                        "custo_unitario": custo_unitario,
+                        "custo_total": quantidade_consumida * custo_unitario,
+                        "estoque_anterior": estoque_anterior,
+                        "estoque_atual": estoque_anterior - quantidade_consumida,
+                    }
+                )
+
+            estoque_anterior_produto = _converter_valor_brl(produto["estoque_atual"])
+            estoque_atual_produto = estoque_anterior_produto + quantidade_produzir
+            custo_total = cmv_unitario * quantidade_produzir
+
+            cursor = conn.execute(
+                """
+                INSERT INTO produto_producoes (
+                    empresa_id,
+                    produto_id,
+                    produto_nome,
+                    quantidade_produzida,
+                    cmv_unitario,
+                    custo_total,
+                    estoque_anterior,
+                    estoque_atual,
+                    responsavel,
+                    observacoes
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    empresa_id,
+                    produto_id,
+                    str(produto["nome"] or ""),
+                    _formatar_numero_estoque(quantidade_produzir),
+                    _formatar_moeda_brl(cmv_unitario),
+                    _formatar_moeda_brl(custo_total),
+                    _formatar_numero_estoque(estoque_anterior_produto),
+                    _formatar_numero_estoque(estoque_atual_produto),
+                    responsavel,
+                    observacoes,
+                ),
+            )
+            producao_id = int(cursor.lastrowid)
+            documento = f"Produção Nº {producao_id}"
+
+            for consumo in consumos:
+                conn.execute(
+                    """
+                    UPDATE produtos
+                    SET estoque_atual = ?
+                    WHERE id = ?
+                      AND empresa_id = ?
+                    """,
+                    (
+                        _formatar_numero_estoque(float(consumo["estoque_atual"])),
+                        int(consumo["componente_produto_id"]),
+                        empresa_id,
+                    ),
+                )
+                conn.execute(
+                    """
+                    INSERT INTO estoque_movimentacoes (
+                        empresa_id,
+                        produto_id,
+                        produto_nome,
+                        tipo,
+                        quantidade,
+                        saldo_anterior,
+                        saldo_atual,
+                        motivo,
+                        documento,
+                        responsavel,
+                        observacoes
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        empresa_id,
+                        int(consumo["componente_produto_id"]),
+                        str(consumo["componente_nome"]),
+                        "saida",
+                        _formatar_numero_estoque(float(consumo["quantidade_consumida"])),
+                        _formatar_numero_estoque(float(consumo["estoque_anterior"])),
+                        _formatar_numero_estoque(float(consumo["estoque_atual"])),
+                        "Produção - consumo de componente",
+                        documento,
+                        responsavel,
+                        f"Consumo automático para produzir {quantidade_produzir:g} unidade(s) de {produto['nome']}.",
+                    ),
+                )
+                conn.execute(
+                    """
+                    INSERT INTO produto_producao_consumos (
+                        empresa_id,
+                        producao_id,
+                        produto_id,
+                        componente_produto_id,
+                        componente_nome,
+                        unidade,
+                        quantidade_consumida,
+                        custo_unitario,
+                        custo_total,
+                        estoque_anterior,
+                        estoque_atual
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        empresa_id,
+                        producao_id,
+                        produto_id,
+                        int(consumo["componente_produto_id"]),
+                        str(consumo["componente_nome"]),
+                        str(consumo["unidade"]),
+                        _formatar_numero_estoque(float(consumo["quantidade_consumida"])),
+                        _formatar_moeda_brl(float(consumo["custo_unitario"])),
+                        _formatar_moeda_brl(float(consumo["custo_total"])),
+                        _formatar_numero_estoque(float(consumo["estoque_anterior"])),
+                        _formatar_numero_estoque(float(consumo["estoque_atual"])),
+                    ),
+                )
+
+            conn.execute(
+                """
+                UPDATE produtos
+                SET
+                    estoque_atual = ?,
+                    preco_custo = ?,
+                    cmv_calculado = ?,
+                    custo_origem = 'composicao',
+                    possui_composicao = 'sim',
+                    cmv_atualizado_em = ?
+                WHERE id = ?
+                  AND empresa_id = ?
+                """,
+                (
+                    _formatar_numero_estoque(estoque_atual_produto),
+                    _formatar_moeda_brl(cmv_unitario),
+                    _formatar_moeda_brl(cmv_unitario),
+                    agora_empresa().isoformat(timespec="seconds"),
+                    produto_id,
+                    empresa_id,
+                ),
+            )
+            recalcular_produtos_dependentes(produto_id, conn)
+            conn.execute(
+                """
+                INSERT INTO estoque_movimentacoes (
+                    empresa_id,
+                    produto_id,
+                    produto_nome,
+                    tipo,
+                    quantidade,
+                    saldo_anterior,
+                    saldo_atual,
+                    motivo,
+                    documento,
+                    responsavel,
+                    observacoes
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    empresa_id,
+                    produto_id,
+                    str(produto["nome"] or ""),
+                    "entrada",
+                    _formatar_numero_estoque(quantidade_produzir),
+                    _formatar_numero_estoque(estoque_anterior_produto),
+                    _formatar_numero_estoque(estoque_atual_produto),
+                    "Produção de produto",
+                    documento,
+                    responsavel,
+                    "Entrada automática do produto final após consumo dos componentes da ficha técnica.",
+                ),
+            )
+
+            conn.commit()
+            return producao_id, ""
+        except sqlite3.Error as exc:
+            conn.rollback()
+            return None, f"Não foi possível concluir a produção: {exc}."
+
 
 def excluir_produto_db(produto_id: int) -> None:
     empresa_id = empresa_logada_id()
 
     with conectar_db() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        producoes = conn.execute(
+            "SELECT id FROM produto_producoes WHERE produto_id = ? AND empresa_id = ?",
+            (produto_id, empresa_id),
+        ).fetchall()
+        producao_ids = [int(row["id"]) for row in producoes]
+
+        if producao_ids:
+            placeholders = ",".join("?" for _ in producao_ids)
+            conn.execute(
+                f"DELETE FROM produto_producao_consumos WHERE empresa_id = ? AND producao_id IN ({placeholders})",
+                [empresa_id, *producao_ids],
+            )
+
         conn.execute(
-            """
-            DELETE FROM produtos
-            WHERE id = ?
-              AND empresa_id = ?
-            """,
+            "DELETE FROM produto_producoes WHERE produto_id = ? AND empresa_id = ?",
+            (produto_id, empresa_id),
+        )
+        conn.execute(
+            "DELETE FROM produto_composicao_itens WHERE produto_id = ? AND empresa_id = ?",
+            (produto_id, empresa_id),
+        )
+        conn.execute(
+            "DELETE FROM produto_composicao_custos WHERE produto_id = ? AND empresa_id = ?",
+            (produto_id, empresa_id),
+        )
+        conn.execute(
+            "DELETE FROM produtos WHERE id = ? AND empresa_id = ?",
             (produto_id, empresa_id),
         )
         conn.commit()
@@ -4103,8 +5287,11 @@ def salvar_orcamento_db(orcamento: dict[str, str], itens: list[dict[str, str]]) 
                 valor_total,
                 forma_pagamento,
                 observacoes,
-                observacoes_internas
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                observacoes_internas,
+                origem,
+                modo_apresentacao,
+                descricao_comercial
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id,
@@ -4127,6 +5314,9 @@ def salvar_orcamento_db(orcamento: dict[str, str], itens: list[dict[str, str]]) 
                 orcamento["forma_pagamento"],
                 orcamento["observacoes"],
                 orcamento["observacoes_internas"],
+                str(orcamento.get("origem") or "manual"),
+                normalizar_modo_apresentacao(orcamento.get("modo_apresentacao"), "agrupado"),
+                str(orcamento.get("descricao_comercial") or ""),
             ),
         )
         orcamento_id = int(cursor.lastrowid)
@@ -4166,6 +5356,7 @@ def salvar_orcamento_db(orcamento: dict[str, str], itens: list[dict[str, str]]) 
 
     return orcamento_id
 
+
 def listar_orcamentos() -> list[dict[str, Any]]:
     empresa_id = empresa_logada_id()
 
@@ -4194,6 +5385,9 @@ def listar_orcamentos() -> list[dict[str, Any]]:
                 forma_pagamento,
                 observacoes,
                 observacoes_internas,
+                origem,
+                modo_apresentacao,
+                descricao_comercial,
                 criado_em
             FROM orcamentos
             WHERE empresa_id = ?
@@ -4300,6 +5494,9 @@ def listar_orcamentos_paginado(
                 forma_pagamento,
                 observacoes,
                 observacoes_internas,
+                origem,
+                modo_apresentacao,
+                descricao_comercial,
                 criado_em
             FROM orcamentos
             {where}
@@ -5039,6 +6236,9 @@ def buscar_orcamento_por_id(orcamento_id: int) -> dict[str, Any] | None:
                 forma_pagamento,
                 observacoes,
                 observacoes_internas,
+                origem,
+                modo_apresentacao,
+                descricao_comercial,
                 criado_em
             FROM orcamentos
             WHERE id = ?
@@ -5181,6 +6381,338 @@ def salvar_orcamento_adicionais_mao_obra_db(
         conn.commit()
 
 
+def normalizar_modo_apresentacao(valor: Any, padrao: str = "agrupado") -> str:
+    modo = str(valor or "").strip().lower()
+    if modo in ORCAMENTO_MODOS_APRESENTACAO_VALIDOS:
+        return modo
+    return padrao if padrao in ORCAMENTO_MODOS_APRESENTACAO_VALIDOS else "agrupado"
+
+
+def listar_orcamento_apresentacao_itens(orcamento_id: int) -> list[dict[str, Any]]:
+    empresa_id = empresa_logada_id()
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, empresa_id, orcamento_id, descricao, detalhes, quantidade,
+                   valor_unitario, subtotal, ordem, criado_em
+            FROM orcamento_apresentacao_itens
+            WHERE orcamento_id = ? AND empresa_id = ?
+            ORDER BY ordem ASC, id ASC
+            """,
+            (orcamento_id, empresa_id),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def salvar_orcamento_apresentacao_itens_db(
+    orcamento_id: int,
+    itens: list[dict[str, Any]],
+) -> None:
+    empresa_id = empresa_logada_id()
+    with conectar_db() as conn:
+        conn.execute(
+            "DELETE FROM orcamento_apresentacao_itens WHERE orcamento_id = ? AND empresa_id = ?",
+            (orcamento_id, empresa_id),
+        )
+        ordem = 0
+        for item in itens:
+            descricao = str(item.get("descricao") or "").strip()
+            subtotal = _converter_valor_brl(item.get("subtotal"))
+            quantidade = _converter_valor_brl(item.get("quantidade")) or 1
+            valor_unitario = _converter_valor_brl(item.get("valor_unitario"))
+            if not descricao or subtotal <= 0:
+                continue
+            if valor_unitario <= 0:
+                valor_unitario = subtotal / quantidade if quantidade > 0 else subtotal
+            ordem += 1
+            conn.execute(
+                """
+                INSERT INTO orcamento_apresentacao_itens (
+                    empresa_id, orcamento_id, descricao, detalhes, quantidade,
+                    valor_unitario, subtotal, ordem
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    empresa_id,
+                    orcamento_id,
+                    descricao,
+                    str(item.get("detalhes") or "").strip(),
+                    _formatar_numero_estoque(quantidade),
+                    _formatar_moeda_brl(valor_unitario),
+                    _formatar_moeda_brl(subtotal),
+                    ordem,
+                ),
+            )
+        conn.commit()
+
+
+def montar_orcamento_apresentacao_formulario() -> list[dict[str, str]]:
+    descricoes = request.form.getlist("apresentacao_descricao")
+    detalhes = request.form.getlist("apresentacao_detalhes")
+    quantidades = request.form.getlist("apresentacao_quantidade")
+    valores = request.form.getlist("apresentacao_valor_unitario")
+    subtotais = request.form.getlist("apresentacao_subtotal")
+    total = max(len(descricoes), len(detalhes), len(quantidades), len(valores), len(subtotais), 0)
+    itens: list[dict[str, str]] = []
+    for indice in range(total):
+        itens.append(
+            {
+                "descricao": (descricoes[indice] if indice < len(descricoes) else "").strip(),
+                "detalhes": (detalhes[indice] if indice < len(detalhes) else "").strip(),
+                "quantidade": (quantidades[indice] if indice < len(quantidades) else "1").strip() or "1",
+                "valor_unitario": (valores[indice] if indice < len(valores) else "").strip(),
+                "subtotal": (subtotais[indice] if indice < len(subtotais) else "").strip(),
+            }
+        )
+    return itens
+
+
+def montar_apresentacao_padrao_orcamento(
+    orcamento: dict[str, Any],
+    itens_internos: list[dict[str, Any]],
+) -> list[dict[str, str]]:
+    modo = normalizar_modo_apresentacao(orcamento.get("modo_apresentacao"), "agrupado")
+    if modo == "detalhado":
+        return []
+
+    descricao_comercial = str(orcamento.get("descricao_comercial") or "").strip()
+    total = _converter_valor_brl(orcamento.get("valor_total"))
+    total_produtos = _converter_valor_brl(orcamento.get("total_produtos"))
+    total_servicos = _converter_valor_brl(orcamento.get("total_servicos"))
+
+    primeira_descricao = ""
+    for item in itens_internos:
+        if str(item.get("tipo_item") or "") == "servico" and str(item.get("detalhes") or "").strip():
+            primeira_descricao = str(item.get("detalhes") or "").strip()
+            break
+        if not primeira_descricao and str(item.get("descricao") or "").strip():
+            primeira_descricao = str(item.get("descricao") or "").strip()
+
+    descricao_base = descricao_comercial or primeira_descricao or "Fornecimento e execução conforme escopo técnico"
+
+    if modo == "global":
+        return [{
+            "descricao": descricao_base,
+            "detalhes": "Valor global da proposta, contemplando os materiais, serviços e custos previstos no escopo.",
+            "quantidade": "1",
+            "valor_unitario": _formatar_moeda_brl(total),
+            "subtotal": _formatar_moeda_brl(total),
+        }]
+
+    itens: list[dict[str, str]] = []
+    if total_servicos > 0:
+        itens.append({
+            "descricao": descricao_base,
+            "detalhes": "Serviços técnicos, mão de obra, mobilização e custos operacionais conforme escopo.",
+            "quantidade": "1",
+            "valor_unitario": _formatar_moeda_brl(total_servicos),
+            "subtotal": _formatar_moeda_brl(total_servicos),
+        })
+    if total_produtos > 0:
+        itens.append({
+            "descricao": "Fornecimento de materiais e componentes necessários",
+            "detalhes": "Materiais e componentes previstos para execução, sem abertura da composição interna.",
+            "quantidade": "1",
+            "valor_unitario": _formatar_moeda_brl(total_produtos),
+            "subtotal": _formatar_moeda_brl(total_produtos),
+        })
+    if not itens and total > 0:
+        itens.append({
+            "descricao": descricao_base,
+            "detalhes": "Proposta comercial conforme escopo técnico.",
+            "quantidade": "1",
+            "valor_unitario": _formatar_moeda_brl(total),
+            "subtotal": _formatar_moeda_brl(total),
+        })
+    return itens
+
+
+def sincronizar_apresentacao_orcamento_db(
+    orcamento_id: int,
+    orcamento: dict[str, Any],
+    itens_internos: list[dict[str, Any]],
+    itens_informados: list[dict[str, Any]] | None = None,
+    preservar_descricoes: bool = False,
+) -> None:
+    modo = normalizar_modo_apresentacao(orcamento.get("modo_apresentacao"), "agrupado")
+    if modo == "detalhado":
+        salvar_orcamento_apresentacao_itens_db(orcamento_id, [])
+        return
+
+    validos = [
+        item for item in (itens_informados or [])
+        if str(item.get("descricao") or "").strip() and _converter_valor_brl(item.get("subtotal")) > 0
+    ]
+    if validos:
+        salvar_orcamento_apresentacao_itens_db(orcamento_id, validos)
+        return
+
+    existentes = listar_orcamento_apresentacao_itens(orcamento_id) if preservar_descricoes else []
+    total_novo = _converter_valor_brl(orcamento.get("valor_total"))
+    if existentes and total_novo > 0:
+        if modo == "global":
+            primeiro = dict(existentes[0])
+            primeiro["quantidade"] = "1"
+            primeiro["valor_unitario"] = _formatar_moeda_brl(total_novo)
+            primeiro["subtotal"] = _formatar_moeda_brl(total_novo)
+            salvar_orcamento_apresentacao_itens_db(orcamento_id, [primeiro])
+            return
+
+        bases = [_converter_valor_brl(item.get("subtotal")) for item in existentes]
+        valores = _gerador_alocar_total(total_novo, bases)
+        ajustados: list[dict[str, Any]] = []
+        for item, valor in zip(existentes, valores):
+            novo = dict(item)
+            novo["quantidade"] = "1"
+            novo["valor_unitario"] = _formatar_moeda_brl(valor)
+            novo["subtotal"] = _formatar_moeda_brl(valor)
+            ajustados.append(novo)
+        salvar_orcamento_apresentacao_itens_db(orcamento_id, ajustados)
+        return
+
+    salvar_orcamento_apresentacao_itens_db(
+        orcamento_id,
+        montar_apresentacao_padrao_orcamento(orcamento, itens_internos),
+    )
+
+
+def _json_lista_segura(valor: Any) -> list[dict[str, Any]]:
+    if isinstance(valor, list):
+        return [dict(item) for item in valor if isinstance(item, dict)]
+    try:
+        dados = json.loads(str(valor or "[]"))
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return []
+    return [dict(item) for item in dados if isinstance(item, dict)] if isinstance(dados, list) else []
+
+
+def buscar_orcamento_gerador_dados(orcamento_id: int) -> dict[str, Any] | None:
+    empresa_id = empresa_logada_id()
+    with conectar_db() as conn:
+        row = conn.execute(
+            "SELECT * FROM orcamento_gerador_dados WHERE orcamento_id = ? AND empresa_id = ? LIMIT 1",
+            (orcamento_id, empresa_id),
+        ).fetchone()
+    if row is None:
+        return None
+    dados = dict(row)
+    dados["materiais"] = _json_lista_segura(dados.get("materiais_json"))
+    dados["mao_obra"] = _json_lista_segura(dados.get("mao_obra_json"))
+    dados["adicionais_mao_obra"] = _json_lista_segura(dados.get("adicionais_json"))
+    dados["custos_adicionais"] = _json_lista_segura(dados.get("custos_json"))
+    return dados
+
+
+def salvar_orcamento_gerador_dados_db(orcamento_id: int, dados: dict[str, Any]) -> None:
+    empresa_id = empresa_logada_id()
+    campos = {
+        "cliente": str(dados.get("cliente") or ""),
+        "responsavel": str(dados.get("responsavel") or ""),
+        "tipo_servico": str(dados.get("tipo_servico") or ""),
+        "data": str(dados.get("data") or ""),
+        "prazo": str(dados.get("prazo") or ""),
+        "validade": str(dados.get("validade") or ""),
+        "forma_pagamento": str(dados.get("forma_pagamento") or ""),
+        "resumo_servico": str(dados.get("resumo_servico") or ""),
+        "escopo": str(dados.get("escopo") or ""),
+        "observacoes_cliente": str(dados.get("observacoes_cliente") or ""),
+        "modo_apresentacao": normalizar_modo_apresentacao(dados.get("modo_apresentacao"), "agrupado"),
+        "descricao_comercial": str(dados.get("descricao_comercial") or ""),
+        "materiais_json": json.dumps(list(dados.get("materiais") or []), ensure_ascii=False),
+        "mao_obra_json": json.dumps(list(dados.get("mao_obra") or []), ensure_ascii=False),
+        "adicionais_json": json.dumps(list(dados.get("adicionais_mao_obra") or []), ensure_ascii=False),
+        "custos_json": json.dumps(list(dados.get("custos_adicionais") or []), ensure_ascii=False),
+    }
+    numericos = [
+        "margem_material", "margem_mao_obra", "margem_custos", "imposto_percentual",
+        "administrativo_percentual", "reserva_percentual", "custo_material", "custo_mao_obra",
+        "custo_adicionais_mao_obra", "custo_adicional", "custo_total", "venda_material",
+        "venda_mao_obra", "venda_adicionais_mao_obra", "venda_custos", "administrativo_valor",
+        "reserva_valor", "valor_minimo", "valor_recomendado", "valor_ideal", "valor_escolhido",
+        "lucro_estimado", "margem_estimado",
+    ]
+    for campo in numericos:
+        campos[campo] = str(float(dados.get(campo) or 0))
+    campos["tipo_valor"] = str(dados.get("tipo_valor") or "recomendado")
+
+    nomes = list(campos.keys())
+    colunas = ", ".join(nomes)
+    placeholders = ", ".join("?" for _ in nomes)
+    atualizacoes = ", ".join(f"{nome} = excluded.{nome}" for nome in nomes)
+    valores = [campos[nome] for nome in nomes]
+
+    with conectar_db() as conn:
+        conn.execute(
+            f"""
+            INSERT INTO orcamento_gerador_dados (
+                empresa_id, orcamento_id, {colunas}, atualizado_em
+            ) VALUES (?, ?, {placeholders}, ?)
+            ON CONFLICT(orcamento_id) DO UPDATE SET
+                empresa_id = excluded.empresa_id,
+                {atualizacoes},
+                atualizado_em = excluded.atualizado_em
+            """,
+            [empresa_id, orcamento_id, *valores, agora_empresa().isoformat(timespec="seconds")],
+        )
+        conn.commit()
+
+
+def registrar_historico_gerador_db(
+    orcamento_id: int,
+    dados_anteriores: dict[str, Any] | None,
+    dados_novos: dict[str, Any],
+) -> None:
+    empresa_id = empresa_logada_id()
+    anterior = dados_anteriores or {}
+    valor_anterior = _converter_valor_brl(anterior.get("valor_escolhido"))
+    valor_novo = _converter_valor_brl(dados_novos.get("valor_escolhido"))
+    margem_anterior = _converter_valor_brl(anterior.get("margem_estimado"))
+    margem_nova = _converter_valor_brl(dados_novos.get("margem_estimado"))
+    usuario = usuario_logado() or {}
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            INSERT INTO orcamento_gerador_historico (
+                empresa_id, orcamento_id, valor_anterior, valor_novo,
+                margem_anterior, margem_nova, diferenca_valor,
+                dados_anteriores_json, dados_novos_json, responsavel
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                empresa_id,
+                orcamento_id,
+                _formatar_moeda_brl(valor_anterior),
+                _formatar_moeda_brl(valor_novo),
+                _formatar_percentual_simples(margem_anterior),
+                _formatar_percentual_simples(margem_nova),
+                _formatar_moeda_brl(valor_novo - valor_anterior),
+                json.dumps(anterior, ensure_ascii=False, default=str),
+                json.dumps(dados_novos, ensure_ascii=False, default=str),
+                str(usuario.get("nome") or "Usuário"),
+            ),
+        )
+        conn.commit()
+
+
+def listar_historico_gerador(orcamento_id: int) -> list[dict[str, Any]]:
+    empresa_id = empresa_logada_id()
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, orcamento_id, valor_anterior, valor_novo, margem_anterior,
+                   margem_nova, diferenca_valor, responsavel, criado_em
+            FROM orcamento_gerador_historico
+            WHERE orcamento_id = ? AND empresa_id = ?
+            ORDER BY id DESC
+            """,
+            (orcamento_id, empresa_id),
+        ).fetchall()
+    resultado = [dict(row) for row in rows]
+    for item in resultado:
+        item["criado_em"] = formatar_data_hora_br(item.get("criado_em"))
+    return resultado
+
+
 def atualizar_orcamento_db(orcamento_id: int, orcamento: dict[str, str], itens: list[dict[str, str]]) -> None:
     empresa_id = empresa_logada_id()
 
@@ -5207,7 +6739,10 @@ def atualizar_orcamento_db(orcamento_id: int, orcamento: dict[str, str], itens: 
                 valor_total = ?,
                 forma_pagamento = ?,
                 observacoes = ?,
-                observacoes_internas = ?
+                observacoes_internas = ?,
+                origem = ?,
+                modo_apresentacao = ?,
+                descricao_comercial = ?
             WHERE id = ?
               AND empresa_id = ?
             """,
@@ -5231,6 +6766,9 @@ def atualizar_orcamento_db(orcamento_id: int, orcamento: dict[str, str], itens: 
                 orcamento["forma_pagamento"],
                 orcamento["observacoes"],
                 orcamento["observacoes_internas"],
+                str(orcamento.get("origem") or "manual"),
+                normalizar_modo_apresentacao(orcamento.get("modo_apresentacao"), "agrupado"),
+                str(orcamento.get("descricao_comercial") or ""),
                 orcamento_id,
                 empresa_id,
             ),
@@ -5278,35 +6816,28 @@ def atualizar_orcamento_db(orcamento_id: int, orcamento: dict[str, str], itens: 
 
         conn.commit()
 
+
 def excluir_orcamento_db(orcamento_id: int) -> None:
     empresa_id = empresa_logada_id()
 
     with conectar_db() as conn:
+        for tabela in (
+            "orcamento_gerador_historico",
+            "orcamento_gerador_dados",
+            "orcamento_apresentacao_itens",
+            "orcamento_adicionais_mao_obra",
+            "orcamento_itens",
+        ):
+            conn.execute(
+                f"DELETE FROM {tabela} WHERE orcamento_id = ? AND empresa_id = ?",
+                (orcamento_id, empresa_id),
+            )
         conn.execute(
-            """
-            DELETE FROM orcamento_adicionais_mao_obra
-            WHERE orcamento_id = ?
-              AND empresa_id = ?
-            """,
-            (orcamento_id, empresa_id),
-        )
-        conn.execute(
-            """
-            DELETE FROM orcamento_itens
-            WHERE orcamento_id = ?
-              AND empresa_id = ?
-            """,
-            (orcamento_id, empresa_id),
-        )
-        conn.execute(
-            """
-            DELETE FROM orcamentos
-            WHERE id = ?
-              AND empresa_id = ?
-            """,
+            "DELETE FROM orcamentos WHERE id = ? AND empresa_id = ?",
             (orcamento_id, empresa_id),
         )
         conn.commit()
+
 
 def montar_orcamento_formulario(numero_padrao: str = "") -> dict[str, str]:
     return {
@@ -5329,7 +6860,11 @@ def montar_orcamento_formulario(numero_padrao: str = "") -> dict[str, str]:
         "forma_pagamento": (request.form.get("orcamento_forma_pagamento") or "").strip(),
         "observacoes": (request.form.get("orcamento_observacoes") or "").strip(),
         "observacoes_internas": (request.form.get("orcamento_observacoes_internas") or "").strip(),
+        "origem": "manual",
+        "modo_apresentacao": normalizar_modo_apresentacao(request.form.get("orcamento_modo_apresentacao"), "agrupado"),
+        "descricao_comercial": (request.form.get("orcamento_descricao_comercial") or "").strip(),
     }
+
 
 
 def montar_orcamento_itens_formulario() -> list[dict[str, str]]:
@@ -5591,15 +7126,12 @@ def validar_ordem_servico_para_salvar(ordem_servico: dict[str, str], itens: list
 
 def copiar_orcamento_db(orcamento_id: int) -> int | None:
     orcamento_original = buscar_orcamento_por_id(orcamento_id)
-
     if orcamento_original is None:
         return None
 
     itens_originais = listar_orcamento_itens(orcamento_id)
-    novo_numero = proximo_numero_orcamento()
-
     novo_orcamento = {
-        "numero": novo_numero,
+        "numero": proximo_numero_orcamento(),
         "cliente": str(orcamento_original.get("cliente") or ""),
         "responsavel": str(orcamento_original.get("responsavel") or ""),
         "data": str(orcamento_original.get("data") or ""),
@@ -5618,30 +7150,40 @@ def copiar_orcamento_db(orcamento_id: int) -> int | None:
         "forma_pagamento": str(orcamento_original.get("forma_pagamento") or ""),
         "observacoes": str(orcamento_original.get("observacoes") or ""),
         "observacoes_internas": str(orcamento_original.get("observacoes_internas") or ""),
+        "origem": str(orcamento_original.get("origem") or "manual"),
+        "modo_apresentacao": normalizar_modo_apresentacao(orcamento_original.get("modo_apresentacao"), "agrupado"),
+        "descricao_comercial": str(orcamento_original.get("descricao_comercial") or ""),
     }
+    novos_itens = [
+        {
+            "tipo_item": str(item.get("tipo_item") or "produto"),
+            "descricao": str(item.get("descricao") or ""),
+            "detalhes": str(item.get("detalhes") or ""),
+            "quantidade": str(item.get("quantidade") or ""),
+            "valor_unitario": str(item.get("valor_unitario") or ""),
+            "desconto": str(item.get("desconto") or ""),
+            "subtotal": str(item.get("subtotal") or ""),
+        }
+        for item in itens_originais
+    ]
+    novo_id = salvar_orcamento_db(novo_orcamento, novos_itens)
 
-    novos_itens: list[dict[str, str]] = []
+    adicionais = listar_orcamento_adicionais_mao_obra(orcamento_id)
+    if adicionais:
+        salvar_orcamento_adicionais_mao_obra_db(novo_id, adicionais)
 
-    for item in itens_originais:
-        novos_itens.append(
-            {
-                "tipo_item": str(item.get("tipo_item") or "produto"),
-                "descricao": str(item.get("descricao") or ""),
-                "detalhes": str(item.get("detalhes") or ""),
-                "quantidade": str(item.get("quantidade") or ""),
-                "valor_unitario": str(item.get("valor_unitario") or ""),
-                "desconto": str(item.get("desconto") or ""),
-                "subtotal": str(item.get("subtotal") or ""),
-            }
-        )
+    apresentacao = listar_orcamento_apresentacao_itens(orcamento_id)
+    if apresentacao:
+        salvar_orcamento_apresentacao_itens_db(novo_id, apresentacao)
+    else:
+        sincronizar_apresentacao_orcamento_db(novo_id, novo_orcamento, novos_itens)
 
-    novo_orcamento_id = salvar_orcamento_db(novo_orcamento, novos_itens)
-    adicionais_originais = listar_orcamento_adicionais_mao_obra(orcamento_id)
+    dados_gerador = buscar_orcamento_gerador_dados(orcamento_id)
+    if dados_gerador:
+        salvar_orcamento_gerador_dados_db(novo_id, dados_gerador)
 
-    if adicionais_originais:
-        salvar_orcamento_adicionais_mao_obra_db(novo_orcamento_id, adicionais_originais)
+    return novo_id
 
-    return novo_orcamento_id
 
 
 
@@ -6106,8 +7648,11 @@ def montar_gerador_orcamento_formulario() -> dict[str, Any]:
         "prazo": str(request.form.get("gerador_prazo") or "").strip(),
         "validade": str(request.form.get("gerador_validade") or "15 dias").strip(),
         "forma_pagamento": str(request.form.get("gerador_forma_pagamento") or "").strip(),
+        "resumo_servico": str(request.form.get("gerador_resumo_servico") or "").strip(),
         "escopo": str(request.form.get("gerador_escopo") or "").strip(),
         "observacoes_cliente": str(request.form.get("gerador_observacoes_cliente") or "").strip(),
+        "modo_apresentacao": normalizar_modo_apresentacao(request.form.get("gerador_modo_apresentacao"), "agrupado"),
+        "descricao_comercial": str(request.form.get("gerador_descricao_comercial") or "").strip(),
         "materiais": materiais,
         "mao_obra": mao_obra,
         "adicionais_mao_obra": adicionais_mao_obra,
@@ -6160,7 +7705,11 @@ def _gerador_alocar_total(valor_total: float, bases: list[float]) -> list[float]
     return valores
 
 
-def gerar_orcamento_por_gerador_db(dados: dict[str, Any]) -> int:
+def montar_orcamento_por_gerador(
+    dados: dict[str, Any],
+    numero: str | None = None,
+    status: str = "aberto",
+) -> tuple[dict[str, str], list[dict[str, str]], list[dict[str, Any]]]:
     valor_total = float(dados.get("valor_escolhido") or 0)
     venda_material = float(dados.get("venda_material") or 0)
     venda_mao_obra = float(dados.get("venda_mao_obra") or 0)
@@ -6170,10 +7719,8 @@ def gerar_orcamento_por_gerador_db(dados: dict[str, Any]) -> int:
     materiais = list(dados.get("materiais") or [])
     adicionais_mao_obra = list(dados.get("adicionais_mao_obra") or [])
 
-    # Padrão igual ao orçamento manual:
-    # - materiais aparecem na seção PRODUTOS;
-    # - mão de obra, adicionais e custos aparecem na seção SERVIÇOS;
-    # - impostos, administrativo, reserva técnica e lucro ficam embutidos nos valores.
+    # A composição abaixo é interna. A impressão usa a apresentação comercial escolhida,
+    # sem revelar produtos, quantidades e custos quando o modo for agrupado ou global.
     bases_grupos = []
     nomes_grupos = []
 
@@ -6375,7 +7922,7 @@ def gerar_orcamento_por_gerador_db(dados: dict[str, Any]) -> int:
         tipo_orcamento = "servico"
 
     orcamento = {
-        "numero": proximo_numero_orcamento(),
+        "numero": numero or proximo_numero_orcamento(),
         "cliente": str(dados.get("cliente") or ""),
         "responsavel": str(dados.get("responsavel") or ""),
         "data": str(dados.get("data") or hoje_empresa().isoformat()),
@@ -6385,7 +7932,7 @@ def gerar_orcamento_por_gerador_db(dados: dict[str, Any]) -> int:
         "centro_custo": str(dados.get("tipo_servico") or "Serviço técnico"),
         "introducao": "GESTFLOW apresenta abaixo sua proposta comercial para fornecimento de produtos e/ou execução de serviços conforme solicitado:",
         "tipo": tipo_orcamento,
-        "status": "aberto",
+        "status": status or "aberto",
         "total_produtos": _formatar_moeda_brl(total_produtos_numero),
         "total_servicos": _formatar_moeda_brl(total_servicos_numero),
         "desconto_valor": "0,00",
@@ -6394,11 +7941,58 @@ def gerar_orcamento_por_gerador_db(dados: dict[str, Any]) -> int:
         "forma_pagamento": str(dados.get("forma_pagamento") or ""),
         "observacoes": observacoes,
         "observacoes_internas": "\n".join(detalhes_internos),
+        "origem": "gerador",
+        "modo_apresentacao": normalizar_modo_apresentacao(dados.get("modo_apresentacao"), "agrupado"),
+        "descricao_comercial": str(dados.get("descricao_comercial") or dados.get("resumo_servico") or "").strip(),
     }
 
+    return orcamento, itens, adicionais_mao_obra
+
+
+def gerar_orcamento_por_gerador_db(dados: dict[str, Any]) -> int:
+    orcamento, itens, adicionais = montar_orcamento_por_gerador(dados)
     orcamento_id = salvar_orcamento_db(orcamento, itens)
-    salvar_orcamento_adicionais_mao_obra_db(orcamento_id, adicionais_mao_obra)
+    salvar_orcamento_adicionais_mao_obra_db(orcamento_id, adicionais)
+    salvar_orcamento_gerador_dados_db(orcamento_id, dados)
+    sincronizar_apresentacao_orcamento_db(orcamento_id, orcamento, itens)
     return orcamento_id
+
+
+def atualizar_orcamento_por_gerador_db(orcamento_id: int, dados: dict[str, Any]) -> bool:
+    orcamento_atual = buscar_orcamento_por_id(orcamento_id)
+    if orcamento_atual is None:
+        return False
+    dados_anteriores = buscar_orcamento_gerador_dados(orcamento_id)
+    orcamento, itens, adicionais = montar_orcamento_por_gerador(
+        dados,
+        numero=str(orcamento_atual.get("numero") or ""),
+        status=str(orcamento_atual.get("status") or "aberto"),
+    )
+    orcamento["introducao"] = str(orcamento_atual.get("introducao") or orcamento.get("introducao") or "")
+    atualizar_orcamento_db(orcamento_id, orcamento, itens)
+    salvar_orcamento_adicionais_mao_obra_db(orcamento_id, adicionais)
+    salvar_orcamento_gerador_dados_db(orcamento_id, dados)
+
+    sincronizar_apresentacao_orcamento_db(
+        orcamento_id,
+        orcamento,
+        itens,
+        preservar_descricoes=True,
+    )
+
+    descricao_nova = str(dados.get("descricao_comercial") or dados.get("resumo_servico") or "").strip()
+    if descricao_nova:
+        itens_comerciais = listar_orcamento_apresentacao_itens(orcamento_id)
+        if itens_comerciais:
+            itens_comerciais[0]["descricao"] = descricao_nova
+            salvar_orcamento_apresentacao_itens_db(orcamento_id, itens_comerciais)
+
+    registrar_historico_gerador_db(orcamento_id, dados_anteriores, dados)
+    return True
+
+
+
+
 
 def proximo_numero_venda() -> str:
     empresa_id = empresa_logada_id()
@@ -13488,6 +15082,219 @@ def vitrine() -> str | Response:
 
 
 
+
+def normalizar_cnpj_consulta(valor: Any) -> str:
+    return re.sub(r"[^A-Z0-9]", "", str(valor or "").strip().upper())
+
+
+def validar_cnpj_numerico_legado(cnpj: str) -> bool:
+    if len(cnpj) != 14 or not cnpj.isdigit() or len(set(cnpj)) == 1:
+        return False
+
+    def calcular_digito(base: str, pesos: tuple[int, ...]) -> str:
+        soma = sum(int(numero) * peso for numero, peso in zip(base, pesos))
+        resto = soma % 11
+        return "0" if resto < 2 else str(11 - resto)
+
+    primeiro = calcular_digito(cnpj[:12], (5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2))
+    segundo = calcular_digito(cnpj[:12] + primeiro, (6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2))
+    return cnpj[-2:] == primeiro + segundo
+
+
+def validar_cnpj_para_consulta(cnpj: str) -> str:
+    if len(cnpj) != 14:
+        return "Para buscar os dados, informe um CNPJ com 14 caracteres."
+
+    if not cnpj.isalnum():
+        return "O CNPJ deve conter somente letras e números."
+
+    if cnpj.isdigit() and not validar_cnpj_numerico_legado(cnpj):
+        return "O CNPJ informado é inválido. Confira os números digitados."
+
+    if not cnpj.isdigit() and not cnpj[-2:].isdigit():
+        return "No CNPJ alfanumérico, os dois últimos caracteres devem ser números."
+
+    return ""
+
+
+def formatar_cnpj_exibicao(cnpj: str) -> str:
+    if len(cnpj) == 14 and cnpj.isdigit():
+        return f"{cnpj[:2]}.{cnpj[2:5]}.{cnpj[5:8]}/{cnpj[8:12]}-{cnpj[12:]}"
+    return cnpj
+
+
+def formatar_telefone_cnpj(valor: Any) -> str:
+    digitos = re.sub(r"\D+", "", str(valor or ""))
+
+    if digitos.startswith("55") and len(digitos) in {12, 13}:
+        digitos = digitos[2:]
+
+    if len(digitos) == 11:
+        return f"({digitos[:2]}) {digitos[2:7]}-{digitos[7:]}"
+
+    if len(digitos) == 10:
+        return f"({digitos[:2]}) {digitos[2:6]}-{digitos[6:]}"
+
+    return str(valor or "").strip()
+
+
+def buscar_cliente_existente_por_documento(
+    documento: str,
+    ignorar_cliente_id: int | None = None,
+) -> dict[str, Any] | None:
+    documento_normalizado = normalizar_cnpj_consulta(documento)
+
+    if not documento_normalizado:
+        return None
+
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, nome, documento
+            FROM clientes
+            WHERE empresa_id = ?
+            ORDER BY id DESC
+            """,
+            (empresa_logada_id(),),
+        ).fetchall()
+
+    for row in rows:
+        cliente = dict(row)
+
+        if ignorar_cliente_id is not None and int(cliente["id"]) == ignorar_cliente_id:
+            continue
+
+        if normalizar_cnpj_consulta(cliente.get("documento")) == documento_normalizado:
+            return cliente
+
+    return None
+
+
+def consultar_cnpj_brasilapi(cnpj: str) -> dict[str, Any]:
+    agora = agora_empresa()
+    cache = _BRASILAPI_CNPJ_CACHE.get(cnpj)
+
+    if cache is not None:
+        consultado_em, dados_cache = cache
+        if agora - consultado_em <= timedelta(minutes=BRASILAPI_CNPJ_CACHE_MINUTOS):
+            return dict(dados_cache)
+        _BRASILAPI_CNPJ_CACHE.pop(cnpj, None)
+
+    url = BRASILAPI_CNPJ_URL.format(cnpj=urllib.parse.quote(cnpj, safe=""))
+    requisicao = urllib.request.Request(
+        url,
+        headers={
+            "Accept": "application/json",
+            "User-Agent": "GestFlow/1.0",
+        },
+        method="GET",
+    )
+
+    try:
+        with urllib.request.urlopen(
+            requisicao,
+            timeout=BRASILAPI_CNPJ_TIMEOUT_SEGUNDOS,
+        ) as resposta:
+            conteudo = resposta.read().decode("utf-8", errors="replace")
+    except urllib.error.HTTPError as exc:
+        if exc.code in {400, 404}:
+            raise ValueError("CNPJ não encontrado na base consultada.") from exc
+        if exc.code == 429:
+            raise RuntimeError("O serviço recebeu muitas consultas. Aguarde alguns segundos e tente novamente.") from exc
+        raise RuntimeError("A consulta de CNPJ está temporariamente indisponível.") from exc
+    except (urllib.error.URLError, TimeoutError) as exc:
+        raise RuntimeError("Não foi possível conectar ao serviço de consulta de CNPJ.") from exc
+
+    try:
+        dados = json.loads(conteudo)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("O serviço de consulta retornou uma resposta inválida.") from exc
+
+    if not isinstance(dados, dict):
+        raise RuntimeError("O serviço de consulta retornou uma resposta inválida.")
+
+    razao_social = str(dados.get("razao_social") or "").strip()
+    nome_fantasia = str(dados.get("nome_fantasia") or "").strip()
+    municipio = str(dados.get("municipio") or "").strip()
+    uf = str(dados.get("uf") or "").strip().upper()
+    cidade = municipio
+
+    if municipio and uf:
+        cidade = f"{municipio} - {uf}"
+
+    telefone = formatar_telefone_cnpj(
+        dados.get("ddd_telefone_1") or dados.get("ddd_telefone_2") or ""
+    )
+    email = str(dados.get("email") or "").strip().lower()
+    situacao = str(
+        dados.get("descricao_situacao_cadastral")
+        or dados.get("situacao_cadastral")
+        or ""
+    ).strip()
+
+    resultado = {
+        "cnpj": normalizar_cnpj_consulta(dados.get("cnpj") or cnpj),
+        "cnpj_formatado": formatar_cnpj_exibicao(
+            normalizar_cnpj_consulta(dados.get("cnpj") or cnpj)
+        ),
+        "razao_social": razao_social,
+        "nome_fantasia": nome_fantasia,
+        "telefone": telefone,
+        "email": email,
+        "cidade": cidade,
+        "municipio": municipio,
+        "uf": uf,
+        "situacao_cadastral": situacao,
+        "cep": str(dados.get("cep") or "").strip(),
+        "logradouro": str(dados.get("logradouro") or "").strip(),
+        "numero": str(dados.get("numero") or "").strip(),
+        "bairro": str(dados.get("bairro") or "").strip(),
+        "complemento": str(dados.get("complemento") or "").strip(),
+        "fonte": "BrasilAPI",
+        "consultado_em": agora.isoformat(timespec="seconds"),
+    }
+    _BRASILAPI_CNPJ_CACHE[cnpj] = (agora, dict(resultado))
+    return resultado
+
+
+@app.get("/api/clientes/consultar-cnpj")
+def api_consultar_cnpj_cliente() -> Response | tuple[Response, int]:
+    cnpj = normalizar_cnpj_consulta(request.args.get("cnpj"))
+    erro_validacao = validar_cnpj_para_consulta(cnpj)
+
+    if erro_validacao:
+        return jsonify({"ok": False, "erro": erro_validacao}), 400
+
+    cliente_id_texto = str(request.args.get("cliente_id") or "").strip()
+    cliente_id = int(cliente_id_texto) if cliente_id_texto.isdigit() else None
+
+    try:
+        dados = consultar_cnpj_brasilapi(cnpj)
+    except ValueError as exc:
+        return jsonify({"ok": False, "erro": str(exc)}), 404
+    except RuntimeError as exc:
+        return jsonify({"ok": False, "erro": str(exc)}), 503
+
+    cliente_existente = buscar_cliente_existente_por_documento(
+        cnpj,
+        ignorar_cliente_id=cliente_id,
+    )
+
+    return jsonify(
+        {
+            "ok": True,
+            "dados": dados,
+            "cliente_existente": (
+                {
+                    "id": int(cliente_existente["id"]),
+                    "nome": str(cliente_existente.get("nome") or ""),
+                }
+                if cliente_existente
+                else None
+            ),
+        }
+    )
+
 def normalizar_cliente_para_salvar(cliente: dict[str, str]) -> dict[str, str]:
     cliente_normalizado = dict(cliente)
 
@@ -15302,10 +17109,15 @@ def salvar_produto_rapido() -> Response:
                 estoque_atual,
                 estoque_minimo,
                 preco_custo,
+                preco_custo_manual,
+                cmv_calculado,
+                custo_origem,
+                possui_composicao,
+                cmv_atualizado_em,
                 preco_venda,
                 status,
                 observacoes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id,
@@ -15316,6 +17128,11 @@ def salvar_produto_rapido() -> Response:
                 produto["estoque_atual"],
                 produto["estoque_minimo"],
                 produto["preco_custo"],
+                produto["preco_custo"],
+                "0,00",
+                "manual",
+                "nao",
+                "",
                 produto["preco_venda"],
                 produto["status"],
                 produto["observacoes"],
@@ -15437,7 +17254,18 @@ def ver_produto(produto_id: int) -> str | Response:
     if produto is None:
         return redirect(url_for("produtos"))
 
-    return render_template("produto_detalhe.html", produto=produto)
+    resumo_composicao = montar_resumo_composicao_produto(produto_id)
+    produto = buscar_produto_por_id(produto_id) or produto
+
+    return render_template(
+        "produto_detalhe.html",
+        produto=produto,
+        composicao_itens=resumo_composicao["itens"],
+        composicao_custos=resumo_composicao["custos"],
+        resumo_composicao=resumo_composicao,
+        producoes=listar_produto_producoes(produto_id),
+        usado_em_produtos=produto_usado_como_componente(produto_id),
+    )
 
 
 @app.get("/produtos/<int:produto_id>/editar")
@@ -15447,7 +17275,17 @@ def editar_produto(produto_id: int) -> str | Response:
     if produto is None:
         return redirect(url_for("produtos"))
 
-    return render_template("produto_editar.html", produto=produto)
+    resumo_composicao = montar_resumo_composicao_produto(produto_id)
+    produto = buscar_produto_por_id(produto_id) or produto
+
+    return render_template(
+        "produto_editar.html",
+        produto=produto,
+        composicao_itens=resumo_composicao["itens"],
+        composicao_custos=resumo_composicao["custos"],
+        resumo_composicao=resumo_composicao,
+        produtos_componentes=listar_produtos_componentes_disponiveis(produto_id),
+    )
 
 
 @app.post("/produtos/<int:produto_id>/editar")
@@ -15481,12 +17319,134 @@ def atualizar_produto(produto_id: int) -> Response:
     return redirect(url_for("ver_produto", produto_id=produto_id))
 
 
+@app.post("/produtos/<int:produto_id>/composicao")
+def salvar_produto_composicao(produto_id: int) -> Response:
+    produto = buscar_produto_por_id(produto_id)
+
+    if produto is None:
+        return redirect(url_for("produtos"))
+
+    itens, custos, erro = montar_produto_composicao_formulario(produto_id)
+
+    if erro:
+        return redirect(url_for("editar_produto", produto_id=produto_id, erro=erro))
+
+    salvar_produto_composicao_db(produto_id, itens, custos)
+    registrar_atividade_usuario(
+        "edicao",
+        "produtos",
+        f"Atualizou ficha técnica e CMV do produto {produto['nome']}",
+        request.path,
+    )
+
+    return redirect(
+        url_for(
+            "editar_produto",
+            produto_id=produto_id,
+            sucesso="Ficha técnica e CMV atualizados com sucesso.",
+        )
+    )
+
+
+@app.post("/produtos/<int:produto_id>/composicao/remover")
+def remover_produto_composicao(produto_id: int) -> Response:
+    produto = buscar_produto_por_id(produto_id)
+
+    if produto is None:
+        return redirect(url_for("produtos"))
+
+    remover_produto_composicao_db(produto_id)
+    registrar_atividade_usuario(
+        "edicao",
+        "produtos",
+        f"Removeu ficha técnica do produto {produto['nome']}",
+        request.path,
+    )
+
+    return redirect(
+        url_for(
+            "editar_produto",
+            produto_id=produto_id,
+            sucesso="Ficha técnica removida. O custo manual voltou a ser utilizado.",
+        )
+    )
+
+
+@app.get("/produtos/<int:produto_id>/producao")
+def producao_produto(produto_id: int) -> str | Response:
+    produto = buscar_produto_por_id(produto_id)
+
+    if produto is None:
+        return redirect(url_for("produtos"))
+
+    resumo_composicao = montar_resumo_composicao_produto(produto_id)
+    produto = buscar_produto_por_id(produto_id) or produto
+
+    return render_template(
+        "produto_producao.html",
+        produto=produto,
+        composicao_itens=resumo_composicao["itens"],
+        composicao_custos=resumo_composicao["custos"],
+        resumo_composicao=resumo_composicao,
+        producoes=listar_produto_producoes(produto_id),
+    )
+
+
+@app.post("/produtos/<int:produto_id>/producao")
+def salvar_producao_produto(produto_id: int) -> Response:
+    produto = buscar_produto_por_id(produto_id)
+
+    if produto is None:
+        return redirect(url_for("produtos"))
+
+    quantidade = _converter_valor_brl(request.form.get("producao_quantidade"))
+    responsavel = (request.form.get("producao_responsavel") or "").strip()
+    observacoes = (request.form.get("producao_observacoes") or "").strip()
+    producao_id, erro = produzir_produto_db(
+        produto_id,
+        quantidade,
+        responsavel=responsavel,
+        observacoes=observacoes,
+    )
+
+    if erro:
+        return redirect(url_for("producao_produto", produto_id=produto_id, erro=erro))
+
+    registrar_atividade_usuario(
+        "criacao",
+        "produtos",
+        f"Produziu {_formatar_numero_estoque(quantidade)} unidade(s) de {produto['nome']}",
+        request.path,
+    )
+
+    return redirect(
+        url_for(
+            "producao_produto",
+            produto_id=produto_id,
+            sucesso=f"Produção Nº {producao_id} concluída com sucesso.",
+        )
+    )
+
+
 @app.post("/produtos/<int:produto_id>/excluir")
 def excluir_produto(produto_id: int) -> Response:
     produto = buscar_produto_por_id(produto_id)
 
-    if produto is not None:
-        excluir_produto_db(produto_id)
+    if produto is None:
+        return redirect(url_for("produtos"))
+
+    produtos_vinculados = produto_usado_como_componente(produto_id)
+    if produtos_vinculados:
+        nomes = ", ".join(str(item.get("nome") or "") for item in produtos_vinculados[:5])
+        return redirect(
+            url_for(
+                "produtos",
+                erro=f"Este produto é componente de: {nomes}. Remova-o dessas fichas técnicas antes de excluir.",
+            )
+        )
+
+    excluir_produto_db(produto_id)
+    registrar_atividade_usuario("exclusao", "produtos", f"Excluiu produto {produto['nome']}", request.path)
 
     return redirect(url_for("produtos"))
 
@@ -17726,17 +19686,13 @@ def gerador_orcamentos() -> str | Response:
 
         if not dados["cliente"]:
             return redirect(url_for("gerador_orcamentos", erro="Selecione um cliente para gerar o orçamento."))
-
         if not dados["responsavel"]:
             return redirect(url_for("gerador_orcamentos", erro="Selecione um responsável para gerar o orçamento."))
-
         if float(dados.get("valor_escolhido") or 0) <= 0:
-            return redirect(
-                url_for(
-                    "gerador_orcamentos",
-                    erro="Informe materiais, mão de obra, adicionais de mão de obra ou custos para formar um valor de orçamento.",
-                )
-            )
+            return redirect(url_for(
+                "gerador_orcamentos",
+                erro="Informe materiais, mão de obra, adicionais de mão de obra ou custos para formar um valor de orçamento.",
+            ))
 
         novo_orcamento_id = gerar_orcamento_por_gerador_db(dados)
         return redirect(url_for("ver_orcamento", orcamento_id=novo_orcamento_id))
@@ -17749,9 +19705,61 @@ def gerador_orcamentos() -> str | Response:
         gerador_config=buscar_configuracao_gerador_empresa(),
         adicionais_mao_obra_tipos=GERADOR_ADICIONAIS_MAO_OBRA_TIPOS,
         adicionais_mao_obra_formas=GERADOR_ADICIONAIS_MAO_OBRA_FORMAS_CALCULO,
+        modos_apresentacao=ORCAMENTO_MODOS_APRESENTACAO,
         proximo_numero=proximo_numero_orcamento(),
         data_hoje=hoje_empresa().isoformat(),
+        gerador_dados={},
+        modo_revisao=False,
+        orcamento=None,
+        form_action=url_for("gerador_orcamentos"),
     )
+
+
+@app.route("/orcamentos/<int:orcamento_id>/gerador/revisao", methods=["GET", "POST"])
+def revisar_gerador_orcamento(orcamento_id: int) -> str | Response:
+    orcamento = buscar_orcamento_por_id(orcamento_id)
+    dados_gerador = buscar_orcamento_gerador_dados(orcamento_id)
+    if orcamento is None or dados_gerador is None:
+        return redirect(url_for("editar_orcamento", orcamento_id=orcamento_id, erro="Este orçamento não possui dados salvos do Gerador."))
+
+    if request.method == "POST":
+        dados = montar_gerador_orcamento_formulario()
+        if not dados["cliente"] or not dados["responsavel"]:
+            return redirect(url_for("revisar_gerador_orcamento", orcamento_id=orcamento_id, erro="Cliente e responsável são obrigatórios."))
+        if float(dados.get("valor_escolhido") or 0) <= 0:
+            return redirect(url_for("revisar_gerador_orcamento", orcamento_id=orcamento_id, erro="O valor recalculado precisa ser maior que zero."))
+        atualizar_orcamento_por_gerador_db(orcamento_id, dados)
+        return redirect(url_for("ver_orcamento", orcamento_id=orcamento_id, sucesso="Dados do Gerador atualizados e orçamento recalculado."))
+
+    return render_template(
+        "orcamento_gerador.html",
+        clientes=listar_clientes(),
+        funcionarios=listar_funcionarios(),
+        produtos=listar_produtos(),
+        gerador_config=buscar_configuracao_gerador_empresa(),
+        adicionais_mao_obra_tipos=GERADOR_ADICIONAIS_MAO_OBRA_TIPOS,
+        adicionais_mao_obra_formas=GERADOR_ADICIONAIS_MAO_OBRA_FORMAS_CALCULO,
+        modos_apresentacao=ORCAMENTO_MODOS_APRESENTACAO,
+        proximo_numero=str(orcamento.get("numero") or orcamento_id),
+        data_hoje=str(dados_gerador.get("data") or hoje_empresa().isoformat()),
+        gerador_dados=dados_gerador,
+        modo_revisao=True,
+        orcamento=orcamento,
+        form_action=url_for("revisar_gerador_orcamento", orcamento_id=orcamento_id),
+    )
+
+
+@app.get("/orcamentos/<int:orcamento_id>/gerador/historico")
+def historico_calculos_gerador(orcamento_id: int) -> str | Response:
+    orcamento = buscar_orcamento_por_id(orcamento_id)
+    if orcamento is None:
+        return redirect(url_for("orcamentos"))
+    return render_template(
+        "orcamento_historico_calculos.html",
+        orcamento=orcamento,
+        historico=listar_historico_gerador(orcamento_id),
+    )
+
 
 @app.get("/orcamentos")
 def orcamentos() -> str:
@@ -17783,16 +19791,22 @@ def orcamentos() -> str:
 @app.post("/orcamentos")
 def salvar_orcamento() -> Response:
     orcamento = montar_orcamento_formulario(numero_padrao=proximo_numero_orcamento())
+    orcamento["origem"] = "manual"
     itens = montar_orcamento_itens_formulario()
     erro_validacao = validar_orcamento_para_salvar(orcamento, itens)
-
     if erro_validacao:
         return redirect(url_for("orcamentos", erro=erro_validacao))
 
     orcamento_id = salvar_orcamento_db(orcamento, itens)
+    sincronizar_apresentacao_orcamento_db(
+        orcamento_id,
+        orcamento,
+        itens,
+        itens_informados=montar_orcamento_apresentacao_formulario(),
+    )
     registrar_atividade_usuario("criacao", "orcamentos", f"Criou orçamento {orcamento.get('numero') or orcamento_id}", request.path)
-
     return redirect(url_for("orcamentos"))
+
 
 
 @app.get("/orcamentos/<int:orcamento_id>")
@@ -17801,18 +19815,24 @@ def ver_orcamento(orcamento_id: int) -> str | Response:
         return redirect(url_for("gerar_ordem_servico_por_orcamento", orcamento_id=orcamento_id))
 
     orcamento = buscar_orcamento_por_id(orcamento_id)
-
     if orcamento is None:
         return redirect(url_for("orcamentos"))
 
-    orcamento = formatar_datas_documento_exibicao(
-        orcamento,
-        ("data", "validade"),
+    orcamento = formatar_datas_documento_exibicao(orcamento, ("data", "validade"))
+    itens = listar_orcamento_itens(orcamento_id)
+    itens_apresentacao = listar_orcamento_apresentacao_itens(orcamento_id)
+    if normalizar_modo_apresentacao(orcamento.get("modo_apresentacao"), "agrupado") != "detalhado" and not itens_apresentacao:
+        itens_apresentacao = montar_apresentacao_padrao_orcamento(orcamento, itens)
+
+    return render_template(
+        "orcamento_detalhe.html",
+        orcamento=orcamento,
+        itens=itens,
+        itens_apresentacao=itens_apresentacao,
+        dados_gerador=buscar_orcamento_gerador_dados(orcamento_id),
+        historico_gerador=listar_historico_gerador(orcamento_id)[:3],
     )
 
-    itens = listar_orcamento_itens(orcamento_id)
-
-    return render_template("orcamento_detalhe.html", orcamento=orcamento, itens=itens)
 
 
 
@@ -17838,19 +19858,16 @@ def gerar_copia_orcamento(orcamento_id: int) -> Response:
 @app.get("/orcamentos/<int:orcamento_id>/imprimir/a4")
 def imprimir_orcamento_a4(orcamento_id: int) -> str | Response:
     orcamento = buscar_orcamento_por_id(orcamento_id)
-
     if orcamento is None:
         return redirect(url_for("orcamentos"))
 
-    orcamento = formatar_datas_documento_exibicao(
-        orcamento,
-        ("data", "validade"),
-    )
-
+    orcamento = formatar_datas_documento_exibicao(orcamento, ("data", "validade"))
     itens = listar_orcamento_itens(orcamento_id)
     itens_produtos = [item for item in itens if item["tipo_item"] == "produto"]
     itens_servicos = [item for item in itens if item["tipo_item"] == "servico"]
-
+    itens_apresentacao = listar_orcamento_apresentacao_itens(orcamento_id)
+    if normalizar_modo_apresentacao(orcamento.get("modo_apresentacao"), "agrupado") != "detalhado" and not itens_apresentacao:
+        itens_apresentacao = montar_apresentacao_padrao_orcamento(orcamento, itens)
     contexto_impressao = montar_contexto_impressao(orcamento.get("cliente"))
 
     return render_template(
@@ -17859,28 +19876,27 @@ def imprimir_orcamento_a4(orcamento_id: int) -> str | Response:
         itens=itens,
         itens_produtos=itens_produtos,
         itens_servicos=itens_servicos,
+        itens_apresentacao=itens_apresentacao,
         empresa=contexto_impressao["empresa"],
         loja=contexto_impressao["loja"],
         cliente=contexto_impressao["cliente"],
     )
 
 
+
 @app.get("/orcamentos/<int:orcamento_id>/imprimir/cupom")
 def imprimir_orcamento_cupom(orcamento_id: int) -> str | Response:
     orcamento = buscar_orcamento_por_id(orcamento_id)
-
     if orcamento is None:
         return redirect(url_for("orcamentos"))
 
-    orcamento = formatar_datas_documento_exibicao(
-        orcamento,
-        ("data", "validade"),
-    )
-
+    orcamento = formatar_datas_documento_exibicao(orcamento, ("data", "validade"))
     itens = listar_orcamento_itens(orcamento_id)
     itens_produtos = [item for item in itens if item["tipo_item"] == "produto"]
     itens_servicos = [item for item in itens if item["tipo_item"] == "servico"]
-
+    itens_apresentacao = listar_orcamento_apresentacao_itens(orcamento_id)
+    if normalizar_modo_apresentacao(orcamento.get("modo_apresentacao"), "agrupado") != "detalhado" and not itens_apresentacao:
+        itens_apresentacao = montar_apresentacao_padrao_orcamento(orcamento, itens)
     contexto_impressao = montar_contexto_impressao(orcamento.get("cliente"))
 
     return render_template(
@@ -17889,53 +19905,58 @@ def imprimir_orcamento_cupom(orcamento_id: int) -> str | Response:
         itens=itens,
         itens_produtos=itens_produtos,
         itens_servicos=itens_servicos,
+        itens_apresentacao=itens_apresentacao,
         empresa=contexto_impressao["empresa"],
         loja=contexto_impressao["loja"],
         cliente=contexto_impressao["cliente"],
     )
 
 
+
 @app.get("/orcamentos/<int:orcamento_id>/editar")
 def editar_orcamento(orcamento_id: int) -> str | Response:
     orcamento = buscar_orcamento_por_id(orcamento_id)
-
     if orcamento is None:
         return redirect(url_for("orcamentos"))
-
-    itens = listar_orcamento_itens(orcamento_id)
-    clientes_lista = listar_clientes()
-    funcionarios_lista = listar_funcionarios()
-    produtos_lista = listar_produtos()
-    servicos_lista = listar_servicos()
 
     return render_template(
         "orcamento_editar.html",
         orcamento=orcamento,
-        itens=itens,
-        clientes=clientes_lista,
-        funcionarios=funcionarios_lista,
-        produtos=produtos_lista,
-        servicos=servicos_lista,
+        itens=listar_orcamento_itens(orcamento_id),
+        itens_apresentacao=listar_orcamento_apresentacao_itens(orcamento_id),
+        dados_gerador=buscar_orcamento_gerador_dados(orcamento_id),
+        modos_apresentacao=ORCAMENTO_MODOS_APRESENTACAO,
+        clientes=listar_clientes(),
+        funcionarios=listar_funcionarios(),
+        produtos=listar_produtos(),
+        servicos=listar_servicos(),
     )
+
 
 
 @app.post("/orcamentos/<int:orcamento_id>/editar")
 def atualizar_orcamento(orcamento_id: int) -> Response:
     orcamento_atual = buscar_orcamento_por_id(orcamento_id)
-
     if orcamento_atual is None:
         return redirect(url_for("orcamentos"))
 
     orcamento = montar_orcamento_formulario(numero_padrao=str(orcamento_atual["numero"] or ""))
+    orcamento["origem"] = str(orcamento_atual.get("origem") or "manual")
     itens = montar_orcamento_itens_formulario()
     erro_validacao = validar_orcamento_para_salvar(orcamento, itens)
-
     if erro_validacao:
         return redirect(url_for("editar_orcamento", orcamento_id=orcamento_id, erro=erro_validacao))
 
     atualizar_orcamento_db(orcamento_id, orcamento, itens)
+    sincronizar_apresentacao_orcamento_db(
+        orcamento_id,
+        orcamento,
+        itens,
+        itens_informados=montar_orcamento_apresentacao_formulario(),
+        preservar_descricoes=True,
+    )
+    return redirect(url_for("ver_orcamento", orcamento_id=orcamento_id, sucesso="Orçamento atualizado."))
 
-    return redirect(url_for("ver_orcamento", orcamento_id=orcamento_id))
 
 
 @app.post("/orcamentos/<int:orcamento_id>/excluir")

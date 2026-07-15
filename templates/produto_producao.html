@@ -1,0 +1,275 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\produto_producao.html
+Último recode: 2026-07-14 22:10 (America/Bahia)
+Motivo: Criar tela de produção com validação visual de estoque, consumo de componentes e histórico.
+-->
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Produção de Produto</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .content { padding-bottom: 220px; }
+        .content > .panel.page-section:first-of-type { margin-top: 0; }
+        .panel, .page-section, .table-panel { border-radius: 16px; }
+        .panel-header.page-header, .page-header { gap: 14px; }
+        .page-title { letter-spacing: -0.02em; }
+        .page-subtitle { max-width: 820px; }
+        .client-toolbar, .form-actions, .client-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .btn-primary-green, .btn-dark, .btn-light { border-radius: 10px; text-decoration: none; }
+        .form-alert-error, .form-alert-success {
+            margin: 0 0 18px; padding: 12px 14px; border-radius: 12px; font-size: 13px; font-weight: 800;
+        }
+        .form-alert-error { border: 1px solid #fecaca; background: #fef2f2; color: #991b1b; }
+        .form-alert-success { border: 1px solid #bbf7d0; background: #f0fdf4; color: #166534; }
+        .production-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start; }
+        .production-stack { display: grid; gap: 18px; }
+        .production-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+        .production-summary > div {
+            min-height: 92px; border: 1px solid #e2e8f0; border-radius: 14px; background: #ffffff;
+            padding: 14px; box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+        }
+        .production-summary span { display: block; margin-bottom: 7px; color: #64748b; font-size: 11px; font-weight: 900; text-transform: uppercase; }
+        .production-summary strong { display: block; color: #0f172a; font-size: 20px; line-height: 1.2; }
+        .production-summary small { display: block; margin-top: 6px; color: #64748b; font-size: 11px; font-weight: 700; line-height: 1.35; }
+        .production-summary .primary { border-color: #86efac; background: #f0fdf4; }
+        .production-summary .primary strong { color: #15803d; }
+        .production-form-card {
+            position: sticky; top: 16px; border: 1px solid #dbe4f0; border-radius: 16px;
+            background: #ffffff; padding: 18px; box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+        }
+        .production-form-card h3 { margin: 0 0 5px; color: #0f172a; font-size: 17px; }
+        .production-form-card > p { margin: 0 0 18px; color: #64748b; font-size: 12px; font-weight: 700; line-height: 1.45; }
+        .production-form-card .form-group { margin-bottom: 14px; }
+        .production-form-card textarea { min-height: 96px; resize: vertical; }
+        .production-total { margin: 16px 0; padding: 14px; border: 1px solid #bbf7d0; border-radius: 14px; background: #f0fdf4; }
+        .production-total span { display: block; margin-bottom: 5px; color: #166534; font-size: 11px; font-weight: 900; text-transform: uppercase; }
+        .production-total strong { display: block; color: #15803d; font-size: 26px; }
+        .production-total small { display: block; margin-top: 5px; color: #166534; font-size: 11px; font-weight: 700; }
+        .production-submit { width: 100%; min-height: 44px; justify-content: center; }
+        .production-submit:disabled { background: #94a3b8; cursor: not-allowed; opacity: 0.8; }
+        .validation-message { display: none; margin-top: 12px; padding: 11px 12px; border-radius: 11px; font-size: 12px; font-weight: 800; line-height: 1.4; }
+        .validation-message.show { display: block; }
+        .validation-message.error { border: 1px solid #fecaca; background: #fef2f2; color: #991b1b; }
+        .validation-message.ok { border: 1px solid #bbf7d0; background: #f0fdf4; color: #166534; }
+        .table-shell { border: 1px solid #e2e8f0; border-radius: 14px; overflow-x: auto; background: #ffffff; }
+        .production-table { width: 100%; min-width: 980px; border-collapse: collapse; }
+        .production-table thead th {
+            padding: 11px 12px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; color: #334155;
+            font-size: 11px; font-weight: 900; text-align: left; text-transform: uppercase; white-space: nowrap;
+        }
+        .production-table tbody td { padding: 12px; border-bottom: 1px solid #eef2f7; color: #334155; font-size: 12px; vertical-align: middle; }
+        .production-table tbody tr:last-child td { border-bottom: 0; }
+        .production-table strong { color: #0f172a; }
+        .requirement-status { display: inline-flex; align-items: center; min-height: 24px; padding: 0 9px; border-radius: 999px; font-size: 10px; font-weight: 900; white-space: nowrap; }
+        .requirement-status.ok { background: #dcfce7; color: #166534; }
+        .requirement-status.error { background: #fee2e2; color: #991b1b; }
+        .empty-box { padding: 22px; border: 1px dashed #cbd5e1; border-radius: 14px; background: #f8fafc; color: #64748b; text-align: center; font-size: 13px; font-weight: 800; }
+        .composition-warning { padding: 16px; border: 1px solid #fde68a; border-radius: 14px; background: #fffbeb; color: #92400e; font-size: 13px; font-weight: 800; line-height: 1.5; }
+        .direct-cost-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+        .direct-cost-item { padding: 12px; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc; }
+        .direct-cost-item span { display: block; color: #64748b; font-size: 10px; font-weight: 900; text-transform: uppercase; }
+        .direct-cost-item strong { display: block; margin-top: 5px; color: #0f172a; font-size: 13px; }
+        .direct-cost-item b { display: block; margin-top: 8px; color: #15803d; font-size: 15px; }
+        @media (max-width: 1100px) {
+            .production-layout { grid-template-columns: 1fr; }
+            .production-form-card { position: static; }
+            .production-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+        @media (max-width: 720px) {
+            .client-toolbar, .form-actions, .client-actions { align-items: stretch; flex-direction: column; }
+            .client-toolbar .btn-primary-green, .client-toolbar .btn-dark, .client-toolbar .btn-light { width: 100%; justify-content: center; }
+            .production-summary, .direct-cost-list { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+
+    <main class="content">
+        {% set page_title = 'Produção de Produto' %}
+        {% include "partials/topbar.html" %}
+
+        {% if request.args.get('erro') %}<div class="form-alert-error">{{ request.args.get('erro') }}</div>{% endif %}
+        {% if request.args.get('sucesso') %}<div class="form-alert-success">{{ request.args.get('sucesso') }}</div>{% endif %}
+
+        {% set resumo = resumo_composicao|default({}, true) %}
+        {% set tem_composicao = resumo.possui_composicao|default(false, true) %}
+        {% set itens_composicao = composicao_itens|default([]) %}
+        {% set custos_composicao = composicao_custos|default([]) %}
+        {% set historico_producao = producoes|default([]) %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div><span class="page-kicker">Estoque e produção</span><h3 class="page-title">Produzir {{ produto.nome }}</h3><p class="page-subtitle">Confira os componentes, informe a quantidade e conclua a produção com baixa automática dos insumos.</p></div>
+                <div class="client-toolbar"><a href="/produtos/{{ produto.id }}/editar#ficha-tecnica" class="btn-light">Editar ficha técnica</a><a href="/produtos/{{ produto.id }}" class="btn-dark">Voltar ao produto</a></div>
+            </div>
+        </section>
+
+        {% if not tem_composicao %}
+            <section class="panel page-section">
+                <div class="composition-warning">Este produto ainda não possui ficha técnica. Cadastre componentes ou custos diretos antes de registrar uma produção.<div style="margin-top: 12px;"><a href="/produtos/{{ produto.id }}/editar#ficha-tecnica" class="btn-primary-green">Criar ficha técnica</a></div></div>
+            </section>
+        {% else %}
+            <section class="panel page-section">
+                <div class="production-summary">
+                    <div><span>Estoque atual</span><strong>{{ produto.estoque_atual or '0' }}</strong><small>{{ produto.unidade or 'unidade(s)' }} disponíveis.</small></div>
+                    <div><span>CMV unitário</span><strong>R$ {{ produto.preco_custo or '0,00' }}</strong><small>Componentes e custos diretos.</small></div>
+                    <div><span>Capacidade atual</span><strong>{{ resumo.capacidade_producao|default(0, true) }}</strong><small>Limitada pelo menor estoque de componente.</small></div>
+                    <div class="primary"><span>Custo da produção</span><strong id="summary-production-cost">R$ 0,00</strong><small id="summary-production-quantity">Informe a quantidade.</small></div>
+                </div>
+            </section>
+
+            <div class="production-layout">
+                <div class="production-stack">
+                    <section class="panel page-section">
+                        <div class="panel-header page-header"><div><h3>Necessidade de componentes</h3><p class="page-subtitle">A tabela é atualizada automaticamente conforme a quantidade que será produzida.</p></div></div>
+                        {% if itens_composicao %}
+                            <div class="table-shell"><table class="production-table"><thead><tr><th>Componente</th><th>Unidade</th><th>Consumo por unidade</th><th>Necessário</th><th>Disponível</th><th>Saldo após produção</th><th>Custo do consumo</th><th>Status</th></tr></thead><tbody id="production-components-body"></tbody></table></div>
+                        {% else %}<div class="empty-box">A ficha possui apenas custos diretos e não consumirá produtos do estoque.</div>{% endif %}
+                    </section>
+
+                    <section class="panel page-section">
+                        <div class="panel-header page-header"><div><h3>Custos diretos por unidade</h3><p class="page-subtitle">Valores incorporados ao CMV sem movimentação física de estoque.</p></div></div>
+                        {% if custos_composicao %}
+                            <div class="direct-cost-list">{% for custo in custos_composicao %}<div class="direct-cost-item"><span>{{ custo.tipo|replace('_', ' ')|title }}</span><strong>{{ custo.descricao }}</strong><b>R$ {{ custo.valor or '0,00' }}</b></div>{% endfor %}</div>
+                        {% else %}<div class="empty-box">Nenhum custo direto cadastrado.</div>{% endif %}
+                    </section>
+                </div>
+
+                <aside class="production-form-card">
+                    <h3>Registrar produção</h3><p>A operação dará baixa nos componentes e entrada no estoque do produto final.</p>
+                    <form action="/produtos/{{ produto.id }}/producao" method="post" id="production-form">
+                        <div class="form-group"><label for="producao_quantidade">Quantidade a produzir *</label><input id="producao_quantidade" name="producao_quantidade" type="text" value="1" class="form-control" inputmode="decimal" required></div>
+                        <div class="form-group"><label for="producao_responsavel">Responsável</label><input id="producao_responsavel" name="producao_responsavel" type="text" value="{{ usuario_logado.nome if usuario_logado else '' }}" class="form-control" placeholder="Nome do responsável"></div>
+                        <div class="form-group"><label for="producao_observacoes">Observações</label><textarea id="producao_observacoes" name="producao_observacoes" class="form-control" placeholder="Lote, ordem interna ou observação opcional"></textarea></div>
+                        <div class="production-total"><span>Custo total previsto</span><strong id="production-total-preview">R$ 0,00</strong><small id="production-stock-preview">Estoque final: {{ produto.estoque_atual or '0' }}</small></div>
+                        <button type="submit" id="production-submit" class="btn-primary-green production-submit">Concluir produção</button>
+                        <div id="production-validation" class="validation-message"></div>
+                    </form>
+                </aside>
+            </div>
+        {% endif %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header"><div><span class="page-kicker">Histórico</span><h3>Produções registradas</h3><p class="page-subtitle">Movimentações anteriores do produto final.</p></div></div>
+            {% if historico_producao %}
+                <div class="table-shell">
+                    <table class="production-table">
+                        <thead><tr><th>Nº</th><th>Data</th><th>Quantidade</th><th>CMV unitário</th><th>Custo total</th><th>Estoque anterior</th><th>Estoque final</th><th>Responsável</th><th>Observações</th></tr></thead>
+                        <tbody>{% for producao in historico_producao %}<tr><td><strong>#{{ producao.id }}</strong></td><td>{{ producao.criado_em or '-' }}</td><td>{{ producao.quantidade_produzida or '0' }}</td><td>R$ {{ producao.cmv_unitario or '0,00' }}</td><td><strong>R$ {{ producao.custo_total or '0,00' }}</strong></td><td>{{ producao.estoque_anterior or '0' }}</td><td>{{ producao.estoque_atual or '0' }}</td><td>{{ producao.responsavel or '-' }}</td><td>{{ producao.observacoes or '-' }}</td></tr>{% endfor %}</tbody>
+                    </table>
+                </div>
+            {% else %}<div class="empty-box">Nenhuma produção registrada.</div>{% endif %}
+        </section>
+    </main>
+
+    {% if tem_composicao %}
+    <script>
+        const productionComponents = {{ itens_composicao|tojson }};
+        const unitCmv = Number({{ resumo.cmv_unitario|default(0, true)|tojson }});
+        const currentProductStock = Number(String({{ produto.estoque_atual|default('0')|tojson }}).replace(/\./g, '').replace(',', '.')) || 0;
+
+        function numberBr(value) {
+            let text = String(value ?? '').trim().replace('R$', '').replace(/\s/g, '');
+            if (!text) return 0;
+            if (text.includes(',')) text = text.replace(/\./g, '').replace(',', '.');
+            const number = Number.parseFloat(text);
+            return Number.isFinite(number) ? number : 0;
+        }
+
+        function currencyBr(value) {
+            const number = Number.isFinite(value) ? value : 0;
+            return number.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+
+        function decimalBr(value, digits = 4) {
+            const number = Number.isFinite(value) ? value : 0;
+            return number.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: digits });
+        }
+
+        function safeText(value) {
+            return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        function updateProductionPreview() {
+            const quantityField = document.getElementById('producao_quantidade');
+            const quantity = numberBr(quantityField?.value);
+            const body = document.getElementById('production-components-body');
+            const submit = document.getElementById('production-submit');
+            const validation = document.getElementById('production-validation');
+            let insufficient = false;
+            let firstProblem = '';
+
+            if (body) {
+                body.innerHTML = '';
+                productionComponents.forEach(function(item) {
+                    const perUnit = Number(item.quantidade_com_perda || 0);
+                    const available = numberBr(item.componente_estoque_atual || 0);
+                    const unitCost = Number(item.custo_unitario_numero || 0);
+                    const required = perUnit * Math.max(quantity, 0);
+                    const remaining = available - required;
+                    const consumptionCost = required * unitCost;
+                    const ok = quantity > 0 && remaining >= -0.0000001;
+
+                    if (!ok) {
+                        insufficient = true;
+                        if (!firstProblem && quantity > 0) firstProblem = `Estoque insuficiente de ${item.componente_nome || 'um componente'}.`;
+                    }
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><strong>${safeText(item.componente_nome || '')}</strong></td>
+                        <td>${safeText(item.unidade || 'un')}</td>
+                        <td>${decimalBr(perUnit)} ${safeText(item.unidade || '')}</td>
+                        <td><strong>${decimalBr(required)} ${safeText(item.unidade || '')}</strong></td>
+                        <td>${decimalBr(available)} ${safeText(item.unidade || '')}</td>
+                        <td>${decimalBr(remaining)} ${safeText(item.unidade || '')}</td>
+                        <td>${currencyBr(consumptionCost)}</td>
+                        <td><span class="requirement-status ${ok ? 'ok' : 'error'}">${ok ? 'Disponível' : 'Insuficiente'}</span></td>
+                    `;
+                    body.appendChild(tr);
+                });
+            }
+
+            const productionCost = Math.max(quantity, 0) * unitCmv;
+            const finalStock = currentProductStock + Math.max(quantity, 0);
+            document.getElementById('production-total-preview').textContent = currencyBr(productionCost);
+            document.getElementById('summary-production-cost').textContent = currencyBr(productionCost);
+            document.getElementById('summary-production-quantity').textContent = quantity > 0 ? `${decimalBr(quantity)} unidade(s) prevista(s).` : 'Informe a quantidade.';
+            document.getElementById('production-stock-preview').textContent = `Estoque final previsto: ${decimalBr(finalStock)}`;
+
+            validation.className = 'validation-message show';
+            if (quantity <= 0) {
+                submit.disabled = true;
+                validation.classList.add('error');
+                validation.textContent = 'Informe uma quantidade maior que zero.';
+            } else if (insufficient) {
+                submit.disabled = true;
+                validation.classList.add('error');
+                validation.textContent = firstProblem || 'O estoque não atende à quantidade informada.';
+            } else {
+                submit.disabled = false;
+                validation.classList.add('ok');
+                validation.textContent = 'Estoque conferido. A produção pode ser concluída.';
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', function() {
+            const quantity = document.getElementById('producao_quantidade');
+            quantity?.addEventListener('input', updateProductionPreview);
+            quantity?.addEventListener('change', updateProductionPreview);
+            document.getElementById('production-form')?.addEventListener('submit', function(event) {
+                const submit = document.getElementById('production-submit');
+                if (submit?.disabled) { event.preventDefault(); return; }
+                if (!window.confirm('Confirmar a baixa dos componentes e a entrada do produto final no estoque?')) event.preventDefault();
+            });
+            updateProductionPreview();
+        });
+    </script>
+    {% endif %}
+</body>
+</html>

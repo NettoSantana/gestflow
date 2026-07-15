@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamentos.html
-Último recode: 2026-07-13 19:16 (America/Bahia)
-Motivo: Corrigir abertura do menu Gerar/Imprimir no celular movendo o painel para fora da área rolável da tabela.
+Último recode: 2026-07-15 10:32 (America/Bahia)
+Motivo: Adicionar apresentação comercial agrupada aos orçamentos comuns e acesso à revisão do Gerador.
 -->
 
 <!DOCTYPE html>
@@ -491,7 +491,16 @@ Motivo: Corrigir abertura do menu Gerar/Imprimir no celular movendo o painel par
             }
         }
 
-    </style>
+    
+        .budget-origin-badge, .budget-mode-badge { display:inline-flex; align-items:center; min-height:21px; margin-top:5px; padding:0 7px; border-radius:999px; font-size:9px; font-weight:900; text-transform:uppercase; white-space:nowrap; }
+        .budget-origin-badge.gerador { background:#dbeafe; color:#1d4ed8; }
+        .budget-origin-badge.manual { background:#e2e8f0; color:#475569; }
+        .budget-mode-badge { background:#dcfce7; color:#166534; }
+        .commercial-config { display:grid; grid-template-columns:minmax(220px,.55fr) minmax(0,1.45fr); gap:14px; }
+        .commercial-note { margin-top:10px; padding:12px 14px; border:1px solid #bfdbfe; border-radius:12px; background:#eff6ff; color:#1e40af; font-size:12px; font-weight:800; line-height:1.45; }
+        .action-button.generator { background:#7c3aed; }
+        @media(max-width:720px){.commercial-config{grid-template-columns:1fr}}
+</style>
 </head>
 <body>
     {% include "partials/sidebar.html" %}
@@ -642,6 +651,25 @@ Motivo: Corrigir abertura do menu Gerar/Imprimir no celular movendo o painel par
                     <input id="orcamento_introducao" name="orcamento_introducao" type="text" placeholder="Ex: Conforme solicitado, apresentamos nossa proposta comercial." class="form-control">
                 </div>
             </section>
+            <section class="panel page-section">
+                <div class="panel-header page-header"><div><h3>Apresentação ao cliente</h3><p class="page-subtitle">O orçamento continua com produtos e serviços internos, mas o PDF pode mostrar somente grupos comerciais.</p></div></div>
+                <div class="commercial-config">
+                    <div class="form-group">
+                        <label for="orcamento_modo_apresentacao">Forma de apresentação</label>
+                        <select id="orcamento_modo_apresentacao" name="orcamento_modo_apresentacao" class="form-control">
+                            <option value="agrupado" selected>Agrupado</option>
+                            <option value="global">Valor global</option>
+                            <option value="detalhado">Detalhado</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="orcamento_descricao_comercial">Descrição comercial principal</label>
+                        <textarea id="orcamento_descricao_comercial" name="orcamento_descricao_comercial" class="form-control" style="min-height:96px; padding-top:12px; resize:vertical;" placeholder="Ex: Reparo eletrônico em IHM com substituição da tela, montagem, ajustes e testes."></textarea>
+                    </div>
+                </div>
+                <div class="commercial-note">Agrupado não mostra a lista de produtos. Valor global mostra uma única linha com o total. Detalhado mantém a impressão completa atual.</div>
+            </section>
+
                 <section class="panel page-section">
                     <div class="panel-header page-header">
                         <div>
@@ -981,7 +1009,11 @@ Motivo: Corrigir abertura do menu Gerar/Imprimir no celular movendo o painel par
                             {% for orcamento in orcamentos_lista %}
                                 <tr>
                                     <td>{{ orcamento.id }}</td>
-                                    <td>{{ orcamento.numero }}</td>
+                                    <td>
+                                        <strong>{{ orcamento.numero }}</strong><br>
+                                        <span class="budget-origin-badge {{ orcamento.origem|default('manual', true) }}">{{ 'Gerador' if orcamento.origem == 'gerador' else 'Manual' }}</span>
+                                        <span class="budget-mode-badge">{{ orcamento.modo_apresentacao|default('agrupado', true)|replace('_',' ') }}</span>
+                                    </td>
                                     <td>{{ orcamento.cliente }}</td>
                                     <td>{{ orcamento.tipo }}</td>
                                     <td><span class="status-pill {{ orcamento.status }}">{{ orcamento.status }}</span></td>
@@ -992,6 +1024,7 @@ Motivo: Corrigir abertura do menu Gerar/Imprimir no celular movendo o painel par
                                         <div class="action-buttons">
                                             <a href="/orcamentos/{{ orcamento.id }}" title="Ver orçamento" aria-label="Ver orçamento" class="action-button view">🔍</a>
                                             <a href="/orcamentos/{{ orcamento.id }}/editar" title="Editar orçamento" aria-label="Editar orçamento" class="action-button edit">✎</a>
+                                            {% if orcamento.origem == 'gerador' %}<a href="/orcamentos/{{ orcamento.id }}/gerador/revisao" title="Editar dados do Gerador" aria-label="Editar dados do Gerador" class="action-button generator">⚙</a>{% endif %}
                                             <form action="/orcamentos/{{ orcamento.id }}/excluir" method="post" onsubmit="return confirm('Tem certeza que deseja excluir este orçamento?');" class="action-form">
                                                 <button type="submit" title="Excluir orçamento" aria-label="Excluir orçamento" class="action-button delete">×</button>
                                             </form>
