@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\registro_ponto.html
-Último recode: 2026-07-15 12:40 (America/Bahia)
-Motivo: Remover a área interna de bater ponto e ampliar o gerenciamento administrativo do ponto.
+Último recode: 2026-07-15 14:13 (America/Bahia)
+Motivo: Recolocar o gerenciamento do link individual do funcionário sem restaurar a tela interna de bater ponto.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -82,9 +82,17 @@ Motivo: Remover a área interna de bater ponto e ampliar o gerenciamento adminis
         .ponto-link-selecionado{margin:12px 0 14px;background:#f8fafc}
         .ponto-link-vazio{border-style:dashed;color:#64748b;font-size:13px;font-weight:800}
         .ponto-copy-btn{border:0;cursor:pointer}
-        @media(max-width:1320px){.ponto-layout{grid-template-columns:minmax(260px,360px) minmax(0,1fr)}.ponto-table-desktop .client-table{min-width:680px}}
+        .ponto-link-filtro{display:grid;grid-template-columns:minmax(260px,1fr) auto;gap:10px;align-items:end}
+        .ponto-link-filtro>*{min-width:0}
+        .ponto-link-resultado{margin-top:14px}
+        .ponto-link-identidade{display:flex;align-items:center;gap:12px}
+        .ponto-link-identidade .ponto-avatar{flex:0 0 44px}
+        .ponto-link-identidade-info{min-width:0}
+        .ponto-link-identidade-info strong{display:block;color:#0f172a;font-size:15px}
+        .ponto-link-identidade-info span{display:block;margin-top:4px;color:#64748b;font-size:12px;font-weight:800}
+        @media(max-width:1320px){.ponto-layout{grid-template-columns:1fr}.ponto-table-desktop .client-table{min-width:680px}}
         @media(max-width:1180px){.ponto-layout{grid-template-columns:1fr}}
-        @media(max-width:760px){.ponto-page-content{overflow-x:hidden}.ponto-layout{gap:12px}.ponto-atalhos{width:100%}.ponto-chip{flex:1 1 auto}.clock-time{font-size:44px}.ponto-filters{grid-template-columns:1fr}.ponto-filters button{width:100%;min-height:44px}.ponto-admin-head{flex-direction:column}.ponto-table-desktop{display:none}.ponto-mobile-lista{display:block}.ponto-btn{min-height:68px}.ponto-modal-grid{grid-template-columns:1fr}.ponto-acoes{width:100%}.ponto-acao-btn{flex:1}}
+        @media(max-width:760px){.ponto-page-content{overflow-x:hidden}.ponto-layout{gap:12px}.ponto-atalhos{width:100%}.ponto-chip{flex:1 1 auto}.clock-time{font-size:44px}.ponto-filters,.ponto-link-filtro{grid-template-columns:1fr}.ponto-filters button,.ponto-link-filtro button{width:100%;min-height:44px}.ponto-admin-head{flex-direction:column}.ponto-table-desktop{display:none}.ponto-mobile-lista{display:block}.ponto-btn{min-height:68px}.ponto-modal-grid{grid-template-columns:1fr}.ponto-acoes{width:100%}.ponto-acao-btn{flex:1}}
         @media(max-width:460px){.ponto-status-grid,.ponto-mobile-times{grid-template-columns:1fr}.ponto-topo-funcionario{margin-left:-14px;margin-right:-14px}}
     </style>
 </head>
@@ -112,6 +120,65 @@ Motivo: Remover a área interna de bater ponto e ampliar o gerenciamento adminis
 
     <section class="ponto-layout">
         <div class="ponto-admin" id="espelho-ponto">
+            <div class="panel">
+                <div class="ponto-admin-head">
+                    <div>
+                        <h3>Link individual de ponto</h3>
+                        <p class="page-subtitle">Selecione o funcionário para abrir ou copiar o link usado por ele para registrar o ponto.</p>
+                    </div>
+                    <span class="ponto-chip">Acesso do funcionário</span>
+                </div>
+
+                <form method="get" action="/registro-ponto" class="ponto-link-filtro">
+                    <div class="form-group">
+                        <label for="ponto-link-funcionario">Funcionário</label>
+                        <select class="form-control" id="ponto-link-funcionario" name="funcionario_id" onchange="this.form.submit()">
+                            <option value="">Selecione o funcionário</option>
+                            {% for funcionario in funcionarios %}
+                            <option value="{{ funcionario.id }}" {% if funcionario_id|string == funcionario.id|string %}selected{% endif %}>{{ funcionario.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <input type="hidden" name="data_inicio" value="{{ data_inicio }}">
+                    <input type="hidden" name="data_fim" value="{{ data_fim }}">
+                    <button class="btn-dark" type="submit">Exibir link</button>
+                </form>
+
+                {% set ponto_link = namespace(funcionario=none) %}
+                {% for funcionario in funcionarios %}
+                    {% if funcionario_id|string == funcionario.id|string %}
+                        {% set ponto_link.funcionario = funcionario %}
+                    {% endif %}
+                {% endfor %}
+
+                {% if ponto_link.funcionario %}
+                    {% set token_ponto = ponto_link.funcionario.token_ponto or ponto_link.funcionario.token_ponto_publico or '' %}
+                    <div class="ponto-link-card ponto-link-resultado">
+                        <div class="ponto-link-identidade">
+                            <div class="ponto-avatar">👤</div>
+                            <div class="ponto-link-identidade-info">
+                                <strong>{{ ponto_link.funcionario.nome }}</strong>
+                                <span>Celular cadastrado: {{ ponto_link.funcionario.telefone or 'sem celular cadastrado' }}</span>
+                            </div>
+                        </div>
+
+                        {% if token_ponto %}
+                            <input class="ponto-link-input" id="link-ponto-funcionario" value="{{ request.url_root.rstrip('/') }}/ponto/{{ token_ponto }}" readonly onclick="this.select()">
+                            <div class="ponto-link-actions">
+                                <a class="ponto-chip admin" href="{{ request.url_root.rstrip('/') }}/ponto/{{ token_ponto }}" target="_blank" rel="noopener">Abrir link</a>
+                                <button class="ponto-chip ponto-copy-btn" type="button" data-copy-target="link-ponto-funcionario">Copiar link</button>
+                            </div>
+                        {% else %}
+                            <div class="ponto-link-vazio">Este funcionário ainda não possui token de ponto.</div>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <div class="ponto-link-card ponto-link-resultado ponto-link-vazio">
+                        Selecione um funcionário para exibir o link individual de ponto.
+                    </div>
+                {% endif %}
+            </div>
+
             <div class="panel">
                 <div class="ponto-admin-head">
                     <div>
