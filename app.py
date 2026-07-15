@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-14 21:20 (America/Bahia)
-# Motivo: Preparar vendas à vista, a prazo, parceladas e com entrada integrada ao financeiro.
+# Último recode: 2026-07-14 21:15 (America/Bahia)
+# Motivo: Adicionar suporte aos adicionais de mão de obra no Gerador de Orçamentos.
 
 from __future__ import annotations
 
@@ -86,6 +86,35 @@ GESTFLOW_MODULOS_PADRAO = {modulo["codigo"]: True for modulo in GESTFLOW_MODULOS
 GESTFLOW_MODULOS_CODIGOS = set(GESTFLOW_MODULOS_PADRAO)
 
 PONTO_BLOQUEIO_NOVA_JORNADA_SEGUNDOS = 10
+
+GERADOR_ADICIONAIS_MAO_OBRA_TIPOS = [
+    {"codigo": "hora_extra_sabado", "nome": "Hora extra de sábado"},
+    {"codigo": "hora_extra_domingo_feriado", "nome": "Hora extra de domingo/feriado"},
+    {"codigo": "insalubridade", "nome": "Insalubridade"},
+    {"codigo": "periculosidade", "nome": "Periculosidade"},
+    {"codigo": "trabalho_noturno", "nome": "Trabalho noturno"},
+    {"codigo": "trabalho_altura", "nome": "Trabalho em altura"},
+    {"codigo": "subestacao", "nome": "Trabalho em subestação"},
+    {"codigo": "espaco_confinado", "nome": "Espaço confinado"},
+    {"codigo": "nr10", "nome": "Serviço NR-10"},
+    {"codigo": "nr12", "nome": "Serviço NR-12"},
+    {"codigo": "especial", "nome": "Trabalho especial personalizado"},
+]
+
+GERADOR_ADICIONAIS_MAO_OBRA_FORMAS_CALCULO = [
+    {"codigo": "percentual_mao_obra", "nome": "Percentual sobre a mão de obra"},
+    {"codigo": "por_pessoa", "nome": "Valor por pessoa"},
+    {"codigo": "por_hora", "nome": "Valor por hora"},
+    {"codigo": "por_dia", "nome": "Valor por dia"},
+    {"codigo": "fixo", "nome": "Valor fixo"},
+]
+
+GERADOR_ADICIONAIS_MAO_OBRA_TIPOS_POR_CODIGO = {
+    item["codigo"]: item["nome"] for item in GERADOR_ADICIONAIS_MAO_OBRA_TIPOS
+}
+GERADOR_ADICIONAIS_MAO_OBRA_FORMAS_POR_CODIGO = {
+    item["codigo"]: item["nome"] for item in GERADOR_ADICIONAIS_MAO_OBRA_FORMAS_CALCULO
+}
 
 
 GESTFLOW_SEGMENTOS = [
@@ -1039,6 +1068,29 @@ def iniciar_banco() -> None:
                 valor_unitario TEXT,
                 desconto TEXT,
                 subtotal TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (orcamento_id) REFERENCES orcamentos (id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS orcamento_adicionais_mao_obra (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER,
+                orcamento_id INTEGER NOT NULL,
+                tipo TEXT,
+                descricao TEXT,
+                funcionario_funcao TEXT,
+                pessoas TEXT,
+                quantidade TEXT,
+                unidade TEXT,
+                forma_calculo TEXT,
+                percentual TEXT,
+                valor_base TEXT,
+                valor_unitario TEXT,
+                valor_total TEXT,
+                exibir_cliente TEXT NOT NULL DEFAULT 'nao',
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (orcamento_id) REFERENCES orcamentos (id)
             )
@@ -2056,6 +2108,7 @@ def iniciar_banco() -> None:
             "servicos",
             "orcamentos",
             "orcamento_itens",
+            "orcamento_adicionais_mao_obra",
             "vendas",
             "venda_itens",
             "ordens_servico",
@@ -5027,6 +5080,107 @@ def listar_orcamento_itens(orcamento_id: int) -> list[dict[str, Any]]:
 
     return [dict(row) for row in rows]
 
+def listar_orcamento_adicionais_mao_obra(orcamento_id: int) -> list[dict[str, Any]]:
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                id,
+                empresa_id,
+                orcamento_id,
+                tipo,
+                descricao,
+                funcionario_funcao,
+                pessoas,
+                quantidade,
+                unidade,
+                forma_calculo,
+                percentual,
+                valor_base,
+                valor_unitario,
+                valor_total,
+                exibir_cliente,
+                criado_em
+            FROM orcamento_adicionais_mao_obra
+            WHERE orcamento_id = ?
+              AND empresa_id = ?
+            ORDER BY id ASC
+            """,
+            (orcamento_id, empresa_id),
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+
+
+def salvar_orcamento_adicionais_mao_obra_db(
+    orcamento_id: int,
+    adicionais: list[dict[str, Any]],
+) -> None:
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            DELETE FROM orcamento_adicionais_mao_obra
+            WHERE orcamento_id = ?
+              AND empresa_id = ?
+            """,
+            (orcamento_id, empresa_id),
+        )
+
+        for adicional in adicionais:
+            descricao = str(adicional.get("descricao") or adicional.get("tipo_nome") or "").strip()
+            valor_total = _converter_valor_brl(
+                adicional.get("custo")
+                if adicional.get("custo") is not None
+                else adicional.get("valor_total")
+            )
+
+            if not descricao or valor_total <= 0:
+                continue
+
+            conn.execute(
+                """
+                INSERT INTO orcamento_adicionais_mao_obra (
+                    empresa_id,
+                    orcamento_id,
+                    tipo,
+                    descricao,
+                    funcionario_funcao,
+                    pessoas,
+                    quantidade,
+                    unidade,
+                    forma_calculo,
+                    percentual,
+                    valor_base,
+                    valor_unitario,
+                    valor_total,
+                    exibir_cliente
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    empresa_id,
+                    orcamento_id,
+                    str(adicional.get("tipo") or "especial"),
+                    descricao,
+                    str(adicional.get("funcionario_funcao") or ""),
+                    _formatar_numero_estoque(_converter_valor_brl(adicional.get("pessoas")) or 1),
+                    _formatar_numero_estoque(_converter_valor_brl(adicional.get("quantidade")) or 1),
+                    str(adicional.get("unidade") or ""),
+                    str(adicional.get("forma_calculo") or "fixo"),
+                    _formatar_percentual_simples(_converter_valor_brl(adicional.get("percentual"))),
+                    _formatar_moeda_brl(_converter_valor_brl(adicional.get("valor_base"))),
+                    _formatar_moeda_brl(_converter_valor_brl(adicional.get("valor_unitario"))),
+                    _formatar_moeda_brl(valor_total),
+                    "sim" if str(adicional.get("exibir_cliente") or "nao").strip().lower() == "sim" else "nao",
+                ),
+            )
+
+        conn.commit()
+
+
 def atualizar_orcamento_db(orcamento_id: int, orcamento: dict[str, str], itens: list[dict[str, str]]) -> None:
     empresa_id = empresa_logada_id()
 
@@ -5128,6 +5282,14 @@ def excluir_orcamento_db(orcamento_id: int) -> None:
     empresa_id = empresa_logada_id()
 
     with conectar_db() as conn:
+        conn.execute(
+            """
+            DELETE FROM orcamento_adicionais_mao_obra
+            WHERE orcamento_id = ?
+              AND empresa_id = ?
+            """,
+            (orcamento_id, empresa_id),
+        )
         conn.execute(
             """
             DELETE FROM orcamento_itens
@@ -5473,7 +5635,13 @@ def copiar_orcamento_db(orcamento_id: int) -> int | None:
             }
         )
 
-    return salvar_orcamento_db(novo_orcamento, novos_itens)
+    novo_orcamento_id = salvar_orcamento_db(novo_orcamento, novos_itens)
+    adicionais_originais = listar_orcamento_adicionais_mao_obra(orcamento_id)
+
+    if adicionais_originais:
+        salvar_orcamento_adicionais_mao_obra_db(novo_orcamento_id, adicionais_originais)
+
+    return novo_orcamento_id
 
 
 
@@ -5577,6 +5745,241 @@ def salvar_configuracao_gerador_empresa(dados: dict[str, Any]) -> None:
         conn.commit()
 
 
+def _normalizar_sim_nao(valor: Any, padrao: str = "nao") -> str:
+    texto = str(valor or "").strip().lower()
+
+    if texto in {"sim", "s", "1", "true", "on"}:
+        return "sim"
+    if texto in {"nao", "não", "n", "0", "false", "off"}:
+        return "nao"
+
+    return "sim" if padrao == "sim" else "nao"
+
+
+def _normalizar_tipo_adicional_mao_obra(valor: Any) -> str:
+    texto = str(valor or "").strip().lower()
+    texto = unicodedata.normalize("NFKD", texto)
+    texto = "".join(caractere for caractere in texto if not unicodedata.combining(caractere))
+    texto = re.sub(r"[^a-z0-9]+", "_", texto).strip("_")
+
+    aliases = {
+        "sabado": "hora_extra_sabado",
+        "hora_extra_sabado": "hora_extra_sabado",
+        "domingo": "hora_extra_domingo_feriado",
+        "feriado": "hora_extra_domingo_feriado",
+        "hora_extra_domingo": "hora_extra_domingo_feriado",
+        "hora_extra_domingo_feriado": "hora_extra_domingo_feriado",
+        "insalubridade": "insalubridade",
+        "periculosidade": "periculosidade",
+        "noturno": "trabalho_noturno",
+        "trabalho_noturno": "trabalho_noturno",
+        "altura": "trabalho_altura",
+        "trabalho_altura": "trabalho_altura",
+        "subestacao": "subestacao",
+        "espaco_confinado": "espaco_confinado",
+        "nr10": "nr10",
+        "nr_10": "nr10",
+        "nr12": "nr12",
+        "nr_12": "nr12",
+        "especial": "especial",
+        "trabalho_especial": "especial",
+    }
+    tipo = aliases.get(texto, texto)
+
+    if tipo not in GERADOR_ADICIONAIS_MAO_OBRA_TIPOS_POR_CODIGO:
+        return "especial"
+
+    return tipo
+
+
+def _normalizar_forma_calculo_adicional_mao_obra(valor: Any, tipo: str = "") -> str:
+    texto = str(valor or "").strip().lower()
+    texto = unicodedata.normalize("NFKD", texto)
+    texto = "".join(caractere for caractere in texto if not unicodedata.combining(caractere))
+    texto = re.sub(r"[^a-z0-9]+", "_", texto).strip("_")
+
+    aliases = {
+        "percentual": "percentual_mao_obra",
+        "porcentagem": "percentual_mao_obra",
+        "percentual_mao_obra": "percentual_mao_obra",
+        "pessoa": "por_pessoa",
+        "por_pessoa": "por_pessoa",
+        "hora": "por_hora",
+        "por_hora": "por_hora",
+        "dia": "por_dia",
+        "por_dia": "por_dia",
+        "valor_fixo": "fixo",
+        "fixo": "fixo",
+    }
+    forma = aliases.get(texto, texto)
+
+    if forma in GERADOR_ADICIONAIS_MAO_OBRA_FORMAS_POR_CODIGO:
+        return forma
+
+    if tipo in {
+        "hora_extra_sabado",
+        "hora_extra_domingo_feriado",
+        "insalubridade",
+        "periculosidade",
+        "trabalho_noturno",
+    }:
+        return "percentual_mao_obra"
+
+    return "fixo"
+
+
+def _gerador_custo_mao_obra_referencia(
+    mao_obra: list[dict[str, Any]],
+    funcionario_funcao: Any,
+) -> float:
+    funcao_procurada = _normalizar_texto_busca(funcionario_funcao)
+    custo_total = sum(float(item.get("custo") or 0) for item in mao_obra)
+
+    if not funcao_procurada:
+        return custo_total
+
+    correspondencias_exatas = [
+        item
+        for item in mao_obra
+        if _normalizar_texto_busca(item.get("funcao")) == funcao_procurada
+    ]
+    if correspondencias_exatas:
+        return sum(float(item.get("custo") or 0) for item in correspondencias_exatas)
+
+    correspondencias_parciais = [
+        item
+        for item in mao_obra
+        if funcao_procurada in _normalizar_texto_busca(item.get("funcao"))
+        or _normalizar_texto_busca(item.get("funcao")) in funcao_procurada
+    ]
+    if correspondencias_parciais:
+        return sum(float(item.get("custo") or 0) for item in correspondencias_parciais)
+
+    return custo_total
+
+
+def _gerador_adicional_exibir_cliente(
+    valores: list[str],
+    indice: int,
+    total_linhas: int,
+) -> str:
+    if len(valores) == total_linhas and indice < len(valores):
+        return _normalizar_sim_nao(valores[indice])
+
+    indices_visiveis = {
+        int(valor)
+        for valor in valores
+        if str(valor or "").strip().isdigit()
+    }
+    if indices_visiveis:
+        return "sim" if indice in indices_visiveis else "nao"
+
+    if total_linhas == 1 and valores:
+        return _normalizar_sim_nao(valores[0])
+
+    return "nao"
+
+
+def _montar_adicionais_mao_obra_formulario(
+    mao_obra: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    tipos = _limpar_lista_formulario("adicional_tipo")
+    descricoes = _limpar_lista_formulario("adicional_descricao")
+    funcoes = _limpar_lista_formulario("adicional_funcao")
+    pessoas_lista = _limpar_lista_formulario("adicional_pessoas")
+    quantidades = _limpar_lista_formulario("adicional_quantidade")
+    unidades = _limpar_lista_formulario("adicional_unidade")
+    formas = _limpar_lista_formulario("adicional_forma_calculo")
+    percentuais = _limpar_lista_formulario("adicional_percentual")
+    valores_base = _limpar_lista_formulario("adicional_valor_base")
+    valores_unitarios = _limpar_lista_formulario("adicional_valor_unitario")
+    exibir_cliente_lista = _limpar_lista_formulario("adicional_exibir_cliente")
+
+    total_linhas = max(
+        len(tipos),
+        len(descricoes),
+        len(funcoes),
+        len(pessoas_lista),
+        len(quantidades),
+        len(unidades),
+        len(formas),
+        len(percentuais),
+        len(valores_base),
+        len(valores_unitarios),
+        0,
+    )
+    adicionais: list[dict[str, Any]] = []
+
+    for indice in range(total_linhas):
+        tipo_bruto = _gerador_item_valor(tipos, indice)
+        descricao_bruta = _gerador_item_valor(descricoes, indice)
+
+        if not tipo_bruto and not descricao_bruta:
+            continue
+
+        tipo = _normalizar_tipo_adicional_mao_obra(tipo_bruto)
+        tipo_nome = GERADOR_ADICIONAIS_MAO_OBRA_TIPOS_POR_CODIGO[tipo]
+        descricao = descricao_bruta or tipo_nome
+        funcionario_funcao = _gerador_item_valor(funcoes, indice)
+        pessoas = _converter_valor_brl(_gerador_item_valor(pessoas_lista, indice)) or 1
+        quantidade = _converter_valor_brl(_gerador_item_valor(quantidades, indice)) or 1
+        forma_calculo = _normalizar_forma_calculo_adicional_mao_obra(
+            _gerador_item_valor(formas, indice),
+            tipo,
+        )
+        percentual = _converter_valor_brl(_gerador_item_valor(percentuais, indice))
+        valor_unitario = _converter_valor_brl(_gerador_item_valor(valores_unitarios, indice))
+        valor_base_informado = _converter_valor_brl(_gerador_item_valor(valores_base, indice))
+        valor_base = valor_base_informado or _gerador_custo_mao_obra_referencia(
+            mao_obra,
+            funcionario_funcao,
+        )
+
+        if forma_calculo == "percentual_mao_obra":
+            custo = valor_base * (percentual / 100)
+            unidade = _gerador_item_valor(unidades, indice) or "%"
+        elif forma_calculo == "por_pessoa":
+            custo = pessoas * valor_unitario
+            unidade = _gerador_item_valor(unidades, indice) or "pessoa"
+        elif forma_calculo == "por_hora":
+            custo = pessoas * quantidade * valor_unitario
+            unidade = _gerador_item_valor(unidades, indice) or "hora"
+        elif forma_calculo == "por_dia":
+            custo = pessoas * quantidade * valor_unitario
+            unidade = _gerador_item_valor(unidades, indice) or "dia"
+        else:
+            custo = valor_unitario
+            unidade = _gerador_item_valor(unidades, indice) or "fixo"
+
+        if custo <= 0:
+            continue
+
+        adicionais.append(
+            {
+                "tipo": tipo,
+                "tipo_nome": tipo_nome,
+                "descricao": descricao,
+                "funcionario_funcao": funcionario_funcao,
+                "pessoas": pessoas,
+                "quantidade": quantidade,
+                "unidade": unidade,
+                "forma_calculo": forma_calculo,
+                "forma_calculo_nome": GERADOR_ADICIONAIS_MAO_OBRA_FORMAS_POR_CODIGO[forma_calculo],
+                "percentual": percentual,
+                "valor_base": valor_base,
+                "valor_unitario": valor_unitario,
+                "custo": custo,
+                "exibir_cliente": _gerador_adicional_exibir_cliente(
+                    exibir_cliente_lista,
+                    indice,
+                    total_linhas,
+                ),
+            }
+        )
+
+    return adicionais
+
+
 def montar_gerador_orcamento_formulario() -> dict[str, Any]:
     materiais_descricao = _limpar_lista_formulario("material_descricao")
     materiais_unidade = _limpar_lista_formulario("material_unidade")
@@ -5638,6 +6041,8 @@ def montar_gerador_orcamento_formulario() -> dict[str, Any]:
             }
         )
 
+    adicionais_mao_obra = _montar_adicionais_mao_obra_formulario(mao_obra)
+
     custos_adicionais: list[dict[str, Any]] = []
     for indice in range(max(len(custos_descricao), len(custos_valor), 0)):
         descricao = _gerador_item_valor(custos_descricao, indice)
@@ -5656,13 +6061,15 @@ def montar_gerador_orcamento_formulario() -> dict[str, Any]:
 
     custo_material = sum(item["custo"] for item in materiais)
     custo_mao_obra = sum(item["custo"] for item in mao_obra)
+    custo_adicionais_mao_obra = sum(item["custo"] for item in adicionais_mao_obra)
     custo_adicional = sum(item["valor"] for item in custos_adicionais)
-    custo_total = custo_material + custo_mao_obra + custo_adicional
+    custo_total = custo_material + custo_mao_obra + custo_adicionais_mao_obra + custo_adicional
 
     venda_material = custo_material * (1 + (margem_material / 100))
     venda_mao_obra = custo_mao_obra * (1 + (margem_mao_obra / 100))
+    venda_adicionais_mao_obra = custo_adicionais_mao_obra * (1 + (margem_mao_obra / 100))
     venda_custos = custo_adicional * (1 + (margem_custos / 100))
-    base_comercial = venda_material + venda_mao_obra + venda_custos
+    base_comercial = venda_material + venda_mao_obra + venda_adicionais_mao_obra + venda_custos
     administrativo_valor = base_comercial * (administrativo_percentual / 100)
     reserva_valor = base_comercial * (reserva_percentual / 100)
     base_antes_imposto = base_comercial + administrativo_valor + reserva_valor
@@ -5703,6 +6110,7 @@ def montar_gerador_orcamento_formulario() -> dict[str, Any]:
         "observacoes_cliente": str(request.form.get("gerador_observacoes_cliente") or "").strip(),
         "materiais": materiais,
         "mao_obra": mao_obra,
+        "adicionais_mao_obra": adicionais_mao_obra,
         "custos_adicionais": custos_adicionais,
         "margem_material": margem_material,
         "margem_mao_obra": margem_mao_obra,
@@ -5712,10 +6120,12 @@ def montar_gerador_orcamento_formulario() -> dict[str, Any]:
         "reserva_percentual": reserva_percentual,
         "custo_material": custo_material,
         "custo_mao_obra": custo_mao_obra,
+        "custo_adicionais_mao_obra": custo_adicionais_mao_obra,
         "custo_adicional": custo_adicional,
         "custo_total": custo_total,
         "venda_material": venda_material,
         "venda_mao_obra": venda_mao_obra,
+        "venda_adicionais_mao_obra": venda_adicionais_mao_obra,
         "venda_custos": venda_custos,
         "administrativo_valor": administrativo_valor,
         "reserva_valor": reserva_valor,
@@ -5754,12 +6164,15 @@ def gerar_orcamento_por_gerador_db(dados: dict[str, Any]) -> int:
     valor_total = float(dados.get("valor_escolhido") or 0)
     venda_material = float(dados.get("venda_material") or 0)
     venda_mao_obra = float(dados.get("venda_mao_obra") or 0)
+    venda_adicionais_mao_obra = float(dados.get("venda_adicionais_mao_obra") or 0)
     venda_custos = float(dados.get("venda_custos") or 0)
+    margem_mao_obra = float(dados.get("margem_mao_obra") or 0)
     materiais = list(dados.get("materiais") or [])
+    adicionais_mao_obra = list(dados.get("adicionais_mao_obra") or [])
 
     # Padrão igual ao orçamento manual:
     # - materiais aparecem na seção PRODUTOS;
-    # - mão de obra/custos aparecem na seção SERVIÇOS;
+    # - mão de obra, adicionais e custos aparecem na seção SERVIÇOS;
     # - impostos, administrativo, reserva técnica e lucro ficam embutidos nos valores.
     bases_grupos = []
     nomes_grupos = []
@@ -5768,7 +6181,7 @@ def gerar_orcamento_por_gerador_db(dados: dict[str, Any]) -> int:
         bases_grupos.append(venda_material)
         nomes_grupos.append("produtos")
 
-    servicos_base = venda_mao_obra + venda_custos
+    servicos_base = venda_mao_obra + venda_adicionais_mao_obra + venda_custos
     if servicos_base > 0:
         bases_grupos.append(servicos_base)
         nomes_grupos.append("servicos")
@@ -5824,47 +6237,95 @@ def gerar_orcamento_por_gerador_db(dados: dict[str, Any]) -> int:
             )
 
     if total_servicos_numero > 0:
-        bases_servicos = []
-        descricoes_servicos: list[tuple[str, str]] = []
+        componentes_servicos: list[dict[str, Any]] = []
+        adicionais_visiveis: list[dict[str, Any]] = []
+        venda_adicionais_ocultos = 0.0
 
-        if venda_mao_obra > 0:
-            bases_servicos.append(venda_mao_obra)
-            descricoes_servicos.append(
-                (
-                    "Mão de obra técnica",
-                    "Equipe técnica, tempo de execução e mobilização conforme escopo do serviço.",
-                )
+        for adicional in adicionais_mao_obra:
+            custo_adicional = float(adicional.get("custo") or 0)
+            venda_adicional = custo_adicional * (1 + (margem_mao_obra / 100))
+
+            if str(adicional.get("exibir_cliente") or "nao").strip().lower() == "sim":
+                adicional_com_venda = dict(adicional)
+                adicional_com_venda["venda"] = venda_adicional
+                adicionais_visiveis.append(adicional_com_venda)
+            else:
+                venda_adicionais_ocultos += venda_adicional
+
+        base_mao_obra_agrupada = venda_mao_obra + venda_adicionais_ocultos
+        if base_mao_obra_agrupada > 0:
+            componentes_servicos.append(
+                {
+                    "base": base_mao_obra_agrupada,
+                    "descricao": "Mão de obra técnica",
+                    "detalhes": "Equipe técnica, tempo de execução e mobilização conforme escopo do serviço.",
+                }
             )
+
+        for adicional in adicionais_visiveis:
+            detalhes_adicional = "Adicional de mão de obra aplicado conforme as condições previstas para a execução."
+            funcionario_funcao = str(adicional.get("funcionario_funcao") or "").strip()
+            if funcionario_funcao:
+                detalhes_adicional += f" Equipe/função: {funcionario_funcao}."
+
+            componentes_servicos.append(
+                {
+                    "base": float(adicional.get("venda") or 0),
+                    "descricao": str(adicional.get("descricao") or adicional.get("tipo_nome") or "Adicional de mão de obra"),
+                    "detalhes": detalhes_adicional,
+                }
+            )
+
+        venda_adicionais_componentes = sum(
+            float(componente.get("base") or 0)
+            for componente in componentes_servicos
+        ) - venda_mao_obra
+        diferenca_adicionais = venda_adicionais_mao_obra - venda_adicionais_componentes
+        if diferenca_adicionais > 0.01:
+            if componentes_servicos and componentes_servicos[0]["descricao"] == "Mão de obra técnica":
+                componentes_servicos[0]["base"] = float(componentes_servicos[0]["base"]) + diferenca_adicionais
+            else:
+                componentes_servicos.insert(
+                    0,
+                    {
+                        "base": diferenca_adicionais,
+                        "descricao": "Mão de obra técnica",
+                        "detalhes": "Equipe técnica e adicionais necessários à execução conforme escopo do serviço.",
+                    },
+                )
 
         if venda_custos > 0:
-            bases_servicos.append(venda_custos)
-            descricoes_servicos.append(
-                (
-                    "Custos operacionais",
-                    "Deslocamento, ferramentas, consumíveis e demais custos operacionais necessários à execução.",
-                )
+            componentes_servicos.append(
+                {
+                    "base": venda_custos,
+                    "descricao": "Custos operacionais",
+                    "detalhes": "Deslocamento, ferramentas, consumíveis e demais custos operacionais necessários à execução.",
+                }
             )
 
-        if not bases_servicos:
-            bases_servicos.append(total_servicos_numero)
-            descricoes_servicos.append(
-                (
-                    "Serviço técnico conforme escopo",
-                    str(dados.get("escopo") or "Serviço técnico gerado pelo Gerador de Orçamentos."),
-                )
+        if not componentes_servicos:
+            componentes_servicos.append(
+                {
+                    "base": total_servicos_numero,
+                    "descricao": "Serviço técnico conforme escopo",
+                    "detalhes": str(dados.get("escopo") or "Serviço técnico gerado pelo Gerador de Orçamentos."),
+                }
             )
 
-        valores_servicos = _gerador_alocar_total(total_servicos_numero, bases_servicos)
+        valores_servicos = _gerador_alocar_total(
+            total_servicos_numero,
+            [float(componente.get("base") or 0) for componente in componentes_servicos],
+        )
 
-        for (descricao, detalhes), valor_servico in zip(descricoes_servicos, valores_servicos):
+        for componente, valor_servico in zip(componentes_servicos, valores_servicos):
             if valor_servico <= 0:
                 continue
 
             itens.append(
                 {
                     "tipo_item": "servico",
-                    "descricao": descricao,
-                    "detalhes": detalhes,
+                    "descricao": str(componente.get("descricao") or "Serviço técnico"),
+                    "detalhes": str(componente.get("detalhes") or ""),
                     "quantidade": "1",
                     "valor_unitario": _formatar_moeda_brl(valor_servico),
                     "desconto": "0,00",
@@ -5874,17 +6335,29 @@ def gerar_orcamento_por_gerador_db(dados: dict[str, Any]) -> int:
 
     detalhes_internos = [
         "Orçamento gerado pelo Gerador de Orçamentos.",
-        "Materiais separados como PRODUTOS e mão de obra/custos separados como SERVIÇOS, mantendo o padrão do orçamento manual.",
+        "Materiais separados como PRODUTOS e mão de obra/adicionais/custos separados como SERVIÇOS, mantendo o padrão do orçamento manual.",
         "A composição de impostos, administrativo, reserva técnica e lucro foi embutida nos itens comerciais.",
         f"Tipo de serviço: {dados.get('tipo_servico') or '-'}",
         f"Valor escolhido: {dados.get('tipo_valor') or 'recomendado'}",
         f"Custo material: R$ {_formatar_moeda_brl(float(dados.get('custo_material') or 0))}",
         f"Custo mão de obra: R$ {_formatar_moeda_brl(float(dados.get('custo_mao_obra') or 0))}",
+        f"Adicionais de mão de obra: R$ {_formatar_moeda_brl(float(dados.get('custo_adicionais_mao_obra') or 0))}",
         f"Custos adicionais: R$ {_formatar_moeda_brl(float(dados.get('custo_adicional') or 0))}",
         f"Custo total: R$ {_formatar_moeda_brl(float(dados.get('custo_total') or 0))}",
         f"Lucro estimado: R$ {_formatar_moeda_brl(float(dados.get('lucro_estimado') or 0))}",
         f"Margem estimada: {_formatar_moeda_brl(float(dados.get('margem_estimado') or 0))}%",
     ]
+
+    if adicionais_mao_obra:
+        detalhes_internos.append("Detalhamento dos adicionais de mão de obra:")
+        for adicional in adicionais_mao_obra:
+            detalhes_internos.append(
+                " - "
+                + str(adicional.get("descricao") or adicional.get("tipo_nome") or "Adicional")
+                + f" | Forma: {adicional.get('forma_calculo_nome') or adicional.get('forma_calculo') or '-'}"
+                + f" | Custo: R$ {_formatar_moeda_brl(float(adicional.get('custo') or 0))}"
+                + f" | Exibir ao cliente: {adicional.get('exibir_cliente') or 'nao'}"
+            )
 
     escopo = str(dados.get("escopo") or "").replace("\\n", "\n").strip()
     observacoes_cliente = str(dados.get("observacoes_cliente") or "").replace("\\n", "\n").strip()
@@ -5923,7 +6396,9 @@ def gerar_orcamento_por_gerador_db(dados: dict[str, Any]) -> int:
         "observacoes_internas": "\n".join(detalhes_internos),
     }
 
-    return salvar_orcamento_db(orcamento, itens)
+    orcamento_id = salvar_orcamento_db(orcamento, itens)
+    salvar_orcamento_adicionais_mao_obra_db(orcamento_id, adicionais_mao_obra)
+    return orcamento_id
 
 def proximo_numero_venda() -> str:
     empresa_id = empresa_logada_id()
@@ -17256,7 +17731,12 @@ def gerador_orcamentos() -> str | Response:
             return redirect(url_for("gerador_orcamentos", erro="Selecione um responsável para gerar o orçamento."))
 
         if float(dados.get("valor_escolhido") or 0) <= 0:
-            return redirect(url_for("gerador_orcamentos", erro="Informe materiais, mão de obra ou custos para formar um valor de orçamento."))
+            return redirect(
+                url_for(
+                    "gerador_orcamentos",
+                    erro="Informe materiais, mão de obra, adicionais de mão de obra ou custos para formar um valor de orçamento.",
+                )
+            )
 
         novo_orcamento_id = gerar_orcamento_por_gerador_db(dados)
         return redirect(url_for("ver_orcamento", orcamento_id=novo_orcamento_id))
@@ -17267,6 +17747,8 @@ def gerador_orcamentos() -> str | Response:
         funcionarios=listar_funcionarios(),
         produtos=listar_produtos(),
         gerador_config=buscar_configuracao_gerador_empresa(),
+        adicionais_mao_obra_tipos=GERADOR_ADICIONAIS_MAO_OBRA_TIPOS,
+        adicionais_mao_obra_formas=GERADOR_ADICIONAIS_MAO_OBRA_FORMAS_CALCULO,
         proximo_numero=proximo_numero_orcamento(),
         data_hoje=hoje_empresa().isoformat(),
     )

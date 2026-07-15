@@ -1,7 +1,7 @@
 <!--
-Caminho: templates/orcamento_gerador.html
-Último recode: 2026-07-02 23:41 (America/Bahia)
-Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_gerador.html
+Último recode: 2026-07-14 21:19 (America/Bahia)
+Motivo: Adicionar cálculo detalhado de adicionais de mão de obra no Gerador de Orçamentos.
 -->
 
 <!DOCTYPE html>
@@ -239,6 +239,119 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                 min-width: 680px;
             }
         }
+
+        .adicionais-mao-obra-lista {
+            display: grid;
+            gap: 14px;
+        }
+
+        .adicional-mao-obra-card {
+            border: 1px solid #dfe6ef;
+            border-radius: 14px;
+            background: #ffffff;
+            padding: 14px;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+        }
+
+        .adicional-mao-obra-topo {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .adicional-mao-obra-topo strong {
+            color: #0f172a;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+
+        .adicional-mao-obra-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+            align-items: end;
+        }
+
+        .adicional-mao-obra-grid .form-group {
+            margin: 0;
+        }
+
+        .adicional-campo-duplo {
+            grid-column: span 2;
+        }
+
+        .adicional-campo-oculto {
+            display: none !important;
+        }
+
+        .adicional-total-box {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-top: 12px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+        }
+
+        .adicional-total-box span {
+            color: #166534;
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .adicional-total-box strong {
+            color: #15803d;
+            font-size: 16px;
+        }
+
+        .adicional-ajuda {
+            display: block;
+            margin-top: 5px;
+            color: #64748b;
+            font-size: 11px;
+            line-height: 1.35;
+        }
+
+        .gerador-mini-resumo {
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+        }
+
+        @media (max-width: 1100px) {
+            .adicional-mao-obra-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .gerador-mini-resumo {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 720px) {
+            .adicional-mao-obra-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .adicional-campo-duplo {
+                grid-column: auto;
+            }
+
+            .adicional-mao-obra-topo,
+            .adicional-total-box {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .gerador-mini-resumo {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 
 </head>
@@ -418,6 +531,23 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                     <section class="panel page-section">
                         <div class="panel-header page-header">
                             <div>
+                                <h3>Adicionais de mão de obra</h3>
+                                <p class="page-subtitle">Inclua hora extra, insalubridade, periculosidade e trabalhos especiais como altura, subestação, NR-10 e NR-12.</p>
+                            </div>
+                            <button type="button" class="btn-primary-green" onclick="adicionarAdicionalMaoObra()">+ Adicional</button>
+                        </div>
+
+                        <div id="adicionais-mao-obra-body" class="adicionais-mao-obra-lista"></div>
+
+                        <div class="gerador-table-actions">
+                            <button type="button" class="btn-primary-green" onclick="adicionarAdicionalMaoObra()">+ Adicionar adicional</button>
+                            <span>O valor usa a mesma margem comercial definida para mão de obra.</span>
+                        </div>
+                    </section>
+
+                    <section class="panel page-section">
+                        <div class="panel-header page-header">
+                            <div>
                                 <h3>Custos adicionais</h3>
                                 <p class="page-subtitle">Coloque transporte, alimentação, hospedagem, ART, ferramentas, consumíveis e outros custos.</p>
                             </div>
@@ -485,6 +615,7 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                         <h3>Resumo de custo</h3>
                         <div class="gerador-indicador"><span>Material</span><strong id="res-custo-material">R$ 0,00</strong></div>
                         <div class="gerador-indicador"><span>Mão de obra</span><strong id="res-custo-mao">R$ 0,00</strong></div>
+                        <div class="gerador-indicador"><span>Adicionais de mão de obra</span><strong id="res-custo-adicionais-mao">R$ 0,00</strong></div>
                         <div class="gerador-indicador"><span>Custos adicionais</span><strong id="res-custo-adicional">R$ 0,00</strong></div>
                         <div class="gerador-indicador"><span>Custo total</span><strong id="res-custo-total">R$ 0,00</strong></div>
                     </div>
@@ -541,7 +672,8 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                         <div class="gerador-linha-valor custo"><span>Custos</span><strong id="painel-custo-total">R$ 0,00</strong></div>
                         <div class="gerador-linha-valor lucro"><span>Lucro</span><strong id="painel-lucro-total">R$ 0,00</strong></div>
                         <div class="gerador-linha-valor"><span>Custo mão de obra</span><strong id="painel-custo-mao">R$ 0,00</strong></div>
-                        <div class="gerador-linha-valor"><span>Lucro mão de obra</span><strong id="painel-lucro-mao">R$ 0,00</strong></div>
+                        <div class="gerador-linha-valor"><span>Adicionais mão de obra</span><strong id="painel-custo-adicionais-mao">R$ 0,00</strong></div>
+                        <div class="gerador-linha-valor"><span>Lucro mão de obra + adicionais</span><strong id="painel-lucro-mao">R$ 0,00</strong></div>
                         <div class="gerador-linha-valor"><span>Custo material</span><strong id="painel-custo-material">R$ 0,00</strong></div>
                         <div class="gerador-linha-valor"><span>Lucro material</span><strong id="painel-lucro-material">R$ 0,00</strong></div>
                         <div class="gerador-linha-valor impostos"><span>Impostos</span><strong id="painel-impostos">R$ 0,00</strong></div>
@@ -575,6 +707,10 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                             <b><i id="barra-mao"></i></b>
                         </div>
                         <div class="gerador-barra-item">
+                            <div><span>Adicionais de mão de obra</span><strong id="barra-adicionais-mao-label">0%</strong></div>
+                            <b><i id="barra-adicionais-mao"></i></b>
+                        </div>
+                        <div class="gerador-barra-item">
                             <div><span>Custos adicionais</span><strong id="barra-custos-label">0%</strong></div>
                             <b><i id="barra-custos"></i></b>
                         </div>
@@ -589,6 +725,7 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                     <div><span>Margem estimada</span><strong id="painel-margem">0,00%</strong></div>
                     <div><span>Venda material</span><strong id="painel-venda-material">R$ 0,00</strong></div>
                     <div><span>Venda mão de obra</span><strong id="painel-venda-mao">R$ 0,00</strong></div>
+                    <div><span>Venda adicionais</span><strong id="painel-venda-adicionais-mao">R$ 0,00</strong></div>
                     <div><span>Venda custos</span><strong id="painel-venda-custos">R$ 0,00</strong></div>
                 </div>
             </section>
@@ -651,8 +788,31 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
 <script>
 const materiaisCatalogo = {{ produtos|default([])|tojson }};
 const funcionariosCatalogo = {{ funcionarios|default([])|tojson }};
+const adicionaisMaoObraTiposBackend = {{ adicionais_mao_obra_tipos|default([])|tojson }};
+const adicionaisMaoObraFormasBackend = {{ adicionais_mao_obra_formas|default([])|tojson }};
+const adicionaisMaoObraTipos = adicionaisMaoObraTiposBackend.length ? adicionaisMaoObraTiposBackend : [
+    { codigo: 'hora_extra_sabado', nome: 'Hora extra de sábado' },
+    { codigo: 'hora_extra_domingo_feriado', nome: 'Hora extra de domingo/feriado' },
+    { codigo: 'insalubridade', nome: 'Insalubridade' },
+    { codigo: 'periculosidade', nome: 'Periculosidade' },
+    { codigo: 'trabalho_noturno', nome: 'Trabalho noturno' },
+    { codigo: 'trabalho_altura', nome: 'Trabalho em altura' },
+    { codigo: 'subestacao', nome: 'Trabalho em subestação' },
+    { codigo: 'espaco_confinado', nome: 'Espaço confinado' },
+    { codigo: 'nr10', nome: 'Serviço NR-10' },
+    { codigo: 'nr12', nome: 'Serviço NR-12' },
+    { codigo: 'especial', nome: 'Trabalho especial personalizado' }
+];
+const adicionaisMaoObraFormas = adicionaisMaoObraFormasBackend.length ? adicionaisMaoObraFormasBackend : [
+    { codigo: 'percentual_mao_obra', nome: 'Percentual sobre a mão de obra' },
+    { codigo: 'por_pessoa', nome: 'Valor por pessoa' },
+    { codigo: 'por_hora', nome: 'Valor por hora' },
+    { codigo: 'por_dia', nome: 'Valor por dia' },
+    { codigo: 'fixo', nome: 'Valor fixo' }
+];
 let materialLinhaAlvo = null;
 let funcionarioLinhaAlvo = null;
+let adicionalMaoObraSequencia = 0;
 
 function textoSeguro(valor) {
     return String(valor || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -695,9 +855,37 @@ function opcoesFuncionarios() {
     return html;
 }
 
+function opcoesTiposAdicionais() {
+    let html = '<option value="">Selecione o adicional</option>';
+    adicionaisMaoObraTipos.forEach(function(item) {
+        html += `<option value="${textoSeguro(item.codigo)}">${textoSeguro(item.nome)}</option>`;
+    });
+    return html;
+}
+
+function opcoesFormasAdicionais() {
+    return adicionaisMaoObraFormas.map(function(item) {
+        return `<option value="${textoSeguro(item.codigo)}">${textoSeguro(item.nome)}</option>`;
+    }).join('');
+}
+
+function nomeTipoAdicional(codigo) {
+    const item = adicionaisMaoObraTipos.find(tipo => tipo.codigo === codigo);
+    return item ? item.nome : '';
+}
+
+function formaPadraoTipoAdicional(codigo) {
+    if (['hora_extra_sabado', 'hora_extra_domingo_feriado', 'insalubridade', 'periculosidade', 'trabalho_noturno'].includes(codigo)) {
+        return 'percentual_mao_obra';
+    }
+    return 'fixo';
+}
+
 function removerLinha(botao) {
     const linha = botao.closest('tr');
+    const eraMaoObra = Boolean(linha && linha.closest('#mao-obra-body'));
     if (linha) linha.remove();
+    if (eraMaoObra) atualizarOpcoesFuncoesAdicionais();
     recalcularGerador();
 }
 
@@ -734,7 +922,264 @@ function adicionarMaoObra(dados = {}) {
     body.appendChild(tr);
     if (dados.funcao) tr.querySelector('.mao-select').value = dados.funcao;
     conectarEventosGerador(tr);
+    atualizarOpcoesFuncoesAdicionais();
     recalcularGerador();
+}
+
+function adicionarAdicionalMaoObra(dados = {}) {
+    const body = document.getElementById('adicionais-mao-obra-body');
+    const card = document.createElement('div');
+    adicionalMaoObraSequencia += 1;
+    card.className = 'adicional-mao-obra-card';
+    card.dataset.adicionalId = String(adicionalMaoObraSequencia);
+    card.innerHTML = `
+        <div class="adicional-mao-obra-topo">
+            <strong>Adicional de mão de obra</strong>
+            <button type="button" class="gerador-remove" onclick="removerAdicionalMaoObra(this)" aria-label="Remover adicional">×</button>
+        </div>
+        <div class="adicional-mao-obra-grid">
+            <div class="form-group adicional-campo-duplo">
+                <label>Tipo de adicional</label>
+                <select name="adicional_tipo" class="form-control gerador-input adicional-tipo">${opcoesTiposAdicionais()}</select>
+            </div>
+            <div class="form-group adicional-campo-duplo">
+                <label>Descrição</label>
+                <input name="adicional_descricao" type="text" class="form-control gerador-input adicional-descricao" placeholder="Ex: Trabalho em altura para intervenção no telhado" value="${textoSeguro(dados.descricao || '')}">
+            </div>
+            <div class="form-group adicional-campo-duplo">
+                <label>Funcionário / função</label>
+                <select name="adicional_funcao" class="form-control gerador-input adicional-funcao" data-valor-inicial="${textoSeguro(dados.funcao || '')}"></select>
+                <small class="adicional-ajuda">Deixe em “Toda a mão de obra” para usar o custo completo da equipe.</small>
+            </div>
+            <div class="form-group adicional-campo-duplo">
+                <label>Forma de cálculo</label>
+                <select name="adicional_forma_calculo" class="form-control gerador-input adicional-forma">${opcoesFormasAdicionais()}</select>
+            </div>
+            <div class="form-group adicional-campo-pessoas">
+                <label>Pessoas</label>
+                <input name="adicional_pessoas" type="text" class="form-control gerador-input" value="${textoSeguro(dados.pessoas || '1')}">
+            </div>
+            <div class="form-group adicional-campo-quantidade">
+                <label class="adicional-quantidade-label">Quantidade</label>
+                <input name="adicional_quantidade" type="text" class="form-control gerador-input" value="${textoSeguro(dados.quantidade || '1')}">
+            </div>
+            <div class="form-group adicional-campo-percentual">
+                <label>Percentual %</label>
+                <input name="adicional_percentual" type="text" class="form-control gerador-input" placeholder="0" value="${textoSeguro(dados.percentual || '')}">
+                <small class="adicional-ajuda">Informe conforme contrato, convenção ou condição comercial aplicada.</small>
+            </div>
+            <div class="form-group adicional-campo-base">
+                <label>Base da mão de obra</label>
+                <input name="adicional_valor_base" type="text" class="form-control gerador-input adicional-base" placeholder="Calculada automaticamente" value="${textoSeguro(dados.valor_base || '')}">
+                <small class="adicional-ajuda">O sistema preenche pelo funcionário selecionado ou por toda a equipe.</small>
+            </div>
+            <div class="form-group adicional-campo-valor">
+                <label class="adicional-valor-label">Valor</label>
+                <input name="adicional_valor_unitario" type="text" class="form-control gerador-input" placeholder="0,00" value="${textoSeguro(dados.valor_unitario || '')}">
+            </div>
+            <div class="form-group">
+                <label>Exibir no orçamento</label>
+                <select name="adicional_exibir_cliente" class="form-control gerador-input">
+                    <option value="nao">Não, embutir na mão de obra</option>
+                    <option value="sim">Sim, mostrar separado</option>
+                </select>
+            </div>
+            <input name="adicional_unidade" type="hidden" value="${textoSeguro(dados.unidade || 'fixo')}">
+        </div>
+        <div class="adicional-total-box">
+            <span>Custo deste adicional</span>
+            <strong class="adicional-total">R$ 0,00</strong>
+        </div>
+    `;
+    body.appendChild(card);
+
+    const tipo = card.querySelector('.adicional-tipo');
+    const forma = card.querySelector('.adicional-forma');
+    const exibir = card.querySelector('[name="adicional_exibir_cliente"]');
+    if (dados.tipo) tipo.value = dados.tipo;
+    forma.value = dados.forma_calculo || formaPadraoTipoAdicional(tipo.value);
+    exibir.value = dados.exibir_cliente === 'sim' ? 'sim' : 'nao';
+
+    conectarEventosAdicionalMaoObra(card);
+    atualizarOpcoesFuncoesAdicionais();
+    atualizarAdicionalPorTipo(card, false);
+    atualizarFormaCalculoAdicional(card);
+    recalcularGerador();
+}
+
+function removerAdicionalMaoObra(botao) {
+    const card = botao.closest('.adicional-mao-obra-card');
+    if (card) card.remove();
+    recalcularGerador();
+}
+
+function conectarEventosAdicionalMaoObra(card) {
+    card.querySelectorAll('.gerador-input').forEach(function(campo) {
+        if (!campo.classList.contains('adicional-base')) {
+            campo.addEventListener('input', recalcularGerador);
+        }
+        campo.addEventListener('change', recalcularGerador);
+    });
+
+    const tipo = card.querySelector('.adicional-tipo');
+    const forma = card.querySelector('.adicional-forma');
+    const funcao = card.querySelector('.adicional-funcao');
+    const base = card.querySelector('.adicional-base');
+
+    tipo.addEventListener('change', function() {
+        atualizarAdicionalPorTipo(card, true);
+        recalcularGerador();
+    });
+
+    forma.addEventListener('change', function() {
+        atualizarFormaCalculoAdicional(card);
+        recalcularGerador();
+    });
+
+    funcao.addEventListener('change', function() {
+        base.dataset.manual = 'nao';
+        recalcularGerador();
+    });
+
+    base.addEventListener('input', function() {
+        base.dataset.manual = 'sim';
+        recalcularGerador();
+    });
+}
+
+function atualizarAdicionalPorTipo(card, alterarForma) {
+    const tipo = card.querySelector('.adicional-tipo')?.value || '';
+    const descricao = card.querySelector('.adicional-descricao');
+    const nomeAutomatico = nomeTipoAdicional(tipo);
+    const descricaoAutomaticaAnterior = descricao.dataset.descricaoAutomatica || '';
+
+    if (tipo === 'especial') {
+        if (!descricao.value || descricao.value === descricaoAutomaticaAnterior) descricao.value = '';
+        descricao.dataset.descricaoAutomatica = '';
+        descricao.placeholder = 'Descreva o trabalho especial, risco ou condição específica';
+        descricao.required = true;
+    } else {
+        if (!descricao.value || descricao.value === descricaoAutomaticaAnterior) {
+            descricao.value = nomeAutomatico;
+            descricao.dataset.descricaoAutomatica = nomeAutomatico;
+        }
+        descricao.placeholder = 'Ex: Trabalho em altura para intervenção no telhado';
+        descricao.required = false;
+    }
+
+    if (alterarForma) {
+        card.querySelector('.adicional-forma').value = formaPadraoTipoAdicional(tipo);
+        card.querySelector('.adicional-base').dataset.manual = 'nao';
+    }
+
+    atualizarFormaCalculoAdicional(card);
+}
+
+function atualizarFormaCalculoAdicional(card) {
+    const forma = card.querySelector('.adicional-forma')?.value || 'fixo';
+    const campoPessoas = card.querySelector('.adicional-campo-pessoas');
+    const campoQuantidade = card.querySelector('.adicional-campo-quantidade');
+    const campoPercentual = card.querySelector('.adicional-campo-percentual');
+    const campoBase = card.querySelector('.adicional-campo-base');
+    const campoValor = card.querySelector('.adicional-campo-valor');
+    const quantidadeLabel = card.querySelector('.adicional-quantidade-label');
+    const valorLabel = card.querySelector('.adicional-valor-label');
+    const unidade = card.querySelector('[name="adicional_unidade"]');
+
+    [campoPessoas, campoQuantidade, campoPercentual, campoBase, campoValor].forEach(campo => campo.classList.remove('adicional-campo-oculto'));
+
+    if (forma === 'percentual_mao_obra') {
+        campoPessoas.classList.add('adicional-campo-oculto');
+        campoQuantidade.classList.add('adicional-campo-oculto');
+        campoValor.classList.add('adicional-campo-oculto');
+        unidade.value = '%';
+    } else if (forma === 'por_pessoa') {
+        campoQuantidade.classList.add('adicional-campo-oculto');
+        campoPercentual.classList.add('adicional-campo-oculto');
+        campoBase.classList.add('adicional-campo-oculto');
+        valorLabel.textContent = 'Valor por pessoa';
+        unidade.value = 'pessoa';
+    } else if (forma === 'por_hora') {
+        campoPercentual.classList.add('adicional-campo-oculto');
+        campoBase.classList.add('adicional-campo-oculto');
+        quantidadeLabel.textContent = 'Horas';
+        valorLabel.textContent = 'Valor por hora';
+        unidade.value = 'hora';
+    } else if (forma === 'por_dia') {
+        campoPercentual.classList.add('adicional-campo-oculto');
+        campoBase.classList.add('adicional-campo-oculto');
+        quantidadeLabel.textContent = 'Dias';
+        valorLabel.textContent = 'Valor por dia';
+        unidade.value = 'dia';
+    } else {
+        campoPessoas.classList.add('adicional-campo-oculto');
+        campoQuantidade.classList.add('adicional-campo-oculto');
+        campoPercentual.classList.add('adicional-campo-oculto');
+        campoBase.classList.add('adicional-campo-oculto');
+        valorLabel.textContent = 'Valor fixo';
+        unidade.value = 'fixo';
+    }
+}
+
+function atualizarOpcoesFuncoesAdicionais() {
+    const funcoes = [];
+    document.querySelectorAll('#mao-obra-body .mao-select').forEach(function(select) {
+        const valor = select.value;
+        if (!valor || valor.startsWith('__novo')) return;
+        const texto = select.selectedOptions[0]?.textContent || valor;
+        if (!funcoes.some(item => item.valor === valor)) funcoes.push({ valor, texto });
+    });
+
+    document.querySelectorAll('.adicional-funcao').forEach(function(select) {
+        const atual = select.value || select.dataset.valorInicial || '';
+        select.innerHTML = '<option value="">Toda a mão de obra</option>' + funcoes.map(function(item) {
+            return `<option value="${textoSeguro(item.valor)}">${textoSeguro(item.texto)}</option>`;
+        }).join('');
+        if (funcoes.some(item => item.valor === atual)) select.value = atual;
+        else select.value = '';
+        select.dataset.valorInicial = '';
+    });
+}
+
+function custoMaoObraReferencia(funcao) {
+    let total = 0;
+    document.querySelectorAll('#mao-obra-body tr').forEach(function(tr) {
+        const selecionada = tr.querySelector('.mao-select')?.value || '';
+        if (funcao && selecionada !== funcao) return;
+        const pessoas = numero(tr.querySelector('[name="mao_pessoas"]')?.value) || 1;
+        const tempo = numero(tr.querySelector('[name="mao_tempo"]')?.value) || 1;
+        const custo = numero(tr.querySelector('[name="mao_custo_unitario"]')?.value);
+        total += pessoas * tempo * custo;
+    });
+    return total;
+}
+
+function calcularAdicionalMaoObra(card) {
+    const forma = card.querySelector('.adicional-forma')?.value || 'fixo';
+    const funcao = card.querySelector('.adicional-funcao')?.value || '';
+    const pessoas = numero(card.querySelector('[name="adicional_pessoas"]')?.value) || 1;
+    const quantidade = numero(card.querySelector('[name="adicional_quantidade"]')?.value) || 1;
+    const percentual = numero(card.querySelector('[name="adicional_percentual"]')?.value);
+    const valorUnitario = numero(card.querySelector('[name="adicional_valor_unitario"]')?.value);
+    const baseInput = card.querySelector('.adicional-base');
+    let total = 0;
+
+    if (forma === 'percentual_mao_obra') {
+        if (baseInput.dataset.manual !== 'sim') {
+            baseInput.value = moedaSemSimbolo(custoMaoObraReferencia(funcao));
+        }
+        total = numero(baseInput.value) * percentual / 100;
+    } else if (forma === 'por_pessoa') {
+        total = pessoas * valorUnitario;
+    } else if (forma === 'por_hora' || forma === 'por_dia') {
+        total = pessoas * quantidade * valorUnitario;
+    } else {
+        total = valorUnitario;
+    }
+
+    const totalEl = card.querySelector('.adicional-total');
+    if (totalEl) totalEl.textContent = moeda(total);
+    return total;
 }
 
 function adicionarCusto(dados = {}) {
@@ -826,6 +1271,18 @@ function listaCustosEscopo() {
         .slice(0, 10);
 }
 
+function listaAdicionaisMaoObraEscopo() {
+    return Array.from(document.querySelectorAll('.adicional-mao-obra-card'))
+        .map(function(card) {
+            const descricao = textoMaiusculoTecnico(card.querySelector('[name="adicional_descricao"]')?.value || '');
+            if (!descricao) return '';
+            const funcao = textoMaiusculoTecnico(card.querySelector('[name="adicional_funcao"]')?.value || '');
+            return funcao ? `${descricao} - ${funcao}` : descricao;
+        })
+        .filter(Boolean)
+        .slice(0, 10);
+}
+
 function montarLinhasOuPadrao(lista, padrao) {
     if (lista.length) return lista.join('\n');
     return padrao;
@@ -839,6 +1296,7 @@ function gerarEscopoAutomatico() {
     const cliente = textoMaiusculoTecnico(document.getElementById('gerador_cliente')?.value || 'CLIENTE');
     const materiais = listaMateriaisEscopo();
     const maoObra = listaMaoObraEscopo();
+    const adicionaisMaoObra = listaAdicionaisMaoObraEscopo();
     const custos = listaCustosEscopo();
 
     const objetivoBase = resumo
@@ -861,6 +1319,7 @@ function gerarEscopoAutomatico() {
     ];
 
     maoObra.forEach(item => servicosExecutadosPadrao.push(`UTILIZACAO DE MAO DE OBRA: ${item}`));
+    adicionaisMaoObra.forEach(item => servicosExecutadosPadrao.push(`ADICIONAL DE MAO DE OBRA: ${item}`));
     custos.forEach(item => servicosExecutadosPadrao.push(`CUSTO OPERACIONAL PREVISTO: ${item}`));
 
     const materiaisPadrao = [
@@ -901,6 +1360,8 @@ function conectarEventosGerador(raiz) {
     raiz.querySelectorAll('.mao-select, .mao-unidade').forEach(function(campo) {
         campo.addEventListener('change', function() {
             preencherCustoFuncionario(campo.closest('tr'));
+            atualizarOpcoesFuncoesAdicionais();
+            document.querySelectorAll('.adicional-base').forEach(base => { if (base.dataset.manual !== 'sim') base.dataset.manual = 'nao'; });
             recalcularGerador();
         });
     });
@@ -909,6 +1370,7 @@ function conectarEventosGerador(raiz) {
 function recalcularGerador() {
     let custoMaterial = 0;
     let custoMao = 0;
+    let custoAdicionaisMao = 0;
     let custoAdicional = 0;
 
     document.querySelectorAll('#materiais-body tr').forEach(function(tr) {
@@ -929,6 +1391,10 @@ function recalcularGerador() {
         tr.querySelector('.linha-total').textContent = moeda(total);
     });
 
+    document.querySelectorAll('.adicional-mao-obra-card').forEach(function(card) {
+        custoAdicionaisMao += calcularAdicionalMaoObra(card);
+    });
+
     document.querySelectorAll('#custos-body tr').forEach(function(tr) {
         custoAdicional += numero(tr.querySelector('[name="custo_valor"]')?.value);
     });
@@ -940,11 +1406,12 @@ function recalcularGerador() {
     const administrativo = numero(document.getElementById('administrativo_percentual')?.value || 10);
     const reserva = numero(document.getElementById('reserva_percentual')?.value || 5);
 
-    const custoTotal = custoMaterial + custoMao + custoAdicional;
+    const custoTotal = custoMaterial + custoMao + custoAdicionaisMao + custoAdicional;
     const vendaMaterial = custoMaterial * (1 + margemMaterial / 100);
     const vendaMao = custoMao * (1 + margemMao / 100);
+    const vendaAdicionaisMao = custoAdicionaisMao * (1 + margemMao / 100);
     const vendaCustos = custoAdicional * (1 + margemCustos / 100);
-    const base = vendaMaterial + vendaMao + vendaCustos;
+    const base = vendaMaterial + vendaMao + vendaAdicionaisMao + vendaCustos;
     const administrativoValor = base * administrativo / 100;
     const reservaValor = base * reserva / 100;
     const baseAntesImposto = base + administrativoValor + reservaValor;
@@ -966,6 +1433,7 @@ function recalcularGerador() {
 
     document.getElementById('res-custo-material').textContent = moeda(custoMaterial);
     document.getElementById('res-custo-mao').textContent = moeda(custoMao);
+    document.getElementById('res-custo-adicionais-mao').textContent = moeda(custoAdicionaisMao);
     document.getElementById('res-custo-adicional').textContent = moeda(custoAdicional);
     document.getElementById('res-custo-total').textContent = moeda(custoTotal);
     document.getElementById('preco-minimo').textContent = moeda(minimo);
@@ -978,10 +1446,12 @@ function recalcularGerador() {
     atualizarPainelVisual({
         custoMaterial,
         custoMao,
+        custoAdicionaisMao,
         custoAdicional,
         custoTotal,
         vendaMaterial,
         vendaMao,
+        vendaAdicionaisMao,
         vendaCustos,
         administrativoValor,
         reservaValor,
@@ -999,7 +1469,11 @@ function atualizarPainelVisual(dados) {
     const margem = dados.margem || 0;
     const roi = custoTotal > 0 ? (lucro / custoTotal) * 100 : 0;
     const lucroMaterial = Math.max((dados.vendaMaterial || 0) - (dados.custoMaterial || 0), 0);
-    const lucroMao = Math.max((dados.vendaMao || 0) - (dados.custoMao || 0), 0);
+    const lucroMao = Math.max(
+        ((dados.vendaMao || 0) + (dados.vendaAdicionaisMao || 0))
+        - ((dados.custoMao || 0) + (dados.custoAdicionaisMao || 0)),
+        0
+    );
     const comercial = (dados.administrativoValor || 0) + (dados.reservaValor || 0) + (dados.impostoValor || 0);
 
     const setText = function(id, valor) {
@@ -1011,6 +1485,7 @@ function atualizarPainelVisual(dados) {
     setText('painel-custo-total', moeda(custoTotal));
     setText('painel-lucro-total', moeda(lucro));
     setText('painel-custo-mao', moeda(dados.custoMao || 0));
+    setText('painel-custo-adicionais-mao', moeda(dados.custoAdicionaisMao || 0));
     setText('painel-lucro-mao', moeda(lucroMao));
     setText('painel-custo-material', moeda(dados.custoMaterial || 0));
     setText('painel-lucro-material', moeda(lucroMaterial));
@@ -1021,6 +1496,7 @@ function atualizarPainelVisual(dados) {
     setText('painel-margem', moedaSemSimbolo(margem) + '%');
     setText('painel-venda-material', moeda(dados.vendaMaterial || 0));
     setText('painel-venda-mao', moeda(dados.vendaMao || 0));
+    setText('painel-venda-adicionais-mao', moeda(dados.vendaAdicionaisMao || 0));
     setText('painel-venda-custos', moeda(dados.vendaCustos || 0));
 
     const status = document.getElementById('painel-status');
@@ -1048,7 +1524,7 @@ function atualizarPainelVisual(dados) {
         donut.style.background = `conic-gradient(#ef4444 0 ${custoPct}%, #16a34a ${custoPct}% ${custoPct + lucroPct}%, #e5e7eb ${custoPct + lucroPct}% 100%)`;
     }
 
-    const totalComposicao = (dados.custoMaterial || 0) + (dados.custoMao || 0) + (dados.custoAdicional || 0) + comercial;
+    const totalComposicao = (dados.custoMaterial || 0) + (dados.custoMao || 0) + (dados.custoAdicionaisMao || 0) + (dados.custoAdicional || 0) + comercial;
     const atualizarBarra = function(barraId, labelId, valor) {
         const pct = totalComposicao > 0 ? Math.max(Math.min((valor / totalComposicao) * 100, 100), 0) : 0;
         const barra = document.getElementById(barraId);
@@ -1058,6 +1534,7 @@ function atualizarPainelVisual(dados) {
 
     atualizarBarra('barra-material', 'barra-material-label', dados.custoMaterial || 0);
     atualizarBarra('barra-mao', 'barra-mao-label', dados.custoMao || 0);
+    atualizarBarra('barra-adicionais-mao', 'barra-adicionais-mao-label', dados.custoAdicionaisMao || 0);
     atualizarBarra('barra-custos', 'barra-custos-label', dados.custoAdicional || 0);
     atualizarBarra('barra-comercial', 'barra-comercial-label', comercial);
 }
@@ -1188,6 +1665,7 @@ window.addEventListener('DOMContentLoaded', function() {
     conectarEventosGlobaisGerador();
     adicionarMaterial();
     adicionarMaoObra();
+    adicionarAdicionalMaoObra();
     adicionarCusto();
 });
 </script>
