@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-16 17:59 (America/Bahia)
-# Motivo: Implantar gestão financeira híbrida, preservar parcelas pagas e padronizar ações dos títulos.
+# Último recode: 2026-07-16 18:34 (America/Bahia)
+# Motivo: Corrigir redirecionamento de ajuste de estoque e geração de venda por agendamento.
 
 from __future__ import annotations
 
@@ -13905,6 +13905,14 @@ def gerar_venda_por_agendamento_db(agendamento_id: int) -> int | None:
         "desconto_percentual": "0,00",
         "valor_total": valor,
         "forma_pagamento": "",
+        "condicao_pagamento": "avista",
+        "meio_pagamento": "",
+        "valor_entrada": "0,00",
+        "meio_pagamento_entrada": "",
+        "data_entrada": hoje_empresa().isoformat(),
+        "quantidade_parcelas": 1,
+        "primeiro_vencimento": hoje_empresa().isoformat(),
+        "intervalo_parcelas": "mensal",
         "observacoes": f"Venda gerada pelo agendamento #{agendamento_id}.",
         "observacoes_internas": str(agendamento.get("observacoes") or ""),
     }
@@ -19546,9 +19554,9 @@ def movimentar_estoque() -> Response:
     salvar_estoque_movimentacao_db(movimentacao)
 
     if tipo == "ajuste":
-        return redirect(url_for("estoque") + "/ajustes")
+        return redirect(f"/estoque/ajustes?produto_id={produto_id}#historico")
 
-    return redirect(url_for("estoque") + f"?produto_id={produto_id}#historico")
+    return redirect(f"/estoque/movimentacoes?produto_id={produto_id}#historico")
 
 
 @app.post("/estoque/comprar")
