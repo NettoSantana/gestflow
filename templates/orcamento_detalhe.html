@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_detalhe.html
-Último recode: 2026-07-15 10:23 (America/Bahia)
-Motivo: Exibir o escopo técnico em seções, parágrafos e listas organizadas.
+Último recode: 2026-07-16 07:38 (America/Bahia)
+Motivo: Direcionar Gerar Venda para a rota que cria e abre a venda do orçamento.
 -->
 
 <!DOCTYPE html>
@@ -401,7 +401,7 @@ Motivo: Exibir o escopo técnico em seções, parágrafos e listas organizadas.
         <section class="panel table-panel">
             <div class="panel-header page-header">
                 <div><h3>Apresentação ao cliente</h3><p class="page-subtitle">Esta é a composição que será exibida no PDF e no cupom.</p></div>
-                <div class="budget-action-row"><a href="/orcamentos/{{ orcamento.id }}/editar#aba-apresentacao" class="btn-primary-green">Editar apresentação</a><div class="budget-action-menu"><details class="budget-action-dropdown"><summary class="budget-action-trigger">⌄</summary><div class="budget-action-panel"><details class="budget-action-submenu"><summary>🖨 Imprimir</summary><div class="budget-action-subitems"><a href="/orcamentos/{{ orcamento.id }}/imprimir/a4" target="_blank">A4</a><a href="/orcamentos/{{ orcamento.id }}/imprimir/cupom" target="_blank">Cupom</a></div></details><details class="budget-action-submenu"><summary>↻ Gerar</summary><div class="budget-action-subitems"><a href="/orcamentos/{{ orcamento.id }}/gerar/copia">Cópia</a><a href="/orcamentos/{{ orcamento.id }}?gerar=venda">Venda</a><a href="/orcamentos/{{ orcamento.id }}?gerar=os">OS</a></div></details></div></details></div></div>
+                <div class="budget-action-row"><a href="/orcamentos/{{ orcamento.id }}/editar#aba-apresentacao" class="btn-primary-green">Editar apresentação</a><div class="budget-action-menu"><details class="budget-action-dropdown"><summary class="budget-action-trigger">⌄</summary><div class="budget-action-panel"><details class="budget-action-submenu"><summary>🖨 Imprimir</summary><div class="budget-action-subitems"><a href="/orcamentos/{{ orcamento.id }}/imprimir/a4" target="_blank">A4</a><a href="/orcamentos/{{ orcamento.id }}/imprimir/cupom" target="_blank">Cupom</a></div></details><details class="budget-action-submenu"><summary>↻ Gerar</summary><div class="budget-action-subitems"><a href="/orcamentos/{{ orcamento.id }}/gerar/copia">Cópia</a><a href="/orcamentos/{{ orcamento.id }}/gerar/venda">Venda</a><a href="/orcamentos/{{ orcamento.id }}?gerar=os">OS</a></div></details></div></details></div></div>
             </div>
             {% if modo == 'detalhado' %}
                 <div class="internal-warning">O modo detalhado exibe todos os produtos e serviços ao cliente.</div>

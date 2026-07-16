@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-15 14:05 (America/Bahia)
-# Motivo: Fazer o valor final editado prevalecer no orçamento, sincronizar apresentação, margem e histórico.
+# Último recode: 2026-07-16 07:38 (America/Bahia)
+# Motivo: Corrigir a geração de venda a partir do orçamento e abrir a venda criada.
 
 from __future__ import annotations
 
@@ -8521,6 +8521,81 @@ def salvar_venda_db(venda: dict[str, str], itens: list[dict[str, str]]) -> int:
         conn.commit()
 
     return venda_id
+
+
+def gerar_venda_por_orcamento_db(orcamento_id: int) -> int | None:
+    orcamento = buscar_orcamento_por_id(orcamento_id)
+
+    if orcamento is None:
+        return None
+
+    itens_orcamento = listar_orcamento_itens(orcamento_id)
+
+    if not itens_orcamento:
+        return None
+
+    valor_total = _converter_valor_brl(orcamento.get("valor_total"))
+    if valor_total <= 0:
+        return None
+
+    numero_orcamento = str(orcamento.get("numero") or orcamento_id).strip()
+    data_venda = hoje_empresa().isoformat()
+    forma_pagamento = str(orcamento.get("forma_pagamento") or "").strip()
+    observacoes_orcamento = str(orcamento.get("observacoes") or "").strip()
+    observacoes_internas = str(orcamento.get("observacoes_internas") or "").strip()
+
+    observacoes_venda = f"Venda gerada a partir do Orçamento {numero_orcamento}."
+    if observacoes_orcamento:
+        observacoes_venda += f"\n\n{observacoes_orcamento}"
+
+    venda = {
+        "numero": proximo_numero_venda(),
+        "cliente": str(orcamento.get("cliente") or ""),
+        "responsavel": str(orcamento.get("responsavel") or ""),
+        "data": data_venda,
+        "prazo_entrega": str(orcamento.get("prazo_entrega") or ""),
+        "canal_venda": str(orcamento.get("canal_venda") or "Orçamento"),
+        "centro_custo": str(orcamento.get("centro_custo") or ""),
+        "tipo": str(orcamento.get("tipo") or "misto"),
+        "status": "aberta",
+        "total_produtos": str(orcamento.get("total_produtos") or "0,00"),
+        "total_servicos": str(orcamento.get("total_servicos") or "0,00"),
+        "desconto_valor": str(orcamento.get("desconto_valor") or "0,00"),
+        "desconto_percentual": str(orcamento.get("desconto_percentual") or "0,00"),
+        "valor_total": str(orcamento.get("valor_total") or "0,00"),
+        "forma_pagamento": forma_pagamento,
+        "condicao_pagamento": "prazo",
+        "meio_pagamento": forma_pagamento,
+        "valor_entrada": "0,00",
+        "meio_pagamento_entrada": "",
+        "data_entrada": "",
+        "quantidade_parcelas": "1",
+        "primeiro_vencimento": data_venda,
+        "intervalo_parcelas": "mensal",
+        "observacoes": observacoes_venda,
+        "observacoes_internas": (
+            observacoes_internas
+            + ("\n" if observacoes_internas else "")
+            + f"Origem: Orçamento ID {orcamento_id} / Nº {numero_orcamento}."
+        ),
+    }
+
+    itens_venda: list[dict[str, str]] = []
+    for item in itens_orcamento:
+        itens_venda.append(
+            {
+                "tipo_item": str(item.get("tipo_item") or "produto"),
+                "descricao": str(item.get("descricao") or ""),
+                "detalhes": str(item.get("detalhes") or ""),
+                "quantidade": str(item.get("quantidade") or ""),
+                "valor_unitario": str(item.get("valor_unitario") or ""),
+                "desconto": str(item.get("desconto") or ""),
+                "subtotal": str(item.get("subtotal") or ""),
+            }
+        )
+
+    return salvar_venda_db(venda, itens_venda)
+
 
 def copiar_venda_db(venda_id: int) -> int | None:
     venda_original = buscar_venda_por_id(venda_id)
@@ -20221,7 +20296,12 @@ def salvar_orcamento() -> Response:
 
 @app.get("/orcamentos/<int:orcamento_id>")
 def ver_orcamento(orcamento_id: int) -> str | Response:
-    if str(request.args.get("gerar") or "").strip().lower() == "os":
+    acao_gerar = str(request.args.get("gerar") or "").strip().lower()
+
+    if acao_gerar == "venda":
+        return redirect(url_for("gerar_venda_por_orcamento", orcamento_id=orcamento_id))
+
+    if acao_gerar == "os":
         return redirect(url_for("gerar_ordem_servico_por_orcamento", orcamento_id=orcamento_id))
 
     orcamento = buscar_orcamento_por_id(orcamento_id)
@@ -20246,6 +20326,35 @@ def ver_orcamento(orcamento_id: int) -> str | Response:
     )
 
 
+
+
+@app.get("/orcamentos/<int:orcamento_id>/gerar/venda")
+def gerar_venda_por_orcamento(orcamento_id: int) -> Response:
+    venda_id = gerar_venda_por_orcamento_db(orcamento_id)
+
+    if venda_id is None:
+        return redirect(
+            url_for(
+                "ver_orcamento",
+                orcamento_id=orcamento_id,
+                erro="Não foi possível gerar a venda. Confira os itens e o valor do orçamento.",
+            )
+        )
+
+    venda = buscar_venda_por_id(venda_id)
+    itens_venda = listar_venda_itens(venda_id)
+
+    if venda is not None:
+        baixar_estoque_por_venda_db(venda_id, venda, itens_venda)
+        gerar_conta_receber_por_venda_db(venda_id, venda)
+
+    registrar_atividade_usuario(
+        "criacao",
+        "orcamentos",
+        f"Gerou venda #{venda_id} pelo orçamento #{orcamento_id}",
+        request.path,
+    )
+    return redirect(url_for("ver_venda", venda_id=venda_id))
 
 
 @app.get("/orcamentos/<int:orcamento_id>/gerar/os")
