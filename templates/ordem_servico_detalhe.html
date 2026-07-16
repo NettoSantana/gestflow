@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordem_servico_detalhe.html
-Último recode: 2026-07-16 18:42 (America/Bahia)
-Motivo: Reorganizar os detalhes da OS em abas, equipamentos recolhíveis e blocos de leitura com melhor hierarquia visual.
+Último recode: 2026-07-16 19:08 (America/Bahia)
+Motivo: Corrigir as expressões Jinja da nova tela em abas para exibir os dados reais da ordem de serviço.
 -->
 
 <!DOCTYPE html>
@@ -27,47 +27,47 @@ Motivo: Reorganizar os detalhes da OS em abas, equipamentos recolhíveis e bloco
                 <div>
                     <span class="page-kicker">Ordens de Serviço</span>
                     <div class="os-detail-title-line">
-                        <h2>OS { os.numero or os.id }</h2>
-                        <span class="os-detail-status status-{ (os.status or 'aberta')|lower|replace(' ', '-') }">
-                            { os.status or 'aberta' }
+                        <h2>OS {{ os.numero or os.id }}</h2>
+                        <span class="os-detail-status status-{{ (os.status or 'aberta')|lower|replace(' ', '-') }}">
+                            {{ os.status or 'aberta' }}
                         </span>
                     </div>
                     <p class="page-subtitle">
-                        Cliente: <strong>{ os.cliente or 'não informado' }</strong>
+                        Cliente: <strong>{{ os.cliente or 'não informado' }}</strong>
                     </p>
                 </div>
 
                 <div class="os-detail-actions">
                     <a href="/ordens-servico" class="btn-light">Voltar</a>
-                    <a href="/ordens-servico/{ os.id }/links" class="btn-primary-green">Gerar links</a>
+                    <a href="/ordens-servico/{{ os.id }}/links" class="btn-primary-green">Gerar links</a>
                     {% if os.status == 'andamento' %}
-                        <a href="/ordens-servico/{ os.id }/gerar/acompanhamento" class="btn-primary-green">Link diário</a>
+                        <a href="/ordens-servico/{{ os.id }}/gerar/acompanhamento" class="btn-primary-green">Link diário</a>
                     {% endif %}
-                    <a href="/ordens-servico/{ os.id }/editar" class="btn-dark">Editar OS</a>
-                    <a href="/ordens-servico/{ os.id }/imprimir/a4" target="_blank" rel="noopener" class="btn-primary-green">Imprimir</a>
+                    <a href="/ordens-servico/{{ os.id }}/editar" class="btn-dark">Editar OS</a>
+                    <a href="/ordens-servico/{{ os.id }}/imprimir/a4" target="_blank" rel="noopener" class="btn-primary-green">Imprimir</a>
                 </div>
             </div>
 
             <div class="os-detail-summary">
                 <div class="os-detail-summary-card">
                     <span>Número</span>
-                    <strong>{ os.numero or os.id }</strong>
+                    <strong>{{ os.numero or os.id }}</strong>
                     <small>Registro da ordem</small>
                 </div>
                 <div class="os-detail-summary-card">
                     <span>Situação</span>
-                    <strong>{ os.status or '-' }</strong>
-                    <small>Prioridade: { os.prioridade or '-' }</small>
+                    <strong>{{ os.status or '-' }}</strong>
+                    <small>Prioridade: {{ os.prioridade or '-' }}</small>
                 </div>
                 <div class="os-detail-summary-card">
                     <span>Valor total</span>
-                    <strong>R$ { os.valor_total or '0,00' }</strong>
+                    <strong>R$ {{ os.valor_total or '0,00' }}</strong>
                     <small>Produtos e serviços</small>
                 </div>
                 <div class="os-detail-summary-card">
                     <span>Previsão</span>
-                    <strong>{ os.data_previsao or '-' }</strong>
-                    <small>Técnico: { os.tecnico or '-' }</small>
+                    <strong>{{ os.data_previsao or '-' }}</strong>
+                    <small>Técnico: {{ os.tecnico or '-' }}</small>
                 </div>
             </div>
         </section>
@@ -75,14 +75,14 @@ Motivo: Reorganizar os detalhes da OS em abas, equipamentos recolhíveis e bloco
         <nav
             class="os-detail-tabs"
             aria-label="Seções da ordem de serviço"
-            data-force-tab="{ 'links' if acompanhamento_url_gerada or acompanhamento_erro else '' }"
+            data-force-tab="{{ 'links' if acompanhamento_url_gerada or acompanhamento_erro else '' }}"
         >
             <button type="button" class="os-detail-tab is-active" data-os-tab="visao-geral" aria-selected="true">
                 Visão geral
             </button>
             <button type="button" class="os-detail-tab" data-os-tab="equipamentos" aria-selected="false">
                 Equipamentos
-                <span>{ equipamentos_os|default([])|length }</span>
+                <span>{{ equipamentos_os|default([])|length }}</span>
             </button>
             <button type="button" class="os-detail-tab" data-os-tab="execucao" aria-selected="false">
                 Execução
@@ -108,24 +108,24 @@ Motivo: Reorganizar os detalhes da OS em abas, equipamentos recolhíveis e bloco
                 </div>
 
                 <div class="os-detail-field-grid">
-                    <div class="os-detail-field"><span>Cliente</span><strong>{ os.cliente or '-' }</strong></div>
-                    <div class="os-detail-field"><span>Responsável</span><strong>{ os.responsavel or '-' }</strong></div>
-                    <div class="os-detail-field"><span>Técnico</span><strong>{ os.tecnico or '-' }</strong></div>
-                    <div class="os-detail-field"><span>Data de abertura</span><strong>{ os.data_abertura or '-' }</strong></div>
-                    <div class="os-detail-field"><span>Previsão</span><strong>{ os.data_previsao or '-' }</strong></div>
-                    <div class="os-detail-field"><span>Data de saída</span><strong>{ os.data_saida or '-' }</strong></div>
-                    <div class="os-detail-field"><span>Hora de entrada</span><strong>{ os.hora_entrada or '-' }</strong></div>
-                    <div class="os-detail-field"><span>Hora de saída</span><strong>{ os.hora_saida or '-' }</strong></div>
-                    <div class="os-detail-field"><span>Canal de venda</span><strong>{ os.canal_venda or '-' }</strong></div>
-                    <div class="os-detail-field"><span>Centro de custo</span><strong>{ os.centro_custo or '-' }</strong></div>
-                    <div class="os-detail-field"><span>Tipo</span><strong>{ os.tipo or '-' }</strong></div>
-                    <div class="os-detail-field"><span>Venda de origem</span><strong>{ os.origem_venda_id or '-' }</strong></div>
+                    <div class="os-detail-field"><span>Cliente</span><strong>{{ os.cliente or '-' }}</strong></div>
+                    <div class="os-detail-field"><span>Responsável</span><strong>{{ os.responsavel or '-' }}</strong></div>
+                    <div class="os-detail-field"><span>Técnico</span><strong>{{ os.tecnico or '-' }}</strong></div>
+                    <div class="os-detail-field"><span>Data de abertura</span><strong>{{ os.data_abertura or '-' }}</strong></div>
+                    <div class="os-detail-field"><span>Previsão</span><strong>{{ os.data_previsao or '-' }}</strong></div>
+                    <div class="os-detail-field"><span>Data de saída</span><strong>{{ os.data_saida or '-' }}</strong></div>
+                    <div class="os-detail-field"><span>Hora de entrada</span><strong>{{ os.hora_entrada or '-' }}</strong></div>
+                    <div class="os-detail-field"><span>Hora de saída</span><strong>{{ os.hora_saida or '-' }}</strong></div>
+                    <div class="os-detail-field"><span>Canal de venda</span><strong>{{ os.canal_venda or '-' }}</strong></div>
+                    <div class="os-detail-field"><span>Centro de custo</span><strong>{{ os.centro_custo or '-' }}</strong></div>
+                    <div class="os-detail-field"><span>Tipo</span><strong>{{ os.tipo or '-' }}</strong></div>
+                    <div class="os-detail-field"><span>Venda de origem</span><strong>{{ os.origem_venda_id or '-' }}</strong></div>
                     <div class="os-detail-field os-detail-field-wide">
                         <span>Orçamento de origem</span>
                         <strong>
                             {% if os.origem_orcamento_id %}
-                                <a href="/orcamentos/{ os.origem_orcamento_id }">
-                                    Orçamento { os.origem_orcamento_numero or os.origem_orcamento_id }
+                                <a href="/orcamentos/{{ os.origem_orcamento_id }}">
+                                    Orçamento {{ os.origem_orcamento_numero or os.origem_orcamento_id }}
                                 </a>
                             {% else %}
                                 -
@@ -147,16 +147,16 @@ Motivo: Reorganizar os detalhes da OS em abas, equipamentos recolhíveis e bloco
                 </div>
 
                 <div class="os-detail-field-grid">
-                    <div class="os-detail-field"><span>Total de produtos</span><strong>R$ { os.total_produtos or '0,00' }</strong></div>
-                    <div class="os-detail-field"><span>Total de serviços</span><strong>R$ { os.total_servicos or '0,00' }</strong></div>
-                    <div class="os-detail-field"><span>Frete</span><strong>R$ { os.frete or '0,00' }</strong></div>
-                    <div class="os-detail-field"><span>Outros</span><strong>R$ { os.outros or '0,00' }</strong></div>
-                    <div class="os-detail-field"><span>Desconto</span><strong>R$ { os.desconto_valor or '0,00' }</strong></div>
-                    <div class="os-detail-field os-detail-field-highlight"><span>Valor total</span><strong>R$ { os.valor_total or '0,00' }</strong></div>
-                    <div class="os-detail-field"><span>Forma de pagamento</span><strong>{ os.forma_pagamento or '-' }</strong></div>
-                    <div class="os-detail-field"><span>Endereço de entrega</span><strong>{ os.endereco_entrega or '-' }</strong></div>
-                    <div class="os-detail-field"><span>Bairro</span><strong>{ os.bairro_entrega or '-' }</strong></div>
-                    <div class="os-detail-field"><span>Cidade</span><strong>{ os.cidade_entrega or '-' }</strong></div>
+                    <div class="os-detail-field"><span>Total de produtos</span><strong>R$ {{ os.total_produtos or '0,00' }}</strong></div>
+                    <div class="os-detail-field"><span>Total de serviços</span><strong>R$ {{ os.total_servicos or '0,00' }}</strong></div>
+                    <div class="os-detail-field"><span>Frete</span><strong>R$ {{ os.frete or '0,00' }}</strong></div>
+                    <div class="os-detail-field"><span>Outros</span><strong>R$ {{ os.outros or '0,00' }}</strong></div>
+                    <div class="os-detail-field"><span>Desconto</span><strong>R$ {{ os.desconto_valor or '0,00' }}</strong></div>
+                    <div class="os-detail-field os-detail-field-highlight"><span>Valor total</span><strong>R$ {{ os.valor_total or '0,00' }}</strong></div>
+                    <div class="os-detail-field"><span>Forma de pagamento</span><strong>{{ os.forma_pagamento or '-' }}</strong></div>
+                    <div class="os-detail-field"><span>Endereço de entrega</span><strong>{{ os.endereco_entrega or '-' }}</strong></div>
+                    <div class="os-detail-field"><span>Bairro</span><strong>{{ os.bairro_entrega or '-' }}</strong></div>
+                    <div class="os-detail-field"><span>Cidade</span><strong>{{ os.cidade_entrega or '-' }}</strong></div>
                 </div>
             </div>
         </section>
@@ -179,13 +179,13 @@ Motivo: Reorganizar os detalhes da OS em abas, equipamentos recolhíveis e bloco
                         <details class="os-equipment-accordion"{% if loop.first %} open{% endif %}>
                             <summary>
                                 <div class="os-equipment-summary-main">
-                                    <span class="os-equipment-number">{ "%02d"|format(loop.index) }</span>
+                                    <span class="os-equipment-number">{{ "%02d"|format(loop.index) }}</span>
                                     <div>
-                                        <strong>{ equipamento.equipamento or equipamento.titulo or ('Equipamento ' ~ loop.index) }</strong>
+                                        <strong>{{ equipamento.equipamento or equipamento.titulo or ('Equipamento ' ~ loop.index) }}</strong>
                                         <small>
-                                            { equipamento.marca or 'Sem marca' }
-                                            {% if equipamento.modelo %} · { equipamento.modelo }{% endif %}
-                                            {% if equipamento.serie %} · Série { equipamento.serie }{% endif %}
+                                            {{ equipamento.marca or 'Sem marca' }}
+                                            {% if equipamento.modelo %} · {{ equipamento.modelo }}{% endif %}
+                                            {% if equipamento.serie %} · Série {{ equipamento.serie }}{% endif %}
                                         </small>
                                     </div>
                                 </div>
@@ -194,43 +194,43 @@ Motivo: Reorganizar os detalhes da OS em abas, equipamentos recolhíveis e bloco
 
                             <div class="os-equipment-content">
                                 <div class="os-detail-field-grid">
-                                    <div class="os-detail-field"><span>Equipamento</span><strong>{ equipamento.equipamento or '-' }</strong></div>
-                                    <div class="os-detail-field"><span>Marca</span><strong>{ equipamento.marca or '-' }</strong></div>
-                                    <div class="os-detail-field"><span>Modelo</span><strong>{ equipamento.modelo or '-' }</strong></div>
-                                    <div class="os-detail-field"><span>Série</span><strong>{ equipamento.serie or '-' }</strong></div>
-                                    <div class="os-detail-field os-detail-field-wide"><span>Local do serviço</span><strong>{ equipamento.local_servico or '-' }</strong></div>
-                                    <div class="os-detail-field os-detail-field-wide"><span>Condições</span><strong>{ equipamento.condicoes or '-' }</strong></div>
-                                    <div class="os-detail-field os-detail-field-wide"><span>Acessórios</span><strong>{ equipamento.acessorios or '-' }</strong></div>
+                                    <div class="os-detail-field"><span>Equipamento</span><strong>{{ equipamento.equipamento or '-' }}</strong></div>
+                                    <div class="os-detail-field"><span>Marca</span><strong>{{ equipamento.marca or '-' }}</strong></div>
+                                    <div class="os-detail-field"><span>Modelo</span><strong>{{ equipamento.modelo or '-' }}</strong></div>
+                                    <div class="os-detail-field"><span>Série</span><strong>{{ equipamento.serie or '-' }}</strong></div>
+                                    <div class="os-detail-field os-detail-field-wide"><span>Local do serviço</span><strong>{{ equipamento.local_servico or '-' }}</strong></div>
+                                    <div class="os-detail-field os-detail-field-wide"><span>Condições</span><strong>{{ equipamento.condicoes or '-' }}</strong></div>
+                                    <div class="os-detail-field os-detail-field-wide"><span>Acessórios</span><strong>{{ equipamento.acessorios or '-' }}</strong></div>
                                 </div>
 
                                 <div class="os-detail-long-grid">
                                     <article class="os-detail-text-card">
                                         <span>Defeito / relato</span>
-                                        <p>{ equipamento.relato_cliente or '-' }</p>
+                                        <p>{{ equipamento.relato_cliente or '-' }}</p>
                                     </article>
                                     <article class="os-detail-text-card">
                                         <span>Diagnóstico / solução</span>
-                                        <p>{ equipamento.diagnostico or '-' }</p>
+                                        <p>{{ equipamento.diagnostico or '-' }}</p>
                                     </article>
                                     <article class="os-detail-text-card">
                                         <span>Laudo</span>
-                                        <p>{ equipamento.laudo or '-' }</p>
+                                        <p>{{ equipamento.laudo or '-' }}</p>
                                     </article>
                                     <article class="os-detail-text-card">
                                         <span>Termos</span>
-                                        <p>{ equipamento.termos or '-' }</p>
+                                        <p>{{ equipamento.termos or '-' }}</p>
                                     </article>
                                 </div>
 
                                 {% if equipamento.historico_url %}
                                     <div class="os-qr-card">
-                                        <img src="{ equipamento.qrcode_url }" alt="QR Code do equipamento">
+                                        <img src="{{ equipamento.qrcode_url }}" alt="QR Code do equipamento">
                                         <div>
                                             <strong>QR Code do equipamento</strong>
                                             <span>Abre o histórico completo de manutenções deste equipamento.</span>
                                             <div class="os-link-actions">
-                                                <a class="btn-primary-green" href="{ equipamento.historico_url }" target="_blank" rel="noopener">Abrir histórico</a>
-                                                <input value="{ equipamento.historico_url }" readonly onclick="this.select()">
+                                                <a class="btn-primary-green" href="{{ equipamento.historico_url }}" target="_blank" rel="noopener">Abrir histórico</a>
+                                                <input value="{{ equipamento.historico_url }}" readonly onclick="this.select()">
                                             </div>
                                         </div>
                                     </div>
@@ -239,19 +239,19 @@ Motivo: Reorganizar os detalhes da OS em abas, equipamentos recolhíveis e bloco
                                 <div class="os-equipment-photo-section">
                                     <div class="os-detail-subhead">
                                         <h4>Registro fotográfico</h4>
-                                        <span>{ fotos_do_equipamento|length } registro(s)</span>
+                                        <span>{{ fotos_do_equipamento|length }} registro(s)</span>
                                     </div>
 
                                     {% if fotos_do_equipamento %}
                                         <div class="os-photo-grid">
                                             {% for foto in fotos_do_equipamento %}
                                                 <article class="os-photo-card">
-                                                    <h4>{ foto.titulo or equipamento.equipamento or equipamento.titulo }</h4>
+                                                    <h4>{{ foto.titulo or equipamento.equipamento or equipamento.titulo }}</h4>
                                                     <div class="os-photo-pair">
                                                         <div class="os-photo-box">
                                                             <strong>Antes</strong>
                                                             {% if foto.foto_antes_path %}
-                                                                <img src="{ foto.foto_antes_path }" alt="Foto antes">
+                                                                <img src="{{ foto.foto_antes_path }}" alt="Foto antes">
                                                             {% else %}
                                                                 <div class="os-photo-empty">Sem foto antes</div>
                                                             {% endif %}
@@ -259,13 +259,13 @@ Motivo: Reorganizar os detalhes da OS em abas, equipamentos recolhíveis e bloco
                                                         <div class="os-photo-box">
                                                             <strong>Depois</strong>
                                                             {% if foto.foto_depois_path %}
-                                                                <img src="{ foto.foto_depois_path }" alt="Foto depois">
+                                                                <img src="{{ foto.foto_depois_path }}" alt="Foto depois">
                                                             {% else %}
                                                                 <div class="os-photo-empty">Sem foto depois</div>
                                                             {% endif %}
                                                         </div>
                                                     </div>
-                                                    {% if foto.observacoes %}<p>{ foto.observacoes }</p>{% endif %}
+                                                    {% if foto.observacoes %}<p>{{ foto.observacoes }}</p>{% endif %}
                                                 </article>
                                             {% endfor %}
                                         </div>
@@ -297,31 +297,31 @@ Motivo: Reorganizar os detalhes da OS em abas, equipamentos recolhíveis e bloco
                 <div class="os-detail-execution-grid">
                     <article class="os-detail-text-card os-detail-text-card-wide">
                         <span>Relato do cliente</span>
-                        <p>{ os.relato_cliente or '-' }</p>
+                        <p>{{ os.relato_cliente or '-' }}</p>
                     </article>
                     <article class="os-detail-text-card os-detail-text-card-wide">
                         <span>Diagnóstico</span>
-                        <p>{ os.diagnostico or '-' }</p>
+                        <p>{{ os.diagnostico or '-' }}</p>
                     </article>
                     <article class="os-detail-text-card os-detail-text-card-wide os-detail-text-card-primary">
                         <span>Serviço executado</span>
-                        <p>{ os.servico_executado or '-' }</p>
+                        <p>{{ os.servico_executado or '-' }}</p>
                     </article>
                     <article class="os-detail-text-card">
                         <span>Laudo</span>
-                        <p>{ os.laudo or '-' }</p>
+                        <p>{{ os.laudo or '-' }}</p>
                     </article>
                     <article class="os-detail-text-card">
                         <span>Termos</span>
-                        <p>{ os.termos or '-' }</p>
+                        <p>{{ os.termos or '-' }}</p>
                     </article>
                     <article class="os-detail-text-card os-detail-text-card-wide">
                         <span>Observações para o cliente</span>
-                        <p>{ os.observacoes or '-' }</p>
+                        <p>{{ os.observacoes or '-' }}</p>
                     </article>
                     <article class="os-detail-text-card os-detail-text-card-wide os-detail-text-card-internal">
                         <span>Observações internas</span>
-                        <p>{ os.observacoes_internas or '-' }</p>
+                        <p>{{ os.observacoes_internas or '-' }}</p>
                     </article>
                 </div>
             </div>
@@ -355,12 +355,12 @@ Motivo: Reorganizar os detalhes da OS em abas, equipamentos recolhíveis e bloco
                             {% if itens_produtos %}
                                 {% for item in itens_produtos %}
                                     <tr>
-                                        <td><strong>{ item.descricao or '-' }</strong></td>
-                                        <td>{ item.detalhes or '-' }</td>
-                                        <td>{ item.quantidade or '-' }</td>
-                                        <td>R$ { item.valor_unitario or '0,00' }</td>
-                                        <td>R$ { item.desconto or '0,00' }</td>
-                                        <td><strong>R$ { item.subtotal or '0,00' }</strong></td>
+                                        <td><strong>{{ item.descricao or '-' }}</strong></td>
+                                        <td>{{ item.detalhes or '-' }}</td>
+                                        <td>{{ item.quantidade or '-' }}</td>
+                                        <td>R$ {{ item.valor_unitario or '0,00' }}</td>
+                                        <td>R$ {{ item.desconto or '0,00' }}</td>
+                                        <td><strong>R$ {{ item.subtotal or '0,00' }}</strong></td>
                                     </tr>
                                 {% endfor %}
                             {% else %}
@@ -398,12 +398,12 @@ Motivo: Reorganizar os detalhes da OS em abas, equipamentos recolhíveis e bloco
                             {% if itens_servicos %}
                                 {% for item in itens_servicos %}
                                     <tr>
-                                        <td><strong>{ item.descricao or '-' }</strong></td>
-                                        <td>{ item.detalhes or '-' }</td>
-                                        <td>{ item.quantidade or '-' }</td>
-                                        <td>R$ { item.valor_unitario or '0,00' }</td>
-                                        <td>R$ { item.desconto or '0,00' }</td>
-                                        <td><strong>R$ { item.subtotal or '0,00' }</strong></td>
+                                        <td><strong>{{ item.descricao or '-' }}</strong></td>
+                                        <td>{{ item.detalhes or '-' }}</td>
+                                        <td>{{ item.quantidade or '-' }}</td>
+                                        <td>R$ {{ item.valor_unitario or '0,00' }}</td>
+                                        <td>R$ {{ item.desconto or '0,00' }}</td>
+                                        <td><strong>R$ {{ item.subtotal or '0,00' }}</strong></td>
                                     </tr>
                                 {% endfor %}
                             {% else %}
@@ -426,12 +426,12 @@ Motivo: Reorganizar os detalhes da OS em abas, equipamentos recolhíveis e bloco
                 </div>
 
                 <div class="os-detail-financial-grid">
-                    <div><span>Produtos</span><strong>R$ { os.total_produtos or '0,00' }</strong></div>
-                    <div><span>Serviços</span><strong>R$ { os.total_servicos or '0,00' }</strong></div>
-                    <div><span>Frete</span><strong>R$ { os.frete or '0,00' }</strong></div>
-                    <div><span>Outros</span><strong>R$ { os.outros or '0,00' }</strong></div>
-                    <div><span>Desconto</span><strong>R$ { os.desconto_valor or '0,00' }</strong></div>
-                    <div class="is-total"><span>Valor total</span><strong>R$ { os.valor_total or '0,00' }</strong></div>
+                    <div><span>Produtos</span><strong>R$ {{ os.total_produtos or '0,00' }}</strong></div>
+                    <div><span>Serviços</span><strong>R$ {{ os.total_servicos or '0,00' }}</strong></div>
+                    <div><span>Frete</span><strong>R$ {{ os.frete or '0,00' }}</strong></div>
+                    <div><span>Outros</span><strong>R$ {{ os.outros or '0,00' }}</strong></div>
+                    <div><span>Desconto</span><strong>R$ {{ os.desconto_valor or '0,00' }}</strong></div>
+                    <div class="is-total"><span>Valor total</span><strong>R$ {{ os.valor_total or '0,00' }}</strong></div>
                 </div>
             </div>
         </section>
@@ -446,7 +446,7 @@ Motivo: Reorganizar os detalhes da OS em abas, equipamentos recolhíveis e bloco
                             <p>Acessos separados para o cliente e para o técnico de campo.</p>
                         </div>
                     </div>
-                    <a href="/ordens-servico/{ os.id }/links" class="btn-light">Atualizar links</a>
+                    <a href="/ordens-servico/{{ os.id }}/links" class="btn-light">Atualizar links</a>
                 </div>
 
                 <div class="os-link-grid">
@@ -459,10 +459,10 @@ Motivo: Reorganizar os detalhes da OS em abas, equipamentos recolhíveis e bloco
                             </div>
                         </div>
                         <p>O cliente acompanha status, atividades, materiais, fotos e evolução da OS.</p>
-                        <input id="os-link-cliente" value="{ cliente_url }" readonly onclick="this.select()">
+                        <input id="os-link-cliente" value="{{ cliente_url }}" readonly onclick="this.select()">
                         <div class="os-link-actions">
                             {% if cliente_url %}
-                                <a class="btn-primary-green" href="{ cliente_url }" target="_blank" rel="noopener">Abrir</a>
+                                <a class="btn-primary-green" href="{{ cliente_url }}" target="_blank" rel="noopener">Abrir</a>
                                 <button type="button" class="btn-light" data-copy-link="os-link-cliente">Copiar</button>
                             {% else %}
                                 <span class="os-detail-unavailable">Link ainda não gerado</span>
@@ -479,10 +479,10 @@ Motivo: Reorganizar os detalhes da OS em abas, equipamentos recolhíveis e bloco
                             </div>
                         </div>
                         <p>Edita execução, atividades, diagnóstico, observações e fotos, sem liberar o cabeçalho comercial.</p>
-                        <input id="os-link-campo" value="{ campo_url }" readonly onclick="this.select()">
+                        <input id="os-link-campo" value="{{ campo_url }}" readonly onclick="this.select()">
                         <div class="os-link-actions">
                             {% if campo_url %}
-                                <a class="btn-dark" href="{ campo_url }" target="_blank" rel="noopener">Abrir</a>
+                                <a class="btn-dark" href="{{ campo_url }}" target="_blank" rel="noopener">Abrir</a>
                                 <button type="button" class="btn-light" data-copy-link="os-link-campo">Copiar</button>
                             {% else %}
                                 <span class="os-detail-unavailable">Link ainda não gerado</span>
@@ -502,26 +502,26 @@ Motivo: Reorganizar os detalhes da OS em abas, equipamentos recolhíveis e bloco
                         </div>
                     </div>
                     {% if os.status == 'andamento' %}
-                        <a href="/ordens-servico/{ os.id }/gerar/acompanhamento" class="btn-primary-green">Gerar link diário</a>
+                        <a href="/ordens-servico/{{ os.id }}/gerar/acompanhamento" class="btn-primary-green">Gerar link diário</a>
                     {% else %}
                         <span class="os-detail-unavailable">Disponível somente em andamento</span>
                     {% endif %}
                 </div>
 
                 {% if acompanhamento_erro %}
-                    <div class="os-detail-alert is-error">{ acompanhamento_erro }</div>
+                    <div class="os-detail-alert is-error">{{ acompanhamento_erro }}</div>
                 {% endif %}
 
                 {% if acompanhamento_url_gerada %}
                     <div class="os-detail-generated-link">
                         <div>
                             <span>Link gerado</span>
-                            <input id="os-link-diario" value="{ acompanhamento_url_gerada }" readonly onclick="this.select()">
+                            <input id="os-link-diario" value="{{ acompanhamento_url_gerada }}" readonly onclick="this.select()">
                         </div>
                         <button type="button" class="btn-light" data-copy-link="os-link-diario">Copiar</button>
                     </div>
                     {% if acompanhamento_mensagem %}
-                        <div class="os-detail-alert is-success">{ acompanhamento_mensagem }</div>
+                        <div class="os-detail-alert is-success">{{ acompanhamento_mensagem }}</div>
                     {% endif %}
                 {% endif %}
 
@@ -544,33 +544,33 @@ Motivo: Reorganizar os detalhes da OS em abas, equipamentos recolhíveis e bloco
                             {% if acompanhamentos %}
                                 {% for acompanhamento in acompanhamentos %}
                                     <tr>
-                                        <td>{ acompanhamento.data_acompanhamento or '-' }</td>
-                                        <td>{ acompanhamento.responsavel or '-' }</td>
-                                        <td>{ acompanhamento.status_dia or '-' }</td>
-                                        <td>{ acompanhamento.expira_em or '-' }</td>
-                                        <td>{ acompanhamento.atividades_previstas or '-' }</td>
+                                        <td>{{ acompanhamento.data_acompanhamento or '-' }}</td>
+                                        <td>{{ acompanhamento.responsavel or '-' }}</td>
+                                        <td>{{ acompanhamento.status_dia or '-' }}</td>
+                                        <td>{{ acompanhamento.expira_em or '-' }}</td>
+                                        <td>{{ acompanhamento.atividades_previstas or '-' }}</td>
                                         <td>
                                             {% if acompanhamento.equipe_lista %}
                                                 {% for item in acompanhamento.equipe_lista %}
-                                                    <div>{ item.nome or '-' }{% if item.horas %} · { item.horas }h{% endif %}</div>
+                                                    <div>{{ item.nome or '-' }}{% if item.horas %} · {{ item.horas }}h{% endif %}</div>
                                                 {% endfor %}
                                             {% else %}-{% endif %}
                                         </td>
                                         <td>
                                             {% if acompanhamento.materiais_lista %}
                                                 {% for item in acompanhamento.materiais_lista %}
-                                                    <div>{ item.nome or '-' }{% if item.quantidade %} · { item.quantidade }{% endif %}{% if item.unidade %} { item.unidade }{% endif %}</div>
+                                                    <div>{{ item.nome or '-' }}{% if item.quantidade %} · {{ item.quantidade }}{% endif %}{% if item.unidade %} {{ item.unidade }}{% endif %}</div>
                                                 {% endfor %}
                                             {% else %}-{% endif %}
                                         </td>
                                         <td>
                                             {% if acompanhamento.servicos_lista %}
                                                 {% for item in acompanhamento.servicos_lista %}
-                                                    <div>{ item.nome or '-' }{% if item.quantidade %} · { item.quantidade }{% endif %}</div>
+                                                    <div>{{ item.nome or '-' }}{% if item.quantidade %} · {{ item.quantidade }}{% endif %}</div>
                                                 {% endfor %}
                                             {% else %}-{% endif %}
                                         </td>
-                                        <td>{ acompanhamento.atividades_executadas or '-' }</td>
+                                        <td>{{ acompanhamento.atividades_executadas or '-' }}</td>
                                     </tr>
                                 {% endfor %}
                             {% else %}
