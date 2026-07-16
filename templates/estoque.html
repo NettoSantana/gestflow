@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\estoque.html
-Último recode: 2026-07-16 17:13 (America/Bahia)
-Motivo: Adicionar lista administrativa de compras com ações de ver, editar e excluir.
+Último recode: 2026-07-16 20:21 (America/Bahia)
+Motivo: Incluir a categoria obrigatória no cadastro rápido de fornecedor e enviar o valor ao backend.
 -->
 
 <!DOCTYPE html>
@@ -1238,6 +1238,20 @@ Motivo: Adicionar lista administrativa de compras com ações de ver, editar e e
                         <label for="quick-fornecedor-email">E-mail</label>
                         <input id="quick-fornecedor-email" type="text" class="form-control" placeholder="email@fornecedor.com">
                     </div>
+
+                    <div class="form-group">
+                        <label for="quick-fornecedor-categoria">Categoria *</label>
+                        <select id="quick-fornecedor-categoria" class="form-control" required>
+                            <option value="">Selecione a categoria</option>
+                            <option value="Material elétrico">Material elétrico</option>
+                            <option value="Material mecânico">Material mecânico</option>
+                            <option value="Serviços">Serviços</option>
+                            <option value="Transporte">Transporte</option>
+                            <option value="Ferramentas">Ferramentas</option>
+                            <option value="EPI">EPI</option>
+                            <option value="Outros">Outros</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div id="quick-fornecedor-error" class="quick-modal-error"></div>
@@ -1637,7 +1651,7 @@ Motivo: Adicionar lista administrativa de compras com ações de ver, editar e e
     window.abrirModalFornecedorRapidoGeral = function(selectOrigem) {
         gestflowFornecedorSelectAtual = selectOrigem || gestflowFornecedorSelectAtual || document.querySelector(".quick-fornecedor-select");
         limparErro("quick-fornecedor-error");
-        ["quick-fornecedor-nome", "quick-fornecedor-documento", "quick-fornecedor-telefone", "quick-fornecedor-email"].forEach(function(id) {
+        ["quick-fornecedor-nome", "quick-fornecedor-documento", "quick-fornecedor-telefone", "quick-fornecedor-email", "quick-fornecedor-categoria"].forEach(function(id) {
             const campo = document.getElementById(id);
             if (campo) { campo.value = ""; }
         });
@@ -1734,9 +1748,16 @@ Motivo: Adicionar lista administrativa de compras com ações de ver, editar e e
         const documento = (document.getElementById("quick-fornecedor-documento")?.value || "").trim();
         const telefone = (document.getElementById("quick-fornecedor-telefone")?.value || "").trim();
         const email = (document.getElementById("quick-fornecedor-email")?.value || "").trim();
+        const categoria = (document.getElementById("quick-fornecedor-categoria")?.value || "").trim();
 
         if (!nome) {
             mostrarErro("quick-fornecedor-error", "Informe o nome do fornecedor.");
+            return;
+        }
+
+        if (!categoria) {
+            mostrarErro("quick-fornecedor-error", "Selecione a categoria do fornecedor.");
+            document.getElementById("quick-fornecedor-categoria")?.focus();
             return;
         }
 
@@ -1745,6 +1766,7 @@ Motivo: Adicionar lista administrativa de compras com ações de ver, editar e e
         dados.append("documento", documento);
         dados.append("telefone", telefone);
         dados.append("email", email);
+        dados.append("categoria", categoria);
 
         fetch("/fornecedores/rapido", {
             method: "POST",
