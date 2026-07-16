@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\static\css\dashboard.css
-Último recode: 2026-07-15 10:32 (America/Bahia)
-Motivo: Adicionar estilos compartilhados para abas e alertas do orçamento com apresentação comercial.
+Último recode: 2026-07-16 17:13 (America/Bahia)
+Motivo: Reforçar contenção de painéis e tabelas para evitar estouro horizontal.
 */
 
 :root {
@@ -777,8 +777,16 @@ canvas {
 
 .table-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 16px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+}
+
+.table-grid > * {
+    min-width: 0;
+    max-width: 100%;
 }
 
 .table-panel {

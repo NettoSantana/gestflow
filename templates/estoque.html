@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\estoque.html
-Último recode: 2026-07-02 23:31 (America/Bahia)
-Motivo: Aproximar Estoque do padrão visual de Orçamentos, com cards de resumo, tabelas e listas padronizadas.
+Último recode: 2026-07-16 17:13 (America/Bahia)
+Motivo: Adicionar lista administrativa de compras com ações de ver, editar e excluir.
 -->
 
 <!DOCTYPE html>
@@ -623,6 +623,36 @@ Motivo: Aproximar Estoque do padrão visual de Orçamentos, com cards de resumo,
             border-radius: 10px;
         }
 
+        .estoque-compra-form-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .estoque-compra-form-grid .full {
+            grid-column: 1 / -1;
+        }
+
+        .estoque-compras-table {
+            min-width: 920px !important;
+        }
+
+        .estoque-compras-table td:last-child {
+            min-width: 132px;
+        }
+
+        @media (max-width: 1100px) {
+            .estoque-compra-form-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 720px) {
+            .estoque-compra-form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
     </style>
 </head>
 <body>
@@ -636,6 +666,7 @@ Motivo: Aproximar Estoque do padrão visual de Orçamentos, com cards de resumo,
         {% set produtos_lista = produtos|default([]) %}
         {% set produtos_lista_tabela = produtos_paginados|default(produtos_lista, true) %}
         {% set movimentacoes_lista = movimentacoes|default([]) %}
+        {% set compras_lista = compras|default([]) %}
         {% set paginacao_produtos = paginacao_produtos|default({}, true) %}
         {% set busca_produtos = busca_produtos|default('', true) %}
         {% set ordenar_produtos = ordenar_produtos|default('id', true) %}
@@ -957,17 +988,21 @@ Motivo: Aproximar Estoque do padrão visual de Orçamentos, com cards de resumo,
                 </div>
             </section>
         {% else %}
-            <section class="estoque-two-columns">
-                <div class="panel table-panel">
-                    <div class="panel-header page-header">
-                        <div>
-                            <h3>Nova compra de produto</h3>
-                            <p class="page-subtitle">Registre uma compra simples e dê entrada no estoque.</p>
-                        </div>
-                    </div>
+            {% if request.args.get('sucesso') %}<div class="form-alert-success">{{ request.args.get('sucesso') }}</div>{% endif %}
+            {% if request.args.get('erro') %}<div class="form-alert-error">{{ request.args.get('erro') }}</div>{% endif %}
 
-                    <form id="form-comprar-estoque" class="estoque-form" action="/estoque/comprar" method="post">
-                        <div class="gestflow-form-error{% if request.args.get('erro') and aba_atual == 'compras' %} show{% endif %}" data-form-error>{% if request.args.get('erro') and aba_atual == 'compras' %}{{ request.args.get('erro') }}{% endif %}</div>
+            <section class="panel page-section">
+                <div class="panel-header page-header">
+                    <div>
+                        <h3>Nova compra de produto</h3>
+                        <p class="page-subtitle">Registre a compra e dê entrada automática no estoque.</p>
+                    </div>
+                    <span class="badge-info">Entrada de estoque</span>
+                </div>
+
+                <form id="form-comprar-estoque" class="estoque-form" action="/estoque/comprar" method="post">
+                    <div class="gestflow-form-error" data-form-error></div>
+                    <div class="estoque-compra-form-grid">
                         <label>
                             Produto
                             <select name="compra_produto_id" class="quick-produto-select" required>
@@ -990,86 +1025,100 @@ Motivo: Aproximar Estoque do padrão visual de Orçamentos, com cards de resumo,
                             </select>
                         </label>
 
-                        <div class="estoque-form-row">
-                            <label>
-                                Quantidade
-                                <input type="text" name="compra_quantidade" placeholder="Ex: 10" required>
-                            </label>
-
-                            <label>
-                                Valor de custo
-                                <input type="text" name="compra_valor_custo" placeholder="Ex: 100,00">
-                            </label>
-                        </div>
-
-                        <div class="estoque-form-row">
-                            <label>
-                                Documento
-                                <input type="text" name="compra_documento" placeholder="NF, pedido ou recibo">
-                            </label>
-
-                            <label>
-                                Responsável
-                                <select name="compra_responsavel" class="form-control quick-responsavel-select" required>
-                                            <option value="">Selecione</option>
-                                            {% for funcionario in funcionarios|default([]) %}
-                                                <option value="{{ funcionario.nome }}">{{ funcionario.nome }}</option>
-                                            {% endfor %}
-                                            <option value="__novo_responsavel__" class="quick-new-option">+ Adicionar novo responsável</option>
-                                        </select>
-                            </label>
-                        </div>
+                        <label>
+                            Responsável
+                            <select name="compra_responsavel" class="form-control quick-responsavel-select" required>
+                                <option value="">Selecione</option>
+                                {% for funcionario in funcionarios|default([]) %}
+                                    <option value="{{ funcionario.nome }}">{{ funcionario.nome }}</option>
+                                {% endfor %}
+                                <option value="__novo_responsavel__" class="quick-new-option">+ Adicionar novo responsável</option>
+                            </select>
+                        </label>
 
                         <label>
+                            Quantidade
+                            <input type="text" name="compra_quantidade" placeholder="Ex: 10" required>
+                        </label>
+
+                        <label>
+                            Valor de custo unitário
+                            <input type="text" name="compra_valor_custo" placeholder="Ex: 100,00">
+                        </label>
+
+                        <label>
+                            Documento
+                            <input type="text" name="compra_documento" placeholder="NF, pedido ou recibo">
+                        </label>
+
+                        <label class="full">
                             Observações
                             <textarea name="compra_observacoes" placeholder="Condição de compra, prazo, fornecedor alternativo etc."></textarea>
                         </label>
+                    </div>
 
+                    <div class="form-actions">
+                        <button type="reset" class="btn-light">Limpar</button>
                         <button type="submit" class="btn-primary-green">Salvar compra e dar entrada</button>
-                    </form>
+                    </div>
+                </form>
+            </section>
+
+            <section class="panel table-panel">
+                <div class="panel-header page-header">
+                    <div>
+                        <h3>Compras registradas</h3>
+                        <p class="page-subtitle">Visualize, edite ou exclua as entradas geradas por compra.</p>
+                    </div>
                 </div>
 
-                <div class="panel table-panel">
-                    <div class="panel-header page-header">
-                        <div>
-                            <h3>Entradas por compra</h3>
-                            <p class="page-subtitle">Últimas movimentações registradas como compra de produto.</p>
-                        </div>
-                    </div>
-
-                    <div class="estoque-table-wrap">
-                        <table class="client-table">
-                            <thead>
-                                <tr>
-                                    <th>Produto</th>
-                                    <th>Quantidade</th>
-                                    <th>Saldo atual</th>
-                                    <th>Documento</th>
-                                    <th>Responsável</th>
-                                    <th>Data</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% set compras = movimentacoes_lista|selectattr('motivo', 'equalto', 'Compra de produto')|list %}
-                                {% if movimentacoes_lista %}
-                                    {% for mov in movimentacoes_lista[:10] %}
-                                        <tr>
-                                            <td>{{ mov.produto_nome or '-' }}</td>
-                                            <td>{{ mov.quantidade or '0' }}</td>
-                                            <td>{{ mov.saldo_atual or '0' }}</td>
-                                            <td>{{ mov.documento or '-' }}</td>
-                                            <td>{{ mov.responsavel or '-' }}</td>
-                                            <td>{{ mov.criado_em or '-' }}</td>
-                                        </tr>
-                                    {% endfor %}
-                                {% else %}
+                <div class="estoque-table-wrap estoque-lista-shell">
+                    <table class="client-table estoque-lista-table estoque-compras-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Produto</th>
+                                <th>Fornecedor</th>
+                                <th>Quantidade</th>
+                                <th>Custo unit.</th>
+                                <th>Total</th>
+                                <th>Documento</th>
+                                <th>Responsável</th>
+                                <th>Data</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if compras_lista %}
+                                {% for compra in compras_lista %}
                                     <tr>
-                                        <td colspan="6" class="empty-table">Nenhuma compra registrada.</td>
+                                        <td>{{ compra.id }}</td>
+                                        <td>{{ compra.produto_nome or '-' }}</td>
+                                        <td>{{ compra.fornecedor or '-' }}</td>
+                                        <td>{{ compra.quantidade or '0' }}</td>
+                                        <td>R$ {{ compra.valor_custo or '0,00' }}</td>
+                                        <td>R$ {{ compra.valor_total_compra or '0,00' }}</td>
+                                        <td>{{ compra.documento or '-' }}</td>
+                                        <td>{{ compra.responsavel or '-' }}</td>
+                                        <td>{{ compra.criado_em_exibicao or compra.criado_em or '-' }}</td>
+                                        <td>
+                                            <div class="action-buttons">
+                                                <a href="/estoque/compras/{{ compra.id }}" title="Ver compra" aria-label="Ver compra" class="action-button view">🔍</a>
+                                                <a href="/estoque/compras/{{ compra.id }}/editar" title="Editar compra" aria-label="Editar compra" class="action-button edit">✎</a>
+                                                <form action="/estoque/compras/{{ compra.id }}/excluir" method="post" class="action-form" onsubmit="return confirm('Excluir esta compra? A quantidade será retirada do estoque.');">
+                                                    <button type="submit" title="Excluir compra" aria-label="Excluir compra" class="action-button delete">×</button>
+                                                </form>
+                                            </div>
+                                        </td>
                                     </tr>
-                                {% endif %}
-                            </tbody>
-                        </table>
-                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="10" class="empty-table">Nenhuma compra registrada.</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
                 </div>
             </section>
         {% endif %}

@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamentos.html
-Último recode: 2026-07-15 10:32 (America/Bahia)
-Motivo: Adicionar apresentação comercial agrupada aos orçamentos comuns e acesso à revisão do Gerador.
+Último recode: 2026-07-16 17:13 (America/Bahia)
+Motivo: Trocar a geração repetida pela abertura da venda já vinculada ao orçamento.
 -->
 
 <!DOCTYPE html>
@@ -1044,7 +1044,11 @@ Motivo: Adicionar apresentação comercial agrupada aos orçamentos comuns e ace
                                                                 <summary>↻ Gerar</summary>
                                                                 <div class="budget-action-subitems">
                                                                     <a href="/orcamentos/{{ orcamento.id }}/gerar/copia">Cópia</a>
-                                                                    <a href="/orcamentos/{{ orcamento.id }}?gerar=venda">Venda</a>
+                                                                    {% if orcamento.venda_gerada_id %}
+                                                                        <a href="/vendas/{{ orcamento.venda_gerada_id }}">✓ Venda já gerada</a>
+                                                                    {% else %}
+                                                                        <a href="/orcamentos/{{ orcamento.id }}/gerar/venda">Gerar venda</a>
+                                                                    {% endif %}
                                                                     <a href="/orcamentos/{{ orcamento.id }}?gerar=os">OS</a>
                                                                 </div>
                                                             </details>

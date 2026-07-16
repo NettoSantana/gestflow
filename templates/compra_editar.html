@@ -1,0 +1,104 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\compra_editar.html
+Último recode: 2026-07-16 17:13 (America/Bahia)
+Motivo: Criar edição da compra com recálculo automático do estoque.
+-->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Editar compra</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .compra-page { padding-bottom:180px; }
+        .compra-form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+        .compra-form-grid .full { grid-column:1/-1; }
+        .compra-form-grid label { display:grid; gap:7px; color:#334155; font-size:13px; font-weight:800; }
+        .compra-form-grid input,.compra-form-grid select,.compra-form-grid textarea { width:100%; min-width:0; padding:11px 12px; border:1px solid #dbe3ef; border-radius:10px; font:inherit; }
+        .compra-form-grid textarea { min-height:110px; resize:vertical; }
+        @media(max-width:720px){.compra-form-grid{grid-template-columns:1fr;}}
+    </style>
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+    <main class="content compra-page">
+        {% set page_title = 'Editar compra' %}
+        {% include "partials/topbar.html" %}
+
+        {% if request.args.get('erro') %}<div class="form-alert-error">{{ request.args.get('erro') }}</div>{% endif %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Estoque</span>
+                    <h3 class="page-title">Editar compra #{{ compra.id }}</h3>
+                    <p class="page-subtitle">Ao salvar, a diferença será aplicada automaticamente ao saldo do estoque.</p>
+                </div>
+                <a href="/estoque/compras/{{ compra.id }}" class="btn-light">Cancelar edição</a>
+            </div>
+        </section>
+
+        <form action="/estoque/compras/{{ compra.id }}/editar" method="post" class="client-form">
+            <section class="panel page-section">
+                <div class="compra-form-grid">
+                    <label>
+                        Produto
+                        <select name="compra_produto_id" required>
+                            <option value="">Selecione</option>
+                            {% for produto in produtos %}
+                                <option value="{{ produto.id }}" {% if produto.id|string == compra.produto_id|string %}selected{% endif %}>{{ produto.nome }}{% if produto.codigo %} - {{ produto.codigo }}{% endif %}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+
+                    <label>
+                        Fornecedor
+                        <select name="compra_fornecedor">
+                            <option value="">Sem fornecedor informado</option>
+                            {% for fornecedor in fornecedores %}
+                                <option value="{{ fornecedor.nome }}" {% if fornecedor.nome == compra.fornecedor %}selected{% endif %}>{{ fornecedor.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+
+                    <label>
+                        Quantidade
+                        <input type="text" name="compra_quantidade" value="{{ compra.quantidade or '' }}" required>
+                    </label>
+
+                    <label>
+                        Valor de custo unitário
+                        <input type="text" name="compra_valor_custo" value="{{ compra.valor_custo or '' }}">
+                    </label>
+
+                    <label>
+                        Documento
+                        <input type="text" name="compra_documento" value="{{ compra.documento or '' }}">
+                    </label>
+
+                    <label>
+                        Responsável
+                        <select name="compra_responsavel" required>
+                            <option value="">Selecione</option>
+                            {% for funcionario in funcionarios %}
+                                <option value="{{ funcionario.nome }}" {% if funcionario.nome == compra.responsavel %}selected{% endif %}>{{ funcionario.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+
+                    <label class="full">
+                        Observações
+                        <textarea name="compra_observacoes">{{ compra.observacoes_compra or '' }}</textarea>
+                    </label>
+                </div>
+
+                <div class="form-actions">
+                    <a href="/estoque/compras/{{ compra.id }}" class="btn-light">Cancelar</a>
+                    <button type="submit" class="btn-primary-green">Salvar alterações</button>
+                </div>
+            </section>
+        </form>
+    </main>
+</body>
+</html>

@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\financeiro.html
-Último recode: 2026-07-02 23:31 (America/Bahia)
-Motivo: Padronizar Financeiro no visual de Orçamentos, com cabeçalho, tabelas client-table e lista sem overflow.
+Último recode: 2026-07-16 17:13 (America/Bahia)
+Motivo: Conter as tabelas financeiras dentro dos painéis e eliminar o estouro horizontal.
 -->
 
 <!DOCTYPE html>
@@ -377,18 +377,47 @@ Motivo: Padronizar Financeiro no visual de Orçamentos, com cabeçalho, tabelas 
             font-weight: 900;
         }
 
+        .financeiro-page .table-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            align-items: start;
+        }
+
+        .financeiro-page .table-grid > .table-panel {
+            min-width: 0;
+            max-width: 100%;
+            overflow: hidden;
+        }
+
         .financeiro-lista-shell {
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
             border: 0 !important;
             border-radius: 16px;
             overflow-x: auto;
+            overflow-y: hidden;
             background: #ffffff;
+            -webkit-overflow-scrolling: touch;
         }
 
         .financeiro-lista-table {
             width: 100% !important;
-            min-width: 100% !important;
+            min-width: 720px !important;
+            max-width: none !important;
             border-collapse: separate !important;
             border-spacing: 0 10px !important;
+        }
+
+        .financeiro-lista-table th:last-child,
+        .financeiro-lista-table td:last-child {
+            min-width: 126px;
+            white-space: nowrap;
+        }
+
+        @media (max-width: 1500px) {
+            .financeiro-page .table-grid {
+                grid-template-columns: 1fr;
+            }
         }
 
         .financeiro-lista-table thead th {
@@ -615,6 +644,7 @@ Motivo: Padronizar Financeiro no visual de Orçamentos, com cabeçalho, tabelas 
             {% if aba in ['receber', 'fluxo-caixa'] %}
                 <div class="panel table-panel">
                     <h3>Recebimentos</h3>
+                    <div class="financeiro-lista-shell">
                     <table class="client-table financeiro-lista-table">
                         <thead>
                             <tr>
@@ -650,6 +680,7 @@ Motivo: Padronizar Financeiro no visual de Orçamentos, com cabeçalho, tabelas 
                             {% endif %}
                         </tbody>
                     </table>
+                    </div>
                     {% if aba in ['receber', 'pagar'] %}
                         <div class="pagination-bar">
                             <div>{% if paginacao.total|default(0, true) > 0 %}Mostrando {{ paginacao.inicio }} a {{ paginacao.fim }} de {{ paginacao.total }}{% else %}Nenhum título encontrado{% endif %}</div>
@@ -662,6 +693,7 @@ Motivo: Padronizar Financeiro no visual de Orçamentos, com cabeçalho, tabelas 
             {% if aba in ['pagar', 'fluxo-caixa'] %}
                 <div class="panel table-panel">
                     <h3>Pagamentos</h3>
+                    <div class="financeiro-lista-shell">
                     <table class="client-table financeiro-lista-table">
                         <thead>
                             <tr>
@@ -697,6 +729,7 @@ Motivo: Padronizar Financeiro no visual de Orçamentos, com cabeçalho, tabelas 
                             {% endif %}
                         </tbody>
                     </table>
+                    </div>
                     {% if aba in ['receber', 'pagar'] %}
                         <div class="pagination-bar">
                             <div>{% if paginacao.total|default(0, true) > 0 %}Mostrando {{ paginacao.inicio }} a {{ paginacao.fim }} de {{ paginacao.total }}{% else %}Nenhum título encontrado{% endif %}</div>

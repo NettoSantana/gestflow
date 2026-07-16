@@ -1,0 +1,75 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\compra_detalhe.html
+Último recode: 2026-07-16 17:13 (America/Bahia)
+Motivo: Criar visualização detalhada da compra de estoque.
+-->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Compra de estoque</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .compra-page { padding-bottom: 180px; }
+        .compra-summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
+        .compra-summary > div { min-width:0; padding:14px; border:1px solid #e5eaf2; border-radius:14px; background:#f8fafc; }
+        .compra-summary span { display:block; margin-bottom:6px; color:#64748b; font-size:12px; font-weight:900; text-transform:uppercase; }
+        .compra-summary strong { color:#0f172a; overflow-wrap:anywhere; }
+        .compra-observacoes { white-space:pre-wrap; line-height:1.6; color:#334155; }
+        @media(max-width:900px){.compra-summary{grid-template-columns:repeat(2,minmax(0,1fr));}}
+        @media(max-width:620px){.compra-summary{grid-template-columns:1fr;}}
+    </style>
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+    <main class="content compra-page">
+        {% set page_title = 'Compra de estoque' %}
+        {% include "partials/topbar.html" %}
+
+        {% if request.args.get('sucesso') %}<div class="form-alert-success">{{ request.args.get('sucesso') }}</div>{% endif %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Estoque</span>
+                    <h3 class="page-title">Compra #{{ compra.id }}</h3>
+                    <p class="page-subtitle">Detalhes da entrada registrada no estoque.</p>
+                </div>
+                <div class="client-toolbar">
+                    <a href="/estoque/compras" class="btn-light">Voltar</a>
+                    <a href="/estoque/compras/{{ compra.id }}/editar" class="btn-primary-green">Editar compra</a>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel page-section">
+            <div class="compra-summary">
+                <div><span>Produto</span><strong>{{ compra.produto_nome or '-' }}</strong></div>
+                <div><span>Fornecedor</span><strong>{{ compra.fornecedor or '-' }}</strong></div>
+                <div><span>Quantidade</span><strong>{{ compra.quantidade or '0' }}</strong></div>
+                <div><span>Custo unitário</span><strong>R$ {{ compra.valor_custo or '0,00' }}</strong></div>
+                <div><span>Valor total</span><strong>R$ {{ compra.valor_total_compra or '0,00' }}</strong></div>
+                <div><span>Documento</span><strong>{{ compra.documento or '-' }}</strong></div>
+                <div><span>Responsável</span><strong>{{ compra.responsavel or '-' }}</strong></div>
+                <div><span>Saldo anterior</span><strong>{{ compra.saldo_anterior or '0' }}</strong></div>
+                <div><span>Saldo após compra</span><strong>{{ compra.saldo_atual or '0' }}</strong></div>
+                <div><span>Cadastro</span><strong>{{ compra.criado_em_exibicao or compra.criado_em or '-' }}</strong></div>
+            </div>
+        </section>
+
+        <section class="panel page-section">
+            <div class="panel-header page-header"><div><h3>Observações</h3></div></div>
+            <p class="compra-observacoes">{{ compra.observacoes_compra or '-' }}</p>
+        </section>
+
+        <section class="panel page-section">
+            <div class="form-actions">
+                <form action="/estoque/compras/{{ compra.id }}/excluir" method="post" onsubmit="return confirm('Excluir esta compra? A quantidade será retirada do estoque.');">
+                    <button type="submit" class="action-button delete" style="width:auto;padding:0 16px;">Excluir compra</button>
+                </form>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

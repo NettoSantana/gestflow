@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-16 07:56 (America/Bahia)
-# Motivo: Disponibilizar globalmente a logo cadastrada em Configurações - Marca para exibição na topbar.
+# Último recode: 2026-07-16 17:13 (America/Bahia)
+# Motivo: Corrigir overflow financeiro, gerenciar compras e impedir mais de uma venda por orçamento.
 
 from __future__ import annotations
 
@@ -2345,6 +2345,7 @@ def iniciar_banco() -> None:
             "quantidade_parcelas": "INTEGER NOT NULL DEFAULT 1",
             "primeiro_vencimento": "TEXT",
             "intervalo_parcelas": "TEXT NOT NULL DEFAULT 'mensal'",
+            "origem_orcamento_id": "INTEGER",
         }
         for coluna, tipo_coluna in colunas_vendas_pagamento.items():
             if coluna not in colunas_vendas_pagamento_existentes:
@@ -2415,6 +2416,91 @@ def iniciar_banco() -> None:
                 f"UPDATE {tabela} SET empresa_id = ? WHERE empresa_id IS NULL",
                 (empresa_id_inicial,),
             )
+
+        vendas_orcamento_vinculadas: set[tuple[int, int]] = set()
+        vendas_com_origem = conn.execute(
+            """
+            SELECT id, empresa_id, origem_orcamento_id
+            FROM vendas
+            WHERE origem_orcamento_id IS NOT NULL
+            ORDER BY id ASC
+            """
+        ).fetchall()
+
+        for venda_com_origem in vendas_com_origem:
+            chave_vinculo = (
+                int(venda_com_origem["empresa_id"]),
+                int(venda_com_origem["origem_orcamento_id"]),
+            )
+            if chave_vinculo in vendas_orcamento_vinculadas:
+                conn.execute(
+                    """
+                    UPDATE vendas
+                    SET origem_orcamento_id = NULL
+                    WHERE id = ?
+                    """,
+                    (int(venda_com_origem["id"]),),
+                )
+                continue
+
+            vendas_orcamento_vinculadas.add(chave_vinculo)
+        vendas_legadas_orcamento = conn.execute(
+            """
+            SELECT id, empresa_id, observacoes_internas
+            FROM vendas
+            WHERE origem_orcamento_id IS NULL
+              AND observacoes_internas LIKE '%Origem: Orçamento ID %'
+            ORDER BY id ASC
+            """
+        ).fetchall()
+
+        for venda_legada in vendas_legadas_orcamento:
+            correspondencia = re.search(
+                r"Origem:\s*Orçamento\s+ID\s+(\d+)",
+                str(venda_legada["observacoes_internas"] or ""),
+                flags=re.IGNORECASE,
+            )
+            if correspondencia is None:
+                continue
+
+            empresa_venda_id = int(venda_legada["empresa_id"])
+            orcamento_origem_id = int(correspondencia.group(1))
+            chave_vinculo = (empresa_venda_id, orcamento_origem_id)
+
+            if chave_vinculo in vendas_orcamento_vinculadas:
+                continue
+
+            orcamento_existe = conn.execute(
+                """
+                SELECT id
+                FROM orcamentos
+                WHERE id = ?
+                  AND empresa_id = ?
+                LIMIT 1
+                """,
+                (orcamento_origem_id, empresa_venda_id),
+            ).fetchone()
+            if orcamento_existe is None:
+                continue
+
+            conn.execute(
+                """
+                UPDATE vendas
+                SET origem_orcamento_id = ?
+                WHERE id = ?
+                  AND empresa_id = ?
+                """,
+                (orcamento_origem_id, int(venda_legada["id"]), empresa_venda_id),
+            )
+            vendas_orcamento_vinculadas.add(chave_vinculo)
+
+        conn.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_vendas_orcamento_unico
+            ON vendas (empresa_id, origem_orcamento_id)
+            WHERE origem_orcamento_id IS NOT NULL
+            """
+        )
 
         equipamentos_sem_token = conn.execute(
             """
@@ -4917,6 +5003,313 @@ def salvar_estoque_movimentacao_db(movimentacao: dict[str, str]) -> None:
 
         conn.commit()
 
+
+def _fornecedor_compra_por_motivo(motivo: Any) -> str:
+    texto = str(motivo or "").strip()
+    prefixo = "Compra de produto - "
+
+    if texto.lower().startswith(prefixo.lower()):
+        return texto[len(prefixo):].strip()
+
+    return ""
+
+
+def _dados_observacoes_compra(observacoes: Any) -> tuple[str, str]:
+    linhas = str(observacoes or "").replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    valor_custo = ""
+    observacoes_livres: list[str] = []
+
+    for indice, linha in enumerate(linhas):
+        texto = linha.strip()
+        if indice == 0 and texto.lower().startswith("valor de custo:"):
+            valor_custo = texto.split(":", 1)[1].strip()
+            continue
+        observacoes_livres.append(linha)
+
+    return valor_custo, "\n".join(observacoes_livres).strip()
+
+
+def normalizar_compra_estoque(registro: dict[str, Any]) -> dict[str, Any]:
+    compra = dict(registro)
+    valor_custo, observacoes = _dados_observacoes_compra(compra.get("observacoes"))
+    quantidade = _converter_valor_brl(compra.get("quantidade"))
+    custo_unitario = _converter_valor_brl(valor_custo)
+
+    compra["fornecedor"] = _fornecedor_compra_por_motivo(compra.get("motivo"))
+    compra["valor_custo"] = valor_custo
+    compra["observacoes_compra"] = observacoes
+    compra["valor_total_compra"] = _formatar_moeda_brl(quantidade * custo_unitario)
+    compra["criado_em_exibicao"] = formatar_data_hora_br(compra.get("criado_em"))
+    return compra
+
+
+def listar_compras_estoque(limite: int = 200) -> list[dict[str, Any]]:
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                id,
+                empresa_id,
+                produto_id,
+                produto_nome,
+                tipo,
+                quantidade,
+                saldo_anterior,
+                saldo_atual,
+                motivo,
+                documento,
+                responsavel,
+                observacoes,
+                criado_em
+            FROM estoque_movimentacoes
+            WHERE empresa_id = ?
+              AND tipo = 'entrada'
+              AND motivo LIKE 'Compra de produto%'
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (empresa_id, limite),
+        ).fetchall()
+
+    return [normalizar_compra_estoque(dict(row)) for row in rows]
+
+
+def buscar_compra_estoque_por_id(compra_id: int) -> dict[str, Any] | None:
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                id,
+                empresa_id,
+                produto_id,
+                produto_nome,
+                tipo,
+                quantidade,
+                saldo_anterior,
+                saldo_atual,
+                motivo,
+                documento,
+                responsavel,
+                observacoes,
+                criado_em
+            FROM estoque_movimentacoes
+            WHERE id = ?
+              AND empresa_id = ?
+              AND tipo = 'entrada'
+              AND motivo LIKE 'Compra de produto%'
+            LIMIT 1
+            """,
+            (compra_id, empresa_id),
+        ).fetchone()
+
+    return normalizar_compra_estoque(dict(row)) if row is not None else None
+
+
+def montar_compra_estoque_formulario() -> dict[str, str]:
+    return {
+        "produto_id": str(request.form.get("compra_produto_id") or "").strip(),
+        "fornecedor": str(request.form.get("compra_fornecedor") or "").strip(),
+        "quantidade": str(request.form.get("compra_quantidade") or "").strip(),
+        "valor_custo": str(request.form.get("compra_valor_custo") or "").strip(),
+        "documento": str(request.form.get("compra_documento") or "").strip(),
+        "responsavel": str(request.form.get("compra_responsavel") or "").strip(),
+        "observacoes": str(request.form.get("compra_observacoes") or "").strip(),
+    }
+
+
+def validar_compra_estoque_formulario(compra: dict[str, str]) -> str:
+    if not compra["produto_id"]:
+        return "Selecione um produto."
+
+    try:
+        produto_id = int(compra["produto_id"])
+    except (TypeError, ValueError):
+        return "Produto inválido."
+
+    if buscar_produto_por_id(produto_id) is None:
+        return "Produto não encontrado."
+
+    if not _valor_formulario_positivo(compra["quantidade"]):
+        return "Informe uma quantidade maior que zero."
+
+    if not compra["responsavel"]:
+        return "Selecione o responsável pela compra."
+
+    return ""
+
+
+def atualizar_compra_estoque_db(compra_id: int, compra: dict[str, str]) -> bool:
+    empresa_id = empresa_logada_id()
+    compra_atual = buscar_compra_estoque_por_id(compra_id)
+
+    if compra_atual is None:
+        return False
+
+    produto_novo_id = int(compra["produto_id"])
+    produto_antigo_id = int(compra_atual["produto_id"])
+    produto_novo = buscar_produto_por_id(produto_novo_id)
+
+    if produto_novo is None:
+        return False
+
+    quantidade_antiga = _converter_valor_brl(compra_atual.get("quantidade"))
+    quantidade_nova = _converter_valor_brl(compra.get("quantidade"))
+    motivo = "Compra de produto"
+    if compra["fornecedor"]:
+        motivo += f" - {compra['fornecedor']}"
+
+    observacoes = f"Valor de custo: {compra['valor_custo']}\n{compra['observacoes']}".strip()
+
+    with conectar_db() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+
+        produto_antigo = conn.execute(
+            """
+            SELECT id, estoque_atual
+            FROM produtos
+            WHERE id = ?
+              AND empresa_id = ?
+            LIMIT 1
+            """,
+            (produto_antigo_id, empresa_id),
+        ).fetchone()
+        produto_novo_row = conn.execute(
+            """
+            SELECT id, nome, estoque_atual
+            FROM produtos
+            WHERE id = ?
+              AND empresa_id = ?
+            LIMIT 1
+            """,
+            (produto_novo_id, empresa_id),
+        ).fetchone()
+
+        if produto_antigo is None or produto_novo_row is None:
+            conn.rollback()
+            return False
+
+        if produto_antigo_id == produto_novo_id:
+            saldo_atual_antes = _converter_valor_brl(produto_novo_row["estoque_atual"])
+            saldo_base = saldo_atual_antes - quantidade_antiga
+            saldo_atual_novo = saldo_base + quantidade_nova
+        else:
+            saldo_antigo_atual = _converter_valor_brl(produto_antigo["estoque_atual"])
+            saldo_antigo_novo = saldo_antigo_atual - quantidade_antiga
+            conn.execute(
+                """
+                UPDATE produtos
+                SET estoque_atual = ?
+                WHERE id = ?
+                  AND empresa_id = ?
+                """,
+                (_formatar_numero_estoque(saldo_antigo_novo), produto_antigo_id, empresa_id),
+            )
+
+            saldo_base = _converter_valor_brl(produto_novo_row["estoque_atual"])
+            saldo_atual_novo = saldo_base + quantidade_nova
+
+        conn.execute(
+            """
+            UPDATE produtos
+            SET estoque_atual = ?
+            WHERE id = ?
+              AND empresa_id = ?
+            """,
+            (_formatar_numero_estoque(saldo_atual_novo), produto_novo_id, empresa_id),
+        )
+        conn.execute(
+            """
+            UPDATE estoque_movimentacoes
+            SET
+                produto_id = ?,
+                produto_nome = ?,
+                quantidade = ?,
+                saldo_anterior = ?,
+                saldo_atual = ?,
+                motivo = ?,
+                documento = ?,
+                responsavel = ?,
+                observacoes = ?
+            WHERE id = ?
+              AND empresa_id = ?
+            """,
+            (
+                produto_novo_id,
+                str(produto_novo_row["nome"] or ""),
+                _formatar_numero_estoque(quantidade_nova),
+                _formatar_numero_estoque(saldo_base),
+                _formatar_numero_estoque(saldo_atual_novo),
+                motivo,
+                compra["documento"],
+                compra["responsavel"],
+                observacoes,
+                compra_id,
+                empresa_id,
+            ),
+        )
+        conn.commit()
+
+    return True
+
+
+def excluir_compra_estoque_db(compra_id: int) -> bool:
+    empresa_id = empresa_logada_id()
+    compra = buscar_compra_estoque_por_id(compra_id)
+
+    if compra is None:
+        return False
+
+    produto_id = int(compra["produto_id"])
+    quantidade = _converter_valor_brl(compra.get("quantidade"))
+
+    with conectar_db() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        produto = conn.execute(
+            """
+            SELECT estoque_atual
+            FROM produtos
+            WHERE id = ?
+              AND empresa_id = ?
+            LIMIT 1
+            """,
+            (produto_id, empresa_id),
+        ).fetchone()
+
+        if produto is None:
+            conn.rollback()
+            return False
+
+        saldo_atual = _converter_valor_brl(produto["estoque_atual"])
+        saldo_revertido = saldo_atual - quantidade
+
+        conn.execute(
+            """
+            UPDATE produtos
+            SET estoque_atual = ?
+            WHERE id = ?
+              AND empresa_id = ?
+            """,
+            (_formatar_numero_estoque(saldo_revertido), produto_id, empresa_id),
+        )
+        conn.execute(
+            """
+            DELETE FROM estoque_movimentacoes
+            WHERE id = ?
+              AND empresa_id = ?
+              AND tipo = 'entrada'
+              AND motivo LIKE 'Compra de produto%'
+            """,
+            (compra_id, empresa_id),
+        )
+        conn.commit()
+
+    return True
+
+
 def _formatar_numero_estoque(valor: float) -> str:
     texto = f"{valor:.2f}".replace(".", ",")
 
@@ -5532,7 +5925,15 @@ def listar_orcamentos_paginado(
                 origem,
                 modo_apresentacao,
                 descricao_comercial,
-                criado_em
+                criado_em,
+                (
+                    SELECT v.id
+                    FROM vendas v
+                    WHERE v.empresa_id = orcamentos.empresa_id
+                      AND v.origem_orcamento_id = orcamentos.id
+                    ORDER BY v.id ASC
+                    LIMIT 1
+                ) AS venda_gerada_id
             FROM orcamentos
             {where}
             ORDER BY {coluna_sql} {direcao_sql}, id DESC
@@ -8464,6 +8865,7 @@ def salvar_venda_db(venda: dict[str, str], itens: list[dict[str, str]]) -> int:
             """
             INSERT INTO vendas (
                 empresa_id,
+                origem_orcamento_id,
                 numero,
                 cliente,
                 responsavel,
@@ -8489,10 +8891,11 @@ def salvar_venda_db(venda: dict[str, str], itens: list[dict[str, str]]) -> int:
                 intervalo_parcelas,
                 observacoes,
                 observacoes_internas
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id,
+                venda.get("origem_orcamento_id") or None,
                 venda["numero"],
                 venda["cliente"],
                 venda["responsavel"],
@@ -8558,20 +8961,54 @@ def salvar_venda_db(venda: dict[str, str], itens: list[dict[str, str]]) -> int:
     return venda_id
 
 
-def gerar_venda_por_orcamento_db(orcamento_id: int) -> int | None:
+def buscar_venda_por_orcamento_id(orcamento_id: int) -> dict[str, Any] | None:
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                id,
+                empresa_id,
+                origem_orcamento_id,
+                numero,
+                cliente,
+                responsavel,
+                data,
+                status,
+                valor_total,
+                criado_em
+            FROM vendas
+            WHERE empresa_id = ?
+              AND origem_orcamento_id = ?
+            ORDER BY id ASC
+            LIMIT 1
+            """,
+            (empresa_id, orcamento_id),
+        ).fetchone()
+
+    return dict(row) if row is not None else None
+
+
+def gerar_venda_por_orcamento_db(orcamento_id: int) -> tuple[int | None, bool]:
+    venda_existente = buscar_venda_por_orcamento_id(orcamento_id)
+
+    if venda_existente is not None:
+        return int(venda_existente["id"]), False
+
     orcamento = buscar_orcamento_por_id(orcamento_id)
 
     if orcamento is None:
-        return None
+        return None, False
 
     itens_orcamento = listar_orcamento_itens(orcamento_id)
 
     if not itens_orcamento:
-        return None
+        return None, False
 
     valor_total = _converter_valor_brl(orcamento.get("valor_total"))
     if valor_total <= 0:
-        return None
+        return None, False
 
     numero_orcamento = str(orcamento.get("numero") or orcamento_id).strip()
     data_venda = hoje_empresa().isoformat()
@@ -8584,6 +9021,7 @@ def gerar_venda_por_orcamento_db(orcamento_id: int) -> int | None:
         observacoes_venda += f"\n\n{observacoes_orcamento}"
 
     venda = {
+        "origem_orcamento_id": orcamento_id,
         "numero": proximo_numero_venda(),
         "cliente": str(orcamento.get("cliente") or ""),
         "responsavel": str(orcamento.get("responsavel") or ""),
@@ -8629,7 +9067,13 @@ def gerar_venda_por_orcamento_db(orcamento_id: int) -> int | None:
             }
         )
 
-    return salvar_venda_db(venda, itens_venda)
+    try:
+        return salvar_venda_db(venda, itens_venda), True
+    except sqlite3.IntegrityError:
+        venda_existente = buscar_venda_por_orcamento_id(orcamento_id)
+        if venda_existente is not None:
+            return int(venda_existente["id"]), False
+        return None, False
 
 
 def copiar_venda_db(venda_id: int) -> int | None:
@@ -18349,6 +18793,7 @@ def estoque() -> str:
         fornecedores=fornecedores_lista,
         funcionarios=funcionarios_lista,
         movimentacoes=contexto_estoque["movimentacoes_paginadas"],
+        compras=listar_compras_estoque(),
         painel=painel,
         aba=contexto_estoque["aba"],
         produto_selecionado=produto_selecionado,
@@ -18430,43 +18875,25 @@ def movimentar_estoque() -> Response:
 
 @app.post("/estoque/comprar")
 def comprar_produto_estoque() -> Response:
-    produto_id_texto = (request.form.get("compra_produto_id") or "").strip()
-    quantidade_texto = (request.form.get("compra_quantidade") or "").strip()
-    responsavel = (request.form.get("compra_responsavel") or "").strip()
+    compra = montar_compra_estoque_formulario()
+    erro_validacao = validar_compra_estoque_formulario(compra)
 
-    if not produto_id_texto:
-        return redirect(url_for("estoque") + "/compras")
+    if erro_validacao:
+        return redirect(f"/estoque/compras?erro={urllib.parse.quote(erro_validacao)}")
 
-    if not _valor_formulario_positivo(quantidade_texto):
-        return redirect(url_for("estoque") + "/compras")
-
-    if not responsavel:
-        return redirect(url_for("estoque") + "/compras")
-
-    try:
-        produto_id = int(produto_id_texto)
-    except ValueError:
-        return redirect(url_for("estoque") + "/compras")
-
+    produto_id = int(compra["produto_id"])
     produto = buscar_produto_por_id(produto_id)
 
     if produto is None:
-        return redirect(url_for("estoque") + "/compras")
+        return redirect("/estoque/compras?erro=Produto%20não%20encontrado.")
 
-    quantidade = _converter_valor_brl(quantidade_texto)
+    quantidade = _converter_valor_brl(compra["quantidade"])
     saldo_anterior_numero = _converter_valor_brl(produto.get("estoque_atual"))
     saldo_atual_numero = saldo_anterior_numero + quantidade
-
-    fornecedor = (request.form.get("compra_fornecedor") or "").strip()
-    documento = (request.form.get("compra_documento") or "").strip()
-    responsavel = (request.form.get("compra_responsavel") or "").strip()
-    valor_custo = (request.form.get("compra_valor_custo") or "").strip()
-    observacoes = (request.form.get("compra_observacoes") or "").strip()
-
     motivo = "Compra de produto"
 
-    if fornecedor:
-        motivo += f" - {fornecedor}"
+    if compra["fornecedor"]:
+        motivo += f" - {compra['fornecedor']}"
 
     movimentacao = {
         "produto_id": str(produto_id),
@@ -18476,14 +18903,107 @@ def comprar_produto_estoque() -> Response:
         "saldo_anterior": _formatar_numero_estoque(saldo_anterior_numero),
         "saldo_atual": _formatar_numero_estoque(saldo_atual_numero),
         "motivo": motivo,
-        "documento": documento,
-        "responsavel": responsavel,
-        "observacoes": f"Valor de custo: {valor_custo}\n{observacoes}".strip(),
+        "documento": compra["documento"],
+        "responsavel": compra["responsavel"],
+        "observacoes": f"Valor de custo: {compra['valor_custo']}\n{compra['observacoes']}".strip(),
     }
 
     salvar_estoque_movimentacao_db(movimentacao)
+    registrar_atividade_usuario(
+        "criacao",
+        "estoque",
+        f"Registrou compra de {produto.get('nome') or produto_id}",
+        request.path,
+    )
+    return redirect("/estoque/compras?sucesso=Compra%20registrada%20e%20estoque%20atualizado.")
 
-    return redirect(url_for("estoque") + "/compras")
+
+@app.get("/estoque/compras/<int:compra_id>")
+def ver_compra_estoque(compra_id: int) -> str | Response:
+    compra = buscar_compra_estoque_por_id(compra_id)
+
+    if compra is None:
+        return redirect("/estoque/compras?erro=Compra%20não%20encontrada.")
+
+    return render_template("compra_detalhe.html", compra=compra)
+
+
+@app.get("/estoque/compras/<int:compra_id>/editar")
+def editar_compra_estoque(compra_id: int) -> str | Response:
+    compra = buscar_compra_estoque_por_id(compra_id)
+
+    if compra is None:
+        return redirect("/estoque/compras?erro=Compra%20não%20encontrada.")
+
+    return render_template(
+        "compra_editar.html",
+        compra=compra,
+        produtos=listar_produtos(),
+        fornecedores=listar_fornecedores(),
+        funcionarios=listar_funcionarios(),
+    )
+
+
+@app.post("/estoque/compras/<int:compra_id>/editar")
+def atualizar_compra_estoque(compra_id: int) -> Response:
+    compra_atual = buscar_compra_estoque_por_id(compra_id)
+
+    if compra_atual is None:
+        return redirect("/estoque/compras?erro=Compra%20não%20encontrada.")
+
+    compra = montar_compra_estoque_formulario()
+    erro_validacao = validar_compra_estoque_formulario(compra)
+
+    if erro_validacao:
+        return redirect(
+            url_for(
+                "editar_compra_estoque",
+                compra_id=compra_id,
+                erro=erro_validacao,
+            )
+        )
+
+    if not atualizar_compra_estoque_db(compra_id, compra):
+        return redirect(
+            url_for(
+                "editar_compra_estoque",
+                compra_id=compra_id,
+                erro="Não foi possível atualizar a compra.",
+            )
+        )
+
+    registrar_atividade_usuario(
+        "edicao",
+        "estoque",
+        f"Editou compra de estoque #{compra_id}",
+        request.path,
+    )
+    return redirect(
+        url_for(
+            "ver_compra_estoque",
+            compra_id=compra_id,
+            sucesso="Compra atualizada e saldo de estoque recalculado.",
+        )
+    )
+
+
+@app.post("/estoque/compras/<int:compra_id>/excluir")
+def excluir_compra_estoque(compra_id: int) -> Response:
+    compra = buscar_compra_estoque_por_id(compra_id)
+
+    if compra is None:
+        return redirect("/estoque/compras?erro=Compra%20não%20encontrada.")
+
+    if not excluir_compra_estoque_db(compra_id):
+        return redirect("/estoque/compras?erro=Não%20foi%20possível%20excluir%20a%20compra.")
+
+    registrar_atividade_usuario(
+        "exclusao",
+        "estoque",
+        f"Excluiu compra de estoque #{compra_id}",
+        request.path,
+    )
+    return redirect("/estoque/compras?sucesso=Compra%20excluída%20e%20estoque%20revertido.")
 
 
 
@@ -20357,6 +20877,7 @@ def ver_orcamento(orcamento_id: int) -> str | Response:
         itens_apresentacao=itens_apresentacao,
         dados_gerador=dados_gerador,
         historico_gerador=listar_historico_gerador(orcamento_id)[:3],
+        venda_gerada=buscar_venda_por_orcamento_id(orcamento_id),
         escopo_formatado=formatar_escopo_orcamento(orcamento.get("observacoes"), dados_gerador),
     )
 
@@ -20365,7 +20886,7 @@ def ver_orcamento(orcamento_id: int) -> str | Response:
 
 @app.get("/orcamentos/<int:orcamento_id>/gerar/venda")
 def gerar_venda_por_orcamento(orcamento_id: int) -> Response:
-    venda_id = gerar_venda_por_orcamento_db(orcamento_id)
+    venda_id, venda_criada = gerar_venda_por_orcamento_db(orcamento_id)
 
     if venda_id is None:
         return redirect(
@@ -20376,20 +20897,32 @@ def gerar_venda_por_orcamento(orcamento_id: int) -> Response:
             )
         )
 
-    venda = buscar_venda_por_id(venda_id)
-    itens_venda = listar_venda_itens(venda_id)
+    if venda_criada:
+        venda = buscar_venda_por_id(venda_id)
+        itens_venda = listar_venda_itens(venda_id)
 
-    if venda is not None:
-        baixar_estoque_por_venda_db(venda_id, venda, itens_venda)
-        gerar_conta_receber_por_venda_db(venda_id, venda)
+        if venda is not None:
+            baixar_estoque_por_venda_db(venda_id, venda, itens_venda)
+            gerar_conta_receber_por_venda_db(venda_id, venda)
 
-    registrar_atividade_usuario(
-        "criacao",
-        "orcamentos",
-        f"Gerou venda #{venda_id} pelo orçamento #{orcamento_id}",
-        request.path,
+        registrar_atividade_usuario(
+            "criacao",
+            "orcamentos",
+            f"Gerou venda #{venda_id} pelo orçamento #{orcamento_id}",
+            request.path,
+        )
+
+    return redirect(
+        url_for(
+            "ver_venda",
+            venda_id=venda_id,
+            aviso=(
+                "Venda já gerada anteriormente para este orçamento."
+                if not venda_criada
+                else "Venda gerada pelo orçamento."
+            ),
+        )
     )
-    return redirect(url_for("ver_venda", venda_id=venda_id))
 
 
 @app.get("/orcamentos/<int:orcamento_id>/gerar/os")
