@@ -1,0 +1,128 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\financeiro_titulo_editar.html
+Último recode: 2026-07-16 17:59 (America/Bahia)
+Motivo: Criar edição híbrida para títulos manuais e títulos vinculados a vendas.
+-->
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Editar Título Financeiro</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .financeiro-edit-page { padding-bottom:180px; }
+        .financeiro-edit-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+        .financeiro-edit-field { display:flex; flex-direction:column; gap:7px; min-width:0; }
+        .financeiro-edit-field.full { grid-column:1/-1; }
+        .financeiro-edit-field label { color:#334155; font-size:12px; font-weight:900; }
+        .financeiro-edit-field input,
+        .financeiro-edit-field select,
+        .financeiro-edit-field textarea { width:100%; min-width:0; border:1px solid #dbe3ef; border-radius:10px; background:#fff; padding:11px 12px; font:inherit; }
+        .financeiro-edit-field textarea { min-height:100px; resize:vertical; }
+        .financeiro-edit-field input[readonly] { background:#f1f5f9; color:#64748b; }
+        .financeiro-edit-warning { margin-bottom:16px; padding:12px 14px; border:1px solid #c4b5fd; border-radius:12px; background:#f5f3ff; color:#5b21b6; font-size:12px; font-weight:800; line-height:1.45; }
+        .financeiro-edit-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:18px; flex-wrap:wrap; }
+        @media(max-width:720px) {
+            .financeiro-edit-grid { grid-template-columns:1fr; }
+            .financeiro-edit-field.full { grid-column:auto; }
+            .financeiro-edit-actions { align-items:stretch; flex-direction:column; }
+            .financeiro-edit-actions a,
+            .financeiro-edit-actions button { width:100%; justify-content:center; }
+        }
+    </style>
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+
+    <main class="content financeiro-edit-page">
+        {% set page_title = 'Editar Título Financeiro' %}
+        {% include "partials/topbar.html" %}
+
+        {% if request.args.get('erro') %}<div class="gestflow-form-error show">{{ request.args.get('erro') }}</div>{% endif %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Financeiro</span>
+                    <h3 class="page-title">Editar título {{ titulo.documento or titulo.id }}</h3>
+                    <p class="page-subtitle">
+                        {% if titulo.venda_id %}
+                            Ajuste apenas os dados da cobrança. O valor comercial continua sendo controlado pela venda.
+                        {% else %}
+                            Atualize os dados completos do lançamento manual.
+                        {% endif %}
+                    </p>
+                </div>
+                <a href="/financeiro/titulos/{{ titulo.id }}" class="btn-light">Voltar</a>
+            </div>
+        </section>
+
+        <form action="/financeiro/titulos/{{ titulo.id }}/editar" method="post" class="panel page-section">
+            {% if titulo.venda_id %}
+                <div class="financeiro-edit-warning">
+                    Título vinculado à Venda Nº {{ venda.numero if venda else titulo.venda_id }}.
+                    Para mudar cliente, valor, parcelas ou composição, edite a venda. Aqui são permitidos somente vencimento, forma de cobrança e observações.
+                </div>
+
+                <div class="financeiro-edit-grid">
+                    <div class="financeiro-edit-field"><label>Documento</label><input type="text" value="{{ titulo.documento or '' }}" readonly></div>
+                    <div class="financeiro-edit-field"><label>Pessoa</label><input type="text" value="{{ titulo.pessoa or '' }}" readonly></div>
+                    <div class="financeiro-edit-field"><label>Valor comercial</label><input type="text" value="R$ {{ titulo.valor_formatado }}" readonly></div>
+                    <div class="financeiro-edit-field"><label>Status</label><input type="text" value="{{ titulo.status_exibicao|title }}" readonly></div>
+                    <div class="financeiro-edit-field">
+                        <label for="financeiro_data_vencimento">Data de vencimento</label>
+                        <input id="financeiro_data_vencimento" name="financeiro_data_vencimento" type="date" value="{{ titulo.data_vencimento or '' }}" required>
+                    </div>
+                    <div class="financeiro-edit-field">
+                        <label for="financeiro_forma_pagamento">Forma de cobrança</label>
+                        <input id="financeiro_forma_pagamento" name="financeiro_forma_pagamento" type="text" value="{{ titulo.forma_pagamento or '' }}" placeholder="Pix, boleto, transferência...">
+                    </div>
+                    <div class="financeiro-edit-field full">
+                        <label for="financeiro_observacoes">Observações</label>
+                        <textarea id="financeiro_observacoes" name="financeiro_observacoes" placeholder="Informações internas da cobrança">{{ titulo.observacoes or '' }}</textarea>
+                    </div>
+                </div>
+            {% else %}
+                <div class="financeiro-edit-grid">
+                    <div class="financeiro-edit-field">
+                        <label for="financeiro_tipo">Tipo</label>
+                        <select id="financeiro_tipo" name="financeiro_tipo">
+                            <option value="receber" {% if titulo.tipo == 'receber' %}selected{% endif %}>Conta a receber</option>
+                            <option value="pagar" {% if titulo.tipo == 'pagar' %}selected{% endif %}>Conta a pagar</option>
+                        </select>
+                    </div>
+                    <div class="financeiro-edit-field">
+                        <label for="financeiro_status">Status</label>
+                        <select id="financeiro_status" name="financeiro_status">
+                            <option value="aberto" {% if titulo.status == 'aberto' %}selected{% endif %}>Aberto</option>
+                            <option value="pago" {% if titulo.status == 'pago' %}selected{% endif %}>Pago</option>
+                            <option value="cancelado" {% if titulo.status == 'cancelado' %}selected{% endif %}>Cancelado</option>
+                        </select>
+                    </div>
+                    <div class="financeiro-edit-field"><label for="financeiro_descricao">Descrição</label><input id="financeiro_descricao" name="financeiro_descricao" type="text" value="{{ titulo.descricao or '' }}" required></div>
+                    <div class="financeiro-edit-field"><label for="financeiro_pessoa">Pessoa</label><input id="financeiro_pessoa" name="financeiro_pessoa" type="text" value="{{ titulo.pessoa or '' }}"></div>
+                    <div class="financeiro-edit-field"><label for="financeiro_categoria">Categoria</label><input id="financeiro_categoria" name="financeiro_categoria" type="text" value="{{ titulo.categoria or '' }}" list="categorias-financeiro"></div>
+                    <div class="financeiro-edit-field"><label for="financeiro_documento">Documento</label><input id="financeiro_documento" name="financeiro_documento" type="text" value="{{ titulo.documento or '' }}"></div>
+                    <div class="financeiro-edit-field"><label for="financeiro_data_emissao">Data de emissão</label><input id="financeiro_data_emissao" name="financeiro_data_emissao" type="date" value="{{ titulo.data_emissao or '' }}"></div>
+                    <div class="financeiro-edit-field"><label for="financeiro_data_vencimento">Data de vencimento</label><input id="financeiro_data_vencimento" name="financeiro_data_vencimento" type="date" value="{{ titulo.data_vencimento or '' }}" required></div>
+                    <div class="financeiro-edit-field"><label for="financeiro_data_pagamento">Data de pagamento</label><input id="financeiro_data_pagamento" name="financeiro_data_pagamento" type="date" value="{{ titulo.data_pagamento or '' }}"></div>
+                    <div class="financeiro-edit-field"><label for="financeiro_valor">Valor</label><input id="financeiro_valor" name="financeiro_valor" type="text" value="{{ titulo.valor or '0,00' }}" required></div>
+                    <div class="financeiro-edit-field"><label for="financeiro_forma_pagamento">Forma de pagamento</label><input id="financeiro_forma_pagamento" name="financeiro_forma_pagamento" type="text" value="{{ titulo.forma_pagamento or '' }}"></div>
+                    <div class="financeiro-edit-field full"><label for="financeiro_observacoes">Observações</label><textarea id="financeiro_observacoes" name="financeiro_observacoes">{{ titulo.observacoes or '' }}</textarea></div>
+                </div>
+
+                <datalist id="categorias-financeiro">
+                    {% for categoria in categorias_financeiro %}<option value="{{ categoria }}">{% endfor %}
+                </datalist>
+            {% endif %}
+
+            <div class="financeiro-edit-actions">
+                <a href="/financeiro/titulos/{{ titulo.id }}" class="btn-light">Cancelar</a>
+                <button type="submit" class="btn-primary-green">Salvar alterações</button>
+            </div>
+        </form>
+    </main>
+</body>
+</html>

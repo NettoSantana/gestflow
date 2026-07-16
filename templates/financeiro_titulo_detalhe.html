@@ -1,0 +1,154 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\financeiro_titulo_detalhe.html
+Último recode: 2026-07-16 17:59 (America/Bahia)
+Motivo: Criar visualização completa do título financeiro, origem, ações permitidas e histórico.
+-->
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Título Financeiro</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .financeiro-detail-page { padding-bottom: 180px; }
+        .financeiro-detail-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+        .financeiro-detail-actions form { margin:0; }
+        .financeiro-summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
+        .financeiro-summary-card { min-width:0; border:1px solid #e2e8f0; border-radius:14px; background:#fff; padding:14px; }
+        .financeiro-summary-card span { display:block; margin-bottom:6px; color:#64748b; font-size:11px; font-weight:900; text-transform:uppercase; }
+        .financeiro-summary-card strong { display:block; color:#0f172a; font-size:14px; overflow-wrap:anywhere; }
+        .financeiro-origin-note { margin-top:14px; padding:12px 14px; border:1px solid #c4b5fd; border-radius:12px; background:#f5f3ff; color:#5b21b6; font-size:12px; font-weight:800; line-height:1.45; }
+        .financeiro-history { display:grid; gap:10px; }
+        .financeiro-history-item { display:grid; grid-template-columns:minmax(150px,.45fr) minmax(0,1.55fr) minmax(140px,.5fr); gap:12px; border:1px solid #e2e8f0; border-radius:12px; background:#f8fafc; padding:12px; }
+        .financeiro-history-item span { display:block; color:#64748b; font-size:11px; font-weight:800; text-transform:uppercase; }
+        .financeiro-history-item strong { display:block; margin-top:4px; color:#0f172a; font-size:13px; overflow-wrap:anywhere; }
+        .financeiro-danger-button { min-height:40px; padding:0 14px; border:0; border-radius:10px; background:#ef4444; color:#fff; cursor:pointer; font-weight:800; }
+        .financeiro-cancel-button { min-height:40px; padding:0 14px; border:0; border-radius:10px; background:#64748b; color:#fff; cursor:pointer; font-weight:800; }
+        @media(max-width:900px) {
+            .financeiro-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
+            .financeiro-history-item { grid-template-columns:1fr; }
+        }
+        @media(max-width:620px) {
+            .financeiro-summary { grid-template-columns:1fr; }
+            .financeiro-detail-actions { align-items:stretch; flex-direction:column; }
+            .financeiro-detail-actions a,
+            .financeiro-detail-actions button { width:100%; justify-content:center; }
+        }
+    </style>
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+
+    <main class="content financeiro-detail-page">
+        {% set page_title = 'Título Financeiro' %}
+        {% include "partials/topbar.html" %}
+
+        {% if request.args.get('sucesso') %}<div class="form-alert-success">{{ request.args.get('sucesso') }}</div>{% endif %}
+        {% if request.args.get('erro') %}<div class="gestflow-form-error show">{{ request.args.get('erro') }}</div>{% endif %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Financeiro</span>
+                    <h3 class="page-title">{{ titulo.documento or titulo.descricao or ('Título ' ~ titulo.id) }}</h3>
+                    <p class="page-subtitle">Visualize a cobrança, a origem do lançamento e o histórico administrativo.</p>
+                </div>
+
+                <div class="financeiro-detail-actions">
+                    <a href="{{ '/financeiro/pagar' if titulo.tipo == 'pagar' else '/financeiro/receber' }}" class="btn-light">Voltar</a>
+
+                    {% if titulo.pode_editar %}
+                        <a href="/financeiro/titulos/{{ titulo.id }}/editar" class="btn-dark">Editar</a>
+                    {% endif %}
+
+                    {% if titulo.venda_id %}
+                        <a href="/vendas/{{ titulo.venda_id }}" class="btn-dark">Abrir venda</a>
+                    {% endif %}
+
+                    {% if titulo.status_exibicao in ['aberto', 'vencido'] %}
+                        <form action="/financeiro/titulos/{{ titulo.id }}/baixar" method="post">
+                            <button type="submit" class="btn-primary-green" onclick="return confirm('Confirmar a baixa deste título?');">Baixar</button>
+                        </form>
+                        <form action="/financeiro/titulos/{{ titulo.id }}/cancelar" method="post">
+                            <button type="submit" class="financeiro-cancel-button" onclick="return confirm('Confirmar o cancelamento deste título?');">Cancelar</button>
+                        </form>
+                    {% endif %}
+
+                    {% if titulo.pode_excluir %}
+                        <form action="/financeiro/titulos/{{ titulo.id }}/excluir" method="post">
+                            <button type="submit" class="financeiro-danger-button" onclick="return confirm('Excluir definitivamente este título manual?');">Excluir</button>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Dados do título</h3>
+                    <p class="page-subtitle">Informações financeiras vigentes.</p>
+                </div>
+                <span class="status-pill {{ titulo.status_exibicao }}">{{ titulo.status_exibicao }}</span>
+            </div>
+
+            <div class="financeiro-summary">
+                <div class="financeiro-summary-card"><span>Tipo</span><strong>{{ 'Conta a pagar' if titulo.tipo == 'pagar' else 'Conta a receber' }}</strong></div>
+                <div class="financeiro-summary-card"><span>Origem</span><strong>{{ titulo.origem_rotulo }}</strong></div>
+                <div class="financeiro-summary-card"><span>Valor</span><strong>R$ {{ titulo.valor_formatado }}</strong></div>
+                <div class="financeiro-summary-card"><span>Pessoa</span><strong>{{ titulo.pessoa or '-' }}</strong></div>
+                <div class="financeiro-summary-card"><span>Descrição</span><strong>{{ titulo.descricao or '-' }}</strong></div>
+                <div class="financeiro-summary-card"><span>Categoria</span><strong>{{ titulo.categoria or '-' }}</strong></div>
+                <div class="financeiro-summary-card"><span>Documento</span><strong>{{ titulo.documento or '-' }}</strong></div>
+                <div class="financeiro-summary-card"><span>Emissão</span><strong>{{ titulo.data_emissao_exibicao or '-' }}</strong></div>
+                <div class="financeiro-summary-card"><span>Vencimento</span><strong>{{ titulo.data_vencimento_exibicao or '-' }}</strong></div>
+                <div class="financeiro-summary-card"><span>Pagamento</span><strong>{{ titulo.data_pagamento_exibicao or '-' }}</strong></div>
+                <div class="financeiro-summary-card"><span>Forma de pagamento</span><strong>{{ titulo.forma_pagamento or '-' }}</strong></div>
+                <div class="financeiro-summary-card"><span>Cadastrado em</span><strong>{{ titulo.criado_em_exibicao or '-' }}</strong></div>
+            </div>
+
+            <div class="financeiro-origin-note">
+                {% if titulo.venda_id %}
+                    O valor comercial deste título é controlado pela Venda Nº {{ venda.numero if venda else titulo.venda_id }}.
+                    No Financeiro podem ser ajustados apenas vencimento, forma de cobrança e observações enquanto o título estiver aberto.
+                {% else %}
+                    Este título foi criado manualmente e pode ser administrado diretamente no Financeiro.
+                {% endif %}
+            </div>
+        </section>
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Observações</h3>
+                    <p class="page-subtitle">Informações internas do lançamento.</p>
+                </div>
+            </div>
+            <div class="financeiro-summary-card"><strong>{{ titulo.observacoes or '-' }}</strong></div>
+        </section>
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Histórico</h3>
+                    <p class="page-subtitle">Alterações, baixas e cancelamentos registrados.</p>
+                </div>
+            </div>
+
+            <div class="financeiro-history">
+                {% for registro in historico %}
+                    <div class="financeiro-history-item">
+                        <div><span>Ação</span><strong>{{ registro.acao|replace('_', ' ')|title }}</strong></div>
+                        <div><span>Descrição</span><strong>{{ registro.descricao or '-' }}</strong></div>
+                        <div><span>Responsável / data</span><strong>{{ registro.responsavel or 'Sistema' }}<br>{{ registro.criado_em_exibicao or registro.criado_em }}</strong></div>
+                    </div>
+                {% else %}
+                    <div class="empty-table-box">Nenhuma alteração registrada para este título.</div>
+                {% endfor %}
+            </div>
+        </section>
+    </main>
+</body>
+</html>

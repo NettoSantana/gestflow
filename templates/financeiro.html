@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\financeiro.html
-Último recode: 2026-07-16 17:13 (America/Bahia)
-Motivo: Conter as tabelas financeiras dentro dos painéis e eliminar o estouro horizontal.
+Último recode: 2026-07-16 17:59 (America/Bahia)
+Motivo: Adicionar gestão híbrida dos títulos, ações padronizadas e acesso à venda de origem.
 -->
 
 <!DOCTYPE html>
@@ -85,6 +85,78 @@ Motivo: Conter as tabelas financeiras dentro dos painéis e eliminar o estouro h
 
         .financeiro-action.cancelar {
             background: #64748b;
+        }
+
+        .financeiro-action-buttons {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .financeiro-action-buttons form {
+            margin: 0;
+            display: inline-flex;
+        }
+
+        .financeiro-icon-button {
+            width: 34px;
+            height: 32px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 0;
+            border-radius: 9px;
+            color: #ffffff;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 900;
+            text-decoration: none;
+            line-height: 1;
+        }
+
+        .financeiro-icon-button.view {
+            background: #0ea5e9;
+        }
+
+        .financeiro-icon-button.edit {
+            background: #f59e0b;
+        }
+
+        .financeiro-icon-button.sale {
+            background: #7c3aed;
+        }
+
+        .financeiro-icon-button.baixar {
+            background: #16a34a;
+        }
+
+        .financeiro-icon-button.cancelar {
+            background: #64748b;
+        }
+
+        .financeiro-icon-button.delete {
+            background: #ef4444;
+            font-size: 16px;
+        }
+
+        .financeiro-origin-badge {
+            display: inline-flex;
+            align-items: center;
+            min-height: 22px;
+            margin-top: 4px;
+            padding: 0 8px;
+            border-radius: 999px;
+            background: #e2e8f0;
+            color: #475569;
+            font-size: 10px;
+            font-weight: 900;
+            white-space: nowrap;
+        }
+
+        .financeiro-origin-badge.venda {
+            background: #ede9fe;
+            color: #6d28d9;
         }
 
         .status-pill.vencido {
@@ -410,8 +482,15 @@ Motivo: Conter as tabelas financeiras dentro dos painéis e eliminar o estouro h
 
         .financeiro-lista-table th:last-child,
         .financeiro-lista-table td:last-child {
-            min-width: 126px;
+            min-width: 220px;
             white-space: nowrap;
+        }
+
+        .financeiro-lista-table td:first-child,
+        .financeiro-lista-table td:nth-child(2) {
+            max-width: 230px;
+            overflow-wrap: anywhere;
+            word-break: break-word;
         }
 
         @media (max-width: 1500px) {
@@ -467,6 +546,8 @@ Motivo: Conter as tabelas financeiras dentro dos painéis e eliminar o estouro h
 <main class="content financeiro-page">
         {% set page_title = 'Financeiro' %}
         {% include "partials/topbar.html" %}
+        {% if request.args.get('sucesso') %}<div class="form-alert-success">{{ request.args.get('sucesso') }}</div>{% endif %}
+        {% if request.args.get('erro') %}<div class="gestflow-form-error show">{{ request.args.get('erro') }}</div>{% endif %}
         {% set paginacao = paginacao|default({}, true) %}
         {% set busca = busca|default('', true) %}
         {% set ordenar = ordenar|default('data_vencimento', true) %}
@@ -475,6 +556,67 @@ Motivo: Conter as tabelas financeiras dentro dos painéis e eliminar o estouro h
         {% set financeiro_endpoint = 'financeiro' %}
         {% if aba == 'receber' %}{% set financeiro_endpoint = 'financeiro' %}{% elif aba == 'pagar' %}{% set financeiro_endpoint = 'financeiro' %}{% endif %}
 
+        {% macro acoes_titulo(titulo) -%}
+            <div class="financeiro-action-buttons">
+                <a
+                    href="/financeiro/titulos/{{ titulo.id }}"
+                    class="financeiro-icon-button view"
+                    title="Ver título"
+                    aria-label="Ver título"
+                >🔍</a>
+
+                {% if titulo.pode_editar %}
+                    <a
+                        href="/financeiro/titulos/{{ titulo.id }}/editar"
+                        class="financeiro-icon-button edit"
+                        title="Editar título"
+                        aria-label="Editar título"
+                    >✎</a>
+                {% endif %}
+
+                {% if titulo.venda_id %}
+                    <a
+                        href="/vendas/{{ titulo.venda_id }}"
+                        class="financeiro-icon-button sale"
+                        title="Abrir venda de origem"
+                        aria-label="Abrir venda de origem"
+                    >↗</a>
+                {% endif %}
+
+                {% if titulo.status_exibicao in ['aberto', 'vencido'] %}
+                    <form action="/financeiro/titulos/{{ titulo.id }}/baixar" method="post">
+                        <button
+                            class="financeiro-icon-button baixar"
+                            type="submit"
+                            title="Baixar título"
+                            aria-label="Baixar título"
+                            onclick="return confirm('Confirmar a baixa deste título?');"
+                        >✓</button>
+                    </form>
+                    <form action="/financeiro/titulos/{{ titulo.id }}/cancelar" method="post">
+                        <button
+                            class="financeiro-icon-button cancelar"
+                            type="submit"
+                            title="Cancelar título"
+                            aria-label="Cancelar título"
+                            onclick="return confirm('Confirmar o cancelamento deste título?');"
+                        >⊘</button>
+                    </form>
+                {% endif %}
+
+                {% if titulo.pode_excluir %}
+                    <form action="/financeiro/titulos/{{ titulo.id }}/excluir" method="post">
+                        <button
+                            class="financeiro-icon-button delete"
+                            type="submit"
+                            title="Excluir título manual"
+                            aria-label="Excluir título manual"
+                            onclick="return confirm('Excluir definitivamente este título manual?');"
+                        >×</button>
+                    </form>
+                {% endif %}
+            </div>
+        {%- endmacro %}
 
         <section class="panel page-section">
             <div class="panel-header page-header">
@@ -585,12 +727,12 @@ Motivo: Conter as tabelas financeiras dentro dos painéis e eliminar o estouro h
 
                         <div class="financeiro-field">
                             <label>Data de emissão</label>
-                            <input type="date" name="financeiro_data_emissao" value="2026-06-18">
+                            <input type="date" name="financeiro_data_emissao" value="{{ data_hoje_iso }}">
                         </div>
 
                         <div class="financeiro-field">
                             <label>Data de vencimento</label>
-                            <input type="date" name="financeiro_data_vencimento" value="2026-06-18">
+                            <input type="date" name="financeiro_data_vencimento" value="{{ data_hoje_iso }}">
                         </div>
 
                         <div class="financeiro-field">
@@ -660,19 +802,15 @@ Motivo: Conter as tabelas financeiras dentro dos painéis e eliminar o estouro h
                             {% if painel.recebimentos %}
                                 {% for titulo in painel.recebimentos %}
                                     <tr>
-                                        <td>{{ titulo.documento or titulo.descricao }}</td>
+                                        <td>
+                                            {{ titulo.documento or titulo.descricao }}
+                                            <span class="financeiro-origin-badge{% if titulo.venda_id %} venda{% endif %}">{{ titulo.origem_rotulo }}</span>
+                                        </td>
                                         <td>{{ titulo.pessoa or '-' }}</td>
                                         <td>{{ titulo.data_vencimento or '-' }}</td>
                                         <td>R$ {{ titulo.valor or '0,00' }}</td>
                                         <td><span class="status-pill {{ titulo.status_exibicao }}">{{ titulo.status_exibicao }}</span></td>
-                                        <td>
-                                            {% if titulo.status_exibicao in ['aberto', 'vencido'] %}
-                                                <form action="/financeiro/titulos/{{ titulo.id }}/baixar" method="post" style="display:inline;"><button class="financeiro-action" type="submit">Baixar</button></form>
-                                                <form action="/financeiro/titulos/{{ titulo.id }}/cancelar" method="post" style="display:inline;"><button class="financeiro-action cancelar" type="submit">Cancelar</button></form>
-                                            {% else %}
-                                                -
-                                            {% endif %}
-                                        </td>
+                                        <td>{{ acoes_titulo(titulo) }}</td>
                                     </tr>
                                 {% endfor %}
                             {% else %}
@@ -709,19 +847,15 @@ Motivo: Conter as tabelas financeiras dentro dos painéis e eliminar o estouro h
                             {% if painel.pagamentos %}
                                 {% for titulo in painel.pagamentos %}
                                     <tr>
-                                        <td>{{ titulo.documento or titulo.descricao }}</td>
+                                        <td>
+                                            {{ titulo.documento or titulo.descricao }}
+                                            <span class="financeiro-origin-badge{% if titulo.venda_id %} venda{% endif %}">{{ titulo.origem_rotulo }}</span>
+                                        </td>
                                         <td>{{ titulo.pessoa or '-' }}</td>
                                         <td>{{ titulo.data_vencimento or '-' }}</td>
                                         <td>R$ {{ titulo.valor or '0,00' }}</td>
                                         <td><span class="status-pill {{ titulo.status_exibicao }}">{{ titulo.status_exibicao }}</span></td>
-                                        <td>
-                                            {% if titulo.status_exibicao in ['aberto', 'vencido'] %}
-                                                <form action="/financeiro/titulos/{{ titulo.id }}/baixar" method="post" style="display:inline;"><button class="financeiro-action" type="submit">Baixar</button></form>
-                                                <form action="/financeiro/titulos/{{ titulo.id }}/cancelar" method="post" style="display:inline;"><button class="financeiro-action cancelar" type="submit">Cancelar</button></form>
-                                            {% else %}
-                                                -
-                                            {% endif %}
-                                        </td>
+                                        <td>{{ acoes_titulo(titulo) }}</td>
                                     </tr>
                                 {% endfor %}
                             {% else %}
