@@ -1,9 +1,12 @@
 {#
-Caminho: templates/partials/topbar.html
-Último recode: 2026-07-04 15:20 (America/Bahia)
-Motivo: Adicionar suporte PWA e atalho de instalação nas telas internas.
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\partials\topbar.html
+Último recode: 2026-07-16 07:56 (America/Bahia)
+Motivo: Exibir na topbar a logo cadastrada em Configurações - Marca, com fallback para o ícone do GestFlow.
 #}
 {% set _usuario_topbar = usuario_logado|default({}, true) %}
+{% set _empresa_topbar = empresa_topbar|default({}, true) %}
+{% set _nome_empresa_topbar = _empresa_topbar.nome_fantasia|default('GestFlow', true) %}
+{% set _logo_empresa_topbar = _empresa_topbar.logo_path|default('', true) %}
 {% set _data_topbar = data_hoje|default('', true) %}
 {% if not _data_topbar and dashboard is defined %}
     {% set _data_topbar = dashboard.data_hoje|default('', true) %}
@@ -16,7 +19,21 @@ Motivo: Adicionar suporte PWA e atalho de instalação nas telas internas.
 <header class="topbar">
     <div class="topbar-left">
         <button class="menu-toggle" type="button" aria-label="Abrir menu">☰</button>
-        <img src="/static/img/gestflow-icon.png" alt="GestFlow" class="topbar-logo-icon">
+        {% if _logo_empresa_topbar %}
+            <img
+                src="{{ _logo_empresa_topbar }}"
+                alt="{{ _nome_empresa_topbar }}"
+                class="topbar-company-logo"
+                title="{{ _nome_empresa_topbar }}"
+                onerror="this.onerror=null;this.src='/static/img/gestflow-icon.png';this.classList.add('is-fallback');"
+            >
+        {% else %}
+            <img
+                src="/static/img/gestflow-icon.png"
+                alt="GestFlow"
+                class="topbar-company-logo is-fallback"
+            >
+        {% endif %}
         <h1>{{ _titulo_topbar }}</h1>
     </div>
 
@@ -63,17 +80,56 @@ Motivo: Adicionar suporte PWA e atalho de instalação nas telas internas.
 {% endif %}
 
 <style>
-    .topbar-logo-icon {
-        width: 34px;
-        height: 34px;
+    .topbar-company-logo {
+        width: auto;
+        max-width: 140px;
+        height: 40px;
         object-fit: contain;
         display: block;
+        flex: 0 1 auto;
+        margin-right: 6px;
+        padding-right: 14px;
+        border-right: 1px solid #e2e8f0;
+    }
+
+    .topbar-company-logo.is-fallback {
+        width: 34px;
+        max-width: 34px;
+        height: 34px;
+        margin-right: 0;
+        padding-right: 0;
+        border-right: 0;
     }
 
     @media (max-width: 768px) {
-        .topbar-logo-icon {
-            width: 30px;
+        .topbar-company-logo {
+            max-width: 74px;
             height: 30px;
+            margin-right: 2px;
+            padding-right: 8px;
+        }
+
+        .topbar-company-logo.is-fallback {
+            width: 30px;
+            max-width: 30px;
+            height: 30px;
+            margin-right: 0;
+            padding-right: 0;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .topbar-company-logo {
+            max-width: 52px;
+            height: 28px;
+            padding-right: 6px;
+        }
+
+        .topbar-company-logo.is-fallback {
+            width: 28px;
+            max-width: 28px;
+            height: 28px;
+            padding-right: 0;
         }
     }
 

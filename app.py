@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-16 07:38 (America/Bahia)
-# Motivo: Corrigir a geração de venda a partir do orçamento e abrir a venda criada.
+# Último recode: 2026-07-16 07:56 (America/Bahia)
+# Motivo: Disponibilizar globalmente a logo cadastrada em Configurações - Marca para exibição na topbar.
 
 from __future__ import annotations
 
@@ -757,10 +757,45 @@ def montar_aviso_trial_empresa() -> dict[str, Any]:
     }
 
 
+def buscar_empresa_topbar() -> dict[str, str]:
+    empresa_padrao = {
+        "nome_fantasia": "GestFlow",
+        "logo_path": "",
+    }
+
+    if not session.get("usuario_id"):
+        return empresa_padrao
+
+    try:
+        with conectar_db() as conn:
+            row = conn.execute(
+                """
+                SELECT
+                    nome_fantasia,
+                    logo_path
+                FROM empresas
+                WHERE id = ?
+                LIMIT 1
+                """,
+                (empresa_logada_id(),),
+            ).fetchone()
+    except sqlite3.Error:
+        return empresa_padrao
+
+    if row is None:
+        return empresa_padrao
+
+    return {
+        "nome_fantasia": str(row["nome_fantasia"] or "Empresa").strip() or "Empresa",
+        "logo_path": str(row["logo_path"] or "").strip(),
+    }
+
+
 @app.context_processor
 def injetar_usuario_logado() -> dict[str, Any]:
     return {
         "usuario_logado": usuario_logado(),
+        "empresa_topbar": buscar_empresa_topbar(),
         "empresa_trial": montar_aviso_trial_empresa(),
         "data_hoje": formatar_data_br(hoje_empresa()),
         "data_hora_atual": formatar_data_hora_br(agora_empresa().isoformat(timespec="seconds")),
