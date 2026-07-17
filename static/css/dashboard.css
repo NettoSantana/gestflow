@@ -4296,3 +4296,185 @@ canvas {
     outline-offset: 2px;
 }
 
+/* MODO FOCO - VITRINE E BALCAO / PDV
+   Remove a navegacao lateral e usa toda a largura da tela.
+   O botao de saida permanece disponivel no desktop, tablet e celular. */
+body.focus-mode-body {
+    min-height: 100vh;
+    background: var(--bg-body);
+}
+
+body.focus-mode-body .sidebar,
+body.focus-mode-body .sidebar-backdrop,
+body.focus-mode-body .topbar {
+    display: none !important;
+}
+
+body.focus-mode-body .focus-mode-main,
+body.focus-mode-body .content.focus-mode-main,
+body.focus-mode-body .main-content.focus-mode-main {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 100vh;
+    margin-left: 0 !important;
+    padding: 0 24px 36px !important;
+    overflow-x: hidden;
+}
+
+.focus-mode-header {
+    position: sticky;
+    top: 0;
+    z-index: 250;
+    min-height: 68px;
+    margin: 0 -24px 22px;
+    padding: 10px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.97);
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+    backdrop-filter: blur(12px);
+}
+
+.focus-mode-heading {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+}
+
+.focus-mode-heading strong {
+    color: #0f172a;
+    font-size: 18px;
+    line-height: 1.2;
+    font-weight: 900;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.focus-mode-heading small {
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.35;
+    font-weight: 700;
+}
+
+.focus-mode-eyebrow {
+    color: #0f62fe;
+    font-size: 10px;
+    line-height: 1.2;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.focus-mode-exit {
+    flex: 0 0 auto;
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 0 12px 0 15px;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    background: #ffffff;
+    color: #0f172a;
+    font-size: 13px;
+    font-weight: 900;
+    cursor: pointer;
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
+    transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+.focus-mode-exit:hover {
+    border-color: #93c5fd;
+    background: #eff6ff;
+    color: #1d4ed8;
+}
+
+.focus-mode-exit-danger {
+    border-color: #fecaca;
+    color: #b91c1c;
+}
+
+.focus-mode-exit-danger:hover {
+    border-color: #fca5a5;
+    background: #fef2f2;
+    color: #991b1b;
+}
+
+.focus-mode-exit:focus-visible {
+    outline: 3px solid rgba(15, 98, 254, 0.18);
+    outline-offset: 2px;
+}
+
+.focus-mode-exit kbd {
+    min-width: 34px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 7px;
+    border: 1px solid #cbd5e1;
+    border-bottom-width: 2px;
+    border-radius: 7px;
+    background: #f8fafc;
+    color: #475569;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 10px;
+    font-weight: 900;
+    line-height: 1;
+}
+
+@media (max-width: 720px) {
+    body.focus-mode-body .focus-mode-main,
+    body.focus-mode-body .content.focus-mode-main,
+    body.focus-mode-body .main-content.focus-mode-main {
+        padding: 0 12px 28px !important;
+    }
+
+    .focus-mode-header {
+        min-height: 60px;
+        margin: 0 -12px 16px;
+        padding: 8px 12px;
+        gap: 10px;
+    }
+
+    .focus-mode-heading strong {
+        font-size: 15px;
+    }
+
+    .focus-mode-heading small,
+    .focus-mode-eyebrow {
+        display: none;
+    }
+
+    .focus-mode-exit {
+        min-height: 42px;
+        padding: 0 12px;
+        border-radius: 10px;
+    }
+
+    .focus-mode-exit kbd {
+        display: none;
+    }
+}
+
+@media (max-width: 420px) {
+    .focus-mode-exit span {
+        font-size: 0;
+    }
+
+    .focus-mode-exit span::after {
+        content: "Sair";
+        font-size: 13px;
+    }
+
+    .focus-mode-exit:not(.focus-mode-exit-danger) span::after {
+        content: "Voltar";
+    }
+}
+

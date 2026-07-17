@@ -349,12 +349,20 @@ Motivo: Exibir a condição de pagamento após finalizar a venda no PDV.
     </style>
 
 </head>
-<body>
-    {% include "partials/sidebar.html" %}
+<body class="focus-mode-body">
 
-    <main class="content">
-        {% set page_title = 'Venda Finalizada' %}
-        {% include "partials/topbar.html" %}
+    <main class="content focus-mode-main">
+        <header class="focus-mode-header">
+            <div class="focus-mode-heading">
+                <span class="focus-mode-eyebrow">Modo foco</span>
+                <strong>Venda Finalizada</strong>
+                <small>A operação foi concluída com sucesso.</small>
+            </div>
+            <button type="button" class="focus-mode-exit" onclick="sairModoFocoFinalizado()" title="Voltar para vendas">
+                <span>← Voltar para vendas</span>
+                <kbd>Esc</kbd>
+            </button>
+        </header>
 
         <section class="pdv-success-shell">
             <div class="pdv-success-card">
@@ -387,7 +395,16 @@ Motivo: Exibir a condição de pagamento após finalizar a venda no PDV.
         </section>
 
         <script>
+            function sairModoFocoFinalizado() {
+                window.location.href = "/vendas";
+            }
+
             document.addEventListener("keydown", function (event) {
+                if (event.key === "Escape") {
+                    event.preventDefault();
+                    sairModoFocoFinalizado();
+                    return;
+                }
                 if (event.key === "F2") {
                     event.preventDefault();
                     window.location.href = "/vendas/{{ venda.id }}/imprimir/cupom";

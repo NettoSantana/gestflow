@@ -863,12 +863,20 @@ Motivo: Preparar o PDV para pagamentos à vista, a prazo e parcelados.
     </style>
 
 </head>
-<body>
-    {% include "partials/sidebar.html" %}
+<body class="focus-mode-body">
 
-    <main class="content">
-        {% set page_title = 'Venda Balcão / PDV' %}
-        {% include "partials/topbar.html" %}
+    <main class="content focus-mode-main">
+        <header class="focus-mode-header">
+            <div class="focus-mode-heading">
+                <span class="focus-mode-eyebrow">Modo foco</span>
+                <strong>Venda Balcão / PDV</strong>
+                <small>Operação rápida de caixa e vendas.</small>
+            </div>
+            <button type="button" class="focus-mode-exit focus-mode-exit-danger" onclick="sairModoFocoPdv()" title="Sair do balcão">
+                <span>✕ Sair do balcão</span>
+                <kbd>Esc</kbd>
+            </button>
+        </header>
 
         {% if not caixa %}
             <section class="pdv-caixa-shell">
@@ -1257,6 +1265,35 @@ Motivo: Preparar o PDV para pagamentos à vista, a prazo e parcelados.
                 renderizarCarrinho();
             </script>
         {% endif %}
+
+        <script>
+            function pdvTemVendaPendente() {
+                return typeof carrinho !== "undefined"
+                    && Array.isArray(carrinho)
+                    && carrinho.length > 0;
+            }
+
+            function sairModoFocoPdv() {
+                if (pdvTemVendaPendente()) {
+                    const confirmarSaida = window.confirm(
+                        "Há produtos na venda atual. Deseja sair do balcão e descartar esta venda?"
+                    );
+
+                    if (!confirmarSaida) {
+                        return;
+                    }
+                }
+
+                window.location.href = "/vendas";
+            }
+
+            document.addEventListener("keydown", function (event) {
+                if (event.key === "Escape") {
+                    event.preventDefault();
+                    sairModoFocoPdv();
+                }
+            });
+        </script>
     </main>
 </body>
 </html>

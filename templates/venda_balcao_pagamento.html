@@ -436,12 +436,20 @@ Motivo: Adicionar pagamento à vista, a prazo, parcelado e entrada mais parcelas
     </style>
 
 </head>
-<body>
-    {% include "partials/sidebar.html" %}
+<body class="focus-mode-body">
 
-    <main class="content">
-        {% set page_title = 'Pagamento PDV' %}
-        {% include "partials/topbar.html" %}
+    <main class="content focus-mode-main">
+        <header class="focus-mode-header">
+            <div class="focus-mode-heading">
+                <span class="focus-mode-eyebrow">Modo foco</span>
+                <strong>Pagamento PDV</strong>
+                <small>Revise o pagamento antes de finalizar a venda.</small>
+            </div>
+            <button type="button" class="focus-mode-exit focus-mode-exit-danger" onclick="sairModoFocoPagamentoPdv()" title="Sair do balcão">
+                <span>✕ Sair do balcão</span>
+                <kbd>Esc</kbd>
+            </button>
+        </header>
 
         <form id="form-pagamento-pdv" action="/vendas/balcao/finalizar" method="post">
             <section class="pdv-pay-grid">
@@ -559,6 +567,16 @@ Motivo: Adicionar pagamento à vista, a prazo, parcelado e entrada mais parcelas
         <div class="pdv-footer-help">F2 = Mudar forma de pagamento | F3 = Confirmar pagamento | F4 = Conceder desconto | F6 = Finalizar venda | F8 = Cancelar</div>
 
         <script>
+            function sairModoFocoPagamentoPdv() {
+                const confirmarSaida = window.confirm(
+                    "A venda ainda não foi finalizada. Deseja sair do balcão e voltar para Vendas?"
+                );
+
+                if (confirmarSaida) {
+                    window.location.href = "/vendas";
+                }
+            }
+
             const subtotal = {{ '%.2f'|format(resumo.subtotal) }};
 
             function converterMoeda(valor) {
@@ -628,6 +646,11 @@ Motivo: Adicionar pagamento à vista, a prazo, parcelado e entrada mais parcelas
             atualizarCamposPagamentoPdv();
 
             document.addEventListener("keydown", function (event) {
+                if (event.key === "Escape") {
+                    event.preventDefault();
+                    sairModoFocoPagamentoPdv();
+                    return;
+                }
                 if (event.key === "F3") {
                     event.preventDefault();
                     recalcularPagamento();

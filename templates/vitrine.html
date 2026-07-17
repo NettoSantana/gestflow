@@ -11,8 +11,7 @@ Motivo da alteração: Conectar a tela da Vitrine Online aos produtos cadastrado
     <title>Vitrine Online - GestFlow</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
 </head>
-<body>
-    {% include "partials/sidebar.html" %}
+<body class="focus-mode-body">
 
     {% set vitrine = vitrine or {} %}
     {% set produtos_vitrine = produtos_vitrine or [] %}
@@ -23,7 +22,19 @@ Motivo da alteração: Conectar a tela da Vitrine Online aos produtos cadastrado
     {% set status_vitrine = vitrine.get('status') or 'rascunho' %}
     {% set template_atual = vitrine.get('template') or 'catalogo-premium' %}
 
-    <main class="main-content">
+    <main class="main-content focus-mode-main">
+        <header class="focus-mode-header">
+            <div class="focus-mode-heading">
+                <span class="focus-mode-eyebrow">Modo foco</span>
+                <strong>Vitrine Online</strong>
+                <small>Gerencie sua loja sem distrações.</small>
+            </div>
+            <button type="button" class="focus-mode-exit" onclick="sairModoFocoVitrine()" title="Voltar ao painel">
+                <span>← Voltar ao painel</span>
+                <kbd>Esc</kbd>
+            </button>
+        </header>
+
         <header class="page-header">
             <div>
                 <p class="page-kicker">Vitrine Online</p>
@@ -370,6 +381,19 @@ Motivo da alteração: Conectar a tela da Vitrine Online aos produtos cadastrado
                 </div>
             </div>
         </section>
+
+        <script>
+            function sairModoFocoVitrine() {
+                window.location.href = "/";
+            }
+
+            document.addEventListener("keydown", function (event) {
+                if (event.key === "Escape") {
+                    event.preventDefault();
+                    sairModoFocoVitrine();
+                }
+            });
+        </script>
     </main>
 
     <style>
