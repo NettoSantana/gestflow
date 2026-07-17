@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\static\css\dashboard.css
 Último recode: 2026-07-17 (America/Bahia)
-Motivo: Corrigir o Gerador de Orçamentos no celular, mantendo as demais telas sem alteração.
+Motivo: Finalizar os ajustes mobile do Gerador após nova varredura do Inspetor 13.
 */
 
 :root {
@@ -4934,6 +4934,46 @@ body.focus-mode-body .main-content.focus-mode-main {
     .gerador-page .page-section,
     .gerador-page .gerador-resumo-card {
         padding: 12px;
+    }
+}
+
+/* GERADOR MOBILE - AJUSTES FINAIS DO INSPETOR 13
+   Escopo exclusivo do Gerador de Orçamentos.
+   Corrige título, botão Voltar e sobreposição do assistente no celular. */
+@media (max-width: 900px) {
+    body.gerador-body .topbar,
+    body.gerador-body .topbar-left {
+        min-width: 0 !important;
+        max-width: 100% !important;
+    }
+
+    body.gerador-body .topbar-left {
+        flex: 1 1 auto !important;
+    }
+
+    body.gerador-body .topbar h1 {
+        width: auto !important;
+        max-width: calc(100vw - 88px) !important;
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+        overflow-wrap: anywhere !important;
+        line-height: 1.2 !important;
+    }
+
+    body.gerador-body .budget-header-actions .btn-light {
+        min-height: 44px !important;
+        height: 44px !important;
+    }
+
+    /*
+       O formulário ocupa toda a largura útil. Qualquer botão fixo sobre ele
+       inevitavelmente cobre algum campo durante a rolagem. Por isso, somente
+       no Gerador mobile o assistente flutuante é ocultado.
+       Ele continua disponível no desktop e nas demais telas do GestFlow.
+    */
+    body.gerador-body .gestflow-ai-widget {
+        display: none !important;
     }
 }
 
