@@ -4995,3 +4995,14 @@ body.focus-mode-body .main-content.focus-mode-main {
 .gerador-indicadores-dre > div:nth-child(2) { border-color:#86efac; background:#f0fdf4; }
 .gerador-indicadores-dre > div:nth-child(3) { border-color:#bfdbfe; background:#eff6ff; }
 @media(max-width:820px){ .gerador-indicadores-dre{grid-template-columns:1fr;} }
+
+
+/* INSPETOR 14 - TABELAS DE EDICAO RESPONSIVAS */
+@media (max-width: 1024px) {
+  .table-shell, .table-responsive, .financeiro-lista-shell { overflow-x:auto !important; -webkit-overflow-scrolling:touch; }
+  .content table, .content .client-table { max-width:none !important; }
+}
+@media (max-width: 720px) {
+  .presentation-table, .gerador-table { min-width:760px !important; }
+  .financeiro-edit-grid, .financeiro-form-grid { grid-template-columns:1fr !important; }
+}

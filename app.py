@@ -3728,7 +3728,7 @@ def salvar_funcionario_db(funcionario: dict[str, str]) -> None:
                 custo_hora,
                 token_ponto,
                 exigir_intervalo_ponto
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id,
@@ -5892,36 +5892,47 @@ def resumir_atividade_financeira(atividade_id: int | None) -> dict[str, Any]:
     previsto = _converter_valor_brl(atividade.get("valor_previsto"))
     with conectar_db() as conn:
         rows = conn.execute("SELECT tipo, status, valor FROM financeiro_titulos WHERE empresa_id = ? AND atividade_financeira_id = ? AND status <> 'cancelado'", (empresa_logada_id(), int(atividade_id))).fetchall()
-    recebido = custos = a_receber = 0.0
+    recebido = custos = 0.0
     for row in rows:
         valor = _converter_valor_brl(row['valor'])
-        if row['tipo'] == 'receber':
-            if row['status'] == 'pago': recebido += valor
-            else: a_receber += valor
+        if row['tipo'] == 'receber' and row['status'] == 'pago':
+            recebido += valor
         elif row['tipo'] == 'pagar':
             custos += valor
+    a_receber = max(previsto - recebido, 0.0)
     resultado = recebido - custos
     margem = (resultado / recebido * 100) if recebido else 0.0
     return {"previsto":previsto,"recebido":recebido,"a_receber":a_receber,"custos":custos,"resultado":resultado,"margem":margem,"previsto_formatado":_formatar_moeda_brl(previsto),"recebido_formatado":_formatar_moeda_brl(recebido),"a_receber_formatado":_formatar_moeda_brl(a_receber),"custos_formatado":_formatar_moeda_brl(custos),"resultado_formatado":_formatar_moeda_brl(resultado),"margem_formatada":_formatar_percentual_simples(margem)}
 
 
-def salvar_centro_custo_formulario(centro_id: int | None = None) -> None:
+def salvar_centro_custo_formulario(centro_id: int | None = None) -> str:
     dados = {k: (request.form.get(k) or '').strip() for k in ['codigo','nome','descricao','cor','status']}
     dados['status'] = dados['status'] or 'ativo'
-    if not dados['nome']: return
+    if not dados['nome']:
+        return "Informe o nome do centro de custo."
+    empresa_id = empresa_logada_id()
     with conectar_db() as conn:
+        conflito = conn.execute(
+            """SELECT id FROM centros_custo WHERE empresa_id = ? AND id <> COALESCE(?, 0) AND (LOWER(TRIM(nome)) = LOWER(TRIM(?)) OR (? <> '' AND LOWER(TRIM(codigo)) = LOWER(TRIM(?)))) LIMIT 1""",
+            (empresa_id, centro_id, dados['nome'], dados['codigo'], dados['codigo']),
+        ).fetchone()
+        if conflito is not None:
+            return "Já existe um centro de custo com este nome ou código."
         if centro_id:
-            conn.execute("UPDATE centros_custo SET codigo=?, nome=?, descricao=?, cor=?, status=?, atualizado_em=? WHERE id=? AND empresa_id=?", (dados['codigo'],dados['nome'],dados['descricao'],dados['cor'],dados['status'],agora_empresa().isoformat(timespec='seconds'),centro_id,empresa_logada_id()))
+            conn.execute("UPDATE centros_custo SET codigo=?, nome=?, descricao=?, cor=?, status=?, atualizado_em=? WHERE id=? AND empresa_id=?", (dados['codigo'],dados['nome'],dados['descricao'],dados['cor'],dados['status'],agora_empresa().isoformat(timespec='seconds'),centro_id,empresa_id))
         else:
-            conn.execute("INSERT INTO centros_custo (empresa_id,codigo,nome,descricao,cor,status,atualizado_em) VALUES (?,?,?,?,?,?,?)", (empresa_logada_id(),dados['codigo'],dados['nome'],dados['descricao'],dados['cor'],dados['status'],agora_empresa().isoformat(timespec='seconds')))
+            conn.execute("INSERT INTO centros_custo (empresa_id,codigo,nome,descricao,cor,status,atualizado_em) VALUES (?,?,?,?,?,?,?)", (empresa_id,dados['codigo'],dados['nome'],dados['descricao'],dados['cor'],dados['status'],agora_empresa().isoformat(timespec='seconds')))
         conn.commit()
+    return ""
 
 
 @app.route('/financeiro/centros-custo', methods=['GET','POST'])
 def centros_custo() -> str | Response:
     if request.method == 'POST':
-        salvar_centro_custo_formulario()
-        return redirect(url_for('centros_custo'))
+        erro = salvar_centro_custo_formulario()
+        if erro:
+            return redirect(url_for('centros_custo', erro=erro))
+        return redirect(url_for('centros_custo', sucesso='Centro de custo salvo.'))
     return render_template('centros_custo.html', centros=listar_centros_custo(False))
 
 
@@ -5930,8 +5941,10 @@ def editar_centro_custo(centro_id: int) -> str | Response:
     centro = buscar_centro_custo_por_id(centro_id)
     if not centro: return redirect(url_for('centros_custo'))
     if request.method == 'POST':
-        salvar_centro_custo_formulario(centro_id)
-        return redirect(url_for('centros_custo'))
+        erro = salvar_centro_custo_formulario(centro_id)
+        if erro:
+            return redirect(url_for('editar_centro_custo', centro_id=centro_id, erro=erro))
+        return redirect(url_for('centros_custo', sucesso='Centro de custo atualizado.'))
     return render_template('centro_custo_editar.html', centro=centro)
 
 
@@ -5995,6 +6008,7 @@ def salvar_orcamento_db(orcamento: dict[str, str], itens: list[dict[str, str]]) 
                 validade,
                 canal_venda,
                 centro_custo,
+                centro_custo_id,
                 introducao,
                 tipo,
                 status,
@@ -6009,7 +6023,7 @@ def salvar_orcamento_db(orcamento: dict[str, str], itens: list[dict[str, str]]) 
                 origem,
                 modo_apresentacao,
                 descricao_comercial
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id,
@@ -6021,6 +6035,7 @@ def salvar_orcamento_db(orcamento: dict[str, str], itens: list[dict[str, str]]) 
                 orcamento["validade"],
                 orcamento["canal_venda"],
                 orcamento["centro_custo"],
+                orcamento.get("centro_custo_id") or None,
                 orcamento["introducao"],
                 orcamento["tipo"],
                 orcamento["status"],
@@ -6395,6 +6410,8 @@ def listar_vendas_paginado(
                 prazo_entrega,
                 canal_venda,
                 centro_custo,
+                centro_custo_id,
+                atividade_financeira_id,
                 tipo,
                 status,
                 total_produtos,
@@ -6524,6 +6541,8 @@ def listar_ordens_servico_paginado(
                 hora_saida,
                 canal_venda,
                 centro_custo,
+                centro_custo_id,
+                atividade_financeira_id,
                 equipamento,
                 marca,
                 modelo,
@@ -7902,6 +7921,7 @@ def atualizar_orcamento_db(orcamento_id: int, orcamento: dict[str, str], itens: 
                 validade = ?,
                 canal_venda = ?,
                 centro_custo = ?,
+                centro_custo_id = ?,
                 introducao = ?,
                 tipo = ?,
                 status = ?,
@@ -7928,6 +7948,7 @@ def atualizar_orcamento_db(orcamento_id: int, orcamento: dict[str, str], itens: 
                 orcamento["validade"],
                 orcamento["canal_venda"],
                 orcamento["centro_custo"],
+                orcamento.get("centro_custo_id") or None,
                 orcamento["introducao"],
                 orcamento["tipo"],
                 orcamento["status"],
@@ -8007,6 +8028,16 @@ def excluir_orcamento_db(orcamento_id: int) -> None:
                 f"DELETE FROM {tabela} WHERE orcamento_id = ? AND empresa_id = ?",
                 (orcamento_id, empresa_id),
             )
+        atividade = conn.execute(
+            "SELECT id FROM atividades_financeiras WHERE empresa_id = ? AND origem = 'orcamento' AND origem_id = ?",
+            (empresa_id, orcamento_id),
+        ).fetchone()
+        if atividade is not None:
+            atividade_id = int(atividade["id"])
+            conn.execute("UPDATE financeiro_titulos SET atividade_financeira_id = NULL WHERE empresa_id = ? AND atividade_financeira_id = ?", (empresa_id, atividade_id))
+            conn.execute("UPDATE vendas SET atividade_financeira_id = NULL WHERE empresa_id = ? AND atividade_financeira_id = ?", (empresa_id, atividade_id))
+            conn.execute("UPDATE ordens_servico SET atividade_financeira_id = NULL WHERE empresa_id = ? AND atividade_financeira_id = ?", (empresa_id, atividade_id))
+            conn.execute("DELETE FROM atividades_financeiras WHERE id = ? AND empresa_id = ?", (atividade_id, empresa_id))
         conn.execute(
             "DELETE FROM orcamentos WHERE id = ? AND empresa_id = ?",
             (orcamento_id, empresa_id),
@@ -9223,6 +9254,8 @@ def salvar_venda_db(venda: dict[str, str], itens: list[dict[str, str]]) -> int:
                 prazo_entrega,
                 canal_venda,
                 centro_custo,
+                centro_custo_id,
+                atividade_financeira_id,
                 tipo,
                 status,
                 total_produtos,
@@ -9241,7 +9274,7 @@ def salvar_venda_db(venda: dict[str, str], itens: list[dict[str, str]]) -> int:
                 intervalo_parcelas,
                 observacoes,
                 observacoes_internas
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id,
@@ -9253,6 +9286,8 @@ def salvar_venda_db(venda: dict[str, str], itens: list[dict[str, str]]) -> int:
                 venda["prazo_entrega"],
                 venda["canal_venda"],
                 venda["centro_custo"],
+                venda.get("centro_custo_id") or None,
+                venda.get("atividade_financeira_id") or None,
                 venda["tipo"],
                 venda["status"],
                 venda["total_produtos"],
@@ -9379,6 +9414,8 @@ def gerar_venda_por_orcamento_db(orcamento_id: int) -> tuple[int | None, bool]:
         "prazo_entrega": str(orcamento.get("prazo_entrega") or ""),
         "canal_venda": str(orcamento.get("canal_venda") or "Orçamento"),
         "centro_custo": str(orcamento.get("centro_custo") or ""),
+        "centro_custo_id": orcamento.get("centro_custo_id") or "",
+        "atividade_financeira_id": orcamento.get("atividade_financeira_id") or garantir_atividade_orcamento(orcamento_id) or "",
         "tipo": str(orcamento.get("tipo") or "misto"),
         "status": "aberta",
         "total_produtos": str(orcamento.get("total_produtos") or "0,00"),
@@ -9836,6 +9873,8 @@ def salvar_ordem_servico_db(ordem_servico: dict[str, str], itens: list[dict[str,
                 hora_saida,
                 canal_venda,
                 centro_custo,
+                centro_custo_id,
+                atividade_financeira_id,
                 equipamento,
                 marca,
                 modelo,
@@ -9867,7 +9906,7 @@ def salvar_ordem_servico_db(ordem_servico: dict[str, str], itens: list[dict[str,
                 servico_executado,
                 observacoes,
                 observacoes_internas
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id,
@@ -9882,6 +9921,8 @@ def salvar_ordem_servico_db(ordem_servico: dict[str, str], itens: list[dict[str,
                 ordem_servico["hora_saida"],
                 ordem_servico["canal_venda"],
                 ordem_servico["centro_custo"],
+                ordem_servico.get("centro_custo_id") or None,
+                ordem_servico.get("atividade_financeira_id") or None,
                 ordem_servico["equipamento"],
                 ordem_servico["marca"],
                 ordem_servico["modelo"],
@@ -11349,6 +11390,8 @@ def buscar_financeiro_titulo_por_id(titulo_id: int) -> dict[str, Any] | None:
                 descricao,
                 pessoa,
                 categoria,
+                centro_custo_id,
+                atividade_financeira_id,
                 origem,
                 origem_id,
                 documento,
@@ -12488,6 +12531,8 @@ def gerar_ordem_servico_por_orcamento_db(orcamento_id: int) -> int | None:
         "hora_saida": "",
         "canal_venda": str(orcamento.get("canal_venda") or ""),
         "centro_custo": str(orcamento.get("centro_custo") or ""),
+        "centro_custo_id": orcamento.get("centro_custo_id") or "",
+        "atividade_financeira_id": orcamento.get("atividade_financeira_id") or garantir_atividade_orcamento(orcamento_id) or "",
         "equipamento": "Serviço conforme orçamento",
         "marca": "",
         "modelo": "",

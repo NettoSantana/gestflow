@@ -746,6 +746,22 @@ Motivo: Incluir a categoria obrigatória no cadastro rápido de fornecedor e env
                         </div>
 
                         <div class="financeiro-field">
+                            <label>Centro de custo</label>
+                            <select name="financeiro_centro_custo_id">
+                                <option value="">Sem centro de custo</option>
+                                {% for centro in centros_custo|default([]) %}<option value="{{ centro.id }}">{{ centro.codigo ~ ' - ' if centro.codigo else '' }}{{ centro.nome }}</option>{% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="financeiro-field">
+                            <label>Atividade / Projeto</label>
+                            <select name="financeiro_atividade_financeira_id">
+                                <option value="">Sem atividade</option>
+                                {% for atividade in atividades_financeiras|default([]) %}<option value="{{ atividade.id }}">{{ atividade.nome }}</option>{% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="financeiro-field">
                             <label>Status</label>
                             <select name="financeiro_status">
                                 <option value="aberto">Aberto</option>
