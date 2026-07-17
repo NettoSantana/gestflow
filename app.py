@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-17 10:45 (America/Bahia)
-# Motivo: Criar base de centros de custo e atividades financeiras vinculadas a orçamentos, vendas, OS e títulos.
+# Último recode: 2026-07-17 18:30 (America/Bahia)
+# Motivo: Preservar centro de custo e atividade financeira ao editar vendas e ordens de serviço.
 
 from __future__ import annotations
 
@@ -5905,6 +5905,82 @@ def resumir_atividade_financeira(atividade_id: int | None) -> dict[str, Any]:
     return {"previsto":previsto,"recebido":recebido,"a_receber":a_receber,"custos":custos,"resultado":resultado,"margem":margem,"previsto_formatado":_formatar_moeda_brl(previsto),"recebido_formatado":_formatar_moeda_brl(recebido),"a_receber_formatado":_formatar_moeda_brl(a_receber),"custos_formatado":_formatar_moeda_brl(custos),"resultado_formatado":_formatar_moeda_brl(resultado),"margem_formatada":_formatar_percentual_simples(margem)}
 
 
+def normalizar_vinculos_financeiros_documento(
+    dados: dict[str, Any],
+) -> dict[str, Any]:
+    dados_normalizados = dict(dados)
+    centro_texto_original = str(
+        dados_normalizados.get("centro_custo") or ""
+    ).strip()
+
+    centro_id: int | None = None
+    atividade_id: int | None = None
+
+    try:
+        centro_id_texto = str(
+            dados_normalizados.get("centro_custo_id") or ""
+        ).strip()
+        if centro_id_texto:
+            centro_id = int(centro_id_texto)
+    except (TypeError, ValueError):
+        centro_id = None
+
+    try:
+        atividade_id_texto = str(
+            dados_normalizados.get("atividade_financeira_id") or ""
+        ).strip()
+        if atividade_id_texto:
+            atividade_id = int(atividade_id_texto)
+    except (TypeError, ValueError):
+        atividade_id = None
+
+    centro = buscar_centro_custo_por_id(centro_id) if centro_id else None
+    atividade = (
+        buscar_atividade_financeira_por_id(atividade_id)
+        if atividade_id
+        else None
+    )
+
+    if atividade_id and atividade is None:
+        atividade_id = None
+
+    atividade_centro_id: int | None = None
+    if atividade is not None:
+        try:
+            valor_atividade_centro = atividade.get("centro_custo_id")
+            if valor_atividade_centro not in (None, ""):
+                atividade_centro_id = int(valor_atividade_centro)
+        except (TypeError, ValueError):
+            atividade_centro_id = None
+
+    if centro is None and atividade_centro_id:
+        centro = buscar_centro_custo_por_id(atividade_centro_id)
+        if centro is not None:
+            centro_id = atividade_centro_id
+
+    if (
+        centro_id
+        and atividade_centro_id
+        and centro_id != atividade_centro_id
+    ):
+        atividade_id = None
+
+    if centro is not None:
+        dados_normalizados["centro_custo_id"] = str(int(centro["id"]))
+        dados_normalizados["centro_custo"] = str(
+            centro.get("nome") or ""
+        ).strip()
+    else:
+        dados_normalizados["centro_custo_id"] = ""
+        dados_normalizados["centro_custo"] = centro_texto_original
+
+    dados_normalizados["atividade_financeira_id"] = (
+        str(atividade_id) if atividade_id else ""
+    )
+
+    return dados_normalizados
+
+
 def salvar_centro_custo_formulario(centro_id: int | None = None) -> str:
     dados = {k: (request.form.get(k) or '').strip() for k in ['codigo','nome','descricao','cor','status']}
     dados['status'] = dados['status'] or 'ativo'
@@ -9252,6 +9328,7 @@ def proximo_numero_venda() -> str:
 
 def salvar_venda_db(venda: dict[str, str], itens: list[dict[str, str]]) -> int:
     empresa_id = empresa_logada_id()
+    venda = normalizar_vinculos_financeiros_documento(venda)
 
     with conectar_db() as conn:
         cursor = conn.execute(
@@ -9589,6 +9666,9 @@ def buscar_venda_por_id(venda_id: int) -> dict[str, Any] | None:
                 prazo_entrega,
                 canal_venda,
                 centro_custo,
+                centro_custo_id,
+                atividade_financeira_id,
+                origem_orcamento_id,
                 tipo,
                 status,
                 total_produtos,
@@ -9650,6 +9730,7 @@ def listar_venda_itens(venda_id: int) -> list[dict[str, Any]]:
 
 def atualizar_venda_db(venda_id: int, venda: dict[str, str], itens: list[dict[str, str]]) -> None:
     empresa_id = empresa_logada_id()
+    venda = normalizar_vinculos_financeiros_documento(venda)
 
     with conectar_db() as conn:
         conn.execute(
@@ -9663,6 +9744,8 @@ def atualizar_venda_db(venda_id: int, venda: dict[str, str], itens: list[dict[st
                 prazo_entrega = ?,
                 canal_venda = ?,
                 centro_custo = ?,
+                centro_custo_id = ?,
+                atividade_financeira_id = ?,
                 tipo = ?,
                 status = ?,
                 total_produtos = ?,
@@ -9692,6 +9775,8 @@ def atualizar_venda_db(venda_id: int, venda: dict[str, str], itens: list[dict[st
                 venda["prazo_entrega"],
                 venda["canal_venda"],
                 venda["centro_custo"],
+                venda.get("centro_custo_id") or None,
+                venda.get("atividade_financeira_id") or None,
                 venda["tipo"],
                 venda["status"],
                 venda["total_produtos"],
@@ -9868,6 +9953,7 @@ def proximo_numero_ordem_servico() -> str:
 
 def salvar_ordem_servico_db(ordem_servico: dict[str, str], itens: list[dict[str, str]]) -> int:
     empresa_id = empresa_logada_id()
+    ordem_servico = normalizar_vinculos_financeiros_documento(ordem_servico)
 
     with conectar_db() as conn:
         cursor = conn.execute(
@@ -10007,6 +10093,7 @@ def salvar_ordem_servico_db(ordem_servico: dict[str, str], itens: list[dict[str,
 
 def atualizar_ordem_servico_db(ordem_servico_id: int, ordem_servico: dict[str, str], itens: list[dict[str, str]]) -> None:
     empresa_id = empresa_logada_id()
+    ordem_servico = normalizar_vinculos_financeiros_documento(ordem_servico)
 
     with conectar_db() as conn:
         conn.execute(
@@ -10233,6 +10320,8 @@ def buscar_ordem_servico_por_id(ordem_servico_id: int) -> dict[str, Any] | None:
                 hora_saida,
                 canal_venda,
                 centro_custo,
+                centro_custo_id,
+                atividade_financeira_id,
                 equipamento,
                 marca,
                 modelo,
@@ -10247,6 +10336,7 @@ def buscar_ordem_servico_por_id(ordem_servico_id: int) -> dict[str, Any] | None:
                 bairro_entrega,
                 cidade_entrega,
                 origem_venda_id,
+                origem_orcamento_id,
                 tipo,
                 status,
                 prioridade,
