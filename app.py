@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-16 18:34 (America/Bahia)
-# Motivo: Corrigir redirecionamento de ajuste de estoque e geração de venda por agendamento.
+# Último recode: 2026-07-17 10:45 (America/Bahia)
+# Motivo: Criar base de centros de custo e atividades financeiras vinculadas a orçamentos, vendas, OS e títulos.
 
 from __future__ import annotations
 
@@ -1556,6 +1556,43 @@ def iniciar_banco() -> None:
 
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS centros_custo (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER NOT NULL,
+                codigo TEXT,
+                nome TEXT NOT NULL,
+                descricao TEXT,
+                cor TEXT,
+                status TEXT NOT NULL DEFAULT 'ativo',
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                atualizado_em TEXT
+            )
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS atividades_financeiras (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER NOT NULL,
+                centro_custo_id INTEGER,
+                tipo TEXT NOT NULL DEFAULT 'orcamento',
+                origem TEXT NOT NULL DEFAULT 'manual',
+                origem_id INTEGER,
+                codigo TEXT,
+                nome TEXT NOT NULL,
+                cliente TEXT,
+                status TEXT NOT NULL DEFAULT 'ativo',
+                valor_previsto TEXT,
+                observacoes TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                atualizado_em TEXT
+            )
+            """
+        )
+
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS financeiro_titulos (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 tipo TEXT NOT NULL DEFAULT 'receber',
@@ -2378,6 +2415,28 @@ def iniciar_banco() -> None:
             """
         )
 
+        migracoes_centro_custo = {
+            "orcamentos": {"centro_custo_id": "INTEGER", "atividade_financeira_id": "INTEGER"},
+            "vendas": {"centro_custo_id": "INTEGER", "atividade_financeira_id": "INTEGER"},
+            "ordens_servico": {"centro_custo_id": "INTEGER", "atividade_financeira_id": "INTEGER"},
+            "financeiro_titulos": {"centro_custo_id": "INTEGER", "atividade_financeira_id": "INTEGER"},
+            "estoque_movimentacoes": {"centro_custo_id": "INTEGER", "atividade_financeira_id": "INTEGER"},
+        }
+
+        for tabela, colunas_novas in migracoes_centro_custo.items():
+            existentes = {str(row["name"]) for row in conn.execute(f"PRAGMA table_info({tabela})").fetchall()}
+            for coluna, tipo_coluna in colunas_novas.items():
+                if coluna not in existentes:
+                    conn.execute(f"ALTER TABLE {tabela} ADD COLUMN {coluna} {tipo_coluna}")
+
+        conn.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_atividade_origem_unica
+            ON atividades_financeiras (empresa_id, origem, origem_id)
+            WHERE origem_id IS NOT NULL
+            """
+        )
+
         tabelas_com_empresa_id = [
             "clientes",
             "fornecedores",
@@ -2407,6 +2466,8 @@ def iniciar_banco() -> None:
             "estoque_movimentacoes",
             "financeiro_titulos",
             "financeiro_titulo_historico",
+            "centros_custo",
+            "atividades_financeiras",
             "caixa_aberturas",
             "caixa_movimentacoes",
             "usuario_atividades",
@@ -5689,6 +5750,95 @@ def excluir_servico_db(servico_id: int) -> None:
         )
         conn.commit()
 
+def listar_centros_custo(apenas_ativos: bool = True) -> list[dict[str, Any]]:
+    consulta = "SELECT * FROM centros_custo WHERE empresa_id = ?"
+    parametros: list[Any] = [empresa_logada_id()]
+    if apenas_ativos:
+        consulta += " AND status = 'ativo'"
+    consulta += " ORDER BY nome ASC, id ASC"
+    with conectar_db() as conn:
+        rows = conn.execute(consulta, parametros).fetchall()
+    return [dict(row) for row in rows]
+
+
+def garantir_centro_custo_por_nome(nome: Any, conn: sqlite3.Connection | None = None) -> int | None:
+    nome = str(nome or "").strip()
+    if not nome:
+        return None
+    propria = conn is None
+    conexao = conn or conectar_db()
+    try:
+        row = conexao.execute(
+            "SELECT id FROM centros_custo WHERE empresa_id = ? AND LOWER(nome) = LOWER(?) LIMIT 1",
+            (empresa_logada_id(), nome),
+        ).fetchone()
+        if row:
+            return int(row["id"])
+        cursor = conexao.execute(
+            "INSERT INTO centros_custo (empresa_id, nome, status, atualizado_em) VALUES (?, ?, 'ativo', ?)",
+            (empresa_logada_id(), nome, agora_empresa().isoformat(timespec="seconds")),
+        )
+        if propria:
+            conexao.commit()
+        return int(cursor.lastrowid)
+    finally:
+        if propria:
+            conexao.close()
+
+
+def garantir_atividade_orcamento(orcamento_id: int) -> int | None:
+    empresa_id = empresa_logada_id()
+    with conectar_db() as conn:
+        orcamento = conn.execute(
+            "SELECT id, numero, cliente, centro_custo, centro_custo_id, valor_total, status FROM orcamentos WHERE id = ? AND empresa_id = ?",
+            (orcamento_id, empresa_id),
+        ).fetchone()
+        if orcamento is None:
+            return None
+        centro_id = orcamento["centro_custo_id"] or garantir_centro_custo_por_nome(orcamento["centro_custo"], conn)
+        nome = f"Orçamento {orcamento['numero'] or orcamento_id} - {orcamento['cliente'] or 'Sem cliente'}"
+        existente = conn.execute(
+            "SELECT id FROM atividades_financeiras WHERE empresa_id = ? AND origem = 'orcamento' AND origem_id = ?",
+            (empresa_id, orcamento_id),
+        ).fetchone()
+        agora = agora_empresa().isoformat(timespec="seconds")
+        status = "cancelado" if str(orcamento["status"] or "").lower() == "cancelado" else "ativo"
+        if existente:
+            atividade_id = int(existente["id"])
+            conn.execute(
+                "UPDATE atividades_financeiras SET centro_custo_id = ?, codigo = ?, nome = ?, cliente = ?, status = ?, valor_previsto = ?, atualizado_em = ? WHERE id = ? AND empresa_id = ?",
+                (centro_id, str(orcamento["numero"] or orcamento_id), nome, str(orcamento["cliente"] or ""), status, str(orcamento["valor_total"] or "0,00"), agora, atividade_id, empresa_id),
+            )
+        else:
+            cursor = conn.execute(
+                "INSERT INTO atividades_financeiras (empresa_id, centro_custo_id, tipo, origem, origem_id, codigo, nome, cliente, status, valor_previsto, atualizado_em) VALUES (?, ?, 'orcamento', 'orcamento', ?, ?, ?, ?, ?, ?, ?)",
+                (empresa_id, centro_id, orcamento_id, str(orcamento["numero"] or orcamento_id), nome, str(orcamento["cliente"] or ""), status, str(orcamento["valor_total"] or "0,00"), agora),
+            )
+            atividade_id = int(cursor.lastrowid)
+        conn.execute(
+            "UPDATE orcamentos SET centro_custo_id = ?, atividade_financeira_id = ? WHERE id = ? AND empresa_id = ?",
+            (centro_id, atividade_id, orcamento_id, empresa_id),
+        )
+        conn.commit()
+        return atividade_id
+
+
+def listar_atividades_financeiras(apenas_ativas: bool = True) -> list[dict[str, Any]]:
+    consulta = """
+        SELECT af.*, cc.nome AS centro_custo_nome
+        FROM atividades_financeiras af
+        LEFT JOIN centros_custo cc ON cc.id = af.centro_custo_id AND cc.empresa_id = af.empresa_id
+        WHERE af.empresa_id = ?
+    """
+    parametros: list[Any] = [empresa_logada_id()]
+    if apenas_ativas:
+        consulta += " AND af.status = 'ativo'"
+    consulta += " ORDER BY af.id DESC"
+    with conectar_db() as conn:
+        rows = conn.execute(consulta, parametros).fetchall()
+    return [dict(row) for row in rows]
+
+
 def proximo_numero_orcamento() -> str:
     empresa_id = empresa_logada_id()
 
@@ -5799,6 +5949,7 @@ def salvar_orcamento_db(orcamento: dict[str, str], itens: list[dict[str, str]]) 
 
         conn.commit()
 
+    garantir_atividade_orcamento(orcamento_id)
     return orcamento_id
 
 
@@ -6514,6 +6665,8 @@ def listar_financeiro_titulos_paginado(
                 descricao,
                 pessoa,
                 categoria,
+                centro_custo_id,
+                atividade_financeira_id,
                 origem,
                 origem_id,
                 documento,
@@ -7679,6 +7832,8 @@ def atualizar_orcamento_db(orcamento_id: int, orcamento: dict[str, str], itens: 
 
         conn.commit()
 
+    garantir_atividade_orcamento(orcamento_id)
+
 
 def excluir_orcamento_db(orcamento_id: int) -> None:
     empresa_id = empresa_logada_id()
@@ -7712,6 +7867,7 @@ def montar_orcamento_formulario(numero_padrao: str = "") -> dict[str, str]:
         "validade": (request.form.get("orcamento_validade") or "").strip(),
         "canal_venda": (request.form.get("orcamento_canal_venda") or "").strip(),
         "centro_custo": (request.form.get("orcamento_centro_custo") or "").strip(),
+        "centro_custo_id": (request.form.get("orcamento_centro_custo_id") or "").strip(),
         "introducao": (request.form.get("orcamento_introducao") or "").strip(),
         "tipo": (request.form.get("orcamento_tipo") or "misto").strip() or "misto",
         "status": (request.form.get("orcamento_status") or "aberto").strip() or "aberto",
@@ -9406,6 +9562,8 @@ def montar_venda_formulario(numero_padrao: str = "") -> dict[str, str]:
         "prazo_entrega": (request.form.get("venda_prazo_entrega") or "").strip(),
         "canal_venda": (request.form.get("venda_canal_venda") or "").strip(),
         "centro_custo": (request.form.get("venda_centro_custo") or "").strip(),
+        "centro_custo_id": (request.form.get("venda_centro_custo_id") or "").strip(),
+        "atividade_financeira_id": (request.form.get("venda_atividade_financeira_id") or "").strip(),
         "tipo": (request.form.get("venda_tipo") or "misto").strip() or "misto",
         "status": (request.form.get("venda_status") or "aberta").strip() or "aberta",
         "total_produtos": (request.form.get("venda_total_produtos") or "0,00").strip(),
@@ -10912,6 +11070,8 @@ def salvar_financeiro_titulo_db(titulo: dict[str, str]) -> int:
                 descricao,
                 pessoa,
                 categoria,
+                centro_custo_id,
+                atividade_financeira_id,
                 origem,
                 origem_id,
                 documento,
@@ -10922,7 +11082,7 @@ def salvar_financeiro_titulo_db(titulo: dict[str, str]) -> int:
                 forma_pagamento,
                 status,
                 observacoes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id,
@@ -10930,6 +11090,8 @@ def salvar_financeiro_titulo_db(titulo: dict[str, str]) -> int:
                 titulo["descricao"],
                 titulo["pessoa"],
                 titulo["categoria"],
+                titulo.get("centro_custo_id") or None,
+                titulo.get("atividade_financeira_id") or None,
                 titulo["origem"],
                 titulo["origem_id"],
                 titulo["documento"],
@@ -10964,6 +11126,8 @@ def listar_financeiro_titulos(tipo: str | None = None, limite: int | None = None
             descricao,
             pessoa,
             categoria,
+            centro_custo_id,
+            atividade_financeira_id,
             origem,
             origem_id,
             documento,
@@ -11052,6 +11216,8 @@ def atualizar_financeiro_titulo_db(
                 descricao = ?,
                 pessoa = ?,
                 categoria = ?,
+                centro_custo_id = ?,
+                atividade_financeira_id = ?,
                 documento = ?,
                 data_emissao = ?,
                 data_vencimento = ?,
@@ -11068,6 +11234,8 @@ def atualizar_financeiro_titulo_db(
                 str(titulo_novo.get("descricao") or "").strip(),
                 str(titulo_novo.get("pessoa") or "").strip(),
                 str(titulo_novo.get("categoria") or "Outros").strip() or "Outros",
+                titulo_novo.get("centro_custo_id") or titulo_anterior.get("centro_custo_id") or None,
+                titulo_novo.get("atividade_financeira_id") or titulo_anterior.get("atividade_financeira_id") or None,
                 str(titulo_novo.get("documento") or "").strip(),
                 str(titulo_novo.get("data_emissao") or "").strip(),
                 str(titulo_novo.get("data_vencimento") or "").strip(),
@@ -11208,6 +11376,8 @@ def montar_financeiro_titulo_formulario(tipo_padrao: str = "receber") -> dict[st
         "descricao": (request.form.get("financeiro_descricao") or "").strip(),
         "pessoa": (request.form.get("financeiro_pessoa") or "").strip(),
         "categoria": (request.form.get("financeiro_categoria") or "Outros").strip() or "Outros",
+        "centro_custo_id": (request.form.get("financeiro_centro_custo_id") or "").strip(),
+        "atividade_financeira_id": (request.form.get("financeiro_atividade_financeira_id") or "").strip(),
         "origem": "manual",
         "origem_id": "",
         "documento": (request.form.get("financeiro_documento") or "").strip(),
@@ -11928,6 +12098,8 @@ def montar_ordem_servico_formulario(numero_padrao: str = "") -> dict[str, str]:
         "hora_saida": (request.form.get("os_hora_saida") or "").strip(),
         "canal_venda": (request.form.get("os_canal_venda") or "").strip(),
         "centro_custo": (request.form.get("os_centro_custo") or "").strip(),
+        "centro_custo_id": (request.form.get("os_centro_custo_id") or "").strip(),
+        "atividade_financeira_id": (request.form.get("os_atividade_financeira_id") or "").strip(),
         "equipamento": _combinar_valores_formulario("os_equipamento"),
         "marca": _combinar_valores_formulario("os_marca"),
         "modelo": _combinar_valores_formulario("os_modelo"),
@@ -19258,6 +19430,8 @@ def financeiro() -> str:
         direcao=contexto_financeiro["direcao"],
         clientes=clientes_lista,
         fornecedores=fornecedores_lista,
+        centros_custo=listar_centros_custo(),
+        atividades_financeiras=listar_atividades_financeiras(),
         data_hoje_iso=hoje_empresa().isoformat(),
         categorias_financeiro=[
             "Fornecedor",
