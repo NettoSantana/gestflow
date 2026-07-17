@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_gerador.html
-Último recode: 2026-07-17 (America/Bahia)
-Motivo: Corrigir a experiência mobile do Gerador de Orçamentos sem alterar as demais telas.
+Último recode: 2026-07-17 18:11 (America/Bahia)
+Motivo: Adequar exclusivamente o Painel de Custos e Lucro à referência visual aprovada, destacando lucro real após impostos e separando lucros de material e mão de obra.
 -->
 
 <!DOCTYPE html>
@@ -399,6 +399,487 @@ Motivo: Corrigir a experiência mobile do Gerador de Orçamentos sem alterar as 
             .budget-tabs { flex-direction: column; }
             .budget-tab { width: 100%; }
         }
+
+        /* PAINEL DE CUSTOS E LUCRO - REFERENCIA APROVADA EM 17/07/2026 */
+        .gerador-painel-visual {
+            overflow: hidden;
+            border: 1px solid #dbe5f1;
+            background: #f8fafc;
+        }
+
+        .gerador-painel-visual > .panel-header {
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .gerador-painel-visual .page-kicker {
+            color: #0758c9;
+            font-size: 13px;
+            font-weight: 950;
+        }
+
+        .gerador-painel-visual .page-title {
+            margin-top: 2px;
+            color: #070b12;
+            font-size: clamp(20px, 2vw, 28px);
+            font-weight: 950;
+            text-transform: uppercase;
+        }
+
+        .gerador-painel-visual .page-subtitle {
+            max-width: none;
+            color: #334155;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .gerador-status-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 112px;
+            min-height: 38px;
+            padding: 8px 18px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 950;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .gerador-status-badge.neutro { color: #475569; background: #e2e8f0; }
+        .gerador-status-badge.ruim { color: #991b1b; background: #fee2e2; }
+        .gerador-status-badge.ok { color: #92400e; background: #fef3c7; }
+        .gerador-status-badge.bom { color: #166534; background: #dcfce7; }
+
+        .painel-custos-grid {
+            display: grid;
+            grid-template-columns: minmax(340px, 1.06fr) minmax(330px, .9fr) minmax(340px, 1fr);
+            gap: 16px;
+            align-items: stretch;
+        }
+
+        .painel-custos-coluna,
+        .painel-custos-card-escuro {
+            min-width: 0;
+            border-radius: 16px;
+        }
+
+        .painel-custos-coluna {
+            overflow: hidden;
+            border: 1px solid #d5deea;
+            background: #ffffff;
+            box-shadow: 0 10px 28px rgba(15, 23, 42, .08);
+        }
+
+        .painel-custos-linha {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 14px;
+            min-height: 42px;
+            padding: 9px 14px;
+            border-bottom: 1px solid #dce3ec;
+            color: #0f172a;
+            background: #ffffff;
+        }
+
+        .painel-custos-linha:last-child { border-bottom: 0; }
+        .painel-custos-linha span,
+        .painel-custos-linha strong {
+            position: relative;
+            z-index: 1;
+            font-size: 13px;
+            font-weight: 900;
+        }
+
+        .painel-custos-linha strong {
+            min-width: 132px;
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .painel-custos-linha.valor-total {
+            min-height: 48px;
+            color: #06111f;
+            background: linear-gradient(90deg, #53a0e7 0 58%, #1266c6 58% 100%);
+        }
+
+        .painel-custos-linha.valor-total span,
+        .painel-custos-linha.valor-total strong { font-size: 16px; }
+        .painel-custos-linha.valor-total strong { color: #ffffff; }
+
+        .painel-custos-linha.custos {
+            color: #ffffff;
+            background: linear-gradient(90deg, #fbbf24, #f59e0b);
+        }
+
+        .painel-custos-linha.lucro-bruto {
+            color: #ffffff;
+            background: linear-gradient(90deg, #9bd53b, #78bd25);
+        }
+
+        .painel-custos-linha.impostos {
+            color: #ffffff;
+            background: linear-gradient(90deg, #ff4141, #ef2d2d);
+        }
+
+        .painel-custos-linha.lucro-categoria {
+            color: #086c25;
+            background: linear-gradient(90deg, #eef9ec 0 64%, #102033 64% 100%);
+        }
+
+        .painel-custos-linha.lucro-categoria strong { color: #54d66f; }
+
+        .painel-custos-linha.valor-escuro {
+            background: linear-gradient(90deg, #ffffff 0 64%, #102033 64% 100%);
+        }
+
+        .painel-custos-linha.valor-escuro strong { color: #ffffff; }
+
+        .painel-lucro-real-box {
+            margin: 10px;
+            padding: 14px;
+            border: 2px solid #15803d;
+            border-radius: 13px;
+            background: linear-gradient(135deg, #f2fae9, #e3f3d2);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .75);
+        }
+
+        .painel-lucro-real-box > span,
+        .painel-lucro-real-box > strong,
+        .painel-lucro-real-box > small { display: block; }
+
+        .painel-lucro-real-box > span {
+            color: #111827;
+            font-size: 13px;
+            font-weight: 950;
+            text-transform: uppercase;
+        }
+
+        .painel-lucro-real-valor {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-top: 8px;
+            color: #087528;
+            font-size: 14px;
+            font-weight: 950;
+            text-transform: uppercase;
+        }
+
+        .painel-lucro-real-valor strong {
+            color: #087f2d;
+            font-size: 18px;
+            font-weight: 950;
+            white-space: nowrap;
+        }
+
+        .painel-lucro-real-box > small {
+            margin-top: 10px;
+            color: #334155;
+            font-size: 11px;
+            font-weight: 650;
+            line-height: 1.45;
+        }
+
+        .painel-custos-card-escuro {
+            display: flex;
+            flex-direction: column;
+            padding: 18px;
+            color: #ffffff;
+            background: radial-gradient(circle at 45% 34%, #192c42 0, #101f31 45%, #0c1726 100%);
+            box-shadow: 0 12px 30px rgba(15, 23, 42, .18);
+        }
+
+        .painel-custos-card-escuro h4 {
+            margin: 0 0 14px;
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 950;
+            text-align: center;
+            text-transform: uppercase;
+        }
+
+        .painel-roi-area {
+            display: flex;
+            flex: 1;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 270px;
+        }
+
+        .painel-roi-donut {
+            position: relative;
+            width: min(220px, 72%);
+            aspect-ratio: 1;
+            border-radius: 50%;
+            background: conic-gradient(#ef3d3d 0 70%, #14aa56 70% 100%);
+            box-shadow: 0 0 0 1px rgba(255,255,255,.05);
+        }
+
+        .painel-roi-donut::after {
+            content: '';
+            position: absolute;
+            inset: 27%;
+            border-radius: 50%;
+            background: #101f31;
+            box-shadow: 0 0 0 1px rgba(255,255,255,.05);
+        }
+
+        .painel-roi-centro {
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .painel-roi-centro strong {
+            color: #ffffff;
+            font-size: clamp(24px, 3vw, 35px);
+            font-weight: 950;
+        }
+
+        .painel-roi-centro span {
+            margin-top: 2px;
+            color: #ffffff;
+            font-size: 13px;
+            font-weight: 950;
+            text-transform: uppercase;
+        }
+
+        .painel-roi-legenda {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 18px;
+            margin-top: 14px;
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 850;
+        }
+
+        .painel-roi-legenda span { display: inline-flex; align-items: center; gap: 7px; }
+        .painel-roi-legenda i { width: 11px; height: 11px; border-radius: 50%; }
+        .painel-roi-legenda .custo { background: #ef3d3d; }
+        .painel-roi-legenda .lucro { background: #14aa56; }
+
+        .painel-sobra-box {
+            margin-top: 16px;
+            padding: 14px;
+            border: 2px solid #087a2b;
+            border-radius: 12px;
+            background: rgba(8, 25, 39, .68);
+            text-align: center;
+        }
+
+        .painel-sobra-box span,
+        .painel-sobra-box b,
+        .painel-sobra-box strong,
+        .painel-sobra-box small { display: block; }
+
+        .painel-sobra-box > span {
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 950;
+            text-transform: uppercase;
+        }
+
+        .painel-sobra-box > b {
+            margin-top: 8px;
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 950;
+            text-transform: uppercase;
+        }
+
+        .painel-sobra-box > strong {
+            margin-top: 6px;
+            color: #38d35f;
+            font-size: clamp(24px, 3vw, 32px);
+            font-weight: 950;
+        }
+
+        .painel-sobra-explicacao {
+            display: grid;
+            grid-template-columns: 36px minmax(0, 1fr);
+            gap: 10px;
+            align-items: center;
+            margin-top: 10px;
+            color: #dbeafe;
+            text-align: left;
+        }
+
+        .painel-sobra-explicacao i {
+            color: #39d264;
+            font-size: 28px;
+            font-style: normal;
+            line-height: 1;
+        }
+
+        .painel-sobra-explicacao small {
+            color: #e2e8f0;
+            font-size: 10px;
+            font-weight: 650;
+            line-height: 1.4;
+        }
+
+        .painel-lucros-separados {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .painel-lucro-separado {
+            min-width: 0;
+            padding: 11px 9px;
+            border: 2px solid #087a2b;
+            border-radius: 10px;
+            background: rgba(8, 25, 39, .64);
+            text-align: center;
+        }
+
+        .painel-lucro-separado span {
+            display: block;
+            min-height: 32px;
+            color: #b8dfbf;
+            font-size: 9px;
+            font-weight: 950;
+            line-height: 1.35;
+            text-transform: uppercase;
+        }
+
+        .painel-lucro-separado strong {
+            display: block;
+            margin-top: 5px;
+            color: #45d968;
+            font-size: clamp(16px, 2vw, 22px);
+            font-weight: 950;
+            white-space: nowrap;
+        }
+
+        .painel-composicao-lista {
+            display: grid;
+            gap: 18px;
+            margin-top: 8px;
+        }
+
+        .painel-composicao-item > div {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 900;
+        }
+
+        .painel-composicao-item > div strong {
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 950;
+            white-space: nowrap;
+        }
+
+        .painel-composicao-item > b {
+            display: block;
+            height: 17px;
+            margin-top: 8px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: rgba(255,255,255,.13);
+        }
+
+        .painel-composicao-item > b > i {
+            display: block;
+            width: 0;
+            height: 100%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #54a9ed, #5eb0f3);
+            transition: width .25s ease;
+        }
+
+        #barra-mao,
+        #barra-adicionais-mao { background: linear-gradient(90deg, #60a5fa, #3b82f6); }
+        #barra-custos { background: linear-gradient(90deg, #f6ad2f, #f59e0b); }
+        #barra-comercial { background: linear-gradient(90deg, #ff4141, #ef2d2d); }
+
+        .painel-metricas-rodape {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .painel-metrica-card {
+            min-width: 0;
+            padding: 14px 15px;
+            border-radius: 12px;
+            color: #ffffff;
+            background: linear-gradient(135deg, #1557bd, #0e46a1);
+            box-shadow: 0 8px 20px rgba(15, 23, 42, .10);
+        }
+
+        .painel-metrica-card.material { background: linear-gradient(135deg, #13a63f, #07842f); }
+        .painel-metrica-card.mao { background: linear-gradient(135deg, #1687d7, #0b6bb8); }
+        .painel-metrica-card.adicionais { background: linear-gradient(135deg, #ffad14, #f08b00); }
+        .painel-metrica-card.custos { background: linear-gradient(135deg, #2859ca, #173fa1); }
+
+        .painel-metrica-card span {
+            display: block;
+            color: #ffffff;
+            font-size: 10px;
+            font-weight: 950;
+            text-transform: uppercase;
+        }
+
+        .painel-metrica-card strong {
+            display: block;
+            margin-top: 6px;
+            color: #ffffff;
+            font-size: 18px;
+            font-weight: 950;
+            white-space: nowrap;
+        }
+
+        @media (max-width: 1320px) {
+            .painel-custos-grid { grid-template-columns: 1fr 1fr; }
+            .painel-composicao-card { grid-column: 1 / -1; }
+            .painel-metricas-rodape { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        }
+
+        @media (max-width: 860px) {
+            .painel-custos-grid { grid-template-columns: 1fr; }
+            .painel-composicao-card { grid-column: auto; }
+            .painel-metricas-rodape { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+
+        @media (max-width: 520px) {
+            .gerador-painel-visual > .panel-header { align-items: stretch; }
+            .gerador-status-badge { align-self: flex-start; }
+            .painel-custos-linha { grid-template-columns: 1fr; gap: 4px; }
+            .painel-custos-linha strong { min-width: 0; text-align: left; }
+            .painel-custos-linha.valor-total,
+            .painel-custos-linha.lucro-categoria,
+            .painel-custos-linha.valor-escuro { background: inherit; }
+            .painel-custos-linha.valor-total { color: #ffffff; background: linear-gradient(90deg, #4699e7, #1266c6); }
+            .painel-custos-linha.lucro-categoria { color: #086c25; background: #eef9ec; }
+            .painel-custos-linha.lucro-categoria strong { color: #087f2d; }
+            .painel-custos-linha.valor-escuro { background: #102033; color: #ffffff; }
+            .painel-lucro-real-valor { align-items: flex-start; flex-direction: column; }
+            .painel-lucros-separados,
+            .painel-metricas-rodape { grid-template-columns: 1fr; }
+            .painel-lucro-separado span { min-height: 0; }
+            .painel-roi-area { min-height: 230px; }
+        }
+
 </style>
 
 </head>
@@ -736,8 +1217,8 @@ Motivo: Corrigir a experiência mobile do Gerador de Orçamentos sem alterar as 
                         <div class="gerador-indicador"><span>Lucro bruto estimado</span><strong id="res-lucro-bruto">R$ 0,00</strong></div>
                         <div class="gerador-indicador"><span>Impostos estimados</span><strong id="res-impostos">R$ 0,00</strong></div>
                         <div class="gerador-indicador"><span>Administrativo e reserva</span><strong id="res-indiretos">R$ 0,00</strong></div>
-                        <div class="gerador-indicador gerador-resultado-liquido"><span>Lucro líquido estimado</span><strong id="res-lucro">R$ 0,00</strong></div>
-                        <div class="gerador-indicador"><span>Margem líquida estimada</span><strong id="res-margem">0,00%</strong></div>
+                        <div class="gerador-indicador gerador-resultado-liquido"><span>Lucro real depois dos impostos</span><strong id="res-lucro">R$ 0,00</strong></div>
+                        <div class="gerador-indicador"><span>Margem real depois dos impostos</span><strong id="res-margem">0,00%</strong></div>
 
                         <div class="gerador-final-actions">
                             <button type="submit" class="btn-primary-green">{{ 'Atualizar orçamento' if revisao else 'Gerar orçamento' }}</button>
@@ -751,66 +1232,106 @@ Motivo: Corrigir a experiência mobile do Gerador de Orçamentos sem alterar as 
                 <div class="panel-header page-header">
                     <div>
                         <span class="page-kicker">Análise antes de salvar</span>
-                        <h3 class="page-title">Mini DRE do orçamento</h3>
-                        <p class="page-subtitle">Veja de forma resumida quanto o orçamento vende, consome em custos e deixa de lucro líquido estimado.</p>
+                        <h3 class="page-title">Painel de custos e lucro</h3>
+                        <p class="page-subtitle">Visualize custo, lucro, impostos, ROI e composição do orçamento antes de gerar a proposta para o cliente.</p>
                     </div>
                     <span id="painel-status" class="gerador-status-badge neutro">Sem dados</span>
                 </div>
 
-                <div class="gerador-painel-grid">
-                    <div class="gerador-painel-coluna gerador-mini-dre">
-                        <div class="gerador-linha-valor destaque"><span>Valor de venda</span><strong id="painel-valor-total">R$ 0,00</strong></div>
-                        <div class="gerador-linha-valor custo"><span>(-) Custos diretos</span><strong id="painel-custo-total">R$ 0,00</strong></div>
-                        <div class="gerador-linha-valor lucro-bruto"><span>(=) Lucro bruto estimado</span><strong id="painel-lucro-bruto">R$ 0,00</strong></div>
-                        <div class="gerador-linha-valor impostos"><span>(-) Impostos estimados</span><strong id="painel-impostos">R$ 0,00</strong></div>
-                        <div class="gerador-linha-valor custo-indireto"><span>(-) Administrativo e reserva</span><strong id="painel-indiretos">R$ 0,00</strong></div>
-                        <div class="gerador-linha-valor lucro-liquido"><span>(=) Lucro líquido estimado</span><strong id="painel-lucro-total">R$ 0,00</strong></div>
+                <div class="painel-custos-grid">
+                    <div class="painel-custos-coluna">
+                        <div class="painel-custos-linha valor-total"><span>Valor total</span><strong id="painel-valor-total">R$ 0,00</strong></div>
+                        <div class="painel-custos-linha custos"><span>Custos</span><strong id="painel-custo-total">R$ 0,00</strong></div>
+                        <div class="painel-custos-linha lucro-bruto"><span>Lucro bruto (antes dos impostos)</span><strong id="painel-lucro-bruto">R$ 0,00</strong></div>
+                        <div class="painel-custos-linha valor-escuro"><span>Custo mão de obra</span><strong id="painel-custo-mao">R$ 0,00</strong></div>
+                        <div class="painel-custos-linha valor-escuro"><span>Adicionais mão de obra</span><strong id="painel-custo-adicionais-mao">R$ 0,00</strong></div>
+                        <div class="painel-custos-linha lucro-categoria"><span>Lucro mão de obra (antes dos impostos)</span><strong id="painel-lucro-mao-bruto">R$ 0,00</strong></div>
+                        <div class="painel-custos-linha valor-escuro"><span>Custo material</span><strong id="painel-custo-material">R$ 0,00</strong></div>
+                        <div class="painel-custos-linha lucro-categoria"><span>Lucro material (antes dos impostos)</span><strong id="painel-lucro-material-bruto">R$ 0,00</strong></div>
+                        <div class="painel-custos-linha impostos"><span>Impostos</span><strong id="painel-impostos">R$ 0,00</strong></div>
+                        <div class="painel-custos-linha valor-escuro"><span>Administrativo</span><strong id="painel-administrativo">R$ 0,00</strong></div>
+                        <div class="painel-custos-linha valor-escuro"><span>Reserva técnica</span><strong id="painel-reserva">R$ 0,00</strong></div>
+
+                        <div class="painel-lucro-real-box">
+                            <span>Lucro real (depois dos impostos)</span>
+                            <div class="painel-lucro-real-valor">
+                                <span>Sobra para mim</span>
+                                <strong id="painel-lucro-total">R$ 0,00</strong>
+                            </div>
+                            <small>Este é o valor que sobra do orçamento depois de retirar os custos diretos e os impostos.</small>
+                        </div>
                     </div>
 
-                    <div class="gerador-painel-grafico">
-                        <h4>Margem líquida estimada</h4>
-                        <div class="gerador-donut-wrap">
-                            <div class="gerador-donut" id="grafico-custo-lucro"></div>
-                            <div class="gerador-donut-centro">
-                                <strong id="painel-margem-liquida">0%</strong>
-                                <span>MARGEM LÍQUIDA</span>
+                    <div class="painel-custos-card-escuro painel-roi-card">
+                        <h4>Valor total</h4>
+                        <div class="painel-roi-area">
+                            <div class="painel-roi-donut" id="grafico-custo-lucro">
+                                <div class="painel-roi-centro">
+                                    <strong id="painel-roi">0,00%</strong>
+                                    <span>ROI</span>
+                                </div>
+                            </div>
+                            <div class="painel-roi-legenda">
+                                <span><i class="custo"></i>Custo</span>
+                                <span><i class="lucro"></i>Lucro</span>
                             </div>
                         </div>
-                        <div class="gerador-legenda">
-                            <span><i class="legenda-custo"></i>Custos e deduções</span>
-                            <span><i class="legenda-lucro"></i>Lucro líquido</span>
+
+                        <div class="painel-sobra-box">
+                            <span>Lucro real (depois dos impostos)</span>
+                            <b>Sobra para mim</b>
+                            <strong id="painel-lucro-destaque">R$ 0,00</strong>
+                            <div class="painel-sobra-explicacao">
+                                <i>▱</i>
+                                <small>Valor disponível após deduzir os custos diretos e os impostos estimados do orçamento.</small>
+                            </div>
+                        </div>
+
+                        <div class="painel-lucros-separados">
+                            <div class="painel-lucro-separado">
+                                <span>Lucro mão de obra<br>(depois dos impostos)</span>
+                                <strong id="painel-lucro-mao-liquido">R$ 0,00</strong>
+                            </div>
+                            <div class="painel-lucro-separado">
+                                <span>Lucro material<br>(depois dos impostos)</span>
+                                <strong id="painel-lucro-material-liquido">R$ 0,00</strong>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="gerador-painel-grafico">
+                    <div class="painel-custos-card-escuro painel-composicao-card">
                         <h4>Composição de custos</h4>
-                        <div class="gerador-barra-item">
-                            <div><span>Material</span><strong id="barra-material-label">0%</strong></div>
-                            <b><i id="barra-material"></i></b>
-                        </div>
-                        <div class="gerador-barra-item">
-                            <div><span>Mão de obra</span><strong id="barra-mao-label">0%</strong></div>
-                            <b><i id="barra-mao"></i></b>
-                        </div>
-                        <div class="gerador-barra-item">
-                            <div><span>Adicionais de mão de obra</span><strong id="barra-adicionais-mao-label">0%</strong></div>
-                            <b><i id="barra-adicionais-mao"></i></b>
-                        </div>
-                        <div class="gerador-barra-item">
-                            <div><span>Custos adicionais</span><strong id="barra-custos-label">0%</strong></div>
-                            <b><i id="barra-custos"></i></b>
-                        </div>
-                        <div class="gerador-barra-item">
-                            <div><span>Impostos + indiretos</span><strong id="barra-comercial-label">0%</strong></div>
-                            <b><i id="barra-comercial"></i></b>
+                        <div class="painel-composicao-lista">
+                            <div class="painel-composicao-item">
+                                <div><span>Material</span><strong id="barra-material-label">0,00%</strong></div>
+                                <b><i id="barra-material"></i></b>
+                            </div>
+                            <div class="painel-composicao-item">
+                                <div><span>Mão de obra</span><strong id="barra-mao-label">0,00%</strong></div>
+                                <b><i id="barra-mao"></i></b>
+                            </div>
+                            <div class="painel-composicao-item">
+                                <div><span>Adicionais de mão de obra</span><strong id="barra-adicionais-mao-label">0,00%</strong></div>
+                                <b><i id="barra-adicionais-mao"></i></b>
+                            </div>
+                            <div class="painel-composicao-item">
+                                <div><span>Custos adicionais</span><strong id="barra-custos-label">0,00%</strong></div>
+                                <b><i id="barra-custos"></i></b>
+                            </div>
+                            <div class="painel-composicao-item">
+                                <div><span>Imp./Adm./Reserva</span><strong id="barra-comercial-label">0,00%</strong></div>
+                                <b><i id="barra-comercial"></i></b>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="gerador-mini-resumo gerador-indicadores-dre">
-                    <div><span>Margem bruta</span><strong id="painel-margem-bruta">0,00%</strong></div>
-                    <div><span>Margem líquida</span><strong id="painel-margem">0,00%</strong></div>
-                    <div><span>Markup sobre o custo</span><strong id="painel-markup">0,00%</strong></div>
+                <div class="painel-metricas-rodape">
+                    <div class="painel-metrica-card"><span>Margem estimada</span><strong id="painel-margem">0,00%</strong></div>
+                    <div class="painel-metrica-card material"><span>Venda material</span><strong id="painel-venda-material">R$ 0,00</strong></div>
+                    <div class="painel-metrica-card mao"><span>Venda mão de obra</span><strong id="painel-venda-mao">R$ 0,00</strong></div>
+                    <div class="painel-metrica-card adicionais"><span>Venda adicionais</span><strong id="painel-venda-adicionais">R$ 0,00</strong></div>
+                    <div class="painel-metrica-card custos"><span>Venda custos</span><strong id="painel-venda-custos">R$ 0,00</strong></div>
                 </div>
             </section>
         </form>
@@ -1551,7 +2072,7 @@ function recalcularGerador() {
     const margemBruta = escolhido > 0 ? (lucroBruto / escolhido) * 100 : 0;
     const impostosEstimados = escolhido * imposto / 100;
     const despesasIndiretas = administrativoValor + reservaValor;
-    const lucroLiquido = lucroBruto - impostosEstimados - despesasIndiretas;
+    const lucroLiquido = lucroBruto - impostosEstimados;
     const margemLiquida = escolhido > 0 ? (lucroLiquido / escolhido) * 100 : 0;
     const markupCusto = custoTotal > 0 ? (lucroBruto / custoTotal) * 100 : 0;
 
@@ -1597,12 +2118,27 @@ function atualizarPainelVisual(dados) {
     const custoTotal = dados.custoTotal || 0;
     const escolhido = dados.escolhido || 0;
     const lucroBruto = dados.lucroBruto || 0;
-    const lucroLiquido = dados.lucroLiquido || 0;
-    const margemBruta = dados.margemBruta || 0;
-    const margemLiquida = dados.margemLiquida || 0;
-    const markupCusto = dados.markupCusto || 0;
-    const despesasIndiretas = dados.despesasIndiretas || 0;
-    const comercial = despesasIndiretas + (dados.impostoValor || 0);
+    const lucroReal = dados.lucroLiquido || 0;
+    const margemReal = dados.margemLiquida || 0;
+    const roi = dados.markupCusto || 0;
+    const impostoValor = dados.impostoValor || 0;
+    const administrativoValor = dados.administrativoValor || 0;
+    const reservaValor = dados.reservaValor || 0;
+    const comercial = impostoValor + administrativoValor + reservaValor;
+
+    const lucroMaterialBruto = (dados.vendaMaterial || 0) - (dados.custoMaterial || 0);
+    const lucroMaoBruto = ((dados.vendaMao || 0) - (dados.custoMao || 0))
+        + ((dados.vendaAdicionaisMao || 0) - (dados.custoAdicionaisMao || 0));
+
+    const percentualImpostoNoLucro = lucroBruto > 0
+        ? Math.max(Math.min(impostoValor / lucroBruto, 1), 0)
+        : 0;
+    const lucroMaterialDepoisImpostos = lucroMaterialBruto > 0
+        ? lucroMaterialBruto * (1 - percentualImpostoNoLucro)
+        : lucroMaterialBruto;
+    const lucroMaoDepoisImpostos = lucroMaoBruto > 0
+        ? lucroMaoBruto * (1 - percentualImpostoNoLucro)
+        : lucroMaoBruto;
 
     const setText = function(id, valor) {
         const el = document.getElementById(id);
@@ -1612,13 +2148,24 @@ function atualizarPainelVisual(dados) {
     setText('painel-valor-total', moeda(escolhido));
     setText('painel-custo-total', moeda(custoTotal));
     setText('painel-lucro-bruto', moeda(lucroBruto));
-    setText('painel-impostos', moeda(dados.impostoValor || 0));
-    setText('painel-indiretos', moeda(despesasIndiretas));
-    setText('painel-lucro-total', moeda(lucroLiquido));
-    setText('painel-margem-liquida', moedaSemSimbolo(margemLiquida) + '%');
-    setText('painel-margem-bruta', moedaSemSimbolo(margemBruta) + '%');
-    setText('painel-margem', moedaSemSimbolo(margemLiquida) + '%');
-    setText('painel-markup', moedaSemSimbolo(markupCusto) + '%');
+    setText('painel-custo-mao', moeda(dados.custoMao || 0));
+    setText('painel-custo-adicionais-mao', moeda(dados.custoAdicionaisMao || 0));
+    setText('painel-lucro-mao-bruto', moeda(lucroMaoBruto));
+    setText('painel-custo-material', moeda(dados.custoMaterial || 0));
+    setText('painel-lucro-material-bruto', moeda(lucroMaterialBruto));
+    setText('painel-impostos', moeda(impostoValor));
+    setText('painel-administrativo', moeda(administrativoValor));
+    setText('painel-reserva', moeda(reservaValor));
+    setText('painel-lucro-total', moeda(lucroReal));
+    setText('painel-lucro-destaque', moeda(lucroReal));
+    setText('painel-roi', moedaSemSimbolo(roi) + '%');
+    setText('painel-lucro-mao-liquido', moeda(lucroMaoDepoisImpostos));
+    setText('painel-lucro-material-liquido', moeda(lucroMaterialDepoisImpostos));
+    setText('painel-margem', moedaSemSimbolo(margemReal) + '%');
+    setText('painel-venda-material', moeda(dados.vendaMaterial || 0));
+    setText('painel-venda-mao', moeda(dados.vendaMao || 0));
+    setText('painel-venda-adicionais', moeda(dados.vendaAdicionaisMao || 0));
+    setText('painel-venda-custos', moeda(dados.vendaCustos || 0));
 
     const status = document.getElementById('painel-status');
     if (status) {
@@ -1626,32 +2173,45 @@ function atualizarPainelVisual(dados) {
         if (escolhido <= 0) {
             status.textContent = 'Sem dados';
             status.classList.add('neutro');
-        } else if (lucroLiquido < 0) {
-            status.textContent = 'Prejuízo estimado';
+        } else if (lucroReal < 0) {
+            status.textContent = 'Prejuízo';
             status.classList.add('ruim');
-        } else if (margemLiquida < 10) {
-            status.textContent = 'Margem líquida baixa';
+        } else if (margemReal < 10) {
+            status.textContent = 'Atenção';
             status.classList.add('ruim');
-        } else if (margemLiquida < 20) {
-            status.textContent = 'Margem líquida saudável';
+        } else if (margemReal < 20) {
+            status.textContent = 'Bom';
             status.classList.add('ok');
         } else {
-            status.textContent = 'Margem líquida forte';
+            status.textContent = 'Excelente';
             status.classList.add('bom');
         }
     }
 
-    const deducoes = Math.max(custoTotal + comercial, 0);
-    const deducoesPct = escolhido > 0 ? Math.max(Math.min((deducoes / escolhido) * 100, 100), 0) : 0;
-    const lucroPct = escolhido > 0 ? Math.max(Math.min((Math.max(lucroLiquido, 0) / escolhido) * 100, 100), 0) : 0;
+    const custoPct = escolhido > 0
+        ? Math.max(Math.min((custoTotal / escolhido) * 100, 100), 0)
+        : 0;
+    const lucroBrutoPct = escolhido > 0
+        ? Math.max(Math.min((Math.max(lucroBruto, 0) / escolhido) * 100, 100), 0)
+        : 0;
     const donut = document.getElementById('grafico-custo-lucro');
     if (donut) {
-        donut.style.background = `conic-gradient(#f59e0b 0 ${deducoesPct}%, #16a34a ${deducoesPct}% ${Math.min(deducoesPct + lucroPct, 100)}%, #e5e7eb ${Math.min(deducoesPct + lucroPct, 100)}% 100%)`;
+        const fimLucro = Math.min(custoPct + lucroBrutoPct, 100);
+        donut.style.background = escolhido > 0
+            ? `conic-gradient(#ef3d3d 0 ${custoPct}%, #14aa56 ${custoPct}% ${fimLucro}%, #334155 ${fimLucro}% 100%)`
+            : 'conic-gradient(#334155 0 100%)';
     }
 
-    const totalComposicao = (dados.custoMaterial || 0) + (dados.custoMao || 0) + (dados.custoAdicionaisMao || 0) + (dados.custoAdicional || 0) + comercial;
+    const totalComposicao = (dados.custoMaterial || 0)
+        + (dados.custoMao || 0)
+        + (dados.custoAdicionaisMao || 0)
+        + (dados.custoAdicional || 0)
+        + comercial;
+
     const atualizarBarra = function(barraId, labelId, valor) {
-        const pct = totalComposicao > 0 ? Math.max(Math.min((valor / totalComposicao) * 100, 100), 0) : 0;
+        const pct = totalComposicao > 0
+            ? Math.max(Math.min((valor / totalComposicao) * 100, 100), 0)
+            : 0;
         const barra = document.getElementById(barraId);
         if (barra) barra.style.width = pct + '%';
         setText(labelId, moedaSemSimbolo(pct) + '%');
