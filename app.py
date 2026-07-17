@@ -6973,6 +6973,8 @@ def buscar_orcamento_por_id(orcamento_id: int) -> dict[str, Any] | None:
                 validade,
                 canal_venda,
                 centro_custo,
+                centro_custo_id,
+                atividade_financeira_id,
                 introducao,
                 tipo,
                 status,
@@ -8046,6 +8048,16 @@ def excluir_orcamento_db(orcamento_id: int) -> None:
 
 
 def montar_orcamento_formulario(numero_padrao: str = "") -> dict[str, str]:
+    centro_custo_id = (request.form.get("orcamento_centro_custo_id") or "").strip()
+    centro_custo_nome = (request.form.get("orcamento_centro_custo") or "").strip()
+
+    if centro_custo_id.isdigit():
+        centro = buscar_centro_custo_por_id(int(centro_custo_id))
+        if centro is not None:
+            centro_custo_nome = str(centro.get("nome") or "").strip()
+    else:
+        centro_custo_id = ""
+
     return {
         "numero": (request.form.get("orcamento_numero") or numero_padrao).strip(),
         "cliente": (request.form.get("orcamento_cliente") or "").strip(),
@@ -8054,8 +8066,8 @@ def montar_orcamento_formulario(numero_padrao: str = "") -> dict[str, str]:
         "prazo_entrega": (request.form.get("orcamento_prazo_entrega") or "").strip(),
         "validade": (request.form.get("orcamento_validade") or "").strip(),
         "canal_venda": (request.form.get("orcamento_canal_venda") or "").strip(),
-        "centro_custo": (request.form.get("orcamento_centro_custo") or "").strip(),
-        "centro_custo_id": (request.form.get("orcamento_centro_custo_id") or "").strip(),
+        "centro_custo": centro_custo_nome,
+        "centro_custo_id": centro_custo_id,
         "introducao": (request.form.get("orcamento_introducao") or "").strip(),
         "tipo": (request.form.get("orcamento_tipo") or "misto").strip() or "misto",
         "status": (request.form.get("orcamento_status") or "aberto").strip() or "aberto",
@@ -10012,6 +10024,8 @@ def atualizar_ordem_servico_db(ordem_servico_id: int, ordem_servico: dict[str, s
                 hora_saida = ?,
                 canal_venda = ?,
                 centro_custo = ?,
+                centro_custo_id = ?,
+                atividade_financeira_id = ?,
                 equipamento = ?,
                 marca = ?,
                 modelo = ?,
@@ -10026,6 +10040,7 @@ def atualizar_ordem_servico_db(ordem_servico_id: int, ordem_servico: dict[str, s
                 bairro_entrega = ?,
                 cidade_entrega = ?,
                 origem_venda_id = ?,
+                origem_orcamento_id = ?,
                 tipo = ?,
                 status = ?,
                 prioridade = ?,
@@ -10057,6 +10072,8 @@ def atualizar_ordem_servico_db(ordem_servico_id: int, ordem_servico: dict[str, s
                 ordem_servico["hora_saida"],
                 ordem_servico["canal_venda"],
                 ordem_servico["centro_custo"],
+                ordem_servico.get("centro_custo_id") or None,
+                ordem_servico.get("atividade_financeira_id") or None,
                 ordem_servico["equipamento"],
                 ordem_servico["marca"],
                 ordem_servico["modelo"],
@@ -10070,7 +10087,8 @@ def atualizar_ordem_servico_db(ordem_servico_id: int, ordem_servico: dict[str, s
                 ordem_servico["endereco_entrega"],
                 ordem_servico["bairro_entrega"],
                 ordem_servico["cidade_entrega"],
-                ordem_servico["origem_venda_id"],
+                ordem_servico.get("origem_venda_id") or None,
+                ordem_servico.get("origem_orcamento_id") or None,
                 ordem_servico["tipo"],
                 ordem_servico["status"],
                 ordem_servico["prioridade"],
@@ -12412,6 +12430,8 @@ def gerar_ordem_servico_por_venda_db(venda_id: int) -> int | None:
         "hora_saida": "",
         "canal_venda": str(venda.get("canal_venda") or ""),
         "centro_custo": str(venda.get("centro_custo") or ""),
+        "centro_custo_id": venda.get("centro_custo_id") or "",
+        "atividade_financeira_id": venda.get("atividade_financeira_id") or "",
         "equipamento": "",
         "marca": "",
         "modelo": "",
@@ -12426,7 +12446,7 @@ def gerar_ordem_servico_por_venda_db(venda_id: int) -> int | None:
         "bairro_entrega": "",
         "cidade_entrega": "",
         "origem_venda_id": str(venda_id),
-        "origem_orcamento_id": "",
+        "origem_orcamento_id": str(venda.get("origem_orcamento_id") or ""),
         "tipo": str(venda.get("tipo") or "misto"),
         "status": "aberta",
         "prioridade": "normal",
@@ -19761,6 +19781,8 @@ def atualizar_financeiro_titulo(titulo_id: int) -> Response:
         titulo_novo = dict(titulo_atual)
         titulo_novo["data_vencimento"] = data_vencimento
         titulo_novo["forma_pagamento"] = (request.form.get("financeiro_forma_pagamento") or "").strip()
+        titulo_novo["centro_custo_id"] = (request.form.get("financeiro_centro_custo_id") or "").strip()
+        titulo_novo["atividade_financeira_id"] = (request.form.get("financeiro_atividade_financeira_id") or "").strip()
         titulo_novo["observacoes"] = (request.form.get("financeiro_observacoes") or "").strip()
         descricao_historico = "Dados de cobrança atualizados no Financeiro. O valor comercial permaneceu vinculado à venda."
     else:

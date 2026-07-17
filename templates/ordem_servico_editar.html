@@ -603,9 +603,9 @@ Motivo: Ajustar Editar OS para seguir o mesmo padrão visual da tela Editar Orç
                         <div class="form-group"><label for="os_hora_saida">Hora de saída</label><input id="os_hora_saida" name="os_hora_saida" type="time" value="{{ os.hora_saida or '' }}" class="form-control"></div>
                         <div class="form-group"><label for="os_data_previsao">Previsão</label><input id="os_data_previsao" name="os_data_previsao" type="text" value="{{ os.data_previsao or '' }}" class="form-control"></div>
                         <div class="form-group"><label for="os_canal_venda">Canal de venda</label><select id="os_canal_venda" name="os_canal_venda" class="form-control"><option value="presencial" {% if os.canal_venda == 'presencial' %}selected{% endif %}>Presencial</option><option value="whatsapp" {% if os.canal_venda == 'whatsapp' %}selected{% endif %}>WhatsApp</option><option value="telefone" {% if os.canal_venda == 'telefone' %}selected{% endif %}>Telefone</option><option value="indicacao" {% if os.canal_venda == 'indicacao' %}selected{% endif %}>Indicação</option><option value="outro" {% if os.canal_venda == 'outro' %}selected{% endif %}>Outro</option></select></div>
-                        <div class="form-group"><label for="os_centro_custo_id">Centro de custo</label><select id="os_centro_custo_id" name="os_centro_custo_id" class="form-control"><option value="">Sem centro de custo</option>{% for centro in centros_custo %}<option value="{{ centro.id }}" {% if os.centro_custo_id == centro.id %}selected{% endif %}>{{ centro.nome }}</option>{% endfor %}</select></div><div class="form-group"><label for="os_atividade_financeira_id">Atividade / Projeto</label><select id="os_atividade_financeira_id" name="os_atividade_financeira_id" class="form-control"><option value="">Sem atividade</option>{% for atividade in atividades_financeiras %}<option value="{{ atividade.id }}" {% if os.atividade_financeira_id == atividade.id %}selected{% endif %}>{{ atividade.nome }}</option>{% endfor %}</select></div><input type="hidden" name="os_centro_custo" value="{{ os.centro_custo or '' }}">
+                        <div class="form-group"><label for="os_centro_custo_id">Centro de custo</label><select id="os_centro_custo_id" name="os_centro_custo_id" class="form-control"><option value="">Sem centro de custo</option>{% for centro in centros_custo %}<option value="{{ centro.id }}" {% if os.centro_custo_id == centro.id %}selected{% endif %}>{{ centro.nome }}</option>{% endfor %}</select></div><div class="form-group"><label for="os_atividade_financeira_id">Atividade / Projeto</label><select id="os_atividade_financeira_id" name="os_atividade_financeira_id" class="form-control"><option value="">Sem atividade</option>{% for atividade in atividades_financeiras %}<option value="{{ atividade.id }}" data-centro-custo-id="{{ atividade.centro_custo_id or '' }}" {% if os.atividade_financeira_id == atividade.id %}selected{% endif %}>{{ atividade.nome }}</option>{% endfor %}</select></div><input type="hidden" name="os_centro_custo" value="{{ os.centro_custo or '' }}">
                         <div class="form-group"><label for="os_prioridade">Prioridade</label><select id="os_prioridade" name="os_prioridade" class="form-control" required><option value="normal" {% if os.prioridade == 'normal' %}selected{% endif %}>Normal</option><option value="baixa" {% if os.prioridade == 'baixa' %}selected{% endif %}>Baixa</option><option value="media" {% if os.prioridade == 'media' %}selected{% endif %}>Média</option><option value="alta" {% if os.prioridade == 'alta' %}selected{% endif %}>Alta</option><option value="urgente" {% if os.prioridade == 'urgente' %}selected{% endif %}>Urgente</option><option value="muito_urgente" {% if os.prioridade == 'muito_urgente' %}selected{% endif %}>Muito urgente</option></select></div>
-                        <div class="form-group"><label for="os_origem_venda_id">Venda de origem</label><input id="os_origem_venda_id" name="os_origem_venda_id" type="text" value="{{ os.origem_venda_id or '' }}" class="form-control"></div>
+                        <div class="form-group"><label for="os_origem_venda_id">Venda de origem</label><input id="os_origem_venda_id" name="os_origem_venda_id" type="text" value="{{ os.origem_venda_id or '' }}" class="form-control"></div><input id="os_origem_orcamento_id" name="os_origem_orcamento_id" type="hidden" value="{{ os.origem_orcamento_id or '' }}">
                     </div>
                 </div>
             </section>
@@ -1208,6 +1208,45 @@ Motivo: Ajustar Editar OS para seguir o mesmo padrão visual da tela Editar Orç
             </div>
         </div>
 
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                const centro = document.getElementById("os_centro_custo_id");
+                const atividade = document.getElementById("os_atividade_financeira_id");
+                const centroNome = document.querySelector('input[name="os_centro_custo"]');
+                if (!centro || !atividade) return;
+
+                function sincronizarCentroNome() {
+                    if (!centroNome) return;
+                    const opcao = centro.options[centro.selectedIndex];
+                    centroNome.value = centro.value && opcao ? opcao.textContent.trim() : "";
+                }
+
+                function filtrarAtividades() {
+                    const centroId = String(centro.value || "");
+                    let selecionadaValida = !atividade.value;
+                    Array.from(atividade.options).forEach(function (opcao, indice) {
+                        if (indice === 0) { opcao.hidden = false; opcao.disabled = false; return; }
+                        const atividadeCentro = String(opcao.dataset.centroCustoId || "");
+                        const visivel = !centroId || atividadeCentro === centroId;
+                        opcao.hidden = !visivel;
+                        opcao.disabled = !visivel;
+                        if (visivel && opcao.value === atividade.value) selecionadaValida = true;
+                    });
+                    if (!selecionadaValida) atividade.value = "";
+                    sincronizarCentroNome();
+                }
+
+                centro.addEventListener("change", filtrarAtividades);
+                atividade.addEventListener("change", function () {
+                    const opcao = atividade.options[atividade.selectedIndex];
+                    const centroAtividade = opcao ? String(opcao.dataset.centroCustoId || "") : "";
+                    if (centroAtividade) centro.value = centroAtividade;
+                    filtrarAtividades();
+                });
+                filtrarAtividades();
+            });
+        </script>
 </main>
 
         <script>

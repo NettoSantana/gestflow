@@ -79,7 +79,7 @@ Motivo: Criar edição híbrida para títulos manuais e títulos vinculados a ve
                         <label for="financeiro_forma_pagamento">Forma de cobrança</label>
                         <input id="financeiro_forma_pagamento" name="financeiro_forma_pagamento" type="text" value="{{ titulo.forma_pagamento or '' }}" placeholder="Pix, boleto, transferência...">
                     </div>
-                    <div class="financeiro-edit-field"><label for="financeiro_centro_custo_id">Centro de custo</label><select id="financeiro_centro_custo_id" name="financeiro_centro_custo_id"><option value="">Sem centro de custo</option>{% for centro in centros_custo %}<option value="{{ centro.id }}" {% if titulo is defined and titulo.centro_custo_id == centro.id %}selected{% endif %}>{{ centro.nome }}</option>{% endfor %}</select></div><div class="financeiro-edit-field"><label for="financeiro_atividade_financeira_id">Atividade / Projeto</label><select id="financeiro_atividade_financeira_id" name="financeiro_atividade_financeira_id"><option value="">Sem atividade</option>{% for atividade in atividades_financeiras %}<option value="{{ atividade.id }}" {% if titulo is defined and titulo.atividade_financeira_id == atividade.id %}selected{% endif %}>{{ atividade.nome }}</option>{% endfor %}</select></div><div class="financeiro-edit-field full">
+                    <div class="financeiro-edit-field"><label for="financeiro_centro_custo_id">Centro de custo</label><select id="financeiro_centro_custo_id" name="financeiro_centro_custo_id"><option value="">Sem centro de custo</option>{% for centro in centros_custo %}<option value="{{ centro.id }}" {% if titulo is defined and titulo.centro_custo_id == centro.id %}selected{% endif %}>{{ centro.nome }}</option>{% endfor %}</select></div><div class="financeiro-edit-field"><label for="financeiro_atividade_financeira_id">Atividade / Projeto</label><select id="financeiro_atividade_financeira_id" name="financeiro_atividade_financeira_id"><option value="">Sem atividade</option>{% for atividade in atividades_financeiras %}<option value="{{ atividade.id }}" data-centro-custo-id="{{ atividade.centro_custo_id or '' }}" {% if titulo is defined and titulo.atividade_financeira_id == atividade.id %}selected{% endif %}>{{ atividade.nome }}</option>{% endfor %}</select></div><div class="financeiro-edit-field full">
                         <label for="financeiro_observacoes">Observações</label>
                         <textarea id="financeiro_observacoes" name="financeiro_observacoes" placeholder="Informações internas da cobrança">{{ titulo.observacoes or '' }}</textarea>
                     </div>
@@ -111,7 +111,7 @@ Motivo: Criar edição híbrida para títulos manuais e títulos vinculados a ve
                     <div class="financeiro-edit-field"><label for="financeiro_valor">Valor</label><input id="financeiro_valor" name="financeiro_valor" type="text" value="{{ titulo.valor or '0,00' }}" required></div>
                     <div class="financeiro-edit-field"><label for="financeiro_forma_pagamento">Forma de pagamento</label><input id="financeiro_forma_pagamento" name="financeiro_forma_pagamento" type="text" value="{{ titulo.forma_pagamento or '' }}"></div>
                     <div class="financeiro-edit-field"><label for="financeiro_centro_custo_id">Centro de custo</label><select id="financeiro_centro_custo_id" name="financeiro_centro_custo_id"><option value="">Sem centro de custo</option>{% for centro in centros_custo %}<option value="{{ centro.id }}" {% if titulo.centro_custo_id == centro.id %}selected{% endif %}>{{ centro.codigo ~ ' - ' if centro.codigo else '' }}{{ centro.nome }}</option>{% endfor %}</select></div>
-                    <div class="financeiro-edit-field"><label for="financeiro_atividade_financeira_id">Atividade / Projeto</label><select id="financeiro_atividade_financeira_id" name="financeiro_atividade_financeira_id"><option value="">Sem atividade</option>{% for atividade in atividades_financeiras %}<option value="{{ atividade.id }}" {% if titulo.atividade_financeira_id == atividade.id %}selected{% endif %}>{{ atividade.nome }}</option>{% endfor %}</select></div>
+                    <div class="financeiro-edit-field"><label for="financeiro_atividade_financeira_id">Atividade / Projeto</label><select id="financeiro_atividade_financeira_id" name="financeiro_atividade_financeira_id"><option value="">Sem atividade</option>{% for atividade in atividades_financeiras %}<option value="{{ atividade.id }}" data-centro-custo-id="{{ atividade.centro_custo_id or '' }}" {% if titulo.atividade_financeira_id == atividade.id %}selected{% endif %}>{{ atividade.nome }}</option>{% endfor %}</select></div>
                     <div class="financeiro-edit-field full"><label for="financeiro_observacoes">Observações</label><textarea id="financeiro_observacoes" name="financeiro_observacoes">{{ titulo.observacoes or '' }}</textarea></div>
                 </div>
 
@@ -126,5 +126,45 @@ Motivo: Criar edição híbrida para títulos manuais e títulos vinculados a ve
             </div>
         </form>
     </main>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const centro = document.getElementById("financeiro_centro_custo_id");
+            const atividade = document.getElementById("financeiro_atividade_financeira_id");
+            if (!centro || !atividade) return;
+
+            function filtrarAtividades() {
+                const centroId = String(centro.value || "");
+                let selecionadaValida = !atividade.value;
+
+                Array.from(atividade.options).forEach(function (opcao, indice) {
+                    if (indice === 0) {
+                        opcao.hidden = false;
+                        opcao.disabled = false;
+                        return;
+                    }
+                    const atividadeCentro = String(opcao.dataset.centroCustoId || "");
+                    const visivel = !centroId || atividadeCentro === centroId;
+                    opcao.hidden = !visivel;
+                    opcao.disabled = !visivel;
+                    if (visivel && opcao.value === atividade.value) selecionadaValida = true;
+                });
+
+                if (!selecionadaValida) atividade.value = "";
+            }
+
+            centro.addEventListener("change", filtrarAtividades);
+            atividade.addEventListener("change", function () {
+                const opcao = atividade.options[atividade.selectedIndex];
+                const centroAtividade = opcao ? String(opcao.dataset.centroCustoId || "") : "";
+                if (centroAtividade && centro.value !== centroAtividade) {
+                    centro.value = centroAtividade;
+                    filtrarAtividades();
+                    atividade.value = opcao.value;
+                }
+            });
+            filtrarAtividades();
+        });
+    </script>
 </body>
 </html>

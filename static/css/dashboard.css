@@ -5006,3 +5006,63 @@ body.focus-mode-body .main-content.focus-mode-main {
   .presentation-table, .gerador-table { min-width:760px !important; }
   .financeiro-edit-grid, .financeiro-form-grid { grid-template-columns:1fr !important; }
 }
+
+
+/* EDITAR OS - CONTENCAO MOBILE DO FORMULARIO PRINCIPAL */
+.os-page,
+.os-page #form-editar-os,
+.os-page .os-form-section,
+.os-page .os-section-body,
+.os-page .os-grid-2,
+.os-page .os-grid-4,
+.os-page .os-grid-6,
+.os-page .form-group {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.os-page input,
+.os-page select,
+.os-page textarea,
+.os-page .form-control {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+}
+
+@media (max-width: 720px) {
+    .os-page .panel.page-section,
+    .os-page .os-form-section {
+        width: 100%;
+        max-width: 100%;
+        padding: 14px !important;
+        overflow: hidden !important;
+    }
+
+    .os-page .os-grid-2,
+    .os-page .os-grid-4,
+    .os-page .os-grid-6,
+    .os-page .form-grid {
+        width: 100%;
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    .os-page .table-shell,
+    .os-page .os-equipamentos-table-shell {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: auto !important;
+        overscroll-behavior-inline: contain;
+    }
+
+    .os-page .form-actions,
+    .os-page .client-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .os-page .form-actions > *,
+    .os-page .client-toolbar > * {
+        width: 100%;
+    }
+}
