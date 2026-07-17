@@ -118,6 +118,7 @@ Motivo: Corrigir as expressões Jinja da nova tela em abas para exibir os dados 
                     <div class="os-detail-field"><span>Hora de saída</span><strong>{{ os.hora_saida or '-' }}</strong></div>
                     <div class="os-detail-field"><span>Canal de venda</span><strong>{{ os.canal_venda or '-' }}</strong></div>
                     <div class="os-detail-field"><span>Centro de custo</span><strong>{{ os.centro_custo or '-' }}</strong></div>
+                    <div class="os-detail-field"><span>Atividade / Projeto</span><strong>{{ atividade.nome if atividade else '-' }}</strong></div>
                     <div class="os-detail-field"><span>Tipo</span><strong>{{ os.tipo or '-' }}</strong></div>
                     <div class="os-detail-field"><span>Venda de origem</span><strong>{{ os.origem_venda_id or '-' }}</strong></div>
                     <div class="os-detail-field os-detail-field-wide">

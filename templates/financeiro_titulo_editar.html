@@ -59,7 +59,7 @@ Motivo: Criar edição híbrida para títulos manuais e títulos vinculados a ve
             </div>
         </section>
 
-        <form action="/financeiro/titulos/{{ titulo.id }}/editar" method="post" class="panel page-section">
+        <form id="form-editar-financeiro" action="/financeiro/titulos/{{ titulo.id }}/editar" method="post" class="panel page-section">
             {% if titulo.venda_id %}
                 <div class="financeiro-edit-warning">
                     Título vinculado à Venda Nº {{ venda.numero if venda else titulo.venda_id }}.

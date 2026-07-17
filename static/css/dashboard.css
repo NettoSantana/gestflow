@@ -5066,3 +5066,23 @@ body.focus-mode-body .main-content.focus-mode-main {
         width: 100%;
     }
 }
+
+
+/* REPARO INSPETOR 14 — TABELAS E FORMULÁRIOS RESPONSIVOS */
+.table-shell { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table-shell > table { width: max-content; min-width: 100%; }
+#form-editar-venda, #form-editar-os, #form-editar-financeiro { min-width: 0; max-width: 100%; }
+#form-editar-venda .form-grid, #form-editar-os .form-grid, #form-editar-financeiro .form-grid { min-width: 0; }
+#form-editar-venda input, #form-editar-venda select, #form-editar-venda textarea,
+#form-editar-os input, #form-editar-os select, #form-editar-os textarea,
+#form-editar-financeiro input, #form-editar-financeiro select, #form-editar-financeiro textarea { min-width: 0; max-width: 100%; box-sizing: border-box; }
+.os-detail-tabs { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+.os-detail-tab { flex: 0 0 auto; }
+@media (max-width: 720px) {
+  .content { min-width: 0; overflow-x: hidden; }
+  .panel, .page-section, .table-panel { min-width: 0; max-width: 100%; }
+  #form-editar-os .form-grid, #form-editar-venda .form-grid, #form-editar-financeiro .form-grid { grid-template-columns: 1fr !important; }
+  #form-editar-os .form-group, #form-editar-venda .form-group, #form-editar-financeiro .financeiro-edit-field { min-width: 0; width: 100%; }
+  .os-detail-tabs { display: flex; flex-wrap: nowrap; padding-bottom: 6px; }
+  .os-detail-tab { white-space: nowrap; }
+}

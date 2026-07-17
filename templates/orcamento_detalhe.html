@@ -430,6 +430,7 @@ Motivo: Mostrar a venda já vinculada e impedir nova geração pelo mesmo orçam
                 <div><span>Desconto</span><strong>{{ orcamento.desconto_valor or '0,00' }}</strong></div>
                 <div><span>Valor total</span><strong>R$ {{ orcamento.valor_total or '0,00' }}</strong></div>
                 <div><span>Descrição comercial</span><strong>{{ orcamento.descricao_comercial or '-' }}</strong></div>
+                <div><span>Descrição editada</span><strong>{{ orcamento.descricao_comercial or orcamento.observacoes or (itens[0].detalhes if itens else '-') }}</strong></div>
                 <div><span>Cadastro</span><strong>{{ orcamento.criado_em or '-' }}</strong></div>
             </div>
         </section>
