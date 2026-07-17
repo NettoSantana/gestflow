@@ -4977,3 +4977,6 @@ body.focus-mode-body .main-content.focus-mode-main {
     }
 }
 
+
+/* Centro de custo e atividades financeiras */
+.gf-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.gf-form-grid label{display:flex;flex-direction:column;gap:7px;font-weight:800;color:#334155}.gf-form-grid .full{grid-column:1/-1}.gf-form-grid input,.gf-form-grid select,.gf-form-grid textarea{border:1px solid #dbe3ef;border-radius:10px;padding:11px 12px;font:inherit}.gf-financial-kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin:16px 0}.gf-financial-kpis>div{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:14px}.gf-financial-kpis span{display:block;color:#64748b;font-size:11px;font-weight:900;text-transform:uppercase;margin-bottom:6px}.gf-financial-kpis strong{font-size:18px;color:#0f172a}.link-button{border:0;background:none;color:#dc2626;cursor:pointer;font:inherit}@media(max-width:1000px){.gf-financial-kpis{grid-template-columns:repeat(3,1fr)}}@media(max-width:640px){.gf-form-grid,.gf-financial-kpis{grid-template-columns:1fr}.gf-form-grid .full{grid-column:auto}}

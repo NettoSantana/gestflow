@@ -641,8 +641,7 @@ Motivo: Trocar a geração repetida pela abertura da venda já vinculada ao orç
                     </div>
 
                     <div class="form-group">
-                        <label for="orcamento_centro_custo">Centro de custo</label>
-                        <input id="orcamento_centro_custo" name="orcamento_centro_custo" type="text" placeholder="Ex: Geral" class="form-control">
+                        <label for="orcamento_centro_custo_id">Centro de custo</label><select id="orcamento_centro_custo_id" name="orcamento_centro_custo_id" class="form-control"><option value="">Sem centro de custo</option>{% for centro in centros_custo %}<option value="{{ centro.id }}">{{ centro.codigo ~ ' - ' if centro.codigo else '' }}{{ centro.nome }}</option>{% endfor %}</select><input type="hidden" name="orcamento_centro_custo" value="">
                     </div>
                 </div>
 

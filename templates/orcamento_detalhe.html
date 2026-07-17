@@ -423,7 +423,7 @@ Motivo: Mostrar a venda já vinculada e impedir nova geração pelo mesmo orçam
         </section>
 
         <section class="panel page-section">
-            <div class="panel-header page-header"><div><h3>Resumo financeiro</h3><p class="page-subtitle">Totais e informações complementares do orçamento.</p></div></div>
+            <div class="panel-header page-header"><div><h3>Resumo financeiro</h3><p class="page-subtitle">Totais e informações complementares do orçamento.</p></div></div><div class="gf-financial-kpis"><div><span>Valor previsto</span><strong>R$ {{ resumo_atividade.previsto_formatado }}</strong></div><div><span>Recebido</span><strong>R$ {{ resumo_atividade.recebido_formatado }}</strong></div><div><span>A receber</span><strong>R$ {{ resumo_atividade.a_receber_formatado }}</strong></div><div><span>Custos</span><strong>R$ {{ resumo_atividade.custos_formatado }}</strong></div><div><span>Resultado atual</span><strong>R$ {{ resumo_atividade.resultado_formatado }}</strong></div><div><span>Margem atual</span><strong>{{ resumo_atividade.margem_formatada }}%</strong></div></div>{% if atividade %}<p><a class="btn-light" href="/financeiro/atividades/{{ atividade.id }}">Ver movimentações da atividade</a></p>{% endif %}
             <div class="panel-summary">
                 <div><span>Total produtos interno</span><strong>{{ orcamento.total_produtos or '0,00' }}</strong></div>
                 <div><span>Total serviços interno</span><strong>{{ orcamento.total_servicos or '0,00' }}</strong></div>

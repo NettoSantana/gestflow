@@ -495,7 +495,7 @@ Motivo: Exibir condição de pagamento e cronograma financeiro da venda.
             <div class="panel-header page-header">
                 <div>
                     <h3>Totais e observações</h3>
-                    <p class="page-subtitle">Resumo financeiro e informações complementares.</p>
+                    <p class="page-subtitle">Resumo financeiro e informações complementares.</p><div class="gf-financial-kpis"><div><span>Previsto</span><strong>R$ {{ resumo_atividade.previsto_formatado }}</strong></div><div><span>Recebido</span><strong>R$ {{ resumo_atividade.recebido_formatado }}</strong></div><div><span>A receber</span><strong>R$ {{ resumo_atividade.a_receber_formatado }}</strong></div><div><span>Custos</span><strong>R$ {{ resumo_atividade.custos_formatado }}</strong></div><div><span>Resultado</span><strong>R$ {{ resumo_atividade.resultado_formatado }}</strong></div><div><span>Margem</span><strong>{{ resumo_atividade.margem_formatada }}%</strong></div></div>{% if atividade %}<p><a class="btn-light" href="/financeiro/atividades/{{ atividade.id }}">Ver atividade financeira</a></p>{% endif %}
                 </div>
             </div>
 

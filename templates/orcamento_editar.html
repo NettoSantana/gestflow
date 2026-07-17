@@ -483,8 +483,7 @@ Motivo: Permitir que o valor final editado prevaleça e sincronize orçamento, a
                     </div>
 
                     <div class="form-group">
-                        <label for="orcamento_centro_custo">Centro de custo</label>
-                        <input id="orcamento_centro_custo" name="orcamento_centro_custo" type="text" value="{{ orcamento.centro_custo or '' }}" class="form-control">
+                        <label for="orcamento_centro_custo_id">Centro de custo</label><select id="orcamento_centro_custo_id" name="orcamento_centro_custo_id" class="form-control"><option value="">Sem centro de custo</option>{% for centro in centros_custo %}<option value="{{ centro.id }}" {% if orcamento.centro_custo_id == centro.id %}selected{% endif %}>{{ centro.codigo ~ ' - ' if centro.codigo else '' }}{{ centro.nome }}</option>{% endfor %}</select><input type="hidden" name="orcamento_centro_custo" value="{{ orcamento.centro_custo or '' }}">
                     </div>
                 </div>
 

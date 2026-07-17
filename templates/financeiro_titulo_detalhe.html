@@ -106,7 +106,7 @@ Motivo: Criar visualização completa do título financeiro, origem, ações per
                 <div class="financeiro-summary-card"><span>Vencimento</span><strong>{{ titulo.data_vencimento_exibicao or '-' }}</strong></div>
                 <div class="financeiro-summary-card"><span>Pagamento</span><strong>{{ titulo.data_pagamento_exibicao or '-' }}</strong></div>
                 <div class="financeiro-summary-card"><span>Forma de pagamento</span><strong>{{ titulo.forma_pagamento or '-' }}</strong></div>
-                <div class="financeiro-summary-card"><span>Cadastrado em</span><strong>{{ titulo.criado_em_exibicao or '-' }}</strong></div>
+                <div class="financeiro-summary-card"><span>Centro de custo</span><strong>{{ centro_custo.nome if centro_custo else '-' }}</strong></div><div class="financeiro-summary-card"><span>Atividade / Projeto</span><strong>{% if atividade %}<a href="/financeiro/atividades/{{ atividade.id }}">{{ atividade.nome }}</a>{% else %}-{% endif %}</strong></div><div class="financeiro-summary-card"><span>Cadastrado em</span><strong>{{ titulo.criado_em_exibicao or '-' }}</strong></div>
             </div>
 
             <div class="financeiro-origin-note">

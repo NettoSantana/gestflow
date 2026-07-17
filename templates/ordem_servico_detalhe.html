@@ -419,7 +419,7 @@ Motivo: Corrigir as expressões Jinja da nova tela em abas para exibir os dados 
                     <div>
                         <span class="os-detail-section-index">07</span>
                         <div>
-                            <h3>Resumo financeiro</h3>
+                            <h3>Resumo financeiro</h3><div class="gf-financial-kpis"><div><span>Previsto</span><strong>R$ {{ resumo_atividade.previsto_formatado }}</strong></div><div><span>Recebido</span><strong>R$ {{ resumo_atividade.recebido_formatado }}</strong></div><div><span>A receber</span><strong>R$ {{ resumo_atividade.a_receber_formatado }}</strong></div><div><span>Custos</span><strong>R$ {{ resumo_atividade.custos_formatado }}</strong></div><div><span>Resultado</span><strong>R$ {{ resumo_atividade.resultado_formatado }}</strong></div><div><span>Margem</span><strong>{{ resumo_atividade.margem_formatada }}%</strong></div></div>{% if atividade %}<p><a class="btn-light" href="/financeiro/atividades/{{ atividade.id }}">Ver atividade financeira</a></p>{% endif %}
                             <p>Consolidação dos valores da ordem de serviço.</p>
                         </div>
                     </div>

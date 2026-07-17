@@ -5839,6 +5839,105 @@ def listar_atividades_financeiras(apenas_ativas: bool = True) -> list[dict[str, 
     return [dict(row) for row in rows]
 
 
+
+
+def buscar_centro_custo_por_id(centro_id: int) -> dict[str, Any] | None:
+    with conectar_db() as conn:
+        row = conn.execute("SELECT * FROM centros_custo WHERE id = ? AND empresa_id = ?", (centro_id, empresa_logada_id())).fetchone()
+    return dict(row) if row else None
+
+
+def buscar_atividade_financeira_por_id(atividade_id: int) -> dict[str, Any] | None:
+    with conectar_db() as conn:
+        row = conn.execute("""
+            SELECT af.*, cc.nome AS centro_custo_nome, cc.codigo AS centro_custo_codigo
+            FROM atividades_financeiras af
+            LEFT JOIN centros_custo cc ON cc.id = af.centro_custo_id AND cc.empresa_id = af.empresa_id
+            WHERE af.id = ? AND af.empresa_id = ?
+        """, (atividade_id, empresa_logada_id())).fetchone()
+    return dict(row) if row else None
+
+
+def resumir_atividade_financeira(atividade_id: int | None) -> dict[str, Any]:
+    vazio = {"previsto":0.0,"recebido":0.0,"a_receber":0.0,"custos":0.0,"resultado":0.0,"margem":0.0,"previsto_formatado":"0,00","recebido_formatado":"0,00","a_receber_formatado":"0,00","custos_formatado":"0,00","resultado_formatado":"0,00","margem_formatada":"0,00"}
+    if not atividade_id:
+        return vazio
+    atividade = buscar_atividade_financeira_por_id(int(atividade_id))
+    if not atividade:
+        return vazio
+    previsto = _converter_valor_brl(atividade.get("valor_previsto"))
+    with conectar_db() as conn:
+        rows = conn.execute("SELECT tipo, status, valor FROM financeiro_titulos WHERE empresa_id = ? AND atividade_financeira_id = ? AND status <> 'cancelado'", (empresa_logada_id(), int(atividade_id))).fetchall()
+    recebido = custos = a_receber = 0.0
+    for row in rows:
+        valor = _converter_valor_brl(row['valor'])
+        if row['tipo'] == 'receber':
+            if row['status'] == 'pago': recebido += valor
+            else: a_receber += valor
+        elif row['tipo'] == 'pagar':
+            custos += valor
+    resultado = recebido - custos
+    margem = (resultado / recebido * 100) if recebido else 0.0
+    return {"previsto":previsto,"recebido":recebido,"a_receber":a_receber,"custos":custos,"resultado":resultado,"margem":margem,"previsto_formatado":_formatar_moeda_brl(previsto),"recebido_formatado":_formatar_moeda_brl(recebido),"a_receber_formatado":_formatar_moeda_brl(a_receber),"custos_formatado":_formatar_moeda_brl(custos),"resultado_formatado":_formatar_moeda_brl(resultado),"margem_formatada":_formatar_percentual_simples(margem)}
+
+
+def salvar_centro_custo_formulario(centro_id: int | None = None) -> None:
+    dados = {k: (request.form.get(k) or '').strip() for k in ['codigo','nome','descricao','cor','status']}
+    dados['status'] = dados['status'] or 'ativo'
+    if not dados['nome']: return
+    with conectar_db() as conn:
+        if centro_id:
+            conn.execute("UPDATE centros_custo SET codigo=?, nome=?, descricao=?, cor=?, status=?, atualizado_em=? WHERE id=? AND empresa_id=?", (dados['codigo'],dados['nome'],dados['descricao'],dados['cor'],dados['status'],agora_empresa().isoformat(timespec='seconds'),centro_id,empresa_logada_id()))
+        else:
+            conn.execute("INSERT INTO centros_custo (empresa_id,codigo,nome,descricao,cor,status,atualizado_em) VALUES (?,?,?,?,?,?,?)", (empresa_logada_id(),dados['codigo'],dados['nome'],dados['descricao'],dados['cor'],dados['status'],agora_empresa().isoformat(timespec='seconds')))
+        conn.commit()
+
+
+@app.route('/financeiro/centros-custo', methods=['GET','POST'])
+def centros_custo() -> str | Response:
+    if request.method == 'POST':
+        salvar_centro_custo_formulario()
+        return redirect(url_for('centros_custo'))
+    return render_template('centros_custo.html', centros=listar_centros_custo(False))
+
+
+@app.route('/financeiro/centros-custo/<int:centro_id>/editar', methods=['GET','POST'])
+def editar_centro_custo(centro_id: int) -> str | Response:
+    centro = buscar_centro_custo_por_id(centro_id)
+    if not centro: return redirect(url_for('centros_custo'))
+    if request.method == 'POST':
+        salvar_centro_custo_formulario(centro_id)
+        return redirect(url_for('centros_custo'))
+    return render_template('centro_custo_editar.html', centro=centro)
+
+
+@app.post('/financeiro/centros-custo/<int:centro_id>/excluir')
+def excluir_centro_custo(centro_id: int) -> Response:
+    with conectar_db() as conn:
+        usos = conn.execute("SELECT COUNT(*) total FROM atividades_financeiras WHERE empresa_id=? AND centro_custo_id=?", (empresa_logada_id(),centro_id)).fetchone()['total']
+        if usos: conn.execute("UPDATE centros_custo SET status='inativo' WHERE id=? AND empresa_id=?", (centro_id,empresa_logada_id()))
+        else: conn.execute("DELETE FROM centros_custo WHERE id=? AND empresa_id=?", (centro_id,empresa_logada_id()))
+        conn.commit()
+    return redirect(url_for('centros_custo'))
+
+
+@app.get('/financeiro/atividades')
+def atividades_financeiras() -> str:
+    atividades = listar_atividades_financeiras(False)
+    for atividade in atividades:
+        atividade['resumo'] = resumir_atividade_financeira(atividade['id'])
+    return render_template('atividades_financeiras.html', atividades=atividades)
+
+
+@app.get('/financeiro/atividades/<int:atividade_id>')
+def ver_atividade_financeira(atividade_id: int) -> str | Response:
+    atividade = buscar_atividade_financeira_por_id(atividade_id)
+    if not atividade: return redirect(url_for('atividades_financeiras'))
+    with conectar_db() as conn:
+        titulos = [preparar_financeiro_titulo_exibicao(dict(r)) for r in conn.execute("SELECT * FROM financeiro_titulos WHERE empresa_id=? AND atividade_financeira_id=? ORDER BY data_vencimento,id DESC", (empresa_logada_id(),atividade_id)).fetchall()]
+    return render_template('atividade_financeira_detalhe.html', atividade=atividade, resumo=resumir_atividade_financeira(atividade_id), titulos=titulos)
+
+
 def proximo_numero_orcamento() -> str:
     empresa_id = empresa_logada_id()
 
@@ -19480,6 +19579,8 @@ def ver_financeiro_titulo(titulo_id: int) -> str | Response:
         titulo=titulo_exibicao,
         venda=venda,
         historico=listar_historico_financeiro_titulo(titulo_id),
+        centro_custo=buscar_centro_custo_por_id(int(titulo.get("centro_custo_id"))) if titulo.get("centro_custo_id") else None,
+        atividade=buscar_atividade_financeira_por_id(int(titulo.get("atividade_financeira_id"))) if titulo.get("atividade_financeira_id") else None,
     )
 
 
@@ -19501,6 +19602,8 @@ def editar_financeiro_titulo(titulo_id: int) -> str | Response:
         "financeiro_titulo_editar.html",
         titulo=preparar_financeiro_titulo_exibicao(titulo),
         venda=venda,
+        centros_custo=listar_centros_custo(),
+        atividades_financeiras=listar_atividades_financeiras(),
         categorias_financeiro=[
             "Fornecedor",
             "Funcionário",
@@ -20412,6 +20515,8 @@ def ver_ordem_servico(ordem_servico_id: int) -> str | Response:
         os_publico_links=os_publico_links,
         acompanhamento_mensagem=acompanhamento_mensagem,
         acompanhamento_erro=acompanhamento_erro,
+        atividade=buscar_atividade_financeira_por_id(ordem_servico.get("atividade_financeira_id")) if ordem_servico.get("atividade_financeira_id") else None,
+        resumo_atividade=resumir_atividade_financeira(ordem_servico.get("atividade_financeira_id")),
     )
 
 
@@ -20738,6 +20843,8 @@ def editar_ordem_servico(ordem_servico_id: int) -> str | Response:
         equipamentos_os=equipamentos_os,
         fotos_equipamento=fotos_equipamento,
         fotos_por_equipamento=fotos_por_equipamento,
+        centros_custo=listar_centros_custo(),
+        atividades_financeiras=listar_atividades_financeiras(),
     )
 
 
@@ -21399,7 +21506,7 @@ def ver_venda(venda_id: int) -> str | Response:
 
     itens = listar_venda_itens(venda_id)
 
-    return render_template("venda_detalhe.html", venda=venda, itens=itens, pagamentos=listar_pagamentos_venda(venda_id))
+    return render_template("venda_detalhe.html", venda=venda, itens=itens, pagamentos=listar_pagamentos_venda(venda_id), atividade=buscar_atividade_financeira_por_id(venda.get("atividade_financeira_id")) if venda.get("atividade_financeira_id") else None, resumo_atividade=resumir_atividade_financeira(venda.get("atividade_financeira_id")))
 
 
 @app.get("/vendas/<int:venda_id>/devolucao")
@@ -21544,6 +21651,8 @@ def editar_venda(venda_id: int) -> str | Response:
         servicos=servicos_lista,
         pagamentos=listar_pagamentos_venda(venda_id),
         resumo_financeiro=resumir_financeiro_venda(venda_id),
+        centros_custo=listar_centros_custo(),
+        atividades_financeiras=listar_atividades_financeiras(),
     )
 
 
@@ -21701,6 +21810,7 @@ def orcamentos() -> str:
         por_pagina=contexto_orcamentos["por_pagina"],
         ordenar=contexto_orcamentos["ordenar"],
         direcao=contexto_orcamentos["direcao"],
+        centros_custo=listar_centros_custo(),
     )
 
 
@@ -21755,6 +21865,8 @@ def ver_orcamento(orcamento_id: int) -> str | Response:
         historico_gerador=listar_historico_gerador(orcamento_id)[:3],
         venda_gerada=buscar_venda_por_orcamento_id(orcamento_id),
         escopo_formatado=formatar_escopo_orcamento(orcamento.get("observacoes"), dados_gerador),
+        atividade=buscar_atividade_financeira_por_id(orcamento.get("atividade_financeira_id")) if orcamento.get("atividade_financeira_id") else None,
+        resumo_atividade=resumir_atividade_financeira(orcamento.get("atividade_financeira_id")),
     )
 
 
@@ -21899,6 +22011,8 @@ def editar_orcamento(orcamento_id: int) -> str | Response:
         funcionarios=listar_funcionarios(),
         produtos=listar_produtos(),
         servicos=listar_servicos(),
+        centros_custo=listar_centros_custo(),
+        atividades_financeiras=listar_atividades_financeiras(),
     )
 
 

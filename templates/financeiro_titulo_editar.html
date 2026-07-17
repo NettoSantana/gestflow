@@ -79,7 +79,7 @@ Motivo: Criar edição híbrida para títulos manuais e títulos vinculados a ve
                         <label for="financeiro_forma_pagamento">Forma de cobrança</label>
                         <input id="financeiro_forma_pagamento" name="financeiro_forma_pagamento" type="text" value="{{ titulo.forma_pagamento or '' }}" placeholder="Pix, boleto, transferência...">
                     </div>
-                    <div class="financeiro-edit-field full">
+                    <div class="financeiro-edit-field"><label for="financeiro_centro_custo_id">Centro de custo</label><select id="financeiro_centro_custo_id" name="financeiro_centro_custo_id"><option value="">Sem centro de custo</option>{% for centro in centros_custo %}<option value="{{ centro.id }}" {% if titulo is defined and titulo.centro_custo_id == centro.id %}selected{% endif %}>{{ centro.nome }}</option>{% endfor %}</select></div><div class="financeiro-edit-field"><label for="financeiro_atividade_financeira_id">Atividade / Projeto</label><select id="financeiro_atividade_financeira_id" name="financeiro_atividade_financeira_id"><option value="">Sem atividade</option>{% for atividade in atividades_financeiras %}<option value="{{ atividade.id }}" {% if titulo is defined and titulo.atividade_financeira_id == atividade.id %}selected{% endif %}>{{ atividade.nome }}</option>{% endfor %}</select></div><div class="financeiro-edit-field full">
                         <label for="financeiro_observacoes">Observações</label>
                         <textarea id="financeiro_observacoes" name="financeiro_observacoes" placeholder="Informações internas da cobrança">{{ titulo.observacoes or '' }}</textarea>
                     </div>
