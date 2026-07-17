@@ -528,10 +528,10 @@ Motivo: Permitir que o valor final editado prevaleça e sincronize orçamento, a
 
                     {% if dados_gerador %}
                         <div class="generator-summary-box">
-                            <div><span>Custo total interno</span><strong id="gerador-custo-total" data-custo="{{ dados_gerador.custo_total|default('0') }}">R$ {{ dados_gerador.custo_total|default('0') }}</strong></div>
+                            <div><span>Custo total interno</span><strong id="gerador-custo-total" data-custo="{{ dados_gerador.custo_total|default('0') }}" data-imposto-percentual="{{ dados_gerador.imposto_percentual|default('0') }}" data-administrativo="{{ dados_gerador.administrativo_valor|default('0') }}" data-reserva="{{ dados_gerador.reserva_valor|default('0') }}">R$ {{ dados_gerador.custo_total|default('0') }}</strong></div>
                             <div><span>Valor final atual</span><strong id="gerador-valor-escolhido">R$ {{ dados_gerador.valor_escolhido|default('0') }}</strong></div>
-                            <div><span>Lucro estimado</span><strong id="gerador-lucro-estimado">R$ {{ dados_gerador.lucro_estimado|default('0') }}</strong></div>
-                            <div><span>Margem estimada</span><strong id="gerador-margem-estimada">{{ dados_gerador.margem_estimado|default('0') }}%</strong></div>
+                            <div><span>Lucro líquido estimado</span><strong id="gerador-lucro-estimado">R$ {{ dados_gerador.lucro_liquido_estimado|default(dados_gerador.lucro_estimado|default('0')) }}</strong></div>
+                            <div><span>Margem líquida estimada</span><strong id="gerador-margem-estimada">{{ dados_gerador.margem_liquida_estimada|default(dados_gerador.margem_estimado|default('0')) }}%</strong></div>
                         </div>
                         <div class="form-actions"><a href="/orcamentos/{{ orcamento.id }}/gerador/revisao" class="btn-dark">Editar dados completos do Gerador</a></div>
                     {% endif %}
@@ -824,7 +824,12 @@ Motivo: Permitir que o valor final editado prevaleça e sincronize orçamento, a
                 const lucroEl = document.getElementById("gerador-lucro-estimado");
                 const margemEl = document.getElementById("gerador-margem-estimada");
                 const custo = normalizarNumero(custoEl ? custoEl.dataset.custo : "0");
-                const lucro = valor - custo;
+                const impostoPercentual = normalizarNumero(custoEl ? custoEl.dataset.impostoPercentual : "0");
+                const administrativo = normalizarNumero(custoEl ? custoEl.dataset.administrativo : "0");
+                const reserva = normalizarNumero(custoEl ? custoEl.dataset.reserva : "0");
+                const lucroBruto = valor - custo;
+                const impostos = valor * impostoPercentual / 100;
+                const lucro = lucroBruto - impostos - administrativo - reserva;
                 const margem = valor > 0 ? (lucro / valor) * 100 : 0;
 
                 if (valorEl) valorEl.textContent = "R$ " + formatarMoeda(valor);

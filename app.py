@@ -1292,11 +1292,35 @@ def iniciar_banco() -> None:
                 valor_escolhido TEXT,
                 lucro_estimado TEXT,
                 margem_estimado TEXT,
+                lucro_bruto_estimado TEXT,
+                margem_bruta_estimada TEXT,
+                impostos_estimados TEXT,
+                despesas_indiretas_estimadas TEXT,
+                lucro_liquido_estimado TEXT,
+                margem_liquida_estimada TEXT,
+                markup_custo_estimado TEXT,
                 atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (orcamento_id) REFERENCES orcamentos (id)
             )
             """
         )
+        colunas_gerador_dados = {
+            str(row["name"])
+            for row in conn.execute("PRAGMA table_info(orcamento_gerador_dados)").fetchall()
+        }
+        colunas_mini_dre = {
+            "lucro_bruto_estimado": "TEXT",
+            "margem_bruta_estimada": "TEXT",
+            "impostos_estimados": "TEXT",
+            "despesas_indiretas_estimadas": "TEXT",
+            "lucro_liquido_estimado": "TEXT",
+            "margem_liquida_estimada": "TEXT",
+            "markup_custo_estimado": "TEXT",
+        }
+        for coluna, tipo_coluna in colunas_mini_dre.items():
+            if coluna not in colunas_gerador_dados:
+                conn.execute(f"ALTER TABLE orcamento_gerador_dados ADD COLUMN {coluna} {tipo_coluna}")
+
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS orcamento_gerador_historico (
@@ -7542,8 +7566,18 @@ def atualizar_dados_gerador_apos_edicao_orcamento(
     )
     valor_novo = _converter_valor_brl(orcamento_novo.get("valor_total"))
     custo_total = _converter_valor_brl(dados_anteriores.get("custo_total"))
-    lucro_estimado = valor_novo - custo_total
-    margem_estimada = (lucro_estimado / valor_novo * 100) if valor_novo > 0 else 0.0
+    imposto_percentual = _converter_valor_brl(dados_anteriores.get("imposto_percentual"))
+    administrativo_valor = _converter_valor_brl(dados_anteriores.get("administrativo_valor"))
+    reserva_valor = _converter_valor_brl(dados_anteriores.get("reserva_valor"))
+    lucro_bruto_estimado = valor_novo - custo_total
+    margem_bruta_estimada = (lucro_bruto_estimado / valor_novo * 100) if valor_novo > 0 else 0.0
+    impostos_estimados = valor_novo * (imposto_percentual / 100)
+    despesas_indiretas_estimadas = administrativo_valor + reserva_valor
+    lucro_liquido_estimado = lucro_bruto_estimado - impostos_estimados - despesas_indiretas_estimadas
+    margem_liquida_estimada = (lucro_liquido_estimado / valor_novo * 100) if valor_novo > 0 else 0.0
+    markup_custo_estimado = (lucro_bruto_estimado / custo_total * 100) if custo_total > 0 else 0.0
+    lucro_estimado = lucro_liquido_estimado
+    margem_estimada = margem_liquida_estimada
 
     dados_novos = dict(dados_anteriores)
     dados_novos.update(
@@ -7565,6 +7599,13 @@ def atualizar_dados_gerador_apos_edicao_orcamento(
             "valor_escolhido": valor_novo,
             "lucro_estimado": lucro_estimado,
             "margem_estimado": margem_estimada,
+            "lucro_bruto_estimado": lucro_bruto_estimado,
+            "margem_bruta_estimada": margem_bruta_estimada,
+            "impostos_estimados": impostos_estimados,
+            "despesas_indiretas_estimadas": despesas_indiretas_estimadas,
+            "lucro_liquido_estimado": lucro_liquido_estimado,
+            "margem_liquida_estimada": margem_liquida_estimada,
+            "markup_custo_estimado": markup_custo_estimado,
         }
     )
 
@@ -7744,7 +7785,9 @@ def salvar_orcamento_gerador_dados_db(orcamento_id: int, dados: dict[str, Any]) 
         "custo_adicionais_mao_obra", "custo_adicional", "custo_total", "venda_material",
         "venda_mao_obra", "venda_adicionais_mao_obra", "venda_custos", "administrativo_valor",
         "reserva_valor", "valor_minimo", "valor_recomendado", "valor_ideal", "valor_escolhido",
-        "lucro_estimado", "margem_estimado",
+        "lucro_estimado", "margem_estimado", "lucro_bruto_estimado",
+        "margem_bruta_estimada", "impostos_estimados", "despesas_indiretas_estimadas",
+        "lucro_liquido_estimado", "margem_liquida_estimada", "markup_custo_estimado",
     ]
     for campo in numericos:
         campos[campo] = str(float(dados.get(campo) or 0))
@@ -7815,7 +7858,8 @@ def listar_historico_gerador(orcamento_id: int) -> list[dict[str, Any]]:
         rows = conn.execute(
             """
             SELECT id, orcamento_id, valor_anterior, valor_novo, margem_anterior,
-                   margem_nova, diferenca_valor, responsavel, criado_em
+                   margem_nova, diferenca_valor, dados_anteriores_json, dados_novos_json,
+                   responsavel, criado_em
             FROM orcamento_gerador_historico
             WHERE orcamento_id = ? AND empresa_id = ?
             ORDER BY id DESC
@@ -7825,6 +7869,20 @@ def listar_historico_gerador(orcamento_id: int) -> list[dict[str, Any]]:
     resultado = [dict(row) for row in rows]
     for item in resultado:
         item["criado_em"] = formatar_data_hora_br(item.get("criado_em"))
+        try:
+            anteriores = json.loads(str(item.get("dados_anteriores_json") or "{}"))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            anteriores = {}
+        try:
+            novos = json.loads(str(item.get("dados_novos_json") or "{}"))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            novos = {}
+        lucro_anterior = _converter_valor_brl(anteriores.get("lucro_liquido_estimado") or anteriores.get("lucro_estimado"))
+        lucro_novo = _converter_valor_brl(novos.get("lucro_liquido_estimado") or novos.get("lucro_estimado"))
+        item["lucro_liquido_anterior"] = _formatar_moeda_brl(lucro_anterior)
+        item["lucro_liquido_novo"] = _formatar_moeda_brl(lucro_novo)
+        item.pop("dados_anteriores_json", None)
+        item.pop("dados_novos_json", None)
     return resultado
 
 
@@ -8755,8 +8813,21 @@ def montar_gerador_orcamento_formulario() -> dict[str, Any]:
         tipo_valor = "recomendado"
         valor_escolhido = valor_recomendado
 
-    lucro_estimado = valor_escolhido - custo_total
-    margem_estimado = (lucro_estimado / valor_escolhido * 100) if valor_escolhido > 0 else 0
+    lucro_bruto_estimado = valor_escolhido - custo_total
+    margem_bruta_estimada = (lucro_bruto_estimado / valor_escolhido * 100) if valor_escolhido > 0 else 0
+    impostos_estimados = valor_escolhido * (imposto_percentual / 100)
+    despesas_indiretas_estimadas = administrativo_valor + reserva_valor
+    lucro_liquido_estimado = (
+        lucro_bruto_estimado
+        - impostos_estimados
+        - despesas_indiretas_estimadas
+    )
+    margem_liquida_estimada = (lucro_liquido_estimado / valor_escolhido * 100) if valor_escolhido > 0 else 0
+    markup_custo_estimado = (lucro_bruto_estimado / custo_total * 100) if custo_total > 0 else 0
+
+    # Compatibilidade: os campos antigos passam a guardar o resultado líquido real.
+    lucro_estimado = lucro_liquido_estimado
+    margem_estimado = margem_liquida_estimada
 
     return {
         "cliente": str(request.form.get("gerador_cliente") or "").strip(),
@@ -8799,6 +8870,13 @@ def montar_gerador_orcamento_formulario() -> dict[str, Any]:
         "valor_escolhido": valor_escolhido,
         "lucro_estimado": lucro_estimado,
         "margem_estimado": margem_estimado,
+        "lucro_bruto_estimado": lucro_bruto_estimado,
+        "margem_bruta_estimada": margem_bruta_estimada,
+        "impostos_estimados": impostos_estimados,
+        "despesas_indiretas_estimadas": despesas_indiretas_estimadas,
+        "lucro_liquido_estimado": lucro_liquido_estimado,
+        "margem_liquida_estimada": margem_liquida_estimada,
+        "markup_custo_estimado": markup_custo_estimado,
     }
 
 

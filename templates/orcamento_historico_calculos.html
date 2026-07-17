@@ -22,7 +22,7 @@ Motivo: Exibir o histórico de recálculos realizados nos dados internos do Gera
         .history-head { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; margin-bottom:14px; }
         .history-head strong { color:#0f172a; font-size:14px; }
         .history-head span { color:#64748b; font-size:12px; font-weight:800; }
-        .history-values { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+        .history-values { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
         .history-values div { padding:12px; border:1px solid #e2e8f0; border-radius:12px; background:#f8fafc; }
         .history-values span { display:block; color:#64748b; font-size:10px; font-weight:900; text-transform:uppercase; }
         .history-values strong { display:block; margin-top:6px; color:#0f172a; font-size:14px; }
@@ -51,7 +51,7 @@ Motivo: Exibir o histórico de recálculos realizados nos dados internos do Gera
                 <div>
                     <span class="page-kicker">Orçamento {{ orcamento.numero or orcamento.id }}</span>
                     <h3 class="page-title">Histórico de recálculos</h3>
-                    <p class="page-subtitle">Compare valor, margem e responsável por cada atualização realizada nos dados internos do Gerador.</p>
+                    <p class="page-subtitle">Compare valor, lucro líquido, margem líquida e responsável por cada atualização realizada nos dados internos do Gerador.</p>
                 </div>
                 <a href="/orcamentos/{{ orcamento.id }}/gerador/revisao" class="btn-primary-green">Revisar Gerador</a>
             </div>
@@ -68,8 +68,9 @@ Motivo: Exibir o histórico de recálculos realizados nos dados internos do Gera
                             </div>
                             <div class="history-values">
                                 <div><span>Valor do orçamento</span><strong>{{ registro.valor_anterior or '0,00' }} → {{ registro.valor_novo or '0,00' }}</strong></div>
-                                <div><span>Margem estimada</span><strong>{{ registro.margem_anterior or '0' }}% → {{ registro.margem_nova or '0' }}%</strong></div>
-                                <div><span>Diferença</span><strong class="{% if registro.diferenca_valor and not registro.diferenca_valor.startswith('-') %}difference-positive{% else %}difference-negative{% endif %}">{{ registro.diferenca_valor or '0,00' }}</strong></div>
+                                <div><span>Lucro líquido estimado</span><strong>{{ registro.lucro_liquido_anterior or '0,00' }} → {{ registro.lucro_liquido_novo or '0,00' }}</strong></div>
+                                <div><span>Margem líquida</span><strong>{{ registro.margem_anterior or '0' }}% → {{ registro.margem_nova or '0' }}%</strong></div>
+                                <div><span>Diferença do valor</span><strong class="{% if registro.diferenca_valor and not registro.diferenca_valor.startswith('-') %}difference-positive{% else %}difference-negative{% endif %}">{{ registro.diferenca_valor or '0,00' }}</strong></div>
                             </div>
                         </article>
                     {% endfor %}

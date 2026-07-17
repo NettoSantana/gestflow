@@ -733,8 +733,11 @@ Motivo: Corrigir a experiência mobile do Gerador de Orçamentos sem alterar as 
                     <div class="gerador-resumo-card">
                         <h3>Resultado</h3>
                         <div class="gerador-indicador"><span>Venda escolhida</span><strong id="res-venda">R$ 0,00</strong></div>
-                        <div class="gerador-indicador"><span>Lucro estimado</span><strong id="res-lucro">R$ 0,00</strong></div>
-                        <div class="gerador-indicador"><span>Margem estimada</span><strong id="res-margem">0,00%</strong></div>
+                        <div class="gerador-indicador"><span>Lucro bruto estimado</span><strong id="res-lucro-bruto">R$ 0,00</strong></div>
+                        <div class="gerador-indicador"><span>Impostos estimados</span><strong id="res-impostos">R$ 0,00</strong></div>
+                        <div class="gerador-indicador"><span>Administrativo e reserva</span><strong id="res-indiretos">R$ 0,00</strong></div>
+                        <div class="gerador-indicador gerador-resultado-liquido"><span>Lucro líquido estimado</span><strong id="res-lucro">R$ 0,00</strong></div>
+                        <div class="gerador-indicador"><span>Margem líquida estimada</span><strong id="res-margem">0,00%</strong></div>
 
                         <div class="gerador-final-actions">
                             <button type="submit" class="btn-primary-green">{{ 'Atualizar orçamento' if revisao else 'Gerar orçamento' }}</button>
@@ -748,39 +751,34 @@ Motivo: Corrigir a experiência mobile do Gerador de Orçamentos sem alterar as 
                 <div class="panel-header page-header">
                     <div>
                         <span class="page-kicker">Análise antes de salvar</span>
-                        <h3 class="page-title">Painel de custos e lucro</h3>
-                        <p class="page-subtitle">Visualize custo, lucro, impostos, ROI e composição do orçamento antes de gerar a proposta para o cliente.</p>
+                        <h3 class="page-title">Mini DRE do orçamento</h3>
+                        <p class="page-subtitle">Veja de forma resumida quanto o orçamento vende, consome em custos e deixa de lucro líquido estimado.</p>
                     </div>
                     <span id="painel-status" class="gerador-status-badge neutro">Sem dados</span>
                 </div>
 
                 <div class="gerador-painel-grid">
-                    <div class="gerador-painel-coluna">
-                        <div class="gerador-linha-valor destaque"><span>Valor total</span><strong id="painel-valor-total">R$ 0,00</strong></div>
-                        <div class="gerador-linha-valor custo"><span>Custos</span><strong id="painel-custo-total">R$ 0,00</strong></div>
-                        <div class="gerador-linha-valor lucro"><span>Lucro</span><strong id="painel-lucro-total">R$ 0,00</strong></div>
-                        <div class="gerador-linha-valor"><span>Custo mão de obra</span><strong id="painel-custo-mao">R$ 0,00</strong></div>
-                        <div class="gerador-linha-valor"><span>Adicionais mão de obra</span><strong id="painel-custo-adicionais-mao">R$ 0,00</strong></div>
-                        <div class="gerador-linha-valor"><span>Lucro mão de obra + adicionais</span><strong id="painel-lucro-mao">R$ 0,00</strong></div>
-                        <div class="gerador-linha-valor"><span>Custo material</span><strong id="painel-custo-material">R$ 0,00</strong></div>
-                        <div class="gerador-linha-valor"><span>Lucro material</span><strong id="painel-lucro-material">R$ 0,00</strong></div>
-                        <div class="gerador-linha-valor impostos"><span>Impostos</span><strong id="painel-impostos">R$ 0,00</strong></div>
-                        <div class="gerador-linha-valor"><span>Administrativo</span><strong id="painel-administrativo">R$ 0,00</strong></div>
-                        <div class="gerador-linha-valor"><span>Reserva técnica</span><strong id="painel-reserva">R$ 0,00</strong></div>
+                    <div class="gerador-painel-coluna gerador-mini-dre">
+                        <div class="gerador-linha-valor destaque"><span>Valor de venda</span><strong id="painel-valor-total">R$ 0,00</strong></div>
+                        <div class="gerador-linha-valor custo"><span>(-) Custos diretos</span><strong id="painel-custo-total">R$ 0,00</strong></div>
+                        <div class="gerador-linha-valor lucro-bruto"><span>(=) Lucro bruto estimado</span><strong id="painel-lucro-bruto">R$ 0,00</strong></div>
+                        <div class="gerador-linha-valor impostos"><span>(-) Impostos estimados</span><strong id="painel-impostos">R$ 0,00</strong></div>
+                        <div class="gerador-linha-valor custo-indireto"><span>(-) Administrativo e reserva</span><strong id="painel-indiretos">R$ 0,00</strong></div>
+                        <div class="gerador-linha-valor lucro-liquido"><span>(=) Lucro líquido estimado</span><strong id="painel-lucro-total">R$ 0,00</strong></div>
                     </div>
 
                     <div class="gerador-painel-grafico">
-                        <h4>Valor total</h4>
+                        <h4>Margem líquida estimada</h4>
                         <div class="gerador-donut-wrap">
                             <div class="gerador-donut" id="grafico-custo-lucro"></div>
                             <div class="gerador-donut-centro">
-                                <strong id="painel-roi">0%</strong>
-                                <span>ROI</span>
+                                <strong id="painel-margem-liquida">0%</strong>
+                                <span>MARGEM LÍQUIDA</span>
                             </div>
                         </div>
                         <div class="gerador-legenda">
-                            <span><i class="legenda-custo"></i>Custo</span>
-                            <span><i class="legenda-lucro"></i>Lucro</span>
+                            <span><i class="legenda-custo"></i>Custos e deduções</span>
+                            <span><i class="legenda-lucro"></i>Lucro líquido</span>
                         </div>
                     </div>
 
@@ -803,18 +801,16 @@ Motivo: Corrigir a experiência mobile do Gerador de Orçamentos sem alterar as 
                             <b><i id="barra-custos"></i></b>
                         </div>
                         <div class="gerador-barra-item">
-                            <div><span>Imp./Adm./Reserva</span><strong id="barra-comercial-label">0%</strong></div>
+                            <div><span>Impostos + indiretos</span><strong id="barra-comercial-label">0%</strong></div>
                             <b><i id="barra-comercial"></i></b>
                         </div>
                     </div>
                 </div>
 
-                <div class="gerador-mini-resumo">
-                    <div><span>Margem estimada</span><strong id="painel-margem">0,00%</strong></div>
-                    <div><span>Venda material</span><strong id="painel-venda-material">R$ 0,00</strong></div>
-                    <div><span>Venda mão de obra</span><strong id="painel-venda-mao">R$ 0,00</strong></div>
-                    <div><span>Venda adicionais</span><strong id="painel-venda-adicionais-mao">R$ 0,00</strong></div>
-                    <div><span>Venda custos</span><strong id="painel-venda-custos">R$ 0,00</strong></div>
+                <div class="gerador-mini-resumo gerador-indicadores-dre">
+                    <div><span>Margem bruta</span><strong id="painel-margem-bruta">0,00%</strong></div>
+                    <div><span>Margem líquida</span><strong id="painel-margem">0,00%</strong></div>
+                    <div><span>Markup sobre o custo</span><strong id="painel-markup">0,00%</strong></div>
                 </div>
             </section>
         </form>
@@ -1551,8 +1547,13 @@ function recalcularGerador() {
     if (tipo === 'ideal') escolhido = ideal;
     if (tipo === 'customizado' && customizado > 0) escolhido = customizado;
 
-    const lucro = escolhido - custoTotal;
-    const margem = escolhido > 0 ? (lucro / escolhido) * 100 : 0;
+    const lucroBruto = escolhido - custoTotal;
+    const margemBruta = escolhido > 0 ? (lucroBruto / escolhido) * 100 : 0;
+    const impostosEstimados = escolhido * imposto / 100;
+    const despesasIndiretas = administrativoValor + reservaValor;
+    const lucroLiquido = lucroBruto - impostosEstimados - despesasIndiretas;
+    const margemLiquida = escolhido > 0 ? (lucroLiquido / escolhido) * 100 : 0;
+    const markupCusto = custoTotal > 0 ? (lucroBruto / custoTotal) * 100 : 0;
 
     document.getElementById('res-custo-material').textContent = moeda(custoMaterial);
     document.getElementById('res-custo-mao').textContent = moeda(custoMao);
@@ -1563,8 +1564,11 @@ function recalcularGerador() {
     document.getElementById('preco-recomendado').textContent = moeda(recomendado);
     document.getElementById('preco-ideal').textContent = moeda(ideal);
     document.getElementById('res-venda').textContent = moeda(escolhido);
-    document.getElementById('res-lucro').textContent = moeda(lucro);
-    document.getElementById('res-margem').textContent = moedaSemSimbolo(margem) + '%';
+    document.getElementById('res-lucro-bruto').textContent = moeda(lucroBruto);
+    document.getElementById('res-impostos').textContent = moeda(impostosEstimados);
+    document.getElementById('res-indiretos').textContent = moeda(despesasIndiretas);
+    document.getElementById('res-lucro').textContent = moeda(lucroLiquido);
+    document.getElementById('res-margem').textContent = moedaSemSimbolo(margemLiquida) + '%';
 
     atualizarPainelVisual({
         custoMaterial,
@@ -1578,26 +1582,27 @@ function recalcularGerador() {
         vendaCustos,
         administrativoValor,
         reservaValor,
-        impostoValor,
+        impostoValor: impostosEstimados,
+        despesasIndiretas,
         escolhido,
-        lucro,
-        margem
+        lucroBruto,
+        margemBruta,
+        lucroLiquido,
+        margemLiquida,
+        markupCusto
     });
 }
 
 function atualizarPainelVisual(dados) {
     const custoTotal = dados.custoTotal || 0;
     const escolhido = dados.escolhido || 0;
-    const lucro = dados.lucro || 0;
-    const margem = dados.margem || 0;
-    const roi = custoTotal > 0 ? (lucro / custoTotal) * 100 : 0;
-    const lucroMaterial = Math.max((dados.vendaMaterial || 0) - (dados.custoMaterial || 0), 0);
-    const lucroMao = Math.max(
-        ((dados.vendaMao || 0) + (dados.vendaAdicionaisMao || 0))
-        - ((dados.custoMao || 0) + (dados.custoAdicionaisMao || 0)),
-        0
-    );
-    const comercial = (dados.administrativoValor || 0) + (dados.reservaValor || 0) + (dados.impostoValor || 0);
+    const lucroBruto = dados.lucroBruto || 0;
+    const lucroLiquido = dados.lucroLiquido || 0;
+    const margemBruta = dados.margemBruta || 0;
+    const margemLiquida = dados.margemLiquida || 0;
+    const markupCusto = dados.markupCusto || 0;
+    const despesasIndiretas = dados.despesasIndiretas || 0;
+    const comercial = despesasIndiretas + (dados.impostoValor || 0);
 
     const setText = function(id, valor) {
         const el = document.getElementById(id);
@@ -1606,21 +1611,14 @@ function atualizarPainelVisual(dados) {
 
     setText('painel-valor-total', moeda(escolhido));
     setText('painel-custo-total', moeda(custoTotal));
-    setText('painel-lucro-total', moeda(lucro));
-    setText('painel-custo-mao', moeda(dados.custoMao || 0));
-    setText('painel-custo-adicionais-mao', moeda(dados.custoAdicionaisMao || 0));
-    setText('painel-lucro-mao', moeda(lucroMao));
-    setText('painel-custo-material', moeda(dados.custoMaterial || 0));
-    setText('painel-lucro-material', moeda(lucroMaterial));
+    setText('painel-lucro-bruto', moeda(lucroBruto));
     setText('painel-impostos', moeda(dados.impostoValor || 0));
-    setText('painel-administrativo', moeda(dados.administrativoValor || 0));
-    setText('painel-reserva', moeda(dados.reservaValor || 0));
-    setText('painel-roi', moedaSemSimbolo(roi) + '%');
-    setText('painel-margem', moedaSemSimbolo(margem) + '%');
-    setText('painel-venda-material', moeda(dados.vendaMaterial || 0));
-    setText('painel-venda-mao', moeda(dados.vendaMao || 0));
-    setText('painel-venda-adicionais-mao', moeda(dados.vendaAdicionaisMao || 0));
-    setText('painel-venda-custos', moeda(dados.vendaCustos || 0));
+    setText('painel-indiretos', moeda(despesasIndiretas));
+    setText('painel-lucro-total', moeda(lucroLiquido));
+    setText('painel-margem-liquida', moedaSemSimbolo(margemLiquida) + '%');
+    setText('painel-margem-bruta', moedaSemSimbolo(margemBruta) + '%');
+    setText('painel-margem', moedaSemSimbolo(margemLiquida) + '%');
+    setText('painel-markup', moedaSemSimbolo(markupCusto) + '%');
 
     const status = document.getElementById('painel-status');
     if (status) {
@@ -1628,23 +1626,27 @@ function atualizarPainelVisual(dados) {
         if (escolhido <= 0) {
             status.textContent = 'Sem dados';
             status.classList.add('neutro');
-        } else if (margem < 15) {
-            status.textContent = 'Margem baixa';
+        } else if (lucroLiquido < 0) {
+            status.textContent = 'Prejuízo estimado';
             status.classList.add('ruim');
-        } else if (margem < 30) {
-            status.textContent = 'Saudável';
+        } else if (margemLiquida < 10) {
+            status.textContent = 'Margem líquida baixa';
+            status.classList.add('ruim');
+        } else if (margemLiquida < 20) {
+            status.textContent = 'Margem líquida saudável';
             status.classList.add('ok');
         } else {
-            status.textContent = 'Excelente';
+            status.textContent = 'Margem líquida forte';
             status.classList.add('bom');
         }
     }
 
-    const custoPct = escolhido > 0 ? Math.max(Math.min((custoTotal / escolhido) * 100, 100), 0) : 0;
-    const lucroPct = escolhido > 0 ? Math.max(Math.min((lucro / escolhido) * 100, 100), 0) : 0;
+    const deducoes = Math.max(custoTotal + comercial, 0);
+    const deducoesPct = escolhido > 0 ? Math.max(Math.min((deducoes / escolhido) * 100, 100), 0) : 0;
+    const lucroPct = escolhido > 0 ? Math.max(Math.min((Math.max(lucroLiquido, 0) / escolhido) * 100, 100), 0) : 0;
     const donut = document.getElementById('grafico-custo-lucro');
     if (donut) {
-        donut.style.background = `conic-gradient(#ef4444 0 ${custoPct}%, #16a34a ${custoPct}% ${custoPct + lucroPct}%, #e5e7eb ${custoPct + lucroPct}% 100%)`;
+        donut.style.background = `conic-gradient(#f59e0b 0 ${deducoesPct}%, #16a34a ${deducoesPct}% ${Math.min(deducoesPct + lucroPct, 100)}%, #e5e7eb ${Math.min(deducoesPct + lucroPct, 100)}% 100%)`;
     }
 
     const totalComposicao = (dados.custoMaterial || 0) + (dados.custoMao || 0) + (dados.custoAdicionaisMao || 0) + (dados.custoAdicional || 0) + comercial;
