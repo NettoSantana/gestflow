@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_gerador.html
-Último recode: 2026-07-15 10:23 (America/Bahia)
-Motivo: Preservar quebras de linha e gerar escopo técnico com seções, parágrafos e listas legíveis.
+Último recode: 2026-07-17 (America/Bahia)
+Motivo: Corrigir a experiência mobile do Gerador de Orçamentos sem alterar as demais telas.
 -->
 
 <!DOCTYPE html>
@@ -236,7 +236,7 @@ Motivo: Preservar quebras de linha e gerar escopo técnico com seções, parágr
 
             .content table,
             .content .client-table {
-                min-width: 680px;
+                min-width: 0;
             }
         }
 
@@ -402,7 +402,7 @@ Motivo: Preservar quebras de linha e gerar escopo técnico com seções, parágr
 </style>
 
 </head>
-<body>
+<body class="gerador-body">
     {% include "partials/sidebar.html" %}
 
     <main class="content gerador-page">
@@ -526,7 +526,7 @@ Motivo: Preservar quebras de linha e gerar escopo técnico com seções, parágr
                         </div>
                     </section>
 
-                    <section class="panel page-section">
+                    <section class="panel page-section gerador-section gerador-section-materiais">
                         <div class="panel-header page-header">
                             <div>
                                 <h3>Materiais</h3>
@@ -558,7 +558,7 @@ Motivo: Preservar quebras de linha e gerar escopo técnico com seções, parágr
                         </div>
                     </section>
 
-                    <section class="panel page-section">
+                    <section class="panel page-section gerador-section gerador-section-mao-obra">
                         <div class="panel-header page-header">
                             <div>
                                 <h3>Mão de obra</h3>
@@ -590,7 +590,7 @@ Motivo: Preservar quebras de linha e gerar escopo técnico com seções, parágr
                         </div>
                     </section>
 
-                    <section class="panel page-section">
+                    <section class="panel page-section gerador-section gerador-section-adicionais">
                         <div class="panel-header page-header">
                             <div>
                                 <h3>Adicionais de mão de obra</h3>
@@ -607,7 +607,7 @@ Motivo: Preservar quebras de linha e gerar escopo técnico com seções, parágr
                         </div>
                     </section>
 
-                    <section class="panel page-section">
+                    <section class="panel page-section gerador-section gerador-section-custos">
                         <div class="panel-header page-header">
                             <div>
                                 <h3>Custos adicionais</h3>
@@ -981,14 +981,15 @@ function removerLinha(botao) {
 function adicionarMaterial(dados = {}) {
     const body = document.getElementById('materiais-body');
     const tr = document.createElement('tr');
+    tr.className = 'gerador-mobile-row gerador-material-row';
     tr.innerHTML = `
-        <td><select name="material_descricao" class="form-control gerador-input material-select">${opcoesMateriais()}</select></td>
-        <td><input name="material_unidade" type="text" class="form-control gerador-input" value="${textoSeguro(dados.unidade || 'un')}"></td>
-        <td><input name="material_quantidade" type="text" class="form-control gerador-input" value="${textoSeguro(dados.quantidade || '1')}"></td>
-        <td><input name="material_valor_unitario" type="text" class="form-control gerador-input" placeholder="0,00" value="${textoSeguro(dados.valor ?? dados.valor_unitario ?? '')}"></td>
-        <td><input name="material_perda_percentual" type="text" class="form-control gerador-input" value="${textoSeguro(dados.perda ?? dados.perda_percentual ?? '0')}"></td>
-        <td><strong class="linha-total">R$ 0,00</strong></td>
-        <td><button type="button" class="gerador-remove" onclick="removerLinha(this)">×</button></td>
+        <td data-label="Material"><select name="material_descricao" class="form-control gerador-input material-select">${opcoesMateriais()}</select></td>
+        <td data-label="Unidade"><input name="material_unidade" type="text" class="form-control gerador-input" value="${textoSeguro(dados.unidade || 'un')}"></td>
+        <td data-label="Quantidade"><input name="material_quantidade" type="text" class="form-control gerador-input" value="${textoSeguro(dados.quantidade || '1')}"></td>
+        <td data-label="Custo unitário"><input name="material_valor_unitario" type="text" class="form-control gerador-input" placeholder="0,00" value="${textoSeguro(dados.valor ?? dados.valor_unitario ?? '')}"></td>
+        <td data-label="Perda %"><input name="material_perda_percentual" type="text" class="form-control gerador-input" value="${textoSeguro(dados.perda ?? dados.perda_percentual ?? '0')}"></td>
+        <td data-label="Total do material" class="gerador-total-cell"><strong class="linha-total">R$ 0,00</strong></td>
+        <td data-label="Ação" class="gerador-action-cell"><button type="button" class="gerador-remove" onclick="removerLinha(this)" aria-label="Excluir material">×</button></td>
     `;
     body.appendChild(tr);
     if (dados.descricao) {
@@ -1008,14 +1009,15 @@ function adicionarMaterial(dados = {}) {
 function adicionarMaoObra(dados = {}) {
     const body = document.getElementById('mao-obra-body');
     const tr = document.createElement('tr');
+    tr.className = 'gerador-mobile-row gerador-mao-row';
     tr.innerHTML = `
-        <td><select name="mao_funcao" class="form-control gerador-input mao-select">${opcoesFuncionarios()}</select></td>
-        <td><input name="mao_pessoas" type="text" class="form-control gerador-input" value="${textoSeguro(dados.pessoas || '1')}"></td>
-        <td><input name="mao_tempo" type="text" class="form-control gerador-input" value="${textoSeguro(dados.tempo || '1')}"></td>
-        <td><select name="mao_unidade" class="form-control gerador-input mao-unidade"><option value="hora">hora</option><option value="dia" selected>dia</option><option value="semana">semana</option><option value="mes">mês</option></select></td>
-        <td><input name="mao_custo_unitario" type="text" class="form-control gerador-input" placeholder="0,00" value="${textoSeguro(dados.custo_unitario ?? dados.custo ?? '')}"></td>
-        <td><strong class="linha-total">R$ 0,00</strong></td>
-        <td><button type="button" class="gerador-remove" onclick="removerLinha(this)">×</button></td>
+        <td data-label="Funcionário / função"><select name="mao_funcao" class="form-control gerador-input mao-select">${opcoesFuncionarios()}</select></td>
+        <td data-label="Pessoas"><input name="mao_pessoas" type="text" class="form-control gerador-input" value="${textoSeguro(dados.pessoas || '1')}"></td>
+        <td data-label="Tempo"><input name="mao_tempo" type="text" class="form-control gerador-input" value="${textoSeguro(dados.tempo || '1')}"></td>
+        <td data-label="Unidade"><select name="mao_unidade" class="form-control gerador-input mao-unidade"><option value="hora">hora</option><option value="dia" selected>dia</option><option value="semana">semana</option><option value="mes">mês</option></select></td>
+        <td data-label="Custo unitário"><input name="mao_custo_unitario" type="text" class="form-control gerador-input" placeholder="0,00" value="${textoSeguro(dados.custo_unitario ?? dados.custo ?? '')}"></td>
+        <td data-label="Total da mão de obra" class="gerador-total-cell"><strong class="linha-total">R$ 0,00</strong></td>
+        <td data-label="Ação" class="gerador-action-cell"><button type="button" class="gerador-remove" onclick="removerLinha(this)" aria-label="Excluir mão de obra">×</button></td>
     `;
     body.appendChild(tr);
     const unidadeSelect = tr.querySelector('.mao-unidade');
@@ -1294,10 +1296,11 @@ function calcularAdicionalMaoObra(card) {
 function adicionarCusto(dados = {}) {
     const body = document.getElementById('custos-body');
     const tr = document.createElement('tr');
+    tr.className = 'gerador-mobile-row gerador-custo-row';
     tr.innerHTML = `
-        <td><input name="custo_descricao" type="text" class="form-control gerador-descricao gerador-input" placeholder="Ex: Transporte" value="${textoSeguro(dados.descricao || '')}"></td>
-        <td><input name="custo_valor" type="text" class="form-control gerador-input" placeholder="0,00" value="${textoSeguro(dados.valor ?? dados.valor_unitario ?? '')}"></td>
-        <td><button type="button" class="gerador-remove" onclick="removerLinha(this)">×</button></td>
+        <td data-label="Descrição"><input name="custo_descricao" type="text" class="form-control gerador-descricao gerador-input" placeholder="Ex: Transporte" value="${textoSeguro(dados.descricao || '')}"></td>
+        <td data-label="Valor"><input name="custo_valor" type="text" class="form-control gerador-input" placeholder="0,00" value="${textoSeguro(dados.valor ?? dados.valor_unitario ?? '')}"></td>
+        <td data-label="Ação" class="gerador-action-cell"><button type="button" class="gerador-remove" onclick="removerLinha(this)" aria-label="Excluir custo adicional">×</button></td>
     `;
     body.appendChild(tr);
     conectarEventosGerador(tr);

@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\static\css\dashboard.css
-Último recode: 2026-07-16 17:13 (America/Bahia)
-Motivo: Reforçar contenção de painéis e tabelas para evitar estouro horizontal.
+Último recode: 2026-07-17 (America/Bahia)
+Motivo: Corrigir o Gerador de Orçamentos no celular, mantendo as demais telas sem alteração.
 */
 
 :root {
@@ -4475,6 +4475,465 @@ body.focus-mode-body .main-content.focus-mode-main {
 
     .focus-mode-exit:not(.focus-mode-exit-danger) span::after {
         content: "Voltar";
+    }
+}
+
+/* GERADOR DE ORCAMENTOS - EXPERIENCIA MOBILE EM CARDS
+   Escopo intencionalmente limitado a .gerador-body e .gerador-page.
+   As demais telas do GestFlow não recebem estas alterações. */
+@media (max-width: 900px) {
+    body.gerador-body {
+        overflow-x: hidden;
+    }
+
+    body.gerador-body .content.gerador-page {
+        width: 100% !important;
+        max-width: 100vw !important;
+        min-width: 0 !important;
+        margin-left: 0 !important;
+        padding: 0 12px 150px !important;
+        overflow-x: hidden !important;
+    }
+
+    body.gerador-body .topbar {
+        min-height: 62px;
+        margin: 0 -12px 16px;
+        padding: 8px 12px;
+    }
+
+    body.gerador-body .topbar-left {
+        width: 100%;
+        min-width: 0;
+        gap: 10px;
+    }
+
+    body.gerador-body .topbar-right {
+        display: none !important;
+    }
+
+    body.gerador-body .topbar h1 {
+        min-width: 0;
+        max-width: none;
+        overflow: visible;
+        text-overflow: clip;
+        white-space: normal;
+        font-size: 16px;
+        line-height: 1.2;
+    }
+
+    body.gerador-body .menu-toggle {
+        flex: 0 0 44px;
+        width: 44px;
+        min-width: 44px;
+        height: 44px;
+    }
+
+    .gerador-page,
+    .gerador-page #gerador-form,
+    .gerador-page .gerador-layout,
+    .gerador-page .gerador-stack,
+    .gerador-page .gerador-resumo,
+    .gerador-page .gerador-resumo-card,
+    .gerador-page .gerador-painel-visual,
+    .gerador-page .gerador-painel-grid,
+    .gerador-page .gerador-painel-coluna,
+    .gerador-page .gerador-painel-grafico,
+    .gerador-page .gerador-mini-resumo,
+    .gerador-page .panel,
+    .gerador-page .page-section,
+    .gerador-page .table-shell {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    .gerador-page .gerador-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) !important;
+        gap: 14px;
+    }
+
+    .gerador-page .gerador-stack {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 14px;
+    }
+
+    .gerador-page .gerador-resumo {
+        position: static !important;
+    }
+
+    .gerador-page .panel,
+    .gerador-page .page-section {
+        padding: 14px;
+        overflow: visible;
+    }
+
+    .gerador-page .panel-header.page-header,
+    .gerador-page .page-header {
+        width: 100%;
+        min-width: 0;
+        align-items: stretch;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .gerador-page .page-title {
+        max-width: 100%;
+        font-size: 21px;
+        line-height: 1.15;
+        overflow-wrap: anywhere;
+    }
+
+    .gerador-page .page-subtitle,
+    .gerador-page .field-hint,
+    .gerador-page .commercial-presentation-note,
+    .gerador-page .gerador-table-actions span {
+        overflow-wrap: anywhere;
+    }
+
+    .gerador-page .form-grid,
+    .gerador-page .commercial-presentation-grid,
+    .gerador-page .adicional-mao-obra-grid {
+        width: 100%;
+        min-width: 0;
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    .gerador-page .form-group,
+    .gerador-page .form-grid > *,
+    .gerador-page .commercial-presentation-grid > *,
+    .gerador-page .adicional-mao-obra-grid > * {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .gerador-page .form-control,
+    .gerador-page input,
+    .gerador-page select,
+    .gerador-page textarea,
+    .gerador-body .quick-modal input,
+    .gerador-body .quick-modal select,
+    .gerador-body .quick-modal textarea {
+        width: 100%;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        font-size: 16px !important;
+    }
+
+    .gerador-page .form-control,
+    .gerador-page input,
+    .gerador-page select {
+        min-height: 44px;
+    }
+
+    .gerador-page input,
+    .gerador-page select,
+    .gerador-page textarea {
+        scroll-margin-top: 84px;
+        scroll-margin-bottom: 120px;
+    }
+
+    .gerador-page .budget-tabs {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        padding: 6px;
+    }
+
+    .gerador-page .budget-tab {
+        width: 100%;
+        min-height: 44px;
+        text-align: center;
+    }
+
+    /* Linhas das tabelas viram cards editáveis no celular. */
+    .gerador-page .table-shell {
+        border: 0 !important;
+        border-radius: 0;
+        overflow: visible !important;
+        background: transparent;
+    }
+
+    .gerador-page table.gerador-table,
+    .gerador-page .client-table.gerador-table,
+    .gerador-page .content table.gerador-table {
+        display: block !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        border-collapse: separate !important;
+        border-spacing: 0 !important;
+        background: transparent;
+    }
+
+    .gerador-page .gerador-table thead {
+        display: none !important;
+    }
+
+    .gerador-page .gerador-table tbody {
+        width: 100%;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 12px;
+    }
+
+    .gerador-page .gerador-table tbody tr,
+    .gerador-page .gerador-table .gerador-mobile-row {
+        width: 100%;
+        min-width: 0;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 11px;
+        padding: 14px;
+        border: 1px solid #dbe3ef;
+        border-radius: 14px;
+        background: #ffffff;
+        box-shadow: 0 8px 22px rgba(15, 23, 42, 0.07);
+    }
+
+    .gerador-page .gerador-table tbody td {
+        width: 100%;
+        min-width: 0 !important;
+        max-width: 100%;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        align-content: start;
+        gap: 6px;
+        padding: 0 !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        overflow: visible;
+    }
+
+    .gerador-page .gerador-table tbody td::before {
+        content: attr(data-label);
+        display: block;
+        color: #475569;
+        font-size: 11px;
+        line-height: 1.25;
+        font-weight: 900;
+        letter-spacing: .03em;
+        text-transform: uppercase;
+    }
+
+    .gerador-page .gerador-table tbody td:first-child,
+    .gerador-page .gerador-table tbody td.gerador-total-cell,
+    .gerador-page .gerador-table tbody td.gerador-action-cell,
+    .gerador-page .gerador-custo-row td:first-child {
+        grid-column: 1 / -1;
+    }
+
+    .gerador-page .gerador-table .form-control,
+    .gerador-page .gerador-table select.form-control,
+    .gerador-page .gerador-table input.form-control,
+    .gerador-page .gerador-table .gerador-descricao {
+        width: 100%;
+        min-width: 0 !important;
+        max-width: 100% !important;
+    }
+
+    .gerador-page .linha-total {
+        width: 100%;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        padding: 0 12px;
+        border: 1px solid #bbf7d0;
+        border-radius: 10px;
+        background: #f0fdf4;
+        color: #15803d;
+        font-size: 16px;
+        font-weight: 900;
+    }
+
+    .gerador-page .gerador-remove {
+        width: 100%;
+        min-width: 0;
+        min-height: 44px;
+        height: 44px;
+        border-radius: 10px;
+    }
+
+    .gerador-page .gerador-table-actions {
+        width: 100%;
+        align-items: stretch;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .gerador-page .gerador-table-actions .btn-primary-green,
+    .gerador-page .gerador-section-custos > .panel-header > .btn-primary-green {
+        width: 100%;
+        min-height: 44px;
+    }
+
+    /* Evita dois botões de adicionar seguidos nas seções que já têm botão inferior. */
+    .gerador-page .gerador-section-materiais > .panel-header > .btn-primary-green,
+    .gerador-page .gerador-section-mao-obra > .panel-header > .btn-primary-green,
+    .gerador-page .gerador-section-adicionais > .panel-header > .btn-primary-green {
+        display: none;
+    }
+
+    .gerador-page .adicional-mao-obra-card {
+        width: 100%;
+        min-width: 0;
+        padding: 13px;
+    }
+
+    .gerador-page .adicional-mao-obra-topo,
+    .gerador-page .adicional-total-box,
+    .gerador-page .gerador-label-action {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .gerador-page .adicional-mao-obra-topo .gerador-remove {
+        width: 100%;
+    }
+
+    .gerador-page .gerador-label-action .btn-compact {
+        width: 100%;
+        min-height: 44px;
+    }
+
+    .gerador-page .gerador-resumo-card {
+        padding: 14px;
+    }
+
+    .gerador-page .gerador-indicador {
+        align-items: flex-start;
+    }
+
+    .gerador-page .gerador-indicador span,
+    .gerador-page .gerador-indicador strong {
+        overflow-wrap: anywhere;
+    }
+
+    .gerador-page .gerador-preco-opcao {
+        width: 100%;
+        min-height: 64px;
+        align-items: flex-start;
+        padding: 13px;
+    }
+
+    .gerador-page .gerador-preco-opcao > input[type="radio"] {
+        flex: 0 0 22px;
+        width: 22px !important;
+        min-width: 22px !important;
+        height: 22px;
+        margin-top: 1px;
+    }
+
+    .gerador-page #valor_customizado {
+        margin-top: 9px;
+    }
+
+    .gerador-page .gerador-final-actions .btn-primary-green,
+    .gerador-page .gerador-final-actions .btn-light,
+    .gerador-page .gerador-final-actions .btn-dark {
+        min-height: 46px;
+    }
+
+    .gerador-page .gerador-painel-grid,
+    .gerador-page .gerador-mini-resumo {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    .gerador-page .gerador-painel-grafico {
+        min-height: 0;
+        padding: 14px;
+    }
+
+    .gerador-page .gerador-donut-wrap,
+    .gerador-page .gerador-donut {
+        width: min(210px, 68vw);
+        height: min(210px, 68vw);
+    }
+
+    .gerador-page .gerador-donut-centro {
+        inset: clamp(34px, 12vw, 44px);
+    }
+
+    .gerador-page .gerador-legenda {
+        flex-wrap: wrap;
+        gap: 10px 16px;
+    }
+
+    .gerador-page .gerador-linha-valor {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .gerador-page .gerador-linha-valor strong {
+        min-height: 42px;
+        justify-content: flex-start;
+    }
+
+    .gerador-body .quick-modal-backdrop {
+        align-items: flex-start;
+        padding: 8px;
+        overflow-y: auto;
+    }
+
+    .gerador-body .quick-modal {
+        width: 100%;
+        max-width: 100%;
+        max-height: calc(100dvh - 16px);
+        margin: 0;
+        padding: 14px;
+        border-radius: 14px;
+    }
+
+    .gerador-body .quick-modal-close {
+        flex: 0 0 44px;
+        width: 44px;
+        height: 44px;
+    }
+
+    .gerador-body .quick-modal-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .gerador-body .quick-modal-actions .btn-light,
+    .gerador-body .quick-modal-actions .btn-primary-green {
+        width: 100%;
+        min-height: 44px;
+    }
+
+    /* O assistente continua disponível, mas deixa de cobrir o campo em edição. */
+    body.gerador-body .gestflow-ai-widget {
+        right: 10px;
+        bottom: max(10px, env(safe-area-inset-bottom));
+        transition: opacity .15s ease, transform .15s ease;
+    }
+
+    body.gerador-body:has(input:focus, select:focus, textarea:focus) .gestflow-ai-widget {
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(12px);
+    }
+}
+
+@media (max-width: 420px) {
+    .gerador-page .gerador-table tbody tr,
+    .gerador-page .gerador-table .gerador-mobile-row {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .gerador-page .gerador-table tbody td,
+    .gerador-page .gerador-table tbody td:first-child,
+    .gerador-page .gerador-table tbody td.gerador-total-cell,
+    .gerador-page .gerador-table tbody td.gerador-action-cell {
+        grid-column: 1;
+    }
+
+    .gerador-page .panel,
+    .gerador-page .page-section,
+    .gerador-page .gerador-resumo-card {
+        padding: 12px;
     }
 }
 
