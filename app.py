@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-18 09:45 (America/Bahia)
-# Motivo: Corrigir persistência dos equipamentos da OS e simplificar o upload para uma foto antes e uma depois por equipamento.
+# Último recode: 2026-07-18 09:58 (America/Bahia)
+# Motivo: Permitir várias fotos por equipamento em cards criados sob demanda, sem campos vazios.
 
 from __future__ import annotations
 
@@ -2664,6 +2664,69 @@ def iniciar_banco() -> None:
 
         if "equipamento_indice" not in colunas_fotos_equipamento:
             conn.execute("ALTER TABLE os_fotos_equipamento ADD COLUMN equipamento_indice TEXT DEFAULT '0'")
+
+        fotos_duplas = conn.execute(
+            """
+            SELECT
+                id,
+                empresa_id,
+                ordem_servico_id,
+                titulo,
+                equipamento_indice,
+                foto_antes_path,
+                foto_depois_path,
+                observacoes,
+                criado_em,
+                atualizado_em
+            FROM os_fotos_equipamento
+            WHERE TRIM(COALESCE(foto_antes_path, '')) <> ''
+              AND TRIM(COALESCE(foto_depois_path, '')) <> ''
+            ORDER BY id ASC
+            """
+        ).fetchall()
+
+        for foto_dupla in fotos_duplas:
+            conn.execute(
+                """
+                UPDATE os_fotos_equipamento
+                SET foto_depois_path = ''
+                WHERE id = ?
+                """,
+                (int(foto_dupla["id"]),),
+            )
+            conn.execute(
+                """
+                INSERT INTO os_fotos_equipamento (
+                    empresa_id,
+                    ordem_servico_id,
+                    titulo,
+                    equipamento_indice,
+                    foto_antes_path,
+                    foto_depois_path,
+                    observacoes,
+                    criado_em,
+                    atualizado_em
+                ) VALUES (?, ?, ?, ?, '', ?, ?, ?, ?)
+                """,
+                (
+                    foto_dupla["empresa_id"],
+                    foto_dupla["ordem_servico_id"],
+                    foto_dupla["titulo"],
+                    foto_dupla["equipamento_indice"],
+                    foto_dupla["foto_depois_path"],
+                    foto_dupla["observacoes"],
+                    foto_dupla["criado_em"],
+                    foto_dupla["atualizado_em"],
+                ),
+            )
+
+        conn.execute(
+            """
+            DELETE FROM os_fotos_equipamento
+            WHERE TRIM(COALESCE(foto_antes_path, '')) = ''
+              AND TRIM(COALESCE(foto_depois_path, '')) = ''
+            """
+        )
 
         conn.commit()
 
@@ -13383,6 +13446,191 @@ def listar_fotos_equipamento_os(ordem_servico_id: int) -> list[dict[str, Any]]:
     return [dict(row) for row in rows]
 
 
+def _normalizar_chave_card_foto_os(valor: Any) -> str:
+    chave = re.sub(r"[^A-Za-z0-9_-]+", "_", str(valor or "").strip())
+    return chave[:100]
+
+
+def _atualizar_fotos_equipamento_os_cards(ordem_servico_id: int) -> None:
+    empresa_id = empresa_logada_id()
+    equipamentos = montar_equipamentos_ordem_servico_formulario()
+    indices_validos = {str(indice) for indice in range(len(equipamentos))}
+    agora = agora_empresa().isoformat(timespec="seconds")
+    fotos_json_texto = str(request.form.get("os_fotos_json") or "").strip()
+
+    try:
+        fotos_json = json.loads(fotos_json_texto) if fotos_json_texto else []
+    except (TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise ValueError("Não foi possível organizar as fotos da OS. Atualize a página e tente novamente.") from exc
+
+    if not isinstance(fotos_json, list):
+        raise ValueError("Os dados das fotos da OS estão inválidos.")
+
+    with conectar_db() as conn:
+        registros = conn.execute(
+            """
+            SELECT *
+            FROM os_fotos_equipamento
+            WHERE ordem_servico_id = ?
+              AND empresa_id = ?
+            ORDER BY id ASC
+            """,
+            (ordem_servico_id, empresa_id),
+        ).fetchall()
+        registros_por_id = {int(registro["id"]): registro for registro in registros}
+
+        for item in fotos_json:
+            if not isinstance(item, dict):
+                continue
+
+            chave = _normalizar_chave_card_foto_os(item.get("chave"))
+            if not chave:
+                continue
+
+            equipamento_indice = str(item.get("equipamento_indice") or "0").strip() or "0"
+            if equipamento_indice not in indices_validos:
+                continue
+
+            foto_id_texto = str(item.get("id") or "").strip()
+            foto_id = int(foto_id_texto) if foto_id_texto.isdigit() else None
+            tipo = "depois" if str(item.get("tipo") or "").strip().lower() == "depois" else "antes"
+            titulo = str(item.get("titulo") or "").strip()
+            observacoes = str(item.get("observacoes") or "").strip()
+            remover = str(item.get("remover") or "nao").strip().lower() in {"sim", "true", "1"}
+            arquivo = request.files.get(f"foto_os_arquivo_{chave}")
+
+            registro_atual = registros_por_id.get(foto_id) if foto_id is not None else None
+
+            if registro_atual is not None:
+                if remover:
+                    conn.execute(
+                        """
+                        DELETE FROM os_fotos_equipamento
+                        WHERE id = ?
+                          AND ordem_servico_id = ?
+                          AND empresa_id = ?
+                        """,
+                        (foto_id, ordem_servico_id, empresa_id),
+                    )
+                    continue
+
+                caminho_atual = str(
+                    registro_atual["foto_antes_path"]
+                    or registro_atual["foto_depois_path"]
+                    or ""
+                ).strip()
+                caminho_final = caminho_atual
+
+                if arquivo is not None and arquivo.filename:
+                    caminho_final = salvar_upload_foto_os(
+                        arquivo,
+                        ordem_servico_id,
+                        f"{tipo}_{equipamento_indice}",
+                    )
+
+                if not caminho_final:
+                    conn.execute(
+                        "DELETE FROM os_fotos_equipamento WHERE id = ? AND ordem_servico_id = ? AND empresa_id = ?",
+                        (foto_id, ordem_servico_id, empresa_id),
+                    )
+                    continue
+
+                foto_antes_path = caminho_final if tipo == "antes" else ""
+                foto_depois_path = caminho_final if tipo == "depois" else ""
+                conn.execute(
+                    """
+                    UPDATE os_fotos_equipamento
+                    SET
+                        titulo = ?,
+                        equipamento_indice = ?,
+                        foto_antes_path = ?,
+                        foto_depois_path = ?,
+                        observacoes = ?,
+                        atualizado_em = ?
+                    WHERE id = ?
+                      AND ordem_servico_id = ?
+                      AND empresa_id = ?
+                    """,
+                    (
+                        titulo,
+                        equipamento_indice,
+                        foto_antes_path,
+                        foto_depois_path,
+                        observacoes,
+                        agora,
+                        foto_id,
+                        ordem_servico_id,
+                        empresa_id,
+                    ),
+                )
+                continue
+
+            if remover or arquivo is None or not arquivo.filename:
+                continue
+
+            caminho_novo = salvar_upload_foto_os(
+                arquivo,
+                ordem_servico_id,
+                f"{tipo}_{equipamento_indice}",
+            )
+            foto_antes_path = caminho_novo if tipo == "antes" else ""
+            foto_depois_path = caminho_novo if tipo == "depois" else ""
+
+            conn.execute(
+                """
+                INSERT INTO os_fotos_equipamento (
+                    empresa_id,
+                    ordem_servico_id,
+                    titulo,
+                    equipamento_indice,
+                    foto_antes_path,
+                    foto_depois_path,
+                    observacoes,
+                    atualizado_em
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    empresa_id,
+                    ordem_servico_id,
+                    titulo,
+                    equipamento_indice,
+                    foto_antes_path,
+                    foto_depois_path,
+                    observacoes,
+                    agora,
+                ),
+            )
+
+        if indices_validos:
+            placeholders = ", ".join("?" for _ in indices_validos)
+            conn.execute(
+                f"""
+                DELETE FROM os_fotos_equipamento
+                WHERE ordem_servico_id = ?
+                  AND empresa_id = ?
+                  AND COALESCE(equipamento_indice, '0') NOT IN ({placeholders})
+                """,
+                [ordem_servico_id, empresa_id, *sorted(indices_validos, key=int)],
+            )
+        else:
+            conn.execute(
+                "DELETE FROM os_fotos_equipamento WHERE ordem_servico_id = ? AND empresa_id = ?",
+                (ordem_servico_id, empresa_id),
+            )
+
+        conn.execute(
+            """
+            DELETE FROM os_fotos_equipamento
+            WHERE ordem_servico_id = ?
+              AND empresa_id = ?
+              AND TRIM(COALESCE(foto_antes_path, '')) = ''
+              AND TRIM(COALESCE(foto_depois_path, '')) = ''
+            """,
+            (ordem_servico_id, empresa_id),
+        )
+        conn.commit()
+
+
 def _atualizar_fotos_equipamento_os_indexadas(ordem_servico_id: int) -> None:
     empresa_id = empresa_logada_id()
     equipamentos = montar_equipamentos_ordem_servico_formulario()
@@ -13661,6 +13909,10 @@ def _atualizar_fotos_equipamento_os_legado(ordem_servico_id: int) -> None:
 
 
 def atualizar_fotos_equipamento_os_formulario(ordem_servico_id: int) -> None:
+    if str(request.form.get("os_fotos_json") or "").strip():
+        _atualizar_fotos_equipamento_os_cards(ordem_servico_id)
+        return
+
     possui_campos_indexados = any(
         str(chave).startswith(("foto_os_id_", "foto_os_observacoes_", "foto_os_remover_"))
         for chave in request.form.keys()

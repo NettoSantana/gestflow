@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordem_servico_editar.html
-Último recode: 2026-07-18 09:45 (America/Bahia)
-Motivo: Corrigir persistência dos equipamentos e deixar somente uma foto antes e uma foto depois por equipamento.
+Último recode: 2026-07-18 09:58 (America/Bahia)
+Motivo: Permitir várias fotos por equipamento em cards criados sob demanda, sem campos vazios.
 -->
 
 <!DOCTYPE html>
@@ -217,49 +217,150 @@ Motivo: Corrigir persistência dos equipamentos e deixar somente uma foto antes 
         }
 
 
-        .os-photo-simple-grid {
+        .os-photo-card-list {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 14px;
+            gap: 12px;
         }
 
-        .os-photo-field {
-            min-width: 0;
-            border: 1px solid #e2e8f0;
+        .os-photo-card-list:empty::before {
+            content: "Nenhuma foto adicionada.";
+            display: block;
+            padding: 16px;
+            border: 1px dashed #cbd5e1;
             border-radius: 12px;
+            background: #ffffff;
+            color: #64748b;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        .os-photo-card {
+            position: relative;
+            display: grid;
+            grid-template-columns: 150px minmax(0, 1fr) auto;
+            gap: 14px;
+            align-items: start;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
             background: #ffffff;
             padding: 12px;
         }
 
-        .os-photo-field label {
+        .os-photo-card[hidden] {
+            display: none;
+        }
+
+        .os-photo-card-preview {
+            width: 150px;
+            height: 118px;
+            border: 1px solid #dbe3ef;
+            border-radius: 12px;
+            object-fit: cover;
+            background: #f8fafc;
+        }
+
+        .os-photo-card-preview[hidden] {
+            display: none;
+        }
+
+        .os-photo-card-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 150px;
+            height: 118px;
+            border: 1px dashed #cbd5e1;
+            border-radius: 12px;
+            background: #f8fafc;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 800;
+            text-align: center;
+            padding: 10px;
+        }
+
+        .os-photo-card-placeholder[hidden] {
+            display: none;
+        }
+
+        .os-photo-card-fields {
+            display: grid;
+            grid-template-columns: 150px minmax(0, 1fr);
+            gap: 10px 12px;
+            min-width: 0;
+        }
+
+        .os-photo-card-field {
+            min-width: 0;
+        }
+
+        .os-photo-card-field label {
             display: block;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             color: #334155;
             font-size: 12px;
             font-weight: 900;
         }
 
-        .os-photo-observation {
+        .os-photo-card-observation {
             grid-column: 1 / -1;
         }
 
+        .os-photo-card-remove {
+            width: 36px;
+            height: 36px;
+            border: 0;
+            border-radius: 10px;
+            background: #fee2e2;
+            color: #991b1b;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: 900;
+        }
+
         .os-photo-helper {
-            margin: 0 0 10px;
+            margin: 0;
             color: #64748b;
             font-size: 12px;
         }
 
-        .os-photo-preview[hidden] {
-            display: none;
+        .os-foto-equipamento-titulo .btn-primary-green {
+            flex: 0 0 auto;
         }
 
-        @media (max-width: 720px) {
-            .os-photo-simple-grid {
+        @media (max-width: 820px) {
+            .os-photo-card {
+                grid-template-columns: 110px minmax(0, 1fr) auto;
+            }
+
+            .os-photo-card-preview,
+            .os-photo-card-placeholder {
+                width: 110px;
+                height: 96px;
+            }
+
+            .os-photo-card-fields {
                 grid-template-columns: 1fr;
             }
 
-            .os-photo-observation {
+            .os-photo-card-observation {
                 grid-column: span 1;
+            }
+        }
+
+        @media (max-width: 560px) {
+            .os-photo-card {
+                grid-template-columns: 1fr auto;
+            }
+
+            .os-photo-card-media {
+                grid-column: 1 / -1;
+            }
+
+            .os-photo-card-preview,
+            .os-photo-card-placeholder {
+                width: 100%;
+                height: 180px;
             }
         }
 
@@ -620,6 +721,7 @@ Motivo: Corrigir persistência dos equipamentos e deixar somente uma foto antes 
 
         <form id="form-editar-os" action="/ordens-servico/{{ os.id }}/editar" method="post" enctype="multipart/form-data" class="client-form">
             <input id="os_equipamentos_json" name="os_equipamentos_json" type="hidden" value="">
+            <input id="os_fotos_json" name="os_fotos_json" type="hidden" value="[]">
             <div class="gestflow-form-error{% if request.args.get('erro') %} show{% endif %}" data-form-error>{% if request.args.get('erro') %}{{ request.args.get('erro') }}{% endif %}</div>
             <section class="panel page-section os-form-section os-panel-orcamento">
                 <div class="panel-header page-header os-section-title">
@@ -751,31 +853,45 @@ Motivo: Corrigir persistência dos equipamentos e deixar somente uma foto antes 
                                         <div class="form-group"><label>Laudo</label><textarea name="os_laudo" class="form-control os-textarea" placeholder="Laudo técnico, quando aplicável">{{ equipamento.laudo or '' }}</textarea></div>
                                         <div class="form-group"><label>Termos</label><textarea name="os_termos" class="form-control os-textarea" placeholder="Termos e condições do atendimento">{{ equipamento.termos or '' }}</textarea></div>
                                     </div>
-                                    {% set foto = fotos_do_equipamento[0] if fotos_do_equipamento else none %}
                                     <div class="os-foto-equipamento-bloco" data-foto-bloco>
-                                        <div class="os-foto-equipamento-titulo"><span>Fotos do equipamento</span></div>
-                                        <p class="os-photo-helper">Use somente uma foto antes e uma foto depois para este equipamento.</p>
-                                        <input data-foto-campo="id" name="foto_os_id_{{ equipamento.indice }}" type="hidden" value="{{ foto.id if foto else '' }}">
-                                        <input data-foto-campo="indice" name="foto_os_equipamento_indice_{{ equipamento.indice }}" type="hidden" value="{{ equipamento.indice }}">
-                                        <input data-foto-campo="titulo" name="foto_os_titulo_{{ equipamento.indice }}" type="hidden" value="{{ equipamento.equipamento or equipamento.titulo }}">
-                                        <div class="os-photo-simple-grid">
-                                            <div class="os-photo-field">
-                                                <label>Foto antes</label>
-                                                <img data-photo-preview="antes" src="{{ foto.foto_antes_path if foto and foto.foto_antes_path else '' }}" alt="Foto antes" class="os-photo-preview" {% if not foto or not foto.foto_antes_path %}hidden{% endif %}>
-                                                <input data-foto-campo="antes" data-preview-role="antes" type="file" name="foto_os_antes_{{ equipamento.indice }}" class="form-control os-photo-input" accept="image/png,image/jpeg,image/webp">
+                                        <div class="os-foto-equipamento-titulo">
+                                            <div>
+                                                <span>Fotos do equipamento</span>
+                                                <p class="os-photo-helper">Adicione quantas fotos precisar. Nenhum campo vazio aparece antes de clicar.</p>
                                             </div>
-                                            <div class="os-photo-field">
-                                                <label>Foto depois</label>
-                                                <img data-photo-preview="depois" src="{{ foto.foto_depois_path if foto and foto.foto_depois_path else '' }}" alt="Foto depois" class="os-photo-preview" {% if not foto or not foto.foto_depois_path %}hidden{% endif %}>
-                                                <input data-foto-campo="depois" data-preview-role="depois" type="file" name="foto_os_depois_{{ equipamento.indice }}" class="form-control os-photo-input" accept="image/png,image/jpeg,image/webp">
-                                            </div>
-                                            <div class="os-photo-field os-photo-observation">
-                                                <label>Observação das fotos</label>
-                                                <textarea data-foto-campo="observacoes" name="foto_os_observacoes_{{ equipamento.indice }}" class="form-control os-textarea" placeholder="Observação das fotos">{{ foto.observacoes if foto else '' }}</textarea>
-                                                {% if foto %}
-                                                    <label class="os-photo-remove-check"><input data-foto-campo="remover" type="checkbox" name="foto_os_remover_{{ equipamento.indice }}" value="sim"> Remover as fotos atuais</label>
+                                            <button type="button" class="btn-primary-green" onclick="adicionarFotoEquipamento(this)">+ Adicionar foto</button>
+                                        </div>
+                                        <div class="os-photo-card-list" data-fotos-lista>
+                                            {% for foto in fotos_do_equipamento %}
+                                                {% set foto_path = foto.foto_antes_path or foto.foto_depois_path %}
+                                                {% set foto_tipo = 'antes' if foto.foto_antes_path else 'depois' %}
+                                                {% if foto_path %}
+                                                    <article class="os-photo-card" data-foto-card data-foto-chave="existente_{{ foto.id }}" data-foto-id="{{ foto.id }}" data-foto-remover="nao">
+                                                        <div class="os-photo-card-media">
+                                                            <img data-photo-preview src="{{ foto_path }}" alt="Foto do equipamento" class="os-photo-card-preview">
+                                                            <div data-photo-placeholder class="os-photo-card-placeholder" hidden>Selecione uma imagem</div>
+                                                        </div>
+                                                        <div class="os-photo-card-fields">
+                                                            <div class="os-photo-card-field">
+                                                                <label>Tipo da foto</label>
+                                                                <select data-foto-tipo class="form-control">
+                                                                    <option value="antes" {% if foto_tipo == 'antes' %}selected{% endif %}>Antes</option>
+                                                                    <option value="depois" {% if foto_tipo == 'depois' %}selected{% endif %}>Depois</option>
+                                                                </select>
+                                                            </div>
+                                                            <div class="os-photo-card-field">
+                                                                <label>Substituir imagem</label>
+                                                                <input data-foto-arquivo type="file" name="foto_os_arquivo_existente_{{ foto.id }}" class="form-control os-photo-input" accept="image/png,image/jpeg,image/webp">
+                                                            </div>
+                                                            <div class="os-photo-card-field os-photo-card-observation">
+                                                                <label>Observação</label>
+                                                                <textarea data-foto-observacoes class="form-control os-textarea" placeholder="Observação desta foto">{{ foto.observacoes or '' }}</textarea>
+                                                            </div>
+                                                        </div>
+                                                        <button type="button" class="os-photo-card-remove" title="Remover foto" aria-label="Remover foto" onclick="removerFotoEquipamento(this)">×</button>
+                                                    </article>
                                                 {% endif %}
-                                            </div>
+                                            {% endfor %}
                                         </div>
                                     </div>
                                 </div>
@@ -1513,27 +1629,15 @@ Motivo: Corrigir persistência dos equipamentos e deixar somente uma foto antes 
                             <div class="form-group"><label>Termos</label><textarea name="os_termos" class="form-control os-textarea" placeholder="Termos e condições do atendimento"></textarea></div>
                         </div>
                         <div class="os-foto-equipamento-bloco" data-foto-bloco>
-                            <div class="os-foto-equipamento-titulo"><span>Fotos do equipamento</span></div>
-                            <p class="os-photo-helper">Use somente uma foto antes e uma foto depois para este equipamento.</p>
-                            <input data-foto-campo="id" type="hidden" name="foto_os_id_${equipamentoIndice}" value="">
-                            <input data-foto-campo="indice" type="hidden" name="foto_os_equipamento_indice_${equipamentoIndice}" value="${equipamentoIndice}">
-                            <input data-foto-campo="titulo" type="hidden" name="foto_os_titulo_${equipamentoIndice}" value="">
-                            <div class="os-photo-simple-grid">
-                                <div class="os-photo-field">
-                                    <label>Foto antes</label>
-                                    <img data-photo-preview="antes" src="" alt="Foto antes" class="os-photo-preview" hidden>
-                                    <input data-foto-campo="antes" data-preview-role="antes" type="file" name="foto_os_antes_${equipamentoIndice}" class="form-control os-photo-input" accept="image/png,image/jpeg,image/webp">
+                            <div class="os-foto-equipamento-titulo">
+                                <div>
+                                    <span>Fotos do equipamento</span>
+                                    <p class="os-photo-helper">Adicione quantas fotos precisar. Nenhum campo vazio aparece antes de clicar.</p>
                                 </div>
-                                <div class="os-photo-field">
-                                    <label>Foto depois</label>
-                                    <img data-photo-preview="depois" src="" alt="Foto depois" class="os-photo-preview" hidden>
-                                    <input data-foto-campo="depois" data-preview-role="depois" type="file" name="foto_os_depois_${equipamentoIndice}" class="form-control os-photo-input" accept="image/png,image/jpeg,image/webp">
-                                </div>
-                                <div class="os-photo-field os-photo-observation">
-                                    <label>Observação das fotos</label>
-                                    <textarea data-foto-campo="observacoes" name="foto_os_observacoes_${equipamentoIndice}" class="form-control os-textarea" placeholder="Observação das fotos"></textarea>
-                                </div>
+                                <button type="button" class="btn-primary-green" onclick="adicionarFotoEquipamento(this)">+ Adicionar foto</button>
                             </div>
+                            <div class="os-photo-card-list" data-fotos-lista></div>
+                        </div>
                         </div>
                     </div>
                 `;
@@ -1561,6 +1665,88 @@ Motivo: Corrigir persistência dos equipamentos e deixar somente uma foto antes 
 
 
         <script>
+            let contadorFotosOS = 0;
+
+            function gerarChaveFotoOS() {
+                contadorFotosOS += 1;
+                return "nova_" + Date.now() + "_" + contadorFotosOS;
+            }
+
+            function criarCardFotoOS(dados) {
+                dados = dados || {};
+                const chave = String(dados.chave || gerarChaveFotoOS());
+                const card = document.createElement("article");
+                card.className = "os-photo-card";
+                card.dataset.fotoCard = "";
+                card.dataset.fotoChave = chave;
+                card.dataset.fotoId = String(dados.id || "");
+                card.dataset.fotoRemover = "nao";
+                const tipo = dados.tipo === "depois" ? "depois" : "antes";
+                const imagem = String(dados.imagem || "");
+                const observacoes = String(dados.observacoes || "");
+
+                card.innerHTML = `
+                    <div class="os-photo-card-media">
+                        <img data-photo-preview src="${imagem}" alt="Foto do equipamento" class="os-photo-card-preview" ${imagem ? "" : "hidden"}>
+                        <div data-photo-placeholder class="os-photo-card-placeholder" ${imagem ? "hidden" : ""}>Selecione uma imagem</div>
+                    </div>
+                    <div class="os-photo-card-fields">
+                        <div class="os-photo-card-field">
+                            <label>Tipo da foto</label>
+                            <select data-foto-tipo class="form-control">
+                                <option value="antes" ${tipo === "antes" ? "selected" : ""}>Antes</option>
+                                <option value="depois" ${tipo === "depois" ? "selected" : ""}>Depois</option>
+                            </select>
+                        </div>
+                        <div class="os-photo-card-field">
+                            <label>${dados.id ? "Substituir imagem" : "Imagem"}</label>
+                            <input data-foto-arquivo type="file" name="foto_os_arquivo_${chave}" class="form-control os-photo-input" accept="image/png,image/jpeg,image/webp">
+                        </div>
+                        <div class="os-photo-card-field os-photo-card-observation">
+                            <label>Observação</label>
+                            <textarea data-foto-observacoes class="form-control os-textarea" placeholder="Observação desta foto"></textarea>
+                        </div>
+                    </div>
+                    <button type="button" class="os-photo-card-remove" title="Remover foto" aria-label="Remover foto" onclick="removerFotoEquipamento(this)">×</button>
+                `;
+
+                const observacaoCampo = card.querySelector("[data-foto-observacoes]");
+                if (observacaoCampo) {
+                    observacaoCampo.value = observacoes;
+                }
+                return card;
+            }
+
+            function adicionarFotoEquipamento(botao) {
+                const blocoFoto = botao ? botao.closest("[data-foto-bloco]") : null;
+                const lista = blocoFoto ? blocoFoto.querySelector("[data-fotos-lista]") : null;
+                if (!lista) {
+                    return;
+                }
+
+                const card = criarCardFotoOS({ tipo: "antes" });
+                lista.appendChild(card);
+                const arquivo = card.querySelector("[data-foto-arquivo]");
+                if (arquivo) {
+                    arquivo.click();
+                }
+            }
+
+            function removerFotoEquipamento(botao) {
+                const card = botao ? botao.closest("[data-foto-card]") : null;
+                if (!card) {
+                    return;
+                }
+
+                if (String(card.dataset.fotoId || "").trim()) {
+                    card.dataset.fotoRemover = "sim";
+                    card.hidden = true;
+                    return;
+                }
+
+                card.remove();
+            }
+
             document.addEventListener("change", function(evento) {
                 const input = evento.target;
                 if (!input || !input.matches || !input.matches(".os-photo-input")) {
@@ -1568,24 +1754,25 @@ Motivo: Corrigir persistência dos equipamentos e deixar somente uma foto antes 
                 }
 
                 const arquivo = input.files && input.files[0];
-                const blocoFoto = input.closest("[data-foto-bloco]");
-                const papel = input.dataset.previewRole || "";
-                const preview = blocoFoto ? blocoFoto.querySelector('[data-photo-preview="' + papel + '"]') : null;
+                const card = input.closest("[data-foto-card]");
+                const preview = card ? card.querySelector("[data-photo-preview]") : null;
+                const placeholder = card ? card.querySelector("[data-photo-placeholder]") : null;
 
-                if (!preview) {
+                if (!preview || !placeholder) {
                     return;
                 }
 
                 if (!arquivo) {
-                    preview.removeAttribute("src");
-                    preview.hidden = true;
+                    if (!String(card.dataset.fotoId || "").trim()) {
+                        preview.removeAttribute("src");
+                        preview.hidden = true;
+                        placeholder.hidden = false;
+                    }
                     return;
                 }
 
                 if (!String(arquivo.type || "").startsWith("image/")) {
                     input.value = "";
-                    preview.removeAttribute("src");
-                    preview.hidden = true;
                     alert("Selecione um arquivo de imagem válido.");
                     return;
                 }
@@ -1594,6 +1781,7 @@ Motivo: Corrigir persistência dos equipamentos e deixar somente uma foto antes 
                 leitor.addEventListener("load", function() {
                     preview.src = String(leitor.result || "");
                     preview.hidden = false;
+                    placeholder.hidden = true;
                 });
                 leitor.readAsDataURL(arquivo);
             });
@@ -1636,6 +1824,7 @@ Motivo: Corrigir persistência dos equipamentos e deixar somente uma foto antes 
 
             function prepararTitulosFotosEquipamento() {
                 const equipamentos = [];
+                const fotos = [];
 
                 document.querySelectorAll(".os-equipamento-bloco").forEach(function(bloco, indice) {
                     bloco.dataset.equipamentoIndice = String(indice);
@@ -1665,33 +1854,34 @@ Motivo: Corrigir persistência dos equipamentos e deixar somente uma foto antes 
                         termos: valor("os_termos")
                     });
 
-                    const nomesFoto = {
-                        id: "foto_os_id_" + indice,
-                        indice: "foto_os_equipamento_indice_" + indice,
-                        titulo: "foto_os_titulo_" + indice,
-                        antes: "foto_os_antes_" + indice,
-                        depois: "foto_os_depois_" + indice,
-                        observacoes: "foto_os_observacoes_" + indice,
-                        remover: "foto_os_remover_" + indice
-                    };
+                    bloco.querySelectorAll("[data-foto-card]").forEach(function(card) {
+                        const chave = String(card.dataset.fotoChave || gerarChaveFotoOS());
+                        card.dataset.fotoChave = chave;
+                        const arquivo = card.querySelector("[data-foto-arquivo]");
+                        if (arquivo) {
+                            arquivo.name = "foto_os_arquivo_" + chave;
+                        }
 
-                    bloco.querySelectorAll("[data-foto-campo]").forEach(function(campoFoto) {
-                        const tipoCampo = String(campoFoto.dataset.fotoCampo || "");
-                        if (nomesFoto[tipoCampo]) {
-                            campoFoto.name = nomesFoto[tipoCampo];
-                        }
-                        if (tipoCampo === "indice") {
-                            campoFoto.value = String(indice);
-                        }
-                        if (tipoCampo === "titulo") {
-                            campoFoto.value = equipamentoNome;
-                        }
+                        fotos.push({
+                            chave: chave,
+                            id: String(card.dataset.fotoId || ""),
+                            equipamento_indice: String(indice),
+                            titulo: equipamentoNome,
+                            tipo: String(card.querySelector("[data-foto-tipo]")?.value || "antes"),
+                            observacoes: String(card.querySelector("[data-foto-observacoes]")?.value || "").trim(),
+                            remover: String(card.dataset.fotoRemover || "nao")
+                        });
                     });
                 });
 
                 const equipamentosJson = document.getElementById("os_equipamentos_json");
                 if (equipamentosJson) {
                     equipamentosJson.value = JSON.stringify(equipamentos);
+                }
+
+                const fotosJson = document.getElementById("os_fotos_json");
+                if (fotosJson) {
+                    fotosJson.value = JSON.stringify(fotos);
                 }
             }
 
