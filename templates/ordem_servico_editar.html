@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordem_servico_editar.html
-Último recode: 2026-07-02 23:49 (America/Bahia)
-Motivo: Ajustar Editar OS para seguir o mesmo padrão visual da tela Editar Orçamento.
+Último recode: 2026-07-18 09:45 (America/Bahia)
+Motivo: Corrigir persistência dos equipamentos e deixar somente uma foto antes e uma foto depois por equipamento.
 -->
 
 <!DOCTYPE html>
@@ -216,6 +216,52 @@ Motivo: Ajustar Editar OS para seguir o mesmo padrão visual da tela Editar Orç
             font-weight: 900;
         }
 
+
+        .os-photo-simple-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .os-photo-field {
+            min-width: 0;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            background: #ffffff;
+            padding: 12px;
+        }
+
+        .os-photo-field label {
+            display: block;
+            margin-bottom: 8px;
+            color: #334155;
+            font-size: 12px;
+            font-weight: 900;
+        }
+
+        .os-photo-observation {
+            grid-column: 1 / -1;
+        }
+
+        .os-photo-helper {
+            margin: 0 0 10px;
+            color: #64748b;
+            font-size: 12px;
+        }
+
+        .os-photo-preview[hidden] {
+            display: none;
+        }
+
+        @media (max-width: 720px) {
+            .os-photo-simple-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .os-photo-observation {
+                grid-column: span 1;
+            }
+        }
 
 
         /* EQUIPAMENTOS DA OS - PADRAO PRODUTOS/SERVICOS */
@@ -573,6 +619,7 @@ Motivo: Ajustar Editar OS para seguir o mesmo padrão visual da tela Editar Orç
         </section>
 
         <form id="form-editar-os" action="/ordens-servico/{{ os.id }}/editar" method="post" enctype="multipart/form-data" class="client-form">
+            <input id="os_equipamentos_json" name="os_equipamentos_json" type="hidden" value="">
             <div class="gestflow-form-error{% if request.args.get('erro') %} show{% endif %}" data-form-error>{% if request.args.get('erro') %}{{ request.args.get('erro') }}{% endif %}</div>
             <section class="panel page-section os-form-section os-panel-orcamento">
                 <div class="panel-header page-header os-section-title">
@@ -704,31 +751,32 @@ Motivo: Ajustar Editar OS para seguir o mesmo padrão visual da tela Editar Orç
                                         <div class="form-group"><label>Laudo</label><textarea name="os_laudo" class="form-control os-textarea" placeholder="Laudo técnico, quando aplicável">{{ equipamento.laudo or '' }}</textarea></div>
                                         <div class="form-group"><label>Termos</label><textarea name="os_termos" class="form-control os-textarea" placeholder="Termos e condições do atendimento">{{ equipamento.termos or '' }}</textarea></div>
                                     </div>
-
+                                    {% set foto = fotos_do_equipamento[0] if fotos_do_equipamento else none %}
                                     <div class="os-foto-equipamento-bloco" data-foto-bloco>
-                                        <div class="os-foto-equipamento-titulo"><span>Fotos antes / depois deste equipamento</span></div>
-                                        <div class="table-shell">
-                                            <table class="client-table os-photo-table">
-                                                <thead><tr><th>Foto antes</th><th>Foto depois</th><th>Observação</th><th>Remover</th></tr></thead>
-                                                <tbody class="fotos-equipamento-tbody" data-equipamento-indice="{{ equipamento.indice }}">
-                                                    {% for foto in fotos_do_equipamento %}
-                                                        <tr>
-                                                            <td><input type="hidden" name="foto_os_id" value="{{ foto.id }}"><input type="hidden" name="foto_os_equipamento_indice" value="{{ equipamento.indice }}"><input type="hidden" name="foto_os_titulo" value="{{ foto.titulo or equipamento.equipamento or equipamento.titulo }}"><input type="hidden" name="foto_os_equipamento_id" value="{{ equipamento.equipamento_id or '' }}"><input type="hidden" name="foto_os_vinculo_id" value="{{ equipamento.vinculo_id or '' }}">{% if foto.foto_antes_path %}<img src="{{ foto.foto_antes_path }}" alt="Foto antes" class="os-photo-preview">{% endif %}<input type="file" name="foto_os_antes" class="form-control" accept="image/*"></td>
-                                                            <td>{% if foto.foto_depois_path %}<img src="{{ foto.foto_depois_path }}" alt="Foto depois" class="os-photo-preview">{% endif %}<input type="file" name="foto_os_depois" class="form-control" accept="image/*"></td>
-                                                            <td><textarea name="foto_os_observacoes" class="form-control os-textarea" placeholder="Observação da foto">{{ foto.observacoes or '' }}</textarea></td>
-                                                            <td><label class="os-photo-remove-check"><input type="checkbox" name="foto_os_remover" value="{{ foto.id }}"> Remover</label></td>
-                                                        </tr>
-                                                    {% endfor %}
-                                                    <tr>
-                                                        <td><input type="hidden" name="foto_os_id" value=""><input type="hidden" name="foto_os_equipamento_indice" value="{{ equipamento.indice }}"><input type="hidden" name="foto_os_titulo" value="{{ equipamento.equipamento or equipamento.titulo }}"><input type="hidden" name="foto_os_equipamento_id" value="{{ equipamento.equipamento_id or '' }}"><input type="hidden" name="foto_os_vinculo_id" value="{{ equipamento.vinculo_id or '' }}"><input type="file" name="foto_os_antes" class="form-control" accept="image/*"></td>
-                                                        <td><input type="file" name="foto_os_depois" class="form-control" accept="image/*"></td>
-                                                        <td><textarea name="foto_os_observacoes" class="form-control os-textarea" placeholder="Observação da foto"></textarea></td>
-                                                        <td></td>
-                                                    </tr>
-                                                </tbody>
-                                            </table>
+                                        <div class="os-foto-equipamento-titulo"><span>Fotos do equipamento</span></div>
+                                        <p class="os-photo-helper">Use somente uma foto antes e uma foto depois para este equipamento.</p>
+                                        <input data-foto-campo="id" name="foto_os_id_{{ equipamento.indice }}" type="hidden" value="{{ foto.id if foto else '' }}">
+                                        <input data-foto-campo="indice" name="foto_os_equipamento_indice_{{ equipamento.indice }}" type="hidden" value="{{ equipamento.indice }}">
+                                        <input data-foto-campo="titulo" name="foto_os_titulo_{{ equipamento.indice }}" type="hidden" value="{{ equipamento.equipamento or equipamento.titulo }}">
+                                        <div class="os-photo-simple-grid">
+                                            <div class="os-photo-field">
+                                                <label>Foto antes</label>
+                                                <img data-photo-preview="antes" src="{{ foto.foto_antes_path if foto and foto.foto_antes_path else '' }}" alt="Foto antes" class="os-photo-preview" {% if not foto or not foto.foto_antes_path %}hidden{% endif %}>
+                                                <input data-foto-campo="antes" data-preview-role="antes" type="file" name="foto_os_antes_{{ equipamento.indice }}" class="form-control os-photo-input" accept="image/png,image/jpeg,image/webp">
+                                            </div>
+                                            <div class="os-photo-field">
+                                                <label>Foto depois</label>
+                                                <img data-photo-preview="depois" src="{{ foto.foto_depois_path if foto and foto.foto_depois_path else '' }}" alt="Foto depois" class="os-photo-preview" {% if not foto or not foto.foto_depois_path %}hidden{% endif %}>
+                                                <input data-foto-campo="depois" data-preview-role="depois" type="file" name="foto_os_depois_{{ equipamento.indice }}" class="form-control os-photo-input" accept="image/png,image/jpeg,image/webp">
+                                            </div>
+                                            <div class="os-photo-field os-photo-observation">
+                                                <label>Observação das fotos</label>
+                                                <textarea data-foto-campo="observacoes" name="foto_os_observacoes_{{ equipamento.indice }}" class="form-control os-textarea" placeholder="Observação das fotos">{{ foto.observacoes if foto else '' }}</textarea>
+                                                {% if foto %}
+                                                    <label class="os-photo-remove-check"><input data-foto-campo="remover" type="checkbox" name="foto_os_remover_{{ equipamento.indice }}" value="sim"> Remover as fotos atuais</label>
+                                                {% endif %}
+                                            </div>
                                         </div>
-                                        <div class="os-actions-line"><button type="button" class="btn-primary-green" onclick="adicionarLinhaFotoEquipamento(this)">+ Adicionar foto</button></div>
                                     </div>
                                 </div>
                             </div>
@@ -1465,21 +1513,27 @@ Motivo: Ajustar Editar OS para seguir o mesmo padrão visual da tela Editar Orç
                             <div class="form-group"><label>Termos</label><textarea name="os_termos" class="form-control os-textarea" placeholder="Termos e condições do atendimento"></textarea></div>
                         </div>
                         <div class="os-foto-equipamento-bloco" data-foto-bloco>
-                            <div class="os-foto-equipamento-titulo"><span>Fotos antes / depois deste equipamento</span></div>
-                            <div class="table-shell">
-                                <table class="client-table os-photo-table">
-                                    <thead><tr><th>Foto antes</th><th>Foto depois</th><th>Observação</th><th>Remover</th></tr></thead>
-                                    <tbody class="fotos-equipamento-tbody" data-equipamento-indice="${equipamentoIndice}">
-                                        <tr>
-                                            <td><input type="hidden" name="foto_os_id" value=""><input type="hidden" name="foto_os_equipamento_indice" value="${equipamentoIndice}"><input type="hidden" name="foto_os_titulo" value=""><input type="hidden" name="foto_os_equipamento_id" value=""><input type="hidden" name="foto_os_vinculo_id" value=""><input type="file" name="foto_os_antes" class="form-control" accept="image/*"></td>
-                                            <td><input type="file" name="foto_os_depois" class="form-control" accept="image/*"></td>
-                                            <td><textarea name="foto_os_observacoes" class="form-control os-textarea" placeholder="Observação da foto"></textarea></td>
-                                            <td></td>
-                                        </tr>
-                                    </tbody>
-                                </table>
+                            <div class="os-foto-equipamento-titulo"><span>Fotos do equipamento</span></div>
+                            <p class="os-photo-helper">Use somente uma foto antes e uma foto depois para este equipamento.</p>
+                            <input data-foto-campo="id" type="hidden" name="foto_os_id_${equipamentoIndice}" value="">
+                            <input data-foto-campo="indice" type="hidden" name="foto_os_equipamento_indice_${equipamentoIndice}" value="${equipamentoIndice}">
+                            <input data-foto-campo="titulo" type="hidden" name="foto_os_titulo_${equipamentoIndice}" value="">
+                            <div class="os-photo-simple-grid">
+                                <div class="os-photo-field">
+                                    <label>Foto antes</label>
+                                    <img data-photo-preview="antes" src="" alt="Foto antes" class="os-photo-preview" hidden>
+                                    <input data-foto-campo="antes" data-preview-role="antes" type="file" name="foto_os_antes_${equipamentoIndice}" class="form-control os-photo-input" accept="image/png,image/jpeg,image/webp">
+                                </div>
+                                <div class="os-photo-field">
+                                    <label>Foto depois</label>
+                                    <img data-photo-preview="depois" src="" alt="Foto depois" class="os-photo-preview" hidden>
+                                    <input data-foto-campo="depois" data-preview-role="depois" type="file" name="foto_os_depois_${equipamentoIndice}" class="form-control os-photo-input" accept="image/png,image/jpeg,image/webp">
+                                </div>
+                                <div class="os-photo-field os-photo-observation">
+                                    <label>Observação das fotos</label>
+                                    <textarea data-foto-campo="observacoes" name="foto_os_observacoes_${equipamentoIndice}" class="form-control os-textarea" placeholder="Observação das fotos"></textarea>
+                                </div>
                             </div>
-                            <div class="os-actions-line"><button type="button" class="btn-primary-green" onclick="adicionarLinhaFotoEquipamento(this)">+ Adicionar foto</button></div>
                         </div>
                     </div>
                 `;
@@ -1507,31 +1561,42 @@ Motivo: Ajustar Editar OS para seguir o mesmo padrão visual da tela Editar Orç
 
 
         <script>
-            function adicionarLinhaFotoEquipamento(botao) {
-                const blocoFoto = botao ? botao.closest("[data-foto-bloco]") : null;
-                const corpo = blocoFoto ? blocoFoto.querySelector(".fotos-equipamento-tbody") : document.querySelector(".fotos-equipamento-tbody");
-
-                if (!corpo) {
+            document.addEventListener("change", function(evento) {
+                const input = evento.target;
+                if (!input || !input.matches || !input.matches(".os-photo-input")) {
                     return;
                 }
 
-                const equipamentoIndice = corpo.dataset.equipamentoIndice || "0";
-                const linha = document.createElement("tr");
-                linha.innerHTML = `
-                    <td>
-                        <input type="hidden" name="foto_os_id" value="">
-                        <input type="hidden" name="foto_os_equipamento_indice" value="${equipamentoIndice}">
-                        <input type="hidden" name="foto_os_titulo" value="">
-                                                    <input type="hidden" name="foto_os_equipamento_id" value="">
-                                                    <input type="hidden" name="foto_os_vinculo_id" value="">
-                        <input type="file" name="foto_os_antes" class="form-control" accept="image/*">
-                    </td>
-                    <td><input type="file" name="foto_os_depois" class="form-control" accept="image/*"></td>
-                    <td><textarea name="foto_os_observacoes" class="form-control os-textarea" placeholder="Observação da foto"></textarea></td>
-                    <td><button type="button" class="os-remove-equipment" onclick="this.closest('tr').remove()">×</button></td>
-                `;
-                corpo.appendChild(linha);
-            }
+                const arquivo = input.files && input.files[0];
+                const blocoFoto = input.closest("[data-foto-bloco]");
+                const papel = input.dataset.previewRole || "";
+                const preview = blocoFoto ? blocoFoto.querySelector('[data-photo-preview="' + papel + '"]') : null;
+
+                if (!preview) {
+                    return;
+                }
+
+                if (!arquivo) {
+                    preview.removeAttribute("src");
+                    preview.hidden = true;
+                    return;
+                }
+
+                if (!String(arquivo.type || "").startsWith("image/")) {
+                    input.value = "";
+                    preview.removeAttribute("src");
+                    preview.hidden = true;
+                    alert("Selecione um arquivo de imagem válido.");
+                    return;
+                }
+
+                const leitor = new FileReader();
+                leitor.addEventListener("load", function() {
+                    preview.src = String(leitor.result || "");
+                    preview.hidden = false;
+                });
+                leitor.readAsDataURL(arquivo);
+            });
 
 
             function preencherEquipamentoCadastro(select) {
@@ -1559,8 +1624,8 @@ Motivo: Ajustar Editar OS para seguir o mesmo padrão visual da tela Editar Orç
 
                 Object.keys(mapa).forEach(function(nomeCampo) {
                     const campo = bloco.querySelector('[name="' + nomeCampo + '"]');
-                    if (campo && mapa[nomeCampo]) {
-                        campo.value = mapa[nomeCampo];
+                    if (campo) {
+                        campo.value = mapa[nomeCampo] || "";
                     }
                 });
 
@@ -1570,31 +1635,69 @@ Motivo: Ajustar Editar OS para seguir o mesmo padrão visual da tela Editar Orç
             window.preencherEquipamentoCadastro = preencherEquipamentoCadastro;
 
             function prepararTitulosFotosEquipamento() {
+                const equipamentos = [];
+
                 document.querySelectorAll(".os-equipamento-bloco").forEach(function(bloco, indice) {
-                    const equipamentoInput = bloco.querySelector('[name="os_equipamento"]');
+                    bloco.dataset.equipamentoIndice = String(indice);
+
+                    const valor = function(nomeCampo) {
+                        const campo = bloco.querySelector('[name="' + nomeCampo + '"]');
+                        return campo ? String(campo.value || "").trim() : "";
+                    };
                     const equipamentoSelect = bloco.querySelector('[name="os_equipamento_id"]');
-                    const equipamentoCadastroId = equipamentoSelect && equipamentoSelect.value ? equipamentoSelect.value : "";
-                    const equipamentoNome = equipamentoInput && equipamentoInput.value.trim() ? equipamentoInput.value.trim() : (indice === 0 ? "Equipamento principal" : "Equipamento adicional " + (indice + 1));
+                    const equipamentoCadastroId = equipamentoSelect && !String(equipamentoSelect.value || "").startsWith("__novo")
+                        ? String(equipamentoSelect.value || "").trim()
+                        : "";
+                    const equipamentoNome = valor("os_equipamento") || (indice === 0 ? "Equipamento principal" : "Equipamento adicional " + (indice + 1));
 
-                    bloco.querySelectorAll('[name="foto_os_titulo"]').forEach(function(inputTitulo) {
-                        inputTitulo.value = equipamentoNome;
+                    equipamentos.push({
+                        equipamento_id: equipamentoCadastroId,
+                        equipamento: valor("os_equipamento"),
+                        marca: valor("os_marca"),
+                        modelo: valor("os_modelo"),
+                        serie: valor("os_serie"),
+                        local_servico: valor("os_local_servico"),
+                        condicoes: valor("os_condicoes"),
+                        acessorios: valor("os_acessorios"),
+                        relato_cliente: valor("os_relato_cliente"),
+                        diagnostico: valor("os_diagnostico"),
+                        laudo: valor("os_laudo"),
+                        termos: valor("os_termos")
                     });
 
-                    bloco.querySelectorAll('[name="foto_os_equipamento_indice"]').forEach(function(inputIndice) {
-                        inputIndice.value = String(indice);
-                    });
-                    bloco.querySelectorAll('[name="foto_os_equipamento_id"]').forEach(function(inputEquipamentoId) {
-                        inputEquipamentoId.value = equipamentoCadastroId;
-                    });
+                    const nomesFoto = {
+                        id: "foto_os_id_" + indice,
+                        indice: "foto_os_equipamento_indice_" + indice,
+                        titulo: "foto_os_titulo_" + indice,
+                        antes: "foto_os_antes_" + indice,
+                        depois: "foto_os_depois_" + indice,
+                        observacoes: "foto_os_observacoes_" + indice,
+                        remover: "foto_os_remover_" + indice
+                    };
 
-                    bloco.querySelectorAll(".fotos-equipamento-tbody").forEach(function(corpo) {
-                        corpo.dataset.equipamentoIndice = String(indice);
+                    bloco.querySelectorAll("[data-foto-campo]").forEach(function(campoFoto) {
+                        const tipoCampo = String(campoFoto.dataset.fotoCampo || "");
+                        if (nomesFoto[tipoCampo]) {
+                            campoFoto.name = nomesFoto[tipoCampo];
+                        }
+                        if (tipoCampo === "indice") {
+                            campoFoto.value = String(indice);
+                        }
+                        if (tipoCampo === "titulo") {
+                            campoFoto.value = equipamentoNome;
+                        }
                     });
                 });
+
+                const equipamentosJson = document.getElementById("os_equipamentos_json");
+                if (equipamentosJson) {
+                    equipamentosJson.value = JSON.stringify(equipamentos);
+                }
             }
 
             document.addEventListener("DOMContentLoaded", function() {
                 const formulario = document.getElementById("form-editar-os");
+                prepararTitulosFotosEquipamento();
                 if (formulario) {
                     formulario.addEventListener("submit", prepararTitulosFotosEquipamento);
                 }
