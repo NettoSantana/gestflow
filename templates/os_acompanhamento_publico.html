@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\os_acompanhamento_publico.html
-Último recode: 2026-07-18 10:30 (America/Bahia)
-Motivo: Exibir no link do cliente os dados atuais da OS, equipamentos separados, fotos e itens atualizados.
+Último recode: 2026-07-18 11:25 (America/Bahia)
+Motivo: Exibir a OS completa e permitir ao técnico somente acrescentar equipamentos, fotos e acompanhamentos, sem alterar registros existentes.
 -->
 
 <!DOCTYPE html>
@@ -9,1082 +9,1201 @@ Motivo: Exibir no link do cliente os dados atuais da OS, equipamentos separados,
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GESTFLOW - Acompanhamento Diário da OS</title>
+    <title>GESTFLOW - Ordem de Serviço</title>
     <link rel="stylesheet" href="/static/css/dashboard.css">
     <style>
+        :root {
+            --gf-bg: #eef3f8;
+            --gf-card: #ffffff;
+            --gf-border: #dbe3ef;
+            --gf-border-soft: #e8edf4;
+            --gf-text: #0f172a;
+            --gf-muted: #64748b;
+            --gf-blue: #0f62fe;
+            --gf-green: #15803d;
+            --gf-green-soft: #ecfdf3;
+            --gf-red: #b91c1c;
+            --gf-red-soft: #fef2f2;
+            --gf-amber: #a16207;
+            --gf-amber-soft: #fffbeb;
+        }
+
+        * { box-sizing: border-box; }
+
         body {
-            background: #eef4fb;
+            margin: 0;
+            background: var(--gf-bg);
+            color: var(--gf-text);
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         }
 
-        .public-os-wrapper {
-            width: min(1060px, calc(100% - 28px));
-            margin: 28px auto;
+        .public-os-page {
+            width: min(1280px, calc(100% - 28px));
+            margin: 24px auto 56px;
         }
 
-        .public-os-header {
-            background: #ffffff;
-            border: 1px solid #dbe3ef;
+        .public-os-hero,
+        .public-os-section {
+            background: var(--gf-card);
+            border: 1px solid var(--gf-border);
             border-radius: 18px;
-            padding: 20px;
+            box-shadow: 0 16px 38px rgba(15, 23, 42, 0.07);
+        }
+
+        .public-os-hero {
+            padding: 22px;
             margin-bottom: 16px;
-            box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
         }
 
-        .public-os-header h1 {
-            margin: 0 0 6px;
-            color: #0f172a;
-            font-size: 24px;
-        }
-
-        .public-os-header p {
-            margin: 0;
-            color: #64748b;
-            font-size: 14px;
-        }
-
-        .public-os-grid {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 12px;
-            margin-top: 16px;
-        }
-
-        .public-os-info {
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 12px;
-            background: #f8fafc;
-        }
-
-        .public-os-info span {
-            display: block;
-            color: #64748b;
-            font-size: 12px;
-            margin-bottom: 4px;
-        }
-
-        .public-os-info strong {
-            color: #0f172a;
-            font-size: 14px;
-        }
-
-        .public-os-panel {
-            background: #ffffff;
-            border: 1px solid #dbe3ef;
-            border-radius: 18px;
-            padding: 20px;
-            box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
-        }
-
-        .public-os-section-title {
-            margin: 0 0 14px;
-            color: #0f172a;
-            font-size: 18px;
-        }
-
-        .public-os-subtitle {
-            margin: -6px 0 12px;
-            color: #64748b;
-            font-size: 13px;
-        }
-
-        .public-os-form-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 14px;
-        }
-
-        .public-os-span-2 {
-            grid-column: span 2;
-        }
-
-        .public-os-textarea {
-            min-height: 110px;
-            resize: vertical;
-        }
-
-        .public-os-alert {
-            border-radius: 12px;
-            padding: 12px 14px;
-            margin-bottom: 14px;
-            font-weight: 800;
-        }
-
-        .public-os-alert-error {
-            background: #fef2f2;
-            border: 1px solid #fecaca;
-            color: #991b1b;
-        }
-
-        .public-os-alert-success {
-            background: #f0fdf4;
-            border: 1px solid #bbf7d0;
-            color: #166534;
-        }
-
-        .public-os-list-section {
-            grid-column: span 2;
-            border: 1px solid #e2e8f0;
-            border-radius: 14px;
-            padding: 14px;
-            background: #f8fafc;
-        }
-
-        .public-os-list-section h3 {
-            margin: 0 0 4px;
-            color: #0f172a;
-            font-size: 16px;
-        }
-
-        .public-os-list-section p {
-            margin: 0 0 12px;
-            color: #64748b;
-            font-size: 13px;
-        }
-
-        .public-os-item-row {
-            display: grid;
-            grid-template-columns: minmax(220px, 1.5fr) 120px minmax(160px, 1fr) 42px;
-            gap: 10px;
-            align-items: end;
-            margin-bottom: 10px;
-        }
-
-        .public-os-item-row.public-os-material-row {
-            grid-template-columns: minmax(220px, 1.5fr) 110px minmax(130px, 0.8fr) minmax(160px, 1fr) 42px;
-        }
-
-        .public-os-remove {
-            height: 38px;
-            border: 0;
-            border-radius: 10px;
-            background: #fee2e2;
-            color: #991b1b;
-            cursor: pointer;
-            font-weight: 900;
-        }
-
-        .public-os-add {
-            margin-top: 2px;
-        }
-
-        .public-os-empty {
-            border: 1px dashed #cbd5e1;
-            border-radius: 12px;
-            padding: 12px;
-            color: #64748b;
-            background: #ffffff;
-            font-size: 13px;
-        }
-
-        .public-os-summary-list {
-            margin: 0;
-            padding-left: 18px;
-            color: #0f172a;
-            font-size: 14px;
-        }
-
-        .public-os-summary-list li {
-            margin-bottom: 6px;
-        }
-
-        .public-os-actions {
+        .public-os-hero-top {
             display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-            margin-top: 16px;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 18px;
         }
 
-        .public-os-live-badge {
+        .public-os-brand {
+            color: var(--gf-blue);
+            font-size: 12px;
+            font-weight: 900;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+        }
+
+        .public-os-hero h1 {
+            margin: 6px 0 5px;
+            font-size: clamp(24px, 4vw, 34px);
+            letter-spacing: -.025em;
+        }
+
+        .public-os-hero p {
+            margin: 0;
+            color: var(--gf-muted);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .public-os-access-badge,
+        .public-os-status-badge,
+        .public-os-history-status,
+        .public-os-photo-type {
             display: inline-flex;
             align-items: center;
-            gap: 7px;
+            justify-content: center;
             border-radius: 999px;
-            background: #ecfdf5;
-            color: #166534;
-            padding: 7px 11px;
             font-size: 12px;
             font-weight: 900;
             white-space: nowrap;
         }
 
-        .public-os-live-badge::before {
-            content: "";
-            width: 8px;
-            height: 8px;
-            border-radius: 999px;
-            background: #22c55e;
+        .public-os-access-badge {
+            padding: 9px 13px;
+            background: #eff6ff;
+            color: #1d4ed8;
+            border: 1px solid #bfdbfe;
         }
 
-        .public-os-current-header {
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            gap: 16px;
-            margin-bottom: 16px;
+        .public-os-access-badge.client {
+            background: #f8fafc;
+            color: #334155;
+            border-color: #cbd5e1;
         }
 
-        .public-os-current-header h2 {
-            margin: 0 0 5px;
-            color: #0f172a;
-            font-size: 20px;
-        }
-
-        .public-os-current-header p {
-            margin: 0;
-            color: #64748b;
-            font-size: 13px;
-        }
-
-        .public-os-current-summary {
+        .public-os-summary-grid {
             display: grid;
             grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 10px;
-            margin-bottom: 16px;
+            gap: 12px;
+            margin-top: 18px;
         }
 
-        .public-os-current-card {
-            border: 1px solid #e2e8f0;
+        .public-os-summary-item,
+        .public-os-read-field {
+            border: 1px solid var(--gf-border-soft);
             border-radius: 12px;
             background: #f8fafc;
-            padding: 12px;
+            padding: 12px 13px;
+            min-width: 0;
         }
 
-        .public-os-current-card span {
+        .public-os-summary-item span,
+        .public-os-read-field span {
             display: block;
-            margin-bottom: 4px;
-            color: #64748b;
+            margin-bottom: 5px;
+            color: var(--gf-muted);
             font-size: 11px;
-            font-weight: 700;
+            font-weight: 800;
             text-transform: uppercase;
         }
 
-        .public-os-current-card strong {
+        .public-os-summary-item strong,
+        .public-os-read-field strong,
+        .public-os-read-field p {
             display: block;
-            color: #0f172a;
-            font-size: 13px;
+            margin: 0;
+            color: var(--gf-text);
+            font-size: 14px;
+            line-height: 1.45;
             overflow-wrap: anywhere;
+            white-space: pre-wrap;
         }
 
-        .public-os-equipment-list {
-            display: grid;
+        .public-os-section {
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+
+        .public-os-section-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
             gap: 14px;
+            margin-bottom: 16px;
         }
 
-        .public-os-equipment-card {
-            border: 1px solid #dbe3ef;
-            border-radius: 15px;
+        .public-os-section-header h2 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .public-os-section-header p {
+            margin: 5px 0 0;
+            color: var(--gf-muted);
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        .public-os-grid-2,
+        .public-os-grid-3,
+        .public-os-grid-4 {
+            display: grid;
+            gap: 12px;
+        }
+
+        .public-os-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .public-os-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .public-os-grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        .public-os-span-2 { grid-column: span 2; }
+        .public-os-span-full { grid-column: 1 / -1; }
+
+        .public-os-alert {
+            border-radius: 13px;
+            padding: 13px 15px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            font-weight: 800;
+            line-height: 1.45;
+        }
+
+        .public-os-alert.error {
+            color: #991b1b;
+            background: var(--gf-red-soft);
+            border: 1px solid #fecaca;
+        }
+
+        .public-os-alert.success {
+            color: #166534;
+            background: var(--gf-green-soft);
+            border: 1px solid #bbf7d0;
+        }
+
+        .public-os-equipment-card,
+        .public-os-history-card,
+        .public-os-new-equipment-card {
+            border: 1px solid var(--gf-border);
+            border-radius: 16px;
             background: #ffffff;
             overflow: hidden;
+            margin-bottom: 14px;
         }
 
-        .public-os-equipment-title {
+        .public-os-equipment-card:last-child,
+        .public-os-history-card:last-child { margin-bottom: 0; }
+
+        .public-os-equipment-head,
+        .public-os-history-head,
+        .public-os-new-equipment-head {
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 12px;
-            padding: 13px 15px;
+            padding: 14px 16px;
             background: #f8fafc;
-            border-bottom: 1px solid #e2e8f0;
+            border-bottom: 1px solid var(--gf-border-soft);
         }
 
-        .public-os-equipment-title h3 {
+        .public-os-equipment-head h3,
+        .public-os-history-head h3,
+        .public-os-new-equipment-head h3 {
             margin: 0;
-            color: #0f172a;
-            font-size: 16px;
+            font-size: 15px;
+            font-weight: 900;
         }
 
-        .public-os-equipment-title span {
-            color: #64748b;
+        .public-os-equipment-head small,
+        .public-os-history-head small {
+            color: var(--gf-muted);
             font-size: 12px;
-            font-weight: 800;
         }
 
-        .public-os-equipment-body {
-            padding: 14px;
+        .public-os-equipment-body,
+        .public-os-history-body,
+        .public-os-new-equipment-body { padding: 16px; }
+
+        .public-os-status-badge,
+        .public-os-history-status {
+            padding: 6px 10px;
+            color: #334155;
+            background: #e2e8f0;
         }
 
-        .public-os-equipment-grid {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 10px;
+        .public-os-history-status.done {
+            color: #166534;
+            background: #dcfce7;
         }
 
-        .public-os-equipment-detail {
-            border: 1px solid #e2e8f0;
-            border-radius: 11px;
-            background: #ffffff;
-            padding: 10px;
-            min-width: 0;
-        }
-
-        .public-os-equipment-detail.public-os-detail-wide {
-            grid-column: span 3;
-        }
-
-        .public-os-equipment-detail span {
-            display: block;
-            margin-bottom: 4px;
-            color: #64748b;
-            font-size: 11px;
-            font-weight: 800;
-            text-transform: uppercase;
-        }
-
-        .public-os-equipment-detail strong {
-            display: block;
-            color: #0f172a;
-            font-size: 13px;
-            line-height: 1.45;
-            white-space: pre-wrap;
-            overflow-wrap: anywhere;
-        }
-
-        .public-os-photo-section {
-            margin-top: 13px;
-            padding-top: 13px;
-            border-top: 1px solid #e2e8f0;
-        }
-
-        .public-os-photo-section h4 {
-            margin: 0 0 10px;
-            color: #0f172a;
-            font-size: 14px;
+        .public-os-history-status.registered {
+            color: #92400e;
+            background: #fef3c7;
         }
 
         .public-os-photo-gallery {
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-columns: repeat(4, minmax(0, 1fr));
             gap: 12px;
+            margin-top: 14px;
         }
 
-        .public-os-photo-card {
-            margin: 0;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            background: #f8fafc;
+        .public-os-photo {
+            border: 1px solid var(--gf-border-soft);
+            border-radius: 14px;
             overflow: hidden;
+            background: #ffffff;
         }
 
-        .public-os-photo-card img {
+        .public-os-photo img {
             display: block;
             width: 100%;
-            height: 190px;
+            aspect-ratio: 4 / 3;
             object-fit: cover;
             background: #e2e8f0;
         }
 
-        .public-os-photo-card figcaption {
-            padding: 10px;
-            color: #334155;
-            font-size: 12px;
-            line-height: 1.4;
-        }
+        .public-os-photo-info { padding: 10px; }
 
         .public-os-photo-type {
-            display: inline-block;
-            margin-bottom: 4px;
-            border-radius: 999px;
-            background: #e0f2fe;
-            color: #075985;
-            padding: 3px 7px;
-            font-size: 10px;
-            font-weight: 900;
-            text-transform: uppercase;
+            padding: 5px 8px;
+            color: #1d4ed8;
+            background: #dbeafe;
+            margin-bottom: 7px;
         }
 
-        .public-os-document-section {
-            margin-top: 16px;
-            border-top: 1px solid #e2e8f0;
-            padding-top: 16px;
+        .public-os-photo-type.durante {
+            color: #92400e;
+            background: #fef3c7;
         }
 
-        .public-os-document-section h3 {
-            margin: 0 0 10px;
-            color: #0f172a;
-            font-size: 16px;
+        .public-os-photo-type.depois {
+            color: #166534;
+            background: #dcfce7;
         }
 
-        .public-os-table-wrap {
-            overflow-x: auto;
+        .public-os-photo-info p {
+            margin: 0;
+            color: #475569;
+            font-size: 12px;
+            line-height: 1.4;
+            white-space: pre-wrap;
         }
 
-        .public-os-document-table {
-            min-width: 650px;
-        }
-
-        .public-os-notes-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 12px;
-        }
-
-        .public-os-note {
-            border: 1px solid #e2e8f0;
+        .public-os-empty {
+            border: 1px dashed #cbd5e1;
             border-radius: 12px;
+            padding: 14px;
+            color: var(--gf-muted);
             background: #f8fafc;
-            padding: 12px;
+            font-size: 13px;
+            text-align: center;
         }
 
-        .public-os-note span {
+        .public-os-add-zone {
+            margin-top: 14px;
+            border: 1px dashed #93c5fd;
+            border-radius: 14px;
+            padding: 14px;
+            background: #f8fbff;
+        }
+
+        .public-os-add-zone-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .public-os-add-zone-title strong {
+            font-size: 13px;
+            color: #1e3a8a;
+        }
+
+        .public-os-photo-inputs {
+            display: grid;
+            gap: 10px;
+        }
+
+        .public-os-photo-input-card {
+            display: grid;
+            grid-template-columns: 130px 160px minmax(0, 1fr) 38px;
+            gap: 10px;
+            align-items: end;
+            padding: 11px;
+            border: 1px solid var(--gf-border-soft);
+            border-radius: 12px;
+            background: #ffffff;
+        }
+
+        .public-os-photo-input-preview {
+            width: 130px;
+            height: 92px;
+            border: 1px dashed #cbd5e1;
+            border-radius: 10px;
+            object-fit: cover;
+            background: #f8fafc;
+        }
+
+        .public-os-form-group label {
             display: block;
-            margin-bottom: 5px;
-            color: #64748b;
+            margin-bottom: 6px;
+            color: #334155;
+            font-size: 12px;
+            font-weight: 900;
+        }
+
+        .public-os-form-group input,
+        .public-os-form-group select,
+        .public-os-form-group textarea,
+        .public-os-form-control {
+            width: 100%;
+            min-height: 42px;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            padding: 9px 11px;
+            background: #ffffff;
+            color: var(--gf-text);
+            font: inherit;
+            font-size: 14px;
+        }
+
+        .public-os-form-group textarea {
+            min-height: 92px;
+            resize: vertical;
+        }
+
+        .public-os-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 40px;
+            padding: 9px 13px;
+            border: 0;
+            border-radius: 10px;
+            cursor: pointer;
+            font: inherit;
+            font-size: 13px;
+            font-weight: 900;
+            text-decoration: none;
+        }
+
+        .public-os-btn.primary { color: #ffffff; background: var(--gf-green); }
+        .public-os-btn.dark { color: #ffffff; background: #0f172a; }
+        .public-os-btn.light { color: #334155; background: #e2e8f0; }
+        .public-os-btn.blue { color: #ffffff; background: var(--gf-blue); }
+        .public-os-btn.danger { color: #991b1b; background: #fee2e2; }
+        .public-os-btn.icon { width: 38px; min-width: 38px; padding: 0; font-size: 18px; }
+
+        .public-os-table-shell {
+            overflow-x: auto;
+            border: 1px solid var(--gf-border-soft);
+            border-radius: 14px;
+        }
+
+        .public-os-table {
+            width: 100%;
+            min-width: 680px;
+            border-collapse: collapse;
+        }
+
+        .public-os-table th,
+        .public-os-table td {
+            padding: 11px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--gf-border-soft);
+            font-size: 13px;
+        }
+
+        .public-os-table th {
+            color: #475569;
+            background: #f8fafc;
             font-size: 11px;
             font-weight: 900;
             text-transform: uppercase;
         }
 
-        .public-os-note div {
-            color: #0f172a;
-            font-size: 13px;
-            line-height: 1.5;
-            white-space: pre-wrap;
+        .public-os-table tbody tr:last-child td { border-bottom: 0; }
+
+        .public-os-new-equipment-card { border-color: #93c5fd; }
+        .public-os-new-equipment-head { background: #eff6ff; }
+
+        .public-os-list-box {
+            border: 1px solid var(--gf-border-soft);
+            border-radius: 14px;
+            background: #f8fafc;
+            padding: 14px;
         }
 
-        @media (max-width: 900px) {
-            .public-os-item-row,
-            .public-os-item-row.public-os-material-row {
-                grid-template-columns: 1fr;
-            }
-
-            .public-os-remove {
-                width: 100%;
-            }
-
-            .public-os-current-summary {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-            }
-
-            .public-os-photo-gallery {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-            }
+        .public-os-list-box h3 {
+            margin: 0 0 4px;
+            font-size: 15px;
         }
 
-        @media (max-width: 760px) {
-            .public-os-grid,
-            .public-os-form-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .public-os-span-2,
-            .public-os-list-section {
-                grid-column: span 1;
-            }
-
-            .public-os-actions {
-                flex-direction: column;
-            }
-
-            .public-os-current-header {
-                flex-direction: column;
-            }
-
-            .public-os-current-summary,
-            .public-os-equipment-grid,
-            .public-os-photo-gallery,
-            .public-os-notes-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .public-os-equipment-detail.public-os-detail-wide {
-                grid-column: span 1;
-            }
-
-            .public-os-photo-card img {
-                height: auto;
-                max-height: 360px;
-            }
-        }
-    </style>
-
-    <style>
-        /* PADRAO VISUAL ORCAMENTOS - TELAS PUBLICAS */
-        body {
-            background: #f5f7fb;
-        }
-
-        main,
-        .portal-page,
-        .login-page,
-        .onboarding-page,
-        .plans-page {
-            color: #0f172a;
-        }
-
-        .portal-card,
-        .login-card,
-        .auth-card,
-        .onboarding-card,
-        .plan-card,
-        .card,
-        .panel {
-            border-radius: 18px !important;
-            box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
-        }
-
-        input,
-        select,
-        textarea,
-        .form-control {
-            border-radius: 10px !important;
-        }
-
-        button,
-        .btn-primary-green,
-        .btn-dark,
-        .btn-light,
-        .primary-button,
-        .secondary-button {
-            border-radius: 10px !important;
-            text-decoration: none;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: separate !important;
-            border-spacing: 0 10px !important;
-        }
-
-        table thead th {
-            border-bottom: 0 !important;
-            background: transparent;
-            padding: 10px 12px;
-            color: #334155;
+        .public-os-list-box > p {
+            margin: 0 0 12px;
+            color: var(--gf-muted);
             font-size: 12px;
-            font-weight: 900;
+        }
+
+        .public-os-item-row {
+            display: grid;
+            grid-template-columns: minmax(190px, 1.4fr) 110px minmax(160px, 1fr) 38px;
+            gap: 10px;
+            align-items: end;
+            margin-bottom: 10px;
+        }
+
+        .public-os-item-row.material {
+            grid-template-columns: minmax(190px, 1.4fr) 100px minmax(160px, 1fr) 38px;
+        }
+
+        .public-os-item-row:last-child { margin-bottom: 0; }
+
+        .public-os-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 18px;
+        }
+
+        .public-os-history-lists {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .public-os-history-list {
+            border: 1px solid var(--gf-border-soft);
+            border-radius: 12px;
+            padding: 12px;
+            background: #f8fafc;
+        }
+
+        .public-os-history-list strong {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 12px;
             text-transform: uppercase;
         }
 
-        table tbody tr {
-            background: #ffffff;
-            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
-            border-radius: 14px;
+        .public-os-history-list ul {
+            margin: 0;
+            padding-left: 18px;
+            color: #334155;
+            font-size: 13px;
         }
 
-        table tbody td {
-            border-bottom: 0 !important;
-            padding: 14px 12px !important;
+        .public-os-history-list li { margin-bottom: 5px; }
+
+        .public-os-lock-note {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 11px 13px;
+            border-radius: 12px;
+            color: #475569;
+            background: #f8fafc;
+            border: 1px solid var(--gf-border-soft);
+            font-size: 13px;
+            font-weight: 800;
         }
 
-        table tbody td:first-child {
-            border-top-left-radius: 14px;
-            border-bottom-left-radius: 14px;
+        @media (max-width: 1040px) {
+            .public-os-summary-grid,
+            .public-os-grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .public-os-photo-gallery { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            .public-os-history-lists { grid-template-columns: 1fr; }
         }
 
-        table tbody td:last-child {
-            border-top-right-radius: 14px;
-            border-bottom-right-radius: 14px;
+        @media (max-width: 760px) {
+            .public-os-page { width: min(100% - 16px, 1280px); margin-top: 8px; }
+            .public-os-hero,
+            .public-os-section { border-radius: 14px; padding: 15px; }
+            .public-os-hero-top,
+            .public-os-section-header,
+            .public-os-equipment-head,
+            .public-os-history-head,
+            .public-os-new-equipment-head,
+            .public-os-add-zone-title { flex-direction: column; align-items: stretch; }
+            .public-os-summary-grid,
+            .public-os-grid-2,
+            .public-os-grid-3,
+            .public-os-grid-4 { grid-template-columns: 1fr; }
+            .public-os-span-2 { grid-column: span 1; }
+            .public-os-photo-gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .public-os-photo-input-card,
+            .public-os-item-row,
+            .public-os-item-row.material { grid-template-columns: 1fr; }
+            .public-os-photo-input-preview { width: 100%; height: 180px; }
+            .public-os-btn.icon { width: 100%; }
+            .public-os-actions { flex-direction: column; }
+            .public-os-actions .public-os-btn { width: 100%; }
+        }
+
+        @media (max-width: 480px) {
+            .public-os-photo-gallery { grid-template-columns: 1fr; }
         }
     </style>
-
 </head>
 <body>
-    <main class="public-os-wrapper">
-        <section class="public-os-header">
-            <h1>Acompanhamento diário da OS</h1>
-            <p>Preencha as atividades do dia, equipe envolvida, materiais utilizados, serviços executados e observações da execução.</p>
+{% set tecnico = modo_publico == 'tecnico' %}
+{% set os = ordem_servico %}
+<main class="public-os-page">
+    <section class="public-os-hero">
+        <div class="public-os-hero-top">
+            <div>
+                <div class="public-os-brand">{{ empresa.nome_fantasia or 'GESTFLOW' }}</div>
+                <h1>Ordem de Serviço {{ os.numero or os.id if os else '' }}</h1>
+                {% if tecnico %}
+                    <p>Consulte a OS e acrescente informações da execução. Tudo que já foi salvo permanece bloqueado.</p>
+                {% else %}
+                    <p>Acompanhe os dados, equipamentos, fotos, serviços e registros de execução da sua Ordem de Serviço.</p>
+                {% endif %}
+            </div>
+            <span class="public-os-access-badge{% if not tecnico %} client{% endif %}">
+                {% if tecnico %}Acesso do técnico{% else %}Consulta do cliente{% endif %}
+            </span>
+        </div>
 
-            {% if acompanhamento %}
-                <div class="public-os-grid">
-                    <div class="public-os-info"><span>OS</span><strong>{{ os_atual.numero if os_atual else (acompanhamento.os_numero or acompanhamento.ordem_servico_id) }}</strong></div>
-                    <div class="public-os-info"><span>Cliente</span><strong>{{ os_atual.cliente if os_atual else (acompanhamento.os_cliente or '-') }}</strong></div>
-                    <div class="public-os-info"><span>Data do acompanhamento</span><strong>{{ acompanhamento.data_acompanhamento or '-' }}</strong></div>
-                    <div class="public-os-info"><span>Status da OS</span><strong>{{ os_atual.status if os_atual else (acompanhamento.os_status or '-') }}</strong></div>
-                    <div class="public-os-info"><span>Equipamentos atuais</span><strong>{{ resumo_equipamentos_os_publica or '-' }}</strong></div>
-                    <div class="public-os-info"><span>Previsão</span><strong>{{ os_atual.data_previsao_exibicao if os_atual else '-' }}</strong></div>
+        {% if os %}
+            <div class="public-os-summary-grid">
+                <div class="public-os-summary-item"><span>Cliente</span><strong>{{ os.cliente or '-' }}</strong></div>
+                <div class="public-os-summary-item"><span>Status</span><strong>{{ os.status or '-' }}</strong></div>
+                <div class="public-os-summary-item"><span>Prioridade</span><strong>{{ os.prioridade or '-' }}</strong></div>
+                <div class="public-os-summary-item"><span>Data de abertura</span><strong>{{ os.data_abertura or '-' }}</strong></div>
+                <div class="public-os-summary-item"><span>Responsável</span><strong>{{ os.responsavel or '-' }}</strong></div>
+                <div class="public-os-summary-item"><span>Técnico</span><strong>{{ os.tecnico or '-' }}</strong></div>
+                <div class="public-os-summary-item"><span>Previsão</span><strong>{{ os.data_previsao or '-' }}</strong></div>
+                <div class="public-os-summary-item"><span>Canal</span><strong>{{ os.canal_venda or '-' }}</strong></div>
+            </div>
+        {% endif %}
+    </section>
+
+    {% if erro %}<div class="public-os-alert error">{{ erro }}</div>{% endif %}
+    {% if mensagem %}<div class="public-os-alert success">{{ mensagem }}</div>{% endif %}
+
+    {% if os %}
+        <section class="public-os-section">
+            <div class="public-os-section-header">
+                <div>
+                    <h2>Dados gerais</h2>
+                    <p>Informações principais da Ordem de Serviço. Estes dados não podem ser alterados pelo link público.</p>
                 </div>
-            {% endif %}
+                <span class="public-os-status-badge">Somente leitura</span>
+            </div>
+            <div class="public-os-grid-3">
+                <div class="public-os-read-field"><span>Cliente</span><strong>{{ os.cliente or '-' }}</strong></div>
+                <div class="public-os-read-field"><span>Responsável</span><strong>{{ os.responsavel or '-' }}</strong></div>
+                <div class="public-os-read-field"><span>Técnico indicado</span><strong>{{ os.tecnico or '-' }}</strong></div>
+                <div class="public-os-read-field"><span>Entrada</span><strong>{{ os.data_abertura or '-' }}{% if os.hora_entrada %} às {{ os.hora_entrada }}{% endif %}</strong></div>
+                <div class="public-os-read-field"><span>Previsão</span><strong>{{ os.data_previsao or '-' }}</strong></div>
+                <div class="public-os-read-field"><span>Saída</span><strong>{{ os.data_saida or '-' }}{% if os.hora_saida %} às {{ os.hora_saida }}{% endif %}</strong></div>
+                {% if cliente.documento %}<div class="public-os-read-field"><span>Documento do cliente</span><strong>{{ cliente.documento }}</strong></div>{% endif %}
+                {% if cliente.telefone %}<div class="public-os-read-field"><span>Telefone do cliente</span><strong>{{ cliente.telefone }}</strong></div>{% endif %}
+                {% if cliente.cidade %}<div class="public-os-read-field"><span>Cidade</span><strong>{{ cliente.cidade }}</strong></div>{% endif %}
+            </div>
         </section>
 
-        {% if os_atual %}
-            <section class="public-os-panel" style="margin-bottom: 16px;">
-                <div class="public-os-current-header">
-                    <div>
-                        <h2>Ordem de Serviço atualizada</h2>
-                        <p>Esta área consulta diretamente a OS atual. Alterações salvas no GestFlow aparecem aqui ao atualizar a página.</p>
+        {% if tecnico and not bloqueado %}
+            <form id="form-tecnico-os" method="post" enctype="multipart/form-data">
+                <input id="tecnico_equipamentos_json" name="tecnico_equipamentos_json" type="hidden" value="[]">
+                <input id="tecnico_fotos_json" name="tecnico_fotos_json" type="hidden" value="[]">
+        {% endif %}
+
+        <section class="public-os-section">
+            <div class="public-os-section-header">
+                <div>
+                    <h2>Equipamentos</h2>
+                    <p>Equipamentos já vinculados à OS permanecem bloqueados. O técnico pode somente acrescentar fotos.</p>
+                </div>
+                <span class="public-os-status-badge">{{ equipamentos_os|length }} equipamento(s)</span>
+            </div>
+
+            {% for equipamento in equipamentos_os|default([]) %}
+                {% set fotos = fotos_por_equipamento.get(equipamento.indice, []) if fotos_por_equipamento else [] %}
+                <article class="public-os-equipment-card">
+                    <div class="public-os-equipment-head">
+                        <div>
+                            <h3>{{ equipamento.equipamento or equipamento.titulo }}</h3>
+                            <small>{{ equipamento.marca or 'Marca não informada' }}{% if equipamento.modelo %} • {{ equipamento.modelo }}{% endif %}{% if equipamento.serie %} • Série {{ equipamento.serie }}{% endif %}</small>
+                        </div>
+                        <span class="public-os-status-badge">Equipamento {{ loop.index }}</span>
                     </div>
-                    <span class="public-os-live-badge">Dados atuais</span>
-                </div>
+                    <div class="public-os-equipment-body">
+                        <div class="public-os-grid-4">
+                            <div class="public-os-read-field"><span>Equipamento</span><strong>{{ equipamento.equipamento or '-' }}</strong></div>
+                            <div class="public-os-read-field"><span>Marca</span><strong>{{ equipamento.marca or '-' }}</strong></div>
+                            <div class="public-os-read-field"><span>Modelo</span><strong>{{ equipamento.modelo or '-' }}</strong></div>
+                            <div class="public-os-read-field"><span>Série</span><strong>{{ equipamento.serie or '-' }}</strong></div>
+                            {% if equipamento.tag %}<div class="public-os-read-field"><span>TAG</span><strong>{{ equipamento.tag }}</strong></div>{% endif %}
+                            <div class="public-os-read-field public-os-span-full"><span>Local do serviço</span><strong>{{ equipamento.local_servico or '-' }}</strong></div>
+                            <div class="public-os-read-field public-os-span-2"><span>Condições encontradas</span><p>{{ equipamento.condicoes or '-' }}</p></div>
+                            <div class="public-os-read-field public-os-span-2"><span>Defeito / relato do cliente</span><p>{{ equipamento.relato_cliente or '-' }}</p></div>
+                            <div class="public-os-read-field public-os-span-2"><span>Acessórios</span><p>{{ equipamento.acessorios or '-' }}</p></div>
+                            <div class="public-os-read-field public-os-span-2"><span>Solução / diagnóstico</span><p>{{ equipamento.diagnostico or '-' }}</p></div>
+                            {% if equipamento.laudo %}<div class="public-os-read-field public-os-span-2"><span>Laudo</span><p>{{ equipamento.laudo }}</p></div>{% endif %}
+                            {% if equipamento.termos %}<div class="public-os-read-field public-os-span-2"><span>Termos</span><p>{{ equipamento.termos }}</p></div>{% endif %}
+                        </div>
 
-                <div class="public-os-current-summary">
-                    <div class="public-os-current-card"><span>Responsável</span><strong>{{ os_atual.responsavel or '-' }}</strong></div>
-                    <div class="public-os-current-card"><span>Técnico</span><strong>{{ os_atual.tecnico or '-' }}</strong></div>
-                    <div class="public-os-current-card"><span>Entrada</span><strong>{{ os_atual.data_abertura_exibicao or '-' }}{% if os_atual.hora_entrada %} {{ os_atual.hora_entrada }}{% endif %}</strong></div>
-                    <div class="public-os-current-card"><span>Prioridade</span><strong>{{ os_atual.prioridade or '-' }}</strong></div>
-                </div>
-
-                <div class="public-os-equipment-list">
-                    {% for equipamento in equipamentos_os_publicos|default([]) %}
-                        <article class="public-os-equipment-card">
-                            <div class="public-os-equipment-title">
-                                <h3>{{ equipamento.equipamento or equipamento.titulo }}</h3>
-                                <span>{{ equipamento.titulo }}</span>
-                            </div>
-                            <div class="public-os-equipment-body">
-                                <div class="public-os-equipment-grid">
-                                    <div class="public-os-equipment-detail"><span>Marca</span><strong>{{ equipamento.marca or '-' }}</strong></div>
-                                    <div class="public-os-equipment-detail"><span>Modelo</span><strong>{{ equipamento.modelo or '-' }}</strong></div>
-                                    <div class="public-os-equipment-detail"><span>Série</span><strong>{{ equipamento.serie or '-' }}</strong></div>
-                                    <div class="public-os-equipment-detail public-os-detail-wide"><span>Local do serviço</span><strong>{{ equipamento.local_servico or '-' }}</strong></div>
-                                    <div class="public-os-equipment-detail"><span>Condições</span><strong>{{ equipamento.condicoes or '-' }}</strong></div>
-                                    <div class="public-os-equipment-detail"><span>Defeito / relato</span><strong>{{ equipamento.relato_cliente or '-' }}</strong></div>
-                                    <div class="public-os-equipment-detail"><span>Diagnóstico / solução</span><strong>{{ equipamento.diagnostico or '-' }}</strong></div>
-                                    {% if equipamento.acessorios %}<div class="public-os-equipment-detail"><span>Acessórios</span><strong>{{ equipamento.acessorios }}</strong></div>{% endif %}
-                                    {% if equipamento.laudo %}<div class="public-os-equipment-detail"><span>Laudo</span><strong>{{ equipamento.laudo }}</strong></div>{% endif %}
-                                    {% if equipamento.termos %}<div class="public-os-equipment-detail"><span>Termos</span><strong>{{ equipamento.termos }}</strong></div>{% endif %}
-                                </div>
-
-                                {% if equipamento.fotos %}
-                                    <div class="public-os-photo-section">
-                                        <h4>Registro fotográfico</h4>
-                                        <div class="public-os-photo-gallery">
-                                            {% for foto in equipamento.fotos %}
-                                                {% if foto.foto_antes_path %}
-                                                    <figure class="public-os-photo-card">
-                                                        <img src="{{ foto.foto_antes_path }}" alt="Foto antes de {{ equipamento.equipamento or equipamento.titulo }}">
-                                                        <figcaption><span class="public-os-photo-type">Antes</span><br>{{ foto.observacoes or 'Sem observação.' }}</figcaption>
-                                                    </figure>
-                                                {% endif %}
-                                                {% if foto.foto_depois_path %}
-                                                    <figure class="public-os-photo-card">
-                                                        <img src="{{ foto.foto_depois_path }}" alt="Foto depois de {{ equipamento.equipamento or equipamento.titulo }}">
-                                                        <figcaption><span class="public-os-photo-type">Depois</span><br>{{ foto.observacoes or 'Sem observação.' }}</figcaption>
-                                                    </figure>
-                                                {% endif %}
-                                            {% endfor %}
-                                        </div>
+                        <div class="public-os-photo-gallery">
+                            {% for foto in fotos %}
+                                <article class="public-os-photo">
+                                    <img src="{{ foto.foto_path or foto.foto_antes_path or foto.foto_depois_path }}" alt="Foto de {{ equipamento.equipamento or equipamento.titulo }}">
+                                    <div class="public-os-photo-info">
+                                        <span class="public-os-photo-type {{ foto.tipo_foto or 'antes' }}">
+                                            {% if foto.tipo_foto == 'durante' %}Durante{% elif foto.tipo_foto == 'depois' %}Depois{% else %}Antes{% endif %}
+                                        </span>
+                                        <p>{{ foto.observacoes or 'Sem observação.' }}</p>
                                     </div>
-                                {% endif %}
+                                </article>
+                            {% else %}
+                                <div class="public-os-empty">Nenhuma foto registrada para este equipamento.</div>
+                            {% endfor %}
+                        </div>
+
+                        {% if tecnico and not bloqueado %}
+                            <div class="public-os-add-zone">
+                                <div class="public-os-add-zone-title">
+                                    <strong>Acrescentar fotos neste equipamento</strong>
+                                    <button type="button" class="public-os-btn blue" data-add-photo data-destino="existente" data-equipamento-indice="{{ equipamento.indice }}">+ Adicionar foto</button>
+                                </div>
+                                <div class="public-os-photo-inputs" data-photo-list data-destino="existente" data-equipamento-indice="{{ equipamento.indice }}"></div>
                             </div>
-                        </article>
-                    {% else %}
-                        <div class="public-os-empty">Nenhum equipamento informado nesta OS.</div>
-                    {% endfor %}
-                </div>
-
-                <div class="public-os-document-section">
-                    <h3>Produtos / Peças</h3>
-                    {% if itens_produtos_os_publicos %}
-                        <div class="public-os-table-wrap">
-                            <table class="public-os-document-table">
-                                <thead><tr><th>Produto</th><th>Detalhes</th><th>Quantidade</th>{% if mostrar_valores_os_publica %}<th>Valor</th><th>Subtotal</th>{% endif %}</tr></thead>
-                                <tbody>
-                                    {% for item in itens_produtos_os_publicos %}
-                                        <tr><td>{{ item.descricao or '-' }}</td><td>{{ item.detalhes or '-' }}</td><td>{{ item.quantidade or '-' }}</td>{% if mostrar_valores_os_publica %}<td>{{ item.valor_unitario or '0,00' }}</td><td>{{ item.subtotal or '0,00' }}</td>{% endif %}</tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    {% else %}
-                        <div class="public-os-empty">Nenhum produto vinculado.</div>
-                    {% endif %}
-                </div>
-
-                <div class="public-os-document-section">
-                    <h3>Serviços / Mão de obra</h3>
-                    {% if itens_servicos_os_publicos %}
-                        <div class="public-os-table-wrap">
-                            <table class="public-os-document-table">
-                                <thead><tr><th>Serviço</th><th>Detalhes</th><th>Quantidade</th>{% if mostrar_valores_os_publica %}<th>Valor</th><th>Subtotal</th>{% endif %}</tr></thead>
-                                <tbody>
-                                    {% for item in itens_servicos_os_publicos %}
-                                        <tr><td>{{ item.descricao or '-' }}</td><td>{{ item.detalhes or '-' }}</td><td>{{ item.quantidade or '-' }}</td>{% if mostrar_valores_os_publica %}<td>{{ item.valor_unitario or '0,00' }}</td><td>{{ item.subtotal or '0,00' }}</td>{% endif %}</tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    {% else %}
-                        <div class="public-os-empty">Nenhum serviço vinculado.</div>
-                    {% endif %}
-                </div>
-
-                {% if os_atual.servico_executado or os_atual.observacoes %}
-                    <div class="public-os-document-section">
-                        <h3>Informações da execução</h3>
-                        <div class="public-os-notes-grid">
-                            {% if os_atual.servico_executado %}<div class="public-os-note"><span>Serviço executado</span><div>{{ os_atual.servico_executado }}</div></div>{% endif %}
-                            {% if os_atual.observacoes %}<div class="public-os-note"><span>Observações</span><div>{{ os_atual.observacoes }}</div></div>{% endif %}
-                        </div>
+                        {% endif %}
                     </div>
-                {% endif %}
+                </article>
+            {% else %}
+                <div class="public-os-empty">Nenhum equipamento registrado nesta OS.</div>
+            {% endfor %}
+        </section>
 
-                {% if mostrar_valores_os_publica %}
-                    <div class="public-os-document-section">
-                        <div class="public-os-current-summary">
-                            <div class="public-os-current-card"><span>Produtos</span><strong>R$ {{ os_atual.total_produtos or '0,00' }}</strong></div>
-                            <div class="public-os-current-card"><span>Serviços</span><strong>R$ {{ os_atual.total_servicos or '0,00' }}</strong></div>
-                            <div class="public-os-current-card"><span>Desconto</span><strong>R$ {{ os_atual.desconto_valor or '0,00' }}</strong></div>
-                            <div class="public-os-current-card"><span>Valor total</span><strong>R$ {{ os_atual.valor_total or '0,00' }}</strong></div>
-                        </div>
+        {% if tecnico and not bloqueado %}
+            <section class="public-os-section">
+                <div class="public-os-section-header">
+                    <div>
+                        <h2>Adicionar equipamento</h2>
+                        <p>O técnico pode acrescentar equipamento cadastrado ou informar um novo. Depois de enviar, não poderá editar nem remover.</p>
                     </div>
-                {% endif %}
+                    <button type="button" id="btn-add-equipment" class="public-os-btn blue">+ Adicionar equipamento</button>
+                </div>
+                <div id="new-equipment-list"></div>
+                <div id="new-equipment-empty" class="public-os-empty">Nenhum equipamento novo preparado.</div>
             </section>
         {% endif %}
 
-        <section class="public-os-panel">
-            {% if erro %}
-                <div class="public-os-alert public-os-alert-error">{{ erro }}</div>
-            {% endif %}
-
-            {% if mensagem %}
-                <div class="public-os-alert public-os-alert-success">{{ mensagem }}</div>
-            {% endif %}
-
-            {% if acompanhamento and not bloqueado %}
-                <form method="post">
-                    <h2 class="public-os-section-title">Registro do dia</h2>
-
-                    <div class="public-os-form-grid">
-                        <div class="form-group public-os-span-2">
-                            <label for="responsavel">Responsável pelo preenchimento</label>
-                            <input id="responsavel" name="responsavel" type="text" class="form-control" value="{{ acompanhamento.responsavel or '' }}" placeholder="Nome do responsável">
-                        </div>
-
-                        <div class="form-group public-os-span-2">
-                            <label for="atividades_previstas">Atividades previstas para hoje</label>
-                            <textarea id="atividades_previstas" name="atividades_previstas" class="form-control public-os-textarea" placeholder="Informe o que será feito hoje">{{ acompanhamento.atividades_previstas or '' }}</textarea>
-                        </div>
-
-                        <div class="public-os-list-section">
-                            <h3>Equipe envolvida</h3>
-                            <p>Selecione os funcionários cadastrados que participaram da execução.</p>
-
-                            <div data-lista="equipe">
-                                {% if equipe_acompanhamento %}
-                                    {% for item in equipe_acompanhamento %}
-                                        <div class="public-os-item-row">
-                                            <div class="form-group">
-                                                <label>Profissional</label>
-                                                <select name="equipe_funcionario_id[]" class="form-control">
-                                                    <option value="">Selecione</option>
-                                                    {% for funcionario in funcionarios|default([]) %}
-                                                        <option value="{{ funcionario.id }}" {% if funcionario.id == item.funcionario_id %}selected{% endif %}>{{ funcionario.nome }}{% if funcionario.cargo %} - {{ funcionario.cargo }}{% endif %}</option>
-                                                    {% endfor %}
-                                                </select>
-                                            </div>
-                                            <div class="form-group">
-                                                <label>Horas</label>
-                                                <input name="equipe_horas[]" type="text" class="form-control" value="{{ item.horas or '' }}" placeholder="8">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>Observação</label>
-                                                <input name="equipe_observacoes[]" type="text" class="form-control" value="{{ item.observacoes or '' }}" placeholder="Opcional">
-                                            </div>
-                                            <button type="button" class="public-os-remove" data-remover-linha>×</button>
-                                        </div>
-                                    {% endfor %}
-                                {% else %}
-                                    <div class="public-os-item-row">
-                                        <div class="form-group">
-                                            <label>Profissional</label>
-                                            <select name="equipe_funcionario_id[]" class="form-control">
-                                                <option value="">Selecione</option>
-                                                {% for funcionario in funcionarios|default([]) %}
-                                                    <option value="{{ funcionario.id }}">{{ funcionario.nome }}{% if funcionario.cargo %} - {{ funcionario.cargo }}{% endif %}</option>
-                                                {% endfor %}
-                                            </select>
-                                        </div>
-                                        <div class="form-group">
-                                            <label>Horas</label>
-                                            <input name="equipe_horas[]" type="text" class="form-control" placeholder="8">
-                                        </div>
-                                        <div class="form-group">
-                                            <label>Observação</label>
-                                            <input name="equipe_observacoes[]" type="text" class="form-control" placeholder="Opcional">
-                                        </div>
-                                        <button type="button" class="public-os-remove" data-remover-linha>×</button>
-                                    </div>
-                                {% endif %}
-                            </div>
-
-                            <button type="button" class="btn-light public-os-add" data-adicionar-linha="equipe">+ Adicionar profissional</button>
-                        </div>
-
-                        <div class="public-os-list-section">
-                            <h3>Materiais utilizados</h3>
-                            <p>Selecione os produtos cadastrados e informe a quantidade utilizada no dia.</p>
-
-                            <div data-lista="materiais">
-                                {% if materiais_acompanhamento %}
-                                    {% for item in materiais_acompanhamento %}
-                                        <div class="public-os-item-row public-os-material-row">
-                                            <div class="form-group">
-                                                <label>Material</label>
-                                                <select name="material_produto_id[]" class="form-control">
-                                                    <option value="">Selecione</option>
-                                                    {% for produto in produtos|default([]) %}
-                                                        <option value="{{ produto.id }}" {% if produto.id == item.produto_id %}selected{% endif %}>{{ produto.nome }}{% if produto.unidade %} - {{ produto.unidade }}{% endif %}</option>
-                                                    {% endfor %}
-                                                </select>
-                                            </div>
-                                            <div class="form-group">
-                                                <label>Quantidade</label>
-                                                <input name="material_quantidade[]" type="text" class="form-control" value="{{ item.quantidade or '' }}" placeholder="1">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>Unidade</label>
-                                                <input type="text" class="form-control" value="{{ item.unidade or '' }}" readonly>
-                                            </div>
-                                            <div class="form-group">
-                                                <label>Observação</label>
-                                                <input name="material_observacoes[]" type="text" class="form-control" value="{{ item.observacoes or '' }}" placeholder="Opcional">
-                                            </div>
-                                            <button type="button" class="public-os-remove" data-remover-linha>×</button>
-                                        </div>
-                                    {% endfor %}
-                                {% else %}
-                                    <div class="public-os-item-row public-os-material-row">
-                                        <div class="form-group">
-                                            <label>Material</label>
-                                            <select name="material_produto_id[]" class="form-control">
-                                                <option value="">Selecione</option>
-                                                {% for produto in produtos|default([]) %}
-                                                    <option value="{{ produto.id }}">{{ produto.nome }}{% if produto.unidade %} - {{ produto.unidade }}{% endif %}</option>
-                                                {% endfor %}
-                                            </select>
-                                        </div>
-                                        <div class="form-group">
-                                            <label>Quantidade</label>
-                                            <input name="material_quantidade[]" type="text" class="form-control" placeholder="1">
-                                        </div>
-                                        <div class="form-group">
-                                            <label>Unidade</label>
-                                            <input type="text" class="form-control" placeholder="Auto" readonly>
-                                        </div>
-                                        <div class="form-group">
-                                            <label>Observação</label>
-                                            <input name="material_observacoes[]" type="text" class="form-control" placeholder="Opcional">
-                                        </div>
-                                        <button type="button" class="public-os-remove" data-remover-linha>×</button>
-                                    </div>
-                                {% endif %}
-                            </div>
-
-                            <button type="button" class="btn-light public-os-add" data-adicionar-linha="materiais">+ Adicionar material</button>
-                        </div>
-
-                        <div class="public-os-list-section">
-                            <h3>Serviços executados</h3>
-                            <p>Selecione os serviços cadastrados e informe a quantidade executada no dia.</p>
-
-                            <div data-lista="servicos">
-                                {% if servicos_acompanhamento %}
-                                    {% for item in servicos_acompanhamento %}
-                                        <div class="public-os-item-row">
-                                            <div class="form-group">
-                                                <label>Serviço</label>
-                                                <select name="servico_id[]" class="form-control">
-                                                    <option value="">Selecione</option>
-                                                    {% for servico in servicos_cadastrados|default([]) %}
-                                                        <option value="{{ servico.id }}" {% if servico.id == item.servico_id %}selected{% endif %}>{{ servico.nome }}</option>
-                                                    {% endfor %}
-                                                </select>
-                                            </div>
-                                            <div class="form-group">
-                                                <label>Quantidade</label>
-                                                <input name="servico_quantidade[]" type="text" class="form-control" value="{{ item.quantidade or '' }}" placeholder="1">
-                                            </div>
-                                            <div class="form-group">
-                                                <label>Observação</label>
-                                                <input name="servico_observacoes[]" type="text" class="form-control" value="{{ item.observacoes or '' }}" placeholder="Opcional">
-                                            </div>
-                                            <button type="button" class="public-os-remove" data-remover-linha>×</button>
-                                        </div>
-                                    {% endfor %}
-                                {% else %}
-                                    <div class="public-os-item-row">
-                                        <div class="form-group">
-                                            <label>Serviço</label>
-                                            <select name="servico_id[]" class="form-control">
-                                                <option value="">Selecione</option>
-                                                {% for servico in servicos_cadastrados|default([]) %}
-                                                    <option value="{{ servico.id }}">{{ servico.nome }}</option>
-                                                {% endfor %}
-                                            </select>
-                                        </div>
-                                        <div class="form-group">
-                                            <label>Quantidade</label>
-                                            <input name="servico_quantidade[]" type="text" class="form-control" placeholder="1">
-                                        </div>
-                                        <div class="form-group">
-                                            <label>Observação</label>
-                                            <input name="servico_observacoes[]" type="text" class="form-control" placeholder="Opcional">
-                                        </div>
-                                        <button type="button" class="public-os-remove" data-remover-linha>×</button>
-                                    </div>
-                                {% endif %}
-                            </div>
-
-                            <button type="button" class="btn-light public-os-add" data-adicionar-linha="servicos">+ Adicionar serviço</button>
-                        </div>
-
-                        <div class="form-group public-os-span-2">
-                            <label for="atividades_executadas">Atividades executadas no dia</label>
-                            <textarea id="atividades_executadas" name="atividades_executadas" class="form-control public-os-textarea" placeholder="Informe o que foi realmente executado">{{ acompanhamento.atividades_executadas or '' }}</textarea>
-                        </div>
-
-                        <div class="form-group public-os-span-2">
-                            <label for="observacoes">Observações</label>
-                            <textarea id="observacoes" name="observacoes" class="form-control public-os-textarea" placeholder="Informe paradas, pendências, impedimentos ou observações importantes">{{ acompanhamento.observacoes or '' }}</textarea>
-                        </div>
-                    </div>
-
-                    <div class="public-os-actions">
-                        <button type="submit" name="acao" value="salvar" class="btn-dark">Salvar andamento</button>
-                        <button type="submit" name="acao" value="finalizar" class="btn-primary-green" onclick="return confirm('Deseja finalizar a atividade do dia? Depois disso o registro ficará bloqueado.');">Finalizar dia</button>
-                    </div>
-                </form>
-            {% elif acompanhamento %}
-                <h2 class="public-os-section-title">Resumo registrado</h2>
-                <div class="public-os-form-grid">
-                    <div class="form-group public-os-span-2"><label>Responsável</label><div class="form-control">{{ acompanhamento.responsavel or '-' }}</div></div>
-                    <div class="form-group public-os-span-2"><label>Atividades previstas</label><div class="form-control">{{ acompanhamento.atividades_previstas or '-' }}</div></div>
-
-                    <div class="public-os-list-section">
-                        <h3>Equipe envolvida</h3>
-                        {% if equipe_acompanhamento %}
-                            <ul class="public-os-summary-list">
-                                {% for item in equipe_acompanhamento %}
-                                    <li>{{ item.nome or '-' }}{% if item.cargo %} - {{ item.cargo }}{% endif %}{% if item.horas %} | {{ item.horas }}h{% endif %}{% if item.observacoes %} | {{ item.observacoes }}{% endif %}</li>
-                                {% endfor %}
-                            </ul>
-                        {% else %}
-                            <div class="public-os-empty">Nenhum profissional informado.</div>
-                        {% endif %}
-                    </div>
-
-                    <div class="public-os-list-section">
-                        <h3>Materiais utilizados</h3>
-                        {% if materiais_acompanhamento %}
-                            <ul class="public-os-summary-list">
-                                {% for item in materiais_acompanhamento %}
-                                    <li>{{ item.nome or '-' }}{% if item.quantidade %} | Qtd.: {{ item.quantidade }}{% endif %}{% if item.unidade %} {{ item.unidade }}{% endif %}{% if item.observacoes %} | {{ item.observacoes }}{% endif %}</li>
-                                {% endfor %}
-                            </ul>
-                        {% else %}
-                            <div class="public-os-empty">Nenhum material informado.</div>
-                        {% endif %}
-                    </div>
-
-                    <div class="public-os-list-section">
-                        <h3>Serviços executados</h3>
-                        {% if servicos_acompanhamento %}
-                            <ul class="public-os-summary-list">
-                                {% for item in servicos_acompanhamento %}
-                                    <li>{{ item.nome or '-' }}{% if item.quantidade %} | Qtd.: {{ item.quantidade }}{% endif %}{% if item.observacoes %} | {{ item.observacoes }}{% endif %}</li>
-                                {% endfor %}
-                            </ul>
-                        {% else %}
-                            <div class="public-os-empty">Nenhum serviço informado.</div>
-                        {% endif %}
-                    </div>
-
-                    <div class="form-group public-os-span-2"><label>Atividades executadas</label><div class="form-control">{{ acompanhamento.atividades_executadas or '-' }}</div></div>
-                    <div class="form-group public-os-span-2"><label>Observações</label><div class="form-control">{{ acompanhamento.observacoes or '-' }}</div></div>
+        <section class="public-os-section">
+            <div class="public-os-section-header">
+                <div>
+                    <h2>Produtos e serviços da OS</h2>
+                    <p>Itens já registrados na OS. O link público não permite alterar nem remover estes dados.</p>
                 </div>
-            {% else %}
-                <p>Não foi possível abrir o acompanhamento diário.</p>
-            {% endif %}
+                <span class="public-os-status-badge">Somente leitura</span>
+            </div>
+
+            <div class="public-os-grid-2">
+                <div>
+                    <h3>Produtos / peças</h3>
+                    <div class="public-os-table-shell">
+                        <table class="public-os-table">
+                            <thead><tr><th>Produto</th><th>Detalhes</th><th>Quantidade</th></tr></thead>
+                            <tbody>
+                            {% for item in itens_produtos|default([]) %}
+                                <tr><td>{{ item.descricao or '-' }}</td><td>{{ item.detalhes or '-' }}</td><td>{{ item.quantidade or '-' }}</td></tr>
+                            {% else %}
+                                <tr><td colspan="3">Nenhum produto registrado.</td></tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div>
+                    <h3>Serviços / mão de obra</h3>
+                    <div class="public-os-table-shell">
+                        <table class="public-os-table">
+                            <thead><tr><th>Serviço</th><th>Detalhes</th><th>Quantidade</th></tr></thead>
+                            <tbody>
+                            {% for item in itens_servicos|default([]) %}
+                                <tr><td>{{ item.descricao or '-' }}</td><td>{{ item.detalhes or '-' }}</td><td>{{ item.quantidade or '-' }}</td></tr>
+                            {% else %}
+                                <tr><td colspan="3">Nenhum serviço registrado.</td></tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </section>
-    </main>
 
-    <template id="template-equipe">
-        <div class="public-os-item-row">
-            <div class="form-group">
-                <label>Profissional</label>
-                <select name="equipe_funcionario_id[]" class="form-control">
-                    <option value="">Selecione</option>
-                    {% for funcionario in funcionarios|default([]) %}
-                        <option value="{{ funcionario.id }}">{{ funcionario.nome }}{% if funcionario.cargo %} - {{ funcionario.cargo }}{% endif %}</option>
-                    {% endfor %}
-                </select>
+        <section class="public-os-section">
+            <div class="public-os-section-header">
+                <div>
+                    <h2>Execução e observações</h2>
+                    <p>Informações gerais já registradas na Ordem de Serviço.</p>
+                </div>
+                <span class="public-os-status-badge">Somente leitura</span>
             </div>
-            <div class="form-group">
-                <label>Horas</label>
-                <input name="equipe_horas[]" type="text" class="form-control" placeholder="8">
+            <div class="public-os-grid-2">
+                <div class="public-os-read-field"><span>Serviço executado</span><p>{{ os.servico_executado or '-' }}</p></div>
+                <div class="public-os-read-field"><span>Observações</span><p>{{ os.observacoes or '-' }}</p></div>
             </div>
-            <div class="form-group">
-                <label>Observação</label>
-                <input name="equipe_observacoes[]" type="text" class="form-control" placeholder="Opcional">
+        </section>
+
+        <section class="public-os-section">
+            <div class="public-os-section-header">
+                <div>
+                    <h2>Histórico de acompanhamento</h2>
+                    <p>Registros anteriores são exibidos em ordem do mais recente para o mais antigo e não podem ser alterados pelo técnico.</p>
+                </div>
+                <span class="public-os-status-badge">{{ acompanhamentos_historico|length }} registro(s)</span>
             </div>
-            <button type="button" class="public-os-remove" data-remover-linha>×</button>
+
+            {% for historico in acompanhamentos_historico|default([]) %}
+                <article class="public-os-history-card">
+                    <div class="public-os-history-head">
+                        <div>
+                            <h3>{{ historico.data_acompanhamento or 'Data não informada' }} — {{ historico.responsavel or 'Responsável não informado' }}</h3>
+                            <small>Registro salvo em {{ historico.atualizado_em or historico.criado_em or '-' }}</small>
+                        </div>
+                        <span class="public-os-history-status{% if historico.status_dia == 'finalizado' %} done{% elif historico.status_dia == 'registrado' %} registered{% endif %}">
+                            {% if historico.status_dia == 'finalizado' %}Finalizado{% elif historico.status_dia == 'registrado' %}Registrado{% else %}{{ historico.status_dia or 'Aberto' }}{% endif %}
+                        </span>
+                    </div>
+                    <div class="public-os-history-body">
+                        <div class="public-os-grid-2">
+                            <div class="public-os-read-field"><span>Atividades previstas</span><p>{{ historico.atividades_previstas or '-' }}</p></div>
+                            <div class="public-os-read-field"><span>Atividades executadas</span><p>{{ historico.atividades_executadas or '-' }}</p></div>
+                            <div class="public-os-read-field public-os-span-full"><span>Observações</span><p>{{ historico.observacoes or '-' }}</p></div>
+                        </div>
+                        <div class="public-os-history-lists">
+                            <div class="public-os-history-list">
+                                <strong>Equipe</strong>
+                                {% if historico.equipe_lista %}
+                                    <ul>{% for item in historico.equipe_lista %}<li>{{ item.nome or '-' }}{% if item.cargo %} — {{ item.cargo }}{% endif %}{% if item.horas %} — {{ item.horas }}h{% endif %}</li>{% endfor %}</ul>
+                                {% else %}<span>Nenhuma equipe informada.</span>{% endif %}
+                            </div>
+                            <div class="public-os-history-list">
+                                <strong>Materiais</strong>
+                                {% if historico.materiais_lista %}
+                                    <ul>{% for item in historico.materiais_lista %}<li>{{ item.nome or '-' }}{% if item.quantidade %} — {{ item.quantidade }} {{ item.unidade or '' }}{% endif %}</li>{% endfor %}</ul>
+                                {% else %}<span>Nenhum material informado.</span>{% endif %}
+                            </div>
+                            <div class="public-os-history-list">
+                                <strong>Serviços</strong>
+                                {% if historico.servicos_lista %}
+                                    <ul>{% for item in historico.servicos_lista %}<li>{{ item.nome or '-' }}{% if item.quantidade %} — {{ item.quantidade }}{% endif %}</li>{% endfor %}</ul>
+                                {% else %}<span>Nenhum serviço informado.</span>{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </article>
+            {% else %}
+                <div class="public-os-empty">Ainda não existem acompanhamentos anteriores.</div>
+            {% endfor %}
+        </section>
+
+        {% if tecnico and not bloqueado %}
+            <section class="public-os-section">
+                <div class="public-os-section-header">
+                    <div>
+                        <h2>Novo acompanhamento do dia</h2>
+                        <p>Esta é a única área editável. Depois de salvar ou finalizar, o registro ficará bloqueado para o técnico.</p>
+                    </div>
+                    <span class="public-os-access-badge">Somente acrescentar</span>
+                </div>
+
+                <div class="public-os-grid-2">
+                    <div class="public-os-form-group public-os-span-full">
+                        <label for="responsavel">Responsável pelo registro</label>
+                        <input id="responsavel" name="responsavel" type="text" value="{{ acompanhamento.responsavel or os.tecnico or '' }}" placeholder="Nome do responsável">
+                    </div>
+                    <div class="public-os-form-group public-os-span-full">
+                        <label for="atividades_previstas">Atividades previstas</label>
+                        <textarea id="atividades_previstas" name="atividades_previstas" placeholder="Informe o que estava previsto para este atendimento"></textarea>
+                    </div>
+
+                    <div class="public-os-list-box public-os-span-full">
+                        <h3>Equipe envolvida</h3>
+                        <p>Acrescente os profissionais que participaram deste registro.</p>
+                        <div id="team-list"></div>
+                        <button type="button" class="public-os-btn light" data-add-item="team">+ Adicionar profissional</button>
+                    </div>
+
+                    <div class="public-os-list-box public-os-span-full">
+                        <h3>Materiais utilizados</h3>
+                        <p>Acrescente somente os materiais utilizados neste atendimento.</p>
+                        <div id="material-list"></div>
+                        <button type="button" class="public-os-btn light" data-add-item="material">+ Adicionar material</button>
+                    </div>
+
+                    <div class="public-os-list-box public-os-span-full">
+                        <h3>Serviços executados</h3>
+                        <p>Acrescente os serviços realizados neste atendimento.</p>
+                        <div id="service-list"></div>
+                        <button type="button" class="public-os-btn light" data-add-item="service">+ Adicionar serviço</button>
+                    </div>
+
+                    <div class="public-os-form-group public-os-span-full">
+                        <label for="atividades_executadas">Atividades executadas</label>
+                        <textarea id="atividades_executadas" name="atividades_executadas" placeholder="Descreva o que foi realmente executado"></textarea>
+                    </div>
+                    <div class="public-os-form-group public-os-span-full">
+                        <label for="observacoes">Observações do atendimento</label>
+                        <textarea id="observacoes" name="observacoes" placeholder="Informe impedimentos, pendências, testes, liberações ou outras observações"></textarea>
+                    </div>
+                </div>
+
+                <div class="public-os-lock-note">🔒 Após o envio, equipamentos, fotos e acompanhamento adicionados ficarão bloqueados para este link técnico.</div>
+
+                <div class="public-os-actions">
+                    <button type="submit" name="acao" value="salvar" class="public-os-btn dark" data-confirm-submit="Salvar este registro? Depois disso ele ficará bloqueado para alterações.">Salvar registro e bloquear</button>
+                    <button type="submit" name="acao" value="finalizar" class="public-os-btn primary" data-confirm-submit="Finalizar o dia? Depois disso o registro ficará bloqueado para alterações.">Finalizar dia e bloquear</button>
+                </div>
+            </section>
+            </form>
+        {% elif tecnico %}
+            <section class="public-os-section">
+                <div class="public-os-lock-note">🔒 O link técnico está bloqueado para novas alterações. Os dados permanecem disponíveis para consulta.</div>
+            </section>
+        {% endif %}
+    {% else %}
+        <section class="public-os-section">
+            <div class="public-os-empty">Não foi possível carregar a Ordem de Serviço.</div>
+        </section>
+    {% endif %}
+</main>
+
+{% if tecnico and not bloqueado %}
+<template id="template-team-row">
+    <div class="public-os-item-row">
+        <div class="public-os-form-group">
+            <label>Profissional</label>
+            <select name="equipe_funcionario_id[]">
+                <option value="">Selecione</option>
+                {% for funcionario in funcionarios|default([]) %}
+                    <option value="{{ funcionario.id }}">{{ funcionario.nome }}{% if funcionario.cargo %} — {{ funcionario.cargo }}{% endif %}</option>
+                {% endfor %}
+            </select>
         </div>
-    </template>
+        <div class="public-os-form-group"><label>Horas</label><input name="equipe_horas[]" type="text" placeholder="8"></div>
+        <div class="public-os-form-group"><label>Observação</label><input name="equipe_observacoes[]" type="text" placeholder="Opcional"></div>
+        <button type="button" class="public-os-btn danger icon" data-remove-item>×</button>
+    </div>
+</template>
 
-    <template id="template-materiais">
-        <div class="public-os-item-row public-os-material-row">
-            <div class="form-group">
-                <label>Material</label>
-                <select name="material_produto_id[]" class="form-control">
-                    <option value="">Selecione</option>
-                    {% for produto in produtos|default([]) %}
-                        <option value="{{ produto.id }}">{{ produto.nome }}{% if produto.unidade %} - {{ produto.unidade }}{% endif %}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Quantidade</label>
-                <input name="material_quantidade[]" type="text" class="form-control" placeholder="1">
-            </div>
-            <div class="form-group">
-                <label>Unidade</label>
-                <input type="text" class="form-control" placeholder="Auto" readonly>
-            </div>
-            <div class="form-group">
-                <label>Observação</label>
-                <input name="material_observacoes[]" type="text" class="form-control" placeholder="Opcional">
-            </div>
-            <button type="button" class="public-os-remove" data-remover-linha>×</button>
+<template id="template-material-row">
+    <div class="public-os-item-row material">
+        <div class="public-os-form-group">
+            <label>Material</label>
+            <select name="material_produto_id[]">
+                <option value="">Selecione</option>
+                {% for produto in produtos|default([]) %}
+                    <option value="{{ produto.id }}">{{ produto.nome }}{% if produto.unidade %} — {{ produto.unidade }}{% endif %}</option>
+                {% endfor %}
+            </select>
         </div>
-    </template>
+        <div class="public-os-form-group"><label>Quantidade</label><input name="material_quantidade[]" type="text" placeholder="1"></div>
+        <div class="public-os-form-group"><label>Observação</label><input name="material_observacoes[]" type="text" placeholder="Opcional"></div>
+        <button type="button" class="public-os-btn danger icon" data-remove-item>×</button>
+    </div>
+</template>
 
-    <template id="template-servicos">
-        <div class="public-os-item-row">
-            <div class="form-group">
-                <label>Serviço</label>
-                <select name="servico_id[]" class="form-control">
-                    <option value="">Selecione</option>
-                    {% for servico in servicos_cadastrados|default([]) %}
-                        <option value="{{ servico.id }}">{{ servico.nome }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Quantidade</label>
-                <input name="servico_quantidade[]" type="text" class="form-control" placeholder="1">
-            </div>
-            <div class="form-group">
-                <label>Observação</label>
-                <input name="servico_observacoes[]" type="text" class="form-control" placeholder="Opcional">
-            </div>
-            <button type="button" class="public-os-remove" data-remover-linha>×</button>
+<template id="template-service-row">
+    <div class="public-os-item-row">
+        <div class="public-os-form-group">
+            <label>Serviço</label>
+            <select name="servico_id[]">
+                <option value="">Selecione</option>
+                {% for servico in servicos_cadastrados|default([]) %}
+                    <option value="{{ servico.id }}">{{ servico.nome }}</option>
+                {% endfor %}
+            </select>
         </div>
-    </template>
+        <div class="public-os-form-group"><label>Quantidade</label><input name="servico_quantidade[]" type="text" placeholder="1"></div>
+        <div class="public-os-form-group"><label>Observação</label><input name="servico_observacoes[]" type="text" placeholder="Opcional"></div>
+        <button type="button" class="public-os-btn danger icon" data-remove-item>×</button>
+    </div>
+</template>
 
-    <script>
-        document.addEventListener("click", function (event) {
-            const botaoAdicionar = event.target.closest("[data-adicionar-linha]");
-            const botaoRemover = event.target.closest("[data-remover-linha]");
+<script>
+(function () {
+    "use strict";
 
-            if (botaoAdicionar) {
-                const tipo = botaoAdicionar.getAttribute("data-adicionar-linha");
-                const lista = document.querySelector('[data-lista="' + tipo + '"]');
-                const template = document.getElementById("template-" + tipo);
+    const equipamentosCadastrados = {{ equipamentos_cadastrados|default([])|tojson }};
+    const formulario = document.getElementById("form-tecnico-os");
+    const listaEquipamentos = document.getElementById("new-equipment-list");
+    const vazioEquipamentos = document.getElementById("new-equipment-empty");
+    let contadorEquipamentos = 0;
+    let contadorFotos = 0;
 
-                if (lista && template) {
-                    lista.appendChild(template.content.cloneNode(true));
-                }
-            }
+    function chave(prefixo) {
+        return prefixo + "_" + Date.now() + "_" + Math.random().toString(16).slice(2) + "_" + (++contadorFotos);
+    }
 
-            if (botaoRemover) {
-                const linha = botaoRemover.closest(".public-os-item-row");
+    function escapeHtml(valor) {
+        return String(valor || "")
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#039;");
+    }
 
-                if (linha) {
-                    linha.remove();
-                }
-            }
+    function atualizarVazioEquipamentos() {
+        if (!vazioEquipamentos || !listaEquipamentos) return;
+        vazioEquipamentos.hidden = listaEquipamentos.children.length > 0;
+    }
+
+    function opcoesEquipamentos() {
+        let html = '<option value="">Cadastrar equipamento novo</option>';
+        equipamentosCadastrados.forEach(function (item) {
+            const texto = [item.nome, item.marca, item.modelo, item.serie].filter(Boolean).join(" • ");
+            html += '<option value="' + escapeHtml(item.id) + '">' + escapeHtml(texto || "Equipamento") + '</option>';
         });
-    </script>
+        return html;
+    }
+
+    function criarFotoCard(destino, equipamentoIndice, equipamentoChave) {
+        const fotoChave = chave("foto");
+        const card = document.createElement("div");
+        card.className = "public-os-photo-input-card";
+        card.dataset.techPhoto = "";
+        card.dataset.fotoChave = fotoChave;
+        card.dataset.destino = destino;
+        card.dataset.equipamentoIndice = equipamentoIndice || "";
+        card.dataset.equipamentoChave = equipamentoChave || "";
+        card.innerHTML = `
+            <img class="public-os-photo-input-preview" alt="Pré-visualização" data-preview>
+            <div class="public-os-form-group">
+                <label>Imagem</label>
+                <input type="file" name="tecnico_foto_arquivo_${fotoChave}" accept="image/png,image/jpeg,image/webp,image/jfif" required data-photo-file>
+            </div>
+            <div>
+                <div class="public-os-form-group">
+                    <label>Tipo</label>
+                    <select data-photo-type>
+                        <option value="antes">Antes</option>
+                        <option value="durante">Durante</option>
+                        <option value="depois">Depois</option>
+                    </select>
+                </div>
+                <div class="public-os-form-group" style="margin-top:8px;">
+                    <label>Observação</label>
+                    <input type="text" placeholder="Opcional" data-photo-observation>
+                </div>
+            </div>
+            <button type="button" class="public-os-btn danger icon" data-remove-photo>×</button>
+        `;
+        return card;
+    }
+
+    function adicionarFoto(botao) {
+        const destino = botao.dataset.destino || "existente";
+        const equipamentoIndice = botao.dataset.equipamentoIndice || "";
+        const equipamentoChave = botao.dataset.equipamentoChave || "";
+        let lista = null;
+
+        if (destino === "novo") {
+            const cardEquipamento = botao.closest("[data-new-equipment]");
+            lista = cardEquipamento ? cardEquipamento.querySelector("[data-photo-list]") : null;
+        } else {
+            const zona = botao.closest(".public-os-add-zone");
+            lista = zona ? zona.querySelector("[data-photo-list]") : null;
+        }
+
+        if (!lista) return;
+        const card = criarFotoCard(destino, equipamentoIndice, equipamentoChave);
+        lista.appendChild(card);
+        const arquivo = card.querySelector("[data-photo-file]");
+        if (arquivo) arquivo.click();
+    }
+
+    function criarEquipamento() {
+        contadorEquipamentos += 1;
+        const equipamentoChave = chave("equipamento");
+        const card = document.createElement("article");
+        card.className = "public-os-new-equipment-card";
+        card.dataset.newEquipment = "";
+        card.dataset.equipamentoChave = equipamentoChave;
+        card.innerHTML = `
+            <div class="public-os-new-equipment-head">
+                <h3>Novo equipamento ${contadorEquipamentos}</h3>
+                <button type="button" class="public-os-btn danger" data-remove-equipment>Remover antes de enviar</button>
+            </div>
+            <div class="public-os-new-equipment-body">
+                <div class="public-os-grid-4">
+                    <div class="public-os-form-group public-os-span-full">
+                        <label>Usar equipamento já cadastrado</label>
+                        <select data-equipment-source>${opcoesEquipamentos()}</select>
+                    </div>
+                    <div class="public-os-form-group"><label>Equipamento *</label><input type="text" data-equipment-field="equipamento" required></div>
+                    <div class="public-os-form-group"><label>Marca</label><input type="text" data-equipment-field="marca"></div>
+                    <div class="public-os-form-group"><label>Modelo</label><input type="text" data-equipment-field="modelo"></div>
+                    <div class="public-os-form-group"><label>Série</label><input type="text" data-equipment-field="serie"></div>
+                    <div class="public-os-form-group"><label>TAG</label><input type="text" data-equipment-field="tag"></div>
+                    <div class="public-os-form-group public-os-span-full"><label>Local do serviço</label><input type="text" data-equipment-field="local_servico"></div>
+                    <div class="public-os-form-group public-os-span-2"><label>Condições</label><textarea data-equipment-field="condicoes"></textarea></div>
+                    <div class="public-os-form-group public-os-span-2"><label>Defeito / relato</label><textarea data-equipment-field="relato_cliente"></textarea></div>
+                    <div class="public-os-form-group public-os-span-2"><label>Acessórios</label><textarea data-equipment-field="acessorios"></textarea></div>
+                    <div class="public-os-form-group public-os-span-2"><label>Solução / diagnóstico</label><textarea data-equipment-field="diagnostico"></textarea></div>
+                    <div class="public-os-form-group public-os-span-2"><label>Laudo</label><textarea data-equipment-field="laudo"></textarea></div>
+                    <div class="public-os-form-group public-os-span-2"><label>Termos</label><textarea data-equipment-field="termos"></textarea></div>
+                    <div class="public-os-form-group public-os-span-full"><label>Observação do cadastro</label><textarea data-equipment-field="observacoes_cadastro"></textarea></div>
+                </div>
+                <div class="public-os-add-zone">
+                    <div class="public-os-add-zone-title">
+                        <strong>Fotos do equipamento novo</strong>
+                        <button type="button" class="public-os-btn blue" data-add-photo data-destino="novo" data-equipamento-chave="${equipamentoChave}">+ Adicionar foto</button>
+                    </div>
+                    <div class="public-os-photo-inputs" data-photo-list></div>
+                </div>
+            </div>
+        `;
+        return card;
+    }
+
+    function preencherEquipamentoCadastrado(select) {
+        const card = select.closest("[data-new-equipment]");
+        if (!card) return;
+        const item = equipamentosCadastrados.find(function (equipamento) {
+            return String(equipamento.id) === String(select.value || "");
+        });
+        if (!item) return;
+        const mapa = {
+            equipamento: item.nome || "",
+            marca: item.marca || "",
+            modelo: item.modelo || "",
+            serie: item.serie || "",
+            tag: item.tag || "",
+            local_servico: item.local_instalacao || "",
+            observacoes_cadastro: item.observacoes || ""
+        };
+        Object.keys(mapa).forEach(function (campo) {
+            const input = card.querySelector('[data-equipment-field="' + campo + '"]');
+            if (input) input.value = mapa[campo];
+        });
+    }
+
+    function adicionarLinha(tipo) {
+        const template = document.getElementById("template-" + tipo + "-row");
+        const ids = { team: "team-list", material: "material-list", service: "service-list" };
+        const lista = document.getElementById(ids[tipo]);
+        if (template && lista) lista.appendChild(template.content.cloneNode(true));
+    }
+
+    function serializarEquipamentos() {
+        const dados = [];
+        document.querySelectorAll("[data-new-equipment]").forEach(function (card) {
+            const item = {
+                chave: card.dataset.equipamentoChave || "",
+                equipamento_id: card.querySelector("[data-equipment-source]")?.value || ""
+            };
+            card.querySelectorAll("[data-equipment-field]").forEach(function (campo) {
+                item[campo.dataset.equipmentField] = String(campo.value || "").trim();
+            });
+            dados.push(item);
+        });
+        document.getElementById("tecnico_equipamentos_json").value = JSON.stringify(dados);
+    }
+
+    function serializarFotos() {
+        const dados = [];
+        document.querySelectorAll("[data-tech-photo]").forEach(function (card) {
+            const arquivo = card.querySelector("[data-photo-file]");
+            if (!arquivo || !arquivo.files || !arquivo.files.length) return;
+            dados.push({
+                chave: card.dataset.fotoChave || "",
+                destino: card.dataset.destino || "existente",
+                equipamento_indice: card.dataset.equipamentoIndice || "",
+                equipamento_chave: card.dataset.equipamentoChave || "",
+                tipo: card.querySelector("[data-photo-type]")?.value || "antes",
+                observacoes: String(card.querySelector("[data-photo-observation]")?.value || "").trim()
+            });
+        });
+        document.getElementById("tecnico_fotos_json").value = JSON.stringify(dados);
+    }
+
+    document.addEventListener("click", function (event) {
+        const addPhoto = event.target.closest("[data-add-photo]");
+        const removePhoto = event.target.closest("[data-remove-photo]");
+        const removeEquipment = event.target.closest("[data-remove-equipment]");
+        const addItem = event.target.closest("[data-add-item]");
+        const removeItem = event.target.closest("[data-remove-item]");
+
+        if (addPhoto) adicionarFoto(addPhoto);
+        if (removePhoto) removePhoto.closest("[data-tech-photo]")?.remove();
+        if (removeEquipment) {
+            removeEquipment.closest("[data-new-equipment]")?.remove();
+            atualizarVazioEquipamentos();
+        }
+        if (addItem) adicionarLinha(addItem.dataset.addItem);
+        if (removeItem) removeItem.closest(".public-os-item-row")?.remove();
+    });
+
+    document.addEventListener("change", function (event) {
+        const select = event.target.closest("[data-equipment-source]");
+        if (select) preencherEquipamentoCadastrado(select);
+
+        const arquivo = event.target.closest("[data-photo-file]");
+        if (arquivo) {
+            const card = arquivo.closest("[data-tech-photo]");
+            const preview = card ? card.querySelector("[data-preview]") : null;
+            const file = arquivo.files && arquivo.files[0];
+            if (preview && file) preview.src = URL.createObjectURL(file);
+        }
+    });
+
+    document.getElementById("btn-add-equipment")?.addEventListener("click", function () {
+        if (!listaEquipamentos) return;
+        listaEquipamentos.appendChild(criarEquipamento());
+        atualizarVazioEquipamentos();
+    });
+
+    formulario?.addEventListener("submit", function (event) {
+        const botao = event.submitter;
+        const mensagem = botao ? botao.dataset.confirmSubmit : "";
+        if (mensagem && !window.confirm(mensagem)) {
+            event.preventDefault();
+            return;
+        }
+        serializarEquipamentos();
+        serializarFotos();
+    });
+
+    adicionarLinha("team");
+    atualizarVazioEquipamentos();
+})();
+</script>
+{% endif %}
 </body>
 </html>
