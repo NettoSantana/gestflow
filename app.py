@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-18 11:25 (America/Bahia)
-# Motivo: Separar links do técnico e cliente e permitir ao técnico somente acrescentar equipamentos, fotos e acompanhamentos.
+# Último recode: 2026-07-18 11:38 (America/Bahia)
+# Motivo: Permitir editar e excluir acompanhamentos diários diretamente na tela Editar OS.
 
 from __future__ import annotations
 
@@ -11027,6 +11027,177 @@ def salvar_itens_acompanhamento_os(
         )
 
 
+
+def buscar_acompanhamento_ordem_servico_interno(
+    ordem_servico_id: int,
+    acompanhamento_id: int,
+) -> dict[str, Any] | None:
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT *
+            FROM os_acompanhamentos
+            WHERE id = ?
+              AND ordem_servico_id = ?
+              AND empresa_id = ?
+            LIMIT 1
+            """,
+            (acompanhamento_id, ordem_servico_id, empresa_id),
+        ).fetchone()
+
+    return dict(row) if row else None
+
+
+def atualizar_acompanhamento_ordem_servico_interno(
+    ordem_servico_id: int,
+    acompanhamento_id: int,
+    dados: dict[str, str],
+    itens: dict[str, list[dict[str, str]]],
+) -> tuple[bool, str]:
+    acompanhamento = buscar_acompanhamento_ordem_servico_interno(
+        ordem_servico_id,
+        acompanhamento_id,
+    )
+    if acompanhamento is None:
+        return False, "Acompanhamento diário não encontrado nesta OS."
+
+    data_acompanhamento = str(dados.get("data_acompanhamento") or "").strip()
+    if not data_acompanhamento:
+        return False, "Informe a data do acompanhamento diário."
+
+    try:
+        datetime.strptime(data_acompanhamento, "%Y-%m-%d")
+    except ValueError:
+        return False, "Informe uma data válida para o acompanhamento diário."
+
+    status_dia = str(dados.get("status_dia") or "registrado").strip().lower()
+    status_validos = {"aberto", "registrado", "finalizado"}
+    if status_dia not in status_validos:
+        return False, "Selecione um status válido para o acompanhamento diário."
+
+    status_link = str(dados.get("status_link") or "ativo").strip().lower()
+    if status_link not in {"ativo", "inativo"}:
+        status_link = "ativo"
+
+    agora_iso = agora_empresa().isoformat(timespec="seconds")
+    finalizado_em = str(acompanhamento.get("finalizado_em") or "").strip()
+    if status_dia == "aberto":
+        finalizado_em = ""
+    elif not finalizado_em:
+        finalizado_em = agora_iso
+
+    try:
+        with conectar_db() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            row = conn.execute(
+                """
+                SELECT id, empresa_id, ordem_servico_id
+                FROM os_acompanhamentos
+                WHERE id = ?
+                  AND ordem_servico_id = ?
+                  AND empresa_id = ?
+                LIMIT 1
+                """,
+                (acompanhamento_id, ordem_servico_id, empresa_logada_id()),
+            ).fetchone()
+            if row is None:
+                conn.rollback()
+                return False, "O acompanhamento foi removido ou pertence a outra OS."
+
+            acompanhamento_para_itens = dict(row)
+            salvar_itens_acompanhamento_os(conn, acompanhamento_para_itens, itens)
+
+            cursor = conn.execute(
+                """
+                UPDATE os_acompanhamentos
+                SET
+                    data_acompanhamento = ?,
+                    responsavel = ?,
+                    status_link = ?,
+                    status_dia = ?,
+                    atividades_previstas = ?,
+                    atividades_executadas = ?,
+                    observacoes = ?,
+                    finalizado_em = ?,
+                    atualizado_em = ?
+                WHERE id = ?
+                  AND ordem_servico_id = ?
+                  AND empresa_id = ?
+                """,
+                (
+                    data_acompanhamento,
+                    str(dados.get("responsavel") or "").strip(),
+                    status_link,
+                    status_dia,
+                    str(dados.get("atividades_previstas") or "").strip(),
+                    str(dados.get("atividades_executadas") or "").strip(),
+                    str(dados.get("observacoes") or "").strip(),
+                    finalizado_em,
+                    agora_iso,
+                    acompanhamento_id,
+                    ordem_servico_id,
+                    empresa_logada_id(),
+                ),
+            )
+            if cursor.rowcount != 1:
+                conn.rollback()
+                return False, "Não foi possível atualizar o acompanhamento diário."
+
+            conn.commit()
+    except sqlite3.Error:
+        return False, "Não foi possível salvar o acompanhamento diário. Tente novamente."
+
+    return True, "Acompanhamento diário atualizado com sucesso."
+
+
+def excluir_acompanhamento_ordem_servico_interno(
+    ordem_servico_id: int,
+    acompanhamento_id: int,
+) -> tuple[bool, str]:
+    acompanhamento = buscar_acompanhamento_ordem_servico_interno(
+        ordem_servico_id,
+        acompanhamento_id,
+    )
+    if acompanhamento is None:
+        return False, "Acompanhamento diário não encontrado nesta OS."
+
+    empresa_id = empresa_logada_id()
+
+    try:
+        with conectar_db() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            for tabela in (
+                "os_acompanhamento_equipe",
+                "os_acompanhamento_materiais",
+                "os_acompanhamento_servicos",
+            ):
+                conn.execute(
+                    f"DELETE FROM {tabela} WHERE acompanhamento_id = ? AND empresa_id = ?",
+                    (acompanhamento_id, empresa_id),
+                )
+
+            cursor = conn.execute(
+                """
+                DELETE FROM os_acompanhamentos
+                WHERE id = ?
+                  AND ordem_servico_id = ?
+                  AND empresa_id = ?
+                """,
+                (acompanhamento_id, ordem_servico_id, empresa_id),
+            )
+            if cursor.rowcount != 1:
+                conn.rollback()
+                return False, "Não foi possível excluir o acompanhamento diário."
+
+            conn.commit()
+    except sqlite3.Error:
+        return False, "Não foi possível excluir o acompanhamento diário. Tente novamente."
+
+    return True, "Acompanhamento diário excluído com sucesso."
+
+
 def buscar_ordem_servico_acompanhamento_publico(
     ordem_servico_id: int,
     empresa_id: int,
@@ -11431,6 +11602,9 @@ def registrar_acrescimos_tecnico_os(
     acompanhamento = buscar_acompanhamento_os_por_token(token)
     if acompanhamento is None or str(acompanhamento.get("tipo_acesso") or "") != "tecnico":
         return False, "Link técnico inválido."
+
+    if str(acompanhamento.get("status_link") or "ativo").strip().lower() != "ativo":
+        return False, "Este link técnico foi desativado pelo responsável da OS."
 
     if acompanhamento_os_esta_expirado(acompanhamento):
         return False, "Este link técnico expirou. Solicite um novo link."
@@ -11948,6 +12122,9 @@ def atualizar_acompanhamento_os_publico(token: Any, dados: dict[str, str], final
         return False
 
     if str(acompanhamento.get("tipo_acesso") or "").strip().lower() != "tecnico":
+        return False
+
+    if str(acompanhamento.get("status_link") or "ativo").strip().lower() != "ativo":
         return False
 
     if acompanhamento_os_esta_expirado(acompanhamento):
@@ -22321,6 +22498,12 @@ def acompanhamento_os_publico(token: str) -> str | Response:
     modo_publico = str(acompanhamento.get("tipo_acesso") or "tecnico").strip().lower()
     modo_cliente = modo_publico == "cliente"
 
+    if str(acompanhamento.get("status_link") or "ativo").strip().lower() != "ativo":
+        contexto_vazio["erro"] = "Este link foi desativado pelo responsável da Ordem de Serviço."
+        contexto_vazio["modo_publico"] = modo_publico
+        contexto_vazio["acompanhamento"] = acompanhamento
+        return render_template("os_acompanhamento_publico.html", **contexto_vazio)
+
     ordem_servico = buscar_ordem_servico_acompanhamento_publico(ordem_servico_id, empresa_id)
     if ordem_servico is None:
         contexto_vazio["erro"] = "A Ordem de Serviço vinculada a este link não foi encontrada."
@@ -22430,6 +22613,85 @@ def acompanhamento_os_publico(token: str) -> str | Response:
     )
 
 
+
+@app.post("/ordens-servico/<int:ordem_servico_id>/acompanhamentos/<int:acompanhamento_id>/editar")
+def editar_acompanhamento_ordem_servico_interno_rota(
+    ordem_servico_id: int,
+    acompanhamento_id: int,
+) -> Response:
+    ordem_servico = buscar_ordem_servico_por_id(ordem_servico_id)
+    if ordem_servico is None:
+        return redirect(url_for("ordens_servico"))
+
+    dados = {
+        "data_acompanhamento": str(request.form.get("data_acompanhamento") or "").strip(),
+        "responsavel": str(request.form.get("responsavel") or "").strip(),
+        "status_link": str(request.form.get("status_link") or "ativo").strip(),
+        "status_dia": str(request.form.get("status_dia") or "registrado").strip(),
+        "atividades_previstas": str(request.form.get("atividades_previstas") or "").strip(),
+        "atividades_executadas": str(request.form.get("atividades_executadas") or "").strip(),
+        "observacoes": str(request.form.get("observacoes") or "").strip(),
+    }
+    itens = montar_itens_acompanhamento_formulario(request.form)
+    sucesso, mensagem = atualizar_acompanhamento_ordem_servico_interno(
+        ordem_servico_id,
+        acompanhamento_id,
+        dados,
+        itens,
+    )
+
+    if sucesso:
+        registrar_atividade_usuario(
+            "edicao",
+            "ordens_servico",
+            f"Editou acompanhamento diário {acompanhamento_id} da OS {ordem_servico.get('numero') or ordem_servico_id}",
+            request.path,
+        )
+
+    parametro = "acompanhamento_mensagem" if sucesso else "acompanhamento_erro"
+    return redirect(
+        url_for(
+            "editar_ordem_servico",
+            ordem_servico_id=ordem_servico_id,
+            _anchor="acompanhamentos-diarios",
+            **{parametro: mensagem},
+        )
+    )
+
+
+@app.post("/ordens-servico/<int:ordem_servico_id>/acompanhamentos/<int:acompanhamento_id>/excluir")
+def excluir_acompanhamento_ordem_servico_interno_rota(
+    ordem_servico_id: int,
+    acompanhamento_id: int,
+) -> Response:
+    ordem_servico = buscar_ordem_servico_por_id(ordem_servico_id)
+    if ordem_servico is None:
+        return redirect(url_for("ordens_servico"))
+
+    sucesso, mensagem = excluir_acompanhamento_ordem_servico_interno(
+        ordem_servico_id,
+        acompanhamento_id,
+    )
+
+    if sucesso:
+        registrar_atividade_usuario(
+            "exclusao",
+            "ordens_servico",
+            f"Excluiu acompanhamento diário {acompanhamento_id} da OS {ordem_servico.get('numero') or ordem_servico_id}",
+            request.path,
+        )
+
+    parametro = "acompanhamento_mensagem" if sucesso else "acompanhamento_erro"
+    return redirect(
+        url_for(
+            "editar_ordem_servico",
+            ordem_servico_id=ordem_servico_id,
+            _anchor="acompanhamentos-diarios",
+            **{parametro: mensagem},
+        )
+    )
+
+
 @app.get("/ordens-servico/<int:ordem_servico_id>/gerar/copia")
 def gerar_copia_ordem_servico(ordem_servico_id: int) -> Response:
     nova_ordem_servico_id = copiar_ordem_servico_db(ordem_servico_id)
@@ -22456,6 +22718,9 @@ def editar_ordem_servico(ordem_servico_id: int) -> str | Response:
     fotos_equipamento = listar_fotos_equipamento_os(ordem_servico_id)
     equipamentos_os = montar_equipamentos_ordem_servico(ordem_servico)
     fotos_por_equipamento = agrupar_fotos_por_equipamento(fotos_equipamento)
+    acompanhamentos = anexar_itens_aos_acompanhamentos(
+        listar_acompanhamentos_ordem_servico(ordem_servico_id)
+    )
 
     return render_template(
         "ordem_servico_editar.html",
@@ -22469,6 +22734,9 @@ def editar_ordem_servico(ordem_servico_id: int) -> str | Response:
         equipamentos_os=equipamentos_os,
         fotos_equipamento=fotos_equipamento,
         fotos_por_equipamento=fotos_por_equipamento,
+        acompanhamentos=acompanhamentos,
+        acompanhamento_mensagem=(request.args.get("acompanhamento_mensagem") or "").strip(),
+        acompanhamento_erro=(request.args.get("acompanhamento_erro") or "").strip(),
         centros_custo=listar_centros_custo(),
         atividades_financeiras=listar_atividades_financeiras(),
     )

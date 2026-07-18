@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordem_servico_editar.html
-Último recode: 2026-07-18 09:58 (America/Bahia)
-Motivo: Permitir várias fotos por equipamento em cards criados sob demanda, sem campos vazios.
+Último recode: 2026-07-18 11:38 (America/Bahia)
+Motivo: Exibir, editar e excluir acompanhamentos diários diretamente na tela Editar OS.
 -->
 
 <!DOCTYPE html>
@@ -698,6 +698,257 @@ Motivo: Permitir várias fotos por equipamento em cards criados sob demanda, sem
         }
     </style>
 
+
+    <style>
+        /* GERENCIAMENTO INTERNO DOS ACOMPANHAMENTOS DIARIOS */
+        .os-acompanhamento-alert {
+            margin: 0 0 14px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .os-acompanhamento-alert-success {
+            border: 1px solid #bbf7d0;
+            background: #f0fdf4;
+            color: #166534;
+        }
+
+        .os-acompanhamento-alert-error {
+            border: 1px solid #fecaca;
+            background: #fef2f2;
+            color: #991b1b;
+        }
+
+        .os-acompanhamentos-list {
+            display: grid;
+            gap: 14px;
+        }
+
+        .os-acompanhamento-card {
+            border: 1px solid #dbe3ef;
+            border-radius: 14px;
+            background: #ffffff;
+            overflow: hidden;
+        }
+
+        .os-acompanhamento-card > summary {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            padding: 14px 16px;
+            cursor: pointer;
+            list-style: none;
+            background: #f8fafc;
+        }
+
+        .os-acompanhamento-card > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .os-acompanhamento-resumo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .os-acompanhamento-resumo strong {
+            display: block;
+            color: #0f172a;
+            font-size: 14px;
+        }
+
+        .os-acompanhamento-resumo span {
+            display: block;
+            margin-top: 3px;
+            color: #64748b;
+            font-size: 12px;
+        }
+
+        .os-acompanhamento-status {
+            flex: 0 0 auto;
+            border-radius: 999px;
+            padding: 7px 10px;
+            font-size: 11px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .os-acompanhamento-status.status-aberto {
+            background: #eff6ff;
+            color: #1d4ed8;
+        }
+
+        .os-acompanhamento-status.status-registrado {
+            background: #fff7ed;
+            color: #c2410c;
+        }
+
+        .os-acompanhamento-status.status-finalizado {
+            background: #f0fdf4;
+            color: #166534;
+        }
+
+        .os-acompanhamento-form {
+            padding: 16px;
+            border-top: 1px solid #e5eaf2;
+        }
+
+        .os-acompanhamento-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px 16px;
+        }
+
+        .os-acompanhamento-span-2 {
+            grid-column: span 2;
+        }
+
+        .os-acompanhamento-span-4 {
+            grid-column: span 4;
+        }
+
+        .os-acompanhamento-item-section {
+            grid-column: span 4;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            background: #f8fafc;
+            padding: 14px;
+        }
+
+        .os-acompanhamento-item-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .os-acompanhamento-item-header h4 {
+            margin: 0;
+            color: #0f172a;
+            font-size: 14px;
+            font-weight: 900;
+        }
+
+        .os-acompanhamento-item-header p {
+            margin: 4px 0 0;
+            color: #64748b;
+            font-size: 12px;
+        }
+
+        .os-acompanhamento-item-lista {
+            display: grid;
+            gap: 10px;
+        }
+
+        .os-acompanhamento-item-row {
+            display: grid;
+            grid-template-columns: minmax(210px, 1.4fr) 110px minmax(170px, 1fr) 38px;
+            gap: 10px;
+            align-items: end;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            background: #ffffff;
+            padding: 10px;
+        }
+
+        .os-acompanhamento-item-row.material-row {
+            grid-template-columns: minmax(210px, 1.4fr) 110px minmax(170px, 1fr) 38px;
+        }
+
+        .os-acompanhamento-item-remove {
+            width: 38px;
+            height: 38px;
+            border: 0;
+            border-radius: 10px;
+            background: #fee2e2;
+            color: #991b1b;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: 900;
+        }
+
+        .os-acompanhamento-empty {
+            padding: 12px;
+            border: 1px dashed #cbd5e1;
+            border-radius: 12px;
+            background: #ffffff;
+            color: #64748b;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        .os-acompanhamento-actions {
+            grid-column: span 4;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 10px;
+            flex-wrap: wrap;
+            padding-top: 4px;
+        }
+
+        .os-acompanhamento-delete {
+            border: 0;
+            border-radius: 10px;
+            background: #dc2626;
+            color: #ffffff;
+            padding: 10px 14px;
+            cursor: pointer;
+            font-weight: 900;
+        }
+
+        @media (max-width: 900px) {
+            .os-acompanhamento-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .os-acompanhamento-span-2,
+            .os-acompanhamento-span-4,
+            .os-acompanhamento-item-section,
+            .os-acompanhamento-actions {
+                grid-column: span 2;
+            }
+
+            .os-acompanhamento-item-row,
+            .os-acompanhamento-item-row.material-row {
+                grid-template-columns: 1fr;
+            }
+
+            .os-acompanhamento-item-remove {
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 620px) {
+            .os-acompanhamento-card > summary,
+            .os-acompanhamento-resumo {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .os-acompanhamento-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .os-acompanhamento-span-2,
+            .os-acompanhamento-span-4,
+            .os-acompanhamento-item-section,
+            .os-acompanhamento-actions {
+                grid-column: span 1;
+            }
+
+            .os-acompanhamento-actions {
+                align-items: stretch;
+                flex-direction: column-reverse;
+            }
+        }
+    </style>
+
 </head>
 <body>
     {% include "partials/sidebar.html" %}
@@ -920,6 +1171,315 @@ Motivo: Permitir várias fotos por equipamento em cards criados sob demanda, sem
             </section>
         </form>
 
+        <section id="acompanhamentos-diarios" class="panel page-section os-form-section os-panel-orcamento">
+            <div class="panel-header page-header os-section-title">
+                <div>
+                    <h3>Acompanhamentos diários</h3>
+                    <p class="page-subtitle">Edite ou exclua os registros enviados pelo técnico. O link técnico continua sem permissão para alterar registros já salvos.</p>
+                </div>
+                <span class="badge-info">{{ acompanhamentos|length }} registro{% if acompanhamentos|length != 1 %}s{% endif %}</span>
+            </div>
+
+            <div class="os-section-body">
+                {% if acompanhamento_mensagem %}
+                    <div class="os-acompanhamento-alert os-acompanhamento-alert-success">{{ acompanhamento_mensagem }}</div>
+                {% endif %}
+
+                {% if acompanhamento_erro %}
+                    <div class="os-acompanhamento-alert os-acompanhamento-alert-error">{{ acompanhamento_erro }}</div>
+                {% endif %}
+
+                {% if acompanhamentos %}
+                    <div class="os-acompanhamentos-list">
+                        {% for acompanhamento in acompanhamentos %}
+                            {% set status_dia = (acompanhamento.status_dia or 'aberto')|lower %}
+                            {% set status_texto = 'Finalizado' if status_dia == 'finalizado' else ('Registrado' if status_dia == 'registrado' else 'Aberto') %}
+                            <details class="os-acompanhamento-card" {% if loop.first %}open{% endif %}>
+                                <summary>
+                                    <div class="os-acompanhamento-resumo">
+                                        <div>
+                                            <strong>{{ acompanhamento.data_acompanhamento|default('-', true) }} — {{ acompanhamento.responsavel|default('Sem responsável', true) }}</strong>
+                                            <span>Registro #{{ acompanhamento.id }}{% if acompanhamento.atualizado_em %} · Atualizado em {{ acompanhamento.atualizado_em }}{% endif %}</span>
+                                        </div>
+                                    </div>
+                                    <span class="os-acompanhamento-status status-{{ status_dia }}">{{ status_texto }}</span>
+                                </summary>
+
+                                <form method="post" action="{{ url_for('editar_acompanhamento_ordem_servico_interno_rota', ordem_servico_id=os.id, acompanhamento_id=acompanhamento.id) }}" class="os-acompanhamento-form">
+                                    <div class="os-acompanhamento-grid">
+                                        <div class="form-group">
+                                            <label>Data</label>
+                                            <input type="date" name="data_acompanhamento" value="{{ acompanhamento.data_acompanhamento or '' }}" class="form-control" required>
+                                        </div>
+
+                                        <div class="form-group os-acompanhamento-span-2">
+                                            <label>Responsável pelo registro</label>
+                                            <input type="text" name="responsavel" value="{{ acompanhamento.responsavel or '' }}" class="form-control" placeholder="Nome do responsável">
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label>Status do dia</label>
+                                            <select name="status_dia" class="form-control">
+                                                <option value="aberto" {% if status_dia == 'aberto' %}selected{% endif %}>Aberto</option>
+                                                <option value="registrado" {% if status_dia == 'registrado' %}selected{% endif %}>Registrado</option>
+                                                <option value="finalizado" {% if status_dia == 'finalizado' %}selected{% endif %}>Finalizado</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label>Status do link</label>
+                                            <select name="status_link" class="form-control">
+                                                <option value="ativo" {% if (acompanhamento.status_link or 'ativo') == 'ativo' %}selected{% endif %}>Ativo</option>
+                                                <option value="inativo" {% if acompanhamento.status_link == 'inativo' %}selected{% endif %}>Inativo</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="form-group os-acompanhamento-span-4">
+                                            <label>Atividades previstas</label>
+                                            <textarea name="atividades_previstas" class="form-control os-textarea" placeholder="Atividades previstas para o dia">{{ acompanhamento.atividades_previstas or '' }}</textarea>
+                                        </div>
+
+                                        <div class="os-acompanhamento-item-section">
+                                            <div class="os-acompanhamento-item-header">
+                                                <div>
+                                                    <h4>Equipe envolvida</h4>
+                                                    <p>Edite profissionais, horas e observações do registro.</p>
+                                                </div>
+                                                <button type="button" class="btn-primary-green" data-acompanhamento-adicionar="equipe">+ Adicionar profissional</button>
+                                            </div>
+                                            <div class="os-acompanhamento-item-lista" data-acompanhamento-lista="equipe">
+                                                {% for item in acompanhamento.equipe_lista|default([]) %}
+                                                    <div class="os-acompanhamento-item-row" data-acompanhamento-item>
+                                                        <div class="form-group">
+                                                            <label>Profissional</label>
+                                                            <select name="equipe_funcionario_id[]" class="form-control">
+                                                                <option value="">Selecione</option>
+                                                                {% if item.funcionario_id %}
+                                                                    <option value="{{ item.funcionario_id }}" selected>{{ item.nome or 'Profissional' }}{% if item.cargo %} - {{ item.cargo }}{% endif %}</option>
+                                                                {% endif %}
+                                                                {% for funcionario in funcionarios|default([]) %}
+                                                                    {% if funcionario.id != item.funcionario_id %}
+                                                                        <option value="{{ funcionario.id }}">{{ funcionario.nome }}{% if funcionario.cargo %} - {{ funcionario.cargo }}{% endif %}</option>
+                                                                    {% endif %}
+                                                                {% endfor %}
+                                                            </select>
+                                                        </div>
+                                                        <div class="form-group">
+                                                            <label>Horas</label>
+                                                            <input type="text" name="equipe_horas[]" value="{{ item.horas or '' }}" class="form-control" placeholder="8">
+                                                        </div>
+                                                        <div class="form-group">
+                                                            <label>Observação</label>
+                                                            <input type="text" name="equipe_observacoes[]" value="{{ item.observacoes or '' }}" class="form-control" placeholder="Opcional">
+                                                        </div>
+                                                        <button type="button" class="os-acompanhamento-item-remove" data-acompanhamento-remover title="Remover profissional">×</button>
+                                                    </div>
+                                                {% else %}
+                                                    <div class="os-acompanhamento-empty" data-acompanhamento-vazio>Nenhum profissional informado.</div>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+
+                                        <div class="os-acompanhamento-item-section">
+                                            <div class="os-acompanhamento-item-header">
+                                                <div>
+                                                    <h4>Materiais utilizados</h4>
+                                                    <p>Edite os produtos, quantidades e observações do registro.</p>
+                                                </div>
+                                                <button type="button" class="btn-primary-green" data-acompanhamento-adicionar="materiais">+ Adicionar material</button>
+                                            </div>
+                                            <div class="os-acompanhamento-item-lista" data-acompanhamento-lista="materiais">
+                                                {% for item in acompanhamento.materiais_lista|default([]) %}
+                                                    <div class="os-acompanhamento-item-row material-row" data-acompanhamento-item>
+                                                        <div class="form-group">
+                                                            <label>Material</label>
+                                                            <select name="material_produto_id[]" class="form-control">
+                                                                <option value="">Selecione</option>
+                                                                {% if item.produto_id %}
+                                                                    <option value="{{ item.produto_id }}" selected>{{ item.nome or 'Material' }}{% if item.unidade %} - {{ item.unidade }}{% endif %}</option>
+                                                                {% endif %}
+                                                                {% for produto in produtos|default([]) %}
+                                                                    {% if produto.id != item.produto_id %}
+                                                                        <option value="{{ produto.id }}">{{ produto.nome }}{% if produto.unidade %} - {{ produto.unidade }}{% endif %}</option>
+                                                                    {% endif %}
+                                                                {% endfor %}
+                                                            </select>
+                                                        </div>
+                                                        <div class="form-group">
+                                                            <label>Quantidade</label>
+                                                            <input type="text" name="material_quantidade[]" value="{{ item.quantidade or '' }}" class="form-control" placeholder="1">
+                                                        </div>
+                                                        <div class="form-group">
+                                                            <label>Observação</label>
+                                                            <input type="text" name="material_observacoes[]" value="{{ item.observacoes or '' }}" class="form-control" placeholder="Opcional">
+                                                        </div>
+                                                        <button type="button" class="os-acompanhamento-item-remove" data-acompanhamento-remover title="Remover material">×</button>
+                                                    </div>
+                                                {% else %}
+                                                    <div class="os-acompanhamento-empty" data-acompanhamento-vazio>Nenhum material informado.</div>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+
+                                        <div class="os-acompanhamento-item-section">
+                                            <div class="os-acompanhamento-item-header">
+                                                <div>
+                                                    <h4>Serviços executados</h4>
+                                                    <p>Edite os serviços, quantidades e observações do registro.</p>
+                                                </div>
+                                                <button type="button" class="btn-primary-green" data-acompanhamento-adicionar="servicos">+ Adicionar serviço</button>
+                                            </div>
+                                            <div class="os-acompanhamento-item-lista" data-acompanhamento-lista="servicos">
+                                                {% for item in acompanhamento.servicos_lista|default([]) %}
+                                                    <div class="os-acompanhamento-item-row" data-acompanhamento-item>
+                                                        <div class="form-group">
+                                                            <label>Serviço</label>
+                                                            <select name="servico_id[]" class="form-control">
+                                                                <option value="">Selecione</option>
+                                                                {% if item.servico_id %}
+                                                                    <option value="{{ item.servico_id }}" selected>{{ item.nome or 'Serviço' }}</option>
+                                                                {% endif %}
+                                                                {% for servico in servicos|default([]) %}
+                                                                    {% if servico.id != item.servico_id %}
+                                                                        <option value="{{ servico.id }}">{{ servico.nome }}</option>
+                                                                    {% endif %}
+                                                                {% endfor %}
+                                                            </select>
+                                                        </div>
+                                                        <div class="form-group">
+                                                            <label>Quantidade</label>
+                                                            <input type="text" name="servico_quantidade[]" value="{{ item.quantidade or '' }}" class="form-control" placeholder="1">
+                                                        </div>
+                                                        <div class="form-group">
+                                                            <label>Observação</label>
+                                                            <input type="text" name="servico_observacoes[]" value="{{ item.observacoes or '' }}" class="form-control" placeholder="Opcional">
+                                                        </div>
+                                                        <button type="button" class="os-acompanhamento-item-remove" data-acompanhamento-remover title="Remover serviço">×</button>
+                                                    </div>
+                                                {% else %}
+                                                    <div class="os-acompanhamento-empty" data-acompanhamento-vazio>Nenhum serviço informado.</div>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+
+                                        <div class="form-group os-acompanhamento-span-4">
+                                            <label>Atividades executadas</label>
+                                            <textarea name="atividades_executadas" class="form-control os-textarea" placeholder="Atividades executadas no dia">{{ acompanhamento.atividades_executadas or '' }}</textarea>
+                                        </div>
+
+                                        <div class="form-group os-acompanhamento-span-4">
+                                            <label>Observações</label>
+                                            <textarea name="observacoes" class="form-control os-textarea" placeholder="Pendências, impedimentos e observações">{{ acompanhamento.observacoes or '' }}</textarea>
+                                        </div>
+
+                                        <div class="os-acompanhamento-actions">
+                                            <button
+                                                type="submit"
+                                                class="os-acompanhamento-delete"
+                                                formaction="{{ url_for('excluir_acompanhamento_ordem_servico_interno_rota', ordem_servico_id=os.id, acompanhamento_id=acompanhamento.id) }}"
+                                                formmethod="post"
+                                                onclick="return confirm('Excluir definitivamente este acompanhamento diário? O link vinculado a ele deixará de funcionar.');"
+                                            >Excluir acompanhamento</button>
+                                            <button type="submit" class="btn-primary-green">Salvar acompanhamento</button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </details>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="os-acompanhamento-empty">Ainda não existem acompanhamentos diários nesta OS.</div>
+                {% endif %}
+            </div>
+        </section>
+
+        <template id="template-acompanhamento-equipe">
+            <div class="os-acompanhamento-item-row" data-acompanhamento-item>
+                <div class="form-group">
+                    <label>Profissional</label>
+                    <select name="equipe_funcionario_id[]" class="form-control">
+                        <option value="">Selecione</option>
+                        {% for funcionario in funcionarios|default([]) %}
+                            <option value="{{ funcionario.id }}">{{ funcionario.nome }}{% if funcionario.cargo %} - {{ funcionario.cargo }}{% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group"><label>Horas</label><input type="text" name="equipe_horas[]" class="form-control" placeholder="8"></div>
+                <div class="form-group"><label>Observação</label><input type="text" name="equipe_observacoes[]" class="form-control" placeholder="Opcional"></div>
+                <button type="button" class="os-acompanhamento-item-remove" data-acompanhamento-remover title="Remover profissional">×</button>
+            </div>
+        </template>
+
+        <template id="template-acompanhamento-materiais">
+            <div class="os-acompanhamento-item-row material-row" data-acompanhamento-item>
+                <div class="form-group">
+                    <label>Material</label>
+                    <select name="material_produto_id[]" class="form-control">
+                        <option value="">Selecione</option>
+                        {% for produto in produtos|default([]) %}
+                            <option value="{{ produto.id }}">{{ produto.nome }}{% if produto.unidade %} - {{ produto.unidade }}{% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group"><label>Quantidade</label><input type="text" name="material_quantidade[]" class="form-control" placeholder="1"></div>
+                <div class="form-group"><label>Observação</label><input type="text" name="material_observacoes[]" class="form-control" placeholder="Opcional"></div>
+                <button type="button" class="os-acompanhamento-item-remove" data-acompanhamento-remover title="Remover material">×</button>
+            </div>
+        </template>
+
+        <template id="template-acompanhamento-servicos">
+            <div class="os-acompanhamento-item-row" data-acompanhamento-item>
+                <div class="form-group">
+                    <label>Serviço</label>
+                    <select name="servico_id[]" class="form-control">
+                        <option value="">Selecione</option>
+                        {% for servico in servicos|default([]) %}
+                            <option value="{{ servico.id }}">{{ servico.nome }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group"><label>Quantidade</label><input type="text" name="servico_quantidade[]" class="form-control" placeholder="1"></div>
+                <div class="form-group"><label>Observação</label><input type="text" name="servico_observacoes[]" class="form-control" placeholder="Opcional"></div>
+                <button type="button" class="os-acompanhamento-item-remove" data-acompanhamento-remover title="Remover serviço">×</button>
+            </div>
+        </template>
+
+        <script>
+            document.addEventListener("click", function(evento) {
+                const botaoAdicionar = evento.target.closest("[data-acompanhamento-adicionar]");
+                const botaoRemover = evento.target.closest("[data-acompanhamento-remover]");
+
+                if (botaoAdicionar) {
+                    const tipo = botaoAdicionar.getAttribute("data-acompanhamento-adicionar");
+                    const card = botaoAdicionar.closest(".os-acompanhamento-card");
+                    const lista = card ? card.querySelector('[data-acompanhamento-lista="' + tipo + '"]') : null;
+                    const template = document.getElementById("template-acompanhamento-" + tipo);
+
+                    if (lista && template) {
+                        const vazio = lista.querySelector("[data-acompanhamento-vazio]");
+                        if (vazio) {
+                            vazio.remove();
+                        }
+                        lista.appendChild(template.content.cloneNode(true));
+                    }
+                }
+
+                if (botaoRemover) {
+                    const linha = botaoRemover.closest("[data-acompanhamento-item]");
+                    const lista = linha ? linha.closest("[data-acompanhamento-lista]") : null;
+                    if (linha) {
+                        linha.remove();
+                    }
+                    if (lista && !lista.querySelector("[data-acompanhamento-item]")) {
+                        const vazio = document.createElement("div");
+                        vazio.className = "os-acompanhamento-empty";
+                        vazio.setAttribute("data-acompanhamento-vazio", "");
+                        vazio.textContent = "Nenhum item informado.";
+                        lista.appendChild(vazio);
+                    }
+                }
+            });
+        </script>
 
 
         <div id="quick-cliente-modal" class="quick-modal-backdrop" aria-hidden="true">
