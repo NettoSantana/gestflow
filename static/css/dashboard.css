@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\static\css\dashboard.css
-Último recode: 2026-07-17 (America/Bahia)
-Motivo: Finalizar os ajustes mobile do Gerador após nova varredura do Inspetor 13.
+Último recode: 2026-07-18 13:30 (America/Bahia)
+Motivo: Modernizar somente a listagem de Atividades / Projetos, sem cards superiores e sem alterar a lógica financeira.
 */
 
 :root {
@@ -5085,4 +5085,59 @@ body.focus-mode-body .main-content.focus-mode-main {
   #form-editar-os .form-group, #form-editar-venda .form-group, #form-editar-financeiro .financeiro-edit-field { min-width: 0; width: 100%; }
   .os-detail-tabs { display: flex; flex-wrap: nowrap; padding-bottom: 6px; }
   .os-detail-tab { white-space: nowrap; }
+}
+
+/* ATIVIDADES / PROJETOS - LISTAGEM MODERNA EM CARDS
+   Escopo exclusivo da tela templates/atividades_financeiras.html. */
+.atividades-financeiras-page{padding-bottom:96px}
+.atividades-financeiras-header{margin-bottom:18px}
+.atividades-financeiras-header h1{margin:0 0 6px;color:#0f172a;font-size:clamp(26px,3vw,34px);line-height:1.1;font-weight:900}
+.atividades-financeiras-header p{margin:0;color:#64748b;font-size:14px;line-height:1.5;font-weight:700}
+.atividades-financeiras-lista{display:grid;gap:14px}
+.atividade-financeira-card{min-width:0;overflow:hidden;border:1px solid #dbe3ef;border-radius:18px;background:#fff;box-shadow:0 12px 30px rgba(15,23,42,.07);transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
+.atividade-financeira-card:hover{transform:translateY(-2px);border-color:#bfdbfe;box-shadow:0 18px 36px rgba(15,23,42,.10)}
+.atividade-financeira-topo{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:18px 20px 16px}
+.atividade-financeira-identificacao{min-width:0;display:flex;align-items:center;gap:13px}
+.atividade-financeira-icone{flex:0 0 46px;width:46px;height:46px;display:inline-flex;align-items:center;justify-content:center;border-radius:14px;background:#eff6ff;color:#0f62fe;font-size:20px;font-weight:900}
+.atividade-financeira-identificacao h2{margin:0;color:#0f172a;font-size:16px;line-height:1.35;font-weight:900;overflow-wrap:anywhere}
+.atividade-financeira-identificacao p{margin:4px 0 0;color:#64748b;font-size:13px;line-height:1.4;font-weight:700;overflow-wrap:anywhere}
+.atividade-financeira-meta{flex:0 0 auto;display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap}
+.atividade-origem{min-height:30px;display:inline-flex;align-items:center;padding:0 11px;border:1px solid #dbe3ef;border-radius:999px;background:#f8fafc;color:#475569;font-size:11px;font-weight:900}
+.atividade-financeira-centro{display:flex;align-items:center;gap:8px;padding:0 20px 16px 79px}
+.atividade-financeira-centro span{color:#64748b;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.04em}
+.atividade-financeira-centro strong{color:#334155;font-size:12px;font-weight:900;overflow-wrap:anywhere}
+.atividade-financeira-valores{display:grid;grid-template-columns:repeat(4,minmax(120px,1fr)) minmax(96px,auto);align-items:stretch;border-top:1px solid #e5eaf2;background:#f8fafc}
+.atividade-financeira-valor{min-width:0;display:grid;align-content:center;gap:5px;min-height:86px;padding:14px 18px;border-right:1px solid #e5eaf2}
+.atividade-financeira-valor span{color:#64748b;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.04em}
+.atividade-financeira-valor strong{color:#0f172a;font-size:17px;line-height:1.2;font-weight:900;white-space:nowrap}
+.atividade-financeira-valor.is-previsto strong{color:#0f62fe}
+.atividade-financeira-valor.is-recebido strong{color:#16a34a}
+.atividade-financeira-valor.is-custos strong{color:#d97706}
+.atividade-financeira-valor.is-resultado strong{color:#7c3aed}
+.atividade-financeira-ver{min-width:96px;min-height:86px;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:0 18px;background:#fff;color:#0f62fe;font-size:13px;font-weight:900;text-decoration:none;transition:background-color .18s ease,color .18s ease}
+.atividade-financeira-ver strong{font-size:22px;line-height:1}
+.atividade-financeira-ver:hover{background:#eff6ff;color:#0b4fd1}
+.atividade-financeira-ver:focus-visible{outline:3px solid rgba(15,98,254,.18);outline-offset:-4px}
+.atividades-financeiras-vazio{min-height:220px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:9px;padding:28px;border:1px dashed #cbd5e1;border-radius:18px;background:#fff;color:#64748b;text-align:center}
+.atividades-financeiras-vazio>div{width:54px;height:54px;display:inline-flex;align-items:center;justify-content:center;border-radius:16px;background:#eff6ff;color:#0f62fe;font-size:22px;font-weight:900}
+.atividades-financeiras-vazio strong{color:#0f172a;font-size:16px;font-weight:900}
+.atividades-financeiras-vazio p{margin:0;color:#64748b;font-size:13px;line-height:1.5;font-weight:700}
+@media(max-width:1100px){
+  .atividade-financeira-valores{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .atividade-financeira-valor:nth-child(2),.atividade-financeira-valor:nth-child(4){border-right:0}
+  .atividade-financeira-valor:nth-child(n+3),.atividade-financeira-ver{border-top:1px solid #e5eaf2}
+  .atividade-financeira-ver{grid-column:1/-1;min-height:54px}
+}
+@media(max-width:720px){
+  .atividades-financeiras-page{padding-bottom:84px}
+  .atividades-financeiras-header{margin-bottom:14px}
+  .atividade-financeira-topo{align-items:flex-start;flex-direction:column;padding:16px}
+  .atividade-financeira-identificacao{width:100%;align-items:flex-start}
+  .atividade-financeira-icone{flex-basis:42px;width:42px;height:42px;border-radius:12px}
+  .atividade-financeira-meta{width:100%;justify-content:flex-start;padding-left:55px}
+  .atividade-financeira-centro{align-items:flex-start;flex-direction:column;gap:4px;padding:0 16px 16px 71px}
+  .atividade-financeira-valores{grid-template-columns:1fr}
+  .atividade-financeira-valor{min-height:70px;border-right:0;border-top:1px solid #e5eaf2}
+  .atividade-financeira-valor:first-child{border-top:0}
+  .atividade-financeira-ver{grid-column:1;min-height:52px}
 }

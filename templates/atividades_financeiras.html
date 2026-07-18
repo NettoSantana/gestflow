@@ -1,1 +1,86 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Atividades financeiras | GestFlow</title><link rel="stylesheet" href="/static/css/dashboard.css"></head><body><div class="app-layout">{% include 'partials/sidebar.html' %}<div class="main-area">{% include 'partials/topbar.html' %}<main class="content"><div class="page-header"><div><h1>Atividades / Projetos</h1><p>Cada orçamento pode ser acompanhado como uma atividade financeira.</p></div></div><section class="panel page-section"><div class="table-responsive"><table><thead><tr><th>Atividade</th><th>Origem</th><th>Status</th><th>Centro de custo</th><th>Previsto</th><th>Recebido</th><th>Custos</th><th>Resultado</th><th></th></tr></thead><tbody>{% for atividade in atividades %}<tr><td><strong>{{ atividade.nome }}</strong><br><small>{{ atividade.cliente or '' }}</small></td><td>{{ atividade.origem|replace("_", " ")|title }}</td><td><span class="status-pill {{ atividade.status }}">{{ atividade.status }}</span></td><td>{{ atividade.centro_custo_nome or '-' }}</td><td>R$ {{ atividade.resumo.previsto_formatado }}</td><td>R$ {{ atividade.resumo.recebido_formatado }}</td><td>R$ {{ atividade.resumo.custos_formatado }}</td><td>R$ {{ atividade.resumo.resultado_formatado }}</td><td><a href="/financeiro/atividades/{{ atividade.id }}">Ver</a></td></tr>{% else %}<tr><td colspan="9">As atividades serão criadas automaticamente a partir dos orçamentos.</td></tr>{% endfor %}</tbody></table></div></section></main></div></div></body></html>
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\atividades_financeiras.html
+Último recode: 2026-07-18 13:30 (America/Bahia)
+Motivo: Modernizar somente a listagem de Atividades / Projetos, sem cards superiores e sem alterar a lógica financeira.
+#}
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Atividades financeiras | GestFlow</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+<div class="app-layout">
+    {% include 'partials/sidebar.html' %}
+    <div class="main-area">
+        {% include 'partials/topbar.html' %}
+        <main class="content atividades-financeiras-page">
+            <div class="page-header atividades-financeiras-header">
+                <div>
+                    <h1>Atividades / Projetos</h1>
+                    <p>Cada orçamento pode ser acompanhado como uma atividade financeira.</p>
+                </div>
+            </div>
+
+            <section class="atividades-financeiras-lista" aria-label="Lista de atividades financeiras">
+                {% for atividade in atividades %}
+                <article class="atividade-financeira-card">
+                    <div class="atividade-financeira-topo">
+                        <div class="atividade-financeira-identificacao">
+                            <div class="atividade-financeira-icone" aria-hidden="true">▣</div>
+                            <div>
+                                <h2>{{ atividade.nome }}</h2>
+                                <p>{{ atividade.cliente or 'Cliente não informado' }}</p>
+                            </div>
+                        </div>
+
+                        <div class="atividade-financeira-meta">
+                            <span class="atividade-origem">{{ atividade.origem|replace("_", " ")|title }}</span>
+                            <span class="status-pill {{ atividade.status }}">{{ atividade.status }}</span>
+                        </div>
+                    </div>
+
+                    <div class="atividade-financeira-centro">
+                        <span>Centro de custo</span>
+                        <strong>{{ atividade.centro_custo_nome or '-' }}</strong>
+                    </div>
+
+                    <div class="atividade-financeira-valores">
+                        <div class="atividade-financeira-valor is-previsto">
+                            <span>Previsto</span>
+                            <strong>R$ {{ atividade.resumo.previsto_formatado }}</strong>
+                        </div>
+                        <div class="atividade-financeira-valor is-recebido">
+                            <span>Recebido</span>
+                            <strong>R$ {{ atividade.resumo.recebido_formatado }}</strong>
+                        </div>
+                        <div class="atividade-financeira-valor is-custos">
+                            <span>Custos</span>
+                            <strong>R$ {{ atividade.resumo.custos_formatado }}</strong>
+                        </div>
+                        <div class="atividade-financeira-valor is-resultado">
+                            <span>Resultado</span>
+                            <strong>R$ {{ atividade.resumo.resultado_formatado }}</strong>
+                        </div>
+                        <a class="atividade-financeira-ver"
+                           href="/financeiro/atividades/{{ atividade.id }}"
+                           aria-label="Ver detalhes de {{ atividade.nome }}">
+                            <span>Ver</span><strong aria-hidden="true">›</strong>
+                        </a>
+                    </div>
+                </article>
+                {% else %}
+                <div class="atividades-financeiras-vazio">
+                    <div aria-hidden="true">▣</div>
+                    <strong>Nenhuma atividade financeira encontrada</strong>
+                    <p>As atividades serão criadas automaticamente a partir dos orçamentos.</p>
+                </div>
+                {% endfor %}
+            </section>
+        </main>
+    </div>
+</div>
+</body>
+</html>
