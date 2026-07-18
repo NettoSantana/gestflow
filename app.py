@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-18 09:58 (America/Bahia)
-# Motivo: Permitir várias fotos por equipamento em cards criados sob demanda, sem campos vazios.
+# Último recode: 2026-07-18 10:29 (America/Bahia)
+# Motivo: Atualizar o link público do cliente com os dados atuais da OS, equipamentos separados, fotos e itens.
 
 from __future__ import annotations
 
@@ -11209,6 +11209,163 @@ def buscar_acompanhamento_os_por_token(token: Any) -> dict[str, Any] | None:
     return dict(row)
 
 
+def montar_contexto_ordem_servico_acompanhamento_publico(
+    acompanhamento: dict[str, Any] | None,
+) -> dict[str, Any]:
+    contexto_vazio: dict[str, Any] = {
+        "ordem_servico": None,
+        "equipamentos": [],
+        "itens_produtos": [],
+        "itens_servicos": [],
+        "mostrar_valores": False,
+        "resumo_equipamentos": "",
+    }
+
+    if not acompanhamento:
+        return contexto_vazio
+
+    try:
+        empresa_id = int(acompanhamento.get("empresa_id") or 0)
+        ordem_servico_id = int(acompanhamento.get("ordem_servico_id") or 0)
+    except (TypeError, ValueError):
+        return contexto_vazio
+
+    if empresa_id <= 0 or ordem_servico_id <= 0:
+        return contexto_vazio
+
+    with conectar_db() as conn:
+        ordem_row = conn.execute(
+            """
+            SELECT
+                id,
+                empresa_id,
+                numero,
+                cliente,
+                responsavel,
+                tecnico,
+                data_abertura,
+                data_previsao,
+                data_saida,
+                hora_entrada,
+                hora_saida,
+                canal_venda,
+                equipamentos_json,
+                equipamento,
+                marca,
+                modelo,
+                serie,
+                local_servico,
+                condicoes,
+                acessorios,
+                laudo,
+                termos,
+                tipo,
+                status,
+                prioridade,
+                total_produtos,
+                total_servicos,
+                frete,
+                outros,
+                desconto_valor,
+                valor_total,
+                forma_pagamento,
+                exibir_valor_impressao,
+                relato_cliente,
+                diagnostico,
+                servico_executado,
+                observacoes,
+                observacoes_internas,
+                criado_em
+            FROM ordens_servico
+            WHERE id = ?
+              AND empresa_id = ?
+            LIMIT 1
+            """,
+            (ordem_servico_id, empresa_id),
+        ).fetchone()
+
+        if ordem_row is None:
+            return contexto_vazio
+
+        itens_rows = conn.execute(
+            """
+            SELECT
+                id,
+                empresa_id,
+                ordem_servico_id,
+                tipo_item,
+                descricao,
+                detalhes,
+                quantidade,
+                valor_unitario,
+                desconto,
+                subtotal,
+                criado_em
+            FROM ordem_servico_itens
+            WHERE ordem_servico_id = ?
+              AND empresa_id = ?
+            ORDER BY id ASC
+            """,
+            (ordem_servico_id, empresa_id),
+        ).fetchall()
+
+        fotos_rows = conn.execute(
+            """
+            SELECT
+                id,
+                empresa_id,
+                ordem_servico_id,
+                titulo,
+                equipamento_indice,
+                foto_antes_path,
+                foto_depois_path,
+                observacoes,
+                criado_em,
+                atualizado_em
+            FROM os_fotos_equipamento
+            WHERE ordem_servico_id = ?
+              AND empresa_id = ?
+              AND (
+                    TRIM(COALESCE(foto_antes_path, '')) <> ''
+                 OR TRIM(COALESCE(foto_depois_path, '')) <> ''
+              )
+            ORDER BY
+                CAST(COALESCE(equipamento_indice, '0') AS INTEGER) ASC,
+                id ASC
+            """,
+            (ordem_servico_id, empresa_id),
+        ).fetchall()
+
+    ordem_servico = dict(ordem_row)
+    ordem_servico["data_abertura_exibicao"] = formatar_data_br(ordem_servico.get("data_abertura"))
+    ordem_servico["data_previsao_exibicao"] = formatar_data_br(ordem_servico.get("data_previsao"))
+    ordem_servico["data_saida_exibicao"] = formatar_data_br(ordem_servico.get("data_saida"))
+
+    equipamentos = montar_equipamentos_ordem_servico(ordem_servico)
+    fotos_por_equipamento = agrupar_fotos_por_equipamento([dict(row) for row in fotos_rows])
+
+    nomes_equipamentos: list[str] = []
+    for indice, equipamento in enumerate(equipamentos):
+        chave_indice = str(equipamento.get("indice") or indice)
+        equipamento["fotos"] = fotos_por_equipamento.get(chave_indice, [])
+        nome = str(equipamento.get("equipamento") or equipamento.get("titulo") or "").strip()
+        if nome:
+            nomes_equipamentos.append(nome)
+
+    itens = [dict(row) for row in itens_rows]
+    itens_produtos = [item for item in itens if str(item.get("tipo_item") or "").strip() == "produto"]
+    itens_servicos = [item for item in itens if str(item.get("tipo_item") or "").strip() == "servico"]
+
+    return {
+        "ordem_servico": ordem_servico,
+        "equipamentos": equipamentos,
+        "itens_produtos": itens_produtos,
+        "itens_servicos": itens_servicos,
+        "mostrar_valores": str(ordem_servico.get("exibir_valor_impressao") or "").strip().lower() == "sim",
+        "resumo_equipamentos": ", ".join(nomes_equipamentos),
+    }
+
+
 def acompanhamento_os_esta_expirado(acompanhamento: dict[str, Any]) -> bool:
     expira_em = str(acompanhamento.get("expira_em") or "").strip()
 
@@ -21549,6 +21706,12 @@ def acompanhamento_os_publico(token: str) -> str:
             equipe_acompanhamento=[],
             materiais_acompanhamento=[],
             servicos_acompanhamento=[],
+            os_atual=None,
+            equipamentos_os_publicos=[],
+            itens_produtos_os_publicos=[],
+            itens_servicos_os_publicos=[],
+            mostrar_valores_os_publica=False,
+            resumo_equipamentos_os_publica="",
         )
 
     empresa_acompanhamento_id = int(acompanhamento.get("empresa_id") or 0)
@@ -21613,6 +21776,8 @@ def acompanhamento_os_publico(token: str) -> str:
             erro = "Não foi possível salvar o acompanhamento. Verifique se o link ainda está ativo."
             acompanhamento = buscar_acompanhamento_os_por_token(token) or acompanhamento
 
+    contexto_os_publica = montar_contexto_ordem_servico_acompanhamento_publico(acompanhamento)
+
     return render_template(
         "os_acompanhamento_publico.html",
         acompanhamento=acompanhamento,
@@ -21625,6 +21790,12 @@ def acompanhamento_os_publico(token: str) -> str:
         equipe_acompanhamento=equipe_acompanhamento,
         materiais_acompanhamento=materiais_acompanhamento,
         servicos_acompanhamento=servicos_acompanhamento,
+        os_atual=contexto_os_publica["ordem_servico"],
+        equipamentos_os_publicos=contexto_os_publica["equipamentos"],
+        itens_produtos_os_publicos=contexto_os_publica["itens_produtos"],
+        itens_servicos_os_publicos=contexto_os_publica["itens_servicos"],
+        mostrar_valores_os_publica=contexto_os_publica["mostrar_valores"],
+        resumo_equipamentos_os_publica=contexto_os_publica["resumo_equipamentos"],
     )
 
 

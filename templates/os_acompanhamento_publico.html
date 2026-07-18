@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\os_acompanhamento_publico.html
-Último recode: 2026-07-02 23:41 (America/Bahia)
-Motivo: Padronizar tela pública no padrão visual de Orçamentos.
+Último recode: 2026-07-18 10:30 (America/Bahia)
+Motivo: Exibir no link do cliente os dados atuais da OS, equipamentos separados, fotos e itens atualizados.
 -->
 
 <!DOCTYPE html>
@@ -195,6 +195,253 @@ Motivo: Padronizar tela pública no padrão visual de Orçamentos.
             margin-top: 16px;
         }
 
+        .public-os-live-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            border-radius: 999px;
+            background: #ecfdf5;
+            color: #166534;
+            padding: 7px 11px;
+            font-size: 12px;
+            font-weight: 900;
+            white-space: nowrap;
+        }
+
+        .public-os-live-badge::before {
+            content: "";
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            background: #22c55e;
+        }
+
+        .public-os-current-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .public-os-current-header h2 {
+            margin: 0 0 5px;
+            color: #0f172a;
+            font-size: 20px;
+        }
+
+        .public-os-current-header p {
+            margin: 0;
+            color: #64748b;
+            font-size: 13px;
+        }
+
+        .public-os-current-summary {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .public-os-current-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            background: #f8fafc;
+            padding: 12px;
+        }
+
+        .public-os-current-card span {
+            display: block;
+            margin-bottom: 4px;
+            color: #64748b;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .public-os-current-card strong {
+            display: block;
+            color: #0f172a;
+            font-size: 13px;
+            overflow-wrap: anywhere;
+        }
+
+        .public-os-equipment-list {
+            display: grid;
+            gap: 14px;
+        }
+
+        .public-os-equipment-card {
+            border: 1px solid #dbe3ef;
+            border-radius: 15px;
+            background: #ffffff;
+            overflow: hidden;
+        }
+
+        .public-os-equipment-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 13px 15px;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .public-os-equipment-title h3 {
+            margin: 0;
+            color: #0f172a;
+            font-size: 16px;
+        }
+
+        .public-os-equipment-title span {
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .public-os-equipment-body {
+            padding: 14px;
+        }
+
+        .public-os-equipment-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .public-os-equipment-detail {
+            border: 1px solid #e2e8f0;
+            border-radius: 11px;
+            background: #ffffff;
+            padding: 10px;
+            min-width: 0;
+        }
+
+        .public-os-equipment-detail.public-os-detail-wide {
+            grid-column: span 3;
+        }
+
+        .public-os-equipment-detail span {
+            display: block;
+            margin-bottom: 4px;
+            color: #64748b;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .public-os-equipment-detail strong {
+            display: block;
+            color: #0f172a;
+            font-size: 13px;
+            line-height: 1.45;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+
+        .public-os-photo-section {
+            margin-top: 13px;
+            padding-top: 13px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .public-os-photo-section h4 {
+            margin: 0 0 10px;
+            color: #0f172a;
+            font-size: 14px;
+        }
+
+        .public-os-photo-gallery {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .public-os-photo-card {
+            margin: 0;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            background: #f8fafc;
+            overflow: hidden;
+        }
+
+        .public-os-photo-card img {
+            display: block;
+            width: 100%;
+            height: 190px;
+            object-fit: cover;
+            background: #e2e8f0;
+        }
+
+        .public-os-photo-card figcaption {
+            padding: 10px;
+            color: #334155;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .public-os-photo-type {
+            display: inline-block;
+            margin-bottom: 4px;
+            border-radius: 999px;
+            background: #e0f2fe;
+            color: #075985;
+            padding: 3px 7px;
+            font-size: 10px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .public-os-document-section {
+            margin-top: 16px;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 16px;
+        }
+
+        .public-os-document-section h3 {
+            margin: 0 0 10px;
+            color: #0f172a;
+            font-size: 16px;
+        }
+
+        .public-os-table-wrap {
+            overflow-x: auto;
+        }
+
+        .public-os-document-table {
+            min-width: 650px;
+        }
+
+        .public-os-notes-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .public-os-note {
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            background: #f8fafc;
+            padding: 12px;
+        }
+
+        .public-os-note span {
+            display: block;
+            margin-bottom: 5px;
+            color: #64748b;
+            font-size: 11px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .public-os-note div {
+            color: #0f172a;
+            font-size: 13px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
         @media (max-width: 900px) {
             .public-os-item-row,
             .public-os-item-row.public-os-material-row {
@@ -203,6 +450,14 @@ Motivo: Padronizar tela pública no padrão visual de Orçamentos.
 
             .public-os-remove {
                 width: 100%;
+            }
+
+            .public-os-current-summary {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .public-os-photo-gallery {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
             }
         }
 
@@ -219,6 +474,26 @@ Motivo: Padronizar tela pública no padrão visual de Orçamentos.
 
             .public-os-actions {
                 flex-direction: column;
+            }
+
+            .public-os-current-header {
+                flex-direction: column;
+            }
+
+            .public-os-current-summary,
+            .public-os-equipment-grid,
+            .public-os-photo-gallery,
+            .public-os-notes-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .public-os-equipment-detail.public-os-detail-wide {
+                grid-column: span 1;
+            }
+
+            .public-os-photo-card img {
+                height: auto;
+                max-height: 360px;
             }
         }
     </style>
@@ -312,15 +587,140 @@ Motivo: Padronizar tela pública no padrão visual de Orçamentos.
 
             {% if acompanhamento %}
                 <div class="public-os-grid">
-                    <div class="public-os-info"><span>OS</span><strong>{{ acompanhamento.os_numero or acompanhamento.ordem_servico_id }}</strong></div>
-                    <div class="public-os-info"><span>Cliente</span><strong>{{ acompanhamento.os_cliente or '-' }}</strong></div>
-                    <div class="public-os-info"><span>Data</span><strong>{{ acompanhamento.data_acompanhamento or '-' }}</strong></div>
-                    <div class="public-os-info"><span>Local</span><strong>{{ acompanhamento.os_local_servico or '-' }}</strong></div>
-                    <div class="public-os-info"><span>Equipamento</span><strong>{{ acompanhamento.os_equipamento or '-' }}</strong></div>
-                    <div class="public-os-info"><span>Status da OS</span><strong>{{ acompanhamento.os_status or '-' }}</strong></div>
+                    <div class="public-os-info"><span>OS</span><strong>{{ os_atual.numero if os_atual else (acompanhamento.os_numero or acompanhamento.ordem_servico_id) }}</strong></div>
+                    <div class="public-os-info"><span>Cliente</span><strong>{{ os_atual.cliente if os_atual else (acompanhamento.os_cliente or '-') }}</strong></div>
+                    <div class="public-os-info"><span>Data do acompanhamento</span><strong>{{ acompanhamento.data_acompanhamento or '-' }}</strong></div>
+                    <div class="public-os-info"><span>Status da OS</span><strong>{{ os_atual.status if os_atual else (acompanhamento.os_status or '-') }}</strong></div>
+                    <div class="public-os-info"><span>Equipamentos atuais</span><strong>{{ resumo_equipamentos_os_publica or '-' }}</strong></div>
+                    <div class="public-os-info"><span>Previsão</span><strong>{{ os_atual.data_previsao_exibicao if os_atual else '-' }}</strong></div>
                 </div>
             {% endif %}
         </section>
+
+        {% if os_atual %}
+            <section class="public-os-panel" style="margin-bottom: 16px;">
+                <div class="public-os-current-header">
+                    <div>
+                        <h2>Ordem de Serviço atualizada</h2>
+                        <p>Esta área consulta diretamente a OS atual. Alterações salvas no GestFlow aparecem aqui ao atualizar a página.</p>
+                    </div>
+                    <span class="public-os-live-badge">Dados atuais</span>
+                </div>
+
+                <div class="public-os-current-summary">
+                    <div class="public-os-current-card"><span>Responsável</span><strong>{{ os_atual.responsavel or '-' }}</strong></div>
+                    <div class="public-os-current-card"><span>Técnico</span><strong>{{ os_atual.tecnico or '-' }}</strong></div>
+                    <div class="public-os-current-card"><span>Entrada</span><strong>{{ os_atual.data_abertura_exibicao or '-' }}{% if os_atual.hora_entrada %} {{ os_atual.hora_entrada }}{% endif %}</strong></div>
+                    <div class="public-os-current-card"><span>Prioridade</span><strong>{{ os_atual.prioridade or '-' }}</strong></div>
+                </div>
+
+                <div class="public-os-equipment-list">
+                    {% for equipamento in equipamentos_os_publicos|default([]) %}
+                        <article class="public-os-equipment-card">
+                            <div class="public-os-equipment-title">
+                                <h3>{{ equipamento.equipamento or equipamento.titulo }}</h3>
+                                <span>{{ equipamento.titulo }}</span>
+                            </div>
+                            <div class="public-os-equipment-body">
+                                <div class="public-os-equipment-grid">
+                                    <div class="public-os-equipment-detail"><span>Marca</span><strong>{{ equipamento.marca or '-' }}</strong></div>
+                                    <div class="public-os-equipment-detail"><span>Modelo</span><strong>{{ equipamento.modelo or '-' }}</strong></div>
+                                    <div class="public-os-equipment-detail"><span>Série</span><strong>{{ equipamento.serie or '-' }}</strong></div>
+                                    <div class="public-os-equipment-detail public-os-detail-wide"><span>Local do serviço</span><strong>{{ equipamento.local_servico or '-' }}</strong></div>
+                                    <div class="public-os-equipment-detail"><span>Condições</span><strong>{{ equipamento.condicoes or '-' }}</strong></div>
+                                    <div class="public-os-equipment-detail"><span>Defeito / relato</span><strong>{{ equipamento.relato_cliente or '-' }}</strong></div>
+                                    <div class="public-os-equipment-detail"><span>Diagnóstico / solução</span><strong>{{ equipamento.diagnostico or '-' }}</strong></div>
+                                    {% if equipamento.acessorios %}<div class="public-os-equipment-detail"><span>Acessórios</span><strong>{{ equipamento.acessorios }}</strong></div>{% endif %}
+                                    {% if equipamento.laudo %}<div class="public-os-equipment-detail"><span>Laudo</span><strong>{{ equipamento.laudo }}</strong></div>{% endif %}
+                                    {% if equipamento.termos %}<div class="public-os-equipment-detail"><span>Termos</span><strong>{{ equipamento.termos }}</strong></div>{% endif %}
+                                </div>
+
+                                {% if equipamento.fotos %}
+                                    <div class="public-os-photo-section">
+                                        <h4>Registro fotográfico</h4>
+                                        <div class="public-os-photo-gallery">
+                                            {% for foto in equipamento.fotos %}
+                                                {% if foto.foto_antes_path %}
+                                                    <figure class="public-os-photo-card">
+                                                        <img src="{{ foto.foto_antes_path }}" alt="Foto antes de {{ equipamento.equipamento or equipamento.titulo }}">
+                                                        <figcaption><span class="public-os-photo-type">Antes</span><br>{{ foto.observacoes or 'Sem observação.' }}</figcaption>
+                                                    </figure>
+                                                {% endif %}
+                                                {% if foto.foto_depois_path %}
+                                                    <figure class="public-os-photo-card">
+                                                        <img src="{{ foto.foto_depois_path }}" alt="Foto depois de {{ equipamento.equipamento or equipamento.titulo }}">
+                                                        <figcaption><span class="public-os-photo-type">Depois</span><br>{{ foto.observacoes or 'Sem observação.' }}</figcaption>
+                                                    </figure>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </article>
+                    {% else %}
+                        <div class="public-os-empty">Nenhum equipamento informado nesta OS.</div>
+                    {% endfor %}
+                </div>
+
+                <div class="public-os-document-section">
+                    <h3>Produtos / Peças</h3>
+                    {% if itens_produtos_os_publicos %}
+                        <div class="public-os-table-wrap">
+                            <table class="public-os-document-table">
+                                <thead><tr><th>Produto</th><th>Detalhes</th><th>Quantidade</th>{% if mostrar_valores_os_publica %}<th>Valor</th><th>Subtotal</th>{% endif %}</tr></thead>
+                                <tbody>
+                                    {% for item in itens_produtos_os_publicos %}
+                                        <tr><td>{{ item.descricao or '-' }}</td><td>{{ item.detalhes or '-' }}</td><td>{{ item.quantidade or '-' }}</td>{% if mostrar_valores_os_publica %}<td>{{ item.valor_unitario or '0,00' }}</td><td>{{ item.subtotal or '0,00' }}</td>{% endif %}</tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="public-os-empty">Nenhum produto vinculado.</div>
+                    {% endif %}
+                </div>
+
+                <div class="public-os-document-section">
+                    <h3>Serviços / Mão de obra</h3>
+                    {% if itens_servicos_os_publicos %}
+                        <div class="public-os-table-wrap">
+                            <table class="public-os-document-table">
+                                <thead><tr><th>Serviço</th><th>Detalhes</th><th>Quantidade</th>{% if mostrar_valores_os_publica %}<th>Valor</th><th>Subtotal</th>{% endif %}</tr></thead>
+                                <tbody>
+                                    {% for item in itens_servicos_os_publicos %}
+                                        <tr><td>{{ item.descricao or '-' }}</td><td>{{ item.detalhes or '-' }}</td><td>{{ item.quantidade or '-' }}</td>{% if mostrar_valores_os_publica %}<td>{{ item.valor_unitario or '0,00' }}</td><td>{{ item.subtotal or '0,00' }}</td>{% endif %}</tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="public-os-empty">Nenhum serviço vinculado.</div>
+                    {% endif %}
+                </div>
+
+                {% if os_atual.servico_executado or os_atual.observacoes %}
+                    <div class="public-os-document-section">
+                        <h3>Informações da execução</h3>
+                        <div class="public-os-notes-grid">
+                            {% if os_atual.servico_executado %}<div class="public-os-note"><span>Serviço executado</span><div>{{ os_atual.servico_executado }}</div></div>{% endif %}
+                            {% if os_atual.observacoes %}<div class="public-os-note"><span>Observações</span><div>{{ os_atual.observacoes }}</div></div>{% endif %}
+                        </div>
+                    </div>
+                {% endif %}
+
+                {% if mostrar_valores_os_publica %}
+                    <div class="public-os-document-section">
+                        <div class="public-os-current-summary">
+                            <div class="public-os-current-card"><span>Produtos</span><strong>R$ {{ os_atual.total_produtos or '0,00' }}</strong></div>
+                            <div class="public-os-current-card"><span>Serviços</span><strong>R$ {{ os_atual.total_servicos or '0,00' }}</strong></div>
+                            <div class="public-os-current-card"><span>Desconto</span><strong>R$ {{ os_atual.desconto_valor or '0,00' }}</strong></div>
+                            <div class="public-os-current-card"><span>Valor total</span><strong>R$ {{ os_atual.valor_total or '0,00' }}</strong></div>
+                        </div>
+                    </div>
+                {% endif %}
+            </section>
+        {% endif %}
 
         <section class="public-os-panel">
             {% if erro %}
