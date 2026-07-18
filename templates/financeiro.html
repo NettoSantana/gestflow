@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\financeiro.html
-Último recode: 2026-07-16 20:21 (America/Bahia)
-Motivo: Incluir a categoria obrigatória no cadastro rápido de fornecedor e enviar o valor ao backend.
+Último recode: 2026-07-18 18:30 (America/Bahia)
+Motivo: Filtrar Atividade / Projeto pelo Centro de custo e limpar seleções incompatíveis.
 -->
 
 <!DOCTYPE html>
@@ -747,7 +747,7 @@ Motivo: Incluir a categoria obrigatória no cadastro rápido de fornecedor e env
 
                         <div class="financeiro-field">
                             <label>Centro de custo</label>
-                            <select name="financeiro_centro_custo_id">
+                            <select name="financeiro_centro_custo_id" id="financeiro-centro-custo">
                                 <option value="">Sem centro de custo</option>
                                 {% for centro in centros_custo|default([]) %}<option value="{{ centro.id }}">{{ centro.codigo ~ ' - ' if centro.codigo else '' }}{{ centro.nome }}</option>{% endfor %}
                             </select>
@@ -755,9 +755,9 @@ Motivo: Incluir a categoria obrigatória no cadastro rápido de fornecedor e env
 
                         <div class="financeiro-field">
                             <label>Atividade / Projeto</label>
-                            <select name="financeiro_atividade_financeira_id">
+                            <select name="financeiro_atividade_financeira_id" id="financeiro-atividade-financeira">
                                 <option value="">Sem atividade</option>
-                                {% for atividade in atividades_financeiras|default([]) %}<option value="{{ atividade.id }}">{{ atividade.nome }}</option>{% endfor %}
+                                {% for atividade in atividades_financeiras|default([]) %}<option value="{{ atividade.id }}" data-centro-custo-id="{{ atividade.centro_custo_id or '' }}">{{ atividade.nome }}</option>{% endfor %}
                             </select>
                         </div>
 
@@ -1001,6 +1001,65 @@ Motivo: Incluir a categoria obrigatória no cadastro rápido de fornecedor e env
     let gestflowClienteSelectAtual = null;
     let gestflowResponsavelSelectAtual = null;
     let gestflowFornecedorSelectAtual = null;
+
+    function configurarFiltroCentroAtividade() {
+        const centroSelect = document.querySelector('[name="financeiro_centro_custo_id"]');
+        const atividadeSelect = document.querySelector('[name="financeiro_atividade_financeira_id"]');
+
+        if (!centroSelect || !atividadeSelect) {
+            return;
+        }
+
+        function aplicarFiltroAtividades() {
+            const centroId = String(centroSelect.value || "").trim();
+            const atividadeSelecionada = String(atividadeSelect.value || "").trim();
+            let selecaoCompativel = !atividadeSelecionada;
+
+            Array.from(atividadeSelect.options).forEach(function(opcao, indice) {
+                if (indice === 0 || !opcao.value) {
+                    opcao.hidden = false;
+                    opcao.disabled = false;
+                    return;
+                }
+
+                const centroAtividade = String(opcao.dataset.centroCustoId || "").trim();
+                const compativel = !centroId || centroAtividade === centroId;
+
+                opcao.hidden = !compativel;
+                opcao.disabled = !compativel;
+
+                if (opcao.value === atividadeSelecionada && compativel) {
+                    selecaoCompativel = true;
+                }
+            });
+
+            if (!selecaoCompativel) {
+                atividadeSelect.value = "";
+                atividadeSelect.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+        }
+
+        centroSelect.addEventListener("change", aplicarFiltroAtividades);
+
+        atividadeSelect.addEventListener("change", function() {
+            const opcaoSelecionada = atividadeSelect.options[atividadeSelect.selectedIndex];
+
+            if (!opcaoSelecionada || !opcaoSelecionada.value) {
+                return;
+            }
+
+            const centroAtividade = String(opcaoSelecionada.dataset.centroCustoId || "").trim();
+
+            if (centroAtividade && centroSelect.value !== centroAtividade) {
+                const atividadeId = opcaoSelecionada.value;
+                centroSelect.value = centroAtividade;
+                aplicarFiltroAtividades();
+                atividadeSelect.value = atividadeId;
+            }
+        });
+
+        aplicarFiltroAtividades();
+    }
 
     function abrirModalPorId(id) {
         const modal = document.getElementById(id);
@@ -1254,6 +1313,8 @@ Motivo: Incluir a categoria obrigatória no cadastro rápido de fornecedor e env
     window.abrirModalFornecedorRapido = window.abrirModalFornecedorRapidoGeral;
     window.fecharModalFornecedorRapido = window.fecharModalFornecedorRapidoGeral;
     window.salvarFornecedorRapido = window.salvarFornecedorRapidoGeral;
+
+    configurarFiltroCentroAtividade();
 
     document.addEventListener("change", function(evento) {
         const alvo = evento.target;

@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-18 11:54 (America/Bahia)
-# Motivo: Preservar edição/exclusão de acompanhamentos da OS e corrigir funcionários, intervalo, PWA e favicon.
+# Último recode: 2026-07-18 15:45 (America/Bahia)
+# Motivo: Corrigir o valor recebido das atividades financeiras usando títulos pagos da venda vinculada ao orçamento.
 
 from __future__ import annotations
 
@@ -6027,26 +6027,113 @@ def buscar_atividade_financeira_por_id(atividade_id: int) -> dict[str, Any] | No
 
 
 def resumir_atividade_financeira(atividade_id: int | None) -> dict[str, Any]:
-    vazio = {"previsto":0.0,"recebido":0.0,"a_receber":0.0,"custos":0.0,"resultado":0.0,"margem":0.0,"previsto_formatado":"0,00","recebido_formatado":"0,00","a_receber_formatado":"0,00","custos_formatado":"0,00","resultado_formatado":"0,00","margem_formatada":"0,00"}
+    vazio = {
+        "previsto": 0.0,
+        "recebido": 0.0,
+        "a_receber": 0.0,
+        "custos": 0.0,
+        "resultado": 0.0,
+        "margem": 0.0,
+        "previsto_formatado": "0,00",
+        "recebido_formatado": "0,00",
+        "a_receber_formatado": "0,00",
+        "custos_formatado": "0,00",
+        "resultado_formatado": "0,00",
+        "margem_formatada": "0,00",
+    }
+
     if not atividade_id:
         return vazio
+
     atividade = buscar_atividade_financeira_por_id(int(atividade_id))
     if not atividade:
         return vazio
+
+    empresa_id = empresa_logada_id()
+    atividade_id = int(atividade_id)
     previsto = _converter_valor_brl(atividade.get("valor_previsto"))
+
+    origem_atividade = str(atividade.get("origem") or "").strip().lower()
+    origem_atividade_id = atividade.get("origem_id")
+
+    try:
+        origem_atividade_id = (
+            int(origem_atividade_id)
+            if origem_atividade_id not in (None, "")
+            else None
+        )
+    except (TypeError, ValueError):
+        origem_atividade_id = None
+
     with conectar_db() as conn:
-        rows = conn.execute("SELECT tipo, status, valor FROM financeiro_titulos WHERE empresa_id = ? AND atividade_financeira_id = ? AND status <> 'cancelado'", (empresa_logada_id(), int(atividade_id))).fetchall()
-    recebido = custos = 0.0
+        parametros: list[Any] = [empresa_id, atividade_id]
+        vinculo_venda_orcamento = ""
+
+        if origem_atividade == "orcamento" and origem_atividade_id:
+            vinculo_venda_orcamento = """
+                OR (
+                    ft.origem = 'venda'
+                    AND EXISTS (
+                        SELECT 1
+                        FROM vendas v
+                        WHERE v.id = ft.origem_id
+                          AND v.empresa_id = ft.empresa_id
+                          AND v.origem_orcamento_id = ?
+                    )
+                )
+            """
+            parametros.append(origem_atividade_id)
+
+        rows = conn.execute(
+            f"""
+            SELECT DISTINCT
+                ft.id,
+                ft.tipo,
+                ft.status,
+                ft.valor
+            FROM financeiro_titulos ft
+            WHERE ft.empresa_id = ?
+              AND LOWER(TRIM(COALESCE(ft.status, ''))) <> 'cancelado'
+              AND (
+                    ft.atividade_financeira_id = ?
+                    {vinculo_venda_orcamento}
+              )
+            ORDER BY ft.id ASC
+            """,
+            parametros,
+        ).fetchall()
+
+    recebido = 0.0
+    custos = 0.0
+
     for row in rows:
-        valor = _converter_valor_brl(row['valor'])
-        if row['tipo'] == 'receber' and row['status'] == 'pago':
+        tipo = str(row["tipo"] or "").strip().lower()
+        status = str(row["status"] or "").strip().lower()
+        valor = _converter_valor_brl(row["valor"])
+
+        if tipo == "receber" and status in {"pago", "recebido"}:
             recebido += valor
-        elif row['tipo'] == 'pagar':
+        elif tipo == "pagar":
             custos += valor
+
     a_receber = max(previsto - recebido, 0.0)
     resultado = recebido - custos
     margem = (resultado / recebido * 100) if recebido else 0.0
-    return {"previsto":previsto,"recebido":recebido,"a_receber":a_receber,"custos":custos,"resultado":resultado,"margem":margem,"previsto_formatado":_formatar_moeda_brl(previsto),"recebido_formatado":_formatar_moeda_brl(recebido),"a_receber_formatado":_formatar_moeda_brl(a_receber),"custos_formatado":_formatar_moeda_brl(custos),"resultado_formatado":_formatar_moeda_brl(resultado),"margem_formatada":_formatar_percentual_simples(margem)}
+
+    return {
+        "previsto": previsto,
+        "recebido": recebido,
+        "a_receber": a_receber,
+        "custos": custos,
+        "resultado": resultado,
+        "margem": margem,
+        "previsto_formatado": _formatar_moeda_brl(previsto),
+        "recebido_formatado": _formatar_moeda_brl(recebido),
+        "a_receber_formatado": _formatar_moeda_brl(a_receber),
+        "custos_formatado": _formatar_moeda_brl(custos),
+        "resultado_formatado": _formatar_moeda_brl(resultado),
+        "margem_formatada": _formatar_percentual_simples(margem),
+    }
 
 
 def normalizar_vinculos_financeiros_documento(
