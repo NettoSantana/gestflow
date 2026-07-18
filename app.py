@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-18 11:38 (America/Bahia)
-# Motivo: Permitir editar e excluir acompanhamentos diários diretamente na tela Editar OS.
+# Último recode: 2026-07-18 11:54 (America/Bahia)
+# Motivo: Preservar edição/exclusão de acompanhamentos da OS e corrigir funcionários, intervalo, PWA e favicon.
 
 from __future__ import annotations
 
@@ -816,6 +816,7 @@ def exigir_login_rotas_internas() -> Response | None:
         "esqueci_senha",
         "pwa_instalar",
         "manifest_json",
+        "favicon",
         "ponto_publico",
         "api_ponto_offline_sincronizar",
         "agendamento_publico",
@@ -3871,7 +3872,7 @@ def salvar_funcionario_db(funcionario: dict[str, str]) -> None:
                 custo_hora,
                 token_ponto,
                 exigir_intervalo_ponto
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id,
@@ -17385,6 +17386,16 @@ def manifest_json() -> Response:
     )
 
 
+@app.get("/favicon.ico")
+def favicon() -> Response:
+    return send_from_directory(
+        BASE_DIR / "static" / "img",
+        "gestflow-icon-192.png",
+        mimetype="image/png",
+        max_age=86400,
+    )
+
+
 @app.get("/service-worker.js")
 def service_worker() -> Response:
     return send_from_directory(
@@ -20165,7 +20176,7 @@ def salvar_funcionario() -> Response:
         "custo_hora": (request.form.get("funcionario_custo_hora") or "").strip(),
         "exigir_intervalo_ponto": (
             "sim"
-            if request.form.get("funcionario_exigir_intervalo_ponto") == "sim"
+            if "sim" in request.form.getlist("funcionario_exigir_intervalo_ponto")
             else "nao"
         ),
     }
@@ -20338,8 +20349,10 @@ def salvar_funcionario_rapido() -> Response:
                 outros_custos,
                 custo_mensal,
                 custo_dia,
-                custo_hora
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                custo_hora,
+                token_ponto,
+                exigir_intervalo_ponto
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id,
@@ -20363,6 +20376,8 @@ def salvar_funcionario_rapido() -> Response:
                 funcionario["custo_mensal"],
                 funcionario["custo_dia"],
                 funcionario["custo_hora"],
+                gerar_token_ponto_funcionario(),
+                "sim",
             ),
         )
         funcionario_id = int(cursor.lastrowid)
@@ -20439,7 +20454,7 @@ def atualizar_funcionario(funcionario_id: int) -> Response:
         "custo_hora": (request.form.get("funcionario_custo_hora") or "").strip(),
         "exigir_intervalo_ponto": (
             "sim"
-            if request.form.get("funcionario_exigir_intervalo_ponto") == "sim"
+            if "sim" in request.form.getlist("funcionario_exigir_intervalo_ponto")
             else "nao"
         ),
     }
