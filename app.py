@@ -18432,28 +18432,58 @@ def esqueci_senha() -> str | Response:
     email = (request.form.get("email") or "").strip().lower()
 
     if request.method == "POST":
+        print(f"[EMAIL][RECUPERACAO] Solicitação recebida para: {email}", flush=True)
         usuario = buscar_usuario_por_email(email)
-        # Resposta neutra evita revelar quais e-mails estão cadastrados.
+
+        # Resposta neutra evita revelar publicamente quais e-mails estão cadastrados.
         mensagem = "Se o e-mail estiver cadastrado, enviaremos um link para redefinir a senha."
-        if usuario is not None:
+
+        if usuario is None:
+            print(f"[EMAIL][RECUPERACAO] Usuário não encontrado para: {email}", flush=True)
+        else:
+            print(
+                f"[EMAIL][RECUPERACAO] Usuário encontrado: id={usuario['id']} empresa={usuario['empresa_id']}",
+                flush=True,
+            )
             token = secrets.token_urlsafe(40)
             token_hash = generate_password_hash(token)
             expira_em = (agora_empresa() + timedelta(minutes=30)).isoformat(timespec="seconds")
-            with conectar_db() as conn:
-                conn.execute(
-                    """INSERT INTO usuario_recuperacao_senha
-                       (empresa_id, usuario_id, token_hash, expira_em, usado_em, criado_em)
-                       VALUES (?, ?, ?, ?, '', ?)""",
-                    (int(usuario["empresa_id"]), int(usuario["id"]), token_hash, expira_em, agora_empresa().isoformat(timespec="seconds")),
-                )
-                conn.commit()
             link = f"{getattr(config, 'GESTFLOW_BASE_URL', request.url_root.rstrip('/')).rstrip('/')}/redefinir-senha/{token}"
             assunto = "Redefinição de senha - GestFlow"
-            corpo = (f"Olá, {usuario.get('nome') or 'usuário'}.\n\n"
-                     "Recebemos uma solicitação para redefinir sua senha no GestFlow.\n\n"
-                     f"Acesse o link abaixo em até 30 minutos:\n{link}\n\n"
-                     "Se você não solicitou, ignore este e-mail.")
-            enviar_email_zoho(str(usuario.get("email") or email), assunto, corpo)
+            corpo = (
+                f"Olá, {usuario.get('nome') or 'usuário'}.\n\n"
+                "Recebemos uma solicitação para redefinir sua senha no GestFlow.\n\n"
+                f"Acesse o link abaixo em até 30 minutos:\n{link}\n\n"
+                "Se você não solicitou, ignore este e-mail."
+            )
+
+            enviado, detalhe_envio = enviar_email_zoho(
+                str(usuario.get("email") or email),
+                assunto,
+                corpo,
+            )
+
+            if enviado:
+                with conectar_db() as conn:
+                    conn.execute(
+                        """INSERT INTO usuario_recuperacao_senha
+                           (empresa_id, usuario_id, token_hash, expira_em, usado_em, criado_em)
+                           VALUES (?, ?, ?, ?, '', ?)""",
+                        (
+                            int(usuario["empresa_id"]),
+                            int(usuario["id"]),
+                            token_hash,
+                            expira_em,
+                            agora_empresa().isoformat(timespec="seconds"),
+                        ),
+                    )
+                    conn.commit()
+                print("[EMAIL][RECUPERACAO] Token salvo e e-mail enviado com sucesso.", flush=True)
+            else:
+                print(f"[EMAIL][RECUPERACAO] Falha no envio: {detalhe_envio}", flush=True)
+                if str(getattr(config, "ENV", "DEV")).strip().upper() == "DEV":
+                    erro = f"Falha ao enviar o e-mail: {detalhe_envio}"
+                    mensagem = ""
 
     return render_template("esqueci_senha.html", mensagem=mensagem, erro=erro, email=email)
 
@@ -25757,16 +25787,37 @@ def twilio_webhook() -> Response:
 def enviar_email_zoho(destinatario: str, assunto: str, corpo: str) -> tuple[bool, str]:
     destinatario = str(destinatario or "").strip()
     if not destinatario:
-        return False, "Responsável sem e-mail cadastrado."
+        print("[EMAIL][ZOHO] Destinatário vazio.", flush=True)
+        return False, "Destinatário sem e-mail cadastrado."
 
     usuario = str(getattr(config, "ZOHO_SMTP_USER", "") or "").strip()
     senha = str(getattr(config, "ZOHO_SMTP_PASSWORD", "") or "").strip()
     remetente = str(getattr(config, "ZOHO_SMTP_FROM", "") or usuario).strip()
-    host = str(getattr(config, "ZOHO_SMTP_HOST", "smtp.zoho.com") or "smtp.zoho.com")
-    porta = int(getattr(config, "ZOHO_SMTP_PORT", 587) or 587)
+    host = str(getattr(config, "ZOHO_SMTP_HOST", "smtp.zoho.com") or "smtp.zoho.com").strip()
 
-    if not usuario or not senha or not remetente:
-        return False, "SMTP do Zoho ainda não configurado."
+    try:
+        porta = int(getattr(config, "ZOHO_SMTP_PORT", 587) or 587)
+    except (TypeError, ValueError):
+        print("[EMAIL][ZOHO] Porta SMTP inválida.", flush=True)
+        return False, "Porta SMTP inválida."
+
+    faltantes = []
+    if not usuario:
+        faltantes.append("ZOHO_SMTP_USER")
+    if not senha:
+        faltantes.append("ZOHO_SMTP_PASSWORD")
+    if not remetente:
+        faltantes.append("ZOHO_SMTP_FROM")
+
+    if faltantes:
+        detalhe = "Variáveis ausentes: " + ", ".join(faltantes)
+        print(f"[EMAIL][ZOHO] {detalhe}", flush=True)
+        return False, detalhe
+
+    print(
+        f"[EMAIL][ZOHO] Conectando em {host}:{porta} | usuário={usuario} | remetente={remetente} | destinatário={destinatario}",
+        flush=True,
+    )
 
     mensagem = EmailMessage()
     mensagem["From"] = remetente
@@ -25781,9 +25832,28 @@ def enviar_email_zoho(destinatario: str, assunto: str, corpo: str) -> tuple[bool
             servidor.ehlo()
             servidor.login(usuario, senha)
             servidor.send_message(mensagem)
+        print("[EMAIL][ZOHO] E-mail enviado com sucesso.", flush=True)
         return True, "E-mail enviado."
+    except smtplib.SMTPAuthenticationError as exc:
+        detalhe = f"Autenticação recusada pelo Zoho ({exc.smtp_code}). Verifique usuário e senha de aplicativo."
+        print(f"[EMAIL][ZOHO] {detalhe}", flush=True)
+        return False, detalhe
+    except smtplib.SMTPConnectError as exc:
+        detalhe = f"Falha de conexão SMTP ({exc.smtp_code}): {exc.smtp_error!r}"
+        print(f"[EMAIL][ZOHO] {detalhe}", flush=True)
+        return False, detalhe
+    except (TimeoutError, OSError) as exc:
+        detalhe = f"Falha de rede ao acessar {host}:{porta}: {exc}"
+        print(f"[EMAIL][ZOHO] {detalhe}", flush=True)
+        return False, detalhe
+    except smtplib.SMTPException as exc:
+        detalhe = f"Erro SMTP: {exc}"
+        print(f"[EMAIL][ZOHO] {detalhe}", flush=True)
+        return False, detalhe
     except Exception as exc:
-        return False, f"Falha ao enviar e-mail: {exc}"
+        detalhe = f"Erro inesperado no envio: {type(exc).__name__}: {exc}"
+        print(f"[EMAIL][ZOHO] {detalhe}", flush=True)
+        return False, detalhe
 
 
 def garantir_estrutura_gestao_atividades() -> None:
