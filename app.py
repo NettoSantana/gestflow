@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-18 15:45 (America/Bahia)
-# Motivo: Corrigir o valor recebido das atividades financeiras usando títulos pagos da venda vinculada ao orçamento.
+# Último recode: 2026-07-19 22:45 (America/Bahia)
+# Motivo: Adicionar usuários, perfis, permissões por ação, sessão revalidada e proteção administrativa.
 
 from __future__ import annotations
 
@@ -90,6 +90,128 @@ GESTFLOW_MODULOS = [
 
 GESTFLOW_MODULOS_PADRAO = {modulo["codigo"]: True for modulo in GESTFLOW_MODULOS}
 GESTFLOW_MODULOS_CODIGOS = set(GESTFLOW_MODULOS_PADRAO)
+
+GESTFLOW_ACOES_PERMISSAO = [
+    {"codigo": "visualizar", "nome": "Visualizar"},
+    {"codigo": "criar", "nome": "Criar"},
+    {"codigo": "editar", "nome": "Editar"},
+    {"codigo": "excluir", "nome": "Excluir"},
+    {"codigo": "aprovar", "nome": "Aprovar / baixar"},
+    {"codigo": "exportar", "nome": "Exportar / imprimir"},
+]
+GESTFLOW_ACOES_PERMISSAO_CODIGOS = {
+    item["codigo"] for item in GESTFLOW_ACOES_PERMISSAO
+}
+
+GESTFLOW_PERFIS_USUARIO = {
+    "super_admin": {
+        "nome": "Superadministrador",
+        "descricao": "Administração global do GestFlow e acesso total à própria empresa.",
+    },
+    "administrador": {
+        "nome": "Administrador",
+        "descricao": "Acesso total aos módulos e configurações da própria empresa.",
+    },
+    "comercial": {
+        "nome": "Comercial",
+        "descricao": "Clientes, serviços, orçamentos, vendas e agenda comercial.",
+    },
+    "financeiro": {
+        "nome": "Financeiro",
+        "descricao": "Financeiro completo e consulta aos documentos operacionais.",
+    },
+    "estoque": {
+        "nome": "Estoque / Compras",
+        "descricao": "Fornecedores, produtos, compras e movimentações de estoque.",
+    },
+    "tecnico": {
+        "nome": "Técnico / Operacional",
+        "descricao": "Equipamentos, ordens de serviço, execução e consultas operacionais.",
+    },
+    "consulta": {
+        "nome": "Consulta",
+        "descricao": "Somente leitura dos módulos liberados para a empresa.",
+    },
+}
+GESTFLOW_PERFIS_USUARIO_CODIGOS = set(GESTFLOW_PERFIS_USUARIO)
+
+GESTFLOW_MODULOS_PERMISSOES = [
+    {
+        "codigo": "dashboard",
+        "nome": "Dashboard",
+        "grupo": "Geral",
+        "descricao": "Indicadores e visão geral da empresa.",
+    },
+    *[dict(modulo) for modulo in GESTFLOW_MODULOS],
+    {
+        "codigo": "configuracoes",
+        "nome": "Configurações",
+        "grupo": "Administração",
+        "descricao": "Empresa, usuários, módulos, marca e preferências.",
+    },
+]
+
+_ACOES_TOTAIS = set(GESTFLOW_ACOES_PERMISSAO_CODIGOS)
+_ACOES_OPERACAO = {"visualizar", "criar", "editar", "aprovar", "exportar"}
+_ACOES_LEITURA = {"visualizar", "exportar"}
+
+GESTFLOW_PERMISSOES_PADRAO_PERFIL: dict[str, dict[str, set[str]]] = {
+    "comercial": {
+        "dashboard": {"visualizar"},
+        "clientes": set(_ACOES_OPERACAO),
+        "servicos": set(_ACOES_OPERACAO),
+        "orcamentos": set(_ACOES_OPERACAO),
+        "gerador_orcamentos": set(_ACOES_OPERACAO),
+        "vendas": set(_ACOES_OPERACAO),
+        "pdv": set(_ACOES_OPERACAO),
+        "agendamentos": set(_ACOES_OPERACAO),
+        "produtos": set(_ACOES_LEITURA),
+        "estoque": set(_ACOES_LEITURA),
+        "ordens_servico": set(_ACOES_LEITURA),
+        "painel_os": set(_ACOES_LEITURA),
+        "vitrine": set(_ACOES_OPERACAO),
+    },
+    "financeiro": {
+        "dashboard": {"visualizar"},
+        "financeiro": set(_ACOES_TOTAIS),
+        "clientes": set(_ACOES_LEITURA),
+        "fornecedores": set(_ACOES_LEITURA),
+        "produtos": set(_ACOES_LEITURA),
+        "estoque": set(_ACOES_LEITURA),
+        "orcamentos": set(_ACOES_LEITURA),
+        "vendas": set(_ACOES_LEITURA),
+        "ordens_servico": set(_ACOES_LEITURA),
+        "atividades_financeiras": set(_ACOES_TOTAIS),
+    },
+    "estoque": {
+        "dashboard": {"visualizar"},
+        "fornecedores": set(_ACOES_TOTAIS),
+        "produtos": set(_ACOES_TOTAIS),
+        "estoque": set(_ACOES_TOTAIS),
+        "clientes": set(_ACOES_LEITURA),
+        "vendas": set(_ACOES_LEITURA),
+        "ordens_servico": set(_ACOES_LEITURA),
+        "financeiro": set(_ACOES_LEITURA),
+    },
+    "tecnico": {
+        "dashboard": {"visualizar"},
+        "clientes": set(_ACOES_LEITURA),
+        "funcionarios": set(_ACOES_LEITURA),
+        "equipamentos": set(_ACOES_OPERACAO),
+        "servicos": set(_ACOES_LEITURA),
+        "ordens_servico": set(_ACOES_OPERACAO),
+        "painel_os": set(_ACOES_OPERACAO),
+        "produtos": set(_ACOES_LEITURA),
+        "estoque": set(_ACOES_LEITURA),
+        "registro_ponto": set(_ACOES_LEITURA),
+        "agendamentos": set(_ACOES_LEITURA),
+    },
+    "consulta": {
+        modulo["codigo"]: set(_ACOES_LEITURA)
+        for modulo in GESTFLOW_MODULOS_PERMISSOES
+        if modulo["codigo"] != "configuracoes"
+    },
+}
 
 PONTO_BLOQUEIO_NOVA_JORNADA_SEGUNDOS = 10
 
@@ -415,7 +537,11 @@ def empresa_precisa_onboarding() -> bool:
 
 
 def modulo_por_rota(path: str) -> str:
-    caminho = str(path or "")
+    caminho = str(path or "").strip()
+
+    if caminho == "/":
+        return "dashboard"
+
     regras = [
         ("/orcamentos/gerador", "gerador_orcamentos"),
         ("/orcamentos", "orcamentos"),
@@ -435,10 +561,12 @@ def modulo_por_rota(path: str) -> str:
         ("/financeiro", "financeiro"),
         ("/agendamentos", "agendamentos"),
         ("/registro-ponto", "registro_ponto"),
+        ("/configuracoes", "configuracoes"),
+        ("/admin", "admin"),
     ]
 
     for prefixo, codigo in regras:
-        if caminho.startswith(prefixo):
+        if caminho == prefixo or caminho.startswith(f"{prefixo}/"):
             return codigo
 
     return ""
@@ -467,12 +595,16 @@ def buscar_usuario_por_email(email: str) -> dict[str, Any] | None:
             SELECT
                 usuarios.id,
                 usuarios.empresa_id,
+                usuarios.funcionario_id,
                 usuarios.nome,
                 usuarios.email,
                 usuarios.senha_hash,
                 usuarios.perfil,
+                usuarios.permissoes_json,
                 usuarios.status,
+                usuarios.sessao_versao,
                 usuarios.ultimo_login,
+                usuarios.atualizado_em,
                 usuarios.criado_em,
                 empresas.nome_fantasia AS empresa_nome,
                 empresas.plano AS empresa_plano,
@@ -514,6 +646,255 @@ def autenticar_usuario(email: str, senha: str) -> dict[str, Any] | None:
     return usuario
 
 
+def normalizar_perfil_usuario(perfil: Any) -> str:
+    perfil_normalizado = str(perfil or "").strip().lower().replace("-", "_").replace(" ", "_")
+    aliases = {
+        "admin": "administrador",
+        "dono": "administrador",
+        "administrador_empresa": "administrador",
+        "administrador_sistema": "super_admin",
+        "superadmin": "super_admin",
+        "estoque_compras": "estoque",
+        "operacional": "tecnico",
+        "tecnico_operacional": "tecnico",
+        "somente_leitura": "consulta",
+    }
+    perfil_normalizado = aliases.get(perfil_normalizado, perfil_normalizado)
+    return perfil_normalizado if perfil_normalizado in GESTFLOW_PERFIS_USUARIO_CODIGOS else "consulta"
+
+
+def rotulo_perfil_usuario(perfil: Any) -> str:
+    perfil_normalizado = normalizar_perfil_usuario(perfil)
+    return str(GESTFLOW_PERFIS_USUARIO.get(perfil_normalizado, {}).get("nome") or perfil_normalizado)
+
+
+def normalizar_permissoes_usuario(valor: Any) -> dict[str, set[str]] | None:
+    texto = str(valor or "").strip()
+    if not texto:
+        return None
+
+    try:
+        dados = json.loads(texto)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return None
+
+    if not isinstance(dados, dict):
+        return None
+
+    permissoes: dict[str, set[str]] = {}
+    modulos_validos = {item["codigo"] for item in GESTFLOW_MODULOS_PERMISSOES}
+
+    for modulo, acoes in dados.items():
+        modulo_normalizado = str(modulo or "").strip()
+        if modulo_normalizado not in modulos_validos:
+            continue
+
+        if isinstance(acoes, str):
+            acoes_iteraveis = [acoes]
+        elif isinstance(acoes, (list, tuple, set)):
+            acoes_iteraveis = acoes
+        else:
+            continue
+
+        acoes_validas = {
+            str(acao or "").strip()
+            for acao in acoes_iteraveis
+            if str(acao or "").strip() in GESTFLOW_ACOES_PERMISSAO_CODIGOS
+        }
+        permissoes[modulo_normalizado] = acoes_validas
+
+    return permissoes
+
+
+def serializar_permissoes_usuario(permissoes: dict[str, set[str]] | None) -> str:
+    if permissoes is None:
+        return ""
+
+    normalizado = {
+        modulo: sorted(
+            acao for acao in acoes
+            if acao in GESTFLOW_ACOES_PERMISSAO_CODIGOS
+        )
+        for modulo, acoes in sorted(permissoes.items())
+    }
+    return json.dumps(normalizado, ensure_ascii=False, sort_keys=True)
+
+
+def permissoes_padrao_perfil(perfil: Any) -> dict[str, set[str]]:
+    perfil_normalizado = normalizar_perfil_usuario(perfil)
+
+    if perfil_normalizado in {"super_admin", "administrador"}:
+        return {
+            modulo["codigo"]: set(_ACOES_TOTAIS)
+            for modulo in GESTFLOW_MODULOS_PERMISSOES
+        }
+
+    base = GESTFLOW_PERMISSOES_PADRAO_PERFIL.get(perfil_normalizado, {})
+    return {modulo: set(acoes) for modulo, acoes in base.items()}
+
+
+def permissoes_efetivas_usuario(usuario: dict[str, Any] | None = None) -> dict[str, set[str]]:
+    usuario_atual = dict(usuario or usuario_logado() or {})
+    perfil = normalizar_perfil_usuario(usuario_atual.get("perfil"))
+
+    if perfil in {"super_admin", "administrador"}:
+        return permissoes_padrao_perfil(perfil)
+
+    personalizadas = normalizar_permissoes_usuario(
+        usuario_atual.get("permissoes_json")
+        if "permissoes_json" in usuario_atual
+        else session.get("usuario_permissoes_json")
+    )
+
+    if personalizadas is not None:
+        return personalizadas
+
+    return permissoes_padrao_perfil(perfil)
+
+
+def usuario_tem_permissao(
+    modulo: str,
+    acao: str = "visualizar",
+    usuario: dict[str, Any] | None = None,
+) -> bool:
+    modulo_normalizado = str(modulo or "").strip()
+    acao_normalizada = str(acao or "visualizar").strip().lower()
+
+    if not session.get("usuario_id") and usuario is None:
+        return False
+
+    perfil = normalizar_perfil_usuario(
+        (usuario or {}).get("perfil")
+        if usuario is not None
+        else session.get("usuario_perfil")
+    )
+
+    if modulo_normalizado == "admin":
+        return perfil == "super_admin"
+
+    if modulo_normalizado == "configuracoes":
+        return perfil in {"super_admin", "administrador"}
+
+    if perfil in {"super_admin", "administrador"}:
+        return True
+
+    permissoes = permissoes_efetivas_usuario(usuario)
+    return acao_normalizada in permissoes.get(modulo_normalizado, set())
+
+
+def modulo_usuario_visivel(modulo: str) -> bool:
+    return usuario_tem_permissao(modulo, "visualizar")
+
+
+def usuario_logado_eh_administrador_empresa() -> bool:
+    return normalizar_perfil_usuario(session.get("usuario_perfil")) in {
+        "super_admin",
+        "administrador",
+    }
+
+
+def acao_permissao_por_requisicao() -> str:
+    endpoint = str(request.endpoint or "").strip().lower()
+    caminho = str(request.path or "").strip().lower()
+    metodo = str(request.method or "GET").upper()
+
+    if metodo in {"GET", "HEAD", "OPTIONS"}:
+        if any(token in endpoint or token in caminho for token in (
+            "export", "imprimir", "download", "baixar-arquivo", "cupom", "a4"
+        )):
+            return "exportar"
+        return "visualizar"
+
+    if any(token in endpoint or token in caminho for token in (
+        "excluir", "remover", "delete"
+    )):
+        return "excluir"
+
+    if any(token in endpoint or token in caminho for token in (
+        "aprovar", "baixar", "receber", "pagar", "finalizar",
+        "cancelar", "reabrir", "status", "sincronizar"
+    )):
+        return "aprovar"
+
+    if any(token in endpoint or token in caminho for token in (
+        "editar", "atualizar", "redefinir", "configuracoes", "salvar_"
+    )):
+        return "editar"
+
+    return "criar"
+
+
+def buscar_usuario_sessao_por_id(usuario_id: int) -> dict[str, Any] | None:
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                u.id,
+                u.empresa_id,
+                u.funcionario_id,
+                u.nome,
+                u.email,
+                u.perfil,
+                u.permissoes_json,
+                u.status,
+                u.sessao_versao,
+                e.nome_fantasia AS empresa_nome,
+                e.plano AS empresa_plano,
+                e.status AS empresa_status
+            FROM usuarios u
+            JOIN empresas e ON e.id = u.empresa_id
+            WHERE u.id = ?
+            LIMIT 1
+            """,
+            (usuario_id,),
+        ).fetchone()
+
+    return dict(row) if row else None
+
+
+def revalidar_sessao_usuario() -> tuple[bool, str]:
+    try:
+        usuario_id = int(session.get("usuario_id") or 0)
+    except (TypeError, ValueError):
+        usuario_id = 0
+
+    if not usuario_id:
+        return False, "Sessão inválida."
+
+    usuario = buscar_usuario_sessao_por_id(usuario_id)
+    if usuario is None:
+        session.clear()
+        return False, "Usuário não encontrado."
+
+    if str(usuario.get("status") or "").strip().lower() != "ativo":
+        session.clear()
+        return False, "Usuário inativo."
+
+    if str(usuario.get("empresa_status") or "").strip().lower() not in {"ativo", "trial"}:
+        session.clear()
+        return False, "Empresa inativa."
+
+    try:
+        versao_sessao = int(session.get("usuario_sessao_versao") or 1)
+        versao_banco = int(usuario.get("sessao_versao") or 1)
+    except (TypeError, ValueError):
+        versao_sessao = 1
+        versao_banco = 1
+
+    if versao_sessao != versao_banco:
+        session.clear()
+        return False, "A sessão foi encerrada após uma alteração de segurança."
+
+    session["empresa_id"] = int(usuario["empresa_id"])
+    session["usuario_nome"] = str(usuario.get("nome") or "")
+    session["usuario_email"] = str(usuario.get("email") or "")
+    session["usuario_perfil"] = normalizar_perfil_usuario(usuario.get("perfil"))
+    session["usuario_permissoes_json"] = str(usuario.get("permissoes_json") or "")
+    session["empresa_nome"] = str(usuario.get("empresa_nome") or "")
+    session["empresa_plano"] = str(usuario.get("empresa_plano") or "")
+    return True, ""
+
+
 def registrar_ultimo_login_usuario(usuario_id: int) -> None:
     with conectar_db() as conn:
         conn.execute(
@@ -539,6 +920,7 @@ def usuario_logado() -> dict[str, Any] | None:
         "nome": session.get("usuario_nome"),
         "email": session.get("usuario_email"),
         "perfil": session.get("usuario_perfil"),
+        "permissoes_json": session.get("usuario_permissoes_json", ""),
         "empresa_nome": session.get("empresa_nome"),
         "empresa_plano": session.get("empresa_plano"),
     }
@@ -803,6 +1185,11 @@ def injetar_usuario_logado() -> dict[str, Any]:
         "gestflow_modulos": GESTFLOW_MODULOS,
         "gestflow_modulos_ativos": buscar_modulos_empresa() if session.get("usuario_id") else dict(GESTFLOW_MODULOS_PADRAO),
         "modulo_ativo": modulo_empresa_ativo,
+        "tem_permissao": usuario_tem_permissao,
+        "modulo_usuario_visivel": modulo_usuario_visivel,
+        "usuario_eh_admin_empresa": usuario_logado_eh_administrador_empresa(),
+        "usuario_eh_admin_sistema": usuario_logado_eh_admin_sistema(),
+        "rotulo_perfil_usuario": rotulo_perfil_usuario,
     }
 
 
@@ -842,17 +1229,42 @@ def exigir_login_rotas_internas() -> Response | None:
     if request.path.startswith("/static/"):
         return None
 
-    if session.get("usuario_id"):
-        rotas_liberadas_onboarding = {"onboarding", "sair", "concluir_tour", "static"}
-        if request.endpoint not in rotas_liberadas_onboarding and empresa_precisa_onboarding():
-            return redirect(url_for("onboarding"))
+    if not session.get("usuario_id"):
+        return redirect(url_for("login"))
 
-        codigo_modulo = modulo_por_rota(request.path)
-        if codigo_modulo and not modulo_empresa_ativo(codigo_modulo):
-            return redirect("/configuracoes/modulos?erro=Módulo desativado para esta empresa.")
+    sessao_valida, mensagem_sessao = revalidar_sessao_usuario()
+    if not sessao_valida:
+        return redirect(url_for("login", erro=mensagem_sessao))
+
+    rotas_liberadas_onboarding = {"onboarding", "sair", "concluir_tour", "static"}
+    if request.endpoint not in rotas_liberadas_onboarding and empresa_precisa_onboarding():
+        return redirect(url_for("onboarding"))
+
+    codigo_modulo = modulo_por_rota(request.path)
+
+    if codigo_modulo == "admin":
+        if not usuario_logado_eh_admin_sistema():
+            return Response("Acesso negado ao painel administrativo.", status=403)
         return None
 
-    return redirect(url_for("login"))
+    if codigo_modulo == "configuracoes":
+        if not usuario_logado_eh_administrador_empresa():
+            return Response("Acesso negado às configurações da empresa.", status=403)
+        return None
+
+    if codigo_modulo and codigo_modulo not in {"dashboard"}:
+        if not modulo_empresa_ativo(codigo_modulo):
+            return Response("Módulo desativado para esta empresa.", status=403)
+
+    if codigo_modulo:
+        acao = acao_permissao_por_requisicao()
+        if not usuario_tem_permissao(codigo_modulo, acao):
+            return Response(
+                f"Acesso negado: sem permissão para {acao} em {codigo_modulo}.",
+                status=403,
+            )
+
+    return None
 
 
 
@@ -1749,6 +2161,56 @@ def iniciar_banco() -> None:
             """
         )
 
+        colunas_usuarios = {
+            str(row["name"])
+            for row in conn.execute("PRAGMA table_info(usuarios)").fetchall()
+        }
+        colunas_usuarios_novas = {
+            "funcionario_id": "INTEGER",
+            "permissoes_json": "TEXT",
+            "sessao_versao": "INTEGER NOT NULL DEFAULT 1",
+            "atualizado_em": "TEXT",
+        }
+        for coluna, tipo_coluna in colunas_usuarios_novas.items():
+            if coluna not in colunas_usuarios:
+                conn.execute(f"ALTER TABLE usuarios ADD COLUMN {coluna} {tipo_coluna}")
+
+        conn.execute(
+            """
+            UPDATE usuarios
+            SET
+                perfil = CASE
+                    WHEN LOWER(TRIM(COALESCE(perfil, ''))) IN ('admin', 'dono', 'administrador_empresa')
+                        THEN 'administrador'
+                    WHEN LOWER(TRIM(COALESCE(perfil, ''))) IN ('administrador_sistema', 'superadmin')
+                        THEN 'super_admin'
+                    WHEN LOWER(TRIM(COALESCE(perfil, ''))) IN ('operacional', 'tecnico_operacional')
+                        THEN 'tecnico'
+                    WHEN LOWER(TRIM(COALESCE(perfil, ''))) IN ('somente_leitura')
+                        THEN 'consulta'
+                    ELSE LOWER(TRIM(COALESCE(perfil, 'consulta')))
+                END,
+                sessao_versao = COALESCE(sessao_versao, 1)
+            """
+        )
+
+        conn.execute(
+            """
+            UPDATE usuarios
+            SET perfil = 'super_admin'
+            WHERE LOWER(email) IN ('admin@gestflow.local', 'nettosantana@icloud.com')
+              AND perfil <> 'super_admin'
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_funcionario_empresa
+            ON usuarios (empresa_id, funcionario_id)
+            WHERE funcionario_id IS NOT NULL
+            """
+        )
+
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS usuario_atividades (
@@ -1765,6 +2227,20 @@ def iniciar_banco() -> None:
             """
         )
 
+
+        colunas_usuario_atividades = {
+            str(row["name"])
+            for row in conn.execute("PRAGMA table_info(usuario_atividades)").fetchall()
+        }
+        colunas_auditoria_novas = {
+            "registro_id": "TEXT",
+            "dados_anteriores_json": "TEXT",
+            "dados_novos_json": "TEXT",
+            "ip": "TEXT",
+        }
+        for coluna, tipo_coluna in colunas_auditoria_novas.items():
+            if coluna not in colunas_usuario_atividades:
+                conn.execute(f"ALTER TABLE usuario_atividades ADD COLUMN {coluna} {tipo_coluna}")
 
         conn.execute(
             """
@@ -2105,7 +2581,7 @@ def iniciar_banco() -> None:
                     "Netto Santana",
                     "admin@gestflow.local",
                     generate_password_hash("admin123"),
-                    "administrador",
+                    "super_admin",
                     "ativo",
                     "",
                 ),
@@ -14186,22 +14662,33 @@ def listar_usuarios_configuracoes() -> list[dict[str, Any]]:
         rows = conn.execute(
             """
             SELECT
-                id,
-                empresa_id,
-                nome,
-                email,
-                perfil,
-                status,
-                ultimo_login,
-                criado_em
-            FROM usuarios
-            WHERE empresa_id = ?
-            ORDER BY id ASC
+                u.id,
+                u.empresa_id,
+                u.funcionario_id,
+                u.nome,
+                u.email,
+                u.perfil,
+                u.permissoes_json,
+                u.status,
+                u.ultimo_login,
+                u.atualizado_em,
+                u.criado_em,
+                f.nome AS funcionario_nome,
+                f.cargo AS funcionario_cargo
+            FROM usuarios u
+            LEFT JOIN funcionarios f
+              ON f.id = u.funcionario_id
+             AND f.empresa_id = u.empresa_id
+            WHERE u.empresa_id = ?
+            ORDER BY u.id ASC
             """,
             (empresa_logada_id(),),
         ).fetchall()
 
-    return [dict(row) for row in rows]
+    usuarios = [dict(row) for row in rows]
+    for usuario in usuarios:
+        usuario["perfil_rotulo"] = rotulo_perfil_usuario(usuario.get("perfil"))
+    return usuarios
 
 
 def listar_lojas_configuracoes() -> list[dict[str, Any]]:
@@ -14239,6 +14726,9 @@ def montar_configuracoes_contexto() -> dict[str, Any]:
         "fusos_horarios": FUSOS_HORARIOS_GESTFLOW,
         "modulos_sistema": GESTFLOW_MODULOS,
         "modulos_ativos": buscar_modulos_empresa(empresa_id),
+        "perfis_usuario": GESTFLOW_PERFIS_USUARIO,
+        "modulos_permissoes": GESTFLOW_MODULOS_PERMISSOES,
+        "acoes_permissao": GESTFLOW_ACOES_PERMISSAO,
     }
 
 
@@ -14250,15 +14740,25 @@ def buscar_usuario_configuracoes_por_id(usuario_id: int) -> dict[str, Any] | Non
         row = conn.execute(
             """
             SELECT
-                id,
-                empresa_id,
-                nome,
-                email,
-                perfil,
-                status
-            FROM usuarios
-            WHERE id = ?
-              AND empresa_id = ?
+                u.id,
+                u.empresa_id,
+                u.funcionario_id,
+                u.nome,
+                u.email,
+                u.perfil,
+                u.permissoes_json,
+                u.status,
+                u.sessao_versao,
+                u.ultimo_login,
+                u.atualizado_em,
+                u.criado_em,
+                f.nome AS funcionario_nome
+            FROM usuarios u
+            LEFT JOIN funcionarios f
+              ON f.id = u.funcionario_id
+             AND f.empresa_id = u.empresa_id
+            WHERE u.id = ?
+              AND u.empresa_id = ?
             LIMIT 1
             """,
             (usuario_id, empresa_id),
@@ -14267,7 +14767,263 @@ def buscar_usuario_configuracoes_por_id(usuario_id: int) -> dict[str, Any] | Non
     if row is None:
         return None
 
-    return dict(row)
+    usuario = dict(row)
+    usuario["perfil"] = normalizar_perfil_usuario(usuario.get("perfil"))
+    usuario["perfil_rotulo"] = rotulo_perfil_usuario(usuario.get("perfil"))
+    return usuario
+
+
+def listar_funcionarios_vinculo_usuario() -> list[dict[str, Any]]:
+    empresa_id = empresa_logada_id()
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                f.id,
+                f.nome,
+                f.cargo,
+                f.status,
+                u.id AS usuario_id
+            FROM funcionarios f
+            LEFT JOIN usuarios u
+              ON u.funcionario_id = f.id
+             AND u.empresa_id = f.empresa_id
+            WHERE f.empresa_id = ?
+              AND LOWER(COALESCE(f.status, 'ativo')) <> 'excluido'
+            ORDER BY f.nome ASC, f.id ASC
+            """,
+            (empresa_id,),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def perfis_disponiveis_para_gestao() -> dict[str, dict[str, str]]:
+    perfis = dict(GESTFLOW_PERFIS_USUARIO)
+    if not usuario_logado_eh_admin_sistema():
+        perfis.pop("super_admin", None)
+    return perfis
+
+
+def permissoes_selecionadas_usuario(usuario: dict[str, Any]) -> set[str]:
+    permissoes = permissoes_efetivas_usuario(usuario)
+    return {
+        f"{modulo}:{acao}"
+        for modulo, acoes in permissoes.items()
+        for acao in acoes
+    }
+
+
+def montar_permissoes_usuario_formulario(perfil: str) -> str:
+    perfil_normalizado = normalizar_perfil_usuario(perfil)
+    if perfil_normalizado in {"super_admin", "administrador"}:
+        return ""
+
+    selecionadas = {
+        str(valor or "").strip()
+        for valor in request.form.getlist("permissoes")
+        if str(valor or "").strip()
+    }
+
+    modulos_validos = {item["codigo"] for item in GESTFLOW_MODULOS_PERMISSOES}
+    permissoes: dict[str, set[str]] = {}
+
+    for valor in selecionadas:
+        if ":" not in valor:
+            continue
+        modulo, acao = valor.split(":", 1)
+        modulo = modulo.strip()
+        acao = acao.strip()
+        if modulo not in modulos_validos or acao not in GESTFLOW_ACOES_PERMISSAO_CODIGOS:
+            continue
+        permissoes.setdefault(modulo, set()).add(acao)
+
+    return serializar_permissoes_usuario(permissoes)
+
+
+def montar_usuario_configuracoes_formulario() -> dict[str, Any]:
+    try:
+        funcionario_id = int(request.form.get("funcionario_id") or 0) or None
+    except (TypeError, ValueError):
+        funcionario_id = None
+
+    return {
+        "nome": str(request.form.get("nome") or "").strip(),
+        "email": str(request.form.get("email") or "").strip().lower(),
+        "perfil": normalizar_perfil_usuario(request.form.get("perfil")),
+        "status": str(request.form.get("status") or "ativo").strip().lower(),
+        "funcionario_id": funcionario_id,
+        "senha": str(request.form.get("senha") or "").strip(),
+        "confirmar_senha": str(request.form.get("confirmar_senha") or "").strip(),
+    }
+
+
+def validar_usuario_configuracoes_formulario(
+    dados: dict[str, Any],
+    usuario_id: int | None = None,
+) -> str:
+    if not dados["nome"]:
+        return "Informe o nome do usuário."
+
+    if not dados["email"] or "@" not in dados["email"]:
+        return "Informe um e-mail válido."
+
+    perfis_disponiveis = perfis_disponiveis_para_gestao()
+    if dados["perfil"] not in perfis_disponiveis:
+        return "Perfil de usuário inválido ou não permitido."
+
+    if dados["status"] not in {"ativo", "inativo"}:
+        return "Status de usuário inválido."
+
+    with conectar_db() as conn:
+        conflito_email = conn.execute(
+            """
+            SELECT id
+            FROM usuarios
+            WHERE LOWER(email) = LOWER(?)
+              AND id <> COALESCE(?, 0)
+            LIMIT 1
+            """,
+            (dados["email"], usuario_id),
+        ).fetchone()
+        if conflito_email is not None:
+            return "Este e-mail já está vinculado a outro usuário."
+
+        if dados.get("funcionario_id"):
+            funcionario = conn.execute(
+                """
+                SELECT id
+                FROM funcionarios
+                WHERE id = ?
+                  AND empresa_id = ?
+                  AND LOWER(COALESCE(status, 'ativo')) <> 'excluido'
+                LIMIT 1
+                """,
+                (int(dados["funcionario_id"]), empresa_logada_id()),
+            ).fetchone()
+            if funcionario is None:
+                return "O funcionário selecionado não pertence a esta empresa."
+
+            conflito_funcionario = conn.execute(
+                """
+                SELECT id
+                FROM usuarios
+                WHERE empresa_id = ?
+                  AND funcionario_id = ?
+                  AND id <> COALESCE(?, 0)
+                LIMIT 1
+                """,
+                (empresa_logada_id(), int(dados["funcionario_id"]), usuario_id),
+            ).fetchone()
+            if conflito_funcionario is not None:
+                return "Este funcionário já está vinculado a outro usuário."
+
+    if usuario_id is None or dados["senha"]:
+        erro_senha = validar_senha_forte(dados["senha"])
+        if erro_senha:
+            return erro_senha
+        if dados["senha"] != dados["confirmar_senha"]:
+            return "A confirmação da senha não confere."
+
+    return ""
+
+
+def contar_administradores_ativos_empresa(excluir_usuario_id: int | None = None) -> int:
+    parametros: list[Any] = [empresa_logada_id()]
+    filtro = ""
+    if excluir_usuario_id:
+        filtro = " AND id <> ?"
+        parametros.append(excluir_usuario_id)
+
+    with conectar_db() as conn:
+        row = conn.execute(
+            f"""
+            SELECT COUNT(*) AS total
+            FROM usuarios
+            WHERE empresa_id = ?
+              AND LOWER(COALESCE(status, '')) = 'ativo'
+              AND LOWER(COALESCE(perfil, '')) IN ('administrador', 'super_admin')
+              {filtro}
+            """,
+            parametros,
+        ).fetchone()
+    return int(row["total"] or 0)
+
+
+def criar_usuario_configuracoes_db(dados: dict[str, Any], permissoes_json: str) -> int:
+    agora = agora_empresa().isoformat(timespec="seconds")
+    with conectar_db() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO usuarios (
+                empresa_id,
+                funcionario_id,
+                nome,
+                email,
+                senha_hash,
+                perfil,
+                permissoes_json,
+                status,
+                sessao_versao,
+                atualizado_em
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+            """,
+            (
+                empresa_logada_id(),
+                dados.get("funcionario_id"),
+                dados["nome"],
+                dados["email"],
+                generate_password_hash(dados["senha"]),
+                dados["perfil"],
+                permissoes_json,
+                dados["status"],
+                agora,
+            ),
+        )
+        usuario_id = int(cursor.lastrowid)
+        conn.commit()
+    return usuario_id
+
+
+def atualizar_usuario_configuracoes_db(
+    usuario_id: int,
+    dados: dict[str, Any],
+    permissoes_json: str,
+) -> None:
+    agora = agora_empresa().isoformat(timespec="seconds")
+    with conectar_db() as conn:
+        parametros: list[Any] = [
+            dados.get("funcionario_id"),
+            dados["nome"],
+            dados["email"],
+            dados["perfil"],
+            permissoes_json,
+            dados["status"],
+            agora,
+        ]
+        senha_sql = ""
+        if dados.get("senha"):
+            senha_sql = ", senha_hash = ?, sessao_versao = COALESCE(sessao_versao, 1) + 1"
+            parametros.append(generate_password_hash(dados["senha"]))
+
+        parametros.extend([usuario_id, empresa_logada_id()])
+        conn.execute(
+            f"""
+            UPDATE usuarios
+            SET
+                funcionario_id = ?,
+                nome = ?,
+                email = ?,
+                perfil = ?,
+                permissoes_json = ?,
+                status = ?,
+                atualizado_em = ?
+                {senha_sql}
+            WHERE id = ?
+              AND empresa_id = ?
+            """,
+            parametros,
+        )
+        conn.commit()
 
 
 def redefinir_senha_usuario_configuracoes_db(usuario_id: int, nova_senha: str) -> None:
@@ -14278,11 +15034,19 @@ def redefinir_senha_usuario_configuracoes_db(usuario_id: int, nova_senha: str) -
         conn.execute(
             """
             UPDATE usuarios
-            SET senha_hash = ?
+            SET
+                senha_hash = ?,
+                sessao_versao = COALESCE(sessao_versao, 1) + 1,
+                atualizado_em = ?
             WHERE id = ?
               AND empresa_id = ?
             """,
-            (senha_hash, usuario_id, empresa_id),
+            (
+                senha_hash,
+                agora_empresa().isoformat(timespec="seconds"),
+                usuario_id,
+                empresa_id,
+            ),
         )
         conn.commit()
 
@@ -14929,15 +15693,7 @@ def atualizar_fotos_equipamento_os_formulario(ordem_servico_id: int) -> None:
 
 
 def usuario_logado_eh_admin_sistema() -> bool:
-    email = str(session.get("usuario_email") or "").strip().lower()
-    perfil = str(session.get("usuario_perfil") or "").strip().lower()
-
-    emails_admin_sistema = {
-        "admin@gestflow.local",
-        "nettosantana@icloud.com",
-    }
-
-    return perfil in {"super_admin", "dono", "administrador_sistema"} or email in emails_admin_sistema
+    return normalizar_perfil_usuario(session.get("usuario_perfil")) == "super_admin"
 
 
 
@@ -14950,6 +15706,9 @@ def registrar_atividade_usuario(
     empresa_id: int | None = None,
     usuario_id: int | None = None,
     usuario_nome: str | None = None,
+    registro_id: Any = None,
+    dados_anteriores: Any = None,
+    dados_novos: Any = None,
 ) -> None:
     tipo_normalizado = str(tipo or "acesso").strip().lower() or "acesso"
     modulo_normalizado = str(modulo or "geral").strip().lower() or "geral"
@@ -14971,6 +15730,20 @@ def registrar_atividade_usuario(
     if not usuario_final and not nome_final:
         return
 
+    def _json_seguro(valor: Any) -> str:
+        if valor in (None, ""):
+            return ""
+        try:
+            return json.dumps(valor, ensure_ascii=False, default=str, sort_keys=True)
+        except (TypeError, ValueError):
+            return json.dumps(str(valor), ensure_ascii=False)
+
+    ip = ""
+    try:
+        ip = str(request.headers.get("X-Forwarded-For") or request.remote_addr or "").split(",")[0].strip()
+    except RuntimeError:
+        ip = ""
+
     try:
         with conectar_db() as conn:
             conn.execute(
@@ -14983,8 +15756,12 @@ def registrar_atividade_usuario(
                     modulo,
                     descricao,
                     rota,
+                    registro_id,
+                    dados_anteriores_json,
+                    dados_novos_json,
+                    ip,
                     criado_em
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     empresa_final or None,
@@ -14994,12 +15771,17 @@ def registrar_atividade_usuario(
                     modulo_normalizado,
                     descricao_normalizada,
                     rota_normalizada,
+                    str(registro_id or ""),
+                    _json_seguro(dados_anteriores),
+                    _json_seguro(dados_novos),
+                    ip,
                     agora_empresa().isoformat(timespec="seconds"),
                 ),
             )
             conn.commit()
     except sqlite3.Error:
         return
+
 
 
 def modulo_por_rota_admin(rota: str) -> str | None:
@@ -16754,6 +17536,9 @@ def configuracoes() -> str:
         fusos_horarios=contexto["fusos_horarios"],
         modulos_sistema=contexto["modulos_sistema"],
         modulos_ativos=contexto["modulos_ativos"],
+        perfis_usuario=contexto["perfis_usuario"],
+        modulos_permissoes=contexto["modulos_permissoes"],
+        acoes_permissao=contexto["acoes_permissao"],
         erro=request.args.get("erro", ""),
         sucesso=request.args.get("sucesso", ""),
     )
@@ -17002,7 +17787,9 @@ def entrar_usuario_na_sessao(usuario: dict[str, Any]) -> None:
     session["empresa_id"] = int(usuario["empresa_id"])
     session["usuario_nome"] = str(usuario.get("nome") or "")
     session["usuario_email"] = str(usuario.get("email") or "")
-    session["usuario_perfil"] = str(usuario.get("perfil") or "")
+    session["usuario_perfil"] = normalizar_perfil_usuario(usuario.get("perfil"))
+    session["usuario_permissoes_json"] = str(usuario.get("permissoes_json") or "")
+    session["usuario_sessao_versao"] = int(usuario.get("sessao_versao") or 1)
     session["empresa_nome"] = str(usuario.get("empresa_nome") or "")
     session["empresa_plano"] = str(usuario.get("empresa_plano") or "")
     registrar_ultimo_login_usuario(int(usuario["id"]))
@@ -17656,6 +18443,231 @@ def esqueci_senha() -> str:
     """
 
 
+def redirecionar_configuracoes_usuarios(erro: str = "", sucesso: str = "") -> Response:
+    parametros: dict[str, str] = {}
+    if erro:
+        parametros["erro"] = str(erro)
+    if sucesso:
+        parametros["sucesso"] = str(sucesso)
+    query = urllib.parse.urlencode(parametros)
+    destino = "/configuracoes/usuarios"
+    if query:
+        destino = f"{destino}?{query}"
+    return redirect(destino)
+
+
+@app.route("/configuracoes/usuarios/novo", methods=["GET", "POST"])
+def novo_usuario_configuracoes() -> str | Response:
+    formulario: dict[str, Any] = {
+        "nome": "",
+        "email": "",
+        "perfil": "consulta",
+        "status": "ativo",
+        "funcionario_id": None,
+        "senha": "",
+        "confirmar_senha": "",
+    }
+    permissoes_selecionadas = {
+        f"{modulo}:{acao}"
+        for modulo, acoes in permissoes_padrao_perfil("consulta").items()
+        for acao in acoes
+    }
+    erro = ""
+
+    if request.method == "POST":
+        formulario = montar_usuario_configuracoes_formulario()
+        erro = validar_usuario_configuracoes_formulario(formulario)
+        permissoes_json = montar_permissoes_usuario_formulario(formulario["perfil"])
+        permissoes_form = normalizar_permissoes_usuario(permissoes_json)
+        permissoes_selecionadas = {
+            f"{modulo}:{acao}"
+            for modulo, acoes in (permissoes_form or {}).items()
+            for acao in acoes
+        }
+
+        if not erro:
+            usuario_id = criar_usuario_configuracoes_db(formulario, permissoes_json)
+            registrar_atividade_usuario(
+                "criacao",
+                "configuracoes",
+                f"Criou o usuário {formulario['nome']}",
+                registro_id=usuario_id,
+                dados_novos={
+                    "nome": formulario["nome"],
+                    "email": formulario["email"],
+                    "perfil": formulario["perfil"],
+                    "status": formulario["status"],
+                    "funcionario_id": formulario.get("funcionario_id"),
+                    "permissoes_json": permissoes_json,
+                },
+            )
+            return redirecionar_configuracoes_usuarios(
+                sucesso="Usuário criado com sucesso."
+            )
+
+    return render_template(
+        "usuario_novo.html",
+        formulario=formulario,
+        erro=erro,
+        perfis_usuario=perfis_disponiveis_para_gestao(),
+        modulos_permissoes=GESTFLOW_MODULOS_PERMISSOES,
+        acoes_permissao=GESTFLOW_ACOES_PERMISSAO,
+        permissoes_selecionadas=permissoes_selecionadas,
+        funcionarios=listar_funcionarios_vinculo_usuario(),
+    )
+
+
+@app.route("/configuracoes/usuarios/<int:usuario_id>/editar", methods=["GET", "POST"])
+def editar_usuario_configuracoes(usuario_id: int) -> str | Response:
+    usuario = buscar_usuario_configuracoes_por_id(usuario_id)
+    if usuario is None:
+        return redirecionar_configuracoes_usuarios(
+            erro="Usuário não encontrado nesta empresa."
+        )
+
+    erro = ""
+    formulario: dict[str, Any] = dict(usuario)
+    formulario["senha"] = ""
+    formulario["confirmar_senha"] = ""
+    selecionadas = permissoes_selecionadas_usuario(usuario)
+
+    if request.method == "POST":
+        dados = montar_usuario_configuracoes_formulario()
+        erro = validar_usuario_configuracoes_formulario(dados, usuario_id)
+        permissoes_json = montar_permissoes_usuario_formulario(dados["perfil"])
+        permissoes_form = normalizar_permissoes_usuario(permissoes_json)
+        selecionadas = {
+            f"{modulo}:{acao}"
+            for modulo, acoes in (permissoes_form or {}).items()
+            for acao in acoes
+        }
+        formulario = dict(dados)
+        formulario["id"] = usuario_id
+
+        mudara_para_sem_admin = (
+            dados["status"] != "ativo"
+            or dados["perfil"] not in {"administrador", "super_admin"}
+        )
+        usuario_atual_admin = usuario["status"] == "ativo" and usuario["perfil"] in {
+            "administrador",
+            "super_admin",
+        }
+
+        if (
+            not erro
+            and usuario_atual_admin
+            and mudara_para_sem_admin
+            and contar_administradores_ativos_empresa(usuario_id) == 0
+        ):
+            erro = "A empresa precisa manter ao menos um administrador ativo."
+
+        if (
+            not erro
+            and usuario_id == usuario_logado_id()
+            and dados["status"] != "ativo"
+        ):
+            erro = "Você não pode inativar o próprio usuário."
+
+        if not erro:
+            atualizar_usuario_configuracoes_db(usuario_id, dados, permissoes_json)
+            registrar_atividade_usuario(
+                "edicao",
+                "configuracoes",
+                f"Editou o usuário {dados['nome']}",
+                registro_id=usuario_id,
+                dados_anteriores={
+                    "nome": usuario.get("nome"),
+                    "email": usuario.get("email"),
+                    "perfil": usuario.get("perfil"),
+                    "status": usuario.get("status"),
+                    "funcionario_id": usuario.get("funcionario_id"),
+                    "permissoes_json": usuario.get("permissoes_json"),
+                },
+                dados_novos={
+                    "nome": dados["nome"],
+                    "email": dados["email"],
+                    "perfil": dados["perfil"],
+                    "status": dados["status"],
+                    "funcionario_id": dados.get("funcionario_id"),
+                    "permissoes_json": permissoes_json,
+                    "senha_alterada": bool(dados.get("senha")),
+                },
+            )
+            return redirecionar_configuracoes_usuarios(
+                sucesso="Usuário atualizado com sucesso."
+            )
+
+    return render_template(
+        "usuario_editar.html",
+        usuario=usuario,
+        formulario=formulario,
+        erro=erro,
+        perfis_usuario=perfis_disponiveis_para_gestao(),
+        modulos_permissoes=GESTFLOW_MODULOS_PERMISSOES,
+        acoes_permissao=GESTFLOW_ACOES_PERMISSAO,
+        permissoes_selecionadas=selecionadas,
+        funcionarios=listar_funcionarios_vinculo_usuario(),
+    )
+
+
+@app.post("/configuracoes/usuarios/<int:usuario_id>/status")
+def alterar_status_usuario_configuracoes(usuario_id: int) -> Response:
+    usuario = buscar_usuario_configuracoes_por_id(usuario_id)
+    if usuario is None:
+        return redirecionar_configuracoes_usuarios(
+            erro="Usuário não encontrado nesta empresa."
+        )
+
+    novo_status = str(request.form.get("status") or "").strip().lower()
+    if novo_status not in {"ativo", "inativo"}:
+        return redirecionar_configuracoes_usuarios(
+            erro="Status de usuário inválido."
+        )
+
+    if usuario_id == usuario_logado_id() and novo_status == "inativo":
+        return redirecionar_configuracoes_usuarios(
+            erro="Você não pode inativar o próprio usuário."
+        )
+
+    if (
+        usuario["status"] == "ativo"
+        and usuario["perfil"] in {"administrador", "super_admin"}
+        and novo_status == "inativo"
+        and contar_administradores_ativos_empresa(usuario_id) == 0
+    ):
+        return redirecionar_configuracoes_usuarios(
+            erro="A empresa precisa manter ao menos um administrador ativo."
+        )
+
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            UPDATE usuarios
+            SET status = ?, atualizado_em = ?
+            WHERE id = ? AND empresa_id = ?
+            """,
+            (
+                novo_status,
+                agora_empresa().isoformat(timespec="seconds"),
+                usuario_id,
+                empresa_logada_id(),
+            ),
+        )
+        conn.commit()
+
+    registrar_atividade_usuario(
+        "edicao",
+        "configuracoes",
+        f"Alterou o status do usuário {usuario['nome']} para {novo_status}",
+        registro_id=usuario_id,
+        dados_anteriores={"status": usuario.get("status")},
+        dados_novos={"status": novo_status},
+    )
+    return redirecionar_configuracoes_usuarios(
+        sucesso="Status do usuário atualizado."
+    )
+
+
 @app.post("/configuracoes/usuarios/redefinir-senha")
 def redefinir_senha_usuario_configuracoes() -> Response:
     try:
@@ -17669,18 +18681,31 @@ def redefinir_senha_usuario_configuracoes() -> Response:
     usuario = buscar_usuario_configuracoes_por_id(usuario_id)
 
     if usuario is None:
-        return redirect("/configuracoes/usuarios?erro=Usuário não encontrado nesta empresa.")
+        return redirecionar_configuracoes_usuarios(
+            erro="Usuário não encontrado nesta empresa."
+        )
 
     erro_senha = validar_senha_forte(nova_senha)
     if erro_senha:
-        return redirect(f"/configuracoes/usuarios?erro={erro_senha}")
+        return redirecionar_configuracoes_usuarios(erro=erro_senha)
 
     if nova_senha != confirmar_senha:
-        return redirect("/configuracoes/usuarios?erro=A confirmação da senha não confere.")
+        return redirecionar_configuracoes_usuarios(
+            erro="A confirmação da senha não confere."
+        )
 
     redefinir_senha_usuario_configuracoes_db(usuario_id, nova_senha)
+    registrar_atividade_usuario(
+        "edicao",
+        "configuracoes",
+        f"Redefiniu a senha do usuário {usuario['nome']}",
+        registro_id=usuario_id,
+        dados_novos={"senha_redefinida": True},
+    )
 
-    return redirect("/configuracoes/usuarios?sucesso=Senha redefinida com sucesso.")
+    return redirecionar_configuracoes_usuarios(
+        sucesso="Senha redefinida com sucesso. O usuário deverá entrar novamente."
+    )
 
 
 @app.get("/sair")
