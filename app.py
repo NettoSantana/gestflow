@@ -25891,6 +25891,27 @@ def garantir_estrutura_gestao_atividades() -> None:
             atualizado_em TEXT,
             concluido_em TEXT
         );
+        CREATE TABLE IF NOT EXISTS gestao_atividade_etapas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            empresa_id INTEGER NOT NULL,
+            atividade_id INTEGER NOT NULL,
+            titulo TEXT NOT NULL,
+            descricao TEXT,
+            responsavel_funcionario_id INTEGER,
+            responsavel_nome TEXT,
+            responsavel_email TEXT,
+            data_inicio TEXT,
+            data_prazo TEXT,
+            prioridade TEXT NOT NULL DEFAULT 'normal',
+            status TEXT NOT NULL DEFAULT 'nao_iniciada',
+            progresso INTEGER NOT NULL DEFAULT 0,
+            ordem INTEGER NOT NULL DEFAULT 1,
+            depende_etapa_id INTEGER,
+            observacoes TEXT,
+            concluido_em TEXT,
+            criado_em TEXT DEFAULT CURRENT_TIMESTAMP,
+            atualizado_em TEXT
+        );
         CREATE TABLE IF NOT EXISTS gestao_atividades_historico (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             empresa_id INTEGER NOT NULL,
@@ -25923,6 +25944,8 @@ def garantir_estrutura_gestao_atividades() -> None:
         CREATE INDEX IF NOT EXISTS idx_gestao_atividades_empresa ON gestao_atividades(empresa_id);
         CREATE INDEX IF NOT EXISTS idx_gestao_atividades_responsavel ON gestao_atividades(empresa_id, responsavel_funcionario_id);
         CREATE INDEX IF NOT EXISTS idx_gestao_atividades_prazo ON gestao_atividades(empresa_id, data_prazo);
+        CREATE INDEX IF NOT EXISTS idx_gestao_etapas_atividade ON gestao_atividade_etapas(empresa_id, atividade_id, ordem);
+        CREATE INDEX IF NOT EXISTS idx_gestao_etapas_responsavel ON gestao_atividade_etapas(empresa_id, responsavel_funcionario_id);
         """)
         conn.commit()
 
@@ -25949,7 +25972,19 @@ def buscar_recuperacao_senha_valida(token: str) -> dict[str, Any] | None:
     return None
 
 
+def _inteiro_formulario(nome: str) -> int | None:
+    try:
+        valor = int(request.form.get(nome) or 0)
+        return valor if valor > 0 else None
+    except (TypeError, ValueError):
+        return None
+
+
 def _atividade_formulario() -> dict[str, Any]:
+    try:
+        progresso = int(request.form.get("progresso") or 0)
+    except (TypeError, ValueError):
+        progresso = 0
     return {
         "titulo": (request.form.get("titulo") or "").strip(),
         "descricao": (request.form.get("descricao") or "").strip(),
@@ -25963,7 +25998,7 @@ def _atividade_formulario() -> dict[str, Any]:
         "data_prazo": (request.form.get("data_prazo") or "").strip(),
         "prioridade": (request.form.get("prioridade") or "normal").strip(),
         "status": (request.form.get("status") or "nao_iniciada").strip(),
-        "progresso": max(0, min(100, int(request.form.get("progresso") or 0))),
+        "progresso": max(0, min(100, progresso)),
         "observacoes": (request.form.get("observacoes") or "").strip(),
     }
 
@@ -25984,21 +26019,92 @@ def _buscar_atividade_operacional(atividade_id: int) -> dict[str, Any] | None:
     return dict(row) if row else None
 
 
+def _usuario_funcionario_id() -> int | None:
+    usuario_id = usuario_logado_id()
+    if not usuario_id:
+        return None
+    with conectar_db() as conn:
+        row = conn.execute("SELECT funcionario_id FROM usuarios WHERE id=? AND empresa_id=?", (usuario_id, empresa_logada_id())).fetchone()
+    try:
+        return int(row["funcionario_id"]) if row and row["funcionario_id"] else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _listar_etapas_atividade(atividade_id: int) -> list[dict[str, Any]]:
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """SELECT e.*, d.titulo AS depende_titulo, d.status AS depende_status
+               FROM gestao_atividade_etapas e
+               LEFT JOIN gestao_atividade_etapas d ON d.id=e.depende_etapa_id AND d.empresa_id=e.empresa_id
+               WHERE e.empresa_id=? AND e.atividade_id=? ORDER BY e.ordem, e.id""",
+            (empresa_logada_id(), atividade_id),
+        ).fetchall()
+    etapas = []
+    hoje = hoje_empresa().isoformat()
+    for row in rows:
+        item = dict(row)
+        bloqueada = bool(item.get("depende_etapa_id") and item.get("depende_status") != "concluida")
+        item["bloqueada"] = bloqueada
+        if bloqueada:
+            item["status_exibicao"] = "bloqueada"
+        elif item.get("status") not in {"concluida", "cancelada"} and item.get("data_prazo") and str(item["data_prazo"]) < hoje:
+            item["status_exibicao"] = "atrasada"
+        else:
+            item["status_exibicao"] = item.get("status") or "nao_iniciada"
+        etapas.append(item)
+    return etapas
+
+
+def _sincronizar_progresso_atividade(atividade_id: int) -> None:
+    etapas = _listar_etapas_atividade(atividade_id)
+    if not etapas:
+        return
+    validas = [e for e in etapas if e.get("status") != "cancelada"]
+    if not validas:
+        progresso = 0
+        status = "cancelada"
+    else:
+        progresso = round(sum(int(e.get("progresso") or 0) for e in validas) / len(validas))
+        concluidas = sum(1 for e in validas if e.get("status") == "concluida")
+        iniciadas = sum(1 for e in validas if e.get("status") in {"em_andamento", "aguardando", "concluida"})
+        if concluidas == len(validas):
+            progresso, status = 100, "concluida"
+        elif iniciadas:
+            status = "em_andamento"
+        else:
+            status = "nao_iniciada"
+    agora = agora_empresa().isoformat(timespec="seconds")
+    with conectar_db() as conn:
+        conn.execute(
+            "UPDATE gestao_atividades SET progresso=?, status=?, atualizado_em=?, concluido_em=? WHERE id=? AND empresa_id=?",
+            (progresso, status, agora, agora if status == "concluida" else "", atividade_id, empresa_logada_id()),
+        )
+        conn.commit()
+
+
 def _listar_atividades_operacionais(minhas: bool = False) -> list[dict[str, Any]]:
     empresa_id = empresa_logada_id()
     params: list[Any] = [empresa_id]
     filtro = ""
     if minhas:
-        usuario = usuario_logado() or {}
-        funcionario_id = usuario.get("funcionario_id") or session.get("usuario_funcionario_id")
+        funcionario_id = _usuario_funcionario_id()
         if funcionario_id:
-            filtro = " AND responsavel_funcionario_id=?"
-            params.append(int(funcionario_id))
+            filtro = " AND (a.responsavel_funcionario_id=? OR EXISTS (SELECT 1 FROM gestao_atividade_etapas e WHERE e.atividade_id=a.id AND e.empresa_id=a.empresa_id AND e.responsavel_funcionario_id=?))"
+            params.extend([funcionario_id, funcionario_id])
         else:
-            filtro = " AND responsavel_usuario_id=?"
+            filtro = " AND a.responsavel_usuario_id=?"
             params.append(int(usuario_logado_id() or 0))
     with conectar_db() as conn:
-        rows = conn.execute(f"SELECT * FROM gestao_atividades WHERE empresa_id=? {filtro} ORDER BY CASE status WHEN 'atrasada' THEN 0 WHEN 'em_andamento' THEN 1 WHEN 'nao_iniciada' THEN 2 ELSE 3 END, COALESCE(data_prazo,'9999-12-31'), id DESC", params).fetchall()
+        rows = conn.execute(
+            f"""SELECT a.*,
+                (SELECT COUNT(*) FROM gestao_atividade_etapas e WHERE e.atividade_id=a.id AND e.empresa_id=a.empresa_id) AS etapas_total,
+                (SELECT COUNT(*) FROM gestao_atividade_etapas e WHERE e.atividade_id=a.id AND e.empresa_id=a.empresa_id AND e.status='concluida') AS etapas_concluidas
+                FROM gestao_atividades a WHERE a.empresa_id=? {filtro}
+                ORDER BY CASE a.status WHEN 'em_andamento' THEN 0 WHEN 'nao_iniciada' THEN 1 WHEN 'aguardando' THEN 2 ELSE 3 END,
+                COALESCE(a.data_prazo,'9999-12-31'), a.id DESC""",
+            params,
+        ).fetchall()
     atividades=[]
     hoje=hoje_empresa().isoformat()
     for row in rows:
@@ -26019,6 +26125,8 @@ def _registrar_historico_atividade(atividade_id: int, acao: str, descricao: str)
 
 def _notificar_atividade(atividade: dict[str, Any], tipo: str = "atribuicao") -> tuple[bool,str]:
     email = str(atividade.get("responsavel_email") or "").strip()
+    if not email:
+        return False, "Responsável sem e-mail cadastrado."
     link = f"{getattr(config, 'GESTFLOW_BASE_URL', request.url_root.rstrip('/')).rstrip('/')}/gestao-atividades/{atividade['id']}"
     assunto = f"Nova atividade atribuída - {atividade.get('titulo')}" if tipo == "atribuicao" else f"Atividade atualizada - {atividade.get('titulo')}"
     corpo = (f"Olá, {atividade.get('responsavel_nome') or 'responsável'}.\n\n"
@@ -26073,17 +26181,31 @@ def gestao_atividade_nova() -> str | Response:
 
 @app.get("/gestao-atividades/todas")
 def gestao_atividades_lista() -> str:
-    return render_template("gestao_atividades.html", atividades=_listar_atividades_operacionais(), titulo="Todas as atividades")
+    filtro = (request.args.get("filtro") or "todas").strip().lower()
+    minhas = filtro == "minhas"
+    atividades = _listar_atividades_operacionais(minhas=minhas)
+    hoje = hoje_empresa().isoformat()
+    if filtro == "atrasadas":
+        atividades = [a for a in atividades if a.get("status_exibicao") == "atrasada"]
+    elif filtro == "hoje":
+        atividades = [a for a in atividades if a.get("data_prazo") == hoje]
+    elif filtro == "concluidas":
+        atividades = [a for a in atividades if a.get("status") == "concluida"]
+    elif filtro == "paralelas":
+        atividades = [a for a in atividades if a.get("tipo") == "paralela"]
+    elif filtro == "servicos":
+        atividades = [a for a in atividades if a.get("tipo") == "servico"]
+    return render_template("gestao_atividades.html", atividades=atividades, titulo="Atividades", filtro_ativo=filtro)
 
 
 @app.get("/gestao-atividades/minhas")
-def minhas_atividades() -> str:
-    return render_template("gestao_atividades.html", atividades=_listar_atividades_operacionais(minhas=True), titulo="Minhas atividades")
+def minhas_atividades() -> Response:
+    return redirect(url_for("gestao_atividades_lista", filtro="minhas"))
 
 
 @app.get("/gestao-atividades/cronograma")
-def gestao_atividades_gantt() -> str:
-    return render_template("gestao_atividades_gantt.html", atividades=_listar_atividades_operacionais())
+def gestao_atividades_gantt() -> Response:
+    return redirect(url_for("gestao_atividades_lista"))
 
 
 @app.route("/gestao-atividades/<int:atividade_id>", methods=["GET", "POST"])
@@ -26092,17 +26214,80 @@ def gestao_atividade_detalhe(atividade_id: int) -> str | Response:
     if not atividade: return redirect(url_for("gestao_atividades_lista"))
     if request.method == "POST":
         status=(request.form.get("status") or atividade.get("status") or "nao_iniciada").strip()
-        progresso=max(0,min(100,int(request.form.get("progresso") or atividade.get("progresso") or 0)))
+        try: progresso=max(0,min(100,int(request.form.get("progresso") or atividade.get("progresso") or 0)))
+        except (TypeError, ValueError): progresso=int(atividade.get("progresso") or 0)
         if status=="concluida": progresso=100
         with conectar_db() as conn:
             conn.execute("UPDATE gestao_atividades SET status=?,progresso=?,atualizado_em=?,concluido_em=? WHERE id=? AND empresa_id=?",(status,progresso,agora_empresa().isoformat(timespec="seconds"),agora_empresa().isoformat(timespec="seconds") if status=="concluida" else "",atividade_id,empresa_logada_id()))
             conn.commit()
         _registrar_historico_atividade(atividade_id,"atualizacao",f"Status alterado para {status}; progresso {progresso}%.")
         return redirect(url_for("gestao_atividade_detalhe",atividade_id=atividade_id,sucesso="Atividade atualizada."))
+    etapas = _listar_etapas_atividade(atividade_id)
     with conectar_db() as conn:
         historico=[dict(r) for r in conn.execute("SELECT * FROM gestao_atividades_historico WHERE atividade_id=? AND empresa_id=? ORDER BY id DESC",(atividade_id,empresa_logada_id())).fetchall()]
         notificacoes=[dict(r) for r in conn.execute("SELECT * FROM gestao_atividades_notificacoes WHERE atividade_id=? AND empresa_id=? ORDER BY id DESC LIMIT 10",(atividade_id,empresa_logada_id())).fetchall()]
-    return render_template("gestao_atividade_detalhe.html",atividade=atividade,historico=historico,notificacoes=notificacoes)
+    return render_template("gestao_atividade_detalhe.html",atividade=atividade,etapas=etapas,historico=historico,notificacoes=notificacoes,funcionarios=_opcoes_atividade()["funcionarios"],aba=(request.args.get("aba") or "visao-geral"))
+
+
+@app.post("/gestao-atividades/<int:atividade_id>/etapas")
+def gestao_atividade_etapa_criar(atividade_id: int) -> Response:
+    atividade = _buscar_atividade_operacional(atividade_id)
+    if not atividade:
+        return redirect(url_for("gestao_atividades_lista"))
+    titulo = (request.form.get("titulo") or "").strip()
+    if not titulo:
+        return redirect(url_for("gestao_atividade_detalhe", atividade_id=atividade_id, aba="etapas", erro="Informe o título da etapa."))
+    responsavel_id = _inteiro_formulario("responsavel_funcionario_id")
+    depende_id = _inteiro_formulario("depende_etapa_id")
+    with conectar_db() as conn:
+        funcionario = conn.execute("SELECT id,nome,email FROM funcionarios WHERE id=? AND empresa_id=?", (responsavel_id, empresa_logada_id())).fetchone() if responsavel_id else None
+        if depende_id:
+            dependencia = conn.execute("SELECT id FROM gestao_atividade_etapas WHERE id=? AND atividade_id=? AND empresa_id=?", (depende_id, atividade_id, empresa_logada_id())).fetchone()
+            if not dependencia: depende_id = None
+        ordem_row = conn.execute("SELECT COALESCE(MAX(ordem),0)+1 AS proxima FROM gestao_atividade_etapas WHERE atividade_id=? AND empresa_id=?", (atividade_id, empresa_logada_id())).fetchone()
+        agora = agora_empresa().isoformat(timespec="seconds")
+        conn.execute("""INSERT INTO gestao_atividade_etapas (empresa_id,atividade_id,titulo,descricao,responsavel_funcionario_id,responsavel_nome,responsavel_email,data_inicio,data_prazo,prioridade,status,progresso,ordem,depende_etapa_id,observacoes,criado_em,atualizado_em) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                     (empresa_logada_id(),atividade_id,titulo,(request.form.get("descricao") or "").strip(),responsavel_id,str(funcionario["nome"] if funcionario else atividade.get("responsavel_nome") or ""),str(funcionario["email"] if funcionario else atividade.get("responsavel_email") or ""),(request.form.get("data_inicio") or "").strip(),(request.form.get("data_prazo") or "").strip(),(request.form.get("prioridade") or "normal").strip(),"nao_iniciada",0,int(ordem_row["proxima"]),depende_id,(request.form.get("observacoes") or "").strip(),agora,agora))
+        conn.commit()
+    _sincronizar_progresso_atividade(atividade_id)
+    _registrar_historico_atividade(atividade_id,"etapa_criada",f"Etapa '{titulo}' criada.")
+    return redirect(url_for("gestao_atividade_detalhe",atividade_id=atividade_id,aba="etapas",sucesso="Etapa criada."))
+
+
+@app.post("/gestao-atividades/<int:atividade_id>/etapas/<int:etapa_id>")
+def gestao_atividade_etapa_atualizar(atividade_id: int, etapa_id: int) -> Response:
+    atividade = _buscar_atividade_operacional(atividade_id)
+    if not atividade: return redirect(url_for("gestao_atividades_lista"))
+    status=(request.form.get("status") or "nao_iniciada").strip()
+    try: progresso=max(0,min(100,int(request.form.get("progresso") or 0)))
+    except (TypeError, ValueError): progresso=0
+    with conectar_db() as conn:
+        etapa=conn.execute("SELECT * FROM gestao_atividade_etapas WHERE id=? AND atividade_id=? AND empresa_id=?",(etapa_id,atividade_id,empresa_logada_id())).fetchone()
+        if not etapa: return redirect(url_for("gestao_atividade_detalhe",atividade_id=atividade_id,aba="etapas",erro="Etapa não encontrada."))
+        if etapa["depende_etapa_id"]:
+            dependencia=conn.execute("SELECT status FROM gestao_atividade_etapas WHERE id=? AND atividade_id=? AND empresa_id=?",(etapa["depende_etapa_id"],atividade_id,empresa_logada_id())).fetchone()
+            if dependencia and dependencia["status"] != "concluida" and status in {"em_andamento","concluida"}:
+                return redirect(url_for("gestao_atividade_detalhe",atividade_id=atividade_id,aba="etapas",erro="Conclua a etapa anterior antes de iniciar esta."))
+        if status=="concluida": progresso=100
+        agora=agora_empresa().isoformat(timespec="seconds")
+        conn.execute("UPDATE gestao_atividade_etapas SET status=?,progresso=?,atualizado_em=?,concluido_em=? WHERE id=? AND atividade_id=? AND empresa_id=?",(status,progresso,agora,agora if status=="concluida" else "",etapa_id,atividade_id,empresa_logada_id()))
+        conn.commit()
+    _sincronizar_progresso_atividade(atividade_id)
+    _registrar_historico_atividade(atividade_id,"etapa_atualizada",f"Etapa '{etapa['titulo']}' atualizada para {status} ({progresso}%).")
+    return redirect(url_for("gestao_atividade_detalhe",atividade_id=atividade_id,aba="etapas",sucesso="Etapa atualizada."))
+
+
+@app.post("/gestao-atividades/<int:atividade_id>/etapas/<int:etapa_id>/excluir")
+def gestao_atividade_etapa_excluir(atividade_id: int, etapa_id: int) -> Response:
+    with conectar_db() as conn:
+        etapa=conn.execute("SELECT titulo FROM gestao_atividade_etapas WHERE id=? AND atividade_id=? AND empresa_id=?",(etapa_id,atividade_id,empresa_logada_id())).fetchone()
+        if etapa:
+            conn.execute("UPDATE gestao_atividade_etapas SET depende_etapa_id=NULL WHERE depende_etapa_id=? AND atividade_id=? AND empresa_id=?",(etapa_id,atividade_id,empresa_logada_id()))
+            conn.execute("DELETE FROM gestao_atividade_etapas WHERE id=? AND atividade_id=? AND empresa_id=?",(etapa_id,atividade_id,empresa_logada_id()))
+            conn.commit()
+    _sincronizar_progresso_atividade(atividade_id)
+    if etapa: _registrar_historico_atividade(atividade_id,"etapa_excluida",f"Etapa '{etapa['titulo']}' excluída.")
+    return redirect(url_for("gestao_atividade_detalhe",atividade_id=atividade_id,aba="etapas",sucesso="Etapa excluída."))
 
 
 @app.post("/gestao-atividades/<int:atividade_id>/reenviar-email")
@@ -26116,6 +26301,7 @@ def gestao_atividade_reenviar_email(atividade_id: int) -> Response:
 @app.post("/gestao-atividades/<int:atividade_id>/excluir")
 def gestao_atividade_excluir(atividade_id: int) -> Response:
     with conectar_db() as conn:
+        conn.execute("DELETE FROM gestao_atividade_etapas WHERE atividade_id=? AND empresa_id=?",(atividade_id,empresa_logada_id()))
         conn.execute("DELETE FROM gestao_atividades WHERE id=? AND empresa_id=?",(atividade_id,empresa_logada_id()))
         conn.commit()
     return redirect(url_for("gestao_atividades_lista",sucesso="Atividade excluída."))

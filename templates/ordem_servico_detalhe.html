@@ -87,6 +87,9 @@ Motivo: Corrigir as expressões Jinja da nova tela em abas para exibir os dados 
             <button type="button" class="os-detail-tab" data-os-tab="execucao" aria-selected="false">
                 Execução
             </button>
+            <button type="button" class="os-detail-tab" data-os-tab="atividades" aria-selected="false">
+                Atividades <span>{{ atividades_operacionais|default([])|length }}</span>
+            </button>
             <button type="button" class="os-detail-tab" data-os-tab="itens" aria-selected="false">
                 Itens e valores
             </button>
@@ -280,6 +283,13 @@ Motivo: Corrigir as expressões Jinja da nova tela em abas para exibir os dados 
                         <div class="os-detail-empty">Nenhum equipamento vinculado a esta ordem de serviço.</div>
                     {% endfor %}
                 </div>
+            </div>
+        </section>
+
+        <section class="os-detail-tab-panel" data-os-panel="atividades" hidden>
+            <div class="panel page-section">
+                <div class="os-detail-section-head"><div><span class="os-detail-section-index">04</span><div><h3>Atividades da OS</h3><p>Serviços e ações paralelas vinculados a esta ordem.</p></div></div><a class="btn-primary-green" href="/gestao-atividades/nova?tipo=servico&ordem_servico_id={{ os.id }}">+ Nova atividade</a></div>
+                <div class="activity-linked-list">{% for item in atividades_operacionais|default([]) %}<a href="/gestao-atividades/{{ item.id }}" class="activity-linked-item"><div><strong>{{ item.titulo }}</strong><span>{{ item.responsavel_nome or '-' }} · {{ item.data_prazo or 'Sem prazo' }} · {{ item.etapas_concluidas or 0 }}/{{ item.etapas_total or 0 }} etapas</span></div><span class="status-pill {{ item.status_exibicao or item.status }}">{{ (item.status_exibicao or item.status)|replace('_',' ') }}</span></a>{% else %}<div class="os-detail-empty">Nenhuma atividade vinculada a esta OS.</div>{% endfor %}</div>
             </div>
         </section>
 
