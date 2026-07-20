@@ -988,11 +988,26 @@ Motivo: Exibir, editar e excluir acompanhamentos diários diretamente na tela Ed
                         <div class="form-group"><label for="os_numero">Número</label><input id="os_numero" name="os_numero" type="text" value="{{ os.numero or '' }}" class="form-control"></div>
                         <div class="form-group os-span-2">
                         <label for="os_cliente">Cliente</label>
-                        <select id="os_cliente" name="os_cliente" class="form-control quick-cliente-select" required>
+                        {% set cliente_os_atual = (os.cliente or '')|trim %}
+                        {% set controle_cliente = namespace(encontrado=false) %}
+                        <select
+                            id="os_cliente"
+                            name="os_cliente"
+                            class="form-control quick-cliente-select"
+                            data-cliente-atual="{{ cliente_os_atual }}"
+                            required>
                             <option value="">Digite para buscar</option>
                             {% for cliente in clientes|default([]) %}
-                                <option value="{{ cliente.nome }}" {% if cliente.nome == os.cliente %}selected{% endif %}>{{ cliente.nome }}</option>
+                                {% set nome_cliente = (cliente.nome or '')|trim %}
+                                {% set cliente_selecionado = nome_cliente|lower == cliente_os_atual|lower and cliente_os_atual %}
+                                {% if cliente_selecionado %}
+                                    {% set controle_cliente.encontrado = true %}
+                                {% endif %}
+                                <option value="{{ nome_cliente }}" {% if cliente_selecionado %}selected{% endif %}>{{ nome_cliente }}</option>
                             {% endfor %}
+                            {% if cliente_os_atual and not controle_cliente.encontrado %}
+                                <option value="{{ cliente_os_atual }}" selected>{{ cliente_os_atual }}</option>
+                            {% endif %}
                             <option value="__novo_cliente__" class="quick-new-option">+ Adicionar novo cliente</option>
                         </select>
                     </div>
@@ -2117,6 +2132,40 @@ Motivo: Exibir, editar e excluir acompanhamentos diários diretamente na tela Ed
                     }
                 });
             }
+        </script>
+
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function() {
+                const clienteSelect = document.getElementById("os_cliente");
+
+                if (clienteSelect && !String(clienteSelect.value || "").trim()) {
+                    const clienteAtual = String(clienteSelect.dataset.clienteAtual || "").trim();
+
+                    if (clienteAtual) {
+                        let opcaoAtual = Array.from(clienteSelect.options).find(function(opcao) {
+                            return String(opcao.value || "").trim().toLocaleLowerCase("pt-BR") === clienteAtual.toLocaleLowerCase("pt-BR");
+                        });
+
+                        if (!opcaoAtual) {
+                            opcaoAtual = document.createElement("option");
+                            opcaoAtual.value = clienteAtual;
+                            opcaoAtual.textContent = clienteAtual;
+                            const opcaoNovoCliente = Array.from(clienteSelect.options).find(function(opcao) {
+                                return opcao.value === "__novo_cliente__";
+                            });
+
+                            if (opcaoNovoCliente) {
+                                clienteSelect.insertBefore(opcaoAtual, opcaoNovoCliente);
+                            } else {
+                                clienteSelect.appendChild(opcaoAtual);
+                            }
+                        }
+
+                        clienteSelect.value = opcaoAtual.value;
+                    }
+                }
+            });
         </script>
 
 
