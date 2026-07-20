@@ -1,0 +1,249 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\usuario_novo.html
+Último recode: 2026-07-19 22:45 (America/Bahia)
+Motivo: Cadastro e edição de usuários com perfil, funcionário e permissões por ação.
+-->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Novo usuário</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    
+<style>
+    .user-form-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
+        gap: 20px;
+        align-items: start;
+    }
+    .permission-panel {
+        border: 1px solid #dbe4f0;
+        border-radius: 16px;
+        background: #fff;
+        overflow: hidden;
+    }
+    .permission-table-shell {
+        overflow-x: auto;
+    }
+    .permission-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 820px;
+    }
+    .permission-table th,
+    .permission-table td {
+        padding: 11px 10px;
+        border-bottom: 1px solid #edf2f7;
+        text-align: center;
+        font-size: 12px;
+    }
+    .permission-table th:first-child,
+    .permission-table td:first-child {
+        text-align: left;
+        min-width: 220px;
+    }
+    .permission-table strong {
+        display: block;
+        color: #0f172a;
+    }
+    .permission-table small {
+        display: block;
+        margin-top: 3px;
+        color: #64748b;
+    }
+    .permission-checkbox {
+        width: 18px;
+        height: 18px;
+        accent-color: #1458f5;
+    }
+    .profile-note {
+        margin-top: 8px;
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1.45;
+    }
+    .admin-permission-note {
+        margin: 12px 0;
+        padding: 12px;
+        border: 1px solid #bfdbfe;
+        border-radius: 12px;
+        background: #eff6ff;
+        color: #1e3a8a;
+        font-size: 13px;
+        font-weight: 800;
+    }
+    @media (max-width: 1100px) {
+        .user-form-layout {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+    <main class="content">
+        {% set page_title = 'Novo usuário' %}
+        {% include "partials/topbar.html" %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Configurações</span>
+                    <h3 class="page-title">Novo usuário</h3>
+                    <p class="page-subtitle">Crie um acesso individual e limite os módulos e ações disponíveis.</p>
+                </div>
+                <a href="/configuracoes/usuarios" class="btn-light">Voltar</a>
+            </div>
+        </section>
+
+        {% if erro %}
+            <div class="config-alert error" style="margin-bottom:16px; padding:12px 14px; border:1px solid #fecaca; border-radius:12px; background:#fef2f2; color:#991b1b; font-weight:800;">{{ erro }}</div>
+        {% endif %}
+
+        <form class="user-form-layout" method="post" action="{{ url_for('novo_usuario_configuracoes') }}">
+            <section class="panel page-section">
+                <div class="panel-header page-header">
+                    <div>
+                        <h3>Dados do acesso</h3>
+                        <p class="page-subtitle">Cada pessoa deve usar seu próprio e-mail e senha.</p>
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="nome">Nome</label>
+                        <input id="nome" name="nome" type="text" class="form-control" value="{{ formulario.nome|default('') }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="email">E-mail de acesso</label>
+                        <input id="email" name="email" type="email" class="form-control" value="{{ formulario.email|default('') }}" autocomplete="off" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="funcionario_id">Vincular ao funcionário</label>
+                        <select id="funcionario_id" name="funcionario_id" class="form-control">
+                            <option value="">Não vincular</option>
+                            {% for funcionario in funcionarios %}
+                                {% if not funcionario.usuario_id or funcionario.usuario_id == formulario.id|default(0) %}
+                                    <option value="{{ funcionario.id }}" {% if formulario.funcionario_id|default(0)|int == funcionario.id|int %}selected{% endif %}>
+                                        {{ funcionario.nome }}{% if funcionario.cargo %} — {{ funcionario.cargo }}{% endif %}
+                                    </option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="perfil">Perfil</label>
+                        <select id="perfil" name="perfil" class="form-control" required>
+                            {% for codigo, perfil in perfis_usuario.items() %}
+                                <option value="{{ codigo }}" {% if formulario.perfil|default('consulta') == codigo %}selected{% endif %}>{{ perfil.nome }}</option>
+                            {% endfor %}
+                        </select>
+                        <div id="perfil-descricao" class="profile-note"></div>
+                    </div>
+                    <div class="form-group">
+                        <label for="status">Status</label>
+                        <select id="status" name="status" class="form-control">
+                            <option value="ativo" {% if formulario.status|default('ativo') == 'ativo' %}selected{% endif %}>Ativo</option>
+                            <option value="inativo" {% if formulario.status|default('ativo') == 'inativo' %}selected{% endif %}>Inativo</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="senha">Senha</label>
+                        <input id="senha" name="senha" type="password" class="form-control" autocomplete="new-password" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="confirmar_senha">Confirmar senha</label>
+                        <input id="confirmar_senha" name="confirmar_senha" type="password" class="form-control" autocomplete="new-password" required>
+                    </div>
+                </div>
+
+                <div class="password-rules" style="display:grid; gap:6px; margin-top:12px; color:#475569; font-size:12px; font-weight:800;">
+                    <span>• No mínimo 8 caracteres</span>
+                    <span>• Maiúscula, minúscula, número e caractere especial</span>
+                    
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary-green">Salvar usuário</button>
+                    <a href="/configuracoes/usuarios" class="btn-light">Cancelar</a>
+                </div>
+            </section>
+
+            <section class="permission-panel">
+                <div class="panel-header page-header" style="padding:18px;">
+                    <div>
+                        <h3>Permissões por módulo</h3>
+                        <p class="page-subtitle">A proteção também é aplicada diretamente nas rotas do servidor.</p>
+                    </div>
+                </div>
+
+                <div id="admin-permission-note" class="admin-permission-note" style="display:none; margin:0 18px 14px;">
+                    Administradores possuem acesso total à própria empresa. Superadministradores também acessam o painel global.
+                </div>
+
+                <div class="permission-table-shell">
+                    <table class="permission-table">
+                        <thead>
+                            <tr>
+                                <th>Módulo</th>
+                                {% for acao in acoes_permissao %}
+                                    <th>{{ acao.nome }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for modulo in modulos_permissoes %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ modulo.nome }}</strong>
+                                        <small>{{ modulo.grupo }}</small>
+                                    </td>
+                                    {% for acao in acoes_permissao %}
+                                        {% set chave = modulo.codigo ~ ':' ~ acao.codigo %}
+                                        <td>
+                                            <input
+                                                class="permission-checkbox"
+                                                type="checkbox"
+                                                name="permissoes"
+                                                value="{{ chave }}"
+                                                {% if chave in permissoes_selecionadas %}checked{% endif %}
+                                            >
+                                        </td>
+                                    {% endfor %}
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </form>
+    </main>
+
+    <script>
+        (function () {
+            const perfil = document.getElementById('perfil');
+            const descricao = document.getElementById('perfil-descricao');
+            const notaAdmin = document.getElementById('admin-permission-note');
+            const checkboxes = Array.from(document.querySelectorAll('.permission-checkbox'));
+            const perfis = {"super_admin": "Administração global do GestFlow e acesso total à própria empresa.", "administrador": "Acesso total aos módulos e configurações da própria empresa.", "comercial": "Clientes, serviços, orçamentos, vendas e agenda comercial.", "financeiro": "Financeiro completo e consulta aos documentos operacionais.", "estoque": "Fornecedores, produtos, compras e movimentações de estoque.", "tecnico": "Equipamentos, ordens de serviço, execução e consultas operacionais.", "consulta": "Somente leitura dos módulos liberados para a empresa."};
+
+            function atualizarPerfil() {
+                const codigo = perfil.value;
+                const admin = codigo === 'administrador' || codigo === 'super_admin';
+                descricao.textContent = perfis[codigo] || '';
+                notaAdmin.style.display = admin ? 'block' : 'none';
+                checkboxes.forEach(function (checkbox) {
+                    checkbox.disabled = admin;
+                });
+            }
+
+            perfil.addEventListener('change', atualizarPerfil);
+            atualizarPerfil();
+        })();
+    </script>
+</body>
+</html>

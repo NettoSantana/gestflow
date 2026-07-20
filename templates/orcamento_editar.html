@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_editar.html
-Último recode: 2026-07-15 14:05 (America/Bahia)
-Motivo: Permitir que o valor final editado prevaleça e sincronize orçamento, apresentação e margem.
+Último recode: 2026-07-20 13:40 (America/Bahia)
+Motivo: Enviar a versão do orçamento para bloquear sobrescrita silenciosa em edições simultâneas.
 -->
 
 <!DOCTYPE html>
@@ -403,6 +403,7 @@ Motivo: Permitir que o valor final editado prevaleça e sincronize orçamento, a
         </section>
 
         <form id="form-editar-orcamento" action="/orcamentos/{{ orcamento.id }}/editar" method="post" class="client-form">
+            <input id="orcamento_versao" name="orcamento_versao" type="hidden" value="{{ orcamento.versao or 1 }}">
             <input id="orcamento_valor_final_editado" name="orcamento_valor_final_editado" type="hidden" value="{{ orcamento.valor_total or '0,00' }}">
             <input id="orcamento_valor_final_manual" name="orcamento_valor_final_manual" type="hidden" value="nao">
             <section class="panel page-section">

@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\configuracoes.html
-Último recode: 2026-07-04 14:35 (America/Bahia)
-Motivo: Corrigir bloco de módulos e deixar aviso compacto na tela de configurações.
+Último recode: 2026-07-19 22:45 (America/Bahia)
+Motivo: Adicionar CRUD de usuários, perfis, vínculo com funcionário e ações administrativas.
 -->
 
 <!DOCTYPE html>
@@ -347,10 +347,10 @@ Motivo: Corrigir bloco de módulos e deixar aviso compacto na tela de configura�
                 {% if aba == 'usuarios' %}
                     <div class="panel-header page-header">
                         <div>
-                            <h3>Usuários</h3>
-                            <p class="page-subtitle">Controle quem acessa o sistema e qual perfil cada usuário terá.</p>
+                            <h3>Usuários e permissões</h3>
+                            <p class="page-subtitle">Crie acessos separados, defina perfis e limite o que cada pessoa pode fazer.</p>
                         </div>
-                        <span class="badge-info">Redefinição pelo administrador</span>
+                        <a href="{{ url_for('novo_usuario_configuracoes') }}" class="btn-primary-green">+ Novo usuário</a>
                     </div>
 
                     {% if erro %}
@@ -365,26 +365,21 @@ Motivo: Corrigir bloco de módulos e deixar aviso compacto na tela de configura�
                         <form method="get" action="{{ url_for('configuracoes') }}/usuarios" class="list-search-form">
                             <input type="text" name="busca" value="{{ busca }}" placeholder="Buscar usuário, e-mail, perfil ou status">
                             <select name="por_pagina" onchange="this.form.submit()">
-                                {% for quantidade in [10, 20, 50, 100] %}<option value="{{ quantidade }}" {% if por_pagina == quantidade %}selected{% endif %}>{{ quantidade }} por página</option>{% endfor %}
+                                {% for quantidade in [10, 20, 50, 100] %}
+                                    <option value="{{ quantidade }}" {% if por_pagina == quantidade %}selected{% endif %}>{{ quantidade }} por página</option>
+                                {% endfor %}
                             </select>
                             <input type="hidden" name="ordenar" value="{{ ordenar }}">
                             <input type="hidden" name="direcao" value="{{ direcao }}">
                             <button type="submit" class="btn-dark">Buscar</button>
-                            {% if busca %}<a href="{{ url_for('configuracoes') }}/usuarios" class="clear-search-link">Limpar</a>{% endif %}
+                            {% if busca %}
+                                <a href="{{ url_for('configuracoes') }}/usuarios" class="clear-search-link">Limpar</a>
+                            {% endif %}
                         </form>
                     </div>
 
-                    <div class="list-toolbar-paginada">
-                        <form method="get" action="{{ url_for('configuracoes') }}/lojas" class="list-search-form">
-                            <input type="text" name="busca" value="{{ busca }}" placeholder="Buscar loja, tipo, cidade ou status">
-                            <select name="por_pagina" onchange="this.form.submit()">
-                                {% for quantidade in [10, 20, 50, 100] %}<option value="{{ quantidade }}" {% if por_pagina == quantidade %}selected{% endif %}>{{ quantidade }} por página</option>{% endfor %}
-                            </select>
-                            <input type="hidden" name="ordenar" value="{{ ordenar }}">
-                            <input type="hidden" name="direcao" value="{{ direcao }}">
-                            <button type="submit" class="btn-dark">Buscar</button>
-                            {% if busca %}<a href="{{ url_for('configuracoes') }}/lojas" class="clear-search-link">Limpar</a>{% endif %}
-                        </form>
+                    <div class="module-warning-box" style="margin-bottom: 14px;">
+                        <strong>Proteção ativa:</strong> permissões são verificadas no servidor. Usuários inativos perdem o acesso imediatamente e uma troca de senha encerra as sessões anteriores.
                     </div>
 
                     <div class="table-shell">
@@ -393,8 +388,10 @@ Motivo: Corrigir bloco de módulos e deixar aviso compacto na tela de configura�
                                 <tr>
                                     <th><a href="{{ url_for('configuracoes') }}/usuarios?pagina=1&por_pagina={{ por_pagina }}&ordenar=nome&direcao={{ 'desc' if ordenar == 'nome' and direcao == 'asc' else 'asc' }}&busca={{ busca }}" class="sortable-link">Nome {% if ordenar == 'nome' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
                                     <th><a href="{{ url_for('configuracoes') }}/usuarios?pagina=1&por_pagina={{ por_pagina }}&ordenar=email&direcao={{ 'desc' if ordenar == 'email' and direcao == 'asc' else 'asc' }}&busca={{ busca }}" class="sortable-link">E-mail {% if ordenar == 'email' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                                    <th>Funcionário</th>
                                     <th><a href="{{ url_for('configuracoes') }}/usuarios?pagina=1&por_pagina={{ por_pagina }}&ordenar=perfil&direcao={{ 'desc' if ordenar == 'perfil' and direcao == 'asc' else 'asc' }}&busca={{ busca }}" class="sortable-link">Perfil {% if ordenar == 'perfil' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
                                     <th><a href="{{ url_for('configuracoes') }}/usuarios?pagina=1&por_pagina={{ por_pagina }}&ordenar=status&direcao={{ 'desc' if ordenar == 'status' and direcao == 'asc' else 'asc' }}&busca={{ busca }}" class="sortable-link">Status {% if ordenar == 'status' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                                    <th>Último acesso</th>
                                     <th>Ações</th>
                                 </tr>
                             </thead>
@@ -402,31 +399,69 @@ Motivo: Corrigir bloco de módulos e deixar aviso compacto na tela de configura�
                                 {% if usuarios_lista_tabela %}
                                     {% for usuario in usuarios_lista_tabela %}
                                         <tr>
-                                            <td>{{ usuario.nome }}</td>
+                                            <td>
+                                                <strong>{{ usuario.nome }}</strong>
+                                                {% if usuario.id == usuario_logado.id %}
+                                                    <small style="display:block; color:#0f62fe; font-weight:800;">Seu usuário</small>
+                                                {% endif %}
+                                            </td>
                                             <td>{{ usuario.email }}</td>
-                                            <td>{{ usuario.perfil }}</td>
+                                            <td>{{ usuario.funcionario_nome or 'Não vinculado' }}</td>
+                                            <td>{{ usuario.perfil_rotulo or rotulo_perfil_usuario(usuario.perfil) }}</td>
                                             <td><span class="status-pill {{ usuario.status }}">{{ usuario.status }}</span></td>
+                                            <td>{{ usuario.ultimo_login|default('Nunca', true) }}</td>
                                             <td>
                                                 <div class="action-buttons">
-                                                    <span class="badge-info">Reset via formulário</span>
+                                                    <a href="{{ url_for('editar_usuario_configuracoes', usuario_id=usuario.id) }}" class="btn-action btn-edit">Editar</a>
+                                                    {% if usuario.id != usuario_logado.id %}
+                                                        <form method="post" action="{{ url_for('alterar_status_usuario_configuracoes', usuario_id=usuario.id) }}" style="display:inline;">
+                                                            <input type="hidden" name="status" value="{{ 'inativo' if usuario.status == 'ativo' else 'ativo' }}">
+                                                            <button type="submit" class="btn-action {{ 'btn-delete' if usuario.status == 'ativo' else 'btn-view' }}">
+                                                                {{ 'Inativar' if usuario.status == 'ativo' else 'Ativar' }}
+                                                            </button>
+                                                        </form>
+                                                    {% endif %}
                                                 </div>
                                             </td>
                                         </tr>
                                     {% endfor %}
                                 {% else %}
                                     <tr>
-                                        <td colspan="5" class="empty-table">Nenhum usuário cadastrado nesta empresa.</td>
+                                        <td colspan="7" class="empty-table">Nenhum usuário cadastrado nesta empresa.</td>
                                     </tr>
                                 {% endif %}
                             </tbody>
                         </table>
+
                         <div class="pagination-bar">
-                            <div>{% if paginacao_lojas.total|default(0, true) > 0 %}Mostrando {{ paginacao_lojas.inicio }} a {{ paginacao_lojas.fim }} de {{ paginacao_lojas.total }}{% else %}Nenhuma loja encontrada{% endif %}</div>
-                            {% if paginacao_lojas.total_paginas|default(1, true) > 1 %}<div class="pagination-links">{% if paginacao_lojas.tem_anterior %}<a href="{{ url_for('configuracoes') }}/lojas?pagina={{ paginacao_lojas.anterior }}&por_pagina={{ por_pagina }}&ordenar={{ ordenar }}&direcao={{ direcao }}&busca={{ busca }}">‹</a>{% else %}<span class="disabled-page">‹</span>{% endif %}{% for numero_pagina in paginacao_lojas.paginas %}{% if numero_pagina == paginacao_lojas.pagina %}<span class="current-page">{{ numero_pagina }}</span>{% else %}<a href="{{ url_for('configuracoes') }}/lojas?pagina={{ numero_pagina }}&por_pagina={{ por_pagina }}&ordenar={{ ordenar }}&direcao={{ direcao }}&busca={{ busca }}">{{ numero_pagina }}</a>{% endif %}{% endfor %}{% if paginacao_lojas.tem_proxima %}<a href="{{ url_for('configuracoes') }}/lojas?pagina={{ paginacao_lojas.proxima }}&por_pagina={{ por_pagina }}&ordenar={{ ordenar }}&direcao={{ direcao }}&busca={{ busca }}">›</a>{% else %}<span class="disabled-page">›</span>{% endif %}</div>{% endif %}
-                        </div>
-                        <div class="pagination-bar">
-                            <div>{% if paginacao_usuarios.total|default(0, true) > 0 %}Mostrando {{ paginacao_usuarios.inicio }} a {{ paginacao_usuarios.fim }} de {{ paginacao_usuarios.total }}{% else %}Nenhum usuário encontrado{% endif %}</div>
-                            {% if paginacao_usuarios.total_paginas|default(1, true) > 1 %}<div class="pagination-links">{% if paginacao_usuarios.tem_anterior %}<a href="{{ url_for('configuracoes') }}/usuarios?pagina={{ paginacao_usuarios.anterior }}&por_pagina={{ por_pagina }}&ordenar={{ ordenar }}&direcao={{ direcao }}&busca={{ busca }}">‹</a>{% else %}<span class="disabled-page">‹</span>{% endif %}{% for numero_pagina in paginacao_usuarios.paginas %}{% if numero_pagina == paginacao_usuarios.pagina %}<span class="current-page">{{ numero_pagina }}</span>{% else %}<a href="{{ url_for('configuracoes') }}/usuarios?pagina={{ numero_pagina }}&por_pagina={{ por_pagina }}&ordenar={{ ordenar }}&direcao={{ direcao }}&busca={{ busca }}">{{ numero_pagina }}</a>{% endif %}{% endfor %}{% if paginacao_usuarios.tem_proxima %}<a href="{{ url_for('configuracoes') }}/usuarios?pagina={{ paginacao_usuarios.proxima }}&por_pagina={{ por_pagina }}&ordenar={{ ordenar }}&direcao={{ direcao }}&busca={{ busca }}">›</a>{% else %}<span class="disabled-page">›</span>{% endif %}</div>{% endif %}
+                            <div>
+                                {% if paginacao_usuarios.total|default(0, true) > 0 %}
+                                    Mostrando {{ paginacao_usuarios.inicio }} a {{ paginacao_usuarios.fim }} de {{ paginacao_usuarios.total }}
+                                {% else %}
+                                    Nenhum usuário encontrado
+                                {% endif %}
+                            </div>
+                            {% if paginacao_usuarios.total_paginas|default(1, true) > 1 %}
+                                <div class="pagination-links">
+                                    {% if paginacao_usuarios.tem_anterior %}
+                                        <a href="{{ url_for('configuracoes') }}/usuarios?pagina={{ paginacao_usuarios.anterior }}&por_pagina={{ por_pagina }}&ordenar={{ ordenar }}&direcao={{ direcao }}&busca={{ busca }}">‹</a>
+                                    {% else %}
+                                        <span class="disabled-page">‹</span>
+                                    {% endif %}
+                                    {% for numero_pagina in paginacao_usuarios.paginas %}
+                                        {% if numero_pagina == paginacao_usuarios.pagina %}
+                                            <span class="current-page">{{ numero_pagina }}</span>
+                                        {% else %}
+                                            <a href="{{ url_for('configuracoes') }}/usuarios?pagina={{ numero_pagina }}&por_pagina={{ por_pagina }}&ordenar={{ ordenar }}&direcao={{ direcao }}&busca={{ busca }}">{{ numero_pagina }}</a>
+                                        {% endif %}
+                                    {% endfor %}
+                                    {% if paginacao_usuarios.tem_proxima %}
+                                        <a href="{{ url_for('configuracoes') }}/usuarios?pagina={{ paginacao_usuarios.proxima }}&por_pagina={{ por_pagina }}&ordenar={{ ordenar }}&direcao={{ direcao }}&busca={{ busca }}">›</a>
+                                    {% else %}
+                                        <span class="disabled-page">›</span>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
                         </div>
                     </div>
 
@@ -434,7 +469,7 @@ Motivo: Corrigir bloco de módulos e deixar aviso compacto na tela de configura�
                         <div class="panel-header page-header">
                             <div>
                                 <h3>Redefinir senha</h3>
-                                <p class="page-subtitle">Selecione o usuário e informe uma nova senha segura.</p>
+                                <p class="page-subtitle">A redefinição encerra as sessões anteriores desse usuário.</p>
                             </div>
                         </div>
 

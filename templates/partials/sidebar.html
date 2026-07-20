@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\partials\sidebar.html
-Último recode: 2026-07-15 12:40 (America/Bahia)
-Motivo: Renomear o acesso de Bater ponto para Gerenciamento de Ponto.
+Último recode: 2026-07-19 22:45 (America/Bahia)
+Motivo: Ocultar módulos sem permissão e substituir o acesso administrativo por perfil.
 #}
 {% set _path = request.path if request is defined else '' %}
 {% set _usuario_sidebar = usuario_logado|default({}, true) %}
@@ -19,10 +19,25 @@ Motivo: Renomear o acesso de Bater ponto para Gerenciamento de Ponto.
 
     <nav class="sidebar-nav">
         {% set _modulos = gestflow_modulos_ativos|default({}, true) %}
-        {% set _cadastros_ativo = _modulos.get('clientes', true) or _modulos.get('fornecedores', true) or _modulos.get('funcionarios', true) or _modulos.get('equipamentos', true) %}
-        {% set _vendas_ativo = _modulos.get('vendas', true) or _modulos.get('pdv', true) or _modulos.get('devolucoes', true) %}
-        {% set _orcamentos_ativo = _modulos.get('orcamentos', true) or _modulos.get('gerador_orcamentos', true) %}
-        {% set _os_ativo = _modulos.get('ordens_servico', true) or _modulos.get('painel_os', true) %}
+        {% set _cadastros_ativo =
+            (_modulos.get('clientes', true) and modulo_usuario_visivel('clientes')) or
+            (_modulos.get('fornecedores', true) and modulo_usuario_visivel('fornecedores')) or
+            (_modulos.get('funcionarios', true) and modulo_usuario_visivel('funcionarios')) or
+            (_modulos.get('equipamentos', true) and modulo_usuario_visivel('equipamentos'))
+        %}
+        {% set _vendas_ativo =
+            (_modulos.get('vendas', true) and modulo_usuario_visivel('vendas')) or
+            (_modulos.get('pdv', true) and modulo_usuario_visivel('pdv')) or
+            (_modulos.get('devolucoes', true) and modulo_usuario_visivel('devolucoes'))
+        %}
+        {% set _orcamentos_ativo =
+            (_modulos.get('orcamentos', true) and modulo_usuario_visivel('orcamentos')) or
+            (_modulos.get('gerador_orcamentos', true) and modulo_usuario_visivel('gerador_orcamentos'))
+        %}
+        {% set _os_ativo =
+            (_modulos.get('ordens_servico', true) and modulo_usuario_visivel('ordens_servico')) or
+            (_modulos.get('painel_os', true) and modulo_usuario_visivel('painel_os'))
+        %}
 
         <ul class="menu">
             <li class="menu-item {% if _path == '/' %}active{% endif %}">
@@ -41,16 +56,16 @@ Motivo: Renomear o acesso de Bater ponto para Gerenciamento de Ponto.
                     </summary>
                     <ul class="submenu">
                         <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Cadastros</strong></li>
-                        {% if _modulos.get('clientes', true) %}<li class="{% if _path.startswith('/clientes') %}submenu-active{% endif %}"><a href="/clientes">Clientes</a></li>{% endif %}
-                        {% if _modulos.get('fornecedores', true) %}<li class="{% if _path.startswith('/fornecedores') %}submenu-active{% endif %}"><a href="/fornecedores">Fornecedores</a></li>{% endif %}
-                        {% if _modulos.get('funcionarios', true) %}<li class="{% if _path.startswith('/funcionarios') %}submenu-active{% endif %}"><a href="/funcionarios">Funcionários</a></li>{% endif %}
-                        {% if _modulos.get('equipamentos', true) %}<li class="{% if _path.startswith('/equipamentos') %}submenu-active{% endif %}"><a href="/equipamentos">Equipamentos</a></li>{% endif %}
+                        {% if _modulos.get('clientes', true) and modulo_usuario_visivel('clientes') %}<li class="{% if _path.startswith('/clientes') %}submenu-active{% endif %}"><a href="/clientes">Clientes</a></li>{% endif %}
+                        {% if _modulos.get('fornecedores', true) and modulo_usuario_visivel('fornecedores') %}<li class="{% if _path.startswith('/fornecedores') %}submenu-active{% endif %}"><a href="/fornecedores">Fornecedores</a></li>{% endif %}
+                        {% if _modulos.get('funcionarios', true) and modulo_usuario_visivel('funcionarios') %}<li class="{% if _path.startswith('/funcionarios') %}submenu-active{% endif %}"><a href="/funcionarios">Funcionários</a></li>{% endif %}
+                        {% if _modulos.get('equipamentos', true) and modulo_usuario_visivel('equipamentos') %}<li class="{% if _path.startswith('/equipamentos') %}submenu-active{% endif %}"><a href="/equipamentos">Equipamentos</a></li>{% endif %}
                     </ul>
                 </details>
             </li>
             {% endif %}
 
-            {% if _modulos.get('produtos', true) %}
+            {% if _modulos.get('produtos', true) and modulo_usuario_visivel('produtos') %}
             <li class="menu-group {% if _path.startswith('/produtos') %}active{% endif %}">
                 <details {% if _path.startswith('/produtos') %}open{% endif %}>
                     <summary>
@@ -65,7 +80,7 @@ Motivo: Renomear o acesso de Bater ponto para Gerenciamento de Ponto.
             </li>
             {% endif %}
 
-            {% if _modulos.get('servicos', true) %}
+            {% if _modulos.get('servicos', true) and modulo_usuario_visivel('servicos') %}
             <li class="menu-group {% if _path.startswith('/servicos') %}active{% endif %}">
                 <details {% if _path.startswith('/servicos') %}open{% endif %}>
                     <summary>
@@ -89,8 +104,8 @@ Motivo: Renomear o acesso de Bater ponto para Gerenciamento de Ponto.
                     </summary>
                     <ul class="submenu">
                         <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Orçamentos</strong></li>
-                        {% if _modulos.get('orcamentos', true) %}<li class="{% if _path == '/orcamentos' %}submenu-active{% endif %}"><a href="/orcamentos">Orçamentos</a></li>{% endif %}
-                        {% if _modulos.get('gerador_orcamentos', true) %}<li class="{% if _path.startswith('/orcamentos/gerador') %}submenu-active{% endif %}"><a href="/orcamentos/gerador">Gerador de Orçamentos</a></li>{% endif %}
+                        {% if _modulos.get('orcamentos', true) and modulo_usuario_visivel('orcamentos') %}<li class="{% if _path == '/orcamentos' %}submenu-active{% endif %}"><a href="/orcamentos">Orçamentos</a></li>{% endif %}
+                        {% if _modulos.get('gerador_orcamentos', true) and modulo_usuario_visivel('gerador_orcamentos') %}<li class="{% if _path.startswith('/orcamentos/gerador') %}submenu-active{% endif %}"><a href="/orcamentos/gerador">Gerador de Orçamentos</a></li>{% endif %}
                     </ul>
                 </details>
             </li>
@@ -105,9 +120,9 @@ Motivo: Renomear o acesso de Bater ponto para Gerenciamento de Ponto.
                     </summary>
                     <ul class="submenu">
                         <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Vendas</strong></li>
-                        {% if _modulos.get('vendas', true) %}<li class="{% if _path == '/vendas' %}submenu-active{% endif %}"><a href="/vendas">Vendas</a></li>{% endif %}
-                        {% if _modulos.get('pdv', true) %}<li class="{% if _path.startswith('/vendas/balcao') %}submenu-active{% endif %}"><a href="/vendas/balcao">Balcão / PDV</a></li>{% endif %}
-                        {% if _modulos.get('devolucoes', true) %}<li class="{% if _path.startswith('/vendas/devolucoes') %}submenu-active{% endif %}"><a href="/vendas/devolucoes">Devoluções</a></li>{% endif %}
+                        {% if _modulos.get('vendas', true) and modulo_usuario_visivel('vendas') %}<li class="{% if _path == '/vendas' %}submenu-active{% endif %}"><a href="/vendas">Vendas</a></li>{% endif %}
+                        {% if _modulos.get('pdv', true) and modulo_usuario_visivel('pdv') %}<li class="{% if _path.startswith('/vendas/balcao') %}submenu-active{% endif %}"><a href="/vendas/balcao">Balcão / PDV</a></li>{% endif %}
+                        {% if _modulos.get('devolucoes', true) and modulo_usuario_visivel('devolucoes') %}<li class="{% if _path.startswith('/vendas/devolucoes') %}submenu-active{% endif %}"><a href="/vendas/devolucoes">Devoluções</a></li>{% endif %}
                     </ul>
                 </details>
             </li>
@@ -122,14 +137,14 @@ Motivo: Renomear o acesso de Bater ponto para Gerenciamento de Ponto.
                     </summary>
                     <ul class="submenu">
                         <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Ordens de Serviço</strong></li>
-                        {% if _modulos.get('ordens_servico', true) %}<li class="{% if _path == '/ordens-servico' %}submenu-active{% endif %}"><a href="/ordens-servico">Gerenciar O.S.</a></li>{% endif %}
-                        {% if _modulos.get('painel_os', true) %}<li class="{% if _path.startswith('/ordens-servico/painel') %}submenu-active{% endif %}"><a href="/ordens-servico/painel">Painel</a></li>{% endif %}
+                        {% if _modulos.get('ordens_servico', true) and modulo_usuario_visivel('ordens_servico') %}<li class="{% if _path == '/ordens-servico' %}submenu-active{% endif %}"><a href="/ordens-servico">Gerenciar O.S.</a></li>{% endif %}
+                        {% if _modulos.get('painel_os', true) and modulo_usuario_visivel('painel_os') %}<li class="{% if _path.startswith('/ordens-servico/painel') %}submenu-active{% endif %}"><a href="/ordens-servico/painel">Painel</a></li>{% endif %}
                     </ul>
                 </details>
             </li>
             {% endif %}
 
-            {% if _modulos.get('estoque', true) %}
+            {% if _modulos.get('estoque', true) and modulo_usuario_visivel('estoque') %}
             <li class="menu-group {% if _path.startswith('/estoque') %}active{% endif %}">
                 <details {% if _path.startswith('/estoque') %}open{% endif %}>
                     <summary>
@@ -146,7 +161,7 @@ Motivo: Renomear o acesso de Bater ponto para Gerenciamento de Ponto.
             </li>
             {% endif %}
 
-            {% if _modulos.get('financeiro', true) %}
+            {% if _modulos.get('financeiro', true) and modulo_usuario_visivel('financeiro') %}
             <li class="menu-group {% if _path.startswith('/financeiro') %}active{% endif %}">
                 <details {% if _path.startswith('/financeiro') %}open{% endif %}>
                     <summary>
@@ -165,14 +180,16 @@ Motivo: Renomear o acesso de Bater ponto para Gerenciamento de Ponto.
             </li>
             {% endif %}
 
+            {% if _modulos.get('vitrine', true) and modulo_usuario_visivel('vitrine') %}
             <li class="menu-item {% if _path.startswith('/vitrine') %}active{% endif %}">
                 <a href="/vitrine">
                     <span class="menu-icon">▦</span>
                     <span>Vitrine Online</span>
                 </a>
             </li>
+            {% endif %}
 
-            {% if _modulos.get('agendamentos', true) %}
+            {% if _modulos.get('agendamentos', true) and modulo_usuario_visivel('agendamentos') %}
             <li class="menu-group {% if _path.startswith('/agendamentos') %}active{% endif %}">
                 <details {% if _path.startswith('/agendamentos') %}open{% endif %}>
                     <summary>
@@ -187,7 +204,7 @@ Motivo: Renomear o acesso de Bater ponto para Gerenciamento de Ponto.
             </li>
             {% endif %}
 
-            {% if _modulos.get('registro_ponto', true) %}
+            {% if _modulos.get('registro_ponto', true) and modulo_usuario_visivel('registro_ponto') %}
             <li class="menu-group {% if _path.startswith('/registro-ponto') %}active{% endif %}">
                 <details {% if _path.startswith('/registro-ponto') %}open{% endif %}>
                     <summary>
@@ -202,7 +219,7 @@ Motivo: Renomear o acesso de Bater ponto para Gerenciamento de Ponto.
             </li>
             {% endif %}
 
-            {% if _usuario_sidebar and _usuario_sidebar.email in ["admin@gestflow.local", "nettosantana@icloud.com"] %}
+            {% if usuario_eh_admin_sistema %}
             <li class="menu-group {% if _path.startswith('/admin') %}active{% endif %}">
                 <details {% if _path.startswith('/admin') %}open{% endif %}>
                     <summary>
@@ -221,7 +238,9 @@ Motivo: Renomear o acesso de Bater ponto para Gerenciamento de Ponto.
     </nav>
 
     <div class="sidebar-footer">
-        <a href="/configuracoes" class="footer-item {% if _path.startswith('/configuracoes') %}active{% endif %}" style="text-decoration: none;">⚙ Configurações</a>
+        {% if usuario_eh_admin_empresa %}
+            <a href="/configuracoes" class="footer-item {% if _path.startswith('/configuracoes') %}active{% endif %}" style="text-decoration: none;">⚙ Configurações</a>
+        {% endif %}
         <a href="/instalar" class="footer-item {% if _path.startswith('/instalar') %}active{% endif %}" style="text-decoration: none;">▣ Instalar app</a>
         <a href="/sair" class="footer-item" style="text-decoration: none;">Sair</a>
     </div>
