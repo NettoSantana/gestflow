@@ -11,6 +11,7 @@ import json
 import os
 import re
 import secrets
+import smtplib
 import sqlite3
 import unicodedata
 import urllib.error
@@ -20,6 +21,7 @@ import zipfile
 import xml.etree.ElementTree as ET
 from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from email.message import EmailMessage
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -86,6 +88,7 @@ GESTFLOW_MODULOS = [
     {"codigo": "financeiro", "nome": "Financeiro", "grupo": "Gestão", "descricao": "Contas a pagar, contas a receber e fluxo de caixa."},
     {"codigo": "agendamentos", "nome": "Agendamentos", "grupo": "Serviços", "descricao": "Agenda de atendimentos por cliente, profissional, data e horário."},
     {"codigo": "registro_ponto", "nome": "Registro de Ponto", "grupo": "Equipe", "descricao": "Entrada, intervalo, retorno, saída e espelho de ponto dos funcionários."},
+    {"codigo": "gestao_atividades", "nome": "Gestão de Atividades", "grupo": "Gestão", "descricao": "Ações paralelas e atividades de serviço com responsáveis, prazos, e-mail e cronograma."},
 ]
 
 GESTFLOW_MODULOS_PADRAO = {modulo["codigo"]: True for modulo in GESTFLOW_MODULOS}
@@ -170,6 +173,7 @@ GESTFLOW_PERMISSOES_PADRAO_PERFIL: dict[str, dict[str, set[str]]] = {
         "ordens_servico": set(_ACOES_LEITURA),
         "painel_os": set(_ACOES_LEITURA),
         "vitrine": set(_ACOES_OPERACAO),
+        "gestao_atividades": set(_ACOES_OPERACAO),
     },
     "financeiro": {
         "dashboard": {"visualizar"},
@@ -205,6 +209,7 @@ GESTFLOW_PERMISSOES_PADRAO_PERFIL: dict[str, dict[str, set[str]]] = {
         "estoque": set(_ACOES_LEITURA),
         "registro_ponto": set(_ACOES_LEITURA),
         "agendamentos": set(_ACOES_LEITURA),
+        "gestao_atividades": set(_ACOES_OPERACAO),
     },
     "consulta": {
         modulo["codigo"]: set(_ACOES_LEITURA)
@@ -297,8 +302,8 @@ GESTFLOW_SEGMENTOS_POR_CODIGO = {segmento["codigo"]: segmento for segmento in GE
 GESTFLOW_PERFIS_MODULOS = {
     "comercio": {"clientes", "fornecedores", "produtos", "vendas", "vitrine", "pdv", "devolucoes", "estoque", "financeiro"},
     "servicos": {"clientes", "servicos", "orcamentos", "vendas", "vitrine", "financeiro", "agendamentos"},
-    "assistencia": {"clientes", "fornecedores", "funcionarios", "equipamentos", "produtos", "servicos", "orcamentos", "vendas", "vitrine", "ordens_servico", "estoque", "financeiro", "agendamentos", "registro_ponto"},
-    "industrial": {"clientes", "fornecedores", "funcionarios", "equipamentos", "produtos", "servicos", "orcamentos", "gerador_orcamentos", "vendas", "ordens_servico", "painel_os", "estoque", "financeiro", "registro_ponto"},
+    "assistencia": {"clientes", "fornecedores", "funcionarios", "equipamentos", "produtos", "servicos", "orcamentos", "vendas", "vitrine", "ordens_servico", "estoque", "financeiro", "agendamentos", "registro_ponto", "gestao_atividades"},
+    "industrial": {"clientes", "fornecedores", "funcionarios", "equipamentos", "produtos", "servicos", "orcamentos", "gerador_orcamentos", "vendas", "ordens_servico", "painel_os", "estoque", "financeiro", "registro_ponto", "gestao_atividades"},
     "distribuicao": {"clientes", "fornecedores", "produtos", "vendas", "vitrine", "devolucoes", "estoque", "financeiro"},
     "locacao": {"clientes", "fornecedores", "funcionarios", "equipamentos", "produtos", "servicos", "orcamentos", "vendas", "ordens_servico", "estoque", "financeiro"},
     "completo": set(GESTFLOW_MODULOS_CODIGOS),
@@ -561,6 +566,7 @@ def modulo_por_rota(path: str) -> str:
         ("/financeiro", "financeiro"),
         ("/agendamentos", "agendamentos"),
         ("/registro-ponto", "registro_ponto"),
+        ("/gestao-atividades", "gestao_atividades"),
         ("/configuracoes", "configuracoes"),
         ("/admin", "admin"),
     ]
@@ -1201,6 +1207,7 @@ def exigir_login_rotas_internas() -> Response | None:
         "novo_cadastro",
         "login",
         "esqueci_senha",
+        "redefinir_senha",
         "pwa_instalar",
         "manifest_json",
         "favicon",
@@ -18418,124 +18425,67 @@ def login() -> str | Response:
     return render_template("login.html")
 
 
-@app.get("/esqueci-senha")
-def esqueci_senha() -> str:
-    return """
-    <!DOCTYPE html>
-    <html lang="pt-BR">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>GestFlow - Recuperar senha</title>
-        <style>
-            * { box-sizing: border-box; }
-            body {
-                margin: 0;
-                min-height: 100vh;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                padding: 24px;
-                background: linear-gradient(135deg, #06162b 0%, #0d2746 100%);
-                color: #132238;
-                font-family: Inter, Arial, Helvetica, sans-serif;
-            }
-            .card {
-                width: min(520px, 100%);
-                background: #ffffff;
-                border-radius: 24px;
-                padding: 34px;
-                box-shadow: 0 22px 60px rgba(5, 20, 42, 0.22);
-                text-align: center;
-            }
-            .badge {
-                display: inline-flex;
-                border-radius: 999px;
-                padding: 8px 14px;
-                margin-bottom: 18px;
-                background: #eff6ff;
-                color: #1e3a8a;
-                font-weight: 900;
-                font-size: 13px;
-            }
-            h1 {
-                margin: 0 0 10px;
-                color: #06162b;
-                font-size: 28px;
-            }
-            p {
-                margin: 0 0 18px;
-                color: #60708a;
-                line-height: 1.6;
-            }
-            .notice {
-                border: 1px solid #dbe5f1;
-                background: #f8fbff;
-                border-radius: 16px;
-                padding: 16px;
-                margin: 18px 0;
-                text-align: left;
-                color: #334155;
-                line-height: 1.55;
-            }
-            .actions {
-                display: flex;
-                justify-content: center;
-                gap: 10px;
-                flex-wrap: wrap;
-                margin-top: 22px;
-            }
-            a {
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                min-height: 44px;
-                padding: 0 18px;
-                border-radius: 10px;
-                font-weight: 900;
-                text-decoration: none;
-            }
-            .primary {
-                background: #06162b;
-                color: #ffffff;
-            }
-            .light {
-                border: 1px solid #dbe5f1;
-                color: #06162b;
-                background: #ffffff;
-            }
-        </style>
-    </head>
-    <body>
-        <main class="card">
-            <span class="badge">Recuperação de acesso</span>
-            <h1>Esqueceu sua senha?</h1>
-            <p>Por enquanto, a redefinição automática por e-mail ainda não está ativa.</p>
-            <div class="notice">
-                Solicite ao administrador da sua empresa para acessar <strong>Configurações &gt; Usuários</strong> e redefinir sua senha.
-                A nova senha deverá seguir os critérios de segurança do GestFlow.
-            </div>
-            <div class="actions">
-                <a href="/login" class="primary">Voltar para o login</a>
-                <a href="/portal" class="light">Voltar ao portal</a>
-            </div>
-        </main>
-    </body>
-    </html>
-    """
+@app.route("/esqueci-senha", methods=["GET", "POST"])
+def esqueci_senha() -> str | Response:
+    mensagem = ""
+    erro = ""
+    email = (request.form.get("email") or "").strip().lower()
+
+    if request.method == "POST":
+        usuario = buscar_usuario_por_email(email)
+        # Resposta neutra evita revelar quais e-mails estão cadastrados.
+        mensagem = "Se o e-mail estiver cadastrado, enviaremos um link para redefinir a senha."
+        if usuario is not None:
+            token = secrets.token_urlsafe(40)
+            token_hash = generate_password_hash(token)
+            expira_em = (agora_empresa() + timedelta(minutes=30)).isoformat(timespec="seconds")
+            with conectar_db() as conn:
+                conn.execute(
+                    """INSERT INTO usuario_recuperacao_senha
+                       (empresa_id, usuario_id, token_hash, expira_em, usado_em, criado_em)
+                       VALUES (?, ?, ?, ?, '', ?)""",
+                    (int(usuario["empresa_id"]), int(usuario["id"]), token_hash, expira_em, agora_empresa().isoformat(timespec="seconds")),
+                )
+                conn.commit()
+            link = f"{getattr(config, 'GESTFLOW_BASE_URL', request.url_root.rstrip('/')).rstrip('/')}/redefinir-senha/{token}"
+            assunto = "Redefinição de senha - GestFlow"
+            corpo = (f"Olá, {usuario.get('nome') or 'usuário'}.\n\n"
+                     "Recebemos uma solicitação para redefinir sua senha no GestFlow.\n\n"
+                     f"Acesse o link abaixo em até 30 minutos:\n{link}\n\n"
+                     "Se você não solicitou, ignore este e-mail.")
+            enviar_email_zoho(str(usuario.get("email") or email), assunto, corpo)
+
+    return render_template("esqueci_senha.html", mensagem=mensagem, erro=erro, email=email)
 
 
-def redirecionar_configuracoes_usuarios(erro: str = "", sucesso: str = "") -> Response:
-    parametros: dict[str, str] = {}
-    if erro:
-        parametros["erro"] = str(erro)
-    if sucesso:
-        parametros["sucesso"] = str(sucesso)
-    query = urllib.parse.urlencode(parametros)
-    destino = "/configuracoes/usuarios"
-    if query:
-        destino = f"{destino}?{query}"
-    return redirect(destino)
+@app.route("/redefinir-senha/<token>", methods=["GET", "POST"])
+def redefinir_senha(token: str) -> str | Response:
+    registro = buscar_recuperacao_senha_valida(token)
+    if registro is None:
+        return render_template("redefinir_senha.html", token_invalido=True, erro="Link inválido ou expirado."), 400
+
+    erro = ""
+    if request.method == "POST":
+        senha = (request.form.get("senha") or "").strip()
+        confirmar = (request.form.get("confirmar_senha") or "").strip()
+        if len(senha) < 8:
+            erro = "A senha precisa ter pelo menos 8 caracteres."
+        elif senha != confirmar:
+            erro = "As senhas não conferem."
+        else:
+            with conectar_db() as conn:
+                conn.execute(
+                    "UPDATE usuarios SET senha_hash = ?, sessao_versao = COALESCE(sessao_versao, 1) + 1, atualizado_em = ? WHERE id = ?",
+                    (generate_password_hash(senha), agora_empresa().isoformat(timespec="seconds"), int(registro["usuario_id"])),
+                )
+                conn.execute(
+                    "UPDATE usuario_recuperacao_senha SET usado_em = ? WHERE id = ?",
+                    (agora_empresa().isoformat(timespec="seconds"), int(registro["id"])),
+                )
+                conn.commit()
+            return redirect(url_for("login", sucesso="Senha redefinida. Entre com a nova senha."))
+
+    return render_template("redefinir_senha.html", token_invalido=False, erro=erro)
 
 
 @app.route("/configuracoes/usuarios/novo", methods=["GET", "POST"])
@@ -23465,6 +23415,7 @@ def ver_ordem_servico(ordem_servico_id: int) -> str | Response:
         acompanhamento_erro=acompanhamento_erro,
         atividade=buscar_atividade_financeira_por_id(ordem_servico.get("atividade_financeira_id")) if ordem_servico.get("atividade_financeira_id") else None,
         resumo_atividade=resumir_atividade_financeira(ordem_servico.get("atividade_financeira_id")),
+        atividades_operacionais=[a for a in _listar_atividades_operacionais() if int(a.get("ordem_servico_id") or 0) == ordem_servico_id],
     )
 
 
@@ -24994,6 +24945,7 @@ def ver_orcamento(orcamento_id: int) -> str | Response:
         escopo_formatado=formatar_escopo_orcamento(orcamento.get("observacoes"), dados_gerador),
         atividade=buscar_atividade_financeira_por_id(orcamento.get("atividade_financeira_id")) if orcamento.get("atividade_financeira_id") else None,
         resumo_atividade=resumir_atividade_financeira(orcamento.get("atividade_financeira_id")),
+        atividades_operacionais=[a for a in _listar_atividades_operacionais() if int(a.get("orcamento_id") or 0) == orcamento_id],
     )
 
 
@@ -25797,6 +25749,302 @@ def twilio_webhook() -> Response:
 
 
 
+
+# ============================================================
+# GESTÃO DE ATIVIDADES + E-MAIL ZOHO + RECUPERAÇÃO DE SENHA
+# ============================================================
+
+def enviar_email_zoho(destinatario: str, assunto: str, corpo: str) -> tuple[bool, str]:
+    destinatario = str(destinatario or "").strip()
+    if not destinatario:
+        return False, "Responsável sem e-mail cadastrado."
+
+    usuario = str(getattr(config, "ZOHO_SMTP_USER", "") or "").strip()
+    senha = str(getattr(config, "ZOHO_SMTP_PASSWORD", "") or "").strip()
+    remetente = str(getattr(config, "ZOHO_SMTP_FROM", "") or usuario).strip()
+    host = str(getattr(config, "ZOHO_SMTP_HOST", "smtp.zoho.com") or "smtp.zoho.com")
+    porta = int(getattr(config, "ZOHO_SMTP_PORT", 587) or 587)
+
+    if not usuario or not senha or not remetente:
+        return False, "SMTP do Zoho ainda não configurado."
+
+    mensagem = EmailMessage()
+    mensagem["From"] = remetente
+    mensagem["To"] = destinatario
+    mensagem["Subject"] = assunto
+    mensagem.set_content(corpo)
+
+    try:
+        with smtplib.SMTP(host, porta, timeout=20) as servidor:
+            servidor.ehlo()
+            servidor.starttls()
+            servidor.ehlo()
+            servidor.login(usuario, senha)
+            servidor.send_message(mensagem)
+        return True, "E-mail enviado."
+    except Exception as exc:
+        return False, f"Falha ao enviar e-mail: {exc}"
+
+
+def garantir_estrutura_gestao_atividades() -> None:
+    with conectar_db() as conn:
+        conn.executescript("""
+        CREATE TABLE IF NOT EXISTS gestao_atividades (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            empresa_id INTEGER NOT NULL,
+            titulo TEXT NOT NULL,
+            descricao TEXT,
+            tipo TEXT NOT NULL DEFAULT 'paralela',
+            classificacao TEXT NOT NULL DEFAULT 'administrativa',
+            responsavel_funcionario_id INTEGER,
+            responsavel_usuario_id INTEGER,
+            responsavel_nome TEXT,
+            responsavel_email TEXT,
+            cliente_id INTEGER,
+            cliente_nome TEXT,
+            orcamento_id INTEGER,
+            ordem_servico_id INTEGER,
+            data_inicio TEXT,
+            data_prazo TEXT,
+            prioridade TEXT NOT NULL DEFAULT 'normal',
+            status TEXT NOT NULL DEFAULT 'nao_iniciada',
+            progresso INTEGER NOT NULL DEFAULT 0,
+            observacoes TEXT,
+            criado_por_usuario_id INTEGER,
+            criado_por_nome TEXT,
+            criado_em TEXT DEFAULT CURRENT_TIMESTAMP,
+            atualizado_em TEXT,
+            concluido_em TEXT
+        );
+        CREATE TABLE IF NOT EXISTS gestao_atividades_historico (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            empresa_id INTEGER NOT NULL,
+            atividade_id INTEGER NOT NULL,
+            acao TEXT NOT NULL,
+            descricao TEXT,
+            responsavel TEXT,
+            criado_em TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS gestao_atividades_notificacoes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            empresa_id INTEGER NOT NULL,
+            atividade_id INTEGER NOT NULL,
+            tipo TEXT NOT NULL,
+            destinatario TEXT,
+            status TEXT NOT NULL DEFAULT 'pendente',
+            mensagem TEXT,
+            enviado_em TEXT,
+            criado_em TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS usuario_recuperacao_senha (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            empresa_id INTEGER NOT NULL,
+            usuario_id INTEGER NOT NULL,
+            token_hash TEXT NOT NULL,
+            expira_em TEXT NOT NULL,
+            usado_em TEXT,
+            criado_em TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_gestao_atividades_empresa ON gestao_atividades(empresa_id);
+        CREATE INDEX IF NOT EXISTS idx_gestao_atividades_responsavel ON gestao_atividades(empresa_id, responsavel_funcionario_id);
+        CREATE INDEX IF NOT EXISTS idx_gestao_atividades_prazo ON gestao_atividades(empresa_id, data_prazo);
+        """)
+        conn.commit()
+
+
+def buscar_recuperacao_senha_valida(token: str) -> dict[str, Any] | None:
+    token = str(token or "").strip()
+    if not token:
+        return None
+    with conectar_db() as conn:
+        rows = conn.execute(
+            "SELECT * FROM usuario_recuperacao_senha WHERE COALESCE(usado_em, '') = '' ORDER BY id DESC LIMIT 30"
+        ).fetchall()
+    agora = agora_empresa()
+    for row in rows:
+        registro = dict(row)
+        try:
+            expira = datetime.fromisoformat(str(registro.get("expira_em") or ""))
+        except ValueError:
+            continue
+        if expira < agora:
+            continue
+        if check_password_hash(str(registro.get("token_hash") or ""), token):
+            return registro
+    return None
+
+
+def _atividade_formulario() -> dict[str, Any]:
+    return {
+        "titulo": (request.form.get("titulo") or "").strip(),
+        "descricao": (request.form.get("descricao") or "").strip(),
+        "tipo": (request.form.get("tipo") or "paralela").strip(),
+        "classificacao": (request.form.get("classificacao") or "administrativa").strip(),
+        "responsavel_funcionario_id": (request.form.get("responsavel_funcionario_id") or "").strip(),
+        "cliente_id": (request.form.get("cliente_id") or "").strip(),
+        "orcamento_id": (request.form.get("orcamento_id") or "").strip(),
+        "ordem_servico_id": (request.form.get("ordem_servico_id") or "").strip(),
+        "data_inicio": (request.form.get("data_inicio") or hoje_empresa().isoformat()).strip(),
+        "data_prazo": (request.form.get("data_prazo") or "").strip(),
+        "prioridade": (request.form.get("prioridade") or "normal").strip(),
+        "status": (request.form.get("status") or "nao_iniciada").strip(),
+        "progresso": max(0, min(100, int(request.form.get("progresso") or 0))),
+        "observacoes": (request.form.get("observacoes") or "").strip(),
+    }
+
+
+def _opcoes_atividade() -> dict[str, list[dict[str, Any]]]:
+    empresa_id = empresa_logada_id()
+    with conectar_db() as conn:
+        funcionarios = [dict(r) for r in conn.execute("SELECT id,nome,email,cargo FROM funcionarios WHERE empresa_id=? AND LOWER(COALESCE(status,'ativo'))='ativo' ORDER BY nome", (empresa_id,)).fetchall()]
+        clientes = [dict(r) for r in conn.execute("SELECT id,nome FROM clientes WHERE empresa_id=? AND LOWER(COALESCE(status,'ativo'))='ativo' ORDER BY nome", (empresa_id,)).fetchall()]
+        orcamentos = [dict(r) for r in conn.execute("SELECT id,numero,cliente FROM orcamentos WHERE empresa_id=? ORDER BY id DESC LIMIT 300", (empresa_id,)).fetchall()]
+        ordens = [dict(r) for r in conn.execute("SELECT id,numero,cliente FROM ordens_servico WHERE empresa_id=? ORDER BY id DESC LIMIT 300", (empresa_id,)).fetchall()]
+    return {"funcionarios": funcionarios, "clientes": clientes, "orcamentos": orcamentos, "ordens_servico": ordens}
+
+
+def _buscar_atividade_operacional(atividade_id: int) -> dict[str, Any] | None:
+    with conectar_db() as conn:
+        row = conn.execute("SELECT * FROM gestao_atividades WHERE id=? AND empresa_id=?", (atividade_id, empresa_logada_id())).fetchone()
+    return dict(row) if row else None
+
+
+def _listar_atividades_operacionais(minhas: bool = False) -> list[dict[str, Any]]:
+    empresa_id = empresa_logada_id()
+    params: list[Any] = [empresa_id]
+    filtro = ""
+    if minhas:
+        usuario = usuario_logado() or {}
+        funcionario_id = usuario.get("funcionario_id") or session.get("usuario_funcionario_id")
+        if funcionario_id:
+            filtro = " AND responsavel_funcionario_id=?"
+            params.append(int(funcionario_id))
+        else:
+            filtro = " AND responsavel_usuario_id=?"
+            params.append(int(usuario_logado_id() or 0))
+    with conectar_db() as conn:
+        rows = conn.execute(f"SELECT * FROM gestao_atividades WHERE empresa_id=? {filtro} ORDER BY CASE status WHEN 'atrasada' THEN 0 WHEN 'em_andamento' THEN 1 WHEN 'nao_iniciada' THEN 2 ELSE 3 END, COALESCE(data_prazo,'9999-12-31'), id DESC", params).fetchall()
+    atividades=[]
+    hoje=hoje_empresa().isoformat()
+    for row in rows:
+        item=dict(row)
+        if item.get("status") not in {"concluida","cancelada"} and item.get("data_prazo") and str(item["data_prazo"]) < hoje:
+            item["status_exibicao"]="atrasada"
+        else:
+            item["status_exibicao"]=item.get("status")
+        atividades.append(item)
+    return atividades
+
+
+def _registrar_historico_atividade(atividade_id: int, acao: str, descricao: str) -> None:
+    with conectar_db() as conn:
+        conn.execute("INSERT INTO gestao_atividades_historico (empresa_id,atividade_id,acao,descricao,responsavel,criado_em) VALUES (?,?,?,?,?,?)", (empresa_logada_id(),atividade_id,acao,descricao,str(session.get("usuario_nome") or "Sistema"),agora_empresa().isoformat(timespec="seconds")))
+        conn.commit()
+
+
+def _notificar_atividade(atividade: dict[str, Any], tipo: str = "atribuicao") -> tuple[bool,str]:
+    email = str(atividade.get("responsavel_email") or "").strip()
+    link = f"{getattr(config, 'GESTFLOW_BASE_URL', request.url_root.rstrip('/')).rstrip('/')}/gestao-atividades/{atividade['id']}"
+    assunto = f"Nova atividade atribuída - {atividade.get('titulo')}" if tipo == "atribuicao" else f"Atividade atualizada - {atividade.get('titulo')}"
+    corpo = (f"Olá, {atividade.get('responsavel_nome') or 'responsável'}.\n\n"
+             f"Atividade: {atividade.get('titulo')}\nTipo: {'Serviço vinculado à OS' if atividade.get('tipo') == 'servico' else 'Atividade paralela'}\n"
+             f"Prazo: {formatar_data_br(atividade.get('data_prazo')) or 'Sem prazo'}\nPrioridade: {atividade.get('prioridade')}\n\nAcesse: {link}")
+    ok,msg=enviar_email_zoho(email,assunto,corpo)
+    with conectar_db() as conn:
+        conn.execute("INSERT INTO gestao_atividades_notificacoes (empresa_id,atividade_id,tipo,destinatario,status,mensagem,enviado_em,criado_em) VALUES (?,?,?,?,?,?,?,?)", (empresa_logada_id(),int(atividade['id']),tipo,email,"enviado" if ok else "falha",msg,agora_empresa().isoformat(timespec="seconds") if ok else "",agora_empresa().isoformat(timespec="seconds")))
+        conn.commit()
+    return ok,msg
+
+
+@app.get("/gestao-atividades")
+def gestao_atividades_dashboard() -> str:
+    atividades = _listar_atividades_operacionais()
+    resumo = {
+        "total": len(atividades),
+        "pendentes": sum(1 for a in atividades if a.get("status_exibicao") in {"nao_iniciada","em_andamento","aguardando"}),
+        "atrasadas": sum(1 for a in atividades if a.get("status_exibicao") == "atrasada"),
+        "concluidas": sum(1 for a in atividades if a.get("status") == "concluida"),
+    }
+    return render_template("gestao_atividades_dashboard.html", atividades=atividades[:10], resumo=resumo)
+
+
+@app.route("/gestao-atividades/nova", methods=["GET", "POST"])
+def gestao_atividade_nova() -> str | Response:
+    dados = _atividade_formulario() if request.method == "POST" else {"tipo": request.args.get("tipo","paralela"), "orcamento_id": request.args.get("orcamento_id",""), "ordem_servico_id": request.args.get("ordem_servico_id",""), "data_inicio": hoje_empresa().isoformat(), "prioridade":"normal", "status":"nao_iniciada", "progresso":0}
+    erro=""
+    if request.method == "POST":
+        if not dados["titulo"]: erro="Informe o título da atividade."
+        elif not dados["responsavel_funcionario_id"]: erro="Selecione o responsável."
+        elif dados["tipo"] == "servico" and not dados["ordem_servico_id"]: erro="Atividade de serviço precisa estar vinculada a uma OS."
+        if not erro:
+            empresa_id=empresa_logada_id()
+            with conectar_db() as conn:
+                funcionario=conn.execute("SELECT id,nome,email FROM funcionarios WHERE id=? AND empresa_id=?", (int(dados["responsavel_funcionario_id"]),empresa_id)).fetchone()
+                if not funcionario: erro="Responsável inválido."
+                else:
+                    usuario=conn.execute("SELECT id FROM usuarios WHERE empresa_id=? AND funcionario_id=? LIMIT 1", (empresa_id,int(funcionario['id']))).fetchone()
+                    cliente_nome=""
+                    if dados["cliente_id"]:
+                        c=conn.execute("SELECT nome FROM clientes WHERE id=? AND empresa_id=?",(int(dados["cliente_id"]),empresa_id)).fetchone(); cliente_nome=str(c['nome']) if c else ""
+                    cur=conn.execute("""INSERT INTO gestao_atividades (empresa_id,titulo,descricao,tipo,classificacao,responsavel_funcionario_id,responsavel_usuario_id,responsavel_nome,responsavel_email,cliente_id,cliente_nome,orcamento_id,ordem_servico_id,data_inicio,data_prazo,prioridade,status,progresso,observacoes,criado_por_usuario_id,criado_por_nome,criado_em,atualizado_em) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", (empresa_id,dados['titulo'],dados['descricao'],dados['tipo'],dados['classificacao'],int(funcionario['id']),int(usuario['id']) if usuario else None,str(funcionario['nome']),str(funcionario['email'] or ''),int(dados['cliente_id']) if dados['cliente_id'] else None,cliente_nome,int(dados['orcamento_id']) if dados['orcamento_id'] else None,int(dados['ordem_servico_id']) if dados['ordem_servico_id'] else None,dados['data_inicio'],dados['data_prazo'],dados['prioridade'],dados['status'],dados['progresso'],dados['observacoes'],usuario_logado_id(),str(session.get('usuario_nome') or ''),agora_empresa().isoformat(timespec='seconds'),agora_empresa().isoformat(timespec='seconds')))
+                    atividade_id=int(cur.lastrowid); conn.commit()
+            if not erro:
+                _registrar_historico_atividade(atividade_id,"criacao","Atividade criada e atribuída.")
+                atividade=_buscar_atividade_operacional(atividade_id) or {}
+                ok,msg=_notificar_atividade(atividade)
+                return redirect(url_for("gestao_atividade_detalhe",atividade_id=atividade_id,sucesso="Atividade criada. "+msg))
+    return render_template("gestao_atividade_formulario.html", atividade=dados, erro=erro, **_opcoes_atividade())
+
+
+@app.get("/gestao-atividades/todas")
+def gestao_atividades_lista() -> str:
+    return render_template("gestao_atividades.html", atividades=_listar_atividades_operacionais(), titulo="Todas as atividades")
+
+
+@app.get("/gestao-atividades/minhas")
+def minhas_atividades() -> str:
+    return render_template("gestao_atividades.html", atividades=_listar_atividades_operacionais(minhas=True), titulo="Minhas atividades")
+
+
+@app.get("/gestao-atividades/cronograma")
+def gestao_atividades_gantt() -> str:
+    return render_template("gestao_atividades_gantt.html", atividades=_listar_atividades_operacionais())
+
+
+@app.route("/gestao-atividades/<int:atividade_id>", methods=["GET", "POST"])
+def gestao_atividade_detalhe(atividade_id: int) -> str | Response:
+    atividade=_buscar_atividade_operacional(atividade_id)
+    if not atividade: return redirect(url_for("gestao_atividades_lista"))
+    if request.method == "POST":
+        status=(request.form.get("status") or atividade.get("status") or "nao_iniciada").strip()
+        progresso=max(0,min(100,int(request.form.get("progresso") or atividade.get("progresso") or 0)))
+        if status=="concluida": progresso=100
+        with conectar_db() as conn:
+            conn.execute("UPDATE gestao_atividades SET status=?,progresso=?,atualizado_em=?,concluido_em=? WHERE id=? AND empresa_id=?",(status,progresso,agora_empresa().isoformat(timespec="seconds"),agora_empresa().isoformat(timespec="seconds") if status=="concluida" else "",atividade_id,empresa_logada_id()))
+            conn.commit()
+        _registrar_historico_atividade(atividade_id,"atualizacao",f"Status alterado para {status}; progresso {progresso}%.")
+        return redirect(url_for("gestao_atividade_detalhe",atividade_id=atividade_id,sucesso="Atividade atualizada."))
+    with conectar_db() as conn:
+        historico=[dict(r) for r in conn.execute("SELECT * FROM gestao_atividades_historico WHERE atividade_id=? AND empresa_id=? ORDER BY id DESC",(atividade_id,empresa_logada_id())).fetchall()]
+        notificacoes=[dict(r) for r in conn.execute("SELECT * FROM gestao_atividades_notificacoes WHERE atividade_id=? AND empresa_id=? ORDER BY id DESC LIMIT 10",(atividade_id,empresa_logada_id())).fetchall()]
+    return render_template("gestao_atividade_detalhe.html",atividade=atividade,historico=historico,notificacoes=notificacoes)
+
+
+@app.post("/gestao-atividades/<int:atividade_id>/reenviar-email")
+def gestao_atividade_reenviar_email(atividade_id: int) -> Response:
+    atividade=_buscar_atividade_operacional(atividade_id)
+    if not atividade: return redirect(url_for("gestao_atividades_lista"))
+    ok,msg=_notificar_atividade(atividade,"lembrete")
+    return redirect(url_for("gestao_atividade_detalhe",atividade_id=atividade_id,sucesso=msg if ok else "",erro="" if ok else msg))
+
+
+@app.post("/gestao-atividades/<int:atividade_id>/excluir")
+def gestao_atividade_excluir(atividade_id: int) -> Response:
+    with conectar_db() as conn:
+        conn.execute("DELETE FROM gestao_atividades WHERE id=? AND empresa_id=?",(atividade_id,empresa_logada_id()))
+        conn.commit()
+    return redirect(url_for("gestao_atividades_lista",sucesso="Atividade excluída."))
+
 def garantir_migracao_origem_orcamento_os() -> None:
     try:
         with conectar_db() as conn:
@@ -25814,6 +26062,7 @@ def garantir_migracao_origem_orcamento_os() -> None:
 
 garantir_migracao_origem_orcamento_os()
 iniciar_banco()
+garantir_estrutura_gestao_atividades()
 
 
 if __name__ == "__main__":

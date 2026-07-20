@@ -92,3 +92,14 @@ MAX_MESSAGE_LENGTH = int(os.getenv("MAX_MESSAGE_LENGTH", "1500"))
 CONFIRMAR_TODAS_ACOES = True
 ESTOQUE_POR_MOVIMENTACAO = True
 GERAR_PDF_ORCAMENTO = True
+
+
+# ============================================================
+# E-MAIL ZOHO / LINKS DO GESTFLOW
+# ============================================================
+ZOHO_SMTP_HOST = os.getenv("ZOHO_SMTP_HOST", "smtp.zoho.com")
+ZOHO_SMTP_PORT = int(os.getenv("ZOHO_SMTP_PORT", "587"))
+ZOHO_SMTP_USER = os.getenv("ZOHO_SMTP_USER", "")
+ZOHO_SMTP_PASSWORD = os.getenv("ZOHO_SMTP_PASSWORD", "")
+ZOHO_SMTP_FROM = os.getenv("ZOHO_SMTP_FROM", ZOHO_SMTP_USER)
+GESTFLOW_BASE_URL = os.getenv("GESTFLOW_BASE_URL", "https://gestflow.nettsan.ia.br")

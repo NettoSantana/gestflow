@@ -470,6 +470,12 @@ Motivo: Mostrar a venda já vinculada e impedir nova geração pelo mesmo orçam
             </div>
         </section>
 
+
+        <section class="panel page-section">
+            <div class="panel-header page-header"><div><h3>Atividades operacionais</h3><p class="page-subtitle">Ações paralelas e atividades relacionadas a este orçamento.</p></div><a class="btn-primary-green" href="/gestao-atividades/nova?orcamento_id={{ orcamento.id }}&tipo=paralela">+ Criar atividade</a></div>
+            <div class="activity-linked-list">{% for item in atividades_operacionais|default([]) %}<a href="/gestao-atividades/{{ item.id }}" class="activity-linked-item"><div><strong>{{ item.titulo }}</strong><span>{{ item.responsavel_nome or '-' }} · {{ item.data_prazo or 'Sem prazo' }}</span></div><span class="status-pill {{ item.status_exibicao or item.status }}">{{ (item.status_exibicao or item.status)|replace('_',' ') }}</span></a>{% else %}<div class="empty-table-box">Nenhuma atividade operacional vinculada.</div>{% endfor %}</div>
+        </section>
+
         <section class="panel page-section">
             <div class="panel-header page-header"><div><h3>Observações internas</h3><p class="page-subtitle">Conteúdo de uso interno, não exibido ao cliente.</p></div></div>
             <div class="scope-free-text"><p>{{ orcamento.observacoes_internas or '-' }}</p></div>

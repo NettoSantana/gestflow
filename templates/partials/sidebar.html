@@ -144,6 +144,22 @@ Motivo: Ocultar módulos sem permissão e substituir o acesso administrativo por
             </li>
             {% endif %}
 
+
+            {% if _modulos.get('gestao_atividades', true) and modulo_usuario_visivel('gestao_atividades') %}
+            <li class="menu-group {% if _path.startswith('/gestao-atividades') %}active{% endif %}">
+                <details {% if _path.startswith('/gestao-atividades') %}open{% endif %}>
+                    <summary><span class="menu-label"><span class="menu-icon">✓</span><span>Gestão de Atividades</span></span><span class="arrow">⌄</span></summary>
+                    <ul class="submenu">
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Gestão de Atividades</strong></li>
+                        <li class="{% if _path == '/gestao-atividades' %}submenu-active{% endif %}"><a href="/gestao-atividades">Visão geral</a></li>
+                        <li class="{% if _path == '/gestao-atividades/todas' %}submenu-active{% endif %}"><a href="/gestao-atividades/todas">Atividades</a></li>
+                        <li class="{% if _path == '/gestao-atividades/minhas' %}submenu-active{% endif %}"><a href="/gestao-atividades/minhas">Minhas atividades</a></li>
+                        <li class="{% if _path == '/gestao-atividades/cronograma' %}submenu-active{% endif %}"><a href="/gestao-atividades/cronograma">Cronograma</a></li>
+                    </ul>
+                </details>
+            </li>
+            {% endif %}
+
             {% if _modulos.get('estoque', true) and modulo_usuario_visivel('estoque') %}
             <li class="menu-group {% if _path.startswith('/estoque') %}active{% endif %}">
                 <details {% if _path.startswith('/estoque') %}open{% endif %}>
