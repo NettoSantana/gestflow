@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-19 22:45 (America/Bahia)
-# Motivo: Adicionar usuários, perfis, permissões por ação, sessão revalidada e proteção administrativa.
+# Último recode: 2026-07-20 13:40 (America/Bahia)
+# Motivo: Impedir orçamento duplicado, proteger edição concorrente por versão e manter gravações transacionais.
 
 from __future__ import annotations
 
@@ -1598,6 +1598,8 @@ def iniciar_banco() -> None:
                 origem TEXT NOT NULL DEFAULT 'manual',
                 modo_apresentacao TEXT NOT NULL DEFAULT 'agrupado',
                 descricao_comercial TEXT,
+                versao INTEGER NOT NULL DEFAULT 1,
+                atualizado_em TEXT,
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
             """
@@ -2873,6 +2875,8 @@ def iniciar_banco() -> None:
             "origem": "TEXT NOT NULL DEFAULT 'manual'",
             "modo_apresentacao": "TEXT NOT NULL DEFAULT 'agrupado'",
             "descricao_comercial": "TEXT",
+            "versao": "INTEGER NOT NULL DEFAULT 1",
+            "atualizado_em": "TEXT",
         }
         for coluna, tipo_coluna in colunas_orcamentos_apresentacao.items():
             if coluna not in colunas_orcamentos_existentes:
@@ -2886,7 +2890,17 @@ def iniciar_banco() -> None:
                     WHEN canal_venda = 'Gerador de Orçamentos' THEN 'gerador'
                     ELSE COALESCE(NULLIF(TRIM(origem), ''), 'manual')
                 END,
-                modo_apresentacao = COALESCE(NULLIF(TRIM(modo_apresentacao), ''), 'agrupado')
+                modo_apresentacao = COALESCE(NULLIF(TRIM(modo_apresentacao), ''), 'agrupado'),
+                versao = CASE
+                    WHEN versao IS NULL OR versao < 1 THEN 1
+                    ELSE versao
+                END
+            """
+        )
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_orcamentos_empresa_numero
+            ON orcamentos (empresa_id, numero)
             """
         )
 
@@ -6775,10 +6789,40 @@ def proximo_numero_orcamento() -> str:
     proximo = 1 if row is None else int(row["proximo"])
     return str(proximo).zfill(4)
 
-def salvar_orcamento_db(orcamento: dict[str, str], itens: list[dict[str, str]]) -> int:
+def salvar_orcamento_db(
+    orcamento: dict[str, str],
+    itens: list[dict[str, str]],
+    *,
+    impedir_numero_duplicado: bool = False,
+    retornar_criacao: bool = False,
+) -> int | tuple[int, bool]:
     empresa_id = empresa_logada_id()
+    numero_normalizado = str(orcamento.get("numero") or "").strip()
 
     with conectar_db() as conn:
+        if impedir_numero_duplicado:
+            conn.execute("BEGIN IMMEDIATE")
+
+            if numero_normalizado:
+                existente = conn.execute(
+                    """
+                    SELECT id
+                    FROM orcamentos
+                    WHERE empresa_id = ?
+                      AND LOWER(TRIM(COALESCE(numero, ''))) = LOWER(?)
+                    ORDER BY id ASC
+                    LIMIT 1
+                    """,
+                    (empresa_id, numero_normalizado),
+                ).fetchone()
+
+                if existente is not None:
+                    orcamento_id_existente = int(existente["id"])
+                    conn.rollback()
+                    if retornar_criacao:
+                        return orcamento_id_existente, False
+                    return orcamento_id_existente
+
         cursor = conn.execute(
             """
             INSERT INTO orcamentos (
@@ -6805,8 +6849,10 @@ def salvar_orcamento_db(orcamento: dict[str, str], itens: list[dict[str, str]]) 
                 observacoes_internas,
                 origem,
                 modo_apresentacao,
-                descricao_comercial
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                descricao_comercial,
+                versao,
+                atualizado_em
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
             """,
             (
                 empresa_id,
@@ -6831,8 +6877,12 @@ def salvar_orcamento_db(orcamento: dict[str, str], itens: list[dict[str, str]]) 
                 orcamento["observacoes"],
                 orcamento["observacoes_internas"],
                 str(orcamento.get("origem") or "manual"),
-                normalizar_modo_apresentacao(orcamento.get("modo_apresentacao"), "agrupado"),
+                normalizar_modo_apresentacao(
+                    orcamento.get("modo_apresentacao"),
+                    "agrupado",
+                ),
                 str(orcamento.get("descricao_comercial") or ""),
+                agora_empresa().isoformat(timespec="seconds"),
             ),
         )
         orcamento_id = int(cursor.lastrowid)
@@ -6871,6 +6921,10 @@ def salvar_orcamento_db(orcamento: dict[str, str], itens: list[dict[str, str]]) 
         conn.commit()
 
     garantir_atividade_orcamento(orcamento_id)
+
+    if retornar_criacao:
+        return orcamento_id, True
+
     return orcamento_id
 
 
@@ -7773,6 +7827,8 @@ def buscar_orcamento_por_id(orcamento_id: int) -> dict[str, Any] | None:
                 origem,
                 modo_apresentacao,
                 descricao_comercial,
+                versao,
+                atualizado_em,
                 criado_em
             FROM orcamentos
             WHERE id = ?
@@ -8691,12 +8747,56 @@ def listar_historico_gerador(orcamento_id: int) -> list[dict[str, Any]]:
     return resultado
 
 
-def atualizar_orcamento_db(orcamento_id: int, orcamento: dict[str, str], itens: list[dict[str, str]]) -> None:
+def atualizar_orcamento_db(
+    orcamento_id: int,
+    orcamento: dict[str, str],
+    itens: list[dict[str, str]],
+    *,
+    versao_esperada: int | None = None,
+) -> bool:
     empresa_id = empresa_logada_id()
+    atualizado_em = agora_empresa().isoformat(timespec="seconds")
+    condicao_versao = ""
+    parametros: list[Any] = [
+        orcamento["numero"],
+        orcamento["cliente"],
+        orcamento["responsavel"],
+        orcamento["data"],
+        orcamento["prazo_entrega"],
+        orcamento["validade"],
+        orcamento["canal_venda"],
+        orcamento["centro_custo"],
+        orcamento.get("centro_custo_id") or None,
+        orcamento["introducao"],
+        orcamento["tipo"],
+        orcamento["status"],
+        orcamento["total_produtos"],
+        orcamento["total_servicos"],
+        orcamento["desconto_valor"],
+        orcamento["desconto_percentual"],
+        orcamento["valor_total"],
+        orcamento["forma_pagamento"],
+        orcamento["observacoes"],
+        orcamento["observacoes_internas"],
+        str(orcamento.get("origem") or "manual"),
+        normalizar_modo_apresentacao(
+            orcamento.get("modo_apresentacao"),
+            "agrupado",
+        ),
+        str(orcamento.get("descricao_comercial") or ""),
+        atualizado_em,
+        orcamento_id,
+        empresa_id,
+    ]
+
+    if versao_esperada is not None:
+        condicao_versao = " AND COALESCE(versao, 1) = ?"
+        parametros.append(int(versao_esperada))
 
     with conectar_db() as conn:
-        conn.execute(
-            """
+        conn.execute("BEGIN IMMEDIATE")
+        cursor = conn.execute(
+            f"""
             UPDATE orcamentos
             SET
                 numero = ?,
@@ -8721,38 +8821,19 @@ def atualizar_orcamento_db(orcamento_id: int, orcamento: dict[str, str], itens: 
                 observacoes_internas = ?,
                 origem = ?,
                 modo_apresentacao = ?,
-                descricao_comercial = ?
+                descricao_comercial = ?,
+                versao = COALESCE(versao, 1) + 1,
+                atualizado_em = ?
             WHERE id = ?
               AND empresa_id = ?
+              {condicao_versao}
             """,
-            (
-                orcamento["numero"],
-                orcamento["cliente"],
-                orcamento["responsavel"],
-                orcamento["data"],
-                orcamento["prazo_entrega"],
-                orcamento["validade"],
-                orcamento["canal_venda"],
-                orcamento["centro_custo"],
-                orcamento.get("centro_custo_id") or None,
-                orcamento["introducao"],
-                orcamento["tipo"],
-                orcamento["status"],
-                orcamento["total_produtos"],
-                orcamento["total_servicos"],
-                orcamento["desconto_valor"],
-                orcamento["desconto_percentual"],
-                orcamento["valor_total"],
-                orcamento["forma_pagamento"],
-                orcamento["observacoes"],
-                orcamento["observacoes_internas"],
-                str(orcamento.get("origem") or "manual"),
-                normalizar_modo_apresentacao(orcamento.get("modo_apresentacao"), "agrupado"),
-                str(orcamento.get("descricao_comercial") or ""),
-                orcamento_id,
-                empresa_id,
-            ),
+            tuple(parametros),
         )
+
+        if cursor.rowcount != 1:
+            conn.rollback()
+            return False
 
         conn.execute(
             """
@@ -8797,6 +8878,7 @@ def atualizar_orcamento_db(orcamento_id: int, orcamento: dict[str, str], itens: 
         conn.commit()
 
     garantir_atividade_orcamento(orcamento_id)
+    return True
 
 
 def excluir_orcamento_db(orcamento_id: int) -> None:
@@ -24847,14 +24929,35 @@ def salvar_orcamento() -> Response:
     if erro_validacao:
         return redirect(url_for("orcamentos", erro=erro_validacao))
 
-    orcamento_id = salvar_orcamento_db(orcamento, itens)
+    resultado_salvamento = salvar_orcamento_db(
+        orcamento,
+        itens,
+        impedir_numero_duplicado=True,
+        retornar_criacao=True,
+    )
+    orcamento_id, orcamento_criado = resultado_salvamento
+
+    if not orcamento_criado:
+        return redirect(
+            url_for(
+                "ver_orcamento",
+                orcamento_id=orcamento_id,
+                aviso="Este orçamento já havia sido salvo. Nenhuma duplicidade foi criada.",
+            )
+        )
+
     sincronizar_apresentacao_orcamento_db(
         orcamento_id,
         orcamento,
         itens,
         itens_informados=montar_orcamento_apresentacao_formulario(),
     )
-    registrar_atividade_usuario("criacao", "orcamentos", f"Criou orçamento {orcamento.get('numero') or orcamento_id}", request.path)
+    registrar_atividade_usuario(
+        "criacao",
+        "orcamentos",
+        f"Criou orçamento {orcamento.get('numero') or orcamento_id}",
+        request.path,
+    )
     return redirect(url_for("orcamentos"))
 
 
@@ -25081,7 +25184,32 @@ def atualizar_orcamento(orcamento_id: int) -> Response:
     if erro_validacao:
         return redirect(url_for("editar_orcamento", orcamento_id=orcamento_id, erro=erro_validacao))
 
-    atualizar_orcamento_db(orcamento_id, orcamento, itens)
+    versao_formulario = str(request.form.get("orcamento_versao") or "").strip()
+    try:
+        versao_esperada = int(
+            versao_formulario
+            or orcamento_atual.get("versao")
+            or 1
+        )
+    except (TypeError, ValueError):
+        return Response(
+            "Versão inválida do orçamento. Recarregue a página antes de salvar.",
+            status=409,
+        )
+
+    atualizado = atualizar_orcamento_db(
+        orcamento_id,
+        orcamento,
+        itens,
+        versao_esperada=versao_esperada,
+    )
+    if not atualizado:
+        return Response(
+            "Este orçamento foi alterado por outro usuário. "
+            "Recarregue a página antes de salvar novamente.",
+            status=409,
+        )
+
     sincronizar_apresentacao_orcamento_db(
         orcamento_id,
         orcamento,
