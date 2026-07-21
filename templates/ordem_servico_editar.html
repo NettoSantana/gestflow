@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordem_servico_editar.html
-Último recode: 2026-07-18 11:38 (America/Bahia)
-Motivo: Exibir, editar e excluir acompanhamentos diários diretamente na tela Editar OS.
+Último recode: 2026-07-20 (America/Bahia)
+Motivo: Corrigir falso bloqueio de cliente ao salvar OS com foto em formulário multipart.
 -->
 
 <!DOCTYPE html>
@@ -995,8 +995,7 @@ Motivo: Exibir, editar e excluir acompanhamentos diários diretamente na tela Ed
                             id="os_cliente"
                             name="os_cliente"
                             class="form-control quick-cliente-select"
-                            data-cliente-atual="{{ cliente_os_atual }}"
-                            required>
+                            data-cliente-atual="{{ cliente_os_atual }}">
                             <option value="">Digite para buscar</option>
                             {% for cliente in clientes|default([]) %}
                                 {% set nome_cliente = (cliente.nome or '')|trim %}
@@ -1183,7 +1182,7 @@ Motivo: Exibir, editar e excluir acompanhamentos diários diretamente na tela Ed
 
             <section class="panel page-section os-form-section os-panel-orcamento">
                 <div class="panel-header page-header os-section-title"><div><h3>Observações</h3><p class="page-subtitle">Observações impressas e internas.</p></div></div>
-                <div class="os-section-body"><div class="os-grid-2"><div class="form-group"><label for="os_observacoes">Observações</label><textarea id="os_observacoes" name="os_observacoes" class="form-control os-textarea">{{ os.observacoes or '' }}</textarea></div><div class="form-group"><label for="os_observacoes_internas">Observações internas</label><textarea id="os_observacoes_internas" name="os_observacoes_internas" class="form-control os-textarea">{{ os.observacoes_internas or '' }}</textarea></div><div class="form-group os-span-2"><label for="os_servico_executado">Serviço executado</label><textarea id="os_servico_executado" name="os_servico_executado" class="form-control os-textarea">{{ os.servico_executado or '' }}</textarea></div></div><div class="form-actions"><a href="/ordens-servico/{{ os.id }}" class="btn-light">Cancelar</a><button type="submit" class="btn-primary-green">Salvar alterações</button></div></div>
+                <div class="os-section-body"><div class="os-grid-2"><div class="form-group"><label for="os_observacoes">Observações</label><textarea id="os_observacoes" name="os_observacoes" class="form-control os-textarea">{{ os.observacoes or '' }}</textarea></div><div class="form-group"><label for="os_observacoes_internas">Observações internas</label><textarea id="os_observacoes_internas" name="os_observacoes_internas" class="form-control os-textarea">{{ os.observacoes_internas or '' }}</textarea></div><div class="form-group os-span-2"><label for="os_servico_executado">Serviço executado</label><textarea id="os_servico_executado" name="os_servico_executado" class="form-control os-textarea">{{ os.servico_executado or '' }}</textarea></div></div><div class="form-actions"><a href="/ordens-servico/{{ os.id }}" class="btn-light">Cancelar</a><button type="submit" class="btn-primary-green" formnovalidate>Salvar alterações</button></div></div>
             </section>
         </form>
 
@@ -2217,15 +2216,74 @@ Motivo: Exibir, editar e excluir acompanhamentos diários diretamente na tela Ed
                 const clienteSelect = document.getElementById("os_cliente");
                 const clienteOriginal = document.getElementById("os_cliente_original");
 
-                if (formulario && clienteSelect && clienteOriginal) {
-                    formulario.addEventListener("submit", function() {
-                        const clienteSelecionado = String(clienteSelect.value || "").trim();
-
-                        if (clienteSelecionado && !clienteSelecionado.startsWith("__novo")) {
-                            clienteOriginal.value = clienteSelecionado;
-                        }
-                    }, true);
+                if (!formulario || !clienteSelect || !clienteOriginal) {
+                    return;
                 }
+
+                function garantirClienteEdicaoOS() {
+                    let cliente = String(clienteSelect.value || "").trim();
+                    const clienteFallback = String(
+                        clienteOriginal.value
+                        || clienteSelect.dataset.clienteAtual
+                        || ""
+                    ).trim();
+
+                    if (!cliente || cliente.startsWith("__novo")) {
+                        cliente = clienteFallback;
+                    }
+
+                    if (!cliente) {
+                        return "";
+                    }
+
+                    let opcaoCliente = Array.from(clienteSelect.options).find(function(opcao) {
+                        return String(opcao.value || "").trim().toLocaleLowerCase("pt-BR")
+                            === cliente.toLocaleLowerCase("pt-BR");
+                    });
+
+                    if (!opcaoCliente) {
+                        opcaoCliente = document.createElement("option");
+                        opcaoCliente.value = cliente;
+                        opcaoCliente.textContent = cliente;
+
+                        const opcaoNovoCliente = Array.from(clienteSelect.options).find(function(opcao) {
+                            return opcao.value === "__novo_cliente__";
+                        });
+
+                        if (opcaoNovoCliente) {
+                            clienteSelect.insertBefore(opcaoCliente, opcaoNovoCliente);
+                        } else {
+                            clienteSelect.appendChild(opcaoCliente);
+                        }
+                    }
+
+                    clienteSelect.value = opcaoCliente.value;
+                    clienteOriginal.value = cliente;
+                    return cliente;
+                }
+
+                clienteSelect.addEventListener("change", function() {
+                    const clienteSelecionado = String(clienteSelect.value || "").trim();
+
+                    if (clienteSelecionado && !clienteSelecionado.startsWith("__novo")) {
+                        clienteOriginal.value = clienteSelecionado;
+                    }
+                });
+
+                formulario.addEventListener("submit", function() {
+                    garantirClienteEdicaoOS();
+                }, true);
+
+                formulario.addEventListener("formdata", function(evento) {
+                    const cliente = garantirClienteEdicaoOS();
+
+                    if (cliente && evento.formData) {
+                        evento.formData.set("os_cliente", cliente);
+                        evento.formData.set("os_cliente_original", cliente);
+                    }
+                });
+
+                garantirClienteEdicaoOS();
             });
         </script>
 
@@ -2234,7 +2292,6 @@ Motivo: Exibir, editar e excluir acompanhamentos diários diretamente na tela Ed
                 gestflowTravarFormularioDocumento({
                     formId: "form-editar-os",
                     camposObrigatorios: [
-                        { seletor: '[name="os_cliente"]', mensagem: "Selecione um cliente para salvar a OS." },
                         { seletor: '[name="os_responsavel"]', mensagem: "Selecione um responsável para salvar a OS." },
                         { seletor: '[name="os_tecnico"]', mensagem: "Selecione um técnico para salvar a OS." },
                         { seletor: '[name="os_data_abertura"]', mensagem: "Informe a data de abertura da OS." },
@@ -2558,7 +2615,7 @@ Motivo: Exibir, editar e excluir acompanhamentos diários diretamente na tela Ed
                 const formulario = document.getElementById("form-editar-os");
                 prepararTitulosFotosEquipamento();
                 if (formulario) {
-                    formulario.addEventListener("submit", prepararTitulosFotosEquipamento);
+                    formulario.addEventListener("submit", prepararTitulosFotosEquipamento, true);
                 }
             });
         </script>
