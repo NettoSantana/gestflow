@@ -23912,6 +23912,175 @@ def editar_ordem_servico(ordem_servico_id: int) -> str | Response:
     )
 
 
+
+@app.post("/ordens-servico/<int:ordem_servico_id>/fotos/upload")
+def upload_foto_ordem_servico_edicao(ordem_servico_id: int) -> Response:
+    """Salva uma única foto imediatamente, sem reenviar todo o formulário da OS."""
+    ordem_servico = buscar_ordem_servico_por_id(ordem_servico_id)
+
+    if ordem_servico is None:
+        return jsonify({"ok": False, "erro": "Ordem de serviço não encontrada."}), 404
+
+    arquivo = request.files.get("foto")
+    if arquivo is None or not str(arquivo.filename or "").strip():
+        return jsonify({"ok": False, "erro": "Selecione uma imagem para enviar."}), 400
+
+    tipo = "depois" if str(request.form.get("tipo") or "").strip().lower() == "depois" else "antes"
+    equipamento_indice = str(request.form.get("equipamento_indice") or "0").strip() or "0"
+    titulo = str(request.form.get("titulo") or "").strip()
+    observacoes = str(request.form.get("observacoes") or "").strip()
+    foto_id_texto = str(request.form.get("foto_id") or "").strip()
+    foto_id = int(foto_id_texto) if foto_id_texto.isdigit() else None
+    empresa_id = empresa_logada_id()
+
+    try:
+        caminho = salvar_upload_foto_os(
+            arquivo,
+            ordem_servico_id,
+            f"{tipo}_{equipamento_indice}",
+        )
+    except ValueError as exc:
+        return jsonify({"ok": False, "erro": str(exc)}), 400
+    except OSError:
+        return jsonify({
+            "ok": False,
+            "erro": "Não foi possível gravar a imagem no armazenamento da OS."
+        }), 500
+
+    agora = agora_empresa().isoformat(timespec="seconds")
+    foto_antes_path = caminho if tipo == "antes" else ""
+    foto_depois_path = caminho if tipo == "depois" else ""
+
+    with conectar_db() as conn:
+        if foto_id is not None:
+            registro = conn.execute(
+                """
+                SELECT id
+                FROM os_fotos_equipamento
+                WHERE id = ?
+                  AND ordem_servico_id = ?
+                  AND empresa_id = ?
+                LIMIT 1
+                """,
+                (foto_id, ordem_servico_id, empresa_id),
+            ).fetchone()
+
+            if registro is None:
+                return jsonify({"ok": False, "erro": "Foto não encontrada nesta OS."}), 404
+
+            conn.execute(
+                """
+                UPDATE os_fotos_equipamento
+                SET
+                    titulo = ?,
+                    equipamento_indice = ?,
+                    tipo_foto = ?,
+                    foto_antes_path = ?,
+                    foto_depois_path = ?,
+                    observacoes = ?,
+                    atualizado_em = ?
+                WHERE id = ?
+                  AND ordem_servico_id = ?
+                  AND empresa_id = ?
+                """,
+                (
+                    titulo,
+                    equipamento_indice,
+                    tipo,
+                    foto_antes_path,
+                    foto_depois_path,
+                    observacoes,
+                    agora,
+                    foto_id,
+                    ordem_servico_id,
+                    empresa_id,
+                ),
+            )
+            registro_id = foto_id
+        else:
+            cursor = conn.execute(
+                """
+                INSERT INTO os_fotos_equipamento (
+                    empresa_id,
+                    ordem_servico_id,
+                    titulo,
+                    equipamento_indice,
+                    tipo_foto,
+                    foto_antes_path,
+                    foto_depois_path,
+                    observacoes,
+                    atualizado_em
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    empresa_id,
+                    ordem_servico_id,
+                    titulo,
+                    equipamento_indice,
+                    tipo,
+                    foto_antes_path,
+                    foto_depois_path,
+                    observacoes,
+                    agora,
+                ),
+            )
+            registro_id = int(cursor.lastrowid)
+
+        conn.commit()
+
+    return jsonify({
+        "ok": True,
+        "foto": {
+            "id": registro_id,
+            "tipo": tipo,
+            "caminho": caminho,
+            "equipamento_indice": equipamento_indice,
+            "titulo": titulo,
+            "observacoes": observacoes,
+        },
+    })
+
+
+@app.post("/ordens-servico/<int:ordem_servico_id>/fotos/<int:foto_id>/excluir")
+def excluir_foto_ordem_servico_edicao(ordem_servico_id: int, foto_id: int) -> Response:
+    """Exclui uma foto enviada imediatamente pela tela de edição."""
+    ordem_servico = buscar_ordem_servico_por_id(ordem_servico_id)
+
+    if ordem_servico is None:
+        return jsonify({"ok": False, "erro": "Ordem de serviço não encontrada."}), 404
+
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        registro = conn.execute(
+            """
+            SELECT id
+            FROM os_fotos_equipamento
+            WHERE id = ?
+              AND ordem_servico_id = ?
+              AND empresa_id = ?
+            LIMIT 1
+            """,
+            (foto_id, ordem_servico_id, empresa_id),
+        ).fetchone()
+
+        if registro is None:
+            return jsonify({"ok": False, "erro": "Foto não encontrada nesta OS."}), 404
+
+        conn.execute(
+            """
+            DELETE FROM os_fotos_equipamento
+            WHERE id = ?
+              AND ordem_servico_id = ?
+              AND empresa_id = ?
+            """,
+            (foto_id, ordem_servico_id, empresa_id),
+        )
+        conn.commit()
+
+    return jsonify({"ok": True})
+
+
 @app.post("/ordens-servico/<int:ordem_servico_id>/editar")
 def atualizar_ordem_servico(ordem_servico_id: int) -> Response:
     ordem_servico_atual = buscar_ordem_servico_por_id(ordem_servico_id)

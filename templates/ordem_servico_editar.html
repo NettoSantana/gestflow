@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordem_servico_editar.html
 Último recode: 2026-07-20 (America/Bahia)
-Motivo: Corrigir falso bloqueio de cliente ao salvar OS com foto em formulário multipart.
+Motivo: Enviar fotos individualmente para evitar perda do formulário multipart no Safari/iPhone.
 -->
 
 <!DOCTYPE html>
@@ -327,6 +327,18 @@ Motivo: Corrigir falso bloqueio de cliente ao salvar OS com foto em formulário 
         .os-foto-equipamento-titulo .btn-primary-green {
             flex: 0 0 auto;
         }
+
+        .os-photo-upload-status {
+            margin-top: 6px;
+            min-height: 18px;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .os-photo-upload-status.enviando { color: #1d4ed8; }
+        .os-photo-upload-status.sucesso { color: #166534; }
+        .os-photo-upload-status.erro { color: #991b1b; }
 
         @media (max-width: 820px) {
             .os-photo-card {
@@ -970,7 +982,7 @@ Motivo: Corrigir falso bloqueio de cliente ao salvar OS com foto em formulário 
             </div>
         </section>
 
-        <form id="form-editar-os" action="/ordens-servico/{{ os.id }}/editar" method="post" enctype="multipart/form-data" class="client-form">
+        <form id="form-editar-os" action="/ordens-servico/{{ os.id }}/editar" method="post" class="client-form">
             <input id="os_equipamentos_json" name="os_equipamentos_json" type="hidden" value="">
             <input id="os_fotos_json" name="os_fotos_json" type="hidden" value="[]">
             <input id="os_cliente_original" name="os_cliente_original" type="hidden" value="{{ os.cliente or '' }}">
@@ -995,7 +1007,8 @@ Motivo: Corrigir falso bloqueio de cliente ao salvar OS com foto em formulário 
                             id="os_cliente"
                             name="os_cliente"
                             class="form-control quick-cliente-select"
-                            data-cliente-atual="{{ cliente_os_atual }}">
+                            data-cliente-atual="{{ cliente_os_atual }}"
+                            required>
                             <option value="">Digite para buscar</option>
                             {% for cliente in clientes|default([]) %}
                                 {% set nome_cliente = (cliente.nome or '')|trim %}
@@ -1148,6 +1161,7 @@ Motivo: Corrigir falso bloqueio de cliente ao salvar OS com foto em formulário 
                                                             <div class="os-photo-card-field">
                                                                 <label>Substituir imagem</label>
                                                                 <input data-foto-arquivo type="file" name="foto_os_arquivo_existente_{{ foto.id }}" class="form-control os-photo-input" accept="image/png,image/jpeg,image/webp">
+                                                                <div data-foto-upload-status class="os-photo-upload-status"></div>
                                                             </div>
                                                             <div class="os-photo-card-field os-photo-card-observation">
                                                                 <label>Observação</label>
@@ -1182,7 +1196,7 @@ Motivo: Corrigir falso bloqueio de cliente ao salvar OS com foto em formulário 
 
             <section class="panel page-section os-form-section os-panel-orcamento">
                 <div class="panel-header page-header os-section-title"><div><h3>Observações</h3><p class="page-subtitle">Observações impressas e internas.</p></div></div>
-                <div class="os-section-body"><div class="os-grid-2"><div class="form-group"><label for="os_observacoes">Observações</label><textarea id="os_observacoes" name="os_observacoes" class="form-control os-textarea">{{ os.observacoes or '' }}</textarea></div><div class="form-group"><label for="os_observacoes_internas">Observações internas</label><textarea id="os_observacoes_internas" name="os_observacoes_internas" class="form-control os-textarea">{{ os.observacoes_internas or '' }}</textarea></div><div class="form-group os-span-2"><label for="os_servico_executado">Serviço executado</label><textarea id="os_servico_executado" name="os_servico_executado" class="form-control os-textarea">{{ os.servico_executado or '' }}</textarea></div></div><div class="form-actions"><a href="/ordens-servico/{{ os.id }}" class="btn-light">Cancelar</a><button type="submit" class="btn-primary-green" formnovalidate>Salvar alterações</button></div></div>
+                <div class="os-section-body"><div class="os-grid-2"><div class="form-group"><label for="os_observacoes">Observações</label><textarea id="os_observacoes" name="os_observacoes" class="form-control os-textarea">{{ os.observacoes or '' }}</textarea></div><div class="form-group"><label for="os_observacoes_internas">Observações internas</label><textarea id="os_observacoes_internas" name="os_observacoes_internas" class="form-control os-textarea">{{ os.observacoes_internas or '' }}</textarea></div><div class="form-group os-span-2"><label for="os_servico_executado">Serviço executado</label><textarea id="os_servico_executado" name="os_servico_executado" class="form-control os-textarea">{{ os.servico_executado or '' }}</textarea></div></div><div class="form-actions"><a href="/ordens-servico/{{ os.id }}" class="btn-light">Cancelar</a><button type="submit" class="btn-primary-green">Salvar alterações</button></div></div>
             </section>
         </form>
 
@@ -2216,74 +2230,15 @@ Motivo: Corrigir falso bloqueio de cliente ao salvar OS com foto em formulário 
                 const clienteSelect = document.getElementById("os_cliente");
                 const clienteOriginal = document.getElementById("os_cliente_original");
 
-                if (!formulario || !clienteSelect || !clienteOriginal) {
-                    return;
-                }
+                if (formulario && clienteSelect && clienteOriginal) {
+                    formulario.addEventListener("submit", function() {
+                        const clienteSelecionado = String(clienteSelect.value || "").trim();
 
-                function garantirClienteEdicaoOS() {
-                    let cliente = String(clienteSelect.value || "").trim();
-                    const clienteFallback = String(
-                        clienteOriginal.value
-                        || clienteSelect.dataset.clienteAtual
-                        || ""
-                    ).trim();
-
-                    if (!cliente || cliente.startsWith("__novo")) {
-                        cliente = clienteFallback;
-                    }
-
-                    if (!cliente) {
-                        return "";
-                    }
-
-                    let opcaoCliente = Array.from(clienteSelect.options).find(function(opcao) {
-                        return String(opcao.value || "").trim().toLocaleLowerCase("pt-BR")
-                            === cliente.toLocaleLowerCase("pt-BR");
-                    });
-
-                    if (!opcaoCliente) {
-                        opcaoCliente = document.createElement("option");
-                        opcaoCliente.value = cliente;
-                        opcaoCliente.textContent = cliente;
-
-                        const opcaoNovoCliente = Array.from(clienteSelect.options).find(function(opcao) {
-                            return opcao.value === "__novo_cliente__";
-                        });
-
-                        if (opcaoNovoCliente) {
-                            clienteSelect.insertBefore(opcaoCliente, opcaoNovoCliente);
-                        } else {
-                            clienteSelect.appendChild(opcaoCliente);
+                        if (clienteSelecionado && !clienteSelecionado.startsWith("__novo")) {
+                            clienteOriginal.value = clienteSelecionado;
                         }
-                    }
-
-                    clienteSelect.value = opcaoCliente.value;
-                    clienteOriginal.value = cliente;
-                    return cliente;
+                    }, true);
                 }
-
-                clienteSelect.addEventListener("change", function() {
-                    const clienteSelecionado = String(clienteSelect.value || "").trim();
-
-                    if (clienteSelecionado && !clienteSelecionado.startsWith("__novo")) {
-                        clienteOriginal.value = clienteSelecionado;
-                    }
-                });
-
-                formulario.addEventListener("submit", function() {
-                    garantirClienteEdicaoOS();
-                }, true);
-
-                formulario.addEventListener("formdata", function(evento) {
-                    const cliente = garantirClienteEdicaoOS();
-
-                    if (cliente && evento.formData) {
-                        evento.formData.set("os_cliente", cliente);
-                        evento.formData.set("os_cliente_original", cliente);
-                    }
-                });
-
-                garantirClienteEdicaoOS();
             });
         </script>
 
@@ -2292,6 +2247,7 @@ Motivo: Corrigir falso bloqueio de cliente ao salvar OS com foto em formulário 
                 gestflowTravarFormularioDocumento({
                     formId: "form-editar-os",
                     camposObrigatorios: [
+                        { seletor: '[name="os_cliente"]', mensagem: "Selecione um cliente para salvar a OS." },
                         { seletor: '[name="os_responsavel"]', mensagem: "Selecione um responsável para salvar a OS." },
                         { seletor: '[name="os_tecnico"]', mensagem: "Selecione um técnico para salvar a OS." },
                         { seletor: '[name="os_data_abertura"]', mensagem: "Informe a data de abertura da OS." },
@@ -2427,6 +2383,7 @@ Motivo: Corrigir falso bloqueio de cliente ao salvar OS com foto em formulário 
                         <div class="os-photo-card-field">
                             <label>${dados.id ? "Substituir imagem" : "Imagem"}</label>
                             <input data-foto-arquivo type="file" name="foto_os_arquivo_${chave}" class="form-control os-photo-input" accept="image/png,image/jpeg,image/webp">
+                            <div data-foto-upload-status class="os-photo-upload-status"></div>
                         </div>
                         <div class="os-photo-card-field os-photo-card-observation">
                             <label>Observação</label>
@@ -2464,13 +2421,137 @@ Motivo: Corrigir falso bloqueio de cliente ao salvar OS com foto em formulário 
                     return;
                 }
 
-                if (String(card.dataset.fotoId || "").trim()) {
+                const fotoId = String(card.dataset.fotoId || "").trim();
+
+                if (fotoId && card.dataset.uploadImediato === "sim") {
+                    botao.disabled = true;
+
+                    fetch("/ordens-servico/{{ os.id }}/fotos/" + encodeURIComponent(fotoId) + "/excluir", {
+                        method: "POST",
+                        headers: { "X-Requested-With": "XMLHttpRequest" }
+                    })
+                        .then(function(resposta) {
+                            return resposta.json().then(function(payload) {
+                                if (!resposta.ok || !payload.ok) {
+                                    throw new Error(payload.erro || "Não foi possível excluir a foto.");
+                                }
+                                return payload;
+                            });
+                        })
+                        .then(function() {
+                            card.remove();
+                            prepararTitulosFotosEquipamento();
+                        })
+                        .catch(function(erro) {
+                            botao.disabled = false;
+                            alert(erro.message || "Não foi possível excluir a foto.");
+                        });
+                    return;
+                }
+
+                if (fotoId) {
                     card.dataset.fotoRemover = "sim";
                     card.hidden = true;
                     return;
                 }
 
                 card.remove();
+            }
+
+            let gestflowUploadsFotosPendentes = 0;
+
+            function statusUploadFoto(card, mensagem, tipo) {
+                const status = card ? card.querySelector("[data-foto-upload-status]") : null;
+                if (!status) {
+                    return;
+                }
+
+                status.textContent = mensagem || "";
+                status.className = "os-photo-upload-status" + (tipo ? " " + tipo : "");
+            }
+
+            function enviarFotoEquipamentoImediatamente(input, arquivo) {
+                const card = input.closest("[data-foto-card]");
+                const bloco = card ? card.closest(".os-equipamento-bloco") : null;
+
+                if (!card || !bloco || !arquivo) {
+                    return;
+                }
+
+                const blocos = Array.from(document.querySelectorAll(".os-equipamento-bloco"));
+                const equipamentoIndice = Math.max(0, blocos.indexOf(bloco));
+                const equipamentoNomeCampo = bloco.querySelector('[name="os_equipamento"]');
+                const titulo = String(
+                    equipamentoNomeCampo ? equipamentoNomeCampo.value : ""
+                ).trim() || (equipamentoIndice === 0
+                    ? "Equipamento principal"
+                    : "Equipamento adicional " + (equipamentoIndice + 1));
+
+                const tipoCampo = card.querySelector("[data-foto-tipo]");
+                const observacaoCampo = card.querySelector("[data-foto-observacoes]");
+                const dados = new FormData();
+
+                dados.append("foto", arquivo, arquivo.name || "foto.jpg");
+                dados.append("foto_id", String(card.dataset.fotoId || ""));
+                dados.append("tipo", String(tipoCampo ? tipoCampo.value : "antes"));
+                dados.append("equipamento_indice", String(equipamentoIndice));
+                dados.append("titulo", titulo);
+                dados.append("observacoes", String(observacaoCampo ? observacaoCampo.value : "").trim());
+
+                card.dataset.fotoUploadErro = "nao";
+                gestflowUploadsFotosPendentes += 1;
+                statusUploadFoto(card, "Enviando foto...", "enviando");
+
+                fetch("/ordens-servico/{{ os.id }}/fotos/upload", {
+                    method: "POST",
+                    headers: { "X-Requested-With": "XMLHttpRequest" },
+                    body: dados
+                })
+                    .then(function(resposta) {
+                        return resposta.json().then(function(payload) {
+                            if (!resposta.ok || !payload.ok) {
+                                throw new Error(payload.erro || "Não foi possível enviar a foto.");
+                            }
+                            return payload.foto;
+                        });
+                    })
+                    .then(function(foto) {
+                        card.dataset.fotoId = String(foto.id || "");
+                        card.dataset.fotoChave = "existente_" + String(foto.id || "");
+                        card.dataset.uploadImediato = "sim";
+                        card.dataset.fotoRemover = "nao";
+                        card.dataset.fotoUploadErro = "nao";
+
+                        const preview = card.querySelector("[data-photo-preview]");
+                        const placeholder = card.querySelector("[data-photo-placeholder]");
+
+                        if (preview && foto.caminho) {
+                            preview.src = foto.caminho;
+                            preview.hidden = false;
+                        }
+                        if (placeholder) {
+                            placeholder.hidden = true;
+                        }
+
+                        input.value = "";
+                        statusUploadFoto(card, "Foto enviada e salva.", "sucesso");
+                        prepararTitulosFotosEquipamento();
+                    })
+                    .catch(function(erro) {
+                        input.value = "";
+                        card.dataset.fotoUploadErro = "sim";
+                        statusUploadFoto(
+                            card,
+                            erro.message || "Não foi possível enviar a foto.",
+                            "erro"
+                        );
+                    })
+                    .finally(function() {
+                        gestflowUploadsFotosPendentes = Math.max(
+                            0,
+                            gestflowUploadsFotosPendentes - 1
+                        );
+                    });
             }
 
             document.addEventListener("change", function(evento) {
@@ -2499,7 +2580,7 @@ Motivo: Corrigir falso bloqueio de cliente ao salvar OS com foto em formulário 
 
                 if (!String(arquivo.type || "").startsWith("image/")) {
                     input.value = "";
-                    alert("Selecione um arquivo de imagem válido.");
+                    statusUploadFoto(card, "Selecione um arquivo de imagem válido.", "erro");
                     return;
                 }
 
@@ -2510,6 +2591,8 @@ Motivo: Corrigir falso bloqueio de cliente ao salvar OS com foto em formulário 
                     placeholder.hidden = true;
                 });
                 leitor.readAsDataURL(arquivo);
+
+                enviarFotoEquipamentoImediatamente(input, arquivo);
             });
 
 
@@ -2614,8 +2697,34 @@ Motivo: Corrigir falso bloqueio de cliente ao salvar OS com foto em formulário 
             document.addEventListener("DOMContentLoaded", function() {
                 const formulario = document.getElementById("form-editar-os");
                 prepararTitulosFotosEquipamento();
+
                 if (formulario) {
-                    formulario.addEventListener("submit", prepararTitulosFotosEquipamento, true);
+                    formulario.addEventListener("submit", function(evento) {
+                        const uploadComErro = formulario.querySelector(
+                            '[data-foto-card][data-foto-upload-erro="sim"]'
+                        );
+
+                        if (gestflowUploadsFotosPendentes > 0) {
+                            evento.preventDefault();
+                            gestflowExibirErroFormulario(
+                                formulario,
+                                "Aguarde o envio da foto terminar antes de salvar a OS."
+                            );
+                            return;
+                        }
+
+                        if (uploadComErro) {
+                            evento.preventDefault();
+                            gestflowExibirErroFormulario(
+                                formulario,
+                                "Uma foto não foi enviada. Selecione a imagem novamente antes de salvar."
+                            );
+                            uploadComErro.scrollIntoView({ behavior: "smooth", block: "center" });
+                            return;
+                        }
+
+                        prepararTitulosFotosEquipamento();
+                    }, true);
                 }
             });
         </script>
