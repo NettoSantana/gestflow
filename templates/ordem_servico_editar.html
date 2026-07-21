@@ -2044,7 +2044,37 @@ Motivo: Exibir, editar e excluir acompanhamentos diários diretamente na tela Ed
                     return "";
                 }
 
-                const valor = String(campo.value || "").trim();
+                let valor = String(campo.value || "").trim();
+
+                /*
+                 * Safari/iPhone pode restaurar visualmente o texto do select após
+                 * abrir câmera/galeria, mas deixar campo.value vazio. Na edição da
+                 * OS, recuperamos o cliente original antes de bloquear o envio.
+                 */
+                if (
+                    seletor === '[name="os_cliente"]'
+                    && (!valor || valor.startsWith("__novo"))
+                ) {
+                    const clienteOriginal = formulario.querySelector('[name="os_cliente_original"]');
+                    const valorOriginal = String(clienteOriginal ? clienteOriginal.value : "").trim();
+
+                    if (valorOriginal) {
+                        let opcao = Array.from(campo.options || []).find(function(item) {
+                            return String(item.value || "").trim().toLocaleLowerCase("pt-BR")
+                                === valorOriginal.toLocaleLowerCase("pt-BR");
+                        });
+
+                        if (!opcao && campo.tagName === "SELECT") {
+                            opcao = document.createElement("option");
+                            opcao.value = valorOriginal;
+                            opcao.textContent = valorOriginal;
+                            campo.insertBefore(opcao, campo.firstChild);
+                        }
+
+                        campo.value = valorOriginal;
+                        valor = String(campo.value || valorOriginal).trim();
+                    }
+                }
 
                 if (!valor || valor.startsWith("__novo")) {
                     gestflowExibirErroFormulario(formulario, mensagem, campo);
@@ -2139,6 +2169,17 @@ Motivo: Exibir, editar e excluir acompanhamentos diários diretamente na tela Ed
         <script>
             document.addEventListener("DOMContentLoaded", function() {
                 const clienteSelect = document.getElementById("os_cliente");
+
+                if (clienteSelect) {
+                    const clienteOriginal = document.getElementById("os_cliente_original");
+
+                    clienteSelect.addEventListener("change", function() {
+                        const valorAtual = String(clienteSelect.value || "").trim();
+                        if (clienteOriginal && valorAtual && !valorAtual.startsWith("__novo")) {
+                            clienteOriginal.value = valorAtual;
+                        }
+                    });
+                }
 
                 if (clienteSelect && !String(clienteSelect.value || "").trim()) {
                     const clienteAtual = String(clienteSelect.dataset.clienteAtual || "").trim();
