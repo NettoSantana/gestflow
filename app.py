@@ -23922,8 +23922,34 @@ def upload_foto_ordem_servico_edicao(ordem_servico_id: int) -> Response:
         return jsonify({"ok": False, "erro": "Ordem de serviço não encontrada."}), 404
 
     arquivo = request.files.get("foto")
-    if arquivo is None or not str(arquivo.filename or "").strip():
-        return jsonify({"ok": False, "erro": "Selecione uma imagem para enviar."}), 400
+
+    if arquivo is None:
+        print(
+            "[OS FOTO][UPLOAD VAZIO] "
+            f"os={ordem_servico_id} "
+            f"content_type={request.content_type!r} "
+            f"files={list(request.files.keys())} "
+            f"form={list(request.form.keys())}",
+            flush=True,
+        )
+        return jsonify({
+            "ok": False,
+            "erro": "A imagem não chegou ao servidor. Atualize a página e selecione novamente."
+        }), 400
+
+    if not str(arquivo.filename or "").strip():
+        extensao_por_mime = {
+            "image/jpeg": "jpg",
+            "image/png": "png",
+            "image/webp": "webp",
+            "image/heic": "heic",
+            "image/heif": "heif",
+        }
+        extensao_fallback = extensao_por_mime.get(
+            str(arquivo.mimetype or "").strip().lower(),
+            "jpg",
+        )
+        arquivo.filename = f"foto_os_{ordem_servico_id}.{extensao_fallback}"
 
     tipo = "depois" if str(request.form.get("tipo") or "").strip().lower() == "depois" else "antes"
     equipamento_indice = str(request.form.get("equipamento_indice") or "0").strip() or "0"

@@ -1,8 +1,8 @@
 // Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\static\service-worker.js
 // Último recode: 2026-07-10 12:25 (America/Bahia)
-// Motivo: Forçar atualização do ponto_offline.js com envio seguro da acao online.
+// Motivo: Não interceptar uploads e outros POSTs, evitando perda do multipart no Safari/iPhone.
 
-const GESTFLOW_CACHE = 'gestflow-ponto-offline-v10';
+const GESTFLOW_CACHE = 'gestflow-ponto-offline-v11';
 const ARQUIVOS_FIXOS = [
     '/manifest.json',
     '/static/css/dashboard.css',
@@ -90,6 +90,15 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
     const request = event.request;
+
+    /*
+     * Requisições com corpo devem seguir direto pelo navegador.
+     * Isto é especialmente importante para uploads multipart no Safari/iPhone.
+     * Não chamar event.respondWith() faz o navegador executar o POST normalmente.
+     */
+    if (request.method !== 'GET') {
+        return;
+    }
 
     if (!deveUsarCacheOffline(request)) {
         event.respondWith(buscarSemCache(request));

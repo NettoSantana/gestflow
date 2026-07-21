@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordem_servico_editar.html
 Último recode: 2026-07-20 (America/Bahia)
-Motivo: Enviar fotos individualmente para evitar perda do formulário multipart no Safari/iPhone.
+Motivo: Enviar fotos diretamente sem interceptação do service worker no Safari/iPhone.
 -->
 
 <!DOCTYPE html>
@@ -2505,6 +2505,8 @@ Motivo: Enviar fotos individualmente para evitar perda do formulário multipart 
                 fetch("/ordens-servico/{{ os.id }}/fotos/upload", {
                     method: "POST",
                     headers: { "X-Requested-With": "XMLHttpRequest" },
+                    credentials: "same-origin",
+                    cache: "no-store",
                     body: dados
                 })
                     .then(function(resposta) {
