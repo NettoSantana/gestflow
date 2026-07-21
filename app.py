@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-21 10:18 (America/Bahia)
-# Motivo: Criar novos usuários por convite seguro, sem o administrador definir ou conhecer a senha.
+# Último recode: 2026-07-21 00:24 (America/Bahia)
+# Motivo: Corrigir o redirecionamento após criar, editar ou atualizar usuários nas configurações.
 
 from __future__ import annotations
 
@@ -14819,6 +14819,21 @@ def montar_configuracoes_contexto() -> dict[str, Any]:
         "modulos_permissoes": GESTFLOW_MODULOS_PERMISSOES,
         "acoes_permissao": GESTFLOW_ACOES_PERMISSAO,
     }
+
+
+def redirecionar_configuracoes_usuarios(
+    sucesso: str = "",
+    erro: str = "",
+) -> Response:
+    parametros = {
+        chave: valor
+        for chave, valor in {"sucesso": sucesso, "erro": erro}.items()
+        if str(valor or "").strip()
+    }
+    destino = "/configuracoes/usuarios"
+    if parametros:
+        destino = f"{destino}?{urllib.parse.urlencode(parametros)}"
+    return redirect(destino)
 
 
 
