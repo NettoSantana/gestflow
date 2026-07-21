@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-20 13:40 (America/Bahia)
-# Motivo: Impedir orçamento duplicado, proteger edição concorrente por versão e manter gravações transacionais.
+# Último recode: 2026-07-21 10:18 (America/Bahia)
+# Motivo: Criar novos usuários por convite seguro, sem o administrador definir ou conhecer a senha.
 
 from __future__ import annotations
 
@@ -15006,7 +15006,7 @@ def validar_usuario_configuracoes_formulario(
             if conflito_funcionario is not None:
                 return "Este funcionário já está vinculado a outro usuário."
 
-    if usuario_id is None or dados["senha"]:
+    if usuario_id is not None and dados["senha"]:
         erro_senha = validar_senha_forte(dados["senha"])
         if erro_senha:
             return erro_senha
@@ -15061,7 +15061,7 @@ def criar_usuario_configuracoes_db(dados: dict[str, Any], permissoes_json: str) 
                 dados.get("funcionario_id"),
                 dados["nome"],
                 dados["email"],
-                generate_password_hash(dados["senha"]),
+                generate_password_hash(secrets.token_urlsafe(48)),
                 dados["perfil"],
                 permissoes_json,
                 dados["status"],
@@ -15071,6 +15071,59 @@ def criar_usuario_configuracoes_db(dados: dict[str, Any], permissoes_json: str) 
         usuario_id = int(cursor.lastrowid)
         conn.commit()
     return usuario_id
+
+
+def enviar_convite_novo_usuario(
+    usuario_id: int,
+    dados: dict[str, Any],
+) -> tuple[bool, str]:
+    token = secrets.token_urlsafe(40)
+    token_hash = generate_password_hash(token)
+    agora = agora_empresa()
+    expira_em = (agora + timedelta(hours=24)).isoformat(timespec="seconds")
+    base_url = str(
+        os.getenv("GESTFLOW_BASE_URL", "")
+        or getattr(config, "GESTFLOW_BASE_URL", "")
+        or request.url_root.rstrip("/")
+    ).rstrip("/")
+    link = f"{base_url}/redefinir-senha/{token}"
+    assunto = "Convite de acesso - GestFlow"
+    corpo = (
+        f"Olá, {dados.get('nome') or 'usuário'}.\n\n"
+        "Seu acesso ao GestFlow foi criado.\n\n"
+        "Use o link abaixo para criar sua senha. Ele é válido por 24 horas e pode ser usado uma única vez:\n"
+        f"{link}\n\n"
+        "Se você não reconhece este convite, ignore este e-mail."
+    )
+
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            INSERT INTO usuario_recuperacao_senha
+                (empresa_id, usuario_id, token_hash, expira_em, usado_em, criado_em)
+            VALUES (?, ?, ?, ?, '', ?)
+            """,
+            (
+                empresa_logada_id(),
+                usuario_id,
+                token_hash,
+                expira_em,
+                agora.isoformat(timespec="seconds"),
+            ),
+        )
+        conn.commit()
+
+    enviado, detalhe = enviar_email_zoho(dados["email"], assunto, corpo)
+    if enviado:
+        return True, "Convite enviado por e-mail."
+
+    with conectar_db() as conn:
+        conn.execute(
+            "DELETE FROM usuario_recuperacao_senha WHERE usuario_id = ? AND token_hash = ?",
+            (usuario_id, token_hash),
+        )
+        conn.commit()
+    return False, detalhe
 
 
 def atualizar_usuario_configuracoes_db(
@@ -18478,8 +18531,9 @@ def redefinir_senha(token: str) -> str | Response:
     if request.method == "POST":
         senha = (request.form.get("senha") or "").strip()
         confirmar = (request.form.get("confirmar_senha") or "").strip()
-        if len(senha) < 8:
-            erro = "A senha precisa ter pelo menos 8 caracteres."
+        erro_senha = validar_senha_forte(senha)
+        if erro_senha:
+            erro = erro_senha
         elif senha != confirmar:
             erro = "As senhas não conferem."
         else:
@@ -18506,8 +18560,6 @@ def novo_usuario_configuracoes() -> str | Response:
         "perfil": "consulta",
         "status": "ativo",
         "funcionario_id": None,
-        "senha": "",
-        "confirmar_senha": "",
     }
     permissoes_selecionadas = {
         f"{modulo}:{acao}"
@@ -18529,23 +18581,38 @@ def novo_usuario_configuracoes() -> str | Response:
 
         if not erro:
             usuario_id = criar_usuario_configuracoes_db(formulario, permissoes_json)
-            registrar_atividade_usuario(
-                "criacao",
-                "configuracoes",
-                f"Criou o usuário {formulario['nome']}",
-                registro_id=usuario_id,
-                dados_novos={
-                    "nome": formulario["nome"],
-                    "email": formulario["email"],
-                    "perfil": formulario["perfil"],
-                    "status": formulario["status"],
-                    "funcionario_id": formulario.get("funcionario_id"),
-                    "permissoes_json": permissoes_json,
-                },
+            convite_enviado, detalhe_convite = enviar_convite_novo_usuario(
+                usuario_id,
+                formulario,
             )
-            return redirecionar_configuracoes_usuarios(
-                sucesso="Usuário criado com sucesso."
-            )
+
+            if convite_enviado:
+                registrar_atividade_usuario(
+                    "criacao",
+                    "configuracoes",
+                    f"Criou o usuário {formulario['nome']} e enviou o convite de acesso",
+                    registro_id=usuario_id,
+                    dados_novos={
+                        "nome": formulario["nome"],
+                        "email": formulario["email"],
+                        "perfil": formulario["perfil"],
+                        "status": formulario["status"],
+                        "funcionario_id": formulario.get("funcionario_id"),
+                        "permissoes_json": permissoes_json,
+                        "convite_enviado": True,
+                    },
+                )
+                return redirecionar_configuracoes_usuarios(
+                    sucesso="Usuário criado e convite enviado por e-mail."
+                )
+
+            with conectar_db() as conn:
+                conn.execute(
+                    "DELETE FROM usuarios WHERE id = ? AND empresa_id = ?",
+                    (usuario_id, empresa_logada_id()),
+                )
+                conn.commit()
+            erro = f"Não foi possível enviar o convite. {detalhe_convite}"
 
     return render_template(
         "usuario_novo.html",

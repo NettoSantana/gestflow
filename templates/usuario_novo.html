@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\usuario_novo.html
-Último recode: 2026-07-19 22:45 (America/Bahia)
-Motivo: Cadastro e edição de usuários com perfil, funcionário e permissões por ação.
+Último recode: 2026-07-20 23:59 (America/Bahia)
+Motivo: Remover definição manual de senha e preparar cadastro por convite seguro enviado ao e-mail do usuário.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -65,6 +65,17 @@ Motivo: Cadastro e edição de usuários com perfil, funcionário e permissões 
         font-weight: 700;
         line-height: 1.45;
     }
+    .invite-note {
+        margin-top: 14px;
+        padding: 12px 14px;
+        border: 1px solid #bbf7d0;
+        border-radius: 12px;
+        background: #f0fdf4;
+        color: #166534;
+        font-size: 13px;
+        font-weight: 800;
+        line-height: 1.45;
+    }
     .admin-permission-note {
         margin: 12px 0;
         padding: 12px;
@@ -109,7 +120,7 @@ Motivo: Cadastro e edição de usuários com perfil, funcionário e permissões 
                 <div class="panel-header page-header">
                     <div>
                         <h3>Dados do acesso</h3>
-                        <p class="page-subtitle">Cada pessoa deve usar seu próprio e-mail e senha.</p>
+                        <p class="page-subtitle">Informe o e-mail que receberá o convite para criar a senha.</p>
                     </div>
                 </div>
 
@@ -151,24 +162,14 @@ Motivo: Cadastro e edição de usuários com perfil, funcionário e permissões 
                             <option value="inativo" {% if formulario.status|default('ativo') == 'inativo' %}selected{% endif %}>Inativo</option>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label for="senha">Senha</label>
-                        <input id="senha" name="senha" type="password" class="form-control" autocomplete="new-password" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="confirmar_senha">Confirmar senha</label>
-                        <input id="confirmar_senha" name="confirmar_senha" type="password" class="form-control" autocomplete="new-password" required>
-                    </div>
                 </div>
 
-                <div class="password-rules" style="display:grid; gap:6px; margin-top:12px; color:#475569; font-size:12px; font-weight:800;">
-                    <span>• No mínimo 8 caracteres</span>
-                    <span>• Maiúscula, minúscula, número e caractere especial</span>
-                    
+                <div class="invite-note">
+                    O usuário receberá um link seguro por e-mail para criar a própria senha. O link terá validade limitada e poderá ser usado uma única vez.
                 </div>
 
                 <div class="form-actions">
-                    <button type="submit" class="btn-primary-green">Salvar usuário</button>
+                    <button type="submit" class="btn-primary-green">Criar e enviar convite</button>
                     <a href="/configuracoes/usuarios" class="btn-light">Cancelar</a>
                 </div>
             </section>
