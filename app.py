@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-21 00:24 (America/Bahia)
-# Motivo: Corrigir o redirecionamento após criar, editar ou atualizar usuários nas configurações.
+# Último recode: 2026-07-21 06:39 (America/Bahia)
+# Motivo: Manter a validação do celular no cartão de ponto por 30 dias.
 
 from __future__ import annotations
 
@@ -35,6 +35,7 @@ import config
 
 app = Flask(__name__)
 app.secret_key = getattr(config, "SECRET_KEY", "gestflow-dev-secret-key-trocar-em-producao")
+app.permanent_session_lifetime = timedelta(days=30)
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
@@ -25764,6 +25765,7 @@ def ponto_publico(token: str) -> str | Response:
                 telefone_cadastrado = normalizar_telefone_validacao_ponto(funcionario.get("telefone"))
 
                 if telefone_cadastrado and telefone_digitado == telefone_cadastrado:
+                    session.permanent = True
                     session[f"ponto_validado_{token}"] = "sim"
                     return redirect(url_for("ponto_publico", token=token, sucesso="Celular validado com sucesso."))
 
