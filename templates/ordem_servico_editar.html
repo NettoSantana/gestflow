@@ -973,6 +973,7 @@ Motivo: Exibir, editar e excluir acompanhamentos diários diretamente na tela Ed
         <form id="form-editar-os" action="/ordens-servico/{{ os.id }}/editar" method="post" enctype="multipart/form-data" class="client-form">
             <input id="os_equipamentos_json" name="os_equipamentos_json" type="hidden" value="">
             <input id="os_fotos_json" name="os_fotos_json" type="hidden" value="[]">
+            <input id="os_cliente_original" name="os_cliente_original" type="hidden" value="{{ os.cliente or '' }}">
             <div class="gestflow-form-error{% if request.args.get('erro') %} show{% endif %}" data-form-error>{% if request.args.get('erro') %}{{ request.args.get('erro') }}{% endif %}</div>
             <section class="panel page-section os-form-section os-panel-orcamento">
                 <div class="panel-header page-header os-section-title">
@@ -2168,6 +2169,24 @@ Motivo: Exibir, editar e excluir acompanhamentos diários diretamente na tela Ed
             });
         </script>
 
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function() {
+                const formulario = document.getElementById("form-editar-os");
+                const clienteSelect = document.getElementById("os_cliente");
+                const clienteOriginal = document.getElementById("os_cliente_original");
+
+                if (formulario && clienteSelect && clienteOriginal) {
+                    formulario.addEventListener("submit", function() {
+                        const clienteSelecionado = String(clienteSelect.value || "").trim();
+
+                        if (clienteSelecionado && !clienteSelecionado.startsWith("__novo")) {
+                            clienteOriginal.value = clienteSelecionado;
+                        }
+                    }, true);
+                }
+            });
+        </script>
 
         <script>
             document.addEventListener("DOMContentLoaded", function() {

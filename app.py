@@ -23920,6 +23920,18 @@ def atualizar_ordem_servico(ordem_servico_id: int) -> Response:
         return redirect(url_for("ordens_servico"))
 
     ordem_servico = montar_ordem_servico_formulario(numero_padrao=str(ordem_servico_atual["numero"] or ""))
+
+    # Na edição, alguns navegadores móveis podem não enviar o valor do <select>
+    # mesmo quando o cliente aparece selecionado. Como cliente é obrigatório,
+    # preservamos o cliente atual quando o POST chegar vazio.
+    if not str(ordem_servico.get("cliente") or "").strip():
+        cliente_atual = str(
+            request.form.get("os_cliente_original")
+            or ordem_servico_atual.get("cliente")
+            or ""
+        ).strip()
+        ordem_servico["cliente"] = cliente_atual
+
     itens = montar_ordem_servico_itens_formulario()
     erro_validacao = validar_ordem_servico_para_salvar(ordem_servico, itens)
 
