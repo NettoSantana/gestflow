@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_editar.html
-Último recode: 2026-07-20 13:40 (America/Bahia)
-Motivo: Enviar a versão do orçamento para bloquear sobrescrita silenciosa em edições simultâneas.
+Último recode: 2026-07-22 11:08 (America/Bahia)
+Motivo: Proteger o número, ampliar as observações e impedir atualização acidental do orçamento pela tecla Enter.
 -->
 
 <!DOCTYPE html>
@@ -367,6 +367,7 @@ Motivo: Enviar a versão do orçamento para bloquear sobrescrita silenciosa em e
         .budget-long-field { grid-column: 1 / -1; }
         .budget-long-text { min-height: 180px !important; height: auto !important; padding: 12px 14px !important; line-height: 1.55; resize: vertical; white-space: pre-wrap; }
         .budget-field-hint { color:#64748b; font-size:11px; line-height:1.4; }
+        .budget-auto-number { background:#f1f5f9 !important; color:#475569 !important; cursor:not-allowed; font-weight:800; }
         .budget-final-value { border-color:#86efac !important; background:#f0fdf4 !important; color:#166534 !important; font-size:17px !important; font-weight:900 !important; }
         .budget-final-hint { display:block; margin-top:6px; color:#166534; font-size:11px; font-weight:800; line-height:1.4; }
         .budget-value-changed { display:none; margin-top:10px; padding:10px 12px; border:1px solid #bfdbfe; border-radius:10px; background:#eff6ff; color:#1d4ed8; font-size:12px; font-weight:800; }
@@ -418,8 +419,9 @@ Motivo: Enviar a versão do orçamento para bloquear sobrescrita silenciosa em e
 
                 <div class="form-grid">
                     <div class="form-group">
-                        <label for="orcamento_numero">Número</label>
-                        <input id="orcamento_numero" name="orcamento_numero" type="text" value="{{ orcamento.numero or '' }}" class="form-control">
+                        <label for="orcamento_numero">Número do orçamento</label>
+                        <input id="orcamento_numero" name="orcamento_numero" type="text" value="{{ orcamento.numero or '' }}" class="form-control budget-auto-number" readonly aria-readonly="true" title="Número protegido e gerado automaticamente pelo sistema">
+                        <small class="budget-field-hint">Gerado automaticamente e protegido contra edição.</small>
                     </div>
 
                     <div class="form-group">
@@ -619,12 +621,13 @@ Motivo: Enviar a versão do orçamento para bloquear sobrescrita silenciosa em e
                     <div class="form-group"><label for="orcamento_forma_pagamento">Forma de pagamento</label><input id="orcamento_forma_pagamento" name="orcamento_forma_pagamento" type="text" value="{{ orcamento.forma_pagamento or '' }}" class="form-control"></div>
                     <div class="form-group budget-long-field">
                         <label for="orcamento_observacoes">Escopo e observações para o cliente</label>
-                        <textarea id="orcamento_observacoes" name="orcamento_observacoes" class="form-control budget-long-text">{{ orcamento.observacoes or '' }}</textarea>
+                        <textarea id="orcamento_observacoes" name="orcamento_observacoes" rows="8" class="form-control budget-long-text">{{ orcamento.observacoes or '' }}</textarea>
                         <small class="budget-field-hint">Use uma linha em branco entre os parágrafos. Nas seções de serviços e materiais, inicie cada item com “-”.</small>
                     </div>
                     <div class="form-group budget-long-field">
                         <label for="orcamento_observacoes_internas">Observações internas</label>
-                        <textarea id="orcamento_observacoes_internas" name="orcamento_observacoes_internas" class="form-control budget-long-text" style="min-height:130px !important;">{{ orcamento.observacoes_internas or '' }}</textarea>
+                        <textarea id="orcamento_observacoes_internas" name="orcamento_observacoes_internas" rows="7" class="form-control budget-long-text">{{ orcamento.observacoes_internas or '' }}</textarea>
+                        <small class="budget-field-hint">Uso interno; não aparece na proposta do cliente.</small>
                     </div>
                 </div>
 
@@ -1418,6 +1421,18 @@ Motivo: Enviar a versão do orçamento para bloquear sobrescrita silenciosa em e
 
         <script>
             document.addEventListener("DOMContentLoaded", function() {
+                const formulario = document.getElementById("form-editar-orcamento");
+
+                if (formulario) {
+                    formulario.addEventListener("keydown", function(evento) {
+                        if (evento.key !== "Enter" || evento.isComposing || evento.target instanceof HTMLTextAreaElement) {
+                            return;
+                        }
+
+                        evento.preventDefault();
+                    });
+                }
+
                 gestflowTravarFormularioDocumento({
                     formId: "form-editar-orcamento",
                     camposObrigatorios: [
