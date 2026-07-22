@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordem_servico_editar.html
-Último recode: 2026-07-20 (America/Bahia)
-Motivo: Enviar fotos diretamente sem interceptação do service worker no Safari/iPhone.
+Último recode: 2026-07-22 12:02 (America/Bahia)
+Motivo: Proteger o número da OS, ampliar observações e impedir atualização acidental pela tecla Enter.
 -->
 
 <!DOCTYPE html>
@@ -598,6 +598,11 @@ Motivo: Enviar fotos diretamente sem interceptação do service worker no Safari
             min-height: 84px !important;
         }
 
+        .os-page .os-observacoes-principais {
+            min-height: 150px !important;
+            resize: vertical !important;
+        }
+
         .os-page .os-equipamento-bloco,
         .os-page .os-foto-equipamento-bloco {
             border: 1px solid #e5eaf2 !important;
@@ -998,7 +1003,7 @@ Motivo: Enviar fotos diretamente sem interceptação do service worker no Safari
                 </div>
                 <div class="os-section-body">
                     <div class="os-grid-4">
-                        <div class="form-group"><label for="os_numero">Número</label><input id="os_numero" name="os_numero" type="text" value="{{ os.numero or '' }}" class="form-control"></div>
+                        <div class="form-group"><label for="os_numero">Número</label><input id="os_numero" name="os_numero" type="text" value="{{ os.numero or '' }}" class="form-control" readonly aria-readonly="true" title="Gerado automaticamente pelo sistema"></div>
                         <div class="form-group os-span-2">
                         <label for="os_cliente">Cliente</label>
                         {% set cliente_os_atual = (os.cliente or '')|trim %}
@@ -1196,7 +1201,7 @@ Motivo: Enviar fotos diretamente sem interceptação do service worker no Safari
 
             <section class="panel page-section os-form-section os-panel-orcamento">
                 <div class="panel-header page-header os-section-title"><div><h3>Observações</h3><p class="page-subtitle">Observações impressas e internas.</p></div></div>
-                <div class="os-section-body"><div class="os-grid-2"><div class="form-group"><label for="os_observacoes">Observações</label><textarea id="os_observacoes" name="os_observacoes" class="form-control os-textarea">{{ os.observacoes or '' }}</textarea></div><div class="form-group"><label for="os_observacoes_internas">Observações internas</label><textarea id="os_observacoes_internas" name="os_observacoes_internas" class="form-control os-textarea">{{ os.observacoes_internas or '' }}</textarea></div><div class="form-group os-span-2"><label for="os_servico_executado">Serviço executado</label><textarea id="os_servico_executado" name="os_servico_executado" class="form-control os-textarea">{{ os.servico_executado or '' }}</textarea></div></div><div class="form-actions"><a href="/ordens-servico/{{ os.id }}" class="btn-light">Cancelar</a><button type="submit" class="btn-primary-green">Salvar alterações</button></div></div>
+                <div class="os-section-body"><div class="os-grid-2"><div class="form-group"><label for="os_observacoes">Observações para o cliente</label><textarea id="os_observacoes" name="os_observacoes" rows="6" class="form-control os-textarea os-observacoes-principais">{{ os.observacoes or '' }}</textarea></div><div class="form-group"><label for="os_observacoes_internas">Observações internas</label><textarea id="os_observacoes_internas" name="os_observacoes_internas" rows="6" class="form-control os-textarea os-observacoes-principais">{{ os.observacoes_internas or '' }}</textarea></div><div class="form-group os-span-2"><label for="os_servico_executado">Serviço executado</label><textarea id="os_servico_executado" name="os_servico_executado" class="form-control os-textarea">{{ os.servico_executado or '' }}</textarea></div></div><div class="form-actions"><a href="/ordens-servico/{{ os.id }}" class="btn-light">Cancelar</a><button type="submit" class="btn-primary-green">Salvar alterações</button></div></div>
             </section>
         </form>
 
@@ -3237,6 +3242,22 @@ Motivo: Enviar fotos diretamente sem interceptação do service worker no Safari
         }
     });
 })();
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const formulario = document.getElementById("form-editar-os");
+
+    if (!formulario) {
+        return;
+    }
+
+    formulario.addEventListener("keydown", function(evento) {
+        if (evento.key === "Enter" && evento.target.tagName !== "TEXTAREA") {
+            evento.preventDefault();
+        }
+    });
+});
 </script>
 
 </body>

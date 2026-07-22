@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordens_servico.html
-Último recode: 2026-07-14 09:36 (America/Bahia)
-Motivo: Corrigir abertura do menu Gerar/Imprimir no celular movendo o painel para fora da área rolável da lista de OS.
+Último recode: 2026-07-22 12:02 (America/Bahia)
+Motivo: Automatizar o número da OS, ampliar observações e impedir envio acidental do formulário pela tecla Enter.
 -->
 
 <!DOCTYPE html>
@@ -685,6 +685,11 @@ Motivo: Corrigir abertura do menu Gerar/Imprimir no celular movendo o painel par
             min-height: 78px !important;
         }
 
+        .os-observacoes-principais {
+            min-height: 150px !important;
+            resize: vertical !important;
+        }
+
         .os-equipamento-bloco {
             border: 1px solid #e5eaf2 !important;
             border-radius: 14px !important;
@@ -1014,7 +1019,7 @@ Motivo: Corrigir abertura do menu Gerar/Imprimir no celular movendo o painel par
                 </div>
                 <div class="os-section-body">
                     <div class="os-grid-4">
-                        <div class="form-group"><label for="os_numero">Número</label><input id="os_numero" name="os_numero" type="text" value="{{ proximo_numero|default('0001') }}" class="form-control"></div>
+                        <div class="form-group"><label for="os_numero">Número</label><input id="os_numero" name="os_numero" type="text" value="{{ proximo_numero|default('0001') }}" class="form-control" readonly aria-readonly="true" title="Gerado automaticamente pelo sistema"></div>
                         <div class="form-group os-span-2">
                         <label for="os_cliente">Cliente</label>
                         <select id="os_cliente" name="os_cliente" class="form-control quick-cliente-select" required>
@@ -1229,8 +1234,8 @@ Motivo: Corrigir abertura do menu Gerar/Imprimir no celular movendo o painel par
                 </div>
                 <div class="os-section-body">
                     <div class="os-grid-2">
-                        <div class="form-group"><label for="os_observacoes">Observações</label><textarea id="os_observacoes" name="os_observacoes" class="form-control os-textarea" placeholder="Esta observação será impressa no pedido"></textarea></div>
-                        <div class="form-group"><label for="os_observacoes_internas">Observações internas</label><textarea id="os_observacoes_internas" name="os_observacoes_internas" class="form-control os-textarea" placeholder="Uso interno. Não será impresso no pedido"></textarea></div>
+                        <div class="form-group"><label for="os_observacoes">Observações para o cliente</label><textarea id="os_observacoes" name="os_observacoes" rows="6" class="form-control os-textarea os-observacoes-principais" placeholder="Esta observação será impressa no pedido"></textarea></div>
+                        <div class="form-group"><label for="os_observacoes_internas">Observações internas</label><textarea id="os_observacoes_internas" name="os_observacoes_internas" rows="6" class="form-control os-textarea os-observacoes-principais" placeholder="Uso interno. Não será impresso no pedido"></textarea></div>
                         <div class="form-group os-span-2"><label for="os_servico_executado">Serviço executado</label><textarea id="os_servico_executado" name="os_servico_executado" class="form-control os-textarea" placeholder="Resumo da execução"></textarea></div>
                     </div>
                     <div class="form-actions"><label for="os-cadastro-toggle" class="btn-light">Cancelar</label><button type="submit" class="btn-primary-green">Cadastrar</button></div>
@@ -2781,6 +2786,22 @@ Motivo: Corrigir abertura do menu Gerar/Imprimir no celular movendo o painel par
         }
     });
 })();
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const formulario = document.getElementById("form-nova-os");
+
+    if (!formulario) {
+        return;
+    }
+
+    formulario.addEventListener("keydown", function(evento) {
+        if (evento.key === "Enter" && evento.target.tagName !== "TEXTAREA") {
+            evento.preventDefault();
+        }
+    });
+});
 </script>
 
 </body>

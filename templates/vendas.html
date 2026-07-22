@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vendas.html
-Último recode: 2026-07-14 21:10 (America/Bahia)
-Motivo: Adicionar pagamento à vista, a prazo, parcelado e entrada mais parcelas.
+Último recode: 2026-07-22 12:02 (America/Bahia)
+Motivo: Automatizar o número da venda, ampliar observações e impedir envio acidental do formulário pela tecla Enter.
 -->
 
 <!DOCTYPE html>
@@ -393,6 +393,11 @@ Motivo: Adicionar pagamento à vista, a prazo, parcelado e entrada mais parcelas
             min-width: 0;
         }
 
+        .vendas-page .venda-observacoes {
+            min-height: 150px;
+            resize: vertical;
+        }
+
         @media (max-width: 720px) {
             .venda-cadastro-resumo-inner,
             .venda-header-actions {
@@ -523,7 +528,7 @@ Motivo: Adicionar pagamento à vista, a prazo, parcelado e entrada mais parcelas
                 <div class="form-grid">
                     <div class="form-group">
                         <label for="venda_numero">Número</label>
-                        <input id="venda_numero" name="venda_numero" type="text" value="{{ proximo_numero|default('0001') }}" class="form-control">
+                        <input id="venda_numero" name="venda_numero" type="text" value="{{ proximo_numero|default('0001') }}" class="form-control" readonly aria-readonly="true" title="Gerado automaticamente pelo sistema">
                     </div>
 
                     <div class="form-group">
@@ -754,12 +759,12 @@ Motivo: Adicionar pagamento à vista, a prazo, parcelado e entrada mais parcelas
 
                     <div class="form-group">
                         <label for="venda_observacoes">Observações para o cliente</label>
-                        <input id="venda_observacoes" name="venda_observacoes" type="text" placeholder="Observações que podem aparecer no comprovante" class="form-control">
+                        <textarea id="venda_observacoes" name="venda_observacoes" rows="6" placeholder="Observações que podem aparecer no comprovante" class="form-control venda-observacoes"></textarea>
                     </div>
 
                     <div class="form-group">
                         <label for="venda_observacoes_internas">Observações internas</label>
-                        <input id="venda_observacoes_internas" name="venda_observacoes_internas" type="text" placeholder="Uso interno" class="form-control">
+                        <textarea id="venda_observacoes_internas" name="venda_observacoes_internas" rows="6" placeholder="Uso interno" class="form-control venda-observacoes"></textarea>
                     </div>
                 </div>
 
@@ -2018,6 +2023,22 @@ Motivo: Adicionar pagamento à vista, a prazo, parcelado e entrada mais parcelas
     document.addEventListener("DOMContentLoaded",atualizarPagamento);
     setTimeout(atualizarPagamento,0);
 })();
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const formulario = document.getElementById("form-nova-venda");
+
+    if (!formulario) {
+        return;
+    }
+
+    formulario.addEventListener("keydown", function(evento) {
+        if (evento.key === "Enter" && evento.target.tagName !== "TEXTAREA") {
+            evento.preventDefault();
+        }
+    });
+});
 </script>
 
 </body>

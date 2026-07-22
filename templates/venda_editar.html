@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\venda_editar.html
-Último recode: 2026-07-16 17:59 (America/Bahia)
-Motivo: Sincronizar alterações da venda somente com parcelas financeiras abertas e preservar títulos pagos.
+Último recode: 2026-07-22 12:02 (America/Bahia)
+Motivo: Proteger o número da venda, ampliar observações e impedir atualização acidental pela tecla Enter.
 -->
 
 <!DOCTYPE html>
@@ -171,6 +171,11 @@ Motivo: Sincronizar alterações da venda somente com parcelas financeiras abert
         textarea {
             border-radius: 10px;
             max-width: 100%;
+        }
+
+        .venda-observacoes {
+            min-height: 150px;
+            resize: vertical;
         }
 
         .client-form {
@@ -386,7 +391,7 @@ Motivo: Sincronizar alterações da venda somente com parcelas financeiras abert
             <section class="panel page-section">
                 <div class="panel-header page-header"><div><h3>Dados gerais</h3><p class="page-subtitle">Informações principais da venda.</p></div><span class="badge-info">Edição</span></div>
                 <div class="form-grid">
-                    <div class="form-group"><label for="venda_numero">Número</label><input id="venda_numero" name="venda_numero" type="text" value="{{ venda.numero or '' }}" class="form-control"></div>
+                    <div class="form-group"><label for="venda_numero">Número</label><input id="venda_numero" name="venda_numero" type="text" value="{{ venda.numero or '' }}" class="form-control" readonly aria-readonly="true" title="Gerado automaticamente pelo sistema"></div>
                     <div class="form-group">
                         <label for="venda_cliente">Cliente</label>
                         <select id="venda_cliente" name="venda_cliente" class="form-control quick-cliente-select" required>
@@ -514,8 +519,8 @@ Motivo: Sincronizar alterações da venda somente com parcelas financeiras abert
                         </div>
                     </div>
 
-                    <div class="form-group"><label for="venda_observacoes">Observações para o cliente</label><input id="venda_observacoes" name="venda_observacoes" type="text" value="{{ venda.observacoes or '' }}" class="form-control"></div>
-                    <div class="form-group"><label for="venda_observacoes_internas">Observações internas</label><input id="venda_observacoes_internas" name="venda_observacoes_internas" type="text" value="{{ venda.observacoes_internas or '' }}" class="form-control"></div>
+                    <div class="form-group"><label for="venda_observacoes">Observações para o cliente</label><textarea id="venda_observacoes" name="venda_observacoes" rows="6" class="form-control venda-observacoes">{{ venda.observacoes or '' }}</textarea></div>
+                    <div class="form-group"><label for="venda_observacoes_internas">Observações internas</label><textarea id="venda_observacoes_internas" name="venda_observacoes_internas" rows="6" class="form-control venda-observacoes">{{ venda.observacoes_internas or '' }}</textarea></div>
                 </div>
                 <div class="form-actions"><a href="/vendas/{{ venda.id }}" class="btn-light">Cancelar</a><button type="submit" class="btn-primary-green">Salvar Alterações</button></div>
             </section>
@@ -1490,6 +1495,22 @@ Motivo: Sincronizar alterações da venda somente com parcelas financeiras abert
     document.addEventListener("DOMContentLoaded",atualizarPagamento);
     setTimeout(atualizarPagamento,0);
 })();
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const formulario = document.getElementById("form-editar-venda");
+
+    if (!formulario) {
+        return;
+    }
+
+    formulario.addEventListener("keydown", function(evento) {
+        if (evento.key === "Enter" && evento.target.tagName !== "TEXTAREA") {
+            evento.preventDefault();
+        }
+    });
+});
 </script>
 
 </body>
