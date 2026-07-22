@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamentos.html
-Último recode: 2026-07-16 17:13 (America/Bahia)
-Motivo: Trocar a geração repetida pela abertura da venda já vinculada ao orçamento.
+Último recode: 2026-07-22 11:08 (America/Bahia)
+Motivo: Automatizar o número, ampliar as observações e impedir envio acidental do orçamento pela tecla Enter.
 -->
 
 <!DOCTYPE html>
@@ -419,6 +419,33 @@ Motivo: Trocar a geração repetida pela abertura da venda já vinculada ao orç
             min-width: 0;
         }
 
+        .orcamentos-page .budget-auto-number {
+            background: #f1f5f9;
+            color: #475569;
+            cursor: not-allowed;
+            font-weight: 800;
+        }
+
+        .orcamentos-page .budget-long-field {
+            grid-column: 1 / -1;
+        }
+
+        .orcamentos-page .budget-long-text {
+            min-height: 180px;
+            padding: 12px 14px;
+            line-height: 1.55;
+            resize: vertical;
+            white-space: pre-wrap;
+        }
+
+        .orcamentos-page .budget-field-hint {
+            display: block;
+            margin-top: 6px;
+            color: #64748b;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+
 
         .orcamentos-page .orcamento-itens-shell {
             width: 100%;
@@ -575,8 +602,9 @@ Motivo: Trocar a geração repetida pela abertura da venda já vinculada ao orç
 
                 <div class="form-grid">
                     <div class="form-group">
-                        <label for="orcamento_numero">Número</label>
-                        <input id="orcamento_numero" name="orcamento_numero" type="text" value="{{ proximo_numero|default('0001') }}" class="form-control">
+                        <label for="orcamento_numero">Número do orçamento</label>
+                        <input id="orcamento_numero" name="orcamento_numero" type="text" value="{{ proximo_numero|default('Gerado automaticamente', true) }}" class="form-control budget-auto-number" readonly aria-readonly="true" title="Número gerado automaticamente pelo sistema">
+                        <small class="budget-field-hint">Gerado automaticamente ao salvar.</small>
                     </div>
 
                     <div class="form-group">
@@ -767,14 +795,16 @@ Motivo: Trocar a geração repetida pela abertura da venda já vinculada ao orç
                         <input id="orcamento_forma_pagamento" name="orcamento_forma_pagamento" type="text" placeholder="Ex: Pix, boleto, entrada + parcelas" class="form-control">
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group budget-long-field">
                         <label for="orcamento_observacoes">Observações para o cliente</label>
-                        <input id="orcamento_observacoes" name="orcamento_observacoes" type="text" placeholder="Observações que podem aparecer na proposta" class="form-control">
+                        <textarea id="orcamento_observacoes" name="orcamento_observacoes" rows="7" placeholder="Observações que podem aparecer na proposta" class="form-control budget-long-text"></textarea>
+                        <small class="budget-field-hint">Aceita parágrafos e pode ser ampliado verticalmente.</small>
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group budget-long-field">
                         <label for="orcamento_observacoes_internas">Observações internas</label>
-                        <input id="orcamento_observacoes_internas" name="orcamento_observacoes_internas" type="text" placeholder="Uso interno" class="form-control">
+                        <textarea id="orcamento_observacoes_internas" name="orcamento_observacoes_internas" rows="7" placeholder="Uso interno" class="form-control budget-long-text"></textarea>
+                        <small class="budget-field-hint">Uso interno; não aparece na proposta do cliente.</small>
                     </div>
                 </div>
 
@@ -2035,6 +2065,18 @@ Motivo: Trocar a geração repetida pela abertura da venda já vinculada ao orç
 
         <script>
             document.addEventListener("DOMContentLoaded", function() {
+                const formulario = document.getElementById("form-novo-orcamento");
+
+                if (formulario) {
+                    formulario.addEventListener("keydown", function(evento) {
+                        if (evento.key !== "Enter" || evento.isComposing || evento.target instanceof HTMLTextAreaElement) {
+                            return;
+                        }
+
+                        evento.preventDefault();
+                    });
+                }
+
                 gestflowTravarFormularioDocumento({
                     formId: "form-novo-orcamento",
                     camposObrigatorios: [

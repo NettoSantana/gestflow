@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_gerador.html
-Último recode: 2026-07-17 18:11 (America/Bahia)
-Motivo: Adequar exclusivamente o Painel de Custos e Lucro à referência visual aprovada, destacando lucro real após impostos e separando lucros de material e mão de obra.
+Último recode: 2026-07-22 11:08 (America/Bahia)
+Motivo: Destacar a numeração automática, ampliar as observações e impedir envio acidental do Gerador pela tecla Enter.
 -->
 
 <!DOCTYPE html>
@@ -72,6 +72,14 @@ Motivo: Adequar exclusivamente o Painel de Custos e Lucro à referência visual 
 
         .form-grid {
             align-items: start;
+        }
+
+        .gerador-observacoes {
+            min-height: 180px !important;
+            padding: 12px 14px !important;
+            line-height: 1.55;
+            resize: vertical;
+            white-space: pre-wrap;
         }
 
         .panel-summary {
@@ -932,7 +940,7 @@ Motivo: Adequar exclusivamente o Painel de Custos e Lucro à referência visual 
                                 <h3>Dados do orçamento</h3>
                                 <p class="page-subtitle">Informações básicas usadas para criar o orçamento final.</p>
                             </div>
-                            <span class="badge-info">Nº {{ proximo_numero|default('0001') }}</span>
+                            <span class="badge-info" title="Número gerado automaticamente pelo sistema">Nº {{ proximo_numero|default('Gerado automaticamente', true) }} · automático</span>
                         </div>
 
                         <div class="form-grid">
@@ -1173,7 +1181,7 @@ Motivo: Adequar exclusivamente o Painel de Custos e Lucro à referência visual 
 
                         <div class="form-group">
                             <label for="gerador_observacoes_cliente">Observações adicionais para o cliente</label>
-                            <textarea id="gerador_observacoes_cliente" name="gerador_observacoes_cliente" class="form-control textarea-control" style="min-height:110px; padding-top:12px; resize:vertical;" placeholder="Ex: Valores sujeitos à aprovação técnica em campo. Use parágrafos separados para melhorar a impressão.">{{ gerador_inicial.observacoes_cliente|default('') }}</textarea>
+                            <textarea id="gerador_observacoes_cliente" name="gerador_observacoes_cliente" rows="7" class="form-control textarea-control gerador-observacoes" placeholder="Ex: Valores sujeitos à aprovação técnica em campo. Use parágrafos separados para melhorar a impressão.">{{ gerador_inicial.observacoes_cliente|default('') }}</textarea>
                             <small class="field-hint">As observações serão exibidas depois do escopo, mantendo parágrafos e quebras de linha.</small>
                         </div>
                     </section>
@@ -2348,6 +2356,17 @@ function conectarEventosGlobaisGerador() {
 
 window.addEventListener('DOMContentLoaded', function() {
     conectarEventosGlobaisGerador();
+
+    const formulario = document.getElementById('gerador-form');
+    if (formulario) {
+        formulario.addEventListener('keydown', function(evento) {
+            if (evento.key !== 'Enter' || evento.isComposing || evento.target instanceof HTMLTextAreaElement) {
+                return;
+            }
+
+            evento.preventDefault();
+        });
+    }
 
     const materiais = Array.isArray(geradorInicial.materiais) ? geradorInicial.materiais : [];
     const maoObra = Array.isArray(geradorInicial.mao_obra) ? geradorInicial.mao_obra : [];

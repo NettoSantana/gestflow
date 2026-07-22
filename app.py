@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-21 06:39 (America/Bahia)
-# Motivo: Manter a validação do celular no cartão de ponto por 30 dias.
+# Último recode: 2026-07-22 10:46 (America/Bahia)
+# Motivo: Criar numeração anual segura dos orçamentos e retornar à listagem após salvar.
 
 from __future__ import annotations
 
@@ -1626,6 +1626,17 @@ def iniciar_banco() -> None:
                 subtotal TEXT,
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (orcamento_id) REFERENCES orcamentos (id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS orcamento_sequencias (
+                empresa_id INTEGER NOT NULL,
+                ano INTEGER NOT NULL,
+                ultimo_numero INTEGER NOT NULL DEFAULT 0,
+                atualizado_em TEXT,
+                PRIMARY KEY (empresa_id, ano)
             )
             """
         )
@@ -6780,22 +6791,108 @@ def ver_atividade_financeira(atividade_id: int) -> str | Response:
     return render_template('atividade_financeira_detalhe.html', atividade=atividade, resumo=resumir_atividade_financeira(atividade_id), titulos=titulos)
 
 
-def proximo_numero_orcamento() -> str:
+def _ano_numero_orcamento(data_orcamento: Any = None) -> int:
+    texto = str(data_orcamento or "").strip()
+
+    if texto:
+        try:
+            return date.fromisoformat(texto[:10]).year
+        except ValueError:
+            pass
+
+    return hoje_empresa().year
+
+
+def _maior_sequencia_orcamento_existente(
+    conn: sqlite3.Connection,
+    empresa_id: int,
+    ano: int,
+) -> int:
+    rows = conn.execute(
+        """
+        SELECT numero, data, criado_em
+        FROM orcamentos
+        WHERE empresa_id = ?
+        """,
+        (empresa_id,),
+    ).fetchall()
+    maior = 0
+
+    for row in rows:
+        numero = str(row["numero"] or "").strip()
+        correspondencia = re.fullmatch(r"ORC-(\d{4})-(\d+)", numero, flags=re.IGNORECASE)
+
+        if correspondencia is not None:
+            if int(correspondencia.group(1)) == ano:
+                maior = max(maior, int(correspondencia.group(2)))
+            continue
+
+        if not numero.isdigit():
+            continue
+
+        data_registro = str(row["data"] or row["criado_em"] or "").strip()
+        if _ano_numero_orcamento(data_registro) == ano:
+            maior = max(maior, int(numero))
+
+    return maior
+
+
+def _proximo_numero_orcamento_conn(
+    conn: sqlite3.Connection,
+    empresa_id: int,
+    ano: int,
+    *,
+    reservar: bool,
+) -> str:
+    row = conn.execute(
+        """
+        SELECT ultimo_numero
+        FROM orcamento_sequencias
+        WHERE empresa_id = ?
+          AND ano = ?
+        LIMIT 1
+        """,
+        (empresa_id, ano),
+    ).fetchone()
+    ultimo_registrado = 0 if row is None else int(row["ultimo_numero"] or 0)
+    maior_existente = _maior_sequencia_orcamento_existente(conn, empresa_id, ano)
+    proximo = max(ultimo_registrado, maior_existente) + 1
+
+    if reservar:
+        conn.execute(
+            """
+            INSERT INTO orcamento_sequencias (
+                empresa_id,
+                ano,
+                ultimo_numero,
+                atualizado_em
+            ) VALUES (?, ?, ?, ?)
+            ON CONFLICT(empresa_id, ano) DO UPDATE SET
+                ultimo_numero = excluded.ultimo_numero,
+                atualizado_em = excluded.atualizado_em
+            """,
+            (
+                empresa_id,
+                ano,
+                proximo,
+                agora_empresa().isoformat(timespec="seconds"),
+            ),
+        )
+
+    return f"ORC-{ano}-{proximo:04d}"
+
+
+def proximo_numero_orcamento(data_orcamento: Any = None) -> str:
     empresa_id = empresa_logada_id()
+    ano = _ano_numero_orcamento(data_orcamento)
 
     with conectar_db() as conn:
-        row = conn.execute(
-            """
-            SELECT
-                COALESCE(MAX(id), 0) + 1 AS proximo
-            FROM orcamentos
-            WHERE empresa_id = ?
-            """,
-            (empresa_id,),
-        ).fetchone()
-
-    proximo = 1 if row is None else int(row["proximo"])
-    return str(proximo).zfill(4)
+        return _proximo_numero_orcamento_conn(
+            conn,
+            empresa_id,
+            ano,
+            reservar=False,
+        )
 
 def salvar_orcamento_db(
     orcamento: dict[str, str],
@@ -6805,12 +6902,19 @@ def salvar_orcamento_db(
     retornar_criacao: bool = False,
 ) -> int | tuple[int, bool]:
     empresa_id = empresa_logada_id()
-    numero_normalizado = str(orcamento.get("numero") or "").strip()
+    ano_numero = _ano_numero_orcamento(orcamento.get("data"))
 
     with conectar_db() as conn:
-        if impedir_numero_duplicado:
-            conn.execute("BEGIN IMMEDIATE")
+        conn.execute("BEGIN IMMEDIATE")
+        orcamento["numero"] = _proximo_numero_orcamento_conn(
+            conn,
+            empresa_id,
+            ano_numero,
+            reservar=True,
+        )
+        numero_normalizado = str(orcamento["numero"]).strip()
 
+        if impedir_numero_duplicado:
             if numero_normalizado:
                 existente = conn.execute(
                     """
@@ -25077,7 +25181,17 @@ def gerador_orcamentos() -> str | Response:
             ))
 
         novo_orcamento_id = gerar_orcamento_por_gerador_db(dados)
-        return redirect(url_for("ver_orcamento", orcamento_id=novo_orcamento_id))
+        novo_orcamento = buscar_orcamento_por_id(novo_orcamento_id)
+        return redirect(
+            url_for(
+                "orcamentos",
+                sucesso=(
+                    f"Orçamento {novo_orcamento.get('numero')} gerado com sucesso."
+                    if novo_orcamento is not None
+                    else "Orçamento gerado com sucesso."
+                ),
+            )
+        )
 
     return render_template(
         "orcamento_gerador.html",
@@ -25111,7 +25225,7 @@ def revisar_gerador_orcamento(orcamento_id: int) -> str | Response:
         if float(dados.get("valor_escolhido") or 0) <= 0:
             return redirect(url_for("revisar_gerador_orcamento", orcamento_id=orcamento_id, erro="O valor recalculado precisa ser maior que zero."))
         atualizar_orcamento_por_gerador_db(orcamento_id, dados)
-        return redirect(url_for("ver_orcamento", orcamento_id=orcamento_id, sucesso="Dados do Gerador atualizados e orçamento recalculado."))
+        return redirect(url_for("orcamentos", sucesso="Dados do Gerador atualizados e orçamento recalculado."))
 
     return render_template(
         "orcamento_gerador.html",
@@ -25191,8 +25305,7 @@ def salvar_orcamento() -> Response:
     if not orcamento_criado:
         return redirect(
             url_for(
-                "ver_orcamento",
-                orcamento_id=orcamento_id,
+                "orcamentos",
                 aviso="Este orçamento já havia sido salvo. Nenhuma duplicidade foi criada.",
             )
         )
@@ -25209,7 +25322,12 @@ def salvar_orcamento() -> Response:
         f"Criou orçamento {orcamento.get('numero') or orcamento_id}",
         request.path,
     )
-    return redirect(url_for("orcamentos"))
+    return redirect(
+        url_for(
+            "orcamentos",
+            sucesso=f"Orçamento {orcamento.get('numero')} criado com sucesso.",
+        )
+    )
 
 
 
@@ -25403,6 +25521,7 @@ def atualizar_orcamento(orcamento_id: int) -> Response:
         return redirect(url_for("orcamentos"))
 
     orcamento = montar_orcamento_formulario(numero_padrao=str(orcamento_atual["numero"] or ""))
+    orcamento["numero"] = str(orcamento_atual["numero"] or "")
     orcamento["origem"] = str(orcamento_atual.get("origem") or "manual")
     itens = montar_orcamento_itens_formulario()
     itens_apresentacao = montar_orcamento_apresentacao_formulario()
@@ -25490,9 +25609,8 @@ def atualizar_orcamento(orcamento_id: int) -> Response:
 
     return redirect(
         url_for(
-            "ver_orcamento",
-            orcamento_id=orcamento_id,
-            sucesso="Orçamento atualizado com o valor final informado.",
+            "orcamentos",
+            sucesso=f"Orçamento {orcamento.get('numero')} atualizado com sucesso.",
         )
     )
 
