@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-22 10:46 (America/Bahia)
-# Motivo: Criar numeração anual segura dos orçamentos e retornar à listagem após salvar.
+# Último recode: 2026-07-22 11:44 (America/Bahia)
+# Motivo: Criar numeração anual segura de OS e vendas e retornar às listagens após salvar.
 
 from __future__ import annotations
 
@@ -1810,6 +1810,17 @@ def iniciar_banco() -> None:
         )
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS venda_sequencias (
+                empresa_id INTEGER NOT NULL,
+                ano INTEGER NOT NULL,
+                ultimo_numero INTEGER NOT NULL DEFAULT 0,
+                atualizado_em TEXT,
+                PRIMARY KEY (empresa_id, ano)
+            )
+            """
+        )
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS venda_itens (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 venda_id INTEGER NOT NULL,
@@ -1822,6 +1833,17 @@ def iniciar_banco() -> None:
                 subtotal TEXT,
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (venda_id) REFERENCES vendas (id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS ordem_servico_sequencias (
+                empresa_id INTEGER NOT NULL,
+                ano INTEGER NOT NULL,
+                ultimo_numero INTEGER NOT NULL DEFAULT 0,
+                atualizado_em TEXT,
+                PRIMARY KEY (empresa_id, ano)
             )
             """
         )
@@ -10211,28 +10233,114 @@ def atualizar_orcamento_por_gerador_db(orcamento_id: int, dados: dict[str, Any])
 
 
 
-def proximo_numero_venda() -> str:
+def _ano_numero_venda(data_venda: Any = None) -> int:
+    return _ano_numero_orcamento(data_venda)
+
+
+def _maior_sequencia_venda_existente(
+    conn: sqlite3.Connection,
+    empresa_id: int,
+    ano: int,
+) -> int:
+    rows = conn.execute(
+        """
+        SELECT numero, data, criado_em
+        FROM vendas
+        WHERE empresa_id = ?
+        """,
+        (empresa_id,),
+    ).fetchall()
+    maior = 0
+
+    for row in rows:
+        numero = str(row["numero"] or "").strip()
+        correspondencia = re.fullmatch(r"VEN-(\d{4})-(\d+)", numero, flags=re.IGNORECASE)
+
+        if correspondencia is not None:
+            if int(correspondencia.group(1)) == ano:
+                maior = max(maior, int(correspondencia.group(2)))
+            continue
+
+        if not numero.isdigit():
+            continue
+
+        data_registro = str(row["data"] or row["criado_em"] or "").strip()
+        if _ano_numero_venda(data_registro) == ano:
+            maior = max(maior, int(numero))
+
+    return maior
+
+
+def _proximo_numero_venda_conn(
+    conn: sqlite3.Connection,
+    empresa_id: int,
+    ano: int,
+    *,
+    reservar: bool,
+) -> str:
+    row = conn.execute(
+        """
+        SELECT ultimo_numero
+        FROM venda_sequencias
+        WHERE empresa_id = ?
+          AND ano = ?
+        LIMIT 1
+        """,
+        (empresa_id, ano),
+    ).fetchone()
+    ultimo_registrado = 0 if row is None else int(row["ultimo_numero"] or 0)
+    maior_existente = _maior_sequencia_venda_existente(conn, empresa_id, ano)
+    proximo = max(ultimo_registrado, maior_existente) + 1
+
+    if reservar:
+        conn.execute(
+            """
+            INSERT INTO venda_sequencias (
+                empresa_id,
+                ano,
+                ultimo_numero,
+                atualizado_em
+            ) VALUES (?, ?, ?, ?)
+            ON CONFLICT(empresa_id, ano) DO UPDATE SET
+                ultimo_numero = excluded.ultimo_numero,
+                atualizado_em = excluded.atualizado_em
+            """,
+            (
+                empresa_id,
+                ano,
+                proximo,
+                agora_empresa().isoformat(timespec="seconds"),
+            ),
+        )
+
+    return f"VEN-{ano}-{proximo:04d}"
+
+
+def proximo_numero_venda(data_venda: Any = None) -> str:
     empresa_id = empresa_logada_id()
+    ano = _ano_numero_venda(data_venda)
 
     with conectar_db() as conn:
-        row = conn.execute(
-            """
-            SELECT
-                COALESCE(MAX(id), 0) + 1 AS proximo
-            FROM vendas
-            WHERE empresa_id = ?
-            """,
-            (empresa_id,),
-        ).fetchone()
-
-    proximo = 1 if row is None else int(row["proximo"])
-    return str(proximo).zfill(4)
+        return _proximo_numero_venda_conn(
+            conn,
+            empresa_id,
+            ano,
+            reservar=False,
+        )
 
 def salvar_venda_db(venda: dict[str, str], itens: list[dict[str, str]]) -> int:
     empresa_id = empresa_logada_id()
-    venda = normalizar_vinculos_financeiros_documento(venda)
+    venda.update(normalizar_vinculos_financeiros_documento(venda))
+    ano_numero = _ano_numero_venda(venda.get("data"))
 
     with conectar_db() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        venda["numero"] = _proximo_numero_venda_conn(
+            conn,
+            empresa_id,
+            ano_numero,
+            reservar=True,
+        )
         cursor = conn.execute(
             """
             INSERT INTO vendas (
@@ -10639,7 +10747,6 @@ def atualizar_venda_db(venda_id: int, venda: dict[str, str], itens: list[dict[st
             """
             UPDATE vendas
             SET
-                numero = ?,
                 cliente = ?,
                 responsavel = ?,
                 data = ?,
@@ -10670,7 +10777,6 @@ def atualizar_venda_db(venda_id: int, venda: dict[str, str], itens: list[dict[st
               AND empresa_id = ?
             """,
             (
-                venda["numero"],
                 venda["cliente"],
                 venda["responsavel"],
                 venda["data"],
@@ -10836,28 +10942,114 @@ def montar_venda_itens_formulario() -> list[dict[str, str]]:
     return itens
 
 
-def proximo_numero_ordem_servico() -> str:
+def _ano_numero_ordem_servico(data_abertura: Any = None) -> int:
+    return _ano_numero_orcamento(data_abertura)
+
+
+def _maior_sequencia_ordem_servico_existente(
+    conn: sqlite3.Connection,
+    empresa_id: int,
+    ano: int,
+) -> int:
+    rows = conn.execute(
+        """
+        SELECT numero, data_abertura, criado_em
+        FROM ordens_servico
+        WHERE empresa_id = ?
+        """,
+        (empresa_id,),
+    ).fetchall()
+    maior = 0
+
+    for row in rows:
+        numero = str(row["numero"] or "").strip()
+        correspondencia = re.fullmatch(r"OS-(\d{4})-(\d+)", numero, flags=re.IGNORECASE)
+
+        if correspondencia is not None:
+            if int(correspondencia.group(1)) == ano:
+                maior = max(maior, int(correspondencia.group(2)))
+            continue
+
+        if not numero.isdigit():
+            continue
+
+        data_registro = str(row["data_abertura"] or row["criado_em"] or "").strip()
+        if _ano_numero_ordem_servico(data_registro) == ano:
+            maior = max(maior, int(numero))
+
+    return maior
+
+
+def _proximo_numero_ordem_servico_conn(
+    conn: sqlite3.Connection,
+    empresa_id: int,
+    ano: int,
+    *,
+    reservar: bool,
+) -> str:
+    row = conn.execute(
+        """
+        SELECT ultimo_numero
+        FROM ordem_servico_sequencias
+        WHERE empresa_id = ?
+          AND ano = ?
+        LIMIT 1
+        """,
+        (empresa_id, ano),
+    ).fetchone()
+    ultimo_registrado = 0 if row is None else int(row["ultimo_numero"] or 0)
+    maior_existente = _maior_sequencia_ordem_servico_existente(conn, empresa_id, ano)
+    proximo = max(ultimo_registrado, maior_existente) + 1
+
+    if reservar:
+        conn.execute(
+            """
+            INSERT INTO ordem_servico_sequencias (
+                empresa_id,
+                ano,
+                ultimo_numero,
+                atualizado_em
+            ) VALUES (?, ?, ?, ?)
+            ON CONFLICT(empresa_id, ano) DO UPDATE SET
+                ultimo_numero = excluded.ultimo_numero,
+                atualizado_em = excluded.atualizado_em
+            """,
+            (
+                empresa_id,
+                ano,
+                proximo,
+                agora_empresa().isoformat(timespec="seconds"),
+            ),
+        )
+
+    return f"OS-{ano}-{proximo:04d}"
+
+
+def proximo_numero_ordem_servico(data_abertura: Any = None) -> str:
     empresa_id = empresa_logada_id()
+    ano = _ano_numero_ordem_servico(data_abertura)
 
     with conectar_db() as conn:
-        row = conn.execute(
-            """
-            SELECT
-                COALESCE(MAX(id), 0) + 1 AS proximo
-            FROM ordens_servico
-            WHERE empresa_id = ?
-            """,
-            (empresa_id,),
-        ).fetchone()
-
-    proximo = 1 if row is None else int(row["proximo"])
-    return str(proximo).zfill(4)
+        return _proximo_numero_ordem_servico_conn(
+            conn,
+            empresa_id,
+            ano,
+            reservar=False,
+        )
 
 def salvar_ordem_servico_db(ordem_servico: dict[str, str], itens: list[dict[str, str]]) -> int:
     empresa_id = empresa_logada_id()
-    ordem_servico = normalizar_vinculos_financeiros_documento(ordem_servico)
+    ordem_servico.update(normalizar_vinculos_financeiros_documento(ordem_servico))
+    ano_numero = _ano_numero_ordem_servico(ordem_servico.get("data_abertura"))
 
     with conectar_db() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        ordem_servico["numero"] = _proximo_numero_ordem_servico_conn(
+            conn,
+            empresa_id,
+            ano_numero,
+            reservar=True,
+        )
         cursor = conn.execute(
             """
             INSERT INTO ordens_servico (
@@ -11015,7 +11207,6 @@ def atualizar_ordem_servico_db(ordem_servico_id: int, ordem_servico: dict[str, s
             """
             UPDATE ordens_servico
             SET
-                numero = ?,
                 cliente = ?,
                 responsavel = ?,
                 tecnico = ?,
@@ -11063,7 +11254,6 @@ def atualizar_ordem_servico_db(ordem_servico_id: int, ordem_servico: dict[str, s
               AND empresa_id = ?
             """,
             (
-                ordem_servico["numero"],
                 ordem_servico["cliente"],
                 ordem_servico["responsavel"],
                 ordem_servico["tecnico"],
@@ -23561,7 +23751,12 @@ def salvar_ordem_servico() -> Response:
         return redirect(url_for("editar_ordem_servico", ordem_servico_id=nova_ordem_servico_id, erro=str(exc)))
     registrar_atividade_usuario("criacao", "ordens_servico", f"Criou OS {ordem_servico.get('numero') or nova_ordem_servico_id}", request.path)
 
-    return redirect(url_for("ver_ordem_servico", ordem_servico_id=nova_ordem_servico_id))
+    return redirect(
+        url_for(
+            "ordens_servico",
+            sucesso=f"OS {ordem_servico.get('numero')} criada com sucesso.",
+        )
+    )
 
 
 @app.get("/ordens-servico/<int:ordem_servico_id>")
@@ -24302,6 +24497,7 @@ def atualizar_ordem_servico(ordem_servico_id: int) -> Response:
         return redirect(url_for("ordens_servico"))
 
     ordem_servico = montar_ordem_servico_formulario(numero_padrao=str(ordem_servico_atual["numero"] or ""))
+    ordem_servico["numero"] = str(ordem_servico_atual["numero"] or "")
 
     # Na edição, alguns navegadores móveis podem não enviar o valor do <select>
     # mesmo quando o cliente aparece selecionado. Como cliente é obrigatório,
@@ -24326,7 +24522,12 @@ def atualizar_ordem_servico(ordem_servico_id: int) -> Response:
     except ValueError as exc:
         return redirect(url_for("editar_ordem_servico", ordem_servico_id=ordem_servico_id, erro=str(exc)))
 
-    return redirect(url_for("ver_ordem_servico", ordem_servico_id=ordem_servico_id))
+    return redirect(
+        url_for(
+            "ordens_servico",
+            sucesso=f"OS {ordem_servico.get('numero')} atualizada com sucesso.",
+        )
+    )
 
 
 @app.post("/ordens-servico/<int:ordem_servico_id>/excluir")
@@ -24955,7 +25156,12 @@ def salvar_venda() -> Response:
     gerar_conta_receber_por_venda_db(venda_id, venda)
     registrar_atividade_usuario("criacao", "vendas", f"Criou venda {venda.get('numero') or venda_id}", request.path)
 
-    return redirect(url_for("vendas"))
+    return redirect(
+        url_for(
+            "vendas",
+            sucesso=f"Venda {venda.get('numero')} criada com sucesso.",
+        )
+    )
 
 
 @app.get("/vendas/<int:venda_id>")
@@ -25035,7 +25241,17 @@ def gerar_ordem_servico_por_venda(venda_id: int) -> Response:
     if ordem_servico_id is None:
         return redirect(url_for("vendas"))
 
-    return redirect(url_for("ordens_servico"))
+    ordem_servico = buscar_ordem_servico_por_id(ordem_servico_id)
+    return redirect(
+        url_for(
+            "ordens_servico",
+            sucesso=(
+                f"OS {ordem_servico.get('numero')} gerada pela venda."
+                if ordem_servico is not None
+                else "OS gerada pela venda."
+            ),
+        )
+    )
 
 @app.get("/vendas/<int:venda_id>/imprimir/a4")
 def imprimir_venda_a4(venda_id: int) -> str | Response:
@@ -25125,6 +25341,7 @@ def atualizar_venda(venda_id: int) -> Response:
         return redirect(url_for("vendas"))
 
     venda = montar_venda_formulario(numero_padrao=str(venda_atual["numero"] or ""))
+    venda["numero"] = str(venda_atual["numero"] or "")
     itens = montar_venda_itens_formulario()
     erro_validacao = validar_venda_para_salvar(venda, itens)
 
@@ -25149,7 +25366,12 @@ def atualizar_venda(venda_id: int) -> Response:
         f"Atualizou venda {venda.get('numero') or venda_id} e sincronizou parcelas abertas",
         request.path,
     )
-    return redirect(url_for("ver_venda", venda_id=venda_id, sucesso="Venda e parcelas abertas atualizadas."))
+    return redirect(
+        url_for(
+            "vendas",
+            sucesso=f"Venda {venda.get('numero')} e parcelas abertas atualizadas.",
+        )
+    )
 
 
 @app.post("/vendas/<int:venda_id>/excluir")
@@ -25397,17 +25619,18 @@ def gerar_venda_por_orcamento(orcamento_id: int) -> Response:
             request.path,
         )
 
-    return redirect(
-        url_for(
-            "ver_venda",
-            venda_id=venda_id,
-            aviso=(
-                "Venda já gerada anteriormente para este orçamento."
-                if not venda_criada
-                else "Venda gerada pelo orçamento."
-            ),
+    venda = buscar_venda_por_id(venda_id)
+    mensagem = (
+        "Venda já gerada anteriormente para este orçamento."
+        if not venda_criada
+        else (
+            f"Venda {venda.get('numero')} gerada pelo orçamento."
+            if venda is not None
+            else "Venda gerada pelo orçamento."
         )
     )
+    parametro = "aviso" if not venda_criada else "sucesso"
+    return redirect(url_for("vendas", **{parametro: mensagem}))
 
 
 @app.get("/orcamentos/<int:orcamento_id>/gerar/os")
@@ -25417,7 +25640,17 @@ def gerar_ordem_servico_por_orcamento(orcamento_id: int) -> Response:
     if ordem_servico_id is None:
         return redirect(url_for("orcamentos"))
 
-    return redirect(url_for("ver_ordem_servico", ordem_servico_id=ordem_servico_id))
+    ordem_servico = buscar_ordem_servico_por_id(ordem_servico_id)
+    return redirect(
+        url_for(
+            "ordens_servico",
+            sucesso=(
+                f"OS {ordem_servico.get('numero')} disponível na listagem."
+                if ordem_servico is not None
+                else "OS disponível na listagem."
+            ),
+        )
+    )
 
 @app.get("/orcamentos/<int:orcamento_id>/gerar/copia")
 def gerar_copia_orcamento(orcamento_id: int) -> Response:
