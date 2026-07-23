@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-22 15:55 (America/Bahia)
-# Motivo: Impedir duplicação do escopo ao editar orçamentos e remover marcações Markdown da impressão.
+# Último recode: 2026-07-22 21:37 (America/Bahia)
+# Motivo: Adicionar a base completa, segura e multiempresa do módulo Contratos.
 
 from __future__ import annotations
 
@@ -46,10 +46,13 @@ UPLOAD_DIR = DATA_DIR / "uploads" / "logos"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 OS_FOTOS_DIR = DATA_DIR / "uploads" / "os_fotos"
 OS_FOTOS_DIR.mkdir(parents=True, exist_ok=True)
+CONTRATOS_ANEXOS_DIR = DATA_DIR / "uploads" / "contratos"
+CONTRATOS_ANEXOS_DIR.mkdir(parents=True, exist_ok=True)
 VITRINE_UPLOAD_DIR = DATA_DIR / "uploads" / "vitrines"
 VITRINE_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 EXTENSOES_LOGO_PERMITIDAS = {"png", "jpg", "jpeg", "webp", "gif", "jfif", "avif"}
 EXTENSOES_FOTO_OS_PERMITIDAS = {"png", "jpg", "jpeg", "jfif", "webp"}
+EXTENSOES_ANEXO_CONTRATO_PERMITIDAS = {"pdf", "png", "jpg", "jpeg", "webp", "doc", "docx"}
 EXTENSOES_FOTO_VITRINE_PERMITIDAS = {"png", "jpg", "jpeg", "webp"}
 
 
@@ -79,6 +82,7 @@ GESTFLOW_MODULOS = [
     {"codigo": "servicos", "nome": "Serviços", "grupo": "Operação", "descricao": "Cadastro de serviços prestados."},
     {"codigo": "orcamentos", "nome": "Orçamentos", "grupo": "Comercial", "descricao": "Propostas comerciais e orçamentos manuais."},
     {"codigo": "gerador_orcamentos", "nome": "Gerador de Orçamentos", "grupo": "Comercial", "descricao": "Gerador técnico com materiais, mão de obra, custos e escopo."},
+    {"codigo": "contratos", "nome": "Contratos", "grupo": "Comercial", "descricao": "Contratos de serviços, recorrências e locações."},
     {"codigo": "vendas", "nome": "Vendas", "grupo": "Comercial", "descricao": "Registro de vendas completas."},
     {"codigo": "vitrine", "nome": "Vitrine Online", "grupo": "Comercial", "descricao": "Catálogo online com produtos, templates, personalização e métricas."},
     {"codigo": "pdv", "nome": "Balcão / PDV", "grupo": "Comercial", "descricao": "Venda rápida de balcão e caixa."},
@@ -166,6 +170,7 @@ GESTFLOW_PERMISSOES_PADRAO_PERFIL: dict[str, dict[str, set[str]]] = {
         "servicos": set(_ACOES_OPERACAO),
         "orcamentos": set(_ACOES_OPERACAO),
         "gerador_orcamentos": set(_ACOES_OPERACAO),
+        "contratos": set(_ACOES_OPERACAO),
         "vendas": set(_ACOES_OPERACAO),
         "pdv": set(_ACOES_OPERACAO),
         "agendamentos": set(_ACOES_OPERACAO),
@@ -184,6 +189,7 @@ GESTFLOW_PERMISSOES_PADRAO_PERFIL: dict[str, dict[str, set[str]]] = {
         "produtos": set(_ACOES_LEITURA),
         "estoque": set(_ACOES_LEITURA),
         "orcamentos": set(_ACOES_LEITURA),
+        "contratos": set(_ACOES_LEITURA),
         "vendas": set(_ACOES_LEITURA),
         "ordens_servico": set(_ACOES_LEITURA),
         "atividades_financeiras": set(_ACOES_TOTAIS),
@@ -204,6 +210,7 @@ GESTFLOW_PERMISSOES_PADRAO_PERFIL: dict[str, dict[str, set[str]]] = {
         "funcionarios": set(_ACOES_LEITURA),
         "equipamentos": set(_ACOES_OPERACAO),
         "servicos": set(_ACOES_LEITURA),
+        "contratos": set(_ACOES_LEITURA),
         "ordens_servico": set(_ACOES_OPERACAO),
         "painel_os": set(_ACOES_OPERACAO),
         "produtos": set(_ACOES_LEITURA),
@@ -220,6 +227,44 @@ GESTFLOW_PERMISSOES_PADRAO_PERFIL: dict[str, dict[str, set[str]]] = {
 }
 
 PONTO_BLOQUEIO_NOVA_JORNADA_SEGUNDOS = 10
+
+CONTRATO_TIPOS = [
+    {"codigo": "servico", "nome": "Serviço"},
+    {"codigo": "recorrente", "nome": "Serviço recorrente"},
+    {"codigo": "locacao", "nome": "Locação"},
+]
+CONTRATO_TIPOS_CODIGOS = {item["codigo"] for item in CONTRATO_TIPOS}
+
+CONTRATO_STATUS = [
+    {"codigo": "rascunho", "nome": "Rascunho"},
+    {"codigo": "aguardando_assinatura", "nome": "Aguardando assinatura"},
+    {"codigo": "ativo", "nome": "Ativo"},
+    {"codigo": "suspenso", "nome": "Suspenso"},
+    {"codigo": "encerrado", "nome": "Encerrado"},
+    {"codigo": "cancelado", "nome": "Cancelado"},
+]
+CONTRATO_STATUS_CODIGOS = {item["codigo"] for item in CONTRATO_STATUS}
+
+CONTRATO_PERIODICIDADES = [
+    {"codigo": "unica", "nome": "Cobrança única"},
+    {"codigo": "mensal", "nome": "Mensal"},
+    {"codigo": "bimestral", "nome": "Bimestral"},
+    {"codigo": "trimestral", "nome": "Trimestral"},
+    {"codigo": "semestral", "nome": "Semestral"},
+    {"codigo": "anual", "nome": "Anual"},
+]
+CONTRATO_PERIODICIDADES_CODIGOS = {
+    item["codigo"] for item in CONTRATO_PERIODICIDADES
+}
+
+CONTRATO_TRANSICOES_STATUS = {
+    "rascunho": {"aguardando_assinatura", "ativo", "cancelado"},
+    "aguardando_assinatura": {"rascunho", "ativo", "cancelado"},
+    "ativo": {"suspenso", "encerrado", "cancelado"},
+    "suspenso": {"ativo", "encerrado", "cancelado"},
+    "encerrado": set(),
+    "cancelado": set(),
+}
 
 GERADOR_ADICIONAIS_MAO_OBRA_TIPOS = [
     {"codigo": "hora_extra_sabado", "nome": "Hora extra de sábado"},
@@ -302,11 +347,11 @@ GESTFLOW_SEGMENTOS_POR_CODIGO = {segmento["codigo"]: segmento for segmento in GE
 
 GESTFLOW_PERFIS_MODULOS = {
     "comercio": {"clientes", "fornecedores", "produtos", "vendas", "vitrine", "pdv", "devolucoes", "estoque", "financeiro"},
-    "servicos": {"clientes", "servicos", "orcamentos", "vendas", "vitrine", "financeiro", "agendamentos"},
-    "assistencia": {"clientes", "fornecedores", "funcionarios", "equipamentos", "produtos", "servicos", "orcamentos", "vendas", "vitrine", "ordens_servico", "estoque", "financeiro", "agendamentos", "registro_ponto", "gestao_atividades"},
-    "industrial": {"clientes", "fornecedores", "funcionarios", "equipamentos", "produtos", "servicos", "orcamentos", "gerador_orcamentos", "vendas", "ordens_servico", "painel_os", "estoque", "financeiro", "registro_ponto", "gestao_atividades"},
+    "servicos": {"clientes", "servicos", "orcamentos", "contratos", "vendas", "vitrine", "financeiro", "agendamentos"},
+    "assistencia": {"clientes", "fornecedores", "funcionarios", "equipamentos", "produtos", "servicos", "orcamentos", "contratos", "vendas", "vitrine", "ordens_servico", "estoque", "financeiro", "agendamentos", "registro_ponto", "gestao_atividades"},
+    "industrial": {"clientes", "fornecedores", "funcionarios", "equipamentos", "produtos", "servicos", "orcamentos", "gerador_orcamentos", "contratos", "vendas", "ordens_servico", "painel_os", "estoque", "financeiro", "registro_ponto", "gestao_atividades"},
     "distribuicao": {"clientes", "fornecedores", "produtos", "vendas", "vitrine", "devolucoes", "estoque", "financeiro"},
-    "locacao": {"clientes", "fornecedores", "funcionarios", "equipamentos", "produtos", "servicos", "orcamentos", "vendas", "ordens_servico", "estoque", "financeiro"},
+    "locacao": {"clientes", "fornecedores", "funcionarios", "equipamentos", "produtos", "servicos", "orcamentos", "contratos", "vendas", "ordens_servico", "estoque", "financeiro"},
     "completo": set(GESTFLOW_MODULOS_CODIGOS),
 }
 
@@ -419,18 +464,18 @@ def sugerir_modulos_por_anamnese(dados: dict[str, Any]) -> dict[str, bool]:
     if "produtos" in operacao or "balcao" in operacao or "estoque" in operacao:
         ativos.update({"clientes", "produtos", "vendas", "estoque"})
     if "servicos" in operacao:
-        ativos.update({"clientes", "servicos", "orcamentos", "agendamentos"})
+        ativos.update({"clientes", "servicos", "orcamentos", "contratos", "agendamentos"})
     if "balcao" in operacao:
         ativos.update({"pdv", "devolucoes"})
     if "equipe_externa" in operacao or "ordem_servico" in operacao:
         ativos.update({"clientes", "funcionarios", "equipamentos", "servicos", "ordens_servico", "registro_ponto"})
     if "projetos_obras" in operacao:
-        ativos.update({"clientes", "fornecedores", "funcionarios", "produtos", "servicos", "orcamentos", "gerador_orcamentos", "ordens_servico", "financeiro", "registro_ponto"})
+        ativos.update({"clientes", "fornecedores", "funcionarios", "produtos", "servicos", "orcamentos", "gerador_orcamentos", "contratos", "ordens_servico", "financeiro", "registro_ponto"})
 
     if "orcamento" in comercial:
-        ativos.update({"clientes", "orcamentos"})
+        ativos.update({"clientes", "orcamentos", "contratos"})
     if "gerador" in comercial:
-        ativos.update({"clientes", "orcamentos", "gerador_orcamentos", "produtos", "servicos", "funcionarios"})
+        ativos.update({"clientes", "orcamentos", "gerador_orcamentos", "contratos", "produtos", "servicos", "funcionarios"})
     if "venda_direta" in comercial:
         ativos.update({"clientes", "vendas"})
     if "whatsapp" in comercial:
@@ -481,6 +526,8 @@ def sugerir_modulos_por_anamnese(dados: dict[str, Any]) -> dict[str, bool]:
         ativos.update({"clientes", "produtos", "vendas"})
     if "gerador_orcamentos" in ativos:
         ativos.add("orcamentos")
+    if "contratos" in ativos:
+        ativos.add("clientes")
     if "painel_os" in ativos:
         ativos.add("ordens_servico")
     if "estoque" in ativos:
@@ -551,6 +598,7 @@ def modulo_por_rota(path: str) -> str:
     regras = [
         ("/orcamentos/gerador", "gerador_orcamentos"),
         ("/orcamentos", "orcamentos"),
+        ("/contratos", "contratos"),
         ("/vendas/balcao", "pdv"),
         ("/vendas/devolucoes", "devolucoes"),
         ("/vendas", "vendas"),
@@ -16358,6 +16406,7 @@ def modulo_por_rota_admin(rota: str) -> str | None:
         "/produtos": "produtos",
         "/servicos": "servicos",
         "/orcamentos": "orcamentos",
+        "/contratos": "contratos",
         "/vendas": "vendas",
         "/ordens-servico": "ordens_servico",
         "/estoque": "estoque",
@@ -17006,11 +17055,16 @@ def excluir_empresa_cliente_admin_db(empresa_id: int) -> bool:
 
     with conectar_db() as conn:
         tabelas_por_empresa = [
+            "contrato_historico",
+            "contrato_anexos",
+            "contrato_itens",
+            "contrato_sequencias",
             "orcamento_itens",
             "venda_itens",
             "ordem_servico_itens",
             "estoque_movimentacoes",
             "financeiro_titulos",
+            "contratos",
             "orcamentos",
             "vendas",
             "ordens_servico",
@@ -26622,6 +26676,1640 @@ def enviar_email_zoho(destinatario: str, assunto: str, corpo: str) -> tuple[bool
         return False, f"Falha ao enviar e-mail: {exc}"
 
 
+def garantir_estrutura_contratos() -> None:
+    """Cria e migra a estrutura do módulo Contratos sem apagar dados."""
+    with conectar_db() as conn:
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS contratos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER NOT NULL,
+                numero TEXT NOT NULL,
+                tipo TEXT NOT NULL DEFAULT 'servico',
+                status TEXT NOT NULL DEFAULT 'rascunho',
+                cliente_id INTEGER,
+                cliente TEXT NOT NULL,
+                responsavel_funcionario_id INTEGER,
+                responsavel TEXT,
+                centro_custo_id INTEGER,
+                centro_custo TEXT,
+                orcamento_id INTEGER,
+                titulo TEXT NOT NULL,
+                objeto TEXT,
+                data_inicio TEXT NOT NULL,
+                data_fim TEXT,
+                renovacao_automatica TEXT NOT NULL DEFAULT 'nao',
+                periodicidade TEXT NOT NULL DEFAULT 'unica',
+                dia_vencimento INTEGER,
+                valor_total TEXT,
+                valor_recorrente TEXT,
+                forma_pagamento TEXT,
+                observacoes TEXT,
+                motivo_cancelamento TEXT,
+                cancelado_em TEXT,
+                encerrado_em TEXT,
+                versao INTEGER NOT NULL DEFAULT 1,
+                criado_por_usuario_id INTEGER,
+                criado_por_nome TEXT,
+                criado_em TEXT DEFAULT CURRENT_TIMESTAMP,
+                atualizado_em TEXT
+            );
+            CREATE TABLE IF NOT EXISTS contrato_itens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER NOT NULL,
+                contrato_id INTEGER NOT NULL,
+                tipo_item TEXT NOT NULL DEFAULT 'servico',
+                referencia_id INTEGER,
+                descricao TEXT NOT NULL,
+                detalhes TEXT,
+                quantidade TEXT,
+                valor_unitario TEXT,
+                subtotal TEXT,
+                ordem INTEGER NOT NULL DEFAULT 1,
+                criado_em TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE IF NOT EXISTS contrato_anexos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER NOT NULL,
+                contrato_id INTEGER NOT NULL,
+                nome_original TEXT NOT NULL,
+                nome_arquivo TEXT NOT NULL,
+                caminho TEXT NOT NULL,
+                tipo_mime TEXT,
+                tamanho_bytes INTEGER NOT NULL DEFAULT 0,
+                criado_por_usuario_id INTEGER,
+                criado_por_nome TEXT,
+                criado_em TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE IF NOT EXISTS contrato_historico (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER NOT NULL,
+                contrato_id INTEGER NOT NULL,
+                usuario_id INTEGER,
+                usuario_nome TEXT,
+                tipo_evento TEXT NOT NULL,
+                descricao TEXT,
+                status_anterior TEXT,
+                status_novo TEXT,
+                criado_em TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE IF NOT EXISTS contrato_sequencias (
+                empresa_id INTEGER NOT NULL,
+                ano INTEGER NOT NULL,
+                ultimo_numero INTEGER NOT NULL DEFAULT 0,
+                atualizado_em TEXT,
+                PRIMARY KEY (empresa_id, ano)
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_contratos_empresa_numero
+                ON contratos(empresa_id, numero);
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_contratos_empresa_orcamento
+                ON contratos(empresa_id, orcamento_id)
+                WHERE orcamento_id IS NOT NULL;
+            CREATE INDEX IF NOT EXISTS idx_contratos_empresa_status
+                ON contratos(empresa_id, status, id);
+            CREATE INDEX IF NOT EXISTS idx_contratos_empresa_cliente
+                ON contratos(empresa_id, cliente_id, id);
+            CREATE INDEX IF NOT EXISTS idx_contratos_empresa_vencimento
+                ON contratos(empresa_id, data_fim, status);
+            CREATE INDEX IF NOT EXISTS idx_contrato_itens_contrato
+                ON contrato_itens(empresa_id, contrato_id, ordem, id);
+            CREATE INDEX IF NOT EXISTS idx_contrato_anexos_contrato
+                ON contrato_anexos(empresa_id, contrato_id, id);
+            CREATE INDEX IF NOT EXISTS idx_contrato_historico_contrato
+                ON contrato_historico(empresa_id, contrato_id, id);
+            """
+        )
+
+        colunas_contratos = {
+            str(row["name"])
+            for row in conn.execute("PRAGMA table_info(contratos)").fetchall()
+        }
+        migracoes_contratos = {
+            "empresa_id": "INTEGER",
+            "cliente_id": "INTEGER",
+            "responsavel_funcionario_id": "INTEGER",
+            "centro_custo_id": "INTEGER",
+            "orcamento_id": "INTEGER",
+            "renovacao_automatica": "TEXT NOT NULL DEFAULT 'nao'",
+            "periodicidade": "TEXT NOT NULL DEFAULT 'unica'",
+            "dia_vencimento": "INTEGER",
+            "valor_recorrente": "TEXT",
+            "motivo_cancelamento": "TEXT",
+            "cancelado_em": "TEXT",
+            "encerrado_em": "TEXT",
+            "versao": "INTEGER NOT NULL DEFAULT 1",
+            "criado_por_usuario_id": "INTEGER",
+            "criado_por_nome": "TEXT",
+            "atualizado_em": "TEXT",
+        }
+        for coluna, definicao in migracoes_contratos.items():
+            if coluna not in colunas_contratos:
+                conn.execute(
+                    f"ALTER TABLE contratos ADD COLUMN {coluna} {definicao}"
+                )
+
+        conn.commit()
+
+
+def _id_positivo_contrato(valor: Any) -> int | None:
+    try:
+        numero = int(str(valor or "").strip())
+    except (TypeError, ValueError):
+        return None
+    return numero if numero > 0 else None
+
+
+def _normalizar_data_contrato(valor: Any) -> str:
+    texto = str(valor or "").strip()
+    if not texto:
+        return ""
+    try:
+        return date.fromisoformat(texto[:10]).isoformat()
+    except ValueError:
+        return ""
+
+
+def _ano_numero_contrato(data_inicio: Any = None) -> int:
+    data_normalizada = _normalizar_data_contrato(data_inicio)
+    if data_normalizada:
+        return date.fromisoformat(data_normalizada).year
+    return hoje_empresa().year
+
+
+def _maior_sequencia_contrato_existente(
+    conn: sqlite3.Connection,
+    empresa_id: int,
+    ano: int,
+) -> int:
+    rows = conn.execute(
+        "SELECT numero FROM contratos WHERE empresa_id = ?",
+        (empresa_id,),
+    ).fetchall()
+    maior = 0
+
+    for row in rows:
+        correspondencia = re.fullmatch(
+            r"CTR-(\d{4})-(\d+)",
+            str(row["numero"] or "").strip(),
+            flags=re.IGNORECASE,
+        )
+        if correspondencia is not None and int(correspondencia.group(1)) == ano:
+            maior = max(maior, int(correspondencia.group(2)))
+
+    return maior
+
+
+def _proximo_numero_contrato_conn(
+    conn: sqlite3.Connection,
+    empresa_id: int,
+    ano: int,
+    *,
+    reservar: bool,
+) -> str:
+    row = conn.execute(
+        """
+        SELECT ultimo_numero
+        FROM contrato_sequencias
+        WHERE empresa_id = ? AND ano = ?
+        LIMIT 1
+        """,
+        (empresa_id, ano),
+    ).fetchone()
+    ultimo_registrado = 0 if row is None else int(row["ultimo_numero"] or 0)
+    maior_existente = _maior_sequencia_contrato_existente(conn, empresa_id, ano)
+    proximo = max(ultimo_registrado, maior_existente) + 1
+
+    if reservar:
+        conn.execute(
+            """
+            INSERT INTO contrato_sequencias (
+                empresa_id, ano, ultimo_numero, atualizado_em
+            ) VALUES (?, ?, ?, ?)
+            ON CONFLICT(empresa_id, ano) DO UPDATE SET
+                ultimo_numero = excluded.ultimo_numero,
+                atualizado_em = excluded.atualizado_em
+            """,
+            (
+                empresa_id,
+                ano,
+                proximo,
+                agora_empresa().isoformat(timespec="seconds"),
+            ),
+        )
+
+    return f"CTR-{ano}-{proximo:04d}"
+
+
+def proximo_numero_contrato(data_inicio: Any = None) -> str:
+    with conectar_db() as conn:
+        return _proximo_numero_contrato_conn(
+            conn,
+            empresa_logada_id(),
+            _ano_numero_contrato(data_inicio),
+            reservar=False,
+        )
+
+
+def buscar_contrato_por_id(contrato_id: int) -> dict[str, Any] | None:
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT *
+            FROM contratos
+            WHERE id = ? AND empresa_id = ?
+            LIMIT 1
+            """,
+            (contrato_id, empresa_logada_id()),
+        ).fetchone()
+    return dict(row) if row is not None else None
+
+
+def listar_contrato_itens(contrato_id: int) -> list[dict[str, Any]]:
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT *
+            FROM contrato_itens
+            WHERE contrato_id = ? AND empresa_id = ?
+            ORDER BY ordem ASC, id ASC
+            """,
+            (contrato_id, empresa_logada_id()),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def listar_contrato_anexos(contrato_id: int) -> list[dict[str, Any]]:
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT *
+            FROM contrato_anexos
+            WHERE contrato_id = ? AND empresa_id = ?
+            ORDER BY id DESC
+            """,
+            (contrato_id, empresa_logada_id()),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def listar_contrato_historico(contrato_id: int) -> list[dict[str, Any]]:
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT *
+            FROM contrato_historico
+            WHERE contrato_id = ? AND empresa_id = ?
+            ORDER BY id DESC
+            """,
+            (contrato_id, empresa_logada_id()),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def _registrar_historico_contrato_conn(
+    conn: sqlite3.Connection,
+    contrato_id: int,
+    tipo_evento: str,
+    descricao: str,
+    *,
+    status_anterior: str = "",
+    status_novo: str = "",
+) -> None:
+    conn.execute(
+        """
+        INSERT INTO contrato_historico (
+            empresa_id,
+            contrato_id,
+            usuario_id,
+            usuario_nome,
+            tipo_evento,
+            descricao,
+            status_anterior,
+            status_novo,
+            criado_em
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            empresa_logada_id(),
+            contrato_id,
+            _id_positivo_contrato(session.get("usuario_id")),
+            str(session.get("usuario_nome") or "").strip(),
+            str(tipo_evento or "registro").strip(),
+            str(descricao or "").strip(),
+            str(status_anterior or "").strip(),
+            str(status_novo or "").strip(),
+            agora_empresa().isoformat(timespec="seconds"),
+        ),
+    )
+
+
+def montar_contrato_itens_formulario() -> list[dict[str, Any]]:
+    tipos = request.form.getlist("item_tipo[]")
+    referencias = request.form.getlist("item_referencia_id[]")
+    descricoes = request.form.getlist("item_descricao[]")
+    detalhes = request.form.getlist("item_detalhes[]")
+    quantidades = request.form.getlist("item_quantidade[]")
+    valores_unitarios = request.form.getlist("item_valor_unitario[]")
+    subtotais = request.form.getlist("item_subtotal[]")
+    total_linhas = max(
+        len(tipos),
+        len(referencias),
+        len(descricoes),
+        len(detalhes),
+        len(quantidades),
+        len(valores_unitarios),
+        len(subtotais),
+        0,
+    )
+    itens: list[dict[str, Any]] = []
+
+    for indice in range(total_linhas):
+        descricao = (
+            descricoes[indice] if indice < len(descricoes) else ""
+        ).strip()
+        if not descricao or descricao.startswith("__novo"):
+            continue
+
+        tipo_item = (
+            tipos[indice] if indice < len(tipos) else "servico"
+        ).strip().lower()
+        if tipo_item not in {"produto", "servico", "locacao", "outro"}:
+            tipo_item = "outro"
+
+        quantidade = _converter_valor_brl(
+            quantidades[indice] if indice < len(quantidades) else "1"
+        )
+        quantidade = quantidade if quantidade > 0 else 1.0
+        valor_unitario = _converter_valor_brl(
+            valores_unitarios[indice]
+            if indice < len(valores_unitarios)
+            else "0"
+        )
+        subtotal_informado = _converter_valor_brl(
+            subtotais[indice] if indice < len(subtotais) else "0"
+        )
+        subtotal = (
+            subtotal_informado
+            if subtotal_informado > 0
+            else quantidade * valor_unitario
+        )
+        itens.append(
+            {
+                "tipo_item": tipo_item,
+                "referencia_id": _id_positivo_contrato(
+                    referencias[indice] if indice < len(referencias) else None
+                ),
+                "descricao": descricao,
+                "detalhes": (
+                    detalhes[indice] if indice < len(detalhes) else ""
+                ).strip(),
+                "quantidade": _formatar_moeda_brl(quantidade),
+                "valor_unitario": _formatar_moeda_brl(valor_unitario),
+                "subtotal": _formatar_moeda_brl(subtotal),
+                "ordem": len(itens) + 1,
+            }
+        )
+
+    return itens
+
+
+def montar_contrato_formulario() -> dict[str, Any]:
+    tipo = str(request.form.get("tipo") or "servico").strip().lower()
+    if tipo not in CONTRATO_TIPOS_CODIGOS:
+        tipo = "servico"
+
+    status = str(request.form.get("status") or "rascunho").strip().lower()
+    if status not in {"rascunho", "aguardando_assinatura"}:
+        status = "rascunho"
+
+    periodicidade = str(
+        request.form.get("periodicidade") or "unica"
+    ).strip().lower()
+    if periodicidade not in CONTRATO_PERIODICIDADES_CODIGOS:
+        periodicidade = "unica"
+
+    try:
+        dia_vencimento = int(request.form.get("dia_vencimento") or 0)
+    except (TypeError, ValueError):
+        dia_vencimento = 0
+
+    return {
+        "tipo": tipo,
+        "status": status,
+        "cliente_id": _id_positivo_contrato(request.form.get("cliente_id")),
+        "cliente": str(request.form.get("cliente") or "").strip(),
+        "responsavel_funcionario_id": _id_positivo_contrato(
+            request.form.get("responsavel_funcionario_id")
+        ),
+        "responsavel": str(request.form.get("responsavel") or "").strip(),
+        "centro_custo_id": _id_positivo_contrato(
+            request.form.get("centro_custo_id")
+        ),
+        "centro_custo": str(request.form.get("centro_custo") or "").strip(),
+        "orcamento_id": _id_positivo_contrato(request.form.get("orcamento_id")),
+        "titulo": str(request.form.get("titulo") or "").strip(),
+        "objeto": str(request.form.get("objeto") or "").strip(),
+        "data_inicio": _normalizar_data_contrato(
+            request.form.get("data_inicio")
+        ),
+        "data_fim": _normalizar_data_contrato(request.form.get("data_fim")),
+        "renovacao_automatica": (
+            "sim"
+            if str(request.form.get("renovacao_automatica") or "").strip().lower()
+            in {"sim", "on", "1", "true"}
+            else "nao"
+        ),
+        "periodicidade": periodicidade,
+        "dia_vencimento": dia_vencimento if 1 <= dia_vencimento <= 31 else None,
+        "valor_total": _formatar_moeda_brl(
+            _converter_valor_brl(request.form.get("valor_total"))
+        ),
+        "valor_recorrente": _formatar_moeda_brl(
+            _converter_valor_brl(request.form.get("valor_recorrente"))
+        ),
+        "forma_pagamento": str(
+            request.form.get("forma_pagamento") or ""
+        ).strip(),
+        "observacoes": str(request.form.get("observacoes") or "").strip(),
+    }
+
+
+def _resolver_referencias_contrato(dados: dict[str, Any]) -> str:
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        cliente = None
+        if dados.get("cliente_id"):
+            cliente = conn.execute(
+                """
+                SELECT id, nome
+                FROM clientes
+                WHERE id = ? AND empresa_id = ?
+                LIMIT 1
+                """,
+                (dados["cliente_id"], empresa_id),
+            ).fetchone()
+        elif dados.get("cliente"):
+            cliente = conn.execute(
+                """
+                SELECT id, nome
+                FROM clientes
+                WHERE empresa_id = ? AND LOWER(TRIM(nome)) = LOWER(TRIM(?))
+                ORDER BY id ASC
+                LIMIT 1
+                """,
+                (empresa_id, dados["cliente"]),
+            ).fetchone()
+
+        if cliente is None:
+            return "Selecione um cliente cadastrado nesta empresa."
+        dados["cliente_id"] = int(cliente["id"])
+        dados["cliente"] = str(cliente["nome"] or "").strip()
+
+        if dados.get("responsavel_funcionario_id"):
+            responsavel = conn.execute(
+                """
+                SELECT id, nome
+                FROM funcionarios
+                WHERE id = ? AND empresa_id = ?
+                LIMIT 1
+                """,
+                (dados["responsavel_funcionario_id"], empresa_id),
+            ).fetchone()
+            if responsavel is None:
+                return "O responsável selecionado não pertence a esta empresa."
+            dados["responsavel"] = str(responsavel["nome"] or "").strip()
+        elif dados.get("responsavel"):
+            responsavel = conn.execute(
+                """
+                SELECT id, nome
+                FROM funcionarios
+                WHERE empresa_id = ? AND LOWER(TRIM(nome)) = LOWER(TRIM(?))
+                ORDER BY id ASC
+                LIMIT 1
+                """,
+                (empresa_id, dados["responsavel"]),
+            ).fetchone()
+            if responsavel is not None:
+                dados["responsavel_funcionario_id"] = int(responsavel["id"])
+                dados["responsavel"] = str(responsavel["nome"] or "").strip()
+
+        if dados.get("centro_custo_id"):
+            centro = conn.execute(
+                """
+                SELECT id, nome
+                FROM centros_custo
+                WHERE id = ? AND empresa_id = ?
+                LIMIT 1
+                """,
+                (dados["centro_custo_id"], empresa_id),
+            ).fetchone()
+            if centro is None:
+                return "O centro de custo selecionado não pertence a esta empresa."
+            dados["centro_custo"] = str(centro["nome"] or "").strip()
+
+        if dados.get("orcamento_id"):
+            orcamento = conn.execute(
+                """
+                SELECT id
+                FROM orcamentos
+                WHERE id = ? AND empresa_id = ?
+                LIMIT 1
+                """,
+                (dados["orcamento_id"], empresa_id),
+            ).fetchone()
+            if orcamento is None:
+                return "O orçamento selecionado não pertence a esta empresa."
+
+    return ""
+
+
+def validar_contrato_para_salvar(
+    dados: dict[str, Any],
+    itens: list[dict[str, Any]],
+    *,
+    contrato_id: int | None = None,
+) -> str:
+    erro_referencias = _resolver_referencias_contrato(dados)
+    if erro_referencias:
+        return erro_referencias
+
+    if not dados.get("titulo"):
+        return "Informe o título do contrato."
+    if not dados.get("objeto") and not itens:
+        return "Informe o objeto do contrato ou adicione pelo menos um item."
+    if not dados.get("data_inicio"):
+        return "Informe uma data inicial válida."
+    if dados.get("data_fim") and dados["data_fim"] < dados["data_inicio"]:
+        return "A data final não pode ser anterior à data inicial."
+    if dados.get("tipo") == "recorrente" and dados.get("periodicidade") == "unica":
+        return "Selecione uma periodicidade para o contrato recorrente."
+    if dados.get("periodicidade") != "unica":
+        if not dados.get("dia_vencimento"):
+            return "Informe o dia de vencimento da cobrança recorrente."
+        if _converter_valor_brl(dados.get("valor_recorrente")) <= 0:
+            return "Informe um valor recorrente maior que zero."
+    if (
+        _converter_valor_brl(dados.get("valor_total")) <= 0
+        and _converter_valor_brl(dados.get("valor_recorrente")) <= 0
+    ):
+        return "Informe o valor total ou o valor recorrente do contrato."
+
+    empresa_id = empresa_logada_id()
+    with conectar_db() as conn:
+        for item in itens:
+            referencia_id = _id_positivo_contrato(item.get("referencia_id"))
+            tipo_item = str(item.get("tipo_item") or "").strip()
+            if not referencia_id or tipo_item not in {"produto", "servico"}:
+                continue
+            tabela = "produtos" if tipo_item == "produto" else "servicos"
+            referencia = conn.execute(
+                f"SELECT id FROM {tabela} WHERE id = ? AND empresa_id = ? LIMIT 1",
+                (referencia_id, empresa_id),
+            ).fetchone()
+            if referencia is None:
+                return f"Um item de {tipo_item} não pertence a esta empresa."
+
+        if dados.get("orcamento_id"):
+            parametros: list[Any] = [empresa_id, dados["orcamento_id"]]
+            sql = (
+                "SELECT id FROM contratos "
+                "WHERE empresa_id = ? AND orcamento_id = ?"
+            )
+            if contrato_id:
+                sql += " AND id <> ?"
+                parametros.append(contrato_id)
+            sql += " LIMIT 1"
+            existente = conn.execute(sql, parametros).fetchone()
+            if existente is not None:
+                return "Este orçamento já está vinculado a outro contrato."
+
+    return ""
+
+
+def _salvar_itens_contrato_conn(
+    conn: sqlite3.Connection,
+    contrato_id: int,
+    itens: list[dict[str, Any]],
+) -> None:
+    empresa_id = empresa_logada_id()
+    conn.execute(
+        "DELETE FROM contrato_itens WHERE contrato_id = ? AND empresa_id = ?",
+        (contrato_id, empresa_id),
+    )
+    for ordem, item in enumerate(itens, start=1):
+        conn.execute(
+            """
+            INSERT INTO contrato_itens (
+                empresa_id,
+                contrato_id,
+                tipo_item,
+                referencia_id,
+                descricao,
+                detalhes,
+                quantidade,
+                valor_unitario,
+                subtotal,
+                ordem
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                empresa_id,
+                contrato_id,
+                item.get("tipo_item") or "outro",
+                _id_positivo_contrato(item.get("referencia_id")),
+                str(item.get("descricao") or "").strip(),
+                str(item.get("detalhes") or "").strip(),
+                str(item.get("quantidade") or "").strip(),
+                str(item.get("valor_unitario") or "").strip(),
+                str(item.get("subtotal") or "").strip(),
+                ordem,
+            ),
+        )
+
+
+def salvar_contrato_db(
+    dados: dict[str, Any],
+    itens: list[dict[str, Any]],
+) -> int:
+    empresa_id = empresa_logada_id()
+    agora = agora_empresa().isoformat(timespec="seconds")
+
+    with conectar_db() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        numero = _proximo_numero_contrato_conn(
+            conn,
+            empresa_id,
+            _ano_numero_contrato(dados.get("data_inicio")),
+            reservar=True,
+        )
+        cursor = conn.execute(
+            """
+            INSERT INTO contratos (
+                empresa_id,
+                numero,
+                tipo,
+                status,
+                cliente_id,
+                cliente,
+                responsavel_funcionario_id,
+                responsavel,
+                centro_custo_id,
+                centro_custo,
+                orcamento_id,
+                titulo,
+                objeto,
+                data_inicio,
+                data_fim,
+                renovacao_automatica,
+                periodicidade,
+                dia_vencimento,
+                valor_total,
+                valor_recorrente,
+                forma_pagamento,
+                observacoes,
+                versao,
+                criado_por_usuario_id,
+                criado_por_nome,
+                criado_em,
+                atualizado_em
+            ) VALUES (
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                ?, ?, 1, ?, ?, ?, ?
+            )
+            """,
+            (
+                empresa_id,
+                numero,
+                dados["tipo"],
+                dados["status"],
+                dados["cliente_id"],
+                dados["cliente"],
+                dados.get("responsavel_funcionario_id"),
+                dados.get("responsavel") or "",
+                dados.get("centro_custo_id"),
+                dados.get("centro_custo") or "",
+                dados.get("orcamento_id"),
+                dados["titulo"],
+                dados.get("objeto") or "",
+                dados["data_inicio"],
+                dados.get("data_fim") or "",
+                dados.get("renovacao_automatica") or "nao",
+                dados.get("periodicidade") or "unica",
+                dados.get("dia_vencimento"),
+                dados.get("valor_total") or "0,00",
+                dados.get("valor_recorrente") or "0,00",
+                dados.get("forma_pagamento") or "",
+                dados.get("observacoes") or "",
+                _id_positivo_contrato(session.get("usuario_id")),
+                str(session.get("usuario_nome") or "").strip(),
+                agora,
+                agora,
+            ),
+        )
+        contrato_id = int(cursor.lastrowid)
+        _salvar_itens_contrato_conn(conn, contrato_id, itens)
+        _registrar_historico_contrato_conn(
+            conn,
+            contrato_id,
+            "criacao",
+            f"Contrato {numero} criado.",
+            status_novo=dados["status"],
+        )
+        conn.commit()
+
+    return contrato_id
+
+
+def atualizar_contrato_db(
+    contrato_id: int,
+    dados: dict[str, Any],
+    itens: list[dict[str, Any]],
+    versao_esperada: int,
+) -> bool:
+    empresa_id = empresa_logada_id()
+    agora = agora_empresa().isoformat(timespec="seconds")
+
+    with conectar_db() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        cursor = conn.execute(
+            """
+            UPDATE contratos
+            SET tipo = ?,
+                cliente_id = ?,
+                cliente = ?,
+                responsavel_funcionario_id = ?,
+                responsavel = ?,
+                centro_custo_id = ?,
+                centro_custo = ?,
+                orcamento_id = ?,
+                titulo = ?,
+                objeto = ?,
+                data_inicio = ?,
+                data_fim = ?,
+                renovacao_automatica = ?,
+                periodicidade = ?,
+                dia_vencimento = ?,
+                valor_total = ?,
+                valor_recorrente = ?,
+                forma_pagamento = ?,
+                observacoes = ?,
+                versao = versao + 1,
+                atualizado_em = ?
+            WHERE id = ? AND empresa_id = ? AND versao = ?
+            """,
+            (
+                dados["tipo"],
+                dados["cliente_id"],
+                dados["cliente"],
+                dados.get("responsavel_funcionario_id"),
+                dados.get("responsavel") or "",
+                dados.get("centro_custo_id"),
+                dados.get("centro_custo") or "",
+                dados.get("orcamento_id"),
+                dados["titulo"],
+                dados.get("objeto") or "",
+                dados["data_inicio"],
+                dados.get("data_fim") or "",
+                dados.get("renovacao_automatica") or "nao",
+                dados.get("periodicidade") or "unica",
+                dados.get("dia_vencimento"),
+                dados.get("valor_total") or "0,00",
+                dados.get("valor_recorrente") or "0,00",
+                dados.get("forma_pagamento") or "",
+                dados.get("observacoes") or "",
+                agora,
+                contrato_id,
+                empresa_id,
+                versao_esperada,
+            ),
+        )
+        if cursor.rowcount != 1:
+            conn.rollback()
+            return False
+
+        _salvar_itens_contrato_conn(conn, contrato_id, itens)
+        _registrar_historico_contrato_conn(
+            conn,
+            contrato_id,
+            "edicao",
+            "Dados do contrato atualizados.",
+        )
+        conn.commit()
+    return True
+
+
+CONTRATOS_ORDENACAO = {
+    "id": "id",
+    "numero": "numero",
+    "cliente": "cliente",
+    "titulo": "titulo",
+    "tipo": "tipo",
+    "status": "status",
+    "data_inicio": "data_inicio",
+    "data_fim": "data_fim",
+    "valor_total": "valor_total",
+}
+
+
+def listar_contratos_paginado(
+    busca: Any = "",
+    status: Any = "",
+    tipo: Any = "",
+    vencimento: Any = "",
+    pagina: int = 1,
+    por_pagina: int = 20,
+    ordenar: str = "id",
+    direcao: str = "desc",
+) -> tuple[list[dict[str, Any]], int]:
+    empresa_id = empresa_logada_id()
+    where = ["empresa_id = ?"]
+    parametros: list[Any] = [empresa_id]
+    termo = str(busca or "").strip()
+    status_normalizado = str(status or "").strip().lower()
+    tipo_normalizado = str(tipo or "").strip().lower()
+    vencimento_normalizado = str(vencimento or "").strip().lower()
+
+    if termo:
+        termo_like = f"%{termo}%"
+        where.append(
+            "(numero LIKE ? OR cliente LIKE ? OR responsavel LIKE ? "
+            "OR titulo LIKE ? OR objeto LIKE ?)"
+        )
+        parametros.extend([termo_like] * 5)
+    if status_normalizado in CONTRATO_STATUS_CODIGOS:
+        where.append("status = ?")
+        parametros.append(status_normalizado)
+    if tipo_normalizado in CONTRATO_TIPOS_CODIGOS:
+        where.append("tipo = ?")
+        parametros.append(tipo_normalizado)
+
+    hoje = hoje_empresa().isoformat()
+    limite = (hoje_empresa() + timedelta(days=30)).isoformat()
+    if vencimento_normalizado == "a_vencer":
+        where.append(
+            "data_fim <> '' AND DATE(data_fim) BETWEEN DATE(?) AND DATE(?) "
+            "AND status NOT IN ('encerrado', 'cancelado')"
+        )
+        parametros.extend([hoje, limite])
+    elif vencimento_normalizado == "vencidos":
+        where.append(
+            "data_fim <> '' AND DATE(data_fim) < DATE(?) "
+            "AND status NOT IN ('encerrado', 'cancelado')"
+        )
+        parametros.append(hoje)
+
+    coluna_sql = CONTRATOS_ORDENACAO.get(str(ordenar or "").strip(), "id")
+    direcao_sql = "ASC" if str(direcao or "").lower() == "asc" else "DESC"
+    pagina = max(int(pagina or 1), 1)
+    por_pagina = int(por_pagina or 20)
+    offset = (pagina - 1) * por_pagina
+    where_sql = " AND ".join(where)
+
+    with conectar_db() as conn:
+        total = conn.execute(
+            f"SELECT COUNT(*) AS total FROM contratos WHERE {where_sql}",
+            parametros,
+        ).fetchone()["total"]
+        rows = conn.execute(
+            f"""
+            SELECT *
+            FROM contratos
+            WHERE {where_sql}
+            ORDER BY {coluna_sql} {direcao_sql}, id DESC
+            LIMIT ? OFFSET ?
+            """,
+            [*parametros, por_pagina, offset],
+        ).fetchall()
+
+    contratos_lista = [dict(row) for row in rows]
+    data_hoje = hoje_empresa()
+    for contrato in contratos_lista:
+        contrato["dias_para_vencer"] = None
+        data_fim = _normalizar_data_contrato(contrato.get("data_fim"))
+        if data_fim:
+            contrato["dias_para_vencer"] = (
+                date.fromisoformat(data_fim) - data_hoje
+            ).days
+    return contratos_lista, int(total or 0)
+
+
+def resumir_contratos_cadastrados() -> dict[str, int]:
+    empresa_id = empresa_logada_id()
+    hoje = hoje_empresa().isoformat()
+    limite = (hoje_empresa() + timedelta(days=30)).isoformat()
+
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                COUNT(*) AS total,
+                SUM(CASE WHEN status = 'ativo' THEN 1 ELSE 0 END) AS ativos,
+                SUM(CASE WHEN tipo = 'recorrente' AND status = 'ativo' THEN 1 ELSE 0 END) AS recorrentes,
+                SUM(
+                    CASE
+                        WHEN data_fim <> ''
+                         AND DATE(data_fim) BETWEEN DATE(?) AND DATE(?)
+                         AND status NOT IN ('encerrado', 'cancelado')
+                        THEN 1 ELSE 0
+                    END
+                ) AS a_vencer
+            FROM contratos
+            WHERE empresa_id = ?
+            """,
+            (hoje, limite, empresa_id),
+        ).fetchone()
+
+    return {
+        "total": int(row["total"] or 0),
+        "ativos": int(row["ativos"] or 0),
+        "recorrentes": int(row["recorrentes"] or 0),
+        "a_vencer": int(row["a_vencer"] or 0),
+    }
+
+
+def montar_contexto_contratos_paginado() -> dict[str, Any]:
+    busca = str(request.args.get("busca") or "").strip()
+    status = str(request.args.get("status") or "").strip()
+    tipo = str(request.args.get("tipo") or "").strip()
+    vencimento = str(request.args.get("vencimento") or "").strip()
+    pagina = _normalizar_inteiro_query(request.args.get("pagina"), 1)
+    por_pagina = _normalizar_inteiro_query(request.args.get("por_pagina"), 20)
+    if por_pagina not in {10, 20, 50, 100}:
+        por_pagina = 20
+    ordenar = str(request.args.get("ordenar") or "id").strip()
+    direcao = str(request.args.get("direcao") or "desc").strip().lower()
+
+    registros, total = listar_contratos_paginado(
+        busca=busca,
+        status=status,
+        tipo=tipo,
+        vencimento=vencimento,
+        pagina=pagina,
+        por_pagina=por_pagina,
+        ordenar=ordenar,
+        direcao=direcao,
+    )
+    paginacao = montar_paginacao(total, pagina, por_pagina)
+    if pagina > paginacao["total_paginas"]:
+        pagina = paginacao["total_paginas"]
+        registros, total = listar_contratos_paginado(
+            busca=busca,
+            status=status,
+            tipo=tipo,
+            vencimento=vencimento,
+            pagina=pagina,
+            por_pagina=por_pagina,
+            ordenar=ordenar,
+            direcao=direcao,
+        )
+        paginacao = montar_paginacao(total, pagina, por_pagina)
+
+    return {
+        "itens": formatar_lista_datas_documento_exibicao(
+            registros,
+            ("data_inicio", "data_fim"),
+        ),
+        "paginacao": paginacao,
+        "resumo": resumir_contratos_cadastrados(),
+        "busca": busca,
+        "status_filtro": status,
+        "tipo_filtro": tipo,
+        "vencimento_filtro": vencimento,
+        "pagina": pagina,
+        "por_pagina": por_pagina,
+        "ordenar": ordenar,
+        "direcao": direcao,
+    }
+
+
+def listar_orcamentos_disponiveis_contrato(
+    contrato_id: int | None = None,
+) -> list[dict[str, Any]]:
+    empresa_id = empresa_logada_id()
+    parametros: list[Any] = [empresa_id]
+    condicao_atual = ""
+    if contrato_id:
+        condicao_atual = " OR c.id = ?"
+        parametros.append(contrato_id)
+
+    with conectar_db() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT o.id, o.numero, o.cliente, o.valor_total, o.status
+            FROM orcamentos o
+            LEFT JOIN contratos c
+              ON c.empresa_id = o.empresa_id
+             AND c.orcamento_id = o.id
+            WHERE o.empresa_id = ?
+              AND (c.id IS NULL{condicao_atual})
+            ORDER BY o.id DESC
+            LIMIT 300
+            """,
+            parametros,
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def montar_contrato_inicial(
+    orcamento_id: int | None = None,
+) -> tuple[dict[str, Any], list[dict[str, Any]], str]:
+    dados: dict[str, Any] = {
+        "numero": proximo_numero_contrato(),
+        "tipo": "servico",
+        "status": "rascunho",
+        "cliente_id": None,
+        "cliente": "",
+        "responsavel_funcionario_id": None,
+        "responsavel": "",
+        "centro_custo_id": None,
+        "centro_custo": "",
+        "orcamento_id": None,
+        "titulo": "",
+        "objeto": "",
+        "data_inicio": hoje_empresa().isoformat(),
+        "data_fim": "",
+        "renovacao_automatica": "nao",
+        "periodicidade": "unica",
+        "dia_vencimento": None,
+        "valor_total": "0,00",
+        "valor_recorrente": "0,00",
+        "forma_pagamento": "",
+        "observacoes": "",
+        "versao": 1,
+    }
+    itens: list[dict[str, Any]] = []
+    if not orcamento_id:
+        return dados, itens, ""
+
+    orcamento = buscar_orcamento_por_id(orcamento_id)
+    if orcamento is None:
+        return dados, itens, "Orçamento não encontrado nesta empresa."
+
+    with conectar_db() as conn:
+        vinculo = conn.execute(
+            """
+            SELECT id
+            FROM contratos
+            WHERE empresa_id = ? AND orcamento_id = ?
+            LIMIT 1
+            """,
+            (empresa_logada_id(), orcamento_id),
+        ).fetchone()
+        cliente = conn.execute(
+            """
+            SELECT id, nome
+            FROM clientes
+            WHERE empresa_id = ? AND LOWER(TRIM(nome)) = LOWER(TRIM(?))
+            ORDER BY id ASC
+            LIMIT 1
+            """,
+            (empresa_logada_id(), orcamento.get("cliente") or ""),
+        ).fetchone()
+        responsavel = conn.execute(
+            """
+            SELECT id, nome
+            FROM funcionarios
+            WHERE empresa_id = ? AND LOWER(TRIM(nome)) = LOWER(TRIM(?))
+            ORDER BY id ASC
+            LIMIT 1
+            """,
+            (empresa_logada_id(), orcamento.get("responsavel") or ""),
+        ).fetchone()
+
+    if vinculo is not None:
+        return dados, itens, "Este orçamento já possui um contrato vinculado."
+
+    dados.update(
+        {
+            "cliente_id": int(cliente["id"]) if cliente is not None else None,
+            "cliente": str(orcamento.get("cliente") or "").strip(),
+            "responsavel_funcionario_id": (
+                int(responsavel["id"]) if responsavel is not None else None
+            ),
+            "responsavel": str(orcamento.get("responsavel") or "").strip(),
+            "centro_custo_id": _id_positivo_contrato(
+                orcamento.get("centro_custo_id")
+            ),
+            "centro_custo": str(orcamento.get("centro_custo") or "").strip(),
+            "orcamento_id": orcamento_id,
+            "titulo": f"Contrato referente ao orçamento {orcamento.get('numero') or orcamento_id}",
+            "objeto": str(
+                orcamento.get("descricao_comercial")
+                or orcamento.get("observacoes")
+                or ""
+            ).strip(),
+            "valor_total": str(orcamento.get("valor_total") or "0,00"),
+            "forma_pagamento": str(
+                orcamento.get("forma_pagamento") or ""
+            ).strip(),
+        }
+    )
+    itens = [
+        {
+            "tipo_item": str(item.get("tipo_item") or "servico"),
+            "referencia_id": None,
+            "descricao": str(item.get("descricao") or "").strip(),
+            "detalhes": str(item.get("detalhes") or "").strip(),
+            "quantidade": str(item.get("quantidade") or "1,00"),
+            "valor_unitario": str(item.get("valor_unitario") or "0,00"),
+            "subtotal": str(item.get("subtotal") or "0,00"),
+            "ordem": indice,
+        }
+        for indice, item in enumerate(
+            listar_orcamento_itens(orcamento_id),
+            start=1,
+        )
+        if str(item.get("descricao") or "").strip()
+    ]
+    return dados, itens, ""
+
+
+def _contexto_formulario_contrato(
+    contrato: dict[str, Any],
+    itens: list[dict[str, Any]],
+    *,
+    modo_edicao: bool,
+) -> dict[str, Any]:
+    contrato_id = _id_positivo_contrato(contrato.get("id"))
+    return {
+        "contrato": contrato,
+        "itens": itens,
+        "modo_edicao": modo_edicao,
+        "tipos_contrato": CONTRATO_TIPOS,
+        "status_contrato": CONTRATO_STATUS,
+        "periodicidades_contrato": CONTRATO_PERIODICIDADES,
+        "clientes": listar_clientes(),
+        "funcionarios": listar_funcionarios(),
+        "produtos": listar_produtos(),
+        "servicos": listar_servicos(),
+        "centros_custo": listar_centros_custo(),
+        "orcamentos": listar_orcamentos_disponiveis_contrato(contrato_id),
+    }
+
+
+@app.get("/contratos")
+def contratos() -> str:
+    contexto = montar_contexto_contratos_paginado()
+    return render_template(
+        "contratos.html",
+        contratos=contexto["itens"],
+        paginacao=contexto["paginacao"],
+        resumo=contexto["resumo"],
+        busca=contexto["busca"],
+        status_filtro=contexto["status_filtro"],
+        tipo_filtro=contexto["tipo_filtro"],
+        vencimento_filtro=contexto["vencimento_filtro"],
+        pagina=contexto["pagina"],
+        por_pagina=contexto["por_pagina"],
+        ordenar=contexto["ordenar"],
+        direcao=contexto["direcao"],
+        tipos_contrato=CONTRATO_TIPOS,
+        status_contrato=CONTRATO_STATUS,
+    )
+
+
+@app.get("/contratos/novo")
+def novo_contrato() -> str | Response:
+    orcamento_id = _id_positivo_contrato(request.args.get("orcamento_id"))
+    contrato, itens, erro = montar_contrato_inicial(orcamento_id)
+    if erro:
+        return redirect(url_for("contratos", erro=erro))
+    return render_template(
+        "contrato_formulario.html",
+        **_contexto_formulario_contrato(
+            contrato,
+            itens,
+            modo_edicao=False,
+        ),
+    )
+
+
+@app.post("/contratos/novo")
+def salvar_contrato() -> Response:
+    dados = montar_contrato_formulario()
+    itens = montar_contrato_itens_formulario()
+    erro = validar_contrato_para_salvar(dados, itens)
+    if erro:
+        parametros = {"erro": erro}
+        if dados.get("orcamento_id"):
+            parametros["orcamento_id"] = dados["orcamento_id"]
+        return redirect(url_for("novo_contrato", **parametros))
+
+    try:
+        contrato_id = salvar_contrato_db(dados, itens)
+    except sqlite3.IntegrityError:
+        return redirect(
+            url_for(
+                "contratos",
+                erro="Não foi possível salvar: número ou orçamento já vinculado.",
+            )
+        )
+
+    contrato = buscar_contrato_por_id(contrato_id) or {}
+    registrar_atividade_usuario(
+        "criacao",
+        "contratos",
+        f"Criou contrato {contrato.get('numero') or contrato_id}",
+        request.path,
+        registro_id=contrato_id,
+    )
+    return redirect(
+        url_for(
+            "ver_contrato",
+            contrato_id=contrato_id,
+            sucesso="Contrato criado com sucesso.",
+        )
+    )
+
+
+@app.get("/contratos/<int:contrato_id>")
+def ver_contrato(contrato_id: int) -> str | Response:
+    contrato = buscar_contrato_por_id(contrato_id)
+    if contrato is None:
+        return redirect(url_for("contratos", erro="Contrato não encontrado."))
+
+    contrato_exibicao = formatar_datas_documento_exibicao(
+        contrato,
+        ("data_inicio", "data_fim", "cancelado_em", "encerrado_em"),
+    )
+    return render_template(
+        "contrato_detalhe.html",
+        contrato=contrato_exibicao,
+        itens=listar_contrato_itens(contrato_id),
+        anexos=listar_contrato_anexos(contrato_id),
+        historico=listar_contrato_historico(contrato_id),
+        tipos_contrato=CONTRATO_TIPOS,
+        status_contrato=CONTRATO_STATUS,
+        periodicidades_contrato=CONTRATO_PERIODICIDADES,
+        transicoes_status=sorted(
+            CONTRATO_TRANSICOES_STATUS.get(
+                str(contrato.get("status") or ""),
+                set(),
+            )
+        ),
+    )
+
+
+@app.get("/contratos/<int:contrato_id>/editar")
+def editar_contrato(contrato_id: int) -> str | Response:
+    contrato = buscar_contrato_por_id(contrato_id)
+    if contrato is None:
+        return redirect(url_for("contratos", erro="Contrato não encontrado."))
+    return render_template(
+        "contrato_formulario.html",
+        **_contexto_formulario_contrato(
+            contrato,
+            listar_contrato_itens(contrato_id),
+            modo_edicao=True,
+        ),
+    )
+
+
+@app.post("/contratos/<int:contrato_id>/editar")
+def atualizar_contrato(contrato_id: int) -> Response:
+    contrato_atual = buscar_contrato_por_id(contrato_id)
+    if contrato_atual is None:
+        return redirect(url_for("contratos", erro="Contrato não encontrado."))
+
+    dados = montar_contrato_formulario()
+    dados["status"] = str(contrato_atual.get("status") or "rascunho")
+    itens = montar_contrato_itens_formulario()
+    erro = validar_contrato_para_salvar(
+        dados,
+        itens,
+        contrato_id=contrato_id,
+    )
+    if erro:
+        return redirect(
+            url_for("editar_contrato", contrato_id=contrato_id, erro=erro)
+        )
+
+    try:
+        versao_esperada = int(
+            request.form.get("versao") or contrato_atual.get("versao") or 1
+        )
+    except (TypeError, ValueError):
+        return Response(
+            "Versão inválida do contrato. Recarregue a página.",
+            status=409,
+        )
+
+    try:
+        atualizado = atualizar_contrato_db(
+            contrato_id,
+            dados,
+            itens,
+            versao_esperada,
+        )
+    except sqlite3.IntegrityError:
+        return redirect(
+            url_for(
+                "editar_contrato",
+                contrato_id=contrato_id,
+                erro="O orçamento selecionado já está vinculado a outro contrato.",
+            )
+        )
+
+    if not atualizado:
+        return Response(
+            "Este contrato foi alterado por outro usuário. Recarregue a página.",
+            status=409,
+        )
+
+    registrar_atividade_usuario(
+        "edicao",
+        "contratos",
+        f"Atualizou contrato {contrato_atual.get('numero') or contrato_id}",
+        request.path,
+        registro_id=contrato_id,
+    )
+    return redirect(
+        url_for(
+            "ver_contrato",
+            contrato_id=contrato_id,
+            sucesso="Contrato atualizado com sucesso.",
+        )
+    )
+
+
+@app.post("/contratos/<int:contrato_id>/status")
+def alterar_status_contrato(contrato_id: int) -> Response:
+    contrato = buscar_contrato_por_id(contrato_id)
+    if contrato is None:
+        return redirect(url_for("contratos", erro="Contrato não encontrado."))
+
+    status_atual = str(contrato.get("status") or "rascunho").strip().lower()
+    status_novo = str(request.form.get("status") or "").strip().lower()
+    permitidos = CONTRATO_TRANSICOES_STATUS.get(status_atual, set())
+    if status_novo not in permitidos:
+        return redirect(
+            url_for(
+                "ver_contrato",
+                contrato_id=contrato_id,
+                erro="Alteração de situação não permitida.",
+            )
+        )
+
+    motivo = str(request.form.get("motivo") or "").strip()
+    if status_novo == "cancelado" and not motivo:
+        return redirect(
+            url_for(
+                "ver_contrato",
+                contrato_id=contrato_id,
+                erro="Informe o motivo do cancelamento.",
+            )
+        )
+
+    agora = agora_empresa().isoformat(timespec="seconds")
+    with conectar_db() as conn:
+        cursor = conn.execute(
+            """
+            UPDATE contratos
+            SET status = ?,
+                motivo_cancelamento = CASE WHEN ? = 'cancelado' THEN ? ELSE motivo_cancelamento END,
+                cancelado_em = CASE WHEN ? = 'cancelado' THEN ? ELSE cancelado_em END,
+                encerrado_em = CASE WHEN ? = 'encerrado' THEN ? ELSE encerrado_em END,
+                versao = versao + 1,
+                atualizado_em = ?
+            WHERE id = ? AND empresa_id = ? AND status = ?
+            """,
+            (
+                status_novo,
+                status_novo,
+                motivo,
+                status_novo,
+                agora,
+                status_novo,
+                agora,
+                agora,
+                contrato_id,
+                empresa_logada_id(),
+                status_atual,
+            ),
+        )
+        if cursor.rowcount != 1:
+            conn.rollback()
+            return Response(
+                "O contrato foi alterado por outro usuário. Recarregue a página.",
+                status=409,
+            )
+        descricao = f"Situação alterada de {status_atual} para {status_novo}."
+        if motivo:
+            descricao += f" Motivo: {motivo}"
+        _registrar_historico_contrato_conn(
+            conn,
+            contrato_id,
+            "status",
+            descricao,
+            status_anterior=status_atual,
+            status_novo=status_novo,
+        )
+        conn.commit()
+
+    registrar_atividade_usuario(
+        "status",
+        "contratos",
+        f"Alterou contrato {contrato.get('numero') or contrato_id} para {status_novo}",
+        request.path,
+        registro_id=contrato_id,
+    )
+    return redirect(
+        url_for(
+            "ver_contrato",
+            contrato_id=contrato_id,
+            sucesso="Situação do contrato atualizada.",
+        )
+    )
+
+
+@app.post("/contratos/<int:contrato_id>/anexos")
+def atualizar_contrato_anexos(contrato_id: int) -> Response:
+    contrato = buscar_contrato_por_id(contrato_id)
+    if contrato is None:
+        return redirect(url_for("contratos", erro="Contrato não encontrado."))
+
+    arquivo = request.files.get("arquivo")
+    nome_original = secure_filename(str(getattr(arquivo, "filename", "") or ""))
+    if arquivo is None or not nome_original or "." not in nome_original:
+        return redirect(
+            url_for(
+                "ver_contrato",
+                contrato_id=contrato_id,
+                erro="Selecione um arquivo válido.",
+            )
+        )
+
+    extensao = nome_original.rsplit(".", 1)[1].lower()
+    if extensao not in EXTENSOES_ANEXO_CONTRATO_PERMITIDAS:
+        return redirect(
+            url_for(
+                "ver_contrato",
+                contrato_id=contrato_id,
+                erro="Formato não permitido. Use PDF, imagem, DOC ou DOCX.",
+            )
+        )
+
+    arquivo.stream.seek(0, os.SEEK_END)
+    tamanho = int(arquivo.stream.tell())
+    arquivo.stream.seek(0)
+    if tamanho <= 0 or tamanho > 10 * 1024 * 1024:
+        return redirect(
+            url_for(
+                "ver_contrato",
+                contrato_id=contrato_id,
+                erro="O anexo deve ter no máximo 10 MB.",
+            )
+        )
+
+    empresa_id = empresa_logada_id()
+    pasta_relativa = Path(str(empresa_id)) / str(contrato_id)
+    pasta_destino = CONTRATOS_ANEXOS_DIR / pasta_relativa
+    pasta_destino.mkdir(parents=True, exist_ok=True)
+    nome_arquivo = f"{secrets.token_hex(16)}.{extensao}"
+    caminho_destino = pasta_destino / nome_arquivo
+    arquivo.save(caminho_destino)
+    caminho_relativo = (pasta_relativa / nome_arquivo).as_posix()
+
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            INSERT INTO contrato_anexos (
+                empresa_id,
+                contrato_id,
+                nome_original,
+                nome_arquivo,
+                caminho,
+                tipo_mime,
+                tamanho_bytes,
+                criado_por_usuario_id,
+                criado_por_nome,
+                criado_em
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                empresa_id,
+                contrato_id,
+                nome_original,
+                nome_arquivo,
+                caminho_relativo,
+                str(getattr(arquivo, "mimetype", "") or ""),
+                tamanho,
+                _id_positivo_contrato(session.get("usuario_id")),
+                str(session.get("usuario_nome") or "").strip(),
+                agora_empresa().isoformat(timespec="seconds"),
+            ),
+        )
+        _registrar_historico_contrato_conn(
+            conn,
+            contrato_id,
+            "anexo",
+            f"Anexo {nome_original} adicionado.",
+        )
+        conn.commit()
+
+    return redirect(
+        url_for(
+            "ver_contrato",
+            contrato_id=contrato_id,
+            sucesso="Anexo adicionado com sucesso.",
+        )
+    )
+
+
+def _buscar_anexo_contrato(anexo_id: int) -> dict[str, Any] | None:
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT *
+            FROM contrato_anexos
+            WHERE id = ? AND empresa_id = ?
+            LIMIT 1
+            """,
+            (anexo_id, empresa_logada_id()),
+        ).fetchone()
+    return dict(row) if row is not None else None
+
+
+def _caminho_seguro_anexo_contrato(caminho_relativo: Any) -> Path | None:
+    raiz = CONTRATOS_ANEXOS_DIR.resolve()
+    caminho = (raiz / str(caminho_relativo or "")).resolve()
+    try:
+        caminho.relative_to(raiz)
+    except ValueError:
+        return None
+    return caminho
+
+
+@app.get("/contratos/anexos/<int:anexo_id>/download")
+def download_anexo_contrato(anexo_id: int) -> Response:
+    anexo = _buscar_anexo_contrato(anexo_id)
+    if anexo is None:
+        return Response("Anexo não encontrado.", status=404)
+    caminho = _caminho_seguro_anexo_contrato(anexo.get("caminho"))
+    if caminho is None or not caminho.is_file():
+        return Response("Arquivo do anexo não encontrado.", status=404)
+    return send_file(
+        caminho,
+        as_attachment=True,
+        download_name=str(anexo.get("nome_original") or caminho.name),
+    )
+
+
+@app.post("/contratos/anexos/<int:anexo_id>/remover")
+def remover_anexo_contrato(anexo_id: int) -> Response:
+    anexo = _buscar_anexo_contrato(anexo_id)
+    if anexo is None:
+        return redirect(url_for("contratos", erro="Anexo não encontrado."))
+
+    contrato_id = int(anexo["contrato_id"])
+    caminho = _caminho_seguro_anexo_contrato(anexo.get("caminho"))
+    with conectar_db() as conn:
+        conn.execute(
+            "DELETE FROM contrato_anexos WHERE id = ? AND empresa_id = ?",
+            (anexo_id, empresa_logada_id()),
+        )
+        _registrar_historico_contrato_conn(
+            conn,
+            contrato_id,
+            "anexo",
+            f"Anexo {anexo.get('nome_original') or anexo_id} removido.",
+        )
+        conn.commit()
+    if caminho is not None and caminho.is_file():
+        caminho.unlink()
+
+    return redirect(
+        url_for(
+            "ver_contrato",
+            contrato_id=contrato_id,
+            sucesso="Anexo removido.",
+        )
+    )
+
+
+@app.get("/contratos/<int:contrato_id>/imprimir/a4")
+def imprimir_contrato_a4(contrato_id: int) -> str | Response:
+    contrato = buscar_contrato_por_id(contrato_id)
+    if contrato is None:
+        return redirect(url_for("contratos", erro="Contrato não encontrado."))
+    contrato_exibicao = formatar_datas_documento_exibicao(
+        contrato,
+        ("data_inicio", "data_fim"),
+    )
+    contexto_impressao = montar_contexto_impressao(contrato.get("cliente"))
+    return render_template(
+        "contrato_imprimir_a4.html",
+        contrato=contrato_exibicao,
+        itens=listar_contrato_itens(contrato_id),
+        empresa=contexto_impressao["empresa"],
+        loja=contexto_impressao["loja"],
+        cliente=contexto_impressao["cliente"],
+        tipos_contrato=CONTRATO_TIPOS,
+        periodicidades_contrato=CONTRATO_PERIODICIDADES,
+    )
+
+
 def garantir_estrutura_gestao_atividades() -> None:
     """Cria e migra, sem apagar dados, a estrutura da Gestão de Atividades."""
     with conectar_db() as conn:
@@ -27258,6 +28946,7 @@ def garantir_migracao_origem_orcamento_os() -> None:
 
 garantir_migracao_origem_orcamento_os()
 iniciar_banco()
+garantir_estrutura_contratos()
 garantir_estrutura_gestao_atividades()
 
 
