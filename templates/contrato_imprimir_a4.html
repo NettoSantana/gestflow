@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\contrato_imprimir_a4.html
-Último recode: 2026-07-22 22:06 (America/Bahia)
-Motivo: Criar a versão A4 profissional do contrato para impressão, PDF e assinatura.
+Último recode: 2026-07-23 00:18 (America/Bahia)
+Motivo: Aplicar cláusulas, reajuste, renovação, assinatura e rodapé configurados por empresa.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -12,6 +12,9 @@ Motivo: Criar a versão A4 profissional do contrato para impressão, PDF e assin
     <link rel="stylesheet" href="/static/css/contratos.css">
 </head>
 <body class="contract-print-body">
+    {% set _cfg = gestflow_configuracoes_runtime.get('valores', {}) %}
+    {% set _cfg_gerais = _cfg.get('gerais', {}) %}
+    {% set _cfg_contratos = _cfg.get('contratos', {}) %}
     <div class="contract-print-toolbar">
         <button type="button" onclick="window.print()">Imprimir / salvar PDF</button>
         <button type="button" class="secondary" onclick="window.close()">Fechar</button>
@@ -112,19 +115,32 @@ Motivo: Criar a versão A4 profissional do contrato para impressão, PDF e assin
             </section>
         {% endif %}
 
+        {% if _cfg_contratos.get('clausulas') %}
+            <section class="contract-print-clause">
+                <h2>CLÁUSULAS CONFIGURADAS</h2>
+                <p style="white-space:pre-line">{{ _cfg_contratos.get('clausulas') }}</p>
+                {% if _cfg_contratos.get('indice_reajuste') or _cfg_contratos.get('percentual_reajuste') %}
+                    <p>Reajuste a cada {{ _cfg_contratos.get('reajuste_periodicidade_meses', 12) }} mês(es), pelo índice {{ _cfg_contratos.get('indice_reajuste') or 'definido entre as partes' }}{% if _cfg_contratos.get('percentual_reajuste') %}, com percentual fixo de {{ _cfg_contratos.get('percentual_reajuste') }}%{% endif %}.</p>
+                {% endif %}
+                {% if _cfg_contratos.get('multa_cancelamento_percentual') %}<p>Multa de cancelamento: {{ _cfg_contratos.get('multa_cancelamento_percentual') }}%.</p>{% endif %}
+            </section>
+        {% endif %}
+
         <section class="contract-print-acceptance">
             <p>As partes declaram estar de acordo com as condições apresentadas neste contrato e o assinam para que produza seus efeitos.</p>
             <span>{{ loja.cidade or '________________________' }}, ______ de __________________ de __________.</span>
         </section>
 
-        <section class="contract-print-signatures">
-            <div><span></span><strong>{{ empresa.razao_social or empresa.nome_fantasia or 'CONTRATADA' }}</strong><small>CONTRATADA</small></div>
-            <div><span></span><strong>{{ cliente.nome if cliente else contrato.cliente }}</strong><small>CONTRATANTE</small></div>
-        </section>
+        {% if _cfg_contratos.get('assinatura_obrigatoria', true) %}
+            <section class="contract-print-signatures">
+                <div><span></span><strong>{{ empresa.razao_social or empresa.nome_fantasia or 'CONTRATADA' }}</strong><small>CONTRATADA</small></div>
+                <div><span></span><strong>{{ cliente.nome if cliente else contrato.cliente }}</strong><small>CONTRATANTE</small></div>
+            </section>
+        {% endif %}
 
         <footer class="contract-print-footer">
             <span>{{ contrato.numero }} · {{ contrato.titulo }}</span>
-            <span>Documento emitido pelo GestFlow</span>
+            <span>{{ _cfg_gerais.get('rodape_documentos') or 'Documento emitido pelo GestFlow' }}</span>
         </footer>
     </article>
 </body>

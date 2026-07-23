@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\partials\sidebar.html
-Último recode: 2026-07-22 22:06 (America/Bahia)
-Motivo: Adicionar o módulo Contratos ao menu com visibilidade e permissão por usuário.
+Último recode: 2026-07-23 00:18 (America/Bahia)
+Motivo: Carregar as configurações integradas em todas as telas internas do GestFlow.
 #}
 {% set _path = request.path if request is defined else '' %}
 {% set _usuario_sidebar = usuario_logado|default({}, true) %}
@@ -436,3 +436,4 @@ Motivo: Adicionar o módulo Contratos ao menu com visibilidade e permissão por 
 })();
 </script>
 
+{% include 'partials/configuracoes_runtime.html' %}

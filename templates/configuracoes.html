@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\configuracoes.html
-Último recode: 2026-07-22 22:34 (America/Bahia)
-Motivo: Adicionar a central completa de configurações de todos os módulos do GestFlow.
+Último recode: 2026-07-23 00:18 (America/Bahia)
+Motivo: Transformar a central em regras integradas aos cadastros, operações, documentos e áreas públicas.
 -->
 
 <!DOCTYPE html>
@@ -346,7 +346,7 @@ Motivo: Adicionar a central completa de configurações de todos os módulos do 
                         <span>✉</span>
                         <div>
                             <strong>Modelos de e-mails</strong>
-                            <small>Fica para automações</small>
+                            <small>Gerenciados dentro de cada módulo</small>
                         </div>
                     </div>
 
@@ -354,7 +354,7 @@ Motivo: Adicionar a central completa de configurações de todos os módulos do 
                         <span>⚑</span>
                         <div>
                             <strong>Avisos por e-mail</strong>
-                            <small>Fica para notificações</small>
+                            <small>Ativados pelas regras de cada módulo</small>
                         </div>
                     </div>
                 </div>
@@ -430,6 +430,10 @@ Motivo: Adicionar a central completa de configurações de todos os módulos do 
                             {% else %}
                                 <div class="module-config-saved-meta default">Este módulo ainda usa os valores padrão do GestFlow.</div>
                             {% endif %}
+
+                            <div class="module-config-saved-meta">
+                                Integração ativa: os valores controlam novos cadastros, validações, documentos e operações deste módulo. Registros antigos são preservados.
+                            </div>
 
                             <form
                                 id="module-config-form"
@@ -513,7 +517,7 @@ Motivo: Adicionar a central completa de configurações de todos os módulos do 
                                 <div class="module-config-actions">
                                     <div>
                                         <strong>Configuração da empresa</strong>
-                                        <small>Os valores ficam salvos por empresa e não alteram dados já lançados.</small>
+                                        <small>As regras são aplicadas aos próximos cadastros e ações; dados já lançados são preservados.</small>
                                     </div>
                                     <button type="submit" class="btn-primary-green">Salvar {{ modulo_configuracao.nome }}</button>
                                 </div>

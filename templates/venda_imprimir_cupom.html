@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\venda_imprimir_cupom.html
-Último recode: 2026-07-14 21:10 (America/Bahia)
-Motivo: Exibir condição e parcelas do pagamento no cupom.
+Último recode: 2026-07-23 00:18 (America/Bahia)
+Motivo: Aplicar rodapé e política comercial configurados por empresa no cupom.
 -->
 
 <!DOCTYPE html>
@@ -127,6 +127,8 @@ Motivo: Exibir condição e parcelas do pagamento no cupom.
     </style>
 </head>
 <body>
+    {% set _cfg = gestflow_configuracoes_runtime.get('valores', {}) %}
+    {% set _cfg_gerais = _cfg.get('gerais', {}) %}
     <div class="screen-actions">
         <a href="/vendas/{{ venda.id }}">Voltar</a>
         <button type="button" onclick="window.print()">Imprimir</button>
@@ -218,5 +220,6 @@ Motivo: Exibir condição e parcelas do pagamento no cupom.
             <p>{{ empresa.nome_fantasia or 'GESTFLOW' }}</p>
         </footer>
     </main>
+    {% if _cfg_gerais.get('rodape_documentos') %}<p class="center">{{ _cfg_gerais.get('rodape_documentos') }}</p>{% endif %}
 </body>
 </html>

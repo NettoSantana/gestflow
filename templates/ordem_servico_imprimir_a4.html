@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordem_servico_imprimir_a4.html
-Último recode: 2026-07-01 15:25 (America/Bahia)
-Motivo: Exibir fotos antes/depois abaixo do equipamento correspondente na impressão A4.
+Último recode: 2026-07-23 00:18 (America/Bahia)
+Motivo: Aplicar termos, evidências, assinatura e rodapé configurados por empresa.
 -->
 
 <!DOCTYPE html>
@@ -63,6 +63,9 @@ Motivo: Exibir fotos antes/depois abaixo do equipamento correspondente na impres
 </head>
 <body>
     {% set os = ordem_servico %}
+    {% set _cfg = gestflow_configuracoes_runtime.get('valores', {}) %}
+    {% set _cfg_gerais = _cfg.get('gerais', {}) %}
+    {% set _cfg_os = _cfg.get('ordens_servico', {}) %}
     <div class="page">
         <div class="header">
             <div class="brand-top">
@@ -245,7 +248,11 @@ Motivo: Exibir fotos antes/depois abaixo do equipamento correspondente na impres
         </section>
         {% endif %}
 
-        <div class="footer"><div class="signature">Assinatura do cliente</div><div class="signature">Responsável técnico</div></div>
+        <div class="footer">
+            {% if _cfg_os.get('exigir_assinatura_cliente', true) %}<div class="signature">Assinatura do cliente</div>{% endif %}
+            <div class="signature">Responsável técnico</div>
+        </div>
+        {% if _cfg_gerais.get('rodape_documentos') %}<p class="muted">{{ _cfg_gerais.get('rodape_documentos') }}</p>{% endif %}
     </div>
     <div class="print-actions"><a href="/ordens-servico/{{ os.id }}">Voltar</a><button onclick="window.print()">Imprimir</button></div>
 </body>
