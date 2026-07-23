@@ -1,0 +1,663 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\contratos.html
+Último recode: 2026-07-22 21:57 (America/Bahia)
+Motivo: Criar a tela principal do módulo Contratos com indicadores, filtros, listagem e paginação.
+-->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Contratos</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+
+    <style>
+        .contracts-summary {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px;
+            margin-bottom: 18px;
+        }
+
+        .contract-summary-card {
+            position: relative;
+            min-height: 112px;
+            padding: 18px;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            background: #ffffff;
+            overflow: hidden;
+        }
+
+        .contract-summary-card::before {
+            content: "";
+            position: absolute;
+            inset: 0 auto 0 0;
+            width: 4px;
+            background: var(--summary-color, #2563eb);
+        }
+
+        .contract-summary-card.total {
+            --summary-color: #2563eb;
+        }
+
+        .contract-summary-card.active {
+            --summary-color: #16a34a;
+        }
+
+        .contract-summary-card.recurring {
+            --summary-color: #7c3aed;
+        }
+
+        .contract-summary-card.expiring {
+            --summary-color: #d97706;
+        }
+
+        .contract-summary-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        .contract-summary-value {
+            color: #0f172a;
+            font-size: 30px;
+            font-weight: 900;
+            line-height: 1;
+        }
+
+        .contract-summary-help {
+            display: block;
+            margin-top: 8px;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .contracts-filter-panel {
+            margin-bottom: 18px;
+        }
+
+        .contracts-filter-grid {
+            display: grid;
+            grid-template-columns: minmax(240px, 2fr) repeat(3, minmax(150px, 1fr)) 110px;
+            gap: 12px;
+            align-items: end;
+        }
+
+        .contracts-filter-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .contracts-list-panel {
+            overflow: hidden;
+        }
+
+        .contracts-table-shell {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .contracts-table {
+            width: 100%;
+            min-width: 1160px;
+            border-collapse: collapse;
+        }
+
+        .contracts-table th,
+        .contracts-table td {
+            padding: 13px 12px;
+            border-bottom: 1px solid #edf2f7;
+            text-align: left;
+            vertical-align: middle;
+        }
+
+        .contracts-table th {
+            color: #475569;
+            background: #f8fafc;
+            font-size: 11px;
+            font-weight: 900;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .contracts-table tbody tr:hover {
+            background: #f8fbff;
+        }
+
+        .contract-number {
+            color: #1458f5;
+            font-size: 13px;
+            font-weight: 900;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .contract-number:hover {
+            text-decoration: underline;
+        }
+
+        .contract-main-text {
+            display: block;
+            max-width: 270px;
+            color: #0f172a;
+            font-size: 13px;
+            font-weight: 800;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .contract-secondary-text {
+            display: block;
+            max-width: 270px;
+            margin-top: 3px;
+            color: #64748b;
+            font-size: 11px;
+            font-weight: 700;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .contract-badge {
+            display: inline-flex;
+            align-items: center;
+            min-height: 26px;
+            padding: 4px 9px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 900;
+            line-height: 1;
+            white-space: nowrap;
+        }
+
+        .contract-type-service {
+            color: #1d4ed8;
+            background: #dbeafe;
+        }
+
+        .contract-type-recurring {
+            color: #6d28d9;
+            background: #ede9fe;
+        }
+
+        .contract-type-rental {
+            color: #0f766e;
+            background: #ccfbf1;
+        }
+
+        .contract-status-draft {
+            color: #475569;
+            background: #e2e8f0;
+        }
+
+        .contract-status-waiting {
+            color: #92400e;
+            background: #fef3c7;
+        }
+
+        .contract-status-active {
+            color: #166534;
+            background: #dcfce7;
+        }
+
+        .contract-status-paused {
+            color: #9a3412;
+            background: #ffedd5;
+        }
+
+        .contract-status-ended {
+            color: #334155;
+            background: #e2e8f0;
+        }
+
+        .contract-status-cancelled {
+            color: #991b1b;
+            background: #fee2e2;
+        }
+
+        .contract-date {
+            color: #334155;
+            font-size: 12px;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        .contract-expiration {
+            display: block;
+            margin-top: 4px;
+            font-size: 10px;
+            font-weight: 900;
+            white-space: nowrap;
+        }
+
+        .contract-expiration.warning {
+            color: #b45309;
+        }
+
+        .contract-expiration.overdue {
+            color: #b91c1c;
+        }
+
+        .contract-value {
+            color: #0f172a;
+            font-size: 13px;
+            font-weight: 900;
+            white-space: nowrap;
+        }
+
+        .contract-row-actions {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            white-space: nowrap;
+        }
+
+        .contract-action-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 32px;
+            padding: 7px 10px;
+            border: 1px solid #dbe4f0;
+            border-radius: 9px;
+            color: #334155;
+            background: #ffffff;
+            font-size: 11px;
+            font-weight: 900;
+            text-decoration: none;
+        }
+
+        .contract-action-link.primary {
+            border-color: #bfdbfe;
+            color: #1d4ed8;
+            background: #eff6ff;
+        }
+
+        .contract-action-link:hover {
+            border-color: #93c5fd;
+            color: #1d4ed8;
+        }
+
+        .contracts-empty {
+            padding: 54px 20px;
+            text-align: center;
+        }
+
+        .contracts-empty strong {
+            display: block;
+            margin-bottom: 8px;
+            color: #0f172a;
+            font-size: 18px;
+        }
+
+        .contracts-empty p {
+            max-width: 520px;
+            margin: 0 auto 18px;
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 700;
+            line-height: 1.5;
+        }
+
+        .contracts-pagination {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            padding: 15px 18px;
+            border-top: 1px solid #edf2f7;
+        }
+
+        .contracts-pagination-info {
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .contracts-pagination-links {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: 6px;
+        }
+
+        .contracts-page-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 34px;
+            min-height: 34px;
+            padding: 6px 9px;
+            border: 1px solid #dbe4f0;
+            border-radius: 9px;
+            color: #334155;
+            background: #ffffff;
+            font-size: 12px;
+            font-weight: 900;
+            text-decoration: none;
+        }
+
+        .contracts-page-link.active {
+            border-color: #1458f5;
+            color: #ffffff;
+            background: #1458f5;
+        }
+
+        .contracts-alert {
+            margin-bottom: 16px;
+            padding: 12px 14px;
+            border: 1px solid;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .contracts-alert.success {
+            border-color: #bbf7d0;
+            color: #166534;
+            background: #f0fdf4;
+        }
+
+        .contracts-alert.error {
+            border-color: #fecaca;
+            color: #991b1b;
+            background: #fef2f2;
+        }
+
+        @media (max-width: 1180px) {
+            .contracts-summary {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .contracts-filter-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 680px) {
+            .contracts-summary,
+            .contracts-filter-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .contract-summary-card {
+                min-height: 96px;
+            }
+
+            .contracts-filter-actions > * {
+                flex: 1 1 140px;
+                text-align: center;
+            }
+
+            .contracts-pagination {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .contracts-pagination-links {
+                justify-content: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+
+    <main class="content">
+        {% set page_title = 'Contratos' %}
+        {% include "partials/topbar.html" %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Comercial</span>
+                    <h3 class="page-title">Contratos</h3>
+                    <p class="page-subtitle">Gerencie contratos de serviços, recorrências e locações em um só lugar.</p>
+                </div>
+                {% if tem_permissao('contratos', 'criar') %}
+                    <a href="{{ url_for('novo_contrato') }}" class="btn-primary-green">Novo contrato</a>
+                {% endif %}
+            </div>
+        </section>
+
+        {% if request.args.get('sucesso') %}
+            <div class="contracts-alert success">{{ request.args.get('sucesso') }}</div>
+        {% endif %}
+
+        {% if request.args.get('erro') %}
+            <div class="contracts-alert error">{{ request.args.get('erro') }}</div>
+        {% endif %}
+
+        <section class="contracts-summary" aria-label="Resumo dos contratos">
+            <article class="contract-summary-card total">
+                <span class="contract-summary-label">Total</span>
+                <strong class="contract-summary-value">{{ resumo.total|default(0) }}</strong>
+                <span class="contract-summary-help">Contratos cadastrados</span>
+            </article>
+
+            <article class="contract-summary-card active">
+                <span class="contract-summary-label">Ativos</span>
+                <strong class="contract-summary-value">{{ resumo.ativos|default(0) }}</strong>
+                <span class="contract-summary-help">Em execução atualmente</span>
+            </article>
+
+            <article class="contract-summary-card recurring">
+                <span class="contract-summary-label">Recorrentes</span>
+                <strong class="contract-summary-value">{{ resumo.recorrentes|default(0) }}</strong>
+                <span class="contract-summary-help">Serviços com recorrência</span>
+            </article>
+
+            <article class="contract-summary-card expiring">
+                <span class="contract-summary-label">A vencer</span>
+                <strong class="contract-summary-value">{{ resumo.a_vencer|default(0) }}</strong>
+                <span class="contract-summary-help">Vencimento nos próximos 30 dias</span>
+            </article>
+        </section>
+
+        <section class="panel page-section contracts-filter-panel">
+            <form method="get" action="{{ url_for('contratos') }}">
+                <div class="contracts-filter-grid">
+                    <div class="form-group">
+                        <label for="busca">Buscar contrato</label>
+                        <input
+                            id="busca"
+                            name="busca"
+                            type="search"
+                            class="form-control"
+                            value="{{ busca }}"
+                            placeholder="Número, cliente, responsável, título ou objeto"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="tipo">Tipo</label>
+                        <select id="tipo" name="tipo" class="form-control">
+                            <option value="">Todos os tipos</option>
+                            {% for tipo in tipos_contrato %}
+                                <option value="{{ tipo.codigo }}" {% if tipo_filtro == tipo.codigo %}selected{% endif %}>{{ tipo.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="status">Situação</label>
+                        <select id="status" name="status" class="form-control">
+                            <option value="">Todas as situações</option>
+                            {% for situacao in status_contrato %}
+                                <option value="{{ situacao.codigo }}" {% if status_filtro == situacao.codigo %}selected{% endif %}>{{ situacao.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="vencimento">Vencimento</label>
+                        <select id="vencimento" name="vencimento" class="form-control">
+                            <option value="">Todos os prazos</option>
+                            <option value="a_vencer" {% if vencimento_filtro == 'a_vencer' %}selected{% endif %}>Próximos 30 dias</option>
+                            <option value="vencidos" {% if vencimento_filtro == 'vencidos' %}selected{% endif %}>Vencidos</option>
+                            <option value="sem_vencimento" {% if vencimento_filtro == 'sem_vencimento' %}selected{% endif %}>Sem data final</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="por_pagina">Por página</label>
+                        <select id="por_pagina" name="por_pagina" class="form-control">
+                            {% for quantidade in [10, 20, 50, 100] %}
+                                <option value="{{ quantidade }}" {% if por_pagina|int == quantidade %}selected{% endif %}>{{ quantidade }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <input type="hidden" name="ordenar" value="{{ ordenar }}">
+                <input type="hidden" name="direcao" value="{{ direcao }}">
+
+                <div class="contracts-filter-actions">
+                    <button type="submit" class="btn-primary-green">Aplicar filtros</button>
+                    <a href="{{ url_for('contratos') }}" class="btn-light">Limpar filtros</a>
+                </div>
+            </form>
+        </section>
+
+        <section class="panel contracts-list-panel">
+            {% if contratos %}
+                <div class="contracts-table-shell">
+                    <table class="contracts-table">
+                        <thead>
+                            <tr>
+                                <th>Número</th>
+                                <th>Cliente / contrato</th>
+                                <th>Tipo</th>
+                                <th>Situação</th>
+                                <th>Início</th>
+                                <th>Término</th>
+                                <th>Valor</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for contrato in contratos %}
+                                <tr>
+                                    <td>
+                                        <a class="contract-number" href="{{ url_for('ver_contrato', contrato_id=contrato.id) }}">
+                                            {{ contrato.numero }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <span class="contract-main-text">{{ contrato.cliente or 'Cliente não informado' }}</span>
+                                        <span class="contract-secondary-text">{{ contrato.titulo or contrato.objeto or 'Sem título informado' }}</span>
+                                    </td>
+                                    <td>
+                                        {% if contrato.tipo == 'recorrente' %}
+                                            <span class="contract-badge contract-type-recurring">Serviço recorrente</span>
+                                        {% elif contrato.tipo == 'locacao' %}
+                                            <span class="contract-badge contract-type-rental">Locação</span>
+                                        {% else %}
+                                            <span class="contract-badge contract-type-service">Serviço</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if contrato.status == 'aguardando_assinatura' %}
+                                            <span class="contract-badge contract-status-waiting">Aguardando assinatura</span>
+                                        {% elif contrato.status == 'ativo' %}
+                                            <span class="contract-badge contract-status-active">Ativo</span>
+                                        {% elif contrato.status == 'suspenso' %}
+                                            <span class="contract-badge contract-status-paused">Suspenso</span>
+                                        {% elif contrato.status == 'encerrado' %}
+                                            <span class="contract-badge contract-status-ended">Encerrado</span>
+                                        {% elif contrato.status == 'cancelado' %}
+                                            <span class="contract-badge contract-status-cancelled">Cancelado</span>
+                                        {% else %}
+                                            <span class="contract-badge contract-status-draft">Rascunho</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="contract-date">{{ contrato.data_inicio or '-' }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="contract-date">{{ contrato.data_fim or '-' }}</span>
+                                        {% if contrato.dias_para_vencer is not none and contrato.status not in ['encerrado', 'cancelado'] %}
+                                            {% if contrato.dias_para_vencer < 0 %}
+                                                <span class="contract-expiration overdue">Vencido há {{ contrato.dias_para_vencer|abs }} dia(s)</span>
+                                            {% elif contrato.dias_para_vencer <= 30 %}
+                                                <span class="contract-expiration warning">Vence em {{ contrato.dias_para_vencer }} dia(s)</span>
+                                            {% endif %}
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="contract-value">R$ {{ contrato.valor_total or '0,00' }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="contract-row-actions">
+                                            <a class="contract-action-link primary" href="{{ url_for('ver_contrato', contrato_id=contrato.id) }}">Ver</a>
+                                            {% if tem_permissao('contratos', 'editar') %}
+                                                <a class="contract-action-link" href="{{ url_for('editar_contrato', contrato_id=contrato.id) }}">Editar</a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="contracts-pagination">
+                    <div class="contracts-pagination-info">
+                        Exibindo {{ paginacao.inicio }} a {{ paginacao.fim }} de {{ paginacao.total }} contrato(s)
+                    </div>
+
+                    {% if paginacao.total_paginas > 1 %}
+                        <nav class="contracts-pagination-links" aria-label="Paginação de contratos">
+                            {% if paginacao.tem_anterior %}
+                                <a
+                                    class="contracts-page-link"
+                                    href="{{ url_for('contratos', busca=busca, status=status_filtro, tipo=tipo_filtro, vencimento=vencimento_filtro, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, pagina=paginacao.anterior) }}"
+                                >Anterior</a>
+                            {% endif %}
+
+                            {% for numero_pagina in paginacao.paginas %}
+                                <a
+                                    class="contracts-page-link {% if numero_pagina == paginacao.pagina %}active{% endif %}"
+                                    href="{{ url_for('contratos', busca=busca, status=status_filtro, tipo=tipo_filtro, vencimento=vencimento_filtro, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, pagina=numero_pagina) }}"
+                                    {% if numero_pagina == paginacao.pagina %}aria-current="page"{% endif %}
+                                >{{ numero_pagina }}</a>
+                            {% endfor %}
+
+                            {% if paginacao.tem_proxima %}
+                                <a
+                                    class="contracts-page-link"
+                                    href="{{ url_for('contratos', busca=busca, status=status_filtro, tipo=tipo_filtro, vencimento=vencimento_filtro, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, pagina=paginacao.proxima) }}"
+                                >Próxima</a>
+                            {% endif %}
+                        </nav>
+                    {% endif %}
+                </div>
+            {% else %}
+                <div class="contracts-empty">
+                    <strong>Nenhum contrato encontrado</strong>
+                    {% if busca or status_filtro or tipo_filtro or vencimento_filtro %}
+                        <p>Não há contratos que correspondam aos filtros selecionados. Limpe os filtros e tente novamente.</p>
+                        <a href="{{ url_for('contratos') }}" class="btn-light">Limpar filtros</a>
+                    {% else %}
+                        <p>Crie o primeiro contrato de serviço, recorrência ou locação para começar o acompanhamento.</p>
+                        {% if tem_permissao('contratos', 'criar') %}
+                            <a href="{{ url_for('novo_contrato') }}" class="btn-primary-green">Criar primeiro contrato</a>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            {% endif %}
+        </section>
+    </main>
+</body>
+</html>
