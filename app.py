@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-22 21:37 (America/Bahia)
-# Motivo: Adicionar a base completa, segura e multiempresa do módulo Contratos.
+# Último recode: 2026-07-22 22:34 (America/Bahia)
+# Motivo: Adicionar a central completa e multiempresa de configurações dos módulos.
 
 from __future__ import annotations
 
@@ -264,6 +264,617 @@ CONTRATO_TRANSICOES_STATUS = {
     "suspenso": {"ativo", "encerrado", "cancelado"},
     "encerrado": set(),
     "cancelado": set(),
+}
+
+
+def _campo_configuracao_modulo(
+    chave: str,
+    nome: str,
+    tipo: str = "texto",
+    padrao: Any = "",
+    *,
+    secao: str = "Regras gerais",
+    ajuda: str = "",
+    opcoes: tuple[tuple[str, str], ...] = (),
+    minimo: float | None = None,
+    maximo: float | None = None,
+) -> dict[str, Any]:
+    return {
+        "chave": chave,
+        "nome": nome,
+        "tipo": tipo,
+        "padrao": padrao,
+        "secao": secao,
+        "ajuda": ajuda,
+        "opcoes": [{"valor": valor, "nome": rotulo} for valor, rotulo in opcoes],
+        "minimo": minimo,
+        "maximo": maximo,
+    }
+
+
+_OPCOES_ATIVO_INATIVO = (("ativo", "Ativo"), ("inativo", "Inativo"))
+_OPCOES_AUTOMATICO_MANUAL = (("automatico", "Automático"), ("manual", "Manual"))
+_OPCOES_OPCIONAL_OBRIGATORIO = (("opcional", "Opcional"), ("obrigatorio", "Obrigatório"))
+_OPCOES_CAIXA_COMPETENCIA = (("caixa", "Regime de caixa"), ("competencia", "Regime de competência"))
+
+
+CONFIGURACOES_MODULOS_DEFINICOES = [
+    {
+        "codigo": "gerais",
+        "nome": "Gerais do sistema",
+        "grupo": "Sistema",
+        "icone": "⚙",
+        "descricao": "Padrões globais de documentos, valores, notificações e segurança.",
+        "campos": [
+            _campo_configuracao_modulo("moeda", "Moeda", "selecao", "BRL", opcoes=(("BRL", "Real brasileiro (R$)"), ("USD", "Dólar (US$)"), ("EUR", "Euro (€)"))),
+            _campo_configuracao_modulo("formato_data", "Formato de data", "selecao", "dd/mm/aaaa", opcoes=(("dd/mm/aaaa", "DD/MM/AAAA"), ("aaaa-mm-dd", "AAAA-MM-DD"))),
+            _campo_configuracao_modulo("casas_decimais_valores", "Casas decimais dos valores", "numero", 2, minimo=0, maximo=4),
+            _campo_configuracao_modulo("casas_decimais_quantidades", "Casas decimais das quantidades", "numero", 3, minimo=0, maximo=6),
+            _campo_configuracao_modulo("email_remetente", "E-mail remetente", "email", "noreply@nettsan.com.br", secao="Comunicação"),
+            _campo_configuracao_modulo("rodape_documentos", "Rodapé padrão dos documentos", "texto_longo", "", secao="Documentos"),
+            _campo_configuracao_modulo("cabecalho_documentos", "Texto complementar do cabeçalho", "texto_longo", "", secao="Documentos"),
+            _campo_configuracao_modulo("notificacoes_email", "Ativar notificações por e-mail", "booleano", True, secao="Comunicação"),
+            _campo_configuracao_modulo("notificacoes_whatsapp", "Ativar notificações por WhatsApp", "booleano", False, secao="Comunicação"),
+            _campo_configuracao_modulo("auditoria_ativa", "Registrar auditoria das alterações", "booleano", True, secao="Segurança"),
+            _campo_configuracao_modulo("exclusao_logica", "Usar exclusão lógica", "booleano", True, secao="Segurança"),
+            _campo_configuracao_modulo("tempo_sessao_minutos", "Tempo máximo de sessão (minutos)", "numero", 43200, secao="Segurança", minimo=15, maximo=525600),
+            _campo_configuracao_modulo("tamanho_maximo_anexo_mb", "Tamanho máximo de anexo (MB)", "numero", 10, secao="Documentos", minimo=1, maximo=100),
+            _campo_configuracao_modulo("politica_senha", "Política de senha", "selecao", "forte", secao="Segurança", opcoes=(("basica", "Básica"), ("forte", "Forte"), ("muito_forte", "Muito forte"))),
+            _campo_configuracao_modulo("backup_automatico", "Backup automático", "booleano", True, secao="Segurança"),
+            _campo_configuracao_modulo("retencao_dados_dias", "Retenção de histórico (dias)", "numero", 1825, secao="Segurança", minimo=30, maximo=3650),
+        ],
+    },
+    {
+        "codigo": "cadastros",
+        "nome": "Cadastros",
+        "grupo": "Cadastros",
+        "icone": "♟",
+        "descricao": "Clientes, fornecedores, funcionários, contatos e validações cadastrais.",
+        "campos": [
+            _campo_configuracao_modulo("tipos_pessoa", "Tipos de pessoa", "lista", "Pessoa física\nPessoa jurídica", secao="Classificações"),
+            _campo_configuracao_modulo("tipos_contato", "Tipos de contato", "lista", "Principal\nComercial\nFinanceiro\nTécnico", secao="Classificações"),
+            _campo_configuracao_modulo("tipos_telefone", "Tipos de telefone", "lista", "Celular\nWhatsApp\nComercial\nResidencial", secao="Classificações"),
+            _campo_configuracao_modulo("tipos_endereco", "Tipos de endereço", "lista", "Principal\nCobrança\nEntrega\nServiço", secao="Classificações"),
+            _campo_configuracao_modulo("categorias_clientes", "Categorias de clientes", "lista", "Cliente final\nEmpresa\nCondomínio\nIndústria", secao="Classificações"),
+            _campo_configuracao_modulo("categorias_fornecedores", "Categorias de fornecedores", "lista", "Materiais\nServiços\nLocação\nTransporte", secao="Classificações"),
+            _campo_configuracao_modulo("origens_cliente", "Origens do cliente", "lista", "Indicação\nInstagram\nGoogle\nWhatsApp\nProspecção", secao="Classificações"),
+            _campo_configuracao_modulo("segmentos_atuacao", "Segmentos de atuação", "lista", "Comércio\nServiços\nIndústria\nCondomínio", secao="Classificações"),
+            _campo_configuracao_modulo("campos_extras", "Campos extras", "lista", "", secao="Campos e documentos", ajuda="Um campo por linha."),
+            _campo_configuracao_modulo("documentos_obrigatorios", "Documentos obrigatórios", "lista", "Nome / Razão social\nCPF / CNPJ", secao="Campos e documentos"),
+            _campo_configuracao_modulo("bloquear_cpf_cnpj_duplicado", "Bloquear CPF/CNPJ duplicado", "booleano", True, secao="Validações"),
+            _campo_configuracao_modulo("buscar_cnpj_automaticamente", "Busca automática de CNPJ", "booleano", True, secao="Validações"),
+            _campo_configuracao_modulo("status_padrao", "Situação padrão", "selecao", "ativo", secao="Padrões", opcoes=_OPCOES_ATIVO_INATIVO),
+            _campo_configuracao_modulo("permitir_cliente_bloqueado", "Permitir operação com cliente bloqueado", "booleano", False, secao="Validações"),
+            _campo_configuracao_modulo("limite_credito_padrao", "Limite de crédito padrão", "numero", 0, secao="Crédito", minimo=0),
+            _campo_configuracao_modulo("exigir_limite_credito", "Exigir limite de crédito", "booleano", False, secao="Crédito"),
+            _campo_configuracao_modulo("observacoes_padrao", "Observações padrão", "texto_longo", "", secao="Padrões"),
+        ],
+    },
+    {
+        "codigo": "produtos",
+        "nome": "Produtos",
+        "grupo": "Operação",
+        "icone": "▦",
+        "descricao": "Catálogo, preços, composição, rastreabilidade e controle de estoque.",
+        "campos": [
+            _campo_configuracao_modulo("grupos", "Grupos", "lista", "", secao="Classificações"),
+            _campo_configuracao_modulo("subgrupos", "Subgrupos", "lista", "", secao="Classificações"),
+            _campo_configuracao_modulo("categorias", "Categorias", "lista", "", secao="Classificações"),
+            _campo_configuracao_modulo("marcas", "Marcas", "lista", "", secao="Classificações"),
+            _campo_configuracao_modulo("unidades_medida", "Unidades de medida", "lista", "UN\nKG\nM\nM²\nM³\nL\nCX\nPC", secao="Classificações"),
+            _campo_configuracao_modulo("cores", "Cores", "lista", "", secao="Grades e variações"),
+            _campo_configuracao_modulo("tamanhos", "Tamanhos", "lista", "", secao="Grades e variações"),
+            _campo_configuracao_modulo("grades_variacoes", "Usar grades e variações", "booleano", False, secao="Grades e variações"),
+            _campo_configuracao_modulo("etiquetas", "Modelos de etiqueta", "lista", "Padrão", secao="Identificação"),
+            _campo_configuracao_modulo("codigo_automatico", "Gerar código interno automaticamente", "booleano", True, secao="Identificação"),
+            _campo_configuracao_modulo("prefixo_codigo", "Prefixo do código interno", "texto", "PROD", secao="Identificação"),
+            _campo_configuracao_modulo("codigo_barras", "Habilitar código de barras", "booleano", True, secao="Identificação"),
+            _campo_configuracao_modulo("campos_extras", "Campos extras", "lista", "", secao="Campos"),
+            _campo_configuracao_modulo("casas_decimais_quantidade", "Casas decimais da quantidade", "numero", 3, secao="Valores", minimo=0, maximo=6),
+            _campo_configuracao_modulo("margem_padrao", "Margem padrão (%)", "numero", 30, secao="Valores", minimo=0, maximo=1000),
+            _campo_configuracao_modulo("tabelas_preco", "Tabelas de preço", "lista", "Padrão\nAtacado", secao="Valores"),
+            _campo_configuracao_modulo("preco_minimo_percentual", "Preço mínimo sobre o custo (%)", "numero", 0, secao="Valores", minimo=0, maximo=1000),
+            _campo_configuracao_modulo("comissao_padrao", "Comissão padrão (%)", "numero", 0, secao="Valores", minimo=0, maximo=100),
+            _campo_configuracao_modulo("produto_composto", "Permitir produto composto", "booleano", True, secao="Composição"),
+            _campo_configuracao_modulo("controle_lote_validade", "Controlar lote e validade", "booleano", False, secao="Rastreabilidade"),
+            _campo_configuracao_modulo("controle_numero_serie", "Controlar número de série", "booleano", False, secao="Rastreabilidade"),
+            _campo_configuracao_modulo("permitir_estoque_negativo", "Permitir estoque negativo", "booleano", False, secao="Estoque"),
+            _campo_configuracao_modulo("estoque_minimo_padrao", "Estoque mínimo padrão", "numero", 0, secao="Estoque", minimo=0),
+            _campo_configuracao_modulo("estoque_maximo_padrao", "Estoque máximo padrão", "numero", 0, secao="Estoque", minimo=0),
+            _campo_configuracao_modulo("localizacao_padrao", "Localização padrão", "texto", "Estoque principal", secao="Estoque"),
+            _campo_configuracao_modulo("regras_fiscais", "Observações fiscais futuras", "texto_longo", "", secao="Fiscal"),
+        ],
+    },
+    {
+        "codigo": "servicos",
+        "nome": "Serviços",
+        "grupo": "Operação",
+        "icone": "◇",
+        "descricao": "Catálogo, cobrança, custos, garantia e escopos padronizados.",
+        "campos": [
+            _campo_configuracao_modulo("grupos", "Grupos de serviços", "lista", "", secao="Classificações"),
+            _campo_configuracao_modulo("categorias", "Categorias", "lista", "", secao="Classificações"),
+            _campo_configuracao_modulo("unidades_cobranca", "Unidades de cobrança", "lista", "Serviço\nHora\nDiária\nUnidade", secao="Cobrança"),
+            _campo_configuracao_modulo("codigo_automatico", "Gerar código automaticamente", "booleano", True, secao="Identificação"),
+            _campo_configuracao_modulo("prefixo_codigo", "Prefixo do código", "texto", "SERV", secao="Identificação"),
+            _campo_configuracao_modulo("valor_padrao", "Valor padrão", "numero", 0, secao="Valores", minimo=0),
+            _campo_configuracao_modulo("custo_estimado_padrao", "Custo estimado padrão", "numero", 0, secao="Valores", minimo=0),
+            _campo_configuracao_modulo("margem_minima", "Margem mínima (%)", "numero", 0, secao="Valores", minimo=0, maximo=1000),
+            _campo_configuracao_modulo("tempo_estimado_horas", "Tempo estimado (horas)", "numero", 1, secao="Execução", minimo=0),
+            _campo_configuracao_modulo("comissao_padrao", "Comissão padrão (%)", "numero", 0, secao="Valores", minimo=0, maximo=100),
+            _campo_configuracao_modulo("responsavel_padrao", "Responsável padrão", "texto", "", secao="Execução"),
+            _campo_configuracao_modulo("garantia_dias", "Garantia padrão (dias)", "numero", 90, secao="Garantia", minimo=0, maximo=3650),
+            _campo_configuracao_modulo("campos_extras", "Campos extras", "lista", "", secao="Campos"),
+            _campo_configuracao_modulo("materiais_padrao", "Materiais normalmente utilizados", "lista", "", secao="Execução"),
+            _campo_configuracao_modulo("escopo_padrao", "Texto padrão do escopo", "texto_longo", "", secao="Documentos"),
+            _campo_configuracao_modulo("usar_em_modulos", "Disponível em", "lista", "Orçamento\nVenda\nContrato\nOrdem de serviço", secao="Integrações"),
+            _campo_configuracao_modulo("status_padrao", "Situação padrão", "selecao", "ativo", secao="Padrões", opcoes=_OPCOES_ATIVO_INATIVO),
+        ],
+    },
+    {
+        "codigo": "orcamentos",
+        "nome": "Orçamentos",
+        "grupo": "Comercial",
+        "icone": "▤",
+        "descricao": "Numeração, validade, apresentação, aprovações, documentos e conversões.",
+        "campos": [
+            _campo_configuracao_modulo("prefixo_numero", "Prefixo da numeração", "texto", "ORC", secao="Numeração"),
+            _campo_configuracao_modulo("reinicio_numeracao", "Reinício da numeração", "selecao", "anual", secao="Numeração", opcoes=(("anual", "Anual"), ("continuo", "Sequência contínua"))),
+            _campo_configuracao_modulo("validade_padrao_dias", "Validade padrão (dias)", "numero", 15, secao="Prazos", minimo=0, maximo=3650),
+            _campo_configuracao_modulo("situacoes", "Situações", "lista", "Aberto\nEnviado\nAprovado\nReprovado\nCancelado", secao="Fluxo"),
+            _campo_configuracao_modulo("prazo_execucao_padrao", "Prazo de execução padrão", "texto", "A combinar", secao="Prazos"),
+            _campo_configuracao_modulo("condicoes_pagamento_padrao", "Condições de pagamento padrão", "texto_longo", "", secao="Comercial"),
+            _campo_configuracao_modulo("observacoes_padrao", "Observações padrão", "texto_longo", "", secao="Documentos"),
+            _campo_configuracao_modulo("clausulas_comerciais", "Cláusulas comerciais", "texto_longo", "", secao="Documentos"),
+            _campo_configuracao_modulo("modelos_escopo", "Modelos de escopo", "lista", "", secao="Documentos"),
+            _campo_configuracao_modulo("campos_extras", "Campos extras", "lista", "", secao="Campos"),
+            _campo_configuracao_modulo("tabela_preco_padrao", "Tabela de preço padrão", "texto", "Padrão", secao="Valores"),
+            _campo_configuracao_modulo("desconto_maximo_percentual", "Desconto máximo (%)", "numero", 100, secao="Valores", minimo=0, maximo=100),
+            _campo_configuracao_modulo("margem_minima_percentual", "Margem mínima (%)", "numero", 0, secao="Valores", minimo=0, maximo=1000),
+            _campo_configuracao_modulo("aprovar_desconto", "Exigir aprovação acima do desconto máximo", "booleano", True, secao="Aprovações"),
+            _campo_configuracao_modulo("modo_apresentacao_padrao", "Apresentação padrão", "selecao", "agrupado", secao="Impressão", opcoes=(("agrupado", "Agrupado"), ("global", "Valor global"), ("detalhado", "Detalhado"))),
+            _campo_configuracao_modulo("exibir_itens_pdf", "Exibir itens no PDF", "booleano", True, secao="Impressão"),
+            _campo_configuracao_modulo("separar_material_mao_obra", "Separar material e mão de obra", "booleano", True, secao="Impressão"),
+            _campo_configuracao_modulo("modelo_impressao", "Modelo de impressão", "selecao", "a4", secao="Impressão", opcoes=(("a4", "A4"), ("cupom", "Cupom"))),
+            _campo_configuracao_modulo("usar_logo", "Exibir logotipo", "booleano", True, secao="Impressão"),
+            _campo_configuracao_modulo("rodape", "Rodapé", "texto_longo", "", secao="Impressão"),
+            _campo_configuracao_modulo("assinatura_cliente", "Exigir assinatura do cliente", "booleano", False, secao="Aprovações"),
+            _campo_configuracao_modulo("modelo_email", "Modelo de e-mail", "texto_longo", "Segue o orçamento {numero} para sua análise.", secao="Comunicação"),
+            _campo_configuracao_modulo("modelo_whatsapp", "Modelo de WhatsApp", "texto_longo", "Olá! Segue o orçamento {numero}: {link}", secao="Comunicação"),
+            _campo_configuracao_modulo("converter_venda", "Permitir converter em venda", "booleano", True, secao="Conversões"),
+            _campo_configuracao_modulo("converter_contrato", "Permitir converter em contrato", "booleano", True, secao="Conversões"),
+            _campo_configuracao_modulo("converter_os", "Permitir converter em OS", "booleano", True, secao="Conversões"),
+            _campo_configuracao_modulo("uma_venda_por_orcamento", "Bloquear mais de uma venda por orçamento", "booleano", True, secao="Conversões"),
+            _campo_configuracao_modulo("controle_versoes", "Registrar versões e histórico", "booleano", True, secao="Auditoria"),
+        ],
+    },
+    {
+        "codigo": "vendas",
+        "nome": "Vendas",
+        "grupo": "Comercial",
+        "icone": "◆",
+        "descricao": "Numeração, pagamentos, estoque, comissões, impressão e cancelamentos.",
+        "campos": [
+            _campo_configuracao_modulo("prefixo_numero", "Prefixo da numeração", "texto", "VEN", secao="Numeração"),
+            _campo_configuracao_modulo("tipos_venda", "Tipos de venda", "lista", "Produtos\nServiços\nMista", secao="Fluxo"),
+            _campo_configuracao_modulo("situacoes", "Situações", "lista", "Aberta\nFinalizada\nCancelada", secao="Fluxo"),
+            _campo_configuracao_modulo("vendedor_padrao", "Vendedor padrão", "texto", "", secao="Padrões"),
+            _campo_configuracao_modulo("tabela_preco_padrao", "Tabela de preço padrão", "texto", "Padrão", secao="Valores"),
+            _campo_configuracao_modulo("desconto_maximo_percentual", "Desconto máximo (%)", "numero", 100, secao="Valores", minimo=0, maximo=100),
+            _campo_configuracao_modulo("comissao_vendedor_percentual", "Comissão de vendedor (%)", "numero", 0, secao="Valores", minimo=0, maximo=100),
+            _campo_configuracao_modulo("formas_pagamento", "Formas de pagamento", "lista", "Dinheiro\nPIX\nCartão de débito\nCartão de crédito\nBoleto\nTransferência", secao="Pagamento"),
+            _campo_configuracao_modulo("condicoes_pagamento", "Condições permitidas", "lista", "À vista\nA prazo\nParcelado\nEntrada + parcelas", secao="Pagamento"),
+            _campo_configuracao_modulo("maximo_parcelas", "Quantidade máxima de parcelas", "numero", 12, secao="Pagamento", minimo=1, maximo=120),
+            _campo_configuracao_modulo("dias_primeira_parcela", "Dias para primeira parcela", "numero", 30, secao="Pagamento", minimo=0, maximo=3650),
+            _campo_configuracao_modulo("gerar_contas_receber", "Gerar contas a receber", "booleano", True, secao="Integrações"),
+            _campo_configuracao_modulo("baixar_estoque", "Baixar estoque automaticamente", "booleano", True, secao="Estoque"),
+            _campo_configuracao_modulo("permitir_sem_estoque", "Permitir venda sem estoque", "booleano", False, secao="Estoque"),
+            _campo_configuracao_modulo("reservar_estoque", "Reservar estoque em venda aberta", "booleano", False, secao="Estoque"),
+            _campo_configuracao_modulo("modelo_impressao", "Impressão padrão", "selecao", "a4", secao="Impressão", opcoes=(("a4", "A4"), ("cupom", "Cupom"))),
+            _campo_configuracao_modulo("observacoes_padrao", "Observações padrão", "texto_longo", "", secao="Documentos"),
+            _campo_configuracao_modulo("politica_troca", "Política de troca e devolução", "texto_longo", "", secao="Documentos"),
+            _campo_configuracao_modulo("modelo_email", "Modelo de e-mail", "texto_longo", "Venda {numero} registrada com sucesso.", secao="Comunicação"),
+            _campo_configuracao_modulo("modelo_whatsapp", "Modelo de WhatsApp", "texto_longo", "Olá! Seguem os dados da venda {numero}.", secao="Comunicação"),
+            _campo_configuracao_modulo("editar_finalizada", "Permitir editar venda finalizada", "booleano", False, secao="Segurança"),
+            _campo_configuracao_modulo("autorizar_cancelamento", "Exigir autorização para cancelar", "booleano", True, secao="Segurança"),
+            _campo_configuracao_modulo("cliente_obrigatorio", "Exigir cliente", "booleano", False, secao="Validações"),
+        ],
+    },
+    {
+        "codigo": "devolucoes",
+        "nome": "Devoluções",
+        "grupo": "Comercial",
+        "icone": "↶",
+        "descricao": "Prazos, motivos, estoque, estornos, créditos e autorizações.",
+        "campos": [
+            _campo_configuracao_modulo("motivos", "Motivos de devolução", "lista", "Defeito\nProduto incorreto\nDesistência\nTroca", secao="Fluxo"),
+            _campo_configuracao_modulo("prazo_maximo_dias", "Prazo máximo (dias)", "numero", 7, secao="Prazos", minimo=0, maximo=3650),
+            _campo_configuracao_modulo("permitir_parcial", "Permitir devolução parcial", "booleano", True, secao="Fluxo"),
+            _campo_configuracao_modulo("retornar_estoque", "Retornar automaticamente ao estoque", "booleano", True, secao="Estoque"),
+            _campo_configuracao_modulo("condicoes_produto", "Condições do produto", "lista", "Novo\nAberto\nAvariado\nDefeituoso", secao="Estoque"),
+            _campo_configuracao_modulo("local_estoque", "Local de estoque da devolução", "texto", "Estoque principal", secao="Estoque"),
+            _campo_configuracao_modulo("gerar_credito_cliente", "Gerar crédito para o cliente", "booleano", True, secao="Financeiro"),
+            _campo_configuracao_modulo("estornar_conta_receber", "Estornar conta a receber", "booleano", True, secao="Financeiro"),
+            _campo_configuracao_modulo("estornar_comissao", "Estornar comissão", "booleano", True, secao="Financeiro"),
+            _campo_configuracao_modulo("exigir_autorizacao", "Exigir autorização", "booleano", True, secao="Segurança"),
+            _campo_configuracao_modulo("exigir_observacao", "Exigir observação", "booleano", True, secao="Validações"),
+            _campo_configuracao_modulo("exigir_anexo", "Exigir anexo", "booleano", False, secao="Validações"),
+            _campo_configuracao_modulo("prefixo_numero", "Prefixo do comprovante", "texto", "DEV", secao="Numeração"),
+        ],
+    },
+    {
+        "codigo": "ordens_servico",
+        "nome": "Ordens de Serviço",
+        "grupo": "Serviços",
+        "icone": "▣",
+        "descricao": "Fluxo técnico, equipamentos, checklists, evidências, materiais e documentos.",
+        "campos": [
+            _campo_configuracao_modulo("prefixo_numero", "Prefixo da numeração", "texto", "OS", secao="Numeração"),
+            _campo_configuracao_modulo("situacoes", "Situações", "lista", "Aberta\nEm andamento\nAguardando\nConcluída\nCancelada", secao="Fluxo"),
+            _campo_configuracao_modulo("prioridades", "Prioridades", "lista", "Baixa\nNormal\nAlta\nUrgente", secao="Fluxo"),
+            _campo_configuracao_modulo("tipos_os", "Tipos de OS", "lista", "Corretiva\nPreventiva\nInstalação\nInspeção\nGarantia", secao="Classificações"),
+            _campo_configuracao_modulo("tipos_atendimento", "Tipos de atendimento", "lista", "Interno\nExterno\nRemoto", secao="Classificações"),
+            _campo_configuracao_modulo("setores_responsaveis", "Setores responsáveis", "lista", "Manutenção\nAssistência técnica\nEngenharia", secao="Equipe"),
+            _campo_configuracao_modulo("tecnico_padrao", "Técnico padrão", "texto", "", secao="Equipe"),
+            _campo_configuracao_modulo("garantia_dias", "Garantia padrão (dias)", "numero", 90, secao="Prazos", minimo=0, maximo=3650),
+            _campo_configuracao_modulo("prazo_padrao_dias", "Prazo padrão (dias)", "numero", 7, secao="Prazos", minimo=0, maximo=3650),
+            _campo_configuracao_modulo("defeitos_frequentes", "Defeitos relatados frequentes", "lista", "", secao="Diagnóstico"),
+            _campo_configuracao_modulo("diagnosticos_frequentes", "Diagnósticos frequentes", "lista", "", secao="Diagnóstico"),
+            _campo_configuracao_modulo("solucoes_frequentes", "Soluções frequentes", "lista", "", secao="Diagnóstico"),
+            _campo_configuracao_modulo("checklists", "Checklists padrão", "texto_longo", "", secao="Execução"),
+            _campo_configuracao_modulo("etapas_padrao", "Etapas padrão", "lista", "Abertura\nDiagnóstico\nExecução\nTeste\nEntrega", secao="Execução"),
+            _campo_configuracao_modulo("campos_extras", "Campos extras", "lista", "", secao="Campos"),
+            _campo_configuracao_modulo("categorias_equipamentos", "Categorias de equipamentos", "lista", "", secao="Equipamentos"),
+            _campo_configuracao_modulo("marcas_equipamentos", "Marcas de equipamentos", "lista", "", secao="Equipamentos"),
+            _campo_configuracao_modulo("exigir_numero_serie", "Exigir número de série", "booleano", False, secao="Equipamentos"),
+            _campo_configuracao_modulo("exigir_fotos_antes", "Exigir fotos antes", "booleano", False, secao="Evidências"),
+            _campo_configuracao_modulo("exigir_fotos_depois", "Exigir fotos depois", "booleano", False, secao="Evidências"),
+            _campo_configuracao_modulo("exigir_assinatura_cliente", "Exigir assinatura do cliente", "booleano", False, secao="Evidências"),
+            _campo_configuracao_modulo("exigir_responsavel_encerramento", "Exigir responsável pelo encerramento", "booleano", True, secao="Segurança"),
+            _campo_configuracao_modulo("permitir_varios_equipamentos", "Permitir vários equipamentos", "booleano", True, secao="Equipamentos"),
+            _campo_configuracao_modulo("usar_qrcode", "Usar QR Code", "booleano", True, secao="Equipamentos"),
+            _campo_configuracao_modulo("baixar_estoque", "Baixar materiais do estoque", "booleano", True, secao="Integrações"),
+            _campo_configuracao_modulo("gerar_financeiro", "Gerar lançamento financeiro", "booleano", False, secao="Integrações"),
+            _campo_configuracao_modulo("modelo_impressao", "Modelo de impressão", "selecao", "a4", secao="Impressão", opcoes=(("a4", "A4"), ("cupom", "Cupom"))),
+            _campo_configuracao_modulo("termos_padrao", "Termos e observações padrão", "texto_longo", "", secao="Impressão"),
+            _campo_configuracao_modulo("avisar_email", "Avisar por e-mail", "booleano", False, secao="Comunicação"),
+            _campo_configuracao_modulo("avisar_whatsapp", "Avisar por WhatsApp", "booleano", False, secao="Comunicação"),
+            _campo_configuracao_modulo("permitir_reabertura", "Permitir reabertura", "booleano", True, secao="Segurança"),
+            _campo_configuracao_modulo("motivos_cancelamento", "Motivos de cancelamento", "lista", "Solicitação do cliente\nDuplicidade\nSem aprovação\nOutro", secao="Fluxo"),
+        ],
+    },
+    {
+        "codigo": "estoque",
+        "nome": "Estoque",
+        "grupo": "Gestão",
+        "icone": "▥",
+        "descricao": "Depósitos, movimentações, rastreabilidade, custo, inventário e alertas.",
+        "campos": [
+            _campo_configuracao_modulo("locais_depositos", "Locais e depósitos", "lista", "Estoque principal", secao="Locais"),
+            _campo_configuracao_modulo("tipos_movimentacao", "Tipos de movimentação", "lista", "Entrada\nSaída\nAjuste\nTransferência\nReserva", secao="Movimentações"),
+            _campo_configuracao_modulo("motivos_entrada", "Motivos de entrada", "lista", "Compra\nDevolução\nProdução\nAjuste", secao="Movimentações"),
+            _campo_configuracao_modulo("motivos_saida", "Motivos de saída", "lista", "Venda\nOS\nConsumo interno\nPerda\nAjuste", secao="Movimentações"),
+            _campo_configuracao_modulo("motivos_ajuste", "Motivos de ajuste", "lista", "Inventário\nCorreção\nAvaria\nValidade", secao="Movimentações"),
+            _campo_configuracao_modulo("estoque_minimo_padrao", "Estoque mínimo padrão", "numero", 0, secao="Níveis", minimo=0),
+            _campo_configuracao_modulo("estoque_maximo_padrao", "Estoque máximo padrão", "numero", 0, secao="Níveis", minimo=0),
+            _campo_configuracao_modulo("permitir_negativo", "Permitir estoque negativo", "booleano", False, secao="Validações"),
+            _campo_configuracao_modulo("reserva_estoque", "Habilitar reserva de estoque", "booleano", True, secao="Movimentações"),
+            _campo_configuracao_modulo("transferencia_locais", "Permitir transferência entre locais", "booleano", True, secao="Movimentações"),
+            _campo_configuracao_modulo("inventario_contagem", "Habilitar inventário e contagem", "booleano", True, secao="Inventário"),
+            _campo_configuracao_modulo("aprovar_ajustes", "Exigir aprovação de ajustes", "booleano", True, secao="Inventário"),
+            _campo_configuracao_modulo("controle_lote", "Controlar lote", "booleano", False, secao="Rastreabilidade"),
+            _campo_configuracao_modulo("controle_validade", "Controlar validade", "booleano", False, secao="Rastreabilidade"),
+            _campo_configuracao_modulo("controle_numero_serie", "Controlar número de série", "booleano", False, secao="Rastreabilidade"),
+            _campo_configuracao_modulo("metodo_custo", "Método de custo", "selecao", "medio", secao="Custos", opcoes=(("medio", "Custo médio"), ("ultimo", "Último custo"))),
+            _campo_configuracao_modulo("alertar_estoque_baixo", "Alertar estoque baixo", "booleano", True, secao="Alertas"),
+            _campo_configuracao_modulo("alertar_validade_dias", "Alertar validade com antecedência (dias)", "numero", 30, secao="Alertas", minimo=0, maximo=3650),
+            _campo_configuracao_modulo("local_entrada_padrao", "Local padrão de entrada", "texto", "Estoque principal", secao="Locais"),
+            _campo_configuracao_modulo("local_saida_padrao", "Local padrão de saída", "texto", "Estoque principal", secao="Locais"),
+            _campo_configuracao_modulo("integracoes", "Integrações ativas", "lista", "Vendas\nOS\nCompras\nDevoluções", secao="Integrações"),
+        ],
+    },
+    {
+        "codigo": "compras",
+        "nome": "Compras",
+        "grupo": "Gestão",
+        "icone": "▧",
+        "descricao": "Pedidos, aprovações, recebimentos, custos, estoque e financeiro.",
+        "campos": [
+            _campo_configuracao_modulo("prefixo_numero", "Prefixo da numeração", "texto", "COMP", secao="Numeração"),
+            _campo_configuracao_modulo("situacoes", "Situações", "lista", "Rascunho\nPedido\nRecebida parcialmente\nRecebida\nCancelada", secao="Fluxo"),
+            _campo_configuracao_modulo("tipos_compra", "Tipos de compra", "lista", "Mercadoria\nUso e consumo\nAtivo\nServiço", secao="Classificações"),
+            _campo_configuracao_modulo("comprador_padrao", "Comprador responsável", "texto", "", secao="Responsáveis"),
+            _campo_configuracao_modulo("fornecedor_padrao_produto", "Usar fornecedor padrão do produto", "booleano", True, secao="Fornecedores"),
+            _campo_configuracao_modulo("condicoes_pagamento", "Condições de pagamento", "lista", "À vista\nA prazo\nParcelado", secao="Pagamento"),
+            _campo_configuracao_modulo("formas_pagamento", "Formas de pagamento", "lista", "PIX\nBoleto\nTransferência\nCartão", secao="Pagamento"),
+            _campo_configuracao_modulo("gerar_contas_pagar", "Gerar contas a pagar", "booleano", True, secao="Integrações"),
+            _campo_configuracao_modulo("entrar_estoque", "Entrada automática no estoque", "booleano", True, secao="Estoque"),
+            _campo_configuracao_modulo("local_estoque_padrao", "Local de estoque padrão", "texto", "Estoque principal", secao="Estoque"),
+            _campo_configuracao_modulo("aprovacao_por_valor", "Exigir aprovação por valor", "booleano", False, secao="Aprovações"),
+            _campo_configuracao_modulo("valor_limite_aprovacao", "Valor limite sem aprovação", "numero", 0, secao="Aprovações", minimo=0),
+            _campo_configuracao_modulo("limite_por_usuario", "Limite de compra por usuário", "numero", 0, secao="Aprovações", minimo=0),
+            _campo_configuracao_modulo("incluir_frete_custo", "Incluir frete no custo", "booleano", True, secao="Custos"),
+            _campo_configuracao_modulo("incluir_impostos_custo", "Incluir impostos no custo", "booleano", True, secao="Custos"),
+            _campo_configuracao_modulo("ratear_despesas", "Ratear despesas entre produtos", "booleano", True, secao="Custos"),
+            _campo_configuracao_modulo("permitir_pedido_parcial", "Permitir pedido parcial", "booleano", True, secao="Recebimento"),
+            _campo_configuracao_modulo("permitir_recebimento_parcial", "Permitir recebimento parcial", "booleano", True, secao="Recebimento"),
+            _campo_configuracao_modulo("motivos_cancelamento", "Motivos de cancelamento", "lista", "Erro de pedido\nFornecedor indisponível\nPreço alterado\nOutro", secao="Fluxo"),
+            _campo_configuracao_modulo("modelo_pedido", "Texto padrão do pedido", "texto_longo", "", secao="Documentos"),
+            _campo_configuracao_modulo("enviar_email", "Permitir envio por e-mail", "booleano", True, secao="Comunicação"),
+            _campo_configuracao_modulo("enviar_whatsapp", "Permitir envio por WhatsApp", "booleano", True, secao="Comunicação"),
+        ],
+    },
+    {
+        "codigo": "financeiro",
+        "nome": "Financeiro",
+        "grupo": "Financeiro",
+        "icone": "$",
+        "descricao": "Plano financeiro, pagamentos, recebimentos, conciliação, recorrência e impostos.",
+        "campos": [
+            _campo_configuracao_modulo("categorias_receitas", "Categorias de receitas", "lista", "Vendas\nServiços\nContratos\nOutras receitas", secao="Plano financeiro"),
+            _campo_configuracao_modulo("categorias_despesas", "Categorias de despesas", "lista", "Materiais\nMão de obra\nImpostos\nDespesas operacionais\nOutras despesas", secao="Plano financeiro"),
+            _campo_configuracao_modulo("subcategorias", "Subcategorias", "lista", "", secao="Plano financeiro"),
+            _campo_configuracao_modulo("contas_caixas", "Contas bancárias e caixas", "lista", "Caixa\nConta principal", secao="Contas"),
+            _campo_configuracao_modulo("formas_pagamento", "Formas de pagamento", "lista", "Dinheiro\nPIX\nBoleto\nTransferência\nCartão de débito\nCartão de crédito", secao="Pagamento"),
+            _campo_configuracao_modulo("bandeiras_cartao", "Bandeiras de cartão", "lista", "Visa\nMastercard\nElo\nHipercard\nAmex", secao="Cartões"),
+            _campo_configuracao_modulo("operadoras_cartao", "Operadoras", "lista", "", secao="Cartões"),
+            _campo_configuracao_modulo("taxas_cartao", "Taxas de cartão", "texto_longo", "", secao="Cartões", ajuda="Informe uma taxa por linha, por exemplo: Crédito 1x = 3,50%."),
+            _campo_configuracao_modulo("prazos_recebimento", "Prazos de recebimento", "texto_longo", "", secao="Cartões"),
+            _campo_configuracao_modulo("condicoes_pagamento", "Condições de pagamento", "lista", "À vista\nA prazo\nParcelado\nEntrada + parcelas", secao="Pagamento"),
+            _campo_configuracao_modulo("tipos_documento", "Tipos de documento", "lista", "Boleto\nNota fiscal\nRecibo\nContrato\nFatura", secao="Documentos"),
+            _campo_configuracao_modulo("situacoes_lancamentos", "Situações dos lançamentos", "lista", "Aberto\nParcial\nPago\nVencido\nCancelado", secao="Fluxo"),
+            _campo_configuracao_modulo("plano_contas", "Plano de contas", "texto_longo", "", secao="Plano financeiro"),
+            _campo_configuracao_modulo("prefixo_lancamento", "Prefixo dos lançamentos", "texto", "FIN", secao="Numeração"),
+            _campo_configuracao_modulo("multa_percentual", "Multa padrão (%)", "numero", 2, secao="Encargos", minimo=0, maximo=100),
+            _campo_configuracao_modulo("juros_mes_percentual", "Juros ao mês (%)", "numero", 1, secao="Encargos", minimo=0, maximo=100),
+            _campo_configuracao_modulo("desconto_padrao_percentual", "Desconto padrão (%)", "numero", 0, secao="Encargos", minimo=0, maximo=100),
+            _campo_configuracao_modulo("permitir_baixa_parcial", "Permitir baixa parcial", "booleano", True, secao="Baixas"),
+            _campo_configuracao_modulo("baixa_automatica", "Baixa automática", "booleano", False, secao="Baixas"),
+            _campo_configuracao_modulo("permitir_parcelamento", "Permitir parcelamento", "booleano", True, secao="Pagamento"),
+            _campo_configuracao_modulo("transferencia_contas", "Permitir transferência entre contas", "booleano", True, secao="Contas"),
+            _campo_configuracao_modulo("conciliacao", "Habilitar conciliação", "booleano", True, secao="Conciliação"),
+            _campo_configuracao_modulo("aprovar_pagamentos", "Exigir aprovação de pagamentos", "booleano", False, secao="Aprovações"),
+            _campo_configuracao_modulo("limite_pagamento_usuario", "Limite de pagamento por usuário", "numero", 0, secao="Aprovações", minimo=0),
+            _campo_configuracao_modulo("comprovante_obrigatorio", "Exigir comprovante", "booleano", False, secao="Documentos"),
+            _campo_configuracao_modulo("alerta_vencimento_dias", "Avisar vencimento com antecedência (dias)", "numero", 5, secao="Alertas", minimo=0, maximo=3650),
+            _campo_configuracao_modulo("lancamentos_recorrentes", "Habilitar lançamentos recorrentes", "booleano", True, secao="Recorrência"),
+            _campo_configuracao_modulo("regime_padrao", "Regime padrão", "selecao", "competencia", secao="Relatórios", opcoes=_OPCOES_CAIXA_COMPETENCIA),
+            _campo_configuracao_modulo("impostos", "Impostos", "texto_longo", "", secao="Impostos"),
+            _campo_configuracao_modulo("separar_material_mao_obra", "Separar material e mão de obra", "booleano", True, secao="Relatórios"),
+            _campo_configuracao_modulo("integracoes", "Integrações automáticas", "lista", "Vendas\nOrçamentos\nOS\nCompras\nContratos", secao="Integrações"),
+        ],
+    },
+    {
+        "codigo": "centros_custo_dre",
+        "nome": "Centros de Custo e DRE",
+        "grupo": "Financeiro",
+        "icone": "▨",
+        "descricao": "Estrutura de centros, rateio, classificação, fórmulas de resultado e margens.",
+        "campos": [
+            _campo_configuracao_modulo("usar_subcentros", "Permitir subcentros", "booleano", True, secao="Estrutura"),
+            _campo_configuracao_modulo("estrutura_hierarquica", "Usar estrutura hierárquica", "booleano", True, secao="Estrutura"),
+            _campo_configuracao_modulo("centro_padrao_orcamentos", "Centro padrão de orçamentos", "texto", "", secao="Padrões"),
+            _campo_configuracao_modulo("centro_padrao_vendas", "Centro padrão de vendas", "texto", "", secao="Padrões"),
+            _campo_configuracao_modulo("centro_padrao_os", "Centro padrão de OS", "texto", "", secao="Padrões"),
+            _campo_configuracao_modulo("centro_padrao_contratos", "Centro padrão de contratos", "texto", "", secao="Padrões"),
+            _campo_configuracao_modulo("vinculo_obrigatorio", "Vínculo com centro", "selecao", "obrigatorio", secao="Validações", opcoes=_OPCOES_OPCIONAL_OBRIGATORIO),
+            _campo_configuracao_modulo("permitir_rateio", "Permitir rateio entre centros", "booleano", True, secao="Rateio"),
+            _campo_configuracao_modulo("categorias_receita", "Categorias consideradas receita", "lista", "Vendas\nServiços\nContratos", secao="DRE"),
+            _campo_configuracao_modulo("categorias_custo", "Categorias consideradas custo", "lista", "Materiais\nMão de obra\nTerceiros", secao="DRE"),
+            _campo_configuracao_modulo("custos_diretos", "Custos diretos", "lista", "Materiais\nMão de obra direta\nTerceiros", secao="DRE"),
+            _campo_configuracao_modulo("custos_indiretos", "Custos indiretos", "lista", "Administrativo\nTransporte\nFerramentas", secao="DRE"),
+            _campo_configuracao_modulo("separar_material_mao_obra", "Separar material e mão de obra", "booleano", True, secao="DRE"),
+            _campo_configuracao_modulo("impostos_considerados", "Impostos considerados", "lista", "", secao="DRE"),
+            _campo_configuracao_modulo("regime", "Regime da DRE", "selecao", "competencia", secao="DRE", opcoes=_OPCOES_CAIXA_COMPETENCIA),
+            _campo_configuracao_modulo("formula_lucro_bruto", "Fórmula do lucro bruto", "texto", "Receita - custos diretos", secao="Fórmulas"),
+            _campo_configuracao_modulo("formula_lucro_liquido", "Fórmula do lucro líquido", "texto", "Lucro bruto - custos indiretos - impostos", secao="Fórmulas"),
+            _campo_configuracao_modulo("meta_margem_percentual", "Meta de margem (%)", "numero", 30, secao="Metas", minimo=-100, maximo=1000),
+            _campo_configuracao_modulo("periodos_comparacao", "Períodos de comparação", "lista", "Mensal\nTrimestral\nSemestral\nAnual", secao="Relatórios"),
+            _campo_configuracao_modulo("exibir_por_origem", "Exibir resultado por", "lista", "Orçamento\nOS\nAtividade\nContrato", secao="Relatórios"),
+        ],
+    },
+    {
+        "codigo": "contratos",
+        "nome": "Contratos",
+        "grupo": "Comercial",
+        "icone": "▪",
+        "descricao": "Numeração, tipos, cláusulas, renovação, cobrança, reajuste e integrações.",
+        "campos": [
+            _campo_configuracao_modulo("prefixo_numero", "Prefixo da numeração", "texto", "CTR", secao="Numeração"),
+            _campo_configuracao_modulo("tipos", "Tipos de contrato", "lista", "Serviço\nServiço recorrente\nLocação", secao="Classificações"),
+            _campo_configuracao_modulo("situacoes", "Situações", "lista", "Rascunho\nAguardando assinatura\nAtivo\nSuspenso\nEncerrado\nCancelado", secao="Fluxo"),
+            _campo_configuracao_modulo("modelos", "Modelos de contrato", "lista", "Contrato de serviço\nContrato recorrente\nContrato de locação", secao="Modelos e cláusulas"),
+            _campo_configuracao_modulo("clausulas", "Modelos de cláusulas", "texto_longo", "", secao="Modelos e cláusulas"),
+            _campo_configuracao_modulo("clausulas_obrigatorias", "Cláusulas obrigatórias", "lista", "Objeto\nPrazo\nValor e pagamento\nResponsabilidades\nRescisão", secao="Modelos e cláusulas"),
+            _campo_configuracao_modulo("clausulas_opcionais", "Cláusulas opcionais", "lista", "Reajuste\nConfidencialidade\nGarantia\nMulta", secao="Modelos e cláusulas"),
+            _campo_configuracao_modulo("campos_extras", "Campos extras", "lista", "", secao="Campos"),
+            _campo_configuracao_modulo("prazo_padrao_meses", "Prazo padrão (meses)", "numero", 12, secao="Prazos", minimo=0, maximo=600),
+            _campo_configuracao_modulo("periodo_minimo_meses", "Período mínimo (meses)", "numero", 0, secao="Prazos", minimo=0, maximo=600),
+            _campo_configuracao_modulo("aviso_vencimento_dias", "Avisar vencimento com antecedência (dias)", "numero", 30, secao="Alertas", minimo=0, maximo=3650),
+            _campo_configuracao_modulo("renovacao", "Renovação", "selecao", "manual", secao="Renovação", opcoes=_OPCOES_AUTOMATICO_MANUAL),
+            _campo_configuracao_modulo("aviso_renovacao_dias", "Prazo para aviso de renovação (dias)", "numero", 30, secao="Renovação", minimo=0, maximo=3650),
+            _campo_configuracao_modulo("frequencia_cobranca", "Frequência de cobrança padrão", "selecao", "mensal", secao="Cobrança", opcoes=(("unica", "Única"), ("mensal", "Mensal"), ("bimestral", "Bimestral"), ("trimestral", "Trimestral"), ("semestral", "Semestral"), ("anual", "Anual"))),
+            _campo_configuracao_modulo("dia_vencimento", "Dia padrão de vencimento", "numero", 10, secao="Cobrança", minimo=1, maximo=31),
+            _campo_configuracao_modulo("reajuste_periodicidade_meses", "Reajuste a cada (meses)", "numero", 12, secao="Reajuste", minimo=0, maximo=120),
+            _campo_configuracao_modulo("indice_reajuste", "Índice de reajuste", "texto", "IPCA", secao="Reajuste"),
+            _campo_configuracao_modulo("percentual_reajuste", "Percentual de reajuste fixo (%)", "numero", 0, secao="Reajuste", minimo=0, maximo=1000),
+            _campo_configuracao_modulo("carencia_dias", "Período de carência (dias)", "numero", 0, secao="Cobrança", minimo=0, maximo=3650),
+            _campo_configuracao_modulo("multa_cancelamento_percentual", "Multa de cancelamento (%)", "numero", 0, secao="Cancelamento", minimo=0, maximo=100),
+            _campo_configuracao_modulo("motivos_suspensao", "Motivos de suspensão", "lista", "Inadimplência\nSolicitação do cliente\nPausa operacional\nOutro", secao="Fluxo"),
+            _campo_configuracao_modulo("motivos_encerramento", "Motivos de encerramento", "lista", "Prazo concluído\nObjeto concluído\nNão renovado\nOutro", secao="Fluxo"),
+            _campo_configuracao_modulo("motivos_cancelamento", "Motivos de cancelamento", "lista", "Distrato\nDescumprimento\nSolicitação do cliente\nOutro", secao="Cancelamento"),
+            _campo_configuracao_modulo("assinatura_obrigatoria", "Exigir assinatura", "booleano", True, secao="Documentos"),
+            _campo_configuracao_modulo("anexo_assinado_obrigatorio", "Exigir contrato assinado anexado", "booleano", False, secao="Documentos"),
+            _campo_configuracao_modulo("modelo_impressao", "Modelo de impressão", "selecao", "a4", secao="Documentos", opcoes=(("a4", "A4"),)),
+            _campo_configuracao_modulo("modelo_email", "Modelo de e-mail", "texto_longo", "Segue o contrato {numero} para análise e assinatura.", secao="Comunicação"),
+            _campo_configuracao_modulo("modelo_whatsapp", "Modelo de WhatsApp", "texto_longo", "Olá! Segue o contrato {numero}: {link}", secao="Comunicação"),
+            _campo_configuracao_modulo("gerar_contas_receber", "Gerar contas a receber", "booleano", False, secao="Integrações"),
+            _campo_configuracao_modulo("gerar_os_recorrente", "Gerar OS recorrente", "booleano", False, secao="Integrações"),
+            _campo_configuracao_modulo("gerar_atividades", "Gerar atividades", "booleano", False, secao="Integrações"),
+            _campo_configuracao_modulo("centro_custo_padrao", "Centro de custo padrão", "texto", "", secao="Integrações"),
+            _campo_configuracao_modulo("bloquear_cobranca_duplicada", "Bloquear cobrança duplicada", "booleano", True, secao="Segurança"),
+        ],
+    },
+    {
+        "codigo": "gestao_atividades",
+        "nome": "Gestão de Atividades",
+        "grupo": "Gestão",
+        "icone": "✓",
+        "descricao": "Tipos, etapas, dependências, progresso, prazos, checklists e notificações.",
+        "campos": [
+            _campo_configuracao_modulo("tipos", "Tipos de atividade", "lista", "Projeto\nServiço\nTarefa interna\nVisita técnica", secao="Classificações"),
+            _campo_configuracao_modulo("categorias", "Categorias", "lista", "", secao="Classificações"),
+            _campo_configuracao_modulo("prioridades", "Prioridades", "lista", "Baixa\nNormal\nAlta\nUrgente", secao="Fluxo"),
+            _campo_configuracao_modulo("situacoes", "Situações", "lista", "Planejada\nEm andamento\nPausada\nConcluída\nCancelada", secao="Fluxo"),
+            _campo_configuracao_modulo("etapas_padrao", "Etapas padrão", "lista", "Planejamento\nExecução\nValidação\nConclusão", secao="Etapas"),
+            _campo_configuracao_modulo("equipes", "Equipes", "lista", "", secao="Responsáveis"),
+            _campo_configuracao_modulo("permitir_dependencias", "Permitir dependências entre etapas", "booleano", True, secao="Etapas"),
+            _campo_configuracao_modulo("bloquear_etapa_dependente", "Bloquear etapa dependente", "booleano", True, secao="Etapas"),
+            _campo_configuracao_modulo("progresso", "Cálculo do progresso", "selecao", "automatico", secao="Etapas", opcoes=_OPCOES_AUTOMATICO_MANUAL),
+            _campo_configuracao_modulo("prazo_padrao_dias", "Prazo padrão (dias)", "numero", 7, secao="Prazos", minimo=0, maximo=3650),
+            _campo_configuracao_modulo("alerta_atraso", "Alertar atraso", "booleano", True, secao="Alertas"),
+            _campo_configuracao_modulo("motivos_pausa", "Motivos de pausa", "lista", "Aguardando cliente\nAguardando material\nAguardando liberação\nOutro", secao="Fluxo"),
+            _campo_configuracao_modulo("motivos_cancelamento", "Motivos de cancelamento", "lista", "Solicitação do cliente\nEscopo cancelado\nDuplicidade\nOutro", secao="Fluxo"),
+            _campo_configuracao_modulo("campos_extras", "Campos extras", "lista", "", secao="Campos"),
+            _campo_configuracao_modulo("checklist", "Checklist padrão", "texto_longo", "", secao="Execução"),
+            _campo_configuracao_modulo("anexos_obrigatorios", "Anexos obrigatórios", "lista", "", secao="Evidências"),
+            _campo_configuracao_modulo("centro_custo_obrigatorio", "Exigir centro de custo", "booleano", False, secao="Integrações"),
+            _campo_configuracao_modulo("vinculos", "Vínculos permitidos", "lista", "Orçamento\nOS\nContrato", secao="Integrações"),
+            _campo_configuracao_modulo("exibir_gantt", "Exibir no cronograma/Gantt", "booleano", True, secao="Visualização"),
+            _campo_configuracao_modulo("registrar_historico", "Registrar histórico automático", "booleano", True, secao="Auditoria"),
+            _campo_configuracao_modulo("notificar_responsaveis", "Notificar responsáveis", "booleano", True, secao="Comunicação"),
+        ],
+    },
+    {
+        "codigo": "agendamentos",
+        "nome": "Agendamentos",
+        "grupo": "Serviços",
+        "icone": "▦",
+        "descricao": "Agenda, disponibilidade, duração, lembretes, cancelamentos e integrações.",
+        "campos": [
+            _campo_configuracao_modulo("tipos", "Tipos de agendamento", "lista", "Atendimento\nVisita técnica\nServiço\nReunião", secao="Classificações"),
+            _campo_configuracao_modulo("servicos_disponiveis", "Serviços disponíveis", "lista", "", secao="Catálogo"),
+            _campo_configuracao_modulo("profissionais", "Profissionais", "lista", "", secao="Equipe"),
+            _campo_configuracao_modulo("dias_atendimento", "Dias de atendimento", "lista", "Segunda\nTerça\nQuarta\nQuinta\nSexta", secao="Disponibilidade"),
+            _campo_configuracao_modulo("horario_inicio", "Horário inicial", "texto", "08:00", secao="Disponibilidade"),
+            _campo_configuracao_modulo("horario_fim", "Horário final", "texto", "18:00", secao="Disponibilidade"),
+            _campo_configuracao_modulo("intervalo_minutos", "Intervalo entre horários (minutos)", "numero", 30, secao="Disponibilidade", minimo=5, maximo=1440),
+            _campo_configuracao_modulo("duracao_padrao_minutos", "Duração padrão (minutos)", "numero", 60, secao="Disponibilidade", minimo=5, maximo=10080),
+            _campo_configuracao_modulo("limite_simultaneo", "Atendimentos simultâneos", "numero", 1, secao="Disponibilidade", minimo=1, maximo=100),
+            _campo_configuracao_modulo("antecedencia_minima_horas", "Antecedência mínima (horas)", "numero", 2, secao="Prazos", minimo=0, maximo=8760),
+            _campo_configuracao_modulo("antecedencia_maxima_dias", "Antecedência máxima (dias)", "numero", 90, secao="Prazos", minimo=1, maximo=3650),
+            _campo_configuracao_modulo("bloqueios_agenda", "Bloqueios de agenda", "texto_longo", "", secao="Disponibilidade"),
+            _campo_configuracao_modulo("feriados_folgas", "Feriados e folgas", "lista", "", secao="Disponibilidade"),
+            _campo_configuracao_modulo("confirmacao_automatica", "Confirmação automática", "booleano", True, secao="Comunicação"),
+            _campo_configuracao_modulo("lembrete_horas", "Lembrete com antecedência (horas)", "numero", 24, secao="Comunicação", minimo=0, maximo=8760),
+            _campo_configuracao_modulo("permitir_cancelamento", "Permitir cancelamento", "booleano", True, secao="Fluxo"),
+            _campo_configuracao_modulo("permitir_reagendamento", "Permitir reagendamento", "booleano", True, secao="Fluxo"),
+            _campo_configuracao_modulo("tolerancia_atraso_minutos", "Tolerância de atraso (minutos)", "numero", 15, secao="Prazos", minimo=0, maximo=1440),
+            _campo_configuracao_modulo("motivos_cancelamento", "Motivos de cancelamento", "lista", "Cliente desistiu\nProfissional indisponível\nConflito de agenda\nOutro", secao="Fluxo"),
+            _campo_configuracao_modulo("exigir_sinal", "Exigir sinal/pagamento antecipado", "booleano", False, secao="Pagamento"),
+            _campo_configuracao_modulo("cliente_obrigatorio", "Exigir cliente", "booleano", True, secao="Validações"),
+            _campo_configuracao_modulo("campos_extras", "Campos extras", "lista", "", secao="Campos"),
+            _campo_configuracao_modulo("integracoes", "Integrações", "lista", "OS\nVenda\nFinanceiro", secao="Integrações"),
+        ],
+    },
+    {
+        "codigo": "registro_ponto",
+        "nome": "Registro de Ponto",
+        "grupo": "Equipe",
+        "icone": "◷",
+        "descricao": "Jornadas, adicionais, geolocalização, offline, aprovações e fechamento.",
+        "campos": [
+            _campo_configuracao_modulo("jornadas", "Jornadas de trabalho", "texto_longo", "Segunda a sexta: 08:00-12:00 / 13:00-17:00", secao="Jornada"),
+            _campo_configuracao_modulo("escalas", "Escalas", "lista", "5x2\n6x1\n12x36", secao="Jornada"),
+            _campo_configuracao_modulo("intervalo_obrigatorio_minutos", "Intervalo obrigatório (minutos)", "numero", 60, secao="Jornada", minimo=0, maximo=1440),
+            _campo_configuracao_modulo("tolerancia_entrada_minutos", "Tolerância de entrada (minutos)", "numero", 5, secao="Tolerâncias", minimo=0, maximo=240),
+            _campo_configuracao_modulo("tolerancia_saida_minutos", "Tolerância de saída (minutos)", "numero", 5, secao="Tolerâncias", minimo=0, maximo=240),
+            _campo_configuracao_modulo("banco_horas", "Habilitar banco de horas", "booleano", True, secao="Horas"),
+            _campo_configuracao_modulo("horas_extras", "Habilitar horas extras", "booleano", True, secao="Horas"),
+            _campo_configuracao_modulo("adicional_noturno_percentual", "Adicional noturno (%)", "numero", 20, secao="Adicionais", minimo=0, maximo=100),
+            _campo_configuracao_modulo("hora_extra_sabado_percentual", "Hora extra de sábado (%)", "numero", 50, secao="Adicionais", minimo=0, maximo=500),
+            _campo_configuracao_modulo("hora_extra_domingo_feriado_percentual", "Hora extra domingo/feriado (%)", "numero", 100, secao="Adicionais", minimo=0, maximo=500),
+            _campo_configuracao_modulo("periculosidade_percentual", "Periculosidade (%)", "numero", 30, secao="Adicionais", minimo=0, maximo=100),
+            _campo_configuracao_modulo("insalubridade_percentual", "Insalubridade (%)", "numero", 0, secao="Adicionais", minimo=0, maximo=100),
+            _campo_configuracao_modulo("trabalhos_especiais", "Trabalhos especiais", "lista", "Altura\nSubestação\nNR-12\nEspaço confinado", secao="Adicionais"),
+            _campo_configuracao_modulo("gps_obrigatorio", "Exigir geolocalização", "booleano", True, secao="Localização"),
+            _campo_configuracao_modulo("raio_maximo_metros", "Raio máximo permitido (metros)", "numero", 300, secao="Localização", minimo=0, maximo=100000),
+            _campo_configuracao_modulo("locais_autorizados", "Locais autorizados", "texto_longo", "", secao="Localização"),
+            _campo_configuracao_modulo("validacao_celular", "Validar celular do funcionário", "booleano", True, secao="Segurança"),
+            _campo_configuracao_modulo("confianca_aparelho_dias", "Confiar no aparelho por (dias)", "numero", 30, secao="Segurança", minimo=1, maximo=3650),
+            _campo_configuracao_modulo("bloqueio_entre_marcacoes_segundos", "Bloqueio entre marcações (segundos)", "numero", 10, secao="Segurança", minimo=0, maximo=3600),
+            _campo_configuracao_modulo("permitir_offline", "Permitir registro offline", "booleano", True, secao="Operação"),
+            _campo_configuracao_modulo("multiplas_jornadas", "Permitir mais de uma jornada no dia", "booleano", True, secao="Jornada"),
+            _campo_configuracao_modulo("justificativas", "Justificativas", "lista", "Atraso\nEsquecimento\nAtendimento externo\nProblema técnico\nOutro", secao="Ajustes"),
+            _campo_configuracao_modulo("ajuste_manual_aprovacao", "Exigir aprovação de ajuste manual", "booleano", True, secao="Ajustes"),
+            _campo_configuracao_modulo("fechamento_mensal", "Exigir fechamento mensal", "booleano", True, secao="Fechamento"),
+            _campo_configuracao_modulo("confirmacao_funcionario", "Exigir confirmação do funcionário", "booleano", False, secao="Fechamento"),
+            _campo_configuracao_modulo("formato_exportacao", "Formato de exportação", "selecao", "xlsx", secao="Exportação", opcoes=(("xlsx", "Excel (.xlsx)"), ("csv", "CSV"), ("pdf", "PDF"))),
+            _campo_configuracao_modulo("registrar_historico", "Registrar histórico de alterações", "booleano", True, secao="Auditoria"),
+        ],
+    },
+    {
+        "codigo": "vitrine",
+        "nome": "Vitrine",
+        "grupo": "Comercial",
+        "icone": "◫",
+        "descricao": "Identidade pública, catálogo, preços, pedidos, entrega, contato e SEO.",
+        "campos": [
+            _campo_configuracao_modulo("ativa", "Ativar vitrine", "booleano", True, secao="Publicação"),
+            _campo_configuracao_modulo("nome_publico", "Nome público", "texto", "", secao="Identidade"),
+            _campo_configuracao_modulo("slug", "Endereço personalizado", "texto", "", secao="Publicação"),
+            _campo_configuracao_modulo("cor_primaria", "Cor principal", "texto", "#1458f5", secao="Identidade"),
+            _campo_configuracao_modulo("cor_secundaria", "Cor secundária", "texto", "#0f172a", secao="Identidade"),
+            _campo_configuracao_modulo("banner", "Texto do banner", "texto_longo", "", secao="Identidade"),
+            _campo_configuracao_modulo("exibir_produtos", "Exibir produtos", "booleano", True, secao="Catálogo"),
+            _campo_configuracao_modulo("exibir_servicos", "Exibir serviços", "booleano", True, secao="Catálogo"),
+            _campo_configuracao_modulo("categorias_publicas", "Categorias públicas", "lista", "", secao="Catálogo"),
+            _campo_configuracao_modulo("exibir_preco", "Exibir preço", "booleano", True, secao="Catálogo"),
+            _campo_configuracao_modulo("exibir_disponibilidade", "Exibir disponibilidade", "booleano", True, secao="Catálogo"),
+            _campo_configuracao_modulo("modo_contato", "Ação principal", "selecao", "pedido", secao="Pedidos", opcoes=(("pedido", "Permitir pedido"), ("contato", "Somente contato"))),
+            _campo_configuracao_modulo("quantidade_minima", "Quantidade mínima", "numero", 1, secao="Pedidos", minimo=1),
+            _campo_configuracao_modulo("formas_entrega", "Formas de entrega", "lista", "Entrega\nRetirada no local", secao="Entrega"),
+            _campo_configuracao_modulo("regioes_taxas_entrega", "Regiões e taxas de entrega", "texto_longo", "", secao="Entrega"),
+            _campo_configuracao_modulo("whatsapp", "WhatsApp de atendimento", "texto", "", secao="Contato"),
+            _campo_configuracao_modulo("texto_institucional", "Texto institucional", "texto_longo", "", secao="Conteúdo"),
+            _campo_configuracao_modulo("politica_troca", "Política de troca", "texto_longo", "", secao="Políticas"),
+            _campo_configuracao_modulo("politica_privacidade", "Política de privacidade", "texto_longo", "", secao="Políticas"),
+            _campo_configuracao_modulo("seo_titulo", "Título para busca e compartilhamento", "texto", "", secao="SEO"),
+            _campo_configuracao_modulo("seo_descricao", "Descrição para busca e compartilhamento", "texto_longo", "", secao="SEO"),
+            _campo_configuracao_modulo("produtos_destaque", "Produtos em destaque", "lista", "", secao="Catálogo"),
+            _campo_configuracao_modulo("ordenacao", "Ordem de exibição", "selecao", "manual", secao="Catálogo", opcoes=(("manual", "Manual"), ("nome", "Nome"), ("preco", "Preço"), ("recentes", "Mais recentes"))),
+            _campo_configuracao_modulo("controlar_estoque", "Controlar estoque na vitrine", "booleano", True, secao="Estoque"),
+            _campo_configuracao_modulo("mensagem_indisponivel", "Mensagem de produto indisponível", "texto", "Produto indisponível no momento.", secao="Estoque"),
+        ],
+    },
+    {
+        "codigo": "importacao_seguranca",
+        "nome": "Importação, Exportação e Segurança",
+        "grupo": "Sistema",
+        "icone": "⇄",
+        "descricao": "Planilhas, duplicidades, histórico, exportações, privacidade e retenção.",
+        "campos": [
+            _campo_configuracao_modulo("modelos_planilha", "Modelos de planilha", "lista", "Clientes\nFornecedores\nProdutos\nServiços", secao="Importação"),
+            _campo_configuracao_modulo("campos_obrigatorios", "Campos obrigatórios por importação", "texto_longo", "", secao="Importação"),
+            _campo_configuracao_modulo("duplicados", "Tratamento de duplicados", "selecao", "ignorar", secao="Importação", opcoes=(("ignorar", "Ignorar"), ("atualizar", "Atualizar existente"), ("bloquear", "Bloquear importação"))),
+            _campo_configuracao_modulo("validar_antes_importar", "Validar antes de importar", "booleano", True, secao="Importação"),
+            _campo_configuracao_modulo("historico_importacoes", "Registrar histórico de importações", "booleano", True, secao="Importação"),
+            _campo_configuracao_modulo("exportar_por_periodo", "Permitir exportação por período", "booleano", True, secao="Exportação"),
+            _campo_configuracao_modulo("perfis_exportacao", "Perfis autorizados a exportar", "lista", "Administrador\nFinanceiro", secao="Exportação"),
+            _campo_configuracao_modulo("proteger_dados_pessoais", "Proteger dados pessoais nas exportações", "booleano", True, secao="Privacidade"),
+            _campo_configuracao_modulo("backup_antes_importar", "Gerar backup antes de importar", "booleano", True, secao="Segurança"),
+            _campo_configuracao_modulo("log_auditoria", "Registrar log de auditoria", "booleano", True, secao="Segurança"),
+            _campo_configuracao_modulo("tempo_sessao_minutos", "Tempo de sessão (minutos)", "numero", 43200, secao="Segurança", minimo=15, maximo=525600),
+            _campo_configuracao_modulo("politica_senha", "Política de senha", "selecao", "forte", secao="Segurança", opcoes=(("basica", "Básica"), ("forte", "Forte"), ("muito_forte", "Muito forte"))),
+            _campo_configuracao_modulo("exclusao", "Forma de exclusão", "selecao", "logica", secao="Segurança", opcoes=(("logica", "Exclusão lógica"), ("definitiva", "Exclusão definitiva com confirmação"))),
+            _campo_configuracao_modulo("retencao_documentos_dias", "Retenção de documentos (dias)", "numero", 1825, secao="Privacidade", minimo=30, maximo=36500),
+            _campo_configuracao_modulo("retencao_anexos_dias", "Retenção de anexos (dias)", "numero", 1825, secao="Privacidade", minimo=30, maximo=36500),
+        ],
+    },
+]
+
+CONFIGURACOES_MODULOS_POR_CODIGO = {
+    item["codigo"]: item for item in CONFIGURACOES_MODULOS_DEFINICOES
 }
 
 GERADOR_ADICIONAIS_MAO_OBRA_TIPOS = [
@@ -6878,6 +7489,7 @@ def _maior_sequencia_orcamento_existente(
     empresa_id: int,
     ano: int,
 ) -> int:
+    prefixo = prefixo_documento_configurado("orcamentos", "ORC")
     rows = conn.execute(
         """
         SELECT numero, data, criado_em
@@ -6890,7 +7502,11 @@ def _maior_sequencia_orcamento_existente(
 
     for row in rows:
         numero = str(row["numero"] or "").strip()
-        correspondencia = re.fullmatch(r"ORC-(\d{4})-(\d+)", numero, flags=re.IGNORECASE)
+        correspondencia = re.fullmatch(
+            rf"{re.escape(prefixo)}-(\d{{4}})-(\d+)",
+            numero,
+            flags=re.IGNORECASE,
+        )
 
         if correspondencia is not None:
             if int(correspondencia.group(1)) == ano:
@@ -6949,7 +7565,8 @@ def _proximo_numero_orcamento_conn(
             ),
         )
 
-    return f"ORC-{ano}-{proximo:04d}"
+    prefixo = prefixo_documento_configurado("orcamentos", "ORC")
+    return f"{prefixo}-{ano}-{proximo:04d}"
 
 
 def proximo_numero_orcamento(data_orcamento: Any = None) -> str:
@@ -10399,6 +11016,7 @@ def _maior_sequencia_venda_existente(
     empresa_id: int,
     ano: int,
 ) -> int:
+    prefixo = prefixo_documento_configurado("vendas", "VEN")
     rows = conn.execute(
         """
         SELECT numero, data, criado_em
@@ -10411,7 +11029,11 @@ def _maior_sequencia_venda_existente(
 
     for row in rows:
         numero = str(row["numero"] or "").strip()
-        correspondencia = re.fullmatch(r"VEN-(\d{4})-(\d+)", numero, flags=re.IGNORECASE)
+        correspondencia = re.fullmatch(
+            rf"{re.escape(prefixo)}-(\d{{4}})-(\d+)",
+            numero,
+            flags=re.IGNORECASE,
+        )
 
         if correspondencia is not None:
             if int(correspondencia.group(1)) == ano:
@@ -10470,7 +11092,8 @@ def _proximo_numero_venda_conn(
             ),
         )
 
-    return f"VEN-{ano}-{proximo:04d}"
+    prefixo = prefixo_documento_configurado("vendas", "VEN")
+    return f"{prefixo}-{ano}-{proximo:04d}"
 
 
 def proximo_numero_venda(data_venda: Any = None) -> str:
@@ -11108,6 +11731,7 @@ def _maior_sequencia_ordem_servico_existente(
     empresa_id: int,
     ano: int,
 ) -> int:
+    prefixo = prefixo_documento_configurado("ordens_servico", "OS")
     rows = conn.execute(
         """
         SELECT numero, data_abertura, criado_em
@@ -11120,7 +11744,11 @@ def _maior_sequencia_ordem_servico_existente(
 
     for row in rows:
         numero = str(row["numero"] or "").strip()
-        correspondencia = re.fullmatch(r"OS-(\d{4})-(\d+)", numero, flags=re.IGNORECASE)
+        correspondencia = re.fullmatch(
+            rf"{re.escape(prefixo)}-(\d{{4}})-(\d+)",
+            numero,
+            flags=re.IGNORECASE,
+        )
 
         if correspondencia is not None:
             if int(correspondencia.group(1)) == ano:
@@ -11179,7 +11807,8 @@ def _proximo_numero_ordem_servico_conn(
             ),
         )
 
-    return f"OS-{ano}-{proximo:04d}"
+    prefixo = prefixo_documento_configurado("ordens_servico", "OS")
+    return f"{prefixo}-{ano}-{proximo:04d}"
 
 
 def proximo_numero_ordem_servico(data_abertura: Any = None) -> str:
@@ -15273,6 +15902,285 @@ def montar_configuracoes_contexto() -> dict[str, Any]:
     }
 
 
+def garantir_estrutura_configuracoes_modulos() -> None:
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS configuracoes_modulos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER NOT NULL,
+                modulo TEXT NOT NULL,
+                configuracoes_json TEXT NOT NULL DEFAULT '{}',
+                atualizado_por_usuario_id INTEGER,
+                atualizado_por_nome TEXT,
+                criado_em TEXT NOT NULL,
+                atualizado_em TEXT NOT NULL,
+                UNIQUE (empresa_id, modulo),
+                FOREIGN KEY (empresa_id) REFERENCES empresas (id),
+                FOREIGN KEY (atualizado_por_usuario_id) REFERENCES usuarios (id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_configuracoes_modulos_empresa_modulo
+            ON configuracoes_modulos (empresa_id, modulo)
+            """
+        )
+        conn.commit()
+
+
+def buscar_definicao_configuracao_modulo(codigo: Any) -> dict[str, Any] | None:
+    codigo_normalizado = str(codigo or "").strip().lower()
+    definicao = CONFIGURACOES_MODULOS_POR_CODIGO.get(codigo_normalizado)
+    return dict(definicao) if definicao else None
+
+
+def _padroes_configuracao_modulo(definicao: dict[str, Any]) -> dict[str, Any]:
+    return {
+        str(campo["chave"]): campo.get("padrao", "")
+        for campo in definicao.get("campos", [])
+    }
+
+
+def buscar_configuracoes_modulo(
+    codigo: Any,
+    empresa_id: int | None = None,
+) -> dict[str, Any]:
+    definicao = buscar_definicao_configuracao_modulo(codigo)
+    if definicao is None:
+        return {}
+
+    valores = _padroes_configuracao_modulo(definicao)
+    empresa = int(empresa_id or empresa_logada_id())
+
+    try:
+        with conectar_db() as conn:
+            row = conn.execute(
+                """
+                SELECT configuracoes_json
+                FROM configuracoes_modulos
+                WHERE empresa_id = ? AND modulo = ?
+                LIMIT 1
+                """,
+                (empresa, definicao["codigo"]),
+            ).fetchone()
+    except sqlite3.Error:
+        return valores
+
+    if row is None:
+        return valores
+
+    try:
+        salvos = json.loads(str(row["configuracoes_json"] or "{}"))
+    except (TypeError, ValueError, json.JSONDecodeError):
+        salvos = {}
+
+    if isinstance(salvos, dict):
+        chaves_validas = set(valores)
+        valores.update(
+            {
+                str(chave): valor
+                for chave, valor in salvos.items()
+                if str(chave) in chaves_validas
+            }
+        )
+
+    return valores
+
+
+def buscar_metadados_configuracao_modulo(codigo: Any) -> dict[str, Any]:
+    definicao = buscar_definicao_configuracao_modulo(codigo)
+    if definicao is None:
+        return {}
+
+    try:
+        with conectar_db() as conn:
+            row = conn.execute(
+                """
+                SELECT
+                    atualizado_por_usuario_id,
+                    atualizado_por_nome,
+                    criado_em,
+                    atualizado_em
+                FROM configuracoes_modulos
+                WHERE empresa_id = ? AND modulo = ?
+                LIMIT 1
+                """,
+                (empresa_logada_id(), definicao["codigo"]),
+            ).fetchone()
+    except sqlite3.Error:
+        return {}
+
+    return dict(row) if row else {}
+
+
+def valor_configuracao_modulo(
+    modulo: Any,
+    chave: Any,
+    padrao: Any = None,
+    empresa_id: int | None = None,
+) -> Any:
+    valores = buscar_configuracoes_modulo(modulo, empresa_id)
+    return valores.get(str(chave or "").strip(), padrao)
+
+
+def lista_configuracao_modulo(
+    modulo: Any,
+    chave: Any,
+    empresa_id: int | None = None,
+) -> list[str]:
+    valor = valor_configuracao_modulo(modulo, chave, "", empresa_id)
+    if isinstance(valor, list):
+        return [str(item).strip() for item in valor if str(item).strip()]
+    return [linha.strip() for linha in str(valor or "").splitlines() if linha.strip()]
+
+
+def prefixo_documento_configurado(modulo: str, padrao: str) -> str:
+    valor = str(
+        valor_configuracao_modulo(modulo, "prefixo_numero", padrao) or padrao
+    ).strip().upper()
+    prefixo = "".join(caractere for caractere in valor if caractere.isalnum())[:12]
+    return prefixo or padrao
+
+
+def _normalizar_numero_configuracao(
+    valor: Any,
+    campo: dict[str, Any],
+) -> int | float:
+    texto = str(valor or "").strip().replace(" ", "").replace(",", ".")
+    if not texto:
+        numero = float(campo.get("padrao") or 0)
+    else:
+        try:
+            numero = float(texto)
+        except ValueError as erro:
+            raise ValueError(f"Informe um número válido em “{campo['nome']}”.") from erro
+
+    minimo = campo.get("minimo")
+    maximo = campo.get("maximo")
+    if minimo is not None and numero < float(minimo):
+        raise ValueError(f"“{campo['nome']}” deve ser maior ou igual a {minimo}.")
+    if maximo is not None and numero > float(maximo):
+        raise ValueError(f"“{campo['nome']}” deve ser menor ou igual a {maximo}.")
+
+    return int(numero) if numero.is_integer() else round(numero, 6)
+
+
+def montar_configuracoes_modulo_formulario(
+    definicao: dict[str, Any],
+) -> dict[str, Any]:
+    valores: dict[str, Any] = {}
+
+    for campo in definicao.get("campos", []):
+        chave = str(campo["chave"])
+        tipo = str(campo.get("tipo") or "texto")
+
+        if tipo == "booleano":
+            valores[chave] = request.form.get(chave) == "sim"
+            continue
+
+        valor_bruto = request.form.get(chave, "")
+
+        if tipo == "numero":
+            valores[chave] = _normalizar_numero_configuracao(valor_bruto, campo)
+            continue
+
+        valor = str(valor_bruto or "").strip()
+        limite = 30000 if tipo in {"lista", "texto_longo"} else 500
+        if len(valor) > limite:
+            raise ValueError(f"“{campo['nome']}” ultrapassou o limite de {limite} caracteres.")
+
+        if tipo == "email" and valor and not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", valor):
+            raise ValueError(f"Informe um e-mail válido em “{campo['nome']}”.")
+
+        if tipo == "selecao":
+            opcoes_validas = {
+                str(opcao.get("valor") or "")
+                for opcao in campo.get("opcoes", [])
+            }
+            if valor not in opcoes_validas:
+                raise ValueError(f"Selecione uma opção válida em “{campo['nome']}”.")
+
+        valores[chave] = valor
+
+    return valores
+
+
+def salvar_configuracoes_modulo_db(
+    codigo: str,
+    valores: dict[str, Any],
+) -> None:
+    agora = agora_empresa().isoformat(timespec="seconds")
+    usuario_id = int(session.get("usuario_id") or 0) or None
+    usuario_nome = str(session.get("usuario_nome") or "").strip()
+
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            INSERT INTO configuracoes_modulos (
+                empresa_id,
+                modulo,
+                configuracoes_json,
+                atualizado_por_usuario_id,
+                atualizado_por_nome,
+                criado_em,
+                atualizado_em
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT (empresa_id, modulo) DO UPDATE SET
+                configuracoes_json = excluded.configuracoes_json,
+                atualizado_por_usuario_id = excluded.atualizado_por_usuario_id,
+                atualizado_por_nome = excluded.atualizado_por_nome,
+                atualizado_em = excluded.atualizado_em
+            """,
+            (
+                empresa_logada_id(),
+                codigo,
+                json.dumps(valores, ensure_ascii=False, sort_keys=True),
+                usuario_id,
+                usuario_nome,
+                agora,
+                agora,
+            ),
+        )
+        conn.commit()
+
+
+def restaurar_configuracoes_modulo_db(codigo: str) -> None:
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            DELETE FROM configuracoes_modulos
+            WHERE empresa_id = ? AND modulo = ?
+            """,
+            (empresa_logada_id(), codigo),
+        )
+        conn.commit()
+
+
+def montar_contexto_regras_modulos(codigo: Any = None) -> dict[str, Any]:
+    codigo_normalizado = str(codigo or "").strip().lower()
+    if codigo_normalizado not in CONFIGURACOES_MODULOS_POR_CODIGO:
+        codigo_normalizado = "gerais"
+
+    definicao = CONFIGURACOES_MODULOS_POR_CODIGO[codigo_normalizado]
+    secoes: dict[str, list[dict[str, Any]]] = {}
+    for campo in definicao.get("campos", []):
+        secoes.setdefault(str(campo.get("secao") or "Regras gerais"), []).append(campo)
+
+    return {
+        "modulos_configuraveis": CONFIGURACOES_MODULOS_DEFINICOES,
+        "modulo_configuracao": definicao,
+        "codigo_modulo_configuracao": codigo_normalizado,
+        "configuracoes_modulo": buscar_configuracoes_modulo(codigo_normalizado),
+        "metadados_configuracao": buscar_metadados_configuracao_modulo(codigo_normalizado),
+        "secoes_configuracao": secoes,
+        "total_configuracoes": sum(
+            len(item.get("campos", [])) for item in CONFIGURACOES_MODULOS_DEFINICOES
+        ),
+    }
+
+
 def redirecionar_configuracoes_usuarios(
     sucesso: str = "",
     erro: str = "",
@@ -17055,6 +17963,7 @@ def excluir_empresa_cliente_admin_db(empresa_id: int) -> bool:
 
     with conectar_db() as conn:
         tabelas_por_empresa = [
+            "configuracoes_modulos",
             "contrato_historico",
             "contrato_anexos",
             "contrato_itens",
@@ -18116,6 +19025,7 @@ def admin_excluir_empresa(empresa_id: int) -> Response:
 @app.get("/configuracoes/marca")
 @app.get("/configuracoes/lojas")
 @app.get("/configuracoes/modulos")
+@app.get("/configuracoes/regras-modulos")
 def configuracoes() -> str:
     aba = "gerais"
 
@@ -18129,10 +19039,13 @@ def configuracoes() -> str:
         aba = "marca"
     elif request.path.endswith("/lojas"):
         aba = "lojas"
+    elif request.path.endswith("/regras-modulos"):
+        aba = "regras_modulos"
     elif request.path.endswith("/modulos"):
         aba = "modulos"
 
     contexto = montar_contexto_configuracoes_listas(montar_configuracoes_contexto())
+    contexto_regras = montar_contexto_regras_modulos(request.args.get("modulo"))
 
     return render_template(
         "configuracoes.html",
@@ -18154,6 +19067,13 @@ def configuracoes() -> str:
         perfis_usuario=contexto["perfis_usuario"],
         modulos_permissoes=contexto["modulos_permissoes"],
         acoes_permissao=contexto["acoes_permissao"],
+        modulos_configuraveis=contexto_regras["modulos_configuraveis"],
+        modulo_configuracao=contexto_regras["modulo_configuracao"],
+        codigo_modulo_configuracao=contexto_regras["codigo_modulo_configuracao"],
+        configuracoes_modulo=contexto_regras["configuracoes_modulo"],
+        metadados_configuracao=contexto_regras["metadados_configuracao"],
+        secoes_configuracao=contexto_regras["secoes_configuracao"],
+        total_configuracoes=contexto_regras["total_configuracoes"],
         erro=request.args.get("erro", ""),
         sucesso=request.args.get("sucesso", ""),
     )
@@ -18164,6 +19084,72 @@ def salvar_configuracoes_modulos() -> Response:
     codigos_ativos = request.form.getlist("modulos_ativos")
     salvar_modulos_empresa(codigos_ativos)
     return redirect("/configuracoes/modulos?sucesso=Módulos atualizados com sucesso.")
+
+
+@app.post("/configuracoes/regras-modulos/<codigo>")
+def salvar_regras_configuracao_modulo(codigo: str) -> Response:
+    definicao = buscar_definicao_configuracao_modulo(codigo)
+    if definicao is None:
+        return redirect(
+            "/configuracoes/regras-modulos?erro="
+            + urllib.parse.quote("Módulo de configuração inválido.")
+        )
+
+    valores_anteriores = buscar_configuracoes_modulo(codigo)
+
+    try:
+        valores_novos = montar_configuracoes_modulo_formulario(definicao)
+    except ValueError as erro_validacao:
+        parametros = urllib.parse.urlencode(
+            {"modulo": codigo, "erro": str(erro_validacao)}
+        )
+        return redirect(f"/configuracoes/regras-modulos?{parametros}")
+
+    salvar_configuracoes_modulo_db(codigo, valores_novos)
+    registrar_atividade_usuario(
+        "edicao",
+        "configuracoes",
+        f"Atualizou as configurações do módulo {definicao['nome']}.",
+        registro_id=codigo,
+        dados_anteriores=valores_anteriores,
+        dados_novos=valores_novos,
+    )
+    parametros = urllib.parse.urlencode(
+        {
+            "modulo": codigo,
+            "sucesso": f"Configurações de {definicao['nome']} salvas com sucesso.",
+        }
+    )
+    return redirect(f"/configuracoes/regras-modulos?{parametros}")
+
+
+@app.post("/configuracoes/regras-modulos/<codigo>/restaurar")
+def restaurar_regras_configuracao_modulo(codigo: str) -> Response:
+    definicao = buscar_definicao_configuracao_modulo(codigo)
+    if definicao is None:
+        return redirect(
+            "/configuracoes/regras-modulos?erro="
+            + urllib.parse.quote("Módulo de configuração inválido.")
+        )
+
+    valores_anteriores = buscar_configuracoes_modulo(codigo)
+    restaurar_configuracoes_modulo_db(codigo)
+    valores_padrao = buscar_configuracoes_modulo(codigo)
+    registrar_atividade_usuario(
+        "edicao",
+        "configuracoes",
+        f"Restaurou as configurações padrão do módulo {definicao['nome']}.",
+        registro_id=codigo,
+        dados_anteriores=valores_anteriores,
+        dados_novos=valores_padrao,
+    )
+    parametros = urllib.parse.urlencode(
+        {
+            "modulo": codigo,
+            "sucesso": f"Padrões de {definicao['nome']} restaurados com sucesso.",
+        }
+    )
+    return redirect(f"/configuracoes/regras-modulos?{parametros}")
 
 
 @app.post("/configuracoes/modulos/refazer-anamnese")
@@ -26841,6 +27827,7 @@ def _maior_sequencia_contrato_existente(
     empresa_id: int,
     ano: int,
 ) -> int:
+    prefixo = prefixo_documento_configurado("contratos", "CTR")
     rows = conn.execute(
         "SELECT numero FROM contratos WHERE empresa_id = ?",
         (empresa_id,),
@@ -26849,7 +27836,7 @@ def _maior_sequencia_contrato_existente(
 
     for row in rows:
         correspondencia = re.fullmatch(
-            r"CTR-(\d{4})-(\d+)",
+            rf"{re.escape(prefixo)}-(\d{{4}})-(\d+)",
             str(row["numero"] or "").strip(),
             flags=re.IGNORECASE,
         )
@@ -26897,7 +27884,8 @@ def _proximo_numero_contrato_conn(
             ),
         )
 
-    return f"CTR-{ano}-{proximo:04d}"
+    prefixo = prefixo_documento_configurado("contratos", "CTR")
+    return f"{prefixo}-{ano}-{proximo:04d}"
 
 
 def proximo_numero_contrato(data_inicio: Any = None) -> str:
@@ -28946,6 +29934,7 @@ def garantir_migracao_origem_orcamento_os() -> None:
 
 garantir_migracao_origem_orcamento_os()
 iniciar_banco()
+garantir_estrutura_configuracoes_modulos()
 garantir_estrutura_contratos()
 garantir_estrutura_gestao_atividades()
 
