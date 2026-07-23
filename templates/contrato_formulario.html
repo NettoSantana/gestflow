@@ -1,0 +1,407 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\contrato_formulario.html
+Último recode: 2026-07-22 22:06 (America/Bahia)
+Motivo: Criar o formulário completo de inclusão e edição de contratos, itens e recorrência.
+-->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - {% if modo_edicao %}Editar{% else %}Novo{% endif %} contrato</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link rel="stylesheet" href="/static/css/contratos.css">
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+
+    <main class="content contracts-page">
+        {% set page_title = 'Editar contrato' if modo_edicao else 'Novo contrato' %}
+        {% include "partials/topbar.html" %}
+
+        <section class="panel page-section contracts-hero">
+            <div class="panel-header page-header contracts-hero-content">
+                <div>
+                    <span class="page-kicker">Contratos</span>
+                    <h3 class="page-title">{% if modo_edicao %}Editar {{ contrato.numero }}{% else %}Novo contrato{% endif %}</h3>
+                    <p class="page-subtitle">Preencha os dados comerciais, vigência, cobrança e itens do contrato.</p>
+                </div>
+                <a href="{% if modo_edicao %}{{ url_for('ver_contrato', contrato_id=contrato.id) }}{% else %}{{ url_for('contratos') }}{% endif %}" class="contract-button secondary">Cancelar</a>
+            </div>
+        </section>
+
+        {% if request.args.get('erro') %}
+            <div class="contracts-alert error" role="alert">{{ request.args.get('erro') }}</div>
+        {% endif %}
+
+        <form
+            id="contract-form"
+            class="contract-form"
+            method="post"
+            action="{% if modo_edicao %}{{ url_for('atualizar_contrato', contrato_id=contrato.id) }}{% else %}{{ url_for('salvar_contrato') }}{% endif %}"
+        >
+            {% if modo_edicao %}
+                <input type="hidden" name="versao" value="{{ contrato.versao|default(1) }}">
+            {% endif %}
+            <input type="hidden" name="status" value="{{ contrato.status|default('rascunho') }}">
+
+            <section class="panel contract-form-section">
+                <div class="contract-section-heading">
+                    <div>
+                        <span class="contract-step">1</span>
+                        <h4>Identificação</h4>
+                    </div>
+                    <span class="contract-number-preview">{{ contrato.numero }}</span>
+                </div>
+
+                <div class="contract-form-grid cols-3">
+                    <div class="contract-field">
+                        <label for="tipo">Tipo <span aria-hidden="true">*</span></label>
+                        <select id="tipo" name="tipo" required>
+                            {% for tipo in tipos_contrato %}
+                                <option value="{{ tipo.codigo }}" {% if contrato.tipo == tipo.codigo %}selected{% endif %}>{{ tipo.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="contract-field span-2">
+                        <label for="titulo">Título <span aria-hidden="true">*</span></label>
+                        <input id="titulo" name="titulo" type="text" maxlength="180" value="{{ contrato.titulo or '' }}" placeholder="Ex.: Manutenção preventiva mensal" required>
+                    </div>
+                    <div class="contract-field span-2">
+                        <label for="cliente_id">Cliente <span aria-hidden="true">*</span></label>
+                        <select id="cliente_id" name="cliente_id" required>
+                            <option value="">Selecione o cliente</option>
+                            {% for cliente in clientes %}
+                                <option value="{{ cliente.id }}" {% if contrato.cliente_id and contrato.cliente_id|int == cliente.id|int %}selected{% endif %}>{{ cliente.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="contract-field">
+                        <label for="responsavel_funcionario_id">Responsável</label>
+                        <select id="responsavel_funcionario_id" name="responsavel_funcionario_id">
+                            <option value="">Sem responsável</option>
+                            {% for funcionario in funcionarios %}
+                                <option value="{{ funcionario.id }}" {% if contrato.responsavel_funcionario_id and contrato.responsavel_funcionario_id|int == funcionario.id|int %}selected{% endif %}>{{ funcionario.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="contract-field">
+                        <label for="centro_custo_id">Centro de custo</label>
+                        <select id="centro_custo_id" name="centro_custo_id">
+                            <option value="">Sem centro de custo</option>
+                            {% for centro in centros_custo %}
+                                <option value="{{ centro.id }}" {% if contrato.centro_custo_id and contrato.centro_custo_id|int == centro.id|int %}selected{% endif %}>{{ centro.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="contract-field span-2">
+                        <label for="orcamento_id">Orçamento de origem</label>
+                        <select id="orcamento_id" name="orcamento_id">
+                            <option value="">Contrato criado manualmente</option>
+                            {% for orcamento in orcamentos %}
+                                <option value="{{ orcamento.id }}" {% if contrato.orcamento_id and contrato.orcamento_id|int == orcamento.id|int %}selected{% endif %}>{{ orcamento.numero }} · {{ orcamento.cliente }} · R$ {{ orcamento.valor_total or '0,00' }}</option>
+                            {% endfor %}
+                        </select>
+                        <small>Um orçamento pode ficar vinculado a apenas um contrato.</small>
+                    </div>
+                    <div class="contract-field span-3">
+                        <label for="objeto">Objeto do contrato</label>
+                        <textarea id="objeto" name="objeto" rows="5" placeholder="Descreva de forma objetiva o serviço, a recorrência ou a locação contratada.">{{ contrato.objeto or '' }}</textarea>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel contract-form-section">
+                <div class="contract-section-heading">
+                    <div><span class="contract-step">2</span><h4>Vigência e cobrança</h4></div>
+                </div>
+
+                <div class="contract-form-grid cols-4">
+                    <div class="contract-field">
+                        <label for="data_inicio">Data inicial <span aria-hidden="true">*</span></label>
+                        <input id="data_inicio" name="data_inicio" type="date" value="{{ contrato.data_inicio or '' }}" required>
+                    </div>
+                    <div class="contract-field">
+                        <label for="data_fim">Data final</label>
+                        <input id="data_fim" name="data_fim" type="date" value="{{ contrato.data_fim or '' }}">
+                    </div>
+                    <div class="contract-field">
+                        <label for="valor_total">Valor total</label>
+                        <div class="contract-money-input"><span>R$</span><input id="valor_total" name="valor_total" type="text" inputmode="decimal" value="{{ contrato.valor_total or '0,00' }}"></div>
+                    </div>
+                    <div class="contract-field">
+                        <label for="forma_pagamento">Forma de pagamento</label>
+                        <input id="forma_pagamento" name="forma_pagamento" type="text" maxlength="160" value="{{ contrato.forma_pagamento or '' }}" placeholder="Ex.: PIX, boleto ou parcelado">
+                    </div>
+                </div>
+
+                <div id="recurrence-fields" class="contract-recurrence-box">
+                    <div class="contract-form-grid cols-4">
+                        <div class="contract-field">
+                            <label for="periodicidade">Periodicidade</label>
+                            <select id="periodicidade" name="periodicidade">
+                                {% for periodicidade in periodicidades_contrato %}
+                                    <option value="{{ periodicidade.codigo }}" {% if contrato.periodicidade == periodicidade.codigo %}selected{% endif %}>{{ periodicidade.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="contract-field">
+                            <label for="dia_vencimento">Dia de vencimento</label>
+                            <input id="dia_vencimento" name="dia_vencimento" type="number" min="1" max="31" value="{{ contrato.dia_vencimento or '' }}" placeholder="1 a 31">
+                        </div>
+                        <div class="contract-field">
+                            <label for="valor_recorrente">Valor recorrente</label>
+                            <div class="contract-money-input"><span>R$</span><input id="valor_recorrente" name="valor_recorrente" type="text" inputmode="decimal" value="{{ contrato.valor_recorrente or '0,00' }}"></div>
+                        </div>
+                        <label class="contract-switch-field" for="renovacao_automatica">
+                            <input id="renovacao_automatica" name="renovacao_automatica" type="checkbox" value="sim" {% if contrato.renovacao_automatica == 'sim' %}checked{% endif %}>
+                            <span class="contract-switch" aria-hidden="true"></span>
+                            <span><strong>Renovação automática</strong><small>Marcar para contratos renováveis.</small></span>
+                        </label>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel contract-form-section">
+                <div class="contract-section-heading">
+                    <div><span class="contract-step">3</span><h4>Itens do contrato</h4></div>
+                    <button id="add-contract-item" type="button" class="contract-button secondary">Adicionar item</button>
+                </div>
+
+                <div class="contract-items-shell">
+                    <table class="contract-items-table">
+                        <thead>
+                            <tr>
+                                <th>Tipo</th>
+                                <th>Referência</th>
+                                <th>Descrição</th>
+                                <th>Detalhes</th>
+                                <th>Qtd.</th>
+                                <th>Unitário</th>
+                                <th>Subtotal</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="contract-items-body">
+                            {% for item in itens %}
+                                <tr class="contract-item-row">
+                                    <td>
+                                        <select name="item_tipo[]" class="item-type">
+                                            {% for codigo, nome in [('servico', 'Serviço'), ('produto', 'Produto'), ('locacao', 'Locação'), ('outro', 'Outro')] %}
+                                                <option value="{{ codigo }}" {% if item.tipo_item == codigo %}selected{% endif %}>{{ nome }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <select name="item_referencia_id[]" class="item-reference" data-selected="{{ item.referencia_id or '' }}"></select>
+                                    </td>
+                                    <td><input name="item_descricao[]" class="item-description" type="text" value="{{ item.descricao or '' }}" placeholder="Descrição do item"></td>
+                                    <td><input name="item_detalhes[]" type="text" value="{{ item.detalhes or '' }}" placeholder="Complemento opcional"></td>
+                                    <td><input name="item_quantidade[]" class="item-quantity" type="text" inputmode="decimal" value="{{ item.quantidade or '1,00' }}"></td>
+                                    <td><input name="item_valor_unitario[]" class="item-unit-value" type="text" inputmode="decimal" value="{{ item.valor_unitario or '0,00' }}"></td>
+                                    <td><input name="item_subtotal[]" class="item-subtotal" type="text" inputmode="decimal" value="{{ item.subtotal or '0,00' }}" readonly></td>
+                                    <td><button type="button" class="contract-icon-button remove-item" aria-label="Remover item">×</button></td>
+                                </tr>
+                            {% else %}
+                                <tr class="contract-item-row">
+                                    <td>
+                                        <select name="item_tipo[]" class="item-type">
+                                            <option value="servico">Serviço</option>
+                                            <option value="produto">Produto</option>
+                                            <option value="locacao">Locação</option>
+                                            <option value="outro">Outro</option>
+                                        </select>
+                                    </td>
+                                    <td><select name="item_referencia_id[]" class="item-reference" data-selected=""></select></td>
+                                    <td><input name="item_descricao[]" class="item-description" type="text" placeholder="Descrição do item"></td>
+                                    <td><input name="item_detalhes[]" type="text" placeholder="Complemento opcional"></td>
+                                    <td><input name="item_quantidade[]" class="item-quantity" type="text" inputmode="decimal" value="1,00"></td>
+                                    <td><input name="item_valor_unitario[]" class="item-unit-value" type="text" inputmode="decimal" value="0,00"></td>
+                                    <td><input name="item_subtotal[]" class="item-subtotal" type="text" inputmode="decimal" value="0,00" readonly></td>
+                                    <td><button type="button" class="contract-icon-button remove-item" aria-label="Remover item">×</button></td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="contract-items-footer">
+                    <span>Os itens compõem o escopo detalhado do contrato.</span>
+                    <strong>Total dos itens: R$ <span id="items-total">0,00</span></strong>
+                </div>
+            </section>
+
+            <section class="panel contract-form-section">
+                <div class="contract-section-heading"><div><span class="contract-step">4</span><h4>Observações</h4></div></div>
+                <div class="contract-field">
+                    <label for="observacoes">Observações internas e condições complementares</label>
+                    <textarea id="observacoes" name="observacoes" rows="6" placeholder="Registre condições, orientações ou informações adicionais.">{{ contrato.observacoes or '' }}</textarea>
+                </div>
+            </section>
+
+            <div class="contract-form-actions">
+                <a href="{% if modo_edicao %}{{ url_for('ver_contrato', contrato_id=contrato.id) }}{% else %}{{ url_for('contratos') }}{% endif %}" class="contract-button secondary">Cancelar</a>
+                <button type="submit" class="contract-button primary">{% if modo_edicao %}Salvar alterações{% else %}Criar contrato{% endif %}</button>
+            </div>
+        </form>
+    </main>
+
+    <select id="contract-product-catalog" hidden>
+        {% for produto in produtos %}<option value="{{ produto.id }}" data-description="{{ produto.nome }}">{{ produto.nome }}</option>{% endfor %}
+    </select>
+    <select id="contract-service-catalog" hidden>
+        {% for servico in servicos %}<option value="{{ servico.id }}" data-description="{{ servico.nome }}">{{ servico.nome }}</option>{% endfor %}
+    </select>
+
+    <template id="contract-item-template">
+        <tr class="contract-item-row">
+            <td><select name="item_tipo[]" class="item-type"><option value="servico">Serviço</option><option value="produto">Produto</option><option value="locacao">Locação</option><option value="outro">Outro</option></select></td>
+            <td><select name="item_referencia_id[]" class="item-reference" data-selected=""></select></td>
+            <td><input name="item_descricao[]" class="item-description" type="text" placeholder="Descrição do item"></td>
+            <td><input name="item_detalhes[]" type="text" placeholder="Complemento opcional"></td>
+            <td><input name="item_quantidade[]" class="item-quantity" type="text" inputmode="decimal" value="1,00"></td>
+            <td><input name="item_valor_unitario[]" class="item-unit-value" type="text" inputmode="decimal" value="0,00"></td>
+            <td><input name="item_subtotal[]" class="item-subtotal" type="text" inputmode="decimal" value="0,00" readonly></td>
+            <td><button type="button" class="contract-icon-button remove-item" aria-label="Remover item">×</button></td>
+        </tr>
+    </template>
+
+    <script>
+    (function () {
+        const form = document.getElementById('contract-form');
+        const typeField = document.getElementById('tipo');
+        const recurrenceBox = document.getElementById('recurrence-fields');
+        const periodicityField = document.getElementById('periodicidade');
+        const dueDayField = document.getElementById('dia_vencimento');
+        const recurringValueField = document.getElementById('valor_recorrente');
+        const body = document.getElementById('contract-items-body');
+        const template = document.getElementById('contract-item-template');
+        const productCatalog = document.getElementById('contract-product-catalog');
+        const serviceCatalog = document.getElementById('contract-service-catalog');
+        const itemsTotal = document.getElementById('items-total');
+
+        function toNumber(value) {
+            let text = String(value || '').trim().replace(/\s/g, '');
+            if (text.includes(',')) {
+                text = text.replace(/\./g, '').replace(',', '.');
+            }
+            const number = Number(text.replace(/[^0-9.-]/g, ''));
+            return Number.isFinite(number) ? number : 0;
+        }
+
+        function toBrazilian(value) {
+            return Number(value || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        }
+
+        function updateRecurrence() {
+            const recurring = typeField.value === 'recorrente';
+            recurrenceBox.classList.toggle('visible', recurring || periodicityField.value !== 'unica');
+            if (recurring && periodicityField.value === 'unica') {
+                periodicityField.value = 'mensal';
+            }
+            dueDayField.required = recurring || periodicityField.value !== 'unica';
+            recurringValueField.required = recurring || periodicityField.value !== 'unica';
+        }
+
+        function rebuildReference(row) {
+            const type = row.querySelector('.item-type').value;
+            const field = row.querySelector('.item-reference');
+            const selected = field.dataset.selected || field.value || '';
+            const source = type === 'produto' ? productCatalog : (type === 'servico' ? serviceCatalog : null);
+            field.innerHTML = '<option value="">Sem referência cadastrada</option>';
+            field.disabled = !source;
+            if (source) {
+                Array.from(source.options).forEach(function (option) {
+                    const clone = option.cloneNode(true);
+                    if (String(clone.value) === String(selected)) {
+                        clone.selected = true;
+                    }
+                    field.appendChild(clone);
+                });
+            }
+            field.dataset.selected = '';
+        }
+
+        function updateRow(row) {
+            const quantity = toNumber(row.querySelector('.item-quantity').value);
+            const unit = toNumber(row.querySelector('.item-unit-value').value);
+            row.querySelector('.item-subtotal').value = toBrazilian(quantity * unit);
+            updateItemsTotal();
+        }
+
+        function updateItemsTotal() {
+            let total = 0;
+            body.querySelectorAll('.item-subtotal').forEach(function (field) {
+                total += toNumber(field.value);
+            });
+            itemsTotal.textContent = toBrazilian(total);
+        }
+
+        function bindRow(row) {
+            const type = row.querySelector('.item-type');
+            const reference = row.querySelector('.item-reference');
+            const description = row.querySelector('.item-description');
+            const removeButton = row.querySelector('.remove-item');
+            rebuildReference(row);
+
+            type.addEventListener('change', function () {
+                reference.dataset.selected = '';
+                rebuildReference(row);
+            });
+            reference.addEventListener('change', function () {
+                const option = reference.options[reference.selectedIndex];
+                if (option && option.value && !description.value.trim()) {
+                    description.value = option.dataset.description || option.textContent.trim();
+                }
+            });
+            row.querySelectorAll('.item-quantity, .item-unit-value').forEach(function (field) {
+                field.addEventListener('input', function () { updateRow(row); });
+                field.addEventListener('blur', function () {
+                    field.value = toBrazilian(toNumber(field.value));
+                    updateRow(row);
+                });
+            });
+            removeButton.addEventListener('click', function () {
+                if (body.querySelectorAll('.contract-item-row').length === 1) {
+                    row.querySelectorAll('input').forEach(function (field) {
+                        if (field.classList.contains('item-quantity')) field.value = '1,00';
+                        else if (field.classList.contains('item-unit-value') || field.classList.contains('item-subtotal')) field.value = '0,00';
+                        else field.value = '';
+                    });
+                    type.value = 'servico';
+                    reference.dataset.selected = '';
+                    rebuildReference(row);
+                    updateRow(row);
+                    return;
+                }
+                row.remove();
+                updateItemsTotal();
+            });
+            updateRow(row);
+        }
+
+        document.getElementById('add-contract-item').addEventListener('click', function () {
+            const fragment = template.content.cloneNode(true);
+            const row = fragment.querySelector('.contract-item-row');
+            body.appendChild(fragment);
+            bindRow(row);
+            row.querySelector('.item-description').focus();
+        });
+
+        typeField.addEventListener('change', updateRecurrence);
+        periodicityField.addEventListener('change', updateRecurrence);
+        body.querySelectorAll('.contract-item-row').forEach(bindRow);
+        updateRecurrence();
+
+        form.addEventListener('submit', function (event) {
+            const start = document.getElementById('data_inicio').value;
+            const end = document.getElementById('data_fim').value;
+            if (start && end && end < start) {
+                event.preventDefault();
+                window.alert('A data final não pode ser anterior à data inicial.');
+            }
+        });
+    })();
+    </script>
+</body>
+</html>

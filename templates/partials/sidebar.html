@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\partials\sidebar.html
-Último recode: 2026-07-19 22:45 (America/Bahia)
-Motivo: Ocultar módulos sem permissão e substituir o acesso administrativo por perfil.
+Último recode: 2026-07-22 22:06 (America/Bahia)
+Motivo: Adicionar o módulo Contratos ao menu com visibilidade e permissão por usuário.
 #}
 {% set _path = request.path if request is defined else '' %}
 {% set _usuario_sidebar = usuario_logado|default({}, true) %}
@@ -106,6 +106,21 @@ Motivo: Ocultar módulos sem permissão e substituir o acesso administrativo por
                         <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Orçamentos</strong></li>
                         {% if _modulos.get('orcamentos', true) and modulo_usuario_visivel('orcamentos') %}<li class="{% if _path == '/orcamentos' %}submenu-active{% endif %}"><a href="/orcamentos">Orçamentos</a></li>{% endif %}
                         {% if _modulos.get('gerador_orcamentos', true) and modulo_usuario_visivel('gerador_orcamentos') %}<li class="{% if _path.startswith('/orcamentos/gerador') %}submenu-active{% endif %}"><a href="/orcamentos/gerador">Gerador de Orçamentos</a></li>{% endif %}
+                    </ul>
+                </details>
+            </li>
+            {% endif %}
+
+            {% if _modulos.get('contratos', true) and modulo_usuario_visivel('contratos') %}
+            <li class="menu-group {% if _path.startswith('/contratos') %}active{% endif %}">
+                <details {% if _path.startswith('/contratos') %}open{% endif %}>
+                    <summary>
+                        <span class="menu-label"><span class="menu-icon">▤</span><span>Contratos</span></span>
+                        <span class="arrow">⌄</span>
+                    </summary>
+                    <ul class="submenu">
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Contratos</strong></li>
+                        <li class="{% if _path.startswith('/contratos') %}submenu-active{% endif %}"><a href="/contratos">Gerenciar contratos</a></li>
                     </ul>
                 </details>
             </li>
