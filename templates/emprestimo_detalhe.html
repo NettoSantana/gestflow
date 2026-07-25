@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\emprestimo_detalhe.html
-Último recode: 2026-07-25 18:20 (America/Bahia)
-Motivo: Criar a tela completa do contrato com parcelas, baixas, renegociação, histórico e cancelamento.
+Último recode: 2026-07-25 20:35 (America/Bahia)
+Motivo: Exibir e operar empréstimos rotativos com baixa de juros, amortização e quitação.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -16,14 +16,16 @@ Motivo: Criar a tela completa do contrato com parcelas, baixas, renegociação, 
     <main class="content loans-page">
         {% set page_title = 'Detalhes do Empréstimo' %}
         {% include "partials/topbar.html" %}
-<nav class="loan-tabs" aria-label="Navegação do módulo Empréstimos">
-<a class="loan-tab" href="/emprestimos/visao-geral">Visão Geral</a>
-<a class="loan-tab" href="/emprestimos/todos">Todos os Empréstimos</a>
-<a class="loan-tab" href="/emprestimos/novo">Novo Empréstimo</a>
-<a class="loan-tab" href="/emprestimos/parcelas">Parcelas</a>
-<a class="loan-tab" href="/emprestimos/renegociacoes">Renegociações</a>
-<a class="loan-tab" href="/emprestimos/configuracoes">Configurações</a>
-</nav>
+
+        <nav class="loan-tabs" aria-label="Navegação do módulo Empréstimos">
+            <a class="loan-tab" href="/emprestimos/visao-geral">Visão Geral</a>
+            <a class="loan-tab" href="/emprestimos/todos">Todos os Empréstimos</a>
+            <a class="loan-tab" href="/emprestimos/novo">Novo Empréstimo</a>
+            <a class="loan-tab" href="/emprestimos/parcelas">Parcelas</a>
+            <a class="loan-tab" href="/emprestimos/renegociacoes">Renegociações</a>
+            <a class="loan-tab" href="/emprestimos/configuracoes">Configurações</a>
+        </nav>
+
         {% if sucesso %}<div class="loan-alert success" role="status">{{ sucesso }}</div>{% endif %}
         {% if erro %}<div class="loan-alert error" role="alert">{{ erro }}</div>{% endif %}
 
@@ -31,17 +33,33 @@ Motivo: Criar a tela completa do contrato com parcelas, baixas, renegociação, 
             <div>
                 <span class="loan-kicker">{{ emprestimo.numero }}</span>
                 <h1>{{ emprestimo.titulo }}</h1>
-                <p>{{ emprestimo.parte_nome }} · {{ 'Recebido pela empresa' if emprestimo.tipo == 'recebido' else 'Concedido pela empresa' }}</p>
+                <p>
+                    {{ emprestimo.parte_nome }} ·
+                    {{ 'Recebido pela empresa' if emprestimo.tipo == 'recebido' else 'Concedido pela empresa' }} ·
+                    {{ 'Rotativo - juros periódicos' if emprestimo.modalidade == 'rotativo' else 'Parcelado tradicional' }}
+                </p>
             </div>
-            <div class="loan-hero-actions"><span class="loan-status {{ emprestimo.status }}">{{ emprestimo.status|replace('_', ' ')|title }}</span><a class="loan-button secondary" href="/emprestimos/todos">Voltar</a></div>
+            <div class="loan-hero-actions">
+                <span class="loan-status {{ emprestimo.status }}">{{ emprestimo.status|replace('_', ' ')|title }}</span>
+                <a class="loan-button secondary" href="/emprestimos/todos">Voltar</a>
+            </div>
         </section>
 
+        {% if emprestimo.modalidade == 'rotativo' %}
+        <section class="loan-summary-grid four">
+            <article class="loan-summary-card"><span>Principal original</span><strong>R$ {{ emprestimo.valor_principal }}</strong></article>
+            <article class="loan-summary-card danger"><span>Principal atual</span><strong>R$ {{ emprestimo.principal_atual }}</strong></article>
+            <article class="loan-summary-card"><span>Juros recebidos</span><strong>R$ {{ emprestimo.total_juros_recebidos }}</strong></article>
+            <article class="loan-summary-card"><span>Total amortizado</span><strong>R$ {{ emprestimo.total_amortizado }}</strong></article>
+        </section>
+        {% else %}
         <section class="loan-summary-grid four">
             <article class="loan-summary-card"><span>Valor principal</span><strong>R$ {{ emprestimo.valor_principal }}</strong></article>
             <article class="loan-summary-card"><span>Valor total</span><strong>R$ {{ emprestimo.valor_total }}</strong></article>
             <article class="loan-summary-card danger"><span>Saldo atual</span><strong>R$ {{ emprestimo.saldo_atual }}</strong></article>
             <article class="loan-summary-card"><span>Parcelas</span><strong>{{ emprestimo.quantidade_parcelas }}</strong></article>
         </section>
+        {% endif %}
 
         <section class="loan-two-columns detail-layout">
             <article class="loan-panel">
@@ -52,9 +70,11 @@ Motivo: Criar a tela completa do contrato com parcelas, baixas, renegociação, 
                     <div><dt>Banco</dt><dd>{{ emprestimo.banco or '-' }}</dd></div>
                     <div><dt>Conta financeira</dt><dd>{{ emprestimo.conta_financeira or '-' }}</dd></div>
                     <div><dt>Data do contrato</dt><dd>{{ emprestimo.data_contrato[8:10] }}/{{ emprestimo.data_contrato[5:7] }}/{{ emprestimo.data_contrato[0:4] }}</dd></div>
-                    <div><dt>Primeira parcela</dt><dd>{{ emprestimo.primeira_parcela[8:10] }}/{{ emprestimo.primeira_parcela[5:7] }}/{{ emprestimo.primeira_parcela[0:4] }}</dd></div>
-                    <div><dt>Juros</dt><dd>{{ emprestimo.taxa_juros_percentual }}%</dd></div>
-                    <div><dt>Sistema</dt><dd>{{ emprestimo.sistema_amortizacao|upper }}</dd></div>
+                    <div><dt>Primeiro vencimento</dt><dd>{{ emprestimo.primeira_parcela[8:10] }}/{{ emprestimo.primeira_parcela[5:7] }}/{{ emprestimo.primeira_parcela[0:4] }}</dd></div>
+                    <div><dt>Juros por período</dt><dd>{{ emprestimo.taxa_juros_percentual }}%</dd></div>
+                    <div><dt>Modalidade</dt><dd>{{ 'ROTATIVO' if emprestimo.modalidade == 'rotativo' else emprestimo.sistema_amortizacao|upper }}</dd></div>
+                    <div><dt>Intervalo</dt><dd>{{ emprestimo.intervalo_dias }} dias</dd></div>
+                    <div><dt>Amortização parcial</dt><dd>{{ 'Permitida' if emprestimo.permitir_amortizacao else 'Não permitida' }}</dd></div>
                     <div><dt>Garantia</dt><dd>{{ emprestimo.garantia or '-' }}</dd></div>
                     <div><dt>Fiador</dt><dd>{{ emprestimo.fiador or '-' }}</dd></div>
                 </dl>
@@ -62,6 +82,13 @@ Motivo: Criar a tela completa do contrato com parcelas, baixas, renegociação, 
             </article>
 
             <article class="loan-panel">
+                {% if emprestimo.modalidade == 'rotativo' %}
+                <div class="loan-panel-header"><div><h2>Regra do rotativo</h2><p>Os juros são pagos primeiro. O principal só diminui quando houver amortização.</p></div></div>
+                <div class="loan-note">
+                    <strong>Exemplo da baixa</strong>
+                    <p>Somente juros: renova o mesmo principal. Juros + amortização: o excedente reduz o principal. Quitação: recebe juros e todo o principal.</p>
+                </div>
+                {% else %}
                 <div class="loan-panel-header"><div><h2>Renegociar</h2><p>Substitui somente as parcelas ainda abertas.</p></div></div>
                 {% if emprestimo.status not in ['quitado','cancelado','renegociado'] %}
                 <form class="loan-mini-form" method="post" action="/emprestimos/{{ emprestimo.id }}/renegociar">
@@ -74,41 +101,71 @@ Motivo: Criar a tela completa do contrato com parcelas, baixas, renegociação, 
                     <label class="span-2"><span>Observações</span><textarea name="observacoes" rows="3"></textarea></label>
                     <button class="loan-button warning span-2" type="submit">Confirmar renegociação</button>
                 </form>
+                {% endif %}
+                {% endif %}
+
+                {% if emprestimo.status not in ['quitado','cancelado','renegociado'] %}
                 <hr class="loan-divider">
                 <form method="post" action="/emprestimos/{{ emprestimo.id }}/cancelar" class="loan-cancel-form" onsubmit="return confirm('Confirma o cancelamento deste empréstimo?');">
                     <input name="motivo" required placeholder="Motivo do cancelamento">
                     <button class="loan-button danger" type="submit">Cancelar empréstimo</button>
                 </form>
-                {% else %}<p class="loan-empty">Este contrato não permite novas alterações.</p>{% endif %}
+                {% endif %}
             </article>
         </section>
 
         <section class="loan-panel">
-            <div class="loan-panel-header"><div><h2>Parcelas</h2><p>Baixe pagamentos ou recebimentos total ou parcialmente.</p></div></div>
+            <div class="loan-panel-header">
+                <div>
+                    <h2>{{ 'Períodos de juros' if emprestimo.modalidade == 'rotativo' else 'Parcelas' }}</h2>
+                    <p>{{ 'Pague juros, amortize o principal ou quite o contrato.' if emprestimo.modalidade == 'rotativo' else 'Baixe pagamentos ou recebimentos total ou parcialmente.' }}</p>
+                </div>
+            </div>
             <div class="loan-table-wrap">
                 <table class="loan-table">
+                    {% if emprestimo.modalidade == 'rotativo' %}
+                    <thead><tr><th>Período</th><th>Vencimento</th><th>Principal base</th><th>Juros</th><th>Pago</th><th>Status</th><th>Baixa</th></tr></thead>
+                    {% else %}
                     <thead><tr><th>Parcela</th><th>Vencimento</th><th>Previsto</th><th>Pago</th><th>Saldo</th><th>Status</th><th>Baixa</th></tr></thead>
+                    {% endif %}
                     <tbody>
                     {% for parcela in emprestimo.parcelas %}
-                        <tr>
-                            <td>{{ parcela.numero_parcela }}</td>
-                            <td>{{ parcela.vencimento[8:10] }}/{{ parcela.vencimento[5:7] }}/{{ parcela.vencimento[0:4] }}</td>
-                            <td>R$ {{ parcela.valor_previsto }}</td>
-                            <td>R$ {{ parcela.valor_pago }}</td>
-                            <td>R$ {{ parcela.saldo_parcela }}</td>
-                            <td><span class="loan-status {{ parcela.status }}">{{ parcela.status|title }}</span></td>
-                            <td>
-                                {% if parcela.status not in ['paga','cancelada'] %}
-                                <form class="loan-inline-payment" method="post" action="/emprestimos/parcelas/{{ parcela.id }}/baixar">
-                                    <input name="valor_pago" value="{{ parcela.saldo_parcela }}" aria-label="Valor da baixa">
-                                    <input type="date" name="data_pagamento" aria-label="Data da baixa">
-                                    <input name="forma_pagamento" placeholder="Forma">
-                                    <button class="loan-link-button" type="submit">Baixar</button>
-                                </form>
-                                {% else %}-{% endif %}
-                            </td>
-                        </tr>
-                    {% else %}<tr><td colspan="7" class="loan-empty">Nenhuma parcela cadastrada.</td></tr>{% endfor %}
+                    <tr>
+                        <td>{{ parcela.numero_parcela }}</td>
+                        <td>{{ parcela.vencimento[8:10] }}/{{ parcela.vencimento[5:7] }}/{{ parcela.vencimento[0:4] }}</td>
+                        {% if emprestimo.modalidade == 'rotativo' %}
+                        <td>R$ {{ parcela.principal_base }}</td>
+                        <td>R$ {{ parcela.valor_juros }}</td>
+                        <td>R$ {{ parcela.valor_pago }}</td>
+                        {% else %}
+                        <td>R$ {{ parcela.valor_previsto }}</td>
+                        <td>R$ {{ parcela.valor_pago }}</td>
+                        <td>R$ {{ parcela.saldo_parcela }}</td>
+                        {% endif %}
+                        <td><span class="loan-status {{ parcela.status }}">{{ parcela.status|title }}</span></td>
+                        <td>
+                            {% if parcela.status not in ['paga','cancelada'] %}
+                            <form class="loan-inline-payment" method="post" action="/emprestimos/parcelas/{{ parcela.id }}/baixar">
+                                {% if emprestimo.modalidade == 'rotativo' %}
+                                <select name="tipo_baixa" aria-label="Tipo de baixa" required>
+                                    <option value="somente_juros">Somente juros</option>
+                                    {% if emprestimo.permitir_amortizacao %}<option value="juros_amortizacao">Juros + amortização</option>{% endif %}
+                                    <option value="quitacao">Quitação total</option>
+                                </select>
+                                <input name="valor_pago" value="{{ parcela.saldo_parcela }}" aria-label="Valor total recebido">
+                                {% else %}
+                                <input name="valor_pago" value="{{ parcela.saldo_parcela }}" aria-label="Valor da baixa">
+                                {% endif %}
+                                <input type="date" name="data_pagamento" aria-label="Data da baixa">
+                                <input name="forma_pagamento" placeholder="Forma">
+                                <button class="loan-link-button" type="submit">Baixar</button>
+                            </form>
+                            {% else %}-{% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="7" class="loan-empty">Nenhum lançamento cadastrado.</td></tr>
+                    {% endfor %}
                     </tbody>
                 </table>
             </div>
@@ -132,7 +189,6 @@ Motivo: Criar a tela completa do contrato com parcelas, baixas, renegociação, 
                 </div>
             </article>
         </section>
-
     </main>
 </body>
 </html>
