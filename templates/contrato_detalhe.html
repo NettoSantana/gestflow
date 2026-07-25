@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\contrato_detalhe.html
-Último recode: 2026-07-22 22:06 (America/Bahia)
-Motivo: Criar a visualização completa do contrato com situação, itens, anexos e histórico.
+Último recode: 2026-07-25 10:43 (America/Bahia)
+Motivo: Exigir e exibir motivo nas transições para Suspenso, Encerrado e Cancelado, mantendo o fluxo de situações coerente.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -174,8 +174,8 @@ Motivo: Criar a visualização completa do contrato com situação, itens, anexo
                                 </select>
                             </div>
                             <div id="contract-cancel-reason" class="contract-field contract-cancel-reason">
-                                <label for="motivo">Motivo do cancelamento</label>
-                                <textarea id="motivo" name="motivo" rows="3" placeholder="Informe o motivo"></textarea>
+                                <label id="contract-reason-label" for="motivo">Motivo da alteração</label>
+                                <textarea id="motivo" name="motivo" rows="3" placeholder="Informe o motivo da alteração"></textarea>
                             </div>
                             <button type="submit" class="contract-button primary full">Atualizar situação</button>
                         </form>
@@ -230,19 +230,37 @@ Motivo: Criar a visualização completa do contrato com situação, itens, anexo
         const statusField = document.getElementById('status-next');
         const cancelBox = document.getElementById('contract-cancel-reason');
         const reasonField = document.getElementById('motivo');
+        const reasonLabel = document.getElementById('contract-reason-label');
         const fileField = document.getElementById('arquivo');
         const fileName = document.getElementById('contract-file-name');
 
-        function updateCancelReason() {
+        function updateStatusReason() {
             if (!statusField || !cancelBox || !reasonField) return;
-            const cancelling = statusField.value === 'cancelado';
-            cancelBox.classList.toggle('visible', cancelling);
-            reasonField.required = cancelling;
+
+            const selectedStatus = statusField.value;
+            const requiresReason = ['suspenso', 'encerrado', 'cancelado'].includes(selectedStatus);
+            const labels = {
+                suspenso: 'Motivo da suspensão',
+                encerrado: 'Motivo do encerramento',
+                cancelado: 'Motivo do cancelamento'
+            };
+
+            cancelBox.classList.toggle('visible', requiresReason);
+            reasonField.required = requiresReason;
+            reasonField.disabled = !requiresReason;
+
+            if (reasonLabel) {
+                reasonLabel.textContent = labels[selectedStatus] || 'Motivo da alteração';
+            }
+
+            if (!requiresReason) {
+                reasonField.value = '';
+            }
         }
 
         if (statusField) {
-            statusField.addEventListener('change', updateCancelReason);
-            updateCancelReason();
+            statusField.addEventListener('change', updateStatusReason);
+            updateStatusReason();
         }
         if (fileField && fileName) {
             fileField.addEventListener('change', function () {
