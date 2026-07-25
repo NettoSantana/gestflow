@@ -1,7 +1,7 @@
-{#
+﻿{#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\partials\sidebar.html
-Último recode: 2026-07-25 14:56 (America/Bahia)
-Motivo: Remover o grupo Sistema da área rolável e restaurar Configurações gerais como menu fixo no rodapé, preservando as configurações de cada módulo.
+Último recode: 2026-07-25 18:45 (America/Bahia)
+Motivo: Incluir o módulo Empréstimos com todos os seus submenus.
 #}
 {% set _path = request.path if request is defined else '' %}
 {% set _config_grupo = request.view_args.get('grupo', '') if request is defined and request.view_args else '' %}
@@ -221,6 +221,26 @@ Motivo: Remover o grupo Sistema da área rolável e restaurar Configurações ge
             </li>
             {% endif %}
 
+
+            {% if _modulos.get('emprestimos', true) and modulo_usuario_visivel('emprestimos') %}
+            <li class="menu-group {% if _path.startswith('/emprestimos') or _config_grupo == 'emprestimos' %}active{% endif %}">
+                <details {% if _path.startswith('/emprestimos') or _config_grupo == 'emprestimos' %}open{% endif %}>
+                    <summary>
+                        <span class="menu-label"><span class="menu-icon">⇆</span><span>Empréstimos</span></span>
+                        <span class="arrow">⌄</span>
+                    </summary>
+                    <ul class="submenu">
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Empréstimos</strong></li>
+                        <li class="{% if _path in ['/emprestimos', '/emprestimos/visao-geral'] %}submenu-active{% endif %}"><a href="/emprestimos/visao-geral">Visão Geral</a></li>
+                        <li class="{% if _path == '/emprestimos/todos' %}submenu-active{% endif %}"><a href="/emprestimos/todos">Todos os Empréstimos</a></li>
+                        <li class="{% if _path == '/emprestimos/novo' %}submenu-active{% endif %}"><a href="/emprestimos/novo">Novo Empréstimo</a></li>
+                        <li class="{% if _path == '/emprestimos/parcelas' %}submenu-active{% endif %}"><a href="/emprestimos/parcelas">Parcelas</a></li>
+                        <li class="{% if _path == '/emprestimos/renegociacoes' %}submenu-active{% endif %}"><a href="/emprestimos/renegociacoes">Renegociações</a></li>
+                        {% if usuario_eh_admin_empresa %}<li class="{% if _config_grupo == 'emprestimos' %}submenu-active{% endif %}"><a href="/configuracoes/modulo/emprestimos">Configurações</a></li>{% endif %}
+                    </ul>
+                </details>
+            </li>
+            {% endif %}
             {% if _modulos.get('vitrine', true) and modulo_usuario_visivel('vitrine') %}
             <li class="menu-group {% if _path.startswith('/vitrine') or _config_grupo == 'vitrine' %}active{% endif %}">
                 <details {% if _path.startswith('/vitrine') or _config_grupo == 'vitrine' %}open{% endif %}>
@@ -477,3 +497,4 @@ Motivo: Remover o grupo Sistema da área rolável e restaurar Configurações ge
 </script>
 
 {% include 'partials/configuracoes_runtime.html' %}
+

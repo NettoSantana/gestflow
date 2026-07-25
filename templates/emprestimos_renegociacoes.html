@@ -1,0 +1,56 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\emprestimos_renegociacoes.html
+Último recode: 2026-07-25 18:20 (America/Bahia)
+Motivo: Criar a listagem consolidada do histórico de renegociações.
+-->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Renegociações de Empréstimos</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+    <main class="content loans-page">
+        {% set page_title = 'Renegociações de Empréstimos' %}
+        {% include "partials/topbar.html" %}
+<nav class="loan-tabs" aria-label="Navegação do módulo Empréstimos">
+<a class="loan-tab" href="/emprestimos/visao-geral">Visão Geral</a>
+<a class="loan-tab" href="/emprestimos/todos">Todos os Empréstimos</a>
+<a class="loan-tab" href="/emprestimos/novo">Novo Empréstimo</a>
+<a class="loan-tab" href="/emprestimos/parcelas">Parcelas</a>
+<a class="loan-tab active" href="/emprestimos/renegociacoes">Renegociações</a>
+<a class="loan-tab" href="/emprestimos/configuracoes">Configurações</a>
+</nav>
+        {% if sucesso %}<div class="loan-alert success" role="status">{{ sucesso }}</div>{% endif %}
+        {% if erro %}<div class="loan-alert error" role="alert">{{ erro }}</div>{% endif %}
+
+        <section class="loan-hero compact"><div><span class="loan-kicker">Histórico</span><h1>Renegociações</h1><p>Consulte todas as alterações de prazo, juros e saldo.</p></div></section>
+        <section class="loan-panel">
+            <div class="loan-table-wrap">
+                <table class="loan-table">
+                    <thead><tr><th>Data</th><th>Contrato</th><th>Parte</th><th>Motivo</th><th>Saldo anterior</th><th>Novo total</th><th>Taxa</th><th>Parcelas</th><th>Responsável</th></tr></thead>
+                    <tbody>
+                    {% for item in renegociacoes %}
+                    <tr>
+                        <td>{{ item.data_renegociacao[8:10] }}/{{ item.data_renegociacao[5:7] }}/{{ item.data_renegociacao[0:4] }}</td>
+                        <td><a href="/emprestimos/{{ item.emprestimo_id }}">{{ item.emprestimo_numero }}</a><small class="loan-table-note">{{ item.emprestimo_titulo }}</small></td>
+                        <td>{{ item.parte_nome }}</td>
+                        <td>{{ item.motivo }}</td>
+                        <td>R$ {{ item.saldo_anterior }}</td>
+                        <td>R$ {{ item.novo_valor_total }}</td>
+                        <td>{{ item.nova_taxa_juros_percentual }}%</td>
+                        <td>{{ item.nova_quantidade_parcelas }}</td>
+                        <td>{{ item.usuario_nome or '-' }}</td>
+                    </tr>
+                    {% else %}<tr><td colspan="9" class="loan-empty">Nenhuma renegociação registrada.</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    </main>
+</body>
+</html>

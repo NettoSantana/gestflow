@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-25 17:30 (America/Bahia)
-# Motivo: Criar a base completa do módulo Empréstimos no backend, banco, permissões, configurações e rotas.
+# Último recode: 2026-07-25 18:20 (America/Bahia)
+# Motivo: Concluir o módulo Empréstimos com dashboard, cadastros, parcelas, renegociações, configurações e telas integradas.
 
 from __future__ import annotations
 
@@ -33109,6 +33109,34 @@ def emprestimo_renegociar(emprestimo_id: int) -> Response:
     ok, mensagem = renegociar_emprestimo_db(emprestimo_id, dict(request.form))
     parametro = "sucesso" if ok else "erro"
     return redirect(url_for("emprestimo_detalhe", emprestimo_id=emprestimo_id, **{parametro: mensagem}))
+
+
+@app.get("/emprestimos/renegociacoes")
+def emprestimos_renegociacoes() -> str:
+    with conectar_db() as conn:
+        renegociacoes = [
+            dict(row)
+            for row in conn.execute(
+                """
+                SELECT r.*, e.numero AS emprestimo_numero, e.titulo AS emprestimo_titulo,
+                       e.parte_nome, e.tipo AS emprestimo_tipo
+                FROM emprestimo_renegociacoes r
+                JOIN emprestimos e
+                  ON e.id=r.emprestimo_id
+                 AND e.empresa_id=r.empresa_id
+                WHERE r.empresa_id=?
+                ORDER BY r.data_renegociacao DESC, r.id DESC
+                """,
+                (empresa_logada_id(),),
+            ).fetchall()
+        ]
+
+    return render_template(
+        "emprestimos_renegociacoes.html",
+        renegociacoes=renegociacoes,
+        erro=request.args.get("erro") or "",
+        sucesso=request.args.get("sucesso") or "",
+    )
 
 
 @app.get("/emprestimos/configuracoes")

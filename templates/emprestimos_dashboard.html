@@ -1,0 +1,98 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\emprestimos_dashboard.html
+Último recode: 2026-07-25 18:20 (America/Bahia)
+Motivo: Criar a visão geral operacional e financeira do módulo Empréstimos.
+-->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Empréstimos - Visão Geral</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+    <main class="content loans-page">
+        {% set page_title = 'Empréstimos - Visão Geral' %}
+        {% include "partials/topbar.html" %}
+<nav class="loan-tabs" aria-label="Navegação do módulo Empréstimos">
+<a class="loan-tab active" href="/emprestimos/visao-geral">Visão Geral</a>
+<a class="loan-tab" href="/emprestimos/todos">Todos os Empréstimos</a>
+<a class="loan-tab" href="/emprestimos/novo">Novo Empréstimo</a>
+<a class="loan-tab" href="/emprestimos/parcelas">Parcelas</a>
+<a class="loan-tab" href="/emprestimos/renegociacoes">Renegociações</a>
+<a class="loan-tab" href="/emprestimos/configuracoes">Configurações</a>
+</nav>
+        {% if sucesso %}<div class="loan-alert success" role="status">{{ sucesso }}</div>{% endif %}
+        {% if erro %}<div class="loan-alert error" role="alert">{{ erro }}</div>{% endif %}
+
+        <section class="loan-hero">
+            <div>
+                <span class="loan-kicker">Gestão financeira</span>
+                <h1>Visão Geral de Empréstimos</h1>
+                <p>Acompanhe valores tomados, concedidos, saldos e vencimentos em um único painel.</p>
+            </div>
+            <a class="loan-button primary" href="/emprestimos/novo">Novo empréstimo</a>
+        </section>
+
+        <section class="loan-summary-grid">
+            <article class="loan-summary-card"><span>Total tomado</span><strong>R$ {{ dashboard_emprestimos.total_tomado }}</strong><small>Valor principal recebido pela empresa</small></article>
+            <article class="loan-summary-card"><span>Total emprestado</span><strong>R$ {{ dashboard_emprestimos.total_emprestado }}</strong><small>Valor principal concedido pela empresa</small></article>
+            <article class="loan-summary-card danger"><span>Saldo devedor</span><strong>R$ {{ dashboard_emprestimos.saldo_devedor }}</strong><small>Saldo dos empréstimos recebidos</small></article>
+            <article class="loan-summary-card success"><span>Saldo a receber</span><strong>R$ {{ dashboard_emprestimos.saldo_a_receber }}</strong><small>Saldo dos empréstimos concedidos</small></article>
+            <article class="loan-summary-card warning"><span>Parcelas vencidas</span><strong>{{ dashboard_emprestimos.parcelas_vencidas }}</strong><small>R$ {{ dashboard_emprestimos.valor_vencido }} em atraso</small></article>
+            <article class="loan-summary-card"><span>Próximos 30 dias</span><strong>{{ dashboard_emprestimos.parcelas_proximos_30_dias }}</strong><small>R$ {{ dashboard_emprestimos.valor_proximos_30_dias }}</small></article>
+            <article class="loan-summary-card"><span>Contratos ativos</span><strong>{{ dashboard_emprestimos.ativos }}</strong><small>Ativos ou em atraso</small></article>
+            <article class="loan-summary-card"><span>Contratos quitados</span><strong>{{ dashboard_emprestimos.quitados }}</strong><small>Sem saldo pendente</small></article>
+        </section>
+
+        <section class="loan-two-columns">
+            <article class="loan-panel">
+                <div class="loan-panel-header"><div><h2>Empréstimos recentes</h2><p>Últimos contratos cadastrados.</p></div><a href="/emprestimos/todos">Ver todos</a></div>
+                <div class="loan-table-wrap">
+                    <table class="loan-table">
+                        <thead><tr><th>Número</th><th>Título</th><th>Parte</th><th>Tipo</th><th>Saldo</th><th>Status</th></tr></thead>
+                        <tbody>
+                        {% for item in dashboard_emprestimos.recentes %}
+                            <tr>
+                                <td><a href="/emprestimos/{{ item.id }}">{{ item.numero }}</a></td>
+                                <td>{{ item.titulo }}</td>
+                                <td>{{ item.parte_nome }}</td>
+                                <td>{{ 'Recebido' if item.tipo == 'recebido' else 'Concedido' }}</td>
+                                <td>R$ {{ item.saldo_atual }}</td>
+                                <td><span class="loan-status {{ item.status }}">{{ item.status|replace('_', ' ')|title }}</span></td>
+                            </tr>
+                        {% else %}
+                            <tr><td colspan="6" class="loan-empty">Nenhum empréstimo cadastrado.</td></tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+
+            <article class="loan-panel">
+                <div class="loan-panel-header"><div><h2>Próximas parcelas</h2><p>Vencimentos dos próximos 30 dias.</p></div><a href="/emprestimos/parcelas">Ver parcelas</a></div>
+                <div class="loan-table-wrap">
+                    <table class="loan-table">
+                        <thead><tr><th>Vencimento</th><th>Contrato</th><th>Parte</th><th>Saldo</th></tr></thead>
+                        <tbody>
+                        {% for item in dashboard_emprestimos.proximas_parcelas %}
+                            <tr>
+                                <td>{{ item.vencimento[8:10] }}/{{ item.vencimento[5:7] }}/{{ item.vencimento[0:4] }}</td>
+                                <td><a href="/emprestimos/{{ item.emprestimo_id }}">{{ item.emprestimo_numero }}</a></td>
+                                <td>{{ item.parte_nome }}</td>
+                                <td>R$ {{ item.saldo_parcela }}</td>
+                            </tr>
+                        {% else %}
+                            <tr><td colspan="4" class="loan-empty">Nenhuma parcela próxima.</td></tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+        </section>
+
+    </main>
+</body>
+</html>
