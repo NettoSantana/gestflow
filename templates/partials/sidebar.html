@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\partials\sidebar.html
-Último recode: 2026-07-25 09:27 (America/Bahia)
-Motivo: Colocar Configurações como último submenu de cada módulo e remover o acesso principal do rodapé.
+Último recode: 2026-07-25 14:56 (America/Bahia)
+Motivo: Remover o grupo Sistema da área rolável e restaurar Configurações gerais como menu fixo no rodapé, preservando as configurações de cada módulo.
 #}
 {% set _path = request.path if request is defined else '' %}
 {% set _config_grupo = request.view_args.get('grupo', '') if request is defined and request.view_args else '' %}
@@ -269,29 +269,6 @@ Motivo: Colocar Configurações como último submenu de cada módulo e remover o
             </li>
             {% endif %}
 
-            {% if usuario_eh_admin_empresa %}
-            <li class="menu-group {% if _sistema_config_ativo %}active{% endif %}">
-                <details {% if _sistema_config_ativo %}open{% endif %}>
-                    <summary>
-                        <span class="menu-label"><span class="menu-icon">⚙</span><span>Sistema</span></span>
-                        <span class="arrow">⌄</span>
-                    </summary>
-                    <ul class="submenu">
-                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Sistema</strong></li>
-                        <li class="{% if _path.startswith('/configuracoes/plano') %}submenu-active{% endif %}"><a href="/configuracoes/plano">Meu plano</a></li>
-                        <li class="{% if _path.startswith('/indicacoes') %}submenu-active{% endif %}"><a href="/indicacoes">Indicações</a></li>
-                        <li class="{% if _path.startswith('/configuracoes/usuarios') %}submenu-active{% endif %}"><a href="/configuracoes/usuarios">Usuários</a></li>
-                        <li class="{% if _path.startswith('/configuracoes/modulos') %}submenu-active{% endif %}"><a href="/configuracoes/modulos">Módulos do sistema</a></li>
-                        <li class="{% if _path.startswith('/configuracoes/empresa') %}submenu-active{% endif %}"><a href="/configuracoes/empresa">Dados da empresa</a></li>
-                        <li class="{% if _path.startswith('/configuracoes/marca') %}submenu-active{% endif %}"><a href="/configuracoes/marca">Marca da empresa</a></li>
-                        <li class="{% if _path.startswith('/configuracoes/lojas') %}submenu-active{% endif %}"><a href="/configuracoes/lojas">Empresas / Lojas</a></li>
-                        <li class="{% if _path in ['/configuracoes', '/configuracoes/gerais'] %}submenu-active{% endif %}"><a href="/configuracoes">Preferências</a></li>
-                        <li class="{% if _config_grupo == 'sistema' %}submenu-active{% endif %}"><a href="/configuracoes/modulo/sistema">Configurações</a></li>
-                    </ul>
-                </details>
-            </li>
-            {% endif %}
-
             {% if usuario_eh_admin_sistema %}
             <li class="menu-group {% if _path.startswith('/admin') %}active{% endif %}">
                 <details {% if _path.startswith('/admin') %}open{% endif %}>
@@ -311,6 +288,28 @@ Motivo: Colocar Configurações como último submenu de cada módulo e remover o
     </nav>
 
     <div class="sidebar-footer">
+        {% if usuario_eh_admin_empresa %}
+        <div class="menu-group footer-configuracoes {% if _sistema_config_ativo %}active{% endif %}">
+            <details {% if _sistema_config_ativo %}open{% endif %}>
+                <summary>
+                    <span class="menu-label"><span class="menu-icon">⚙</span><span>Configurações</span></span>
+                    <span class="arrow">⌄</span>
+                </summary>
+                <ul class="submenu">
+                    <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Configurações</strong></li>
+                    <li class="{% if _path.startswith('/configuracoes/plano') %}submenu-active{% endif %}"><a href="/configuracoes/plano">Meu plano</a></li>
+                    <li class="{% if _path.startswith('/indicacoes') %}submenu-active{% endif %}"><a href="/indicacoes">Indicações</a></li>
+                    <li class="{% if _path.startswith('/configuracoes/usuarios') %}submenu-active{% endif %}"><a href="/configuracoes/usuarios">Usuários</a></li>
+                    <li class="{% if _path.startswith('/configuracoes/modulos') %}submenu-active{% endif %}"><a href="/configuracoes/modulos">Módulos do sistema</a></li>
+                    <li class="{% if _path.startswith('/configuracoes/empresa') %}submenu-active{% endif %}"><a href="/configuracoes/empresa">Dados da empresa</a></li>
+                    <li class="{% if _path.startswith('/configuracoes/marca') %}submenu-active{% endif %}"><a href="/configuracoes/marca">Marca da empresa</a></li>
+                    <li class="{% if _path.startswith('/configuracoes/lojas') %}submenu-active{% endif %}"><a href="/configuracoes/lojas">Empresas / Lojas</a></li>
+                    <li class="{% if _path in ['/configuracoes', '/configuracoes/gerais'] %}submenu-active{% endif %}"><a href="/configuracoes">Preferências</a></li>
+                    <li class="{% if _config_grupo == 'sistema' %}submenu-active{% endif %}"><a href="/configuracoes/modulo/sistema">Configurações</a></li>
+                </ul>
+            </details>
+        </div>
+        {% endif %}
         <a href="/instalar" class="footer-item {% if _path.startswith('/instalar') %}active{% endif %}" style="text-decoration: none;">▣ Instalar app</a>
         <a href="/sair" class="footer-item" style="text-decoration: none;">Sair</a>
     </div>
