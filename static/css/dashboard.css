@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\static\css\dashboard.css
-Último recode: 2026-07-25 18:20 (America/Bahia)
-Motivo: Adicionar o layout completo e responsivo do módulo Empréstimos.
+Último recode: 2026-07-25 19:05 (America/Bahia)
+Motivo: Aumentar a largura, a área de clique e o contraste da barra de rolagem do menu lateral.
 */
 
 :root {
@@ -104,12 +104,30 @@ canvas {
 }
 
 .sidebar::-webkit-scrollbar {
-    width: 5px;
+    width: 14px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 999px;
 }
 
 .sidebar::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.18);
-    border-radius: 50px;
+    min-height: 56px;
+    background: rgba(255, 255, 255, 0.42);
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background-clip: padding-box;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.72);
+    background-clip: padding-box;
+}
+
+.sidebar {
+    scrollbar-width: auto;
+    scrollbar-color: rgba(255, 255, 255, 0.48) transparent;
 }
 
 .brand {
@@ -1649,13 +1667,36 @@ canvas {
     padding-bottom: 12px;
 }
 
+.sidebar-nav {
+    scrollbar-width: auto;
+    scrollbar-color: rgba(255, 255, 255, 0.48) transparent;
+}
+
 .sidebar-nav::-webkit-scrollbar {
-    width: 5px;
+    width: 14px;
+}
+
+.sidebar-nav::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 999px;
 }
 
 .sidebar-nav::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.18);
-    border-radius: 50px;
+    min-height: 56px;
+    background: rgba(255, 255, 255, 0.42);
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background-clip: padding-box;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.72);
+    background-clip: padding-box;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb:active {
+    background: rgba(255, 255, 255, 0.88);
+    background-clip: padding-box;
 }
 
 .sidebar-footer {
