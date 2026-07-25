@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-25 22:35 (America/Bahia)
-# Motivo: Adicionar reset seguro da base transacional exclusivamente no DEV, com backup automático e preservação dos cadastros.
+# Último recode: 2026-07-25 19:55 (America/Bahia)
+# Motivo: Integrar automaticamente e de forma bidirecional as parcelas de Empréstimos ao Financeiro.
 
 from __future__ import annotations
 
@@ -14264,16 +14264,21 @@ def _normalizar_status_financeiro(titulo: dict[str, Any]) -> dict[str, Any]:
         origem_id = 0
 
     origem_venda = origem in FINANCEIRO_ORIGENS_VENDA and origem_id > 0
+    origem_emprestimo = origem == "emprestimo" and origem_id > 0
     titulo_normalizado["status_exibicao"] = _status_financeiro_calculado(titulo_normalizado)
     titulo_normalizado["valor_numero"] = _converter_valor_brl(titulo_normalizado.get("valor"))
     titulo_normalizado["origem_venda"] = origem_venda
+    titulo_normalizado["origem_emprestimo"] = origem_emprestimo
     titulo_normalizado["venda_id"] = origem_id if origem_venda else None
+    titulo_normalizado["emprestimo_id"] = origem_id if origem_emprestimo else None
     titulo_normalizado["manual"] = origem == "manual"
     titulo_normalizado["origem_rotulo"] = (
         "Venda"
         if origem == "venda"
         else "Venda de balcão"
         if origem == "venda_pdv"
+        else "Empréstimo"
+        if origem_emprestimo
         else "Lançamento manual"
     )
     titulo_normalizado["pode_editar"] = (
@@ -14697,6 +14702,11 @@ def atualizar_status_financeiro_titulo_db(titulo_id: int, status: str, data_paga
         descricao,
         dados_anteriores=titulo_anterior,
         dados_novos=titulo_atualizado,
+    )
+    _sincronizar_parcela_emprestimo_por_titulo_financeiro_db(
+        titulo_id,
+        status,
+        data_pagamento,
     )
 
 def cancelar_financeiro_titulo_db(titulo_id: int) -> None:
@@ -32574,6 +32584,9 @@ def garantir_estrutura_emprestimos() -> None:
                 ON emprestimo_parcelas(empresa_id, emprestimo_id, numero_parcela);
             CREATE INDEX IF NOT EXISTS idx_emprestimo_parcelas_vencimento
                 ON emprestimo_parcelas(empresa_id, status, vencimento);
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_emprestimo_parcela_financeiro
+                ON emprestimo_parcelas(empresa_id, lancamento_financeiro_id)
+                WHERE lancamento_financeiro_id IS NOT NULL;
             CREATE INDEX IF NOT EXISTS idx_emprestimo_renegociacoes_emprestimo
                 ON emprestimo_renegociacoes(empresa_id, emprestimo_id, id);
             CREATE INDEX IF NOT EXISTS idx_emprestimo_historico_emprestimo
@@ -32826,6 +32839,350 @@ def atualizar_status_emprestimo_db(emprestimo_id: int, conn: sqlite3.Connection 
             banco.close()
 
 
+
+def _tipo_titulo_financeiro_emprestimo(tipo_emprestimo: Any) -> str:
+    return "receber" if str(tipo_emprestimo or "").strip().lower() == "concedido" else "pagar"
+
+
+def _status_titulo_financeiro_parcela_emprestimo(status_parcela: Any) -> str:
+    status = str(status_parcela or "aberta").strip().lower()
+    if status == "paga":
+        return "pago"
+    if status == "cancelada":
+        return "cancelado"
+    return "aberto"
+
+
+def _documento_financeiro_parcela_emprestimo(numero_emprestimo: Any, numero_parcela: Any) -> str:
+    try:
+        parcela = int(numero_parcela or 0)
+    except (TypeError, ValueError):
+        parcela = 0
+    return f"{str(numero_emprestimo or 'EMP').strip()}-P{parcela:03d}"
+
+
+def _sincronizar_titulo_financeiro_parcela_emprestimo_db(
+    conn: sqlite3.Connection,
+    emprestimo: dict[str, Any],
+    parcela: dict[str, Any],
+) -> int | None:
+    if not bool(int(emprestimo.get("gerar_financeiro") or 0)):
+        return None
+    if not configuracao_bool("emprestimos", "gerar_financeiro_automaticamente", True):
+        return None
+
+    empresa_id = int(emprestimo["empresa_id"])
+    emprestimo_id = int(emprestimo["id"])
+    parcela_id = int(parcela["id"])
+    documento = _documento_financeiro_parcela_emprestimo(
+        emprestimo.get("numero"),
+        parcela.get("numero_parcela"),
+    )
+    tipo_titulo = _tipo_titulo_financeiro_emprestimo(emprestimo.get("tipo"))
+    status_titulo = _status_titulo_financeiro_parcela_emprestimo(parcela.get("status"))
+    data_pagamento = (
+        str(parcela.get("data_pagamento") or "").strip()
+        if status_titulo == "pago"
+        else ""
+    )
+    categoria = (
+        "Empréstimos concedidos"
+        if tipo_titulo == "receber"
+        else "Empréstimos recebidos"
+    )
+    descricao = (
+        f"Parcela {parcela.get('numero_parcela')} do empréstimo "
+        f"{emprestimo.get('numero')} - {emprestimo.get('titulo')}"
+    )
+    observacoes = (
+        f"Gerado automaticamente pelo módulo Empréstimos. "
+        f"Parcela interna #{parcela_id}."
+    )
+
+    titulo = None
+    titulo_id = parcela.get("lancamento_financeiro_id")
+    if titulo_id:
+        titulo = conn.execute(
+            """
+            SELECT *
+            FROM financeiro_titulos
+            WHERE id=? AND empresa_id=?
+            """,
+            (int(titulo_id), empresa_id),
+        ).fetchone()
+
+    if titulo is None:
+        titulo = conn.execute(
+            """
+            SELECT *
+            FROM financeiro_titulos
+            WHERE empresa_id=?
+              AND origem='emprestimo'
+              AND origem_id=?
+              AND documento=?
+            ORDER BY id
+            LIMIT 1
+            """,
+            (empresa_id, emprestimo_id, documento),
+        ).fetchone()
+
+    agora = agora_empresa().isoformat(timespec="seconds")
+    if titulo is None:
+        cursor = conn.execute(
+            """
+            INSERT INTO financeiro_titulos (
+                empresa_id, tipo, descricao, pessoa, categoria,
+                centro_custo_id, atividade_financeira_id,
+                origem, origem_id, documento, data_emissao,
+                data_vencimento, data_pagamento, valor,
+                forma_pagamento, status, observacoes
+            ) VALUES (?, ?, ?, ?, ?, ?, NULL, 'emprestimo', ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                empresa_id,
+                tipo_titulo,
+                descricao,
+                str(emprestimo.get("parte_nome") or "").strip(),
+                categoria,
+                emprestimo.get("centro_custo_id") or None,
+                emprestimo_id,
+                documento,
+                str(emprestimo.get("data_contrato") or hoje_empresa().isoformat()),
+                str(parcela.get("vencimento") or ""),
+                data_pagamento,
+                str(parcela.get("valor_previsto") or "0,00"),
+                str(parcela.get("forma_pagamento") or emprestimo.get("forma_pagamento") or "").strip(),
+                status_titulo,
+                observacoes,
+            ),
+        )
+        titulo_id = int(cursor.lastrowid)
+        registrar_historico_financeiro_titulo_db(
+            titulo_id,
+            "criado",
+            f"Título criado automaticamente para a parcela {parcela.get('numero_parcela')} do empréstimo {emprestimo.get('numero')}.",
+            dados_novos={
+                "tipo": tipo_titulo,
+                "descricao": descricao,
+                "pessoa": emprestimo.get("parte_nome"),
+                "categoria": categoria,
+                "origem": "emprestimo",
+                "origem_id": emprestimo_id,
+                "documento": documento,
+                "data_emissao": emprestimo.get("data_contrato"),
+                "data_vencimento": parcela.get("vencimento"),
+                "data_pagamento": data_pagamento,
+                "valor": parcela.get("valor_previsto"),
+                "forma_pagamento": parcela.get("forma_pagamento") or emprestimo.get("forma_pagamento"),
+                "status": status_titulo,
+                "observacoes": observacoes,
+            },
+            conn=conn,
+        )
+    else:
+        titulo_atual = dict(titulo)
+        titulo_id = int(titulo_atual["id"])
+
+        # Um título já pago no Financeiro não é reaberto por uma sincronização de leitura.
+        if str(titulo_atual.get("status") or "") == "pago" and status_titulo != "pago":
+            status_titulo = "pago"
+            data_pagamento = str(titulo_atual.get("data_pagamento") or "").strip()
+
+        conn.execute(
+            """
+            UPDATE financeiro_titulos
+            SET tipo=?, descricao=?, pessoa=?, categoria=?,
+                centro_custo_id=?, origem='emprestimo', origem_id=?,
+                documento=?, data_emissao=?, data_vencimento=?,
+                data_pagamento=?, valor=?, forma_pagamento=?,
+                status=?, observacoes=?
+            WHERE id=? AND empresa_id=?
+            """,
+            (
+                tipo_titulo,
+                descricao,
+                str(emprestimo.get("parte_nome") or "").strip(),
+                categoria,
+                emprestimo.get("centro_custo_id") or None,
+                emprestimo_id,
+                documento,
+                str(emprestimo.get("data_contrato") or hoje_empresa().isoformat()),
+                str(parcela.get("vencimento") or ""),
+                data_pagamento,
+                str(parcela.get("valor_previsto") or "0,00"),
+                str(parcela.get("forma_pagamento") or emprestimo.get("forma_pagamento") or "").strip(),
+                status_titulo,
+                observacoes,
+                titulo_id,
+                empresa_id,
+            ),
+        )
+
+    conn.execute(
+        """
+        UPDATE emprestimo_parcelas
+        SET lancamento_financeiro_id=?, atualizado_em=?
+        WHERE id=? AND empresa_id=?
+        """,
+        (titulo_id, agora, parcela_id, empresa_id),
+    )
+    return int(titulo_id)
+
+
+def sincronizar_financeiro_emprestimo_db(
+    emprestimo_id: int,
+    conn: sqlite3.Connection | None = None,
+) -> None:
+    conexao_propria = conn is None
+    banco = conn or conectar_db()
+    try:
+        emprestimo_row = banco.execute(
+            "SELECT * FROM emprestimos WHERE id=? AND empresa_id=?",
+            (emprestimo_id, empresa_logada_id()),
+        ).fetchone()
+        if emprestimo_row is None:
+            return
+        emprestimo = dict(emprestimo_row)
+        parcelas = banco.execute(
+            """
+            SELECT *
+            FROM emprestimo_parcelas
+            WHERE emprestimo_id=? AND empresa_id=?
+            ORDER BY numero_parcela, id
+            """,
+            (emprestimo_id, empresa_logada_id()),
+        ).fetchall()
+        for parcela_row in parcelas:
+            _sincronizar_titulo_financeiro_parcela_emprestimo_db(
+                banco,
+                emprestimo,
+                dict(parcela_row),
+            )
+        if conexao_propria:
+            banco.commit()
+    finally:
+        if conexao_propria:
+            banco.close()
+
+
+def sincronizar_financeiro_emprestimos_empresa_db() -> None:
+    with conectar_db() as conn:
+        ids = [
+            int(row["id"])
+            for row in conn.execute(
+                """
+                SELECT id
+                FROM emprestimos
+                WHERE empresa_id=?
+                  AND gerar_financeiro=1
+                ORDER BY id
+                """,
+                (empresa_logada_id(),),
+            ).fetchall()
+        ]
+        for emprestimo_id in ids:
+            sincronizar_financeiro_emprestimo_db(emprestimo_id, conn=conn)
+        conn.commit()
+
+
+def _sincronizar_parcela_emprestimo_por_titulo_financeiro_db(
+    titulo_id: int,
+    status_financeiro: str,
+    data_pagamento: str = "",
+) -> None:
+    status = str(status_financeiro or "").strip().lower()
+    if status not in {"pago", "cancelado"}:
+        return
+
+    emprestimo_id: int | None = None
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT p.*, e.numero AS emprestimo_numero
+            FROM emprestimo_parcelas p
+            JOIN emprestimos e
+              ON e.id=p.emprestimo_id
+             AND e.empresa_id=p.empresa_id
+            WHERE p.empresa_id=?
+              AND p.lancamento_financeiro_id=?
+            LIMIT 1
+            """,
+            (empresa_logada_id(), titulo_id),
+        ).fetchone()
+        if row is None:
+            return
+
+        parcela = dict(row)
+        emprestimo_id = int(parcela["emprestimo_id"])
+        agora = agora_empresa().isoformat(timespec="seconds")
+
+        if status == "pago":
+            if parcela.get("status") == "cancelada":
+                return
+            novo_status = "paga"
+            valor_pago = str(parcela.get("valor_previsto") or "0,00")
+            saldo = "0,00"
+            pagamento = _emprestimo_data_iso(
+                data_pagamento,
+                hoje_empresa().isoformat(),
+            )
+            descricao = (
+                f"Parcela {parcela.get('numero_parcela')} baixada automaticamente "
+                f"pelo título financeiro #{titulo_id}."
+            )
+            conn.execute(
+                """
+                UPDATE emprestimo_parcelas
+                SET valor_pago=?, saldo_parcela=?, status='paga',
+                    data_pagamento=?, atualizado_em=?
+                WHERE id=? AND empresa_id=?
+                """,
+                (
+                    valor_pago,
+                    saldo,
+                    pagamento,
+                    agora,
+                    int(parcela["id"]),
+                    empresa_logada_id(),
+                ),
+            )
+        else:
+            if parcela.get("status") == "paga":
+                return
+            novo_status = "cancelada"
+            descricao = (
+                f"Parcela {parcela.get('numero_parcela')} cancelada automaticamente "
+                f"pelo título financeiro #{titulo_id}."
+            )
+            conn.execute(
+                """
+                UPDATE emprestimo_parcelas
+                SET status='cancelada', atualizado_em=?
+                WHERE id=? AND empresa_id=?
+                """,
+                (agora, int(parcela["id"]), empresa_logada_id()),
+            )
+
+        _registrar_historico_emprestimo(
+            conn,
+            emprestimo_id,
+            "sincronizacao_financeiro",
+            descricao,
+            parcela_id=int(parcela["id"]),
+            dados_anteriores={
+                "status": parcela.get("status"),
+                "saldo": parcela.get("saldo_parcela"),
+            },
+            dados_novos={
+                "status": novo_status,
+                "titulo_financeiro_id": titulo_id,
+            },
+        )
+        conn.commit()
+
+    if emprestimo_id is not None:
+        atualizar_status_emprestimo_db(emprestimo_id)
+
 def criar_emprestimo_db(dados: dict[str, Any]) -> int:
     tipo = str(dados.get("tipo") or "recebido").strip().lower()
     if tipo not in EMPRESTIMO_TIPOS_CODIGOS:
@@ -32963,6 +33320,7 @@ def criar_emprestimo_db(dados: dict[str, Any]) -> int:
             f"Empréstimo {numero} criado com {quantidade} parcela(s).",
             dados_novos={"numero": numero, "tipo": tipo, "valor_total": _emprestimo_moeda(valor_total)},
         )
+        sincronizar_financeiro_emprestimo_db(emprestimo_id, conn=conn)
         conn.commit()
 
     return emprestimo_id
@@ -32970,6 +33328,7 @@ def criar_emprestimo_db(dados: dict[str, Any]) -> int:
 
 def buscar_emprestimo_db(emprestimo_id: int) -> dict[str, Any] | None:
     atualizar_status_emprestimo_db(emprestimo_id)
+    sincronizar_financeiro_emprestimo_db(emprestimo_id)
     with conectar_db() as conn:
         row = conn.execute(
             "SELECT * FROM emprestimos WHERE id=? AND empresa_id=?",
@@ -33016,6 +33375,7 @@ def buscar_emprestimo_db(emprestimo_id: int) -> dict[str, Any] | None:
 
 
 def listar_emprestimos_db() -> list[dict[str, Any]]:
+    sincronizar_financeiro_emprestimos_empresa_db()
     busca = str(request.args.get("busca") or "").strip()
     status = str(request.args.get("status") or "").strip()
     tipo = str(request.args.get("tipo") or "").strip()
@@ -33180,8 +33540,9 @@ def baixar_parcela_emprestimo_db(parcela_id: int, dados: dict[str, Any]) -> tupl
             dados_anteriores={"saldo": parcela["saldo_parcela"], "status": parcela["status"]},
             dados_novos={"saldo": _emprestimo_moeda(novo_saldo), "status": novo_status},
         )
-        conn.commit()
         emprestimo_id = int(parcela["emprestimo_id"])
+        sincronizar_financeiro_emprestimo_db(emprestimo_id, conn=conn)
+        conn.commit()
 
     atualizar_status_emprestimo_db(emprestimo_id)
     return True, "Parcela baixada com sucesso.", emprestimo_id
@@ -33221,6 +33582,7 @@ def cancelar_emprestimo_db(emprestimo_id: int, motivo: str) -> tuple[bool, str]:
         _registrar_historico_emprestimo(
             conn, emprestimo_id, "cancelamento", f"Empréstimo {row['numero']} cancelado. Motivo: {motivo}"
         )
+        sincronizar_financeiro_emprestimo_db(emprestimo_id, conn=conn)
         conn.commit()
     return True, "Empréstimo cancelado com sucesso."
 
@@ -33341,6 +33703,7 @@ def renegociar_emprestimo_db(emprestimo_id: int, dados: dict[str, Any]) -> tuple
             dados_anteriores={"saldo": _emprestimo_moeda(saldo)},
             dados_novos={"novo_total": _emprestimo_moeda(novo_total), "parcelas": quantidade},
         )
+        sincronizar_financeiro_emprestimo_db(emprestimo_id, conn=conn)
         conn.commit()
 
     return True, "Empréstimo renegociado com sucesso."
