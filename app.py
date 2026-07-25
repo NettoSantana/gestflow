@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-25 15:30 (America/Bahia)
-# Motivo: Impedir erro 500 no PDV ao finalizar venda com estoque insuficiente, validando o saldo antes de gravar a venda.
+# Último recode: 2026-07-25 15:35 (America/Bahia)
+# Motivo: Após finalizar a venda no PDV, retornar diretamente à tela de lançamento de produtos.
 
 from __future__ import annotations
 
@@ -27795,7 +27795,7 @@ def venda_balcao_finalizar() -> Response:
     session.pop("pdv_cliente", None)
     session.pop("pdv_responsavel", None)
 
-    return redirect(url_for("venda_balcao_finalizada", venda_id=venda_id))
+    return redirect(url_for("venda_balcao"))
 
 
 @app.get("/vendas/balcao/finalizada/<int:venda_id>")
