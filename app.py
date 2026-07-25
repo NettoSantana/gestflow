@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-25 18:20 (America/Bahia)
-# Motivo: Concluir o módulo Empréstimos com dashboard, cadastros, parcelas, renegociações, configurações e telas integradas.
+# Último recode: 2026-07-25 22:35 (America/Bahia)
+# Motivo: Adicionar reset seguro da base transacional exclusivamente no DEV, com backup automático e preservação dos cadastros.
 
 from __future__ import annotations
 
@@ -17068,6 +17068,244 @@ def gerar_backup_configurado(motivo: str) -> Path | None:
     return destino
 
 
+
+
+RESET_BASE_DEV_FRASE_CONFIRMACAO = "RESETAR DEV"
+
+# Tabelas exclusivamente transacionais. A ordem mantém filhos antes dos pais.
+RESET_BASE_DEV_TABELAS_TRANSACIONAIS = (
+    "emprestimo_historico",
+    "emprestimo_renegociacoes",
+    "emprestimo_anexos",
+    "emprestimo_parcelas",
+    "emprestimos",
+    "emprestimo_sequencias",
+    "gestao_atividades_notificacoes",
+    "gestao_atividades_historico",
+    "gestao_atividade_etapas",
+    "gestao_atividades",
+    "contrato_historico",
+    "contrato_anexos",
+    "contrato_itens",
+    "contratos",
+    "contrato_sequencias",
+    "os_acompanhamento_servicos",
+    "os_acompanhamento_materiais",
+    "os_acompanhamento_equipe",
+    "os_acompanhamentos",
+    "os_fotos_equipamento",
+    "ordem_servico_itens",
+    "ordens_servico",
+    "ordem_servico_sequencias",
+    "orcamento_gerador_historico",
+    "orcamento_gerador_dados",
+    "orcamento_apresentacao_itens",
+    "orcamento_adicionais_mao_obra",
+    "orcamento_itens",
+    "orcamentos",
+    "orcamento_sequencias",
+    "venda_itens",
+    "vendas",
+    "venda_sequencias",
+    "produto_producao_consumos",
+    "produto_producoes",
+    "financeiro_titulo_historico",
+    "financeiro_titulos",
+    "caixa_movimentacoes",
+    "caixa_aberturas",
+    "atividades_financeiras",
+    "estoque_movimentacoes",
+    "vitrine_pedido_itens",
+    "vitrine_pedidos",
+    "vitrine_eventos",
+    "agendamentos",
+    "registros_ponto",
+    "assistente_conversas",
+    "configuracoes_modulos_auditoria",
+    "configuracoes_operacoes_automaticas",
+    "usuario_recuperacao_senha",
+    "usuario_atividades",
+)
+
+# Compatibilidade defensiva para bancos antigos que ainda não tenham empresa_id
+# em alguma tabela filha. Nenhuma tabela sem escopo conhecido é apagada.
+RESET_BASE_DEV_RELACOES_LEGADAS = {
+    "emprestimo_historico": ("emprestimo_id", "emprestimos"),
+    "emprestimo_renegociacoes": ("emprestimo_id", "emprestimos"),
+    "emprestimo_anexos": ("emprestimo_id", "emprestimos"),
+    "emprestimo_parcelas": ("emprestimo_id", "emprestimos"),
+    "gestao_atividades_notificacoes": ("atividade_id", "gestao_atividades"),
+    "gestao_atividades_historico": ("atividade_id", "gestao_atividades"),
+    "gestao_atividade_etapas": ("atividade_id", "gestao_atividades"),
+    "contrato_historico": ("contrato_id", "contratos"),
+    "contrato_anexos": ("contrato_id", "contratos"),
+    "contrato_itens": ("contrato_id", "contratos"),
+    "os_acompanhamento_servicos": ("acompanhamento_id", "os_acompanhamentos"),
+    "os_acompanhamento_materiais": ("acompanhamento_id", "os_acompanhamentos"),
+    "os_acompanhamento_equipe": ("acompanhamento_id", "os_acompanhamentos"),
+    "os_fotos_equipamento": ("ordem_servico_id", "ordens_servico"),
+    "ordem_servico_itens": ("ordem_servico_id", "ordens_servico"),
+    "orcamento_gerador_historico": ("orcamento_id", "orcamentos"),
+    "orcamento_gerador_dados": ("orcamento_id", "orcamentos"),
+    "orcamento_apresentacao_itens": ("orcamento_id", "orcamentos"),
+    "orcamento_adicionais_mao_obra": ("orcamento_id", "orcamentos"),
+    "orcamento_itens": ("orcamento_id", "orcamentos"),
+    "venda_itens": ("venda_id", "vendas"),
+    "produto_producao_consumos": ("producao_id", "produto_producoes"),
+    "financeiro_titulo_historico": ("titulo_id", "financeiro_titulos"),
+    "vitrine_pedido_itens": ("pedido_id", "vitrine_pedidos"),
+}
+
+
+def ambiente_reset_base_dev_liberado() -> bool:
+    ambiente = str(getattr(config, "ENV", os.getenv("ENV", "")) or "").strip().upper()
+    return ambiente == "DEV"
+
+
+def _tabelas_e_colunas_db(conn: sqlite3.Connection) -> dict[str, set[str]]:
+    tabelas = {
+        str(row["name"])
+        for row in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+        ).fetchall()
+    }
+    return {
+        tabela: {
+            str(coluna["name"])
+            for coluna in conn.execute(f'PRAGMA table_info("{tabela}")').fetchall()
+        }
+        for tabela in tabelas
+    }
+
+
+def _excluir_tabela_transacional_empresa(
+    conn: sqlite3.Connection,
+    tabela: str,
+    empresa_id: int,
+    estrutura: dict[str, set[str]],
+) -> int:
+    colunas = estrutura.get(tabela)
+    if not colunas:
+        return 0
+
+    if "empresa_id" in colunas:
+        cursor = conn.execute(f'DELETE FROM "{tabela}" WHERE empresa_id = ?', (empresa_id,))
+        return max(int(cursor.rowcount or 0), 0)
+
+    relacao = RESET_BASE_DEV_RELACOES_LEGADAS.get(tabela)
+    if relacao is None:
+        raise RuntimeError(
+            f'A tabela transacional "{tabela}" existe sem empresa_id e sem relação segura de exclusão.'
+        )
+
+    coluna_pai, tabela_pai = relacao
+    colunas_pai = estrutura.get(tabela_pai, set())
+    if coluna_pai not in colunas or "empresa_id" not in colunas_pai:
+        raise RuntimeError(
+            f'Não foi possível limitar a exclusão de "{tabela}" à empresa atual.'
+        )
+
+    cursor = conn.execute(
+        f'DELETE FROM "{tabela}" '
+        f'WHERE "{coluna_pai}" IN ('
+        f'SELECT id FROM "{tabela_pai}" WHERE empresa_id = ?'
+        f')',
+        (empresa_id,),
+    )
+    return max(int(cursor.rowcount or 0), 0)
+
+
+def resetar_base_transacional_dev(empresa_id: int) -> dict[str, Any]:
+    if not ambiente_reset_base_dev_liberado():
+        raise PermissionError("O reset da base só pode ser executado quando ENV=DEV.")
+
+    backup = gerar_backup_configurado(f"antes_reset_dev_empresa_{empresa_id}")
+    if backup is None or not backup.exists():
+        raise RuntimeError("O backup obrigatório não foi criado. Nenhum dado foi apagado.")
+
+    removidos: dict[str, int] = {}
+    with conectar_db() as conn:
+        estrutura = _tabelas_e_colunas_db(conn)
+        conn.execute("PRAGMA foreign_keys = OFF")
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+
+            for tabela in RESET_BASE_DEV_TABELAS_TRANSACIONAIS:
+                quantidade = _excluir_tabela_transacional_empresa(
+                    conn,
+                    tabela,
+                    empresa_id,
+                    estrutura,
+                )
+                if quantidade:
+                    removidos[tabela] = quantidade
+
+            if "indicacao_comissoes" in estrutura:
+                colunas_comissoes = estrutura["indicacao_comissoes"]
+                if {"indicador_empresa_id", "indicado_empresa_id"}.issubset(colunas_comissoes):
+                    cursor = conn.execute(
+                        """
+                        DELETE FROM indicacao_comissoes
+                        WHERE indicador_empresa_id = ? OR indicado_empresa_id = ?
+                        """,
+                        (empresa_id, empresa_id),
+                    )
+                    if int(cursor.rowcount or 0) > 0:
+                        removidos["indicacao_comissoes"] = int(cursor.rowcount)
+
+            if "produtos" in estrutura and "empresa_id" in estrutura["produtos"]:
+                atualizacoes_produto = []
+                for coluna in ("estoque_atual", "cmv_calculado"):
+                    if coluna in estrutura["produtos"]:
+                        atualizacoes_produto.append(f'"{coluna}" = 0')
+                if "cmv_atualizado_em" in estrutura["produtos"]:
+                    atualizacoes_produto.append('"cmv_atualizado_em" = NULL')
+                if atualizacoes_produto:
+                    conn.execute(
+                        f'UPDATE produtos SET {", ".join(atualizacoes_produto)} WHERE empresa_id = ?',
+                        (empresa_id,),
+                    )
+
+            if "vitrine_configuracoes" in estrutura and "empresa_id" in estrutura["vitrine_configuracoes"]:
+                campos = [
+                    campo for campo in
+                    ("visitas", "produtos_vistos", "itens_carrinho", "pedidos_gerados")
+                    if campo in estrutura["vitrine_configuracoes"]
+                ]
+                if campos:
+                    conn.execute(
+                        f'UPDATE vitrine_configuracoes SET '
+                        + ", ".join(f'"{campo}" = 0' for campo in campos)
+                        + " WHERE empresa_id = ?",
+                        (empresa_id,),
+                    )
+
+            if "vitrine_produtos" in estrutura and "empresa_id" in estrutura["vitrine_produtos"]:
+                campos = [
+                    campo for campo in ("acessos", "carrinhos", "pedidos")
+                    if campo in estrutura["vitrine_produtos"]
+                ]
+                if campos:
+                    conn.execute(
+                        f'UPDATE vitrine_produtos SET '
+                        + ", ".join(f'"{campo}" = 0' for campo in campos)
+                        + " WHERE empresa_id = ?",
+                        (empresa_id,),
+                    )
+
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.execute("PRAGMA foreign_keys = ON")
+
+    return {
+        "backup": str(backup),
+        "removidos": removidos,
+        "total_removido": sum(removidos.values()),
+    }
+
 def garantir_backup_automatico_diario() -> None:
     if not configuracao_bool("gerais", "backup_automatico", True):
         return
@@ -20468,6 +20706,114 @@ def admin_excluir_empresa(empresa_id: int) -> Response:
 
     return redirect(url_for("admin_empresas"))
 
+
+
+
+@app.route("/configuracoes/resetar-base-dev", methods=["GET", "POST"])
+def resetar_base_dev() -> str | Response:
+    if not usuario_logado_eh_administrador_empresa():
+        return redirect("/configuracoes/gerais?erro=Acesso não autorizado.")
+
+    if not ambiente_reset_base_dev_liberado():
+        return redirect(
+            "/configuracoes/gerais?erro="
+            + urllib.parse.quote("O reset da base está bloqueado porque o ambiente não é DEV.")
+        )
+
+    empresa_id = empresa_logada_id()
+    empresa = buscar_empresa_topbar()
+    nome_empresa = html.escape(str(empresa.get("nome_fantasia") or f"Empresa {empresa_id}"))
+
+    if request.method == "POST":
+        confirmacao = str(request.form.get("confirmacao") or "").strip().upper()
+        if confirmacao != RESET_BASE_DEV_FRASE_CONFIRMACAO:
+            return redirect(
+                "/configuracoes/resetar-base-dev?erro="
+                + urllib.parse.quote(f'Digite exatamente "{RESET_BASE_DEV_FRASE_CONFIRMACAO}" para confirmar.')
+            )
+
+        try:
+            resultado = resetar_base_transacional_dev(empresa_id)
+        except (PermissionError, RuntimeError, sqlite3.Error, OSError) as erro_reset:
+            app.logger.exception("Falha ao resetar a base DEV da empresa %s.", empresa_id)
+            return redirect(
+                "/configuracoes/resetar-base-dev?erro="
+                + urllib.parse.quote(str(erro_reset))
+            )
+
+        registrar_atividade_usuario(
+            "exclusao",
+            "configuracoes",
+            "Resetou a base transacional da empresa no ambiente DEV.",
+            registro_id=empresa_id,
+            dados_novos={
+                "backup": resultado["backup"],
+                "total_removido": resultado["total_removido"],
+                "tabelas": resultado["removidos"],
+            },
+        )
+        mensagem = (
+            f'Base DEV limpa com sucesso. {resultado["total_removido"]} registros transacionais removidos. '
+            "Cadastros preservados e estoque zerado."
+        )
+        return redirect("/configuracoes/gerais?sucesso=" + urllib.parse.quote(mensagem))
+
+    erro = html.escape(str(request.args.get("erro") or ""))
+    bloco_erro = f'<div class="erro">{erro}</div>' if erro else ""
+    frase = html.escape(RESET_BASE_DEV_FRASE_CONFIRMACAO)
+    return f"""<!doctype html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Resetar Base DEV - GestFlow</title>
+    <style>
+        body {{ margin: 0; background: #f3f5f7; color: #18202a; font-family: Arial, sans-serif; }}
+        main {{ max-width: 760px; margin: 48px auto; padding: 0 20px; }}
+        .card {{ background: #fff; border: 1px solid #d8dee6; border-radius: 14px; padding: 28px; box-shadow: 0 8px 24px rgba(0,0,0,.06); }}
+        .ambiente {{ display: inline-block; padding: 6px 10px; border-radius: 999px; background: #fff0cc; color: #7a4b00; font-weight: 700; }}
+        h1 {{ margin: 18px 0 8px; }}
+        ul {{ line-height: 1.65; }}
+        label {{ display: block; margin: 22px 0 8px; font-weight: 700; }}
+        input {{ width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid #aeb8c4; border-radius: 8px; font-size: 16px; }}
+        .acoes {{ display: flex; gap: 12px; margin-top: 22px; flex-wrap: wrap; }}
+        button, a {{ border-radius: 8px; padding: 12px 18px; text-decoration: none; font-weight: 700; cursor: pointer; }}
+        button {{ border: 0; background: #b42318; color: #fff; }}
+        a {{ background: #e9edf2; color: #18202a; }}
+        .erro {{ margin-top: 18px; padding: 12px; border-radius: 8px; background: #fee4e2; color: #912018; }}
+        .aviso {{ padding: 14px; border-left: 4px solid #b42318; background: #fff5f4; line-height: 1.5; }}
+    </style>
+</head>
+<body>
+<main>
+    <div class="card">
+        <span class="ambiente">SOMENTE DEV</span>
+        <h1>Resetar base transacional</h1>
+        <p><strong>Empresa:</strong> {nome_empresa}</p>
+        <div class="aviso">
+            Esta operação cria um backup obrigatório e depois apaga os lançamentos da empresa atual.
+            Não altera clientes, fornecedores, funcionários, equipamentos, produtos, serviços, usuários,
+            permissões, centros de custo ou configurações.
+        </div>
+        <ul>
+            <li>Orçamentos, vendas, OS, contratos e empréstimos serão apagados.</li>
+            <li>Financeiro, caixa, atividades, agenda e ponto serão apagados.</li>
+            <li>Movimentações serão apagadas e o estoque dos produtos será zerado.</li>
+            <li>A operação não pode ser desfeita sem restaurar o backup.</li>
+        </ul>
+        {bloco_erro}
+        <form method="post">
+            <label for="confirmacao">Digite <strong>{frase}</strong> para confirmar</label>
+            <input id="confirmacao" name="confirmacao" autocomplete="off" required>
+            <div class="acoes">
+                <button type="submit">Criar backup e resetar DEV</button>
+                <a href="/configuracoes/gerais">Cancelar</a>
+            </div>
+        </form>
+    </div>
+</main>
+</body>
+</html>"""
 
 
 @app.get("/configuracoes")
