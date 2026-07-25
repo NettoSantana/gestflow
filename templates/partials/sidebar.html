@@ -1,9 +1,11 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\partials\sidebar.html
-Último recode: 2026-07-19 22:45 (America/Bahia)
-Motivo: Ocultar módulos sem permissão e substituir o acesso administrativo por perfil.
+Último recode: 2026-07-25 09:27 (America/Bahia)
+Motivo: Colocar Configurações como último submenu de cada módulo e remover o acesso principal do rodapé.
 #}
 {% set _path = request.path if request is defined else '' %}
+{% set _config_grupo = request.view_args.get('grupo', '') if request is defined and request.view_args else '' %}
+{% set _sistema_config_ativo = ((_path.startswith('/configuracoes') and not _path.startswith('/configuracoes/modulo/')) or _path.startswith('/indicacoes') or _config_grupo == 'sistema') %}
 {% set _usuario_sidebar = usuario_logado|default({}, true) %}
 
 <aside class="sidebar">
@@ -48,8 +50,8 @@ Motivo: Ocultar módulos sem permissão e substituir o acesso administrativo por
             </li>
 
             {% if _cadastros_ativo %}
-            <li class="menu-group {% if _path.startswith('/clientes') or _path.startswith('/fornecedores') or _path.startswith('/funcionarios') or _path.startswith('/equipamentos') %}active{% endif %}">
-                <details {% if _path.startswith('/clientes') or _path.startswith('/fornecedores') or _path.startswith('/funcionarios') or _path.startswith('/equipamentos') %}open{% endif %}>
+            <li class="menu-group {% if _path.startswith('/clientes') or _path.startswith('/fornecedores') or _path.startswith('/funcionarios') or _path.startswith('/equipamentos') or _config_grupo == 'cadastros' %}active{% endif %}">
+                <details {% if _path.startswith('/clientes') or _path.startswith('/fornecedores') or _path.startswith('/funcionarios') or _path.startswith('/equipamentos') or _config_grupo == 'cadastros' %}open{% endif %}>
                     <summary>
                         <span class="menu-label"><span class="menu-icon">☷</span><span>Cadastros</span></span>
                         <span class="arrow">⌄</span>
@@ -60,14 +62,15 @@ Motivo: Ocultar módulos sem permissão e substituir o acesso administrativo por
                         {% if _modulos.get('fornecedores', true) and modulo_usuario_visivel('fornecedores') %}<li class="{% if _path.startswith('/fornecedores') %}submenu-active{% endif %}"><a href="/fornecedores">Fornecedores</a></li>{% endif %}
                         {% if _modulos.get('funcionarios', true) and modulo_usuario_visivel('funcionarios') %}<li class="{% if _path.startswith('/funcionarios') %}submenu-active{% endif %}"><a href="/funcionarios">Funcionários</a></li>{% endif %}
                         {% if _modulos.get('equipamentos', true) and modulo_usuario_visivel('equipamentos') %}<li class="{% if _path.startswith('/equipamentos') %}submenu-active{% endif %}"><a href="/equipamentos">Equipamentos</a></li>{% endif %}
+                        {% if usuario_eh_admin_empresa %}<li class="{% if _config_grupo == 'cadastros' %}submenu-active{% endif %}"><a href="/configuracoes/modulo/cadastros">Configurações</a></li>{% endif %}
                     </ul>
                 </details>
             </li>
             {% endif %}
 
             {% if _modulos.get('produtos', true) and modulo_usuario_visivel('produtos') %}
-            <li class="menu-group {% if _path.startswith('/produtos') %}active{% endif %}">
-                <details {% if _path.startswith('/produtos') %}open{% endif %}>
+            <li class="menu-group {% if _path.startswith('/produtos') or _config_grupo == 'produtos' %}active{% endif %}">
+                <details {% if _path.startswith('/produtos') or _config_grupo == 'produtos' %}open{% endif %}>
                     <summary>
                         <span class="menu-label"><span class="menu-icon">□</span><span>Produtos</span></span>
                         <span class="arrow">⌄</span>
@@ -75,14 +78,15 @@ Motivo: Ocultar módulos sem permissão e substituir o acesso administrativo por
                     <ul class="submenu">
                         <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Produtos</strong></li>
                         <li class="{% if _path.startswith('/produtos') %}submenu-active{% endif %}"><a href="/produtos">Gerenciar produtos</a></li>
+                        {% if usuario_eh_admin_empresa %}<li class="{% if _config_grupo == 'produtos' %}submenu-active{% endif %}"><a href="/configuracoes/modulo/produtos">Configurações</a></li>{% endif %}
                     </ul>
                 </details>
             </li>
             {% endif %}
 
             {% if _modulos.get('servicos', true) and modulo_usuario_visivel('servicos') %}
-            <li class="menu-group {% if _path.startswith('/servicos') %}active{% endif %}">
-                <details {% if _path.startswith('/servicos') %}open{% endif %}>
+            <li class="menu-group {% if _path.startswith('/servicos') or _config_grupo == 'servicos' %}active{% endif %}">
+                <details {% if _path.startswith('/servicos') or _config_grupo == 'servicos' %}open{% endif %}>
                     <summary>
                         <span class="menu-label"><span class="menu-icon">⚙</span><span>Serviços</span></span>
                         <span class="arrow">⌄</span>
@@ -90,14 +94,15 @@ Motivo: Ocultar módulos sem permissão e substituir o acesso administrativo por
                     <ul class="submenu">
                         <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Serviços</strong></li>
                         <li class="{% if _path.startswith('/servicos') %}submenu-active{% endif %}"><a href="/servicos">Gerenciar serviços</a></li>
+                        {% if usuario_eh_admin_empresa %}<li class="{% if _config_grupo == 'servicos' %}submenu-active{% endif %}"><a href="/configuracoes/modulo/servicos">Configurações</a></li>{% endif %}
                     </ul>
                 </details>
             </li>
             {% endif %}
 
             {% if _orcamentos_ativo %}
-            <li class="menu-group {% if _path.startswith('/orcamentos') %}active{% endif %}">
-                <details {% if _path.startswith('/orcamentos') %}open{% endif %}>
+            <li class="menu-group {% if _path.startswith('/orcamentos') or _config_grupo == 'orcamentos' %}active{% endif %}">
+                <details {% if _path.startswith('/orcamentos') or _config_grupo == 'orcamentos' %}open{% endif %}>
                     <summary>
                         <span class="menu-label"><span class="menu-icon">▣</span><span>Orçamentos</span></span>
                         <span class="arrow">⌄</span>
@@ -106,14 +111,31 @@ Motivo: Ocultar módulos sem permissão e substituir o acesso administrativo por
                         <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Orçamentos</strong></li>
                         {% if _modulos.get('orcamentos', true) and modulo_usuario_visivel('orcamentos') %}<li class="{% if _path == '/orcamentos' %}submenu-active{% endif %}"><a href="/orcamentos">Orçamentos</a></li>{% endif %}
                         {% if _modulos.get('gerador_orcamentos', true) and modulo_usuario_visivel('gerador_orcamentos') %}<li class="{% if _path.startswith('/orcamentos/gerador') %}submenu-active{% endif %}"><a href="/orcamentos/gerador">Gerador de Orçamentos</a></li>{% endif %}
+                        {% if usuario_eh_admin_empresa %}<li class="{% if _config_grupo == 'orcamentos' %}submenu-active{% endif %}"><a href="/configuracoes/modulo/orcamentos">Configurações</a></li>{% endif %}
+                    </ul>
+                </details>
+            </li>
+            {% endif %}
+
+            {% if _modulos.get('contratos', true) and modulo_usuario_visivel('contratos') %}
+            <li class="menu-group {% if _path.startswith('/contratos') or _config_grupo == 'contratos' %}active{% endif %}">
+                <details {% if _path.startswith('/contratos') or _config_grupo == 'contratos' %}open{% endif %}>
+                    <summary>
+                        <span class="menu-label"><span class="menu-icon">▤</span><span>Contratos</span></span>
+                        <span class="arrow">⌄</span>
+                    </summary>
+                    <ul class="submenu">
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Contratos</strong></li>
+                        <li class="{% if _path.startswith('/contratos') %}submenu-active{% endif %}"><a href="/contratos">Gerenciar contratos</a></li>
+                        {% if usuario_eh_admin_empresa %}<li class="{% if _config_grupo == 'contratos' %}submenu-active{% endif %}"><a href="/configuracoes/modulo/contratos">Configurações</a></li>{% endif %}
                     </ul>
                 </details>
             </li>
             {% endif %}
 
             {% if _vendas_ativo %}
-            <li class="menu-group {% if _path.startswith('/vendas') %}active{% endif %}">
-                <details {% if _path.startswith('/vendas') %}open{% endif %}>
+            <li class="menu-group {% if _path.startswith('/vendas') or _config_grupo == 'vendas' %}active{% endif %}">
+                <details {% if _path.startswith('/vendas') or _config_grupo == 'vendas' %}open{% endif %}>
                     <summary>
                         <span class="menu-label"><span class="menu-icon">▤</span><span>Vendas</span></span>
                         <span class="arrow">⌄</span>
@@ -123,14 +145,15 @@ Motivo: Ocultar módulos sem permissão e substituir o acesso administrativo por
                         {% if _modulos.get('vendas', true) and modulo_usuario_visivel('vendas') %}<li class="{% if _path == '/vendas' %}submenu-active{% endif %}"><a href="/vendas">Vendas</a></li>{% endif %}
                         {% if _modulos.get('pdv', true) and modulo_usuario_visivel('pdv') %}<li class="{% if _path.startswith('/vendas/balcao') %}submenu-active{% endif %}"><a href="/vendas/balcao">Balcão / PDV</a></li>{% endif %}
                         {% if _modulos.get('devolucoes', true) and modulo_usuario_visivel('devolucoes') %}<li class="{% if _path.startswith('/vendas/devolucoes') %}submenu-active{% endif %}"><a href="/vendas/devolucoes">Devoluções</a></li>{% endif %}
+                        {% if usuario_eh_admin_empresa %}<li class="{% if _config_grupo == 'vendas' %}submenu-active{% endif %}"><a href="/configuracoes/modulo/vendas">Configurações</a></li>{% endif %}
                     </ul>
                 </details>
             </li>
             {% endif %}
 
             {% if _os_ativo %}
-            <li class="menu-group {% if _path.startswith('/ordens-servico') %}active{% endif %}">
-                <details {% if _path.startswith('/ordens-servico') %}open{% endif %}>
+            <li class="menu-group {% if _path.startswith('/ordens-servico') or _config_grupo == 'ordens_servico' %}active{% endif %}">
+                <details {% if _path.startswith('/ordens-servico') or _config_grupo == 'ordens_servico' %}open{% endif %}>
                     <summary>
                         <span class="menu-label"><span class="menu-icon">✚</span><span>Ordens de Serviço</span></span>
                         <span class="arrow">⌄</span>
@@ -139,6 +162,7 @@ Motivo: Ocultar módulos sem permissão e substituir o acesso administrativo por
                         <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Ordens de Serviço</strong></li>
                         {% if _modulos.get('ordens_servico', true) and modulo_usuario_visivel('ordens_servico') %}<li class="{% if _path == '/ordens-servico' %}submenu-active{% endif %}"><a href="/ordens-servico">Gerenciar O.S.</a></li>{% endif %}
                         {% if _modulos.get('painel_os', true) and modulo_usuario_visivel('painel_os') %}<li class="{% if _path.startswith('/ordens-servico/painel') %}submenu-active{% endif %}"><a href="/ordens-servico/painel">Painel</a></li>{% endif %}
+                        {% if usuario_eh_admin_empresa %}<li class="{% if _config_grupo == 'ordens_servico' %}submenu-active{% endif %}"><a href="/configuracoes/modulo/ordens_servico">Configurações</a></li>{% endif %}
                     </ul>
                 </details>
             </li>
@@ -146,21 +170,22 @@ Motivo: Ocultar módulos sem permissão e substituir o acesso administrativo por
 
 
             {% if _modulos.get('gestao_atividades', true) and modulo_usuario_visivel('gestao_atividades') %}
-            <li class="menu-group {% if _path.startswith('/gestao-atividades') %}active{% endif %}">
-                <details {% if _path.startswith('/gestao-atividades') %}open{% endif %}>
+            <li class="menu-group {% if _path.startswith('/gestao-atividades') or _config_grupo == 'gestao_atividades' %}active{% endif %}">
+                <details {% if _path.startswith('/gestao-atividades') or _config_grupo == 'gestao_atividades' %}open{% endif %}>
                     <summary><span class="menu-label"><span class="menu-icon">✓</span><span>Gestão de Atividades</span></span><span class="arrow">⌄</span></summary>
                     <ul class="submenu">
                         <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Gestão de Atividades</strong></li>
                         <li class="{% if _path == '/gestao-atividades' %}submenu-active{% endif %}"><a href="/gestao-atividades">Visão geral</a></li>
                         <li class="{% if _path == '/gestao-atividades/todas' %}submenu-active{% endif %}"><a href="/gestao-atividades/todas">Atividades</a></li>
+                        {% if usuario_eh_admin_empresa %}<li class="{% if _config_grupo == 'gestao_atividades' %}submenu-active{% endif %}"><a href="/configuracoes/modulo/gestao_atividades">Configurações</a></li>{% endif %}
                     </ul>
                 </details>
             </li>
             {% endif %}
 
             {% if _modulos.get('estoque', true) and modulo_usuario_visivel('estoque') %}
-            <li class="menu-group {% if _path.startswith('/estoque') %}active{% endif %}">
-                <details {% if _path.startswith('/estoque') %}open{% endif %}>
+            <li class="menu-group {% if _path.startswith('/estoque') or _config_grupo == 'estoque' %}active{% endif %}">
+                <details {% if _path.startswith('/estoque') or _config_grupo == 'estoque' %}open{% endif %}>
                     <summary>
                         <span class="menu-label"><span class="menu-icon">▧</span><span>Estoque</span></span>
                         <span class="arrow">⌄</span>
@@ -170,14 +195,15 @@ Motivo: Ocultar módulos sem permissão e substituir o acesso administrativo por
                         <li class="{% if _path.startswith('/estoque/movimentacoes') or _path == '/estoque' %}submenu-active{% endif %}"><a href="/estoque/movimentacoes">Movimentações</a></li>
                         <li class="{% if _path.startswith('/estoque/ajustes') %}submenu-active{% endif %}"><a href="/estoque/ajustes">Ajustes</a></li>
                         <li class="{% if _path.startswith('/estoque/compras') %}submenu-active{% endif %}"><a href="/estoque/compras">Compras</a></li>
+                        {% if usuario_eh_admin_empresa %}<li class="{% if _config_grupo == 'estoque' %}submenu-active{% endif %}"><a href="/configuracoes/modulo/estoque">Configurações</a></li>{% endif %}
                     </ul>
                 </details>
             </li>
             {% endif %}
 
             {% if _modulos.get('financeiro', true) and modulo_usuario_visivel('financeiro') %}
-            <li class="menu-group {% if _path.startswith('/financeiro') %}active{% endif %}">
-                <details {% if _path.startswith('/financeiro') %}open{% endif %}>
+            <li class="menu-group {% if _path.startswith('/financeiro') or _config_grupo == 'financeiro' %}active{% endif %}">
+                <details {% if _path.startswith('/financeiro') or _config_grupo == 'financeiro' %}open{% endif %}>
                     <summary>
                         <span class="menu-label"><span class="menu-icon">◈</span><span>Financeiro</span></span>
                         <span class="arrow">⌄</span>
@@ -189,23 +215,31 @@ Motivo: Ocultar módulos sem permissão e substituir o acesso administrativo por
                         <li class="{% if _path.startswith('/financeiro/fluxo-caixa') or _path == '/financeiro' %}submenu-active{% endif %}"><a href="/financeiro/fluxo-caixa">Fluxo de caixa</a></li>
                         <li class="{% if _path.startswith('/financeiro/centros-custo') %}submenu-active{% endif %}"><a href="/financeiro/centros-custo">Centros de custo</a></li>
                         <li class="{% if _path.startswith('/financeiro/atividades') %}submenu-active{% endif %}"><a href="/financeiro/atividades">Atividades / Projetos</a></li>
+                        {% if usuario_eh_admin_empresa %}<li class="{% if _config_grupo == 'financeiro' %}submenu-active{% endif %}"><a href="/configuracoes/modulo/financeiro">Configurações</a></li>{% endif %}
                     </ul>
                 </details>
             </li>
             {% endif %}
 
             {% if _modulos.get('vitrine', true) and modulo_usuario_visivel('vitrine') %}
-            <li class="menu-item {% if _path.startswith('/vitrine') %}active{% endif %}">
-                <a href="/vitrine">
-                    <span class="menu-icon">▦</span>
-                    <span>Vitrine Online</span>
-                </a>
+            <li class="menu-group {% if _path.startswith('/vitrine') or _config_grupo == 'vitrine' %}active{% endif %}">
+                <details {% if _path.startswith('/vitrine') or _config_grupo == 'vitrine' %}open{% endif %}>
+                    <summary>
+                        <span class="menu-label"><span class="menu-icon">▦</span><span>Vitrine Online</span></span>
+                        <span class="arrow">⌄</span>
+                    </summary>
+                    <ul class="submenu">
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Vitrine Online</strong></li>
+                        <li class="{% if _path.startswith('/vitrine') %}submenu-active{% endif %}"><a href="/vitrine">Gerenciar vitrine</a></li>
+                        {% if usuario_eh_admin_empresa %}<li class="{% if _config_grupo == 'vitrine' %}submenu-active{% endif %}"><a href="/configuracoes/modulo/vitrine">Configurações</a></li>{% endif %}
+                    </ul>
+                </details>
             </li>
             {% endif %}
 
             {% if _modulos.get('agendamentos', true) and modulo_usuario_visivel('agendamentos') %}
-            <li class="menu-group {% if _path.startswith('/agendamentos') %}active{% endif %}">
-                <details {% if _path.startswith('/agendamentos') %}open{% endif %}>
+            <li class="menu-group {% if _path.startswith('/agendamentos') or _config_grupo == 'agendamentos' %}active{% endif %}">
+                <details {% if _path.startswith('/agendamentos') or _config_grupo == 'agendamentos' %}open{% endif %}>
                     <summary>
                         <span class="menu-label"><span class="menu-icon">◷</span><span>Atendimento</span></span>
                         <span class="arrow">⌄</span>
@@ -213,14 +247,15 @@ Motivo: Ocultar módulos sem permissão e substituir o acesso administrativo por
                     <ul class="submenu">
                         <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Atendimento</strong></li>
                         <li class="{% if _path.startswith('/agendamentos') %}submenu-active{% endif %}"><a href="/agendamentos">Agenda / Atendimento</a></li>
+                        {% if usuario_eh_admin_empresa %}<li class="{% if _config_grupo == 'agendamentos' %}submenu-active{% endif %}"><a href="/configuracoes/modulo/agendamentos">Configurações</a></li>{% endif %}
                     </ul>
                 </details>
             </li>
             {% endif %}
 
             {% if _modulos.get('registro_ponto', true) and modulo_usuario_visivel('registro_ponto') %}
-            <li class="menu-group {% if _path.startswith('/registro-ponto') %}active{% endif %}">
-                <details {% if _path.startswith('/registro-ponto') %}open{% endif %}>
+            <li class="menu-group {% if _path.startswith('/registro-ponto') or _config_grupo == 'registro_ponto' %}active{% endif %}">
+                <details {% if _path.startswith('/registro-ponto') or _config_grupo == 'registro_ponto' %}open{% endif %}>
                     <summary>
                         <span class="menu-label"><span class="menu-icon">◴</span><span>Registro de Ponto</span></span>
                         <span class="arrow">⌄</span>
@@ -228,6 +263,30 @@ Motivo: Ocultar módulos sem permissão e substituir o acesso administrativo por
                     <ul class="submenu">
                         <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Registro de Ponto</strong></li>
                         <li class="{% if _path.startswith('/registro-ponto') %}submenu-active{% endif %}"><a href="/registro-ponto">Gerenciamento de Ponto</a></li>
+                        {% if usuario_eh_admin_empresa %}<li class="{% if _config_grupo == 'registro_ponto' %}submenu-active{% endif %}"><a href="/configuracoes/modulo/registro_ponto">Configurações</a></li>{% endif %}
+                    </ul>
+                </details>
+            </li>
+            {% endif %}
+
+            {% if usuario_eh_admin_empresa %}
+            <li class="menu-group {% if _sistema_config_ativo %}active{% endif %}">
+                <details {% if _sistema_config_ativo %}open{% endif %}>
+                    <summary>
+                        <span class="menu-label"><span class="menu-icon">⚙</span><span>Sistema</span></span>
+                        <span class="arrow">⌄</span>
+                    </summary>
+                    <ul class="submenu">
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Sistema</strong></li>
+                        <li class="{% if _path.startswith('/configuracoes/plano') %}submenu-active{% endif %}"><a href="/configuracoes/plano">Meu plano</a></li>
+                        <li class="{% if _path.startswith('/indicacoes') %}submenu-active{% endif %}"><a href="/indicacoes">Indicações</a></li>
+                        <li class="{% if _path.startswith('/configuracoes/usuarios') %}submenu-active{% endif %}"><a href="/configuracoes/usuarios">Usuários</a></li>
+                        <li class="{% if _path.startswith('/configuracoes/modulos') %}submenu-active{% endif %}"><a href="/configuracoes/modulos">Módulos do sistema</a></li>
+                        <li class="{% if _path.startswith('/configuracoes/empresa') %}submenu-active{% endif %}"><a href="/configuracoes/empresa">Dados da empresa</a></li>
+                        <li class="{% if _path.startswith('/configuracoes/marca') %}submenu-active{% endif %}"><a href="/configuracoes/marca">Marca da empresa</a></li>
+                        <li class="{% if _path.startswith('/configuracoes/lojas') %}submenu-active{% endif %}"><a href="/configuracoes/lojas">Empresas / Lojas</a></li>
+                        <li class="{% if _path in ['/configuracoes', '/configuracoes/gerais'] %}submenu-active{% endif %}"><a href="/configuracoes">Preferências</a></li>
+                        <li class="{% if _config_grupo == 'sistema' %}submenu-active{% endif %}"><a href="/configuracoes/modulo/sistema">Configurações</a></li>
                     </ul>
                 </details>
             </li>
@@ -252,9 +311,6 @@ Motivo: Ocultar módulos sem permissão e substituir o acesso administrativo por
     </nav>
 
     <div class="sidebar-footer">
-        {% if usuario_eh_admin_empresa %}
-            <a href="/configuracoes" class="footer-item {% if _path.startswith('/configuracoes') %}active{% endif %}" style="text-decoration: none;">⚙ Configurações</a>
-        {% endif %}
         <a href="/instalar" class="footer-item {% if _path.startswith('/instalar') %}active{% endif %}" style="text-decoration: none;">▣ Instalar app</a>
         <a href="/sair" class="footer-item" style="text-decoration: none;">Sair</a>
     </div>
@@ -421,3 +477,4 @@ Motivo: Ocultar módulos sem permissão e substituir o acesso administrativo por
 })();
 </script>
 
+{% include 'partials/configuracoes_runtime.html' %}

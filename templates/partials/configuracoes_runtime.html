@@ -1,0 +1,9 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\partials\configuracoes_runtime.html
+Último recode: 2026-07-23 00:18 (America/Bahia)
+Motivo: Disponibilizar às telas as configurações reais e multiempresa dos módulos.
+#}
+{% if gestflow_configuracoes_runtime %}
+<script id="gestflow-configuracoes-runtime" type="application/json">{{ gestflow_configuracoes_runtime|tojson }}</script>
+<script src="{{ url_for('static', filename='js/configuracoes_modulos.js') }}" defer></script>
+{% endif %}

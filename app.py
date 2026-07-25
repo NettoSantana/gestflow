@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-22 15:55 (America/Bahia)
-# Motivo: Impedir duplicação do escopo ao editar orçamentos e remover marcações Markdown da impressão.
+# Último recode: 2026-07-25 12:10 (America/Bahia)
+# Motivo: Corrigir permissões GET de criação/edição em Contratos e manter erro de anexo acima do limite na tela do contrato.
 
 from __future__ import annotations
 
@@ -8,9 +8,11 @@ import csv
 import html
 import io
 import json
+import math
 import os
 import re
 import secrets
+import shutil
 import smtplib
 import sqlite3
 import unicodedata
@@ -26,7 +28,7 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from flask import Flask, Response, jsonify, redirect, render_template, request, send_file, send_from_directory, session, url_for
+from flask import Flask, Response, g, jsonify, redirect, render_template, request, send_file, send_from_directory, session, url_for
 
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
@@ -46,10 +48,13 @@ UPLOAD_DIR = DATA_DIR / "uploads" / "logos"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 OS_FOTOS_DIR = DATA_DIR / "uploads" / "os_fotos"
 OS_FOTOS_DIR.mkdir(parents=True, exist_ok=True)
+CONTRATOS_ANEXOS_DIR = DATA_DIR / "uploads" / "contratos"
+CONTRATOS_ANEXOS_DIR.mkdir(parents=True, exist_ok=True)
 VITRINE_UPLOAD_DIR = DATA_DIR / "uploads" / "vitrines"
 VITRINE_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 EXTENSOES_LOGO_PERMITIDAS = {"png", "jpg", "jpeg", "webp", "gif", "jfif", "avif"}
 EXTENSOES_FOTO_OS_PERMITIDAS = {"png", "jpg", "jpeg", "jfif", "webp"}
+EXTENSOES_ANEXO_CONTRATO_PERMITIDAS = {"pdf", "png", "jpg", "jpeg", "webp", "doc", "docx"}
 EXTENSOES_FOTO_VITRINE_PERMITIDAS = {"png", "jpg", "jpeg", "webp"}
 
 
@@ -79,6 +84,7 @@ GESTFLOW_MODULOS = [
     {"codigo": "servicos", "nome": "Serviços", "grupo": "Operação", "descricao": "Cadastro de serviços prestados."},
     {"codigo": "orcamentos", "nome": "Orçamentos", "grupo": "Comercial", "descricao": "Propostas comerciais e orçamentos manuais."},
     {"codigo": "gerador_orcamentos", "nome": "Gerador de Orçamentos", "grupo": "Comercial", "descricao": "Gerador técnico com materiais, mão de obra, custos e escopo."},
+    {"codigo": "contratos", "nome": "Contratos", "grupo": "Comercial", "descricao": "Contratos de serviços, recorrências e locações."},
     {"codigo": "vendas", "nome": "Vendas", "grupo": "Comercial", "descricao": "Registro de vendas completas."},
     {"codigo": "vitrine", "nome": "Vitrine Online", "grupo": "Comercial", "descricao": "Catálogo online com produtos, templates, personalização e métricas."},
     {"codigo": "pdv", "nome": "Balcão / PDV", "grupo": "Comercial", "descricao": "Venda rápida de balcão e caixa."},
@@ -166,6 +172,7 @@ GESTFLOW_PERMISSOES_PADRAO_PERFIL: dict[str, dict[str, set[str]]] = {
         "servicos": set(_ACOES_OPERACAO),
         "orcamentos": set(_ACOES_OPERACAO),
         "gerador_orcamentos": set(_ACOES_OPERACAO),
+        "contratos": set(_ACOES_OPERACAO),
         "vendas": set(_ACOES_OPERACAO),
         "pdv": set(_ACOES_OPERACAO),
         "agendamentos": set(_ACOES_OPERACAO),
@@ -184,6 +191,7 @@ GESTFLOW_PERMISSOES_PADRAO_PERFIL: dict[str, dict[str, set[str]]] = {
         "produtos": set(_ACOES_LEITURA),
         "estoque": set(_ACOES_LEITURA),
         "orcamentos": set(_ACOES_LEITURA),
+        "contratos": set(_ACOES_LEITURA),
         "vendas": set(_ACOES_LEITURA),
         "ordens_servico": set(_ACOES_LEITURA),
         "atividades_financeiras": set(_ACOES_TOTAIS),
@@ -204,6 +212,7 @@ GESTFLOW_PERMISSOES_PADRAO_PERFIL: dict[str, dict[str, set[str]]] = {
         "funcionarios": set(_ACOES_LEITURA),
         "equipamentos": set(_ACOES_OPERACAO),
         "servicos": set(_ACOES_LEITURA),
+        "contratos": set(_ACOES_LEITURA),
         "ordens_servico": set(_ACOES_OPERACAO),
         "painel_os": set(_ACOES_OPERACAO),
         "produtos": set(_ACOES_LEITURA),
@@ -220,6 +229,720 @@ GESTFLOW_PERMISSOES_PADRAO_PERFIL: dict[str, dict[str, set[str]]] = {
 }
 
 PONTO_BLOQUEIO_NOVA_JORNADA_SEGUNDOS = 10
+
+CONTRATO_TIPOS = [
+    {"codigo": "servico", "nome": "Serviço"},
+    {"codigo": "recorrente", "nome": "Serviço recorrente"},
+    {"codigo": "locacao", "nome": "Locação"},
+]
+CONTRATO_TIPOS_CODIGOS = {item["codigo"] for item in CONTRATO_TIPOS}
+
+CONTRATO_STATUS = [
+    {"codigo": "rascunho", "nome": "Rascunho"},
+    {"codigo": "aguardando_assinatura", "nome": "Aguardando assinatura"},
+    {"codigo": "ativo", "nome": "Ativo"},
+    {"codigo": "suspenso", "nome": "Suspenso"},
+    {"codigo": "encerrado", "nome": "Encerrado"},
+    {"codigo": "cancelado", "nome": "Cancelado"},
+]
+CONTRATO_STATUS_CODIGOS = {item["codigo"] for item in CONTRATO_STATUS}
+
+CONTRATO_PERIODICIDADES = [
+    {"codigo": "unica", "nome": "Cobrança única"},
+    {"codigo": "mensal", "nome": "Mensal"},
+    {"codigo": "bimestral", "nome": "Bimestral"},
+    {"codigo": "trimestral", "nome": "Trimestral"},
+    {"codigo": "semestral", "nome": "Semestral"},
+    {"codigo": "anual", "nome": "Anual"},
+]
+CONTRATO_PERIODICIDADES_CODIGOS = {
+    item["codigo"] for item in CONTRATO_PERIODICIDADES
+}
+
+CONTRATO_TRANSICOES_STATUS = {
+    "rascunho": {"aguardando_assinatura", "ativo", "cancelado"},
+    "aguardando_assinatura": {"rascunho", "ativo", "cancelado"},
+    "ativo": {"suspenso", "encerrado", "cancelado"},
+    "suspenso": {"ativo", "encerrado", "cancelado"},
+    "encerrado": set(),
+    "cancelado": set(),
+}
+
+
+def _campo_configuracao_modulo(
+    chave: str,
+    nome: str,
+    tipo: str = "texto",
+    padrao: Any = "",
+    *,
+    secao: str = "Regras gerais",
+    ajuda: str = "",
+    opcoes: tuple[tuple[str, str], ...] = (),
+    minimo: float | None = None,
+    maximo: float | None = None,
+) -> dict[str, Any]:
+    return {
+        "chave": chave,
+        "nome": nome,
+        "tipo": tipo,
+        "padrao": padrao,
+        "secao": secao,
+        "ajuda": ajuda,
+        "opcoes": [{"valor": valor, "nome": rotulo} for valor, rotulo in opcoes],
+        "minimo": minimo,
+        "maximo": maximo,
+    }
+
+
+_OPCOES_ATIVO_INATIVO = (("ativo", "Ativo"), ("inativo", "Inativo"))
+_OPCOES_AUTOMATICO_MANUAL = (("automatico", "Automático"), ("manual", "Manual"))
+_OPCOES_OPCIONAL_OBRIGATORIO = (("opcional", "Opcional"), ("obrigatorio", "Obrigatório"))
+_OPCOES_CAIXA_COMPETENCIA = (("caixa", "Regime de caixa"), ("competencia", "Regime de competência"))
+
+
+CONFIGURACOES_MODULOS_DEFINICOES = [
+    {
+        "codigo": "gerais",
+        "nome": "Gerais do sistema",
+        "grupo": "Sistema",
+        "icone": "⚙",
+        "descricao": "Padrões globais de documentos, valores, notificações e segurança.",
+        "campos": [
+            _campo_configuracao_modulo("moeda", "Moeda", "selecao", "BRL", opcoes=(("BRL", "Real brasileiro (R$)"), ("USD", "Dólar (US$)"), ("EUR", "Euro (€)"))),
+            _campo_configuracao_modulo("formato_data", "Formato de data", "selecao", "dd/mm/aaaa", opcoes=(("dd/mm/aaaa", "DD/MM/AAAA"), ("aaaa-mm-dd", "AAAA-MM-DD"))),
+            _campo_configuracao_modulo("casas_decimais_valores", "Casas decimais dos valores", "numero", 2, minimo=0, maximo=4),
+            _campo_configuracao_modulo("casas_decimais_quantidades", "Casas decimais das quantidades", "numero", 3, minimo=0, maximo=6),
+            _campo_configuracao_modulo("email_remetente", "E-mail remetente", "email", "noreply@nettsan.com.br", secao="Comunicação"),
+            _campo_configuracao_modulo("rodape_documentos", "Rodapé padrão dos documentos", "texto_longo", "", secao="Documentos"),
+            _campo_configuracao_modulo("cabecalho_documentos", "Texto complementar do cabeçalho", "texto_longo", "", secao="Documentos"),
+            _campo_configuracao_modulo("notificacoes_email", "Ativar notificações por e-mail", "booleano", True, secao="Comunicação"),
+            _campo_configuracao_modulo("notificacoes_whatsapp", "Ativar notificações por WhatsApp", "booleano", False, secao="Comunicação"),
+            _campo_configuracao_modulo("auditoria_ativa", "Registrar auditoria das alterações", "booleano", True, secao="Segurança"),
+            _campo_configuracao_modulo("exclusao_logica", "Usar exclusão lógica", "booleano", True, secao="Segurança"),
+            _campo_configuracao_modulo("tempo_sessao_minutos", "Tempo máximo de sessão (minutos)", "numero", 43200, secao="Segurança", minimo=15, maximo=525600),
+            _campo_configuracao_modulo("tamanho_maximo_anexo_mb", "Tamanho máximo de anexo (MB)", "numero", 10, secao="Documentos", minimo=1, maximo=100),
+            _campo_configuracao_modulo("politica_senha", "Política de senha", "selecao", "forte", secao="Segurança", opcoes=(("basica", "Básica"), ("forte", "Forte"), ("muito_forte", "Muito forte"))),
+            _campo_configuracao_modulo("backup_automatico", "Backup automático", "booleano", True, secao="Segurança"),
+            _campo_configuracao_modulo("retencao_dados_dias", "Retenção de histórico (dias)", "numero", 1825, secao="Segurança", minimo=30, maximo=3650),
+        ],
+    },
+    {
+        "codigo": "cadastros",
+        "nome": "Cadastros",
+        "grupo": "Cadastros",
+        "icone": "♟",
+        "descricao": "Clientes, fornecedores, funcionários, contatos e validações cadastrais.",
+        "campos": [
+            _campo_configuracao_modulo("tipos_pessoa", "Tipos de pessoa", "lista", "Pessoa física\nPessoa jurídica", secao="Classificações"),
+            _campo_configuracao_modulo("tipos_contato", "Tipos de contato", "lista", "Principal\nComercial\nFinanceiro\nTécnico", secao="Classificações"),
+            _campo_configuracao_modulo("tipos_telefone", "Tipos de telefone", "lista", "Celular\nWhatsApp\nComercial\nResidencial", secao="Classificações"),
+            _campo_configuracao_modulo("tipos_endereco", "Tipos de endereço", "lista", "Principal\nCobrança\nEntrega\nServiço", secao="Classificações"),
+            _campo_configuracao_modulo("categorias_clientes", "Categorias de clientes", "lista", "Cliente final\nEmpresa\nCondomínio\nIndústria", secao="Classificações"),
+            _campo_configuracao_modulo("categorias_fornecedores", "Categorias de fornecedores", "lista", "Materiais\nServiços\nLocação\nTransporte", secao="Classificações"),
+            _campo_configuracao_modulo("origens_cliente", "Origens do cliente", "lista", "Indicação\nInstagram\nGoogle\nWhatsApp\nProspecção", secao="Classificações"),
+            _campo_configuracao_modulo("segmentos_atuacao", "Segmentos de atuação", "lista", "Comércio\nServiços\nIndústria\nCondomínio", secao="Classificações"),
+            _campo_configuracao_modulo("campos_extras", "Campos extras", "lista", "", secao="Campos e documentos", ajuda="Um campo por linha."),
+            _campo_configuracao_modulo("documentos_obrigatorios", "Documentos obrigatórios", "lista", "Nome / Razão social\nCPF / CNPJ", secao="Campos e documentos"),
+            _campo_configuracao_modulo("bloquear_cpf_cnpj_duplicado", "Bloquear CPF/CNPJ duplicado", "booleano", True, secao="Validações"),
+            _campo_configuracao_modulo("buscar_cnpj_automaticamente", "Busca automática de CNPJ", "booleano", True, secao="Validações"),
+            _campo_configuracao_modulo("status_padrao", "Situação padrão", "selecao", "ativo", secao="Padrões", opcoes=_OPCOES_ATIVO_INATIVO),
+            _campo_configuracao_modulo("permitir_cliente_bloqueado", "Permitir operação com cliente bloqueado", "booleano", False, secao="Validações"),
+            _campo_configuracao_modulo("limite_credito_padrao", "Limite de crédito padrão", "numero", 0, secao="Crédito", minimo=0),
+            _campo_configuracao_modulo("exigir_limite_credito", "Exigir limite de crédito", "booleano", False, secao="Crédito"),
+            _campo_configuracao_modulo("observacoes_padrao", "Observações padrão", "texto_longo", "", secao="Padrões"),
+        ],
+    },
+    {
+        "codigo": "produtos",
+        "nome": "Produtos",
+        "grupo": "Operação",
+        "icone": "▦",
+        "descricao": "Catálogo, preços, composição, rastreabilidade e controle de estoque.",
+        "campos": [
+            _campo_configuracao_modulo("grupos", "Grupos", "lista", "", secao="Classificações"),
+            _campo_configuracao_modulo("subgrupos", "Subgrupos", "lista", "", secao="Classificações"),
+            _campo_configuracao_modulo("categorias", "Categorias", "lista", "", secao="Classificações"),
+            _campo_configuracao_modulo("marcas", "Marcas", "lista", "", secao="Classificações"),
+            _campo_configuracao_modulo("unidades_medida", "Unidades de medida", "lista", "UN\nKG\nM\nM²\nM³\nL\nCX\nPC", secao="Classificações"),
+            _campo_configuracao_modulo("cores", "Cores", "lista", "", secao="Grades e variações"),
+            _campo_configuracao_modulo("tamanhos", "Tamanhos", "lista", "", secao="Grades e variações"),
+            _campo_configuracao_modulo("grades_variacoes", "Usar grades e variações", "booleano", False, secao="Grades e variações"),
+            _campo_configuracao_modulo("etiquetas", "Modelos de etiqueta", "lista", "Padrão", secao="Identificação"),
+            _campo_configuracao_modulo("codigo_automatico", "Gerar código interno automaticamente", "booleano", True, secao="Identificação"),
+            _campo_configuracao_modulo("prefixo_codigo", "Prefixo do código interno", "texto", "PROD", secao="Identificação"),
+            _campo_configuracao_modulo("codigo_barras", "Habilitar código de barras", "booleano", True, secao="Identificação"),
+            _campo_configuracao_modulo("campos_extras", "Campos extras", "lista", "", secao="Campos"),
+            _campo_configuracao_modulo("casas_decimais_quantidade", "Casas decimais da quantidade", "numero", 3, secao="Valores", minimo=0, maximo=6),
+            _campo_configuracao_modulo("margem_padrao", "Margem padrão (%)", "numero", 30, secao="Valores", minimo=0, maximo=1000),
+            _campo_configuracao_modulo("tabelas_preco", "Tabelas de preço", "lista", "Padrão\nAtacado", secao="Valores"),
+            _campo_configuracao_modulo("preco_minimo_percentual", "Preço mínimo sobre o custo (%)", "numero", 0, secao="Valores", minimo=0, maximo=1000),
+            _campo_configuracao_modulo("comissao_padrao", "Comissão padrão (%)", "numero", 0, secao="Valores", minimo=0, maximo=100),
+            _campo_configuracao_modulo("produto_composto", "Permitir produto composto", "booleano", True, secao="Composição"),
+            _campo_configuracao_modulo("controle_lote_validade", "Controlar lote e validade", "booleano", False, secao="Rastreabilidade"),
+            _campo_configuracao_modulo("controle_numero_serie", "Controlar número de série", "booleano", False, secao="Rastreabilidade"),
+            _campo_configuracao_modulo("permitir_estoque_negativo", "Permitir estoque negativo", "booleano", False, secao="Estoque"),
+            _campo_configuracao_modulo("estoque_minimo_padrao", "Estoque mínimo padrão", "numero", 0, secao="Estoque", minimo=0),
+            _campo_configuracao_modulo("estoque_maximo_padrao", "Estoque máximo padrão", "numero", 0, secao="Estoque", minimo=0),
+            _campo_configuracao_modulo("localizacao_padrao", "Localização padrão", "texto", "Estoque principal", secao="Estoque"),
+            _campo_configuracao_modulo("regras_fiscais", "Observações fiscais futuras", "texto_longo", "", secao="Fiscal"),
+        ],
+    },
+    {
+        "codigo": "servicos",
+        "nome": "Serviços",
+        "grupo": "Operação",
+        "icone": "◇",
+        "descricao": "Catálogo, cobrança, custos, garantia e escopos padronizados.",
+        "campos": [
+            _campo_configuracao_modulo("grupos", "Grupos de serviços", "lista", "", secao="Classificações"),
+            _campo_configuracao_modulo("categorias", "Categorias", "lista", "", secao="Classificações"),
+            _campo_configuracao_modulo("unidades_cobranca", "Unidades de cobrança", "lista", "Serviço\nHora\nDiária\nUnidade", secao="Cobrança"),
+            _campo_configuracao_modulo("codigo_automatico", "Gerar código automaticamente", "booleano", True, secao="Identificação"),
+            _campo_configuracao_modulo("prefixo_codigo", "Prefixo do código", "texto", "SERV", secao="Identificação"),
+            _campo_configuracao_modulo("valor_padrao", "Valor padrão", "numero", 0, secao="Valores", minimo=0),
+            _campo_configuracao_modulo("custo_estimado_padrao", "Custo estimado padrão", "numero", 0, secao="Valores", minimo=0),
+            _campo_configuracao_modulo("margem_minima", "Margem mínima (%)", "numero", 0, secao="Valores", minimo=0, maximo=1000),
+            _campo_configuracao_modulo("tempo_estimado_horas", "Tempo estimado (horas)", "numero", 1, secao="Execução", minimo=0),
+            _campo_configuracao_modulo("comissao_padrao", "Comissão padrão (%)", "numero", 0, secao="Valores", minimo=0, maximo=100),
+            _campo_configuracao_modulo("responsavel_padrao", "Responsável padrão", "texto", "", secao="Execução"),
+            _campo_configuracao_modulo("garantia_dias", "Garantia padrão (dias)", "numero", 90, secao="Garantia", minimo=0, maximo=3650),
+            _campo_configuracao_modulo("campos_extras", "Campos extras", "lista", "", secao="Campos"),
+            _campo_configuracao_modulo("materiais_padrao", "Materiais normalmente utilizados", "lista", "", secao="Execução"),
+            _campo_configuracao_modulo("escopo_padrao", "Texto padrão do escopo", "texto_longo", "", secao="Documentos"),
+            _campo_configuracao_modulo("usar_em_modulos", "Disponível em", "lista", "Orçamento\nVenda\nContrato\nOrdem de serviço", secao="Integrações"),
+            _campo_configuracao_modulo("status_padrao", "Situação padrão", "selecao", "ativo", secao="Padrões", opcoes=_OPCOES_ATIVO_INATIVO),
+        ],
+    },
+    {
+        "codigo": "orcamentos",
+        "nome": "Orçamentos",
+        "grupo": "Comercial",
+        "icone": "▤",
+        "descricao": "Numeração, validade, apresentação, aprovações, documentos e conversões.",
+        "campos": [
+            _campo_configuracao_modulo("prefixo_numero", "Prefixo da numeração", "texto", "ORC", secao="Numeração"),
+            _campo_configuracao_modulo("reinicio_numeracao", "Reinício da numeração", "selecao", "anual", secao="Numeração", opcoes=(("anual", "Anual"), ("continuo", "Sequência contínua"))),
+            _campo_configuracao_modulo("validade_padrao_dias", "Validade padrão (dias)", "numero", 15, secao="Prazos", minimo=0, maximo=3650),
+            _campo_configuracao_modulo("situacoes", "Situações", "lista", "Aberto\nEnviado\nAprovado\nReprovado\nCancelado", secao="Fluxo"),
+            _campo_configuracao_modulo("prazo_execucao_padrao", "Prazo de execução padrão", "texto", "A combinar", secao="Prazos"),
+            _campo_configuracao_modulo("condicoes_pagamento_padrao", "Condições de pagamento padrão", "texto_longo", "", secao="Comercial"),
+            _campo_configuracao_modulo("observacoes_padrao", "Observações padrão", "texto_longo", "", secao="Documentos"),
+            _campo_configuracao_modulo("clausulas_comerciais", "Cláusulas comerciais", "texto_longo", "", secao="Documentos"),
+            _campo_configuracao_modulo("modelos_escopo", "Modelos de escopo", "lista", "", secao="Documentos"),
+            _campo_configuracao_modulo("campos_extras", "Campos extras", "lista", "", secao="Campos"),
+            _campo_configuracao_modulo("tabela_preco_padrao", "Tabela de preço padrão", "texto", "Padrão", secao="Valores"),
+            _campo_configuracao_modulo("desconto_maximo_percentual", "Desconto máximo (%)", "numero", 100, secao="Valores", minimo=0, maximo=100),
+            _campo_configuracao_modulo("margem_minima_percentual", "Margem mínima (%)", "numero", 0, secao="Valores", minimo=0, maximo=1000),
+            _campo_configuracao_modulo("aprovar_desconto", "Exigir aprovação acima do desconto máximo", "booleano", True, secao="Aprovações"),
+            _campo_configuracao_modulo("modo_apresentacao_padrao", "Apresentação padrão", "selecao", "agrupado", secao="Impressão", opcoes=(("agrupado", "Agrupado"), ("global", "Valor global"), ("detalhado", "Detalhado"))),
+            _campo_configuracao_modulo("exibir_itens_pdf", "Exibir itens no PDF", "booleano", True, secao="Impressão"),
+            _campo_configuracao_modulo("separar_material_mao_obra", "Separar material e mão de obra", "booleano", True, secao="Impressão"),
+            _campo_configuracao_modulo("modelo_impressao", "Modelo de impressão", "selecao", "a4", secao="Impressão", opcoes=(("a4", "A4"), ("cupom", "Cupom"))),
+            _campo_configuracao_modulo("usar_logo", "Exibir logotipo", "booleano", True, secao="Impressão"),
+            _campo_configuracao_modulo("rodape", "Rodapé", "texto_longo", "", secao="Impressão"),
+            _campo_configuracao_modulo("assinatura_cliente", "Exigir assinatura do cliente", "booleano", False, secao="Aprovações"),
+            _campo_configuracao_modulo("modelo_email", "Modelo de e-mail", "texto_longo", "Segue o orçamento {numero} para sua análise.", secao="Comunicação"),
+            _campo_configuracao_modulo("modelo_whatsapp", "Modelo de WhatsApp", "texto_longo", "Olá! Segue o orçamento {numero}: {link}", secao="Comunicação"),
+            _campo_configuracao_modulo("converter_venda", "Permitir converter em venda", "booleano", True, secao="Conversões"),
+            _campo_configuracao_modulo("converter_contrato", "Permitir converter em contrato", "booleano", True, secao="Conversões"),
+            _campo_configuracao_modulo("converter_os", "Permitir converter em OS", "booleano", True, secao="Conversões"),
+            _campo_configuracao_modulo("uma_venda_por_orcamento", "Bloquear mais de uma venda por orçamento", "booleano", True, secao="Conversões"),
+            _campo_configuracao_modulo("controle_versoes", "Registrar versões e histórico", "booleano", True, secao="Auditoria"),
+        ],
+    },
+    {
+        "codigo": "vendas",
+        "nome": "Vendas",
+        "grupo": "Comercial",
+        "icone": "◆",
+        "descricao": "Numeração, pagamentos, estoque, comissões, impressão e cancelamentos.",
+        "campos": [
+            _campo_configuracao_modulo("prefixo_numero", "Prefixo da numeração", "texto", "VEN", secao="Numeração"),
+            _campo_configuracao_modulo("tipos_venda", "Tipos de venda", "lista", "Produtos\nServiços\nMista", secao="Fluxo"),
+            _campo_configuracao_modulo("situacoes", "Situações", "lista", "Aberta\nFinalizada\nCancelada", secao="Fluxo"),
+            _campo_configuracao_modulo("vendedor_padrao", "Vendedor padrão", "texto", "", secao="Padrões"),
+            _campo_configuracao_modulo("tabela_preco_padrao", "Tabela de preço padrão", "texto", "Padrão", secao="Valores"),
+            _campo_configuracao_modulo("desconto_maximo_percentual", "Desconto máximo (%)", "numero", 100, secao="Valores", minimo=0, maximo=100),
+            _campo_configuracao_modulo("comissao_vendedor_percentual", "Comissão de vendedor (%)", "numero", 0, secao="Valores", minimo=0, maximo=100),
+            _campo_configuracao_modulo("formas_pagamento", "Formas de pagamento", "lista", "Dinheiro\nPIX\nCartão de débito\nCartão de crédito\nBoleto\nTransferência", secao="Pagamento"),
+            _campo_configuracao_modulo("condicoes_pagamento", "Condições permitidas", "lista", "À vista\nA prazo\nParcelado\nEntrada + parcelas", secao="Pagamento"),
+            _campo_configuracao_modulo("maximo_parcelas", "Quantidade máxima de parcelas", "numero", 12, secao="Pagamento", minimo=1, maximo=120),
+            _campo_configuracao_modulo("dias_primeira_parcela", "Dias para primeira parcela", "numero", 30, secao="Pagamento", minimo=0, maximo=3650),
+            _campo_configuracao_modulo("gerar_contas_receber", "Gerar contas a receber", "booleano", True, secao="Integrações"),
+            _campo_configuracao_modulo("baixar_estoque", "Baixar estoque automaticamente", "booleano", True, secao="Estoque"),
+            _campo_configuracao_modulo("permitir_sem_estoque", "Permitir venda sem estoque", "booleano", False, secao="Estoque"),
+            _campo_configuracao_modulo("reservar_estoque", "Reservar estoque em venda aberta", "booleano", False, secao="Estoque"),
+            _campo_configuracao_modulo("modelo_impressao", "Impressão padrão", "selecao", "a4", secao="Impressão", opcoes=(("a4", "A4"), ("cupom", "Cupom"))),
+            _campo_configuracao_modulo("observacoes_padrao", "Observações padrão", "texto_longo", "", secao="Documentos"),
+            _campo_configuracao_modulo("politica_troca", "Política de troca e devolução", "texto_longo", "", secao="Documentos"),
+            _campo_configuracao_modulo("modelo_email", "Modelo de e-mail", "texto_longo", "Venda {numero} registrada com sucesso.", secao="Comunicação"),
+            _campo_configuracao_modulo("modelo_whatsapp", "Modelo de WhatsApp", "texto_longo", "Olá! Seguem os dados da venda {numero}.", secao="Comunicação"),
+            _campo_configuracao_modulo("editar_finalizada", "Permitir editar venda finalizada", "booleano", False, secao="Segurança"),
+            _campo_configuracao_modulo("autorizar_cancelamento", "Exigir autorização para cancelar", "booleano", True, secao="Segurança"),
+            _campo_configuracao_modulo("cliente_obrigatorio", "Exigir cliente", "booleano", False, secao="Validações"),
+        ],
+    },
+    {
+        "codigo": "devolucoes",
+        "nome": "Devoluções",
+        "grupo": "Comercial",
+        "icone": "↶",
+        "descricao": "Prazos, motivos, estoque, estornos, créditos e autorizações.",
+        "campos": [
+            _campo_configuracao_modulo("motivos", "Motivos de devolução", "lista", "Defeito\nProduto incorreto\nDesistência\nTroca", secao="Fluxo"),
+            _campo_configuracao_modulo("prazo_maximo_dias", "Prazo máximo (dias)", "numero", 7, secao="Prazos", minimo=0, maximo=3650),
+            _campo_configuracao_modulo("permitir_parcial", "Permitir devolução parcial", "booleano", True, secao="Fluxo"),
+            _campo_configuracao_modulo("retornar_estoque", "Retornar automaticamente ao estoque", "booleano", True, secao="Estoque"),
+            _campo_configuracao_modulo("condicoes_produto", "Condições do produto", "lista", "Novo\nAberto\nAvariado\nDefeituoso", secao="Estoque"),
+            _campo_configuracao_modulo("local_estoque", "Local de estoque da devolução", "texto", "Estoque principal", secao="Estoque"),
+            _campo_configuracao_modulo("gerar_credito_cliente", "Gerar crédito para o cliente", "booleano", True, secao="Financeiro"),
+            _campo_configuracao_modulo("estornar_conta_receber", "Estornar conta a receber", "booleano", True, secao="Financeiro"),
+            _campo_configuracao_modulo("estornar_comissao", "Estornar comissão", "booleano", True, secao="Financeiro"),
+            _campo_configuracao_modulo("exigir_autorizacao", "Exigir autorização", "booleano", True, secao="Segurança"),
+            _campo_configuracao_modulo("exigir_observacao", "Exigir observação", "booleano", True, secao="Validações"),
+            _campo_configuracao_modulo("exigir_anexo", "Exigir anexo", "booleano", False, secao="Validações"),
+            _campo_configuracao_modulo("prefixo_numero", "Prefixo do comprovante", "texto", "DEV", secao="Numeração"),
+        ],
+    },
+    {
+        "codigo": "ordens_servico",
+        "nome": "Ordens de Serviço",
+        "grupo": "Serviços",
+        "icone": "▣",
+        "descricao": "Fluxo técnico, equipamentos, checklists, evidências, materiais e documentos.",
+        "campos": [
+            _campo_configuracao_modulo("prefixo_numero", "Prefixo da numeração", "texto", "OS", secao="Numeração"),
+            _campo_configuracao_modulo("situacoes", "Situações", "lista", "Aberta\nEm andamento\nAguardando\nConcluída\nCancelada", secao="Fluxo"),
+            _campo_configuracao_modulo("prioridades", "Prioridades", "lista", "Baixa\nNormal\nAlta\nUrgente", secao="Fluxo"),
+            _campo_configuracao_modulo("tipos_os", "Tipos de OS", "lista", "Corretiva\nPreventiva\nInstalação\nInspeção\nGarantia", secao="Classificações"),
+            _campo_configuracao_modulo("tipos_atendimento", "Tipos de atendimento", "lista", "Interno\nExterno\nRemoto", secao="Classificações"),
+            _campo_configuracao_modulo("setores_responsaveis", "Setores responsáveis", "lista", "Manutenção\nAssistência técnica\nEngenharia", secao="Equipe"),
+            _campo_configuracao_modulo("tecnico_padrao", "Técnico padrão", "texto", "", secao="Equipe"),
+            _campo_configuracao_modulo("garantia_dias", "Garantia padrão (dias)", "numero", 90, secao="Prazos", minimo=0, maximo=3650),
+            _campo_configuracao_modulo("prazo_padrao_dias", "Prazo padrão (dias)", "numero", 7, secao="Prazos", minimo=0, maximo=3650),
+            _campo_configuracao_modulo("defeitos_frequentes", "Defeitos relatados frequentes", "lista", "", secao="Diagnóstico"),
+            _campo_configuracao_modulo("diagnosticos_frequentes", "Diagnósticos frequentes", "lista", "", secao="Diagnóstico"),
+            _campo_configuracao_modulo("solucoes_frequentes", "Soluções frequentes", "lista", "", secao="Diagnóstico"),
+            _campo_configuracao_modulo("checklists", "Checklists padrão", "texto_longo", "", secao="Execução"),
+            _campo_configuracao_modulo("etapas_padrao", "Etapas padrão", "lista", "Abertura\nDiagnóstico\nExecução\nTeste\nEntrega", secao="Execução"),
+            _campo_configuracao_modulo("campos_extras", "Campos extras", "lista", "", secao="Campos"),
+            _campo_configuracao_modulo("categorias_equipamentos", "Categorias de equipamentos", "lista", "", secao="Equipamentos"),
+            _campo_configuracao_modulo("marcas_equipamentos", "Marcas de equipamentos", "lista", "", secao="Equipamentos"),
+            _campo_configuracao_modulo("exigir_numero_serie", "Exigir número de série", "booleano", False, secao="Equipamentos"),
+            _campo_configuracao_modulo("exigir_fotos_antes", "Exigir fotos antes", "booleano", False, secao="Evidências"),
+            _campo_configuracao_modulo("exigir_fotos_depois", "Exigir fotos depois", "booleano", False, secao="Evidências"),
+            _campo_configuracao_modulo("exigir_assinatura_cliente", "Exigir assinatura do cliente", "booleano", False, secao="Evidências"),
+            _campo_configuracao_modulo("exigir_responsavel_encerramento", "Exigir responsável pelo encerramento", "booleano", True, secao="Segurança"),
+            _campo_configuracao_modulo("permitir_varios_equipamentos", "Permitir vários equipamentos", "booleano", True, secao="Equipamentos"),
+            _campo_configuracao_modulo("usar_qrcode", "Usar QR Code", "booleano", True, secao="Equipamentos"),
+            _campo_configuracao_modulo("baixar_estoque", "Baixar materiais do estoque", "booleano", True, secao="Integrações"),
+            _campo_configuracao_modulo("gerar_financeiro", "Gerar lançamento financeiro", "booleano", False, secao="Integrações"),
+            _campo_configuracao_modulo("modelo_impressao", "Modelo de impressão", "selecao", "a4", secao="Impressão", opcoes=(("a4", "A4"), ("cupom", "Cupom"))),
+            _campo_configuracao_modulo("termos_padrao", "Termos e observações padrão", "texto_longo", "", secao="Impressão"),
+            _campo_configuracao_modulo("avisar_email", "Avisar por e-mail", "booleano", False, secao="Comunicação"),
+            _campo_configuracao_modulo("avisar_whatsapp", "Avisar por WhatsApp", "booleano", False, secao="Comunicação"),
+            _campo_configuracao_modulo("permitir_reabertura", "Permitir reabertura", "booleano", True, secao="Segurança"),
+            _campo_configuracao_modulo("motivos_cancelamento", "Motivos de cancelamento", "lista", "Solicitação do cliente\nDuplicidade\nSem aprovação\nOutro", secao="Fluxo"),
+        ],
+    },
+    {
+        "codigo": "estoque",
+        "nome": "Estoque",
+        "grupo": "Gestão",
+        "icone": "▥",
+        "descricao": "Depósitos, movimentações, rastreabilidade, custo, inventário e alertas.",
+        "campos": [
+            _campo_configuracao_modulo("locais_depositos", "Locais e depósitos", "lista", "Estoque principal", secao="Locais"),
+            _campo_configuracao_modulo("tipos_movimentacao", "Tipos de movimentação", "lista", "Entrada\nSaída\nAjuste\nTransferência\nReserva", secao="Movimentações"),
+            _campo_configuracao_modulo("motivos_entrada", "Motivos de entrada", "lista", "Compra\nDevolução\nProdução\nAjuste", secao="Movimentações"),
+            _campo_configuracao_modulo("motivos_saida", "Motivos de saída", "lista", "Venda\nOS\nConsumo interno\nPerda\nAjuste", secao="Movimentações"),
+            _campo_configuracao_modulo("motivos_ajuste", "Motivos de ajuste", "lista", "Inventário\nCorreção\nAvaria\nValidade", secao="Movimentações"),
+            _campo_configuracao_modulo("estoque_minimo_padrao", "Estoque mínimo padrão", "numero", 0, secao="Níveis", minimo=0),
+            _campo_configuracao_modulo("estoque_maximo_padrao", "Estoque máximo padrão", "numero", 0, secao="Níveis", minimo=0),
+            _campo_configuracao_modulo("permitir_negativo", "Permitir estoque negativo", "booleano", False, secao="Validações"),
+            _campo_configuracao_modulo("reserva_estoque", "Habilitar reserva de estoque", "booleano", True, secao="Movimentações"),
+            _campo_configuracao_modulo("transferencia_locais", "Permitir transferência entre locais", "booleano", True, secao="Movimentações"),
+            _campo_configuracao_modulo("inventario_contagem", "Habilitar inventário e contagem", "booleano", True, secao="Inventário"),
+            _campo_configuracao_modulo("aprovar_ajustes", "Exigir aprovação de ajustes", "booleano", True, secao="Inventário"),
+            _campo_configuracao_modulo("controle_lote", "Controlar lote", "booleano", False, secao="Rastreabilidade"),
+            _campo_configuracao_modulo("controle_validade", "Controlar validade", "booleano", False, secao="Rastreabilidade"),
+            _campo_configuracao_modulo("controle_numero_serie", "Controlar número de série", "booleano", False, secao="Rastreabilidade"),
+            _campo_configuracao_modulo("metodo_custo", "Método de custo", "selecao", "medio", secao="Custos", opcoes=(("medio", "Custo médio"), ("ultimo", "Último custo"))),
+            _campo_configuracao_modulo("alertar_estoque_baixo", "Alertar estoque baixo", "booleano", True, secao="Alertas"),
+            _campo_configuracao_modulo("alertar_validade_dias", "Alertar validade com antecedência (dias)", "numero", 30, secao="Alertas", minimo=0, maximo=3650),
+            _campo_configuracao_modulo("local_entrada_padrao", "Local padrão de entrada", "texto", "Estoque principal", secao="Locais"),
+            _campo_configuracao_modulo("local_saida_padrao", "Local padrão de saída", "texto", "Estoque principal", secao="Locais"),
+            _campo_configuracao_modulo("integracoes", "Integrações ativas", "lista", "Vendas\nOS\nCompras\nDevoluções", secao="Integrações"),
+        ],
+    },
+    {
+        "codigo": "compras",
+        "nome": "Compras",
+        "grupo": "Gestão",
+        "icone": "▧",
+        "descricao": "Pedidos, aprovações, recebimentos, custos, estoque e financeiro.",
+        "campos": [
+            _campo_configuracao_modulo("prefixo_numero", "Prefixo da numeração", "texto", "COMP", secao="Numeração"),
+            _campo_configuracao_modulo("situacoes", "Situações", "lista", "Rascunho\nPedido\nRecebida parcialmente\nRecebida\nCancelada", secao="Fluxo"),
+            _campo_configuracao_modulo("tipos_compra", "Tipos de compra", "lista", "Mercadoria\nUso e consumo\nAtivo\nServiço", secao="Classificações"),
+            _campo_configuracao_modulo("comprador_padrao", "Comprador responsável", "texto", "", secao="Responsáveis"),
+            _campo_configuracao_modulo("fornecedor_padrao_produto", "Usar fornecedor padrão do produto", "booleano", True, secao="Fornecedores"),
+            _campo_configuracao_modulo("condicoes_pagamento", "Condições de pagamento", "lista", "À vista\nA prazo\nParcelado", secao="Pagamento"),
+            _campo_configuracao_modulo("formas_pagamento", "Formas de pagamento", "lista", "PIX\nBoleto\nTransferência\nCartão", secao="Pagamento"),
+            _campo_configuracao_modulo("gerar_contas_pagar", "Gerar contas a pagar", "booleano", True, secao="Integrações"),
+            _campo_configuracao_modulo("entrar_estoque", "Entrada automática no estoque", "booleano", True, secao="Estoque"),
+            _campo_configuracao_modulo("local_estoque_padrao", "Local de estoque padrão", "texto", "Estoque principal", secao="Estoque"),
+            _campo_configuracao_modulo("aprovacao_por_valor", "Exigir aprovação por valor", "booleano", False, secao="Aprovações"),
+            _campo_configuracao_modulo("valor_limite_aprovacao", "Valor limite sem aprovação", "numero", 0, secao="Aprovações", minimo=0),
+            _campo_configuracao_modulo("limite_por_usuario", "Limite de compra por usuário", "numero", 0, secao="Aprovações", minimo=0),
+            _campo_configuracao_modulo("incluir_frete_custo", "Incluir frete no custo", "booleano", True, secao="Custos"),
+            _campo_configuracao_modulo("incluir_impostos_custo", "Incluir impostos no custo", "booleano", True, secao="Custos"),
+            _campo_configuracao_modulo("ratear_despesas", "Ratear despesas entre produtos", "booleano", True, secao="Custos"),
+            _campo_configuracao_modulo("permitir_pedido_parcial", "Permitir pedido parcial", "booleano", True, secao="Recebimento"),
+            _campo_configuracao_modulo("permitir_recebimento_parcial", "Permitir recebimento parcial", "booleano", True, secao="Recebimento"),
+            _campo_configuracao_modulo("motivos_cancelamento", "Motivos de cancelamento", "lista", "Erro de pedido\nFornecedor indisponível\nPreço alterado\nOutro", secao="Fluxo"),
+            _campo_configuracao_modulo("modelo_pedido", "Texto padrão do pedido", "texto_longo", "", secao="Documentos"),
+            _campo_configuracao_modulo("enviar_email", "Permitir envio por e-mail", "booleano", True, secao="Comunicação"),
+            _campo_configuracao_modulo("enviar_whatsapp", "Permitir envio por WhatsApp", "booleano", True, secao="Comunicação"),
+        ],
+    },
+    {
+        "codigo": "financeiro",
+        "nome": "Financeiro",
+        "grupo": "Financeiro",
+        "icone": "$",
+        "descricao": "Plano financeiro, pagamentos, recebimentos, conciliação, recorrência e impostos.",
+        "campos": [
+            _campo_configuracao_modulo("categorias_receitas", "Categorias de receitas", "lista", "Vendas\nServiços\nContratos\nOutras receitas", secao="Plano financeiro"),
+            _campo_configuracao_modulo("categorias_despesas", "Categorias de despesas", "lista", "Materiais\nMão de obra\nImpostos\nDespesas operacionais\nOutras despesas", secao="Plano financeiro"),
+            _campo_configuracao_modulo("subcategorias", "Subcategorias", "lista", "", secao="Plano financeiro"),
+            _campo_configuracao_modulo("contas_caixas", "Contas bancárias e caixas", "lista", "Caixa\nConta principal", secao="Contas"),
+            _campo_configuracao_modulo("formas_pagamento", "Formas de pagamento", "lista", "Dinheiro\nPIX\nBoleto\nTransferência\nCartão de débito\nCartão de crédito", secao="Pagamento"),
+            _campo_configuracao_modulo("bandeiras_cartao", "Bandeiras de cartão", "lista", "Visa\nMastercard\nElo\nHipercard\nAmex", secao="Cartões"),
+            _campo_configuracao_modulo("operadoras_cartao", "Operadoras", "lista", "", secao="Cartões"),
+            _campo_configuracao_modulo("taxas_cartao", "Taxas de cartão", "texto_longo", "", secao="Cartões", ajuda="Informe uma taxa por linha, por exemplo: Crédito 1x = 3,50%."),
+            _campo_configuracao_modulo("prazos_recebimento", "Prazos de recebimento", "texto_longo", "", secao="Cartões"),
+            _campo_configuracao_modulo("condicoes_pagamento", "Condições de pagamento", "lista", "À vista\nA prazo\nParcelado\nEntrada + parcelas", secao="Pagamento"),
+            _campo_configuracao_modulo("tipos_documento", "Tipos de documento", "lista", "Boleto\nNota fiscal\nRecibo\nContrato\nFatura", secao="Documentos"),
+            _campo_configuracao_modulo("situacoes_lancamentos", "Situações dos lançamentos", "lista", "Aberto\nParcial\nPago\nVencido\nCancelado", secao="Fluxo"),
+            _campo_configuracao_modulo("plano_contas", "Plano de contas", "texto_longo", "", secao="Plano financeiro"),
+            _campo_configuracao_modulo("prefixo_lancamento", "Prefixo dos lançamentos", "texto", "FIN", secao="Numeração"),
+            _campo_configuracao_modulo("multa_percentual", "Multa padrão (%)", "numero", 2, secao="Encargos", minimo=0, maximo=100),
+            _campo_configuracao_modulo("juros_mes_percentual", "Juros ao mês (%)", "numero", 1, secao="Encargos", minimo=0, maximo=100),
+            _campo_configuracao_modulo("desconto_padrao_percentual", "Desconto padrão (%)", "numero", 0, secao="Encargos", minimo=0, maximo=100),
+            _campo_configuracao_modulo("permitir_baixa_parcial", "Permitir baixa parcial", "booleano", True, secao="Baixas"),
+            _campo_configuracao_modulo("baixa_automatica", "Baixa automática", "booleano", False, secao="Baixas"),
+            _campo_configuracao_modulo("permitir_parcelamento", "Permitir parcelamento", "booleano", True, secao="Pagamento"),
+            _campo_configuracao_modulo("transferencia_contas", "Permitir transferência entre contas", "booleano", True, secao="Contas"),
+            _campo_configuracao_modulo("conciliacao", "Habilitar conciliação", "booleano", True, secao="Conciliação"),
+            _campo_configuracao_modulo("aprovar_pagamentos", "Exigir aprovação de pagamentos", "booleano", False, secao="Aprovações"),
+            _campo_configuracao_modulo("limite_pagamento_usuario", "Limite de pagamento por usuário", "numero", 0, secao="Aprovações", minimo=0),
+            _campo_configuracao_modulo("comprovante_obrigatorio", "Exigir comprovante", "booleano", False, secao="Documentos"),
+            _campo_configuracao_modulo("alerta_vencimento_dias", "Avisar vencimento com antecedência (dias)", "numero", 5, secao="Alertas", minimo=0, maximo=3650),
+            _campo_configuracao_modulo("lancamentos_recorrentes", "Habilitar lançamentos recorrentes", "booleano", True, secao="Recorrência"),
+            _campo_configuracao_modulo("regime_padrao", "Regime padrão", "selecao", "competencia", secao="Relatórios", opcoes=_OPCOES_CAIXA_COMPETENCIA),
+            _campo_configuracao_modulo("impostos", "Impostos", "texto_longo", "", secao="Impostos"),
+            _campo_configuracao_modulo("separar_material_mao_obra", "Separar material e mão de obra", "booleano", True, secao="Relatórios"),
+            _campo_configuracao_modulo("integracoes", "Integrações automáticas", "lista", "Vendas\nOrçamentos\nOS\nCompras\nContratos", secao="Integrações"),
+        ],
+    },
+    {
+        "codigo": "centros_custo_dre",
+        "nome": "Centros de Custo e DRE",
+        "grupo": "Financeiro",
+        "icone": "▨",
+        "descricao": "Estrutura de centros, rateio, classificação, fórmulas de resultado e margens.",
+        "campos": [
+            _campo_configuracao_modulo("usar_subcentros", "Permitir subcentros", "booleano", True, secao="Estrutura"),
+            _campo_configuracao_modulo("estrutura_hierarquica", "Usar estrutura hierárquica", "booleano", True, secao="Estrutura"),
+            _campo_configuracao_modulo("centro_padrao_orcamentos", "Centro padrão de orçamentos", "texto", "", secao="Padrões"),
+            _campo_configuracao_modulo("centro_padrao_vendas", "Centro padrão de vendas", "texto", "", secao="Padrões"),
+            _campo_configuracao_modulo("centro_padrao_os", "Centro padrão de OS", "texto", "", secao="Padrões"),
+            _campo_configuracao_modulo("centro_padrao_contratos", "Centro padrão de contratos", "texto", "", secao="Padrões"),
+            _campo_configuracao_modulo("vinculo_obrigatorio", "Vínculo com centro", "selecao", "obrigatorio", secao="Validações", opcoes=_OPCOES_OPCIONAL_OBRIGATORIO),
+            _campo_configuracao_modulo("permitir_rateio", "Permitir rateio entre centros", "booleano", True, secao="Rateio"),
+            _campo_configuracao_modulo("categorias_receita", "Categorias consideradas receita", "lista", "Vendas\nServiços\nContratos", secao="DRE"),
+            _campo_configuracao_modulo("categorias_custo", "Categorias consideradas custo", "lista", "Materiais\nMão de obra\nTerceiros", secao="DRE"),
+            _campo_configuracao_modulo("custos_diretos", "Custos diretos", "lista", "Materiais\nMão de obra direta\nTerceiros", secao="DRE"),
+            _campo_configuracao_modulo("custos_indiretos", "Custos indiretos", "lista", "Administrativo\nTransporte\nFerramentas", secao="DRE"),
+            _campo_configuracao_modulo("separar_material_mao_obra", "Separar material e mão de obra", "booleano", True, secao="DRE"),
+            _campo_configuracao_modulo("impostos_considerados", "Impostos considerados", "lista", "", secao="DRE"),
+            _campo_configuracao_modulo("regime", "Regime da DRE", "selecao", "competencia", secao="DRE", opcoes=_OPCOES_CAIXA_COMPETENCIA),
+            _campo_configuracao_modulo("formula_lucro_bruto", "Fórmula do lucro bruto", "texto", "Receita - custos diretos", secao="Fórmulas"),
+            _campo_configuracao_modulo("formula_lucro_liquido", "Fórmula do lucro líquido", "texto", "Lucro bruto - custos indiretos - impostos", secao="Fórmulas"),
+            _campo_configuracao_modulo("meta_margem_percentual", "Meta de margem (%)", "numero", 30, secao="Metas", minimo=-100, maximo=1000),
+            _campo_configuracao_modulo("periodos_comparacao", "Períodos de comparação", "lista", "Mensal\nTrimestral\nSemestral\nAnual", secao="Relatórios"),
+            _campo_configuracao_modulo("exibir_por_origem", "Exibir resultado por", "lista", "Orçamento\nOS\nAtividade\nContrato", secao="Relatórios"),
+        ],
+    },
+    {
+        "codigo": "contratos",
+        "nome": "Contratos",
+        "grupo": "Comercial",
+        "icone": "▪",
+        "descricao": "Numeração, tipos, cláusulas, renovação, cobrança, reajuste e integrações.",
+        "campos": [
+            _campo_configuracao_modulo("prefixo_numero", "Prefixo da numeração", "texto", "CTR", secao="Numeração"),
+            _campo_configuracao_modulo("tipos", "Tipos de contrato", "lista", "Serviço\nServiço recorrente\nLocação", secao="Classificações"),
+            _campo_configuracao_modulo("situacoes", "Situações", "lista", "Rascunho\nAguardando assinatura\nAtivo\nSuspenso\nEncerrado\nCancelado", secao="Fluxo"),
+            _campo_configuracao_modulo("modelos", "Modelos de contrato", "lista", "Contrato de serviço\nContrato recorrente\nContrato de locação", secao="Modelos e cláusulas"),
+            _campo_configuracao_modulo("clausulas", "Modelos de cláusulas", "texto_longo", "", secao="Modelos e cláusulas"),
+            _campo_configuracao_modulo("clausulas_obrigatorias", "Cláusulas obrigatórias", "lista", "Objeto\nPrazo\nValor e pagamento\nResponsabilidades\nRescisão", secao="Modelos e cláusulas"),
+            _campo_configuracao_modulo("clausulas_opcionais", "Cláusulas opcionais", "lista", "Reajuste\nConfidencialidade\nGarantia\nMulta", secao="Modelos e cláusulas"),
+            _campo_configuracao_modulo("campos_extras", "Campos extras", "lista", "", secao="Campos"),
+            _campo_configuracao_modulo("prazo_padrao_meses", "Prazo padrão (meses)", "numero", 12, secao="Prazos", minimo=0, maximo=600),
+            _campo_configuracao_modulo("periodo_minimo_meses", "Período mínimo (meses)", "numero", 0, secao="Prazos", minimo=0, maximo=600),
+            _campo_configuracao_modulo("aviso_vencimento_dias", "Avisar vencimento com antecedência (dias)", "numero", 30, secao="Alertas", minimo=0, maximo=3650),
+            _campo_configuracao_modulo("renovacao", "Renovação", "selecao", "manual", secao="Renovação", opcoes=_OPCOES_AUTOMATICO_MANUAL),
+            _campo_configuracao_modulo("aviso_renovacao_dias", "Prazo para aviso de renovação (dias)", "numero", 30, secao="Renovação", minimo=0, maximo=3650),
+            _campo_configuracao_modulo("frequencia_cobranca", "Frequência de cobrança padrão", "selecao", "mensal", secao="Cobrança", opcoes=(("unica", "Única"), ("mensal", "Mensal"), ("bimestral", "Bimestral"), ("trimestral", "Trimestral"), ("semestral", "Semestral"), ("anual", "Anual"))),
+            _campo_configuracao_modulo("dia_vencimento", "Dia padrão de vencimento", "numero", 10, secao="Cobrança", minimo=1, maximo=31),
+            _campo_configuracao_modulo("reajuste_periodicidade_meses", "Reajuste a cada (meses)", "numero", 12, secao="Reajuste", minimo=0, maximo=120),
+            _campo_configuracao_modulo("indice_reajuste", "Índice de reajuste", "texto", "IPCA", secao="Reajuste"),
+            _campo_configuracao_modulo("percentual_reajuste", "Percentual de reajuste fixo (%)", "numero", 0, secao="Reajuste", minimo=0, maximo=1000),
+            _campo_configuracao_modulo("carencia_dias", "Período de carência (dias)", "numero", 0, secao="Cobrança", minimo=0, maximo=3650),
+            _campo_configuracao_modulo("multa_cancelamento_percentual", "Multa de cancelamento (%)", "numero", 0, secao="Cancelamento", minimo=0, maximo=100),
+            _campo_configuracao_modulo("motivos_suspensao", "Motivos de suspensão", "lista", "Inadimplência\nSolicitação do cliente\nPausa operacional\nOutro", secao="Fluxo"),
+            _campo_configuracao_modulo("motivos_encerramento", "Motivos de encerramento", "lista", "Prazo concluído\nObjeto concluído\nNão renovado\nOutro", secao="Fluxo"),
+            _campo_configuracao_modulo("motivos_cancelamento", "Motivos de cancelamento", "lista", "Distrato\nDescumprimento\nSolicitação do cliente\nOutro", secao="Cancelamento"),
+            _campo_configuracao_modulo("assinatura_obrigatoria", "Exigir assinatura", "booleano", True, secao="Documentos"),
+            _campo_configuracao_modulo("anexo_assinado_obrigatorio", "Exigir contrato assinado anexado", "booleano", False, secao="Documentos"),
+            _campo_configuracao_modulo("modelo_impressao", "Modelo de impressão", "selecao", "a4", secao="Documentos", opcoes=(("a4", "A4"),)),
+            _campo_configuracao_modulo("modelo_email", "Modelo de e-mail", "texto_longo", "Segue o contrato {numero} para análise e assinatura.", secao="Comunicação"),
+            _campo_configuracao_modulo("modelo_whatsapp", "Modelo de WhatsApp", "texto_longo", "Olá! Segue o contrato {numero}: {link}", secao="Comunicação"),
+            _campo_configuracao_modulo("gerar_contas_receber", "Gerar contas a receber", "booleano", False, secao="Integrações"),
+            _campo_configuracao_modulo("gerar_os_recorrente", "Gerar OS recorrente", "booleano", False, secao="Integrações"),
+            _campo_configuracao_modulo("gerar_atividades", "Gerar atividades", "booleano", False, secao="Integrações"),
+            _campo_configuracao_modulo("centro_custo_padrao", "Centro de custo padrão", "texto", "", secao="Integrações"),
+            _campo_configuracao_modulo("bloquear_cobranca_duplicada", "Bloquear cobrança duplicada", "booleano", True, secao="Segurança"),
+        ],
+    },
+    {
+        "codigo": "gestao_atividades",
+        "nome": "Gestão de Atividades",
+        "grupo": "Gestão",
+        "icone": "✓",
+        "descricao": "Tipos, etapas, dependências, progresso, prazos, checklists e notificações.",
+        "campos": [
+            _campo_configuracao_modulo("tipos", "Tipos de atividade", "lista", "Projeto\nServiço\nTarefa interna\nVisita técnica", secao="Classificações"),
+            _campo_configuracao_modulo("categorias", "Categorias", "lista", "", secao="Classificações"),
+            _campo_configuracao_modulo("prioridades", "Prioridades", "lista", "Baixa\nNormal\nAlta\nUrgente", secao="Fluxo"),
+            _campo_configuracao_modulo("situacoes", "Situações", "lista", "Planejada\nEm andamento\nPausada\nConcluída\nCancelada", secao="Fluxo"),
+            _campo_configuracao_modulo("etapas_padrao", "Etapas padrão", "lista", "Planejamento\nExecução\nValidação\nConclusão", secao="Etapas"),
+            _campo_configuracao_modulo("equipes", "Equipes", "lista", "", secao="Responsáveis"),
+            _campo_configuracao_modulo("permitir_dependencias", "Permitir dependências entre etapas", "booleano", True, secao="Etapas"),
+            _campo_configuracao_modulo("bloquear_etapa_dependente", "Bloquear etapa dependente", "booleano", True, secao="Etapas"),
+            _campo_configuracao_modulo("progresso", "Cálculo do progresso", "selecao", "automatico", secao="Etapas", opcoes=_OPCOES_AUTOMATICO_MANUAL),
+            _campo_configuracao_modulo("prazo_padrao_dias", "Prazo padrão (dias)", "numero", 7, secao="Prazos", minimo=0, maximo=3650),
+            _campo_configuracao_modulo("alerta_atraso", "Alertar atraso", "booleano", True, secao="Alertas"),
+            _campo_configuracao_modulo("motivos_pausa", "Motivos de pausa", "lista", "Aguardando cliente\nAguardando material\nAguardando liberação\nOutro", secao="Fluxo"),
+            _campo_configuracao_modulo("motivos_cancelamento", "Motivos de cancelamento", "lista", "Solicitação do cliente\nEscopo cancelado\nDuplicidade\nOutro", secao="Fluxo"),
+            _campo_configuracao_modulo("campos_extras", "Campos extras", "lista", "", secao="Campos"),
+            _campo_configuracao_modulo("checklist", "Checklist padrão", "texto_longo", "", secao="Execução"),
+            _campo_configuracao_modulo("anexos_obrigatorios", "Anexos obrigatórios", "lista", "", secao="Evidências"),
+            _campo_configuracao_modulo("centro_custo_obrigatorio", "Exigir centro de custo", "booleano", False, secao="Integrações"),
+            _campo_configuracao_modulo("vinculos", "Vínculos permitidos", "lista", "Orçamento\nOS\nContrato", secao="Integrações"),
+            _campo_configuracao_modulo("exibir_gantt", "Exibir no cronograma/Gantt", "booleano", True, secao="Visualização"),
+            _campo_configuracao_modulo("registrar_historico", "Registrar histórico automático", "booleano", True, secao="Auditoria"),
+            _campo_configuracao_modulo("notificar_responsaveis", "Notificar responsáveis", "booleano", True, secao="Comunicação"),
+        ],
+    },
+    {
+        "codigo": "agendamentos",
+        "nome": "Agendamentos",
+        "grupo": "Serviços",
+        "icone": "▦",
+        "descricao": "Agenda, disponibilidade, duração, lembretes, cancelamentos e integrações.",
+        "campos": [
+            _campo_configuracao_modulo("tipos", "Tipos de agendamento", "lista", "Atendimento\nVisita técnica\nServiço\nReunião", secao="Classificações"),
+            _campo_configuracao_modulo("servicos_disponiveis", "Serviços disponíveis", "lista", "", secao="Catálogo"),
+            _campo_configuracao_modulo("profissionais", "Profissionais", "lista", "", secao="Equipe"),
+            _campo_configuracao_modulo("dias_atendimento", "Dias de atendimento", "lista", "Segunda\nTerça\nQuarta\nQuinta\nSexta", secao="Disponibilidade"),
+            _campo_configuracao_modulo("horario_inicio", "Horário inicial", "texto", "08:00", secao="Disponibilidade"),
+            _campo_configuracao_modulo("horario_fim", "Horário final", "texto", "18:00", secao="Disponibilidade"),
+            _campo_configuracao_modulo("intervalo_minutos", "Intervalo entre horários (minutos)", "numero", 30, secao="Disponibilidade", minimo=5, maximo=1440),
+            _campo_configuracao_modulo("duracao_padrao_minutos", "Duração padrão (minutos)", "numero", 60, secao="Disponibilidade", minimo=5, maximo=10080),
+            _campo_configuracao_modulo("limite_simultaneo", "Atendimentos simultâneos", "numero", 1, secao="Disponibilidade", minimo=1, maximo=100),
+            _campo_configuracao_modulo("antecedencia_minima_horas", "Antecedência mínima (horas)", "numero", 2, secao="Prazos", minimo=0, maximo=8760),
+            _campo_configuracao_modulo("antecedencia_maxima_dias", "Antecedência máxima (dias)", "numero", 90, secao="Prazos", minimo=1, maximo=3650),
+            _campo_configuracao_modulo("bloqueios_agenda", "Bloqueios de agenda", "texto_longo", "", secao="Disponibilidade"),
+            _campo_configuracao_modulo("feriados_folgas", "Feriados e folgas", "lista", "", secao="Disponibilidade"),
+            _campo_configuracao_modulo("confirmacao_automatica", "Confirmação automática", "booleano", True, secao="Comunicação"),
+            _campo_configuracao_modulo("lembrete_horas", "Lembrete com antecedência (horas)", "numero", 24, secao="Comunicação", minimo=0, maximo=8760),
+            _campo_configuracao_modulo("permitir_cancelamento", "Permitir cancelamento", "booleano", True, secao="Fluxo"),
+            _campo_configuracao_modulo("permitir_reagendamento", "Permitir reagendamento", "booleano", True, secao="Fluxo"),
+            _campo_configuracao_modulo("tolerancia_atraso_minutos", "Tolerância de atraso (minutos)", "numero", 15, secao="Prazos", minimo=0, maximo=1440),
+            _campo_configuracao_modulo("motivos_cancelamento", "Motivos de cancelamento", "lista", "Cliente desistiu\nProfissional indisponível\nConflito de agenda\nOutro", secao="Fluxo"),
+            _campo_configuracao_modulo("exigir_sinal", "Exigir sinal/pagamento antecipado", "booleano", False, secao="Pagamento"),
+            _campo_configuracao_modulo("cliente_obrigatorio", "Exigir cliente", "booleano", True, secao="Validações"),
+            _campo_configuracao_modulo("campos_extras", "Campos extras", "lista", "", secao="Campos"),
+            _campo_configuracao_modulo("integracoes", "Integrações", "lista", "OS\nVenda\nFinanceiro", secao="Integrações"),
+        ],
+    },
+    {
+        "codigo": "registro_ponto",
+        "nome": "Registro de Ponto",
+        "grupo": "Equipe",
+        "icone": "◷",
+        "descricao": "Jornadas, adicionais, geolocalização, offline, aprovações e fechamento.",
+        "campos": [
+            _campo_configuracao_modulo("jornadas", "Jornadas de trabalho", "texto_longo", "Segunda a sexta: 08:00-12:00 / 13:00-17:00", secao="Jornada"),
+            _campo_configuracao_modulo("escalas", "Escalas", "lista", "5x2\n6x1\n12x36", secao="Jornada"),
+            _campo_configuracao_modulo("intervalo_obrigatorio_minutos", "Intervalo obrigatório (minutos)", "numero", 60, secao="Jornada", minimo=0, maximo=1440),
+            _campo_configuracao_modulo("tolerancia_entrada_minutos", "Tolerância de entrada (minutos)", "numero", 5, secao="Tolerâncias", minimo=0, maximo=240),
+            _campo_configuracao_modulo("tolerancia_saida_minutos", "Tolerância de saída (minutos)", "numero", 5, secao="Tolerâncias", minimo=0, maximo=240),
+            _campo_configuracao_modulo("banco_horas", "Habilitar banco de horas", "booleano", True, secao="Horas"),
+            _campo_configuracao_modulo("horas_extras", "Habilitar horas extras", "booleano", True, secao="Horas"),
+            _campo_configuracao_modulo("adicional_noturno_percentual", "Adicional noturno (%)", "numero", 20, secao="Adicionais", minimo=0, maximo=100),
+            _campo_configuracao_modulo("hora_extra_sabado_percentual", "Hora extra de sábado (%)", "numero", 50, secao="Adicionais", minimo=0, maximo=500),
+            _campo_configuracao_modulo("hora_extra_domingo_feriado_percentual", "Hora extra domingo/feriado (%)", "numero", 100, secao="Adicionais", minimo=0, maximo=500),
+            _campo_configuracao_modulo("periculosidade_percentual", "Periculosidade (%)", "numero", 30, secao="Adicionais", minimo=0, maximo=100),
+            _campo_configuracao_modulo("insalubridade_percentual", "Insalubridade (%)", "numero", 0, secao="Adicionais", minimo=0, maximo=100),
+            _campo_configuracao_modulo("trabalhos_especiais", "Trabalhos especiais", "lista", "Altura\nSubestação\nNR-12\nEspaço confinado", secao="Adicionais"),
+            _campo_configuracao_modulo("gps_obrigatorio", "Exigir geolocalização", "booleano", True, secao="Localização"),
+            _campo_configuracao_modulo("raio_maximo_metros", "Raio máximo permitido (metros)", "numero", 300, secao="Localização", minimo=0, maximo=100000),
+            _campo_configuracao_modulo("locais_autorizados", "Locais autorizados", "texto_longo", "", secao="Localização", ajuda="Uma linha por local no formato Nome | latitude | longitude | raio em metros."),
+            _campo_configuracao_modulo("validacao_celular", "Validar celular do funcionário", "booleano", True, secao="Segurança"),
+            _campo_configuracao_modulo("confianca_aparelho_dias", "Confiar no aparelho por (dias)", "numero", 30, secao="Segurança", minimo=1, maximo=3650),
+            _campo_configuracao_modulo("bloqueio_entre_marcacoes_segundos", "Bloqueio entre marcações (segundos)", "numero", 10, secao="Segurança", minimo=0, maximo=3600),
+            _campo_configuracao_modulo("permitir_offline", "Permitir registro offline", "booleano", True, secao="Operação"),
+            _campo_configuracao_modulo("multiplas_jornadas", "Permitir mais de uma jornada no dia", "booleano", True, secao="Jornada"),
+            _campo_configuracao_modulo("justificativas", "Justificativas", "lista", "Atraso\nEsquecimento\nAtendimento externo\nProblema técnico\nOutro", secao="Ajustes"),
+            _campo_configuracao_modulo("ajuste_manual_aprovacao", "Exigir aprovação de ajuste manual", "booleano", True, secao="Ajustes"),
+            _campo_configuracao_modulo("fechamento_mensal", "Exigir fechamento mensal", "booleano", True, secao="Fechamento"),
+            _campo_configuracao_modulo("confirmacao_funcionario", "Exigir confirmação do funcionário", "booleano", False, secao="Fechamento"),
+            _campo_configuracao_modulo("formato_exportacao", "Formato de exportação", "selecao", "xlsx", secao="Exportação", opcoes=(("xlsx", "Excel (.xlsx)"), ("csv", "CSV"), ("pdf", "PDF"))),
+            _campo_configuracao_modulo("registrar_historico", "Registrar histórico de alterações", "booleano", True, secao="Auditoria"),
+        ],
+    },
+    {
+        "codigo": "vitrine",
+        "nome": "Vitrine",
+        "grupo": "Comercial",
+        "icone": "◫",
+        "descricao": "Identidade pública, catálogo, preços, pedidos, entrega, contato e SEO.",
+        "campos": [
+            _campo_configuracao_modulo("ativa", "Ativar vitrine", "booleano", True, secao="Publicação"),
+            _campo_configuracao_modulo("nome_publico", "Nome público", "texto", "", secao="Identidade"),
+            _campo_configuracao_modulo("slug", "Endereço personalizado", "texto", "", secao="Publicação"),
+            _campo_configuracao_modulo("cor_primaria", "Cor principal", "texto", "#1458f5", secao="Identidade"),
+            _campo_configuracao_modulo("cor_secundaria", "Cor secundária", "texto", "#0f172a", secao="Identidade"),
+            _campo_configuracao_modulo("banner", "Texto do banner", "texto_longo", "", secao="Identidade"),
+            _campo_configuracao_modulo("exibir_produtos", "Exibir produtos", "booleano", True, secao="Catálogo"),
+            _campo_configuracao_modulo("exibir_servicos", "Exibir serviços", "booleano", True, secao="Catálogo"),
+            _campo_configuracao_modulo("categorias_publicas", "Categorias públicas", "lista", "", secao="Catálogo"),
+            _campo_configuracao_modulo("exibir_preco", "Exibir preço", "booleano", True, secao="Catálogo"),
+            _campo_configuracao_modulo("exibir_disponibilidade", "Exibir disponibilidade", "booleano", True, secao="Catálogo"),
+            _campo_configuracao_modulo("modo_contato", "Ação principal", "selecao", "pedido", secao="Pedidos", opcoes=(("pedido", "Permitir pedido"), ("contato", "Somente contato"))),
+            _campo_configuracao_modulo("quantidade_minima", "Quantidade mínima", "numero", 1, secao="Pedidos", minimo=1),
+            _campo_configuracao_modulo("formas_entrega", "Formas de entrega", "lista", "Entrega\nRetirada no local", secao="Entrega"),
+            _campo_configuracao_modulo("regioes_taxas_entrega", "Regiões e taxas de entrega", "texto_longo", "", secao="Entrega"),
+            _campo_configuracao_modulo("whatsapp", "WhatsApp de atendimento", "texto", "", secao="Contato"),
+            _campo_configuracao_modulo("texto_institucional", "Texto institucional", "texto_longo", "", secao="Conteúdo"),
+            _campo_configuracao_modulo("politica_troca", "Política de troca", "texto_longo", "", secao="Políticas"),
+            _campo_configuracao_modulo("politica_privacidade", "Política de privacidade", "texto_longo", "", secao="Políticas"),
+            _campo_configuracao_modulo("seo_titulo", "Título para busca e compartilhamento", "texto", "", secao="SEO"),
+            _campo_configuracao_modulo("seo_descricao", "Descrição para busca e compartilhamento", "texto_longo", "", secao="SEO"),
+            _campo_configuracao_modulo("produtos_destaque", "Produtos em destaque", "lista", "", secao="Catálogo"),
+            _campo_configuracao_modulo("ordenacao", "Ordem de exibição", "selecao", "manual", secao="Catálogo", opcoes=(("manual", "Manual"), ("nome", "Nome"), ("preco", "Preço"), ("recentes", "Mais recentes"))),
+            _campo_configuracao_modulo("controlar_estoque", "Controlar estoque na vitrine", "booleano", True, secao="Estoque"),
+            _campo_configuracao_modulo("mensagem_indisponivel", "Mensagem de produto indisponível", "texto", "Produto indisponível no momento.", secao="Estoque"),
+        ],
+    },
+    {
+        "codigo": "importacao_seguranca",
+        "nome": "Importação, Exportação e Segurança",
+        "grupo": "Sistema",
+        "icone": "⇄",
+        "descricao": "Planilhas, duplicidades, histórico, exportações, privacidade e retenção.",
+        "campos": [
+            _campo_configuracao_modulo("modelos_planilha", "Modelos de planilha", "lista", "Clientes\nFornecedores\nProdutos\nServiços", secao="Importação"),
+            _campo_configuracao_modulo("campos_obrigatorios", "Campos obrigatórios por importação", "texto_longo", "", secao="Importação"),
+            _campo_configuracao_modulo("duplicados", "Tratamento de duplicados", "selecao", "ignorar", secao="Importação", opcoes=(("ignorar", "Ignorar"), ("atualizar", "Atualizar existente"), ("bloquear", "Bloquear importação"))),
+            _campo_configuracao_modulo("validar_antes_importar", "Validar antes de importar", "booleano", True, secao="Importação"),
+            _campo_configuracao_modulo("historico_importacoes", "Registrar histórico de importações", "booleano", True, secao="Importação"),
+            _campo_configuracao_modulo("exportar_por_periodo", "Permitir exportação por período", "booleano", True, secao="Exportação"),
+            _campo_configuracao_modulo("perfis_exportacao", "Perfis autorizados a exportar", "lista", "Administrador\nFinanceiro", secao="Exportação"),
+            _campo_configuracao_modulo("proteger_dados_pessoais", "Proteger dados pessoais nas exportações", "booleano", True, secao="Privacidade"),
+            _campo_configuracao_modulo("backup_antes_importar", "Gerar backup antes de importar", "booleano", True, secao="Segurança"),
+            _campo_configuracao_modulo("log_auditoria", "Registrar log de auditoria", "booleano", True, secao="Segurança"),
+            _campo_configuracao_modulo("tempo_sessao_minutos", "Tempo de sessão (minutos)", "numero", 43200, secao="Segurança", minimo=15, maximo=525600),
+            _campo_configuracao_modulo("politica_senha", "Política de senha", "selecao", "forte", secao="Segurança", opcoes=(("basica", "Básica"), ("forte", "Forte"), ("muito_forte", "Muito forte"))),
+            _campo_configuracao_modulo("exclusao", "Forma de exclusão", "selecao", "logica", secao="Segurança", opcoes=(("logica", "Exclusão lógica"), ("definitiva", "Exclusão definitiva com confirmação"))),
+            _campo_configuracao_modulo("retencao_documentos_dias", "Retenção de documentos (dias)", "numero", 1825, secao="Privacidade", minimo=30, maximo=36500),
+            _campo_configuracao_modulo("retencao_anexos_dias", "Retenção de anexos (dias)", "numero", 1825, secao="Privacidade", minimo=30, maximo=36500),
+        ],
+    },
+]
+
+CONFIGURACOES_MODULOS_POR_CODIGO = {
+    item["codigo"]: item for item in CONFIGURACOES_MODULOS_DEFINICOES
+}
+
+CONFIGURACOES_GRUPOS_SIDEBAR = {
+    "cadastros": {
+        "nome": "Cadastros",
+        "modulos": ("cadastros",),
+    },
+    "produtos": {
+        "nome": "Produtos",
+        "modulos": ("produtos",),
+    },
+    "servicos": {
+        "nome": "Serviços",
+        "modulos": ("servicos",),
+    },
+    "orcamentos": {
+        "nome": "Orçamentos",
+        "modulos": ("orcamentos",),
+    },
+    "contratos": {
+        "nome": "Contratos",
+        "modulos": ("contratos",),
+    },
+    "vendas": {
+        "nome": "Vendas",
+        "modulos": ("vendas", "devolucoes"),
+    },
+    "ordens_servico": {
+        "nome": "Ordens de Serviço",
+        "modulos": ("ordens_servico",),
+    },
+    "gestao_atividades": {
+        "nome": "Gestão de Atividades",
+        "modulos": ("gestao_atividades",),
+    },
+    "estoque": {
+        "nome": "Estoque",
+        "modulos": ("estoque", "compras"),
+    },
+    "financeiro": {
+        "nome": "Financeiro",
+        "modulos": ("financeiro", "centros_custo_dre"),
+    },
+    "vitrine": {
+        "nome": "Vitrine Online",
+        "modulos": ("vitrine",),
+    },
+    "agendamentos": {
+        "nome": "Atendimento",
+        "modulos": ("agendamentos",),
+    },
+    "registro_ponto": {
+        "nome": "Registro de Ponto",
+        "modulos": ("registro_ponto",),
+    },
+    "sistema": {
+        "nome": "Sistema",
+        "modulos": ("gerais", "importacao_seguranca"),
+    },
+}
+
+CONFIGURACOES_GRUPO_POR_MODULO = {
+    codigo_modulo: codigo_grupo
+    for codigo_grupo, grupo in CONFIGURACOES_GRUPOS_SIDEBAR.items()
+    for codigo_modulo in grupo["modulos"]
+}
 
 GERADOR_ADICIONAIS_MAO_OBRA_TIPOS = [
     {"codigo": "hora_extra_sabado", "nome": "Hora extra de sábado"},
@@ -302,11 +1025,11 @@ GESTFLOW_SEGMENTOS_POR_CODIGO = {segmento["codigo"]: segmento for segmento in GE
 
 GESTFLOW_PERFIS_MODULOS = {
     "comercio": {"clientes", "fornecedores", "produtos", "vendas", "vitrine", "pdv", "devolucoes", "estoque", "financeiro"},
-    "servicos": {"clientes", "servicos", "orcamentos", "vendas", "vitrine", "financeiro", "agendamentos"},
-    "assistencia": {"clientes", "fornecedores", "funcionarios", "equipamentos", "produtos", "servicos", "orcamentos", "vendas", "vitrine", "ordens_servico", "estoque", "financeiro", "agendamentos", "registro_ponto", "gestao_atividades"},
-    "industrial": {"clientes", "fornecedores", "funcionarios", "equipamentos", "produtos", "servicos", "orcamentos", "gerador_orcamentos", "vendas", "ordens_servico", "painel_os", "estoque", "financeiro", "registro_ponto", "gestao_atividades"},
+    "servicos": {"clientes", "servicos", "orcamentos", "contratos", "vendas", "vitrine", "financeiro", "agendamentos"},
+    "assistencia": {"clientes", "fornecedores", "funcionarios", "equipamentos", "produtos", "servicos", "orcamentos", "contratos", "vendas", "vitrine", "ordens_servico", "estoque", "financeiro", "agendamentos", "registro_ponto", "gestao_atividades"},
+    "industrial": {"clientes", "fornecedores", "funcionarios", "equipamentos", "produtos", "servicos", "orcamentos", "gerador_orcamentos", "contratos", "vendas", "ordens_servico", "painel_os", "estoque", "financeiro", "registro_ponto", "gestao_atividades"},
     "distribuicao": {"clientes", "fornecedores", "produtos", "vendas", "vitrine", "devolucoes", "estoque", "financeiro"},
-    "locacao": {"clientes", "fornecedores", "funcionarios", "equipamentos", "produtos", "servicos", "orcamentos", "vendas", "ordens_servico", "estoque", "financeiro"},
+    "locacao": {"clientes", "fornecedores", "funcionarios", "equipamentos", "produtos", "servicos", "orcamentos", "contratos", "vendas", "ordens_servico", "estoque", "financeiro"},
     "completo": set(GESTFLOW_MODULOS_CODIGOS),
 }
 
@@ -419,18 +1142,18 @@ def sugerir_modulos_por_anamnese(dados: dict[str, Any]) -> dict[str, bool]:
     if "produtos" in operacao or "balcao" in operacao or "estoque" in operacao:
         ativos.update({"clientes", "produtos", "vendas", "estoque"})
     if "servicos" in operacao:
-        ativos.update({"clientes", "servicos", "orcamentos", "agendamentos"})
+        ativos.update({"clientes", "servicos", "orcamentos", "contratos", "agendamentos"})
     if "balcao" in operacao:
         ativos.update({"pdv", "devolucoes"})
     if "equipe_externa" in operacao or "ordem_servico" in operacao:
         ativos.update({"clientes", "funcionarios", "equipamentos", "servicos", "ordens_servico", "registro_ponto"})
     if "projetos_obras" in operacao:
-        ativos.update({"clientes", "fornecedores", "funcionarios", "produtos", "servicos", "orcamentos", "gerador_orcamentos", "ordens_servico", "financeiro", "registro_ponto"})
+        ativos.update({"clientes", "fornecedores", "funcionarios", "produtos", "servicos", "orcamentos", "gerador_orcamentos", "contratos", "ordens_servico", "financeiro", "registro_ponto"})
 
     if "orcamento" in comercial:
-        ativos.update({"clientes", "orcamentos"})
+        ativos.update({"clientes", "orcamentos", "contratos"})
     if "gerador" in comercial:
-        ativos.update({"clientes", "orcamentos", "gerador_orcamentos", "produtos", "servicos", "funcionarios"})
+        ativos.update({"clientes", "orcamentos", "gerador_orcamentos", "contratos", "produtos", "servicos", "funcionarios"})
     if "venda_direta" in comercial:
         ativos.update({"clientes", "vendas"})
     if "whatsapp" in comercial:
@@ -481,6 +1204,8 @@ def sugerir_modulos_por_anamnese(dados: dict[str, Any]) -> dict[str, bool]:
         ativos.update({"clientes", "produtos", "vendas"})
     if "gerador_orcamentos" in ativos:
         ativos.add("orcamentos")
+    if "contratos" in ativos:
+        ativos.add("clientes")
     if "painel_os" in ativos:
         ativos.add("ordens_servico")
     if "estoque" in ativos:
@@ -551,6 +1276,7 @@ def modulo_por_rota(path: str) -> str:
     regras = [
         ("/orcamentos/gerador", "gerador_orcamentos"),
         ("/orcamentos", "orcamentos"),
+        ("/contratos", "contratos"),
         ("/vendas/balcao", "pdv"),
         ("/vendas/devolucoes", "devolucoes"),
         ("/vendas", "vendas"),
@@ -804,6 +1530,12 @@ def acao_permissao_por_requisicao() -> str:
     endpoint = str(request.endpoint or "").strip().lower()
     caminho = str(request.path or "").strip().lower()
     metodo = str(request.method or "GET").upper()
+
+    if endpoint == "novo_contrato":
+        return "criar"
+
+    if endpoint == "editar_contrato":
+        return "editar"
 
     if metodo in {"GET", "HEAD", "OPTIONS"}:
         if any(token in endpoint or token in caminho for token in (
@@ -4009,16 +4741,44 @@ def listar_horarios_agendamento_publico(empresa_id: int, data_agendamento: Any, 
             parametros,
         ).fetchall()
 
-    ocupados = {str(row["hora_inicio"] or "")[:5] for row in rows}
+    configuracoes = buscar_configuracoes_modulo("agendamentos", empresa_id)
+    try:
+        data_escolhida = date.fromisoformat(data_iso)
+    except ValueError:
+        return []
+    nomes_dias = ["segunda", "terca", "quarta", "quinta", "sexta", "sabado", "domingo"]
+    dias_permitidos = {
+        _texto_comparacao_configuracao(item)
+        for item in lista_configuracao_modulo("agendamentos", "dias_atendimento", empresa_id)
+    }
+    if dias_permitidos and _texto_comparacao_configuracao(nomes_dias[data_escolhida.weekday()]) not in dias_permitidos:
+        return []
+    folgas = {str(item).strip()[:10] for item in lista_configuracao_modulo("agendamentos", "feriados_folgas", empresa_id)}
+    if data_iso in folgas:
+        return []
+
+    ocupados: dict[str, int] = {}
+    for row in rows:
+        hora_ocupada = str(row["hora_inicio"] or "")[:5]
+        ocupados[hora_ocupada] = ocupados.get(hora_ocupada, 0) + 1
     horarios: list[str] = []
 
-    inicio = 8 * 60
-    fim = 18 * 60
-    passo = 30
+    def minutos_hora(valor: Any, padrao: int) -> int:
+        try:
+            hora, minuto = str(valor or "").split(":", 1)
+            return int(hora) * 60 + int(minuto[:2])
+        except (TypeError, ValueError):
+            return padrao
 
-    for minuto_total in range(inicio, fim + 1, passo):
+    inicio = minutos_hora(configuracoes.get("horario_inicio"), 8 * 60)
+    fim = minutos_hora(configuracoes.get("horario_fim"), 18 * 60)
+    passo = max(5, int(float(configuracoes.get("intervalo_minutos") or 30)))
+    duracao = max(5, int(float(configuracoes.get("duracao_padrao_minutos") or 60)))
+    limite_simultaneo = max(1, int(float(configuracoes.get("limite_simultaneo") or 1)))
+
+    for minuto_total in range(inicio, max(inicio, fim - duracao) + 1, passo):
         hora = f"{minuto_total // 60:02d}:{minuto_total % 60:02d}"
-        if hora not in ocupados:
+        if ocupados.get(hora, 0) < limite_simultaneo:
             horarios.append(hora)
 
     return horarios
@@ -4049,7 +4809,8 @@ def salvar_agendamento_publico_db(empresa_id: int, cliente: dict[str, Any], dado
 
     if not hora_fim and hora_inicio:
         try:
-            base = datetime.strptime(hora_inicio, "%H:%M") + timedelta(minutes=30)
+            duracao = int(float(valor_configuracao_modulo("agendamentos", "duracao_padrao_minutos", 60, empresa_id) or 60))
+            base = datetime.strptime(hora_inicio, "%H:%M") + timedelta(minutes=duracao)
             hora_fim = base.strftime("%H:%M")
         except ValueError:
             hora_fim = ""
@@ -4088,7 +4849,7 @@ def salvar_agendamento_publico_db(empresa_id: int, cliente: dict[str, Any], dado
                 data_agendamento,
                 hora_inicio,
                 hora_fim,
-                "agendado",
+                "agendado" if configuracao_bool("agendamentos", "confirmacao_automatica", True, empresa_id) else "pendente",
                 str(dados.get("valor") or ""),
                 str(dados.get("observacoes") or ""),
                 "link_publico",
@@ -4186,6 +4947,8 @@ def atualizar_cliente_db(cliente_id: int, cliente: dict[str, str]) -> None:
 
 def excluir_cliente_db(cliente_id: int) -> None:
     empresa_id = empresa_logada_id()
+    if aplicar_exclusao_logica_configurada("clientes", cliente_id, "inativo"):
+        return
 
     with conectar_db() as conn:
         conn.execute(
@@ -4324,6 +5087,8 @@ def atualizar_fornecedor_db(fornecedor_id: int, fornecedor: dict[str, str]) -> N
 
 def excluir_fornecedor_db(fornecedor_id: int) -> None:
     empresa_id = empresa_logada_id()
+    if aplicar_exclusao_logica_configurada("fornecedores", fornecedor_id, "inativo"):
+        return
 
     with conectar_db() as conn:
         conn.execute(
@@ -4585,6 +5350,8 @@ def atualizar_funcionario_db(funcionario_id: int, funcionario: dict[str, str]) -
 
 def excluir_funcionario_db(funcionario_id: int) -> None:
     empresa_id = empresa_logada_id()
+    if aplicar_exclusao_logica_configurada("funcionarios", funcionario_id, "inativo"):
+        return
 
     with conectar_db() as conn:
         conn.execute(
@@ -5660,6 +6427,8 @@ def produzir_produto_db(
 
 def excluir_produto_db(produto_id: int) -> None:
     empresa_id = empresa_logada_id()
+    if aplicar_exclusao_logica_configurada("produtos", produto_id, "inativo"):
+        return
 
     with conectar_db() as conn:
         conn.execute("BEGIN IMMEDIATE")
@@ -5729,11 +6498,11 @@ def listar_estoque_movimentacoes(limite: int = 100, produto_id: int | None = Non
 
     return [dict(row) for row in rows]
 
-def salvar_estoque_movimentacao_db(movimentacao: dict[str, str]) -> None:
+def salvar_estoque_movimentacao_db(movimentacao: dict[str, str]) -> int:
     empresa_id = empresa_logada_id()
 
     with conectar_db() as conn:
-        conn.execute(
+        cursor = conn.execute(
             """
             INSERT INTO estoque_movimentacoes (
                 empresa_id,
@@ -5764,21 +6533,24 @@ def salvar_estoque_movimentacao_db(movimentacao: dict[str, str]) -> None:
             ),
         )
 
-        conn.execute(
-            """
-            UPDATE produtos
-            SET estoque_atual = ?
-            WHERE id = ?
-              AND empresa_id = ?
-            """,
-            (
-                movimentacao["saldo_atual"],
-                movimentacao["produto_id"],
-                empresa_id,
-            ),
-        )
+        if str(movimentacao.get("tipo") or "") != "compra":
+            conn.execute(
+                """
+                UPDATE produtos
+                SET estoque_atual = ?
+                WHERE id = ?
+                  AND empresa_id = ?
+                """,
+                (
+                    movimentacao["saldo_atual"],
+                    movimentacao["produto_id"],
+                    empresa_id,
+                ),
+            )
 
         conn.commit()
+
+    return int(cursor.lastrowid)
 
 
 def _fornecedor_compra_por_motivo(motivo: Any) -> str:
@@ -5842,7 +6614,7 @@ def listar_compras_estoque(limite: int = 200) -> list[dict[str, Any]]:
                 criado_em
             FROM estoque_movimentacoes
             WHERE empresa_id = ?
-              AND tipo = 'entrada'
+              AND tipo IN ('entrada', 'compra')
               AND motivo LIKE 'Compra de produto%'
             ORDER BY id DESC
             LIMIT ?
@@ -5876,7 +6648,7 @@ def buscar_compra_estoque_por_id(compra_id: int) -> dict[str, Any] | None:
             FROM estoque_movimentacoes
             WHERE id = ?
               AND empresa_id = ?
-              AND tipo = 'entrada'
+              AND tipo IN ('entrada', 'compra')
               AND motivo LIKE 'Compra de produto%'
             LIMIT 1
             """,
@@ -5969,6 +6741,33 @@ def atualizar_compra_estoque_db(compra_id: int, compra: dict[str, str]) -> bool:
             conn.rollback()
             return False
 
+        if str(compra_atual.get("tipo") or "") == "compra":
+            saldo_atual_sem_entrada = _converter_valor_brl(produto_novo_row["estoque_atual"])
+            conn.execute(
+                """
+                UPDATE estoque_movimentacoes
+                SET produto_id = ?, produto_nome = ?, quantidade = ?,
+                    saldo_anterior = ?, saldo_atual = ?, motivo = ?, documento = ?,
+                    responsavel = ?, observacoes = ?
+                WHERE id = ? AND empresa_id = ? AND tipo = 'compra'
+                """,
+                (
+                    produto_novo_id,
+                    str(produto_novo_row["nome"] or ""),
+                    _formatar_numero_estoque(quantidade_nova),
+                    _formatar_numero_estoque(saldo_atual_sem_entrada),
+                    _formatar_numero_estoque(saldo_atual_sem_entrada),
+                    motivo,
+                    compra["documento"],
+                    compra["responsavel"],
+                    observacoes,
+                    compra_id,
+                    empresa_id,
+                ),
+            )
+            conn.commit()
+            return True
+
         if produto_antigo_id == produto_novo_id:
             saldo_atual_antes = _converter_valor_brl(produto_novo_row["estoque_atual"])
             saldo_base = saldo_atual_antes - quantidade_antiga
@@ -6043,6 +6842,19 @@ def excluir_compra_estoque_db(compra_id: int) -> bool:
     produto_id = int(compra["produto_id"])
     quantidade = _converter_valor_brl(compra.get("quantidade"))
 
+    if str(compra.get("tipo") or "") == "compra":
+        with conectar_db() as conn:
+            conn.execute(
+                """
+                DELETE FROM estoque_movimentacoes
+                WHERE id = ? AND empresa_id = ? AND tipo = 'compra'
+                  AND motivo LIKE 'Compra de produto%'
+                """,
+                (compra_id, empresa_id),
+            )
+            conn.commit()
+        return True
+
     with conectar_db() as conn:
         conn.execute("BEGIN IMMEDIATE")
         produto = conn.execute(
@@ -6077,7 +6889,7 @@ def excluir_compra_estoque_db(compra_id: int) -> bool:
             DELETE FROM estoque_movimentacoes
             WHERE id = ?
               AND empresa_id = ?
-              AND tipo = 'entrada'
+              AND tipo IN ('entrada', 'compra')
               AND motivo LIKE 'Compra de produto%'
             """,
             (compra_id, empresa_id),
@@ -6176,6 +6988,10 @@ def buscar_produto_por_descricao_item(descricao: Any) -> dict[str, Any] | None:
 
 
 def baixar_estoque_por_venda_db(venda_id: int, venda: dict[str, str], itens: list[dict[str, str]]) -> None:
+    if not configuracao_bool("vendas", "baixar_estoque", True):
+        return
+    if "vendas" not in {_texto_comparacao_configuracao(item) for item in lista_configuracao_modulo("estoque", "integracoes")}:
+        return
     status_venda = str(venda.get("status") or "").strip()
 
     if status_venda == "cancelada":
@@ -6207,6 +7023,13 @@ def baixar_estoque_por_venda_db(venda_id: int, venda: dict[str, str], itens: lis
 
         saldo_anterior_numero = _converter_valor_brl(produto.get("estoque_atual"))
         saldo_atual_numero = saldo_anterior_numero - quantidade
+
+        permite_negativo = configuracao_bool("vendas", "permitir_sem_estoque", False) or configuracao_bool("estoque", "permitir_negativo", False)
+        if saldo_atual_numero < 0 and not permite_negativo:
+            raise ValueError(
+                f"Estoque insuficiente para {produto.get('nome') or descricao}. "
+                "A venda foi gravada, mas a baixa foi bloqueada pelas configurações."
+            )
 
         movimentacao = {
             "produto_id": str(produto.get("id") or ""),
@@ -6258,6 +7081,8 @@ def devolver_estoque_por_venda_db(
     responsavel: str = "",
     observacoes: str = "",
 ) -> None:
+    if not configuracao_bool("devolucoes", "retornar_estoque", True):
+        return
     numero_venda = str(venda.get("numero") or venda_id).strip() or str(venda_id)
     responsavel = str(responsavel or venda.get("responsavel") or "").strip()
     observacoes = str(observacoes or "").strip()
@@ -6437,6 +7262,8 @@ def atualizar_servico_db(servico_id: int, servico: dict[str, str]) -> None:
 
 def excluir_servico_db(servico_id: int) -> None:
     empresa_id = empresa_logada_id()
+    if aplicar_exclusao_logica_configurada("servicos", servico_id, "inativo"):
+        return
 
     with conectar_db() as conn:
         conn.execute(
@@ -6814,15 +7641,7 @@ def ver_atividade_financeira(atividade_id: int) -> str | Response:
 
 
 def _ano_numero_orcamento(data_orcamento: Any = None) -> int:
-    texto = str(data_orcamento or "").strip()
-
-    if texto:
-        try:
-            return date.fromisoformat(texto[:10]).year
-        except ValueError:
-            pass
-
-    return hoje_empresa().year
+    return ano_sequencia_documento_configurado("orcamentos", data_orcamento)
 
 
 def _maior_sequencia_orcamento_existente(
@@ -6830,6 +7649,7 @@ def _maior_sequencia_orcamento_existente(
     empresa_id: int,
     ano: int,
 ) -> int:
+    prefixo = prefixo_documento_configurado("orcamentos", "ORC")
     rows = conn.execute(
         """
         SELECT numero, data, criado_em
@@ -6842,18 +7662,16 @@ def _maior_sequencia_orcamento_existente(
 
     for row in rows:
         numero = str(row["numero"] or "").strip()
-        correspondencia = re.fullmatch(r"ORC-(\d{4})-(\d+)", numero, flags=re.IGNORECASE)
-
-        if correspondencia is not None:
-            if int(correspondencia.group(1)) == ano:
-                maior = max(maior, int(correspondencia.group(2)))
+        sequencia_configurada = extrair_sequencia_documento_configurado(numero, prefixo, ano)
+        if sequencia_configurada is not None:
+            maior = max(maior, sequencia_configurada)
             continue
 
         if not numero.isdigit():
             continue
 
         data_registro = str(row["data"] or row["criado_em"] or "").strip()
-        if _ano_numero_orcamento(data_registro) == ano:
+        if ano == 0 or _ano_numero_orcamento(data_registro) == ano:
             maior = max(maior, int(numero))
 
     return maior
@@ -6901,7 +7719,7 @@ def _proximo_numero_orcamento_conn(
             ),
         )
 
-    return f"ORC-{ano}-{proximo:04d}"
+    return formatar_numero_documento_configurado("orcamentos", "ORC", ano, proximo)
 
 
 def proximo_numero_orcamento(data_orcamento: Any = None) -> str:
@@ -9126,6 +9944,8 @@ def atualizar_orcamento_db(
 
 def excluir_orcamento_db(orcamento_id: int) -> None:
     empresa_id = empresa_logada_id()
+    if aplicar_exclusao_logica_configurada("orcamentos", orcamento_id, "cancelado"):
+        return
 
     with conectar_db() as conn:
         for tabela in (
@@ -9407,6 +10227,18 @@ def validar_venda_para_salvar(venda: dict[str, str], itens: list[dict[str, str]]
 
     if not _valor_formulario_positivo(venda["valor_total"]):
         return "O valor total da venda precisa ser maior que zero."
+
+    permite_negativo = configuracao_bool("vendas", "permitir_sem_estoque", False) or configuracao_bool("estoque", "permitir_negativo", False)
+    if configuracao_bool("vendas", "baixar_estoque", True) and not permite_negativo:
+        for item in itens:
+            if str(item.get("tipo_item") or "").strip() != "produto":
+                continue
+            produto = buscar_produto_por_descricao_item(item.get("descricao"))
+            if produto is None:
+                continue
+            quantidade = _converter_valor_brl(item.get("quantidade")) or 1.0
+            if _converter_valor_brl(produto.get("estoque_atual")) < quantidade:
+                return f"Estoque insuficiente para {produto.get('nome') or item.get('descricao')}."
 
     return ""
 
@@ -10343,7 +11175,7 @@ def atualizar_orcamento_por_gerador_db(orcamento_id: int, dados: dict[str, Any])
 
 
 def _ano_numero_venda(data_venda: Any = None) -> int:
-    return _ano_numero_orcamento(data_venda)
+    return ano_sequencia_documento_configurado("vendas", data_venda)
 
 
 def _maior_sequencia_venda_existente(
@@ -10351,6 +11183,7 @@ def _maior_sequencia_venda_existente(
     empresa_id: int,
     ano: int,
 ) -> int:
+    prefixo = prefixo_documento_configurado("vendas", "VEN")
     rows = conn.execute(
         """
         SELECT numero, data, criado_em
@@ -10363,18 +11196,16 @@ def _maior_sequencia_venda_existente(
 
     for row in rows:
         numero = str(row["numero"] or "").strip()
-        correspondencia = re.fullmatch(r"VEN-(\d{4})-(\d+)", numero, flags=re.IGNORECASE)
-
-        if correspondencia is not None:
-            if int(correspondencia.group(1)) == ano:
-                maior = max(maior, int(correspondencia.group(2)))
+        sequencia_configurada = extrair_sequencia_documento_configurado(numero, prefixo, ano)
+        if sequencia_configurada is not None:
+            maior = max(maior, sequencia_configurada)
             continue
 
         if not numero.isdigit():
             continue
 
         data_registro = str(row["data"] or row["criado_em"] or "").strip()
-        if _ano_numero_venda(data_registro) == ano:
+        if ano == 0 or _ano_numero_venda(data_registro) == ano:
             maior = max(maior, int(numero))
 
     return maior
@@ -10422,7 +11253,7 @@ def _proximo_numero_venda_conn(
             ),
         )
 
-    return f"VEN-{ano}-{proximo:04d}"
+    return formatar_numero_documento_configurado("vendas", "VEN", ano, proximo)
 
 
 def proximo_numero_venda(data_venda: Any = None) -> str:
@@ -10961,6 +11792,8 @@ def atualizar_venda_db(venda_id: int, venda: dict[str, str], itens: list[dict[st
 
 def excluir_venda_db(venda_id: int) -> None:
     empresa_id = empresa_logada_id()
+    if aplicar_exclusao_logica_configurada("vendas", venda_id, "cancelada"):
+        return
 
     with conectar_db() as conn:
         conn.execute(
@@ -11052,7 +11885,7 @@ def montar_venda_itens_formulario() -> list[dict[str, str]]:
 
 
 def _ano_numero_ordem_servico(data_abertura: Any = None) -> int:
-    return _ano_numero_orcamento(data_abertura)
+    return ano_sequencia_documento_configurado("ordens_servico", data_abertura)
 
 
 def _maior_sequencia_ordem_servico_existente(
@@ -11060,6 +11893,7 @@ def _maior_sequencia_ordem_servico_existente(
     empresa_id: int,
     ano: int,
 ) -> int:
+    prefixo = prefixo_documento_configurado("ordens_servico", "OS")
     rows = conn.execute(
         """
         SELECT numero, data_abertura, criado_em
@@ -11072,18 +11906,16 @@ def _maior_sequencia_ordem_servico_existente(
 
     for row in rows:
         numero = str(row["numero"] or "").strip()
-        correspondencia = re.fullmatch(r"OS-(\d{4})-(\d+)", numero, flags=re.IGNORECASE)
-
-        if correspondencia is not None:
-            if int(correspondencia.group(1)) == ano:
-                maior = max(maior, int(correspondencia.group(2)))
+        sequencia_configurada = extrair_sequencia_documento_configurado(numero, prefixo, ano)
+        if sequencia_configurada is not None:
+            maior = max(maior, sequencia_configurada)
             continue
 
         if not numero.isdigit():
             continue
 
         data_registro = str(row["data_abertura"] or row["criado_em"] or "").strip()
-        if _ano_numero_ordem_servico(data_registro) == ano:
+        if ano == 0 or _ano_numero_ordem_servico(data_registro) == ano:
             maior = max(maior, int(numero))
 
     return maior
@@ -11131,7 +11963,7 @@ def _proximo_numero_ordem_servico_conn(
             ),
         )
 
-    return f"OS-{ano}-{proximo:04d}"
+    return formatar_numero_documento_configurado("ordens_servico", "OS", ano, proximo)
 
 
 def proximo_numero_ordem_servico(data_abertura: Any = None) -> str:
@@ -13653,6 +14485,15 @@ def excluir_financeiro_titulo_db(titulo_id: int) -> bool:
     if not titulo.get("pode_excluir"):
         return False
 
+    if aplicar_exclusao_logica_configurada("financeiro_titulos", titulo_id, "cancelado"):
+        registrar_historico_financeiro_titulo_db(
+            titulo_id,
+            "cancelado",
+            "Título cancelado pela regra de exclusão lógica.",
+            dados_anteriores=titulo,
+        )
+        return True
+
     with conectar_db() as conn:
         registrar_historico_financeiro_titulo_db(
             titulo_id,
@@ -14026,6 +14867,11 @@ def gerar_conta_receber_por_venda_db(
     recriar: bool = False,
     venda_anterior: dict[str, Any] | None = None,
 ) -> None:
+    if not configuracao_bool("vendas", "gerar_contas_receber", True):
+        return
+    integracoes = {_texto_comparacao_configuracao(item) for item in lista_configuracao_modulo("financeiro", "integracoes")}
+    if integracoes and "vendas" not in integracoes:
+        return
     if recriar:
         sincronizar_titulos_financeiros_venda_db(venda_id, venda, venda_anterior=venda_anterior)
         return
@@ -14354,6 +15200,8 @@ def montar_painel_ordens_servico() -> dict[str, Any]:
 
 def excluir_ordem_servico_db(ordem_servico_id: int) -> None:
     empresa_id = empresa_logada_id()
+    if aplicar_exclusao_logica_configurada("ordens_servico", ordem_servico_id, "cancelada"):
+        return
 
     with conectar_db() as conn:
         conn.execute(
@@ -15223,6 +16071,1380 @@ def montar_configuracoes_contexto() -> dict[str, Any]:
         "modulos_permissoes": GESTFLOW_MODULOS_PERMISSOES,
         "acoes_permissao": GESTFLOW_ACOES_PERMISSAO,
     }
+
+
+def garantir_estrutura_configuracoes_modulos() -> None:
+    with conectar_db() as conn:
+        cursor = conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS configuracoes_modulos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER NOT NULL,
+                modulo TEXT NOT NULL,
+                configuracoes_json TEXT NOT NULL DEFAULT '{}',
+                atualizado_por_usuario_id INTEGER,
+                atualizado_por_nome TEXT,
+                criado_em TEXT NOT NULL,
+                atualizado_em TEXT NOT NULL,
+                UNIQUE (empresa_id, modulo),
+                FOREIGN KEY (empresa_id) REFERENCES empresas (id),
+                FOREIGN KEY (atualizado_por_usuario_id) REFERENCES usuarios (id)
+            )
+            """
+        )
+        cursor = conn.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_configuracoes_modulos_empresa_modulo
+            ON configuracoes_modulos (empresa_id, modulo)
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS configuracoes_modulos_auditoria (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER NOT NULL,
+                modulo TEXT NOT NULL,
+                acao TEXT NOT NULL,
+                valores_anteriores_json TEXT NOT NULL DEFAULT '{}',
+                valores_novos_json TEXT NOT NULL DEFAULT '{}',
+                usuario_id INTEGER,
+                usuario_nome TEXT,
+                criado_em TEXT NOT NULL,
+                FOREIGN KEY (empresa_id) REFERENCES empresas (id),
+                FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_config_modulos_auditoria_empresa
+            ON configuracoes_modulos_auditoria (empresa_id, modulo, id DESC)
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS configuracoes_entidades (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER NOT NULL,
+                modulo TEXT NOT NULL,
+                entidade TEXT NOT NULL,
+                registro_id INTEGER NOT NULL,
+                dados_json TEXT NOT NULL DEFAULT '{}',
+                criado_em TEXT NOT NULL,
+                atualizado_em TEXT NOT NULL,
+                UNIQUE (empresa_id, modulo, entidade, registro_id),
+                FOREIGN KEY (empresa_id) REFERENCES empresas (id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_config_entidades_registro
+            ON configuracoes_entidades (empresa_id, modulo, entidade, registro_id)
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS configuracoes_operacoes_automaticas (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER NOT NULL,
+                modulo TEXT NOT NULL,
+                entidade TEXT NOT NULL,
+                registro_id INTEGER NOT NULL,
+                operacao TEXT NOT NULL,
+                referencia TEXT NOT NULL DEFAULT '',
+                executado_em TEXT NOT NULL,
+                detalhes_json TEXT NOT NULL DEFAULT '{}',
+                UNIQUE (empresa_id, modulo, entidade, registro_id, operacao, referencia),
+                FOREIGN KEY (empresa_id) REFERENCES empresas (id)
+            )
+            """
+        )
+        conn.commit()
+
+
+def buscar_definicao_configuracao_modulo(codigo: Any) -> dict[str, Any] | None:
+    codigo_normalizado = str(codigo or "").strip().lower()
+    definicao = CONFIGURACOES_MODULOS_POR_CODIGO.get(codigo_normalizado)
+    return dict(definicao) if definicao else None
+
+
+def _padroes_configuracao_modulo(definicao: dict[str, Any]) -> dict[str, Any]:
+    return {
+        str(campo["chave"]): campo.get("padrao", "")
+        for campo in definicao.get("campos", [])
+    }
+
+
+def buscar_configuracoes_modulo(
+    codigo: Any,
+    empresa_id: int | None = None,
+) -> dict[str, Any]:
+    definicao = buscar_definicao_configuracao_modulo(codigo)
+    if definicao is None:
+        return {}
+
+    valores = _padroes_configuracao_modulo(definicao)
+    empresa = int(empresa_id or empresa_logada_id())
+
+    try:
+        with conectar_db() as conn:
+            row = conn.execute(
+                """
+                SELECT configuracoes_json
+                FROM configuracoes_modulos
+                WHERE empresa_id = ? AND modulo = ?
+                LIMIT 1
+                """,
+                (empresa, definicao["codigo"]),
+            ).fetchone()
+    except sqlite3.Error:
+        return valores
+
+    if row is None:
+        return valores
+
+    try:
+        salvos = json.loads(str(row["configuracoes_json"] or "{}"))
+    except (TypeError, ValueError, json.JSONDecodeError):
+        salvos = {}
+
+    if isinstance(salvos, dict):
+        chaves_validas = set(valores)
+        valores.update(
+            {
+                str(chave): valor
+                for chave, valor in salvos.items()
+                if str(chave) in chaves_validas
+            }
+        )
+
+    return valores
+
+
+def buscar_metadados_configuracao_modulo(codigo: Any) -> dict[str, Any]:
+    definicao = buscar_definicao_configuracao_modulo(codigo)
+    if definicao is None:
+        return {}
+
+    try:
+        with conectar_db() as conn:
+            row = conn.execute(
+                """
+                SELECT
+                    atualizado_por_usuario_id,
+                    atualizado_por_nome,
+                    criado_em,
+                    atualizado_em
+                FROM configuracoes_modulos
+                WHERE empresa_id = ? AND modulo = ?
+                LIMIT 1
+                """,
+                (empresa_logada_id(), definicao["codigo"]),
+            ).fetchone()
+    except sqlite3.Error:
+        return {}
+
+    return dict(row) if row else {}
+
+
+def valor_configuracao_modulo(
+    modulo: Any,
+    chave: Any,
+    padrao: Any = None,
+    empresa_id: int | None = None,
+) -> Any:
+    valores = buscar_configuracoes_modulo(modulo, empresa_id)
+    return valores.get(str(chave or "").strip(), padrao)
+
+
+def lista_configuracao_modulo(
+    modulo: Any,
+    chave: Any,
+    empresa_id: int | None = None,
+) -> list[str]:
+    valor = valor_configuracao_modulo(modulo, chave, "", empresa_id)
+    if isinstance(valor, list):
+        return [str(item).strip() for item in valor if str(item).strip()]
+    return [linha.strip() for linha in str(valor or "").splitlines() if linha.strip()]
+
+
+def prefixo_documento_configurado(modulo: str, padrao: str) -> str:
+    valor = str(
+        valor_configuracao_modulo(modulo, "prefixo_numero", padrao) or padrao
+    ).strip().upper()
+    prefixo = "".join(caractere for caractere in valor if caractere.isalnum())[:12]
+    return prefixo or padrao
+
+
+def ano_sequencia_documento_configurado(
+    modulo: str,
+    data_documento: Any = None,
+) -> int:
+    if str(valor_configuracao_modulo(modulo, "reinicio_numeracao", "anual") or "anual") == "continuo":
+        return 0
+    texto = str(data_documento or "").strip()
+    if texto:
+        try:
+            return date.fromisoformat(texto[:10]).year
+        except ValueError:
+            pass
+    return hoje_empresa().year
+
+
+def formatar_numero_documento_configurado(
+    modulo: str,
+    prefixo_padrao: str,
+    ano: int,
+    sequencia: int,
+) -> str:
+    prefixo = prefixo_documento_configurado(modulo, prefixo_padrao)
+    if ano == 0:
+        return f"{prefixo}-{sequencia:06d}"
+    return f"{prefixo}-{ano}-{sequencia:04d}"
+
+
+def extrair_sequencia_documento_configurado(
+    numero: Any,
+    prefixo: str,
+    ano: int,
+) -> int | None:
+    texto = str(numero or "").strip()
+    if ano == 0:
+        correspondencia = re.fullmatch(rf"{re.escape(prefixo)}-(\d+)", texto, flags=re.IGNORECASE)
+        return int(correspondencia.group(1)) if correspondencia else None
+    correspondencia = re.fullmatch(
+        rf"{re.escape(prefixo)}-(\d{{4}})-(\d+)",
+        texto,
+        flags=re.IGNORECASE,
+    )
+    if correspondencia is None or int(correspondencia.group(1)) != ano:
+        return None
+    return int(correspondencia.group(2))
+
+
+def _normalizar_numero_configuracao(
+    valor: Any,
+    campo: dict[str, Any],
+) -> int | float:
+    texto = str(valor or "").strip().replace(" ", "").replace(",", ".")
+    if not texto:
+        numero = float(campo.get("padrao") or 0)
+    else:
+        try:
+            numero = float(texto)
+        except ValueError as erro:
+            raise ValueError(f"Informe um número válido em “{campo['nome']}”.") from erro
+
+    minimo = campo.get("minimo")
+    maximo = campo.get("maximo")
+    if minimo is not None and numero < float(minimo):
+        raise ValueError(f"“{campo['nome']}” deve ser maior ou igual a {minimo}.")
+    if maximo is not None and numero > float(maximo):
+        raise ValueError(f"“{campo['nome']}” deve ser menor ou igual a {maximo}.")
+
+    return int(numero) if numero.is_integer() else round(numero, 6)
+
+
+def montar_configuracoes_modulo_formulario(
+    definicao: dict[str, Any],
+) -> dict[str, Any]:
+    valores: dict[str, Any] = {}
+
+    for campo in definicao.get("campos", []):
+        chave = str(campo["chave"])
+        tipo = str(campo.get("tipo") or "texto")
+
+        if tipo == "booleano":
+            valores[chave] = request.form.get(chave) == "sim"
+            continue
+
+        valor_bruto = request.form.get(chave, "")
+
+        if tipo == "numero":
+            valores[chave] = _normalizar_numero_configuracao(valor_bruto, campo)
+            continue
+
+        valor = str(valor_bruto or "").strip()
+        limite = 30000 if tipo in {"lista", "texto_longo"} else 500
+        if len(valor) > limite:
+            raise ValueError(f"“{campo['nome']}” ultrapassou o limite de {limite} caracteres.")
+
+        if tipo == "email" and valor and not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", valor):
+            raise ValueError(f"Informe um e-mail válido em “{campo['nome']}”.")
+
+        if tipo == "selecao":
+            opcoes_validas = {
+                str(opcao.get("valor") or "")
+                for opcao in campo.get("opcoes", [])
+            }
+            if valor not in opcoes_validas:
+                raise ValueError(f"Selecione uma opção válida em “{campo['nome']}”.")
+
+        valores[chave] = valor
+
+    return valores
+
+
+def registrar_auditoria_configuracao_modulo_db(
+    modulo: str,
+    acao: str,
+    valores_anteriores: dict[str, Any],
+    valores_novos: dict[str, Any],
+) -> None:
+    if not bool(valor_configuracao_modulo("gerais", "auditoria_ativa", True)):
+        return
+
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            INSERT INTO configuracoes_modulos_auditoria (
+                empresa_id, modulo, acao,
+                valores_anteriores_json, valores_novos_json,
+                usuario_id, usuario_nome, criado_em
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                empresa_logada_id(),
+                modulo,
+                acao,
+                json.dumps(valores_anteriores, ensure_ascii=False, sort_keys=True),
+                json.dumps(valores_novos, ensure_ascii=False, sort_keys=True),
+                int(session.get("usuario_id") or 0) or None,
+                str(session.get("usuario_nome") or "").strip(),
+                agora_empresa().isoformat(timespec="seconds"),
+            ),
+        )
+        conn.commit()
+
+
+def salvar_configuracoes_modulo_db(
+    codigo: str,
+    valores: dict[str, Any],
+) -> None:
+    valores_anteriores = buscar_configuracoes_modulo(codigo)
+    agora = agora_empresa().isoformat(timespec="seconds")
+    usuario_id = int(session.get("usuario_id") or 0) or None
+    usuario_nome = str(session.get("usuario_nome") or "").strip()
+
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            INSERT INTO configuracoes_modulos (
+                empresa_id,
+                modulo,
+                configuracoes_json,
+                atualizado_por_usuario_id,
+                atualizado_por_nome,
+                criado_em,
+                atualizado_em
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT (empresa_id, modulo) DO UPDATE SET
+                configuracoes_json = excluded.configuracoes_json,
+                atualizado_por_usuario_id = excluded.atualizado_por_usuario_id,
+                atualizado_por_nome = excluded.atualizado_por_nome,
+                atualizado_em = excluded.atualizado_em
+            """,
+            (
+                empresa_logada_id(),
+                codigo,
+                json.dumps(valores, ensure_ascii=False, sort_keys=True),
+                usuario_id,
+                usuario_nome,
+                agora,
+                agora,
+            ),
+        )
+        conn.commit()
+
+    registrar_auditoria_configuracao_modulo_db(
+        codigo,
+        "salvar",
+        valores_anteriores,
+        valores,
+    )
+    sincronizar_configuracoes_modulo_operacional(codigo, valores)
+
+
+def restaurar_configuracoes_modulo_db(codigo: str) -> None:
+    valores_anteriores = buscar_configuracoes_modulo(codigo)
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            DELETE FROM configuracoes_modulos
+            WHERE empresa_id = ? AND modulo = ?
+            """,
+            (empresa_logada_id(), codigo),
+        )
+        conn.commit()
+
+    registrar_auditoria_configuracao_modulo_db(
+        codigo,
+        "restaurar",
+        valores_anteriores,
+        buscar_configuracoes_modulo(codigo),
+    )
+    sincronizar_configuracoes_modulo_operacional(
+        codigo,
+        buscar_configuracoes_modulo(codigo),
+    )
+
+
+def validar_configuracoes_modulo_operacional(
+    codigo: str,
+    valores: dict[str, Any],
+) -> str:
+    if codigo != "vitrine":
+        return ""
+    slug = normalizar_slug_vitrine(valores.get("slug"))
+    if not slug:
+        return ""
+    with conectar_db() as conn:
+        existente = conn.execute(
+            "SELECT empresa_id FROM vitrine_configuracoes WHERE slug = ? AND empresa_id <> ? LIMIT 1",
+            (slug, empresa_logada_id()),
+        ).fetchone()
+    if existente is not None:
+        return "O endereço público da Vitrine já está em uso por outra empresa."
+    valores["slug"] = slug
+    return ""
+
+
+def sincronizar_configuracoes_modulo_operacional(
+    codigo: str,
+    valores: dict[str, Any],
+) -> None:
+    if codigo != "vitrine":
+        return
+    empresa_id = empresa_logada_id()
+    agora = agora_empresa().isoformat(timespec="seconds")
+    with conectar_db() as conn:
+        atual_row = conn.execute(
+            "SELECT * FROM vitrine_configuracoes WHERE empresa_id = ? LIMIT 1",
+            (empresa_id,),
+        ).fetchone()
+        atual = dict(atual_row) if atual_row is not None else {}
+        nome = str(valores.get("nome_publico") or atual.get("nome_loja") or "").strip()
+        slug = normalizar_slug_vitrine(valores.get("slug") or atual.get("slug") or nome or f"loja-{empresa_id}")
+        whatsapp = str(valores.get("whatsapp") or atual.get("whatsapp") or "").strip()
+        cor_principal = str(valores.get("cor_primaria") or atual.get("cor_principal") or "#1458f5").strip()
+        cor_secundaria = str(valores.get("cor_secundaria") or atual.get("cor_secundaria") or "#0f172a").strip()
+        if atual_row is None:
+            conn.execute(
+                """
+                INSERT INTO vitrine_configuracoes (
+                    empresa_id, nome_loja, whatsapp, slug,
+                    cor_principal, cor_secundaria, template, status, atualizado_em
+                ) VALUES (?, ?, ?, ?, ?, ?, 'catalogo-premium', 'rascunho', ?)
+                """,
+                (empresa_id, nome, whatsapp, slug, cor_principal, cor_secundaria, agora),
+            )
+        else:
+            conn.execute(
+                """
+                UPDATE vitrine_configuracoes
+                SET nome_loja = ?, whatsapp = ?, slug = ?,
+                    cor_principal = ?, cor_secundaria = ?, atualizado_em = ?
+                WHERE empresa_id = ?
+                """,
+                (nome, whatsapp, slug, cor_principal, cor_secundaria, agora, empresa_id),
+            )
+        conn.commit()
+
+
+def montar_contexto_regras_modulos(
+    codigo: Any = None,
+    grupo: Any = None,
+) -> dict[str, Any]:
+    grupo_normalizado = str(grupo or "").strip().lower()
+    codigo_normalizado = str(codigo or "").strip().lower()
+
+    if grupo_normalizado not in CONFIGURACOES_GRUPOS_SIDEBAR:
+        grupo_normalizado = CONFIGURACOES_GRUPO_POR_MODULO.get(
+            codigo_normalizado,
+            "sistema",
+        )
+
+    grupo_definicao = {
+        "codigo": grupo_normalizado,
+        **CONFIGURACOES_GRUPOS_SIDEBAR[grupo_normalizado],
+    }
+    codigos_grupo = tuple(grupo_definicao["modulos"])
+    if codigo_normalizado not in codigos_grupo:
+        codigo_normalizado = codigos_grupo[0]
+
+    definicao = CONFIGURACOES_MODULOS_POR_CODIGO[codigo_normalizado]
+    modulos_grupo = [
+        CONFIGURACOES_MODULOS_POR_CODIGO[codigo_item]
+        for codigo_item in codigos_grupo
+    ]
+    secoes: dict[str, list[dict[str, Any]]] = {}
+    for campo in definicao.get("campos", []):
+        secoes.setdefault(str(campo.get("secao") or "Regras gerais"), []).append(campo)
+
+    return {
+        "grupo_configuracao": grupo_definicao,
+        "modulos_configuraveis": modulos_grupo,
+        "modulo_configuracao": definicao,
+        "codigo_modulo_configuracao": codigo_normalizado,
+        "configuracoes_modulo": buscar_configuracoes_modulo(codigo_normalizado),
+        "metadados_configuracao": buscar_metadados_configuracao_modulo(codigo_normalizado),
+        "secoes_configuracao": secoes,
+        "total_configuracoes": sum(
+            len(item.get("campos", [])) for item in modulos_grupo
+        ),
+    }
+
+
+CONFIGURACOES_CAMPOS_ENTIDADE = {
+    "cadastros": {
+        "categoria_cliente", "categoria_fornecedor", "origem_cliente", "segmento_atuacao",
+        "tipo_pessoa", "limite_credito", "tipo_contato", "tipo_telefone", "tipo_endereco",
+    },
+    "produtos": {
+        "grupo", "subgrupo", "marca", "cor", "tamanho", "grade", "tabela_preco",
+        "preco_minimo", "comissao", "lote", "validade", "numero_serie", "localizacao",
+        "estoque_maximo", "etiqueta", "codigo_barras",
+    },
+    "servicos": {
+        "grupo", "unidade_cobranca", "margem_minima", "comissao", "responsavel_padrao",
+        "garantia_dias", "materiais_padrao",
+    },
+    "orcamentos": {"tabela_preco", "modelo_escopo", "assinatura_cliente", "clausulas_comerciais"},
+    "vendas": {"tipo_venda", "tabela_preco", "comissao_vendedor", "politica_troca"},
+    "devolucoes": {"motivo", "condicao_produto", "local_estoque", "anexo"},
+    "ordens_servico": {
+        "tipo_atendimento", "setor_responsavel", "garantia_dias", "checklist", "etapa_padrao",
+        "categoria_equipamento", "assinatura_cliente", "motivo_cancelamento",
+    },
+    "estoque": {"local_entrada", "local_saida", "lote", "validade", "numero_serie", "motivo_ajuste"},
+    "compras": {"numero", "situacao", "tipo_compra", "condicao_pagamento", "forma_pagamento", "local_estoque", "frete", "impostos", "despesas"},
+    "financeiro": {"subcategoria", "conta_caixa", "tipo_documento", "bandeira_cartao", "operadora_cartao", "comprovante", "competencia", "recorrencia"},
+    "centros_custo_dre": {"subcentro", "rateio", "classificacao_dre"},
+    "contratos": {"modelo", "clausulas", "indice_reajuste", "carencia_dias", "multa_cancelamento", "assinatura"},
+    "gestao_atividades": {"categoria", "equipe", "motivo_pausa", "motivo_cancelamento", "checklist", "anexos"},
+    "agendamentos": {"tipo", "sinal", "motivo_cancelamento"},
+    "registro_ponto": {"escala", "jornada", "local_autorizado", "justificativa", "trabalho_especial"},
+    "vitrine": {"regiao_entrega", "taxa_entrega", "categoria_publica"},
+}
+
+
+def _configuracao_bool(valor: Any, padrao: bool = False) -> bool:
+    if isinstance(valor, bool):
+        return valor
+    if valor is None:
+        return padrao
+    return str(valor).strip().lower() in {"1", "sim", "true", "ativo", "obrigatorio"}
+
+
+def configuracao_bool(
+    modulo: str,
+    chave: str,
+    padrao: bool = False,
+    empresa_id: int | None = None,
+) -> bool:
+    return _configuracao_bool(
+        valor_configuracao_modulo(modulo, chave, padrao, empresa_id),
+        padrao,
+    )
+
+
+def aplicar_exclusao_logica_configurada(
+    tabela: str,
+    registro_id: int,
+    status_destino: str,
+) -> bool:
+    tabelas_permitidas = {
+        "clientes", "fornecedores", "funcionarios", "produtos", "servicos",
+        "equipamentos", "orcamentos", "vendas", "ordens_servico",
+        "financeiro_titulos", "agendamentos",
+    }
+    if tabela not in tabelas_permitidas or not configuracao_bool("gerais", "exclusao_logica", True):
+        return False
+    with conectar_db() as conn:
+        colunas = {str(row["name"]) for row in conn.execute(f"PRAGMA table_info({tabela})").fetchall()}
+        if "status" not in colunas:
+            return False
+        atribuicoes = ["status = ?"]
+        parametros: list[Any] = [status_destino]
+        if "atualizado_em" in colunas:
+            atribuicoes.append("atualizado_em = ?")
+            parametros.append(agora_empresa().isoformat(timespec="seconds"))
+        parametros.extend([int(registro_id), empresa_logada_id()])
+        cursor = conn.execute(
+            f"UPDATE {tabela} SET {', '.join(atribuicoes)} WHERE id = ? AND empresa_id = ?",
+            parametros,
+        )
+        conn.commit()
+    return cursor.rowcount == 1
+
+
+def buscar_todas_configuracoes_modulos(
+    empresa_id: int | None = None,
+) -> dict[str, dict[str, Any]]:
+    empresa = int(empresa_id or empresa_logada_id())
+    resultado = {
+        definicao["codigo"]: _padroes_configuracao_modulo(definicao)
+        for definicao in CONFIGURACOES_MODULOS_DEFINICOES
+    }
+
+    try:
+        with conectar_db() as conn:
+            rows = conn.execute(
+                """
+                SELECT modulo, configuracoes_json
+                FROM configuracoes_modulos
+                WHERE empresa_id = ?
+                """,
+                (empresa,),
+            ).fetchall()
+    except sqlite3.Error:
+        return resultado
+
+    for row in rows:
+        modulo = str(row["modulo"] or "")
+        if modulo not in resultado:
+            continue
+        try:
+            salvos = json.loads(str(row["configuracoes_json"] or "{}"))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            salvos = {}
+        if isinstance(salvos, dict):
+            resultado[modulo].update(
+                {chave: valor for chave, valor in salvos.items() if chave in resultado[modulo]}
+            )
+    return resultado
+
+
+def montar_configuracoes_runtime(
+    empresa_id: int | None = None,
+) -> dict[str, Any]:
+    empresa = int(empresa_id or empresa_logada_id())
+    valores = buscar_todas_configuracoes_modulos(empresa)
+    definicoes = {
+        item["codigo"]: {
+            "nome": item["nome"],
+            "campos": [
+                {
+                    "chave": campo["chave"],
+                    "nome": campo["nome"],
+                    "tipo": campo["tipo"],
+                    "secao": campo["secao"],
+                }
+                for campo in item.get("campos", [])
+            ],
+        }
+        for item in CONFIGURACOES_MODULOS_DEFINICOES
+    }
+    return {
+        "empresa_id": empresa,
+        "valores": valores,
+        "definicoes": definicoes,
+        "campos_entidade": {
+            modulo: sorted(campos)
+            for modulo, campos in CONFIGURACOES_CAMPOS_ENTIDADE.items()
+        },
+    }
+
+
+@app.context_processor
+def injetar_configuracoes_runtime_templates() -> dict[str, Any]:
+    empresa_id = int(session.get("empresa_id") or 0)
+    if empresa_id <= 0:
+        return {"gestflow_configuracoes_runtime": {}}
+    if not hasattr(g, "gestflow_configuracoes_runtime"):
+        g.gestflow_configuracoes_runtime = montar_configuracoes_runtime(empresa_id)
+    return {"gestflow_configuracoes_runtime": g.gestflow_configuracoes_runtime}
+
+
+def buscar_dados_configuraveis_entidade(
+    modulo: str,
+    entidade: str,
+    registro_id: int,
+    empresa_id: int | None = None,
+) -> dict[str, Any]:
+    empresa = int(empresa_id or empresa_logada_id())
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT dados_json
+            FROM configuracoes_entidades
+            WHERE empresa_id = ? AND modulo = ? AND entidade = ? AND registro_id = ?
+            LIMIT 1
+            """,
+            (empresa, modulo, entidade, registro_id),
+        ).fetchone()
+    if row is None:
+        return {}
+    try:
+        dados = json.loads(str(row["dados_json"] or "{}"))
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return {}
+    return dados if isinstance(dados, dict) else {}
+
+
+def _normalizar_chave_campo_configuravel(valor: Any) -> str:
+    texto = unicodedata.normalize("NFKD", str(valor or ""))
+    texto = "".join(caractere for caractere in texto if not unicodedata.combining(caractere))
+    texto = re.sub(r"[^a-zA-Z0-9]+", "_", texto).strip("_").lower()
+    return texto[:80]
+
+
+def campos_extras_configurados(modulo: str, empresa_id: int | None = None) -> list[dict[str, str]]:
+    nomes = lista_configuracao_modulo(modulo, "campos_extras", empresa_id)
+    vistos: set[str] = set()
+    campos: list[dict[str, str]] = []
+    for nome in nomes:
+        chave = _normalizar_chave_campo_configuravel(nome)
+        if not chave or chave in vistos:
+            continue
+        vistos.add(chave)
+        campos.append({"chave": chave, "nome": nome[:120]})
+    return campos
+
+
+def capturar_dados_configuraveis_formulario(modulo: str) -> dict[str, str]:
+    prefixo = f"config_extra__{modulo}__"
+    permitidas = set(CONFIGURACOES_CAMPOS_ENTIDADE.get(modulo, set()))
+    permitidas.update(campo["chave"] for campo in campos_extras_configurados(modulo))
+    dados: dict[str, str] = {}
+    for nome in request.form:
+        if not nome.startswith(prefixo):
+            continue
+        chave = _normalizar_chave_campo_configuravel(nome[len(prefixo):])
+        if chave not in permitidas:
+            continue
+        valores = [str(valor).strip()[:5000] for valor in request.form.getlist(nome)]
+        dados[chave] = "\n".join(valor for valor in valores if valor).strip()
+    return dados
+
+
+def salvar_dados_configuraveis_entidade(
+    modulo: str,
+    entidade: str,
+    registro_id: int,
+    dados: dict[str, Any] | None = None,
+) -> None:
+    valores = dados if dados is not None else capturar_dados_configuraveis_formulario(modulo)
+    if not valores:
+        return
+    agora = agora_empresa().isoformat(timespec="seconds")
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            INSERT INTO configuracoes_entidades (
+                empresa_id, modulo, entidade, registro_id, dados_json, criado_em, atualizado_em
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT (empresa_id, modulo, entidade, registro_id) DO UPDATE SET
+                dados_json = excluded.dados_json,
+                atualizado_em = excluded.atualizado_em
+            """,
+            (
+                empresa_logada_id(), modulo, entidade, int(registro_id),
+                json.dumps(valores, ensure_ascii=False, sort_keys=True), agora, agora,
+            ),
+        )
+        conn.commit()
+
+
+@app.get("/api/configuracoes/runtime")
+def api_configuracoes_runtime() -> Response:
+    if int(session.get("empresa_id") or 0) <= 0:
+        return jsonify({"ok": False, "erro": "Sessão inválida."}), 401
+    return jsonify({"ok": True, "configuracoes": montar_configuracoes_runtime()})
+
+
+@app.get("/api/configuracoes/entidade/<modulo>/<entidade>/<int:registro_id>")
+def api_dados_configuraveis_entidade(modulo: str, entidade: str, registro_id: int) -> Response:
+    if modulo not in CONFIGURACOES_MODULOS_POR_CODIGO:
+        return jsonify({"ok": False, "erro": "Módulo inválido."}), 404
+    return jsonify(
+        {
+            "ok": True,
+            "dados": buscar_dados_configuraveis_entidade(modulo, entidade, registro_id),
+        }
+    )
+
+
+CONFIGURACOES_ENDPOINTS_MODULOS = {
+    "salvar_cliente": "cadastros", "atualizar_cliente": "cadastros",
+    "salvar_fornecedor": "cadastros", "atualizar_fornecedor": "cadastros",
+    "salvar_funcionario": "cadastros", "atualizar_funcionario": "cadastros",
+    "salvar_produto": "produtos", "atualizar_produto": "produtos",
+    "salvar_produto_composicao": "produtos", "salvar_producao_produto": "produtos",
+    "salvar_servico": "servicos", "atualizar_servico": "servicos",
+    "salvar_orcamento": "orcamentos", "atualizar_orcamento": "orcamentos",
+    "gerar_venda_por_orcamento": "orcamentos", "gerar_ordem_servico_por_orcamento": "orcamentos",
+    "salvar_venda": "vendas", "atualizar_venda": "vendas", "gerar_ordem_servico_por_venda": "vendas",
+    "devolver_venda": "devolucoes", "movimentar_estoque": "estoque",
+    "comprar_produto_estoque": "compras", "atualizar_compra_estoque": "compras",
+    "salvar_financeiro_titulo": "financeiro", "atualizar_financeiro_titulo": "financeiro",
+    "salvar_ordem_servico": "ordens_servico", "atualizar_ordem_servico": "ordens_servico",
+    "salvar_contrato": "contratos", "atualizar_contrato": "contratos",
+    "gestao_atividade_nova": "gestao_atividades", "gestao_atividade_detalhe": "gestao_atividades",
+    "agendamentos": "agendamentos", "editar_agendamento": "agendamentos",
+    "registro_ponto": "registro_ponto", "ajustar_registro_ponto": "registro_ponto",
+    "vitrine": "vitrine", "vitrine_produto_publicar": "vitrine",
+}
+
+
+CONFIGURACOES_ENDPOINTS_BLOQUEIOS = {
+    "salvar_produto_composicao": ("produtos", "produto_composto", True, "A composição de produtos está desativada nas configurações."),
+    "salvar_producao_produto": ("produtos", "produto_composto", True, "A produção de itens compostos está desativada."),
+    "gerar_venda_por_orcamento": ("orcamentos", "converter_venda", True, "A conversão de orçamento em venda está desativada."),
+    "gerar_ordem_servico_por_orcamento": ("orcamentos", "converter_os", True, "A conversão de orçamento em OS está desativada."),
+    "qrcode_equipamento": ("ordens_servico", "usar_qrcode", True, "O QR Code de equipamentos está desativado."),
+    "historico_publico_equipamento": ("ordens_servico", "usar_qrcode", True, "O acesso por QR Code está desativado."),
+    "sincronizar_ponto_offline": ("registro_ponto", "permitir_offline", True, "O registro de ponto offline está desativado."),
+}
+
+
+CONFIGURACOES_DESTINOS_ERRO = {
+    "cadastros": "/clientes", "produtos": "/produtos", "servicos": "/servicos",
+    "orcamentos": "/orcamentos", "vendas": "/vendas", "devolucoes": "/vendas/devolucoes",
+    "ordens_servico": "/ordens-servico", "estoque": "/estoque", "compras": "/estoque/compras",
+    "financeiro": "/financeiro", "contratos": "/contratos",
+    "gestao_atividades": "/gestao-atividades/todas", "agendamentos": "/agendamentos",
+    "registro_ponto": "/registro-ponto", "vitrine": "/vitrine",
+}
+
+CONFIGURACOES_ENDPOINTS_IMPORTACAO = {
+    "importar_clientes", "importar_fornecedores", "importar_funcionarios",
+    "importar_produtos", "importar_servicos",
+}
+
+
+def gerar_backup_configurado(motivo: str) -> Path | None:
+    if not DB_PATH.exists():
+        return None
+    diretorio = DATA_DIR / "backups_configuracoes"
+    diretorio.mkdir(parents=True, exist_ok=True)
+    nome_motivo = _normalizar_chave_campo_configuravel(motivo) or "automatico"
+    destino = diretorio / f"gestflow_{agora_empresa().strftime('%Y%m%d_%H%M%S')}_{nome_motivo}.db"
+    try:
+        with conectar_db() as conn:
+            conn.execute("PRAGMA wal_checkpoint(PASSIVE)")
+        shutil.copy2(DB_PATH, destino)
+    except (OSError, sqlite3.Error):
+        app.logger.exception("Falha ao gerar backup configurado.")
+        return None
+
+    retencao = int(float(valor_configuracao_modulo("gerais", "retencao_dados_dias", 1825) or 1825))
+    limite = agora_empresa().timestamp() - max(retencao, 30) * 86400
+    for arquivo in diretorio.glob("gestflow_*.db"):
+        try:
+            if arquivo.is_file() and arquivo.stat().st_mtime < limite:
+                arquivo.unlink()
+        except OSError:
+            app.logger.warning("Não foi possível remover backup expirado: %s", arquivo.name)
+    return destino
+
+
+def garantir_backup_automatico_diario() -> None:
+    if not configuracao_bool("gerais", "backup_automatico", True):
+        return
+    diretorio = DATA_DIR / "backups_configuracoes"
+    padrao = f"gestflow_{agora_empresa().strftime('%Y%m%d')}_*_automatico.db"
+    if diretorio.exists() and any(diretorio.glob(padrao)):
+        return
+    gerar_backup_configurado("automatico")
+
+
+def _texto_comparacao_configuracao(valor: Any) -> str:
+    texto = unicodedata.normalize("NFKD", str(valor or "").strip().lower())
+    texto = "".join(caractere for caractere in texto if not unicodedata.combining(caractere))
+    return re.sub(r"[^a-z0-9]+", "", texto)
+
+
+def valor_permitido_configuracao(modulo: str, chave: str, valor: Any) -> bool:
+    opcoes = lista_configuracao_modulo(modulo, chave)
+    if not opcoes:
+        return True
+    procurado = _texto_comparacao_configuracao(valor)
+    return any(_texto_comparacao_configuracao(opcao) == procurado for opcao in opcoes)
+
+
+def proteger_dado_pessoal_exportacao(valor: Any, tipo: str) -> str:
+    texto = str(valor or "").strip()
+    if not texto or not configuracao_bool("importacao_seguranca", "proteger_dados_pessoais", True):
+        return texto
+    if tipo == "email" and "@" in texto:
+        local, dominio = texto.split("@", 1)
+        return f"{local[:1]}***@{dominio}"
+    digitos = re.sub(r"\D", "", texto)
+    if tipo in {"documento", "telefone"} and digitos:
+        return "*" * max(4, len(digitos) - 4) + digitos[-4:]
+    return texto[:1] + "***" if len(texto) > 1 else "*"
+
+
+def reservar_operacao_configurada(
+    modulo: str,
+    entidade: str,
+    registro_id: int,
+    operacao: str,
+    referencia: str = "",
+) -> bool:
+    with conectar_db() as conn:
+        cursor = conn.execute(
+            """
+            INSERT OR IGNORE INTO configuracoes_operacoes_automaticas (
+                empresa_id, modulo, entidade, registro_id,
+                operacao, referencia, executado_em, detalhes_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, '{}')
+            """,
+            (
+                empresa_logada_id(), modulo, entidade, registro_id,
+                operacao, referencia, agora_empresa().isoformat(timespec="seconds"),
+            ),
+        )
+        conn.commit()
+    return cursor.rowcount == 1
+
+
+def finalizar_operacao_configurada(
+    modulo: str,
+    entidade: str,
+    registro_id: int,
+    operacao: str,
+    referencia: str,
+    detalhes: dict[str, Any],
+) -> None:
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            UPDATE configuracoes_operacoes_automaticas
+            SET detalhes_json = ?, executado_em = ?
+            WHERE empresa_id = ? AND modulo = ? AND entidade = ?
+              AND registro_id = ? AND operacao = ? AND referencia = ?
+            """,
+            (
+                json.dumps(detalhes, ensure_ascii=False, sort_keys=True),
+                agora_empresa().isoformat(timespec="seconds"), empresa_logada_id(),
+                modulo, entidade, registro_id, operacao, referencia,
+            ),
+        )
+        conn.commit()
+
+
+def liberar_operacao_configurada(
+    modulo: str,
+    entidade: str,
+    registro_id: int,
+    operacao: str,
+    referencia: str = "",
+) -> None:
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            DELETE FROM configuracoes_operacoes_automaticas
+            WHERE empresa_id = ? AND modulo = ? AND entidade = ?
+              AND registro_id = ? AND operacao = ? AND referencia = ?
+            """,
+            (empresa_logada_id(), modulo, entidade, registro_id, operacao, referencia),
+        )
+        conn.commit()
+
+
+def executar_integracoes_ordem_servico_configuradas(ordem_servico_id: int) -> list[str]:
+    ordem = buscar_ordem_servico_por_id(ordem_servico_id)
+    if ordem is None or str(ordem.get("status") or "").strip().lower() not in {
+        "concluida", "concluído", "concluido", "finalizada", "finalizado",
+    }:
+        return []
+    resultados: list[str] = []
+    if configuracao_bool("ordens_servico", "gerar_financeiro", False) and reservar_operacao_configurada(
+        "ordens_servico", "ordem_servico", ordem_servico_id, "conta_receber"
+    ):
+        try:
+            titulo_id = salvar_financeiro_titulo_db(
+                {
+                    "tipo": "receber", "descricao": f"Ordem de Serviço {ordem.get('numero') or ordem_servico_id}",
+                    "pessoa": str(ordem.get("cliente") or ""), "categoria": "Serviços",
+                    "centro_custo_id": str(ordem.get("centro_custo_id") or ""),
+                    "atividade_financeira_id": str(ordem.get("atividade_financeira_id") or ""),
+                    "origem": "ordem_servico", "origem_id": str(ordem_servico_id),
+                    "documento": str(ordem.get("numero") or ordem_servico_id),
+                    "data_emissao": hoje_empresa().isoformat(),
+                    "data_vencimento": str(ordem.get("data_saida") or ordem.get("data_previsao") or hoje_empresa().isoformat()),
+                    "data_pagamento": "", "valor": str(ordem.get("valor_total") or "0,00"),
+                    "forma_pagamento": str(ordem.get("forma_pagamento") or ""), "status": "aberto",
+                    "observacoes": "Gerado automaticamente pela conclusão da Ordem de Serviço.",
+                }
+            )
+            finalizar_operacao_configurada(
+                "ordens_servico", "ordem_servico", ordem_servico_id,
+                "conta_receber", "", {"titulo_id": titulo_id},
+            )
+            resultados.append("conta a receber")
+        except (sqlite3.Error, ValueError, TypeError):
+            liberar_operacao_configurada("ordens_servico", "ordem_servico", ordem_servico_id, "conta_receber")
+            app.logger.exception("Falha ao gerar financeiro da OS %s.", ordem_servico_id)
+
+    if configuracao_bool("ordens_servico", "baixar_estoque", True):
+        with conectar_db() as conn:
+            itens = conn.execute(
+                "SELECT id, descricao, quantidade FROM ordem_servico_itens WHERE empresa_id = ? AND ordem_servico_id = ? AND tipo_item = 'produto'",
+                (empresa_logada_id(), ordem_servico_id),
+            ).fetchall()
+        baixados = 0
+        for item in itens:
+            referencia = str(item["id"])
+            if not reservar_operacao_configurada(
+                "ordens_servico", "ordem_servico", ordem_servico_id, "baixa_estoque", referencia
+            ):
+                continue
+            try:
+                with conectar_db() as conn:
+                    produto = conn.execute(
+                        "SELECT id, nome, estoque_atual FROM produtos WHERE empresa_id = ? AND LOWER(TRIM(nome)) = LOWER(TRIM(?)) LIMIT 1",
+                        (empresa_logada_id(), str(item["descricao"] or "")),
+                    ).fetchone()
+                if produto is None:
+                    finalizar_operacao_configurada(
+                        "ordens_servico", "ordem_servico", ordem_servico_id,
+                        "baixa_estoque", referencia, {"ignorado": "produto não identificado"},
+                    )
+                    continue
+                saldo_anterior = _converter_valor_brl(produto["estoque_atual"])
+                quantidade = max(0.0, _converter_valor_brl(item["quantidade"]))
+                saldo_atual = saldo_anterior - quantidade
+                permitir_negativo = configuracao_bool("estoque", "permitir_negativo", False) or configuracao_bool("produtos", "permitir_estoque_negativo", False)
+                if saldo_atual < 0 and not permitir_negativo:
+                    liberar_operacao_configurada("ordens_servico", "ordem_servico", ordem_servico_id, "baixa_estoque", referencia)
+                    app.logger.warning("Baixa automática da OS %s bloqueada por estoque insuficiente.", ordem_servico_id)
+                    continue
+                movimento_id = salvar_estoque_movimentacao_db(
+                    {
+                        "produto_id": str(produto["id"]), "produto_nome": str(produto["nome"]),
+                        "tipo": "saida", "quantidade": _formatar_moeda_brl(quantidade),
+                        "saldo_anterior": _formatar_moeda_brl(saldo_anterior),
+                        "saldo_atual": _formatar_moeda_brl(saldo_atual),
+                        "motivo": "Baixa automática por OS concluída",
+                        "documento": str(ordem.get("numero") or ordem_servico_id),
+                        "responsavel": str(session.get("usuario_nome") or "Sistema"),
+                        "observacoes": "Movimentação gerada pelas configurações de Ordens de Serviço.",
+                    }
+                )
+                finalizar_operacao_configurada(
+                    "ordens_servico", "ordem_servico", ordem_servico_id,
+                    "baixa_estoque", referencia, {"movimentacao_id": movimento_id},
+                )
+                baixados += 1
+            except (sqlite3.Error, ValueError, TypeError):
+                liberar_operacao_configurada("ordens_servico", "ordem_servico", ordem_servico_id, "baixa_estoque", referencia)
+                app.logger.exception("Falha na baixa de estoque da OS %s.", ordem_servico_id)
+        if baixados:
+            resultados.append(f"{baixados} baixa(s) de estoque")
+    return resultados
+
+
+def proximo_codigo_cadastro_configurado(
+    tabela: str,
+    modulo: str,
+    prefixo_padrao: str,
+) -> str:
+    if tabela not in {"produtos", "servicos"}:
+        raise ValueError("Tabela inválida para geração de código.")
+    prefixo = str(valor_configuracao_modulo(modulo, "prefixo_codigo", prefixo_padrao) or prefixo_padrao).strip().upper()
+    prefixo = re.sub(r"[^A-Z0-9]+", "", prefixo)[:12] or prefixo_padrao
+    with conectar_db() as conn:
+        rows = conn.execute(
+            f"SELECT codigo FROM {tabela} WHERE empresa_id = ? AND codigo LIKE ?",
+            (empresa_logada_id(), f"{prefixo}-%"),
+        ).fetchall()
+    maior = 0
+    for row in rows:
+        correspondencia = re.fullmatch(rf"{re.escape(prefixo)}-(\d+)", str(row["codigo"] or ""), re.IGNORECASE)
+        if correspondencia:
+            maior = max(maior, int(correspondencia.group(1)))
+    return f"{prefixo}-{maior + 1:05d}"
+
+
+def _erro_regra_configurada(modulo: str, mensagem: str) -> Response:
+    if request.path.startswith("/api/") or request.accept_mimetypes.best == "application/json":
+        return jsonify({"ok": False, "erro": mensagem}), 400
+    destino = CONFIGURACOES_DESTINOS_ERRO.get(modulo, "/")
+    separador = "&" if "?" in destino else "?"
+    return redirect(f"{destino}{separador}{urllib.parse.urlencode({'erro': mensagem})}")
+
+
+def _validar_desconto_configurado(modulo: str) -> str:
+    nomes = (
+        "orcamento_desconto_percentual", "venda_desconto_percentual",
+        "desconto_percentual", "item_desconto",
+    )
+    maximo = float(valor_configuracao_modulo(modulo, "desconto_maximo_percentual", 100) or 100)
+    for nome in nomes:
+        for valor in request.form.getlist(nome):
+            if _converter_valor_brl(valor) > maximo:
+                return f"O desconto máximo configurado para este módulo é {maximo:g}%."
+    return ""
+
+
+def _validar_centro_custo_configurado(modulo: str) -> str:
+    obrigatorio = configuracao_bool("centros_custo_dre", "vinculo_obrigatorio", True)
+    if modulo == "gestao_atividades":
+        obrigatorio = configuracao_bool(modulo, "centro_custo_obrigatorio", False)
+    if not obrigatorio:
+        return ""
+    with conectar_db() as conn:
+        existe_centro = conn.execute(
+            "SELECT 1 FROM centros_custo WHERE empresa_id = ? AND LOWER(COALESCE(status, 'ativo')) = 'ativo' LIMIT 1",
+            (empresa_logada_id(),),
+        ).fetchone()
+    if existe_centro is None:
+        return ""
+    campos = (
+        "orcamento_centro_custo_id", "venda_centro_custo_id", "os_centro_custo_id",
+        "financeiro_centro_custo_id", "centro_custo_id",
+    )
+    if any(str(request.form.get(campo) or "").strip() for campo in campos):
+        return ""
+    if modulo in {"orcamentos", "vendas", "ordens_servico", "financeiro", "contratos", "gestao_atividades"}:
+        return "Selecione o centro de custo obrigatório definido nas configurações."
+    return ""
+
+
+def validar_regras_configuradas_requisicao(modulo: str) -> str:
+    if request.method != "POST":
+        return ""
+
+    erro_centro = _validar_centro_custo_configurado(modulo)
+    if erro_centro:
+        return erro_centro
+
+    if modulo in {"orcamentos", "vendas"}:
+        erro_desconto = _validar_desconto_configurado(modulo)
+        if erro_desconto:
+            return erro_desconto
+
+    if modulo == "cadastros":
+        documentos = lista_configuracao_modulo("cadastros", "documentos_obrigatorios")
+        exige_documento = any("cpf" in item.lower() or "cnpj" in item.lower() for item in documentos)
+        endpoint = str(request.endpoint or "")
+        if exige_documento and "cliente" in endpoint and not str(request.form.get("cliente_documento") or "").strip():
+            return "CPF/CNPJ é obrigatório conforme as configurações de Cadastros."
+        if exige_documento and "fornecedor" in endpoint and not str(request.form.get("fornecedor_documento") or "").strip():
+            return "CPF/CNPJ é obrigatório conforme as configurações de Cadastros."
+        documento_cliente = str(request.form.get("cliente_documento") or "").strip()
+        if documento_cliente and "cliente" in endpoint and configuracao_bool("cadastros", "bloquear_cpf_cnpj_duplicado", True):
+            ignorar_id = (request.view_args or {}).get("cliente_id")
+            existente = buscar_cliente_existente_por_documento(
+                documento_cliente,
+                int(ignorar_id) if str(ignorar_id or "").isdigit() else None,
+            )
+            if existente:
+                return f"Já existe um cliente com este CPF/CNPJ: {existente.get('nome') or existente.get('id')}."
+
+    if modulo == "produtos":
+        custo = _converter_valor_brl(request.form.get("produto_preco_custo"))
+        venda = _converter_valor_brl(request.form.get("produto_preco_venda"))
+        minimo_percentual = float(valor_configuracao_modulo("produtos", "preco_minimo_percentual", 0) or 0)
+        if custo > 0 and venda + 0.000001 < custo * (1 + minimo_percentual / 100):
+            return f"O preço de venda está abaixo do mínimo configurado de {minimo_percentual:g}% sobre o custo."
+
+    if modulo == "servicos":
+        custo = _converter_valor_brl(request.form.get("servico_custo"))
+        venda = _converter_valor_brl(request.form.get("servico_valor_venda"))
+        margem = float(valor_configuracao_modulo("servicos", "margem_minima", 0) or 0)
+        if custo > 0 and venda + 0.000001 < custo * (1 + margem / 100):
+            return f"O valor do serviço está abaixo da margem mínima configurada de {margem:g}%."
+
+    if modulo == "vendas":
+        if configuracao_bool("vendas", "cliente_obrigatorio", False) and not str(request.form.get("venda_cliente") or "").strip():
+            return "Selecione o cliente obrigatório para a venda."
+        parcelas = int(_converter_valor_brl(request.form.get("venda_quantidade_parcelas") or request.form.get("quantidade_parcelas") or 1))
+        maximo = int(float(valor_configuracao_modulo("vendas", "maximo_parcelas", 12) or 12))
+        if parcelas > maximo:
+            return f"A venda permite no máximo {maximo} parcelas."
+        forma = request.form.get("venda_forma_pagamento") or request.form.get("forma_pagamento")
+        if forma and not valor_permitido_configuracao("vendas", "formas_pagamento", forma):
+            return "A forma de pagamento escolhida não está liberada nas configurações de Vendas."
+
+    if modulo == "devolucoes":
+        if configuracao_bool("devolucoes", "exigir_observacao", True) and not str(request.form.get("devolucao_observacoes") or "").strip():
+            return "Informe a observação obrigatória da devolução."
+
+    if modulo == "ordens_servico":
+        status = str(request.form.get("os_status") or "").strip().lower()
+        serie = str(request.form.get("os_serie") or "").strip()
+        if configuracao_bool("ordens_servico", "exigir_numero_serie", False) and not serie:
+            return "Informe o número de série obrigatório do equipamento."
+        if status in {"concluida", "concluído", "concluido"}:
+            if configuracao_bool("ordens_servico", "exigir_responsavel_encerramento", True) and not str(request.form.get("os_responsavel") or "").strip():
+                return "Informe o responsável pelo encerramento da OS."
+
+    if modulo == "compras":
+        valor = _converter_valor_brl(request.form.get("compra_valor_custo")) * _converter_valor_brl(request.form.get("compra_quantidade"))
+        limite = float(valor_configuracao_modulo("compras", "valor_limite_aprovacao", 0) or 0)
+        if configuracao_bool("compras", "aprovacao_por_valor", False) and limite > 0 and valor > limite:
+            perfil = str(session.get("usuario_perfil") or session.get("perfil") or "").lower()
+            if perfil not in {"admin", "administrador", "proprietario"}:
+                return f"Esta compra ultrapassa o limite de aprovação de R$ {_formatar_moeda_brl(limite)}."
+
+    if modulo == "financeiro":
+        forma = request.form.get("financeiro_forma_pagamento")
+        if forma and not valor_permitido_configuracao("financeiro", "formas_pagamento", forma):
+            return "A forma de pagamento não está liberada nas configurações do Financeiro."
+
+    if modulo == "agendamentos" and configuracao_bool("agendamentos", "cliente_obrigatorio", True):
+        if not str(request.form.get("cliente_nome") or "").strip():
+            return "Informe o cliente obrigatório do agendamento."
+
+    return ""
+
+
+@app.before_request
+def aplicar_regras_configuradas_antes_requisicao() -> Response | None:
+    empresa_id = int(session.get("empresa_id") or 0)
+    endpoint = str(request.endpoint or "")
+    if empresa_id <= 0:
+        return None
+
+    limite_mb = int(float(valor_configuracao_modulo("gerais", "tamanho_maximo_anexo_mb", 10) or 10))
+    if request.content_length and request.content_length > limite_mb * 1024 * 1024:
+        if endpoint == "atualizar_contrato_anexos":
+            contrato_id = _id_positivo_contrato((request.view_args or {}).get("contrato_id"))
+            if contrato_id:
+                return redirect(
+                    url_for(
+                        "ver_contrato",
+                        contrato_id=contrato_id,
+                        erro=f"O anexo deve ter no máximo {limite_mb} MB.",
+                    )
+                )
+        return _erro_regra_configurada("gerais", f"O envio ultrapassa o limite configurado de {limite_mb} MB.")
+
+    agora = agora_empresa()
+    ultima_atividade = str(session.get("ultima_atividade_config") or "")
+    tempo_sessao = int(float(valor_configuracao_modulo("importacao_seguranca", "tempo_sessao_minutos", valor_configuracao_modulo("gerais", "tempo_sessao_minutos", 43200)) or 43200))
+    if ultima_atividade:
+        try:
+            if agora - datetime.fromisoformat(ultima_atividade) > timedelta(minutes=tempo_sessao):
+                session.clear()
+                return redirect(url_for("login", erro="Sua sessão expirou por inatividade."))
+        except (TypeError, ValueError):
+            pass
+    session["ultima_atividade_config"] = agora.isoformat(timespec="seconds")
+
+    if endpoint in CONFIGURACOES_ENDPOINTS_IMPORTACAO and configuracao_bool(
+        "importacao_seguranca", "backup_antes_importar", True
+    ):
+        gerar_backup_configurado(f"antes_{endpoint}")
+    elif request.method == "GET" and endpoint in {"dashboard", "configuracoes"}:
+        garantir_backup_automatico_diario()
+
+    if endpoint.startswith("exportar_"):
+        perfis = {_texto_comparacao_configuracao(item) for item in lista_configuracao_modulo("importacao_seguranca", "perfis_exportacao")}
+        perfil_atual = _texto_comparacao_configuracao(session.get("usuario_perfil") or session.get("perfil") or "")
+        if perfil_atual in {"admin", "proprietario", "proprietarioa"}:
+            perfil_atual = "administrador"
+        if perfis and perfil_atual not in perfis:
+            return _erro_regra_configurada(
+                "gerais",
+                "Seu perfil não está autorizado a exportar dados conforme as configurações de segurança.",
+            )
+
+    bloqueio = CONFIGURACOES_ENDPOINTS_BLOQUEIOS.get(endpoint)
+    if bloqueio:
+        modulo_bloqueio, chave, padrao, mensagem = bloqueio
+        if not configuracao_bool(modulo_bloqueio, chave, padrao):
+            return _erro_regra_configurada(modulo_bloqueio, mensagem)
+
+    modulo = CONFIGURACOES_ENDPOINTS_MODULOS.get(endpoint)
+    if modulo:
+        erro = validar_regras_configuradas_requisicao(modulo)
+        if erro:
+            return _erro_regra_configurada(modulo, erro)
+    return None
+
+
+CONFIGURACOES_ENTIDADES_ENDPOINTS = {
+    "salvar_cliente": {"modulo": "cadastros", "entidade": "cliente", "tabela": "clientes", "campos": {"documento": "cliente_documento", "nome": "cliente_nome"}},
+    "atualizar_cliente": {"modulo": "cadastros", "entidade": "cliente", "tabela": "clientes", "id_arg": "cliente_id"},
+    "salvar_fornecedor": {"modulo": "cadastros", "entidade": "fornecedor", "tabela": "fornecedores", "campos": {"documento": "fornecedor_documento", "nome": "fornecedor_nome"}},
+    "atualizar_fornecedor": {"modulo": "cadastros", "entidade": "fornecedor", "tabela": "fornecedores", "id_arg": "fornecedor_id"},
+    "salvar_funcionario": {"modulo": "cadastros", "entidade": "funcionario", "tabela": "funcionarios", "campos": {"cpf": "funcionario_cpf", "nome": "funcionario_nome"}},
+    "atualizar_funcionario": {"modulo": "cadastros", "entidade": "funcionario", "tabela": "funcionarios", "id_arg": "funcionario_id"},
+    "salvar_produto": {"modulo": "produtos", "entidade": "produto", "tabela": "produtos", "campos": {"codigo": "produto_codigo", "nome": "produto_nome"}},
+    "atualizar_produto": {"modulo": "produtos", "entidade": "produto", "tabela": "produtos", "id_arg": "produto_id"},
+    "salvar_servico": {"modulo": "servicos", "entidade": "servico", "tabela": "servicos", "campos": {"codigo": "servico_codigo", "nome": "servico_nome"}},
+    "atualizar_servico": {"modulo": "servicos", "entidade": "servico", "tabela": "servicos", "id_arg": "servico_id"},
+    "salvar_orcamento": {"modulo": "orcamentos", "entidade": "orcamento", "tabela": "orcamentos", "campos": {"cliente": "orcamento_cliente", "data": "orcamento_data"}},
+    "atualizar_orcamento": {"modulo": "orcamentos", "entidade": "orcamento", "tabela": "orcamentos", "id_arg": "orcamento_id"},
+    "salvar_venda": {"modulo": "vendas", "entidade": "venda", "tabela": "vendas", "campos": {"cliente": "venda_cliente", "data": "venda_data"}},
+    "atualizar_venda": {"modulo": "vendas", "entidade": "venda", "tabela": "vendas", "id_arg": "venda_id"},
+    "salvar_ordem_servico": {"modulo": "ordens_servico", "entidade": "ordem_servico", "tabela": "ordens_servico", "campos": {"cliente": "os_cliente", "data_abertura": "os_data_abertura"}},
+    "atualizar_ordem_servico": {"modulo": "ordens_servico", "entidade": "ordem_servico", "tabela": "ordens_servico", "id_arg": "ordem_servico_id"},
+    "salvar_financeiro_titulo": {"modulo": "financeiro", "entidade": "titulo", "tabela": "financeiro_titulos", "campos": {"descricao": "financeiro_descricao", "data_emissao": "financeiro_data_emissao"}},
+    "atualizar_financeiro_titulo": {"modulo": "financeiro", "entidade": "titulo", "tabela": "financeiro_titulos", "id_arg": "titulo_id"},
+    "comprar_produto_estoque": {"modulo": "compras", "entidade": "compra", "tabela": "estoque_movimentacoes", "campos": {"produto_id": "compra_produto_id", "documento": "compra_documento"}, "fixos": {"tipo": "entrada"}},
+    "atualizar_compra_estoque": {"modulo": "compras", "entidade": "compra", "tabela": "estoque_movimentacoes", "id_arg": "compra_id"},
+    "salvar_contrato": {"modulo": "contratos", "entidade": "contrato", "tabela": "contratos", "campos": {"titulo": "titulo", "data_inicio": "data_inicio"}},
+    "atualizar_contrato": {"modulo": "contratos", "entidade": "contrato", "tabela": "contratos", "id_arg": "contrato_id"},
+    "gestao_atividade_nova": {"modulo": "gestao_atividades", "entidade": "atividade", "tabela": "gestao_atividades", "campos": {"titulo": "titulo", "data_inicio": "data_inicio"}},
+    "gestao_atividade_detalhe": {"modulo": "gestao_atividades", "entidade": "atividade", "tabela": "gestao_atividades", "id_arg": "atividade_id"},
+    "agendamentos": {"modulo": "agendamentos", "entidade": "agendamento", "tabela": "agendamentos", "campos": {"cliente_nome": "cliente_nome", "data_agendamento": "data_agendamento"}},
+    "editar_agendamento": {"modulo": "agendamentos", "entidade": "agendamento", "tabela": "agendamentos", "id_arg": "agendamento_id"},
+}
+
+
+def _resolver_registro_configuravel(mapeamento: dict[str, Any]) -> int | None:
+    id_arg = str(mapeamento.get("id_arg") or "")
+    if id_arg:
+        valor = (request.view_args or {}).get(id_arg)
+        return int(valor) if str(valor or "").isdigit() else None
+
+    condicoes = ["empresa_id = ?"]
+    parametros: list[Any] = [empresa_logada_id()]
+    for coluna, campo_formulario in dict(mapeamento.get("campos") or {}).items():
+        valor = str(request.form.get(campo_formulario) or "").strip()
+        if not valor:
+            continue
+        if not re.fullmatch(r"[a-z_][a-z0-9_]*", str(coluna)):
+            continue
+        condicoes.append(f"COALESCE({coluna}, '') = ?")
+        parametros.append(valor)
+    for coluna, valor in dict(mapeamento.get("fixos") or {}).items():
+        if not re.fullmatch(r"[a-z_][a-z0-9_]*", str(coluna)):
+            continue
+        condicoes.append(f"COALESCE({coluna}, '') = ?")
+        parametros.append(str(valor))
+    tabela = str(mapeamento.get("tabela") or "")
+    if not re.fullmatch(r"[a-z_][a-z0-9_]*", tabela):
+        return None
+    with conectar_db() as conn:
+        row = conn.execute(
+            f"SELECT id FROM {tabela} WHERE {' AND '.join(condicoes)} ORDER BY id DESC LIMIT 1",
+            parametros,
+        ).fetchone()
+    return int(row["id"]) if row is not None else None
+
+
+@app.after_request
+def persistir_campos_configuraveis_apos_requisicao(response: Response) -> Response:
+    if request.method != "POST" or response.status_code < 300 or response.status_code >= 400:
+        return response
+    if "erro=" in str(response.headers.get("Location") or "").lower():
+        return response
+    mapeamento = CONFIGURACOES_ENTIDADES_ENDPOINTS.get(str(request.endpoint or ""))
+    if not mapeamento:
+        return response
+    dados = capturar_dados_configuraveis_formulario(str(mapeamento["modulo"]))
+    if not dados:
+        return response
+    try:
+        registro_id = _resolver_registro_configuravel(mapeamento)
+        if registro_id:
+            salvar_dados_configuraveis_entidade(
+                str(mapeamento["modulo"]),
+                str(mapeamento["entidade"]),
+                registro_id,
+                dados,
+            )
+    except sqlite3.Error:
+        app.logger.exception("Falha ao salvar campos configuráveis da entidade.")
+    return response
 
 
 def redirecionar_configuracoes_usuarios(
@@ -16358,6 +18580,7 @@ def modulo_por_rota_admin(rota: str) -> str | None:
         "/produtos": "produtos",
         "/servicos": "servicos",
         "/orcamentos": "orcamentos",
+        "/contratos": "contratos",
         "/vendas": "vendas",
         "/ordens-servico": "ordens_servico",
         "/estoque": "estoque",
@@ -17006,11 +19229,17 @@ def excluir_empresa_cliente_admin_db(empresa_id: int) -> bool:
 
     with conectar_db() as conn:
         tabelas_por_empresa = [
+            "configuracoes_modulos",
+            "contrato_historico",
+            "contrato_anexos",
+            "contrato_itens",
+            "contrato_sequencias",
             "orcamento_itens",
             "venda_itens",
             "ordem_servico_itens",
             "estoque_movimentacoes",
             "financeiro_titulos",
+            "contratos",
             "orcamentos",
             "vendas",
             "ordens_servico",
@@ -17087,10 +19316,52 @@ PONTO_ACOES = {
 
 
 def ponto_exige_intervalo(funcionario: dict[str, Any] | None) -> bool:
+    empresa_id = int((funcionario or {}).get("empresa_id") or 0)
+    if empresa_id and int(float(valor_configuracao_modulo("registro_ponto", "intervalo_obrigatorio_minutos", 60, empresa_id) or 0)) <= 0:
+        return False
     valor = str(
         (funcionario or {}).get("exigir_intervalo_ponto") or "sim"
     ).strip().lower()
     return valor not in {"nao", "não", "0", "false", "off"}
+
+
+def validar_local_autorizado_ponto(
+    empresa_id: int,
+    latitude: str,
+    longitude: str,
+) -> bool:
+    linhas = lista_configuracao_modulo("registro_ponto", "locais_autorizados", empresa_id)
+    if not linhas:
+        return True
+    try:
+        latitude_atual = float(latitude)
+        longitude_atual = float(longitude)
+    except (TypeError, ValueError):
+        return False
+    raio_padrao = max(1.0, float(valor_configuracao_modulo("registro_ponto", "raio_maximo_metros", 200, empresa_id) or 200))
+    locais_validos = 0
+    for linha in linhas:
+        numeros = re.findall(r"-?\d+(?:[.,]\d+)?", linha)
+        if len(numeros) < 2:
+            continue
+        try:
+            latitude_local = float(numeros[-3 if len(numeros) >= 3 else -2].replace(",", "."))
+            longitude_local = float(numeros[-2 if len(numeros) >= 3 else -1].replace(",", "."))
+            raio = float(numeros[-1].replace(",", ".")) if len(numeros) >= 3 else raio_padrao
+        except ValueError:
+            continue
+        if not (-90 <= latitude_local <= 90 and -180 <= longitude_local <= 180):
+            continue
+        locais_validos += 1
+        raio_terra = 6371000.0
+        phi1, phi2 = math.radians(latitude_atual), math.radians(latitude_local)
+        dphi = math.radians(latitude_local - latitude_atual)
+        dlambda = math.radians(longitude_local - longitude_atual)
+        a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+        distancia = raio_terra * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+        if distancia <= max(1.0, raio):
+            return True
+    return locais_validos == 0
 
 
 def ordem_ponto_funcionario(funcionario: dict[str, Any] | None) -> list[str]:
@@ -17305,6 +19576,8 @@ def atualizar_status_agendamento_db(agendamento_id: int, status: str) -> None:
 
 
 def excluir_agendamento_db(agendamento_id: int) -> None:
+    if aplicar_exclusao_logica_configurada("agendamentos", agendamento_id, "cancelado"):
+        return
     with conectar_db() as conn:
         conn.execute("DELETE FROM agendamentos WHERE id = ? AND empresa_id = ?", (agendamento_id, empresa_logada_id()))
         conn.commit()
@@ -17632,7 +19905,12 @@ def bloqueio_nova_jornada_ponto_segundos(registro: dict[str, Any] | None) -> int
     except ValueError:
         return 0
 
-    restante = PONTO_BLOQUEIO_NOVA_JORNADA_SEGUNDOS - int(
+    empresa_id = int(registro.get("empresa_id") or session.get("empresa_id") or 0)
+    bloqueio_configurado = int(float(valor_configuracao_modulo(
+        "registro_ponto", "bloqueio_entre_marcacoes_segundos",
+        PONTO_BLOQUEIO_NOVA_JORNADA_SEGUNDOS, empresa_id or None,
+    ) or PONTO_BLOQUEIO_NOVA_JORNADA_SEGUNDOS))
+    restante = bloqueio_configurado - int(
         (agora_empresa() - finalizado_em).total_seconds()
     )
     return max(restante, 0)
@@ -17717,6 +19995,14 @@ def registrar_batida_ponto_publico(
     if not funcionario_id or not empresa_id:
         return False, "Funcionário inválido.", None
 
+    if origem_final == "offline" and not configuracao_bool("registro_ponto", "permitir_offline", True, empresa_id):
+        return False, "O ponto offline está desativado pela empresa.", None
+
+    if configuracao_bool("registro_ponto", "gps_obrigatorio", True, empresa_id) and not localizacao_valida:
+        return False, "Ative a localização do celular para registrar o ponto.", None
+    if localizacao_valida and not validar_local_autorizado_ponto(empresa_id, latitude_final, longitude_final):
+        return False, "Você está fora do raio permitido para registrar o ponto.", None
+
     with conectar_db() as conn:
         if uuid_final:
             duplicado = conn.execute(
@@ -17747,6 +20033,8 @@ def registrar_batida_ponto_publico(
         if registro is not None and str(registro.get("saida") or "").strip():
             if acao != "entrada":
                 return False, "A jornada anterior foi finalizada. Registre uma nova entrada.", registro
+            if not configuracao_bool("registro_ponto", "multiplas_jornadas", True, empresa_id):
+                return False, "A empresa não permite mais de uma jornada no mesmo dia.", registro
 
             bloqueio_restante = bloqueio_nova_jornada_ponto_segundos(registro)
             if bloqueio_restante > 0:
@@ -18062,7 +20350,9 @@ def admin_excluir_empresa(empresa_id: int) -> Response:
 @app.get("/configuracoes/marca")
 @app.get("/configuracoes/lojas")
 @app.get("/configuracoes/modulos")
-def configuracoes() -> str:
+@app.get("/configuracoes/regras-modulos")
+@app.get("/configuracoes/modulo/<grupo>")
+def configuracoes(grupo: str | None = None) -> str:
     aba = "gerais"
 
     if request.path.endswith("/plano"):
@@ -18075,10 +20365,16 @@ def configuracoes() -> str:
         aba = "marca"
     elif request.path.endswith("/lojas"):
         aba = "lojas"
+    elif grupo is not None or request.path.endswith("/regras-modulos"):
+        aba = "regras_modulos"
     elif request.path.endswith("/modulos"):
         aba = "modulos"
 
     contexto = montar_contexto_configuracoes_listas(montar_configuracoes_contexto())
+    contexto_regras = montar_contexto_regras_modulos(
+        request.args.get("modulo"),
+        grupo or request.args.get("grupo"),
+    )
 
     return render_template(
         "configuracoes.html",
@@ -18100,6 +20396,14 @@ def configuracoes() -> str:
         perfis_usuario=contexto["perfis_usuario"],
         modulos_permissoes=contexto["modulos_permissoes"],
         acoes_permissao=contexto["acoes_permissao"],
+        grupo_configuracao=contexto_regras["grupo_configuracao"],
+        modulos_configuraveis=contexto_regras["modulos_configuraveis"],
+        modulo_configuracao=contexto_regras["modulo_configuracao"],
+        codigo_modulo_configuracao=contexto_regras["codigo_modulo_configuracao"],
+        configuracoes_modulo=contexto_regras["configuracoes_modulo"],
+        metadados_configuracao=contexto_regras["metadados_configuracao"],
+        secoes_configuracao=contexto_regras["secoes_configuracao"],
+        total_configuracoes=contexto_regras["total_configuracoes"],
         erro=request.args.get("erro", ""),
         sucesso=request.args.get("sucesso", ""),
     )
@@ -18110,6 +20414,94 @@ def salvar_configuracoes_modulos() -> Response:
     codigos_ativos = request.form.getlist("modulos_ativos")
     salvar_modulos_empresa(codigos_ativos)
     return redirect("/configuracoes/modulos?sucesso=Módulos atualizados com sucesso.")
+
+
+def url_retorno_configuracao_modulo(
+    codigo: str,
+    **parametros_extras: Any,
+) -> str:
+    grupo = CONFIGURACOES_GRUPO_POR_MODULO.get(str(codigo or "").strip().lower(), "sistema")
+    parametros = {"modulo": codigo, **parametros_extras}
+    return f"/configuracoes/modulo/{grupo}?{urllib.parse.urlencode(parametros)}"
+
+
+@app.post("/configuracoes/regras-modulos/<codigo>")
+def salvar_regras_configuracao_modulo(codigo: str) -> Response:
+    definicao = buscar_definicao_configuracao_modulo(codigo)
+    if definicao is None:
+        return redirect(
+            url_retorno_configuracao_modulo(
+                codigo,
+                erro="Módulo de configuração inválido.",
+            )
+        )
+
+    valores_anteriores = buscar_configuracoes_modulo(codigo)
+
+    try:
+        valores_novos = montar_configuracoes_modulo_formulario(definicao)
+    except ValueError as erro_validacao:
+        return redirect(
+            url_retorno_configuracao_modulo(
+                codigo,
+                erro=str(erro_validacao),
+            )
+        )
+
+    erro_integracao = validar_configuracoes_modulo_operacional(codigo, valores_novos)
+    if erro_integracao:
+        return redirect(
+            url_retorno_configuracao_modulo(
+                codigo,
+                erro=erro_integracao,
+            )
+        )
+
+    salvar_configuracoes_modulo_db(codigo, valores_novos)
+    registrar_atividade_usuario(
+        "edicao",
+        "configuracoes",
+        f"Atualizou as configurações do módulo {definicao['nome']}.",
+        registro_id=codigo,
+        dados_anteriores=valores_anteriores,
+        dados_novos=valores_novos,
+    )
+    return redirect(
+        url_retorno_configuracao_modulo(
+            codigo,
+            sucesso=f"Configurações de {definicao['nome']} salvas com sucesso.",
+        )
+    )
+
+
+@app.post("/configuracoes/regras-modulos/<codigo>/restaurar")
+def restaurar_regras_configuracao_modulo(codigo: str) -> Response:
+    definicao = buscar_definicao_configuracao_modulo(codigo)
+    if definicao is None:
+        return redirect(
+            url_retorno_configuracao_modulo(
+                codigo,
+                erro="Módulo de configuração inválido.",
+            )
+        )
+
+    valores_anteriores = buscar_configuracoes_modulo(codigo)
+    restaurar_configuracoes_modulo_db(codigo)
+    valores_padrao = buscar_configuracoes_modulo(codigo)
+    registrar_atividade_usuario(
+        "edicao",
+        "configuracoes",
+        f"Restaurou as configurações padrão do módulo {definicao['nome']}.",
+        registro_id=codigo,
+        dados_anteriores=valores_anteriores,
+        dados_novos=valores_padrao,
+    )
+    return redirect(
+        url_retorno_configuracao_modulo(
+            codigo,
+            sucesso=f"Padrões de {definicao['nome']} restaurados com sucesso.",
+        )
+    )
 
 
 @app.post("/configuracoes/modulos/refazer-anamnese")
@@ -18205,8 +20597,24 @@ def montar_novo_cadastro_formulario() -> dict[str, str]:
 def validar_senha_forte(senha: str) -> str:
     senha = str(senha or "")
 
-    if len(senha) < 8:
-        return "A senha precisa ter no mínimo 8 caracteres."
+    politica = "forte"
+    if int(session.get("empresa_id") or 0) > 0:
+        politica = str(
+            valor_configuracao_modulo(
+                "importacao_seguranca",
+                "politica_senha",
+                valor_configuracao_modulo("gerais", "politica_senha", "forte"),
+            )
+            or "forte"
+        )
+
+    if politica == "basica":
+        return "" if len(senha) >= 6 else "A senha precisa ter no mínimo 6 caracteres."
+
+    minimo = 12 if politica == "muito_forte" else 8
+
+    if len(senha) < minimo:
+        return f"A senha precisa ter no mínimo {minimo} caracteres."
 
     if not re.search(r"[A-Z]", senha):
         return "A senha precisa ter pelo menos uma letra maiúscula."
@@ -19513,25 +21921,29 @@ def listar_produtos_vitrine_empresa(empresa_id: int) -> list[dict[str, Any]]:
         rows = conn.execute(
             """
             SELECT
-                id,
-                empresa_id,
-                produto_id,
-                nome,
-                descricao,
-                categoria,
-                preco,
-                imagem_path,
-                destaque,
-                status,
-                acessos,
-                carrinhos,
-                pedidos
+                vitrine_produtos.id,
+                vitrine_produtos.empresa_id,
+                vitrine_produtos.produto_id,
+                vitrine_produtos.nome,
+                vitrine_produtos.descricao,
+                vitrine_produtos.categoria,
+                vitrine_produtos.preco,
+                vitrine_produtos.imagem_path,
+                vitrine_produtos.destaque,
+                vitrine_produtos.status,
+                vitrine_produtos.acessos,
+                vitrine_produtos.carrinhos,
+                vitrine_produtos.pedidos,
+                produtos.estoque_atual
             FROM vitrine_produtos
-            WHERE empresa_id = ?
-              AND LOWER(COALESCE(status, 'publicado')) = 'publicado'
+            LEFT JOIN produtos
+              ON produtos.id = vitrine_produtos.produto_id
+             AND produtos.empresa_id = vitrine_produtos.empresa_id
+            WHERE vitrine_produtos.empresa_id = ?
+              AND LOWER(COALESCE(vitrine_produtos.status, 'publicado')) = 'publicado'
             ORDER BY
-                CASE WHEN LOWER(COALESCE(destaque, 'nao')) = 'sim' THEN 0 ELSE 1 END,
-                nome ASC
+                CASE WHEN LOWER(COALESCE(vitrine_produtos.destaque, 'nao')) = 'sim' THEN 0 ELSE 1 END,
+                vitrine_produtos.nome ASC
             """,
             (empresa_id,),
         ).fetchall()
@@ -20028,7 +22440,48 @@ def montar_whatsapp_pedido_vitrine(config_vitrine: dict[str, Any], pedido_id: in
     return f"https://wa.me/{telefone}?text={texto}" if telefone else ""
 
 
+def aplicar_configuracoes_vitrine_publica(
+    config_vitrine: dict[str, Any],
+    produtos: list[dict[str, Any]],
+) -> tuple[dict[str, Any], list[dict[str, Any]], dict[str, Any]]:
+    empresa_id = int(config_vitrine.get("empresa_id") or 0)
+    regras = buscar_configuracoes_modulo("vitrine", empresa_id)
+    configuracao = dict(config_vitrine)
+    substituicoes = {
+        "nome_loja": regras.get("nome_publico"), "slug": regras.get("slug"),
+        "cor_principal": regras.get("cor_primaria"), "cor_secundaria": regras.get("cor_secundaria"),
+        "whatsapp": regras.get("whatsapp"),
+    }
+    for chave, valor in substituicoes.items():
+        if str(valor or "").strip():
+            configuracao[chave] = str(valor).strip()
+
+    categorias = {normalizar for normalizar in lista_configuracao_modulo("vitrine", "categorias_publicas", empresa_id)}
+    produtos_filtrados = list(produtos) if configuracao_bool("vitrine", "exibir_produtos", True, empresa_id) else []
+    if categorias:
+        categorias_normalizadas = {_texto_comparacao_configuracao(item) for item in categorias}
+        produtos_filtrados = [
+            produto for produto in produtos_filtrados
+            if _texto_comparacao_configuracao(produto.get("categoria")) in categorias_normalizadas
+        ]
+    ordenacao = str(regras.get("ordenacao") or "manual")
+    if ordenacao == "nome":
+        produtos_filtrados.sort(key=lambda item: str(item.get("nome") or "").lower())
+    elif ordenacao == "preco":
+        produtos_filtrados.sort(key=lambda item: _converter_valor_brl(item.get("preco")))
+    elif ordenacao == "recentes":
+        produtos_filtrados.sort(key=lambda item: int(item.get("id") or 0), reverse=True)
+    return configuracao, produtos_filtrados, regras
+
+
 def renderizar_vitrine_publica_html(config_vitrine: dict[str, Any], produtos: list[dict[str, Any]], mensagem: str = "", whatsapp_url: str = "") -> str:
+    config_vitrine, produtos, regras_vitrine = aplicar_configuracoes_vitrine_publica(config_vitrine, produtos)
+    empresa_id_vitrine = int(config_vitrine.get("empresa_id") or 0)
+    exibir_preco = configuracao_bool("vitrine", "exibir_preco", True, empresa_id_vitrine)
+    permitir_pedido = str(regras_vitrine.get("modo_contato") or "pedido") == "pedido"
+    quantidade_minima = max(1, int(float(regras_vitrine.get("quantidade_minima") or 1)))
+    titulo_seo = html.escape(str(regras_vitrine.get("seo_titulo") or config_vitrine.get("nome_loja") or "Loja online"))
+    descricao_seo = html.escape(str(regras_vitrine.get("seo_descricao") or regras_vitrine.get("texto_institucional") or ""))
     cor_principal = html.escape(str(config_vitrine.get("cor_principal") or "#111827"))
     cor_secundaria = html.escape(str(config_vitrine.get("cor_secundaria") or "#f59e0b"))
     nome_loja = html.escape(str(config_vitrine.get("nome_loja") or "Loja online"))
@@ -20045,8 +22498,18 @@ def renderizar_vitrine_publica_html(config_vitrine: dict[str, Any], produtos: li
         descricao = html.escape(str(produto.get("descricao") or ""))
         categoria_produto = html.escape(str(produto.get("categoria") or "Produtos"))
         preco = html.escape(str(produto.get("preco") or "0,00"))
+        controlar_estoque = configuracao_bool("vitrine", "controlar_estoque", True, empresa_id_vitrine)
+        disponivel = not controlar_estoque or _converter_valor_brl(produto.get("estoque_atual")) > 0
         imagem_path = str(produto.get("imagem_path") or "").strip()
         imagem_html = f'<img src="/vitrine-upload/{html.escape(imagem_path)}" alt="{nome}">' if imagem_path else '<span>Produto</span>'
+        preco_html = f"<strong>R$ {preco}</strong>" if exibir_preco else "<strong>Consulte o valor</strong>"
+        acao_html = (
+            f'<button type="button" onclick="adicionarCarrinho({produto_id}, \'{nome}\', \'{preco}\')">Adicionar ao carrinho</button>'
+            if permitir_pedido and disponivel else
+            f'<a href="https://wa.me/{html.escape(str(config_vitrine.get("whatsapp") or ""))}" target="_blank" rel="noopener">Consultar no WhatsApp</a>'
+        )
+        if not disponivel:
+            acao_html = f'<button type="button" disabled>{html.escape(str(regras_vitrine.get("mensagem_indisponivel") or "Produto indisponível no momento."))}</button>'
         cards.append(
             f"""
             <article class="produto-card" data-produto-id="{produto_id}" data-categoria="{categoria_produto}" data-nome="{nome.lower()}">
@@ -20055,8 +22518,8 @@ def renderizar_vitrine_publica_html(config_vitrine: dict[str, Any], produtos: li
                     <small>{categoria_produto}</small>
                     <h3>{nome}</h3>
                     <p>{descricao}</p>
-                    <strong>R$ {preco}</strong>
-                    <button type="button" onclick="adicionarCarrinho({produto_id}, '{nome}', '{preco}')">Adicionar ao carrinho</button>
+                    {preco_html}
+                    {acao_html}
                 </div>
             </article>
             """
@@ -20070,13 +22533,19 @@ def renderizar_vitrine_publica_html(config_vitrine: dict[str, Any], produtos: li
     mensagem_html = f'<div class="mensagem">{html.escape(mensagem)}</div>' if mensagem else ""
     whatsapp_html = f'<a class="whatsapp-final" href="{html.escape(whatsapp_url)}" target="_blank" rel="noopener">Enviar pedido no WhatsApp</a>' if whatsapp_url else ""
     slug = html.escape(str(config_vitrine.get("slug") or ""))
+    formas_entrega = lista_configuracao_modulo("vitrine", "formas_entrega", empresa_id_vitrine) or ["Entrega", "Retirada no local"]
+    entrega_html = "".join(f'<option value="{normalizar_texto}">{html.escape(rotulo)}</option>' for rotulo in formas_entrega for normalizar_texto in [_normalizar_chave_campo_configuravel(rotulo)])
+    carrinho_html = ""
+    if permitir_pedido:
+        carrinho_html = f'''<aside class="carrinho"><h2>Carrinho</h2><div id="itensCarrinho">Nenhum item adicionado.</div><strong id="totalCarrinho">Total: R$ 0,00</strong><form class="form-pedido" method="post" action="/loja/{slug}/pedido" onsubmit="return prepararPedido()"><input name="cliente_nome" placeholder="Seu nome" required><input name="cliente_whatsapp" placeholder="Seu WhatsApp" required><select name="tipo_entrega">{entrega_html}</select><input name="endereco" placeholder="Endereço, se for entrega"><select name="forma_pagamento"><option value="pix">PIX</option><option value="dinheiro">Dinheiro</option><option value="cartao">Cartão</option></select><textarea name="observacoes" placeholder="Observações"></textarea><input type="hidden" name="itens_json" id="itensJson"><button class="finalizar" type="submit">Confirmar pedido</button></form></aside>'''
 
     return f"""<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{nome_loja}</title>
+<title>{titulo_seo}</title>
+<meta name="description" content="{descricao_seo}">
 <style>
 *{{box-sizing:border-box}}body{{margin:0;font-family:Arial,sans-serif;background:#f3f4f6;color:#111827}}.topo{{background:linear-gradient(135deg,{cor_principal},{cor_secundaria});color:#fff;padding:28px 18px 34px}}.topo-inner{{max-width:1120px;margin:auto;display:flex;align-items:center;gap:16px}}.logo{{width:76px;height:76px;border-radius:22px;background:#fff;color:{cor_principal};display:grid;place-items:center;font-weight:900;font-size:22px;overflow:hidden}}.logo img{{width:100%;height:100%;object-fit:cover}}.topo h1{{margin:0;font-size:30px}}.topo p{{margin:6px 0 0;opacity:.9}}.container{{max-width:1120px;margin:-22px auto 40px;padding:0 18px}}.barra{{background:#fff;border-radius:22px;padding:16px;box-shadow:0 12px 30px rgba(0,0,0,.08);display:grid;gap:12px}}.busca{{width:100%;min-height:46px;border:1px solid #e5e7eb;border-radius:14px;padding:0 14px;font-size:16px}}.categorias{{display:flex;gap:8px;overflow:auto}}.categorias button{{border:0;border-radius:999px;padding:10px 14px;background:#eef2ff;font-weight:800;white-space:nowrap}}.conteudo{{display:grid;grid-template-columns:1fr 340px;gap:18px;margin-top:18px}}.produtos{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}}.produto-card{{background:#fff;border-radius:22px;overflow:hidden;border:1px solid #e5e7eb}}.produto-imagem{{width:100%;height:170px;border:0;background:#e5e7eb;display:grid;place-items:center;color:#6b7280;font-weight:900;cursor:pointer}}.produto-imagem img{{width:100%;height:100%;object-fit:cover}}.produto-info{{padding:14px;display:grid;gap:8px}}.produto-info small{{color:#6b7280;font-weight:800}}.produto-info h3{{margin:0;font-size:17px}}.produto-info p{{margin:0;color:#6b7280;min-height:38px}}.produto-info strong{{font-size:20px}}.produto-info button,.finalizar,.whatsapp-final{{border:0;border-radius:14px;padding:12px;background:{cor_principal};color:#fff;font-weight:900;cursor:pointer;text-align:center;text-decoration:none}}.carrinho{{background:#fff;border-radius:22px;border:1px solid #e5e7eb;padding:16px;position:sticky;top:16px;align-self:start}}.carrinho h2{{margin:0 0 12px}}.item-carrinho{{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid #e5e7eb;padding:10px 0}}.form-pedido{{display:grid;gap:10px;margin-top:14px}}.form-pedido input,.form-pedido select,.form-pedido textarea{{width:100%;min-height:42px;border:1px solid #d1d5db;border-radius:12px;padding:10px}}.mensagem{{background:#ecfdf5;color:#047857;border-radius:16px;padding:12px;margin-bottom:14px;font-weight:800}}.whatsapp-final{{display:block;margin-bottom:14px;background:#16a34a}}.vazio{{background:#fff;border-radius:22px;padding:30px;text-align:center;color:#6b7280}}@media(max-width:900px){{.conteudo{{grid-template-columns:1fr}}.produtos{{grid-template-columns:1fr}}.topo-inner{{align-items:flex-start}}}}
 </style>
@@ -20087,7 +22556,7 @@ def renderizar_vitrine_publica_html(config_vitrine: dict[str, Any], produtos: li
 {mensagem_html}
 {whatsapp_html}
 <section class="barra"><input class="busca" id="busca" placeholder="Buscar produto..." oninput="filtrarProdutos()"><div class="categorias"><button type="button" onclick="filtrarCategoria('')">Todos</button>{categorias_html}</div></section>
-<section class="conteudo"><div class="produtos" id="produtos">{cards_html}</div><aside class="carrinho"><h2>Carrinho</h2><div id="itensCarrinho">Nenhum item adicionado.</div><strong id="totalCarrinho">Total: R$ 0,00</strong><form class="form-pedido" method="post" action="/loja/{slug}/pedido" onsubmit="return prepararPedido()"><input name="cliente_nome" placeholder="Seu nome" required><input name="cliente_whatsapp" placeholder="Seu WhatsApp" required><select name="tipo_entrega"><option value="retirada">Retirada</option><option value="entrega">Entrega</option></select><input name="endereco" placeholder="Endereço, se for entrega"><select name="forma_pagamento"><option value="pix">PIX</option><option value="dinheiro">Dinheiro</option><option value="cartao">Cartão</option></select><textarea name="observacoes" placeholder="Observações"></textarea><input type="hidden" name="itens_json" id="itensJson"><button class="finalizar" type="submit">Confirmar pedido</button></form></aside></section>
+<section class="conteudo"><div class="produtos" id="produtos">{cards_html}</div>{carrinho_html}</section>
 </main>
 <script>
 let carrinho=[];
@@ -20097,7 +22566,7 @@ function registrar(tipo,id){{fetch('/loja/{slug}/evento',{{method:'POST',headers
 function registrarProduto(id){{registrar('produto',id)}}
 function adicionarCarrinho(id,nome,preco){{registrar('carrinho',id);const item=carrinho.find(i=>i.id===id);if(item){{item.quantidade+=1}}else{{carrinho.push({{id:id,nome:nome,preco:preco,quantidade:1}})}}renderCarrinho()}}
 function renderCarrinho(){{const el=document.getElementById('itensCarrinho');if(!carrinho.length){{el.innerHTML='Nenhum item adicionado.';document.getElementById('totalCarrinho').innerText='Total: R$ 0,00';return}}let total=0;el.innerHTML=carrinho.map(i=>{{const sub=moedaNumero(i.preco)*i.quantidade;total+=sub;return `<div class="item-carrinho"><span>${{i.quantidade}}x ${{i.nome}}</span><strong>R$ ${{moedaBR(sub)}}</strong></div>`}}).join('');document.getElementById('totalCarrinho').innerText='Total: R$ '+moedaBR(total)}}
-function prepararPedido(){{if(!carrinho.length){{alert('Adicione pelo menos um produto.');return false}}document.getElementById('itensJson').value=JSON.stringify(carrinho);return true}}
+function prepararPedido(){{const quantidade=carrinho.reduce((total,item)=>total+item.quantidade,0);if(quantidade<{quantidade_minima}){{alert('A quantidade mínima do pedido é {quantidade_minima}.');return false}}document.getElementById('itensJson').value=JSON.stringify(carrinho);return true}}
 function filtrarCategoria(cat){{document.querySelectorAll('.produto-card').forEach(card=>{{card.style.display=(!cat||card.dataset.categoria===cat)?'block':'none'}})}}
 function filtrarProdutos(){{const termo=document.getElementById('busca').value.toLowerCase();document.querySelectorAll('.produto-card').forEach(card=>{{card.style.display=card.dataset.nome.includes(termo)?'block':'none'}})}}
 </script>
@@ -20120,6 +22589,8 @@ def vitrine_publica(slug: str) -> str | Response:
         return Response("Vitrine não encontrada ou ainda não publicada.", status=404)
 
     empresa_id = int(config_vitrine.get("empresa_id") or 0)
+    if not configuracao_bool("vitrine", "ativa", True, empresa_id):
+        return Response("Esta vitrine está desativada.", status=404)
     registrar_evento_vitrine(empresa_id, "visita", origem=request.args.get("utm") or request.referrer or "")
     produtos = listar_produtos_vitrine_empresa(empresa_id)
     return renderizar_vitrine_publica_html(config_vitrine, produtos)
@@ -20130,6 +22601,9 @@ def vitrine_evento_publico(slug: str) -> Response:
     config_vitrine = buscar_vitrine_configuracao_por_slug(slug)
     if config_vitrine is None:
         return jsonify({"ok": False}), 404
+
+    if not configuracao_bool("vitrine", "ativa", True, int(config_vitrine.get("empresa_id") or 0)):
+        return jsonify({"ok": False, "erro": "Vitrine desativada."}), 404
 
     payload = request.get_json(silent=True) or {}
     registrar_evento_vitrine(
@@ -20148,6 +22622,10 @@ def vitrine_pedido_publico(slug: str) -> str | Response:
         return Response("Vitrine não encontrada ou ainda não publicada.", status=404)
 
     empresa_id = int(config_vitrine.get("empresa_id") or 0)
+    if not configuracao_bool("vitrine", "ativa", True, empresa_id):
+        return Response("Esta vitrine está desativada.", status=404)
+    if str(valor_configuracao_modulo("vitrine", "modo_contato", "pedido", empresa_id) or "pedido") != "pedido":
+        return Response("Esta vitrine aceita somente contato pelo WhatsApp.", status=403)
     dados = {
         "cliente_nome": request.form.get("cliente_nome") or "",
         "cliente_whatsapp": request.form.get("cliente_whatsapp") or "",
@@ -20158,9 +22636,12 @@ def vitrine_pedido_publico(slug: str) -> str | Response:
     }
     itens = montar_itens_pedido_vitrine(empresa_id, request.form.get("itens_json") or "[]")
 
-    if not itens:
+    quantidade_total = sum(_converter_valor_brl(item.get("quantidade")) for item in itens)
+    quantidade_minima = float(valor_configuracao_modulo("vitrine", "quantidade_minima", 1, empresa_id) or 1)
+
+    if not itens or quantidade_total < quantidade_minima:
         produtos = listar_produtos_vitrine_empresa(empresa_id)
-        return renderizar_vitrine_publica_html(config_vitrine, produtos, "Adicione pelo menos um produto ao carrinho.")
+        return renderizar_vitrine_publica_html(config_vitrine, produtos, f"O pedido mínimo é de {quantidade_minima:g} item(ns).")
 
     pedido_id = salvar_pedido_vitrine_db(empresa_id, dados, itens)
     whatsapp_url = montar_whatsapp_pedido_vitrine(config_vitrine, pedido_id, dados, itens)
@@ -20454,7 +22935,9 @@ def normalizar_cliente_para_salvar(cliente: dict[str, str]) -> dict[str, str]:
     cliente_normalizado = dict(cliente)
 
     if not cliente_normalizado["status"]:
-        cliente_normalizado["status"] = "ativo"
+        cliente_normalizado["status"] = str(
+            valor_configuracao_modulo("cadastros", "status_padrao", "ativo") or "ativo"
+        )
 
     if cliente_normalizado["status"] not in {"ativo", "inativo", "pendente"}:
         cliente_normalizado["status"] = "ativo"
@@ -21303,11 +23786,11 @@ def exportar_clientes() -> Response:
             [
                 cliente.get("id", ""),
                 cliente.get("nome", ""),
-                cliente.get("documento", ""),
-                cliente.get("telefone", ""),
+                proteger_dado_pessoal_exportacao(cliente.get("documento", ""), "documento"),
+                proteger_dado_pessoal_exportacao(cliente.get("telefone", ""), "telefone"),
                 cliente.get("cidade", ""),
                 cliente.get("status", ""),
-                cliente.get("email", ""),
+                proteger_dado_pessoal_exportacao(cliente.get("email", ""), "email"),
             ]
         )
 
@@ -21577,12 +24060,12 @@ def exportar_fornecedores() -> Response:
         linhas.append([
             fornecedor.get("id", ""),
             fornecedor.get("nome", ""),
-            fornecedor.get("documento", ""),
-            fornecedor.get("telefone", ""),
+            proteger_dado_pessoal_exportacao(fornecedor.get("documento", ""), "documento"),
+            proteger_dado_pessoal_exportacao(fornecedor.get("telefone", ""), "telefone"),
             fornecedor.get("cidade", ""),
             fornecedor.get("categoria", ""),
             fornecedor.get("status", ""),
-            fornecedor.get("email", ""),
+            proteger_dado_pessoal_exportacao(fornecedor.get("email", ""), "email"),
             fornecedor.get("observacoes", ""),
         ])
 
@@ -21859,12 +24342,12 @@ def exportar_funcionarios() -> Response:
         linhas.append([
             funcionario.get("id", ""),
             funcionario.get("nome", ""),
-            funcionario.get("cpf", ""),
-            funcionario.get("telefone", ""),
+            proteger_dado_pessoal_exportacao(funcionario.get("cpf", ""), "documento"),
+            proteger_dado_pessoal_exportacao(funcionario.get("telefone", ""), "telefone"),
             funcionario.get("cidade", ""),
             funcionario.get("cargo", ""),
             funcionario.get("status", ""),
-            funcionario.get("email", ""),
+            proteger_dado_pessoal_exportacao(funcionario.get("email", ""), "email"),
             funcionario.get("observacoes", ""),
             funcionario.get("salario_base", ""),
             funcionario.get("inss_percentual", ""),
@@ -22124,11 +24607,23 @@ def excluir_funcionario(funcionario_id: int) -> Response:
 def normalizar_produto_para_salvar(produto: dict[str, str]) -> dict[str, str]:
     produto_normalizado = dict(produto)
 
+    if not produto_normalizado["codigo"] and configuracao_bool("produtos", "codigo_automatico", True):
+        produto_normalizado["codigo"] = proximo_codigo_cadastro_configurado("produtos", "produtos", "PROD")
+
+    if not produto_normalizado["unidade"]:
+        unidades = lista_configuracao_modulo("produtos", "unidades_medida")
+        produto_normalizado["unidade"] = unidades[0] if unidades else "UN"
+
     if not produto_normalizado["estoque_atual"]:
         produto_normalizado["estoque_atual"] = "0"
 
     if not produto_normalizado["estoque_minimo"]:
-        produto_normalizado["estoque_minimo"] = "0"
+        produto_normalizado["estoque_minimo"] = str(valor_configuracao_modulo("produtos", "estoque_minimo_padrao", 0) or 0)
+
+    if not produto_normalizado["preco_venda"] and _converter_valor_brl(produto_normalizado.get("preco_custo")) > 0:
+        custo = _converter_valor_brl(produto_normalizado["preco_custo"])
+        margem = float(valor_configuracao_modulo("produtos", "margem_padrao", 30) or 30)
+        produto_normalizado["preco_venda"] = _formatar_moeda_brl(custo * (1 + margem / 100))
 
     if not produto_normalizado["status"]:
         produto_normalizado["status"] = "ativo"
@@ -22154,6 +24649,22 @@ def validar_produto_para_salvar(produto: dict[str, str]) -> str:
 
 def normalizar_servico_para_salvar(servico: dict[str, str]) -> dict[str, str]:
     servico_normalizado = dict(servico)
+
+    if not servico_normalizado["codigo"] and configuracao_bool("servicos", "codigo_automatico", True):
+        servico_normalizado["codigo"] = proximo_codigo_cadastro_configurado("servicos", "servicos", "SERV")
+
+    if not servico_normalizado["unidade"]:
+        unidades = lista_configuracao_modulo("servicos", "unidades_cobranca")
+        servico_normalizado["unidade"] = unidades[0] if unidades else "Serviço"
+
+    if not servico_normalizado["tempo_estimado"]:
+        servico_normalizado["tempo_estimado"] = str(valor_configuracao_modulo("servicos", "tempo_estimado_horas", 1) or 1)
+
+    if not servico_normalizado["valor_venda"]:
+        servico_normalizado["valor_venda"] = str(valor_configuracao_modulo("servicos", "valor_padrao", 0) or 0)
+
+    if not servico_normalizado["custo"]:
+        servico_normalizado["custo"] = str(valor_configuracao_modulo("servicos", "custo_estimado_padrao", 0) or 0)
 
     if not servico_normalizado["status"]:
         servico_normalizado["status"] = "ativo"
@@ -23197,6 +25708,14 @@ def movimentar_estoque() -> Response:
     else:
         saldo_atual_numero = quantidade
 
+    if saldo_atual_numero < 0 and not configuracao_bool("estoque", "permitir_negativo", False):
+        return redirect(
+            url_for(
+                "estoque",
+                erro="A movimentação deixaria o estoque negativo, o que está bloqueado nas configurações.",
+            )
+        )
+
     movimentacao = {
         "produto_id": str(produto_id),
         "produto_nome": str(produto.get("nome") or ""),
@@ -23234,7 +25753,8 @@ def comprar_produto_estoque() -> Response:
 
     quantidade = _converter_valor_brl(compra["quantidade"])
     saldo_anterior_numero = _converter_valor_brl(produto.get("estoque_atual"))
-    saldo_atual_numero = saldo_anterior_numero + quantidade
+    entrada_automatica = configuracao_bool("compras", "entrar_estoque", True)
+    saldo_atual_numero = saldo_anterior_numero + quantidade if entrada_automatica else saldo_anterior_numero
     motivo = "Compra de produto"
 
     if compra["fornecedor"]:
@@ -23243,7 +25763,7 @@ def comprar_produto_estoque() -> Response:
     movimentacao = {
         "produto_id": str(produto_id),
         "produto_nome": str(produto.get("nome") or ""),
-        "tipo": "entrada",
+        "tipo": "entrada" if entrada_automatica else "compra",
         "quantidade": _formatar_numero_estoque(quantidade),
         "saldo_anterior": _formatar_numero_estoque(saldo_anterior_numero),
         "saldo_atual": _formatar_numero_estoque(saldo_atual_numero),
@@ -23253,14 +25773,45 @@ def comprar_produto_estoque() -> Response:
         "observacoes": f"Valor de custo: {compra['valor_custo']}\n{compra['observacoes']}".strip(),
     }
 
-    salvar_estoque_movimentacao_db(movimentacao)
+    compra_id = salvar_estoque_movimentacao_db(movimentacao)
+
+    integracoes_financeiras = {
+        _texto_comparacao_configuracao(item)
+        for item in lista_configuracao_modulo("financeiro", "integracoes")
+    }
+    if configuracao_bool("compras", "gerar_contas_pagar", True) and (
+        not integracoes_financeiras or "compras" in integracoes_financeiras
+    ):
+        valor_total = _converter_valor_brl(compra["valor_custo"]) * quantidade
+        if valor_total > 0:
+            salvar_financeiro_titulo_db(
+                {
+                    "tipo": "pagar",
+                    "descricao": f"Compra de {produto.get('nome') or produto_id}",
+                    "pessoa": compra["fornecedor"],
+                    "categoria": "Materiais",
+                    "centro_custo_id": None,
+                    "atividade_financeira_id": None,
+                    "origem": "compra",
+                    "origem_id": str(compra_id),
+                    "documento": compra["documento"],
+                    "data_emissao": hoje_empresa().isoformat(),
+                    "data_vencimento": hoje_empresa().isoformat(),
+                    "data_pagamento": "",
+                    "valor": _formatar_moeda_brl(valor_total),
+                    "forma_pagamento": "",
+                    "status": "aberto",
+                    "observacoes": "Gerado automaticamente pela configuração de Compras.",
+                }
+            )
     registrar_atividade_usuario(
         "criacao",
         "estoque",
         f"Registrou compra de {produto.get('nome') or produto_id}",
         request.path,
     )
-    return redirect("/estoque/compras?sucesso=Compra%20registrada%20e%20estoque%20atualizado.")
+    mensagem_compra = "Compra registrada e estoque atualizado." if entrada_automatica else "Compra registrada sem entrada automática no estoque."
+    return redirect(f"/estoque/compras?sucesso={urllib.parse.quote(mensagem_compra)}")
 
 
 @app.get("/estoque/compras/<int:compra_id>")
@@ -23551,6 +26102,8 @@ def atualizar_equipamento_db(equipamento_id: int, dados: dict[str, Any]) -> bool
 
 
 def excluir_equipamento_db(equipamento_id: int) -> bool:
+    if aplicar_exclusao_logica_configurada("equipamentos", equipamento_id, "inativo"):
+        return True
     with conectar_db() as conn:
         cursor = conn.execute(
             "DELETE FROM equipamentos WHERE id = ? AND empresa_id = ?",
@@ -23859,11 +26412,12 @@ def salvar_ordem_servico() -> Response:
     except ValueError as exc:
         return redirect(url_for("editar_ordem_servico", ordem_servico_id=nova_ordem_servico_id, erro=str(exc)))
     registrar_atividade_usuario("criacao", "ordens_servico", f"Criou OS {ordem_servico.get('numero') or nova_ordem_servico_id}", request.path)
+    integracoes = executar_integracoes_ordem_servico_configuradas(nova_ordem_servico_id)
 
     return redirect(
         url_for(
             "ordens_servico",
-            sucesso=f"OS {ordem_servico.get('numero')} criada com sucesso.",
+            sucesso=f"OS {ordem_servico.get('numero')} criada com sucesso." + (" Gerado: " + ", ".join(integracoes) + "." if integracoes else ""),
         )
     )
 
@@ -24148,12 +26702,14 @@ def acompanhamento_os_publico(token: str) -> str | Response:
         "equipe_acompanhamento": [],
         "materiais_acompanhamento": [],
         "servicos_acompanhamento": [],
+        "gestflow_configuracoes_runtime": {},
     }
 
     if acompanhamento is None:
         return render_template("os_acompanhamento_publico.html", **contexto_vazio)
 
     empresa_id = int(acompanhamento.get("empresa_id") or 0)
+    contexto_vazio["gestflow_configuracoes_runtime"] = montar_configuracoes_runtime(empresa_id)
     ordem_servico_id = int(acompanhamento.get("ordem_servico_id") or 0)
     acompanhamento_id = int(acompanhamento.get("id") or 0)
     modo_publico = str(acompanhamento.get("tipo_acesso") or "tecnico").strip().lower()
@@ -24203,6 +26759,15 @@ def acompanhamento_os_publico(token: str) -> str | Response:
                 "observacoes": str(request.form.get("observacoes") or "").strip(),
             }
             itens_formulario = montar_itens_acompanhamento_formulario(request.form)
+            if acao == "finalizar":
+                fotos_existentes = listar_fotos_equipamento_os_publico(ordem_servico_id, empresa_id)
+                tipos_fotos = {str(foto.get("tipo_foto") or "").lower() for foto in fotos_existentes}
+                if configuracao_bool("ordens_servico", "exigir_fotos_antes", False, empresa_id) and "antes" not in tipos_fotos:
+                    erro = "A configuração da OS exige pelo menos uma foto antes da execução."
+                    return redirect(url_for("acompanhamento_os_publico", token=token, erro=erro))
+                if configuracao_bool("ordens_servico", "exigir_fotos_depois", False, empresa_id) and "depois" not in tipos_fotos:
+                    erro = "A configuração da OS exige pelo menos uma foto depois da execução."
+                    return redirect(url_for("acompanhamento_os_publico", token=token, erro=erro))
             sucesso, retorno = registrar_acrescimos_tecnico_os(
                 token,
                 dados_acompanhamento,
@@ -24271,6 +26836,7 @@ def acompanhamento_os_publico(token: str) -> str | Response:
         equipe_acompanhamento=itens_salvos["equipe"],
         materiais_acompanhamento=itens_salvos["materiais"],
         servicos_acompanhamento=itens_salvos["servicos"],
+        gestflow_configuracoes_runtime=montar_configuracoes_runtime(empresa_id),
     )
 
 
@@ -24631,10 +27197,12 @@ def atualizar_ordem_servico(ordem_servico_id: int) -> Response:
     except ValueError as exc:
         return redirect(url_for("editar_ordem_servico", ordem_servico_id=ordem_servico_id, erro=str(exc)))
 
+    integracoes = executar_integracoes_ordem_servico_configuradas(ordem_servico_id)
+
     return redirect(
         url_for(
             "ordens_servico",
-            sucesso=f"OS {ordem_servico.get('numero')} atualizada com sucesso.",
+            sucesso=f"OS {ordem_servico.get('numero')} atualizada com sucesso." + (" Gerado: " + ", ".join(integracoes) + "." if integracoes else ""),
         )
     )
 
@@ -25997,6 +28565,7 @@ def agendamento_publico(codigo_empresa: str) -> str | Response:
             sucesso="",
             token_cliente="",
             agendamento_id="",
+            gestflow_configuracoes_runtime={},
         )
 
     empresa_id = int(empresa["id"])
@@ -26069,15 +28638,35 @@ def agendamento_publico(codigo_empresa: str) -> str | Response:
                 mensagem = "Escolha data e horário para confirmar."
                 token_cliente = str(cliente.get("token_publico") or "")
             else:
+                configuracoes_agenda = buscar_configuracoes_modulo("agendamentos", empresa_id)
+                try:
+                    momento_agendado = datetime.fromisoformat(
+                        f"{dados['data_agendamento']}T{dados['hora_inicio']}:00"
+                    ).replace(tzinfo=agora_empresa().tzinfo)
+                    antecedencia_horas = (momento_agendado - agora_empresa()).total_seconds() / 3600
+                except ValueError:
+                    antecedencia_horas = -1
+                minima = float(configuracoes_agenda.get("antecedencia_minima_horas") or 0)
+                maxima = float(configuracoes_agenda.get("antecedencia_maxima_dias") or 90) * 24
+                if antecedencia_horas < minima:
+                    mensagem = f"O agendamento exige antecedência mínima de {minima:g} hora(s)."
+                    token_cliente = str(cliente.get("token_publico") or "")
+                    continue_confirmacao = False
+                elif antecedencia_horas > maxima:
+                    mensagem = f"O agendamento permite no máximo {maxima / 24:g} dia(s) de antecedência."
+                    token_cliente = str(cliente.get("token_publico") or "")
+                    continue_confirmacao = False
+                else:
+                    continue_confirmacao = True
                 horarios_disponiveis = listar_horarios_agendamento_publico(
                     empresa_id,
                     dados["data_agendamento"],
                     dados["profissional_id"],
                 )
-                if dados["hora_inicio"] not in horarios_disponiveis:
+                if continue_confirmacao and dados["hora_inicio"] not in horarios_disponiveis:
                     mensagem = "Esse horário acabou de ficar indisponível. Escolha outro horário."
                     token_cliente = str(cliente.get("token_publico") or "")
-                else:
+                elif continue_confirmacao:
                     agendamento_id = str(salvar_agendamento_publico_db(empresa_id, cliente, dados))
                     token_cliente = str(cliente.get("token_publico") or "")
                     sucesso = "Agendamento solicitado com sucesso. Aguarde a confirmação da empresa."
@@ -26135,6 +28724,7 @@ def agendamento_publico(codigo_empresa: str) -> str | Response:
         sucesso=sucesso,
         token_cliente=token_cliente,
         agendamento_id=agendamento_id,
+        gestflow_configuracoes_runtime=montar_configuracoes_runtime(empresa_id),
     )
 
 
@@ -26221,6 +28811,18 @@ def ponto_publico(token: str) -> str | Response:
     if funcionario is None:
         erro = "Link de ponto inválido ou funcionário inativo."
     else:
+        empresa_ponto_id = int(funcionario.get("empresa_id") or 0)
+        validar_celular = configuracao_bool("registro_ponto", "validacao_celular", True, empresa_ponto_id)
+        if not validar_celular:
+            telefone_validado = True
+        else:
+            validado_em = str(session.get(f"ponto_validado_em_{token}") or "")
+            dias_confianca = int(float(valor_configuracao_modulo("registro_ponto", "confianca_aparelho_dias", 30, empresa_ponto_id) or 30))
+            if validado_em:
+                try:
+                    telefone_validado = agora_empresa() - datetime.fromisoformat(validado_em) <= timedelta(days=dias_confianca)
+                except ValueError:
+                    telefone_validado = False
         registro_hoje = buscar_registro_ponto_publico(
             int(funcionario["empresa_id"]),
             int(funcionario["id"]),
@@ -26237,6 +28839,7 @@ def ponto_publico(token: str) -> str | Response:
                 if telefone_cadastrado and telefone_digitado == telefone_cadastrado:
                     session.permanent = True
                     session[f"ponto_validado_{token}"] = "sim"
+                    session[f"ponto_validado_em_{token}"] = agora_empresa().isoformat(timespec="seconds")
                     return redirect(url_for("ponto_publico", token=token, sucesso="Celular validado com sucesso."))
 
                 erro = "WhatsApp informado não confere com o cadastro do funcionário."
@@ -26282,6 +28885,10 @@ def ponto_publico(token: str) -> str | Response:
         bloqueio_nova_entrada_segundos=bloqueio_nova_entrada_segundos,
         erro=erro,
         sucesso=sucesso,
+        gestflow_configuracoes_runtime=(
+            montar_configuracoes_runtime(int(funcionario.get("empresa_id") or 0))
+            if funcionario else {}
+        ),
     )
 
 
@@ -26294,6 +28901,9 @@ def api_ponto_offline_sincronizar() -> Response:
 
     if funcionario is None:
         return jsonify({"ok": False, "erro": "Link de ponto inválido ou funcionário inativo."}), 404
+
+    if not configuracao_bool("registro_ponto", "permitir_offline", True, int(funcionario.get("empresa_id") or 0)):
+        return jsonify({"ok": False, "erro": "O ponto offline está desativado pela empresa."}), 403
 
     if not isinstance(batidas, list):
         return jsonify({"ok": False, "erro": "Lista de batidas inválida."}), 400
@@ -26529,10 +29139,16 @@ def enviar_email_resend(destinatario: str, assunto: str, corpo: str) -> tuple[bo
     destinatario = str(destinatario or "").strip()
     if not destinatario:
         return False, "Destinatário sem e-mail cadastrado."
+    if int(session.get("empresa_id") or 0) > 0 and not configuracao_bool("gerais", "notificacoes_email", True):
+        return False, "Notificações por e-mail estão desativadas nas configurações."
 
     api_key = str(os.getenv("RESEND_API_KEY", "") or "").strip()
     remetente = str(os.getenv("RESEND_FROM", "GestFlow <sistema@envio.lrmanutencao.com.br>") or "").strip()
     reply_to = str(os.getenv("RESEND_REPLY_TO", "") or "").strip()
+    if int(session.get("empresa_id") or 0) > 0 and buscar_metadados_configuracao_modulo("gerais"):
+        email_configurado = str(valor_configuracao_modulo("gerais", "email_remetente", "") or "").strip()
+        if email_configurado:
+            reply_to = email_configurado
 
     if not api_key:
         print("[EMAIL][RESEND] RESEND_API_KEY não configurada.", flush=True)
@@ -26620,6 +29236,2018 @@ def enviar_email_zoho(destinatario: str, assunto: str, corpo: str) -> tuple[bool
         return True, "E-mail enviado."
     except Exception as exc:
         return False, f"Falha ao enviar e-mail: {exc}"
+
+
+def garantir_estrutura_contratos() -> None:
+    """Cria e migra a estrutura do módulo Contratos sem apagar dados."""
+    with conectar_db() as conn:
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS contratos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER NOT NULL,
+                numero TEXT NOT NULL,
+                tipo TEXT NOT NULL DEFAULT 'servico',
+                status TEXT NOT NULL DEFAULT 'rascunho',
+                cliente_id INTEGER,
+                cliente TEXT NOT NULL,
+                responsavel_funcionario_id INTEGER,
+                responsavel TEXT,
+                centro_custo_id INTEGER,
+                centro_custo TEXT,
+                orcamento_id INTEGER,
+                titulo TEXT NOT NULL,
+                objeto TEXT,
+                data_inicio TEXT NOT NULL,
+                data_fim TEXT,
+                renovacao_automatica TEXT NOT NULL DEFAULT 'nao',
+                periodicidade TEXT NOT NULL DEFAULT 'unica',
+                dia_vencimento INTEGER,
+                valor_total TEXT,
+                valor_recorrente TEXT,
+                forma_pagamento TEXT,
+                observacoes TEXT,
+                motivo_cancelamento TEXT,
+                cancelado_em TEXT,
+                encerrado_em TEXT,
+                versao INTEGER NOT NULL DEFAULT 1,
+                criado_por_usuario_id INTEGER,
+                criado_por_nome TEXT,
+                criado_em TEXT DEFAULT CURRENT_TIMESTAMP,
+                atualizado_em TEXT
+            );
+            CREATE TABLE IF NOT EXISTS contrato_itens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER NOT NULL,
+                contrato_id INTEGER NOT NULL,
+                tipo_item TEXT NOT NULL DEFAULT 'servico',
+                referencia_id INTEGER,
+                descricao TEXT NOT NULL,
+                detalhes TEXT,
+                quantidade TEXT,
+                valor_unitario TEXT,
+                subtotal TEXT,
+                ordem INTEGER NOT NULL DEFAULT 1,
+                criado_em TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE IF NOT EXISTS contrato_anexos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER NOT NULL,
+                contrato_id INTEGER NOT NULL,
+                nome_original TEXT NOT NULL,
+                nome_arquivo TEXT NOT NULL,
+                caminho TEXT NOT NULL,
+                tipo_mime TEXT,
+                tamanho_bytes INTEGER NOT NULL DEFAULT 0,
+                criado_por_usuario_id INTEGER,
+                criado_por_nome TEXT,
+                criado_em TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE IF NOT EXISTS contrato_historico (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER NOT NULL,
+                contrato_id INTEGER NOT NULL,
+                usuario_id INTEGER,
+                usuario_nome TEXT,
+                tipo_evento TEXT NOT NULL,
+                descricao TEXT,
+                status_anterior TEXT,
+                status_novo TEXT,
+                criado_em TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE IF NOT EXISTS contrato_sequencias (
+                empresa_id INTEGER NOT NULL,
+                ano INTEGER NOT NULL,
+                ultimo_numero INTEGER NOT NULL DEFAULT 0,
+                atualizado_em TEXT,
+                PRIMARY KEY (empresa_id, ano)
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_contratos_empresa_numero
+                ON contratos(empresa_id, numero);
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_contratos_empresa_orcamento
+                ON contratos(empresa_id, orcamento_id)
+                WHERE orcamento_id IS NOT NULL;
+            CREATE INDEX IF NOT EXISTS idx_contratos_empresa_status
+                ON contratos(empresa_id, status, id);
+            CREATE INDEX IF NOT EXISTS idx_contratos_empresa_cliente
+                ON contratos(empresa_id, cliente_id, id);
+            CREATE INDEX IF NOT EXISTS idx_contratos_empresa_vencimento
+                ON contratos(empresa_id, data_fim, status);
+            CREATE INDEX IF NOT EXISTS idx_contrato_itens_contrato
+                ON contrato_itens(empresa_id, contrato_id, ordem, id);
+            CREATE INDEX IF NOT EXISTS idx_contrato_anexos_contrato
+                ON contrato_anexos(empresa_id, contrato_id, id);
+            CREATE INDEX IF NOT EXISTS idx_contrato_historico_contrato
+                ON contrato_historico(empresa_id, contrato_id, id);
+            """
+        )
+
+        colunas_contratos = {
+            str(row["name"])
+            for row in conn.execute("PRAGMA table_info(contratos)").fetchall()
+        }
+        migracoes_contratos = {
+            "empresa_id": "INTEGER",
+            "cliente_id": "INTEGER",
+            "responsavel_funcionario_id": "INTEGER",
+            "centro_custo_id": "INTEGER",
+            "orcamento_id": "INTEGER",
+            "renovacao_automatica": "TEXT NOT NULL DEFAULT 'nao'",
+            "periodicidade": "TEXT NOT NULL DEFAULT 'unica'",
+            "dia_vencimento": "INTEGER",
+            "valor_recorrente": "TEXT",
+            "motivo_cancelamento": "TEXT",
+            "cancelado_em": "TEXT",
+            "encerrado_em": "TEXT",
+            "versao": "INTEGER NOT NULL DEFAULT 1",
+            "criado_por_usuario_id": "INTEGER",
+            "criado_por_nome": "TEXT",
+            "atualizado_em": "TEXT",
+        }
+        for coluna, definicao in migracoes_contratos.items():
+            if coluna not in colunas_contratos:
+                conn.execute(
+                    f"ALTER TABLE contratos ADD COLUMN {coluna} {definicao}"
+                )
+
+        conn.commit()
+
+
+def _id_positivo_contrato(valor: Any) -> int | None:
+    try:
+        numero = int(str(valor or "").strip())
+    except (TypeError, ValueError):
+        return None
+    return numero if numero > 0 else None
+
+
+def _normalizar_data_contrato(valor: Any) -> str:
+    texto = str(valor or "").strip()
+    if not texto:
+        return ""
+    try:
+        return date.fromisoformat(texto[:10]).isoformat()
+    except ValueError:
+        return ""
+
+
+def _ano_numero_contrato(data_inicio: Any = None) -> int:
+    return ano_sequencia_documento_configurado("contratos", data_inicio)
+
+
+def _maior_sequencia_contrato_existente(
+    conn: sqlite3.Connection,
+    empresa_id: int,
+    ano: int,
+) -> int:
+    prefixo = prefixo_documento_configurado("contratos", "CTR")
+    rows = conn.execute(
+        "SELECT numero FROM contratos WHERE empresa_id = ?",
+        (empresa_id,),
+    ).fetchall()
+    maior = 0
+
+    for row in rows:
+        sequencia_configurada = extrair_sequencia_documento_configurado(
+            row["numero"], prefixo, ano
+        )
+        if sequencia_configurada is not None:
+            maior = max(maior, sequencia_configurada)
+
+    return maior
+
+
+def _proximo_numero_contrato_conn(
+    conn: sqlite3.Connection,
+    empresa_id: int,
+    ano: int,
+    *,
+    reservar: bool,
+) -> str:
+    row = conn.execute(
+        """
+        SELECT ultimo_numero
+        FROM contrato_sequencias
+        WHERE empresa_id = ? AND ano = ?
+        LIMIT 1
+        """,
+        (empresa_id, ano),
+    ).fetchone()
+    ultimo_registrado = 0 if row is None else int(row["ultimo_numero"] or 0)
+    maior_existente = _maior_sequencia_contrato_existente(conn, empresa_id, ano)
+    proximo = max(ultimo_registrado, maior_existente) + 1
+
+    if reservar:
+        conn.execute(
+            """
+            INSERT INTO contrato_sequencias (
+                empresa_id, ano, ultimo_numero, atualizado_em
+            ) VALUES (?, ?, ?, ?)
+            ON CONFLICT(empresa_id, ano) DO UPDATE SET
+                ultimo_numero = excluded.ultimo_numero,
+                atualizado_em = excluded.atualizado_em
+            """,
+            (
+                empresa_id,
+                ano,
+                proximo,
+                agora_empresa().isoformat(timespec="seconds"),
+            ),
+        )
+
+    return formatar_numero_documento_configurado("contratos", "CTR", ano, proximo)
+
+
+def proximo_numero_contrato(data_inicio: Any = None) -> str:
+    with conectar_db() as conn:
+        return _proximo_numero_contrato_conn(
+            conn,
+            empresa_logada_id(),
+            _ano_numero_contrato(data_inicio),
+            reservar=False,
+        )
+
+
+def buscar_contrato_por_id(contrato_id: int) -> dict[str, Any] | None:
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT *
+            FROM contratos
+            WHERE id = ? AND empresa_id = ?
+            LIMIT 1
+            """,
+            (contrato_id, empresa_logada_id()),
+        ).fetchone()
+    return dict(row) if row is not None else None
+
+
+def listar_contrato_itens(contrato_id: int) -> list[dict[str, Any]]:
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT *
+            FROM contrato_itens
+            WHERE contrato_id = ? AND empresa_id = ?
+            ORDER BY ordem ASC, id ASC
+            """,
+            (contrato_id, empresa_logada_id()),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def listar_contrato_anexos(contrato_id: int) -> list[dict[str, Any]]:
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT *
+            FROM contrato_anexos
+            WHERE contrato_id = ? AND empresa_id = ?
+            ORDER BY id DESC
+            """,
+            (contrato_id, empresa_logada_id()),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def listar_contrato_historico(contrato_id: int) -> list[dict[str, Any]]:
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT *
+            FROM contrato_historico
+            WHERE contrato_id = ? AND empresa_id = ?
+            ORDER BY id DESC
+            """,
+            (contrato_id, empresa_logada_id()),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def _registrar_historico_contrato_conn(
+    conn: sqlite3.Connection,
+    contrato_id: int,
+    tipo_evento: str,
+    descricao: str,
+    *,
+    status_anterior: str = "",
+    status_novo: str = "",
+) -> None:
+    conn.execute(
+        """
+        INSERT INTO contrato_historico (
+            empresa_id,
+            contrato_id,
+            usuario_id,
+            usuario_nome,
+            tipo_evento,
+            descricao,
+            status_anterior,
+            status_novo,
+            criado_em
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            empresa_logada_id(),
+            contrato_id,
+            _id_positivo_contrato(session.get("usuario_id")),
+            str(session.get("usuario_nome") or "").strip(),
+            str(tipo_evento or "registro").strip(),
+            str(descricao or "").strip(),
+            str(status_anterior or "").strip(),
+            str(status_novo or "").strip(),
+            agora_empresa().isoformat(timespec="seconds"),
+        ),
+    )
+
+
+def montar_contrato_itens_formulario() -> list[dict[str, Any]]:
+    tipos = request.form.getlist("item_tipo[]")
+    referencias = request.form.getlist("item_referencia_id[]")
+    descricoes = request.form.getlist("item_descricao[]")
+    detalhes = request.form.getlist("item_detalhes[]")
+    quantidades = request.form.getlist("item_quantidade[]")
+    valores_unitarios = request.form.getlist("item_valor_unitario[]")
+    subtotais = request.form.getlist("item_subtotal[]")
+    total_linhas = max(
+        len(tipos),
+        len(referencias),
+        len(descricoes),
+        len(detalhes),
+        len(quantidades),
+        len(valores_unitarios),
+        len(subtotais),
+        0,
+    )
+    itens: list[dict[str, Any]] = []
+
+    for indice in range(total_linhas):
+        descricao = (
+            descricoes[indice] if indice < len(descricoes) else ""
+        ).strip()
+        if not descricao or descricao.startswith("__novo"):
+            continue
+
+        tipo_item = (
+            tipos[indice] if indice < len(tipos) else "servico"
+        ).strip().lower()
+        if tipo_item not in {"produto", "servico", "locacao", "outro"}:
+            tipo_item = "outro"
+
+        quantidade = _converter_valor_brl(
+            quantidades[indice] if indice < len(quantidades) else "1"
+        )
+        quantidade = quantidade if quantidade > 0 else 1.0
+        valor_unitario = _converter_valor_brl(
+            valores_unitarios[indice]
+            if indice < len(valores_unitarios)
+            else "0"
+        )
+        subtotal_informado = _converter_valor_brl(
+            subtotais[indice] if indice < len(subtotais) else "0"
+        )
+        subtotal = (
+            subtotal_informado
+            if subtotal_informado > 0
+            else quantidade * valor_unitario
+        )
+        itens.append(
+            {
+                "tipo_item": tipo_item,
+                "referencia_id": _id_positivo_contrato(
+                    referencias[indice] if indice < len(referencias) else None
+                ),
+                "descricao": descricao,
+                "detalhes": (
+                    detalhes[indice] if indice < len(detalhes) else ""
+                ).strip(),
+                "quantidade": _formatar_moeda_brl(quantidade),
+                "valor_unitario": _formatar_moeda_brl(valor_unitario),
+                "subtotal": _formatar_moeda_brl(subtotal),
+                "ordem": len(itens) + 1,
+            }
+        )
+
+    return itens
+
+
+def montar_contrato_formulario() -> dict[str, Any]:
+    tipo = str(request.form.get("tipo") or "servico").strip().lower()
+    if tipo not in CONTRATO_TIPOS_CODIGOS:
+        tipo = "servico"
+
+    status = str(request.form.get("status") or "rascunho").strip().lower()
+    if status not in {"rascunho", "aguardando_assinatura"}:
+        status = "rascunho"
+
+    periodicidade = str(
+        request.form.get("periodicidade") or "unica"
+    ).strip().lower()
+    if periodicidade not in CONTRATO_PERIODICIDADES_CODIGOS:
+        periodicidade = "unica"
+
+    try:
+        dia_vencimento = int(request.form.get("dia_vencimento") or 0)
+    except (TypeError, ValueError):
+        dia_vencimento = 0
+
+    return {
+        "tipo": tipo,
+        "status": status,
+        "cliente_id": _id_positivo_contrato(request.form.get("cliente_id")),
+        "cliente": str(request.form.get("cliente") or "").strip(),
+        "responsavel_funcionario_id": _id_positivo_contrato(
+            request.form.get("responsavel_funcionario_id")
+        ),
+        "responsavel": str(request.form.get("responsavel") or "").strip(),
+        "centro_custo_id": _id_positivo_contrato(
+            request.form.get("centro_custo_id")
+        ),
+        "centro_custo": str(request.form.get("centro_custo") or "").strip(),
+        "orcamento_id": _id_positivo_contrato(request.form.get("orcamento_id")),
+        "titulo": str(request.form.get("titulo") or "").strip(),
+        "objeto": str(request.form.get("objeto") or "").strip(),
+        "data_inicio": _normalizar_data_contrato(
+            request.form.get("data_inicio")
+        ),
+        "data_fim": _normalizar_data_contrato(request.form.get("data_fim")),
+        "renovacao_automatica": (
+            "sim"
+            if str(request.form.get("renovacao_automatica") or "").strip().lower()
+            in {"sim", "on", "1", "true"}
+            else "nao"
+        ),
+        "periodicidade": periodicidade,
+        "dia_vencimento": dia_vencimento if 1 <= dia_vencimento <= 31 else None,
+        "valor_total": _formatar_moeda_brl(
+            _converter_valor_brl(request.form.get("valor_total"))
+        ),
+        "valor_recorrente": _formatar_moeda_brl(
+            _converter_valor_brl(request.form.get("valor_recorrente"))
+        ),
+        "forma_pagamento": str(
+            request.form.get("forma_pagamento") or ""
+        ).strip(),
+        "observacoes": str(request.form.get("observacoes") or "").strip(),
+    }
+
+
+def _resolver_referencias_contrato(dados: dict[str, Any]) -> str:
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        cliente = None
+        if dados.get("cliente_id"):
+            cliente = conn.execute(
+                """
+                SELECT id, nome
+                FROM clientes
+                WHERE id = ? AND empresa_id = ?
+                LIMIT 1
+                """,
+                (dados["cliente_id"], empresa_id),
+            ).fetchone()
+        elif dados.get("cliente"):
+            cliente = conn.execute(
+                """
+                SELECT id, nome
+                FROM clientes
+                WHERE empresa_id = ? AND LOWER(TRIM(nome)) = LOWER(TRIM(?))
+                ORDER BY id ASC
+                LIMIT 1
+                """,
+                (empresa_id, dados["cliente"]),
+            ).fetchone()
+
+        if cliente is None:
+            return "Selecione um cliente cadastrado nesta empresa."
+        dados["cliente_id"] = int(cliente["id"])
+        dados["cliente"] = str(cliente["nome"] or "").strip()
+
+        if dados.get("responsavel_funcionario_id"):
+            responsavel = conn.execute(
+                """
+                SELECT id, nome
+                FROM funcionarios
+                WHERE id = ? AND empresa_id = ?
+                LIMIT 1
+                """,
+                (dados["responsavel_funcionario_id"], empresa_id),
+            ).fetchone()
+            if responsavel is None:
+                return "O responsável selecionado não pertence a esta empresa."
+            dados["responsavel"] = str(responsavel["nome"] or "").strip()
+        elif dados.get("responsavel"):
+            responsavel = conn.execute(
+                """
+                SELECT id, nome
+                FROM funcionarios
+                WHERE empresa_id = ? AND LOWER(TRIM(nome)) = LOWER(TRIM(?))
+                ORDER BY id ASC
+                LIMIT 1
+                """,
+                (empresa_id, dados["responsavel"]),
+            ).fetchone()
+            if responsavel is not None:
+                dados["responsavel_funcionario_id"] = int(responsavel["id"])
+                dados["responsavel"] = str(responsavel["nome"] or "").strip()
+
+        if dados.get("centro_custo_id"):
+            centro = conn.execute(
+                """
+                SELECT id, nome
+                FROM centros_custo
+                WHERE id = ? AND empresa_id = ?
+                LIMIT 1
+                """,
+                (dados["centro_custo_id"], empresa_id),
+            ).fetchone()
+            if centro is None:
+                return "O centro de custo selecionado não pertence a esta empresa."
+            dados["centro_custo"] = str(centro["nome"] or "").strip()
+
+        if dados.get("orcamento_id"):
+            orcamento = conn.execute(
+                """
+                SELECT id
+                FROM orcamentos
+                WHERE id = ? AND empresa_id = ?
+                LIMIT 1
+                """,
+                (dados["orcamento_id"], empresa_id),
+            ).fetchone()
+            if orcamento is None:
+                return "O orçamento selecionado não pertence a esta empresa."
+
+    return ""
+
+
+def validar_contrato_para_salvar(
+    dados: dict[str, Any],
+    itens: list[dict[str, Any]],
+    *,
+    contrato_id: int | None = None,
+) -> str:
+    erro_referencias = _resolver_referencias_contrato(dados)
+    if erro_referencias:
+        return erro_referencias
+
+    if not dados.get("titulo"):
+        return "Informe o título do contrato."
+    if not dados.get("objeto") and not itens:
+        return "Informe o objeto do contrato ou adicione pelo menos um item."
+    if not dados.get("data_inicio"):
+        return "Informe uma data inicial válida."
+    if dados.get("data_fim") and dados["data_fim"] < dados["data_inicio"]:
+        return "A data final não pode ser anterior à data inicial."
+    if dados.get("data_fim"):
+        inicio = date.fromisoformat(str(dados["data_inicio"])[:10])
+        fim = date.fromisoformat(str(dados["data_fim"])[:10])
+        meses_contrato = max(0, (fim.year - inicio.year) * 12 + fim.month - inicio.month)
+        periodo_minimo = int(float(valor_configuracao_modulo("contratos", "periodo_minimo_meses", 0) or 0))
+        if meses_contrato < periodo_minimo:
+            return f"O contrato deve respeitar o período mínimo configurado de {periodo_minimo} mês(es)."
+    if dados.get("tipo") == "recorrente" and dados.get("periodicidade") == "unica":
+        return "Selecione uma periodicidade para o contrato recorrente."
+    if dados.get("periodicidade") != "unica":
+        if not dados.get("dia_vencimento"):
+            return "Informe o dia de vencimento da cobrança recorrente."
+        if _converter_valor_brl(dados.get("valor_recorrente")) <= 0:
+            return "Informe um valor recorrente maior que zero."
+    if (
+        _converter_valor_brl(dados.get("valor_total")) <= 0
+        and _converter_valor_brl(dados.get("valor_recorrente")) <= 0
+    ):
+        return "Informe o valor total ou o valor recorrente do contrato."
+
+    empresa_id = empresa_logada_id()
+    with conectar_db() as conn:
+        for item in itens:
+            referencia_id = _id_positivo_contrato(item.get("referencia_id"))
+            tipo_item = str(item.get("tipo_item") or "").strip()
+            if not referencia_id or tipo_item not in {"produto", "servico"}:
+                continue
+            tabela = "produtos" if tipo_item == "produto" else "servicos"
+            referencia = conn.execute(
+                f"SELECT id FROM {tabela} WHERE id = ? AND empresa_id = ? LIMIT 1",
+                (referencia_id, empresa_id),
+            ).fetchone()
+            if referencia is None:
+                return f"Um item de {tipo_item} não pertence a esta empresa."
+
+        if dados.get("orcamento_id"):
+            parametros: list[Any] = [empresa_id, dados["orcamento_id"]]
+            sql = (
+                "SELECT id FROM contratos "
+                "WHERE empresa_id = ? AND orcamento_id = ?"
+            )
+            if contrato_id:
+                sql += " AND id <> ?"
+                parametros.append(contrato_id)
+            sql += " LIMIT 1"
+            existente = conn.execute(sql, parametros).fetchone()
+            if existente is not None:
+                return "Este orçamento já está vinculado a outro contrato."
+
+    return ""
+
+
+def _salvar_itens_contrato_conn(
+    conn: sqlite3.Connection,
+    contrato_id: int,
+    itens: list[dict[str, Any]],
+) -> None:
+    empresa_id = empresa_logada_id()
+    conn.execute(
+        "DELETE FROM contrato_itens WHERE contrato_id = ? AND empresa_id = ?",
+        (contrato_id, empresa_id),
+    )
+    for ordem, item in enumerate(itens, start=1):
+        conn.execute(
+            """
+            INSERT INTO contrato_itens (
+                empresa_id,
+                contrato_id,
+                tipo_item,
+                referencia_id,
+                descricao,
+                detalhes,
+                quantidade,
+                valor_unitario,
+                subtotal,
+                ordem
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                empresa_id,
+                contrato_id,
+                item.get("tipo_item") or "outro",
+                _id_positivo_contrato(item.get("referencia_id")),
+                str(item.get("descricao") or "").strip(),
+                str(item.get("detalhes") or "").strip(),
+                str(item.get("quantidade") or "").strip(),
+                str(item.get("valor_unitario") or "").strip(),
+                str(item.get("subtotal") or "").strip(),
+                ordem,
+            ),
+        )
+
+
+def salvar_contrato_db(
+    dados: dict[str, Any],
+    itens: list[dict[str, Any]],
+) -> int:
+    empresa_id = empresa_logada_id()
+    agora = agora_empresa().isoformat(timespec="seconds")
+
+    with conectar_db() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        numero = _proximo_numero_contrato_conn(
+            conn,
+            empresa_id,
+            _ano_numero_contrato(dados.get("data_inicio")),
+            reservar=True,
+        )
+        cursor = conn.execute(
+            """
+            INSERT INTO contratos (
+                empresa_id,
+                numero,
+                tipo,
+                status,
+                cliente_id,
+                cliente,
+                responsavel_funcionario_id,
+                responsavel,
+                centro_custo_id,
+                centro_custo,
+                orcamento_id,
+                titulo,
+                objeto,
+                data_inicio,
+                data_fim,
+                renovacao_automatica,
+                periodicidade,
+                dia_vencimento,
+                valor_total,
+                valor_recorrente,
+                forma_pagamento,
+                observacoes,
+                versao,
+                criado_por_usuario_id,
+                criado_por_nome,
+                criado_em,
+                atualizado_em
+            ) VALUES (
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                ?, ?, 1, ?, ?, ?, ?
+            )
+            """,
+            (
+                empresa_id,
+                numero,
+                dados["tipo"],
+                dados["status"],
+                dados["cliente_id"],
+                dados["cliente"],
+                dados.get("responsavel_funcionario_id"),
+                dados.get("responsavel") or "",
+                dados.get("centro_custo_id"),
+                dados.get("centro_custo") or "",
+                dados.get("orcamento_id"),
+                dados["titulo"],
+                dados.get("objeto") or "",
+                dados["data_inicio"],
+                dados.get("data_fim") or "",
+                dados.get("renovacao_automatica") or "nao",
+                dados.get("periodicidade") or "unica",
+                dados.get("dia_vencimento"),
+                dados.get("valor_total") or "0,00",
+                dados.get("valor_recorrente") or "0,00",
+                dados.get("forma_pagamento") or "",
+                dados.get("observacoes") or "",
+                _id_positivo_contrato(session.get("usuario_id")),
+                str(session.get("usuario_nome") or "").strip(),
+                agora,
+                agora,
+            ),
+        )
+        contrato_id = int(cursor.lastrowid)
+        _salvar_itens_contrato_conn(conn, contrato_id, itens)
+        _registrar_historico_contrato_conn(
+            conn,
+            contrato_id,
+            "criacao",
+            f"Contrato {numero} criado.",
+            status_novo=dados["status"],
+        )
+        conn.commit()
+
+    return contrato_id
+
+
+def atualizar_contrato_db(
+    contrato_id: int,
+    dados: dict[str, Any],
+    itens: list[dict[str, Any]],
+    versao_esperada: int,
+) -> bool:
+    empresa_id = empresa_logada_id()
+    agora = agora_empresa().isoformat(timespec="seconds")
+
+    with conectar_db() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        cursor = conn.execute(
+            """
+            UPDATE contratos
+            SET tipo = ?,
+                cliente_id = ?,
+                cliente = ?,
+                responsavel_funcionario_id = ?,
+                responsavel = ?,
+                centro_custo_id = ?,
+                centro_custo = ?,
+                orcamento_id = ?,
+                titulo = ?,
+                objeto = ?,
+                data_inicio = ?,
+                data_fim = ?,
+                renovacao_automatica = ?,
+                periodicidade = ?,
+                dia_vencimento = ?,
+                valor_total = ?,
+                valor_recorrente = ?,
+                forma_pagamento = ?,
+                observacoes = ?,
+                versao = versao + 1,
+                atualizado_em = ?
+            WHERE id = ? AND empresa_id = ? AND versao = ?
+            """,
+            (
+                dados["tipo"],
+                dados["cliente_id"],
+                dados["cliente"],
+                dados.get("responsavel_funcionario_id"),
+                dados.get("responsavel") or "",
+                dados.get("centro_custo_id"),
+                dados.get("centro_custo") or "",
+                dados.get("orcamento_id"),
+                dados["titulo"],
+                dados.get("objeto") or "",
+                dados["data_inicio"],
+                dados.get("data_fim") or "",
+                dados.get("renovacao_automatica") or "nao",
+                dados.get("periodicidade") or "unica",
+                dados.get("dia_vencimento"),
+                dados.get("valor_total") or "0,00",
+                dados.get("valor_recorrente") or "0,00",
+                dados.get("forma_pagamento") or "",
+                dados.get("observacoes") or "",
+                agora,
+                contrato_id,
+                empresa_id,
+                versao_esperada,
+            ),
+        )
+        if cursor.rowcount != 1:
+            conn.rollback()
+            return False
+
+        _salvar_itens_contrato_conn(conn, contrato_id, itens)
+        _registrar_historico_contrato_conn(
+            conn,
+            contrato_id,
+            "edicao",
+            "Dados do contrato atualizados.",
+        )
+        conn.commit()
+    return True
+
+
+def _somar_meses_contrato(data_base: date, quantidade_meses: int) -> date:
+    total = data_base.year * 12 + data_base.month - 1 + int(quantidade_meses)
+    ano, mes_zero = divmod(total, 12)
+    mes = mes_zero + 1
+    dia = data_base.day
+    while dia > 28:
+        try:
+            return date(ano, mes, dia)
+        except ValueError:
+            dia -= 1
+    return date(ano, mes, dia)
+
+
+def _data_com_dia_contrato(data_base: date, dia_desejado: int) -> date:
+    dia = min(31, max(1, int(dia_desejado)))
+    while dia > 28:
+        try:
+            return date(data_base.year, data_base.month, dia)
+        except ValueError:
+            dia -= 1
+    return date(data_base.year, data_base.month, dia)
+
+
+def _datas_operacoes_contrato(contrato: dict[str, Any]) -> list[date]:
+    try:
+        inicio = date.fromisoformat(str(contrato.get("data_inicio") or "")[:10])
+    except ValueError:
+        inicio = hoje_empresa()
+    carencia = max(0, int(float(valor_configuracao_modulo("contratos", "carencia_dias", 0) or 0)))
+    base = inicio + timedelta(days=carencia)
+    dia_vencimento = int(contrato.get("dia_vencimento") or valor_configuracao_modulo("contratos", "dia_vencimento", 10) or 10)
+    primeira = _data_com_dia_contrato(base, dia_vencimento)
+    if primeira < base:
+        primeira = _data_com_dia_contrato(_somar_meses_contrato(base, 1), dia_vencimento)
+
+    periodicidade = str(contrato.get("periodicidade") or "unica")
+    intervalo_meses = {
+        "mensal": 1, "bimestral": 2, "trimestral": 3,
+        "semestral": 6, "anual": 12,
+    }.get(periodicidade)
+    if intervalo_meses is None:
+        return [primeira]
+
+    try:
+        fim = date.fromisoformat(str(contrato.get("data_fim") or "")[:10])
+    except ValueError:
+        fim = _somar_meses_contrato(primeira, 12)
+    datas: list[date] = []
+    atual = primeira
+    while atual <= fim and len(datas) < 120:
+        datas.append(atual)
+        atual = _somar_meses_contrato(atual, intervalo_meses)
+    return datas or [primeira]
+
+
+def _reservar_operacao_automatica_contrato(
+    contrato_id: int,
+    operacao: str,
+    referencia: str,
+) -> bool:
+    with conectar_db() as conn:
+        cursor = conn.execute(
+            """
+            INSERT OR IGNORE INTO configuracoes_operacoes_automaticas (
+                empresa_id, modulo, entidade, registro_id,
+                operacao, referencia, executado_em, detalhes_json
+            ) VALUES (?, 'contratos', 'contrato', ?, ?, ?, ?, '{}')
+            """,
+            (
+                empresa_logada_id(), contrato_id, operacao, referencia,
+                agora_empresa().isoformat(timespec="seconds"),
+            ),
+        )
+        conn.commit()
+    return cursor.rowcount == 1
+
+
+def _finalizar_operacao_automatica_contrato(
+    contrato_id: int,
+    operacao: str,
+    referencia: str,
+    detalhes: dict[str, Any],
+) -> None:
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            UPDATE configuracoes_operacoes_automaticas
+            SET detalhes_json = ?, executado_em = ?
+            WHERE empresa_id = ? AND modulo = 'contratos' AND entidade = 'contrato'
+              AND registro_id = ? AND operacao = ? AND referencia = ?
+            """,
+            (
+                json.dumps(detalhes, ensure_ascii=False, sort_keys=True),
+                agora_empresa().isoformat(timespec="seconds"), empresa_logada_id(),
+                contrato_id, operacao, referencia,
+            ),
+        )
+        conn.commit()
+
+
+def _liberar_operacao_automatica_contrato(
+    contrato_id: int,
+    operacao: str,
+    referencia: str,
+) -> None:
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            DELETE FROM configuracoes_operacoes_automaticas
+            WHERE empresa_id = ? AND modulo = 'contratos' AND entidade = 'contrato'
+              AND registro_id = ? AND operacao = ? AND referencia = ?
+            """,
+            (empresa_logada_id(), contrato_id, operacao, referencia),
+        )
+        conn.commit()
+
+
+def _gerar_cobrancas_contrato_configuradas(
+    contrato: dict[str, Any],
+    datas: list[date],
+) -> int:
+    if not configuracao_bool("contratos", "gerar_contas_receber", False):
+        return 0
+    contrato_id = int(contrato["id"])
+    valor_recorrente = _converter_valor_brl(contrato.get("valor_recorrente"))
+    valor_total = _converter_valor_brl(contrato.get("valor_total"))
+    valor = valor_recorrente if valor_recorrente > 0 else valor_total
+    if valor <= 0:
+        return 0
+    total = 0
+    for indice, vencimento in enumerate(datas, start=1):
+        referencia = vencimento.isoformat()
+        if not _reservar_operacao_automatica_contrato(contrato_id, "conta_receber", referencia):
+            continue
+        documento = f"{contrato.get('numero') or contrato_id}-{indice:03d}"
+        try:
+            if configuracao_bool("contratos", "bloquear_cobranca_duplicada", True):
+                with conectar_db() as conn:
+                    existente = conn.execute(
+                        """
+                        SELECT id FROM financeiro_titulos
+                        WHERE empresa_id = ? AND origem = 'contrato' AND origem_id = ?
+                          AND documento = ? LIMIT 1
+                        """,
+                        (empresa_logada_id(), contrato_id, documento),
+                    ).fetchone()
+                if existente is not None:
+                    _finalizar_operacao_automatica_contrato(
+                        contrato_id, "conta_receber", referencia,
+                        {"titulo_id": int(existente["id"]), "existente": True},
+                    )
+                    continue
+            titulo_id = salvar_financeiro_titulo_db(
+                {
+                    "tipo": "receber",
+                    "descricao": f"Contrato {contrato.get('numero') or contrato_id} - parcela {indice}",
+                    "pessoa": str(contrato.get("cliente") or ""),
+                    "categoria": "Contratos",
+                    "centro_custo_id": str(contrato.get("centro_custo_id") or ""),
+                    "atividade_financeira_id": "",
+                    "origem": "contrato",
+                    "origem_id": str(contrato_id),
+                    "documento": documento,
+                    "data_emissao": hoje_empresa().isoformat(),
+                    "data_vencimento": referencia,
+                    "data_pagamento": "",
+                    "valor": _formatar_moeda_brl(valor),
+                    "forma_pagamento": str(contrato.get("forma_pagamento") or ""),
+                    "status": "aberto",
+                    "observacoes": "Gerado automaticamente pelas configurações do módulo Contratos.",
+                }
+            )
+            _finalizar_operacao_automatica_contrato(
+                contrato_id, "conta_receber", referencia, {"titulo_id": titulo_id}
+            )
+            total += 1
+        except Exception:
+            _liberar_operacao_automatica_contrato(contrato_id, "conta_receber", referencia)
+            raise
+    return total
+
+
+def _gerar_ordens_servico_contrato_configuradas(
+    contrato: dict[str, Any],
+    datas: list[date],
+) -> int:
+    if not configuracao_bool("contratos", "gerar_os_recorrente", False):
+        return 0
+    contrato_id = int(contrato["id"])
+    total = 0
+    for vencimento in datas:
+        referencia = vencimento.isoformat()
+        if not _reservar_operacao_automatica_contrato(contrato_id, "ordem_servico", referencia):
+            continue
+        try:
+            with conectar_db() as conn:
+                conn.execute("BEGIN IMMEDIATE")
+                numero = _proximo_numero_ordem_servico_conn(
+                    conn, empresa_logada_id(), _ano_numero_ordem_servico(referencia), reservar=True
+                )
+                cursor = conn.execute(
+                    """
+                    INSERT INTO ordens_servico (
+                        empresa_id, numero, cliente, responsavel, data_abertura,
+                        data_previsao, canal_venda, centro_custo, centro_custo_id,
+                        tipo, status, prioridade, total_produtos, total_servicos,
+                        frete, outros, desconto_valor, valor_total, forma_pagamento,
+                        exibir_valor_impressao, relato_cliente, observacoes, criado_em
+                    ) VALUES (?, ?, ?, ?, ?, ?, 'Contrato', ?, ?, 'servico', 'aberta',
+                              'normal', '0,00', ?, '0,00', '0,00', '0,00', ?, ?,
+                              'sim', ?, ?, ?)
+                    """,
+                    (
+                        empresa_logada_id(), numero, str(contrato.get("cliente") or ""),
+                        str(contrato.get("responsavel") or ""), referencia, referencia,
+                        str(contrato.get("centro_custo") or ""), contrato.get("centro_custo_id"),
+                        str(contrato.get("valor_recorrente") or contrato.get("valor_total") or "0,00"),
+                        str(contrato.get("valor_recorrente") or contrato.get("valor_total") or "0,00"),
+                        str(contrato.get("forma_pagamento") or ""),
+                        f"Atendimento recorrente do contrato {contrato.get('numero') or contrato_id}.",
+                        f"OS gerada automaticamente pelo contrato {contrato.get('numero') or contrato_id}.",
+                        agora_empresa().isoformat(timespec="seconds"),
+                    ),
+                )
+                ordem_id = int(cursor.lastrowid)
+                conn.commit()
+            _finalizar_operacao_automatica_contrato(
+                contrato_id, "ordem_servico", referencia, {"ordem_servico_id": ordem_id}
+            )
+            total += 1
+        except Exception:
+            _liberar_operacao_automatica_contrato(contrato_id, "ordem_servico", referencia)
+            raise
+    return total
+
+
+def _gerar_atividade_contrato_configurada(contrato: dict[str, Any]) -> int:
+    if not configuracao_bool("contratos", "gerar_atividades", False):
+        return 0
+    contrato_id = int(contrato["id"])
+    if not _reservar_operacao_automatica_contrato(contrato_id, "atividade", "principal"):
+        return 0
+    agora = agora_empresa().isoformat(timespec="seconds")
+    try:
+        with conectar_db() as conn:
+            usuario = None
+            funcionario_id = contrato.get("responsavel_funcionario_id")
+            if funcionario_id:
+                usuario = conn.execute(
+                    "SELECT id FROM usuarios WHERE empresa_id = ? AND funcionario_id = ? LIMIT 1",
+                    (empresa_logada_id(), funcionario_id),
+                ).fetchone()
+            cursor = conn.execute(
+                """
+                INSERT INTO gestao_atividades (
+                    empresa_id, titulo, descricao, tipo, classificacao,
+                    responsavel_funcionario_id, responsavel_usuario_id,
+                    responsavel_nome, cliente_id, cliente_nome,
+                    data_inicio, data_prazo, prioridade, status, progresso,
+                    observacoes, criado_por_usuario_id, criado_por_nome,
+                    criado_em, atualizado_em
+                ) VALUES (?, ?, ?, 'servico', 'contrato', ?, ?, ?, ?, ?, ?, ?,
+                          'normal', 'nao_iniciada', 0, ?, ?, ?, ?, ?)
+                """,
+                (
+                    empresa_logada_id(),
+                    f"Acompanhar contrato {contrato.get('numero') or contrato_id}",
+                    str(contrato.get("objeto") or contrato.get("titulo") or ""),
+                    funcionario_id, int(usuario["id"]) if usuario is not None else None,
+                    str(contrato.get("responsavel") or ""), contrato.get("cliente_id"),
+                    str(contrato.get("cliente") or ""), str(contrato.get("data_inicio") or ""),
+                    str(contrato.get("data_fim") or ""),
+                    f"Gerada automaticamente pelo contrato {contrato.get('numero') or contrato_id}.",
+                    usuario_logado_id(), str(session.get("usuario_nome") or ""), agora, agora,
+                ),
+            )
+            atividade_id = int(cursor.lastrowid)
+            atividade = {
+                "responsavel_funcionario_id": funcionario_id,
+                "responsavel_nome": str(contrato.get("responsavel") or ""),
+                "responsavel_email": "",
+                "data_inicio": str(contrato.get("data_inicio") or ""),
+                "data_prazo": str(contrato.get("data_fim") or ""),
+                "prioridade": "normal",
+            }
+            _criar_etapas_padrao_atividade_conn(conn, atividade_id, atividade)
+            _registrar_historico_atividade(
+                atividade_id, "atividade_criada", "Atividade criada automaticamente pelo contrato.", conn=conn
+            )
+            conn.commit()
+        _finalizar_operacao_automatica_contrato(
+            contrato_id, "atividade", "principal", {"atividade_id": atividade_id}
+        )
+        return 1
+    except Exception:
+        _liberar_operacao_automatica_contrato(contrato_id, "atividade", "principal")
+        raise
+
+
+def executar_integracoes_contrato_configuradas(contrato_id: int) -> list[str]:
+    contrato = buscar_contrato_por_id(contrato_id)
+    if contrato is None or str(contrato.get("status") or "") != "ativo":
+        return []
+    datas = _datas_operacoes_contrato(contrato)
+    resultados: list[str] = []
+    operacoes = (
+        ("cobranças", lambda: _gerar_cobrancas_contrato_configuradas(contrato, datas)),
+        ("ordens de serviço", lambda: _gerar_ordens_servico_contrato_configuradas(contrato, datas)),
+        ("atividades", lambda: _gerar_atividade_contrato_configurada(contrato)),
+    )
+    for nome, executar in operacoes:
+        try:
+            quantidade = executar()
+            if quantidade:
+                resultados.append(f"{quantidade} {nome}")
+        except (sqlite3.Error, ValueError, TypeError):
+            app.logger.exception("Falha na integração automática de %s do contrato %s.", nome, contrato_id)
+    return resultados
+
+
+CONTRATOS_ORDENACAO = {
+    "id": "id",
+    "numero": "numero",
+    "cliente": "cliente",
+    "titulo": "titulo",
+    "tipo": "tipo",
+    "status": "status",
+    "data_inicio": "data_inicio",
+    "data_fim": "data_fim",
+    "valor_total": "valor_total",
+}
+
+
+def listar_contratos_paginado(
+    busca: Any = "",
+    status: Any = "",
+    tipo: Any = "",
+    vencimento: Any = "",
+    pagina: int = 1,
+    por_pagina: int = 20,
+    ordenar: str = "id",
+    direcao: str = "desc",
+) -> tuple[list[dict[str, Any]], int]:
+    empresa_id = empresa_logada_id()
+    where = ["empresa_id = ?"]
+    parametros: list[Any] = [empresa_id]
+    termo = str(busca or "").strip()
+    status_normalizado = str(status or "").strip().lower()
+    tipo_normalizado = str(tipo or "").strip().lower()
+    vencimento_normalizado = str(vencimento or "").strip().lower()
+
+    if termo:
+        termo_like = f"%{termo}%"
+        where.append(
+            "(numero LIKE ? OR cliente LIKE ? OR responsavel LIKE ? "
+            "OR titulo LIKE ? OR objeto LIKE ?)"
+        )
+        parametros.extend([termo_like] * 5)
+    if status_normalizado in CONTRATO_STATUS_CODIGOS:
+        where.append("status = ?")
+        parametros.append(status_normalizado)
+    if tipo_normalizado in CONTRATO_TIPOS_CODIGOS:
+        where.append("tipo = ?")
+        parametros.append(tipo_normalizado)
+
+    hoje = hoje_empresa().isoformat()
+    limite = (hoje_empresa() + timedelta(days=30)).isoformat()
+    if vencimento_normalizado == "a_vencer":
+        where.append(
+            "data_fim <> '' AND DATE(data_fim) BETWEEN DATE(?) AND DATE(?) "
+            "AND status NOT IN ('encerrado', 'cancelado')"
+        )
+        parametros.extend([hoje, limite])
+    elif vencimento_normalizado == "vencidos":
+        where.append(
+            "data_fim <> '' AND DATE(data_fim) < DATE(?) "
+            "AND status NOT IN ('encerrado', 'cancelado')"
+        )
+        parametros.append(hoje)
+
+    coluna_sql = CONTRATOS_ORDENACAO.get(str(ordenar or "").strip(), "id")
+    direcao_sql = "ASC" if str(direcao or "").lower() == "asc" else "DESC"
+    pagina = max(int(pagina or 1), 1)
+    por_pagina = int(por_pagina or 20)
+    offset = (pagina - 1) * por_pagina
+    where_sql = " AND ".join(where)
+
+    with conectar_db() as conn:
+        total = conn.execute(
+            f"SELECT COUNT(*) AS total FROM contratos WHERE {where_sql}",
+            parametros,
+        ).fetchone()["total"]
+        rows = conn.execute(
+            f"""
+            SELECT *
+            FROM contratos
+            WHERE {where_sql}
+            ORDER BY {coluna_sql} {direcao_sql}, id DESC
+            LIMIT ? OFFSET ?
+            """,
+            [*parametros, por_pagina, offset],
+        ).fetchall()
+
+    contratos_lista = [dict(row) for row in rows]
+    data_hoje = hoje_empresa()
+    for contrato in contratos_lista:
+        contrato["dias_para_vencer"] = None
+        data_fim = _normalizar_data_contrato(contrato.get("data_fim"))
+        if data_fim:
+            contrato["dias_para_vencer"] = (
+                date.fromisoformat(data_fim) - data_hoje
+            ).days
+    return contratos_lista, int(total or 0)
+
+
+def resumir_contratos_cadastrados() -> dict[str, int]:
+    empresa_id = empresa_logada_id()
+    hoje = hoje_empresa().isoformat()
+    limite = (hoje_empresa() + timedelta(days=30)).isoformat()
+
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                COUNT(*) AS total,
+                SUM(CASE WHEN status = 'ativo' THEN 1 ELSE 0 END) AS ativos,
+                SUM(CASE WHEN tipo = 'recorrente' AND status = 'ativo' THEN 1 ELSE 0 END) AS recorrentes,
+                SUM(
+                    CASE
+                        WHEN data_fim <> ''
+                         AND DATE(data_fim) BETWEEN DATE(?) AND DATE(?)
+                         AND status NOT IN ('encerrado', 'cancelado')
+                        THEN 1 ELSE 0
+                    END
+                ) AS a_vencer
+            FROM contratos
+            WHERE empresa_id = ?
+            """,
+            (hoje, limite, empresa_id),
+        ).fetchone()
+
+    return {
+        "total": int(row["total"] or 0),
+        "ativos": int(row["ativos"] or 0),
+        "recorrentes": int(row["recorrentes"] or 0),
+        "a_vencer": int(row["a_vencer"] or 0),
+    }
+
+
+def montar_contexto_contratos_paginado() -> dict[str, Any]:
+    busca = str(request.args.get("busca") or "").strip()
+    status = str(request.args.get("status") or "").strip()
+    tipo = str(request.args.get("tipo") or "").strip()
+    vencimento = str(request.args.get("vencimento") or "").strip()
+    pagina = _normalizar_inteiro_query(request.args.get("pagina"), 1)
+    por_pagina = _normalizar_inteiro_query(request.args.get("por_pagina"), 20)
+    if por_pagina not in {10, 20, 50, 100}:
+        por_pagina = 20
+    ordenar = str(request.args.get("ordenar") or "id").strip()
+    direcao = str(request.args.get("direcao") or "desc").strip().lower()
+
+    registros, total = listar_contratos_paginado(
+        busca=busca,
+        status=status,
+        tipo=tipo,
+        vencimento=vencimento,
+        pagina=pagina,
+        por_pagina=por_pagina,
+        ordenar=ordenar,
+        direcao=direcao,
+    )
+    paginacao = montar_paginacao(total, pagina, por_pagina)
+    if pagina > paginacao["total_paginas"]:
+        pagina = paginacao["total_paginas"]
+        registros, total = listar_contratos_paginado(
+            busca=busca,
+            status=status,
+            tipo=tipo,
+            vencimento=vencimento,
+            pagina=pagina,
+            por_pagina=por_pagina,
+            ordenar=ordenar,
+            direcao=direcao,
+        )
+        paginacao = montar_paginacao(total, pagina, por_pagina)
+
+    return {
+        "itens": formatar_lista_datas_documento_exibicao(
+            registros,
+            ("data_inicio", "data_fim"),
+        ),
+        "paginacao": paginacao,
+        "resumo": resumir_contratos_cadastrados(),
+        "busca": busca,
+        "status_filtro": status,
+        "tipo_filtro": tipo,
+        "vencimento_filtro": vencimento,
+        "pagina": pagina,
+        "por_pagina": por_pagina,
+        "ordenar": ordenar,
+        "direcao": direcao,
+    }
+
+
+def listar_orcamentos_disponiveis_contrato(
+    contrato_id: int | None = None,
+) -> list[dict[str, Any]]:
+    empresa_id = empresa_logada_id()
+    parametros: list[Any] = [empresa_id]
+    condicao_atual = ""
+    if contrato_id:
+        condicao_atual = " OR c.id = ?"
+        parametros.append(contrato_id)
+
+    with conectar_db() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT o.id, o.numero, o.cliente, o.valor_total, o.status
+            FROM orcamentos o
+            LEFT JOIN contratos c
+              ON c.empresa_id = o.empresa_id
+             AND c.orcamento_id = o.id
+            WHERE o.empresa_id = ?
+              AND (c.id IS NULL{condicao_atual})
+            ORDER BY o.id DESC
+            LIMIT 300
+            """,
+            parametros,
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def montar_contrato_inicial(
+    orcamento_id: int | None = None,
+) -> tuple[dict[str, Any], list[dict[str, Any]], str]:
+    regras = buscar_configuracoes_modulo("contratos")
+    inicio_padrao = hoje_empresa()
+    prazo_meses = max(0, int(float(regras.get("prazo_padrao_meses") or 0)))
+    fim_padrao = _somar_meses_contrato(inicio_padrao, prazo_meses).isoformat() if prazo_meses else ""
+    tipo_padrao_texto = _texto_comparacao_configuracao(
+        (lista_configuracao_modulo("contratos", "tipos") or ["Serviço"])[0]
+    )
+    tipo_padrao = "recorrente" if "recorrente" in tipo_padrao_texto else ("locacao" if "locacao" in tipo_padrao_texto else "servico")
+    frequencia_padrao = str(regras.get("frequencia_cobranca") or "mensal")
+    if frequencia_padrao not in CONTRATO_PERIODICIDADES_CODIGOS:
+        frequencia_padrao = "mensal"
+    centro_padrao_nome = str(regras.get("centro_custo_padrao") or valor_configuracao_modulo("centros_custo_dre", "centro_padrao_contratos", "") or "").strip()
+    centro_padrao_id: int | None = None
+    if centro_padrao_nome:
+        with conectar_db() as conn:
+            centro_padrao = conn.execute(
+                "SELECT id, nome FROM centros_custo WHERE empresa_id = ? AND LOWER(TRIM(nome)) = LOWER(TRIM(?)) LIMIT 1",
+                (empresa_logada_id(), centro_padrao_nome),
+            ).fetchone()
+        if centro_padrao is not None:
+            centro_padrao_id = int(centro_padrao["id"])
+            centro_padrao_nome = str(centro_padrao["nome"] or centro_padrao_nome)
+    dados: dict[str, Any] = {
+        "numero": proximo_numero_contrato(),
+        "tipo": tipo_padrao,
+        "status": "rascunho",
+        "cliente_id": None,
+        "cliente": "",
+        "responsavel_funcionario_id": None,
+        "responsavel": "",
+        "centro_custo_id": centro_padrao_id,
+        "centro_custo": centro_padrao_nome,
+        "orcamento_id": None,
+        "titulo": "",
+        "objeto": "",
+        "data_inicio": inicio_padrao.isoformat(),
+        "data_fim": fim_padrao,
+        "renovacao_automatica": "sim" if str(regras.get("renovacao") or "manual") == "automatico" else "nao",
+        "periodicidade": frequencia_padrao if tipo_padrao == "recorrente" else "unica",
+        "dia_vencimento": int(float(regras.get("dia_vencimento") or 10)),
+        "valor_total": "0,00",
+        "valor_recorrente": "0,00",
+        "forma_pagamento": "",
+        "observacoes": "",
+        "versao": 1,
+    }
+    itens: list[dict[str, Any]] = []
+    if not orcamento_id:
+        return dados, itens, ""
+
+    orcamento = buscar_orcamento_por_id(orcamento_id)
+    if orcamento is None:
+        return dados, itens, "Orçamento não encontrado nesta empresa."
+
+    with conectar_db() as conn:
+        vinculo = conn.execute(
+            """
+            SELECT id
+            FROM contratos
+            WHERE empresa_id = ? AND orcamento_id = ?
+            LIMIT 1
+            """,
+            (empresa_logada_id(), orcamento_id),
+        ).fetchone()
+        cliente = conn.execute(
+            """
+            SELECT id, nome
+            FROM clientes
+            WHERE empresa_id = ? AND LOWER(TRIM(nome)) = LOWER(TRIM(?))
+            ORDER BY id ASC
+            LIMIT 1
+            """,
+            (empresa_logada_id(), orcamento.get("cliente") or ""),
+        ).fetchone()
+        responsavel = conn.execute(
+            """
+            SELECT id, nome
+            FROM funcionarios
+            WHERE empresa_id = ? AND LOWER(TRIM(nome)) = LOWER(TRIM(?))
+            ORDER BY id ASC
+            LIMIT 1
+            """,
+            (empresa_logada_id(), orcamento.get("responsavel") or ""),
+        ).fetchone()
+
+    if vinculo is not None:
+        return dados, itens, "Este orçamento já possui um contrato vinculado."
+
+    dados.update(
+        {
+            "cliente_id": int(cliente["id"]) if cliente is not None else None,
+            "cliente": str(orcamento.get("cliente") or "").strip(),
+            "responsavel_funcionario_id": (
+                int(responsavel["id"]) if responsavel is not None else None
+            ),
+            "responsavel": str(orcamento.get("responsavel") or "").strip(),
+            "centro_custo_id": _id_positivo_contrato(
+                orcamento.get("centro_custo_id")
+            ),
+            "centro_custo": str(orcamento.get("centro_custo") or "").strip(),
+            "orcamento_id": orcamento_id,
+            "titulo": f"Contrato referente ao orçamento {orcamento.get('numero') or orcamento_id}",
+            "objeto": str(
+                orcamento.get("descricao_comercial")
+                or orcamento.get("observacoes")
+                or ""
+            ).strip(),
+            "valor_total": str(orcamento.get("valor_total") or "0,00"),
+            "forma_pagamento": str(
+                orcamento.get("forma_pagamento") or ""
+            ).strip(),
+        }
+    )
+    itens = [
+        {
+            "tipo_item": str(item.get("tipo_item") or "servico"),
+            "referencia_id": None,
+            "descricao": str(item.get("descricao") or "").strip(),
+            "detalhes": str(item.get("detalhes") or "").strip(),
+            "quantidade": str(item.get("quantidade") or "1,00"),
+            "valor_unitario": str(item.get("valor_unitario") or "0,00"),
+            "subtotal": str(item.get("subtotal") or "0,00"),
+            "ordem": indice,
+        }
+        for indice, item in enumerate(
+            listar_orcamento_itens(orcamento_id),
+            start=1,
+        )
+        if str(item.get("descricao") or "").strip()
+    ]
+    return dados, itens, ""
+
+
+def _contexto_formulario_contrato(
+    contrato: dict[str, Any],
+    itens: list[dict[str, Any]],
+    *,
+    modo_edicao: bool,
+) -> dict[str, Any]:
+    contrato_id = _id_positivo_contrato(contrato.get("id"))
+    return {
+        "contrato": contrato,
+        "itens": itens,
+        "modo_edicao": modo_edicao,
+        "tipos_contrato": CONTRATO_TIPOS,
+        "status_contrato": CONTRATO_STATUS,
+        "periodicidades_contrato": CONTRATO_PERIODICIDADES,
+        "clientes": listar_clientes(),
+        "funcionarios": listar_funcionarios(),
+        "produtos": listar_produtos(),
+        "servicos": listar_servicos(),
+        "centros_custo": listar_centros_custo(),
+        "orcamentos": listar_orcamentos_disponiveis_contrato(contrato_id),
+    }
+
+
+@app.get("/contratos")
+def contratos() -> str:
+    contexto = montar_contexto_contratos_paginado()
+    return render_template(
+        "contratos.html",
+        contratos=contexto["itens"],
+        paginacao=contexto["paginacao"],
+        resumo=contexto["resumo"],
+        busca=contexto["busca"],
+        status_filtro=contexto["status_filtro"],
+        tipo_filtro=contexto["tipo_filtro"],
+        vencimento_filtro=contexto["vencimento_filtro"],
+        pagina=contexto["pagina"],
+        por_pagina=contexto["por_pagina"],
+        ordenar=contexto["ordenar"],
+        direcao=contexto["direcao"],
+        tipos_contrato=CONTRATO_TIPOS,
+        status_contrato=CONTRATO_STATUS,
+    )
+
+
+@app.get("/contratos/novo")
+def novo_contrato() -> str | Response:
+    orcamento_id = _id_positivo_contrato(request.args.get("orcamento_id"))
+    contrato, itens, erro = montar_contrato_inicial(orcamento_id)
+    if erro:
+        return redirect(url_for("contratos", erro=erro))
+    return render_template(
+        "contrato_formulario.html",
+        **_contexto_formulario_contrato(
+            contrato,
+            itens,
+            modo_edicao=False,
+        ),
+    )
+
+
+@app.post("/contratos/novo")
+def salvar_contrato() -> Response:
+    dados = montar_contrato_formulario()
+    itens = montar_contrato_itens_formulario()
+    erro = validar_contrato_para_salvar(dados, itens)
+    if erro:
+        parametros = {"erro": erro}
+        if dados.get("orcamento_id"):
+            parametros["orcamento_id"] = dados["orcamento_id"]
+        return redirect(url_for("novo_contrato", **parametros))
+
+    try:
+        contrato_id = salvar_contrato_db(dados, itens)
+    except sqlite3.IntegrityError:
+        return redirect(
+            url_for(
+                "contratos",
+                erro="Não foi possível salvar: número ou orçamento já vinculado.",
+            )
+        )
+
+    contrato = buscar_contrato_por_id(contrato_id) or {}
+    registrar_atividade_usuario(
+        "criacao",
+        "contratos",
+        f"Criou contrato {contrato.get('numero') or contrato_id}",
+        request.path,
+        registro_id=contrato_id,
+    )
+    return redirect(
+        url_for(
+            "ver_contrato",
+            contrato_id=contrato_id,
+            sucesso="Contrato criado com sucesso.",
+        )
+    )
+
+
+@app.get("/contratos/<int:contrato_id>")
+def ver_contrato(contrato_id: int) -> str | Response:
+    contrato = buscar_contrato_por_id(contrato_id)
+    if contrato is None:
+        return redirect(url_for("contratos", erro="Contrato não encontrado."))
+
+    contrato_exibicao = formatar_datas_documento_exibicao(
+        contrato,
+        ("data_inicio", "data_fim", "cancelado_em", "encerrado_em"),
+    )
+    return render_template(
+        "contrato_detalhe.html",
+        contrato=contrato_exibicao,
+        itens=listar_contrato_itens(contrato_id),
+        anexos=listar_contrato_anexos(contrato_id),
+        historico=listar_contrato_historico(contrato_id),
+        tipos_contrato=CONTRATO_TIPOS,
+        status_contrato=CONTRATO_STATUS,
+        periodicidades_contrato=CONTRATO_PERIODICIDADES,
+        transicoes_status=sorted(
+            CONTRATO_TRANSICOES_STATUS.get(
+                str(contrato.get("status") or ""),
+                set(),
+            )
+        ),
+    )
+
+
+@app.get("/contratos/<int:contrato_id>/editar")
+def editar_contrato(contrato_id: int) -> str | Response:
+    contrato = buscar_contrato_por_id(contrato_id)
+    if contrato is None:
+        return redirect(url_for("contratos", erro="Contrato não encontrado."))
+    return render_template(
+        "contrato_formulario.html",
+        **_contexto_formulario_contrato(
+            contrato,
+            listar_contrato_itens(contrato_id),
+            modo_edicao=True,
+        ),
+    )
+
+
+@app.post("/contratos/<int:contrato_id>/editar")
+def atualizar_contrato(contrato_id: int) -> Response:
+    contrato_atual = buscar_contrato_por_id(contrato_id)
+    if contrato_atual is None:
+        return redirect(url_for("contratos", erro="Contrato não encontrado."))
+
+    dados = montar_contrato_formulario()
+    dados["status"] = str(contrato_atual.get("status") or "rascunho")
+    itens = montar_contrato_itens_formulario()
+    erro = validar_contrato_para_salvar(
+        dados,
+        itens,
+        contrato_id=contrato_id,
+    )
+    if erro:
+        return redirect(
+            url_for("editar_contrato", contrato_id=contrato_id, erro=erro)
+        )
+
+    try:
+        versao_esperada = int(
+            request.form.get("versao") or contrato_atual.get("versao") or 1
+        )
+    except (TypeError, ValueError):
+        return Response(
+            "Versão inválida do contrato. Recarregue a página.",
+            status=409,
+        )
+
+    try:
+        atualizado = atualizar_contrato_db(
+            contrato_id,
+            dados,
+            itens,
+            versao_esperada,
+        )
+    except sqlite3.IntegrityError:
+        return redirect(
+            url_for(
+                "editar_contrato",
+                contrato_id=contrato_id,
+                erro="O orçamento selecionado já está vinculado a outro contrato.",
+            )
+        )
+
+    if not atualizado:
+        return Response(
+            "Este contrato foi alterado por outro usuário. Recarregue a página.",
+            status=409,
+        )
+
+    registrar_atividade_usuario(
+        "edicao",
+        "contratos",
+        f"Atualizou contrato {contrato_atual.get('numero') or contrato_id}",
+        request.path,
+        registro_id=contrato_id,
+    )
+    integracoes = executar_integracoes_contrato_configuradas(contrato_id)
+    mensagem = "Contrato atualizado com sucesso."
+    if integracoes:
+        mensagem += " Gerado automaticamente: " + ", ".join(integracoes) + "."
+    return redirect(
+        url_for(
+            "ver_contrato",
+            contrato_id=contrato_id,
+            sucesso=mensagem,
+        )
+    )
+
+
+@app.post("/contratos/<int:contrato_id>/status")
+def alterar_status_contrato(contrato_id: int) -> Response:
+    contrato = buscar_contrato_por_id(contrato_id)
+    if contrato is None:
+        return redirect(url_for("contratos", erro="Contrato não encontrado."))
+
+    status_atual = str(contrato.get("status") or "rascunho").strip().lower()
+    status_novo = str(request.form.get("status") or "").strip().lower()
+    if not valor_permitido_configuracao("contratos", "situacoes", status_novo):
+        return redirect(
+            url_for(
+                "ver_contrato",
+                contrato_id=contrato_id,
+                erro="A situação escolhida não está habilitada nas configurações de Contratos.",
+            )
+        )
+    permitidos = CONTRATO_TRANSICOES_STATUS.get(status_atual, set())
+    if status_novo not in permitidos:
+        return redirect(
+            url_for(
+                "ver_contrato",
+                contrato_id=contrato_id,
+                erro="Alteração de situação não permitida.",
+            )
+        )
+
+    motivo = str(request.form.get("motivo") or "").strip()
+    if status_novo in {"cancelado", "suspenso", "encerrado"} and not motivo:
+        return redirect(
+            url_for(
+                "ver_contrato",
+                contrato_id=contrato_id,
+                erro="Informe o motivo da alteração de situação.",
+            )
+        )
+    if status_novo == "ativo" and configuracao_bool("contratos", "assinatura_obrigatoria", True) and status_atual == "rascunho":
+        return redirect(
+            url_for(
+                "ver_contrato",
+                contrato_id=contrato_id,
+                erro="Envie primeiro o contrato para Aguardando assinatura antes de ativá-lo.",
+            )
+        )
+    if status_novo == "ativo" and configuracao_bool("contratos", "anexo_assinado_obrigatorio", False):
+        if not listar_contrato_anexos(contrato_id):
+            return redirect(
+                url_for(
+                    "ver_contrato",
+                    contrato_id=contrato_id,
+                    erro="Anexe o contrato assinado antes de ativá-lo.",
+                )
+            )
+
+    agora = agora_empresa().isoformat(timespec="seconds")
+    with conectar_db() as conn:
+        cursor = conn.execute(
+            """
+            UPDATE contratos
+            SET status = ?,
+                motivo_cancelamento = CASE WHEN ? = 'cancelado' THEN ? ELSE motivo_cancelamento END,
+                cancelado_em = CASE WHEN ? = 'cancelado' THEN ? ELSE cancelado_em END,
+                encerrado_em = CASE WHEN ? = 'encerrado' THEN ? ELSE encerrado_em END,
+                versao = versao + 1,
+                atualizado_em = ?
+            WHERE id = ? AND empresa_id = ? AND status = ?
+            """,
+            (
+                status_novo,
+                status_novo,
+                motivo,
+                status_novo,
+                agora,
+                status_novo,
+                agora,
+                agora,
+                contrato_id,
+                empresa_logada_id(),
+                status_atual,
+            ),
+        )
+        if cursor.rowcount != 1:
+            conn.rollback()
+            return Response(
+                "O contrato foi alterado por outro usuário. Recarregue a página.",
+                status=409,
+            )
+        descricao = f"Situação alterada de {status_atual} para {status_novo}."
+        if motivo:
+            descricao += f" Motivo: {motivo}"
+        _registrar_historico_contrato_conn(
+            conn,
+            contrato_id,
+            "status",
+            descricao,
+            status_anterior=status_atual,
+            status_novo=status_novo,
+        )
+        conn.commit()
+
+    registrar_atividade_usuario(
+        "status",
+        "contratos",
+        f"Alterou contrato {contrato.get('numero') or contrato_id} para {status_novo}",
+        request.path,
+        registro_id=contrato_id,
+    )
+    integracoes = executar_integracoes_contrato_configuradas(contrato_id)
+    mensagem = "Situação do contrato atualizada."
+    if integracoes:
+        mensagem += " Gerado automaticamente: " + ", ".join(integracoes) + "."
+    return redirect(
+        url_for(
+            "ver_contrato",
+            contrato_id=contrato_id,
+            sucesso=mensagem,
+        )
+    )
+
+
+@app.post("/contratos/<int:contrato_id>/anexos")
+def atualizar_contrato_anexos(contrato_id: int) -> Response:
+    contrato = buscar_contrato_por_id(contrato_id)
+    if contrato is None:
+        return redirect(url_for("contratos", erro="Contrato não encontrado."))
+
+    arquivo = request.files.get("arquivo")
+    nome_original = secure_filename(str(getattr(arquivo, "filename", "") or ""))
+    if arquivo is None or not nome_original or "." not in nome_original:
+        return redirect(
+            url_for(
+                "ver_contrato",
+                contrato_id=contrato_id,
+                erro="Selecione um arquivo válido.",
+            )
+        )
+
+    extensao = nome_original.rsplit(".", 1)[1].lower()
+    if extensao not in EXTENSOES_ANEXO_CONTRATO_PERMITIDAS:
+        return redirect(
+            url_for(
+                "ver_contrato",
+                contrato_id=contrato_id,
+                erro="Formato não permitido. Use PDF, imagem, DOC ou DOCX.",
+            )
+        )
+
+    arquivo.stream.seek(0, os.SEEK_END)
+    tamanho = int(arquivo.stream.tell())
+    arquivo.stream.seek(0)
+    if tamanho <= 0 or tamanho > 10 * 1024 * 1024:
+        return redirect(
+            url_for(
+                "ver_contrato",
+                contrato_id=contrato_id,
+                erro="O anexo deve ter no máximo 10 MB.",
+            )
+        )
+
+    empresa_id = empresa_logada_id()
+    pasta_relativa = Path(str(empresa_id)) / str(contrato_id)
+    pasta_destino = CONTRATOS_ANEXOS_DIR / pasta_relativa
+    pasta_destino.mkdir(parents=True, exist_ok=True)
+    nome_arquivo = f"{secrets.token_hex(16)}.{extensao}"
+    caminho_destino = pasta_destino / nome_arquivo
+    arquivo.save(caminho_destino)
+    caminho_relativo = (pasta_relativa / nome_arquivo).as_posix()
+
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            INSERT INTO contrato_anexos (
+                empresa_id,
+                contrato_id,
+                nome_original,
+                nome_arquivo,
+                caminho,
+                tipo_mime,
+                tamanho_bytes,
+                criado_por_usuario_id,
+                criado_por_nome,
+                criado_em
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                empresa_id,
+                contrato_id,
+                nome_original,
+                nome_arquivo,
+                caminho_relativo,
+                str(getattr(arquivo, "mimetype", "") or ""),
+                tamanho,
+                _id_positivo_contrato(session.get("usuario_id")),
+                str(session.get("usuario_nome") or "").strip(),
+                agora_empresa().isoformat(timespec="seconds"),
+            ),
+        )
+        _registrar_historico_contrato_conn(
+            conn,
+            contrato_id,
+            "anexo",
+            f"Anexo {nome_original} adicionado.",
+        )
+        conn.commit()
+
+    return redirect(
+        url_for(
+            "ver_contrato",
+            contrato_id=contrato_id,
+            sucesso="Anexo adicionado com sucesso.",
+        )
+    )
+
+
+def _buscar_anexo_contrato(anexo_id: int) -> dict[str, Any] | None:
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT *
+            FROM contrato_anexos
+            WHERE id = ? AND empresa_id = ?
+            LIMIT 1
+            """,
+            (anexo_id, empresa_logada_id()),
+        ).fetchone()
+    return dict(row) if row is not None else None
+
+
+def _caminho_seguro_anexo_contrato(caminho_relativo: Any) -> Path | None:
+    raiz = CONTRATOS_ANEXOS_DIR.resolve()
+    caminho = (raiz / str(caminho_relativo or "")).resolve()
+    try:
+        caminho.relative_to(raiz)
+    except ValueError:
+        return None
+    return caminho
+
+
+@app.get("/contratos/anexos/<int:anexo_id>/download")
+def download_anexo_contrato(anexo_id: int) -> Response:
+    anexo = _buscar_anexo_contrato(anexo_id)
+    if anexo is None:
+        return Response("Anexo não encontrado.", status=404)
+    caminho = _caminho_seguro_anexo_contrato(anexo.get("caminho"))
+    if caminho is None or not caminho.is_file():
+        return Response("Arquivo do anexo não encontrado.", status=404)
+    return send_file(
+        caminho,
+        as_attachment=True,
+        download_name=str(anexo.get("nome_original") or caminho.name),
+    )
+
+
+@app.post("/contratos/anexos/<int:anexo_id>/remover")
+def remover_anexo_contrato(anexo_id: int) -> Response:
+    anexo = _buscar_anexo_contrato(anexo_id)
+    if anexo is None:
+        return redirect(url_for("contratos", erro="Anexo não encontrado."))
+
+    contrato_id = int(anexo["contrato_id"])
+    caminho = _caminho_seguro_anexo_contrato(anexo.get("caminho"))
+    with conectar_db() as conn:
+        conn.execute(
+            "DELETE FROM contrato_anexos WHERE id = ? AND empresa_id = ?",
+            (anexo_id, empresa_logada_id()),
+        )
+        _registrar_historico_contrato_conn(
+            conn,
+            contrato_id,
+            "anexo",
+            f"Anexo {anexo.get('nome_original') or anexo_id} removido.",
+        )
+        conn.commit()
+    if caminho is not None and caminho.is_file():
+        caminho.unlink()
+
+    return redirect(
+        url_for(
+            "ver_contrato",
+            contrato_id=contrato_id,
+            sucesso="Anexo removido.",
+        )
+    )
+
+
+@app.get("/contratos/<int:contrato_id>/imprimir/a4")
+def imprimir_contrato_a4(contrato_id: int) -> str | Response:
+    contrato = buscar_contrato_por_id(contrato_id)
+    if contrato is None:
+        return redirect(url_for("contratos", erro="Contrato não encontrado."))
+    contrato_exibicao = formatar_datas_documento_exibicao(
+        contrato,
+        ("data_inicio", "data_fim"),
+    )
+    contexto_impressao = montar_contexto_impressao(contrato.get("cliente"))
+    return render_template(
+        "contrato_imprimir_a4.html",
+        contrato=contrato_exibicao,
+        itens=listar_contrato_itens(contrato_id),
+        empresa=contexto_impressao["empresa"],
+        loja=contexto_impressao["loja"],
+        cliente=contexto_impressao["cliente"],
+        tipos_contrato=CONTRATO_TIPOS,
+        periodicidades_contrato=CONTRATO_PERIODICIDADES,
+    )
 
 
 def garantir_estrutura_gestao_atividades() -> None:
@@ -26763,6 +31391,14 @@ def _atividade_formulario() -> dict[str, Any]:
         progresso = int(request.form.get("progresso") or 0)
     except (TypeError, ValueError):
         progresso = 0
+    data_inicio = (request.form.get("data_inicio") or hoje_empresa().isoformat()).strip()
+    data_prazo = (request.form.get("data_prazo") or "").strip()
+    if not data_prazo:
+        try:
+            prazo_padrao = int(float(valor_configuracao_modulo("gestao_atividades", "prazo_padrao_dias", 7) or 0))
+            data_prazo = (date.fromisoformat(data_inicio[:10]) + timedelta(days=max(0, prazo_padrao))).isoformat()
+        except (TypeError, ValueError):
+            data_prazo = ""
     return {
         "titulo": (request.form.get("titulo") or "").strip(),
         "descricao": (request.form.get("descricao") or "").strip(),
@@ -26772,8 +31408,8 @@ def _atividade_formulario() -> dict[str, Any]:
         "cliente_id": (request.form.get("cliente_id") or "").strip(),
         "orcamento_id": (request.form.get("orcamento_id") or "").strip(),
         "ordem_servico_id": (request.form.get("ordem_servico_id") or "").strip(),
-        "data_inicio": (request.form.get("data_inicio") or hoje_empresa().isoformat()).strip(),
-        "data_prazo": (request.form.get("data_prazo") or "").strip(),
+        "data_inicio": data_inicio,
+        "data_prazo": data_prazo,
         "prioridade": (request.form.get("prioridade") or "normal").strip(),
         "status": (request.form.get("status") or "nao_iniciada").strip(),
         "progresso": max(0, min(100, progresso)),
@@ -26848,7 +31484,14 @@ def _listar_etapas_atividade(atividade_id: int) -> list[dict[str, Any]]:
     hoje = hoje_empresa().isoformat()
     for row in rows:
         item = dict(row)
-        bloqueada = bool(item.get("depende_etapa_id") and item.get("depende_status") != "concluida")
+        bloquear_dependente = configuracao_bool("gestao_atividades", "bloquear_etapa_dependente", True)
+        permitir_dependencias = configuracao_bool("gestao_atividades", "permitir_dependencias", True)
+        bloqueada = bool(
+            permitir_dependencias
+            and bloquear_dependente
+            and item.get("depende_etapa_id")
+            and item.get("depende_status") != "concluida"
+        )
         item["bloqueada"] = bloqueada
         if bloqueada:
             item["status_exibicao"] = "bloqueada"
@@ -26893,6 +31536,8 @@ def _registrar_historico_atividade(
     etapa_id: int | None = None,
     conn: sqlite3.Connection | None = None,
 ) -> None:
+    if not configuracao_bool("gestao_atividades", "registrar_historico", True):
+        return
     valores = (
         empresa_logada_id(), atividade_id, etapa_id, usuario_logado_id(), acao, acao,
         descricao, str(session.get("usuario_nome") or "Sistema"), agora_empresa().isoformat(timespec="seconds"),
@@ -26908,7 +31553,50 @@ def _registrar_historico_atividade(
             conexao.commit()
 
 
+def _criar_etapas_padrao_atividade_conn(
+    conn: sqlite3.Connection,
+    atividade_id: int,
+    atividade: dict[str, Any],
+) -> int:
+    etapas_padrao = lista_configuracao_modulo("gestao_atividades", "etapas_padrao")
+    if not etapas_padrao:
+        return 0
+    existente = conn.execute(
+        "SELECT 1 FROM gestao_atividade_etapas WHERE empresa_id = ? AND atividade_id = ? LIMIT 1",
+        (empresa_logada_id(), atividade_id),
+    ).fetchone()
+    if existente is not None:
+        return 0
+    agora = agora_empresa().isoformat(timespec="seconds")
+    total = 0
+    for ordem, titulo in enumerate(etapas_padrao, start=1):
+        conn.execute(
+            """
+            INSERT INTO gestao_atividade_etapas (
+                empresa_id, atividade_id, titulo, descricao,
+                responsavel_funcionario_id, responsavel_nome, responsavel_email,
+                data_inicio, data_prazo, prioridade, status, progresso, ordem,
+                criado_por_usuario_id, criado_em, atualizado_em
+            ) VALUES (?, ?, ?, '', ?, ?, ?, ?, ?, ?, 'nao_iniciada', 0, ?, ?, ?, ?)
+            """,
+            (
+                empresa_logada_id(), atividade_id, titulo[:180],
+                atividade.get("responsavel_funcionario_id"),
+                str(atividade.get("responsavel_nome") or ""),
+                str(atividade.get("responsavel_email") or ""),
+                str(atividade.get("data_inicio") or ""),
+                str(atividade.get("data_prazo") or ""),
+                str(atividade.get("prioridade") or "normal"),
+                ordem, usuario_logado_id(), agora, agora,
+            ),
+        )
+        total += 1
+    return total
+
+
 def _sincronizar_progresso_atividade(atividade_id: int) -> None:
+    if str(valor_configuracao_modulo("gestao_atividades", "progresso", "automatico") or "automatico") != "automatico":
+        return
     empresa_id = empresa_logada_id()
     atividade = _buscar_atividade_operacional(atividade_id)
     if not atividade:
@@ -26982,6 +31670,8 @@ def _listar_atividades_operacionais(minhas: bool = False) -> list[dict[str, Any]
 
 
 def _notificar_atividade(atividade: dict[str, Any], tipo: str = "atribuicao") -> tuple[bool,str]:
+    if not configuracao_bool("gestao_atividades", "notificar_responsaveis", True):
+        return True, ""
     email = str(atividade.get("responsavel_email") or "").strip()
     if not email:
         return False, "Responsável sem e-mail cadastrado."
@@ -27011,7 +31701,8 @@ def gestao_atividades_dashboard() -> str:
 
 @app.route("/gestao-atividades/nova", methods=["GET", "POST"])
 def gestao_atividade_nova() -> str | Response:
-    dados = _atividade_formulario() if request.method == "POST" else {"tipo": request.args.get("tipo","paralela"), "orcamento_id": request.args.get("orcamento_id",""), "ordem_servico_id": request.args.get("ordem_servico_id",""), "data_inicio": hoje_empresa().isoformat(), "prioridade":"normal", "status":"nao_iniciada", "progresso":0}
+    prazo_padrao = hoje_empresa() + timedelta(days=max(0, int(float(valor_configuracao_modulo("gestao_atividades", "prazo_padrao_dias", 7) or 0))))
+    dados = _atividade_formulario() if request.method == "POST" else {"tipo": request.args.get("tipo","paralela"), "orcamento_id": request.args.get("orcamento_id",""), "ordem_servico_id": request.args.get("ordem_servico_id",""), "data_inicio": hoje_empresa().isoformat(), "data_prazo": prazo_padrao.isoformat(), "prioridade":"normal", "status":"nao_iniciada", "progresso":0}
     erro=""
     if request.method == "POST":
         if not dados["titulo"]: erro="Informe o título da atividade."
@@ -27041,6 +31732,12 @@ def gestao_atividade_nova() -> str | Response:
                         cur=conn.execute("""INSERT INTO gestao_atividades (empresa_id,titulo,descricao,tipo,classificacao,responsavel_funcionario_id,responsavel_usuario_id,responsavel_nome,responsavel_email,cliente_id,cliente_nome,orcamento_id,ordem_servico_id,data_inicio,data_prazo,prioridade,status,progresso,observacoes,criado_por_usuario_id,criado_por_nome,criado_em,atualizado_em) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", (empresa_id,dados['titulo'],dados['descricao'],dados['tipo'],dados['classificacao'],int(funcionario['id']),int(usuario['id']) if usuario else None,str(funcionario['nome']),str(funcionario['email'] or ''),int(dados['cliente_id']) if dados['cliente_id'] else None,cliente_nome,int(dados['orcamento_id']) if dados['orcamento_id'] else None,int(dados['ordem_servico_id']) if dados['ordem_servico_id'] else None,dados['data_inicio'],dados['data_prazo'],dados['prioridade'],dados['status'],dados['progresso'],dados['observacoes'],usuario_logado_id(),str(session.get('usuario_nome') or ''),agora,agora))
                         atividade_id=int(cur.lastrowid)
                         _registrar_historico_atividade(atividade_id,"atividade_criada","Atividade criada e atribuída.",conn=conn)
+                        _criar_etapas_padrao_atividade_conn(conn, atividade_id, {
+                            **dados,
+                            "responsavel_funcionario_id": int(funcionario["id"]),
+                            "responsavel_nome": str(funcionario["nome"]),
+                            "responsavel_email": str(funcionario["email"] or ""),
+                        })
                         conn.commit()
             if not erro:
                 atividade=_buscar_atividade_operacional(atividade_id) or {}
@@ -27080,7 +31777,7 @@ def gestao_atividade_detalhe(atividade_id: int) -> str | Response:
         return redirect(url_for("gestao_atividades_lista", erro="Atividade não encontrada."))
     etapas = _listar_etapas_atividade(atividade_id)
     if request.method == "POST":
-        if etapas:
+        if etapas and str(valor_configuracao_modulo("gestao_atividades", "progresso", "automatico") or "automatico") == "automatico":
             return redirect(url_for("gestao_atividade_detalhe", atividade_id=atividade_id, aba="visao-geral", erro="O status e o progresso são automáticos enquanto houver etapas."))
         status=(request.form.get("status") or atividade.get("status") or "nao_iniciada").strip()
         try: progresso=max(0,min(100,int(request.form.get("progresso") or atividade.get("progresso") or 0)))
@@ -27114,6 +31811,8 @@ def gestao_atividade_etapa_criar(atividade_id: int) -> Response:
         return redirect(url_for("gestao_atividade_detalhe", atividade_id=atividade_id, aba="etapas", erro="O prazo da etapa não pode ser anterior ao início."))
     responsavel_id = _inteiro_formulario("responsavel_funcionario_id")
     depende_id = _inteiro_formulario("depende_etapa_id")
+    if not configuracao_bool("gestao_atividades", "permitir_dependencias", True):
+        depende_id = None
     empresa_id = empresa_logada_id()
     with conectar_db() as conn:
         funcionario = conn.execute("SELECT id,nome,email FROM funcionarios WHERE id=? AND empresa_id=?", (responsavel_id, empresa_id)).fetchone() if responsavel_id else None
@@ -27152,6 +31851,8 @@ def gestao_atividade_etapa_atualizar(atividade_id: int, etapa_id: int) -> Respon
         try: progresso=max(0,min(100,int(request.form.get("progresso") if "progresso" in request.form else etapa.get("progresso") or 0)))
         except (TypeError, ValueError): progresso=int(etapa.get("progresso") or 0)
         depende_id = _inteiro_formulario("depende_etapa_id") if "depende_etapa_id" in request.form else (int(etapa["depende_etapa_id"]) if etapa.get("depende_etapa_id") else None)
+        if not configuracao_bool("gestao_atividades", "permitir_dependencias", True):
+            depende_id = None
         responsavel_id = _inteiro_formulario("responsavel_funcionario_id") if "responsavel_funcionario_id" in request.form else (int(etapa["responsavel_funcionario_id"]) if etapa.get("responsavel_funcionario_id") else None)
         if not titulo:
             return redirect(url_for("gestao_atividade_detalhe",atividade_id=atividade_id,aba="etapas",erro="Informe o título da etapa."))
@@ -27163,7 +31864,7 @@ def gestao_atividade_etapa_atualizar(atividade_id: int, etapa_id: int) -> Respon
                 return redirect(url_for("gestao_atividade_detalhe",atividade_id=atividade_id,aba="etapas",erro="A dependência deve pertencer à mesma atividade."))
             if _dependencia_cria_ciclo(atividade_id, etapa_id, depende_id):
                 return redirect(url_for("gestao_atividade_detalhe",atividade_id=atividade_id,aba="etapas",erro="Dependência inválida: ela criaria um ciclo entre as etapas."))
-            if dependencia["status"] != "concluida" and (status in {"em_andamento","concluida"} or progresso > 0):
+            if configuracao_bool("gestao_atividades", "bloquear_etapa_dependente", True) and dependencia["status"] != "concluida" and (status in {"em_andamento","concluida"} or progresso > 0):
                 return redirect(url_for("gestao_atividade_detalhe",atividade_id=atividade_id,aba="etapas",erro=f"Esta etapa depende da conclusão de ‘{dependencia['titulo']}’."))
         funcionario = conn.execute("SELECT id,nome,email FROM funcionarios WHERE id=? AND empresa_id=?",(responsavel_id,empresa_id)).fetchone() if responsavel_id else None
         if responsavel_id and not funcionario:
@@ -27189,7 +31890,7 @@ def gestao_atividade_etapa_concluir(atividade_id: int, etapa_id: int) -> Respons
         etapa = conn.execute("SELECT * FROM gestao_atividade_etapas WHERE id=? AND atividade_id=? AND empresa_id=?", (etapa_id, atividade_id, empresa_logada_id())).fetchone()
         if not etapa:
             return redirect(url_for("gestao_atividade_detalhe", atividade_id=atividade_id, aba="etapas", erro="Etapa não encontrada."))
-        if etapa["depende_etapa_id"]:
+        if etapa["depende_etapa_id"] and configuracao_bool("gestao_atividades", "permitir_dependencias", True) and configuracao_bool("gestao_atividades", "bloquear_etapa_dependente", True):
             dependencia = conn.execute("SELECT titulo,status FROM gestao_atividade_etapas WHERE id=? AND atividade_id=? AND empresa_id=?", (etapa["depende_etapa_id"], atividade_id, empresa_logada_id())).fetchone()
             if dependencia and dependencia["status"] != "concluida":
                 return redirect(url_for("gestao_atividade_detalhe", atividade_id=atividade_id, aba="etapas", erro=f"Esta etapa depende da conclusão de ‘{dependencia['titulo']}’."))
@@ -27258,6 +31959,8 @@ def garantir_migracao_origem_orcamento_os() -> None:
 
 garantir_migracao_origem_orcamento_os()
 iniciar_banco()
+garantir_estrutura_configuracoes_modulos()
+garantir_estrutura_contratos()
 garantir_estrutura_gestao_atividades()
 
 

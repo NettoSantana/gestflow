@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\configuracoes.html
-Último recode: 2026-07-19 22:45 (America/Bahia)
-Motivo: Adicionar CRUD de usuários, perfis, vínculo com funcionário e ações administrativas.
+Último recode: 2026-07-25 09:27 (America/Bahia)
+Motivo: Exibir somente as configurações do módulo escolhido no sidebar e remover a central única de módulos.
 -->
 
 <!DOCTYPE html>
@@ -180,6 +180,7 @@ Motivo: Adicionar CRUD de usuários, perfis, vínculo com funcionário e ações
         {% set modulos_sistema = modulos_sistema|default([], true) %}
         {% set modulos_ativos = modulos_ativos|default({}, true) %}
 
+        {% if aba != 'regras_modulos' %}
         <section class="panel page-section">
             <div class="panel-header page-header">
                 <div>
@@ -247,9 +248,11 @@ Motivo: Adicionar CRUD de usuários, perfis, vínculo com funcionário e ações
                 </div>
             </a>
         </section>
+        {% endif %}
 
-        <section class="dashboard-grid config-dashboard-grid">
+        <section class="dashboard-grid config-dashboard-grid {% if aba == 'regras_modulos' %}module-only{% endif %}">
 
+            {% if aba != 'regras_modulos' %}
             <div class="panel table-panel config-menu-panel">
                 <h3>Menu de configurações</h3>
                 <div class="config-menu-list">
@@ -329,7 +332,7 @@ Motivo: Adicionar CRUD de usuários, perfis, vínculo com funcionário e ações
                         <span>✉</span>
                         <div>
                             <strong>Modelos de e-mails</strong>
-                            <small>Fica para automações</small>
+                            <small>Gerenciados dentro de cada módulo</small>
                         </div>
                     </div>
 
@@ -337,14 +340,182 @@ Motivo: Adicionar CRUD de usuários, perfis, vínculo com funcionário e ações
                         <span>⚑</span>
                         <div>
                             <strong>Avisos por e-mail</strong>
-                            <small>Fica para notificações</small>
+                            <small>Ativados pelas regras de cada módulo</small>
                         </div>
                     </div>
                 </div>
             </div>
+            {% endif %}
 
             <div class="panel chart-panel config-content-panel">
-                {% if aba == 'usuarios' %}
+                {% if aba == 'regras_modulos' %}
+                    <div class="panel-header page-header module-config-page-header">
+                        <div>
+                            <span class="page-kicker">Configurações · {{ grupo_configuracao.nome }}</span>
+                            <h3>Configurações de {{ grupo_configuracao.nome }}</h3>
+                            <p class="page-subtitle">Ajuste somente as regras deste módulo. As configurações ficam separadas por empresa.</p>
+                        </div>
+                        <span class="badge-info">{{ modulos_configuraveis|length }} {{ 'bloco' if modulos_configuraveis|length == 1 else 'blocos' }} · {{ total_configuracoes }} configurações</span>
+                    </div>
+
+                    {% if erro %}
+                        <div class="config-alert error">{{ erro }}</div>
+                    {% endif %}
+
+                    {% if sucesso %}
+                        <div class="config-alert success">{{ sucesso }}</div>
+                    {% endif %}
+
+                    <div class="module-config-layout {% if modulos_configuraveis|length == 1 %}single-module{% endif %}">
+                        {% if modulos_configuraveis|length > 1 %}
+                        <aside class="module-config-selector" aria-label="Módulos configuráveis">
+                            <span class="module-config-search-label">Áreas deste módulo</span>
+
+                            <nav class="module-config-nav" id="module-config-nav">
+                                {% for item_modulo in modulos_configuraveis %}
+                                    <a
+                                        href="/configuracoes/modulo/{{ grupo_configuracao.codigo }}?modulo={{ item_modulo.codigo }}"
+                                        class="module-config-link {% if item_modulo.codigo == codigo_modulo_configuracao %}active{% endif %}"
+                                    >
+                                        <span class="module-config-icon">{{ item_modulo.icone }}</span>
+                                        <span>
+                                            <strong>{{ item_modulo.nome }}</strong>
+                                            <small>{{ item_modulo.campos|length }} configurações</small>
+                                        </span>
+                                    </a>
+                                {% endfor %}
+                            </nav>
+                        </aside>
+                        {% endif %}
+
+                        <div class="module-config-editor">
+                            <div class="module-config-editor-header">
+                                <div class="module-config-title-wrap">
+                                    <span class="module-config-title-icon">{{ modulo_configuracao.icone }}</span>
+                                    <div>
+                                        <span class="page-kicker">{{ modulo_configuracao.grupo }}</span>
+                                        <h3>{{ modulo_configuracao.nome }}</h3>
+                                        <p>{{ modulo_configuracao.descricao }}</p>
+                                    </div>
+                                </div>
+                                <span class="module-config-count">{{ modulo_configuracao.campos|length }} campos</span>
+                            </div>
+
+                            {% if metadados_configuracao.atualizado_em %}
+                                <div class="module-config-saved-meta">
+                                    Última alteração em <strong>{{ metadados_configuracao.atualizado_em }}</strong>
+                                    {% if metadados_configuracao.atualizado_por_nome %}
+                                        por <strong>{{ metadados_configuracao.atualizado_por_nome }}</strong>
+                                    {% endif %}.
+                                </div>
+                            {% else %}
+                                <div class="module-config-saved-meta default">Este módulo ainda usa os valores padrão do GestFlow.</div>
+                            {% endif %}
+
+                            <div class="module-config-saved-meta">
+                                Integração ativa: os valores controlam novos cadastros, validações, documentos e operações deste módulo. Registros antigos são preservados.
+                            </div>
+
+                            <form
+                                id="module-config-form"
+                                class="module-config-form"
+                                action="{{ url_for('salvar_regras_configuracao_modulo', codigo=codigo_modulo_configuracao) }}"
+                                method="post"
+                            >
+                                {% for nome_secao, campos_secao in secoes_configuracao.items() %}
+                                    <details class="module-config-section" open>
+                                        <summary>
+                                            <span>{{ nome_secao }}</span>
+                                            <small>{{ campos_secao|length }} {{ 'configuração' if campos_secao|length == 1 else 'configurações' }}</small>
+                                        </summary>
+
+                                        <div class="module-config-fields">
+                                            {% for campo in campos_secao %}
+                                                {% set valor_campo = configuracoes_modulo.get(campo.chave, campo.padrao) %}
+
+                                                {% if campo.tipo == 'booleano' %}
+                                                    <label class="module-config-toggle" for="cfg_{{ campo.chave }}">
+                                                        <span>
+                                                            <strong>{{ campo.nome }}</strong>
+                                                            {% if campo.ajuda %}<small>{{ campo.ajuda }}</small>{% endif %}
+                                                        </span>
+                                                        <span class="module-config-switch">
+                                                            <input
+                                                                id="cfg_{{ campo.chave }}"
+                                                                name="{{ campo.chave }}"
+                                                                type="checkbox"
+                                                                value="sim"
+                                                                {% if valor_campo %}checked{% endif %}
+                                                            >
+                                                            <span aria-hidden="true"></span>
+                                                        </span>
+                                                    </label>
+                                                {% else %}
+                                                    <div class="module-config-field {% if campo.tipo in ['lista', 'texto_longo'] %}wide{% endif %}">
+                                                        <label for="cfg_{{ campo.chave }}">{{ campo.nome }}</label>
+
+                                                        {% if campo.tipo == 'selecao' %}
+                                                            <select id="cfg_{{ campo.chave }}" name="{{ campo.chave }}" class="form-control">
+                                                                {% for opcao in campo.opcoes %}
+                                                                    <option value="{{ opcao.valor }}" {% if valor_campo|string == opcao.valor|string %}selected{% endif %}>{{ opcao.nome }}</option>
+                                                                {% endfor %}
+                                                            </select>
+                                                        {% elif campo.tipo in ['lista', 'texto_longo'] %}
+                                                            <textarea
+                                                                id="cfg_{{ campo.chave }}"
+                                                                name="{{ campo.chave }}"
+                                                                class="form-control module-config-textarea"
+                                                                rows="{{ 6 if campo.tipo == 'texto_longo' else 5 }}"
+                                                                {% if campo.tipo == 'lista' %}data-list-field{% endif %}
+                                                            >{{ valor_campo }}</textarea>
+                                                        {% else %}
+                                                            <input
+                                                                id="cfg_{{ campo.chave }}"
+                                                                name="{{ campo.chave }}"
+                                                                type="{{ 'number' if campo.tipo == 'numero' else ('email' if campo.tipo == 'email' else 'text') }}"
+                                                                value="{{ valor_campo }}"
+                                                                class="form-control"
+                                                                {% if campo.tipo == 'numero' %}
+                                                                    step="any"
+                                                                    {% if campo.minimo is not none %}min="{{ campo.minimo }}"{% endif %}
+                                                                    {% if campo.maximo is not none %}max="{{ campo.maximo }}"{% endif %}
+                                                                {% endif %}
+                                                            >
+                                                        {% endif %}
+
+                                                        {% if campo.ajuda %}
+                                                            <small class="module-config-help">{{ campo.ajuda }}</small>
+                                                        {% elif campo.tipo == 'lista' %}
+                                                            <small class="module-config-help">Digite uma opção por linha.</small>
+                                                        {% endif %}
+                                                    </div>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </div>
+                                    </details>
+                                {% endfor %}
+
+                                <div class="module-config-actions">
+                                    <div>
+                                        <strong>Configuração da empresa</strong>
+                                        <small>As regras são aplicadas aos próximos cadastros e ações; dados já lançados são preservados.</small>
+                                    </div>
+                                    <button type="submit" class="btn-primary-green">Salvar {{ modulo_configuracao.nome }}</button>
+                                </div>
+                            </form>
+
+                            <form
+                                class="module-config-reset-form"
+                                action="{{ url_for('restaurar_regras_configuracao_modulo', codigo=codigo_modulo_configuracao) }}"
+                                method="post"
+                                onsubmit="return confirm('Restaurar todas as configurações padrão de {{ modulo_configuracao.nome }}?');"
+                            >
+                                <button type="submit" class="module-config-reset-button">Restaurar padrões deste módulo</button>
+                            </form>
+                        </div>
+                    </div>
+
+                {% elif aba == 'usuarios' %}
                     <div class="panel-header page-header">
                         <div>
                             <h3>Usuários e permissões</h3>
@@ -826,6 +997,10 @@ Motivo: Adicionar CRUD de usuários, perfis, vínculo com funcionário e ações
                 grid-template-columns: 320px 1fr;
             }
 
+            .config-dashboard-grid.module-only {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
             .config-menu-panel {
                 min-height: 620px;
             }
@@ -975,9 +1150,513 @@ Motivo: Adicionar CRUD de usuários, perfis, vínculo com funcionário e ações
                 font-weight: 700;
             }
 
+            .module-config-page-header {
+                margin-bottom: 18px;
+            }
+
+            .module-config-layout {
+                display: grid;
+                grid-template-columns: 260px minmax(0, 1fr);
+                gap: 18px;
+                align-items: start;
+            }
+
+            .module-config-layout.single-module {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            .module-config-selector {
+                position: sticky;
+                top: 18px;
+                padding: 14px;
+                border: 1px solid #dbe4f0;
+                border-radius: 16px;
+                background: #f8fafc;
+                max-height: calc(100vh - 36px);
+                overflow: auto;
+            }
+
+            .module-config-search-label {
+                display: block;
+                margin-bottom: 7px;
+                color: #334155;
+                font-size: 12px;
+                font-weight: 900;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            }
+
+            .module-config-search {
+                width: 100%;
+                height: 40px;
+                padding: 0 12px;
+                border: 1px solid #cbd5e1;
+                border-radius: 10px;
+                background: #ffffff;
+                color: #0f172a;
+                font: inherit;
+                font-size: 13px;
+                outline: none;
+            }
+
+            .module-config-search:focus {
+                border-color: #1458f5;
+                box-shadow: 0 0 0 3px rgba(20, 88, 245, 0.12);
+            }
+
+            .module-config-nav {
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+                margin-top: 12px;
+            }
+
+            .module-config-group {
+                margin: 10px 8px 2px;
+                color: #64748b;
+                font-size: 10px;
+                font-weight: 900;
+                text-transform: uppercase;
+                letter-spacing: 0.08em;
+            }
+
+            .module-config-link {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                min-height: 48px;
+                padding: 8px 10px;
+                border: 1px solid transparent;
+                border-radius: 11px;
+                color: #334155;
+                text-decoration: none;
+                transition: 0.18s ease;
+            }
+
+            .module-config-link:hover {
+                border-color: #bfdbfe;
+                background: #eff6ff;
+                color: #0f62fe;
+            }
+
+            .module-config-link.active {
+                border-color: #1458f5;
+                background: #1458f5;
+                color: #ffffff;
+                box-shadow: 0 8px 18px rgba(20, 88, 245, 0.2);
+            }
+
+            .module-config-icon {
+                width: 30px;
+                height: 30px;
+                flex: 0 0 30px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 9px;
+                background: #e2e8f0;
+                color: #1458f5;
+                font-size: 14px;
+                font-weight: 900;
+            }
+
+            .module-config-link.active .module-config-icon {
+                background: rgba(255, 255, 255, 0.18);
+                color: #ffffff;
+            }
+
+            .module-config-link strong,
+            .module-config-link small {
+                display: block;
+            }
+
+            .module-config-link strong {
+                font-size: 12px;
+                line-height: 1.25;
+            }
+
+            .module-config-link small {
+                margin-top: 2px;
+                color: #94a3b8;
+                font-size: 10px;
+                font-weight: 800;
+            }
+
+            .module-config-link.active small {
+                color: #dbeafe;
+            }
+
+            .module-config-editor {
+                min-width: 0;
+            }
+
+            .module-config-editor-header {
+                display: flex;
+                align-items: flex-start;
+                justify-content: space-between;
+                gap: 16px;
+                padding: 18px;
+                border: 1px solid #dbeafe;
+                border-radius: 16px;
+                background: linear-gradient(135deg, #eff6ff, #ffffff);
+            }
+
+            .module-config-title-wrap {
+                display: flex;
+                align-items: flex-start;
+                gap: 14px;
+            }
+
+            .module-config-title-icon {
+                width: 46px;
+                height: 46px;
+                flex: 0 0 46px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 14px;
+                background: #1458f5;
+                color: #ffffff;
+                font-size: 20px;
+                font-weight: 900;
+                box-shadow: 0 8px 20px rgba(20, 88, 245, 0.22);
+            }
+
+            .module-config-title-wrap h3 {
+                margin: 2px 0 5px;
+                color: #0f172a;
+                font-size: 20px;
+            }
+
+            .module-config-title-wrap p {
+                margin: 0;
+                color: #64748b;
+                font-size: 13px;
+                font-weight: 700;
+                line-height: 1.45;
+            }
+
+            .module-config-count {
+                flex: 0 0 auto;
+                padding: 7px 10px;
+                border: 1px solid #bfdbfe;
+                border-radius: 999px;
+                background: #ffffff;
+                color: #1d4ed8;
+                font-size: 11px;
+                font-weight: 900;
+            }
+
+            .module-config-saved-meta {
+                margin: 12px 0;
+                padding: 10px 12px;
+                border: 1px solid #bbf7d0;
+                border-radius: 10px;
+                background: #f0fdf4;
+                color: #166534;
+                font-size: 11px;
+                font-weight: 700;
+            }
+
+            .module-config-saved-meta.default {
+                border-color: #dbe4f0;
+                background: #f8fafc;
+                color: #64748b;
+            }
+
+            .module-config-form {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .module-config-section {
+                overflow: hidden;
+                border: 1px solid #dbe4f0;
+                border-radius: 14px;
+                background: #ffffff;
+            }
+
+            .module-config-section[open] {
+                box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+            }
+
+            .module-config-section summary {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+                padding: 14px 16px;
+                background: #f8fafc;
+                color: #0f172a;
+                cursor: pointer;
+                font-size: 13px;
+                font-weight: 900;
+                list-style: none;
+                user-select: none;
+            }
+
+            .module-config-section summary::-webkit-details-marker {
+                display: none;
+            }
+
+            .module-config-section summary::after {
+                content: "+";
+                width: 24px;
+                height: 24px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 7px;
+                background: #e2e8f0;
+                color: #1458f5;
+                font-size: 16px;
+                line-height: 1;
+            }
+
+            .module-config-section[open] summary::after {
+                content: "−";
+            }
+
+            .module-config-section summary small {
+                margin-left: auto;
+                color: #64748b;
+                font-size: 10px;
+                font-weight: 800;
+            }
+
+            .module-config-fields {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 14px;
+                padding: 16px;
+            }
+
+            .module-config-field {
+                min-width: 0;
+            }
+
+            .module-config-field.wide {
+                grid-column: 1 / -1;
+            }
+
+            .module-config-field > label {
+                display: block;
+                margin-bottom: 6px;
+                color: #334155;
+                font-size: 12px;
+                font-weight: 900;
+            }
+
+            .module-config-field .form-control {
+                width: 100%;
+                min-height: 40px;
+                border-color: #cbd5e1;
+                font-size: 13px;
+            }
+
+            .module-config-textarea {
+                min-height: 105px;
+                resize: vertical;
+                line-height: 1.5;
+            }
+
+            .module-config-help {
+                display: block;
+                margin-top: 5px;
+                color: #64748b;
+                font-size: 10px;
+                font-weight: 700;
+            }
+
+            .module-config-toggle {
+                min-height: 72px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 14px;
+                padding: 12px 14px;
+                border: 1px solid #e2e8f0;
+                border-radius: 12px;
+                background: #f8fafc;
+                cursor: pointer;
+            }
+
+            .module-config-toggle strong,
+            .module-config-toggle small {
+                display: block;
+            }
+
+            .module-config-toggle strong {
+                color: #334155;
+                font-size: 12px;
+                line-height: 1.35;
+            }
+
+            .module-config-toggle small {
+                margin-top: 4px;
+                color: #64748b;
+                font-size: 10px;
+                font-weight: 700;
+            }
+
+            .module-config-switch {
+                position: relative;
+                width: 44px;
+                height: 24px;
+                flex: 0 0 44px;
+            }
+
+            .module-config-switch input {
+                position: absolute;
+                width: 1px;
+                height: 1px;
+                opacity: 0;
+            }
+
+            .module-config-switch span {
+                position: absolute;
+                inset: 0;
+                border-radius: 999px;
+                background: #cbd5e1;
+                transition: 0.2s ease;
+            }
+
+            .module-config-switch span::after {
+                content: "";
+                position: absolute;
+                top: 3px;
+                left: 3px;
+                width: 18px;
+                height: 18px;
+                border-radius: 50%;
+                background: #ffffff;
+                box-shadow: 0 2px 5px rgba(15, 23, 42, 0.24);
+                transition: 0.2s ease;
+            }
+
+            .module-config-switch input:checked + span {
+                background: #16a34a;
+            }
+
+            .module-config-switch input:checked + span::after {
+                transform: translateX(20px);
+            }
+
+            .module-config-switch input:focus-visible + span {
+                outline: 3px solid rgba(20, 88, 245, 0.24);
+                outline-offset: 2px;
+            }
+
+            .module-config-actions {
+                position: sticky;
+                bottom: 10px;
+                z-index: 5;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 16px;
+                padding: 14px 16px;
+                border: 1px solid #bbf7d0;
+                border-radius: 14px;
+                background: rgba(240, 253, 244, 0.96);
+                box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+                backdrop-filter: blur(8px);
+            }
+
+            .module-config-actions strong,
+            .module-config-actions small {
+                display: block;
+            }
+
+            .module-config-actions strong {
+                color: #166534;
+                font-size: 12px;
+            }
+
+            .module-config-actions small {
+                margin-top: 3px;
+                color: #64748b;
+                font-size: 10px;
+                font-weight: 700;
+            }
+
+            .module-config-reset-form {
+                margin-top: 12px;
+                text-align: right;
+            }
+
+            .module-config-reset-button {
+                border: 0;
+                background: transparent;
+                color: #b91c1c;
+                cursor: pointer;
+                font: inherit;
+                font-size: 11px;
+                font-weight: 900;
+                text-decoration: underline;
+                text-underline-offset: 3px;
+            }
+
+            [hidden] {
+                display: none !important;
+            }
+
             @media (max-width: 1100px) {
                 .config-dashboard-grid {
                     grid-template-columns: 1fr;
+                }
+
+                .module-config-selector {
+                    position: static;
+                    max-height: 430px;
+                }
+            }
+
+            @media (max-width: 820px) {
+                .module-config-layout {
+                    grid-template-columns: 1fr;
+                }
+
+                .module-config-fields {
+                    grid-template-columns: 1fr;
+                }
+
+                .module-config-field.wide {
+                    grid-column: auto;
+                }
+
+                .module-config-actions {
+                    position: static;
+                    align-items: stretch;
+                    flex-direction: column;
+                }
+
+                .module-config-actions .btn-primary-green {
+                    width: 100%;
+                }
+            }
+
+            @media (max-width: 520px) {
+                .module-config-editor-header,
+                .module-config-title-wrap {
+                    flex-direction: column;
+                }
+
+                .module-config-count {
+                    align-self: flex-start;
+                }
+
+                .module-config-section summary {
+                    padding: 12px;
+                }
+
+                .module-config-fields {
+                    padding: 12px;
+                }
+
+                .module-config-toggle {
+                    min-height: 66px;
                 }
             }
         </style>

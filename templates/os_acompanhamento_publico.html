@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\os_acompanhamento_publico.html
-Último recode: 2026-07-18 11:25 (America/Bahia)
-Motivo: Exibir a OS completa e permitir ao técnico somente acrescentar equipamentos, fotos e acompanhamentos, sem alterar registros existentes.
+Último recode: 2026-07-23 00:18 (America/Bahia)
+Motivo: Aplicar fotos, equipamentos, QR Code, evidências e regras de encerramento configuradas por empresa.
 -->
 
 <!DOCTYPE html>
@@ -1205,5 +1205,6 @@ Motivo: Exibir a OS completa e permitir ao técnico somente acrescentar equipame
 })();
 </script>
 {% endif %}
+{% include 'partials/configuracoes_runtime.html' %}
 </body>
 </html>

@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_imprimir_a4.html
-Último recode: 2026-07-15 10:23 (America/Bahia)
-Motivo: Formatar o escopo técnico em seções, parágrafos e listas na impressão A4.
+Último recode: 2026-07-23 00:18 (America/Bahia)
+Motivo: Aplicar logo, assinatura, exibição de itens, cabeçalho e rodapé configurados por empresa.
 -->
 
 <!DOCTYPE html>
@@ -344,6 +344,9 @@ Motivo: Formatar o escopo técnico em seções, parágrafos e listas na impress�
     </style>
 </head>
 <body>
+    {% set _cfg = gestflow_configuracoes_runtime.get('valores', {}) %}
+    {% set _cfg_gerais = _cfg.get('gerais', {}) %}
+    {% set _cfg_orcamentos = _cfg.get('orcamentos', {}) %}
 
     <div class="print-actions">
         <a class="print-button back-button" href="/orcamentos/{{ orcamento.id }}">Voltar</a>
@@ -353,7 +356,7 @@ Motivo: Formatar o escopo técnico em seções, parágrafos e listas na impress�
     <main class="page">
         <header class="header">
             <div class="logo-box">
-                {% if empresa.logo_path %}
+                {% if _cfg_orcamentos.get('usar_logo', true) and empresa.logo_path %}
                     <img src="{{ empresa.logo_path }}" alt="Logo da empresa" class="logo-img" onerror="this.remove(); this.parentElement.textContent='GF';">
                 {% else %}
                     GESTFLOW<br>ORÇAMENTO
@@ -577,13 +580,15 @@ Motivo: Formatar o escopo técnico em seções, parágrafos e listas na impress�
             <div class="observacoes">-</div>
         {% endif %}
 
-        <div class="assinatura">
-            <div class="assinatura-line"></div>
-            Assinatura do cliente
-        </div>
+        {% if _cfg_orcamentos.get('assinatura_cliente', true) %}
+            <div class="assinatura">
+                <div class="assinatura-line"></div>
+                Assinatura do cliente
+            </div>
+        {% endif %}
 
         <div class="footer">
-            Orçamento emitido no {{ empresa.nome_fantasia or 'GESTFLOW' }}
+            {{ _cfg_orcamentos.get('rodape') or _cfg_gerais.get('rodape_documentos') or ('Orçamento emitido no ' ~ (empresa.nome_fantasia or 'GESTFLOW')) }}
         </div>
     </main>
 
