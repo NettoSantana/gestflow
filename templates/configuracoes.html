@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\configuracoes.html
-Último recode: 2026-07-23 00:18 (America/Bahia)
-Motivo: Transformar a central em regras integradas aos cadastros, operações, documentos e áreas públicas.
+Último recode: 2026-07-25 09:27 (America/Bahia)
+Motivo: Exibir somente as configurações do módulo escolhido no sidebar e remover a central única de módulos.
 -->
 
 <!DOCTYPE html>
@@ -180,6 +180,7 @@ Motivo: Transformar a central em regras integradas aos cadastros, operações, d
         {% set modulos_sistema = modulos_sistema|default([], true) %}
         {% set modulos_ativos = modulos_ativos|default({}, true) %}
 
+        {% if aba != 'regras_modulos' %}
         <section class="panel page-section">
             <div class="panel-header page-header">
                 <div>
@@ -238,15 +239,6 @@ Motivo: Transformar a central em regras integradas aos cadastros, operações, d
                 </div>
             </a>
 
-            <a href="/configuracoes/regras-modulos" class="card stat-card config-card-link {% if aba == 'regras_modulos' %}config-active{% endif %}">
-                <div class="card-icon">⚒</div>
-                <div class="card-info">
-                    <p>{{ total_configuracoes|default(0) }} regras</p>
-                    <h3>Configurações dos módulos</h3>
-                    <span>Padrões de todos os módulos</span>
-                </div>
-            </a>
-
             <a href="/configuracoes/empresa" class="card stat-card config-card-link {% if aba == 'empresa' %}config-active{% endif %}">
                 <div class="card-icon">▣</div>
                 <div class="card-info">
@@ -256,9 +248,11 @@ Motivo: Transformar a central em regras integradas aos cadastros, operações, d
                 </div>
             </a>
         </section>
+        {% endif %}
 
-        <section class="dashboard-grid config-dashboard-grid">
+        <section class="dashboard-grid config-dashboard-grid {% if aba == 'regras_modulos' %}module-only{% endif %}">
 
+            {% if aba != 'regras_modulos' %}
             <div class="panel table-panel config-menu-panel">
                 <h3>Menu de configurações</h3>
                 <div class="config-menu-list">
@@ -299,14 +293,6 @@ Motivo: Transformar a central em regras integradas aos cadastros, operações, d
                         <div>
                             <strong>Módulos do sistema</strong>
                             <small>Ative só o que a empresa usa</small>
-                        </div>
-                    </a>
-
-                    <a href="/configuracoes/regras-modulos" class="config-menu-item {% if aba == 'regras_modulos' %}active{% endif %}">
-                        <span>⚒</span>
-                        <div>
-                            <strong>Configurações dos módulos</strong>
-                            <small>Regras, padrões e documentos</small>
                         </div>
                     </a>
 
@@ -359,16 +345,17 @@ Motivo: Transformar a central em regras integradas aos cadastros, operações, d
                     </div>
                 </div>
             </div>
+            {% endif %}
 
             <div class="panel chart-panel config-content-panel">
                 {% if aba == 'regras_modulos' %}
                     <div class="panel-header page-header module-config-page-header">
                         <div>
-                            <span class="page-kicker">Configurações dos módulos</span>
-                            <h3>Regras operacionais do GestFlow</h3>
-                            <p class="page-subtitle">Escolha um módulo, ajuste seus padrões e salve. As configurações ficam separadas por empresa.</p>
+                            <span class="page-kicker">Configurações · {{ grupo_configuracao.nome }}</span>
+                            <h3>Configurações de {{ grupo_configuracao.nome }}</h3>
+                            <p class="page-subtitle">Ajuste somente as regras deste módulo. As configurações ficam separadas por empresa.</p>
                         </div>
-                        <span class="badge-info">{{ modulos_configuraveis|length }} blocos · {{ total_configuracoes }} configurações</span>
+                        <span class="badge-info">{{ modulos_configuraveis|length }} {{ 'bloco' if modulos_configuraveis|length == 1 else 'blocos' }} · {{ total_configuracoes }} configurações</span>
                     </div>
 
                     {% if erro %}
@@ -379,23 +366,16 @@ Motivo: Transformar a central em regras integradas aos cadastros, operações, d
                         <div class="config-alert success">{{ sucesso }}</div>
                     {% endif %}
 
-                    <div class="module-config-layout">
+                    <div class="module-config-layout {% if modulos_configuraveis|length == 1 %}single-module{% endif %}">
+                        {% if modulos_configuraveis|length > 1 %}
                         <aside class="module-config-selector" aria-label="Módulos configuráveis">
-                            <label class="module-config-search-label" for="module-config-search">Localizar módulo</label>
-                            <input id="module-config-search" class="module-config-search" type="search" placeholder="Ex.: contratos, estoque..." autocomplete="off">
+                            <span class="module-config-search-label">Áreas deste módulo</span>
 
                             <nav class="module-config-nav" id="module-config-nav">
-                                {% set grupo_atual = namespace(valor='') %}
                                 {% for item_modulo in modulos_configuraveis %}
-                                    {% if item_modulo.grupo != grupo_atual.valor %}
-                                        {% set grupo_atual.valor = item_modulo.grupo %}
-                                        <span class="module-config-group" data-module-group>{{ item_modulo.grupo }}</span>
-                                    {% endif %}
                                     <a
-                                        href="/configuracoes/regras-modulos?modulo={{ item_modulo.codigo }}"
+                                        href="/configuracoes/modulo/{{ grupo_configuracao.codigo }}?modulo={{ item_modulo.codigo }}"
                                         class="module-config-link {% if item_modulo.codigo == codigo_modulo_configuracao %}active{% endif %}"
-                                        data-module-link
-                                        data-module-search="{{ (item_modulo.nome ~ ' ' ~ item_modulo.grupo ~ ' ' ~ item_modulo.descricao)|lower }}"
                                     >
                                         <span class="module-config-icon">{{ item_modulo.icone }}</span>
                                         <span>
@@ -406,6 +386,7 @@ Motivo: Transformar a central em regras integradas aos cadastros, operações, d
                                 {% endfor %}
                             </nav>
                         </aside>
+                        {% endif %}
 
                         <div class="module-config-editor">
                             <div class="module-config-editor-header">
@@ -533,37 +514,6 @@ Motivo: Transformar a central em regras integradas aos cadastros, operações, d
                             </form>
                         </div>
                     </div>
-
-                    <script>
-                        document.addEventListener('DOMContentLoaded', function () {
-                            const busca = document.getElementById('module-config-search');
-                            const links = Array.from(document.querySelectorAll('[data-module-link]'));
-                            const grupos = Array.from(document.querySelectorAll('[data-module-group]'));
-
-                            if (!busca) return;
-
-                            busca.addEventListener('input', function () {
-                                const termo = busca.value.trim().toLocaleLowerCase('pt-BR');
-                                links.forEach(function (link) {
-                                    const texto = (link.dataset.moduleSearch || '').toLocaleLowerCase('pt-BR');
-                                    link.hidden = Boolean(termo) && !texto.includes(termo);
-                                });
-
-                                grupos.forEach(function (grupo) {
-                                    let proximo = grupo.nextElementSibling;
-                                    let possuiVisivel = false;
-                                    while (proximo && !proximo.matches('[data-module-group]')) {
-                                        if (proximo.matches('[data-module-link]') && !proximo.hidden) {
-                                            possuiVisivel = true;
-                                            break;
-                                        }
-                                        proximo = proximo.nextElementSibling;
-                                    }
-                                    grupo.hidden = !possuiVisivel;
-                                });
-                            });
-                        });
-                    </script>
 
                 {% elif aba == 'usuarios' %}
                     <div class="panel-header page-header">
@@ -1047,6 +997,10 @@ Motivo: Transformar a central em regras integradas aos cadastros, operações, d
                 grid-template-columns: 320px 1fr;
             }
 
+            .config-dashboard-grid.module-only {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
             .config-menu-panel {
                 min-height: 620px;
             }
@@ -1205,6 +1159,10 @@ Motivo: Transformar a central em regras integradas aos cadastros, operações, d
                 grid-template-columns: 260px minmax(0, 1fr);
                 gap: 18px;
                 align-items: start;
+            }
+
+            .module-config-layout.single-module {
+                grid-template-columns: minmax(0, 1fr);
             }
 
             .module-config-selector {

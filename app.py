@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-23 00:18 (America/Bahia)
-# Motivo: Integrar as configurações de todos os módulos às regras reais, formulários, documentos e operações do GestFlow.
+# Último recode: 2026-07-25 09:27 (America/Bahia)
+# Motivo: Exibir as configurações como último submenu de cada módulo, sem uma central única no sidebar.
 
 from __future__ import annotations
 
@@ -877,6 +877,71 @@ CONFIGURACOES_MODULOS_DEFINICOES = [
 
 CONFIGURACOES_MODULOS_POR_CODIGO = {
     item["codigo"]: item for item in CONFIGURACOES_MODULOS_DEFINICOES
+}
+
+CONFIGURACOES_GRUPOS_SIDEBAR = {
+    "cadastros": {
+        "nome": "Cadastros",
+        "modulos": ("cadastros",),
+    },
+    "produtos": {
+        "nome": "Produtos",
+        "modulos": ("produtos",),
+    },
+    "servicos": {
+        "nome": "Serviços",
+        "modulos": ("servicos",),
+    },
+    "orcamentos": {
+        "nome": "Orçamentos",
+        "modulos": ("orcamentos",),
+    },
+    "contratos": {
+        "nome": "Contratos",
+        "modulos": ("contratos",),
+    },
+    "vendas": {
+        "nome": "Vendas",
+        "modulos": ("vendas", "devolucoes"),
+    },
+    "ordens_servico": {
+        "nome": "Ordens de Serviço",
+        "modulos": ("ordens_servico",),
+    },
+    "gestao_atividades": {
+        "nome": "Gestão de Atividades",
+        "modulos": ("gestao_atividades",),
+    },
+    "estoque": {
+        "nome": "Estoque",
+        "modulos": ("estoque", "compras"),
+    },
+    "financeiro": {
+        "nome": "Financeiro",
+        "modulos": ("financeiro", "centros_custo_dre"),
+    },
+    "vitrine": {
+        "nome": "Vitrine Online",
+        "modulos": ("vitrine",),
+    },
+    "agendamentos": {
+        "nome": "Atendimento",
+        "modulos": ("agendamentos",),
+    },
+    "registro_ponto": {
+        "nome": "Registro de Ponto",
+        "modulos": ("registro_ponto",),
+    },
+    "sistema": {
+        "nome": "Sistema",
+        "modulos": ("gerais", "importacao_seguranca"),
+    },
+}
+
+CONFIGURACOES_GRUPO_POR_MODULO = {
+    codigo_modulo: codigo_grupo
+    for codigo_grupo, grupo in CONFIGURACOES_GRUPOS_SIDEBAR.items()
+    for codigo_modulo in grupo["modulos"]
 }
 
 GERADOR_ADICIONAIS_MAO_OBRA_TIPOS = [
@@ -16481,25 +16546,46 @@ def sincronizar_configuracoes_modulo_operacional(
         conn.commit()
 
 
-def montar_contexto_regras_modulos(codigo: Any = None) -> dict[str, Any]:
+def montar_contexto_regras_modulos(
+    codigo: Any = None,
+    grupo: Any = None,
+) -> dict[str, Any]:
+    grupo_normalizado = str(grupo or "").strip().lower()
     codigo_normalizado = str(codigo or "").strip().lower()
-    if codigo_normalizado not in CONFIGURACOES_MODULOS_POR_CODIGO:
-        codigo_normalizado = "gerais"
+
+    if grupo_normalizado not in CONFIGURACOES_GRUPOS_SIDEBAR:
+        grupo_normalizado = CONFIGURACOES_GRUPO_POR_MODULO.get(
+            codigo_normalizado,
+            "sistema",
+        )
+
+    grupo_definicao = {
+        "codigo": grupo_normalizado,
+        **CONFIGURACOES_GRUPOS_SIDEBAR[grupo_normalizado],
+    }
+    codigos_grupo = tuple(grupo_definicao["modulos"])
+    if codigo_normalizado not in codigos_grupo:
+        codigo_normalizado = codigos_grupo[0]
 
     definicao = CONFIGURACOES_MODULOS_POR_CODIGO[codigo_normalizado]
+    modulos_grupo = [
+        CONFIGURACOES_MODULOS_POR_CODIGO[codigo_item]
+        for codigo_item in codigos_grupo
+    ]
     secoes: dict[str, list[dict[str, Any]]] = {}
     for campo in definicao.get("campos", []):
         secoes.setdefault(str(campo.get("secao") or "Regras gerais"), []).append(campo)
 
     return {
-        "modulos_configuraveis": CONFIGURACOES_MODULOS_DEFINICOES,
+        "grupo_configuracao": grupo_definicao,
+        "modulos_configuraveis": modulos_grupo,
         "modulo_configuracao": definicao,
         "codigo_modulo_configuracao": codigo_normalizado,
         "configuracoes_modulo": buscar_configuracoes_modulo(codigo_normalizado),
         "metadados_configuracao": buscar_metadados_configuracao_modulo(codigo_normalizado),
         "secoes_configuracao": secoes,
         "total_configuracoes": sum(
-            len(item.get("campos", [])) for item in CONFIGURACOES_MODULOS_DEFINICOES
+            len(item.get("campos", [])) for item in modulos_grupo
         ),
     }
 
@@ -20249,7 +20335,8 @@ def admin_excluir_empresa(empresa_id: int) -> Response:
 @app.get("/configuracoes/lojas")
 @app.get("/configuracoes/modulos")
 @app.get("/configuracoes/regras-modulos")
-def configuracoes() -> str:
+@app.get("/configuracoes/modulo/<grupo>")
+def configuracoes(grupo: str | None = None) -> str:
     aba = "gerais"
 
     if request.path.endswith("/plano"):
@@ -20262,13 +20349,16 @@ def configuracoes() -> str:
         aba = "marca"
     elif request.path.endswith("/lojas"):
         aba = "lojas"
-    elif request.path.endswith("/regras-modulos"):
+    elif grupo is not None or request.path.endswith("/regras-modulos"):
         aba = "regras_modulos"
     elif request.path.endswith("/modulos"):
         aba = "modulos"
 
     contexto = montar_contexto_configuracoes_listas(montar_configuracoes_contexto())
-    contexto_regras = montar_contexto_regras_modulos(request.args.get("modulo"))
+    contexto_regras = montar_contexto_regras_modulos(
+        request.args.get("modulo"),
+        grupo or request.args.get("grupo"),
+    )
 
     return render_template(
         "configuracoes.html",
@@ -20290,6 +20380,7 @@ def configuracoes() -> str:
         perfis_usuario=contexto["perfis_usuario"],
         modulos_permissoes=contexto["modulos_permissoes"],
         acoes_permissao=contexto["acoes_permissao"],
+        grupo_configuracao=contexto_regras["grupo_configuracao"],
         modulos_configuraveis=contexto_regras["modulos_configuraveis"],
         modulo_configuracao=contexto_regras["modulo_configuracao"],
         codigo_modulo_configuracao=contexto_regras["codigo_modulo_configuracao"],
@@ -20309,13 +20400,24 @@ def salvar_configuracoes_modulos() -> Response:
     return redirect("/configuracoes/modulos?sucesso=Módulos atualizados com sucesso.")
 
 
+def url_retorno_configuracao_modulo(
+    codigo: str,
+    **parametros_extras: Any,
+) -> str:
+    grupo = CONFIGURACOES_GRUPO_POR_MODULO.get(str(codigo or "").strip().lower(), "sistema")
+    parametros = {"modulo": codigo, **parametros_extras}
+    return f"/configuracoes/modulo/{grupo}?{urllib.parse.urlencode(parametros)}"
+
+
 @app.post("/configuracoes/regras-modulos/<codigo>")
 def salvar_regras_configuracao_modulo(codigo: str) -> Response:
     definicao = buscar_definicao_configuracao_modulo(codigo)
     if definicao is None:
         return redirect(
-            "/configuracoes/regras-modulos?erro="
-            + urllib.parse.quote("Módulo de configuração inválido.")
+            url_retorno_configuracao_modulo(
+                codigo,
+                erro="Módulo de configuração inválido.",
+            )
         )
 
     valores_anteriores = buscar_configuracoes_modulo(codigo)
@@ -20323,17 +20425,21 @@ def salvar_regras_configuracao_modulo(codigo: str) -> Response:
     try:
         valores_novos = montar_configuracoes_modulo_formulario(definicao)
     except ValueError as erro_validacao:
-        parametros = urllib.parse.urlencode(
-            {"modulo": codigo, "erro": str(erro_validacao)}
+        return redirect(
+            url_retorno_configuracao_modulo(
+                codigo,
+                erro=str(erro_validacao),
+            )
         )
-        return redirect(f"/configuracoes/regras-modulos?{parametros}")
 
     erro_integracao = validar_configuracoes_modulo_operacional(codigo, valores_novos)
     if erro_integracao:
-        parametros = urllib.parse.urlencode(
-            {"modulo": codigo, "erro": erro_integracao}
+        return redirect(
+            url_retorno_configuracao_modulo(
+                codigo,
+                erro=erro_integracao,
+            )
         )
-        return redirect(f"/configuracoes/regras-modulos?{parametros}")
 
     salvar_configuracoes_modulo_db(codigo, valores_novos)
     registrar_atividade_usuario(
@@ -20344,13 +20450,12 @@ def salvar_regras_configuracao_modulo(codigo: str) -> Response:
         dados_anteriores=valores_anteriores,
         dados_novos=valores_novos,
     )
-    parametros = urllib.parse.urlencode(
-        {
-            "modulo": codigo,
-            "sucesso": f"Configurações de {definicao['nome']} salvas com sucesso.",
-        }
+    return redirect(
+        url_retorno_configuracao_modulo(
+            codigo,
+            sucesso=f"Configurações de {definicao['nome']} salvas com sucesso.",
+        )
     )
-    return redirect(f"/configuracoes/regras-modulos?{parametros}")
 
 
 @app.post("/configuracoes/regras-modulos/<codigo>/restaurar")
@@ -20358,8 +20463,10 @@ def restaurar_regras_configuracao_modulo(codigo: str) -> Response:
     definicao = buscar_definicao_configuracao_modulo(codigo)
     if definicao is None:
         return redirect(
-            "/configuracoes/regras-modulos?erro="
-            + urllib.parse.quote("Módulo de configuração inválido.")
+            url_retorno_configuracao_modulo(
+                codigo,
+                erro="Módulo de configuração inválido.",
+            )
         )
 
     valores_anteriores = buscar_configuracoes_modulo(codigo)
@@ -20373,13 +20480,12 @@ def restaurar_regras_configuracao_modulo(codigo: str) -> Response:
         dados_anteriores=valores_anteriores,
         dados_novos=valores_padrao,
     )
-    parametros = urllib.parse.urlencode(
-        {
-            "modulo": codigo,
-            "sucesso": f"Padrões de {definicao['nome']} restaurados com sucesso.",
-        }
+    return redirect(
+        url_retorno_configuracao_modulo(
+            codigo,
+            sucesso=f"Padrões de {definicao['nome']} restaurados com sucesso.",
+        )
     )
-    return redirect(f"/configuracoes/regras-modulos?{parametros}")
 
 
 @app.post("/configuracoes/modulos/refazer-anamnese")
