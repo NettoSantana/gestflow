@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-25 15:35 (America/Bahia)
-# Motivo: Após finalizar a venda no PDV, retornar diretamente à tela de lançamento de produtos.
+# Último recode: 2026-07-25 16:45 (America/Bahia)
+# Motivo: Bloquear o avanço do PDV assim que o carrinho contiver quantidade maior que o estoque disponível.
 
 from __future__ import annotations
 
@@ -27663,6 +27663,11 @@ def venda_balcao_pagamento() -> str | Response:
 
     if not itens:
         return redirect(url_for("venda_balcao", erro="Adicione pelo menos um produto para continuar."))
+
+    try:
+        validar_estoque_para_venda_db(itens)
+    except ValueError as erro_estoque:
+        return redirect(url_for("venda_balcao", erro=str(erro_estoque)))
 
     session["pdv_carrinho"] = itens
     session["pdv_cliente"] = (request.form.get("cliente") or "AO CONSUMIDOR").strip() or "AO CONSUMIDOR"
