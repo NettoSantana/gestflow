@@ -27772,7 +27772,7 @@ def venda_balcao_finalizar() -> Response:
     try:
         validar_estoque_para_venda_db(itens)
     except ValueError as erro_estoque:
-        return redirect(url_for("venda_balcao_pagamento_get", erro=str(erro_estoque)))
+        return redirect(url_for("venda_balcao", erro=str(erro_estoque)))
 
     venda_id = salvar_venda_db(venda, itens)
     baixar_estoque_por_venda_db(venda_id, venda, itens)
