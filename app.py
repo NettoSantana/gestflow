@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-25 12:10 (America/Bahia)
-# Motivo: Corrigir permissões GET de criação/edição em Contratos e manter erro de anexo acima do limite na tela do contrato.
+# Último recode: 2026-07-25 15:30 (America/Bahia)
+# Motivo: Impedir erro 500 no PDV ao finalizar venda com estoque insuficiente, validando o saldo antes de gravar a venda.
 
 from __future__ import annotations
 
@@ -6987,7 +6987,59 @@ def buscar_produto_por_descricao_item(descricao: Any) -> dict[str, Any] | None:
     return None
 
 
+def validar_estoque_para_venda_db(itens: list[dict[str, str]]) -> None:
+    if not configuracao_bool("vendas", "baixar_estoque", True):
+        return
+    if "vendas" not in {_texto_comparacao_configuracao(item) for item in lista_configuracao_modulo("estoque", "integracoes")}:
+        return
+
+    permite_negativo = configuracao_bool("vendas", "permitir_sem_estoque", False) or configuracao_bool("estoque", "permitir_negativo", False)
+    if permite_negativo:
+        return
+
+    quantidades_por_produto: dict[int, dict[str, Any]] = {}
+
+    for item in itens:
+        if str(item.get("tipo_item") or "").strip() != "produto":
+            continue
+
+        descricao = str(item.get("descricao") or "").strip()
+        if not descricao:
+            continue
+
+        produto = buscar_produto_por_descricao_item(descricao)
+        if produto is None:
+            continue
+
+        produto_id = int(produto.get("id") or 0)
+        if produto_id <= 0:
+            continue
+
+        quantidade = _converter_valor_brl(item.get("quantidade"))
+        if quantidade <= 0:
+            quantidade = 1.0
+
+        acumulado = quantidades_por_produto.setdefault(
+            produto_id,
+            {
+                "nome": str(produto.get("nome") or descricao),
+                "saldo": _converter_valor_brl(produto.get("estoque_atual")),
+                "quantidade": 0.0,
+            },
+        )
+        acumulado["quantidade"] += quantidade
+
+    for dados in quantidades_por_produto.values():
+        if float(dados["saldo"]) - float(dados["quantidade"]) < 0:
+            raise ValueError(
+                f"Estoque insuficiente para {dados['nome']}. "
+                "A venda não foi finalizada. Ajuste a quantidade, faça uma entrada no estoque ou habilite a venda sem estoque nas configurações."
+            )
+
+
 def baixar_estoque_por_venda_db(venda_id: int, venda: dict[str, str], itens: list[dict[str, str]]) -> None:
+    validar_estoque_para_venda_db(itens)
+
     if not configuracao_bool("vendas", "baixar_estoque", True):
         return
     if "vendas" not in {_texto_comparacao_configuracao(item) for item in lista_configuracao_modulo("estoque", "integracoes")}:
@@ -7028,7 +7080,7 @@ def baixar_estoque_por_venda_db(venda_id: int, venda: dict[str, str], itens: lis
         if saldo_atual_numero < 0 and not permite_negativo:
             raise ValueError(
                 f"Estoque insuficiente para {produto.get('nome') or descricao}. "
-                "A venda foi gravada, mas a baixa foi bloqueada pelas configurações."
+                "A baixa foi bloqueada pelas configurações."
             )
 
         movimentacao = {
@@ -27716,6 +27768,11 @@ def venda_balcao_finalizar() -> Response:
     erro_pagamento = validar_pagamento_venda(venda)
     if erro_pagamento:
         return redirect(url_for("venda_balcao_pagamento_get", erro=erro_pagamento))
+
+    try:
+        validar_estoque_para_venda_db(itens)
+    except ValueError as erro_estoque:
+        return redirect(url_for("venda_balcao_pagamento_get", erro=str(erro_estoque)))
 
     venda_id = salvar_venda_db(venda, itens)
     baixar_estoque_por_venda_db(venda_id, venda, itens)
