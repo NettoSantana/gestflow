@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-25 09:27 (America/Bahia)
-# Motivo: Exibir as configurações como último submenu de cada módulo, sem uma central única no sidebar.
+# Último recode: 2026-07-25 12:10 (America/Bahia)
+# Motivo: Corrigir permissões GET de criação/edição em Contratos e manter erro de anexo acima do limite na tela do contrato.
 
 from __future__ import annotations
 
@@ -1530,6 +1530,12 @@ def acao_permissao_por_requisicao() -> str:
     endpoint = str(request.endpoint or "").strip().lower()
     caminho = str(request.path or "").strip().lower()
     metodo = str(request.method or "GET").upper()
+
+    if endpoint == "novo_contrato":
+        return "criar"
+
+    if endpoint == "editar_contrato":
+        return "editar"
 
     if metodo in {"GET", "HEAD", "OPTIONS"}:
         if any(token in endpoint or token in caminho for token in (
@@ -17297,6 +17303,16 @@ def aplicar_regras_configuradas_antes_requisicao() -> Response | None:
 
     limite_mb = int(float(valor_configuracao_modulo("gerais", "tamanho_maximo_anexo_mb", 10) or 10))
     if request.content_length and request.content_length > limite_mb * 1024 * 1024:
+        if endpoint == "atualizar_contrato_anexos":
+            contrato_id = _id_positivo_contrato((request.view_args or {}).get("contrato_id"))
+            if contrato_id:
+                return redirect(
+                    url_for(
+                        "ver_contrato",
+                        contrato_id=contrato_id,
+                        erro=f"O anexo deve ter no máximo {limite_mb} MB.",
+                    )
+                )
         return _erro_regra_configurada("gerais", f"O envio ultrapassa o limite configurado de {limite_mb} MB.")
 
     agora = agora_empresa()
