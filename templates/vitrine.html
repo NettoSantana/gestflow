@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vitrine.html
-Último recode: 2026-07-23 00:18 (America/Bahia)
-Motivo: Aplicar nome, endereço, cores, preço, estoque, entrega e modo de contato configurados por empresa.
+Último recode: 2026-07-26 09:25 (America/Bahia)
+Motivo: Corrigir os botões Remover da vitrine e Salvar como rascunho para enviar somente o status selecionado.
 #}
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -267,8 +267,16 @@ Motivo: Aplicar nome, endereço, cores, preço, estoque, entrega e modo de conta
 
                                 {% if produto.get('publicado') %}
                                     <div class="product-admin-status-actions">
-                                        <button class="btn btn-secondary btn-small" type="submit" formaction="{{ url_for('vitrine_produto_status') }}" name="status" value="oculto">Remover da vitrine</button>
-                                        <button class="btn btn-secondary btn-small" type="submit" formaction="{{ url_for('vitrine_produto_status') }}" name="status" value="rascunho">Salvar como rascunho</button>
+                                        <button
+                                            class="btn btn-secondary btn-small"
+                                            type="button"
+                                            onclick="alterarStatusProdutoVitrine(this, 'oculto')"
+                                        >Remover da vitrine</button>
+                                        <button
+                                            class="btn btn-secondary btn-small"
+                                            type="button"
+                                            onclick="alterarStatusProdutoVitrine(this, 'rascunho')"
+                                        >Salvar como rascunho</button>
                                     </div>
                                 {% endif %}
                             </form>
@@ -385,6 +393,19 @@ Motivo: Aplicar nome, endereço, cores, preço, estoque, entrega e modo de conta
         <script>
             function sairModoFocoVitrine() {
                 window.location.href = "/";
+            }
+
+            function alterarStatusProdutoVitrine(botao, status) {
+                const formulario = botao.closest("form");
+                const campoStatus = formulario ? formulario.querySelector('select[name="status"]') : null;
+
+                if (!formulario || !campoStatus) {
+                    return;
+                }
+
+                campoStatus.value = status;
+                formulario.action = "{{ url_for('vitrine_produto_status') }}";
+                formulario.submit();
             }
 
             document.addEventListener("keydown", function (event) {
