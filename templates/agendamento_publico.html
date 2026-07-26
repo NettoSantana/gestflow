@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\agendamento_publico.html
-Último recode: 2026-07-26 13:51 (America/Bahia)
-Motivo: Receber o serviço selecionado na Vitrine Online e mostrar somente horários que comportem toda a duração.
+Último recode: 2026-07-26 14:25 (America/Bahia)
+Motivo: Impedir recarregamento infinito quando o navegador possui token público antigo ou removido do banco.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -91,8 +91,26 @@ Motivo: Receber o serviço selecionado na Vitrine Online e mostrar somente horá
     const tokenServidor={{ token_cliente|tojson }};
     const sucesso={{ sucesso|tojson }};
     const origem={{ origem_agendamento|tojson }};
-    if(tokenServidor)localStorage.setItem(storageKey,tokenServidor);
-    if(!tokenServidor&&!sucesso){const tokenLocal=localStorage.getItem(storageKey);const campo=document.getElementById('tokenClientePublico');if(campo&&tokenLocal){campo.value=tokenLocal;const params=new URLSearchParams(window.location.search);params.set('token',tokenLocal);window.location.href='/agendar/'+codigo+'?'+params.toString();}}
+    const parametrosAtuais=new URLSearchParams(window.location.search);
+    const tokenNaUrl=parametrosAtuais.get('token')||'';
+    if(tokenServidor){
+        localStorage.setItem(storageKey,tokenServidor);
+    }else if(!sucesso&&tokenNaUrl){
+        localStorage.removeItem(storageKey);
+        parametrosAtuais.delete('token');
+        const consultaLimpa=parametrosAtuais.toString();
+        window.location.replace('/agendar/'+codigo+(consultaLimpa?'?'+consultaLimpa:''));
+        return;
+    }else if(!sucesso){
+        const tokenLocal=localStorage.getItem(storageKey);
+        const campo=document.getElementById('tokenClientePublico');
+        if(campo&&tokenLocal){
+            campo.value=tokenLocal;
+            parametrosAtuais.set('token',tokenLocal);
+            window.location.replace('/agendar/'+codigo+'?'+parametrosAtuais.toString());
+            return;
+        }
+    }
     const data=document.getElementById('dataPublica');
     const profissional=document.getElementById('profissionalPublico');
     const servico=document.getElementById('servicoPublico');
