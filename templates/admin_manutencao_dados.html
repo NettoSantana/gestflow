@@ -1,0 +1,269 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\admin_manutencao_dados.html
+Último recode: 2026-07-26 10:15 (America/Bahia)
+Motivo: Criar painel exclusivo do superadministrador para reset de transações e reset geral por empresa.
+#}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manutenção de dados - GestFlow</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+</head>
+<body>
+    {% include 'partials/sidebar.html' %}
+
+    <main class="maintenance-main">
+        <header class="maintenance-header">
+            <div>
+                <p class="maintenance-kicker">Administração do sistema</p>
+                <h1>Manutenção de dados</h1>
+                <p>Limpe uma empresa de forma controlada, sempre com backup obrigatório e sem apagar os acessos.</p>
+            </div>
+            <span class="environment-pill {% if ambiente_dev %}environment-dev{% else %}environment-blocked{% endif %}">
+                {% if ambiente_dev %}Ambiente DEV liberado{% else %}Reset bloqueado fora do DEV{% endif %}
+            </span>
+        </header>
+
+        {% if sucesso %}<div class="maintenance-alert success">{{ sucesso }}</div>{% endif %}
+        {% if erro %}<div class="maintenance-alert error">{{ erro }}</div>{% endif %}
+
+        <section class="maintenance-card company-card">
+            <div>
+                <p class="maintenance-kicker">Empresa alvo</p>
+                <h2>Selecione com atenção</h2>
+                <p>As ações abaixo atingem somente a empresa escolhida.</p>
+            </div>
+            <form method="get" class="company-select-form">
+                <label for="empresa_id">Empresa</label>
+                <div class="company-select-row">
+                    <select id="empresa_id" name="empresa_id" required>
+                        {% for empresa in empresas %}
+                            <option value="{{ empresa.get('id') }}" {% if empresa_selecionada and empresa.get('id') == empresa_selecionada.get('id') %}selected{% endif %}>
+                                #{{ empresa.get('id') }} — {{ empresa.get('nome_fantasia') or empresa.get('razao_social') or 'Empresa sem nome' }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <button class="btn-select" type="submit">Selecionar</button>
+                </div>
+            </form>
+
+            {% if empresa_selecionada %}
+                <div class="selected-company">
+                    <strong>{{ empresa_selecionada.get('nome_fantasia') or empresa_selecionada.get('razao_social') }}</strong>
+                    <span>ID {{ empresa_selecionada.get('id') }} · Plano {{ empresa_selecionada.get('plano') or '-' }} · {{ empresa_selecionada.get('status') or '-' }}</span>
+                </div>
+            {% endif %}
+        </section>
+
+        <section class="reset-grid">
+            <article class="maintenance-card reset-card transactions-card">
+                <div class="reset-card-heading">
+                    <span class="reset-icon">↻</span>
+                    <div>
+                        <p class="maintenance-kicker">Nível 1</p>
+                        <h2>Resetar transações</h2>
+                    </div>
+                </div>
+                <p class="reset-description">Apaga toda a movimentação da empresa e mantém os cadastros.</p>
+                <ul>
+                    <li>Apaga orçamentos, vendas, OS, contratos e empréstimos.</li>
+                    <li>Apaga financeiro, caixa, agenda, ponto, atividades e movimentações.</li>
+                    <li>Mantém clientes, fornecedores, funcionários, produtos, serviços e equipamentos.</li>
+                    <li>Zera o saldo e o CMV do estoque.</li>
+                </ul>
+                <form method="post" class="reset-form">
+                    <input type="hidden" name="acao" value="transacoes">
+                    <input type="hidden" name="empresa_id" value="{{ empresa_selecionada.get('id') if empresa_selecionada else '' }}">
+                    <label for="confirmacao_transacoes">Digite <strong>{{ frase_transacoes }}</strong></label>
+                    <input id="confirmacao_transacoes" name="confirmacao" autocomplete="off" required>
+                    <button class="reset-button transactions-button" type="submit" {% if not ambiente_dev or not empresa_selecionada %}disabled{% endif %}>
+                        Criar backup e resetar transações
+                    </button>
+                </form>
+            </article>
+
+            <article class="maintenance-card reset-card general-card">
+                <div class="reset-card-heading">
+                    <span class="reset-icon">!</span>
+                    <div>
+                        <p class="maintenance-kicker">Nível 2</p>
+                        <h2>Reset geral</h2>
+                    </div>
+                </div>
+                <p class="reset-description">Apaga os dados operacionais e cadastrais da empresa. Esta é a limpeza máxima permitida.</p>
+                <ul>
+                    <li>Executa todo o reset de transações.</li>
+                    <li>Apaga clientes, fornecedores, funcionários, produtos, serviços e equipamentos.</li>
+                    <li>Apaga centros de custo, lojas, vitrine, anexos e personalizações vinculadas aos registros.</li>
+                    <li>Mantém a empresa, usuários, senhas, plano, permissões, módulos e configurações técnicas.</li>
+                </ul>
+                <form method="post" class="reset-form">
+                    <input type="hidden" name="acao" value="geral">
+                    <input type="hidden" name="empresa_id" value="{{ empresa_selecionada.get('id') if empresa_selecionada else '' }}">
+                    <label for="nome_empresa_confirmacao">Digite o nome exato da empresa</label>
+                    <input id="nome_empresa_confirmacao" name="nome_empresa_confirmacao" autocomplete="off" required placeholder="{{ empresa_selecionada.get('nome_fantasia') if empresa_selecionada else '' }}">
+                    <label for="confirmacao_geral">Depois digite <strong>{{ frase_geral }}</strong></label>
+                    <input id="confirmacao_geral" name="confirmacao" autocomplete="off" required>
+                    <button class="reset-button general-button" type="submit" {% if not ambiente_dev or not empresa_selecionada %}disabled{% endif %}>
+                        Criar backup e executar reset geral
+                    </button>
+                </form>
+            </article>
+        </section>
+
+        <section class="maintenance-card safety-card">
+            <h2>Proteções obrigatórias</h2>
+            <div class="safety-grid">
+                <span>✓ Acesso exclusivo do superadministrador</span>
+                <span>✓ Empresa escolhida explicitamente</span>
+                <span>✓ Backup completo antes de apagar</span>
+                <span>✓ Transação única com rollback em caso de erro</span>
+                <span>✓ Operação bloqueada fora do ambiente DEV</span>
+                <span>✓ Registro de auditoria após a conclusão</span>
+            </div>
+        </section>
+    </main>
+
+    <style>
+        .maintenance-main {
+            width: calc(100% - 238px);
+            min-height: 100vh;
+            margin-left: 238px;
+            padding: 28px;
+            background: #f4f7fb;
+            box-sizing: border-box;
+        }
+        .maintenance-header, .maintenance-card {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 20px;
+            box-shadow: 0 12px 32px rgba(15, 23, 42, 0.06);
+        }
+        .maintenance-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 20px;
+            padding: 24px;
+            margin-bottom: 18px;
+        }
+        .maintenance-header h1, .maintenance-card h2 { margin: 0; color: #0f172a; }
+        .maintenance-header p, .maintenance-card p { color: #64748b; }
+        .maintenance-header > div > p:last-child { margin: 8px 0 0; }
+        .maintenance-kicker {
+            margin: 0 0 6px;
+            color: #2563eb !important;
+            font-size: 12px;
+            font-weight: 900;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+        }
+        .environment-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 9px 12px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 900;
+            white-space: nowrap;
+        }
+        .environment-dev { background: #dcfce7; color: #166534; }
+        .environment-blocked { background: #fee2e2; color: #991b1b; }
+        .maintenance-alert { margin-bottom: 18px; padding: 14px 16px; border-radius: 14px; font-weight: 800; }
+        .maintenance-alert.success { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+        .maintenance-alert.error { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+        .maintenance-card { padding: 22px; }
+        .company-card {
+            display: grid;
+            grid-template-columns: minmax(240px, .8fr) minmax(320px, 1.2fr);
+            gap: 20px;
+            align-items: end;
+            margin-bottom: 18px;
+        }
+        .company-card p { margin: 8px 0 0; }
+        .company-select-form label, .reset-form label {
+            display: block;
+            margin-bottom: 7px;
+            color: #334155;
+            font-size: 13px;
+            font-weight: 800;
+        }
+        .company-select-row { display: flex; gap: 10px; }
+        .company-select-row select, .reset-form input {
+            width: 100%;
+            min-height: 44px;
+            border: 1px solid #cbd5e1;
+            border-radius: 12px;
+            padding: 10px 12px;
+            box-sizing: border-box;
+            background: #ffffff;
+            color: #0f172a;
+        }
+        .btn-select {
+            min-width: 112px;
+            border: 0;
+            border-radius: 12px;
+            padding: 10px 16px;
+            background: #0f172a;
+            color: #ffffff;
+            font-weight: 900;
+            cursor: pointer;
+        }
+        .selected-company {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 14px;
+            border-radius: 14px;
+            background: #eff6ff;
+            color: #1e3a8a;
+        }
+        .selected-company span { color: #475569; }
+        .reset-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-bottom: 18px; }
+        .reset-card { display: flex; flex-direction: column; }
+        .transactions-card { border-top: 5px solid #f59e0b; }
+        .general-card { border-top: 5px solid #dc2626; }
+        .reset-card-heading { display: flex; align-items: center; gap: 12px; }
+        .reset-icon {
+            display: grid;
+            place-items: center;
+            width: 46px;
+            height: 46px;
+            border-radius: 14px;
+            background: #f1f5f9;
+            color: #0f172a;
+            font-size: 22px;
+            font-weight: 900;
+        }
+        .reset-description { min-height: 48px; margin: 16px 0 8px; line-height: 1.5; }
+        .reset-card ul { margin: 0 0 20px; padding-left: 20px; color: #475569; line-height: 1.65; }
+        .reset-form { display: grid; gap: 10px; margin-top: auto; padding-top: 16px; border-top: 1px solid #e2e8f0; }
+        .reset-button {
+            min-height: 46px;
+            border: 0;
+            border-radius: 12px;
+            padding: 11px 16px;
+            color: #ffffff;
+            font-weight: 900;
+            cursor: pointer;
+        }
+        .transactions-button { background: #d97706; }
+        .general-button { background: #b91c1c; }
+        .reset-button:disabled { cursor: not-allowed; opacity: .45; }
+        .safety-card h2 { margin-bottom: 16px; }
+        .safety-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+        .safety-grid span { padding: 12px; border-radius: 12px; background: #f8fafc; color: #334155; font-weight: 700; }
+        @media (max-width: 1024px) {
+            .maintenance-main { width: 100%; margin-left: 0; padding: 18px; }
+            .maintenance-header, .company-card { grid-template-columns: 1fr; flex-direction: column; }
+            .reset-grid, .safety-grid { grid-template-columns: 1fr; }
+            .company-select-row, .selected-company { flex-direction: column; }
+            .btn-select { width: 100%; }
+        }
+    </style>
+    {% include 'partials/configuracoes_runtime.html' %}
+</body>
+</html>

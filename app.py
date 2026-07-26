@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-26 07:35 (America/Bahia)
-# Motivo: Excluir cadastros definitivamente quando não houver vínculos e bloquear a exclusão quando houver registros relacionados.
+# Último recode: 2026-07-26 10:15 (America/Bahia)
+# Motivo: Criar manutenção de dados exclusiva do superadministrador com reset de transações e reset geral por empresa.
 
 from __future__ import annotations
 
@@ -17157,6 +17157,26 @@ def gerar_backup_configurado(motivo: str) -> Path | None:
 
 
 RESET_BASE_DEV_FRASE_CONFIRMACAO = "RESETAR DEV"
+RESET_BASE_ADMIN_FRASE_TRANSACOES = "RESETAR TRANSAÇÕES"
+RESET_BASE_ADMIN_FRASE_GERAL = "RESETAR TUDO"
+
+# Cadastros e personalizações removidos somente pelo reset geral.
+# Empresa, usuários, plano, módulos, permissões e configurações técnicas são preservados.
+RESET_BASE_GERAL_TABELAS_CADASTRAIS = (
+    "vitrine_produtos",
+    "vitrine_configuracoes",
+    "produto_composicao_itens",
+    "produto_composicao_custos",
+    "equipamentos",
+    "centros_custo",
+    "configuracoes_entidades",
+    "lojas",
+    "clientes",
+    "fornecedores",
+    "funcionarios",
+    "produtos",
+    "servicos",
+)
 
 # Tabelas exclusivamente transacionais. A ordem mantém filhos antes dos pais.
 RESET_BASE_DEV_TABELAS_TRANSACIONAIS = (
@@ -17301,22 +17321,109 @@ def _excluir_tabela_transacional_empresa(
     return max(int(cursor.rowcount or 0), 0)
 
 
-def resetar_base_transacional_dev(empresa_id: int) -> dict[str, Any]:
+def _coletar_arquivos_reset_empresa(
+    conn: sqlite3.Connection,
+    empresa_id: int,
+    estrutura: dict[str, set[str]],
+    *,
+    incluir_cadastros: bool,
+) -> list[Path]:
+    arquivos: list[Path] = []
+    especificacoes = {
+        "os_fotos_equipamento": ("foto_antes_path", "foto_depois_path"),
+        "contrato_anexos": ("caminho",),
+        "emprestimo_anexos": ("caminho",),
+    }
+    if incluir_cadastros:
+        especificacoes.update({
+            "vitrine_produtos": ("imagem_path",),
+            "vitrine_configuracoes": ("logo_path",),
+        })
+
+    for tabela, colunas_caminho in especificacoes.items():
+        colunas_tabela = estrutura.get(tabela, set())
+        colunas_validas = [coluna for coluna in colunas_caminho if coluna in colunas_tabela]
+        if not colunas_validas or "empresa_id" not in colunas_tabela:
+            continue
+
+        colunas_sql = ", ".join(f'"{coluna}"' for coluna in colunas_validas)
+        rows = conn.execute(
+            f'SELECT {colunas_sql} FROM "{tabela}" WHERE empresa_id = ?',
+            (empresa_id,),
+        ).fetchall()
+
+        for row in rows:
+            for coluna in colunas_validas:
+                caminho_texto = str(row[coluna] or "").strip()
+                if not caminho_texto:
+                    continue
+
+                if tabela == "os_fotos_equipamento":
+                    caminho = OS_FOTOS_DIR / Path(caminho_texto).name
+                elif tabela == "contrato_anexos":
+                    caminho = CONTRATOS_ANEXOS_DIR / caminho_texto
+                elif tabela == "emprestimo_anexos":
+                    caminho = DATA_DIR / "uploads" / "emprestimos" / caminho_texto
+                else:
+                    caminho = DATA_DIR / caminho_texto.lstrip("/")
+
+                try:
+                    caminho_resolvido = caminho.resolve()
+                    caminho_resolvido.relative_to(DATA_DIR.resolve())
+                except (OSError, ValueError):
+                    continue
+
+                arquivos.append(caminho_resolvido)
+
+    return arquivos
+
+
+def _remover_arquivos_reset_geral(arquivos: list[Path]) -> int:
+    removidos = 0
+    for caminho in dict.fromkeys(arquivos):
+        try:
+            if caminho.is_file():
+                caminho.unlink()
+                removidos += 1
+        except OSError:
+            app.logger.warning("Não foi possível remover arquivo do reset geral: %s", caminho)
+    return removidos
+
+
+def _executar_reset_empresa_dev(
+    empresa_id: int,
+    *,
+    incluir_cadastros: bool,
+) -> dict[str, Any]:
     if not ambiente_reset_base_dev_liberado():
         raise PermissionError("O reset da base só pode ser executado quando ENV=DEV.")
 
-    backup = gerar_backup_configurado(f"antes_reset_dev_empresa_{empresa_id}")
+    tipo_reset = "geral" if incluir_cadastros else "transacoes"
+    backup = gerar_backup_configurado(f"antes_reset_{tipo_reset}_dev_empresa_{empresa_id}")
     if backup is None or not backup.exists():
         raise RuntimeError("O backup obrigatório não foi criado. Nenhum dado foi apagado.")
 
     removidos: dict[str, int] = {}
+    arquivos_reset: list[Path] = []
+
     with conectar_db() as conn:
         estrutura = _tabelas_e_colunas_db(conn)
+        arquivos_reset = _coletar_arquivos_reset_empresa(
+            conn,
+            empresa_id,
+            estrutura,
+            incluir_cadastros=incluir_cadastros,
+        )
+
         conn.execute("PRAGMA foreign_keys = OFF")
         try:
             conn.execute("BEGIN IMMEDIATE")
 
-            for tabela in RESET_BASE_DEV_TABELAS_TRANSACIONAIS:
+            tabelas_reset = list(RESET_BASE_DEV_TABELAS_TRANSACIONAIS)
+            if incluir_cadastros:
+                tabelas_reset.extend(RESET_BASE_GERAL_TABELAS_CADASTRAIS)
+
+            for tabela in tabelas_reset:
                 quantidade = _excluir_tabela_transacional_empresa(
                     conn,
                     tabela,
@@ -17324,7 +17431,7 @@ def resetar_base_transacional_dev(empresa_id: int) -> dict[str, Any]:
                     estrutura,
                 )
                 if quantidade:
-                    removidos[tabela] = quantidade
+                    removidos[tabela] = removidos.get(tabela, 0) + quantidade
 
             if "indicacao_comissoes" in estrutura:
                 colunas_comissoes = estrutura["indicacao_comissoes"]
@@ -17339,45 +17446,46 @@ def resetar_base_transacional_dev(empresa_id: int) -> dict[str, Any]:
                     if int(cursor.rowcount or 0) > 0:
                         removidos["indicacao_comissoes"] = int(cursor.rowcount)
 
-            if "produtos" in estrutura and "empresa_id" in estrutura["produtos"]:
-                atualizacoes_produto = []
-                for coluna in ("estoque_atual", "cmv_calculado"):
-                    if coluna in estrutura["produtos"]:
-                        atualizacoes_produto.append(f'"{coluna}" = 0')
-                if "cmv_atualizado_em" in estrutura["produtos"]:
-                    atualizacoes_produto.append('"cmv_atualizado_em" = NULL')
-                if atualizacoes_produto:
-                    conn.execute(
-                        f'UPDATE produtos SET {", ".join(atualizacoes_produto)} WHERE empresa_id = ?',
-                        (empresa_id,),
-                    )
+            if not incluir_cadastros:
+                if "produtos" in estrutura and "empresa_id" in estrutura["produtos"]:
+                    atualizacoes_produto = []
+                    for coluna in ("estoque_atual", "cmv_calculado"):
+                        if coluna in estrutura["produtos"]:
+                            atualizacoes_produto.append(f'"{coluna}" = 0')
+                    if "cmv_atualizado_em" in estrutura["produtos"]:
+                        atualizacoes_produto.append('"cmv_atualizado_em" = NULL')
+                    if atualizacoes_produto:
+                        conn.execute(
+                            f'UPDATE produtos SET {", ".join(atualizacoes_produto)} WHERE empresa_id = ?',
+                            (empresa_id,),
+                        )
 
-            if "vitrine_configuracoes" in estrutura and "empresa_id" in estrutura["vitrine_configuracoes"]:
-                campos = [
-                    campo for campo in
-                    ("visitas", "produtos_vistos", "itens_carrinho", "pedidos_gerados")
-                    if campo in estrutura["vitrine_configuracoes"]
-                ]
-                if campos:
-                    conn.execute(
-                        f'UPDATE vitrine_configuracoes SET '
-                        + ", ".join(f'"{campo}" = 0' for campo in campos)
-                        + " WHERE empresa_id = ?",
-                        (empresa_id,),
-                    )
+                if "vitrine_configuracoes" in estrutura and "empresa_id" in estrutura["vitrine_configuracoes"]:
+                    campos = [
+                        campo for campo in
+                        ("visitas", "produtos_vistos", "itens_carrinho", "pedidos_gerados")
+                        if campo in estrutura["vitrine_configuracoes"]
+                    ]
+                    if campos:
+                        conn.execute(
+                            'UPDATE vitrine_configuracoes SET '
+                            + ", ".join(f'"{campo}" = 0' for campo in campos)
+                            + " WHERE empresa_id = ?",
+                            (empresa_id,),
+                        )
 
-            if "vitrine_produtos" in estrutura and "empresa_id" in estrutura["vitrine_produtos"]:
-                campos = [
-                    campo for campo in ("acessos", "carrinhos", "pedidos")
-                    if campo in estrutura["vitrine_produtos"]
-                ]
-                if campos:
-                    conn.execute(
-                        f'UPDATE vitrine_produtos SET '
-                        + ", ".join(f'"{campo}" = 0' for campo in campos)
-                        + " WHERE empresa_id = ?",
-                        (empresa_id,),
-                    )
+                if "vitrine_produtos" in estrutura and "empresa_id" in estrutura["vitrine_produtos"]:
+                    campos = [
+                        campo for campo in ("acessos", "carrinhos", "pedidos")
+                        if campo in estrutura["vitrine_produtos"]
+                    ]
+                    if campos:
+                        conn.execute(
+                            'UPDATE vitrine_produtos SET '
+                            + ", ".join(f'"{campo}" = 0' for campo in campos)
+                            + " WHERE empresa_id = ?",
+                            (empresa_id,),
+                        )
 
             conn.commit()
         except Exception:
@@ -17386,11 +17494,23 @@ def resetar_base_transacional_dev(empresa_id: int) -> dict[str, Any]:
         finally:
             conn.execute("PRAGMA foreign_keys = ON")
 
+    arquivos_removidos = _remover_arquivos_reset_geral(arquivos_reset)
+
     return {
         "backup": str(backup),
         "removidos": removidos,
         "total_removido": sum(removidos.values()),
+        "arquivos_removidos": arquivos_removidos,
+        "tipo": tipo_reset,
     }
+
+
+def resetar_base_transacional_dev(empresa_id: int) -> dict[str, Any]:
+    return _executar_reset_empresa_dev(empresa_id, incluir_cadastros=False)
+
+
+def resetar_base_geral_dev(empresa_id: int) -> dict[str, Any]:
+    return _executar_reset_empresa_dev(empresa_id, incluir_cadastros=True)
 
 def garantir_backup_automatico_diario() -> None:
     if not configuracao_bool("gerais", "backup_automatico", True):
@@ -20795,112 +20915,144 @@ def admin_excluir_empresa(empresa_id: int) -> Response:
 
 
 
-@app.route("/configuracoes/resetar-base-dev", methods=["GET", "POST"])
-def resetar_base_dev() -> str | Response:
-    if not usuario_logado_eh_administrador_empresa():
-        return redirect("/configuracoes/gerais?erro=Acesso não autorizado.")
+@app.route("/admin/manutencao-dados", methods=["GET", "POST"])
+def admin_manutencao_dados() -> str | Response:
+    if not usuario_logado_eh_admin_sistema():
+        return redirect(url_for("dashboard"))
 
-    if not ambiente_reset_base_dev_liberado():
-        return redirect(
-            "/configuracoes/gerais?erro="
-            + urllib.parse.quote("O reset da base está bloqueado porque o ambiente não é DEV.")
-        )
+    empresas = listar_empresas_admin()
+    empresa_id_texto = str(
+        request.form.get("empresa_id")
+        or request.args.get("empresa_id")
+        or ""
+    ).strip()
+    empresa_selecionada = None
 
-    empresa_id = empresa_logada_id()
-    empresa = buscar_empresa_topbar()
-    nome_empresa = html.escape(str(empresa.get("nome_fantasia") or f"Empresa {empresa_id}"))
+    if empresa_id_texto.isdigit():
+        empresa_selecionada = buscar_empresa_admin_por_id(int(empresa_id_texto))
+
+    if empresa_selecionada is None and empresas and request.method == "GET":
+        empresa_selecionada = buscar_empresa_admin_por_id(int(empresas[0]["id"]))
+        empresa_id_texto = str(empresas[0]["id"])
 
     if request.method == "POST":
-        confirmacao = str(request.form.get("confirmacao") or "").strip().upper()
-        if confirmacao != RESET_BASE_DEV_FRASE_CONFIRMACAO:
+        if not ambiente_reset_base_dev_liberado():
             return redirect(
-                "/configuracoes/resetar-base-dev?erro="
-                + urllib.parse.quote(f'Digite exatamente "{RESET_BASE_DEV_FRASE_CONFIRMACAO}" para confirmar.')
+                url_for(
+                    "admin_manutencao_dados",
+                    empresa_id=empresa_id_texto,
+                    erro="Os resets estão bloqueados porque o ambiente não é DEV.",
+                )
             )
 
-        try:
-            resultado = resetar_base_transacional_dev(empresa_id)
-        except (PermissionError, RuntimeError, sqlite3.Error, OSError) as erro_reset:
-            app.logger.exception("Falha ao resetar a base DEV da empresa %s.", empresa_id)
+        if empresa_selecionada is None:
             return redirect(
-                "/configuracoes/resetar-base-dev?erro="
-                + urllib.parse.quote(str(erro_reset))
+                url_for(
+                    "admin_manutencao_dados",
+                    erro="Selecione uma empresa válida.",
+                )
+            )
+
+        acao = str(request.form.get("acao") or "").strip().lower()
+        confirmacao = str(request.form.get("confirmacao") or "").strip().upper()
+        empresa_id = int(empresa_selecionada["id"])
+        nome_empresa = str(
+            empresa_selecionada.get("nome_fantasia")
+            or empresa_selecionada.get("razao_social")
+            or f"Empresa {empresa_id}"
+        ).strip()
+
+        try:
+            if acao == "transacoes":
+                if confirmacao != RESET_BASE_ADMIN_FRASE_TRANSACOES:
+                    raise ValueError(
+                        f'Digite exatamente "{RESET_BASE_ADMIN_FRASE_TRANSACOES}" para confirmar.'
+                    )
+                resultado = resetar_base_transacional_dev(empresa_id)
+                descricao_auditoria = "Resetou todas as transações da empresa no ambiente DEV."
+                mensagem = (
+                    f'Transações de "{nome_empresa}" limpas com sucesso. '
+                    f'{resultado["total_removido"]} registros removidos. '
+                    "Cadastros preservados e estoque zerado."
+                )
+            elif acao == "geral":
+                nome_confirmacao = str(request.form.get("nome_empresa_confirmacao") or "").strip()
+                if nome_confirmacao.casefold() != nome_empresa.casefold():
+                    raise ValueError("Digite exatamente o nome da empresa selecionada para confirmar o reset geral.")
+                if confirmacao != RESET_BASE_ADMIN_FRASE_GERAL:
+                    raise ValueError(
+                        f'Digite exatamente "{RESET_BASE_ADMIN_FRASE_GERAL}" para confirmar.'
+                    )
+                resultado = resetar_base_geral_dev(empresa_id)
+                descricao_auditoria = "Executou reset geral da empresa no ambiente DEV."
+                mensagem = (
+                    f'Reset geral de "{nome_empresa}" concluído. '
+                    f'{resultado["total_removido"]} registros e '
+                    f'{resultado["arquivos_removidos"]} arquivo(s) removidos. '
+                    "Empresa, usuários, acessos e configurações técnicas foram preservados."
+                )
+            else:
+                raise ValueError("Ação de reset inválida.")
+        except (ValueError, PermissionError, RuntimeError, sqlite3.Error, OSError) as erro_reset:
+            app.logger.exception(
+                "Falha na manutenção de dados da empresa %s. Ação: %s.",
+                empresa_id,
+                acao,
+            )
+            return redirect(
+                url_for(
+                    "admin_manutencao_dados",
+                    empresa_id=empresa_id,
+                    erro=str(erro_reset),
+                )
             )
 
         registrar_atividade_usuario(
             "exclusao",
-            "configuracoes",
-            "Resetou a base transacional da empresa no ambiente DEV.",
+            "admin",
+            descricao_auditoria,
+            empresa_id=empresa_id,
             registro_id=empresa_id,
             dados_novos={
+                "empresa": nome_empresa,
+                "tipo_reset": resultado["tipo"],
                 "backup": resultado["backup"],
                 "total_removido": resultado["total_removido"],
+                "arquivos_removidos": resultado["arquivos_removidos"],
                 "tabelas": resultado["removidos"],
             },
         )
-        mensagem = (
-            f'Base DEV limpa com sucesso. {resultado["total_removido"]} registros transacionais removidos. '
-            "Cadastros preservados e estoque zerado."
+        return redirect(
+            url_for(
+                "admin_manutencao_dados",
+                empresa_id=empresa_id,
+                sucesso=mensagem,
+            )
         )
-        return redirect("/configuracoes/gerais?sucesso=" + urllib.parse.quote(mensagem))
 
-    erro = html.escape(str(request.args.get("erro") or ""))
-    bloco_erro = f'<div class="erro">{erro}</div>' if erro else ""
-    frase = html.escape(RESET_BASE_DEV_FRASE_CONFIRMACAO)
-    return f"""<!doctype html>
-<html lang="pt-BR">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Resetar Base DEV - GestFlow</title>
-    <style>
-        body {{ margin: 0; background: #f3f5f7; color: #18202a; font-family: Arial, sans-serif; }}
-        main {{ max-width: 760px; margin: 48px auto; padding: 0 20px; }}
-        .card {{ background: #fff; border: 1px solid #d8dee6; border-radius: 14px; padding: 28px; box-shadow: 0 8px 24px rgba(0,0,0,.06); }}
-        .ambiente {{ display: inline-block; padding: 6px 10px; border-radius: 999px; background: #fff0cc; color: #7a4b00; font-weight: 700; }}
-        h1 {{ margin: 18px 0 8px; }}
-        ul {{ line-height: 1.65; }}
-        label {{ display: block; margin: 22px 0 8px; font-weight: 700; }}
-        input {{ width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid #aeb8c4; border-radius: 8px; font-size: 16px; }}
-        .acoes {{ display: flex; gap: 12px; margin-top: 22px; flex-wrap: wrap; }}
-        button, a {{ border-radius: 8px; padding: 12px 18px; text-decoration: none; font-weight: 700; cursor: pointer; }}
-        button {{ border: 0; background: #b42318; color: #fff; }}
-        a {{ background: #e9edf2; color: #18202a; }}
-        .erro {{ margin-top: 18px; padding: 12px; border-radius: 8px; background: #fee4e2; color: #912018; }}
-        .aviso {{ padding: 14px; border-left: 4px solid #b42318; background: #fff5f4; line-height: 1.5; }}
-    </style>
-</head>
-<body>
-<main>
-    <div class="card">
-        <span class="ambiente">SOMENTE DEV</span>
-        <h1>Resetar base transacional</h1>
-        <p><strong>Empresa:</strong> {nome_empresa}</p>
-        <div class="aviso">
-            Esta operação cria um backup obrigatório e depois apaga os lançamentos da empresa atual.
-            Não altera clientes, fornecedores, funcionários, equipamentos, produtos, serviços, usuários,
-            permissões, centros de custo ou configurações.
-        </div>
-        <ul>
-            <li>Orçamentos, vendas, OS, contratos e empréstimos serão apagados.</li>
-            <li>Financeiro, caixa, atividades, agenda e ponto serão apagados.</li>
-            <li>Movimentações serão apagadas e o estoque dos produtos será zerado.</li>
-            <li>A operação não pode ser desfeita sem restaurar o backup.</li>
-        </ul>
-        {bloco_erro}
-        <form method="post">
-            <label for="confirmacao">Digite <strong>{frase}</strong> para confirmar</label>
-            <input id="confirmacao" name="confirmacao" autocomplete="off" required>
-            <div class="acoes">
-                <button type="submit">Criar backup e resetar DEV</button>
-                <a href="/configuracoes/gerais">Cancelar</a>
-            </div>
-        </form>
-    </div>
-</main>
-</body>
-</html>"""
+    return render_template(
+        "admin_manutencao_dados.html",
+        empresas=empresas,
+        empresa_selecionada=empresa_selecionada,
+        ambiente_dev=ambiente_reset_base_dev_liberado(),
+        frase_transacoes=RESET_BASE_ADMIN_FRASE_TRANSACOES,
+        frase_geral=RESET_BASE_ADMIN_FRASE_GERAL,
+        erro=str(request.args.get("erro") or "").strip(),
+        sucesso=str(request.args.get("sucesso") or "").strip(),
+    )
 
+
+@app.route("/configuracoes/resetar-base-dev", methods=["GET", "POST"])
+def resetar_base_dev() -> Response:
+    if not usuario_logado_eh_admin_sistema():
+        return redirect(url_for("dashboard"))
+
+    return redirect(
+        url_for(
+            "admin_manutencao_dados",
+            empresa_id=empresa_logada_id(),
+        )
+    )
 
 @app.get("/configuracoes")
 @app.get("/configuracoes/gerais")
