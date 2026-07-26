@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\static\css\dashboard.css
-Último recode: 2026-07-25 19:05 (America/Bahia)
-Motivo: Aumentar a largura, a área de clique e o contraste da barra de rolagem do menu lateral.
+Último recode: 2026-07-26 07:15 (America/Bahia)
+Motivo: Criar padrão visual cinza-claro para campos definidos nas configurações dos módulos.
 */
 
 :root {
@@ -5838,3 +5838,77 @@ body.focus-mode-body .main-content.focus-mode-main {
         width: 100%;
     }
 }
+
+/* CAMPOS DEFINIDOS NAS CONFIGURACOES DOS MODULOS */
+.gestflow-campos-configuraveis {
+    min-width: 0;
+    margin: 22px 0 0;
+    padding: 14px 18px 18px;
+    border: 1px solid #d7dee8;
+    border-radius: 12px;
+    background: #f4f6f8;
+}
+
+.gestflow-config-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 8px;
+    color: #0f172a;
+    font-size: 15px;
+    font-weight: 800;
+}
+
+.gestflow-config-title-icon {
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #cbd5e1;
+    border-radius: 7px;
+    background: #ffffff;
+    color: #475569;
+    font-size: 14px;
+    line-height: 1;
+}
+
+.gestflow-config-description {
+    margin: 2px 0 14px;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.gestflow-config-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 16px;
+}
+
+.gestflow-config-field {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.gestflow-config-control {
+    width: 100%;
+    background: #ffffff;
+}
+
+@media (max-width: 720px) {
+    .gestflow-campos-configuraveis {
+        padding: 12px 14px 16px;
+    }
+
+    .gestflow-config-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
