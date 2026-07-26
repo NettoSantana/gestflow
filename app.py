@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-25 20:35 (America/Bahia)
-# Motivo: Adicionar empréstimo rotativo com pagamento periódico de juros, amortização opcional e renovação automática do principal.
+# Último recode: 2026-07-26 07:35 (America/Bahia)
+# Motivo: Excluir cadastros definitivamente quando não houver vínculos e bloquear a exclusão quando houver registros relacionados.
 
 from __future__ import annotations
 
@@ -5027,22 +5027,166 @@ def atualizar_cliente_db(cliente_id: int, cliente: dict[str, str]) -> None:
         conn.commit()
 
 
-def excluir_cliente_db(cliente_id: int) -> None:
-    empresa_id = empresa_logada_id()
-    if aplicar_exclusao_logica_configurada("clientes", cliente_id, "inativo"):
-        return
 
+ROTULOS_TABELAS_VINCULOS_EXCLUSAO = {
+    "agendamentos": "Agendamentos",
+    "atividades_financeiras": "Lançamentos financeiros",
+    "compras_estoque": "Compras",
+    "contratos": "Contratos",
+    "contrato_itens": "Itens de contratos",
+    "emprestimos": "Empréstimos",
+    "equipamentos": "Equipamentos",
+    "estoque_movimentacoes": "Movimentações de estoque",
+    "financeiro_titulos": "Títulos financeiros",
+    "gestao_atividades": "Atividades",
+    "gestao_atividade_etapas": "Etapas de atividades",
+    "ordens_servico": "Ordens de Serviço",
+    "ordem_servico_itens": "Itens de Ordens de Serviço",
+    "orcamentos": "Orçamentos",
+    "orcamento_itens": "Itens de orçamentos",
+    "produto_composicao_itens": "Composições de produtos",
+    "produto_composicao_custos": "Custos de composição",
+    "produto_producoes": "Produções",
+    "produto_producao_consumos": "Consumos de produção",
+    "registros_ponto": "Registros de ponto",
+    "usuarios": "Usuários",
+    "vendas": "Vendas",
+    "venda_itens": "Itens de vendas",
+}
+
+COLUNAS_VINCULOS_EXCLUSAO = {
+    "clientes": {"cliente_id"},
+    "fornecedores": {"fornecedor_id"},
+    "funcionarios": {
+        "funcionario_id",
+        "profissional_id",
+        "tecnico_id",
+        "responsavel_funcionario_id",
+    },
+    "produtos": {"produto_id", "componente_produto_id"},
+    "servicos": {"servico_id"},
+    "equipamentos": {"equipamento_id", "equipamento_origem_id"},
+}
+
+
+def _nome_tabela_exibicao_vinculo(tabela: str) -> str:
+    rotulo = ROTULOS_TABELAS_VINCULOS_EXCLUSAO.get(tabela)
+    if rotulo:
+        return rotulo
+    return tabela.replace("_", " ").strip().title()
+
+
+def _formatar_quantidade_vinculo(quantidade: int, rotulo: str) -> str:
+    return f"{quantidade} registro(s) em {rotulo}"
+
+
+def listar_vinculos_exclusao_cadastro(
+    conn: sqlite3.Connection,
+    tabela_alvo: str,
+    registro_id: int,
+    empresa_id: int,
+) -> list[str]:
+    tabelas = conn.execute(
+        """
+        SELECT name
+        FROM sqlite_master
+        WHERE type = 'table'
+          AND name NOT LIKE 'sqlite_%'
+        ORDER BY name
+        """
+    ).fetchall()
+    colunas_convencionais = COLUNAS_VINCULOS_EXCLUSAO.get(tabela_alvo, set())
+    vinculos: list[str] = []
+
+    for tabela_row in tabelas:
+        tabela = str(tabela_row["name"] or "").strip()
+        if not tabela or tabela == tabela_alvo or not re.fullmatch(r"[A-Za-z0-9_]+", tabela):
+            continue
+
+        colunas_info = conn.execute(f'PRAGMA table_info("{tabela}")').fetchall()
+        colunas_tabela = {str(coluna["name"]) for coluna in colunas_info}
+        colunas_referencia = set(colunas_convencionais).intersection(colunas_tabela)
+
+        for chave_estrangeira in conn.execute(f'PRAGMA foreign_key_list("{tabela}")').fetchall():
+            if str(chave_estrangeira["table"] or "").strip() == tabela_alvo:
+                coluna_origem = str(chave_estrangeira["from"] or "").strip()
+                if coluna_origem in colunas_tabela:
+                    colunas_referencia.add(coluna_origem)
+
+        if not colunas_referencia:
+            continue
+
+        condicoes = [f'"{coluna}" = ?' for coluna in sorted(colunas_referencia)]
+        parametros: list[Any] = [int(registro_id)] * len(condicoes)
+        filtro_empresa = ""
+        if "empresa_id" in colunas_tabela:
+            filtro_empresa = ' AND "empresa_id" = ?'
+            parametros.append(int(empresa_id))
+
+        quantidade_row = conn.execute(
+            f'SELECT COUNT(*) AS total FROM "{tabela}" '
+            f'WHERE ({" OR ".join(condicoes)}){filtro_empresa}',
+            parametros,
+        ).fetchone()
+        quantidade = int(quantidade_row["total"] or 0)
+        if quantidade > 0:
+            vinculos.append(
+                _formatar_quantidade_vinculo(
+                    quantidade,
+                    _nome_tabela_exibicao_vinculo(tabela),
+                )
+            )
+
+    return vinculos
+
+
+def excluir_cadastro_sem_vinculos(
+    tabela: str,
+    registro_id: int,
+    nome_entidade: str,
+) -> tuple[bool, str]:
+    if tabela not in COLUNAS_VINCULOS_EXCLUSAO:
+        return False, "Cadastro não autorizado para exclusão definitiva."
+
+    empresa_id = empresa_logada_id()
     with conectar_db() as conn:
-        conn.execute(
-            """
-            DELETE FROM clientes
-            WHERE id = ?
-              AND empresa_id = ?
-            """,
-            (cliente_id, empresa_id),
+        registro = conn.execute(
+            f'SELECT id FROM "{tabela}" WHERE id = ? AND empresa_id = ?',
+            (int(registro_id), empresa_id),
+        ).fetchone()
+        if registro is None:
+            return False, f"{nome_entidade.capitalize()} não encontrado."
+
+        vinculos = listar_vinculos_exclusao_cadastro(
+            conn,
+            tabela,
+            int(registro_id),
+            empresa_id,
+        )
+        if vinculos:
+            detalhes = "; ".join(vinculos[:8])
+            if len(vinculos) > 8:
+                detalhes += f"; e mais {len(vinculos) - 8} vínculo(s)"
+            return (
+                False,
+                f"Este {nome_entidade} está vinculado a outros registros e não pode ser excluído. "
+                f"Vínculos encontrados: {detalhes}.",
+            )
+
+        cursor = conn.execute(
+            f'DELETE FROM "{tabela}" WHERE id = ? AND empresa_id = ?',
+            (int(registro_id), empresa_id),
         )
         conn.commit()
 
+    if cursor.rowcount <= 0:
+        return False, f"Não foi possível excluir este {nome_entidade}."
+    return True, f"{nome_entidade.capitalize()} excluído definitivamente."
+
+
+
+def excluir_cliente_db(cliente_id: int) -> tuple[bool, str]:
+    return excluir_cadastro_sem_vinculos("clientes", cliente_id, "cliente")
 
 def salvar_fornecedor_db(fornecedor: dict[str, str]) -> None:
     empresa_id = empresa_logada_id()
@@ -5167,21 +5311,8 @@ def atualizar_fornecedor_db(fornecedor_id: int, fornecedor: dict[str, str]) -> N
         )
         conn.commit()
 
-def excluir_fornecedor_db(fornecedor_id: int) -> None:
-    empresa_id = empresa_logada_id()
-    if aplicar_exclusao_logica_configurada("fornecedores", fornecedor_id, "inativo"):
-        return
-
-    with conectar_db() as conn:
-        conn.execute(
-            """
-            DELETE FROM fornecedores
-            WHERE id = ?
-              AND empresa_id = ?
-            """,
-            (fornecedor_id, empresa_id),
-        )
-        conn.commit()
+def excluir_fornecedor_db(fornecedor_id: int) -> tuple[bool, str]:
+    return excluir_cadastro_sem_vinculos("fornecedores", fornecedor_id, "fornecedor")
 
 def _normalizar_custos_funcionario(funcionario: dict[str, str]) -> dict[str, str]:
     funcionario_normalizado = dict(funcionario)
@@ -5430,21 +5561,8 @@ def atualizar_funcionario_db(funcionario_id: int, funcionario: dict[str, str]) -
         )
         conn.commit()
 
-def excluir_funcionario_db(funcionario_id: int) -> None:
-    empresa_id = empresa_logada_id()
-    if aplicar_exclusao_logica_configurada("funcionarios", funcionario_id, "inativo"):
-        return
-
-    with conectar_db() as conn:
-        conn.execute(
-            """
-            DELETE FROM funcionarios
-            WHERE id = ?
-              AND empresa_id = ?
-            """,
-            (funcionario_id, empresa_id),
-        )
-        conn.commit()
+def excluir_funcionario_db(funcionario_id: int) -> tuple[bool, str]:
+    return excluir_cadastro_sem_vinculos("funcionarios", funcionario_id, "funcionário")
 
 def salvar_produto_db(produto: dict[str, str]) -> int:
     empresa_id = empresa_logada_id()
@@ -6507,43 +6625,8 @@ def produzir_produto_db(
             return None, f"Não foi possível concluir a produção: {exc}."
 
 
-def excluir_produto_db(produto_id: int) -> None:
-    empresa_id = empresa_logada_id()
-    if aplicar_exclusao_logica_configurada("produtos", produto_id, "inativo"):
-        return
-
-    with conectar_db() as conn:
-        conn.execute("BEGIN IMMEDIATE")
-        producoes = conn.execute(
-            "SELECT id FROM produto_producoes WHERE produto_id = ? AND empresa_id = ?",
-            (produto_id, empresa_id),
-        ).fetchall()
-        producao_ids = [int(row["id"]) for row in producoes]
-
-        if producao_ids:
-            placeholders = ",".join("?" for _ in producao_ids)
-            conn.execute(
-                f"DELETE FROM produto_producao_consumos WHERE empresa_id = ? AND producao_id IN ({placeholders})",
-                [empresa_id, *producao_ids],
-            )
-
-        conn.execute(
-            "DELETE FROM produto_producoes WHERE produto_id = ? AND empresa_id = ?",
-            (produto_id, empresa_id),
-        )
-        conn.execute(
-            "DELETE FROM produto_composicao_itens WHERE produto_id = ? AND empresa_id = ?",
-            (produto_id, empresa_id),
-        )
-        conn.execute(
-            "DELETE FROM produto_composicao_custos WHERE produto_id = ? AND empresa_id = ?",
-            (produto_id, empresa_id),
-        )
-        conn.execute(
-            "DELETE FROM produtos WHERE id = ? AND empresa_id = ?",
-            (produto_id, empresa_id),
-        )
-        conn.commit()
+def excluir_produto_db(produto_id: int) -> tuple[bool, str]:
+    return excluir_cadastro_sem_vinculos("produtos", produto_id, "produto")
 
 def listar_estoque_movimentacoes(limite: int = 100, produto_id: int | None = None) -> list[dict[str, Any]]:
     empresa_id = empresa_logada_id()
@@ -7394,21 +7477,8 @@ def atualizar_servico_db(servico_id: int, servico: dict[str, str]) -> None:
         )
         conn.commit()
 
-def excluir_servico_db(servico_id: int) -> None:
-    empresa_id = empresa_logada_id()
-    if aplicar_exclusao_logica_configurada("servicos", servico_id, "inativo"):
-        return
-
-    with conectar_db() as conn:
-        conn.execute(
-            """
-            DELETE FROM servicos
-            WHERE id = ?
-              AND empresa_id = ?
-            """,
-            (servico_id, empresa_id),
-        )
-        conn.commit()
+def excluir_servico_db(servico_id: int) -> tuple[bool, str]:
+    return excluir_cadastro_sem_vinculos("servicos", servico_id, "serviço")
 
 def listar_centros_custo(apenas_ativos: bool = True) -> list[dict[str, Any]]:
     consulta = "SELECT * FROM centros_custo WHERE empresa_id = ?"
@@ -24477,11 +24547,19 @@ def atualizar_cliente(cliente_id: int) -> Response:
 @app.post("/clientes/<int:cliente_id>/excluir")
 def excluir_cliente(cliente_id: int) -> Response:
     cliente = buscar_cliente_por_id(cliente_id)
+    if cliente is None:
+        return redirect(url_for("clientes", erro="Cliente não encontrado."))
 
-    if cliente is not None:
-        excluir_cliente_db(cliente_id)
-
-    return redirect(url_for("clientes"))
+    excluido, mensagem = excluir_cliente_db(cliente_id)
+    if excluido:
+        registrar_atividade_usuario(
+            "exclusao",
+            "clientes",
+            f"Excluiu definitivamente o cliente {cliente['nome']}",
+            request.path,
+        )
+        return redirect(url_for("clientes", sucesso=mensagem))
+    return redirect(url_for("clientes", erro=mensagem))
 
 
 @app.get("/fornecedores")
@@ -24660,11 +24738,19 @@ def atualizar_fornecedor(fornecedor_id: int) -> Response:
 @app.post("/fornecedores/<int:fornecedor_id>/excluir")
 def excluir_fornecedor(fornecedor_id: int) -> Response:
     fornecedor = buscar_fornecedor_por_id(fornecedor_id)
+    if fornecedor is None:
+        return redirect(url_for("fornecedores", erro="Fornecedor não encontrado."))
 
-    if fornecedor is not None:
-        excluir_fornecedor_db(fornecedor_id)
-
-    return redirect(url_for("fornecedores"))
+    excluido, mensagem = excluir_fornecedor_db(fornecedor_id)
+    if excluido:
+        registrar_atividade_usuario(
+            "exclusao",
+            "fornecedores",
+            f"Excluiu definitivamente o fornecedor {fornecedor['nome']}",
+            request.path,
+        )
+        return redirect(url_for("fornecedores", sucesso=mensagem))
+    return redirect(url_for("fornecedores", erro=mensagem))
 
 
 
@@ -25086,11 +25172,19 @@ def atualizar_funcionario(funcionario_id: int) -> Response:
 @app.post("/funcionarios/<int:funcionario_id>/excluir")
 def excluir_funcionario(funcionario_id: int) -> Response:
     funcionario = buscar_funcionario_por_id(funcionario_id)
+    if funcionario is None:
+        return redirect(url_for("funcionarios", erro="Funcionário não encontrado."))
 
-    if funcionario is not None:
-        excluir_funcionario_db(funcionario_id)
-
-    return redirect(url_for("funcionarios"))
+    excluido, mensagem = excluir_funcionario_db(funcionario_id)
+    if excluido:
+        registrar_atividade_usuario(
+            "exclusao",
+            "funcionarios",
+            f"Excluiu definitivamente o funcionário {funcionario['nome']}",
+            request.path,
+        )
+        return redirect(url_for("funcionarios", sucesso=mensagem))
+    return redirect(url_for("funcionarios", erro=mensagem))
 
 
 
@@ -25591,24 +25685,19 @@ def salvar_producao_produto(produto_id: int) -> Response:
 @app.post("/produtos/<int:produto_id>/excluir")
 def excluir_produto(produto_id: int) -> Response:
     produto = buscar_produto_por_id(produto_id)
-
     if produto is None:
-        return redirect(url_for("produtos"))
+        return redirect(url_for("produtos", erro="Produto não encontrado."))
 
-    produtos_vinculados = produto_usado_como_componente(produto_id)
-    if produtos_vinculados:
-        nomes = ", ".join(str(item.get("nome") or "") for item in produtos_vinculados[:5])
-        return redirect(
-            url_for(
-                "produtos",
-                erro=f"Este produto é componente de: {nomes}. Remova-o dessas fichas técnicas antes de excluir.",
-            )
+    excluido, mensagem = excluir_produto_db(produto_id)
+    if excluido:
+        registrar_atividade_usuario(
+            "exclusao",
+            "produtos",
+            f"Excluiu definitivamente o produto {produto['nome']}",
+            request.path,
         )
-
-    excluir_produto_db(produto_id)
-    registrar_atividade_usuario("exclusao", "produtos", f"Excluiu produto {produto['nome']}", request.path)
-
-    return redirect(url_for("produtos"))
+        return redirect(url_for("produtos", sucesso=mensagem))
+    return redirect(url_for("produtos", erro=mensagem))
 
 
 @app.get("/servicos")
@@ -25870,11 +25959,19 @@ def atualizar_servico(servico_id: int) -> Response:
 @app.post("/servicos/<int:servico_id>/excluir")
 def excluir_servico(servico_id: int) -> Response:
     servico = buscar_servico_por_id(servico_id)
+    if servico is None:
+        return redirect(url_for("servicos", erro="Serviço não encontrado."))
 
-    if servico is not None:
-        excluir_servico_db(servico_id)
-
-    return redirect(url_for("servicos"))
+    excluido, mensagem = excluir_servico_db(servico_id)
+    if excluido:
+        registrar_atividade_usuario(
+            "exclusao",
+            "servicos",
+            f"Excluiu definitivamente o serviço {servico['nome']}",
+            request.path,
+        )
+        return redirect(url_for("servicos", sucesso=mensagem))
+    return redirect(url_for("servicos", erro=mensagem))
 
 
 @app.get("/financeiro")
@@ -26591,17 +26688,8 @@ def atualizar_equipamento_db(equipamento_id: int, dados: dict[str, Any]) -> bool
     return cursor.rowcount > 0
 
 
-def excluir_equipamento_db(equipamento_id: int) -> bool:
-    if aplicar_exclusao_logica_configurada("equipamentos", equipamento_id, "inativo"):
-        return True
-    with conectar_db() as conn:
-        cursor = conn.execute(
-            "DELETE FROM equipamentos WHERE id = ? AND empresa_id = ?",
-            (int(equipamento_id), empresa_logada_id()),
-        )
-        conn.commit()
-    return cursor.rowcount > 0
-
+def excluir_equipamento_db(equipamento_id: int) -> tuple[bool, str]:
+    return excluir_cadastro_sem_vinculos("equipamentos", equipamento_id, "equipamento")
 
 def montar_link_equipamento_historico_por_token(token: Any) -> str:
     token_normalizado = str(token or "").strip()
@@ -26798,8 +26886,20 @@ def editar_equipamento(equipamento_id: int) -> str | Response:
 
 @app.post("/equipamentos/<int:equipamento_id>/excluir")
 def excluir_equipamento(equipamento_id: int) -> Response:
-    excluir_equipamento_db(equipamento_id)
-    return redirect(url_for("equipamentos"))
+    equipamento = buscar_equipamento_por_id(equipamento_id)
+    if equipamento is None:
+        return redirect(url_for("equipamentos", erro="Equipamento não encontrado."))
+
+    excluido, mensagem = excluir_equipamento_db(equipamento_id)
+    if excluido:
+        registrar_atividade_usuario(
+            "exclusao",
+            "equipamentos",
+            f"Excluiu definitivamente o equipamento {equipamento['nome']}",
+            request.path,
+        )
+        return redirect(url_for("equipamentos", sucesso=mensagem))
+    return redirect(url_for("equipamentos", erro=mensagem))
 
 
 @app.get("/equipamentos/<int:equipamento_id>/qrcode.svg")

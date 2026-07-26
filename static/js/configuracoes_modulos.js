@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\static\js\configuracoes_modulos.js
-Último recode: 2026-07-23 00:18 (America/Bahia)
-Motivo: Aplicar nas telas operacionais as configurações salvas por empresa e validadas pelo backend.
+Último recode: 2026-07-26 07:15 (America/Bahia)
+Motivo: Padronizar visualmente os campos definidos nas configurações dentro dos formulários.
 */
 
 (function () {
@@ -359,7 +359,16 @@ Motivo: Aplicar nas telas operacionais as configurações salvas por empresa e v
 
         const bloco = document.createElement('fieldset');
         bloco.className = 'gestflow-campos-configuraveis';
-        bloco.innerHTML = '<legend>Campos definidos nas configurações</legend><div class="gestflow-config-grid"></div>';
+        bloco.innerHTML = `
+            <legend class="gestflow-config-title">
+                <span class="gestflow-config-title-icon" aria-hidden="true">⚙</span>
+                <span>Campos definidos nas configurações</span>
+            </legend>
+            <p class="gestflow-config-description">
+                Estes campos seguem as opções configuradas para este módulo.
+            </p>
+            <div class="gestflow-config-grid"></div>
+        `;
         const grid = bloco.querySelector('.gestflow-config-grid');
         unicos.forEach(([chave, rotulo]) => {
             const label = document.createElement('label');
@@ -375,7 +384,10 @@ Motivo: Aplicar nas telas operacionais as configurações salvas por empresa e v
                 if (input.type === 'number') input.step = '0.01';
             }
             input.name = `config_extra__${modulo}__${chave}`;
-            label.appendChild(input); grid.appendChild(label);
+            input.classList.add('form-control', 'gestflow-config-control');
+            label.classList.add('gestflow-config-field');
+            label.appendChild(input);
+            grid.appendChild(label);
         });
         const acoes = form.querySelector('.form-actions, .actions, [type="submit"]');
         if (acoes && acoes.matches('[type="submit"]')) form.insertBefore(bloco, acoes);
@@ -396,16 +408,7 @@ Motivo: Aplicar nas telas operacionais as configurações salvas por empresa e v
         }
     }
 
-    function adicionarEstilos() {
-        if (document.getElementById('gestflow-configuracoes-runtime-style')) return;
-        const style = document.createElement('style');
-        style.id = 'gestflow-configuracoes-runtime-style';
-        style.textContent = '.gestflow-campos-configuraveis{margin:20px 0;padding:18px;border:1px solid #dbe3ef;border-radius:12px}.gestflow-campos-configuraveis legend{padding:0 8px;font-weight:700}.gestflow-config-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.gestflow-config-grid label{display:flex;flex-direction:column;gap:6px}.gestflow-config-grid input,.gestflow-config-grid select{width:100%}@media(max-width:720px){.gestflow-config-grid{grid-template-columns:1fr}}';
-        document.head.appendChild(style);
-    }
-
     function iniciar() {
-        adicionarEstilos();
         aplicarPadroes();
         injetarCamposConfiguraveis();
         document.documentElement.dataset.gestflowModuloConfigurado = modulo;
