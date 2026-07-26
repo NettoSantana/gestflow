@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-26 15:40 (America/Bahia)
-# Motivo: Incluir serviços com valor a combinar, perguntas personalizadas e solicitação de avaliação pela Vitrine Online.
+# Último recode: 2026-07-26 15:56 (America/Bahia)
+# Motivo: Separar produtos e serviços na Vitrine e incluir data desejada antes do questionário de avaliação.
 
 from __future__ import annotations
 
@@ -3253,6 +3253,8 @@ def iniciar_banco() -> None:
                 servico_nome TEXT,
                 status TEXT NOT NULL DEFAULT 'aguardando_avaliacao',
                 observacoes_cliente TEXT,
+                data_desejada TEXT,
+                periodo_preferido TEXT DEFAULT 'sem_preferencia',
                 valor_definido TEXT,
                 duracao_valor TEXT,
                 duracao_unidade TEXT,
@@ -3833,6 +3835,19 @@ def iniciar_banco() -> None:
         for coluna, tipo_coluna in colunas_agendamentos_publico.items():
             if coluna not in colunas_agendamentos_existentes:
                 conn.execute(f"ALTER TABLE agendamentos ADD COLUMN {coluna} {tipo_coluna}")
+
+        colunas_solicitacoes_avaliacao = {
+            str(row["name"])
+            for row in conn.execute("PRAGMA table_info(solicitacoes_avaliacao)").fetchall()
+        }
+        for coluna, tipo_coluna in {
+            "data_desejada": "TEXT",
+            "periodo_preferido": "TEXT DEFAULT 'sem_preferencia'",
+        }.items():
+            if coluna not in colunas_solicitacoes_avaliacao:
+                conn.execute(
+                    f"ALTER TABLE solicitacoes_avaliacao ADD COLUMN {coluna} {tipo_coluna}"
+                )
 
         colunas_vitrine_configuracoes = {
             str(row["name"])
@@ -7607,6 +7622,12 @@ TIPOS_RESPOSTA_PERGUNTA_SERVICO = {"texto", "numero", "sim_nao", "opcoes", "ende
 SOLICITACOES_AVALIACAO_STATUS = (
     "aguardando_avaliacao", "em_analise", "avaliada", "agendada", "cancelada"
 )
+PERIODOS_PREFERENCIA_AVALIACAO = {
+    "manha": "Manhã",
+    "tarde": "Tarde",
+    "noite": "Noite",
+    "sem_preferencia": "Sem preferência",
+}
 
 
 def normalizar_tipo_contratacao_servico(valor: Any) -> str:
@@ -23760,6 +23781,7 @@ def renderizar_vitrine_publica_html(
     titulo_seo = html.escape(str(regras_vitrine.get("seo_titulo") or nome_loja))
     descricao_seo = html.escape(str(regras_vitrine.get("seo_descricao") or f"Produtos e serviços de {nome_loja}"))
     instagram = html.escape(str(config_vitrine.get("instagram") or ""))
+    categoria_configuracao = str(config_vitrine.get("categoria") or "").strip().lower()
     categoria = html.escape(str(config_vitrine.get("categoria") or "Produtos e serviços"))
     logo_path = str(config_vitrine.get("logo_path") or "").strip()
     logo_html = f'<img src="/vitrine-upload/{html.escape(logo_path)}" alt="{nome_loja}">' if logo_path else nome_loja[:2].upper()
@@ -23767,14 +23789,22 @@ def renderizar_vitrine_publica_html(
     exibir_produtos = configuracao_bool("vitrine", "exibir_produtos", True, empresa_id_vitrine)
     exibir_servicos = configuracao_bool("vitrine", "exibir_servicos", True, empresa_id_vitrine)
     modo_contato = str(regras_vitrine.get("modo_contato") or "pedido")
-    permitir_pedido = modo_contato == "pedido" and exibir_produtos
+    permitir_pedido = modo_contato == "pedido" and exibir_produtos and bool(produtos)
     controlar_estoque = configuracao_bool("vitrine", "controlar_estoque", True, empresa_id_vitrine)
     quantidade_minima = max(1, int(float(regras_vitrine.get("quantidade_minima") or 1)))
     whatsapp = html.escape(str(config_vitrine.get("whatsapp") or ""))
     codigo_agenda = garantir_codigo_indicacao_empresa(empresa_id_vitrine)
 
+    tem_produtos = bool(produtos) and exibir_produtos
+    tem_servicos = bool(servicos) and exibir_servicos
+    tipo_inicial = "servico" if tem_servicos and (not tem_produtos or categoria_configuracao == "servicos") else "produto"
+    if tipo_inicial == "produto" and not tem_produtos and tem_servicos:
+        tipo_inicial = "servico"
+
     cards: list[str] = []
-    categorias_itens: set[str] = set()
+    categorias_produtos: set[str] = set()
+    categorias_servicos: set[str] = set()
+
     if exibir_produtos:
         for produto in produtos:
             produto_id = int(produto.get("produto_id") or produto.get("id") or 0)
@@ -23783,7 +23813,7 @@ def renderizar_vitrine_publica_html(
             descricao = html.escape(str(produto.get("descricao") or ""))
             categoria_raw = str(produto.get("categoria") or "Produtos").strip() or "Produtos"
             categoria_item = html.escape(categoria_raw)
-            categorias_itens.add(categoria_raw)
+            categorias_produtos.add(categoria_raw)
             preco_raw = str(produto.get("preco") or "0,00")
             preco = html.escape(preco_raw)
             disponivel = not controlar_estoque or _converter_valor_brl(produto.get("estoque_atual")) > 0
@@ -23793,10 +23823,10 @@ def renderizar_vitrine_publica_html(
             if permitir_pedido and disponivel:
                 acao_html = f'<button type="button" onclick="adicionarCarrinho({produto_id}, {json.dumps(nome_raw, ensure_ascii=False)}, {json.dumps(preco_raw, ensure_ascii=False)})">Adicionar ao carrinho</button>'
             else:
-                acao_html = f'<a href="https://wa.me/{whatsapp}" target="_blank" rel="noopener">Consultar no WhatsApp</a>'
+                acao_html = f'<a class="contato" href="https://wa.me/{whatsapp}" target="_blank" rel="noopener">Consultar no WhatsApp</a>'
             if not disponivel:
                 acao_html = f'<button type="button" disabled>{html.escape(str(regras_vitrine.get("mensagem_indisponivel") or "Produto indisponível no momento."))}</button>'
-            cards.append(f"""<article class="catalogo-card produto-card" data-tipo="produto" data-categoria="{categoria_item}" data-nome="{html.escape(nome_raw.lower())}">
+            cards.append(f"""<article class="catalogo-card produto-card" style="{'display:flex' if tipo_inicial == 'produto' else 'display:none'}" data-tipo="produto" data-categoria="{categoria_item}" data-nome="{html.escape(nome_raw.lower())}">
 <button class="item-imagem" type="button" onclick="registrarItem('produto',{produto_id})">{imagem_html}</button>
 <div class="item-info"><small>Produto • {categoria_item}</small><h3>{nome}</h3><p>{descricao}</p>{preco_html}{acao_html}</div></article>""")
 
@@ -23808,7 +23838,7 @@ def renderizar_vitrine_publica_html(
             descricao = html.escape(str(servico.get("descricao") or ""))
             categoria_raw = str(servico.get("categoria") or "Serviços").strip() or "Serviços"
             categoria_item = html.escape(categoria_raw)
-            categorias_itens.add(categoria_raw)
+            categorias_servicos.add(categoria_raw)
             tipo_contratacao = normalizar_tipo_contratacao_servico(servico.get("tipo_contratacao"))
             preco = html.escape(str(servico.get("preco") or "0,00"))
             duracao = html.escape(str(servico.get("tempo_estimado") or ""))
@@ -23823,14 +23853,21 @@ def renderizar_vitrine_publica_html(
                 duracao_html = f'<span class="duracao">Duração: {duracao or "A combinar"}</span>'
                 texto_acao = "Agendar este serviço"
             agenda_url = f"/agendar/{urllib.parse.quote(codigo_agenda)}?servico_id={servico_id}&origem=vitrine_online"
-            cards.append(f"""<article class="catalogo-card servico-card" data-tipo="servico" data-categoria="{categoria_item}" data-nome="{html.escape(nome_raw.lower())}">
+            cards.append(f"""<article class="catalogo-card servico-card" style="{'display:flex' if tipo_inicial == 'servico' else 'display:none'}" data-tipo="servico" data-categoria="{categoria_item}" data-nome="{html.escape(nome_raw.lower())}">
 <a class="item-imagem" href="{agenda_url}" onclick="registrarItem('servico',{servico_id})">{imagem_html}</a>
 <div class="item-info"><small>Serviço • {categoria_item}</small><h3>{nome}</h3><p>{descricao}</p>{duracao_html}{preco_html}<a class="agendar" href="{agenda_url}" onclick="registrarItem('servico',{servico_id})">{texto_acao}</a></div></article>""")
 
-    categorias_html = "".join(
-        f'<button type="button" onclick="filtrarCategoria({json.dumps(cat, ensure_ascii=False)})">{html.escape(cat)}</button>'
-        for cat in sorted(categorias_itens)
-    )
+    def botoes_categorias(categorias: set[str], tipo: str) -> str:
+        botoes = [f'<button class="categoria-botao active" type="button" data-tipo="{tipo}" data-categoria="" onclick="filtrarCategoria(\'{tipo}\',\'\',this)">Todos</button>']
+        for item in sorted(categorias):
+            item_js = html.escape(json.dumps(item, ensure_ascii=False), quote=True)
+            botoes.append(
+                f'<button class="categoria-botao" type="button" data-tipo="{tipo}" data-categoria="{html.escape(item)}" onclick="filtrarCategoria(\'{tipo}\',{item_js},this)">{html.escape(item)}</button>'
+            )
+        return "".join(botoes)
+
+    categorias_produtos_html = botoes_categorias(categorias_produtos, "produto")
+    categorias_servicos_html = botoes_categorias(categorias_servicos, "servico")
     cards_html = "\n".join(cards) or '<div class="vazio">Nenhum produto ou serviço publicado ainda.</div>'
     mensagem_html = f'<div class="mensagem">{html.escape(mensagem)}</div>' if mensagem else ""
     whatsapp_html = f'<a class="whatsapp-final" href="{html.escape(whatsapp_url)}" target="_blank" rel="noopener">Enviar pedido no WhatsApp</a>' if whatsapp_url else ""
@@ -23839,13 +23876,34 @@ def renderizar_vitrine_publica_html(
     entrega_html = "".join(f'<option value="{_normalizar_chave_campo_configuravel(rotulo)}">{html.escape(rotulo)}</option>' for rotulo in formas_entrega)
     carrinho_html = ""
     if permitir_pedido:
-        carrinho_html = f"""<aside class="carrinho"><h2>Carrinho</h2><div id="itensCarrinho">Nenhum item adicionado.</div><strong id="totalCarrinho">Total: R$ 0,00</strong><form class="form-pedido" method="post" action="/loja/{slug}/pedido" onsubmit="return prepararPedido()"><input name="cliente_nome" placeholder="Seu nome" required><input name="cliente_whatsapp" placeholder="Seu WhatsApp" required><select name="tipo_entrega">{entrega_html}</select><input name="endereco" placeholder="Endereço, se for entrega"><select name="forma_pagamento"><option value="pix">PIX</option><option value="dinheiro">Dinheiro</option><option value="cartao">Cartão</option></select><textarea name="observacoes" placeholder="Observações"></textarea><input type="hidden" name="itens_json" id="itensJson"><button class="finalizar" type="submit">Confirmar pedido</button></form></aside>"""
-    classe_conteudo = "conteudo com-carrinho" if carrinho_html else "conteudo"
+        carrinho_html = f"""<aside class="carrinho" id="carrinhoProdutos"><h2>Carrinho de produtos</h2><div id="itensCarrinho">Nenhum item adicionado.</div><strong id="totalCarrinho">Total: R$ 0,00</strong><form class="form-pedido" method="post" action="/loja/{slug}/pedido" onsubmit="return prepararPedido()"><input name="cliente_nome" placeholder="Seu nome" required><input name="cliente_whatsapp" placeholder="Seu WhatsApp" required><select name="tipo_entrega">{entrega_html}</select><input name="endereco" placeholder="Endereço, se for entrega"><select name="forma_pagamento"><option value="pix">PIX</option><option value="dinheiro">Dinheiro</option><option value="cartao">Cartão</option></select><textarea name="observacoes" placeholder="Observações do pedido"></textarea><input type="hidden" name="itens_json" id="itensJson"><button class="finalizar" type="submit">Confirmar pedido</button></form></aside>"""
+
+    if carrinho_html and tipo_inicial != "produto":
+        carrinho_html = carrinho_html.replace(
+            'id="carrinhoProdutos"', 'id="carrinhoProdutos" hidden', 1
+        )
+    classe_conteudo = "conteudo com-carrinho" if tipo_inicial == "produto" and carrinho_html else "conteudo"
+    abas_html = ""
+    if tem_produtos:
+        abas_html += f'<button type="button" class="tipo-aba{" active" if tipo_inicial == "produto" else ""}" data-tipo="produto" onclick="selecionarTipo(\'produto\',this)">Produtos</button>'
+    if tem_servicos:
+        abas_html += f'<button type="button" class="tipo-aba{" active" if tipo_inicial == "servico" else ""}" data-tipo="servico" onclick="selecionarTipo(\'servico\',this)">Serviços</button>'
 
     return f"""<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>{titulo_seo}</title><meta name="description" content="{descricao_seo}"><style>
-*{{box-sizing:border-box}}body{{margin:0;font-family:Arial,sans-serif;background:#f3f4f6;color:#111827}}.topo{{background:linear-gradient(135deg,{cor_principal},{cor_secundaria});color:#fff;padding:28px 18px 34px}}.topo-inner{{max-width:1120px;margin:auto;display:flex;align-items:center;gap:16px}}.logo{{width:76px;height:76px;border-radius:22px;background:#fff;color:{cor_principal};display:grid;place-items:center;font-weight:900;font-size:22px;overflow:hidden}}.logo img,.item-imagem img{{width:100%;height:100%;object-fit:cover}}.topo h1{{margin:0;font-size:30px}}.topo p{{margin:6px 0 0;opacity:.9}}.container{{max-width:1120px;margin:-22px auto 40px;padding:0 18px}}.barra{{background:#fff;border-radius:22px;padding:16px;box-shadow:0 12px 30px rgba(0,0,0,.08);display:grid;gap:12px}}.busca{{width:100%;min-height:46px;border:1px solid #e5e7eb;border-radius:14px;padding:0 14px;font-size:16px}}.categorias{{display:flex;gap:8px;overflow:auto}}.categorias button{{border:0;border-radius:999px;padding:10px 14px;background:#eef2ff;font-weight:800;white-space:nowrap}}.conteudo{{display:block;margin-top:18px}}.conteudo.com-carrinho{{display:grid;grid-template-columns:1fr 340px;gap:18px}}.itens{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}}.catalogo-card{{background:#fff;border-radius:22px;overflow:hidden;border:1px solid #e5e7eb}}.item-imagem{{width:100%;height:170px;border:0;background:#e5e7eb;display:grid;place-items:center;color:#6b7280;font-weight:900;cursor:pointer;text-decoration:none}}.item-info{{padding:14px;display:grid;gap:8px}}.item-info small{{color:#6b7280;font-weight:800}}.item-info h3{{margin:0;font-size:17px}}.item-info p{{margin:0;color:#6b7280;min-height:38px}}.item-info strong{{font-size:20px}}.duracao{{font-size:13px;font-weight:800;color:#475569}}.item-info button,.item-info a.agendar,.finalizar,.whatsapp-final{{border:0;border-radius:14px;padding:12px;background:{cor_principal};color:#fff;font-weight:900;cursor:pointer;text-align:center;text-decoration:none}}.item-info>a:not(.agendar){{border-radius:14px;padding:12px;background:#16a34a;color:#fff;font-weight:900;text-align:center;text-decoration:none}}.carrinho{{background:#fff;border-radius:22px;border:1px solid #e5e7eb;padding:16px;position:sticky;top:16px;align-self:start}}.carrinho h2{{margin:0 0 12px}}.item-carrinho{{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid #e5e7eb;padding:10px 0}}.form-pedido{{display:grid;gap:10px;margin-top:14px}}.form-pedido input,.form-pedido select,.form-pedido textarea{{width:100%;min-height:42px;border:1px solid #d1d5db;border-radius:12px;padding:10px}}.mensagem{{background:#ecfdf5;color:#047857;border-radius:16px;padding:12px;margin-bottom:14px;font-weight:800}}.whatsapp-final{{display:block;margin-bottom:14px;background:#16a34a}}.vazio{{background:#fff;border-radius:22px;padding:30px;text-align:center;color:#6b7280}}@media(max-width:900px){{.conteudo.com-carrinho{{grid-template-columns:1fr}}.itens{{grid-template-columns:1fr}}.topo-inner{{align-items:flex-start}}}}
-</style></head><body><header class="topo"><div class="topo-inner"><div class="logo">{logo_html}</div><div><h1>{nome_loja}</h1><p>{categoria} {('• ' + instagram) if instagram else ''}</p></div></div></header><main class="container">{mensagem_html}{whatsapp_html}<section class="barra"><input class="busca" id="busca" placeholder="Buscar produto ou serviço..." oninput="filtrarItens()"><div class="categorias"><button type="button" onclick="filtrarCategoria('')">Todos</button>{categorias_html}</div></section><section class="{classe_conteudo}"><div class="itens" id="itens">{cards_html}</div>{carrinho_html}</section></main><script>
-let carrinho=[];function moedaNumero(v){{return parseFloat(String(v).replace(/\\./g,'').replace(',','.'))||0}}function moedaBR(v){{return v.toFixed(2).replace('.',',')}}function registrarItem(tipo,id){{fetch('/loja/{slug}/evento',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{tipo:tipo,item_id:id||''}})}}).catch(()=>{{}})}}function adicionarCarrinho(id,nome,preco){{registrarItem('carrinho',id);const item=carrinho.find(i=>i.id===id);if(item)item.quantidade+=1;else carrinho.push({{id,nome,preco,quantidade:1}});renderCarrinho()}}function renderCarrinho(){{const el=document.getElementById('itensCarrinho');if(!el)return;if(!carrinho.length){{el.innerHTML='Nenhum item adicionado.';document.getElementById('totalCarrinho').innerText='Total: R$ 0,00';return}}let total=0;el.innerHTML=carrinho.map(i=>{{const sub=moedaNumero(i.preco)*i.quantidade;total+=sub;return `<div class="item-carrinho"><span>${{i.quantidade}}x ${{i.nome}}</span><strong>R$ ${{moedaBR(sub)}}</strong></div>`}}).join('');document.getElementById('totalCarrinho').innerText='Total: R$ '+moedaBR(total)}}function prepararPedido(){{const quantidade=carrinho.reduce((t,i)=>t+i.quantidade,0);if(quantidade<{quantidade_minima}){{alert('A quantidade mínima do pedido é {quantidade_minima}.');return false}}document.getElementById('itensJson').value=JSON.stringify(carrinho);return true}}function filtrarCategoria(cat){{document.querySelectorAll('.catalogo-card').forEach(card=>card.style.display=(!cat||card.dataset.categoria===cat)?'block':'none')}}function filtrarItens(){{const termo=document.getElementById('busca').value.toLowerCase();document.querySelectorAll('.catalogo-card').forEach(card=>card.style.display=card.dataset.nome.includes(termo)?'block':'none')}}
+*{{box-sizing:border-box}}body{{margin:0;font-family:Arial,sans-serif;background:#f3f4f6;color:#111827}}.topo{{background:linear-gradient(135deg,{cor_principal},{cor_secundaria});color:#fff;padding:28px 18px 34px}}.topo-inner{{max-width:1120px;margin:auto;display:flex;align-items:center;gap:16px}}.logo{{width:76px;height:76px;border-radius:22px;background:#fff;color:{cor_principal};display:grid;place-items:center;font-weight:900;font-size:22px;overflow:hidden;flex:0 0 auto}}.logo img,.item-imagem img{{width:100%;height:100%;object-fit:cover;display:block}}.topo h1{{margin:0;font-size:30px}}.topo p{{margin:6px 0 0;opacity:.9}}.container{{max-width:1120px;margin:-22px auto 40px;padding:0 18px}}.barra{{background:#fff;border-radius:22px;padding:16px;box-shadow:0 12px 30px rgba(0,0,0,.08);display:grid;gap:12px}}.tipo-abas{{display:flex;gap:10px;flex-wrap:wrap}}.tipo-aba{{min-height:44px;border:1px solid #dbe3ef;border-radius:14px;padding:0 20px;background:#fff;color:#334155;font-weight:900;cursor:pointer}}.tipo-aba.active{{background:{cor_principal};border-color:{cor_principal};color:#fff}}.busca{{width:100%;min-height:46px;border:1px solid #e5e7eb;border-radius:14px;padding:0 14px;font-size:16px}}.categorias{{display:flex;gap:8px;overflow:auto}}.categorias-grupo{{display:flex;gap:8px}}.categorias-grupo[hidden]{{display:none}}.categoria-botao{{border:0;border-radius:999px;padding:10px 14px;background:#eef2ff;font-weight:800;white-space:nowrap;cursor:pointer}}.categoria-botao.active{{background:#dbeafe;color:#1d4ed8}}.conteudo{{display:block;margin-top:18px}}.conteudo.com-carrinho{{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px}}.itens{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:start}}.catalogo-card{{background:#fff;border-radius:22px;overflow:hidden;border:1px solid #e5e7eb;display:flex;flex-direction:column;min-width:0;box-shadow:0 8px 24px rgba(15,23,42,.05)}}.item-imagem{{width:100%;height:210px;min-height:210px;max-height:210px;flex:0 0 210px;border:0;background:#e5e7eb;display:grid;place-items:center;color:#6b7280;font-weight:900;cursor:pointer;text-decoration:none;overflow:hidden}}.item-info{{position:relative;z-index:2;background:#fff;padding:16px;display:grid;gap:9px;min-height:250px}}.item-info small{{color:#6b7280;font-weight:800}}.item-info h3{{margin:0;font-size:18px;line-height:1.25}}.item-info p{{margin:0;color:#6b7280;min-height:42px;line-height:1.45}}.item-info strong{{font-size:20px;color:#0f172a}}.duracao{{font-size:13px;font-weight:800;color:#475569}}.item-info button,.item-info a.agendar,.finalizar,.whatsapp-final{{border:0;border-radius:14px;padding:12px;background:{cor_principal};color:#fff;font-weight:900;cursor:pointer;text-align:center;text-decoration:none;margin-top:auto}}.item-info a.contato{{border-radius:14px;padding:12px;background:#16a34a;color:#fff;font-weight:900;text-align:center;text-decoration:none;margin-top:auto}}.carrinho{{background:#fff;border-radius:22px;border:1px solid #e5e7eb;padding:16px;position:sticky;top:16px;align-self:start}}.carrinho[hidden]{{display:none}}.carrinho h2{{margin:0 0 12px}}.item-carrinho{{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid #e5e7eb;padding:10px 0}}.form-pedido{{display:grid;gap:10px;margin-top:14px}}.form-pedido input,.form-pedido select,.form-pedido textarea{{width:100%;min-height:42px;border:1px solid #d1d5db;border-radius:12px;padding:10px}}.mensagem{{background:#ecfdf5;color:#047857;border-radius:16px;padding:12px;margin-bottom:14px;font-weight:800}}.whatsapp-final{{display:block;margin-bottom:14px;background:#16a34a}}.vazio{{background:#fff;border-radius:22px;padding:30px;text-align:center;color:#6b7280}}@media(max-width:900px){{.conteudo.com-carrinho{{grid-template-columns:1fr}}.itens{{grid-template-columns:repeat(2,minmax(0,1fr))}}.topo-inner{{align-items:flex-start}}.carrinho{{position:static}}}}@media(max-width:620px){{.itens{{grid-template-columns:1fr}}.item-imagem{{height:220px;min-height:220px;max-height:220px;flex-basis:220px}}.item-info{{min-height:0}}}}
+</style></head><body><header class="topo"><div class="topo-inner"><div class="logo">{logo_html}</div><div><h1>{nome_loja}</h1><p>{categoria} {('• ' + instagram) if instagram else ''}</p></div></div></header><main class="container">{mensagem_html}{whatsapp_html}<section class="barra"><div class="tipo-abas">{abas_html}</div><input class="busca" id="busca" placeholder="Buscar {'serviço' if tipo_inicial == 'servico' else 'produto'}..." oninput="filtrarItens()"><div class="categorias"><div class="categorias-grupo" id="categoriasProduto" {'hidden' if tipo_inicial != 'produto' else ''}>{categorias_produtos_html}</div><div class="categorias-grupo" id="categoriasServico" {'hidden' if tipo_inicial != 'servico' else ''}>{categorias_servicos_html}</div></div></section><section class="{classe_conteudo}" id="conteudoCatalogo"><div class="itens" id="itens">{cards_html}</div>{carrinho_html}</section></main><script>
+let carrinho=[];let tipoAtivo={json.dumps(tipo_inicial)};let categoriaAtiva='';
+function moedaNumero(v){{return parseFloat(String(v).replace(/\\./g,'').replace(',','.'))||0}}
+function moedaBR(v){{return v.toFixed(2).replace('.',',')}}
+function registrarItem(tipo,id){{fetch('/loja/{slug}/evento',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{tipo:tipo,item_id:id||''}})}}).catch(()=>{{}})}}
+function adicionarCarrinho(id,nome,preco){{registrarItem('carrinho',id);const item=carrinho.find(i=>i.id===id);if(item)item.quantidade+=1;else carrinho.push({{id,nome,preco,quantidade:1}});renderCarrinho()}}
+function renderCarrinho(){{const el=document.getElementById('itensCarrinho');if(!el)return;if(!carrinho.length){{el.innerHTML='Nenhum item adicionado.';document.getElementById('totalCarrinho').innerText='Total: R$ 0,00';return}}let total=0;el.innerHTML=carrinho.map(i=>{{const sub=moedaNumero(i.preco)*i.quantidade;total+=sub;return `<div class="item-carrinho"><span>${{i.quantidade}}x ${{i.nome}}</span><strong>R$ ${{moedaBR(sub)}}</strong></div>`}}).join('');document.getElementById('totalCarrinho').innerText='Total: R$ '+moedaBR(total)}}
+function prepararPedido(){{const quantidade=carrinho.reduce((t,i)=>t+i.quantidade,0);if(quantidade<{quantidade_minima}){{alert('A quantidade mínima do pedido é {quantidade_minima}.');return false}}document.getElementById('itensJson').value=JSON.stringify(carrinho);return true}}
+function aplicarFiltros(){{const termo=(document.getElementById('busca').value||'').toLowerCase();document.querySelectorAll('.catalogo-card').forEach(card=>{{const tipoOk=card.dataset.tipo===tipoAtivo;const categoriaOk=!categoriaAtiva||card.dataset.categoria===categoriaAtiva;const buscaOk=card.dataset.nome.includes(termo);card.style.display=(tipoOk&&categoriaOk&&buscaOk)?'flex':'none'}})}}
+function selecionarTipo(tipo,botao){{tipoAtivo=tipo;categoriaAtiva='';document.querySelectorAll('.tipo-aba').forEach(item=>item.classList.toggle('active',item===botao));const grupoProduto=document.getElementById('categoriasProduto');const grupoServico=document.getElementById('categoriasServico');if(grupoProduto)grupoProduto.hidden=tipo!=='produto';if(grupoServico)grupoServico.hidden=tipo!=='servico';document.querySelectorAll('.categoria-botao').forEach(item=>item.classList.toggle('active',item.dataset.tipo===tipo&&!item.dataset.categoria));const carrinhoEl=document.getElementById('carrinhoProdutos');const conteudo=document.getElementById('conteudoCatalogo');if(carrinhoEl)carrinhoEl.hidden=tipo!=='produto';if(conteudo)conteudo.classList.toggle('com-carrinho',tipo==='produto'&&!!carrinhoEl);const busca=document.getElementById('busca');if(busca){{busca.value='';busca.placeholder=tipo==='produto'?'Buscar produto...':'Buscar serviço...'}}aplicarFiltros()}}
+function filtrarCategoria(tipo,categoria,botao){{if(tipo!==tipoAtivo)return;categoriaAtiva=categoria||'';document.querySelectorAll(`.categoria-botao[data-tipo="${{tipo}}"]`).forEach(item=>item.classList.toggle('active',item===botao));aplicarFiltros()}}
+function filtrarItens(){{aplicarFiltros()}}
+document.addEventListener('DOMContentLoaded',()=>{{const botao=document.querySelector(`.tipo-aba[data-tipo="${{tipoAtivo}}"]`);if(botao)selecionarTipo(tipoAtivo,botao);else aplicarFiltros()}});
 </script></body></html>"""
 
 
@@ -30088,6 +30146,27 @@ def excluir_orcamento(orcamento_id: int) -> Response:
 
 
 
+
+def normalizar_periodo_preferido_avaliacao(valor: Any) -> str:
+    texto = str(valor or "").strip().lower()
+    return texto if texto in PERIODOS_PREFERENCIA_AVALIACAO else "sem_preferencia"
+
+
+def formatar_data_desejada_avaliacao(valor: Any) -> str:
+    texto = str(valor or "").strip()
+    if not texto:
+        return "Não informada"
+    try:
+        data_valor = date.fromisoformat(texto)
+    except ValueError:
+        return texto
+    dias_semana = (
+        "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira",
+        "sexta-feira", "sábado", "domingo",
+    )
+    return f"{dias_semana[data_valor.weekday()]}, {data_valor.strftime('%d/%m/%Y')}"
+
+
 def _respostas_solicitacao_avaliacao(
     solicitacao_id: int,
     empresa_id: int | None = None,
@@ -30137,6 +30216,13 @@ def listar_solicitacoes_avaliacao(
     for row in rows:
         item = dict(row)
         item["respostas"] = _respostas_solicitacao_avaliacao(int(item["id"]), empresa)
+        item["data_desejada_formatada"] = formatar_data_desejada_avaliacao(
+            item.get("data_desejada")
+        )
+        item["periodo_preferido_rotulo"] = PERIODOS_PREFERENCIA_AVALIACAO.get(
+            normalizar_periodo_preferido_avaliacao(item.get("periodo_preferido")),
+            "Sem preferência",
+        )
         solicitacoes.append(item)
     return solicitacoes
 
@@ -30182,10 +30268,26 @@ def salvar_solicitacao_avaliacao_publica(
     servico: dict[str, Any],
     observacoes_cliente: str,
     origem: str,
+    data_desejada: str,
+    periodo_preferido: str,
 ) -> tuple[int | None, str]:
     perguntas = listar_perguntas_servico(int(servico.get("id") or 0), empresa_id)
     if not perguntas:
         return None, "Este serviço ainda não possui perguntas para avaliação."
+
+    data_desejada_texto = str(data_desejada or "").strip()
+    if not data_desejada_texto:
+        return None, "Escolha a data desejada para o serviço."
+    try:
+        data_desejada_valor = date.fromisoformat(data_desejada_texto)
+    except ValueError:
+        return None, "A data desejada informada é inválida."
+    if data_desejada_valor < hoje_empresa():
+        return None, "A data desejada não pode estar no passado."
+
+    periodo_preferido_texto = normalizar_periodo_preferido_avaliacao(
+        periodo_preferido
+    )
     respostas_preparadas: list[dict[str, Any]] = []
     for pergunta in perguntas:
         pergunta_id = int(pergunta.get("id") or 0)
@@ -30212,14 +30314,16 @@ def salvar_solicitacao_avaliacao_publica(
                 """
                 INSERT INTO solicitacoes_avaliacao (
                     empresa_id, cliente_id, cliente_nome, cliente_telefone,
-                    servico_id, servico_nome, status, observacoes_cliente,
-                    origem, token_publico_cliente, atualizado_em
-                ) VALUES (?, ?, ?, ?, ?, ?, 'aguardando_avaliacao', ?, ?, ?, ?)
+                    servico_id, servico_nome, status, data_desejada,
+                    periodo_preferido, observacoes_cliente, origem,
+                    token_publico_cliente, atualizado_em
+                ) VALUES (?, ?, ?, ?, ?, ?, 'aguardando_avaliacao', ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     empresa_id, int(cliente.get("id") or 0), str(cliente.get("nome") or ""),
                     str(cliente.get("telefone") or ""), int(servico.get("id") or 0),
-                    str(servico.get("nome") or ""), str(observacoes_cliente or "").strip(),
+                    str(servico.get("nome") or ""), data_desejada_texto,
+                    periodo_preferido_texto, str(observacoes_cliente or "").strip(),
                     origem, str(cliente.get("token_publico") or ""),
                     agora_empresa().isoformat(timespec="seconds"),
                 ),
@@ -30286,6 +30390,7 @@ def agendamento_publico(codigo_empresa: str) -> str | Response:
             servicos=[], funcionarios=[], horarios=[], data_agendamento=hoje_empresa().isoformat(),
             mensagem="Agenda não encontrada ou indisponível.", sucesso="", token_cliente="",
             agendamento_id="", servico_id="", servico_selecionado=None, perguntas_servico=[],
+            data_desejada="", periodo_preferido="sem_preferencia", hoje_iso=hoje_empresa().isoformat(),
             origem_agendamento="link_publico", gestflow_configuracoes_runtime={},
         )
     empresa_id = int(empresa["id"])
@@ -30296,6 +30401,16 @@ def agendamento_publico(codigo_empresa: str) -> str | Response:
     token_cliente = ""
     agendamento_id = ""
     servico_id = str(request.form.get("servico_id") or request.args.get("servico_id") or "").strip()
+    data_desejada = str(
+        request.form.get("data_desejada")
+        or request.args.get("data_desejada")
+        or ""
+    ).strip()
+    periodo_preferido = normalizar_periodo_preferido_avaliacao(
+        request.form.get("periodo_preferido")
+        or request.args.get("periodo_preferido")
+        or "sem_preferencia"
+    )
     origem_agendamento = str(request.form.get("origem") or request.args.get("origem") or "link_publico").strip()
     if origem_agendamento != "vitrine_online":
         origem_agendamento = "link_publico"
@@ -30331,7 +30446,22 @@ def agendamento_publico(codigo_empresa: str) -> str | Response:
         elif etapa == "solicitar_avaliacao":
             cliente = buscar_cliente_publico_por_token(empresa_id, token_form)
             if cliente is None:
-                mensagem = "Identifique seu WhatsApp antes de enviar a avaliação."
+                telefone = str(request.form.get("telefone") or "").strip()
+                nome = str(request.form.get("nome") or "").strip()
+                if not normalizar_telefone_publico(telefone):
+                    mensagem = "Informe seu WhatsApp para enviar a solicitação."
+                else:
+                    cliente_existente = buscar_cliente_publico_por_telefone(
+                        empresa_id, telefone
+                    )
+                    if cliente_existente is None and not nome:
+                        mensagem = "Informe seu nome para enviar a solicitação."
+                    else:
+                        cliente = criar_ou_atualizar_cliente_publico(
+                            empresa_id,
+                            nome or str((cliente_existente or {}).get("nome") or ""),
+                            telefone,
+                        )
             servico = buscar_servico_empresa(empresa_id, servico_id)
             if cliente is not None and (
                 servico is None
@@ -30341,16 +30471,25 @@ def agendamento_publico(codigo_empresa: str) -> str | Response:
                 mensagem = "Escolha um serviço disponível para avaliação."
             if cliente is not None and not mensagem:
                 solicitacao_id, erro_solicitacao = salvar_solicitacao_avaliacao_publica(
-                    empresa_id, cliente, servico,
+                    empresa_id,
+                    cliente,
+                    servico,
                     str(request.form.get("observacoes") or "").strip(),
                     origem_agendamento,
+                    data_desejada,
+                    periodo_preferido,
                 )
                 if erro_solicitacao:
                     mensagem = erro_solicitacao
                 else:
                     token_cliente = str(cliente.get("token_publico") or "")
                     agendamento_id = str(solicitacao_id or "")
-                    sucesso = "Solicitação de avaliação enviada. A empresa analisará as respostas e entrará em contato para definir valor, duração e horário."
+                    data_formatada = formatar_data_desejada_avaliacao(data_desejada)
+                    sucesso = (
+                        "Solicitação de avaliação enviada para "
+                        f"{data_formatada}. A empresa analisará as respostas e entrará "
+                        "em contato para confirmar valor, duração e disponibilidade."
+                    )
         elif etapa == "confirmar":
             cliente = buscar_cliente_publico_por_token(empresa_id, token_form)
             if cliente is None:
@@ -30459,6 +30598,7 @@ def agendamento_publico(codigo_empresa: str) -> str | Response:
         data_agendamento=data_agendamento, profissional_id=profissional_id,
         servico_id=servico_id, servico_selecionado=servico_selecionado,
         perguntas_servico=perguntas_servico, origem_agendamento=origem_agendamento, mensagem=mensagem, sucesso=sucesso,
+        data_desejada=data_desejada, periodo_preferido=periodo_preferido, hoje_iso=hoje_iso,
         token_cliente=token_cliente, agendamento_id=agendamento_id,
         gestflow_configuracoes_runtime=montar_configuracoes_runtime(empresa_id),
     )
