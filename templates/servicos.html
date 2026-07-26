@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\servicos.html
-Último recode: 2026-07-02 09:20 (America/Bahia)
-Motivo: Criar paginação e ordenação por cabeçalho na tela de serviços.
+Último recode: 2026-07-26 13:51 (America/Bahia)
+Motivo: Padronizar a duração dos serviços para uso automático na agenda e na Vitrine Online.
 -->
 
 <!DOCTYPE html>
@@ -213,6 +213,24 @@ Motivo: Criar paginação e ordenação por cabeçalho na tela de serviços.
             color: #0f172a;
         }
 
+        .duration-field {
+            display: grid;
+            grid-template-columns: minmax(110px, 1fr) minmax(130px, 1fr);
+            gap: 8px;
+        }
+
+        .duration-help {
+            display: block;
+            margin-top: 6px;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        @media (max-width: 640px) {
+            .duration-field { grid-template-columns: 1fr; }
+        }
+
     </style>
 </head>
 <body>
@@ -243,7 +261,7 @@ Motivo: Criar paginação e ordenação por cabeçalho na tela de serviços.
                 <div>
                     <span class="page-kicker">Serviços</span>
                     <h3 class="page-title">Serviços</h3>
-                    <p class="page-subtitle">Controle os serviços, códigos, categorias, custos, valores de venda, prazos e status de cadastro do GESTFLOW.</p>
+                    <p class="page-subtitle">Controle os serviços, valores e a duração que será usada para reservar horários na agenda e na Vitrine Online.</p>
                 </div>
 
                 <a href="#form-novo-servico" class="btn-primary-green">+ Novo Serviço</a>
@@ -339,8 +357,16 @@ Motivo: Criar paginação e ordenação por cabeçalho na tela de serviços.
                     </div>
 
                     <div class="form-group">
-                        <label for="servico_tempo_estimado">Tempo estimado</label>
-                        <input id="servico_tempo_estimado" name="servico_tempo_estimado" type="text" placeholder="Ex: 4 horas" class="form-control">
+                        <label for="servico_tempo_estimado_valor">Duração estimada *</label>
+                        <div class="duration-field">
+                            <input id="servico_tempo_estimado_valor" name="servico_tempo_estimado_valor" type="number" min="0.1" step="0.1" value="1" class="form-control" required>
+                            <select id="servico_tempo_estimado_unidade" name="servico_tempo_estimado_unidade" class="form-control" required>
+                                <option value="minutos">Minutos</option>
+                                <option value="horas" selected>Horas</option>
+                                <option value="dias">Dia inteiro</option>
+                            </select>
+                        </div>
+                        <small class="duration-help">Ex.: corte 30 minutos, unha 2 horas ou faxina 1 dia inteiro.</small>
                     </div>
 
                     <div class="form-group">
@@ -391,7 +417,7 @@ Motivo: Criar paginação e ordenação por cabeçalho na tela de serviços.
 
             <div class="client-actions">
                 <form action="/servicos" method="get" class="client-search-form">
-                    <input type="text" name="busca" value="{{ busca }}" placeholder="Buscar por nome, código, categoria, unidade ou status" class="client-search">
+                    <input type="text" name="busca" value="{{ busca }}" placeholder="Buscar por nome, código, categoria, unidade, duração ou status" class="client-search">
                     <input type="hidden" name="ordenar" value="{{ ordenar }}">
                     <input type="hidden" name="direcao" value="{{ direcao }}">
 
@@ -456,6 +482,7 @@ Motivo: Criar paginação e ordenação por cabeçalho na tela de serviços.
                                     {% if ordenar == 'valor_venda' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
                                 </a>
                             </th>
+                            <th>Duração</th>
                             <th>
                                 <a href="{{ url_for('servicos', pagina=1, por_pagina=por_pagina, ordenar='status', direcao='desc' if ordenar == 'status' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
                                     Status
@@ -476,6 +503,7 @@ Motivo: Criar paginação e ordenação por cabeçalho na tela de serviços.
                                     <td>{{ servico.unidade }}</td>
                                     <td>{{ servico.custo }}</td>
                                     <td>{{ servico.valor_venda }}</td>
+                                    <td><strong>{{ servico.tempo_estimado or '-' }}</strong></td>
                                     <td>
                                         <span class="status-pill {{ servico.status }}">
                                             {{ servico.status }}
@@ -494,7 +522,7 @@ Motivo: Criar paginação e ordenação por cabeçalho na tela de serviços.
                             {% endfor %}
                         {% else %}
                             <tr>
-                                <td colspan="9" class="empty-table empty-table-box">
+                                <td colspan="10" class="empty-table empty-table-box">
                                     <div class="empty-table-content">
                                         <div class="empty-table-icon">⚙</div>
                                         <strong>Nenhum serviço cadastrado.</strong>

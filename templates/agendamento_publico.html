@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\agendamento_publico.html
-Último recode: 2026-07-23 00:18 (America/Bahia)
-Motivo: Aplicar disponibilidade, antecedência, duração, confirmação e campos configurados por empresa.
+Último recode: 2026-07-26 13:51 (America/Bahia)
+Motivo: Receber o serviço selecionado na Vitrine Online e mostrar somente horários que comportem toda a duração.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -10,203 +10,99 @@ Motivo: Aplicar disponibilidade, antecedência, duração, confirmação e campo
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agendar horário - GestFlow</title>
     <link rel="stylesheet" href="/static/css/dashboard.css">
-
     <style>
-        /* Recode 2026-07-04 21:00 - Ajuste visual dos horários e preservação do serviço selecionado */
-        .public-schedule-body {
-            min-height: 100vh;
-            background: radial-gradient(circle at 20% 0%, rgba(15, 98, 254, 0.20), transparent 32%), linear-gradient(135deg, #071a2b, #0f172a) !important;
-        }
-        .public-schedule-page {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 28px 16px;
-        }
-        .public-schedule-card {
-            width: min(680px, 100%);
-            background: #ffffff;
-            border: 1px solid #e5eaf2;
-            border-radius: 24px;
-            box-shadow: 0 24px 70px rgba(0,0,0,.22);
-            padding: 26px;
-        }
-        .public-schedule-header { text-align: center; margin-bottom: 20px; }
-        .public-schedule-header h1 { margin: 8px 0; color: #0f172a; font-size: clamp(28px, 8vw, 42px); line-height: 1.05; font-weight: 900; }
-        .public-schedule-header p { margin: 0 auto; max-width: 500px; color: #64748b; font-weight: 700; line-height: 1.55; }
-        .public-schedule-form { display: grid; gap: 16px; }
-        .public-client-box { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 18px; padding: 14px; border: 1px solid #dbeafe; border-radius: 16px; background: #eff6ff; }
-        .public-client-box strong, .public-client-box span { display: block; }
-        .public-client-box span { margin-top: 4px; color: #475569; font-size: 13px; font-weight: 700; }
-        .public-time-grid { display: grid !important; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-        .public-time-option { position: relative; display: block; cursor: pointer; }
-        .public-time-option input[type="radio"] { position: absolute !important; opacity: 0 !important; width: 1px !important; height: 1px !important; margin: 0 !important; pointer-events: none !important; appearance: none !important; -webkit-appearance: none !important; }
-        .public-time-option span { min-height: 44px; display: flex; align-items: center; justify-content: center; border: 1px solid #dbe3ef; border-radius: 13px; background: #ffffff; color: #0f172a; font-weight: 900; box-shadow: 0 6px 16px rgba(15,23,42,.05); transition: .16s ease; }
-        .public-time-option:hover span { border-color: #93c5fd; background: #eff6ff; }
-        .public-time-option input[type="radio"]:checked + span { border-color: #0f62fe; background: #0f62fe; color: #ffffff; box-shadow: 0 10px 22px rgba(15,98,254,.24); }
-        .public-submit { width: 100%; height: 48px; }
-        @media (max-width: 640px) {
-            .public-schedule-card { padding: 18px; border-radius: 20px; }
-            .public-client-box { flex-direction: column; align-items: stretch; }
-            .public-time-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        }
+        .public-schedule-body{min-height:100vh;background:radial-gradient(circle at 20% 0%,rgba(15,98,254,.20),transparent 32%),linear-gradient(135deg,#071a2b,#0f172a)!important}.public-schedule-page{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:28px 16px}.public-schedule-card{width:min(700px,100%);background:#fff;border:1px solid #e5eaf2;border-radius:24px;box-shadow:0 24px 70px rgba(0,0,0,.22);padding:26px}.public-schedule-header{text-align:center;margin-bottom:20px}.public-schedule-header h1{margin:8px 0;color:#0f172a;font-size:clamp(28px,8vw,42px);line-height:1.05;font-weight:900}.public-schedule-header p{margin:0 auto;max-width:540px;color:#64748b;font-weight:700;line-height:1.55}.public-schedule-form{display:grid;gap:16px}.public-client-box{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:18px;padding:14px;border:1px solid #dbeafe;border-radius:16px;background:#eff6ff}.public-client-box strong,.public-client-box span{display:block}.public-client-box span{margin-top:4px;color:#475569;font-size:13px;font-weight:700}.public-time-grid{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.public-time-option{position:relative;display:block;cursor:pointer}.public-time-option input[type="radio"]{position:absolute!important;opacity:0!important;width:1px!important;height:1px!important;margin:0!important;pointer-events:none!important;appearance:none!important}.public-time-option span{min-height:44px;display:flex;align-items:center;justify-content:center;border:1px solid #dbe3ef;border-radius:13px;background:#fff;color:#0f172a;font-weight:900;box-shadow:0 6px 16px rgba(15,23,42,.05);transition:.16s ease}.public-time-option:hover span{border-color:#93c5fd;background:#eff6ff}.public-time-option input:checked+span{border-color:#0f62fe;background:#0f62fe;color:#fff;box-shadow:0 10px 22px rgba(15,98,254,.24)}.public-submit{width:100%;height:48px}.selected-service{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:14px;border:1px solid #a7f3d0;border-radius:16px;background:#f0fdf4}.selected-service strong{display:block;color:#14532d}.selected-service span{display:block;margin-top:4px;color:#166534;font-size:13px;font-weight:800}.selected-service b{font-size:18px;color:#14532d}.origin-badge{display:inline-flex;margin-bottom:8px;padding:6px 10px;border-radius:999px;background:#dcfce7;color:#166534;font-size:12px;font-weight:900}.empty-slots{padding:16px;border:1px dashed #cbd5e1;border-radius:14px;background:#f8fafc;color:#64748b;font-weight:800;text-align:center}.schedule-alert{margin:0 0 14px;padding:12px 14px;border-radius:12px;font-weight:900;font-size:13px}.schedule-alert.error{background:#fef2f2;border:1px solid #fecaca;color:#991b1b}.schedule-alert.success{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534}
+        @media(max-width:640px){.public-schedule-card{padding:18px;border-radius:20px}.public-client-box,.selected-service{grid-template-columns:1fr;flex-direction:column;align-items:stretch}.public-time-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
     </style>
 </head>
 <body class="public-schedule-body">
-    <main class="public-schedule-page">
-        <section class="public-schedule-card">
-            {% if empresa %}
-                <div class="public-schedule-header">
-                    {% if empresa.logo_path %}<img src="{{ empresa.logo_path }}" alt="{{ empresa.nome_fantasia }}" class="public-schedule-logo">{% endif %}
-                    <span class="page-kicker">Agenda online</span>
-                    <h1>{{ empresa.nome_fantasia }}</h1>
-                    <p>Marque seu horário de forma rápida. A empresa receberá sua solicitação no GestFlow.</p>
+<main class="public-schedule-page">
+    <section class="public-schedule-card">
+        {% if empresa %}
+            <div class="public-schedule-header">
+                {% if empresa.logo_path %}<img src="{{ empresa.logo_path }}" alt="{{ empresa.nome_fantasia }}" class="public-schedule-logo">{% endif %}
+                {% if origem_agendamento == 'vitrine_online' %}<span class="origin-badge">Agendamento pela Vitrine Online</span>{% else %}<span class="page-kicker">Agenda online</span>{% endif %}
+                <h1>{{ empresa.nome_fantasia }}</h1>
+                <p>Escolha um horário que comporte toda a duração do serviço. Horários com conflito não aparecem.</p>
+            </div>
+            {% if mensagem %}<div class="schedule-alert error">{{ mensagem }}</div>{% endif %}
+            {% if sucesso %}<div class="schedule-alert success">{{ sucesso }}</div>{% endif %}
+
+            {% if sucesso %}
+                <div class="public-schedule-success">
+                    <strong>{{ 'Agendamento confirmado' if 'confirmado' in sucesso|lower else 'Solicitação enviada' }}</strong>
+                    <p>{{ sucesso }}</p>
+                    <a href="/agendar/{{ codigo_empresa }}" class="btn-dark">Fazer outro agendamento</a>
                 </div>
-
-                {% if mensagem %}<div class="schedule-alert error">{{ mensagem }}</div>{% endif %}
-                {% if sucesso %}<div class="schedule-alert success">{{ sucesso }}</div>{% endif %}
-
-                {% if sucesso %}
-                    <div class="public-schedule-success">
-                        <strong>Solicitação enviada</strong>
-                        <p>Seu agendamento foi registrado. Aguarde a confirmação da empresa pelo WhatsApp.</p>
-                        <a href="/agendar/{{ codigo_empresa }}" class="btn-dark">Fazer outro agendamento</a>
+            {% elif cliente %}
+                <div class="public-client-box"><div><strong>Olá, {{ cliente.nome }}.</strong><span>Escolha o serviço, profissional, data e horário.</span></div><button type="button" class="btn-light" onclick="trocarClientePublico()">Não sou eu</button></div>
+                <form method="post" class="public-schedule-form" id="bookingForm">
+                    <input type="hidden" name="etapa" value="confirmar">
+                    <input type="hidden" name="token_cliente" value="{{ token_cliente }}">
+                    <input type="hidden" name="nome" value="{{ cliente.nome }}">
+                    <input type="hidden" name="telefone" value="{{ cliente.telefone }}">
+                    <input type="hidden" name="origem" value="{{ origem_agendamento }}">
+                    <div class="form-group">
+                        <label for="servicoPublico">Serviço *</label>
+                        <select class="form-control" name="servico_id" id="servicoPublico" required>
+                            <option value="">Selecione o serviço</option>
+                            {% for servico in servicos %}
+                                <option value="{{ servico.id }}" data-valor="{{ servico.valor_venda }}" data-duracao="{{ servico.tempo_estimado }}" {% if servico_id|string == servico.id|string %}selected{% endif %}>{{ servico.nome }}{% if servico.valor_venda %} — R$ {{ servico.valor_venda }}{% endif %} — {{ servico.tempo_estimado }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
-                {% else %}
-                    {% if cliente %}
-                        <div class="public-client-box">
-                            <div>
-                                <strong>Olá, {{ cliente.nome }}.</strong>
-                                <span>Escolha o serviço, data e horário.</span>
-                            </div>
-                            <button type="button" class="btn-light" onclick="trocarClientePublico()">Não sou eu</button>
-                        </div>
-
-                        <form method="post" class="public-schedule-form" id="bookingForm">
-                            <input type="hidden" name="etapa" value="confirmar">
-                            <input type="hidden" name="token_cliente" value="{{ token_cliente }}">
-                            <input type="hidden" name="nome" value="{{ cliente.nome }}">
-                            <input type="hidden" name="telefone" value="{{ cliente.telefone }}">
-
-                            <div class="form-group">
-                                <label>Serviço</label>
-                                <select class="form-control" name="servico_nome" id="servicoPublico" required>
-                                    <option value="">Selecione o serviço</option>
-                                    {% for servico in servicos %}
-                                    <option value="{{ servico.nome }}" data-valor="{{ servico.valor_venda }}">{{ servico.nome }}{% if servico.valor_venda %} - R$ {{ servico.valor_venda }}{% endif %}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-
-                            <div class="form-group">
-                                <label>Profissional</label>
-                                <select class="form-control" name="profissional_id" id="profissionalPublico">
-                                    <option value="">Qualquer profissional disponível</option>
-                                    {% for funcionario in funcionarios %}
-                                    <option value="{{ funcionario.id }}" {% if profissional_id|string == funcionario.id|string %}selected{% endif %}>{{ funcionario.nome }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-
-                            <div class="form-group">
-                                <label>Data</label>
-                                <input class="form-control" type="date" name="data_agendamento" id="dataPublica" value="{{ data_agendamento }}" required>
-                            </div>
-
-                            <div class="form-group">
-                                <label>Horários disponíveis</label>
-                                <div class="public-time-grid">
-                                    {% if horarios %}
-                                        {% for horario in horarios %}
-                                        <label class="public-time-option"><input type="radio" name="hora_inicio" value="{{ horario }}" required><span>{{ horario }}</span></label>
-                                        {% endfor %}
-                                    {% else %}
-                                        <div class="empty-chart">Nenhum horário disponível para essa data.</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-
-                            <div class="form-group">
-                                <label>Observações</label>
-                                <textarea class="form-control" name="observacoes" style="height:90px;padding-top:12px;" placeholder="Alguma observação para o atendimento?"></textarea>
-                            </div>
-
-                            <button class="btn-primary-green public-submit" type="submit">Confirmar agendamento</button>
-                        </form>
-                    {% else %}
-                        <form method="post" class="public-schedule-form">
-                            <input type="hidden" name="etapa" value="identificar">
-                            <input type="hidden" name="token_cliente" id="tokenClientePublico" value="">
-
-                            <div class="form-group">
-                                <label>Seu WhatsApp</label>
-                                <input class="form-control" name="telefone" inputmode="tel" placeholder="Ex: 71999998888" required>
-                            </div>
-                            <div class="form-group">
-                                <label>Seu nome</label>
-                                <input class="form-control" name="nome" placeholder="Informe seu nome se for a primeira vez">
-                            </div>
-                            <button class="btn-primary-green public-submit" type="submit">Continuar</button>
-                        </form>
+                    {% if servico_selecionado %}
+                        <div class="selected-service"><div><strong>{{ servico_selecionado.nome }}</strong><span>Duração reservada: {{ servico_selecionado.tempo_estimado }}{% if origem_agendamento == 'vitrine_online' %} • escolhido na vitrine{% endif %}</span></div><b>R$ {{ servico_selecionado.valor_venda or '0,00' }}</b></div>
                     {% endif %}
-                {% endif %}
+                    <div class="form-group"><label>Profissional</label><select class="form-control" name="profissional_id" id="profissionalPublico"><option value="">Qualquer profissional disponível</option>{% for funcionario in funcionarios %}<option value="{{ funcionario.id }}" {% if profissional_id|string == funcionario.id|string %}selected{% endif %}>{{ funcionario.nome }}</option>{% endfor %}</select></div>
+                    <div class="form-group"><label>Data</label><input class="form-control" type="date" name="data_agendamento" id="dataPublica" value="{{ data_agendamento }}" required></div>
+                    <div class="form-group">
+                        <label>Horários disponíveis</label>
+                        <div class="public-time-grid">
+                            {% if not servico_selecionado %}<div class="empty-slots">Selecione primeiro o serviço.</div>
+                            {% elif horarios %}{% for horario in horarios %}<label class="public-time-option"><input type="radio" name="hora_inicio" value="{{ horario }}" required><span>{{ horario }}</span></label>{% endfor %}
+                            {% else %}<div class="empty-slots">Nenhum período livre para essa data e duração.</div>{% endif %}
+                        </div>
+                    </div>
+                    <div class="form-group"><label>Observações</label><textarea class="form-control" name="observacoes" style="height:90px;padding-top:12px;" placeholder="Alguma observação para o atendimento?"></textarea></div>
+                    <button class="btn-primary-green public-submit" type="submit" {% if not servico_selecionado or not horarios %}disabled{% endif %}>Confirmar agendamento</button>
+                </form>
             {% else %}
-                <div class="public-schedule-header">
-                    <span class="page-kicker">Agenda online</span>
-                    <h1>Agenda indisponível</h1>
-                    <p>{{ mensagem or 'Não encontramos esta agenda.' }}</p>
-                </div>
+                <form method="post" class="public-schedule-form">
+                    <input type="hidden" name="etapa" value="identificar">
+                    <input type="hidden" name="token_cliente" id="tokenClientePublico" value="">
+                    <input type="hidden" name="servico_id" value="{{ servico_id }}">
+                    <input type="hidden" name="origem" value="{{ origem_agendamento }}">
+                    {% if servico_selecionado %}<div class="selected-service"><div><strong>{{ servico_selecionado.nome }}</strong><span>{{ servico_selecionado.tempo_estimado }} • R$ {{ servico_selecionado.valor_venda or '0,00' }}</span></div></div>{% endif %}
+                    <div class="form-group"><label>Seu WhatsApp</label><input class="form-control" name="telefone" inputmode="tel" placeholder="Ex: 71999998888" required></div>
+                    <div class="form-group"><label>Seu nome</label><input class="form-control" name="nome" placeholder="Informe seu nome se for a primeira vez"></div>
+                    <button class="btn-primary-green public-submit" type="submit">Continuar</button>
+                </form>
             {% endif %}
-        </section>
-    </main>
-
-    <script>
-    (function(){
-        const codigo = "{{ codigo_empresa }}";
-        const storageKey = "gestflow_cliente_token_" + codigo;
-        const tokenServidor = "{{ token_cliente }}";
-        const sucesso = "{{ sucesso }}";
-
-        if (tokenServidor) {
-            localStorage.setItem(storageKey, tokenServidor);
-        }
-
-        if (!tokenServidor && !sucesso) {
-            const tokenLocal = localStorage.getItem(storageKey);
-            const campoToken = document.getElementById('tokenClientePublico');
-            if (campoToken && tokenLocal) {
-                campoToken.value = tokenLocal;
-                window.location.href = "/agendar/" + codigo + "?token=" + encodeURIComponent(tokenLocal);
-            }
-        }
-
-        const data = document.getElementById('dataPublica');
-        const profissional = document.getElementById('profissionalPublico');
-        const servico = document.getElementById('servicoPublico');
-        const parametrosAtuais = new URLSearchParams(window.location.search);
-        const servicoSelecionado = parametrosAtuais.get('servico_nome') || '';
-        if (servico && servicoSelecionado) {
-            servico.value = servicoSelecionado;
-        }
-
-        function recarregarHorarios(){
-            const params = new URLSearchParams();
-            if (tokenServidor) params.set('token', tokenServidor);
-            if (data && data.value) params.set('data', data.value);
-            if (profissional && profissional.value) params.set('profissional_id', profissional.value);
-            if (servico && servico.value) params.set('servico_nome', servico.value);
-            window.location.href = "/agendar/" + codigo + "?" + params.toString();
-        }
-        if (data) data.addEventListener('change', recarregarHorarios);
-        if (profissional) profissional.addEventListener('change', recarregarHorarios);
-
-        window.trocarClientePublico = function(){
-            localStorage.removeItem(storageKey);
-            window.location.href = "/agendar/" + codigo;
-        };
-    })();
-    </script>
+        {% else %}
+            <div class="public-schedule-header"><span class="page-kicker">Agenda online</span><h1>Agenda indisponível</h1><p>{{ mensagem or 'Não encontramos esta agenda.' }}</p></div>
+        {% endif %}
+    </section>
+</main>
+<script>
+(function(){
+    const codigo={{ codigo_empresa|tojson }};
+    const storageKey='gestflow_cliente_token_'+codigo;
+    const tokenServidor={{ token_cliente|tojson }};
+    const sucesso={{ sucesso|tojson }};
+    const origem={{ origem_agendamento|tojson }};
+    if(tokenServidor)localStorage.setItem(storageKey,tokenServidor);
+    if(!tokenServidor&&!sucesso){const tokenLocal=localStorage.getItem(storageKey);const campo=document.getElementById('tokenClientePublico');if(campo&&tokenLocal){campo.value=tokenLocal;const params=new URLSearchParams(window.location.search);params.set('token',tokenLocal);window.location.href='/agendar/'+codigo+'?'+params.toString();}}
+    const data=document.getElementById('dataPublica');
+    const profissional=document.getElementById('profissionalPublico');
+    const servico=document.getElementById('servicoPublico');
+    function recarregarHorarios(){const params=new URLSearchParams();if(tokenServidor)params.set('token',tokenServidor);if(data&&data.value)params.set('data',data.value);if(profissional&&profissional.value)params.set('profissional_id',profissional.value);if(servico&&servico.value)params.set('servico_id',servico.value);if(origem)params.set('origem',origem);window.location.href='/agendar/'+codigo+'?'+params.toString();}
+    if(data)data.addEventListener('change',recarregarHorarios);
+    if(profissional)profissional.addEventListener('change',recarregarHorarios);
+    if(servico)servico.addEventListener('change',recarregarHorarios);
+    window.trocarClientePublico=function(){localStorage.removeItem(storageKey);const params=new URLSearchParams();if(servico&&servico.value)params.set('servico_id',servico.value);if(origem)params.set('origem',origem);window.location.href='/agendar/'+codigo+(params.toString()?'?'+params.toString():'');};
+})();
+</script>
 {% include 'partials/configuracoes_runtime.html' %}
 </body>
 </html>

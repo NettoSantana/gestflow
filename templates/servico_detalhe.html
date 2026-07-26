@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\servico_detalhe.html
-Último recode: 2026-07-02 23:41 (America/Bahia)
-Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
+Último recode: 2026-07-26 13:51 (America/Bahia)
+Motivo: Exibir a duração usada automaticamente nos agendamentos do serviço.
 -->
 
 <!DOCTYPE html>
@@ -305,8 +305,8 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                 </div>
 
                 <div>
-                    <span>Tempo estimado</span>
-                    <strong>{{ servico.tempo_estimado or '-' }}</strong>
+                    <span>Duração do atendimento</span>
+                    <strong>{{ servico.tempo_estimado or '-' }}</strong><small style="display:block;margin-top:5px;color:#64748b;font-weight:700;">Período reservado automaticamente na agenda.</small>
                 </div>
 
                 <div>

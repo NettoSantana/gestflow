@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vitrine.html
-Último recode: 2026-07-26 09:25 (America/Bahia)
-Motivo: Corrigir os botões Remover da vitrine e Salvar como rascunho para enviar somente o status selecionado.
+Último recode: 2026-07-26 13:51 (America/Bahia)
+Motivo: Permitir publicar produtos ou serviços e integrar o botão Agendar este serviço.
 #}
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -16,7 +16,10 @@ Motivo: Corrigir os botões Remover da vitrine e Salvar como rascunho para envia
     {% set vitrine = vitrine or {} %}
     {% set produtos_vitrine = produtos_vitrine or [] %}
     {% set produtos_vitrine_admin = produtos_vitrine_admin or [] %}
+    {% set servicos_vitrine = servicos_vitrine or [] %}
+    {% set servicos_vitrine_admin = servicos_vitrine_admin or [] %}
     {% set ranking_vitrine = ranking_vitrine or [] %}
+    {% set ranking_servicos_vitrine = ranking_servicos_vitrine or [] %}
     {% set cor_principal = vitrine.get('cor_principal') or '#111827' %}
     {% set cor_secundaria = vitrine.get('cor_secundaria') or '#f59e0b' %}
     {% set status_vitrine = vitrine.get('status') or 'rascunho' %}
@@ -27,7 +30,7 @@ Motivo: Corrigir os botões Remover da vitrine e Salvar como rascunho para envia
             <div class="focus-mode-heading">
                 <span class="focus-mode-eyebrow">Modo foco</span>
                 <strong>Vitrine Online</strong>
-                <small>Gerencie sua loja sem distrações.</small>
+                <small>Gerencie produtos e serviços sem distrações.</small>
             </div>
             <button type="button" class="focus-mode-exit" onclick="sairModoFocoVitrine()" title="Voltar ao painel">
                 <span>← Voltar ao painel</span>
@@ -38,12 +41,13 @@ Motivo: Corrigir os botões Remover da vitrine e Salvar como rascunho para envia
         <header class="page-header">
             <div>
                 <p class="page-kicker">Vitrine Online</p>
-                <h1>Monte sua loja virtual para vender pelo WhatsApp</h1>
-                <p class="page-subtitle">Escolha um modelo, personalize as cores da loja, publique produtos e acompanhe os itens mais acessados.</p>
+                <h1>Monte sua vitrine para vender produtos e agendar serviços</h1>
+                <p class="page-subtitle">Escolha item por item: produtos entram no carrinho e serviços recebem foto, preço, duração e botão de agendamento.</p>
             </div>
             <div class="page-actions">
                 <a class="btn btn-secondary" href="#previa-publica">Ver prévia</a>
-                <a class="btn btn-primary" href="#produtos-vitrine">Adicionar produto</a>
+                <a class="btn btn-secondary" href="#produtos-vitrine">Publicar produto</a>
+                <a class="btn btn-primary" href="#servicos-vitrine">Publicar serviço</a>
             </div>
         </header>
 
@@ -154,12 +158,20 @@ Motivo: Corrigir os botões Remover da vitrine e Salvar como rascunho para envia
                         <strong>{{ vitrine.get('produtos_vistos') or 0 }}</strong>
                     </div>
                     <div class="metric-item">
+                        <span>Serviços vistos</span>
+                        <strong>{{ vitrine.get('servicos_vistos') or 0 }}</strong>
+                    </div>
+                    <div class="metric-item">
                         <span>Itens no carrinho</span>
                         <strong>{{ vitrine.get('itens_carrinho') or 0 }}</strong>
                     </div>
                     <div class="metric-item">
                         <span>Pedidos gerados</span>
                         <strong>{{ vitrine.get('pedidos_gerados') or 0 }}</strong>
+                    </div>
+                    <div class="metric-item">
+                        <span>Agendamentos da vitrine</span>
+                        <strong>{{ vitrine.get('agendamentos_gerados') or 0 }}</strong>
                     </div>
                 </div>
                 <p class="hint-text">Os números serão atualizados conforme os clientes acessarem a vitrine pública.</p>
@@ -322,6 +334,76 @@ Motivo: Corrigir os botões Remover da vitrine e Salvar como rascunho para envia
             </article>
         </section>
 
+        <section class="vitrine-grid" id="servicos-vitrine">
+            <article class="vitrine-card">
+                <div class="vitrine-card-header">
+                    <div>
+                        <p class="card-kicker">Catálogo com agenda</p>
+                        <h2>Serviços da vitrine</h2>
+                        <p class="hint-text">A duração vem do cadastro do serviço e define quais horários poderão ser oferecidos ao cliente.</p>
+                    </div>
+                    <a class="btn btn-primary" href="{{ url_for('servicos') }}">Cadastrar serviço</a>
+                </div>
+
+                {% if servicos_vitrine_admin %}
+                    <div class="product-admin-list">
+                        {% for servico in servicos_vitrine_admin %}
+                            <form class="product-admin-card service-admin-card" method="post" action="{{ url_for('vitrine_servico_publicar') }}" enctype="multipart/form-data">
+                                <input type="hidden" name="servico_id" value="{{ servico.get('servico_id') }}">
+                                <div class="product-admin-top">
+                                    <div>
+                                        <strong>{{ servico.get('nome') }}</strong>
+                                        <small>Código: {{ servico.get('codigo') or '-' }} | Duração: {{ servico.get('tempo_estimado') or '-' }} | Acessos: {{ servico.get('acessos') or 0 }} | Agendamentos: {{ servico.get('agendamentos') or 0 }}</small>
+                                    </div>
+                                    {% if servico.get('publicado') %}<span class="status-pill">Publicado</span>{% else %}<span class="status-pill status-rascunho">Fora da vitrine</span>{% endif %}
+                                </div>
+                                <div class="service-duration-banner">
+                                    <span>Duração usada na agenda</span>
+                                    <strong>{{ servico.get('tempo_estimado') or 'Não informada' }}</strong>
+                                    <small>Para alterar, edite o cadastro do serviço.</small>
+                                </div>
+                                <div class="form-grid-2 product-admin-fields">
+                                    <label>Nome na vitrine<input type="text" name="nome" value="{{ servico.get('nome') or '' }}"></label>
+                                    <label>Preço<input type="text" name="preco" value="{{ servico.get('preco') or '0,00' }}"></label>
+                                </div>
+                                <div class="form-grid-2 product-admin-fields">
+                                    <label>Categoria<input type="text" name="categoria" value="{{ servico.get('categoria') or 'Serviços' }}"></label>
+                                    <label>Foto do serviço<input type="file" name="imagem_servico" accept="image/*"></label>
+                                </div>
+                                <label class="product-admin-description">Descrição<textarea name="descricao" rows="3" placeholder="Explique o que será realizado">{{ servico.get('descricao') or '' }}</textarea></label>
+                                <div class="product-admin-actions">
+                                    <label class="inline-check"><input type="checkbox" name="destaque" value="sim" {% if servico.get('destaque') == 'sim' %}checked{% endif %}>Destaque</label>
+                                    <select name="status">
+                                        <option value="publicado" {% if servico.get('status') == 'publicado' %}selected{% endif %}>Publicado</option>
+                                        <option value="rascunho" {% if servico.get('status') == 'rascunho' %}selected{% endif %}>Rascunho</option>
+                                        <option value="oculto" {% if servico.get('status') == 'oculto' %}selected{% endif %}>Oculto</option>
+                                    </select>
+                                    <button class="btn btn-primary" type="submit">Salvar na vitrine</button>
+                                </div>
+                                {% if servico.get('publicado') %}
+                                    <div class="product-admin-status-actions">
+                                        <button class="btn btn-secondary btn-small" type="button" onclick="alterarStatusServicoVitrine(this,'oculto')">Remover da vitrine</button>
+                                        <button class="btn btn-secondary btn-small" type="button" onclick="alterarStatusServicoVitrine(this,'rascunho')">Salvar como rascunho</button>
+                                    </div>
+                                {% endif %}
+                            </form>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-state"><div class="empty-icon">◇</div><h3>Nenhum serviço cadastrado</h3><p>Cadastre o serviço e informe a duração para poder publicá-lo.</p><a class="btn btn-primary" href="{{ url_for('servicos') }}">Cadastrar serviço</a></div>
+                {% endif %}
+            </article>
+            <article class="vitrine-card">
+                <div class="vitrine-card-header"><div><p class="card-kicker">Conversão</p><h2>Serviços mais acessados</h2></div></div>
+                <div class="ranking-list">
+                    <div class="ranking-row muted"><span>Serviço</span><strong>Acessos / agendas</strong></div>
+                    {% if ranking_servicos_vitrine %}
+                        {% for item in ranking_servicos_vitrine %}<div class="ranking-row"><span>{{ item.get('nome') }}</span><strong>{{ item.get('acessos') or 0 }} / {{ item.get('agendamentos') or 0 }}</strong></div>{% endfor %}
+                    {% else %}<div class="ranking-row"><span>Aguardando acessos reais</span><strong>0 / 0</strong></div>{% endif %}
+                </div>
+            </article>
+        </section>
+
         <section class="vitrine-card" id="previa-publica">
             <div class="vitrine-card-header">
                 <div>
@@ -346,45 +428,28 @@ Motivo: Corrigir os botões Remover da vitrine e Salvar como rascunho para envia
                     </div>
                     <div>
                         <h3>{{ vitrine.get('nome_loja') or 'Sua loja online' }}</h3>
-                        <p>Produtos, promoções e pedido direto pelo WhatsApp.</p>
+                        <p>Produtos para venda e serviços com agendamento online.</p>
                     </div>
                 </div>
 
-                <div class="preview-search">Buscar produto...</div>
+                <div class="preview-search">Buscar produto ou serviço...</div>
 
                 <div class="preview-products">
-                    {% if produtos_vitrine %}
-                        {% for produto in produtos_vitrine[:6] %}
-                            <div class="preview-product-card">
-                                {% if produto.get('imagem_path') %}
-                                    <img class="preview-product-img real-img" src="{{ url_for('servir_upload_vitrine_publico', caminho=produto.get('imagem_path')) }}" alt="{{ produto.get('nome') }}">
-                                {% else %}
-                                    <div class="preview-product-img"></div>
-                                {% endif %}
-                                <strong>{{ produto.get('nome') }}</strong>
-                                <span>R$ {{ produto.get('preco') or '0,00' }}</span>
-                                <button type="button">Adicionar</button>
-                            </div>
-                        {% endfor %}
-                    {% else %}
+                    {% for produto in produtos_vitrine[:3] %}
                         <div class="preview-product-card">
-                            <div class="preview-product-img"></div>
-                            <strong>Produto destaque</strong>
-                            <span>R$ 0,00</span>
-                            <button type="button">Adicionar</button>
+                            {% if produto.get('imagem_path') %}<img class="preview-product-img real-img" src="{{ url_for('servir_upload_vitrine_publico', caminho=produto.get('imagem_path')) }}" alt="{{ produto.get('nome') }}">{% else %}<div class="preview-product-img"></div>{% endif %}
+                            <small>Produto</small><strong>{{ produto.get('nome') }}</strong><span>R$ {{ produto.get('preco') or '0,00' }}</span><button type="button">Adicionar</button>
                         </div>
-                        <div class="preview-product-card">
-                            <div class="preview-product-img"></div>
-                            <strong>Produto popular</strong>
-                            <span>R$ 0,00</span>
-                            <button type="button">Adicionar</button>
+                    {% endfor %}
+                    {% for servico in servicos_vitrine[:3] %}
+                        <div class="preview-product-card preview-service-card">
+                            {% if servico.get('imagem_path') %}<img class="preview-product-img real-img" src="{{ url_for('servir_upload_vitrine_publico', caminho=servico.get('imagem_path')) }}" alt="{{ servico.get('nome') }}">{% else %}<div class="preview-product-img service-image-placeholder">Serviço</div>{% endif %}
+                            <small>Serviço • {{ servico.get('tempo_estimado') }}</small><strong>{{ servico.get('nome') }}</strong><span>R$ {{ servico.get('preco') or '0,00' }}</span><button type="button">Agendar</button>
                         </div>
-                        <div class="preview-product-card">
-                            <div class="preview-product-img"></div>
-                            <strong>Promoção</strong>
-                            <span>R$ 0,00</span>
-                            <button type="button">Adicionar</button>
-                        </div>
+                    {% endfor %}
+                    {% if not produtos_vitrine and not servicos_vitrine %}
+                        <div class="preview-product-card"><div class="preview-product-img"></div><small>Produto</small><strong>Produto destaque</strong><span>R$ 0,00</span><button type="button">Adicionar</button></div>
+                        <div class="preview-product-card preview-service-card"><div class="preview-product-img service-image-placeholder">Serviço</div><small>Serviço • 1 hora</small><strong>Serviço destaque</strong><span>R$ 0,00</span><button type="button">Agendar</button></div>
                     {% endif %}
                 </div>
             </div>
@@ -398,13 +463,18 @@ Motivo: Corrigir os botões Remover da vitrine e Salvar como rascunho para envia
             function alterarStatusProdutoVitrine(botao, status) {
                 const formulario = botao.closest("form");
                 const campoStatus = formulario ? formulario.querySelector('select[name="status"]') : null;
-
-                if (!formulario || !campoStatus) {
-                    return;
-                }
-
+                if (!formulario || !campoStatus) return;
                 campoStatus.value = status;
                 formulario.action = "{{ url_for('vitrine_produto_status') }}";
+                formulario.submit();
+            }
+
+            function alterarStatusServicoVitrine(botao, status) {
+                const formulario = botao.closest("form");
+                const campoStatus = formulario ? formulario.querySelector('select[name="status"]') : null;
+                if (!formulario || !campoStatus) return;
+                campoStatus.value = status;
+                formulario.action = "{{ url_for('vitrine_servico_status') }}";
                 formulario.submit();
             }
 
@@ -560,7 +630,8 @@ Motivo: Corrigir os botões Remover da vitrine e Salvar como rascunho para envia
         }
 
         .vitrine-form,
-        .product-admin-card {
+        .product-admin-card,
+        .service-admin-card {
             display: grid;
             gap: 16px;
         }
@@ -580,7 +651,8 @@ Motivo: Corrigir os botões Remover da vitrine e Salvar como rascunho para envia
         }
 
         .vitrine-form label,
-        .product-admin-card label {
+        .product-admin-card label,
+        .service-admin-card label {
             display: grid;
             gap: 8px;
             color: #374151;
@@ -592,7 +664,8 @@ Motivo: Corrigir os botões Remover da vitrine e Salvar como rascunho para envia
         .vitrine-form select,
         .product-admin-card input,
         .product-admin-card select,
-        .product-admin-card textarea {
+        .product-admin-card textarea,
+        .service-admin-card textarea {
             width: 100%;
             min-height: 42px;
             border: 1px solid #d1d5db;
@@ -718,6 +791,15 @@ Motivo: Corrigir os botões Remover da vitrine e Salvar como rascunho para envia
             padding: 14px;
             background: #f9fafb;
         }
+
+        .service-admin-card { border-color:#bbf7d0; background:#f0fdf4; }
+        .service-duration-banner { display:grid;gap:4px;padding:12px;border:1px solid #bbf7d0;border-radius:14px;background:#fff; }
+        .service-duration-banner span,.service-duration-banner small { color:#166534;font-size:12px;font-weight:800; }
+        .service-duration-banner strong { color:#14532d;font-size:18px; }
+        .preview-service-card { border-color:#bbf7d0; }
+        .preview-service-card button { background:#16a34a; }
+        .service-image-placeholder { display:grid;place-items:center;color:#166534;font-weight:900;background:#dcfce7; }
+        .preview-product-card small { color:#64748b;font-size:11px;font-weight:900;text-transform:uppercase; }
 
         .product-admin-top,
         .product-admin-actions,
