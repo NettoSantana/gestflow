@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-26 13:51 (America/Bahia)
-# Motivo: Integrar serviços à Vitrine Online e calcular agendamentos pela duração cadastrada, com bloqueio de conflitos.
+# Último recode: 2026-07-26 15:40 (America/Bahia)
+# Motivo: Incluir serviços com valor a combinar, perguntas personalizadas e solicitação de avaliação pela Vitrine Online.
 
 from __future__ import annotations
 
@@ -52,6 +52,8 @@ CONTRATOS_ANEXOS_DIR = DATA_DIR / "uploads" / "contratos"
 CONTRATOS_ANEXOS_DIR.mkdir(parents=True, exist_ok=True)
 VITRINE_UPLOAD_DIR = DATA_DIR / "uploads" / "vitrines"
 VITRINE_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+AVALIACOES_SERVICOS_UPLOAD_DIR = VITRINE_UPLOAD_DIR / "avaliacoes"
+AVALIACOES_SERVICOS_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 EXTENSOES_LOGO_PERMITIDAS = {"png", "jpg", "jpeg", "webp", "gif", "jfif", "avif"}
 EXTENSOES_FOTO_OS_PERMITIDAS = {"png", "jpg", "jpeg", "jfif", "webp"}
 EXTENSOES_ANEXO_CONTRATO_PERMITIDAS = {"pdf", "png", "jpg", "jpeg", "webp", "doc", "docx"}
@@ -2391,6 +2393,7 @@ def iniciar_banco() -> None:
                 tempo_estimado_valor TEXT,
                 tempo_estimado_unidade TEXT DEFAULT 'horas',
                 tempo_estimado_minutos INTEGER DEFAULT 60,
+                tipo_contratacao TEXT NOT NULL DEFAULT 'valor_fixo',
                 status TEXT NOT NULL DEFAULT 'ativo',
                 observacoes TEXT,
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -3215,6 +3218,96 @@ def iniciar_banco() -> None:
 
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS servico_perguntas (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER NOT NULL,
+                servico_id INTEGER NOT NULL,
+                pergunta TEXT NOT NULL,
+                tipo_resposta TEXT NOT NULL DEFAULT 'texto',
+                opcoes_json TEXT,
+                obrigatoria TEXT NOT NULL DEFAULT 'sim',
+                ordem INTEGER NOT NULL DEFAULT 1,
+                status TEXT NOT NULL DEFAULT 'ativo',
+                criado_em TEXT DEFAULT CURRENT_TIMESTAMP,
+                atualizado_em TEXT,
+                FOREIGN KEY (empresa_id) REFERENCES empresas (id),
+                FOREIGN KEY (servico_id) REFERENCES servicos (id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_servico_perguntas_empresa_servico
+            ON servico_perguntas (empresa_id, servico_id, ordem, id)
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS solicitacoes_avaliacao (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER NOT NULL,
+                cliente_id INTEGER,
+                cliente_nome TEXT,
+                cliente_telefone TEXT,
+                servico_id INTEGER NOT NULL,
+                servico_nome TEXT,
+                status TEXT NOT NULL DEFAULT 'aguardando_avaliacao',
+                observacoes_cliente TEXT,
+                valor_definido TEXT,
+                duracao_valor TEXT,
+                duracao_unidade TEXT,
+                duracao_minutos INTEGER,
+                profissional_id INTEGER,
+                profissional_nome TEXT,
+                data_agendamento TEXT,
+                hora_inicio TEXT,
+                hora_fim TEXT,
+                origem TEXT NOT NULL DEFAULT 'vitrine_online',
+                token_publico_cliente TEXT,
+                agendamento_id INTEGER,
+                avaliado_por TEXT,
+                criado_em TEXT DEFAULT CURRENT_TIMESTAMP,
+                atualizado_em TEXT,
+                FOREIGN KEY (empresa_id) REFERENCES empresas (id),
+                FOREIGN KEY (servico_id) REFERENCES servicos (id),
+                FOREIGN KEY (agendamento_id) REFERENCES agendamentos (id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_solicitacoes_avaliacao_empresa_status
+            ON solicitacoes_avaliacao (empresa_id, status, criado_em, id)
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS solicitacao_avaliacao_respostas (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER NOT NULL,
+                solicitacao_id INTEGER NOT NULL,
+                pergunta_id INTEGER,
+                pergunta_texto TEXT NOT NULL,
+                tipo_resposta TEXT NOT NULL DEFAULT 'texto',
+                resposta_texto TEXT,
+                arquivo_path TEXT,
+                ordem INTEGER NOT NULL DEFAULT 1,
+                criado_em TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (empresa_id) REFERENCES empresas (id),
+                FOREIGN KEY (solicitacao_id) REFERENCES solicitacoes_avaliacao (id),
+                FOREIGN KEY (pergunta_id) REFERENCES servico_perguntas (id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_solicitacao_respostas_solicitacao
+            ON solicitacao_avaliacao_respostas (empresa_id, solicitacao_id, ordem, id)
+            """
+        )
+
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS vitrine_pedidos (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 empresa_id INTEGER NOT NULL,
@@ -3699,6 +3792,7 @@ def iniciar_banco() -> None:
                 "tempo_estimado_valor": "TEXT",
                 "tempo_estimado_unidade": "TEXT DEFAULT 'horas'",
                 "tempo_estimado_minutos": "INTEGER DEFAULT 60",
+                "tipo_contratacao": "TEXT NOT NULL DEFAULT 'valor_fixo'",
                 "status": "TEXT DEFAULT 'ativo'",
                 "observacoes": "TEXT",
                 "criado_em": "TEXT",
@@ -4494,8 +4588,8 @@ CADASTROS_PAGINADOS = {
     },
     "servicos": {
         "tabela": "servicos",
-        "colunas": ["id", "empresa_id", "nome", "codigo", "categoria", "unidade", "custo", "valor_venda", "tempo_estimado", "status", "observacoes", "criado_em"],
-        "busca": ["nome", "codigo", "categoria", "unidade", "status"],
+        "colunas": ["id", "empresa_id", "nome", "codigo", "categoria", "unidade", "custo", "valor_venda", "tempo_estimado", "tipo_contratacao", "status", "observacoes", "criado_em"],
+        "busca": ["nome", "codigo", "categoria", "unidade", "tipo_contratacao", "status"],
         "ordenacao": {
             "id": "id",
             "nome": "nome",
@@ -5243,6 +5337,7 @@ def listar_vinculos_exclusao_cadastro(
     tabela_alvo: str,
     registro_id: int,
     empresa_id: int,
+    tabelas_ignoradas: set[str] | None = None,
 ) -> list[str]:
     tabelas = conn.execute(
         """
@@ -5255,10 +5350,11 @@ def listar_vinculos_exclusao_cadastro(
     ).fetchall()
     colunas_convencionais = COLUNAS_VINCULOS_EXCLUSAO.get(tabela_alvo, set())
     vinculos: list[str] = []
+    ignoradas = set(tabelas_ignoradas or set())
 
     for tabela_row in tabelas:
         tabela = str(tabela_row["name"] or "").strip()
-        if not tabela or tabela == tabela_alvo or not re.fullmatch(r"[A-Za-z0-9_]+", tabela):
+        if not tabela or tabela == tabela_alvo or tabela in ignoradas or not re.fullmatch(r"[A-Za-z0-9_]+", tabela):
             continue
 
         colunas_info = conn.execute(f'PRAGMA table_info("{tabela}")').fetchall()
@@ -7506,38 +7602,153 @@ def devolver_estoque_por_venda_db(
         salvar_estoque_movimentacao_db(movimentacao)
 
 
-def salvar_servico_db(servico: dict[str, str]) -> None:
+TIPOS_CONTRATACAO_SERVICO = {"valor_fixo", "a_combinar"}
+TIPOS_RESPOSTA_PERGUNTA_SERVICO = {"texto", "numero", "sim_nao", "opcoes", "endereco", "foto"}
+SOLICITACOES_AVALIACAO_STATUS = (
+    "aguardando_avaliacao", "em_analise", "avaliada", "agendada", "cancelada"
+)
+
+
+def normalizar_tipo_contratacao_servico(valor: Any) -> str:
+    texto = str(valor or "").strip().lower()
+    return texto if texto in TIPOS_CONTRATACAO_SERVICO else "valor_fixo"
+
+
+def listar_perguntas_servico(
+    servico_id: int,
+    empresa_id: int | None = None,
+    apenas_ativas: bool = True,
+) -> list[dict[str, Any]]:
+    empresa = int(empresa_id or empresa_logada_id())
+    filtro_status = " AND status = 'ativo'" if apenas_ativas else ""
+    with conectar_db() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT *
+            FROM servico_perguntas
+            WHERE empresa_id = ? AND servico_id = ?{filtro_status}
+            ORDER BY ordem ASC, id ASC
+            """,
+            (empresa, int(servico_id)),
+        ).fetchall()
+    perguntas: list[dict[str, Any]] = []
+    for row in rows:
+        item = dict(row)
+        try:
+            opcoes = json.loads(str(item.get("opcoes_json") or "[]"))
+        except json.JSONDecodeError:
+            opcoes = []
+        item["opcoes"] = [str(opcao).strip() for opcao in opcoes if str(opcao).strip()] if isinstance(opcoes, list) else []
+        perguntas.append(item)
+    return perguntas
+
+
+def montar_perguntas_servico_formulario() -> tuple[list[dict[str, Any]], str]:
+    bruto = str(request.form.get("servico_perguntas_json") or "[]").strip()
+    try:
+        itens = json.loads(bruto)
+    except json.JSONDecodeError:
+        return [], "Não foi possível interpretar as perguntas do serviço."
+    if not isinstance(itens, list):
+        return [], "A lista de perguntas do serviço é inválida."
+    perguntas: list[dict[str, Any]] = []
+    for indice, item in enumerate(itens, start=1):
+        if not isinstance(item, dict):
+            continue
+        pergunta = str(item.get("pergunta") or "").strip()
+        if not pergunta:
+            continue
+        tipo = str(item.get("tipo_resposta") or "texto").strip().lower()
+        if tipo not in TIPOS_RESPOSTA_PERGUNTA_SERVICO:
+            tipo = "texto"
+        opcoes_brutas = item.get("opcoes") or []
+        if isinstance(opcoes_brutas, str):
+            opcoes = [parte.strip() for parte in re.split(r"[\n;|]+", opcoes_brutas) if parte.strip()]
+        elif isinstance(opcoes_brutas, list):
+            opcoes = [str(parte).strip() for parte in opcoes_brutas if str(parte).strip()]
+        else:
+            opcoes = []
+        if tipo == "opcoes" and len(opcoes) < 2:
+            return [], f'A pergunta "{pergunta}" precisa ter pelo menos duas opções.'
+        perguntas.append({
+            "pergunta": pergunta,
+            "tipo_resposta": tipo,
+            "opcoes": opcoes,
+            "obrigatoria": "sim" if str(item.get("obrigatoria") or "sim").lower() in {"sim", "true", "1", "on"} else "nao",
+            "ordem": indice,
+        })
+    return perguntas, ""
+
+
+def salvar_perguntas_servico_conn(
+    conn: sqlite3.Connection,
+    empresa_id: int,
+    servico_id: int,
+    perguntas: list[dict[str, Any]],
+) -> None:
+    conn.execute(
+        "DELETE FROM servico_perguntas WHERE empresa_id = ? AND servico_id = ?",
+        (empresa_id, servico_id),
+    )
+    agora = agora_empresa().isoformat(timespec="seconds")
+    for indice, pergunta in enumerate(perguntas, start=1):
+        conn.execute(
+            """
+            INSERT INTO servico_perguntas (
+                empresa_id, servico_id, pergunta, tipo_resposta, opcoes_json,
+                obrigatoria, ordem, status, atualizado_em
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, 'ativo', ?)
+            """,
+            (
+                empresa_id, servico_id, str(pergunta.get("pergunta") or "").strip(),
+                str(pergunta.get("tipo_resposta") or "texto").strip(),
+                json.dumps(pergunta.get("opcoes") or [], ensure_ascii=False),
+                "sim" if str(pergunta.get("obrigatoria") or "sim") == "sim" else "nao",
+                int(pergunta.get("ordem") or indice), agora,
+            ),
+        )
+
+
+def salvar_servico_db(
+    servico: dict[str, str],
+    perguntas: list[dict[str, Any]] | None = None,
+) -> int:
     empresa_id = empresa_logada_id()
     with conectar_db() as conn:
-        conn.execute(
+        cursor = conn.execute(
             """
             INSERT INTO servicos (
                 empresa_id, nome, codigo, categoria, unidade, custo, valor_venda,
                 tempo_estimado, tempo_estimado_valor, tempo_estimado_unidade,
-                tempo_estimado_minutos, status, observacoes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                tempo_estimado_minutos, tipo_contratacao, status, observacoes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id, servico["nome"], servico["codigo"], servico["categoria"],
                 servico["unidade"], servico["custo"], servico["valor_venda"],
                 servico["tempo_estimado"], servico["tempo_estimado_valor"],
                 servico["tempo_estimado_unidade"], int(servico["tempo_estimado_minutos"]),
-                servico["status"], servico["observacoes"],
+                servico["tipo_contratacao"], servico["status"], servico["observacoes"],
             ),
         )
+        servico_id = int(cursor.lastrowid)
+        if perguntas is not None:
+            salvar_perguntas_servico_conn(conn, empresa_id, servico_id, perguntas)
         conn.commit()
+    return servico_id
 
 def listar_servicos() -> list[dict[str, Any]]:
     empresa_id = empresa_logada_id()
     with conectar_db() as conn:
         rows = conn.execute(
             """
-            SELECT id, empresa_id, nome, codigo, categoria, unidade, custo, valor_venda,
-                   tempo_estimado, tempo_estimado_valor, tempo_estimado_unidade,
-                   tempo_estimado_minutos, status, observacoes, criado_em
-            FROM servicos
-            WHERE empresa_id = ?
-            ORDER BY id DESC
+            SELECT s.*,
+                   (SELECT COUNT(*) FROM servico_perguntas p
+                    WHERE p.empresa_id = s.empresa_id AND p.servico_id = s.id AND p.status = 'ativo')
+                   AS perguntas_quantidade
+            FROM servicos s
+            WHERE s.empresa_id = ?
+            ORDER BY s.id DESC
             """,
             (empresa_id,),
         ).fetchall()
@@ -7546,7 +7757,11 @@ def listar_servicos() -> list[dict[str, Any]]:
 def buscar_servico_por_id(servico_id: int) -> dict[str, Any] | None:
     return buscar_servico_empresa(empresa_logada_id(), servico_id)
 
-def atualizar_servico_db(servico_id: int, servico: dict[str, str]) -> None:
+def atualizar_servico_db(
+    servico_id: int,
+    servico: dict[str, str],
+    perguntas: list[dict[str, Any]] | None = None,
+) -> None:
     empresa_id = empresa_logada_id()
     with conectar_db() as conn:
         conn.execute(
@@ -7554,21 +7769,50 @@ def atualizar_servico_db(servico_id: int, servico: dict[str, str]) -> None:
             UPDATE servicos
             SET nome = ?, codigo = ?, categoria = ?, unidade = ?, custo = ?, valor_venda = ?,
                 tempo_estimado = ?, tempo_estimado_valor = ?, tempo_estimado_unidade = ?,
-                tempo_estimado_minutos = ?, status = ?, observacoes = ?
+                tempo_estimado_minutos = ?, tipo_contratacao = ?, status = ?, observacoes = ?
             WHERE id = ? AND empresa_id = ?
             """,
             (
                 servico["nome"], servico["codigo"], servico["categoria"], servico["unidade"],
                 servico["custo"], servico["valor_venda"], servico["tempo_estimado"],
                 servico["tempo_estimado_valor"], servico["tempo_estimado_unidade"],
-                int(servico["tempo_estimado_minutos"]), servico["status"],
-                servico["observacoes"], servico_id, empresa_id,
+                int(servico["tempo_estimado_minutos"]), servico["tipo_contratacao"],
+                servico["status"], servico["observacoes"], servico_id, empresa_id,
             ),
         )
+        if perguntas is not None:
+            salvar_perguntas_servico_conn(conn, empresa_id, servico_id, perguntas)
         conn.commit()
 
 def excluir_servico_db(servico_id: int) -> tuple[bool, str]:
-    return excluir_cadastro_sem_vinculos("servicos", servico_id, "serviço")
+    empresa_id = empresa_logada_id()
+    with conectar_db() as conn:
+        registro = conn.execute(
+            "SELECT id FROM servicos WHERE id = ? AND empresa_id = ?",
+            (int(servico_id), empresa_id),
+        ).fetchone()
+        if registro is None:
+            return False, "Serviço não encontrado."
+        vinculos = listar_vinculos_exclusao_cadastro(
+            conn, "servicos", int(servico_id), empresa_id,
+            tabelas_ignoradas={"servico_perguntas"},
+        )
+        if vinculos:
+            detalhes = "; ".join(vinculos[:8])
+            return False, (
+                "Este serviço está vinculado a outros registros e não pode ser excluído. "
+                f"Vínculos encontrados: {detalhes}."
+            )
+        conn.execute(
+            "DELETE FROM servico_perguntas WHERE servico_id = ? AND empresa_id = ?",
+            (int(servico_id), empresa_id),
+        )
+        cursor = conn.execute(
+            "DELETE FROM servicos WHERE id = ? AND empresa_id = ?",
+            (int(servico_id), empresa_id),
+        )
+        conn.commit()
+    return (True, "Serviço excluído definitivamente.") if cursor.rowcount > 0 else (False, "Não foi possível excluir este serviço.")
 
 def listar_centros_custo(apenas_ativos: bool = True) -> list[dict[str, Any]]:
     consulta = "SELECT * FROM centros_custo WHERE empresa_id = ?"
@@ -17253,6 +17497,7 @@ RESET_BASE_ADMIN_FRASE_GERAL = "RESETAR TUDO"
 # Cadastros e personalizações removidos somente pelo reset geral.
 # Empresa, usuários, plano, módulos, permissões e configurações técnicas são preservados.
 RESET_BASE_GERAL_TABELAS_CADASTRAIS = (
+    "servico_perguntas",
     "vitrine_servicos",
     "vitrine_produtos",
     "vitrine_configuracoes",
@@ -17315,6 +17560,8 @@ RESET_BASE_DEV_TABELAS_TRANSACIONAIS = (
     "vitrine_pedido_itens",
     "vitrine_pedidos",
     "vitrine_eventos",
+    "solicitacao_avaliacao_respostas",
+    "solicitacoes_avaliacao",
     "agendamentos",
     "registros_ponto",
     "assistente_conversas",
@@ -17351,6 +17598,7 @@ RESET_BASE_DEV_RELACOES_LEGADAS = {
     "produto_producao_consumos": ("producao_id", "produto_producoes"),
     "financeiro_titulo_historico": ("titulo_id", "financeiro_titulos"),
     "vitrine_pedido_itens": ("pedido_id", "vitrine_pedidos"),
+    "solicitacao_avaliacao_respostas": ("solicitacao_id", "solicitacoes_avaliacao"),
 }
 
 
@@ -17424,6 +17672,7 @@ def _coletar_arquivos_reset_empresa(
         "os_fotos_equipamento": ("foto_antes_path", "foto_depois_path"),
         "contrato_anexos": ("caminho",),
         "emprestimo_anexos": ("caminho",),
+        "solicitacao_avaliacao_respostas": ("arquivo_path",),
     }
     if incluir_cadastros:
         especificacoes.update({
@@ -20943,7 +21192,7 @@ def ajustar_ponto_db() -> tuple[bool, str]:
                 INSERT INTO registros_ponto (
                     empresa_id, funcionario_id, funcionario_nome, data_ponto, entrada, saida_intervalo,
                     retorno_intervalo, saida, total_trabalhado, status, observacoes, ajustado_por, atualizado_em
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (empresa_logada_id(), int(funcionario_id_texto), funcionario["nome"], data_ponto, entrada, saida_intervalo, retorno_intervalo, saida, total, status, observacoes, session.get("usuario_nome") or "Administrador", agora_empresa().isoformat(timespec="seconds")),
             )
@@ -23063,7 +23312,11 @@ def listar_servicos_vitrine_empresa(empresa_id: int) -> list[dict[str, Any]]:
         rows = conn.execute(
             """
             SELECT vs.*, s.tempo_estimado, s.tempo_estimado_valor,
-                   s.tempo_estimado_unidade, s.tempo_estimado_minutos
+                   s.tempo_estimado_unidade, s.tempo_estimado_minutos,
+                   s.tipo_contratacao,
+                   (SELECT COUNT(*) FROM servico_perguntas p
+                    WHERE p.empresa_id = s.empresa_id AND p.servico_id = s.id AND p.status = 'ativo')
+                   AS perguntas_quantidade
             FROM vitrine_servicos vs
             JOIN servicos s ON s.id = vs.servico_id AND s.empresa_id = vs.empresa_id
             WHERE vs.empresa_id = ?
@@ -23085,7 +23338,10 @@ def listar_servicos_vitrine_admin(empresa_id: int) -> list[dict[str, Any]]:
                    s.categoria AS servico_categoria, s.valor_venda AS servico_valor_venda,
                    s.observacoes AS servico_observacoes, s.status AS servico_status,
                    s.tempo_estimado, s.tempo_estimado_valor, s.tempo_estimado_unidade,
-                   s.tempo_estimado_minutos, vs.id AS vitrine_id, vs.nome AS vitrine_nome,
+                   s.tempo_estimado_minutos, s.tipo_contratacao,
+                   (SELECT COUNT(*) FROM servico_perguntas p
+                    WHERE p.empresa_id = s.empresa_id AND p.servico_id = s.id AND p.status = 'ativo')
+                   AS perguntas_quantidade, vs.id AS vitrine_id, vs.nome AS vitrine_nome,
                    vs.descricao AS vitrine_descricao, vs.categoria AS vitrine_categoria,
                    vs.preco AS vitrine_preco, vs.imagem_path AS vitrine_imagem_path,
                    vs.destaque AS vitrine_destaque, vs.status AS vitrine_status,
@@ -23118,6 +23374,8 @@ def listar_servicos_vitrine_admin(empresa_id: int) -> list[dict[str, Any]]:
             "tempo_estimado_valor": str(item.get("tempo_estimado_valor") or ""),
             "tempo_estimado_unidade": str(item.get("tempo_estimado_unidade") or "horas"),
             "tempo_estimado_minutos": int(item.get("tempo_estimado_minutos") or 60),
+            "tipo_contratacao": normalizar_tipo_contratacao_servico(item.get("tipo_contratacao")),
+            "perguntas_quantidade": int(item.get("perguntas_quantidade") or 0),
             "acessos": int(item.get("acessos") or 0),
             "agendamentos": int(item.get("agendamentos") or 0),
         })
@@ -23551,15 +23809,23 @@ def renderizar_vitrine_publica_html(
             categoria_raw = str(servico.get("categoria") or "Serviços").strip() or "Serviços"
             categoria_item = html.escape(categoria_raw)
             categorias_itens.add(categoria_raw)
+            tipo_contratacao = normalizar_tipo_contratacao_servico(servico.get("tipo_contratacao"))
             preco = html.escape(str(servico.get("preco") or "0,00"))
             duracao = html.escape(str(servico.get("tempo_estimado") or ""))
             imagem_path = str(servico.get("imagem_path") or "").strip()
             imagem_html = f'<img src="/vitrine-upload/{html.escape(imagem_path)}" alt="{nome}">' if imagem_path else '<span>Serviço</span>'
-            preco_html = f"<strong>R$ {preco}</strong>" if exibir_preco else "<strong>Consulte o valor</strong>"
+            if tipo_contratacao == "a_combinar":
+                preco_html = "<strong>Valor a combinar</strong>"
+                duracao_html = '<span class="duracao">Duração definida após avaliação</span>'
+                texto_acao = "Solicitar avaliação"
+            else:
+                preco_html = f"<strong>R$ {preco}</strong>" if exibir_preco else "<strong>Consulte o valor</strong>"
+                duracao_html = f'<span class="duracao">Duração: {duracao or "A combinar"}</span>'
+                texto_acao = "Agendar este serviço"
             agenda_url = f"/agendar/{urllib.parse.quote(codigo_agenda)}?servico_id={servico_id}&origem=vitrine_online"
             cards.append(f"""<article class="catalogo-card servico-card" data-tipo="servico" data-categoria="{categoria_item}" data-nome="{html.escape(nome_raw.lower())}">
 <a class="item-imagem" href="{agenda_url}" onclick="registrarItem('servico',{servico_id})">{imagem_html}</a>
-<div class="item-info"><small>Serviço • {categoria_item}</small><h3>{nome}</h3><p>{descricao}</p><span class="duracao">Duração: {duracao or 'A combinar'}</span>{preco_html}<a class="agendar" href="{agenda_url}" onclick="registrarItem('servico',{servico_id})">Agendar este serviço</a></div></article>""")
+<div class="item-info"><small>Serviço • {categoria_item}</small><h3>{nome}</h3><p>{descricao}</p>{duracao_html}{preco_html}<a class="agendar" href="{agenda_url}" onclick="registrarItem('servico',{servico_id})">{texto_acao}</a></div></article>""")
 
     categorias_html = "".join(
         f'<button type="button" onclick="filtrarCategoria({json.dumps(cat, ensure_ascii=False)})">{html.escape(cat)}</button>'
@@ -23721,7 +23987,10 @@ def vitrine_servico_publicar() -> Response:
         "nome": request.form.get("nome") or servico.get("nome") or "",
         "descricao": request.form.get("descricao") or servico.get("observacoes") or "",
         "categoria": request.form.get("categoria") or servico.get("categoria") or "Serviços",
-        "preco": request.form.get("preco") or servico.get("valor_venda") or "0,00",
+        "preco": (
+            "" if normalizar_tipo_contratacao_servico(servico.get("tipo_contratacao")) == "a_combinar"
+            else request.form.get("preco") or servico.get("valor_venda") or "0,00"
+        ),
         "imagem_path": salvar_imagem_servico_vitrine_upload(servico_id),
         "destaque": "sim" if request.form.get("destaque") == "sim" else "nao",
         "status": request.form.get("status") or "publicado",
@@ -25857,6 +26126,9 @@ def duracao_efetiva_servico_minutos(servico: dict[str, Any] | None, empresa_id: 
 
 def normalizar_servico_para_salvar(servico: dict[str, str]) -> dict[str, str]:
     servico_normalizado = dict(servico)
+    servico_normalizado["tipo_contratacao"] = normalizar_tipo_contratacao_servico(
+        servico_normalizado.get("tipo_contratacao")
+    )
 
     if not servico_normalizado.get("codigo") and configuracao_bool("servicos", "codigo_automatico", True):
         servico_normalizado["codigo"] = proximo_codigo_cadastro_configurado("servicos", "servicos", "SERV")
@@ -25875,8 +26147,11 @@ def normalizar_servico_para_salvar(servico: dict[str, str]) -> dict[str, str]:
     servico_normalizado["tempo_estimado_minutos"] = str(minutos_duracao)
     servico_normalizado["tempo_estimado"] = formatar_duracao_servico(valor_duracao, unidade_duracao)
 
-    if not servico_normalizado.get("valor_venda"):
-        servico_normalizado["valor_venda"] = str(valor_configuracao_modulo("servicos", "valor_padrao", 0) or 0)
+    if servico_normalizado["tipo_contratacao"] == "valor_fixo":
+        if not servico_normalizado.get("valor_venda"):
+            servico_normalizado["valor_venda"] = str(valor_configuracao_modulo("servicos", "valor_padrao", 0) or 0)
+    elif not servico_normalizado.get("valor_venda"):
+        servico_normalizado["valor_venda"] = "0,00"
 
     if not servico_normalizado.get("custo"):
         servico_normalizado["custo"] = str(valor_configuracao_modulo("servicos", "custo_estimado_padrao", 0) or 0)
@@ -25895,8 +26170,8 @@ def validar_servico_para_salvar(servico: dict[str, str]) -> str:
         return "Informe o nome do serviço."
     if not servico.get("unidade"):
         return "Selecione a unidade do serviço."
-    if not _valor_formulario_positivo(servico.get("valor_venda")):
-        return "Informe o valor de venda do serviço."
+    if normalizar_tipo_contratacao_servico(servico.get("tipo_contratacao")) == "valor_fixo" and not _valor_formulario_positivo(servico.get("valor_venda")):
+        return "Informe o valor de venda do serviço com valor fixo."
     if _numero_duracao_servico(servico.get("tempo_estimado_valor")) <= 0:
         return "Informe a duração estimada do serviço."
     if normalizar_unidade_duracao_servico(servico.get("tempo_estimado_unidade")) == "dias" and _numero_duracao_servico(servico.get("tempo_estimado_valor")) > 1:
@@ -26358,17 +26633,22 @@ def salvar_servico() -> Response:
         "tempo_estimado": "",
         "tempo_estimado_valor": (request.form.get("servico_tempo_estimado_valor") or "").strip(),
         "tempo_estimado_unidade": (request.form.get("servico_tempo_estimado_unidade") or "horas").strip(),
+        "tipo_contratacao": (request.form.get("servico_tipo_contratacao") or "valor_fixo").strip(),
         "status": (request.form.get("servico_status") or "ativo").strip() or "ativo",
         "observacoes": (request.form.get("servico_observacoes") or "").strip(),
     }
 
+    perguntas, erro_perguntas = montar_perguntas_servico_formulario()
     servico = normalizar_servico_para_salvar(servico)
     erro_validacao = validar_servico_para_salvar(servico)
+    if not erro_validacao and servico["tipo_contratacao"] == "a_combinar" and not perguntas:
+        erro_validacao = "Adicione pelo menos uma pergunta para o serviço com valor a combinar."
+    erro_validacao = erro_validacao or erro_perguntas
 
     if erro_validacao:
         return redirect(url_for("servicos", erro=erro_validacao))
 
-    salvar_servico_db(servico)
+    salvar_servico_db(servico, perguntas)
     registrar_atividade_usuario("criacao", "servicos", f"Criou serviço {servico['nome']}", request.path)
 
     return redirect(url_for("servicos"))
@@ -26395,6 +26675,7 @@ def salvar_servico_rapido() -> Response:
         "tempo_estimado": "",
         "tempo_estimado_valor": "1",
         "tempo_estimado_unidade": "horas",
+        "tipo_contratacao": "valor_fixo",
         "status": "ativo",
         "observacoes": observacoes,
     }
@@ -26422,9 +26703,10 @@ def salvar_servico_rapido() -> Response:
                 tempo_estimado_valor,
                 tempo_estimado_unidade,
                 tempo_estimado_minutos,
+                tipo_contratacao,
                 status,
                 observacoes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id,
@@ -26438,6 +26720,7 @@ def salvar_servico_rapido() -> Response:
                 servico["tempo_estimado_valor"],
                 servico["tempo_estimado_unidade"],
                 int(servico["tempo_estimado_minutos"]),
+                servico["tipo_contratacao"],
                 servico["status"],
                 servico["observacoes"],
             ),
@@ -26556,7 +26839,11 @@ def ver_servico(servico_id: int) -> str | Response:
     if servico is None:
         return redirect(url_for("servicos"))
 
-    return render_template("servico_detalhe.html", servico=servico)
+    return render_template(
+        "servico_detalhe.html",
+        servico=servico,
+        perguntas=listar_perguntas_servico(servico_id, apenas_ativas=False),
+    )
 
 
 @app.get("/servicos/<int:servico_id>/editar")
@@ -26566,7 +26853,11 @@ def editar_servico(servico_id: int) -> str | Response:
     if servico is None:
         return redirect(url_for("servicos"))
 
-    return render_template("servico_editar.html", servico=servico)
+    return render_template(
+        "servico_editar.html",
+        servico=servico,
+        perguntas=listar_perguntas_servico(servico_id, apenas_ativas=False),
+    )
 
 
 @app.post("/servicos/<int:servico_id>/editar")
@@ -26586,17 +26877,22 @@ def atualizar_servico(servico_id: int) -> Response:
         "tempo_estimado": "",
         "tempo_estimado_valor": (request.form.get("servico_tempo_estimado_valor") or "").strip(),
         "tempo_estimado_unidade": (request.form.get("servico_tempo_estimado_unidade") or "horas").strip(),
+        "tipo_contratacao": (request.form.get("servico_tipo_contratacao") or "valor_fixo").strip(),
         "status": (request.form.get("servico_status") or "ativo").strip() or "ativo",
         "observacoes": (request.form.get("servico_observacoes") or "").strip(),
     }
 
+    perguntas, erro_perguntas = montar_perguntas_servico_formulario()
     servico = normalizar_servico_para_salvar(servico)
     erro_validacao = validar_servico_para_salvar(servico)
+    if not erro_validacao and servico["tipo_contratacao"] == "a_combinar" and not perguntas:
+        erro_validacao = "Adicione pelo menos uma pergunta para o serviço com valor a combinar."
+    erro_validacao = erro_validacao or erro_perguntas
 
     if erro_validacao:
         return redirect(url_for("editar_servico", servico_id=servico_id, erro=erro_validacao))
 
-    atualizar_servico_db(servico_id, servico)
+    atualizar_servico_db(servico_id, servico, perguntas)
 
     return redirect(url_for("ver_servico", servico_id=servico_id))
 
@@ -29792,6 +30088,194 @@ def excluir_orcamento(orcamento_id: int) -> Response:
 
 
 
+def _respostas_solicitacao_avaliacao(
+    solicitacao_id: int,
+    empresa_id: int | None = None,
+) -> list[dict[str, Any]]:
+    empresa = int(empresa_id or empresa_logada_id())
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT * FROM solicitacao_avaliacao_respostas
+            WHERE empresa_id = ? AND solicitacao_id = ?
+            ORDER BY ordem ASC, id ASC
+            """,
+            (empresa, int(solicitacao_id)),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def listar_solicitacoes_avaliacao(
+    status: Any = "",
+    empresa_id: int | None = None,
+) -> list[dict[str, Any]]:
+    empresa = int(empresa_id or empresa_logada_id())
+    status_texto = str(status or "").strip()
+    parametros: list[Any] = [empresa]
+    filtro = ""
+    if status_texto:
+        filtro = " AND status = ?"
+        parametros.append(status_texto)
+    with conectar_db() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT * FROM solicitacoes_avaliacao
+            WHERE empresa_id = ?{filtro}
+            ORDER BY
+                CASE status
+                    WHEN 'aguardando_avaliacao' THEN 0
+                    WHEN 'em_analise' THEN 1
+                    WHEN 'avaliada' THEN 2
+                    WHEN 'agendada' THEN 3
+                    ELSE 4
+                END,
+                id DESC
+            """,
+            parametros,
+        ).fetchall()
+    solicitacoes: list[dict[str, Any]] = []
+    for row in rows:
+        item = dict(row)
+        item["respostas"] = _respostas_solicitacao_avaliacao(int(item["id"]), empresa)
+        solicitacoes.append(item)
+    return solicitacoes
+
+
+def buscar_solicitacao_avaliacao(solicitacao_id: int) -> dict[str, Any] | None:
+    empresa = empresa_logada_id()
+    with conectar_db() as conn:
+        row = conn.execute(
+            "SELECT * FROM solicitacoes_avaliacao WHERE id = ? AND empresa_id = ? LIMIT 1",
+            (int(solicitacao_id), empresa),
+        ).fetchone()
+    if row is None:
+        return None
+    item = dict(row)
+    item["respostas"] = _respostas_solicitacao_avaliacao(int(solicitacao_id), empresa)
+    return item
+
+
+def _salvar_foto_resposta_avaliacao(
+    arquivo: Any,
+    empresa_id: int,
+    solicitacao_id: int,
+    pergunta_id: int,
+) -> str:
+    if arquivo is None or not getattr(arquivo, "filename", ""):
+        return ""
+    if not extensao_arquivo_permitida(arquivo.filename, EXTENSOES_FOTO_VITRINE_PERMITIDAS):
+        return ""
+    nome_seguro = secure_filename(arquivo.filename)
+    extensao = nome_seguro.rsplit(".", 1)[-1].lower()
+    nome_final = (
+        f"avaliacao_{empresa_id}_{solicitacao_id}_{pergunta_id}_"
+        f"{int(datetime.now().timestamp())}_{secrets.token_hex(4)}.{extensao}"
+    )
+    caminho_final = AVALIACOES_SERVICOS_UPLOAD_DIR / nome_final
+    arquivo.save(caminho_final)
+    return f"uploads/vitrines/avaliacoes/{nome_final}"
+
+
+def salvar_solicitacao_avaliacao_publica(
+    empresa_id: int,
+    cliente: dict[str, Any],
+    servico: dict[str, Any],
+    observacoes_cliente: str,
+    origem: str,
+) -> tuple[int | None, str]:
+    perguntas = listar_perguntas_servico(int(servico.get("id") or 0), empresa_id)
+    if not perguntas:
+        return None, "Este serviço ainda não possui perguntas para avaliação."
+    respostas_preparadas: list[dict[str, Any]] = []
+    for pergunta in perguntas:
+        pergunta_id = int(pergunta.get("id") or 0)
+        tipo = str(pergunta.get("tipo_resposta") or "texto")
+        obrigatoria = str(pergunta.get("obrigatoria") or "sim") == "sim"
+        campo = f"resposta_{pergunta_id}"
+        if tipo == "foto":
+            arquivos = [arquivo for arquivo in request.files.getlist(f"resposta_foto_{pergunta_id}") if getattr(arquivo, "filename", "")]
+            if obrigatoria and not arquivos:
+                return None, f'Responda a pergunta obrigatória: "{pergunta.get("pergunta")}".'
+            respostas_preparadas.append({"pergunta": pergunta, "arquivos": arquivos[:5], "resposta": ""})
+            continue
+        resposta = str(request.form.get(campo) or "").strip()
+        if obrigatoria and not resposta:
+            return None, f'Responda a pergunta obrigatória: "{pergunta.get("pergunta")}".'
+        if tipo == "opcoes" and resposta and resposta not in (pergunta.get("opcoes") or []):
+            return None, f'A resposta da pergunta "{pergunta.get("pergunta")}" é inválida.'
+        respostas_preparadas.append({"pergunta": pergunta, "arquivos": [], "resposta": resposta})
+
+    arquivos_salvos: list[Path] = []
+    try:
+        with conectar_db() as conn:
+            cursor = conn.execute(
+                """
+                INSERT INTO solicitacoes_avaliacao (
+                    empresa_id, cliente_id, cliente_nome, cliente_telefone,
+                    servico_id, servico_nome, status, observacoes_cliente,
+                    origem, token_publico_cliente, atualizado_em
+                ) VALUES (?, ?, ?, ?, ?, ?, 'aguardando_avaliacao', ?, ?, ?, ?)
+                """,
+                (
+                    empresa_id, int(cliente.get("id") or 0), str(cliente.get("nome") or ""),
+                    str(cliente.get("telefone") or ""), int(servico.get("id") or 0),
+                    str(servico.get("nome") or ""), str(observacoes_cliente or "").strip(),
+                    origem, str(cliente.get("token_publico") or ""),
+                    agora_empresa().isoformat(timespec="seconds"),
+                ),
+            )
+            solicitacao_id = int(cursor.lastrowid)
+            for item in respostas_preparadas:
+                pergunta = item["pergunta"]
+                arquivos = item["arquivos"]
+                if arquivos:
+                    for arquivo in arquivos:
+                        caminho = _salvar_foto_resposta_avaliacao(
+                            arquivo, empresa_id, solicitacao_id, int(pergunta.get("id") or 0)
+                        )
+                        if not caminho:
+                            raise ValueError("Uma das fotos possui formato inválido.")
+                        arquivos_salvos.append(DATA_DIR / caminho)
+                        conn.execute(
+                            """
+                            INSERT INTO solicitacao_avaliacao_respostas (
+                                empresa_id, solicitacao_id, pergunta_id, pergunta_texto,
+                                tipo_resposta, resposta_texto, arquivo_path, ordem
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            (
+                                empresa_id, solicitacao_id, int(pergunta.get("id") or 0),
+                                str(pergunta.get("pergunta") or ""), str(pergunta.get("tipo_resposta") or "foto"),
+                                "Foto enviada", caminho, int(pergunta.get("ordem") or 1),
+                            ),
+                        )
+                else:
+                    conn.execute(
+                        """
+                        INSERT INTO solicitacao_avaliacao_respostas (
+                            empresa_id, solicitacao_id, pergunta_id, pergunta_texto,
+                            tipo_resposta, resposta_texto, arquivo_path, ordem
+                        ) VALUES (?, ?, ?, ?, ?, ?, '', ?)
+                        """,
+                        (
+                            empresa_id, solicitacao_id, int(pergunta.get("id") or 0),
+                            str(pergunta.get("pergunta") or ""), str(pergunta.get("tipo_resposta") or "texto"),
+                            str(item.get("resposta") or ""), int(pergunta.get("ordem") or 1),
+                        ),
+                    )
+            conn.commit()
+        return solicitacao_id, ""
+    except (sqlite3.Error, OSError, ValueError) as exc:
+        for caminho in arquivos_salvos:
+            try:
+                if caminho.is_file():
+                    caminho.unlink()
+            except OSError:
+                pass
+        app.logger.exception("Falha ao salvar solicitação de avaliação: %s", exc)
+        return None, "Não foi possível enviar a solicitação. Confira os dados e tente novamente."
+
+
 @app.route("/agendar/<codigo_empresa>", methods=["GET", "POST"])
 def agendamento_publico(codigo_empresa: str) -> str | Response:
     empresa = buscar_empresa_agendamento_publico(codigo_empresa)
@@ -29801,8 +30285,8 @@ def agendamento_publico(codigo_empresa: str) -> str | Response:
             codigo_empresa=normalizar_codigo_indicacao(codigo_empresa), cliente=None,
             servicos=[], funcionarios=[], horarios=[], data_agendamento=hoje_empresa().isoformat(),
             mensagem="Agenda não encontrada ou indisponível.", sucesso="", token_cliente="",
-            agendamento_id="", servico_id="", servico_selecionado=None, origem_agendamento="link_publico",
-            gestflow_configuracoes_runtime={},
+            agendamento_id="", servico_id="", servico_selecionado=None, perguntas_servico=[],
+            origem_agendamento="link_publico", gestflow_configuracoes_runtime={},
         )
     empresa_id = int(empresa["id"])
     hoje_iso = hoje_empresa().isoformat()
@@ -29844,6 +30328,29 @@ def agendamento_publico(codigo_empresa: str) -> str | Response:
                         cliente = criar_ou_atualizar_cliente_publico(empresa_id, nome or (cliente or {}).get("nome", ""), telefone)
             if cliente:
                 token_cliente = str(cliente.get("token_publico") or "")
+        elif etapa == "solicitar_avaliacao":
+            cliente = buscar_cliente_publico_por_token(empresa_id, token_form)
+            if cliente is None:
+                mensagem = "Identifique seu WhatsApp antes de enviar a avaliação."
+            servico = buscar_servico_empresa(empresa_id, servico_id)
+            if cliente is not None and (
+                servico is None
+                or str(servico.get("status") or "").lower() != "ativo"
+                or normalizar_tipo_contratacao_servico(servico.get("tipo_contratacao")) != "a_combinar"
+            ):
+                mensagem = "Escolha um serviço disponível para avaliação."
+            if cliente is not None and not mensagem:
+                solicitacao_id, erro_solicitacao = salvar_solicitacao_avaliacao_publica(
+                    empresa_id, cliente, servico,
+                    str(request.form.get("observacoes") or "").strip(),
+                    origem_agendamento,
+                )
+                if erro_solicitacao:
+                    mensagem = erro_solicitacao
+                else:
+                    token_cliente = str(cliente.get("token_publico") or "")
+                    agendamento_id = str(solicitacao_id or "")
+                    sucesso = "Solicitação de avaliação enviada. A empresa analisará as respostas e entrará em contato para definir valor, duração e horário."
         elif etapa == "confirmar":
             cliente = buscar_cliente_publico_por_token(empresa_id, token_form)
             if cliente is None:
@@ -29860,6 +30367,9 @@ def agendamento_publico(codigo_empresa: str) -> str | Response:
                 mensagem = mensagem or "Não foi possível identificar seu cadastro."
             elif servico is None or str(servico.get("status") or "").lower() != "ativo":
                 mensagem = "Escolha um serviço disponível."
+                token_cliente = str(cliente.get("token_publico") or "")
+            elif normalizar_tipo_contratacao_servico(servico.get("tipo_contratacao")) != "valor_fixo":
+                mensagem = "Este serviço precisa de avaliação antes do agendamento."
                 token_cliente = str(cliente.get("token_publico") or "")
             elif not data_agendamento or not hora_inicio:
                 mensagem = "Escolha data e horário para confirmar."
@@ -29925,21 +30435,30 @@ def agendamento_publico(codigo_empresa: str) -> str | Response:
         servicos = [dict(row) for row in conn.execute(
             """
             SELECT id, nome, valor_venda, tempo_estimado, tempo_estimado_valor,
-                   tempo_estimado_unidade, tempo_estimado_minutos
+                   tempo_estimado_unidade, tempo_estimado_minutos, tipo_contratacao
             FROM servicos
             WHERE empresa_id = ? AND LOWER(COALESCE(status, 'ativo')) = 'ativo'
             ORDER BY nome ASC
             """, (empresa_id,)
         ).fetchall()]
     servico_selecionado = buscar_servico_empresa(empresa_id, servico_id)
-    horarios = listar_horarios_agendamento_publico(empresa_id, data_agendamento, profissional_id, servico_id) if servico_selecionado else []
+    perguntas_servico = (
+        listar_perguntas_servico(int(servico_selecionado.get("id") or 0), empresa_id)
+        if servico_selecionado and normalizar_tipo_contratacao_servico(servico_selecionado.get("tipo_contratacao")) == "a_combinar"
+        else []
+    )
+    horarios = (
+        listar_horarios_agendamento_publico(empresa_id, data_agendamento, profissional_id, servico_id)
+        if servico_selecionado and normalizar_tipo_contratacao_servico(servico_selecionado.get("tipo_contratacao")) == "valor_fixo"
+        else []
+    )
     return render_template(
         "agendamento_publico.html", empresa=empresa,
         codigo_empresa=normalizar_codigo_indicacao(codigo_empresa), cliente=cliente,
         servicos=servicos, funcionarios=funcionarios, horarios=horarios,
         data_agendamento=data_agendamento, profissional_id=profissional_id,
         servico_id=servico_id, servico_selecionado=servico_selecionado,
-        origem_agendamento=origem_agendamento, mensagem=mensagem, sucesso=sucesso,
+        perguntas_servico=perguntas_servico, origem_agendamento=origem_agendamento, mensagem=mensagem, sucesso=sucesso,
         token_cliente=token_cliente, agendamento_id=agendamento_id,
         gestflow_configuracoes_runtime=montar_configuracoes_runtime(empresa_id),
     )
@@ -29974,6 +30493,8 @@ def agendamentos() -> str | Response:
     link_vitrine = f"{request.url_root.rstrip('/')}/loja/{config_vitrine.get('slug')}" if config_vitrine.get("slug") and config_vitrine.get("status") == "publicado" else ""
     return render_template(
         "agendamentos.html", agendamentos=listar_agendamentos(data_inicio, data_fim, status),
+        solicitacoes_avaliacao=listar_solicitacoes_avaliacao(),
+        solicitacoes_status=SOLICITACOES_AVALIACAO_STATUS,
         funcionarios=listar_profissionais_agendamento_empresa(empresa_logada_id()), servicos=listar_servicos(),
         data_inicio=_normalizar_data_iso(data_inicio),
         data_fim=_normalizar_data_iso(data_fim, _normalizar_data_iso(data_inicio)),
@@ -29999,6 +30520,108 @@ def editar_agendamento(agendamento_id: int) -> Response:
     atualizar_agendamento_db(agendamento_id, dados)
     registrar_atividade_usuario("edicao", "agendamentos", f"Editou agendamento #{agendamento_id}", request.path)
     return redirect(url_for("agendamentos", sucesso="Agendamento atualizado com sucesso."))
+
+
+@app.post("/agendamentos/avaliacoes/<int:solicitacao_id>/status")
+def status_solicitacao_avaliacao(solicitacao_id: int) -> Response:
+    solicitacao = buscar_solicitacao_avaliacao(solicitacao_id)
+    if solicitacao is None:
+        return redirect(url_for("agendamentos", erro="Solicitação de avaliação não encontrada."))
+    status = str(request.form.get("status") or "").strip()
+    if status not in SOLICITACOES_AVALIACAO_STATUS or status == "agendada":
+        return redirect(url_for("agendamentos", erro="Status inválido para a solicitação."))
+    with conectar_db() as conn:
+        conn.execute(
+            "UPDATE solicitacoes_avaliacao SET status = ?, atualizado_em = ? WHERE id = ? AND empresa_id = ?",
+            (status, agora_empresa().isoformat(timespec="seconds"), solicitacao_id, empresa_logada_id()),
+        )
+        conn.commit()
+    return redirect(url_for("agendamentos", sucesso="Status da solicitação atualizado."))
+
+
+@app.post("/agendamentos/avaliacoes/<int:solicitacao_id>/agendar")
+def agendar_solicitacao_avaliacao(solicitacao_id: int) -> Response:
+    solicitacao = buscar_solicitacao_avaliacao(solicitacao_id)
+    if solicitacao is None:
+        return redirect(url_for("agendamentos", erro="Solicitação de avaliação não encontrada."))
+    if int(solicitacao.get("agendamento_id") or 0) > 0:
+        return redirect(url_for("agendamentos", erro="Esta solicitação já foi transformada em agendamento."))
+    valor = str(request.form.get("valor_definido") or "").strip()
+    if not _valor_formulario_positivo(valor):
+        return redirect(url_for("agendamentos", erro="Informe o valor definido após a avaliação."))
+    duracao_valor, duracao_unidade, duracao_minutos_base = normalizar_duracao_servico(
+        request.form.get("duracao_valor"), request.form.get("duracao_unidade"), ""
+    )
+    if duracao_unidade == "dias":
+        configuracoes = buscar_configuracoes_modulo("agendamentos", empresa_logada_id())
+        duracao_minutos = max(
+            5,
+            _minutos_hora_agendamento(configuracoes.get("horario_fim"), 18 * 60)
+            - _minutos_hora_agendamento(configuracoes.get("horario_inicio"), 8 * 60),
+        )
+    else:
+        duracao_minutos = duracao_minutos_base
+    data_agendamento = _normalizar_data_iso(request.form.get("data_agendamento"))
+    hora_inicio = _normalizar_hora_hhmm(request.form.get("hora_inicio"))
+    inicio_minutos = _minutos_hora_agendamento(hora_inicio, -1)
+    if inicio_minutos < 0:
+        return redirect(url_for("agendamentos", erro="Informe o horário inicial do atendimento."))
+    dados = {
+        "cliente_id": str(solicitacao.get("cliente_id") or ""),
+        "cliente_nome": str(solicitacao.get("cliente_nome") or ""),
+        "cliente_telefone": str(solicitacao.get("cliente_telefone") or ""),
+        "servico_id": str(solicitacao.get("servico_id") or ""),
+        "servico_nome": str(solicitacao.get("servico_nome") or ""),
+        "duracao_minutos": str(duracao_minutos),
+        "profissional_id": str(request.form.get("profissional_id") or "").strip(),
+        "profissional_nome": "",
+        "data_agendamento": data_agendamento,
+        "hora_inicio": hora_inicio,
+        "hora_fim": _hora_agendamento_por_minutos(inicio_minutos + duracao_minutos),
+        "status": "confirmado",
+        "valor": valor,
+        "observacoes": str(request.form.get("observacoes") or solicitacao.get("observacoes_cliente") or "").strip(),
+        "origem": "avaliacao_vitrine",
+        "token_publico_cliente": str(solicitacao.get("token_publico_cliente") or ""),
+        "criado_via_publico": "sim",
+    }
+    erro_disponibilidade = validar_disponibilidade_dados_agendamento(dados)
+    if erro_disponibilidade:
+        return redirect(url_for("agendamentos", erro=erro_disponibilidade))
+    agendamento_id = salvar_agendamento_db(dados)
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            UPDATE solicitacoes_avaliacao
+            SET status = 'agendada', valor_definido = ?, duracao_valor = ?,
+                duracao_unidade = ?, duracao_minutos = ?, profissional_id = ?,
+                profissional_nome = ?, data_agendamento = ?, hora_inicio = ?, hora_fim = ?,
+                agendamento_id = ?, avaliado_por = ?, atualizado_em = ?
+            WHERE id = ? AND empresa_id = ?
+            """,
+            (
+                valor, duracao_valor, duracao_unidade, duracao_minutos,
+                dados.get("profissional_id") or "", dados.get("profissional_nome") or "",
+                data_agendamento, hora_inicio, dados["hora_fim"], agendamento_id,
+                str(session.get("usuario_nome") or ""), agora_empresa().isoformat(timespec="seconds"),
+                solicitacao_id, empresa_logada_id(),
+            ),
+        )
+        conn.execute(
+            "UPDATE vitrine_servicos SET agendamentos = COALESCE(agendamentos, 0) + 1 WHERE empresa_id = ? AND servico_id = ?",
+            (empresa_logada_id(), int(solicitacao.get("servico_id") or 0)),
+        )
+        conn.execute(
+            "UPDATE vitrine_configuracoes SET agendamentos_gerados = COALESCE(agendamentos_gerados, 0) + 1 WHERE empresa_id = ?",
+            (empresa_logada_id(),),
+        )
+        conn.commit()
+    registrar_atividade_usuario(
+        "criacao", "agendamentos",
+        f"Transformou solicitação de avaliação #{solicitacao_id} em agendamento #{agendamento_id}",
+        request.path,
+    )
+    return redirect(url_for("agendamentos", sucesso=f"Solicitação transformada no agendamento #{agendamento_id}."))
 
 
 @app.post("/agendamentos/<int:agendamento_id>/status")

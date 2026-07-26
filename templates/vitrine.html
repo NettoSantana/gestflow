@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vitrine.html
-Último recode: 2026-07-26 13:51 (America/Bahia)
-Motivo: Permitir publicar produtos ou serviços e integrar o botão Agendar este serviço.
+Último recode: 2026-07-26 15:40 (America/Bahia)
+Motivo: Diferenciar serviços com agendamento direto e serviços que exigem avaliação prévia.
 #}
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -353,18 +353,24 @@ Motivo: Permitir publicar produtos ou serviços e integrar o botão Agendar este
                                 <div class="product-admin-top">
                                     <div>
                                         <strong>{{ servico.get('nome') }}</strong>
-                                        <small>Código: {{ servico.get('codigo') or '-' }} | Duração: {{ servico.get('tempo_estimado') or '-' }} | Acessos: {{ servico.get('acessos') or 0 }} | Agendamentos: {{ servico.get('agendamentos') or 0 }}</small>
+                                        <small>Código: {{ servico.get('codigo') or '-' }} | {{ 'Valor a combinar' if servico.get('tipo_contratacao') == 'a_combinar' else 'Valor fixo' }} | Perguntas: {{ servico.get('perguntas_quantidade') or 0 }} | Acessos: {{ servico.get('acessos') or 0 }} | Agendamentos: {{ servico.get('agendamentos') or 0 }}</small>
                                     </div>
                                     {% if servico.get('publicado') %}<span class="status-pill">Publicado</span>{% else %}<span class="status-pill status-rascunho">Fora da vitrine</span>{% endif %}
                                 </div>
                                 <div class="service-duration-banner">
-                                    <span>Duração usada na agenda</span>
-                                    <strong>{{ servico.get('tempo_estimado') or 'Não informada' }}</strong>
-                                    <small>Para alterar, edite o cadastro do serviço.</small>
+                                    <span>{{ 'Avaliação prévia' if servico.get('tipo_contratacao') == 'a_combinar' else 'Duração usada na agenda' }}</span>
+                                    <strong>{{ (servico.get('perguntas_quantidade') ~ ' pergunta(s) para o cliente') if servico.get('tipo_contratacao') == 'a_combinar' else (servico.get('tempo_estimado') or 'Não informada') }}</strong>
+                                    <small>{{ 'O botão público será Solicitar avaliação.' if servico.get('tipo_contratacao') == 'a_combinar' else 'O botão público será Agendar este serviço.' }}</small>
                                 </div>
                                 <div class="form-grid-2 product-admin-fields">
                                     <label>Nome na vitrine<input type="text" name="nome" value="{{ servico.get('nome') or '' }}"></label>
-                                    <label>Preço<input type="text" name="preco" value="{{ servico.get('preco') or '0,00' }}"></label>
+                                    <label>Preço
+                                        {% if servico.get('tipo_contratacao') == 'a_combinar' %}
+                                            <input type="text" value="Valor a combinar" readonly disabled>
+                                        {% else %}
+                                            <input type="text" name="preco" value="{{ servico.get('preco') or '0,00' }}">
+                                        {% endif %}
+                                    </label>
                                 </div>
                                 <div class="form-grid-2 product-admin-fields">
                                     <label>Categoria<input type="text" name="categoria" value="{{ servico.get('categoria') or 'Serviços' }}"></label>
@@ -444,7 +450,7 @@ Motivo: Permitir publicar produtos ou serviços e integrar o botão Agendar este
                     {% for servico in servicos_vitrine[:3] %}
                         <div class="preview-product-card preview-service-card">
                             {% if servico.get('imagem_path') %}<img class="preview-product-img real-img" src="{{ url_for('servir_upload_vitrine_publico', caminho=servico.get('imagem_path')) }}" alt="{{ servico.get('nome') }}">{% else %}<div class="preview-product-img service-image-placeholder">Serviço</div>{% endif %}
-                            <small>Serviço • {{ servico.get('tempo_estimado') }}</small><strong>{{ servico.get('nome') }}</strong><span>R$ {{ servico.get('preco') or '0,00' }}</span><button type="button">Agendar</button>
+                            <small>Serviço • {{ 'Avaliação prévia' if servico.get('tipo_contratacao') == 'a_combinar' else servico.get('tempo_estimado') }}</small><strong>{{ servico.get('nome') }}</strong><span>{{ 'Valor a combinar' if servico.get('tipo_contratacao') == 'a_combinar' else ('R$ ' ~ (servico.get('preco') or '0,00')) }}</span><button type="button">{{ 'Solicitar avaliação' if servico.get('tipo_contratacao') == 'a_combinar' else 'Agendar' }}</button>
                         </div>
                     {% endfor %}
                     {% if not produtos_vitrine and not servicos_vitrine %}

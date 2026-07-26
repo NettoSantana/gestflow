@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\servicos.html
-Último recode: 2026-07-26 13:51 (America/Bahia)
-Motivo: Padronizar a duração dos serviços para uso automático na agenda e na Vitrine Online.
+Último recode: 2026-07-26 15:40 (America/Bahia)
+Motivo: Permitir valor fixo ou a combinar e criar perguntas personalizadas para avaliação.
 -->
 
 <!DOCTYPE html>
@@ -219,6 +219,8 @@ Motivo: Padronizar a duração dos serviços para uso automático na agenda e na
             gap: 8px;
         }
 
+        .question-builder{grid-column:1/-1;display:none;gap:12px;padding:16px;border:1px solid #bfdbfe;border-radius:16px;background:#eff6ff}.question-builder.visible{display:grid}.question-builder-header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.question-list{display:grid;gap:10px}.question-card{display:grid;grid-template-columns:minmax(220px,2fr) minmax(150px,1fr) auto auto;gap:10px;align-items:end;padding:12px;border:1px solid #dbeafe;border-radius:14px;background:#fff}.question-card label{display:grid;gap:6px;font-size:12px;font-weight:900;color:#334155}.question-options{grid-column:1/-1;display:none}.question-card[data-type="opcoes"] .question-options{display:grid}.question-remove{height:40px;border:0;border-radius:10px;background:#fee2e2;color:#991b1b;font-weight:900;cursor:pointer}.question-empty{padding:14px;border:1px dashed #93c5fd;border-radius:12px;color:#1d4ed8;font-weight:800;text-align:center}.contract-help{display:block;margin-top:6px;color:#64748b;font-size:12px;font-weight:700}.value-combine-note{display:none;margin-top:6px;color:#92400e;font-size:12px;font-weight:800}.value-combine-note.visible{display:block}@media(max-width:900px){.question-card{grid-template-columns:1fr}.question-options{grid-column:1}}
+
         .duration-help {
             display: block;
             margin-top: 6px;
@@ -307,7 +309,7 @@ Motivo: Padronizar a duração dos serviços para uso automático na agenda e na
                 <span class="badge-info">Cadastro inicial</span>
             </div>
 
-            <form action="/servicos" method="post" class="client-form">
+            <form action="/servicos" method="post" class="client-form" id="formNovoServico" onsubmit="return prepararPerguntasServicoNovo()">
                 <div class="form-grid">
                     <div class="form-group">
                         <label for="servico_nome">Nome do serviço *</label>
@@ -352,8 +354,18 @@ Motivo: Padronizar a duração dos serviços para uso automático na agenda e na
                     </div>
 
                     <div class="form-group">
-                        <label for="servico_valor_venda">Valor de venda *</label>
+                        <label for="servico_tipo_contratacao">Forma de contratação *</label>
+                        <select id="servico_tipo_contratacao" name="servico_tipo_contratacao" class="form-control" required>
+                            <option value="valor_fixo">Valor fixo e agendamento direto</option>
+                            <option value="a_combinar">Valor a combinar e avaliação prévia</option>
+                        </select>
+                        <small class="contract-help">No valor a combinar, o cliente responde às perguntas antes de receber preço e horário.</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="servico_valor_venda">Valor de venda</label>
                         <input id="servico_valor_venda" name="servico_valor_venda" type="text" placeholder="Ex: 280,00" class="form-control" required>
+                        <small id="valorCombinarNota" class="value-combine-note">O valor será definido depois da avaliação. Este campo pode ficar vazio.</small>
                     </div>
 
                     <div class="form-group">
@@ -381,6 +393,15 @@ Motivo: Padronizar a duração dos serviços para uso automático na agenda e na
                     <div class="form-group">
                         <label for="servico_observacoes">Observações</label>
                         <input id="servico_observacoes" name="servico_observacoes" type="text" placeholder="Ex: Escopo, aplicação ou observação" class="form-control">
+                    </div>
+
+                    <div id="questionBuilderNovo" class="question-builder">
+                        <div class="question-builder-header">
+                            <div><strong>Perguntas para avaliação</strong><small class="contract-help">Defina o que o cliente precisa responder para você calcular o valor.</small></div>
+                            <button type="button" class="btn-dark" onclick="adicionarPerguntaServicoNovo()">+ Adicionar pergunta</button>
+                        </div>
+                        <div id="questionListNovo" class="question-list"></div>
+                        <input type="hidden" id="servico_perguntas_json" name="servico_perguntas_json" value="[]">
                     </div>
                 </div>
 
@@ -482,6 +503,7 @@ Motivo: Padronizar a duração dos serviços para uso automático na agenda e na
                                     {% if ordenar == 'valor_venda' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
                                 </a>
                             </th>
+                            <th>Contratação</th>
                             <th>Duração</th>
                             <th>
                                 <a href="{{ url_for('servicos', pagina=1, por_pagina=por_pagina, ordenar='status', direcao='desc' if ordenar == 'status' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
@@ -502,8 +524,9 @@ Motivo: Padronizar a duração dos serviços para uso automático na agenda e na
                                     <td>{{ servico.categoria }}</td>
                                     <td>{{ servico.unidade }}</td>
                                     <td>{{ servico.custo }}</td>
-                                    <td>{{ servico.valor_venda }}</td>
-                                    <td><strong>{{ servico.tempo_estimado or '-' }}</strong></td>
+                                    <td>{{ 'A combinar' if servico.tipo_contratacao == 'a_combinar' else servico.valor_venda }}</td>
+                                    <td><strong>{{ 'Avaliação prévia' if servico.tipo_contratacao == 'a_combinar' else 'Agendamento direto' }}</strong></td>
+                                    <td><strong>{{ 'Definida após avaliação' if servico.tipo_contratacao == 'a_combinar' else (servico.tempo_estimado or '-') }}</strong></td>
                                     <td>
                                         <span class="status-pill {{ servico.status }}">
                                             {{ servico.status }}
@@ -522,7 +545,7 @@ Motivo: Padronizar a duração dos serviços para uso automático na agenda e na
                             {% endfor %}
                         {% else %}
                             <tr>
-                                <td colspan="10" class="empty-table empty-table-box">
+                                <td colspan="11" class="empty-table empty-table-box">
                                     <div class="empty-table-content">
                                         <div class="empty-table-icon">⚙</div>
                                         <strong>Nenhum serviço cadastrado.</strong>
@@ -589,6 +612,44 @@ Motivo: Padronizar a duração dos serviços para uso automático na agenda e na
     </main>
 
     <script>
+
+        const tipoContratacaoNovo = document.getElementById("servico_tipo_contratacao");
+        const valorVendaNovo = document.getElementById("servico_valor_venda");
+        const questionBuilderNovo = document.getElementById("questionBuilderNovo");
+        const questionListNovo = document.getElementById("questionListNovo");
+        const valorCombinarNota = document.getElementById("valorCombinarNota");
+
+        function atualizarTipoContratacaoNovo(){
+            const combinar = tipoContratacaoNovo && tipoContratacaoNovo.value === "a_combinar";
+            if(questionBuilderNovo) questionBuilderNovo.classList.toggle("visible", combinar);
+            if(valorCombinarNota) valorCombinarNota.classList.toggle("visible", combinar);
+            if(valorVendaNovo){ valorVendaNovo.required = !combinar; if(combinar && valorVendaNovo.value === "0,00") valorVendaNovo.value = ""; }
+            if(questionListNovo){ questionListNovo.querySelectorAll('input,select,textarea').forEach(campo=>campo.disabled=!combinar); }
+            renderPerguntasServicoNovo();
+        }
+        function criarPerguntaServicoNovo(item={}){
+            const card=document.createElement("div"); card.className="question-card"; card.dataset.type=item.tipo_resposta||"texto";
+            card.innerHTML=`<label>Pergunta<input type="text" class="form-control q-text" value="${String(item.pergunta||'').replace(/"/g,'&quot;')}" placeholder="Ex: Quantos quartos?" required></label><label>Tipo<select class="form-control q-type"><option value="texto">Texto livre</option><option value="numero">Número</option><option value="sim_nao">Sim ou não</option><option value="opcoes">Escolha entre opções</option><option value="endereco">Endereço</option><option value="foto">Envio de foto</option></select></label><label><span>Obrigatória</span><input type="checkbox" class="q-required" ${item.obrigatoria==='nao'?'':'checked'}></label><button type="button" class="question-remove">Remover</button><label class="question-options">Opções<textarea class="form-control q-options" rows="2" placeholder="Uma opção por linha">${(item.opcoes||[]).join('\n')}</textarea></label>`;
+            card.querySelector('.q-type').value=item.tipo_resposta||'texto';
+            card.querySelector('.q-type').addEventListener('change',e=>{card.dataset.type=e.target.value;});
+            card.querySelector('.question-remove').addEventListener('click',()=>{card.remove();renderPerguntasServicoNovo();});
+            return card;
+        }
+        function adicionarPerguntaServicoNovo(){ questionListNovo.appendChild(criarPerguntaServicoNovo()); renderPerguntasServicoNovo(); }
+        function renderPerguntasServicoNovo(){
+            if(!questionListNovo) return;
+            let empty=questionListNovo.querySelector('.question-empty'); if(empty) empty.remove();
+            if(tipoContratacaoNovo && tipoContratacaoNovo.value==='a_combinar' && !questionListNovo.querySelector('.question-card')){ empty=document.createElement('div'); empty.className='question-empty'; empty.textContent='Adicione as perguntas necessárias para avaliar o serviço.'; questionListNovo.appendChild(empty); }
+        }
+        function prepararPerguntasServicoNovo(){
+            if(!tipoContratacaoNovo || tipoContratacaoNovo.value!=='a_combinar'){ document.getElementById('servico_perguntas_json').value='[]'; return true; }
+            const perguntas=[];
+            questionListNovo.querySelectorAll('.question-card').forEach(card=>{const texto=card.querySelector('.q-text').value.trim();if(!texto)return;perguntas.push({pergunta:texto,tipo_resposta:card.querySelector('.q-type').value,obrigatoria:card.querySelector('.q-required').checked?'sim':'nao',opcoes:card.querySelector('.q-options').value.split(/\n|;|\|/).map(v=>v.trim()).filter(Boolean)});});
+            if(!perguntas.length){alert('Adicione pelo menos uma pergunta para o serviço com valor a combinar.');return false;}
+            document.getElementById('servico_perguntas_json').value=JSON.stringify(perguntas); return true;
+        }
+        if(tipoContratacaoNovo) tipoContratacaoNovo.addEventListener('change',atualizarTipoContratacaoNovo);
+        atualizarTipoContratacaoNovo();
         function alternarMenuServicos() {
             const menu = document.getElementById("servicos-more-actions");
 
