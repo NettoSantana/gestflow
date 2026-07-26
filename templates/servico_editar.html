@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\servico_editar.html
-Último recode: 2026-07-02 23:41 (America/Bahia)
-Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
+Último recode: 2026-07-26 15:40 (America/Bahia)
+Motivo: Editar forma de contratação e perguntas personalizadas para avaliação.
 -->
 
 <!DOCTYPE html>
@@ -12,6 +12,11 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
     <title>GESTFLOW - Editar Serviço</title>
     <link rel="stylesheet" href="/static/css/dashboard.css">
     <style>
+        .question-builder{grid-column:1/-1;display:none;gap:12px;padding:16px;border:1px solid #bfdbfe;border-radius:16px;background:#eff6ff}.question-builder.visible{display:grid}.question-builder-header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.question-list{display:grid;gap:10px}.question-card{display:grid;grid-template-columns:minmax(220px,2fr) minmax(150px,1fr) auto auto;gap:10px;align-items:end;padding:12px;border:1px solid #dbeafe;border-radius:14px;background:#fff}.question-card label{display:grid;gap:6px;font-size:12px;font-weight:900;color:#334155}.question-options{grid-column:1/-1;display:none}.question-card[data-type="opcoes"] .question-options{display:grid}.question-remove{height:40px;border:0;border-radius:10px;background:#fee2e2;color:#991b1b;font-weight:900;cursor:pointer}.contract-help{display:block;margin-top:6px;color:#64748b;font-size:12px;font-weight:700}@media(max-width:900px){.question-card{grid-template-columns:1fr}.question-options{grid-column:1}}
+        .duration-field { display:grid; grid-template-columns:minmax(110px,1fr) minmax(130px,1fr); gap:8px; }
+        .duration-help { display:block; margin-top:6px; color:#64748b; font-size:12px; font-weight:700; }
+        @media (max-width:640px){ .duration-field{grid-template-columns:1fr;} }
+
         .form-alert-error {
             margin: 0 0 18px;
             padding: 12px 14px;
@@ -287,7 +292,7 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                 <span class="badge-info">Modo edição</span>
             </div>
 
-            <form action="/servicos/{{ servico.id }}/editar" method="post" class="client-form">
+            <form action="/servicos/{{ servico.id }}/editar" method="post" class="client-form" id="formEditarServico" onsubmit="return prepararPerguntasServicoEditar()">
                 <div class="form-grid">
                     <div class="form-group">
                         <label for="servico_nome">Nome do serviço *</label>
@@ -332,13 +337,30 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                     </div>
 
                     <div class="form-group">
-                        <label for="servico_valor_venda">Valor de venda *</label>
-                        <input id="servico_valor_venda" name="servico_valor_venda" type="text" value="{{ servico.valor_venda or '' }}" placeholder="Ex: 280,00" class="form-control" required>
+                        <label for="servico_tipo_contratacao">Forma de contratação *</label>
+                        <select id="servico_tipo_contratacao" name="servico_tipo_contratacao" class="form-control" required>
+                            <option value="valor_fixo" {% if servico.tipo_contratacao != 'a_combinar' %}selected{% endif %}>Valor fixo e agendamento direto</option>
+                            <option value="a_combinar" {% if servico.tipo_contratacao == 'a_combinar' %}selected{% endif %}>Valor a combinar e avaliação prévia</option>
+                        </select>
+                        <small class="contract-help">No valor a combinar, as perguntas abaixo aparecem para o cliente.</small>
                     </div>
 
                     <div class="form-group">
-                        <label for="servico_tempo_estimado">Tempo estimado</label>
-                        <input id="servico_tempo_estimado" name="servico_tempo_estimado" type="text" value="{{ servico.tempo_estimado or '' }}" placeholder="Ex: 4 horas" class="form-control">
+                        <label for="servico_valor_venda">Valor de venda</label>
+                        <input id="servico_valor_venda" name="servico_valor_venda" type="text" value="{{ '' if servico.tipo_contratacao == 'a_combinar' and servico.valor_venda in ['0','0,00','0.00'] else (servico.valor_venda or '') }}" placeholder="Ex: 280,00" class="form-control" {% if servico.tipo_contratacao != 'a_combinar' %}required{% endif %}>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="servico_tempo_estimado_valor">Duração estimada *</label>
+                        <div class="duration-field">
+                            <input id="servico_tempo_estimado_valor" name="servico_tempo_estimado_valor" type="number" min="0.1" step="0.1" value="{{ servico.tempo_estimado_valor or 1 }}" class="form-control" required>
+                            <select id="servico_tempo_estimado_unidade" name="servico_tempo_estimado_unidade" class="form-control" required>
+                                <option value="minutos" {% if servico.tempo_estimado_unidade == 'minutos' %}selected{% endif %}>Minutos</option>
+                                <option value="horas" {% if not servico.tempo_estimado_unidade or servico.tempo_estimado_unidade == 'horas' %}selected{% endif %}>Horas</option>
+                                <option value="dias" {% if servico.tempo_estimado_unidade == 'dias' %}selected{% endif %}>Dia inteiro</option>
+                            </select>
+                        </div>
+                        <small class="duration-help">Esse período será reservado automaticamente quando o serviço for agendado.</small>
                     </div>
 
                     <div class="form-group">
@@ -354,6 +376,12 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                         <label for="servico_observacoes">Observações</label>
                         <input id="servico_observacoes" name="servico_observacoes" type="text" value="{{ servico.observacoes or '' }}" placeholder="Ex: Escopo, aplicação ou observação" class="form-control">
                     </div>
+
+                    <div id="questionBuilderEditar" class="question-builder {% if servico.tipo_contratacao == 'a_combinar' %}visible{% endif %}">
+                        <div class="question-builder-header"><div><strong>Perguntas para avaliação</strong><small class="contract-help">Adicione, edite, remova e ordene as perguntas.</small></div><button type="button" class="btn-dark" onclick="adicionarPerguntaServicoEditar()">+ Adicionar pergunta</button></div>
+                        <div id="questionListEditar" class="question-list"></div>
+                        <input type="hidden" id="servico_perguntas_json" name="servico_perguntas_json" value="[]">
+                    </div>
                 </div>
 
                 <div class="form-actions">
@@ -364,6 +392,18 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
         </section>
 
     </main>
+
+    <script>
+    (function(){
+        const iniciais={{ perguntas|default([])|tojson }};
+        const tipo=document.getElementById('servico_tipo_contratacao');const valor=document.getElementById('servico_valor_venda');const box=document.getElementById('questionBuilderEditar');const lista=document.getElementById('questionListEditar');
+        function card(item={}){const el=document.createElement('div');el.className='question-card';el.dataset.type=item.tipo_resposta||'texto';el.innerHTML=`<label>Pergunta<input class="form-control q-text" value="${String(item.pergunta||'').replace(/"/g,'&quot;')}" required></label><label>Tipo<select class="form-control q-type"><option value="texto">Texto livre</option><option value="numero">Número</option><option value="sim_nao">Sim ou não</option><option value="opcoes">Escolha entre opções</option><option value="endereco">Endereço</option><option value="foto">Envio de foto</option></select></label><label><span>Obrigatória</span><input type="checkbox" class="q-required" ${item.obrigatoria==='nao'?'':'checked'}></label><button type="button" class="question-remove">Remover</button><label class="question-options">Opções<textarea class="form-control q-options" rows="2">${(item.opcoes||[]).join('\n')}</textarea></label>`;el.querySelector('.q-type').value=item.tipo_resposta||'texto';el.querySelector('.q-type').onchange=e=>el.dataset.type=e.target.value;el.querySelector('.question-remove').onclick=()=>el.remove();return el;}
+        window.adicionarPerguntaServicoEditar=()=>lista.appendChild(card());
+        function atualizar(){const combinar=tipo.value==='a_combinar';box.classList.toggle('visible',combinar);valor.required=!combinar;lista.querySelectorAll('input,select,textarea').forEach(campo=>campo.disabled=!combinar);}
+        window.prepararPerguntasServicoEditar=function(){if(tipo.value!=='a_combinar'){document.getElementById('servico_perguntas_json').value='[]';return true;}const dados=[];lista.querySelectorAll('.question-card').forEach(el=>{const pergunta=el.querySelector('.q-text').value.trim();if(pergunta)dados.push({pergunta,tipo_resposta:el.querySelector('.q-type').value,obrigatoria:el.querySelector('.q-required').checked?'sim':'nao',opcoes:el.querySelector('.q-options').value.split(/\n|;|\|/).map(v=>v.trim()).filter(Boolean)});});if(!dados.length){alert('Adicione pelo menos uma pergunta.');return false;}document.getElementById('servico_perguntas_json').value=JSON.stringify(dados);return true;};
+        iniciais.forEach(item=>lista.appendChild(card(item)));tipo.addEventListener('change',atualizar);atualizar();
+    })();
+    </script>
 
 </body>
 </html>

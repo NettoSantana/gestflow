@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\servico_detalhe.html
-Último recode: 2026-07-02 23:41 (America/Bahia)
-Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
+Último recode: 2026-07-26 15:40 (America/Bahia)
+Motivo: Exibir forma de contratação e perguntas usadas na avaliação do serviço.
 -->
 
 <!DOCTYPE html>
@@ -300,13 +300,18 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                 </div>
 
                 <div>
-                    <span>Valor de venda</span>
-                    <strong>{{ servico.valor_venda or '-' }}</strong>
+                    <span>Forma de contratação</span>
+                    <strong>{{ 'Valor a combinar e avaliação prévia' if servico.tipo_contratacao == 'a_combinar' else 'Valor fixo e agendamento direto' }}</strong>
                 </div>
 
                 <div>
-                    <span>Tempo estimado</span>
-                    <strong>{{ servico.tempo_estimado or '-' }}</strong>
+                    <span>Valor de venda</span>
+                    <strong>{{ 'A combinar' if servico.tipo_contratacao == 'a_combinar' else (servico.valor_venda or '-') }}</strong>
+                </div>
+
+                <div>
+                    <span>Duração do atendimento</span>
+                    <strong>{{ servico.tempo_estimado or '-' }}</strong><small style="display:block;margin-top:5px;color:#64748b;font-weight:700;">Período reservado automaticamente na agenda.</small>
                 </div>
 
                 <div>
@@ -320,6 +325,17 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                 </div>
             </div>
         </section>
+
+        {% if servico.tipo_contratacao == 'a_combinar' %}
+        <section class="panel page-section">
+            <div class="panel-header page-header"><div><h3>Perguntas para avaliação</h3><p class="page-subtitle">Essas perguntas serão respondidas pelo cliente antes da definição do valor.</p></div><span class="badge-info">{{ perguntas|length }} pergunta(s)</span></div>
+            <div class="panel-summary">
+                {% for pergunta in perguntas %}
+                <div><span>{{ loop.index }}. {{ pergunta.pergunta }}</span><strong>{{ {'texto':'Texto livre','numero':'Número','sim_nao':'Sim ou não','opcoes':'Escolha entre opções','endereco':'Endereço','foto':'Envio de foto'}.get(pergunta.tipo_resposta, pergunta.tipo_resposta) }}</strong><small style="display:block;margin-top:5px;color:#64748b;font-weight:700;">{{ 'Obrigatória' if pergunta.obrigatoria == 'sim' else 'Opcional' }}{% if pergunta.opcoes %} • {{ pergunta.opcoes|join(' / ') }}{% endif %}</small></div>
+                {% else %}<div><span>Perguntas</span><strong>Nenhuma pergunta cadastrada.</strong></div>{% endfor %}
+            </div>
+        </section>
+        {% endif %}
 
     </main>
 
