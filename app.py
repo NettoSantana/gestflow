@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-27 08:54 (America/Bahia)
-# Motivo: Implementar webhook seguro da WhatsApp Cloud API com verificação, assinatura, idempotência e histórico de eventos.
+# Último recode: 2026-07-27 11:40 (America/Bahia)
+# Motivo: Implementar envio centralizado pela WhatsApp Cloud API para textos, templates, imagens e documentos.
 
 from __future__ import annotations
 
@@ -1448,6 +1448,234 @@ def _json_canonico_whatsapp(valor: Any) -> str:
     )
 
 
+def _versao_graph_whatsapp() -> str:
+    versao = _variavel_ambiente_whatsapp("WHATSAPP_GRAPH_API_VERSION") or "v25.0"
+    return versao if re.fullmatch(r"v\d+\.\d+", versao) else "v25.0"
+
+
+def _normalizar_destinatario_whatsapp(destinatario: Any) -> tuple[str, str]:
+    digitos = re.sub(r"\D", "", str(destinatario or ""))
+    if digitos.startswith("00"):
+        digitos = digitos[2:]
+    if digitos.startswith("0") and len(digitos) in {11, 12}:
+        digitos = digitos[1:]
+    if len(digitos) in {10, 11}:
+        digitos = f"55{digitos}"
+    if not 10 <= len(digitos) <= 15:
+        return "", "Número de WhatsApp inválido. Informe DDI, DDD e telefone."
+    return digitos, ""
+
+
+def _configuracao_envio_whatsapp() -> tuple[str, str, str]:
+    token = _variavel_ambiente_whatsapp("WHATSAPP_ACCESS_TOKEN")
+    phone_number_id = _variavel_ambiente_whatsapp("WHATSAPP_PHONE_NUMBER_ID")
+    if not token:
+        return "", "", "WHATSAPP_ACCESS_TOKEN não está configurado."
+    if not phone_number_id:
+        return "", "", "WHATSAPP_PHONE_NUMBER_ID não está configurado."
+    endpoint = f"https://graph.facebook.com/{_versao_graph_whatsapp()}/{phone_number_id}/messages"
+    return token, endpoint, ""
+
+
+def _mensagem_erro_graph_whatsapp(payload: Any, status_http: int | None = None) -> str:
+    if isinstance(payload, dict):
+        erro = payload.get("error") or {}
+        if isinstance(erro, dict):
+            mensagem = str(erro.get("message") or "").strip()
+            codigo = str(erro.get("code") or "").strip()
+            subcodigo = str(erro.get("error_subcode") or "").strip()
+            partes = [parte for parte in (mensagem, f"código {codigo}" if codigo else "", f"subcódigo {subcodigo}" if subcodigo else "") if parte]
+            if partes:
+                return " | ".join(partes)
+    return f"A API do WhatsApp retornou HTTP {status_http}." if status_http else "A API do WhatsApp recusou a solicitação."
+
+
+def _registrar_envio_whatsapp(
+    *,
+    destinatario: str,
+    tipo: str,
+    texto: str,
+    payload_enviado: dict[str, Any],
+    resposta_api: dict[str, Any],
+    sucesso: bool,
+    erro: str = "",
+) -> None:
+    phone_number_id = _variavel_ambiente_whatsapp("WHATSAPP_PHONE_NUMBER_ID")
+    waba_id = _variavel_ambiente_whatsapp("WHATSAPP_WABA_ID")
+    message_id = ""
+    mensagens = resposta_api.get("messages") if isinstance(resposta_api, dict) else None
+    if isinstance(mensagens, list) and mensagens and isinstance(mensagens[0], dict):
+        message_id = str(mensagens[0].get("id") or "").strip()
+
+    agora = datetime.now(ZoneInfo("UTC")).isoformat(timespec="seconds")
+    evento_payload = {"request": payload_enviado, "response": resposta_api}
+    event_key = f"outbound:{message_id or secrets.token_hex(16)}"
+    request_hash = _hash_whatsapp(payload_enviado)
+
+    try:
+        with conectar_db() as conn:
+            _garantir_integracoes_ambiente_whatsapp(conn)
+            integracao = _buscar_integracao_whatsapp(conn, phone_number_id, waba_id)
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO whatsapp_webhook_eventos (
+                    event_key, request_hash, empresa_id, integracao_id, waba_id, phone_number_id,
+                    display_phone_number, event_type, field_name, message_id, conversation_id,
+                    message_status, message_type, sender_phone, recipient_phone, sender_name,
+                    message_text, error_code, error_title, error_message, event_timestamp, payload_json,
+                    signature_valid, processing_status, received_at, processed_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, 'message_outbound', 'messages', ?, '', ?, ?, '', ?, '', ?, '', '', ?, ?, ?, 1, ?, ?, ?)
+                """,
+                (
+                    event_key, request_hash, (integracao or {}).get("empresa_id"), (integracao or {}).get("id"),
+                    waba_id, phone_number_id, (integracao or {}).get("display_phone_number", ""), message_id,
+                    "accepted" if sucesso else "failed", tipo, destinatario, texto, erro, agora,
+                    _json_canonico_whatsapp(evento_payload), "processed" if sucesso else "failed", agora, agora,
+                ),
+            )
+            conn.commit()
+    except Exception:
+        app.logger.exception("Falha ao registrar envio do WhatsApp no histórico.")
+
+
+def enviar_payload_whatsapp(
+    destinatario: Any,
+    conteudo: dict[str, Any],
+    *,
+    tipo: str,
+    texto_log: str = "",
+) -> tuple[bool, str, dict[str, Any]]:
+    numero, erro_numero = _normalizar_destinatario_whatsapp(destinatario)
+    if erro_numero:
+        return False, erro_numero, {}
+
+    token, endpoint, erro_configuracao = _configuracao_envio_whatsapp()
+    if erro_configuracao:
+        return False, erro_configuracao, {}
+
+    payload: dict[str, Any] = {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": numero,
+        "type": tipo,
+        tipo: conteudo,
+    }
+    corpo = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    requisicao = urllib.request.Request(
+        endpoint,
+        data=corpo,
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        },
+    )
+    timeout = max(5, min(_inteiro_ambiente_whatsapp("WHATSAPP_API_TIMEOUT_SEGUNDOS") or 20, 60))
+
+    try:
+        with urllib.request.urlopen(requisicao, timeout=timeout) as resposta:
+            bruto = resposta.read().decode("utf-8", errors="replace")
+            resposta_json = json.loads(bruto) if bruto.strip() else {}
+            if not isinstance(resposta_json, dict):
+                resposta_json = {"response": resposta_json}
+            message_id = str(((resposta_json.get("messages") or [{}])[0] or {}).get("id") or "").strip()
+            detalhe = f"Mensagem aceita pela Meta{f' ({message_id})' if message_id else ''}."
+            _registrar_envio_whatsapp(destinatario=numero, tipo=tipo, texto=texto_log, payload_enviado=payload, resposta_api=resposta_json, sucesso=True)
+            return True, detalhe, resposta_json
+    except urllib.error.HTTPError as exc:
+        bruto = exc.read().decode("utf-8", errors="replace")
+        try:
+            resposta_json = json.loads(bruto) if bruto.strip() else {}
+        except json.JSONDecodeError:
+            resposta_json = {"raw": bruto[:2000]}
+        detalhe = _mensagem_erro_graph_whatsapp(resposta_json, exc.code)
+        app.logger.warning("Envio do WhatsApp recusado pela Meta: %s", detalhe)
+        _registrar_envio_whatsapp(destinatario=numero, tipo=tipo, texto=texto_log, payload_enviado=payload, resposta_api=resposta_json, sucesso=False, erro=detalhe)
+        return False, detalhe, resposta_json
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        detalhe = f"Falha de comunicação com a API do WhatsApp: {exc}."
+        app.logger.warning(detalhe)
+        _registrar_envio_whatsapp(destinatario=numero, tipo=tipo, texto=texto_log, payload_enviado=payload, resposta_api={}, sucesso=False, erro=detalhe)
+        return False, detalhe, {}
+
+
+def enviar_whatsapp(destinatario: Any, mensagem: Any, *, preview_url: bool = False) -> tuple[bool, str, dict[str, Any]]:
+    texto = str(mensagem or "").strip()
+    if not texto:
+        return False, "A mensagem do WhatsApp está vazia.", {}
+    if len(texto) > 4096:
+        return False, "A mensagem ultrapassa o limite de 4.096 caracteres.", {}
+    return enviar_payload_whatsapp(destinatario, {"preview_url": bool(preview_url), "body": texto}, tipo="text", texto_log=texto)
+
+
+def enviar_whatsapp_template(
+    destinatario: Any,
+    nome_template: str,
+    *,
+    idioma: str = "pt_BR",
+    componentes: list[dict[str, Any]] | None = None,
+) -> tuple[bool, str, dict[str, Any]]:
+    nome = str(nome_template or "").strip()
+    if not nome:
+        return False, "Nome do template não informado.", {}
+    conteudo: dict[str, Any] = {"name": nome, "language": {"code": str(idioma or "pt_BR").strip() or "pt_BR"}}
+    if componentes:
+        conteudo["components"] = componentes
+    return enviar_payload_whatsapp(destinatario, conteudo, tipo="template", texto_log=f"Template: {nome}")
+
+
+def enviar_whatsapp_imagem(destinatario: Any, link: str, *, legenda: str = "") -> tuple[bool, str, dict[str, Any]]:
+    url = str(link or "").strip()
+    if not url.startswith(("https://", "http://")):
+        return False, "Link público da imagem inválido.", {}
+    conteudo: dict[str, Any] = {"link": url}
+    if str(legenda or "").strip():
+        conteudo["caption"] = str(legenda).strip()[:1024]
+    return enviar_payload_whatsapp(destinatario, conteudo, tipo="image", texto_log=str(legenda or "").strip())
+
+
+def enviar_whatsapp_documento(
+    destinatario: Any,
+    link: str,
+    *,
+    nome_arquivo: str = "documento.pdf",
+    legenda: str = "",
+) -> tuple[bool, str, dict[str, Any]]:
+    url = str(link or "").strip()
+    if not url.startswith(("https://", "http://")):
+        return False, "Link público do documento inválido.", {}
+    conteudo: dict[str, Any] = {"link": url, "filename": str(nome_arquivo or "documento.pdf").strip()[:240]}
+    if str(legenda or "").strip():
+        conteudo["caption"] = str(legenda).strip()[:1024]
+    return enviar_payload_whatsapp(destinatario, conteudo, tipo="document", texto_log=str(legenda or nome_arquivo).strip())
+
+
+def marcar_mensagem_whatsapp_como_lida(message_id: str) -> tuple[bool, str, dict[str, Any]]:
+    identificador = str(message_id or "").strip()
+    if not identificador:
+        return False, "ID da mensagem não informado.", {}
+    token, endpoint, erro_configuracao = _configuracao_envio_whatsapp()
+    if erro_configuracao:
+        return False, erro_configuracao, {}
+    payload = {"messaging_product": "whatsapp", "status": "read", "message_id": identificador}
+    requisicao = urllib.request.Request(endpoint, data=json.dumps(payload).encode("utf-8"), method="POST", headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json", "Accept": "application/json"})
+    try:
+        with urllib.request.urlopen(requisicao, timeout=20) as resposta:
+            bruto = resposta.read().decode("utf-8", errors="replace")
+            dados = json.loads(bruto) if bruto.strip() else {}
+            return True, "Mensagem marcada como lida.", dados if isinstance(dados, dict) else {"response": dados}
+    except urllib.error.HTTPError as exc:
+        bruto = exc.read().decode("utf-8", errors="replace")
+        try:
+            dados = json.loads(bruto) if bruto.strip() else {}
+        except json.JSONDecodeError:
+            dados = {"raw": bruto[:2000]}
+        return False, _mensagem_erro_graph_whatsapp(dados, exc.code), dados
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        return False, f"Falha de comunicação com a API do WhatsApp: {exc}.", {}
+
+
 def _hash_whatsapp(valor: Any) -> str:
     conteudo = valor if isinstance(valor, bytes) else _json_canonico_whatsapp(valor).encode("utf-8")
     return hashlib.sha256(conteudo).hexdigest()
@@ -1572,12 +1800,45 @@ def _garantir_integracao_teste_whatsapp(conn: sqlite3.Connection) -> None:
     )
 
 
+def _garantir_integracao_producao_whatsapp(conn: sqlite3.Connection) -> None:
+    phone_number_id = _variavel_ambiente_whatsapp("WHATSAPP_PHONE_NUMBER_ID")
+    if not phone_number_id:
+        return
+    waba_id = _variavel_ambiente_whatsapp("WHATSAPP_WABA_ID")
+    empresa_id = _inteiro_ambiente_whatsapp("WHATSAPP_EMPRESA_ID")
+    display_phone_number = _variavel_ambiente_whatsapp("WHATSAPP_DISPLAY_PHONE_NUMBER")
+    agora = datetime.now(ZoneInfo("UTC")).isoformat(timespec="seconds")
+    conn.execute(
+        """
+        INSERT OR IGNORE INTO whatsapp_integracoes (
+            empresa_id, waba_id, phone_number_id, display_phone_number, nome_integracao, status, ambiente, criado_em, atualizado_em
+        ) VALUES (?, ?, ?, ?, 'WhatsApp oficial', 'ativo', 'producao', ?, ?)
+        """,
+        (empresa_id, waba_id, phone_number_id, display_phone_number, agora, agora),
+    )
+    conn.execute(
+        """
+        UPDATE whatsapp_integracoes
+        SET empresa_id = COALESCE(?, empresa_id), waba_id = COALESCE(NULLIF(?, ''), waba_id),
+            display_phone_number = COALESCE(NULLIF(?, ''), display_phone_number), status = 'ativo',
+            ambiente = 'producao', atualizado_em = ?
+        WHERE phone_number_id = ?
+        """,
+        (empresa_id, waba_id, display_phone_number, agora, phone_number_id),
+    )
+
+
+def _garantir_integracoes_ambiente_whatsapp(conn: sqlite3.Connection) -> None:
+    _garantir_integracao_teste_whatsapp(conn)
+    _garantir_integracao_producao_whatsapp(conn)
+
+
 def _buscar_integracao_whatsapp(
     conn: sqlite3.Connection,
     phone_number_id: str,
     waba_id: str,
 ) -> dict[str, Any] | None:
-    _garantir_integracao_teste_whatsapp(conn)
+    _garantir_integracoes_ambiente_whatsapp(conn)
 
     row = None
     if phone_number_id:
