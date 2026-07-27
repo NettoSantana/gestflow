@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-27 16:18 (America/Bahia)
-# Motivo: Corrigir erro 500 ao gerar mensagens automáticas do WhatsApp nos módulos.
+# Último recode: 2026-07-27 16:27 (America/Bahia)
+# Motivo: Corrigir NameError após envio de WhatsApp e preparar tratamento do código de erro retornado pela Meta.
 
 from __future__ import annotations
 
@@ -36673,6 +36673,18 @@ def _url_retorno_whatsapp_modulo(modulo: str, registro_id: int, **parametros: st
     return url_for(endpoint, **valores)
 
 
+def _codigo_erro_whatsapp(resposta: Any) -> str:
+    if not isinstance(resposta, dict):
+        return ""
+
+    erro = resposta.get("error")
+    if isinstance(erro, dict):
+        codigo = erro.get("code") or erro.get("error_subcode")
+        return str(codigo or "").strip()
+
+    return str(resposta.get("code") or "").strip()
+
+
 @app.post("/whatsapp/enviar/<string:modulo>/<int:registro_id>")
 def enviar_whatsapp_modulo(modulo: str, registro_id: int) -> Response:
     modulo = str(modulo or "").strip().lower()
@@ -36697,10 +36709,11 @@ def enviar_whatsapp_modulo(modulo: str, registro_id: int) -> Response:
 
         sucesso, detalhe, resposta = enviar_whatsapp(telefone, mensagem, preview_url=True)
         if sucesso:
+            telefone_normalizado, _ = _normalizar_destinatario_whatsapp(telefone)
             registrar_atividade_usuario(
                 "envio_whatsapp",
                 modulo,
-                f"Enviou WhatsApp para {normalizar_telefone_whatsapp(telefone)}",
+                f"Enviou WhatsApp para {telefone_normalizado or telefone}",
                 request.path,
                 registro_id=registro_id,
             )
