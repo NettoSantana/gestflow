@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\emprestimos.html
-Último recode: 2026-07-25 18:20 (America/Bahia)
-Motivo: Criar a listagem completa com pesquisa, filtros e acesso aos contratos.
+Último recode: 2026-07-27 17:24 (America/Bahia)
+Motivo: Adicionar envio do PDF do empréstimo pelo WhatsApp diretamente na listagem.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -54,7 +54,7 @@ Motivo: Criar a listagem completa com pesquisa, filtros e acesso aos contratos.
                             <td>R$ {{ item.saldo_atual }}</td>
                             <td>{{ item.quantidade_parcelas }}</td>
                             <td><span class="loan-status {{ item.status }}">{{ item.status|replace('_', ' ')|title }}</span></td>
-                            <td><a class="loan-link-button" href="/emprestimos/{{ item.id }}">Ver</a></td>
+                            <td><div style="display:flex;gap:6px;flex-wrap:wrap;"><a class="loan-link-button" href="/emprestimos/{{ item.id }}">Ver</a><a class="loan-link-button" style="background:#128c7e;color:#fff;border-color:#128c7e;" href="/whatsapp/pdf/emprestimo/{{ item.id }}">📲 PDF</a></div></td>
                         </tr>
                     {% else %}
                         <tr><td colspan="9" class="loan-empty">Nenhum empréstimo encontrado.</td></tr>

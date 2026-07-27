@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\financeiro.html
-Último recode: 2026-07-18 18:30 (America/Bahia)
-Motivo: Filtrar Atividade / Projeto pelo Centro de custo e limpar seleções incompatíveis.
+Último recode: 2026-07-27 17:24 (America/Bahia)
+Motivo: Adicionar envio do PDF do título financeiro pelo WhatsApp diretamente na listagem.
 -->
 
 <!DOCTYPE html>
@@ -180,7 +180,7 @@ Motivo: Filtrar Atividade / Projeto pelo Centro de custo e limpar seleções inc
                 grid-template-columns: 1fr;
             }
         }
-    
+
         .logout-button {
             height: 36px;
             padding: 0 14px;
@@ -307,7 +307,7 @@ Motivo: Filtrar Atividade / Projeto pelo Centro de custo e limpar seleções inc
             cursor: not-allowed;
         }
 
-    
+
         .quick-modal-backdrop {
             position: fixed;
             inset: 0;
@@ -564,6 +564,14 @@ Motivo: Filtrar Atividade / Projeto pelo Centro de custo e limpar seleções inc
                     title="Ver título"
                     aria-label="Ver título"
                 >🔍</a>
+
+                <a
+                    href="/whatsapp/pdf/financeiro/{{ titulo.id }}"
+                    class="financeiro-icon-button"
+                    style="background:#128c7e;color:#fff;text-decoration:none;"
+                    title="Enviar PDF pelo WhatsApp"
+                    aria-label="Enviar PDF pelo WhatsApp"
+                >📲</a>
 
                 {% if titulo.pode_editar %}
                     <a
@@ -890,7 +898,7 @@ Motivo: Filtrar Atividade / Projeto pelo Centro de custo e limpar seleções inc
             {% endif %}
         </section>
 
-    
+
 
         <div id="quick-cliente-modal" class="quick-modal-backdrop" aria-hidden="true">
             <div class="quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-cliente-title">

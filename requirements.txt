@@ -1,9 +1,10 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\requirements.txt
-# Último recode: 2026-02-09 20:28 (America/Bahia)
-# Motivo: Definir dependências mínimas do MVP (Flask + Twilio + Waitress + dotenv + PDF).
+# Último recode: 2026-07-27 17:24 (America/Bahia)
+# Motivo: Estabilizar a geração de PDFs para envio direto pela WhatsApp Cloud API.
 
 Flask==3.0.2
 twilio==9.0.4
 waitress==3.0.0
 python-dotenv==1.0.1
 weasyprint==61.2
+pydyf==0.10.0
