@@ -1,0 +1,14 @@
+{# Caminho: templates/partials/whatsapp_envio_modulo.html | Recode: 2026-07-27 12:20 America/Bahia | Motivo: envio nativo por WhatsApp #}
+<details class="whatsapp-native-card">
+  <summary>📲 Enviar pelo WhatsApp</summary>
+  <form method="post" action="/whatsapp/enviar/{{ whatsapp_modulo }}/{{ whatsapp_registro_id }}" class="whatsapp-native-form">
+    <label>Telefone com DDD</label>
+    <input type="text" name="telefone" value="{{ whatsapp_telefone|default('') }}" placeholder="Ex.: 71999999999" autocomplete="tel">
+    <label>Mensagem <small>(deixe vazia para usar a mensagem automática)</small></label>
+    <textarea name="mensagem" rows="5" placeholder="O GestFlow montará uma mensagem automática com os dados deste registro."></textarea>
+    <button type="submit" class="btn-whatsapp-native">Enviar agora</button>
+  </form>
+</details>
+<style>
+.whatsapp-native-card{margin:16px 0;border:1px solid #b7e4c7;border-radius:12px;background:#f3fff7;overflow:hidden}.whatsapp-native-card summary{cursor:pointer;padding:14px 16px;font-weight:800;color:#116530;list-style:none}.whatsapp-native-form{display:grid;gap:8px;padding:0 16px 16px}.whatsapp-native-form input,.whatsapp-native-form textarea{width:100%;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:8px;padding:10px;font:inherit;background:#fff}.whatsapp-native-form label{font-weight:700}.whatsapp-native-form small{font-weight:400;color:#64748b}.btn-whatsapp-native{border:0;border-radius:8px;padding:11px 16px;background:#128c7e;color:#fff;font-weight:800;cursor:pointer;justify-self:start}.btn-whatsapp-native:hover{background:#0f766e}
+</style>

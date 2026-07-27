@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-27 11:40 (America/Bahia)
-# Motivo: Implementar envio centralizado pela WhatsApp Cloud API para textos, templates, imagens e documentos.
+# Último recode: 2026-07-27 12:20 (America/Bahia)
+# Motivo: Integrar envio nativo de WhatsApp aos módulos operacionais, comerciais, financeiros e de equipe.
 
 from __future__ import annotations
 
@@ -36553,6 +36553,152 @@ def garantir_migracao_origem_orcamento_os() -> None:
     except sqlite3.Error:
         pass
 
+
+
+# -----------------------------------------------------------------------------
+# WHATSAPP NATIVO NOS MODULOS
+# -----------------------------------------------------------------------------
+
+WHATSAPP_MODULOS_ENVIO: dict[str, dict[str, str]] = {
+    "orcamento": {"tabela": "orcamentos", "retorno": "ver_orcamento", "parametro": "orcamento_id"},
+    "venda": {"tabela": "vendas", "retorno": "ver_venda", "parametro": "venda_id"},
+    "ordem_servico": {"tabela": "ordens_servico", "retorno": "ver_ordem_servico", "parametro": "ordem_servico_id"},
+    "agendamento": {"tabela": "agendamentos", "retorno": "agendamentos", "parametro": ""},
+    "contrato": {"tabela": "contratos", "retorno": "ver_contrato", "parametro": "contrato_id"},
+    "financeiro": {"tabela": "financeiro_titulos", "retorno": "ver_financeiro_titulo", "parametro": "titulo_id"},
+    "emprestimo": {"tabela": "emprestimos", "retorno": "emprestimo_detalhe", "parametro": "emprestimo_id"},
+    "atividade": {"tabela": "gestao_atividades", "retorno": "gestao_atividade_detalhe", "parametro": "atividade_id"},
+    "funcionario": {"tabela": "funcionarios", "retorno": "ver_funcionario", "parametro": "funcionario_id"},
+    "compra": {"tabela": "estoque_movimentacoes", "retorno": "ver_compra_estoque", "parametro": "compra_id"},
+}
+
+
+def _buscar_registro_whatsapp_modulo(modulo: str, registro_id: int) -> dict[str, Any] | None:
+    configuracao = WHATSAPP_MODULOS_ENVIO.get(str(modulo or "").strip())
+    if not configuracao or int(registro_id or 0) <= 0:
+        return None
+    empresa_id = empresa_logada_id()
+    with conectar_db() as conn:
+        colunas = {str(row["name"]) for row in conn.execute(f"PRAGMA table_info({configuracao['tabela']})").fetchall()}
+        filtro_empresa = " AND empresa_id = ?" if "empresa_id" in colunas else ""
+        parametros: tuple[Any, ...] = (registro_id, empresa_id) if filtro_empresa else (registro_id,)
+        row = conn.execute(
+            f"SELECT * FROM {configuracao['tabela']} WHERE id = ?{filtro_empresa} LIMIT 1",
+            parametros,
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def _telefone_whatsapp_registro(modulo: str, registro: dict[str, Any]) -> str:
+    for campo in ("cliente_telefone", "telefone", "whatsapp"):
+        if str(registro.get(campo) or "").strip():
+            return str(registro.get(campo) or "").strip()
+
+    nome_pessoa = str(
+        registro.get("cliente")
+        or registro.get("cliente_nome")
+        or registro.get("pessoa")
+        or registro.get("responsavel")
+        or ""
+    ).strip()
+    if nome_pessoa:
+        cliente = buscar_cliente_por_nome(nome_pessoa)
+        if cliente and str(cliente.get("telefone") or "").strip():
+            return str(cliente.get("telefone") or "").strip()
+
+    if modulo == "compra":
+        fornecedor = str(registro.get("fornecedor") or registro.get("fornecedor_nome") or "").strip()
+        if fornecedor:
+            with conectar_db() as conn:
+                row = conn.execute(
+                    "SELECT telefone FROM fornecedores WHERE empresa_id = ? AND LOWER(TRIM(nome)) = LOWER(TRIM(?)) LIMIT 1",
+                    (empresa_logada_id(), fornecedor),
+                ).fetchone()
+            if row and str(row["telefone"] or "").strip():
+                return str(row["telefone"] or "").strip()
+    return ""
+
+
+def _numero_documento_whatsapp(registro: dict[str, Any], prefixo: str) -> str:
+    return str(registro.get("numero") or registro.get("documento") or f"{prefixo}-{registro.get('id')}").strip()
+
+
+def _mensagem_padrao_whatsapp_modulo(modulo: str, registro: dict[str, Any]) -> str:
+    empresa = buscar_empresa_por_id(empresa_logada_id()) or {}
+    nome_empresa = str(empresa.get("nome_fantasia") or empresa.get("razao_social") or "GestFlow").strip()
+    cliente = str(registro.get("cliente") or registro.get("cliente_nome") or registro.get("pessoa") or "").strip()
+    saudacao = f"Olá, {cliente}!" if cliente else "Olá!"
+
+    if modulo == "orcamento":
+        numero = _numero_documento_whatsapp(registro, "ORC")
+        link = url_for("ver_orcamento", orcamento_id=registro["id"], _external=True)
+        return f"{saudacao}\n\nSegue o orçamento {numero}, no valor de {formatar_moeda(registro.get('valor_total'))}.\n\nAcesse: {link}\n\n{nome_empresa}"
+    if modulo == "venda":
+        numero = _numero_documento_whatsapp(registro, "VEN")
+        link = url_for("ver_venda", venda_id=registro["id"], _external=True)
+        return f"{saudacao}\n\nA venda {numero} foi registrada com sucesso.\nValor: {formatar_moeda(registro.get('valor_total'))}\nStatus: {registro.get('status') or '-'}\n\nDetalhes: {link}\n\n{nome_empresa}"
+    if modulo == "ordem_servico":
+        numero = _numero_documento_whatsapp(registro, "OS")
+        token = str(registro.get("token_cliente") or registro.get("token_publico_os") or "").strip()
+        link = montar_url_acompanhamento_os(token) if token else url_for("ver_ordem_servico", ordem_servico_id=registro["id"], _external=True)
+        return f"{saudacao}\n\nSua Ordem de Serviço {numero} está com status: {registro.get('status') or '-'}.\nTécnico: {registro.get('tecnico') or registro.get('responsavel') or '-'}\n\nAcompanhe: {link}\n\n{nome_empresa}"
+    if modulo == "agendamento":
+        return f"{saudacao}\n\nSeu atendimento está confirmado.\nServiço: {registro.get('servico_nome') or '-'}\nData: {formatar_data_br(registro.get('data_agendamento'))}\nHorário: {registro.get('hora_inicio') or '-'}\nProfissional: {registro.get('profissional_nome') or '-'}\nStatus: {str(registro.get('status') or '-').replace('_', ' ')}\n\n{nome_empresa}"
+    if modulo == "contrato":
+        numero = _numero_documento_whatsapp(registro, "CONT")
+        link = url_for("ver_contrato", contrato_id=registro["id"], _external=True)
+        return f"{saudacao}\n\nSegue a atualização do contrato {numero}.\nStatus: {registro.get('status') or '-'}\nValor: {formatar_moeda(registro.get('valor_total') or registro.get('valor'))}\n\nDetalhes: {link}\n\n{nome_empresa}"
+    if modulo == "financeiro":
+        vencimento = formatar_data_br(registro.get("data_vencimento"))
+        return f"{saudacao}\n\nLembrete financeiro: {registro.get('descricao') or 'título'}.\nValor: {formatar_moeda(registro.get('valor'))}\nVencimento: {vencimento or '-'}\nStatus: {registro.get('status') or '-'}\n\n{nome_empresa}"
+    if modulo == "emprestimo":
+        return f"Olá!\n\nAtualização do empréstimo {registro.get('numero') or registro.get('id')}.\nStatus: {registro.get('status') or '-'}\nValor: {formatar_moeda(registro.get('valor_principal') or registro.get('valor'))}\n\n{nome_empresa}"
+    if modulo == "atividade":
+        return f"Olá!\n\nAtualização da atividade: {registro.get('titulo') or registro.get('nome') or registro.get('descricao') or registro.get('id')}.\nStatus: {registro.get('status') or '-'}\nPrazo: {formatar_data_br(registro.get('data_fim') or registro.get('prazo')) or '-'}\n\n{nome_empresa}"
+    if modulo == "funcionario":
+        return f"Olá, {registro.get('nome') or ''}!\n\nEsta é uma comunicação da equipe {nome_empresa}."
+    if modulo == "compra":
+        numero = _numero_documento_whatsapp(registro, "COMP")
+        return f"Olá!\n\nAtualização do pedido de compra {numero}.\nStatus: {registro.get('status') or '-'}\nValor: {formatar_moeda(registro.get('valor_total') or registro.get('total'))}\n\n{nome_empresa}"
+    return f"Olá!\n\nVocê recebeu uma atualização pelo {nome_empresa}."
+
+
+def _url_retorno_whatsapp_modulo(modulo: str, registro_id: int, **parametros: str) -> str:
+    configuracao = WHATSAPP_MODULOS_ENVIO.get(modulo) or {}
+    endpoint = configuracao.get("retorno") or "dashboard"
+    parametro = configuracao.get("parametro") or ""
+    valores: dict[str, Any] = dict(parametros)
+    if parametro:
+        valores[parametro] = registro_id
+    return url_for(endpoint, **valores)
+
+
+@app.post("/whatsapp/enviar/<string:modulo>/<int:registro_id>")
+def enviar_whatsapp_modulo(modulo: str, registro_id: int) -> Response:
+    modulo = str(modulo or "").strip().lower()
+    registro = _buscar_registro_whatsapp_modulo(modulo, registro_id)
+    if registro is None:
+        return redirect(url_for("dashboard", erro="Registro não encontrado para envio por WhatsApp."))
+
+    telefone = str(request.form.get("telefone") or "").strip() or _telefone_whatsapp_registro(modulo, registro)
+    mensagem = str(request.form.get("mensagem") or "").strip() or _mensagem_padrao_whatsapp_modulo(modulo, registro)
+    if not telefone:
+        return redirect(_url_retorno_whatsapp_modulo(modulo, registro_id, erro="Telefone/WhatsApp não encontrado. Informe o número no envio."))
+
+    sucesso, detalhe, resposta = enviar_whatsapp(telefone, mensagem, preview_url=True)
+    if sucesso:
+        registrar_atividade_usuario(
+            "envio_whatsapp",
+            modulo,
+            f"Enviou WhatsApp para {normalizar_telefone_whatsapp(telefone)}",
+            request.path,
+            registro_id=registro_id,
+        )
+        return redirect(_url_retorno_whatsapp_modulo(modulo, registro_id, sucesso="Mensagem enviada pelo WhatsApp com sucesso."))
+
+    codigo = _codigo_erro_whatsapp(resposta)
+    complemento = f" Código Meta: {codigo}." if codigo else ""
+    return redirect(_url_retorno_whatsapp_modulo(modulo, registro_id, erro=f"Não foi possível enviar pelo WhatsApp: {detalhe}.{complemento}"))
 
 garantir_migracao_origem_orcamento_os()
 iniciar_banco()

@@ -592,7 +592,12 @@ Motivo: Corrigir as expressões Jinja da nova tela em abas para exibir os dados 
                 </div>
             </div>
         </section>
-    </main>
+
+{% set whatsapp_modulo = 'ordem_servico' %}
+{% set whatsapp_registro_id = ordem_servico.id %}
+{% set whatsapp_telefone = '' %}
+{% include 'partials/whatsapp_envio_modulo.html' %}
+</main>
 
     <script>
         (function () {

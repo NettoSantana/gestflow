@@ -189,6 +189,11 @@ Motivo: Exibir e operar empréstimos rotativos com baixa de juros, amortização
                 </div>
             </article>
         </section>
-    </main>
+
+{% set whatsapp_modulo = 'emprestimo' %}
+{% set whatsapp_registro_id = emprestimo.id %}
+{% set whatsapp_telefone = '' %}
+{% include 'partials/whatsapp_envio_modulo.html' %}
+</main>
 </body>
 </html>

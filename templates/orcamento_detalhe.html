@@ -341,7 +341,7 @@ Motivo: Mostrar a venda já vinculada e impedir nova geração pelo mesmo orçam
                 min-width: 680px;
             }
         }
-    
+
         .budget-tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px; padding:8px; border:1px solid #dbe4f0; border-radius:14px; background:#fff; }
         .budget-tab { min-height:38px; display:inline-flex; align-items:center; justify-content:center; padding:0 14px; border-radius:10px; color:#475569; font-size:12px; font-weight:900; text-decoration:none; }
         .budget-tab:hover { background:#f1f5f9; color:#0f172a; }
@@ -549,7 +549,12 @@ Motivo: Mostrar a venda já vinculada e impedir nova geração pelo mesmo orçam
         </script>
 
 
-    </main>
+
+{% set whatsapp_modulo = 'orcamento' %}
+{% set whatsapp_registro_id = orcamento.id %}
+{% set whatsapp_telefone = '' %}
+{% include 'partials/whatsapp_envio_modulo.html' %}
+</main>
 
 </body>
 </html>

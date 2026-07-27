@@ -587,7 +587,12 @@ Motivo: Exibir condição de pagamento e cronograma financeiro da venda.
             });
         </script>
 
-    </main>
+
+{% set whatsapp_modulo = 'venda' %}
+{% set whatsapp_registro_id = venda.id %}
+{% set whatsapp_telefone = '' %}
+{% include 'partials/whatsapp_envio_modulo.html' %}
+</main>
 
 </body>
 </html>

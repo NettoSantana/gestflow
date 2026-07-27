@@ -89,6 +89,11 @@ Motivo: Exibir configuração de intervalo/almoço no detalhe do funcionário.
                 <div><span>Custo hora</span><strong>{{ funcionario.custo_hora or '-' }}</strong></div>
             </div>
         </section>
-    </main>
+
+{% set whatsapp_modulo = 'funcionario' %}
+{% set whatsapp_registro_id = funcionario.id %}
+{% set whatsapp_telefone = funcionario.telefone|default('') %}
+{% include 'partials/whatsapp_envio_modulo.html' %}
+</main>
 </body>
 </html>
