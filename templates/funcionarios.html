@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\funcionarios.html
-Último recode: 2026-07-10 11:45 (America/Bahia)
-Motivo: Corrigir coluna Almoço e exibir configuração de intervalo dos funcionários.
+Último recode: 2026-07-27 17:24 (America/Bahia)
+Motivo: Adicionar envio do PDF do funcionário pelo WhatsApp diretamente na listagem.
 -->
 
 <!DOCTYPE html>
@@ -565,6 +565,7 @@ Motivo: Corrigir coluna Almoço e exibir configuração de intervalo dos funcion
                                         <div class="action-buttons">
                                             <a href="/funcionarios/{{ funcionario.id }}" title="Ver funcionário" aria-label="Ver funcionário" class="action-button view">🔍</a>
                                             <a href="/funcionarios/{{ funcionario.id }}/editar" title="Editar funcionário" aria-label="Editar funcionário" class="action-button edit">✎</a>
+                                            <a href="/whatsapp/pdf/funcionario/{{ funcionario.id }}" title="Enviar PDF pelo WhatsApp" aria-label="Enviar PDF pelo WhatsApp" class="action-button" style="background:#128c7e;color:#fff;text-decoration:none;">📲</a>
                                             <form action="/funcionarios/{{ funcionario.id }}/excluir" method="post" onsubmit="return confirm('Tem certeza que deseja excluir este funcionário?');" class="action-form">
                                                 <button type="submit" title="Excluir funcionário" aria-label="Excluir funcionário" class="action-button delete">×</button>
                                             </form>

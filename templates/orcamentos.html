@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamentos.html
-Último recode: 2026-07-22 11:08 (America/Bahia)
-Motivo: Automatizar o número, ampliar as observações e impedir envio acidental do orçamento pela tecla Enter.
+Último recode: 2026-07-27 17:24 (America/Bahia)
+Motivo: Mover o envio do orçamento para a lista e anexar o PDF diretamente no WhatsApp.
 -->
 
 <!DOCTYPE html>
@@ -518,7 +518,7 @@ Motivo: Automatizar o número, ampliar as observações e impedir envio acidenta
             }
         }
 
-    
+
         .budget-origin-badge, .budget-mode-badge { display:inline-flex; align-items:center; min-height:21px; margin-top:5px; padding:0 7px; border-radius:999px; font-size:9px; font-weight:900; text-transform:uppercase; white-space:nowrap; }
         .budget-origin-badge.gerador { background:#dbeafe; color:#1d4ed8; }
         .budget-origin-badge.manual { background:#e2e8f0; color:#475569; }
@@ -1066,6 +1066,13 @@ Motivo: Automatizar o número, ampliar as observações e impedir envio acidenta
                                                                 <div class="budget-action-subitems">
                                                                     <a href="/orcamentos/{{ orcamento.id }}/imprimir/a4" target="_blank">A4</a>
                                                                     <a href="/orcamentos/{{ orcamento.id }}/imprimir/cupom" target="_blank">Cupom</a>
+                                                                </div>
+                                                            </details>
+
+                                                            <details class="budget-action-submenu">
+                                                                <summary>📲 WhatsApp</summary>
+                                                                <div class="budget-action-subitems">
+                                                                    <a href="/whatsapp/pdf/orcamento/{{ orcamento.id }}">Enviar PDF</a>
                                                                 </div>
                                                             </details>
 

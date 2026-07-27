@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordens_servico.html
-Último recode: 2026-07-22 12:02 (America/Bahia)
-Motivo: Automatizar o número da OS, ampliar observações e impedir envio acidental do formulário pela tecla Enter.
+Último recode: 2026-07-27 17:24 (America/Bahia)
+Motivo: Mover o envio da OS para a lista e anexar o PDF diretamente no WhatsApp.
 -->
 
 <!DOCTYPE html>
@@ -290,7 +290,7 @@ Motivo: Automatizar o número da OS, ampliar observações e impedir envio acide
                 grid-column: span 1;
             }
         }
-    
+
         .logout-button {
             height: 36px;
             padding: 0 14px;
@@ -994,7 +994,7 @@ Motivo: Automatizar o número da OS, ampliar observações e impedir envio acide
             <div class="card stat-card"><div class="card-icon">✓</div><div class="card-info"><p>{{ resumo.finalizadas }}</p><h3>Finalizadas</h3><span>{% if resumo.finalizadas == 1 %}1 OS finalizada{% elif resumo.finalizadas > 1 %}{{ resumo.finalizadas }} OS finalizadas{% else %}Nenhuma OS finalizada{% endif %}</span></div></div>
         </section>
 
-        
+
         <input type="checkbox" id="os-cadastro-toggle" class="os-cadastro-toggle">
 
         <section class="os-cadastro-resumo">
@@ -1302,13 +1302,19 @@ Motivo: Automatizar o número da OS, ampliar observações e impedir envio acide
                                                             </div>
                                                         </details>
                                                         <details class="budget-action-submenu">
+                                                            <summary>📲 WhatsApp</summary>
+                                                            <div class="budget-action-subitems">
+                                                                <a href="/whatsapp/pdf/ordem_servico/{{ os.id }}">Enviar PDF</a>
+                                                            </div>
+                                                        </details>
+                                                        <details class="budget-action-submenu">
                                                             <summary>↪ Gerar</summary>
                                                             <div class="budget-action-subitems">
                                                                 <a href="/ordens-servico/{{ os.id }}/links">Atualizar links públicos</a>
                                                                 <a href="/os/cliente/{{ os.token_cliente }}" target="_blank">Link do cliente</a>
                                                                 <a href="/os/campo/{{ os.token_campo }}" target="_blank">Link do técnico/campo</a>
                                                                 <a href="/ordens-servico/{{ os.id }}/gerar/copia">Cópia</a>
-                                                            
+
                                                             </div>
                                                         </details>
                                                     </div>
@@ -1693,7 +1699,7 @@ Motivo: Automatizar o número da OS, ampliar observações e impedir envio acide
             document.addEventListener("DOMContentLoaded", function() { adicionarItem("produto"); adicionarItem("servico"); });
         </script>
 
-    
+
 
 
         <div id="quick-equipamento-modal" class="quick-modal-backdrop" aria-hidden="true">

@@ -1,0 +1,41 @@
+<!--
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\documento_modulo_imprimir_a4.html
+Último recode: 2026-07-27 17:24 (America/Bahia)
+Motivo: Gerar PDFs A4 dos módulos que ainda não possuem impressão própria.
+-->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ documento.titulo }} - {{ documento.numero }}</title>
+    <style>
+        @page{size:A4;margin:13mm}*{box-sizing:border-box}body{margin:0;color:#0f172a;font-family:Arial,Helvetica,sans-serif;font-size:12px}.sheet{width:100%}.header{display:flex;justify-content:space-between;align-items:center;gap:18px;border-bottom:3px solid #0f62fe;padding-bottom:14px}.brand{display:flex;align-items:center;gap:12px}.logo{width:86px;height:62px;border:1px solid #dbe4f0;border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:hidden;font-weight:900;color:#0f62fe}.logo img{width:100%;height:100%;object-fit:contain}.company strong{display:block;font-size:18px}.company span{display:block;color:#475569;line-height:1.5}.doc-id{text-align:right}.doc-id span{display:block;color:#64748b;font-weight:800}.doc-id strong{display:block;font-size:20px;margin-top:4px}.title{margin:24px 0 16px}.title h1{margin:0;font-size:22px}.title p{margin:6px 0 0;color:#64748b}.fields{display:grid;grid-template-columns:1fr 1fr;border:1px solid #dbe4f0;border-radius:12px;overflow:hidden}.field{padding:11px 12px;border-bottom:1px solid #e5eaf2}.field:nth-child(odd){border-right:1px solid #e5eaf2}.field:last-child,.field:nth-last-child(2):nth-child(odd){border-bottom:0}.field span{display:block;color:#64748b;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}.field strong{white-space:pre-wrap}.notes{margin-top:18px;border:1px solid #dbe4f0;border-radius:12px;padding:14px}.notes h2{font-size:13px;margin:0 0 8px}.notes p{margin:0;white-space:pre-wrap;line-height:1.55}.footer{margin-top:28px;border-top:1px solid #dbe4f0;padding-top:10px;display:flex;justify-content:space-between;color:#64748b;font-size:10px}
+    </style>
+</head>
+<body>
+    <main class="sheet">
+        <header class="header">
+            <div class="brand">
+                <div class="logo">{% if empresa.logo_path %}<img src="{{ empresa.logo_path }}" alt="Logo">{% else %}GF{% endif %}</div>
+                <div class="company">
+                    <strong>{{ empresa.nome_fantasia or empresa.razao_social or 'GestFlow' }}</strong>
+                    {% if empresa.documento %}<span>CNPJ/CPF: {{ empresa.documento }}</span>{% endif %}
+                    {% if empresa.telefone %}<span>Telefone: {{ empresa.telefone }}</span>{% endif %}
+                    {% if empresa.email %}<span>{{ empresa.email }}</span>{% endif %}
+                    {% if loja and loja.cidade %}<span>{{ loja.cidade }}</span>{% endif %}
+                </div>
+            </div>
+            <div class="doc-id"><span>{{ documento.titulo }}</span><strong>{{ documento.numero }}</strong></div>
+        </header>
+        <section class="title">
+            <h1>{{ documento.titulo }}</h1>
+            {% if documento.destinatario %}<p>Destinatário: {{ documento.destinatario }}</p>{% endif %}
+        </section>
+        <section class="fields">
+            {% for campo in documento.campos %}<div class="field"><span>{{ campo.rotulo }}</span><strong>{{ campo.valor }}</strong></div>{% endfor %}
+        </section>
+        {% if documento.observacoes %}<section class="notes"><h2>Observações</h2><p>{{ documento.observacoes }}</p></section>{% endif %}
+        <footer class="footer"><span>Documento gerado pelo GestFlow</span><span>{{ documento.gerado_em }}</span></footer>
+    </main>
+</body>
+</html>

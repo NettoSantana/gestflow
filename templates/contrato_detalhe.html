@@ -223,7 +223,12 @@ Motivo: Exigir e exibir motivo nas transições para Suspenso, Encerrado e Cance
                 </section>
             </aside>
         </div>
-    </main>
+
+{% set whatsapp_modulo = 'contrato' %}
+{% set whatsapp_registro_id = contrato.id %}
+{% set whatsapp_telefone = '' %}
+{% include 'partials/whatsapp_envio_modulo.html' %}
+</main>
 
     <script>
     (function () {

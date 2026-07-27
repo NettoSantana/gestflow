@@ -149,6 +149,11 @@ Motivo: Criar visualização completa do título financeiro, origem, ações per
                 {% endfor %}
             </div>
         </section>
-    </main>
+
+{% set whatsapp_modulo = 'financeiro' %}
+{% set whatsapp_registro_id = titulo.id %}
+{% set whatsapp_telefone = '' %}
+{% include 'partials/whatsapp_envio_modulo.html' %}
+</main>
 </body>
 </html>

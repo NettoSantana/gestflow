@@ -158,6 +158,11 @@
     {% if aba=='historico' %}
     <section class="panel"><h3>Histórico</h3><div class="activity-history">{% for h in historico %}<div><strong>{{ h.acao|replace('_',' ') }}</strong><span>{{ h.descricao }}</span><small>{{ h.criado_em }} · {{ h.responsavel }}</small></div>{% else %}<p>Sem histórico.</p>{% endfor %}</div></section>
     {% endif %}
+
+{% set whatsapp_modulo = 'atividade' %}
+{% set whatsapp_registro_id = atividade.id %}
+{% set whatsapp_telefone = '' %}
+{% include 'partials/whatsapp_envio_modulo.html' %}
 </main>
 </body>
 </html>

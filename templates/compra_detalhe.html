@@ -70,6 +70,11 @@ Motivo: Criar visualização detalhada da compra de estoque.
                 </form>
             </div>
         </section>
-    </main>
+
+{% set whatsapp_modulo = 'compra' %}
+{% set whatsapp_registro_id = compra.id %}
+{% set whatsapp_telefone = '' %}
+{% include 'partials/whatsapp_envio_modulo.html' %}
+</main>
 </body>
 </html>

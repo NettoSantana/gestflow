@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\estoque.html
-Último recode: 2026-07-16 20:21 (America/Bahia)
-Motivo: Incluir a categoria obrigatória no cadastro rápido de fornecedor e enviar o valor ao backend.
+Último recode: 2026-07-27 17:24 (America/Bahia)
+Motivo: Adicionar envio do PDF da compra pelo WhatsApp diretamente na listagem de compras.
 -->
 
 <!DOCTYPE html>
@@ -332,7 +332,7 @@ Motivo: Incluir a categoria obrigatória no cadastro rápido de fornecedor e env
                 min-width: 100%;
             }
         }
-    
+
         .logout-button {
             height: 36px;
             padding: 0 14px;
@@ -1105,6 +1105,7 @@ Motivo: Incluir a categoria obrigatória no cadastro rápido de fornecedor e env
                                             <div class="action-buttons">
                                                 <a href="/estoque/compras/{{ compra.id }}" title="Ver compra" aria-label="Ver compra" class="action-button view">🔍</a>
                                                 <a href="/estoque/compras/{{ compra.id }}/editar" title="Editar compra" aria-label="Editar compra" class="action-button edit">✎</a>
+                                                <a href="/whatsapp/pdf/compra/{{ compra.id }}" title="Enviar PDF pelo WhatsApp" aria-label="Enviar PDF pelo WhatsApp" class="action-button" style="background:#128c7e;color:#fff;text-decoration:none;">📲</a>
                                                 <form action="/estoque/compras/{{ compra.id }}/excluir" method="post" class="action-form" onsubmit="return confirm('Excluir esta compra? A quantidade será retirada do estoque.');">
                                                     <button type="submit" title="Excluir compra" aria-label="Excluir compra" class="action-button delete">×</button>
                                                 </form>
@@ -1122,7 +1123,7 @@ Motivo: Incluir a categoria obrigatória no cadastro rápido de fornecedor e env
                 </div>
             </section>
         {% endif %}
-    
+
 
         <div id="quick-cliente-modal" class="quick-modal-backdrop" aria-hidden="true">
             <div class="quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-cliente-title">
