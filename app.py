@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-27 12:20 (America/Bahia)
-# Motivo: Integrar envio nativo de WhatsApp aos módulos operacionais, comerciais, financeiros e de equipe.
+# Último recode: 2026-07-27 16:18 (America/Bahia)
+# Motivo: Corrigir erro 500 ao gerar mensagens automáticas do WhatsApp nos módulos.
 
 from __future__ import annotations
 
@@ -36624,19 +36624,19 @@ def _numero_documento_whatsapp(registro: dict[str, Any], prefixo: str) -> str:
 
 
 def _mensagem_padrao_whatsapp_modulo(modulo: str, registro: dict[str, Any]) -> str:
-    empresa = buscar_empresa_por_id(empresa_logada_id()) or {}
-    nome_empresa = str(empresa.get("nome_fantasia") or empresa.get("razao_social") or "GestFlow").strip()
+    empresa = buscar_empresa_topbar()
+    nome_empresa = str(empresa.get("nome_fantasia") or "GestFlow").strip()
     cliente = str(registro.get("cliente") or registro.get("cliente_nome") or registro.get("pessoa") or "").strip()
     saudacao = f"Olá, {cliente}!" if cliente else "Olá!"
 
     if modulo == "orcamento":
         numero = _numero_documento_whatsapp(registro, "ORC")
         link = url_for("ver_orcamento", orcamento_id=registro["id"], _external=True)
-        return f"{saudacao}\n\nSegue o orçamento {numero}, no valor de {formatar_moeda(registro.get('valor_total'))}.\n\nAcesse: {link}\n\n{nome_empresa}"
+        return f"{saudacao}\n\nSegue o orçamento {numero}, no valor de {_formatar_moeda_brl(_converter_valor_brl(registro.get('valor_total')))}.\n\nAcesse: {link}\n\n{nome_empresa}"
     if modulo == "venda":
         numero = _numero_documento_whatsapp(registro, "VEN")
         link = url_for("ver_venda", venda_id=registro["id"], _external=True)
-        return f"{saudacao}\n\nA venda {numero} foi registrada com sucesso.\nValor: {formatar_moeda(registro.get('valor_total'))}\nStatus: {registro.get('status') or '-'}\n\nDetalhes: {link}\n\n{nome_empresa}"
+        return f"{saudacao}\n\nA venda {numero} foi registrada com sucesso.\nValor: {_formatar_moeda_brl(_converter_valor_brl(registro.get('valor_total')))}\nStatus: {registro.get('status') or '-'}\n\nDetalhes: {link}\n\n{nome_empresa}"
     if modulo == "ordem_servico":
         numero = _numero_documento_whatsapp(registro, "OS")
         token = str(registro.get("token_cliente") or registro.get("token_publico_os") or "").strip()
@@ -36647,19 +36647,19 @@ def _mensagem_padrao_whatsapp_modulo(modulo: str, registro: dict[str, Any]) -> s
     if modulo == "contrato":
         numero = _numero_documento_whatsapp(registro, "CONT")
         link = url_for("ver_contrato", contrato_id=registro["id"], _external=True)
-        return f"{saudacao}\n\nSegue a atualização do contrato {numero}.\nStatus: {registro.get('status') or '-'}\nValor: {formatar_moeda(registro.get('valor_total') or registro.get('valor'))}\n\nDetalhes: {link}\n\n{nome_empresa}"
+        return f"{saudacao}\n\nSegue a atualização do contrato {numero}.\nStatus: {registro.get('status') or '-'}\nValor: {_formatar_moeda_brl(_converter_valor_brl(registro.get('valor_total') or registro.get('valor')))}\n\nDetalhes: {link}\n\n{nome_empresa}"
     if modulo == "financeiro":
         vencimento = formatar_data_br(registro.get("data_vencimento"))
-        return f"{saudacao}\n\nLembrete financeiro: {registro.get('descricao') or 'título'}.\nValor: {formatar_moeda(registro.get('valor'))}\nVencimento: {vencimento or '-'}\nStatus: {registro.get('status') or '-'}\n\n{nome_empresa}"
+        return f"{saudacao}\n\nLembrete financeiro: {registro.get('descricao') or 'título'}.\nValor: {_formatar_moeda_brl(_converter_valor_brl(registro.get('valor')))}\nVencimento: {vencimento or '-'}\nStatus: {registro.get('status') or '-'}\n\n{nome_empresa}"
     if modulo == "emprestimo":
-        return f"Olá!\n\nAtualização do empréstimo {registro.get('numero') or registro.get('id')}.\nStatus: {registro.get('status') or '-'}\nValor: {formatar_moeda(registro.get('valor_principal') or registro.get('valor'))}\n\n{nome_empresa}"
+        return f"Olá!\n\nAtualização do empréstimo {registro.get('numero') or registro.get('id')}.\nStatus: {registro.get('status') or '-'}\nValor: {_formatar_moeda_brl(_converter_valor_brl(registro.get('valor_principal') or registro.get('valor')))}\n\n{nome_empresa}"
     if modulo == "atividade":
         return f"Olá!\n\nAtualização da atividade: {registro.get('titulo') or registro.get('nome') or registro.get('descricao') or registro.get('id')}.\nStatus: {registro.get('status') or '-'}\nPrazo: {formatar_data_br(registro.get('data_fim') or registro.get('prazo')) or '-'}\n\n{nome_empresa}"
     if modulo == "funcionario":
         return f"Olá, {registro.get('nome') or ''}!\n\nEsta é uma comunicação da equipe {nome_empresa}."
     if modulo == "compra":
         numero = _numero_documento_whatsapp(registro, "COMP")
-        return f"Olá!\n\nAtualização do pedido de compra {numero}.\nStatus: {registro.get('status') or '-'}\nValor: {formatar_moeda(registro.get('valor_total') or registro.get('total'))}\n\n{nome_empresa}"
+        return f"Olá!\n\nAtualização do pedido de compra {numero}.\nStatus: {registro.get('status') or '-'}\nValor: {_formatar_moeda_brl(_converter_valor_brl(registro.get('valor_total') or registro.get('total')))}\n\n{nome_empresa}"
     return f"Olá!\n\nVocê recebeu uma atualização pelo {nome_empresa}."
 
 
@@ -36676,29 +36676,69 @@ def _url_retorno_whatsapp_modulo(modulo: str, registro_id: int, **parametros: st
 @app.post("/whatsapp/enviar/<string:modulo>/<int:registro_id>")
 def enviar_whatsapp_modulo(modulo: str, registro_id: int) -> Response:
     modulo = str(modulo or "").strip().lower()
-    registro = _buscar_registro_whatsapp_modulo(modulo, registro_id)
-    if registro is None:
-        return redirect(url_for("dashboard", erro="Registro não encontrado para envio por WhatsApp."))
 
-    telefone = str(request.form.get("telefone") or "").strip() or _telefone_whatsapp_registro(modulo, registro)
-    mensagem = str(request.form.get("mensagem") or "").strip() or _mensagem_padrao_whatsapp_modulo(modulo, registro)
-    if not telefone:
-        return redirect(_url_retorno_whatsapp_modulo(modulo, registro_id, erro="Telefone/WhatsApp não encontrado. Informe o número no envio."))
+    try:
+        registro = _buscar_registro_whatsapp_modulo(modulo, registro_id)
+        if registro is None:
+            return redirect(url_for("dashboard", erro="Registro não encontrado para envio por WhatsApp."))
 
-    sucesso, detalhe, resposta = enviar_whatsapp(telefone, mensagem, preview_url=True)
-    if sucesso:
-        registrar_atividade_usuario(
-            "envio_whatsapp",
-            modulo,
-            f"Enviou WhatsApp para {normalizar_telefone_whatsapp(telefone)}",
-            request.path,
-            registro_id=registro_id,
+        telefone = str(request.form.get("telefone") or "").strip() or _telefone_whatsapp_registro(modulo, registro)
+        mensagem_informada = str(request.form.get("mensagem") or "").strip()
+        mensagem = mensagem_informada or _mensagem_padrao_whatsapp_modulo(modulo, registro)
+
+        if not telefone:
+            return redirect(
+                _url_retorno_whatsapp_modulo(
+                    modulo,
+                    registro_id,
+                    erro="Telefone/WhatsApp não encontrado. Informe o número no envio.",
+                )
+            )
+
+        sucesso, detalhe, resposta = enviar_whatsapp(telefone, mensagem, preview_url=True)
+        if sucesso:
+            registrar_atividade_usuario(
+                "envio_whatsapp",
+                modulo,
+                f"Enviou WhatsApp para {normalizar_telefone_whatsapp(telefone)}",
+                request.path,
+                registro_id=registro_id,
+            )
+            return redirect(
+                _url_retorno_whatsapp_modulo(
+                    modulo,
+                    registro_id,
+                    sucesso="Mensagem enviada pelo WhatsApp com sucesso.",
+                )
+            )
+
+        codigo = _codigo_erro_whatsapp(resposta)
+        complemento = f" Código Meta: {codigo}." if codigo else ""
+        return redirect(
+            _url_retorno_whatsapp_modulo(
+                modulo,
+                registro_id,
+                erro=f"Não foi possível enviar pelo WhatsApp: {detalhe}.{complemento}",
+            )
         )
-        return redirect(_url_retorno_whatsapp_modulo(modulo, registro_id, sucesso="Mensagem enviada pelo WhatsApp com sucesso."))
-
-    codigo = _codigo_erro_whatsapp(resposta)
-    complemento = f" Código Meta: {codigo}." if codigo else ""
-    return redirect(_url_retorno_whatsapp_modulo(modulo, registro_id, erro=f"Não foi possível enviar pelo WhatsApp: {detalhe}.{complemento}"))
+    except Exception:
+        app.logger.exception(
+            "Falha inesperada no envio de WhatsApp do módulo %s, registro %s.",
+            modulo,
+            registro_id,
+        )
+        try:
+            retorno = _url_retorno_whatsapp_modulo(
+                modulo,
+                registro_id,
+                erro="Não foi possível preparar o envio pelo WhatsApp. Consulte os logs do sistema.",
+            )
+        except Exception:
+            retorno = url_for(
+                "dashboard",
+                erro="Não foi possível preparar o envio pelo WhatsApp. Consulte os logs do sistema.",
+            )
+        return redirect(retorno)
 
 garantir_migracao_origem_orcamento_os()
 iniciar_banco()
