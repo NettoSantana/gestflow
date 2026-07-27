@@ -1,10 +1,12 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-26 15:56 (America/Bahia)
-# Motivo: Separar produtos e serviços na Vitrine e incluir data desejada antes do questionário de avaliação.
+# Último recode: 2026-07-27 08:54 (America/Bahia)
+# Motivo: Implementar webhook seguro da WhatsApp Cloud API com verificação, assinatura, idempotência e histórico de eventos.
 
 from __future__ import annotations
 
 import csv
+import hashlib
+import hmac
 import html
 import io
 import json
@@ -1400,6 +1402,471 @@ def conectar_db() -> sqlite3.Connection:
     return conn
 
 
+def _variavel_ambiente_whatsapp(nome: str) -> str:
+    return str(os.getenv(nome, "") or "").strip()
+
+
+def _inteiro_ambiente_whatsapp(nome: str) -> int | None:
+    valor = _variavel_ambiente_whatsapp(nome)
+    if not valor:
+        return None
+    try:
+        inteiro = int(valor)
+    except (TypeError, ValueError):
+        return None
+    return inteiro if inteiro > 0 else None
+
+
+def _assinatura_whatsapp_valida(corpo_bruto: bytes, assinatura_recebida: str) -> tuple[bool, str]:
+    segredo_app = _variavel_ambiente_whatsapp("META_APP_SECRET")
+    if not segredo_app:
+        return False, "META_APP_SECRET não configurado."
+
+    assinatura = str(assinatura_recebida or "").strip()
+    if not assinatura.startswith("sha256="):
+        return False, "Cabeçalho X-Hub-Signature-256 ausente ou inválido."
+
+    assinatura_esperada = "sha256=" + hmac.new(
+        segredo_app.encode("utf-8"),
+        corpo_bruto,
+        hashlib.sha256,
+    ).hexdigest()
+
+    if not hmac.compare_digest(assinatura_esperada, assinatura):
+        return False, "Assinatura do webhook não confere."
+
+    return True, ""
+
+
+def _json_canonico_whatsapp(valor: Any) -> str:
+    return json.dumps(
+        valor,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        default=str,
+    )
+
+
+def _hash_whatsapp(valor: Any) -> str:
+    conteudo = valor if isinstance(valor, bytes) else _json_canonico_whatsapp(valor).encode("utf-8")
+    return hashlib.sha256(conteudo).hexdigest()
+
+
+def _timestamp_whatsapp_iso(valor: Any) -> str:
+    try:
+        timestamp = int(str(valor or "").strip())
+    except (TypeError, ValueError):
+        return ""
+
+    try:
+        return datetime.fromtimestamp(timestamp, tz=ZoneInfo("UTC")).isoformat(timespec="seconds")
+    except (OverflowError, OSError, ValueError):
+        return ""
+
+
+def _texto_mensagem_whatsapp(mensagem: dict[str, Any]) -> str:
+    tipo = str(mensagem.get("type") or "").strip().lower()
+
+    if tipo == "text":
+        return str((mensagem.get("text") or {}).get("body") or "").strip()
+
+    if tipo == "button":
+        return str((mensagem.get("button") or {}).get("text") or "").strip()
+
+    if tipo == "interactive":
+        interativo = mensagem.get("interactive") or {}
+        resposta_botao = interativo.get("button_reply") or {}
+        resposta_lista = interativo.get("list_reply") or {}
+        return str(
+            resposta_botao.get("title")
+            or resposta_botao.get("id")
+            or resposta_lista.get("title")
+            or resposta_lista.get("description")
+            or resposta_lista.get("id")
+            or ""
+        ).strip()
+
+    if tipo in {"image", "video", "document"}:
+        return str((mensagem.get(tipo) or {}).get("caption") or "").strip()
+
+    if tipo == "location":
+        localizacao = mensagem.get("location") or {}
+        nome = str(localizacao.get("name") or "").strip()
+        endereco = str(localizacao.get("address") or "").strip()
+        latitude = str(localizacao.get("latitude") or "").strip()
+        longitude = str(localizacao.get("longitude") or "").strip()
+        partes = [parte for parte in (nome, endereco, f"{latitude},{longitude}" if latitude and longitude else "") if parte]
+        return " | ".join(partes)
+
+    if tipo == "contacts":
+        contatos = mensagem.get("contacts") or []
+        nomes = []
+        for contato in contatos:
+            if not isinstance(contato, dict):
+                continue
+            nome = str((contato.get("name") or {}).get("formatted_name") or "").strip()
+            if nome:
+                nomes.append(nome)
+        return ", ".join(nomes)
+
+    return ""
+
+
+def _primeiro_erro_whatsapp(valor: dict[str, Any]) -> tuple[str, str, str]:
+    erros = valor.get("errors") or []
+    if not erros or not isinstance(erros[0], dict):
+        return "", "", ""
+
+    erro = erros[0]
+    detalhes = erro.get("error_data") or {}
+    return (
+        str(erro.get("code") or "").strip(),
+        str(erro.get("title") or "").strip(),
+        str(erro.get("message") or detalhes.get("details") or "").strip(),
+    )
+
+
+def _garantir_integracao_teste_whatsapp(conn: sqlite3.Connection) -> None:
+    phone_number_id = _variavel_ambiente_whatsapp("WHATSAPP_TEST_PHONE_NUMBER_ID")
+    if not phone_number_id:
+        return
+
+    waba_id = _variavel_ambiente_whatsapp("WHATSAPP_TEST_WABA_ID")
+    empresa_id = _inteiro_ambiente_whatsapp("WHATSAPP_TEST_EMPRESA_ID")
+    agora = datetime.now(ZoneInfo("UTC")).isoformat(timespec="seconds")
+
+    conn.execute(
+        """
+        INSERT OR IGNORE INTO whatsapp_integracoes (
+            empresa_id,
+            waba_id,
+            phone_number_id,
+            nome_integracao,
+            status,
+            ambiente,
+            criado_em,
+            atualizado_em
+        ) VALUES (?, ?, ?, ?, 'ativo', 'teste', ?, ?)
+        """,
+        (
+            empresa_id,
+            waba_id,
+            phone_number_id,
+            "Conta de teste da Meta",
+            agora,
+            agora,
+        ),
+    )
+
+    conn.execute(
+        """
+        UPDATE whatsapp_integracoes
+        SET waba_id = COALESCE(NULLIF(?, ''), waba_id),
+            status = 'ativo',
+            ambiente = 'teste',
+            atualizado_em = ?
+        WHERE phone_number_id = ?
+        """,
+        (waba_id, agora, phone_number_id),
+    )
+
+
+def _buscar_integracao_whatsapp(
+    conn: sqlite3.Connection,
+    phone_number_id: str,
+    waba_id: str,
+) -> dict[str, Any] | None:
+    _garantir_integracao_teste_whatsapp(conn)
+
+    row = None
+    if phone_number_id:
+        row = conn.execute(
+            """
+            SELECT id, empresa_id, waba_id, phone_number_id, display_phone_number,
+                   nome_integracao, status, ambiente
+            FROM whatsapp_integracoes
+            WHERE phone_number_id = ?
+            LIMIT 1
+            """,
+            (phone_number_id,),
+        ).fetchone()
+
+    if row is None and waba_id:
+        row = conn.execute(
+            """
+            SELECT id, empresa_id, waba_id, phone_number_id, display_phone_number,
+                   nome_integracao, status, ambiente
+            FROM whatsapp_integracoes
+            WHERE waba_id = ?
+            ORDER BY id ASC
+            LIMIT 1
+            """,
+            (waba_id,),
+        ).fetchone()
+
+    return dict(row) if row is not None else None
+
+
+def _extrair_eventos_whatsapp(payload: dict[str, Any], hash_requisicao: str) -> list[dict[str, Any]]:
+    eventos: list[dict[str, Any]] = []
+    objeto = str(payload.get("object") or "").strip()
+    entradas = payload.get("entry") or []
+
+    for indice_entrada, entrada in enumerate(entradas):
+        if not isinstance(entrada, dict):
+            continue
+
+        waba_id = str(entrada.get("id") or "").strip()
+        alteracoes = entrada.get("changes") or []
+
+        for indice_alteracao, alteracao in enumerate(alteracoes):
+            if not isinstance(alteracao, dict):
+                continue
+
+            campo = str(alteracao.get("field") or "").strip()
+            valor = alteracao.get("value") or {}
+            if not isinstance(valor, dict):
+                valor = {"value": valor}
+
+            metadata = valor.get("metadata") or {}
+            phone_number_id = str(metadata.get("phone_number_id") or "").strip()
+            display_phone_number = str(metadata.get("display_phone_number") or "").strip()
+            contatos = {
+                str(contato.get("wa_id") or "").strip(): str((contato.get("profile") or {}).get("name") or "").strip()
+                for contato in (valor.get("contacts") or [])
+                if isinstance(contato, dict)
+            }
+            erro_codigo, erro_titulo, erro_mensagem = _primeiro_erro_whatsapp(valor)
+            quantidade_antes = len(eventos)
+
+            for mensagem in valor.get("messages") or []:
+                if not isinstance(mensagem, dict):
+                    continue
+
+                message_id = str(mensagem.get("id") or "").strip()
+                remetente = str(mensagem.get("from") or "").strip()
+                evento_payload = {
+                    "object": objeto,
+                    "waba_id": waba_id,
+                    "field": campo,
+                    "metadata": metadata,
+                    "contact": contatos.get(remetente, ""),
+                    "message": mensagem,
+                }
+                chave_base = message_id or _hash_whatsapp(evento_payload)
+                eventos.append(
+                    {
+                        "event_key": f"message:{chave_base}",
+                        "request_hash": hash_requisicao,
+                        "waba_id": waba_id,
+                        "phone_number_id": phone_number_id,
+                        "display_phone_number": display_phone_number,
+                        "event_type": "message_received",
+                        "field_name": campo,
+                        "message_id": message_id,
+                        "conversation_id": "",
+                        "message_status": "received",
+                        "message_type": str(mensagem.get("type") or "").strip(),
+                        "sender_phone": remetente,
+                        "recipient_phone": display_phone_number,
+                        "sender_name": contatos.get(remetente, ""),
+                        "message_text": _texto_mensagem_whatsapp(mensagem),
+                        "error_code": erro_codigo,
+                        "error_title": erro_titulo,
+                        "error_message": erro_mensagem,
+                        "event_timestamp": _timestamp_whatsapp_iso(mensagem.get("timestamp")),
+                        "payload_json": _json_canonico_whatsapp(evento_payload),
+                    }
+                )
+
+            for status in valor.get("statuses") or []:
+                if not isinstance(status, dict):
+                    continue
+
+                message_id = str(status.get("id") or "").strip()
+                status_nome = str(status.get("status") or "").strip()
+                timestamp = str(status.get("timestamp") or "").strip()
+                conversa = status.get("conversation") or {}
+                erros_status = {"errors": status.get("errors") or []}
+                status_erro_codigo, status_erro_titulo, status_erro_mensagem = _primeiro_erro_whatsapp(erros_status)
+                evento_payload = {
+                    "object": objeto,
+                    "waba_id": waba_id,
+                    "field": campo,
+                    "metadata": metadata,
+                    "status": status,
+                }
+                chave_base = ":".join(parte for parte in (message_id, status_nome, timestamp) if parte)
+                if not chave_base:
+                    chave_base = _hash_whatsapp(evento_payload)
+                eventos.append(
+                    {
+                        "event_key": f"status:{chave_base}",
+                        "request_hash": hash_requisicao,
+                        "waba_id": waba_id,
+                        "phone_number_id": phone_number_id,
+                        "display_phone_number": display_phone_number,
+                        "event_type": "message_status",
+                        "field_name": campo,
+                        "message_id": message_id,
+                        "conversation_id": str(conversa.get("id") or "").strip(),
+                        "message_status": status_nome,
+                        "message_type": "status",
+                        "sender_phone": display_phone_number,
+                        "recipient_phone": str(status.get("recipient_id") or "").strip(),
+                        "sender_name": "",
+                        "message_text": "",
+                        "error_code": status_erro_codigo or erro_codigo,
+                        "error_title": status_erro_titulo or erro_titulo,
+                        "error_message": status_erro_mensagem or erro_mensagem,
+                        "event_timestamp": _timestamp_whatsapp_iso(status.get("timestamp")),
+                        "payload_json": _json_canonico_whatsapp(evento_payload),
+                    }
+                )
+
+            if len(eventos) == quantidade_antes:
+                evento_payload = {
+                    "object": objeto,
+                    "waba_id": waba_id,
+                    "field": campo,
+                    "metadata": metadata,
+                    "value": valor,
+                }
+                eventos.append(
+                    {
+                        "event_key": f"change:{_hash_whatsapp(evento_payload)}",
+                        "request_hash": hash_requisicao,
+                        "waba_id": waba_id,
+                        "phone_number_id": phone_number_id,
+                        "display_phone_number": display_phone_number,
+                        "event_type": "webhook_change",
+                        "field_name": campo,
+                        "message_id": "",
+                        "conversation_id": "",
+                        "message_status": "",
+                        "message_type": "",
+                        "sender_phone": "",
+                        "recipient_phone": "",
+                        "sender_name": "",
+                        "message_text": "",
+                        "error_code": erro_codigo,
+                        "error_title": erro_titulo,
+                        "error_message": erro_mensagem,
+                        "event_timestamp": "",
+                        "payload_json": _json_canonico_whatsapp(evento_payload),
+                    }
+                )
+
+    if not eventos:
+        eventos.append(
+            {
+                "event_key": f"payload:{_hash_whatsapp(payload)}",
+                "request_hash": hash_requisicao,
+                "waba_id": "",
+                "phone_number_id": "",
+                "display_phone_number": "",
+                "event_type": "webhook_payload",
+                "field_name": "",
+                "message_id": "",
+                "conversation_id": "",
+                "message_status": "",
+                "message_type": "",
+                "sender_phone": "",
+                "recipient_phone": "",
+                "sender_name": "",
+                "message_text": "",
+                "error_code": "",
+                "error_title": "",
+                "error_message": "",
+                "event_timestamp": "",
+                "payload_json": _json_canonico_whatsapp(payload),
+            }
+        )
+
+    return eventos
+
+
+def _registrar_eventos_whatsapp(payload: dict[str, Any], corpo_bruto: bytes) -> tuple[int, int]:
+    hash_requisicao = _hash_whatsapp(corpo_bruto)
+    eventos = _extrair_eventos_whatsapp(payload, hash_requisicao)
+    inseridos = 0
+    duplicados = 0
+    recebido_em = datetime.now(ZoneInfo("UTC")).isoformat(timespec="seconds")
+
+    with conectar_db() as conn:
+        for evento in eventos:
+            integracao = _buscar_integracao_whatsapp(
+                conn,
+                str(evento.get("phone_number_id") or ""),
+                str(evento.get("waba_id") or ""),
+            )
+            cursor = conn.execute(
+                """
+                INSERT OR IGNORE INTO whatsapp_webhook_eventos (
+                    event_key,
+                    request_hash,
+                    empresa_id,
+                    integracao_id,
+                    waba_id,
+                    phone_number_id,
+                    display_phone_number,
+                    event_type,
+                    field_name,
+                    message_id,
+                    conversation_id,
+                    message_status,
+                    message_type,
+                    sender_phone,
+                    recipient_phone,
+                    sender_name,
+                    message_text,
+                    error_code,
+                    error_title,
+                    error_message,
+                    event_timestamp,
+                    payload_json,
+                    signature_valid,
+                    processing_status,
+                    received_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 'received', ?)
+                """,
+                (
+                    str(evento.get("event_key") or ""),
+                    str(evento.get("request_hash") or ""),
+                    (integracao or {}).get("empresa_id"),
+                    (integracao or {}).get("id"),
+                    str(evento.get("waba_id") or ""),
+                    str(evento.get("phone_number_id") or ""),
+                    str(evento.get("display_phone_number") or ""),
+                    str(evento.get("event_type") or ""),
+                    str(evento.get("field_name") or ""),
+                    str(evento.get("message_id") or ""),
+                    str(evento.get("conversation_id") or ""),
+                    str(evento.get("message_status") or ""),
+                    str(evento.get("message_type") or ""),
+                    str(evento.get("sender_phone") or ""),
+                    str(evento.get("recipient_phone") or ""),
+                    str(evento.get("sender_name") or ""),
+                    str(evento.get("message_text") or ""),
+                    str(evento.get("error_code") or ""),
+                    str(evento.get("error_title") or ""),
+                    str(evento.get("error_message") or ""),
+                    str(evento.get("event_timestamp") or ""),
+                    str(evento.get("payload_json") or "{}"),
+                    recebido_em,
+                ),
+            )
+            if cursor.rowcount == 1:
+                inseridos += 1
+            else:
+                duplicados += 1
+
+        conn.commit()
+
+    return inseridos, duplicados
+
+
 def buscar_usuario_por_email(email: str) -> dict[str, Any] | None:
     email_normalizado = str(email or "").strip().lower()
 
@@ -2033,6 +2500,7 @@ def exigir_login_rotas_internas() -> Response | None:
         "agendamento_publico",
         "service_worker",
         "health",
+        "whatsapp_webhook",
         "twilio_webhook",
         "acompanhamento_os_publico",
         "os_cliente_publico",
@@ -3391,6 +3859,74 @@ def iniciar_banco() -> None:
                 atualizado_em TEXT
             )
             """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS whatsapp_integracoes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER,
+                waba_id TEXT,
+                phone_number_id TEXT NOT NULL UNIQUE,
+                display_phone_number TEXT,
+                nome_integracao TEXT,
+                status TEXT NOT NULL DEFAULT 'ativo',
+                ambiente TEXT NOT NULL DEFAULT 'producao',
+                criado_em TEXT DEFAULT CURRENT_TIMESTAMP,
+                atualizado_em TEXT,
+                FOREIGN KEY (empresa_id) REFERENCES empresas (id)
+            )
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS whatsapp_webhook_eventos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_key TEXT NOT NULL UNIQUE,
+                request_hash TEXT NOT NULL,
+                empresa_id INTEGER,
+                integracao_id INTEGER,
+                waba_id TEXT,
+                phone_number_id TEXT,
+                display_phone_number TEXT,
+                event_type TEXT NOT NULL,
+                field_name TEXT,
+                message_id TEXT,
+                conversation_id TEXT,
+                message_status TEXT,
+                message_type TEXT,
+                sender_phone TEXT,
+                recipient_phone TEXT,
+                sender_name TEXT,
+                message_text TEXT,
+                error_code TEXT,
+                error_title TEXT,
+                error_message TEXT,
+                event_timestamp TEXT,
+                payload_json TEXT NOT NULL,
+                signature_valid INTEGER NOT NULL DEFAULT 0,
+                processing_status TEXT NOT NULL DEFAULT 'received',
+                received_at TEXT NOT NULL,
+                processed_at TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (empresa_id) REFERENCES empresas (id),
+                FOREIGN KEY (integracao_id) REFERENCES whatsapp_integracoes (id)
+            )
+            """
+        )
+
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_whatsapp_integracoes_empresa ON whatsapp_integracoes (empresa_id, status)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_whatsapp_eventos_empresa_data ON whatsapp_webhook_eventos (empresa_id, received_at DESC)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_whatsapp_eventos_phone_data ON whatsapp_webhook_eventos (phone_number_id, received_at DESC)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_whatsapp_eventos_message ON whatsapp_webhook_eventos (message_id, message_status)"
         )
 
         conn.execute(
@@ -31100,6 +31636,61 @@ def health() -> Response:
     return Response("ok", status=200, mimetype="text/plain")
 
 
+@app.route("/webhooks/whatsapp", methods=["GET", "POST"])
+def whatsapp_webhook() -> Response:
+    if request.method == "GET":
+        modo = str(request.args.get("hub.mode") or "").strip()
+        token_recebido = str(request.args.get("hub.verify_token") or "").strip()
+        desafio = str(request.args.get("hub.challenge") or "").strip()
+        token_esperado = _variavel_ambiente_whatsapp("WHATSAPP_WEBHOOK_VERIFY_TOKEN")
+
+        if not token_esperado:
+            app.logger.error("WHATSAPP_WEBHOOK_VERIFY_TOKEN não está configurado.")
+            return Response("Webhook não configurado.", status=503, mimetype="text/plain")
+
+        if modo == "subscribe" and desafio and hmac.compare_digest(token_recebido, token_esperado):
+            resposta = Response(desafio, status=200, mimetype="text/plain")
+            resposta.headers["Cache-Control"] = "no-store"
+            return resposta
+
+        app.logger.warning("Tentativa inválida de verificação do webhook do WhatsApp.")
+        return Response("Verificação recusada.", status=403, mimetype="text/plain")
+
+    corpo_bruto = request.get_data(cache=True, as_text=False)
+    assinatura = str(request.headers.get("X-Hub-Signature-256") or "").strip()
+    assinatura_valida, erro_assinatura = _assinatura_whatsapp_valida(corpo_bruto, assinatura)
+
+    if not assinatura_valida:
+        status = 503 if "não configurado" in erro_assinatura.lower() else 401
+        app.logger.warning("Webhook do WhatsApp recusado: %s", erro_assinatura)
+        return jsonify({"ok": False, "erro": "Webhook não autorizado."}), status
+
+    try:
+        payload = json.loads(corpo_bruto.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return jsonify({"ok": False, "erro": "Payload JSON inválido."}), 400
+
+    if not isinstance(payload, dict):
+        return jsonify({"ok": False, "erro": "Payload inválido."}), 400
+
+    try:
+        inseridos, duplicados = _registrar_eventos_whatsapp(payload, corpo_bruto)
+    except sqlite3.Error:
+        app.logger.exception("Falha ao registrar webhook do WhatsApp no banco.")
+        return jsonify({"ok": False, "erro": "Falha temporária ao registrar evento."}), 500
+    except Exception:
+        app.logger.exception("Falha inesperada ao processar webhook do WhatsApp.")
+        return jsonify({"ok": False, "erro": "Falha temporária ao processar evento."}), 500
+
+    return jsonify(
+        {
+            "ok": True,
+            "eventos_registrados": inseridos,
+            "eventos_duplicados": duplicados,
+        }
+    )
+
+
 @app.post(config.WEBHOOK_PATH)
 def twilio_webhook() -> Response:
     from_number = (request.form.get("From") or "").strip()
@@ -35713,4 +36304,3 @@ garantir_estrutura_emprestimos()
 if __name__ == "__main__":
     # Somente para uso local. No Railway usaremos o wsgi.py com waitress.
     app.run(host="0.0.0.0", port=5000, debug=config.DEBUG)
-  
