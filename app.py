@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-27 17:24 (America/Bahia)
-# Motivo: Enviar PDFs reais pelo WhatsApp a partir das listas de todos os módulos integrados.
+# Último recode: 2026-07-28 04:45 (America/Bahia)
+# Motivo: Implementar central interna de notificações com alertas automáticos, histórico e leitura por usuário.
 
 from __future__ import annotations
 
@@ -2724,10 +2724,564 @@ def buscar_empresa_topbar() -> dict[str, str]:
     }
 
 
+# ============================================================
+# CENTRAL INTERNA DE NOTIFICAÇÕES
+# ============================================================
+
+NOTIFICACOES_FILTROS = {"todas", "nao_lidas", "lidas", "resolvidas"}
+NOTIFICACOES_PRIORIDADES = {"critica", "alta", "media", "baixa"}
+
+
+def garantir_estrutura_notificacoes() -> None:
+    """Cria a central de notificações sem apagar registros existentes."""
+    with conectar_db() as conn:
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS notificacoes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER NOT NULL,
+                usuario_id INTEGER NOT NULL,
+                chave TEXT NOT NULL,
+                origem TEXT NOT NULL DEFAULT 'sistema',
+                origem_id INTEGER,
+                categoria TEXT NOT NULL DEFAULT 'sistema',
+                prioridade TEXT NOT NULL DEFAULT 'media',
+                titulo TEXT NOT NULL,
+                mensagem TEXT,
+                url TEXT,
+                automatica INTEGER NOT NULL DEFAULT 1,
+                ativa INTEGER NOT NULL DEFAULT 1,
+                lida_em TEXT,
+                criado_em TEXT DEFAULT CURRENT_TIMESTAMP,
+                atualizado_em TEXT
+            );
+
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_notificacoes_chave_usuario
+                ON notificacoes (empresa_id, usuario_id, chave);
+
+            CREATE INDEX IF NOT EXISTS idx_notificacoes_usuario_status
+                ON notificacoes (empresa_id, usuario_id, ativa, lida_em, id DESC);
+
+            CREATE INDEX IF NOT EXISTS idx_notificacoes_origem
+                ON notificacoes (empresa_id, origem, origem_id);
+            """
+        )
+        conn.commit()
+
+
+def _notificacao_url_interna(valor: Any, padrao: str = "/notificacoes") -> str:
+    url = str(valor or "").strip()
+    if not url.startswith("/") or url.startswith("//"):
+        return padrao
+    return url
+
+
+def _notificacao_moeda(valor: Any) -> str:
+    return f"R$ {_formatar_moeda_brl(_converter_valor_brl(valor))}"
+
+
+def _notificacao_upsert(
+    conn: sqlite3.Connection,
+    *,
+    empresa_id: int,
+    usuario_id: int,
+    chave: str,
+    origem: str,
+    origem_id: int | None,
+    categoria: str,
+    prioridade: str,
+    titulo: str,
+    mensagem: str,
+    url: str,
+) -> None:
+    prioridade_normalizada = prioridade if prioridade in NOTIFICACOES_PRIORIDADES else "media"
+    agora = agora_empresa().isoformat(timespec="seconds")
+    conn.execute(
+        """
+        INSERT INTO notificacoes (
+            empresa_id, usuario_id, chave, origem, origem_id, categoria,
+            prioridade, titulo, mensagem, url, automatica, ativa,
+            criado_em, atualizado_em
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?)
+        ON CONFLICT (empresa_id, usuario_id, chave) DO UPDATE SET
+            origem = excluded.origem,
+            origem_id = excluded.origem_id,
+            categoria = excluded.categoria,
+            prioridade = excluded.prioridade,
+            titulo = excluded.titulo,
+            mensagem = excluded.mensagem,
+            url = excluded.url,
+            automatica = 1,
+            ativa = 1,
+            lida_em = CASE
+                WHEN notificacoes.ativa = 0 THEN NULL
+                ELSE notificacoes.lida_em
+            END,
+            atualizado_em = excluded.atualizado_em
+        """,
+        (
+            empresa_id,
+            usuario_id,
+            chave,
+            origem,
+            origem_id,
+            categoria,
+            prioridade_normalizada,
+            str(titulo or "Notificação").strip() or "Notificação",
+            str(mensagem or "").strip(),
+            _notificacao_url_interna(url),
+            agora,
+            agora,
+        ),
+    )
+
+
+def sincronizar_notificacoes_usuario_atual() -> None:
+    """Atualiza alertas automáticos para o usuário logado, preservando o histórico de leitura."""
+    if getattr(g, "notificacoes_sincronizadas", False):
+        return
+
+    usuario_id = usuario_logado_id()
+    if not usuario_id:
+        return
+
+    empresa_id = empresa_logada_id()
+    hoje = hoje_empresa()
+    hoje_iso = hoje.isoformat()
+    limite_contratos = (hoje + timedelta(days=30)).isoformat()
+    chaves_ativas: set[str] = set()
+
+    with conectar_db() as conn:
+        if usuario_tem_permissao("financeiro", "visualizar"):
+            titulos = conn.execute(
+                """
+                SELECT id, tipo, descricao, pessoa, documento, data_vencimento, valor, origem
+                FROM financeiro_titulos
+                WHERE empresa_id = ?
+                  AND status = 'aberto'
+                  AND COALESCE(data_vencimento, '') <> ''
+                  AND data_vencimento < ?
+                  AND COALESCE(origem, '') <> 'emprestimo'
+                ORDER BY data_vencimento ASC, id DESC
+                LIMIT 100
+                """,
+                (empresa_id, hoje_iso),
+            ).fetchall()
+            for row in titulos:
+                titulo = dict(row)
+                titulo_id = int(titulo["id"])
+                vencimento = _converter_data_iso(titulo.get("data_vencimento"))
+                dias_atraso = (hoje - vencimento).days if vencimento else 1
+                tipo = str(titulo.get("tipo") or "receber")
+                chave = f"financeiro_vencido:{titulo_id}"
+                chaves_ativas.add(chave)
+                _notificacao_upsert(
+                    conn,
+                    empresa_id=empresa_id,
+                    usuario_id=usuario_id,
+                    chave=chave,
+                    origem="financeiro_titulo",
+                    origem_id=titulo_id,
+                    categoria="financeiro",
+                    prioridade="critica" if dias_atraso >= 7 else "alta",
+                    titulo="Conta a pagar vencida" if tipo == "pagar" else "Conta a receber vencida",
+                    mensagem=(
+                        f"{titulo.get('descricao') or titulo.get('documento') or 'Título financeiro'}"
+                        f" — {titulo.get('pessoa') or 'Sem pessoa informada'}"
+                        f" — {_notificacao_moeda(titulo.get('valor'))}"
+                        f" — venceu em {formatar_data_br(titulo.get('data_vencimento'))}."
+                    ),
+                    url=f"/financeiro/titulos/{titulo_id}",
+                )
+
+        if usuario_tem_permissao("emprestimos", "visualizar"):
+            parcelas = conn.execute(
+                """
+                SELECT
+                    p.id, p.emprestimo_id, p.numero_parcela, p.vencimento,
+                    p.saldo_parcela, p.valor_previsto, p.status,
+                    e.numero, e.titulo, e.parte_nome, e.status AS emprestimo_status
+                FROM emprestimo_parcelas p
+                JOIN emprestimos e
+                  ON e.id = p.emprestimo_id
+                 AND e.empresa_id = p.empresa_id
+                WHERE p.empresa_id = ?
+                  AND p.status IN ('aberta', 'parcial', 'vencida')
+                  AND p.vencimento < ?
+                  AND e.status NOT IN ('quitado', 'cancelado', 'renegociado')
+                ORDER BY p.vencimento ASC, p.id DESC
+                LIMIT 100
+                """,
+                (empresa_id, hoje_iso),
+            ).fetchall()
+            for row in parcelas:
+                parcela = dict(row)
+                parcela_id = int(parcela["id"])
+                emprestimo_id = int(parcela["emprestimo_id"])
+                vencimento = _converter_data_iso(parcela.get("vencimento"))
+                dias_atraso = (hoje - vencimento).days if vencimento else 1
+                saldo = parcela.get("saldo_parcela") or parcela.get("valor_previsto")
+                chave = f"emprestimo_parcela_vencida:{parcela_id}"
+                chaves_ativas.add(chave)
+                _notificacao_upsert(
+                    conn,
+                    empresa_id=empresa_id,
+                    usuario_id=usuario_id,
+                    chave=chave,
+                    origem="emprestimo_parcela",
+                    origem_id=parcela_id,
+                    categoria="emprestimos",
+                    prioridade="critica" if dias_atraso >= 7 else "alta",
+                    titulo=f"Parcela {parcela.get('numero_parcela')} de empréstimo vencida",
+                    mensagem=(
+                        f"{parcela.get('numero') or 'Empréstimo'} — "
+                        f"{parcela.get('titulo') or parcela.get('parte_nome') or 'Sem descrição'} — "
+                        f"{_notificacao_moeda(saldo)} — venceu em {formatar_data_br(parcela.get('vencimento'))}."
+                    ),
+                    url=f"/emprestimos/{emprestimo_id}",
+                )
+
+        if usuario_tem_permissao("contratos", "visualizar"):
+            contratos = conn.execute(
+                """
+                SELECT id, numero, titulo, cliente, data_fim
+                FROM contratos
+                WHERE empresa_id = ?
+                  AND status = 'ativo'
+                  AND COALESCE(data_fim, '') <> ''
+                  AND data_fim BETWEEN ? AND ?
+                ORDER BY data_fim ASC, id DESC
+                LIMIT 100
+                """,
+                (empresa_id, hoje_iso, limite_contratos),
+            ).fetchall()
+            for row in contratos:
+                contrato = dict(row)
+                contrato_id = int(contrato["id"])
+                data_fim = _converter_data_iso(contrato.get("data_fim"))
+                dias = max(0, (data_fim - hoje).days) if data_fim else 30
+                chave = f"contrato_vencimento:{contrato_id}:{contrato.get('data_fim')}"
+                chaves_ativas.add(chave)
+                prazo = "vence hoje" if dias == 0 else f"vence em {dias} dia{'s' if dias != 1 else ''}"
+                _notificacao_upsert(
+                    conn,
+                    empresa_id=empresa_id,
+                    usuario_id=usuario_id,
+                    chave=chave,
+                    origem="contrato",
+                    origem_id=contrato_id,
+                    categoria="contratos",
+                    prioridade="alta" if dias <= 7 else "media",
+                    titulo=f"Contrato {prazo}",
+                    mensagem=(
+                        f"{contrato.get('numero') or 'Contrato'} — "
+                        f"{contrato.get('titulo') or contrato.get('cliente') or 'Sem descrição'} — "
+                        f"término em {formatar_data_br(contrato.get('data_fim'))}."
+                    ),
+                    url=f"/contratos/{contrato_id}",
+                )
+
+        if usuario_tem_permissao("agendamentos", "visualizar"):
+            agendamentos_hoje = conn.execute(
+                """
+                SELECT id, cliente_nome, servico_nome, profissional_nome, hora_inicio, status
+                FROM agendamentos
+                WHERE empresa_id = ?
+                  AND data_agendamento = ?
+                  AND status NOT IN ('concluido', 'cancelado', 'nao_compareceu')
+                ORDER BY hora_inicio ASC, id ASC
+                LIMIT 100
+                """,
+                (empresa_id, hoje_iso),
+            ).fetchall()
+            for row in agendamentos_hoje:
+                agendamento = dict(row)
+                agendamento_id = int(agendamento["id"])
+                chave = f"agendamento_hoje:{agendamento_id}:{hoje_iso}"
+                chaves_ativas.add(chave)
+                _notificacao_upsert(
+                    conn,
+                    empresa_id=empresa_id,
+                    usuario_id=usuario_id,
+                    chave=chave,
+                    origem="agendamento",
+                    origem_id=agendamento_id,
+                    categoria="agendamentos",
+                    prioridade="media",
+                    titulo=f"Agendamento hoje às {agendamento.get('hora_inicio') or '--:--'}",
+                    mensagem=(
+                        f"{agendamento.get('cliente_nome') or 'Cliente não informado'} — "
+                        f"{agendamento.get('servico_nome') or 'Serviço não informado'}"
+                        + (f" — {agendamento.get('profissional_nome')}" if agendamento.get('profissional_nome') else "")
+                        + "."
+                    ),
+                    url=f"/agendamentos?data_inicio={hoje_iso}&data_fim={hoje_iso}",
+                )
+
+        if usuario_tem_permissao("ordens_servico", "visualizar"):
+            ordens = conn.execute(
+                """
+                SELECT id, numero, cliente, tecnico, data_previsao, prioridade, status
+                FROM ordens_servico
+                WHERE empresa_id = ?
+                  AND COALESCE(data_previsao, '') <> ''
+                  AND data_previsao <= ?
+                  AND status NOT IN ('finalizada', 'cancelada')
+                ORDER BY data_previsao ASC, id DESC
+                LIMIT 100
+                """,
+                (empresa_id, hoje_iso),
+            ).fetchall()
+            for row in ordens:
+                ordem = dict(row)
+                ordem_id = int(ordem["id"])
+                previsao = _converter_data_iso(ordem.get("data_previsao"))
+                vencida = bool(previsao and previsao < hoje)
+                dias_atraso = (hoje - previsao).days if vencida and previsao else 0
+                chave = f"os_prazo:{ordem_id}:{ordem.get('data_previsao')}"
+                chaves_ativas.add(chave)
+                _notificacao_upsert(
+                    conn,
+                    empresa_id=empresa_id,
+                    usuario_id=usuario_id,
+                    chave=chave,
+                    origem="ordem_servico",
+                    origem_id=ordem_id,
+                    categoria="ordens_servico",
+                    prioridade="critica" if dias_atraso >= 3 else ("alta" if vencida else "media"),
+                    titulo="Ordem de serviço atrasada" if vencida else "Ordem de serviço prevista para hoje",
+                    mensagem=(
+                        f"{ordem.get('numero') or f'OS #{ordem_id}'} — "
+                        f"{ordem.get('cliente') or 'Cliente não informado'}"
+                        + (f" — técnico: {ordem.get('tecnico')}" if ordem.get('tecnico') else "")
+                        + f" — previsão {formatar_data_br(ordem.get('data_previsao'))}."
+                    ),
+                    url=f"/ordens-servico/{ordem_id}",
+                )
+
+        if usuario_tem_permissao("estoque", "visualizar") or usuario_tem_permissao("produtos", "visualizar"):
+            produtos = conn.execute(
+                """
+                SELECT id, nome, codigo, unidade, estoque_atual, estoque_minimo
+                FROM produtos
+                WHERE empresa_id = ?
+                  AND status = 'ativo'
+                  AND COALESCE(estoque_minimo, '') <> ''
+                ORDER BY nome ASC, id ASC
+                LIMIT 500
+                """,
+                (empresa_id,),
+            ).fetchall()
+            for row in produtos:
+                produto = dict(row)
+                atual = _converter_valor_brl(produto.get("estoque_atual"))
+                minimo = _converter_valor_brl(produto.get("estoque_minimo"))
+                if minimo <= 0 or atual >= minimo:
+                    continue
+                produto_id = int(produto["id"])
+                chave = f"estoque_baixo:{produto_id}"
+                chaves_ativas.add(chave)
+                unidade = str(produto.get("unidade") or "un.").strip() or "un."
+                _notificacao_upsert(
+                    conn,
+                    empresa_id=empresa_id,
+                    usuario_id=usuario_id,
+                    chave=chave,
+                    origem="produto",
+                    origem_id=produto_id,
+                    categoria="estoque",
+                    prioridade="alta" if atual <= 0 else "media",
+                    titulo="Produto sem estoque" if atual <= 0 else "Estoque abaixo do mínimo",
+                    mensagem=(
+                        f"{produto.get('nome') or 'Produto'}"
+                        + (f" ({produto.get('codigo')})" if produto.get('codigo') else "")
+                        + f" — saldo {atual:g} {unidade}; mínimo {minimo:g} {unidade}."
+                    ),
+                    url=f"/produtos/{produto_id}",
+                )
+
+        if chaves_ativas:
+            placeholders = ",".join("?" for _ in chaves_ativas)
+            conn.execute(
+                f"""
+                UPDATE notificacoes
+                SET ativa = 0, atualizado_em = ?
+                WHERE empresa_id = ?
+                  AND usuario_id = ?
+                  AND automatica = 1
+                  AND chave NOT IN ({placeholders})
+                """,
+                (
+                    agora_empresa().isoformat(timespec="seconds"),
+                    empresa_id,
+                    usuario_id,
+                    *sorted(chaves_ativas),
+                ),
+            )
+        else:
+            conn.execute(
+                """
+                UPDATE notificacoes
+                SET ativa = 0, atualizado_em = ?
+                WHERE empresa_id = ?
+                  AND usuario_id = ?
+                  AND automatica = 1
+                """,
+                (agora_empresa().isoformat(timespec="seconds"), empresa_id, usuario_id),
+            )
+        conn.commit()
+    g.notificacoes_sincronizadas = True
+
+
+def _preparar_notificacao_exibicao(row: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
+    notificacao = dict(row)
+    notificacao["url"] = _notificacao_url_interna(notificacao.get("url"))
+    notificacao["lida"] = bool(notificacao.get("lida_em"))
+    notificacao["ativa"] = bool(notificacao.get("ativa", 1))
+    notificacao["criado_em_exibicao"] = formatar_data_hora_br(notificacao.get("criado_em"))
+    notificacao["lida_em_exibicao"] = formatar_data_hora_br(notificacao.get("lida_em"))
+    return notificacao
+
+
+def montar_contexto_notificacoes_topbar() -> dict[str, Any]:
+    if not usuario_logado_id():
+        return {"notificacoes_nao_lidas": 0, "notificacoes_topbar": []}
+
+    try:
+        sincronizar_notificacoes_usuario_atual()
+        with conectar_db() as conn:
+            total = int(
+                conn.execute(
+                    """
+                    SELECT COUNT(*) AS total
+                    FROM notificacoes
+                    WHERE empresa_id = ? AND usuario_id = ?
+                      AND ativa = 1 AND lida_em IS NULL
+                    """,
+                    (empresa_logada_id(), usuario_logado_id()),
+                ).fetchone()["total"]
+                or 0
+            )
+            rows = conn.execute(
+                """
+                SELECT id, prioridade, categoria, titulo, mensagem, url, criado_em, lida_em
+                FROM notificacoes
+                WHERE empresa_id = ? AND usuario_id = ?
+                  AND ativa = 1
+                ORDER BY (lida_em IS NOT NULL) ASC,
+                         CASE prioridade
+                             WHEN 'critica' THEN 1
+                             WHEN 'alta' THEN 2
+                             WHEN 'media' THEN 3
+                             ELSE 4
+                         END,
+                         id DESC
+                LIMIT 5
+                """,
+                (empresa_logada_id(), usuario_logado_id()),
+            ).fetchall()
+        return {
+            "notificacoes_nao_lidas": total,
+            "notificacoes_topbar": [_preparar_notificacao_exibicao(row) for row in rows],
+        }
+    except Exception:
+        app.logger.exception("Falha ao montar notificações da topbar.")
+        return {"notificacoes_nao_lidas": 0, "notificacoes_topbar": []}
+
+
+def listar_notificacoes_usuario(
+    filtro: str = "todas",
+    pagina: int = 1,
+    por_pagina: int = 20,
+) -> dict[str, Any]:
+    filtro_normalizado = filtro if filtro in NOTIFICACOES_FILTROS else "todas"
+    pagina = max(1, int(pagina or 1))
+    por_pagina = min(100, max(10, int(por_pagina or 20)))
+    empresa_id = empresa_logada_id()
+    usuario_id = usuario_logado_id() or 0
+    condicao = " AND ativa = 1"
+    if filtro_normalizado == "nao_lidas":
+        condicao = " AND ativa = 1 AND lida_em IS NULL"
+    elif filtro_normalizado == "lidas":
+        condicao = " AND ativa = 1 AND lida_em IS NOT NULL"
+    elif filtro_normalizado == "resolvidas":
+        condicao = " AND ativa = 0"
+
+    with conectar_db() as conn:
+        resumo_row = conn.execute(
+            """
+            SELECT
+                COUNT(*) AS total,
+                SUM(CASE WHEN lida_em IS NULL THEN 1 ELSE 0 END) AS nao_lidas,
+                SUM(CASE WHEN lida_em IS NOT NULL THEN 1 ELSE 0 END) AS lidas,
+                SUM(CASE WHEN prioridade = 'critica' THEN 1 ELSE 0 END) AS criticas
+            FROM notificacoes
+            WHERE empresa_id = ? AND usuario_id = ? AND ativa = 1
+            """,
+            (empresa_id, usuario_id),
+        ).fetchone()
+        total_filtrado = int(
+            conn.execute(
+                f"""
+                SELECT COUNT(*) AS total
+                FROM notificacoes
+                WHERE empresa_id = ? AND usuario_id = ?{condicao}
+                """,
+                (empresa_id, usuario_id),
+            ).fetchone()["total"]
+            or 0
+        )
+        total_paginas = max(1, math.ceil(total_filtrado / por_pagina))
+        pagina = min(pagina, total_paginas)
+        offset = (pagina - 1) * por_pagina
+        rows = conn.execute(
+            f"""
+            SELECT id, prioridade, categoria, titulo, mensagem, url,
+                   origem, origem_id, ativa, lida_em, criado_em, atualizado_em
+            FROM notificacoes
+            WHERE empresa_id = ? AND usuario_id = ?{condicao}
+            ORDER BY (lida_em IS NOT NULL) ASC,
+                     CASE prioridade
+                         WHEN 'critica' THEN 1
+                         WHEN 'alta' THEN 2
+                         WHEN 'media' THEN 3
+                         ELSE 4
+                     END,
+                     id DESC
+            LIMIT ? OFFSET ?
+            """,
+            (empresa_id, usuario_id, por_pagina, offset),
+        ).fetchall()
+
+    resumo = {
+        "total": int(resumo_row["total"] or 0),
+        "nao_lidas": int(resumo_row["nao_lidas"] or 0),
+        "lidas": int(resumo_row["lidas"] or 0),
+        "criticas": int(resumo_row["criticas"] or 0),
+    }
+    return {
+        "itens": [_preparar_notificacao_exibicao(row) for row in rows],
+        "resumo": resumo,
+        "filtro": filtro_normalizado,
+        "paginacao": {
+            "pagina": pagina,
+            "por_pagina": por_pagina,
+            "total": total_filtrado,
+            "total_paginas": total_paginas,
+            "tem_anterior": pagina > 1,
+            "tem_proxima": pagina < total_paginas,
+        },
+    }
+
+
 @app.context_processor
 def injetar_usuario_logado() -> dict[str, Any]:
+    contexto_notificacoes = montar_contexto_notificacoes_topbar()
     return {
         "usuario_logado": usuario_logado(),
+        "notificacoes": contexto_notificacoes["notificacoes_nao_lidas"],
+        "notificacoes_nao_lidas": contexto_notificacoes["notificacoes_nao_lidas"],
+        "notificacoes_topbar": contexto_notificacoes["notificacoes_topbar"],
         "empresa_topbar": buscar_empresa_topbar(),
         "empresa_trial": montar_aviso_trial_empresa(),
         "data_hoje": formatar_data_br(hoje_empresa()),
@@ -2824,6 +3378,86 @@ def exigir_login_rotas_internas() -> Response | None:
 def normalizar_codigo_indicacao(codigo: Any) -> str:
     texto = str(codigo or "").strip().upper()
     return "".join(caractere for caractere in texto if caractere.isalnum())[:32]
+
+
+@app.get("/notificacoes")
+def notificacoes() -> str:
+    sincronizar_notificacoes_usuario_atual()
+    try:
+        pagina = max(1, int(request.args.get("pagina") or 1))
+    except (TypeError, ValueError):
+        pagina = 1
+    try:
+        por_pagina = int(request.args.get("por_pagina") or 20)
+    except (TypeError, ValueError):
+        por_pagina = 20
+    filtro = str(request.args.get("filtro") or "todas").strip()
+    contexto = listar_notificacoes_usuario(filtro=filtro, pagina=pagina, por_pagina=por_pagina)
+    return render_template(
+        "notificacoes.html",
+        notificacoes_lista=contexto["itens"],
+        resumo_notificacoes=contexto["resumo"],
+        filtro_notificacoes=contexto["filtro"],
+        paginacao=contexto["paginacao"],
+        sucesso=str(request.args.get("sucesso") or "").strip(),
+        erro=str(request.args.get("erro") or "").strip(),
+    )
+
+
+@app.post("/notificacoes/<int:notificacao_id>/ler")
+def marcar_notificacao_lida(notificacao_id: int) -> Response:
+    usuario_id = usuario_logado_id() or 0
+    empresa_id = empresa_logada_id()
+    destino_formulario = str(request.form.get("destino") or "").strip()
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT id, url
+            FROM notificacoes
+            WHERE id = ? AND empresa_id = ? AND usuario_id = ?
+            LIMIT 1
+            """,
+            (notificacao_id, empresa_id, usuario_id),
+        ).fetchone()
+        if row is None:
+            return redirect(url_for("notificacoes", erro="Notificação não encontrada."))
+        conn.execute(
+            """
+            UPDATE notificacoes
+            SET lida_em = COALESCE(lida_em, ?), atualizado_em = ?
+            WHERE id = ? AND empresa_id = ? AND usuario_id = ?
+            """,
+            (
+                agora_empresa().isoformat(timespec="seconds"),
+                agora_empresa().isoformat(timespec="seconds"),
+                notificacao_id,
+                empresa_id,
+                usuario_id,
+            ),
+        )
+        conn.commit()
+    destino = _notificacao_url_interna(destino_formulario or row["url"])
+    return redirect(destino)
+
+
+@app.post("/notificacoes/ler-todas")
+def marcar_todas_notificacoes_lidas() -> Response:
+    usuario_id = usuario_logado_id() or 0
+    empresa_id = empresa_logada_id()
+    agora = agora_empresa().isoformat(timespec="seconds")
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            UPDATE notificacoes
+            SET lida_em = COALESCE(lida_em, ?), atualizado_em = ?
+            WHERE empresa_id = ? AND usuario_id = ? AND ativa = 1
+            """,
+            (agora, agora, empresa_id, usuario_id),
+        )
+        conn.commit()
+    destino = _notificacao_url_interna(request.form.get("destino"), "/notificacoes")
+    separador = "&" if "?" in destino else "?"
+    return redirect(f"{destino}{separador}sucesso=Todas+as+notificações+foram+marcadas+como+lidas.")
 
 
 def gerar_codigo_indicacao_base(empresa_id: int) -> str:
@@ -18334,6 +18968,7 @@ RESET_BASE_GERAL_TABELAS_CADASTRAIS = (
 
 # Tabelas exclusivamente transacionais. A ordem mantém filhos antes dos pais.
 RESET_BASE_DEV_TABELAS_TRANSACIONAIS = (
+    "notificacoes",
     "emprestimo_historico",
     "emprestimo_renegociacoes",
     "emprestimo_anexos",
@@ -20973,6 +21608,7 @@ def excluir_empresa_cliente_admin_db(empresa_id: int) -> bool:
 
     with conectar_db() as conn:
         tabelas_por_empresa = [
+            "notificacoes",
             "configuracoes_modulos",
             "contrato_historico",
             "contrato_anexos",
@@ -37273,6 +37909,7 @@ garantir_estrutura_configuracoes_modulos()
 garantir_estrutura_contratos()
 garantir_estrutura_gestao_atividades()
 garantir_estrutura_emprestimos()
+garantir_estrutura_notificacoes()
 
 
 if __name__ == "__main__":
