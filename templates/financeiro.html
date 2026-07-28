@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\financeiro.html
-Último recode: 2026-07-27 17:24 (America/Bahia)
-Motivo: Adicionar envio do PDF do título financeiro pelo WhatsApp diretamente na listagem.
+Último recode: 2026-07-27 21:40 (America/Bahia)
+Motivo: Padronizar o módulo no Design System global do GestFlow baseado em Orçamentos.
 -->
 
 <!DOCTYPE html>
@@ -543,7 +543,7 @@ Motivo: Adicionar envio do PDF do título financeiro pelo WhatsApp diretamente n
 <body>
     {% include "partials/sidebar.html" %}
 
-<main class="content financeiro-page">
+<main class="content financeiro-page gf-module-page">
         {% set page_title = 'Financeiro' %}
         {% include "partials/topbar.html" %}
         {% if request.args.get('sucesso') %}<div class="form-alert-success">{{ request.args.get('sucesso') }}</div>{% endif %}
@@ -633,21 +633,16 @@ Motivo: Adicionar envio do PDF do título financeiro pelo WhatsApp diretamente n
                     <h3 class="page-title">Financeiro</h3>
                     <p class="page-subtitle">Acompanhe contas a receber, contas a pagar e fluxo de caixa no padrão visual do GestFlow.</p>
                 </div>
-                <div class="client-toolbar">
-                    <a href="/financeiro/receber" class="btn-light">Receber</a>
-                    <a href="/financeiro/pagar" class="btn-light">Pagar</a>
-                    <a href="/financeiro/fluxo-caixa" class="btn-dark">Fluxo de caixa</a>
-                </div>
             </div>
         </section>
 
-<div class="financeiro-tabs">
+<nav class="financeiro-tabs gf-tabs" aria-label="Navegação financeira">
             <a class="{% if aba != 'receber' %}secondary{% endif %}" href="/financeiro/receber">Contas a receber</a>
             <a class="{% if aba != 'pagar' %}secondary{% endif %}" href="/financeiro/pagar">Contas a pagar</a>
             <a class="{% if aba != 'fluxo-caixa' %}secondary{% endif %}" href="/financeiro/fluxo-caixa">Fluxo de caixa</a>
-        </div>
+        </nav>
 
-        <section class="cards cards-primary">
+        <section class="cards cards-primary page-section gf-stat-grid">
             <div class="card card-success">
                 <div class="card-icon">R$</div>
                 <div class="card-info">
@@ -686,8 +681,8 @@ Motivo: Adicionar envio do PDF do título financeiro pelo WhatsApp diretamente n
         </section>
 
         {% if aba in ['receber', 'pagar'] %}
-            <section class="panel">
-                <h3>{% if aba == 'receber' %}Lançar recebimento manual{% else %}Lançar conta a pagar{% endif %}</h3>
+            <section class="panel page-section gf-form-panel">
+                <div class="panel-header page-header"><div><h3>{% if aba == 'receber' %}Lançar recebimento manual{% else %}Lançar conta a pagar{% endif %}</h3><p class="page-subtitle">Cadastre somente lançamentos que não vieram automaticamente de vendas, compras ou outros módulos.</p></div></div>
 
                 <form action="/financeiro/titulos" method="post">
                     <input type="hidden" name="financeiro_tipo" value="{% if aba == 'receber' %}receber{% else %}pagar{% endif %}">
@@ -785,14 +780,14 @@ Motivo: Adicionar envio do PDF do título financeiro pelo WhatsApp diretamente n
                     </div>
 
                     <div class="financeiro-actions">
-                        <button class="financeiro-button" type="submit">Salvar título</button>
+                        <button class="btn-primary-green" type="submit">Salvar título</button>
                     </div>
                 </form>
             </section>
         {% endif %}
 
         {% if aba in ['receber', 'pagar'] %}
-            <div class="list-toolbar-paginada">
+            <div class="list-toolbar-paginada gf-search-toolbar">
                 <form method="get" action="{{ '/financeiro/pagar' if aba == 'pagar' else '/financeiro/receber' }}" class="list-search-form">
                     <input type="text" name="busca" value="{{ busca }}" placeholder="Buscar por documento, pessoa, descrição, categoria ou status">
                     <select name="por_pagina" onchange="this.form.submit()">

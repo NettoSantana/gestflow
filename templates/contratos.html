@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\contratos.html
-Último recode: 2026-07-27 17:24 (America/Bahia)
-Motivo: Adicionar envio do PDF do contrato pelo WhatsApp diretamente na listagem.
+Último recode: 2026-07-27 21:40 (America/Bahia)
+Motivo: Padronizar o módulo no Design System global do GestFlow baseado em Orçamentos.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -10,24 +10,23 @@ Motivo: Adicionar envio do PDF do contrato pelo WhatsApp diretamente na listagem
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GESTFLOW - Contratos</title>
     <link rel="stylesheet" href="/static/css/dashboard.css">
-    <link rel="stylesheet" href="/static/css/contratos.css">
 </head>
 <body>
     {% include "partials/sidebar.html" %}
 
-    <main class="content contracts-page">
+    <main class="content contracts-page gf-module-page">
         {% set page_title = 'Contratos' %}
         {% include "partials/topbar.html" %}
 
-        <section class="panel page-section contracts-hero">
-            <div class="panel-header page-header contracts-hero-content">
+        <section class="panel page-section gf-page-hero contracts-hero">
+            <div class="panel-header page-header gf-page-header contracts-hero-content">
                 <div>
                     <span class="page-kicker">Comercial</span>
                     <h3 class="page-title">Contratos</h3>
                     <p class="page-subtitle">Gerencie contratos de serviços, recorrências e locações em um só lugar.</p>
                 </div>
                 {% if tem_permissao('contratos', 'criar') %}
-                    <a href="{{ url_for('novo_contrato') }}" class="contract-button primary">Novo contrato</a>
+                    <a href="{{ url_for('novo_contrato') }}" class="btn-primary-green">+ Novo contrato</a>
                 {% endif %}
             </div>
         </section>
@@ -39,32 +38,32 @@ Motivo: Adicionar envio do PDF do contrato pelo WhatsApp diretamente na listagem
             <div class="contracts-alert error" role="alert">{{ request.args.get('erro') }}</div>
         {% endif %}
 
-        <section class="contracts-summary" aria-label="Resumo dos contratos">
-            <article class="contract-summary-card total">
+        <section class="contracts-summary gf-stat-grid" aria-label="Resumo dos contratos">
+            <article class="contract-summary-card gf-stat-card total">
                 <span class="contract-summary-label">Total</span>
                 <strong class="contract-summary-value">{{ resumo.total|default(0) }}</strong>
                 <span class="contract-summary-help">Contratos cadastrados</span>
             </article>
-            <article class="contract-summary-card active">
+            <article class="contract-summary-card gf-stat-card active">
                 <span class="contract-summary-label">Ativos</span>
                 <strong class="contract-summary-value">{{ resumo.ativos|default(0) }}</strong>
                 <span class="contract-summary-help">Em execução atualmente</span>
             </article>
-            <article class="contract-summary-card recurring">
+            <article class="contract-summary-card gf-stat-card recurring">
                 <span class="contract-summary-label">Recorrentes</span>
                 <strong class="contract-summary-value">{{ resumo.recorrentes|default(0) }}</strong>
                 <span class="contract-summary-help">Serviços com recorrência</span>
             </article>
-            <article class="contract-summary-card expiring">
+            <article class="contract-summary-card gf-stat-card expiring">
                 <span class="contract-summary-label">A vencer</span>
                 <strong class="contract-summary-value">{{ resumo.a_vencer|default(0) }}</strong>
                 <span class="contract-summary-help">Vencimento nos próximos 30 dias</span>
             </article>
         </section>
 
-        <section class="panel page-section contracts-filter-panel">
+        <section class="panel page-section gf-filter-panel contracts-filter-panel">
             <form method="get" action="{{ url_for('contratos') }}">
-                <div class="contracts-filter-grid">
+                <div class="contracts-filter-grid gf-filter-grid">
                     <div class="contract-field wide">
                         <label for="busca">Buscar contrato</label>
                         <input id="busca" name="busca" type="search" value="{{ busca }}" placeholder="Número, cliente, responsável, título ou objeto">
@@ -106,17 +105,17 @@ Motivo: Adicionar envio do PDF do contrato pelo WhatsApp diretamente na listagem
                 </div>
                 <input type="hidden" name="ordenar" value="{{ ordenar }}">
                 <input type="hidden" name="direcao" value="{{ direcao }}">
-                <div class="contracts-filter-actions">
-                    <button type="submit" class="contract-button primary">Aplicar filtros</button>
-                    <a href="{{ url_for('contratos') }}" class="contract-button secondary">Limpar filtros</a>
+                <div class="contracts-filter-actions gf-filter-actions">
+                    <button type="submit" class="btn-primary-green">Aplicar filtros</button>
+                    <a href="{{ url_for('contratos') }}" class="btn-light">Limpar filtros</a>
                 </div>
             </form>
         </section>
 
-        <section class="panel contracts-list-panel">
+        <section class="panel page-section gf-list-panel contracts-list-panel">
             {% if contratos %}
-                <div class="contracts-table-shell">
-                    <table class="contracts-table">
+                <div class="contracts-table-shell gf-table-shell">
+                    <table class="contracts-table gf-table">
                         <thead>
                             <tr>
                                 <th>Número</th>
@@ -188,7 +187,7 @@ Motivo: Adicionar envio do PDF do contrato pelo WhatsApp diretamente na listagem
                     </table>
                 </div>
 
-                <div class="contracts-pagination">
+                <div class="contracts-pagination gf-pagination">
                     <div class="contracts-pagination-info">Exibindo {{ paginacao.inicio }} a {{ paginacao.fim }} de {{ paginacao.total }} contrato(s)</div>
                     {% if paginacao.total_paginas > 1 %}
                         <nav class="contracts-pagination-links" aria-label="Paginação de contratos">
@@ -210,11 +209,11 @@ Motivo: Adicionar envio do PDF do contrato pelo WhatsApp diretamente na listagem
                     <strong>Nenhum contrato encontrado</strong>
                     {% if busca or status_filtro or tipo_filtro or vencimento_filtro %}
                         <p>Não há contratos que correspondam aos filtros selecionados.</p>
-                        <a href="{{ url_for('contratos') }}" class="contract-button secondary">Limpar filtros</a>
+                        <a href="{{ url_for('contratos') }}" class="btn-light">Limpar filtros</a>
                     {% else %}
                         <p>Crie o primeiro contrato de serviço, recorrência ou locação para começar o acompanhamento.</p>
                         {% if tem_permissao('contratos', 'criar') %}
-                            <a href="{{ url_for('novo_contrato') }}" class="contract-button primary">Criar primeiro contrato</a>
+                            <a href="{{ url_for('novo_contrato') }}" class="btn-primary-green">Criar primeiro contrato</a>
                         {% endif %}
                     {% endif %}
                 </div>

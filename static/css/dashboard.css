@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\static\css\dashboard.css
-Último recode: 2026-07-27 20:58 (America/Bahia)
-Motivo: Iniciar o padrão visual compartilhado dos módulos com hierarquia única de ações.
+Último recode: 2026-07-27 21:40 (America/Bahia)
+Motivo: Padronizar o módulo no Design System global do GestFlow baseado em Orçamentos.
 */
 
 :root {
@@ -5939,5 +5939,369 @@ body.focus-mode-body .main-content.focus-mode-main {
     .gf-module-actions .btn-light {
         width: 100%;
         justify-content: center;
+    }
+}
+
+
+/* ==========================================================================
+   DESIGN SYSTEM GLOBAL GESTFLOW - PADRÃO ORÇAMENTOS
+   Aplicado aos módulos operacionais e administrativos principais.
+   ========================================================================== */
+.gf-module-page {
+    padding-bottom: 96px;
+}
+
+.gf-page-hero {
+    margin-bottom: 18px;
+}
+
+.gf-page-header {
+    min-height: 92px;
+}
+
+.gf-module-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.gf-stat-grid {
+    margin-bottom: 18px;
+}
+
+.gf-stat-card {
+    min-height: 118px;
+    padding: 18px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: #ffffff;
+    box-shadow: var(--shadow);
+}
+
+.gf-filter-panel,
+.gf-form-panel,
+.gf-list-panel {
+    margin-bottom: 18px;
+}
+
+.gf-filter-grid {
+    display: grid;
+    grid-template-columns: minmax(260px, 2fr) repeat(4, minmax(150px, 1fr));
+    gap: 14px;
+    align-items: end;
+}
+
+.gf-filter-actions,
+.gf-search-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.gf-table-shell {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    border: 1px solid #e5eaf2;
+    border-radius: 14px;
+    background: #ffffff;
+}
+
+.gf-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.gf-table th,
+.gf-table td {
+    padding: 13px 12px;
+    border-bottom: 1px solid #edf2f7;
+    text-align: left;
+    vertical-align: middle;
+}
+
+.gf-table th {
+    background: #f8fafc;
+    color: #475569;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: .02em;
+}
+
+.gf-table tbody tr:hover {
+    background: #f8fafc;
+}
+
+.gf-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+}
+
+.gf-tabs,
+.financeiro-tabs,
+.loan-tabs,
+.activity-filter-tabs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 0 0 18px;
+    padding: 8px;
+    border: 1px solid #e5eaf2;
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, .05);
+}
+
+.gf-tabs a,
+.financeiro-tabs a,
+.loan-tabs a,
+.activity-filter-tabs a {
+    min-height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 14px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: transparent;
+    color: #475569;
+    font-size: 13px;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.gf-tabs a:hover,
+.financeiro-tabs a:hover,
+.loan-tabs a:hover,
+.activity-filter-tabs a:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+.gf-tabs a.active,
+.financeiro-tabs a:not(.secondary),
+.loan-tabs a.active,
+.activity-filter-tabs a.active {
+    border-color: #16a34a;
+    background: #16a34a;
+    color: #ffffff;
+}
+
+/* Contratos: neutraliza o visual isolado e aproxima do padrão global. */
+.contracts-page .contracts-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(190px, 1fr));
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.contracts-page .contract-summary-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+}
+
+.contracts-page .contract-summary-label {
+    color: #475569;
+    font-size: 12px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.contracts-page .contract-summary-value {
+    color: #0f172a;
+    font-size: 26px;
+    line-height: 1;
+}
+
+.contracts-page .contract-summary-help {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.contracts-page .contract-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.contracts-page .contract-field label,
+.loans-page .loan-filters label span {
+    color: #334155;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.contracts-page .contract-field input,
+.contracts-page .contract-field select,
+.loans-page .loan-filters input,
+.loans-page .loan-filters select {
+    width: 100%;
+    height: 44px;
+    padding: 0 14px;
+    border: 1px solid #dbe3ef;
+    border-radius: 12px;
+    background: #ffffff;
+    color: #0f172a;
+    font: inherit;
+    outline: none;
+}
+
+.contracts-page .contracts-filter-actions {
+    margin-top: 14px;
+}
+
+.contracts-page .contract-row-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.contracts-page .contract-action-link,
+.loans-page .loan-link-button {
+    min-height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 10px;
+    border: 1px solid #dbe3ef;
+    border-radius: 9px;
+    background: #ffffff;
+    color: #334155;
+    font-size: 12px;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.contracts-page .contract-action-link.primary,
+.loans-page .loan-link-button:first-child {
+    border-color: #0ea5e9;
+    background: #0ea5e9;
+    color: #ffffff;
+}
+
+/* Empréstimos */
+.loans-page .loan-filters {
+    display: grid;
+    grid-template-columns: minmax(260px, 2fr) repeat(2, minmax(160px, 1fr)) auto;
+    gap: 14px;
+    align-items: end;
+    margin-bottom: 18px;
+    padding: 18px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: #ffffff;
+    box-shadow: var(--shadow);
+}
+
+.loans-page .loan-filters label {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.loans-page .loan-filter-actions {
+    flex-wrap: nowrap;
+}
+
+.loans-page .loan-panel {
+    padding: 18px;
+}
+
+/* Financeiro: uma única navegação e formulários no padrão. */
+.financeiro-page .financeiro-form-grid {
+    gap: 16px;
+}
+
+.financeiro-page .financeiro-field input,
+.financeiro-page .financeiro-field select,
+.financeiro-page .financeiro-field textarea {
+    border-radius: 12px;
+    border-color: #dbe3ef;
+}
+
+.financeiro-page .financeiro-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 18px;
+}
+
+/* Atividades */
+.activity-page .activity-list {
+    margin-top: 16px;
+}
+
+.activity-page .activity-row {
+    border: 1px solid #e5eaf2;
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, .05);
+}
+
+/* Consistência geral de botões. */
+.gf-module-page .btn-primary-green,
+.gf-module-page .btn-dark,
+.gf-module-page .btn-light {
+    min-height: 42px;
+}
+
+@media (max-width: 1180px) {
+    .gf-filter-grid,
+    .loans-page .loan-filters {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .contracts-page .contracts-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 720px) {
+    .gf-page-header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .gf-module-actions,
+    .gf-filter-actions,
+    .gf-search-toolbar {
+        width: 100%;
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .gf-module-actions > *,
+    .gf-filter-actions > *,
+    .gf-search-toolbar > *,
+    .gf-tabs a,
+    .financeiro-tabs a,
+    .loan-tabs a,
+    .activity-filter-tabs a {
+        width: 100%;
+    }
+
+    .gf-filter-grid,
+    .loans-page .loan-filters,
+    .contracts-page .contracts-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .gf-tabs,
+    .financeiro-tabs,
+    .loan-tabs,
+    .activity-filter-tabs {
+        align-items: stretch;
+        flex-direction: column;
     }
 }

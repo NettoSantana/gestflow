@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordens_servico.html
-Último recode: 2026-07-27 17:24 (America/Bahia)
-Motivo: Mover o envio da OS para a lista e anexar o PDF diretamente no WhatsApp.
+Último recode: 2026-07-27 21:40 (America/Bahia)
+Motivo: Padronizar o módulo no Design System global do GestFlow baseado em Orçamentos.
 -->
 
 <!DOCTYPE html>
@@ -960,7 +960,7 @@ Motivo: Mover o envio da OS para a lista e anexar o PDF diretamente no WhatsApp.
 <body>
     {% include "partials/sidebar.html" %}
 
-<main class="content os-page">
+<main class="content os-page gf-module-page">
         {% set page_title = 'Ordens de Serviço' %}
         {% include "partials/topbar.html" %}
 
@@ -977,8 +977,8 @@ Motivo: Mover o envio da OS para a lista e anexar o PDF diretamente no WhatsApp.
             {% if os.status == "finalizada" %}{% set resumo.finalizadas = resumo.finalizadas + 1 %}{% endif %}
         {% endfor %}
 
-        <section class="panel page-section">
-            <div class="panel-header page-header">
+        <section class="panel page-section gf-page-hero">
+            <div class="panel-header page-header gf-page-header">
                 <div>
                     <span class="page-kicker">Ordens de Serviço</span>
                     <h3 class="page-title">Ordens de Serviço</h3>
@@ -988,7 +988,7 @@ Motivo: Mover o envio da OS para a lista e anexar o PDF diretamente no WhatsApp.
             </div>
         </section>
 
-        <section class="cards cards-secondary page-section">
+        <section class="cards cards-secondary page-section gf-stat-grid">
             <div class="card stat-card"><div class="card-icon">✚</div><div class="card-info"><p>{{ ordens_lista|length }}</p><h3>Total de OS</h3><span>{% if ordens_lista|length == 1 %}1 OS cadastrada{% elif ordens_lista|length > 1 %}{{ ordens_lista|length }} OS cadastradas{% else %}Nenhuma OS cadastrada{% endif %}</span></div></div>
             <div class="card stat-card"><div class="card-icon">⌁</div><div class="card-info"><p>{{ resumo.abertas }}</p><h3>Abertas</h3><span>{% if resumo.abertas == 1 %}1 OS aberta{% elif resumo.abertas > 1 %}{{ resumo.abertas }} OS abertas{% else %}Nenhuma OS aberta{% endif %}</span></div></div>
             <div class="card stat-card"><div class="card-icon">✓</div><div class="card-info"><p>{{ resumo.finalizadas }}</p><h3>Finalizadas</h3><span>{% if resumo.finalizadas == 1 %}1 OS finalizada{% elif resumo.finalizadas > 1 %}{{ resumo.finalizadas }} OS finalizadas{% else %}Nenhuma OS finalizada{% endif %}</span></div></div>
