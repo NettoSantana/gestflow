@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\static\css\dashboard.css
-Último recode: 2026-07-26 07:15 (America/Bahia)
-Motivo: Criar padrão visual cinza-claro para campos definidos nas configurações dos módulos.
+Último recode: 2026-07-27 20:58 (America/Bahia)
+Motivo: Iniciar o padrão visual compartilhado dos módulos com hierarquia única de ações.
 */
 
 :root {
@@ -5912,3 +5912,32 @@ body.focus-mode-body .main-content.focus-mode-main {
     }
 }
 
+/* PADRÃO COMPARTILHADO DOS MÓDULOS — BASEADO EM ORÇAMENTOS */
+.gf-module-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.gf-module-actions .btn-primary-green,
+.gf-module-actions .btn-dark,
+.gf-module-actions .btn-light {
+    white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+    .gf-module-actions {
+        width: 100%;
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .gf-module-actions .btn-primary-green,
+    .gf-module-actions .btn-dark,
+    .gf-module-actions .btn-light {
+        width: 100%;
+        justify-content: center;
+    }
+}
