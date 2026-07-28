@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\emprestimo_formulario.html
-Último recode: 2026-07-25 20:35 (America/Bahia)
-Motivo: Permitir escolher entre empréstimo parcelado e rotativo com juros periódicos.
+Último recode: 2026-07-27 21:55 (America/Bahia)
+Motivo: Padronizar navegação, cores, cabeçalho e ações do cadastro de Empréstimos.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -13,25 +13,28 @@ Motivo: Permitir escolher entre empréstimo parcelado e rotativo com juros peri�
 </head>
 <body>
     {% include "partials/sidebar.html" %}
-    <main class="content loans-page">
+    <main class="content loans-page gf-module-page">
         {% set page_title = 'Novo Empréstimo' %}
         {% include "partials/topbar.html" %}
-
-        <nav class="loan-tabs" aria-label="Navegação do módulo Empréstimos">
+        <nav class="loan-tabs gf-tabs" aria-label="Navegação do módulo Empréstimos">
             <a class="loan-tab" href="/emprestimos/visao-geral">Visão Geral</a>
             <a class="loan-tab" href="/emprestimos/todos">Todos os Empréstimos</a>
-            <a class="loan-tab active" href="/emprestimos/novo">Novo Empréstimo</a>
             <a class="loan-tab" href="/emprestimos/parcelas">Parcelas</a>
             <a class="loan-tab" href="/emprestimos/renegociacoes">Renegociações</a>
-            <a class="loan-tab" href="/emprestimos/configuracoes">Configurações</a>
         </nav>
 
         {% if sucesso %}<div class="loan-alert success" role="status">{{ sucesso }}</div>{% endif %}
         {% if erro %}<div class="loan-alert error" role="alert">{{ erro }}</div>{% endif %}
 
-        <section class="loan-hero compact">
-            <div><span class="loan-kicker">Cadastro</span><h1>Novo Empréstimo</h1><p>Cadastre um contrato parcelado ou rotativo com juros periódicos.</p></div>
-            <a class="loan-button secondary" href="/emprestimos/todos">Voltar</a>
+        <section class="panel page-section gf-page-hero">
+            <div class="panel-header page-header gf-page-header">
+                <div>
+                    <span class="page-kicker">Gestão financeira</span>
+                    <h3 class="page-title">Novo Empréstimo</h3>
+                    <p class="page-subtitle">Cadastre um contrato parcelado ou rotativo com juros periódicos.</p>
+                </div>
+                <div class="gf-module-actions"><a class="btn-light" href="/emprestimos/todos">Voltar</a></div>
+            </div>
         </section>
 
         <form class="loan-form" method="post" action="/emprestimos/novo" id="loan-form">
@@ -83,7 +86,7 @@ Motivo: Permitir escolher entre empréstimo parcelado e rotativo com juros peri�
                 </div>
             </section>
 
-            <div class="loan-form-actions"><a class="loan-button secondary" href="/emprestimos/todos">Cancelar</a><button class="loan-button primary" type="submit">Salvar empréstimo</button></div>
+            <div class="loan-form-actions"><a class="btn-light" href="/emprestimos/todos">Cancelar</a><button class="btn-primary-green" type="submit">Salvar empréstimo</button></div>
         </form>
     </main>
 

@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\emprestimo_detalhe.html
-Último recode: 2026-07-25 20:35 (America/Bahia)
-Motivo: Exibir e operar empréstimos rotativos com baixa de juros, amortização e quitação.
+Último recode: 2026-07-27 21:55 (America/Bahia)
+Motivo: Padronizar navegação, cores, cabeçalho e ações dos detalhes de Empréstimos.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -13,35 +13,34 @@ Motivo: Exibir e operar empréstimos rotativos com baixa de juros, amortização
 </head>
 <body>
     {% include "partials/sidebar.html" %}
-    <main class="content loans-page">
+    <main class="content loans-page gf-module-page">
         {% set page_title = 'Detalhes do Empréstimo' %}
         {% include "partials/topbar.html" %}
-
-        <nav class="loan-tabs" aria-label="Navegação do módulo Empréstimos">
+        <nav class="loan-tabs gf-tabs" aria-label="Navegação do módulo Empréstimos">
             <a class="loan-tab" href="/emprestimos/visao-geral">Visão Geral</a>
             <a class="loan-tab" href="/emprestimos/todos">Todos os Empréstimos</a>
-            <a class="loan-tab" href="/emprestimos/novo">Novo Empréstimo</a>
             <a class="loan-tab" href="/emprestimos/parcelas">Parcelas</a>
             <a class="loan-tab" href="/emprestimos/renegociacoes">Renegociações</a>
-            <a class="loan-tab" href="/emprestimos/configuracoes">Configurações</a>
         </nav>
 
         {% if sucesso %}<div class="loan-alert success" role="status">{{ sucesso }}</div>{% endif %}
         {% if erro %}<div class="loan-alert error" role="alert">{{ erro }}</div>{% endif %}
 
-        <section class="loan-hero compact">
-            <div>
-                <span class="loan-kicker">{{ emprestimo.numero }}</span>
-                <h1>{{ emprestimo.titulo }}</h1>
-                <p>
-                    {{ emprestimo.parte_nome }} ·
-                    {{ 'Recebido pela empresa' if emprestimo.tipo == 'recebido' else 'Concedido pela empresa' }} ·
-                    {{ 'Rotativo - juros periódicos' if emprestimo.modalidade == 'rotativo' else 'Parcelado tradicional' }}
-                </p>
-            </div>
-            <div class="loan-hero-actions">
-                <span class="loan-status {{ emprestimo.status }}">{{ emprestimo.status|replace('_', ' ')|title }}</span>
-                <a class="loan-button secondary" href="/emprestimos/todos">Voltar</a>
+        <section class="panel page-section gf-page-hero">
+            <div class="panel-header page-header gf-page-header">
+                <div>
+                    <span class="page-kicker">{{ emprestimo.numero }}</span>
+                    <h3 class="page-title">{{ emprestimo.titulo }}</h3>
+                    <p class="page-subtitle">
+                        {{ emprestimo.parte_nome }} ·
+                        {{ 'Recebido pela empresa' if emprestimo.tipo == 'recebido' else 'Concedido pela empresa' }} ·
+                        {{ 'Rotativo - juros periódicos' if emprestimo.modalidade == 'rotativo' else 'Parcelado tradicional' }}
+                    </p>
+                </div>
+                <div class="gf-module-actions">
+                    <span class="loan-status {{ emprestimo.status }}">{{ emprestimo.status|replace('_', ' ')|title }}</span>
+                    <a class="btn-light" href="/emprestimos/todos">Voltar</a>
+                </div>
             </div>
         </section>
 
@@ -158,7 +157,7 @@ Motivo: Exibir e operar empréstimos rotativos com baixa de juros, amortização
                                 {% endif %}
                                 <input type="date" name="data_pagamento" aria-label="Data da baixa">
                                 <input name="forma_pagamento" placeholder="Forma">
-                                <button class="loan-link-button" type="submit">Baixar</button>
+                                <button class="loan-link-button primary" type="submit">Baixar</button>
                             </form>
                             {% else %}-{% endif %}
                         </td>

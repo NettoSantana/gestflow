@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\funcionarios.html
-Último recode: 2026-07-27 17:24 (America/Bahia)
-Motivo: Adicionar envio do PDF do funcionário pelo WhatsApp diretamente na listagem.
+Último recode: 2026-07-27 21:40 (America/Bahia)
+Motivo: Padronizar o módulo no Design System global do GestFlow baseado em Orçamentos.
 -->
 
 <!DOCTYPE html>
@@ -237,12 +237,12 @@ Motivo: Adicionar envio do PDF do funcionário pelo WhatsApp diretamente na list
 <body>
     {% include "partials/sidebar.html" %}
 
-<main class="content">
+<main class="content funcionarios-page gf-module-page">
         {% set page_title = 'Funcionários' %}
         {% include "partials/topbar.html" %}
 
         {% if request.args.get("erro") %}
-            <section class="panel page-section">
+            <section class="panel page-section gf-page-hero">
                 <div class="alert-error">{{ request.args.get("erro") }}</div>
             </section>
         {% endif %}
@@ -263,7 +263,7 @@ Motivo: Adicionar envio do PDF do funcionário pelo WhatsApp diretamente na list
         {% set por_pagina = por_pagina|default(20, true) %}
 
         <section class="panel page-section">
-            <div class="panel-header page-header">
+            <div class="panel-header page-header gf-page-header">
                 <div>
                     <span class="page-kicker">Cadastros</span>
                     <h3 class="page-title">Funcionários</h3>
@@ -274,7 +274,7 @@ Motivo: Adicionar envio do PDF do funcionário pelo WhatsApp diretamente na list
             </div>
         </section>
 
-        <section class="cards cards-secondary page-section">
+        <section class="cards cards-secondary page-section gf-stat-grid">
             <div class="card stat-card">
                 <div class="card-icon">☷</div>
                 <div class="card-info">
@@ -444,7 +444,7 @@ Motivo: Adicionar envio do PDF do funcionário pelo WhatsApp diretamente na list
                     <p class="page-subtitle">Pesquise, visualize e mantenha os funcionários cadastrados.</p>
                 </div>
 
-                <div class="client-toolbar">
+                <div class="client-toolbar gf-module-actions">
                     <div class="more-actions-wrap">
                         <button type="button" class="btn-light" onclick="alternarMenuFuncionarios()">⚙ Mais ações</button>
                         <div id="funcionarios-more-actions" class="more-actions-menu">

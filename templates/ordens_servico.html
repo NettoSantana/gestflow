@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordens_servico.html
-Último recode: 2026-07-27 17:24 (America/Bahia)
-Motivo: Mover o envio da OS para a lista e anexar o PDF diretamente no WhatsApp.
+Último recode: 2026-07-27 21:55 (America/Bahia)
+Motivo: Remover cadastro redundante e padronizar hierarquia, indicadores e cores do módulo Ordens de Serviço.
 -->
 
 <!DOCTYPE html>
@@ -589,43 +589,6 @@ Motivo: Mover o envio da OS para a lista e anexar o PDF diretamente no WhatsApp.
             display: none;
         }
 
-        .os-cadastro-resumo {
-            border: 1px solid #dbe3ef;
-            border-radius: 16px;
-            background: #ffffff;
-            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
-            margin-bottom: 18px;
-            padding: 18px 20px;
-        }
-
-        .os-cadastro-resumo-inner {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 16px;
-            flex-wrap: wrap;
-        }
-
-        .os-cadastro-resumo h3 {
-            margin: 0 0 4px;
-            color: #0f172a;
-            font-size: 16px;
-            font-weight: 900;
-            text-transform: uppercase;
-        }
-
-        .os-cadastro-resumo p {
-            margin: 0;
-            color: #64748b;
-            font-size: 13px;
-        }
-
-        .os-cadastro-actions {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
 
         #form-nova-os {
             display: none;
@@ -637,13 +600,6 @@ Motivo: Mover o envio da OS para a lista e anexar o PDF diretamente no WhatsApp.
             display: block;
         }
 
-        #os-cadastro-toggle:checked ~ .os-cadastro-resumo .os-abrir-form {
-            display: none;
-        }
-
-        #os-cadastro-toggle:not(:checked) ~ .os-cadastro-resumo .os-fechar-form {
-            display: none;
-        }
 
         .os-form-section {
             border: 0 !important;
@@ -884,14 +840,12 @@ Motivo: Mover o envio da OS para a lista e anexar o PDF diretamente no WhatsApp.
         }
 
         @media (max-width: 720px) {
-            .os-cadastro-resumo-inner,
             .os-header-actions {
+                width: 100%;
                 align-items: stretch;
                 flex-direction: column;
             }
 
-            .os-cadastro-actions .btn-dark,
-            .os-cadastro-actions .btn-light,
             .os-header-actions .btn-primary-green {
                 width: 100%;
                 justify-content: center;
@@ -960,7 +914,7 @@ Motivo: Mover o envio da OS para a lista e anexar o PDF diretamente no WhatsApp.
 <body>
     {% include "partials/sidebar.html" %}
 
-<main class="content os-page">
+<main class="content os-page gf-module-page">
         {% set page_title = 'Ordens de Serviço' %}
         {% include "partials/topbar.html" %}
 
@@ -977,38 +931,26 @@ Motivo: Mover o envio da OS para a lista e anexar o PDF diretamente no WhatsApp.
             {% if os.status == "finalizada" %}{% set resumo.finalizadas = resumo.finalizadas + 1 %}{% endif %}
         {% endfor %}
 
-        <section class="panel page-section">
-            <div class="panel-header page-header">
+        <section class="panel page-section gf-page-hero">
+            <div class="panel-header page-header gf-page-header">
                 <div>
-                    <span class="page-kicker">Ordens de Serviço</span>
+                    <span class="page-kicker">Gestão operacional</span>
                     <h3 class="page-title">Ordens de Serviço</h3>
                     <p class="page-subtitle">Cadastre, acompanhe e mantenha as ordens de serviço com dados técnicos, produtos, serviços e valores.</p>
                 </div>
-                <div class="os-header-actions"><label for="os-cadastro-toggle" class="btn-primary-green">+ Nova OS</label></div>
+                <div class="os-header-actions gf-module-actions"><label for="os-cadastro-toggle" class="btn-primary-green" role="button" tabindex="0">+ Nova OS</label></div>
             </div>
         </section>
 
-        <section class="cards cards-secondary page-section">
-            <div class="card stat-card"><div class="card-icon">✚</div><div class="card-info"><p>{{ ordens_lista|length }}</p><h3>Total de OS</h3><span>{% if ordens_lista|length == 1 %}1 OS cadastrada{% elif ordens_lista|length > 1 %}{{ ordens_lista|length }} OS cadastradas{% else %}Nenhuma OS cadastrada{% endif %}</span></div></div>
-            <div class="card stat-card"><div class="card-icon">⌁</div><div class="card-info"><p>{{ resumo.abertas }}</p><h3>Abertas</h3><span>{% if resumo.abertas == 1 %}1 OS aberta{% elif resumo.abertas > 1 %}{{ resumo.abertas }} OS abertas{% else %}Nenhuma OS aberta{% endif %}</span></div></div>
-            <div class="card stat-card"><div class="card-icon">✓</div><div class="card-info"><p>{{ resumo.finalizadas }}</p><h3>Finalizadas</h3><span>{% if resumo.finalizadas == 1 %}1 OS finalizada{% elif resumo.finalizadas > 1 %}{{ resumo.finalizadas }} OS finalizadas{% else %}Nenhuma OS finalizada{% endif %}</span></div></div>
+        <section class="cards page-section gf-stat-grid os-stat-grid">
+            <div class="card card-blue"><div class="card-icon">▣</div><div class="card-info"><h3>Total de OS</h3><p>{{ ordens_lista|length }}</p><span>{% if ordens_lista|length == 1 %}1 OS cadastrada{% elif ordens_lista|length > 1 %}{{ ordens_lista|length }} OS cadastradas{% else %}Nenhuma OS cadastrada{% endif %}</span></div></div>
+            <div class="card card-warning"><div class="card-icon">⌁</div><div class="card-info"><h3>Abertas</h3><p>{{ resumo.abertas }}</p><span>{% if resumo.abertas == 1 %}1 OS aberta{% elif resumo.abertas > 1 %}{{ resumo.abertas }} OS abertas{% else %}Nenhuma OS aberta{% endif %}</span></div></div>
+            <div class="card card-success"><div class="card-icon">✓</div><div class="card-info"><h3>Finalizadas</h3><p>{{ resumo.finalizadas }}</p><span>{% if resumo.finalizadas == 1 %}1 OS finalizada{% elif resumo.finalizadas > 1 %}{{ resumo.finalizadas }} OS finalizadas{% else %}Nenhuma OS finalizada{% endif %}</span></div></div>
         </section>
 
 
         <input type="checkbox" id="os-cadastro-toggle" class="os-cadastro-toggle">
 
-        <section class="os-cadastro-resumo">
-            <div class="os-cadastro-resumo-inner">
-                <div>
-                    <h3>Cadastro de OS</h3>
-                    <p>Use esta área apenas quando precisar abrir uma nova ordem de serviço manual. A lista permanece como tela principal.</p>
-                </div>
-                <div class="os-cadastro-actions">
-                    <label for="os-cadastro-toggle" class="btn-dark os-abrir-form">+ Abrir cadastro</label>
-                    <label for="os-cadastro-toggle" class="btn-light os-fechar-form">Fechar cadastro</label>
-                </div>
-            </div>
-        </section>
 
         <form id="form-nova-os" action="/ordens-servico" method="post" enctype="multipart/form-data" class="client-form">
             <div class="gestflow-form-error{% if request.args.get('erro') %} show{% endif %}" data-form-error>{% if request.args.get('erro') %}{{ request.args.get('erro') }}{% endif %}</div>
@@ -1243,7 +1185,7 @@ Motivo: Mover o envio da OS para a lista e anexar o PDF diretamente no WhatsApp.
             </section>
         </form>
 
-        <section class="panel table-panel">
+        <section class="panel table-panel gf-list-panel">
             <div class="panel-header page-header"><div><h3>Lista de OS</h3><p class="page-subtitle">Acompanhe as ordens de serviço cadastradas.</p></div><div class="client-toolbar"><button type="button" class="btn-light">Exportar</button><button type="button" class="btn-light">Filtros</button></div></div>
             <div class="client-actions">
                 <form action="/ordens-servico" method="get" class="ordens-search-form">
@@ -1265,8 +1207,8 @@ Motivo: Mover o envio da OS para a lista e anexar o PDF diretamente no WhatsApp.
                     {% endif %}
                 </form>
             </div>
-            <div class="table-shell os-table-actions-shell ordens-lista-shell">
-                <table class="client-table ordens-lista-table">
+            <div class="table-shell gf-table-shell os-table-actions-shell ordens-lista-shell">
+                <table class="client-table gf-table ordens-lista-table">
                     <thead><tr>
                             <th><a href="{{ url_for('ordens_servico', pagina=1, por_pagina=por_pagina, ordenar='id', direcao='desc' if ordenar == 'id' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">ID {% if ordenar == 'id' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
                             <th><a href="{{ url_for('ordens_servico', pagina=1, por_pagina=por_pagina, ordenar='numero', direcao='desc' if ordenar == 'numero' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Número {% if ordenar == 'numero' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
@@ -2008,12 +1950,28 @@ Motivo: Mover o envio da OS para a lista e anexar o PDF diretamente no WhatsApp.
                 const toggleCadastro = document.getElementById("os-cadastro-toggle");
                 const formularioOS = document.getElementById("form-nova-os");
 
-                if (toggleCadastro && formularioOS && window.location.hash === "#form-nova-os") {
+                const possuiErro = formularioOS && formularioOS.querySelector("[data-form-error].show");
+
+                if (toggleCadastro && formularioOS && (window.location.hash === "#form-nova-os" || possuiErro)) {
                     toggleCadastro.checked = true;
                     setTimeout(function() {
                         formularioOS.scrollIntoView({ behavior: "smooth", block: "start" });
                     }, 80);
                 }
+
+                document.querySelectorAll('label[for="os-cadastro-toggle"][role="button"]').forEach(function(botao) {
+                    botao.addEventListener("keydown", function(evento) {
+                        if (evento.key === "Enter" || evento.key === " ") {
+                            evento.preventDefault();
+                            toggleCadastro.checked = !toggleCadastro.checked;
+                            if (toggleCadastro.checked) {
+                                setTimeout(function() {
+                                    formularioOS.scrollIntoView({ behavior: "smooth", block: "start" });
+                                }, 80);
+                            }
+                        }
+                    });
+                });
             });
         </script>
 

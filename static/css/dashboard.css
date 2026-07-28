@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\static\css\dashboard.css
-Último recode: 2026-07-26 07:15 (America/Bahia)
-Motivo: Criar padrão visual cinza-claro para campos definidos nas configurações dos módulos.
+Último recode: 2026-07-27 21:55 (America/Bahia)
+Motivo: Consolidar cores e componentes compartilhados dos módulos Empréstimos e Ordens de Serviço.
 */
 
 :root {
@@ -5256,11 +5256,16 @@ body.focus-mode-body .main-content.focus-mode-main {
     text-decoration: none;
 }
 
-.loan-tab:hover,
+.loan-tab:hover {
+    border-color: #dbe3ef;
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
 .loan-tab.active {
-    border-color: #1f6feb;
-    background: #eef5ff;
-    color: #1458bb;
+    border-color: #16a34a;
+    background: #16a34a;
+    color: #ffffff;
 }
 
 .loan-hero {
@@ -5271,7 +5276,7 @@ body.focus-mode-body .main-content.focus-mode-main {
     padding: 26px;
     border: 1px solid #dfe5ec;
     border-radius: 16px;
-    background: linear-gradient(135deg, #ffffff 0%, #f2f7ff 100%);
+    background: #ffffff;
     box-shadow: 0 12px 32px rgba(15, 34, 58, .06);
 }
 
@@ -5291,7 +5296,7 @@ body.focus-mode-body .main-content.focus-mode-main {
 }
 
 .loan-kicker {
-    color: #1f6feb;
+    color: #2563eb;
     font-size: 12px;
     font-weight: 800;
     letter-spacing: .08em;
@@ -5324,9 +5329,9 @@ body.focus-mode-body .main-content.focus-mode-main {
 }
 
 .loan-button.primary,
-.loan-link-button {
-    background: #1f6feb;
-    color: #fff;
+.loan-link-button.primary {
+    background: #16a34a;
+    color: #ffffff;
 }
 
 .loan-button.secondary {
@@ -5619,8 +5624,8 @@ body.focus-mode-body .main-content.focus-mode-main {
 .loan-mini-form input:focus,
 .loan-mini-form select:focus,
 .loan-mini-form textarea:focus {
-    border-color: #1f6feb;
-    box-shadow: 0 0 0 3px rgba(31, 111, 235, .12);
+    border-color: #16a34a;
+    box-shadow: 0 0 0 3px rgba(22, 163, 74, .12);
 }
 
 .loan-form {
@@ -5744,7 +5749,7 @@ body.focus-mode-body .main-content.focus-mode-main {
 
 .loan-timeline > div {
     padding: 13px 14px;
-    border-left: 3px solid #1f6feb;
+    border-left: 3px solid #16a34a;
     border-radius: 0 9px 9px 0;
     background: #f8fafc;
 }
@@ -5912,3 +5917,502 @@ body.focus-mode-body .main-content.focus-mode-main {
     }
 }
 
+/* PADRÃO COMPARTILHADO DOS MÓDULOS — BASEADO EM ORÇAMENTOS */
+.gf-module-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.gf-module-actions .btn-primary-green,
+.gf-module-actions .btn-dark,
+.gf-module-actions .btn-light {
+    white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+    .gf-module-actions {
+        width: 100%;
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .gf-module-actions .btn-primary-green,
+    .gf-module-actions .btn-dark,
+    .gf-module-actions .btn-light {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+
+/* ==========================================================================
+   DESIGN SYSTEM GLOBAL GESTFLOW - PADRÃO ORÇAMENTOS
+   Aplicado aos módulos operacionais e administrativos principais.
+   ========================================================================== */
+.gf-module-page {
+    padding-bottom: 96px;
+}
+
+.gf-page-hero {
+    margin-bottom: 18px;
+}
+
+.gf-page-header {
+    min-height: 92px;
+}
+
+.gf-module-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.gf-stat-grid {
+    margin-bottom: 18px;
+}
+
+.gf-stat-card {
+    min-height: 118px;
+    padding: 18px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: #ffffff;
+    box-shadow: var(--shadow);
+}
+
+.gf-filter-panel,
+.gf-form-panel,
+.gf-list-panel {
+    margin-bottom: 18px;
+}
+
+.gf-filter-grid {
+    display: grid;
+    grid-template-columns: minmax(260px, 2fr) repeat(4, minmax(150px, 1fr));
+    gap: 14px;
+    align-items: end;
+}
+
+.gf-filter-actions,
+.gf-search-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.gf-table-shell {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    border: 1px solid #e5eaf2;
+    border-radius: 14px;
+    background: #ffffff;
+}
+
+.gf-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.gf-table th,
+.gf-table td {
+    padding: 13px 12px;
+    border-bottom: 1px solid #edf2f7;
+    text-align: left;
+    vertical-align: middle;
+}
+
+.gf-table th {
+    background: #f8fafc;
+    color: #475569;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: .02em;
+}
+
+.gf-table tbody tr:hover {
+    background: #f8fafc;
+}
+
+.gf-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+}
+
+.gf-tabs,
+.financeiro-tabs,
+.loan-tabs,
+.activity-filter-tabs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 0 0 18px;
+    padding: 8px;
+    border: 1px solid #e5eaf2;
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, .05);
+}
+
+.gf-tabs a,
+.financeiro-tabs a,
+.loan-tabs a,
+.activity-filter-tabs a {
+    min-height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 14px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: transparent;
+    color: #475569;
+    font-size: 13px;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.gf-tabs a:hover,
+.financeiro-tabs a:hover,
+.loan-tabs a:hover,
+.activity-filter-tabs a:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+.gf-tabs a.active,
+.financeiro-tabs a:not(.secondary),
+.loan-tabs a.active,
+.activity-filter-tabs a.active {
+    border-color: #16a34a;
+    background: #16a34a;
+    color: #ffffff;
+}
+
+/* Contratos: neutraliza o visual isolado e aproxima do padrão global. */
+.contracts-page .contracts-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(190px, 1fr));
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.contracts-page .contract-summary-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+}
+
+.contracts-page .contract-summary-label {
+    color: #475569;
+    font-size: 12px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.contracts-page .contract-summary-value {
+    color: #0f172a;
+    font-size: 26px;
+    line-height: 1;
+}
+
+.contracts-page .contract-summary-help {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.contracts-page .contract-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.contracts-page .contract-field label,
+.loans-page .loan-filters label span {
+    color: #334155;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.contracts-page .contract-field input,
+.contracts-page .contract-field select,
+.loans-page .loan-filters input,
+.loans-page .loan-filters select {
+    width: 100%;
+    height: 44px;
+    padding: 0 14px;
+    border: 1px solid #dbe3ef;
+    border-radius: 12px;
+    background: #ffffff;
+    color: #0f172a;
+    font: inherit;
+    outline: none;
+}
+
+.contracts-page .contracts-filter-actions {
+    margin-top: 14px;
+}
+
+.contracts-page .contract-row-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.contracts-page .contract-action-link,
+.loans-page .loan-link-button {
+    min-height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 10px;
+    border: 1px solid #dbe3ef;
+    border-radius: 9px;
+    background: #ffffff;
+    color: #334155;
+    font-size: 12px;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.contracts-page .contract-action-link.primary,
+.loans-page .loan-link-button:first-child {
+    border-color: #0ea5e9;
+    background: #0ea5e9;
+    color: #ffffff;
+}
+
+.loans-page .loan-link-button.whatsapp {
+    border-color: #128c7e;
+    background: #128c7e;
+    color: #ffffff;
+}
+
+/* Empréstimos */
+.loans-page .loan-filters {
+    display: grid;
+    grid-template-columns: minmax(260px, 2fr) repeat(2, minmax(160px, 1fr)) auto;
+    gap: 14px;
+    align-items: end;
+    margin-bottom: 18px;
+    padding: 18px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: #ffffff;
+    box-shadow: var(--shadow);
+}
+
+.loans-page .loan-filters label {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.loans-page .loan-filter-actions {
+    flex-wrap: nowrap;
+}
+
+.loans-page .loan-panel {
+    padding: 18px;
+}
+
+/* Financeiro: uma única navegação e formulários no padrão. */
+.financeiro-page .financeiro-form-grid {
+    gap: 16px;
+}
+
+.financeiro-page .financeiro-field input,
+.financeiro-page .financeiro-field select,
+.financeiro-page .financeiro-field textarea {
+    border-radius: 12px;
+    border-color: #dbe3ef;
+}
+
+.financeiro-page .financeiro-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 18px;
+}
+
+/* Atividades */
+.activity-page .activity-list {
+    margin-top: 16px;
+}
+
+.activity-page .activity-row {
+    border: 1px solid #e5eaf2;
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, .05);
+}
+
+/* Consistência geral de botões. */
+.gf-module-page .btn-primary-green,
+.gf-module-page .btn-dark,
+.gf-module-page .btn-light {
+    min-height: 42px;
+}
+
+@media (max-width: 1180px) {
+    .gf-filter-grid,
+    .loans-page .loan-filters {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .contracts-page .contracts-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 720px) {
+    .gf-page-header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .gf-module-actions,
+    .gf-filter-actions,
+    .gf-search-toolbar {
+        width: 100%;
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .gf-module-actions > *,
+    .gf-filter-actions > *,
+    .gf-search-toolbar > *,
+    .gf-tabs a,
+    .financeiro-tabs a,
+    .loan-tabs a,
+    .activity-filter-tabs a {
+        width: 100%;
+    }
+
+    .gf-filter-grid,
+    .loans-page .loan-filters,
+    .contracts-page .contracts-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .gf-tabs,
+    .financeiro-tabs,
+    .loan-tabs,
+    .activity-filter-tabs {
+        align-items: stretch;
+        flex-direction: column;
+    }
+}
+
+/* RECODE FINAL: EMPRÉSTIMOS E ORDENS DE SERVIÇO */
+.loans-page.gf-module-page {
+    gap: 0;
+}
+
+.loans-page .loan-alert {
+    margin-bottom: 18px;
+}
+
+.loans-page .gf-page-hero,
+.os-page .gf-page-hero {
+    border-top: 4px solid #16a34a;
+}
+
+.loans-page .gf-page-hero .page-title,
+.os-page .gf-page-hero .page-title {
+    margin: 0 0 6px;
+    color: #0f172a;
+    font-size: clamp(26px, 3vw, 32px);
+    line-height: 1.12;
+    font-weight: 900;
+    text-transform: none;
+}
+
+.loans-page .gf-page-hero .page-kicker,
+.os-page .gf-page-hero .page-kicker {
+    color: #2563eb;
+}
+
+.loans-page .loan-dashboard-grid,
+.loans-page .loan-list-cards {
+    margin-bottom: 18px;
+}
+
+.loans-page .loan-dashboard-grid .card,
+.loans-page .loan-list-cards .card,
+.os-page .os-stat-grid .card {
+    min-height: 126px;
+}
+
+.loans-page .loan-row-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.loans-page .loan-form-section,
+.loans-page .loan-panel {
+    border-color: #e5eaf2;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, .05);
+}
+
+.loans-page .loan-form-actions .btn-primary-green,
+.loans-page .loan-form-actions .btn-light {
+    min-width: 150px;
+}
+
+.loans-page .loan-panel-header a,
+.loans-page .loan-table a:not(.loan-link-button) {
+    color: #2563eb;
+}
+
+.os-page .os-stat-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.os-page #form-nova-os {
+    scroll-margin-top: 88px;
+}
+
+.os-page .pagination-links .current-page {
+    border-color: #16a34a;
+    background: #16a34a;
+    color: #ffffff;
+}
+
+.os-page .pagination-links a:hover {
+    border-color: #bbf7d0;
+    background: #f0fdf4;
+    color: #166534;
+}
+
+@media (max-width: 1180px) {
+    .os-page .os-stat-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 720px) {
+    .os-page .os-stat-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .loans-page .loan-form-actions .btn-primary-green,
+    .loans-page .loan-form-actions .btn-light {
+        width: 100%;
+    }
+}

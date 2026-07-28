@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vendas.html
-Último recode: 2026-07-27 17:24 (America/Bahia)
-Motivo: Adicionar envio do PDF da venda pelo WhatsApp diretamente na listagem.
+Último recode: 2026-07-27 20:58 (America/Bahia)
+Motivo: Padronizar Vendas conforme Orçamentos e remover a chamada redundante Abrir cadastro.
 -->
 
 <!DOCTYPE html>
@@ -253,70 +253,18 @@ Motivo: Adicionar envio do PDF da venda pelo WhatsApp diretamente na listagem.
             margin-bottom: 180px;
         }
 
-        .venda-header-actions {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
         .venda-cadastro-toggle {
             display: none;
         }
 
-        .venda-cadastro-resumo {
-            border: 1px solid #dbe3ef;
-            border-radius: 16px;
-            background: #ffffff;
-            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
-            margin-bottom: 18px;
-            padding: 18px 20px;
-        }
-
-        .venda-cadastro-resumo-inner {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 16px;
-            flex-wrap: wrap;
-        }
-
-        .venda-cadastro-resumo h3 {
-            margin: 0 0 4px;
-            color: #0f172a;
-            font-size: 16px;
-            font-weight: 900;
-            text-transform: uppercase;
-        }
-
-        .venda-cadastro-resumo p {
-            margin: 0;
-            color: #64748b;
-            font-size: 13px;
-        }
-
-        .venda-cadastro-actions {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
         #form-nova-venda {
             display: none;
+            scroll-margin-top: 88px;
         }
 
         #venda-cadastro-toggle:checked ~ #form-nova-venda,
         #form-nova-venda:target {
             display: block;
-        }
-
-        #venda-cadastro-toggle:checked ~ .venda-cadastro-resumo .venda-abrir-form {
-            display: none;
-        }
-
-        #venda-cadastro-toggle:not(:checked) ~ .venda-cadastro-resumo .venda-fechar-form {
-            display: none;
         }
 
         .vendas-lista-shell {
@@ -399,16 +347,14 @@ Motivo: Adicionar envio do PDF da venda pelo WhatsApp diretamente na listagem.
         }
 
         @media (max-width: 720px) {
-            .venda-cadastro-resumo-inner,
             .venda-header-actions {
+                width: 100%;
                 align-items: stretch;
                 flex-direction: column;
             }
 
-            .venda-cadastro-actions .btn-dark,
-            .venda-cadastro-actions .btn-light,
             .venda-header-actions .btn-primary-green,
-            .venda-header-actions .btn-light {
+            .venda-header-actions .btn-dark {
                 width: 100%;
                 justify-content: center;
             }
@@ -461,9 +407,9 @@ Motivo: Adicionar envio do PDF da venda pelo WhatsApp diretamente na listagem.
                     <p class="page-subtitle">Cadastre vendas de produtos, serviços ou mistas, com cliente, itens, descontos, totais e forma de pagamento.</p>
                 </div>
 
-                <div class="client-toolbar venda-header-actions">
-                    <a href="/vendas/balcao" class="btn-primary-green">▤ Venda Balcão / PDV</a>
-                    <label for="venda-cadastro-toggle" class="btn-light">+ Nova Venda</label>
+                <div class="client-toolbar gf-module-actions venda-header-actions">
+                    <a href="/vendas/balcao" class="btn-dark">▤ Venda Balcão / PDV</a>
+                    <label for="venda-cadastro-toggle" class="btn-primary-green" role="button" tabindex="0">+ Nova Venda</label>
                 </div>
             </div>
         </section>
@@ -499,19 +445,6 @@ Motivo: Adicionar envio do PDF da venda pelo WhatsApp diretamente na listagem.
 
 
         <input type="checkbox" id="venda-cadastro-toggle" class="venda-cadastro-toggle">
-
-        <section class="venda-cadastro-resumo">
-            <div class="venda-cadastro-resumo-inner">
-                <div>
-                    <h3>Cadastro de venda</h3>
-                    <p>Use esta área somente para nova venda manual. A lista permanece como tela principal, igual ao padrão de Orçamentos.</p>
-                </div>
-                <div class="venda-cadastro-actions">
-                    <label for="venda-cadastro-toggle" class="btn-dark venda-abrir-form">+ Abrir cadastro</label>
-                    <label for="venda-cadastro-toggle" class="btn-light venda-fechar-form">Fechar cadastro</label>
-                </div>
-            </div>
-        </section>
 
         <form id="form-nova-venda" action="/vendas" method="post" class="client-form">
             <div class="gestflow-form-error{% if request.args.get('erro') %} show{% endif %}" data-form-error>{% if request.args.get('erro') %}{{ request.args.get('erro') }}{% endif %}</div>
@@ -1508,12 +1441,32 @@ Motivo: Adicionar envio do PDF da venda pelo WhatsApp diretamente na listagem.
             document.addEventListener("DOMContentLoaded", function() {
                 const toggleVenda = document.getElementById("venda-cadastro-toggle");
                 const formularioVenda = document.getElementById("form-nova-venda");
+                const botaoNovaVenda = document.querySelector('label[for="venda-cadastro-toggle"].btn-primary-green');
 
-                if (toggleVenda && formularioVenda && window.location.hash === "#form-nova-venda") {
+                if (!toggleVenda || !formularioVenda) {
+                    return;
+                }
+
+                if (window.location.hash === "#form-nova-venda" || new URLSearchParams(window.location.search).has("erro")) {
                     toggleVenda.checked = true;
-                    setTimeout(function() {
-                        formularioVenda.scrollIntoView({ behavior: "smooth", block: "start" });
-                    }, 80);
+                }
+
+                toggleVenda.addEventListener("change", function() {
+                    if (toggleVenda.checked) {
+                        setTimeout(function() {
+                            formularioVenda.scrollIntoView({ behavior: "smooth", block: "start" });
+                        }, 80);
+                    }
+                });
+
+                if (botaoNovaVenda) {
+                    botaoNovaVenda.addEventListener("keydown", function(evento) {
+                        if (evento.key === "Enter" || evento.key === " ") {
+                            evento.preventDefault();
+                            toggleVenda.checked = !toggleVenda.checked;
+                            toggleVenda.dispatchEvent(new Event("change"));
+                        }
+                    });
                 }
             });
         </script>

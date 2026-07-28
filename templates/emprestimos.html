@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\emprestimos.html
-Último recode: 2026-07-27 17:24 (America/Bahia)
-Motivo: Adicionar envio do PDF do empréstimo pelo WhatsApp diretamente na listagem.
+Último recode: 2026-07-27 21:55 (America/Bahia)
+Motivo: Remover ações redundantes e aplicar cores e componentes do padrão Orçamentos ao módulo Empréstimos.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -13,35 +13,48 @@ Motivo: Adicionar envio do PDF do empréstimo pelo WhatsApp diretamente na lista
 </head>
 <body>
     {% include "partials/sidebar.html" %}
-    <main class="content loans-page">
+    <main class="content loans-page gf-module-page">
         {% set page_title = 'Todos os Empréstimos' %}
         {% include "partials/topbar.html" %}
-<nav class="loan-tabs" aria-label="Navegação do módulo Empréstimos">
-<a class="loan-tab" href="/emprestimos/visao-geral">Visão Geral</a>
-<a class="loan-tab active" href="/emprestimos/todos">Todos os Empréstimos</a>
-<a class="loan-tab" href="/emprestimos/novo">Novo Empréstimo</a>
-<a class="loan-tab" href="/emprestimos/parcelas">Parcelas</a>
-<a class="loan-tab" href="/emprestimos/renegociacoes">Renegociações</a>
-<a class="loan-tab" href="/emprestimos/configuracoes">Configurações</a>
-</nav>
+
+        <nav class="loan-tabs gf-tabs" aria-label="Navegação do módulo Empréstimos">
+            <a class="loan-tab" href="/emprestimos/visao-geral">Visão Geral</a>
+            <a class="loan-tab active" href="/emprestimos/todos">Todos os Empréstimos</a>
+            <a class="loan-tab" href="/emprestimos/parcelas">Parcelas</a>
+            <a class="loan-tab" href="/emprestimos/renegociacoes">Renegociações</a>
+        </nav>
+
         {% if sucesso %}<div class="loan-alert success" role="status">{{ sucesso }}</div>{% endif %}
         {% if erro %}<div class="loan-alert error" role="alert">{{ erro }}</div>{% endif %}
 
-        <section class="loan-hero compact">
-            <div><span class="loan-kicker">Contratos</span><h1>Todos os Empréstimos</h1><p>Consulte contratos recebidos e concedidos.</p></div>
-            <a class="loan-button primary" href="/emprestimos/novo">Novo empréstimo</a>
+        <section class="panel page-section gf-page-hero">
+            <div class="panel-header page-header gf-page-header">
+                <div>
+                    <span class="page-kicker">Gestão financeira</span>
+                    <h3 class="page-title">Empréstimos</h3>
+                    <p class="page-subtitle">Consulte contratos recebidos e concedidos, parcelas e renegociações.</p>
+                </div>
+                <div class="gf-module-actions"><a class="btn-primary-green" href="/emprestimos/novo">+ Novo Empréstimo</a></div>
+            </div>
         </section>
 
-        <form class="loan-filters" method="get" action="/emprestimos/todos">
+        <section class="cards page-section gf-stat-grid loan-list-cards">
+            <div class="card card-blue"><div class="card-icon">▤</div><div class="card-info"><h3>Total</h3><p>{{ emprestimos|length }}</p><span>Contratos cadastrados</span></div></div>
+            <div class="card card-danger"><div class="card-icon">↓</div><div class="card-info"><h3>Recebidos</h3><p>{{ emprestimos|selectattr('tipo', 'equalto', 'recebido')|list|length }}</p><span>Valores recebidos de terceiros</span></div></div>
+            <div class="card card-success"><div class="card-icon">↑</div><div class="card-info"><h3>Concedidos</h3><p>{{ emprestimos|selectattr('tipo', 'equalto', 'concedido')|list|length }}</p><span>Valores concedidos a terceiros</span></div></div>
+            <div class="card card-warning"><div class="card-icon">⌁</div><div class="card-info"><h3>Em andamento</h3><p>{{ emprestimos|rejectattr('status', 'in', ['quitado','cancelado'])|list|length }}</p><span>Contratos ainda ativos</span></div></div>
+        </section>
+
+        <form class="loan-filters gf-filter-panel" method="get" action="/emprestimos/todos">
             <label><span>Pesquisar</span><input type="search" name="busca" value="{{ busca }}" placeholder="Número, título ou credor/devedor"></label>
             <label><span>Tipo</span><select name="tipo"><option value="">Todos</option>{% for item in tipos %}<option value="{{ item.codigo }}" {% if filtro_tipo == item.codigo %}selected{% endif %}>{{ item.nome }}</option>{% endfor %}</select></label>
             <label><span>Situação</span><select name="status"><option value="">Todas</option>{% for item in status_emprestimos %}<option value="{{ item.codigo }}" {% if filtro_status == item.codigo %}selected{% endif %}>{{ item.nome }}</option>{% endfor %}</select></label>
-            <div class="loan-filter-actions"><button class="loan-button primary" type="submit">Filtrar</button><a class="loan-button secondary" href="/emprestimos/todos">Limpar</a></div>
+            <div class="loan-filter-actions gf-filter-actions"><button class="btn-primary-green" type="submit">Filtrar</button><a class="btn-light" href="/emprestimos/todos">Limpar</a></div>
         </form>
 
-        <section class="loan-panel">
-            <div class="loan-table-wrap">
-                <table class="loan-table">
+        <section class="loan-panel panel page-section gf-list-panel">
+            <div class="loan-table-wrap gf-table-shell">
+                <table class="loan-table gf-table">
                     <thead><tr><th>Número</th><th>Título</th><th>Credor / devedor</th><th>Tipo</th><th>Valor principal</th><th>Saldo atual</th><th>Parcelas</th><th>Status</th><th>Ações</th></tr></thead>
                     <tbody>
                     {% for item in emprestimos %}
@@ -54,7 +67,7 @@ Motivo: Adicionar envio do PDF do empréstimo pelo WhatsApp diretamente na lista
                             <td>R$ {{ item.saldo_atual }}</td>
                             <td>{{ item.quantidade_parcelas }}</td>
                             <td><span class="loan-status {{ item.status }}">{{ item.status|replace('_', ' ')|title }}</span></td>
-                            <td><div style="display:flex;gap:6px;flex-wrap:wrap;"><a class="loan-link-button" href="/emprestimos/{{ item.id }}">Ver</a><a class="loan-link-button" style="background:#128c7e;color:#fff;border-color:#128c7e;" href="/whatsapp/pdf/emprestimo/{{ item.id }}">📲 PDF</a></div></td>
+                            <td><div class="loan-row-actions"><a class="loan-link-button" href="/emprestimos/{{ item.id }}">Ver</a><a class="loan-link-button whatsapp" href="/whatsapp/pdf/emprestimo/{{ item.id }}">📲 PDF</a></div></td>
                         </tr>
                     {% else %}
                         <tr><td colspan="9" class="loan-empty">Nenhum empréstimo encontrado.</td></tr>
@@ -63,7 +76,6 @@ Motivo: Adicionar envio do PDF do empréstimo pelo WhatsApp diretamente na lista
                 </table>
             </div>
         </section>
-
     </main>
 </body>
 </html>
