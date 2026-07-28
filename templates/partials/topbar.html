@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\partials\topbar.html
-Último recode: 2026-07-16 07:56 (America/Bahia)
-Motivo: Exibir na topbar a logo cadastrada em Configurações - Marca, com fallback para o ícone do GestFlow.
+Último recode: 2026-07-28 04:45 (America/Bahia)
+Motivo: Transformar o sino em uma central interna de notificações clicável e acessível.
 #}
 {% set _usuario_topbar = usuario_logado|default({}, true) %}
 {% set _empresa_topbar = empresa_topbar|default({}, true) %}
@@ -15,6 +15,8 @@ Motivo: Exibir na topbar a logo cadastrada em Configurações - Marca, com fallb
 {% set _perfil_topbar = _usuario_topbar.perfil|default('Administrador', true) %}
 {% set _titulo_topbar = page_title|default('GestFlow', true) %}
 {% set _empresa_trial = empresa_trial|default({}, true) %}
+{% set _notificacoes_total = notificacoes_nao_lidas|default(0, true)|int %}
+{% set _notificacoes_itens = notificacoes_topbar|default([], true) %}
 
 <header class="topbar">
     <div class="topbar-left">
@@ -49,9 +51,60 @@ Motivo: Exibir na topbar a logo cadastrada em Configurações - Marca, com fallb
             <span>{{ _data_topbar or 'Hoje' }}</span>
         </div>
 
-        <div class="notification">
-            <span class="topbar-icon">🔔</span>
-            <span class="notification-badge">{{ notificacoes|default(0, true) }}</span>
+        <div class="notification notification-center" data-notification-center>
+            <button
+                type="button"
+                class="notification-trigger"
+                aria-label="Abrir notificações{% if _notificacoes_total %}: {{ _notificacoes_total }} não lidas{% endif %}"
+                aria-expanded="false"
+                aria-controls="notificationDropdown"
+                data-notification-trigger
+            >
+                <span class="topbar-icon" aria-hidden="true">🔔</span>
+                {% if _notificacoes_total > 0 %}
+                    <span class="notification-badge">{{ _notificacoes_total if _notificacoes_total < 100 else '99+' }}</span>
+                {% endif %}
+            </button>
+
+            <section id="notificationDropdown" class="notification-dropdown" data-notification-dropdown hidden>
+                <header class="notification-dropdown-header">
+                    <div>
+                        <strong>Notificações</strong>
+                        <span>{{ _notificacoes_total }} não lida{% if _notificacoes_total != 1 %}s{% endif %}</span>
+                    </div>
+                    {% if _notificacoes_total > 0 %}
+                        <form action="{{ url_for('marcar_todas_notificacoes_lidas') }}" method="post">
+                            <input type="hidden" name="destino" value="{{ request.full_path if request.query_string else request.path }}">
+                            <button type="submit" class="notification-read-all">Marcar todas</button>
+                        </form>
+                    {% endif %}
+                </header>
+
+                <div class="notification-dropdown-list">
+                    {% for item in _notificacoes_itens %}
+                        <form action="{{ url_for('marcar_notificacao_lida', notificacao_id=item.id) }}" method="post" class="notification-dropdown-item priority-{{ item.prioridade }}{% if item.lida %} is-read{% endif %}">
+                            <input type="hidden" name="destino" value="{{ item.url }}">
+                            <button type="submit">
+                                <span class="notification-priority-dot" aria-hidden="true"></span>
+                                <span class="notification-dropdown-copy">
+                                    <strong>{{ item.titulo }}</strong>
+                                    <span>{{ item.mensagem }}</span>
+                                    <small>{{ item.criado_em_exibicao or 'Agora' }}</small>
+                                </span>
+                                {% if not item.lida %}<span class="notification-unread-mark" title="Não lida"></span>{% endif %}
+                            </button>
+                        </form>
+                    {% else %}
+                        <div class="notification-dropdown-empty">
+                            <span>✓</span>
+                            <strong>Tudo em dia</strong>
+                            <p>Nenhuma notificação ativa no momento.</p>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <a href="{{ url_for('notificacoes') }}" class="notification-dropdown-footer">Ver central de notificações</a>
+            </section>
         </div>
 
         <div class="user-profile">
@@ -456,5 +509,43 @@ Motivo: Exibir na topbar a logo cadastrada em Configurações - Marca, com fallb
             navigator.serviceWorker.register("/service-worker.js").catch(function () {});
         });
     }
+})();
+</script>
+
+
+<script>
+(function () {
+    const center = document.querySelector('[data-notification-center]');
+    if (!center) return;
+
+    const trigger = center.querySelector('[data-notification-trigger]');
+    const dropdown = center.querySelector('[data-notification-dropdown]');
+    if (!trigger || !dropdown) return;
+
+    function setOpen(open) {
+        dropdown.hidden = !open;
+        center.classList.toggle('is-open', open);
+        trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    trigger.addEventListener('click', function (event) {
+        event.stopPropagation();
+        setOpen(dropdown.hidden);
+    });
+
+    dropdown.addEventListener('click', function (event) {
+        event.stopPropagation();
+    });
+
+    document.addEventListener('click', function () {
+        setOpen(false);
+    });
+
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') {
+            setOpen(false);
+            trigger.focus();
+        }
+    });
 })();
 </script>
