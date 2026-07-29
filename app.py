@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-29 10:45 (America/Bahia)
-# Motivo: Permitir identidade visual exclusiva da Vitrine por logo ou por cores personalizadas.
+# Último recode: 2026-07-29 11:23 (America/Bahia)
+# Motivo: Redesenhar a vitrine pública com hero profissional e identidade automática baseada na logo.
 
 from __future__ import annotations
 
@@ -25255,26 +25255,54 @@ def renderizar_vitrine_publica_html(
         tipo_identidade_visual = "logo" if str(config_vitrine.get("logo_path") or "").strip() else "cores"
 
     if tipo_identidade_visual == "logo":
-        cor_principal = "#0f172a"
-        cor_secundaria = "#334155"
+        cor_principal = "#071a2b"
+        cor_secundaria = "#123b59"
+        cor_destaque = "#f59e0b"
     else:
-        cor_principal = html.escape(str(config_vitrine.get("cor_principal") or regras_vitrine.get("cor_primaria") or "#111827"))
-        cor_secundaria = html.escape(str(config_vitrine.get("cor_secundaria") or regras_vitrine.get("cor_secundaria") or "#f59e0b"))
+        cor_principal = html.escape(
+            str(config_vitrine.get("cor_principal") or regras_vitrine.get("cor_primaria") or "#111827")
+        )
+        cor_secundaria = html.escape(
+            str(config_vitrine.get("cor_secundaria") or regras_vitrine.get("cor_secundaria") or "#f59e0b")
+        )
+        cor_destaque = cor_secundaria
 
-    nome_loja = html.escape(str(config_vitrine.get("nome_loja") or regras_vitrine.get("nome_publico") or "Vitrine Online"))
-    titulo_seo = html.escape(str(regras_vitrine.get("seo_titulo") or nome_loja))
-    descricao_seo = html.escape(str(regras_vitrine.get("seo_descricao") or f"Produtos e serviços de {nome_loja}"))
-    instagram = html.escape(str(config_vitrine.get("instagram") or ""))
+    nome_loja_raw = str(config_vitrine.get("nome_loja") or regras_vitrine.get("nome_publico") or "Vitrine Online").strip()
+    nome_loja = html.escape(nome_loja_raw)
+    titulo_seo = html.escape(str(regras_vitrine.get("seo_titulo") or nome_loja_raw))
+    descricao_seo_raw = str(regras_vitrine.get("seo_descricao") or f"Produtos e serviços de {nome_loja_raw}")
+    descricao_seo = html.escape(descricao_seo_raw)
+    texto_institucional = html.escape(
+        str(
+            regras_vitrine.get("texto_institucional")
+            or f"Atendimento profissional, qualidade e soluções pensadas para cada necessidade de {nome_loja_raw}."
+        )
+    )
+    instagram_raw = str(config_vitrine.get("instagram") or "").strip()
+    instagram = html.escape(instagram_raw)
     categoria_configuracao = str(config_vitrine.get("categoria") or "").strip().lower()
-    categoria = html.escape(str(config_vitrine.get("categoria") or "Produtos e serviços"))
+    categoria_raw = str(config_vitrine.get("categoria") or "Produtos e serviços").strip()
+    categoria = html.escape(categoria_raw.replace("_", " ").title())
+    template_atual = str(config_vitrine.get("template") or "catalogo-premium").strip().lower()
+    if template_atual not in {"catalogo-premium", "loja-clean", "whatsapp-direto"}:
+        template_atual = "catalogo-premium"
+
     logo_path = str(config_vitrine.get("logo_path") or "").strip()
-    if tipo_identidade_visual == "logo":
-        logo_conteudo = f'<img src="/vitrine-upload/{html.escape(logo_path)}" alt="{nome_loja}">' if logo_path else nome_loja[:2].upper()
-        logo_html = f'<div class="logo">{logo_conteudo}</div>'
-        classe_topo_inner = "topo-inner com-logo"
+    logo_url = f"/vitrine-upload/{html.escape(logo_path)}" if logo_path else ""
+    iniciais_loja = "".join(parte[:1] for parte in nome_loja_raw.split()[:2]).upper() or "GF"
+    if tipo_identidade_visual == "logo" and logo_url:
+        logo_nav_html = (
+            f'<img src="{logo_url}" alt="{nome_loja}" class="marca-logo-img" '
+            'crossorigin="anonymous">'
+        )
+        logo_hero_html = (
+            f'<img src="{logo_url}" alt="{nome_loja}" id="brandColorSource" '
+            'class="hero-logo-img" crossorigin="anonymous">'
+        )
     else:
-        logo_html = ""
-        classe_topo_inner = "topo-inner sem-logo"
+        logo_nav_html = f'<span class="marca-iniciais">{html.escape(iniciais_loja)}</span>'
+        logo_hero_html = f'<span class="hero-logo-iniciais">{html.escape(iniciais_loja)}</span>'
+
     exibir_preco = configuracao_bool("vitrine", "exibir_preco", True, empresa_id_vitrine)
     exibir_produtos = configuracao_bool("vitrine", "exibir_produtos", True, empresa_id_vitrine)
     exibir_servicos = configuracao_bool("vitrine", "exibir_servicos", True, empresa_id_vitrine)
@@ -25282,14 +25310,70 @@ def renderizar_vitrine_publica_html(
     permitir_pedido = modo_contato == "pedido" and exibir_produtos and bool(produtos)
     controlar_estoque = configuracao_bool("vitrine", "controlar_estoque", True, empresa_id_vitrine)
     quantidade_minima = max(1, int(float(regras_vitrine.get("quantidade_minima") or 1)))
-    whatsapp = html.escape(str(config_vitrine.get("whatsapp") or ""))
     codigo_agenda = garantir_codigo_indicacao_empresa(empresa_id_vitrine)
+
+    telefone_whatsapp = normalizar_telefone_publico(config_vitrine.get("whatsapp"))
+    if telefone_whatsapp and not telefone_whatsapp.startswith("55"):
+        telefone_whatsapp = f"55{telefone_whatsapp}"
+    whatsapp_publico_url = f"https://wa.me/{telefone_whatsapp}" if telefone_whatsapp else ""
+    whatsapp_publico_url_html = html.escape(whatsapp_publico_url)
 
     tem_produtos = bool(produtos) and exibir_produtos
     tem_servicos = bool(servicos) and exibir_servicos
     tipo_inicial = "servico" if tem_servicos and (not tem_produtos or categoria_configuracao == "servicos") else "produto"
     if tipo_inicial == "produto" and not tem_produtos and tem_servicos:
         tipo_inicial = "servico"
+
+    itens_para_destaque = servicos if tipo_inicial == "servico" else produtos
+    imagem_destaque_path = ""
+    for item_destaque in itens_para_destaque:
+        caminho_candidato = str(item_destaque.get("imagem_path") or "").strip()
+        if caminho_candidato:
+            imagem_destaque_path = caminho_candidato
+            break
+    if not imagem_destaque_path:
+        for item_destaque in [*servicos, *produtos]:
+            caminho_candidato = str(item_destaque.get("imagem_path") or "").strip()
+            if caminho_candidato:
+                imagem_destaque_path = caminho_candidato
+                break
+    imagem_destaque_url = (
+        f"/vitrine-upload/{html.escape(imagem_destaque_path)}" if imagem_destaque_path else ""
+    )
+    hero_media_style = (
+        f' style="background-image:linear-gradient(90deg,rgba(7,26,43,.18),rgba(7,26,43,.72)),'
+        f'url(\'{imagem_destaque_url}\')"'
+        if imagem_destaque_url
+        else ""
+    )
+
+    whatsapp_topo_html = ""
+    whatsapp_hero_html = ""
+    if whatsapp_publico_url:
+        whatsapp_topo_html = (
+            f'<a class="nav-whatsapp" href="{whatsapp_publico_url_html}" target="_blank" rel="noopener">'
+            '<span aria-hidden="true">◉</span> Chamar no WhatsApp</a>'
+        )
+        whatsapp_hero_html = (
+            f'<a class="hero-whatsapp" href="{whatsapp_publico_url_html}" target="_blank" rel="noopener">'
+            '<span aria-hidden="true">◉</span> Chamar no WhatsApp</a>'
+        )
+
+    instagram_html = ""
+    if instagram_raw:
+        instagram_url = instagram_raw
+        if not instagram_url.startswith(("http://", "https://")):
+            instagram_usuario = instagram_url.lstrip("@").strip()
+            instagram_url = f"https://instagram.com/{urllib.parse.quote(instagram_usuario)}"
+        instagram_html = (
+            f'<a href="{html.escape(instagram_url)}" target="_blank" rel="noopener">'
+            f'{instagram}</a>'
+        )
+    footer_contato_html = (
+        f'<p class="instagram-footer">Siga no Instagram: {instagram_html}</p>'
+        if instagram_html
+        else '<p class="instagram-footer">Desenvolvido pela <a href="https://nettsan.com.br" target="_blank" rel="noopener">Nettsan</a></p>'
+    )
 
     cards: list[str] = []
     categorias_produtos: set[str] = set()
@@ -25301,24 +25385,50 @@ def renderizar_vitrine_publica_html(
             nome_raw = str(produto.get("nome") or "Produto")
             nome = html.escape(nome_raw)
             descricao = html.escape(str(produto.get("descricao") or ""))
-            categoria_raw = str(produto.get("categoria") or "Produtos").strip() or "Produtos"
-            categoria_item = html.escape(categoria_raw)
-            categorias_produtos.add(categoria_raw)
+            categoria_raw_item = str(produto.get("categoria") or "Produtos").strip() or "Produtos"
+            categoria_item = html.escape(categoria_raw_item)
+            categorias_produtos.add(categoria_raw_item)
             preco_raw = str(produto.get("preco") or "0,00")
             preco = html.escape(preco_raw)
             disponivel = not controlar_estoque or _converter_valor_brl(produto.get("estoque_atual")) > 0
             imagem_path = str(produto.get("imagem_path") or "").strip()
-            imagem_html = f'<img src="/vitrine-upload/{html.escape(imagem_path)}" alt="{nome}">' if imagem_path else '<span>Produto</span>'
+            imagem_html = (
+                f'<img src="/vitrine-upload/{html.escape(imagem_path)}" alt="{nome}" loading="lazy">'
+                if imagem_path
+                else '<span class="item-sem-imagem">Produto</span>'
+            )
             preco_html = f"<strong>R$ {preco}</strong>" if exibir_preco else "<strong>Consulte o valor</strong>"
+            acao_secundaria = ""
+            if whatsapp_publico_url:
+                acao_secundaria = (
+                    f'<a class="acao-outline" href="{whatsapp_publico_url_html}" target="_blank" rel="noopener">'
+                    'WhatsApp</a>'
+                )
             if permitir_pedido and disponivel:
-                acao_html = f'<button type="button" onclick="adicionarCarrinho({produto_id}, {json.dumps(nome_raw, ensure_ascii=False)}, {json.dumps(preco_raw, ensure_ascii=False)})">Adicionar ao carrinho</button>'
+                acao_principal = (
+                    f'<button type="button" onclick="adicionarCarrinho({produto_id}, '
+                    f'{json.dumps(nome_raw, ensure_ascii=False)}, {json.dumps(preco_raw, ensure_ascii=False)})">'
+                    'Adicionar ao carrinho</button>'
+                )
+            elif whatsapp_publico_url:
+                acao_principal = (
+                    f'<a class="acao-principal" href="{whatsapp_publico_url_html}" target="_blank" rel="noopener">'
+                    'Consultar produto</a>'
+                )
+                acao_secundaria = ""
             else:
-                acao_html = f'<a class="contato" href="https://wa.me/{whatsapp}" target="_blank" rel="noopener">Consultar no WhatsApp</a>'
+                acao_principal = '<button type="button" disabled>Contato indisponível</button>'
             if not disponivel:
-                acao_html = f'<button type="button" disabled>{html.escape(str(regras_vitrine.get("mensagem_indisponivel") or "Produto indisponível no momento."))}</button>'
-            cards.append(f"""<article class="catalogo-card produto-card" style="{'display:flex' if tipo_inicial == 'produto' else 'display:none'}" data-tipo="produto" data-categoria="{categoria_item}" data-nome="{html.escape(nome_raw.lower())}">
-<button class="item-imagem" type="button" onclick="registrarItem('produto',{produto_id})">{imagem_html}</button>
-<div class="item-info"><small>Produto • {categoria_item}</small><h3>{nome}</h3><p>{descricao}</p>{preco_html}{acao_html}</div></article>""")
+                mensagem_indisponivel = html.escape(
+                    str(regras_vitrine.get("mensagem_indisponivel") or "Produto indisponível no momento.")
+                )
+                acao_principal = f'<button type="button" disabled>{mensagem_indisponivel}</button>'
+                acao_secundaria = ""
+            cards.append(
+                f"""<article class="catalogo-card produto-card" style="{'display:flex' if tipo_inicial == 'produto' else 'display:none'}" data-tipo="produto" data-categoria="{categoria_item}" data-nome="{html.escape(nome_raw.lower())}">
+<button class="item-imagem" type="button" onclick="registrarItem('produto',{produto_id})">{imagem_html}<span class="item-tipo-icon" aria-hidden="true">▦</span></button>
+<div class="item-info"><small>Produto • {categoria_item}</small><h3>{nome}</h3><p>{descricao}</p>{preco_html}<div class="item-acoes">{acao_principal}{acao_secundaria}</div></div></article>"""
+            )
 
     if exibir_servicos:
         for servico in servicos:
@@ -25326,33 +25436,50 @@ def renderizar_vitrine_publica_html(
             nome_raw = str(servico.get("nome") or "Serviço")
             nome = html.escape(nome_raw)
             descricao = html.escape(str(servico.get("descricao") or ""))
-            categoria_raw = str(servico.get("categoria") or "Serviços").strip() or "Serviços"
-            categoria_item = html.escape(categoria_raw)
-            categorias_servicos.add(categoria_raw)
+            categoria_raw_item = str(servico.get("categoria") or "Serviços").strip() or "Serviços"
+            categoria_item = html.escape(categoria_raw_item)
+            categorias_servicos.add(categoria_raw_item)
             tipo_contratacao = normalizar_tipo_contratacao_servico(servico.get("tipo_contratacao"))
             preco = html.escape(str(servico.get("preco") or "0,00"))
             duracao = html.escape(str(servico.get("tempo_estimado") or ""))
             imagem_path = str(servico.get("imagem_path") or "").strip()
-            imagem_html = f'<img src="/vitrine-upload/{html.escape(imagem_path)}" alt="{nome}">' if imagem_path else '<span>Serviço</span>'
+            imagem_html = (
+                f'<img src="/vitrine-upload/{html.escape(imagem_path)}" alt="{nome}" loading="lazy">'
+                if imagem_path
+                else '<span class="item-sem-imagem">Serviço</span>'
+            )
             if tipo_contratacao == "a_combinar":
                 preco_html = "<strong>Valor a combinar</strong>"
-                duracao_html = '<span class="duracao">Duração definida após avaliação</span>'
+                duracao_html = '<span class="duracao">Avaliação prévia</span>'
                 texto_acao = "Solicitar avaliação"
             else:
                 preco_html = f"<strong>R$ {preco}</strong>" if exibir_preco else "<strong>Consulte o valor</strong>"
                 duracao_html = f'<span class="duracao">Duração: {duracao or "A combinar"}</span>'
-                texto_acao = "Agendar este serviço"
+                texto_acao = "Agendar serviço"
             agenda_url = f"/agendar/{urllib.parse.quote(codigo_agenda)}?servico_id={servico_id}&origem=vitrine_online"
-            cards.append(f"""<article class="catalogo-card servico-card" style="{'display:flex' if tipo_inicial == 'servico' else 'display:none'}" data-tipo="servico" data-categoria="{categoria_item}" data-nome="{html.escape(nome_raw.lower())}">
-<a class="item-imagem" href="{agenda_url}" onclick="registrarItem('servico',{servico_id})">{imagem_html}</a>
-<div class="item-info"><small>Serviço • {categoria_item}</small><h3>{nome}</h3><p>{descricao}</p>{duracao_html}{preco_html}<a class="agendar" href="{agenda_url}" onclick="registrarItem('servico',{servico_id})">{texto_acao}</a></div></article>""")
+            acao_whatsapp = ""
+            if whatsapp_publico_url:
+                acao_whatsapp = (
+                    f'<a class="acao-outline" href="{whatsapp_publico_url_html}" target="_blank" rel="noopener">'
+                    'WhatsApp</a>'
+                )
+            cards.append(
+                f"""<article class="catalogo-card servico-card" style="{'display:flex' if tipo_inicial == 'servico' else 'display:none'}" data-tipo="servico" data-categoria="{categoria_item}" data-nome="{html.escape(nome_raw.lower())}">
+<a class="item-imagem" href="{agenda_url}" onclick="registrarItem('servico',{servico_id})">{imagem_html}<span class="item-tipo-icon" aria-hidden="true">⚙</span></a>
+<div class="item-info"><small>Serviço • {categoria_item}</small><h3>{nome}</h3><p>{descricao}</p><div class="item-meta">{duracao_html}{preco_html}</div><div class="item-acoes"><a class="acao-principal" href="{agenda_url}" onclick="registrarItem('servico',{servico_id})">{texto_acao}</a>{acao_whatsapp}</div></div></article>"""
+            )
 
     def botoes_categorias(categorias: set[str], tipo: str) -> str:
-        botoes = [f'<button class="categoria-botao active" type="button" data-tipo="{tipo}" data-categoria="" onclick="filtrarCategoria(\'{tipo}\',\'\',this)">Todos</button>']
+        botoes = [
+            f'<button class="categoria-botao active" type="button" data-tipo="{tipo}" data-categoria="" '
+            f'onclick="filtrarCategoria(\'{tipo}\',\'\',this)">Todos</button>'
+        ]
         for item in sorted(categorias):
             item_js = html.escape(json.dumps(item, ensure_ascii=False), quote=True)
             botoes.append(
-                f'<button class="categoria-botao" type="button" data-tipo="{tipo}" data-categoria="{html.escape(item)}" onclick="filtrarCategoria(\'{tipo}\',{item_js},this)">{html.escape(item)}</button>'
+                f'<button class="categoria-botao" type="button" data-tipo="{tipo}" '
+                f'data-categoria="{html.escape(item)}" onclick="filtrarCategoria(\'{tipo}\',{item_js},this)">'
+                f'{html.escape(item)}</button>'
             )
         return "".join(botoes)
 
@@ -25360,29 +25487,258 @@ def renderizar_vitrine_publica_html(
     categorias_servicos_html = botoes_categorias(categorias_servicos, "servico")
     cards_html = "\n".join(cards) or '<div class="vazio">Nenhum produto ou serviço publicado ainda.</div>'
     mensagem_html = f'<div class="mensagem">{html.escape(mensagem)}</div>' if mensagem else ""
-    whatsapp_html = f'<a class="whatsapp-final" href="{html.escape(whatsapp_url)}" target="_blank" rel="noopener">Enviar pedido no WhatsApp</a>' if whatsapp_url else ""
+    whatsapp_final_html = (
+        f'<a class="whatsapp-final" href="{html.escape(whatsapp_url)}" target="_blank" rel="noopener">'
+        'Enviar pedido no WhatsApp</a>'
+        if whatsapp_url
+        else ""
+    )
     slug = html.escape(str(config_vitrine.get("slug") or ""))
-    formas_entrega = lista_configuracao_modulo("vitrine", "formas_entrega", empresa_id_vitrine) or ["Entrega", "Retirada no local"]
-    entrega_html = "".join(f'<option value="{_normalizar_chave_campo_configuravel(rotulo)}">{html.escape(rotulo)}</option>' for rotulo in formas_entrega)
+    formas_entrega = lista_configuracao_modulo("vitrine", "formas_entrega", empresa_id_vitrine) or [
+        "Entrega",
+        "Retirada no local",
+    ]
+    entrega_html = "".join(
+        f'<option value="{_normalizar_chave_campo_configuravel(rotulo)}">{html.escape(rotulo)}</option>'
+        for rotulo in formas_entrega
+    )
     carrinho_html = ""
     if permitir_pedido:
-        carrinho_html = f"""<aside class="carrinho" id="carrinhoProdutos"><h2>Carrinho de produtos</h2><div id="itensCarrinho">Nenhum item adicionado.</div><strong id="totalCarrinho">Total: R$ 0,00</strong><form class="form-pedido" method="post" action="/loja/{slug}/pedido" onsubmit="return prepararPedido()"><input name="cliente_nome" placeholder="Seu nome" required><input name="cliente_whatsapp" placeholder="Seu WhatsApp" required><select name="tipo_entrega">{entrega_html}</select><input name="endereco" placeholder="Endereço, se for entrega"><select name="forma_pagamento"><option value="pix">PIX</option><option value="dinheiro">Dinheiro</option><option value="cartao">Cartão</option></select><textarea name="observacoes" placeholder="Observações do pedido"></textarea><input type="hidden" name="itens_json" id="itensJson"><button class="finalizar" type="submit">Confirmar pedido</button></form></aside>"""
-
+        carrinho_html = f"""<aside class="carrinho" id="carrinhoProdutos"><div class="carrinho-cabecalho"><span aria-hidden="true">▣</span><div><small>Seu pedido</small><h2>Carrinho</h2></div></div><div id="itensCarrinho" class="carrinho-itens">Nenhum item adicionado.</div><strong id="totalCarrinho" class="carrinho-total">Total: R$ 0,00</strong><form class="form-pedido" method="post" action="/loja/{slug}/pedido" onsubmit="return prepararPedido()"><input name="cliente_nome" placeholder="Seu nome" required><input name="cliente_whatsapp" placeholder="Seu WhatsApp" required><select name="tipo_entrega">{entrega_html}</select><input name="endereco" placeholder="Endereço, se for entrega"><select name="forma_pagamento"><option value="pix">PIX</option><option value="dinheiro">Dinheiro</option><option value="cartao">Cartão</option></select><textarea name="observacoes" placeholder="Observações do pedido"></textarea><input type="hidden" name="itens_json" id="itensJson"><button class="finalizar" type="submit">Confirmar pedido</button></form></aside>"""
     if carrinho_html and tipo_inicial != "produto":
-        carrinho_html = carrinho_html.replace(
-            'id="carrinhoProdutos"', 'id="carrinhoProdutos" hidden', 1
-        )
+        carrinho_html = carrinho_html.replace('id="carrinhoProdutos"', 'id="carrinhoProdutos" hidden', 1)
     classe_conteudo = "conteudo com-carrinho" if tipo_inicial == "produto" and carrinho_html else "conteudo"
+
     abas_html = ""
     if tem_produtos:
-        abas_html += f'<button type="button" class="tipo-aba{" active" if tipo_inicial == "produto" else ""}" data-tipo="produto" onclick="selecionarTipo(\'produto\',this)">Produtos</button>'
+        abas_html += (
+            f'<button type="button" class="tipo-aba{" active" if tipo_inicial == "produto" else ""}" '
+            'data-tipo="produto" onclick="selecionarTipo(\'produto\',this)">Produtos</button>'
+        )
     if tem_servicos:
-        abas_html += f'<button type="button" class="tipo-aba{" active" if tipo_inicial == "servico" else ""}" data-tipo="servico" onclick="selecionarTipo(\'servico\',this)">Serviços</button>'
+        abas_html += (
+            f'<button type="button" class="tipo-aba{" active" if tipo_inicial == "servico" else ""}" '
+            'data-tipo="servico" onclick="selecionarTipo(\'servico\',this)">Serviços</button>'
+        )
 
-    return f"""<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>{titulo_seo}</title><meta name="description" content="{descricao_seo}"><style>
-*{{box-sizing:border-box}}body{{margin:0;font-family:Arial,sans-serif;background:#f3f4f6;color:#111827}}.topo{{background:linear-gradient(135deg,{cor_principal},{cor_secundaria});color:#fff;padding:28px 18px 34px}}.topo-inner{{max-width:1120px;margin:auto;display:flex;align-items:center;gap:16px}}.logo{{width:76px;height:76px;border-radius:22px;background:#fff;color:{cor_principal};display:grid;place-items:center;font-weight:900;font-size:22px;overflow:hidden;flex:0 0 auto}}.logo img,.item-imagem img{{width:100%;height:100%;object-fit:cover;display:block}}.topo h1{{margin:0;font-size:30px}}.topo p{{margin:6px 0 0;opacity:.9}}.container{{max-width:1120px;margin:-22px auto 40px;padding:0 18px}}.barra{{background:#fff;border-radius:22px;padding:16px;box-shadow:0 12px 30px rgba(0,0,0,.08);display:grid;gap:12px}}.tipo-abas{{display:flex;gap:10px;flex-wrap:wrap}}.tipo-aba{{min-height:44px;border:1px solid #dbe3ef;border-radius:14px;padding:0 20px;background:#fff;color:#334155;font-weight:900;cursor:pointer}}.tipo-aba.active{{background:{cor_principal};border-color:{cor_principal};color:#fff}}.busca{{width:100%;min-height:46px;border:1px solid #e5e7eb;border-radius:14px;padding:0 14px;font-size:16px}}.categorias{{display:flex;gap:8px;overflow:auto}}.categorias-grupo{{display:flex;gap:8px}}.categorias-grupo[hidden]{{display:none}}.categoria-botao{{border:0;border-radius:999px;padding:10px 14px;background:#eef2ff;font-weight:800;white-space:nowrap;cursor:pointer}}.categoria-botao.active{{background:#dbeafe;color:#1d4ed8}}.conteudo{{display:block;margin-top:18px}}.conteudo.com-carrinho{{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px}}.itens{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:start}}.catalogo-card{{background:#fff;border-radius:22px;overflow:hidden;border:1px solid #e5e7eb;display:flex;flex-direction:column;min-width:0;box-shadow:0 8px 24px rgba(15,23,42,.05)}}.item-imagem{{width:100%;height:210px;min-height:210px;max-height:210px;flex:0 0 210px;border:0;background:#e5e7eb;display:grid;place-items:center;color:#6b7280;font-weight:900;cursor:pointer;text-decoration:none;overflow:hidden}}.item-info{{position:relative;z-index:2;background:#fff;padding:16px;display:grid;gap:9px;min-height:250px}}.item-info small{{color:#6b7280;font-weight:800}}.item-info h3{{margin:0;font-size:18px;line-height:1.25}}.item-info p{{margin:0;color:#6b7280;min-height:42px;line-height:1.45}}.item-info strong{{font-size:20px;color:#0f172a}}.duracao{{font-size:13px;font-weight:800;color:#475569}}.item-info button,.item-info a.agendar,.finalizar,.whatsapp-final{{border:0;border-radius:14px;padding:12px;background:{cor_principal};color:#fff;font-weight:900;cursor:pointer;text-align:center;text-decoration:none;margin-top:auto}}.item-info a.contato{{border-radius:14px;padding:12px;background:#16a34a;color:#fff;font-weight:900;text-align:center;text-decoration:none;margin-top:auto}}.carrinho{{background:#fff;border-radius:22px;border:1px solid #e5e7eb;padding:16px;position:sticky;top:16px;align-self:start}}.carrinho[hidden]{{display:none}}.carrinho h2{{margin:0 0 12px}}.item-carrinho{{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid #e5e7eb;padding:10px 0}}.form-pedido{{display:grid;gap:10px;margin-top:14px}}.form-pedido input,.form-pedido select,.form-pedido textarea{{width:100%;min-height:42px;border:1px solid #d1d5db;border-radius:12px;padding:10px}}.mensagem{{background:#ecfdf5;color:#047857;border-radius:16px;padding:12px;margin-bottom:14px;font-weight:800}}.whatsapp-final{{display:block;margin-bottom:14px;background:#16a34a}}.vazio{{background:#fff;border-radius:22px;padding:30px;text-align:center;color:#6b7280}}@media(max-width:900px){{.conteudo.com-carrinho{{grid-template-columns:1fr}}.itens{{grid-template-columns:repeat(2,minmax(0,1fr))}}.topo-inner{{align-items:flex-start}}.carrinho{{position:static}}}}@media(max-width:620px){{.itens{{grid-template-columns:1fr}}.item-imagem{{height:220px;min-height:220px;max-height:220px;flex-basis:220px}}.item-info{{min-height:0}}}}
-</style></head><body><header class="topo"><div class="{classe_topo_inner}">{logo_html}<div><h1>{nome_loja}</h1><p>{categoria} {('• ' + instagram) if instagram else ''}</p></div></div></header><main class="container">{mensagem_html}{whatsapp_html}<section class="barra"><div class="tipo-abas">{abas_html}</div><input class="busca" id="busca" placeholder="Buscar {'serviço' if tipo_inicial == 'servico' else 'produto'}..." oninput="filtrarItens()"><div class="categorias"><div class="categorias-grupo" id="categoriasProduto" {'hidden' if tipo_inicial != 'produto' else ''}>{categorias_produtos_html}</div><div class="categorias-grupo" id="categoriasServico" {'hidden' if tipo_inicial != 'servico' else ''}>{categorias_servicos_html}</div></div></section><section class="{classe_conteudo}" id="conteudoCatalogo"><div class="itens" id="itens">{cards_html}</div>{carrinho_html}</section></main><script>
-let carrinho=[];let tipoAtivo={json.dumps(tipo_inicial)};let categoriaAtiva='';
+    estilo = """
+<style>
+:root{
+    --brand-primary:__COR_PRINCIPAL__;
+    --brand-primary-2:__COR_SECUNDARIA__;
+    --brand-accent:__COR_DESTAQUE__;
+    --brand-accent-soft:rgba(245,158,11,.16);
+    --brand-accent-text:#071a2b;
+    --surface:#ffffff;
+    --surface-soft:#f4f7fb;
+    --text:#0f172a;
+    --text-soft:#64748b;
+    --border:#dbe3ef;
+    --shadow:0 18px 44px rgba(15,23,42,.12);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:Inter,Arial,Helvetica,sans-serif;background:var(--surface-soft);color:var(--text)}
+a{color:inherit}
+.topo{position:relative;overflow:hidden;background:linear-gradient(135deg,var(--brand-primary),var(--brand-primary-2));color:#fff}
+.topo::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 15% 18%,rgba(255,255,255,.1),transparent 30%),linear-gradient(115deg,transparent 55%,rgba(255,255,255,.04));pointer-events:none}
+.navbar{position:relative;z-index:5;border-bottom:1px solid rgba(255,255,255,.14);background:rgba(3,15,28,.2);backdrop-filter:blur(10px)}
+.navbar-inner{width:min(1240px,calc(100% - 36px));min-height:72px;margin:auto;display:flex;align-items:center;gap:28px}
+.marca-nav{min-width:0;display:flex;align-items:center;gap:12px;text-decoration:none}
+.marca-logo{width:54px;height:54px;display:grid;place-items:center;overflow:hidden;border-radius:14px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);flex:0 0 auto}
+.marca-logo-img{width:100%;height:100%;object-fit:contain;display:block;padding:3px}
+.marca-iniciais{font-size:18px;font-weight:1000}
+.marca-texto{min-width:0;display:grid;gap:2px}
+.marca-texto strong{font-size:20px;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.marca-texto small{font-size:11px;text-transform:uppercase;letter-spacing:.14em;opacity:.78;font-weight:900}
+.nav-links{margin-left:auto;display:flex;align-items:center;gap:26px}
+.nav-links a{position:relative;text-decoration:none;font-size:14px;font-weight:850;opacity:.88}
+.nav-links a:hover{opacity:1}
+.nav-links a::after{content:"";position:absolute;left:0;right:100%;bottom:-9px;height:2px;background:var(--brand-accent);transition:right .2s ease}
+.nav-links a:hover::after{right:0}
+.nav-whatsapp{min-height:42px;display:inline-flex;align-items:center;gap:8px;padding:0 16px;border:1px solid var(--brand-accent);border-radius:11px;color:#fff;text-decoration:none;font-size:13px;font-weight:900;white-space:nowrap}
+.hero{position:relative;z-index:2;width:min(1240px,calc(100% - 36px));min-height:430px;margin:auto;display:grid;grid-template-columns:minmax(300px,.82fr) minmax(0,1.18fr);gap:46px;align-items:center;padding:38px 0 66px}
+.hero-brand-card{min-height:310px;display:grid;place-items:center;padding:32px;border:1px solid rgba(255,255,255,.18);border-radius:28px;background:linear-gradient(145deg,rgba(255,255,255,.08),rgba(0,0,0,.14));box-shadow:0 24px 60px rgba(0,0,0,.24);overflow:hidden}
+.hero-logo-img{width:100%;height:100%;max-width:420px;max-height:270px;object-fit:contain;display:block;filter:drop-shadow(0 16px 22px rgba(0,0,0,.22))}
+.hero-logo-iniciais{width:190px;height:190px;border-radius:34px;display:grid;place-items:center;background:var(--brand-accent);color:var(--brand-accent-text);font-size:64px;font-weight:1000}
+.hero-copy{position:relative;z-index:2;padding:16px 0}
+.hero-kicker{margin:0 0 12px;color:var(--brand-accent);font-size:13px;font-weight:1000;text-transform:uppercase;letter-spacing:.18em}
+.hero h1{max-width:760px;margin:0;font-size:clamp(42px,5.3vw,74px);line-height:.98;letter-spacing:-.045em;text-transform:uppercase;text-wrap:balance}
+.hero-subtitulo{margin:12px 0 0;color:var(--brand-accent);font-size:clamp(22px,2.2vw,32px);font-weight:900}
+.hero-descricao{max-width:680px;margin:18px 0 0;color:rgba(255,255,255,.82);font-size:17px;line-height:1.65}
+.hero-beneficios{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:24px 0}
+.hero-beneficio{display:flex;align-items:center;gap:10px;padding:10px 0;color:#fff;font-size:13px;font-weight:800}
+.hero-beneficio span{width:36px;height:36px;display:grid;place-items:center;border-radius:12px;background:var(--brand-accent-soft);color:var(--brand-accent);font-size:17px;flex:0 0 auto}
+.hero-acoes{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.hero-whatsapp{min-height:48px;display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:0 22px;border-radius:11px;background:var(--brand-accent);color:var(--brand-accent-text);text-decoration:none;font-weight:1000;box-shadow:0 12px 28px rgba(0,0,0,.18)}
+.hero-contato-texto{color:rgba(255,255,255,.72);font-size:12px;line-height:1.5}
+.hero-media{position:absolute;z-index:0;top:72px;right:0;bottom:0;width:38%;background-position:center;background-size:cover;opacity:.38;mask-image:linear-gradient(90deg,transparent,#000 34%);-webkit-mask-image:linear-gradient(90deg,transparent,#000 34%)}
+.hero-media:not([style]){background:radial-gradient(circle at center,var(--brand-accent-soft),transparent 65%)}
+.container{position:relative;z-index:6;width:min(1240px,calc(100% - 36px));margin:-34px auto 38px}
+.mensagem{margin-bottom:14px;padding:13px 16px;border:1px solid #a7f3d0;border-radius:14px;background:#ecfdf5;color:#047857;font-weight:850}
+.whatsapp-final{display:block;margin-bottom:14px;padding:13px 16px;border-radius:14px;background:#16a34a;color:#fff;text-align:center;text-decoration:none;font-weight:900}
+.barra{display:grid;grid-template-columns:minmax(260px,1.2fr) auto;grid-template-areas:"busca abas" "categorias categorias";gap:14px 20px;padding:16px 18px;border:1px solid rgba(255,255,255,.72);border-radius:24px;background:rgba(255,255,255,.96);box-shadow:var(--shadow);backdrop-filter:blur(16px)}
+.busca-wrap{grid-area:busca;position:relative}
+.busca-wrap::before{content:"⌕";position:absolute;left:16px;top:50%;transform:translateY(-50%);color:#475569;font-size:24px;font-weight:900}
+.busca{width:100%;min-height:48px;padding:0 16px 0 48px;border:1px solid var(--border);border-radius:13px;background:#fff;color:var(--text);font-size:15px;outline:none}
+.busca:focus{border-color:var(--brand-accent);box-shadow:0 0 0 4px var(--brand-accent-soft)}
+.tipo-abas{grid-area:abas;display:flex;align-items:center;gap:9px;flex-wrap:wrap;justify-content:flex-end}
+.tipo-aba{min-height:44px;padding:0 24px;border:1px solid var(--border);border-radius:999px;background:#fff;color:#334155;font-size:13px;font-weight:950;cursor:pointer}
+.tipo-aba.active{border-color:var(--brand-accent);background:var(--brand-accent);color:var(--brand-accent-text)}
+.categorias{grid-area:categorias;display:flex;gap:8px;overflow-x:auto;padding-top:2px;scrollbar-width:thin}
+.categorias-grupo{display:flex;gap:8px}
+.categorias-grupo[hidden]{display:none}
+.categoria-botao{min-height:40px;padding:0 18px;border:1px solid var(--border);border-radius:999px;background:#fff;color:#334155;font-size:12px;font-weight:900;white-space:nowrap;cursor:pointer}
+.categoria-botao.active{border-color:var(--brand-primary);background:var(--brand-primary);color:#fff}
+.conteudo{display:block;margin-top:20px}
+.conteudo.com-carrinho{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px}
+.itens{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:stretch}
+.catalogo-card{position:relative;min-width:0;overflow:hidden;display:flex;flex-direction:column;border:1px solid var(--border);border-radius:20px;background:#fff;box-shadow:0 9px 24px rgba(15,23,42,.07);transition:transform .2s ease,box-shadow .2s ease}
+.catalogo-card:hover{transform:translateY(-4px);box-shadow:0 18px 36px rgba(15,23,42,.13)}
+.item-imagem{position:relative;width:100%;height:220px;min-height:220px;max-height:220px;flex:0 0 220px;display:grid;place-items:center;overflow:hidden;border:0;background:#e8edf4;color:#64748b;text-decoration:none;cursor:pointer}
+.item-imagem img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .35s ease}
+.catalogo-card:hover .item-imagem img{transform:scale(1.045)}
+.item-sem-imagem{font-size:14px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
+.item-tipo-icon{position:absolute;top:14px;left:14px;width:40px;height:40px;display:grid;place-items:center;border-radius:12px;background:var(--brand-accent);color:var(--brand-accent-text);font-size:18px;font-weight:1000;box-shadow:0 8px 20px rgba(0,0,0,.15)}
+.item-info{position:relative;z-index:2;min-height:270px;display:flex;flex-direction:column;gap:9px;padding:17px;background:#fff}
+.item-info small{color:#64748b;font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.05em}
+.item-info h3{margin:0;color:var(--text);font-size:19px;line-height:1.22}
+.item-info p{display:-webkit-box;min-height:60px;margin:0;overflow:hidden;color:#64748b;font-size:13px;line-height:1.5;-webkit-line-clamp:3;-webkit-box-orient:vertical}
+.item-info>strong{margin-top:auto;color:var(--text);font-size:19px}
+.item-meta{margin-top:auto;display:grid;gap:6px}
+.item-meta strong{font-size:19px}
+.duracao{color:#475569;font-size:12px;font-weight:850}
+.item-acoes{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:5px}
+.item-acoes button,.item-acoes a,.finalizar{min-height:42px;display:inline-flex;align-items:center;justify-content:center;padding:0 14px;border:1px solid transparent;border-radius:10px;text-align:center;text-decoration:none;font-size:12px;font-weight:950;cursor:pointer}
+.item-acoes button,.acao-principal,.finalizar{background:var(--brand-accent);color:var(--brand-accent-text)}
+.acao-outline{border-color:var(--border)!important;background:#fff;color:#334155}
+.item-acoes button:disabled{background:#cbd5e1;color:#64748b;cursor:not-allowed}
+.carrinho{position:sticky;top:16px;align-self:start;padding:18px;border:1px solid var(--border);border-radius:20px;background:#fff;box-shadow:0 12px 30px rgba(15,23,42,.09)}
+.carrinho[hidden]{display:none}
+.carrinho-cabecalho{display:flex;align-items:center;gap:10px;padding-bottom:13px;border-bottom:1px solid #edf2f7}
+.carrinho-cabecalho>span{width:40px;height:40px;display:grid;place-items:center;border-radius:12px;background:var(--brand-accent-soft);color:var(--brand-accent);font-weight:1000}
+.carrinho-cabecalho small{color:#64748b;font-size:10px;font-weight:950;text-transform:uppercase;letter-spacing:.09em}
+.carrinho h2{margin:2px 0 0;font-size:20px}
+.carrinho-itens{padding:14px 0;color:#64748b;font-size:13px}
+.item-carrinho{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid #edf2f7;color:#334155}
+.carrinho-total{display:block;padding:12px 0;border-top:1px solid #edf2f7;font-size:17px}
+.form-pedido{display:grid;gap:9px;margin-top:8px}
+.form-pedido input,.form-pedido select,.form-pedido textarea{width:100%;min-height:42px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:#fff;font:inherit}
+.form-pedido textarea{min-height:74px;resize:vertical}
+.finalizar{width:100%;border:0}
+.como-funciona{margin-top:24px;padding:22px;border-radius:22px;background:var(--brand-primary);color:#fff;box-shadow:0 14px 34px rgba(15,23,42,.16)}
+.como-funciona-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0}
+.conf-item{display:flex;align-items:flex-start;gap:12px;padding:4px 22px;border-right:1px solid rgba(255,255,255,.14)}
+.conf-item:first-child{padding-left:0}.conf-item:last-child{padding-right:0;border-right:0}
+.conf-icon{width:42px;height:42px;display:grid;place-items:center;border-radius:13px;background:var(--brand-accent-soft);color:var(--brand-accent);font-size:20px;flex:0 0 auto}
+.conf-item strong{display:block;margin-bottom:4px;font-size:14px}
+.conf-item small{display:block;color:rgba(255,255,255,.7);font-size:11px;line-height:1.45}
+.footer{margin-top:22px;padding:26px 18px 30px;background:#071a2b;color:#fff}
+.footer-inner{width:min(1240px,100%);margin:auto;display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}
+.footer-marca{display:flex;align-items:center;gap:12px}.footer-marca .marca-logo{width:44px;height:44px}
+.footer p{margin:0;color:rgba(255,255,255,.7);font-size:12px}
+.footer a{color:var(--brand-accent);font-weight:900;text-decoration:none}
+.vazio{grid-column:1/-1;padding:44px;border:1px dashed #cbd5e1;border-radius:20px;background:#fff;color:#64748b;text-align:center;font-weight:800}
+body.template-loja-clean .hero-brand-card{background:rgba(255,255,255,.96)}
+body.template-loja-clean .hero-logo-img{filter:none}
+body.template-whatsapp-direto .item-acoes{grid-template-columns:1fr}
+body.template-whatsapp-direto .acao-outline{display:none}
+@media(max-width:1060px){
+    .nav-links{display:none}.hero{grid-template-columns:310px minmax(0,1fr);gap:28px}.hero-beneficios{grid-template-columns:1fr}.itens{grid-template-columns:repeat(2,minmax(0,1fr))}.como-funciona-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.conf-item{border-right:0;padding:0}
+}
+@media(max-width:820px){
+    .navbar-inner{min-height:64px}.marca-texto small{display:none}.nav-whatsapp{margin-left:auto}.hero{grid-template-columns:1fr;padding:28px 0 58px}.hero-brand-card{min-height:230px;padding:22px}.hero-logo-img{max-height:210px}.hero-copy{text-align:center}.hero-descricao{margin-left:auto;margin-right:auto}.hero-beneficios{grid-template-columns:repeat(3,minmax(0,1fr));text-align:left}.hero-acoes{justify-content:center}.hero-media{display:none}.barra{grid-template-columns:1fr;grid-template-areas:"busca" "abas" "categorias"}.tipo-abas{justify-content:flex-start}.conteudo.com-carrinho{grid-template-columns:1fr}.carrinho{position:static}.container{margin-top:-26px}
+}
+@media(max-width:620px){
+    .navbar-inner,.hero,.container{width:min(100% - 24px,1240px)}.marca-logo{width:46px;height:46px}.marca-texto strong{font-size:16px}.nav-whatsapp{width:42px;min-width:42px;padding:0;justify-content:center;font-size:0}.nav-whatsapp span{font-size:18px}.hero h1{font-size:38px}.hero-subtitulo{font-size:21px}.hero-descricao{font-size:14px}.hero-beneficios{grid-template-columns:1fr;gap:4px}.hero-beneficio{justify-content:center}.hero-brand-card{min-height:205px;border-radius:22px}.hero-logo-img{max-height:180px}.barra{padding:14px;border-radius:19px}.tipo-abas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%}.tipo-aba{width:100%;padding:0 12px}.itens{grid-template-columns:1fr}.item-imagem{height:230px;min-height:230px;max-height:230px;flex-basis:230px}.item-info{min-height:0}.como-funciona-grid{grid-template-columns:1fr}.footer-inner{justify-content:center;text-align:center}.footer-marca{justify-content:center}.instagram-footer{width:100%}
+}
+</style>
+"""
+    estilo = (
+        estilo.replace("__COR_PRINCIPAL__", cor_principal)
+        .replace("__COR_SECUNDARIA__", cor_secundaria)
+        .replace("__COR_DESTAQUE__", cor_destaque)
+    )
+
+    corpo = f"""<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <meta name="theme-color" content="{cor_principal}">
+    <title>{titulo_seo}</title>
+    <meta name="description" content="{descricao_seo}">
+    {estilo}
+</head>
+<body class="identity-{tipo_identidade_visual} template-{template_atual}" data-identity-mode="{tipo_identidade_visual}">
+<header class="topo" id="inicio">
+    <nav class="navbar" aria-label="Navegação principal">
+        <div class="navbar-inner">
+            <a class="marca-nav" href="#inicio" aria-label="Início - {nome_loja}">
+                <span class="marca-logo">{logo_nav_html}</span>
+                <span class="marca-texto"><strong>{nome_loja}</strong><small>{categoria}</small></span>
+            </a>
+            <div class="nav-links">
+                <a href="#inicio">Início</a>
+                <a href="#catalogo">Catálogo</a>
+                <a href="#como-funciona">Como funciona</a>
+                <a href="#contato">Contato</a>
+            </div>
+            {whatsapp_topo_html}
+        </div>
+    </nav>
+    <div class="hero-media"{hero_media_style}></div>
+    <section class="hero">
+        <div class="hero-brand-card">{logo_hero_html}</div>
+        <div class="hero-copy">
+            <p class="hero-kicker">Produtos e soluções profissionais</p>
+            <h1>{nome_loja}</h1>
+            <p class="hero-subtitulo">{categoria}</p>
+            <p class="hero-descricao">{texto_institucional}</p>
+            <div class="hero-beneficios">
+                <div class="hero-beneficio"><span>✓</span>Atendimento profissional</div>
+                <div class="hero-beneficio"><span>⚡</span>Resposta ágil</div>
+                <div class="hero-beneficio"><span>★</span>Qualidade garantida</div>
+            </div>
+            <div class="hero-acoes">{whatsapp_hero_html}<span class="hero-contato-texto">Atendimento rápido<br>e direto pelo WhatsApp</span></div>
+        </div>
+    </section>
+</header>
+<main class="container" id="catalogo">
+    {mensagem_html}
+    {whatsapp_final_html}
+    <section class="barra" aria-label="Filtros do catálogo">
+        <div class="busca-wrap"><input class="busca" id="busca" placeholder="Buscar {'serviço' if tipo_inicial == 'servico' else 'produto'}..." oninput="filtrarItens()"></div>
+        <div class="tipo-abas">{abas_html}</div>
+        <div class="categorias">
+            <div class="categorias-grupo" id="categoriasProduto" {'hidden' if tipo_inicial != 'produto' else ''}>{categorias_produtos_html}</div>
+            <div class="categorias-grupo" id="categoriasServico" {'hidden' if tipo_inicial != 'servico' else ''}>{categorias_servicos_html}</div>
+        </div>
+    </section>
+    <section class="{classe_conteudo}" id="conteudoCatalogo">
+        <div class="itens" id="itens">{cards_html}</div>
+        {carrinho_html}
+    </section>
+    <section class="como-funciona" id="como-funciona">
+        <div class="como-funciona-grid">
+            <div class="conf-item"><span class="conf-icon">✓</span><div><strong>Segurança e confiança</strong><small>Atendimento com responsabilidade e transparência.</small></div></div>
+            <div class="conf-item"><span class="conf-icon">◷</span><div><strong>Atendimento ágil</strong><small>Contato simples para pedir, consultar ou agendar.</small></div></div>
+            <div class="conf-item"><span class="conf-icon">◇</span><div><strong>Compromisso com você</strong><small>Produtos e serviços apresentados de forma clara.</small></div></div>
+            <div class="conf-item"><span class="conf-icon">★</span><div><strong>Qualidade garantida</strong><small>Experiência profissional do primeiro contato à entrega.</small></div></div>
+        </div>
+    </section>
+</main>
+<footer class="footer" id="contato">
+    <div class="footer-inner">
+        <div class="footer-marca"><span class="marca-logo">{logo_nav_html}</span><div><strong>{nome_loja}</strong><p>{categoria}</p></div></div>
+        <p>Vitrine online para produtos, serviços, pedidos e agendamentos.</p>
+        {footer_contato_html}
+    </div>
+</footer>
+<script>
+let carrinho=[];
+let tipoAtivo={json.dumps(tipo_inicial)};
+let categoriaAtiva='';
 function moedaNumero(v){{return parseFloat(String(v).replace(/\\./g,'').replace(',','.'))||0}}
 function moedaBR(v){{return v.toFixed(2).replace('.',',')}}
 function registrarItem(tipo,id){{fetch('/loja/{slug}/evento',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{tipo:tipo,item_id:id||''}})}}).catch(()=>{{}})}}
@@ -25393,8 +25749,55 @@ function aplicarFiltros(){{const termo=(document.getElementById('busca').value||
 function selecionarTipo(tipo,botao){{tipoAtivo=tipo;categoriaAtiva='';document.querySelectorAll('.tipo-aba').forEach(item=>item.classList.toggle('active',item===botao));const grupoProduto=document.getElementById('categoriasProduto');const grupoServico=document.getElementById('categoriasServico');if(grupoProduto)grupoProduto.hidden=tipo!=='produto';if(grupoServico)grupoServico.hidden=tipo!=='servico';document.querySelectorAll('.categoria-botao').forEach(item=>item.classList.toggle('active',item.dataset.tipo===tipo&&!item.dataset.categoria));const carrinhoEl=document.getElementById('carrinhoProdutos');const conteudo=document.getElementById('conteudoCatalogo');if(carrinhoEl)carrinhoEl.hidden=tipo!=='produto';if(conteudo)conteudo.classList.toggle('com-carrinho',tipo==='produto'&&!!carrinhoEl);const busca=document.getElementById('busca');if(busca){{busca.value='';busca.placeholder=tipo==='produto'?'Buscar produto...':'Buscar serviço...'}}aplicarFiltros()}}
 function filtrarCategoria(tipo,categoria,botao){{if(tipo!==tipoAtivo)return;categoriaAtiva=categoria||'';document.querySelectorAll(`.categoria-botao[data-tipo="${{tipo}}"]`).forEach(item=>item.classList.toggle('active',item===botao));aplicarFiltros()}}
 function filtrarItens(){{aplicarFiltros()}}
-document.addEventListener('DOMContentLoaded',()=>{{const botao=document.querySelector(`.tipo-aba[data-tipo="${{tipoAtivo}}"]`);if(botao)selecionarTipo(tipoAtivo,botao);else aplicarFiltros()}});
-</script></body></html>"""
+function limitar(valor,min,max){{return Math.min(max,Math.max(min,valor))}}
+function rgbParaHsl(r,g,b){{r/=255;g/=255;b/=255;const max=Math.max(r,g,b),min=Math.min(r,g,b);let h=0,s=0;const l=(max+min)/2;if(max!==min){{const d=max-min;s=l>.5?d/(2-max-min):d/(max+min);switch(max){{case r:h=(g-b)/d+(g<b?6:0);break;case g:h=(b-r)/d+2;break;default:h=(r-g)/d+4}}h/=6}}return{{h,s,l}}}}
+function ajustarCor(cor,delta){{return cor.map(v=>limitar(Math.round(v+delta),0,255))}}
+function corCss(cor){{return `rgb(${{cor[0]}},${{cor[1]}},${{cor[2]}})`}}
+function distanciaCor(a,b){{return Math.sqrt((a[0]-b[0])**2+(a[1]-b[1])**2+(a[2]-b[2])**2)}}
+function aplicarCoresDaLogo(){{
+    if(document.body.dataset.identityMode!=='logo')return;
+    const img=document.getElementById('brandColorSource');
+    if(!img||img.tagName!=='IMG')return;
+    const processar=()=>{{
+        try{{
+            const canvas=document.createElement('canvas');canvas.width=120;canvas.height=120;
+            const ctx=canvas.getContext('2d',{{willReadFrequently:true}});if(!ctx)return;
+            ctx.clearRect(0,0,120,120);
+            const escala=Math.min(120/img.naturalWidth,120/img.naturalHeight);
+            const w=img.naturalWidth*escala,h=img.naturalHeight*escala;
+            ctx.drawImage(img,(120-w)/2,(120-h)/2,w,h);
+            const dados=ctx.getImageData(0,0,120,120).data;
+            const mapa=new Map();
+            for(let i=0;i<dados.length;i+=16){{
+                const a=dados[i+3];if(a<170)continue;
+                const r=dados[i],g=dados[i+1],b=dados[i+2];
+                const max=Math.max(r,g,b),min=Math.min(r,g,b);
+                if(min>244||max<10)continue;
+                const qr=Math.round(r/24)*24,qg=Math.round(g/24)*24,qb=Math.round(b/24)*24;
+                const chave=`${{qr}},${{qg}},${{qb}}`;mapa.set(chave,(mapa.get(chave)||0)+1);
+            }}
+            const cores=[...mapa.entries()].map(([chave,count])=>{{const rgb=chave.split(',').map(Number);const hsl=rgbParaHsl(...rgb);return{{rgb,count,...hsl}}}}).sort((a,b)=>b.count-a.count).slice(0,24);
+            if(!cores.length)return;
+            const escuras=cores.filter(c=>c.l<.48);
+            const principal=(escuras.length?escuras:cores).sort((a,b)=>(b.count*(1-b.l))-(a.count*(1-a.l)))[0].rgb;
+            const vivas=cores.filter(c=>c.s>.35&&c.l>.22&&c.l<.82&&distanciaCor(c.rgb,principal)>80);
+            const destaque=(vivas.length?vivas:cores.filter(c=>distanciaCor(c.rgb,principal)>70)).sort((a,b)=>(b.count*(.5+b.s))-(a.count*(.5+a.s)))[0]?.rgb||[245,158,11];
+            const raiz=document.documentElement;
+            raiz.style.setProperty('--brand-primary',corCss(principal));
+            raiz.style.setProperty('--brand-primary-2',corCss(ajustarCor(principal,32)));
+            raiz.style.setProperty('--brand-accent',corCss(destaque));
+            raiz.style.setProperty('--brand-accent-soft',`rgba(${{destaque[0]}},${{destaque[1]}},${{destaque[2]}},.17)`);
+            const brilho=(destaque[0]*299+destaque[1]*587+destaque[2]*114)/1000;
+            raiz.style.setProperty('--brand-accent-text',brilho>155?'#071a2b':'#ffffff');
+        }}catch(e){{}}
+    }};
+    if(img.complete&&img.naturalWidth)processar();else img.addEventListener('load',processar,{{once:true}});
+}}
+document.addEventListener('DOMContentLoaded',()=>{{const botao=document.querySelector(`.tipo-aba[data-tipo="${{tipoAtivo}}"]`);if(botao)selecionarTipo(tipoAtivo,botao);else aplicarFiltros();aplicarCoresDaLogo()}});
+</script>
+</body>
+</html>"""
+    return corpo
 
 
 @app.route("/vitrine-upload/<path:caminho>")
