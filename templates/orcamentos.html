@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamentos.html
-Último recode: 2026-07-29 14:13 (America/Bahia)
-Motivo: Substituir o menu flutuante por diálogo nativo e separar definitivamente as ações A4 e Cupom.
+Último recode: 2026-07-29 14:38 (America/Bahia)
+Motivo: Trocar links de impressão do diálogo por botões independentes com URL explícita para impedir A4 e Cupom de acionarem a mesma rota.
 -->
 
 <!DOCTYPE html>
@@ -117,6 +117,7 @@ Motivo: Substituir o menu flutuante por diálogo nativo e separar definitivament
         }
 
         .gf-action-dialog-actions a,
+        .gf-action-dialog-actions button,
         .gf-action-dialog-disabled {
             display: flex;
             align-items: center;
@@ -134,8 +135,17 @@ Motivo: Substituir o menu flutuante por diálogo nativo e separar definitivament
             line-height: 1.3;
         }
 
+        .gf-action-dialog-actions button {
+            appearance: none;
+            font-family: inherit;
+            text-align: left;
+            cursor: pointer;
+        }
+
         .gf-action-dialog-actions a:hover,
-        .gf-action-dialog-actions a:focus-visible {
+        .gf-action-dialog-actions a:focus-visible,
+        .gf-action-dialog-actions button:hover,
+        .gf-action-dialog-actions button:focus-visible {
             border-color: #bbf7d0;
             background: #f0fdf4;
             color: #166534;
@@ -1112,8 +1122,8 @@ Motivo: Substituir o menu flutuante por diálogo nativo e separar definitivament
                                                             <button type="button" class="gf-action-dialog-close" data-gf-action-dialog-close aria-label="Fechar">×</button>
                                                         </div>
                                                         <div class="gf-action-dialog-actions">
-                                                            <a href="/orcamentos/{{ orcamento.id }}/imprimir/a4" target="_blank" rel="noopener noreferrer">🖨 Imprimir A4</a>
-                                                            <a href="/orcamentos/{{ orcamento.id }}/imprimir/cupom" target="_blank" rel="noopener noreferrer">🧾 Imprimir Cupom</a>
+                                                            <button type="button" data-gf-print-url="/orcamentos/{{ orcamento.id }}/imprimir/a4" aria-label="Abrir impressão A4 em nova aba">🖨 Imprimir A4</button>
+                                                            <button type="button" data-gf-print-url="/orcamentos/{{ orcamento.id }}/imprimir/cupom" aria-label="Abrir impressão Cupom em nova aba">🧾 Imprimir Cupom</button>
                                                             <a href="/whatsapp/pdf/orcamento/{{ orcamento.id }}">📲 Enviar PDF por WhatsApp</a>
                                                             <a href="/orcamentos/{{ orcamento.id }}/gerar/copia">↻ Gerar cópia</a>
                                                             {% if orcamento.venda_gerada_id %}
@@ -1847,6 +1857,35 @@ Motivo: Substituir o menu flutuante por diálogo nativo e separar definitivament
                     }
                 }
 
+                function abrirImpressaoEmNovaAba(botaoImpressao) {
+                    const urlImpressao = botaoImpressao.getAttribute("data-gf-print-url");
+
+                    if (!urlImpressao) {
+                        return;
+                    }
+
+                    console.info("[GestFlow] Abrindo impressão:", urlImpressao);
+
+                    const novaAba = window.open(urlImpressao, "_blank");
+
+                    if (novaAba) {
+                        novaAba.opener = null;
+                    } else {
+                        window.alert("O navegador bloqueou a nova aba. Libere pop-ups para imprimir.");
+                    }
+
+                    fecharDialogo(botaoImpressao.closest("dialog"));
+                }
+
+                document.querySelectorAll("[data-gf-print-url]").forEach(function(botaoImpressao) {
+                    botaoImpressao.addEventListener("click", function(evento) {
+                        evento.preventDefault();
+                        evento.stopPropagation();
+                        evento.stopImmediatePropagation();
+                        abrirImpressaoEmNovaAba(botaoImpressao);
+                    }, true);
+                });
+
                 document.addEventListener("click", function(evento) {
                     const gatilho = evento.target.closest("[data-gf-action-dialog]");
 
@@ -1871,6 +1910,7 @@ Motivo: Substituir o menu flutuante por diálogo nativo e separar definitivament
 
                         return;
                     }
+
 
                     const fechar = evento.target.closest("[data-gf-action-dialog-close]");
 
