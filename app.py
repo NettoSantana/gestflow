@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-29 11:23 (America/Bahia)
-# Motivo: Redesenhar a vitrine pública com hero profissional e identidade automática baseada na logo.
+# Último recode: 2026-07-29 12:46 (America/Bahia)
+# Motivo: Adaptar a Vitrine pública por categoria e logo, remover redundâncias e melhorar catálogo, compra e agendamento.
 
 from __future__ import annotations
 
@@ -25259,6 +25259,7 @@ def renderizar_vitrine_publica_html(
     servicos = servicos or []
     empresa_id_vitrine = int(config_vitrine.get("empresa_id") or 0)
     regras_vitrine = buscar_configuracoes_modulo("vitrine", empresa_id_vitrine)
+
     tipo_identidade_visual = str(config_vitrine.get("tipo_identidade_visual") or "cores").strip().lower()
     if tipo_identidade_visual not in {"logo", "cores"}:
         tipo_identidade_visual = "logo" if str(config_vitrine.get("logo_path") or "").strip() else "cores"
@@ -25276,44 +25277,156 @@ def renderizar_vitrine_publica_html(
         )
         cor_destaque = cor_secundaria
 
-    nome_loja_raw = str(config_vitrine.get("nome_loja") or regras_vitrine.get("nome_publico") or "Vitrine Online").strip()
+    nome_loja_raw = str(
+        config_vitrine.get("nome_loja") or regras_vitrine.get("nome_publico") or "Vitrine Online"
+    ).strip()
     nome_loja = html.escape(nome_loja_raw)
     titulo_seo = html.escape(str(regras_vitrine.get("seo_titulo") or nome_loja_raw))
+
+    categoria_configuracao = str(config_vitrine.get("categoria") or "").strip().lower()
+    perfis_categoria: dict[str, dict[str, Any]] = {
+        "perfumaria": {
+            "classe": "perfumaria",
+            "rotulo": "Perfumaria e cosméticos",
+            "kicker": "Beleza, cuidados e presentes",
+            "titulo_catalogo": "Lançamentos, cuidados e produtos selecionados",
+            "descricao_padrao": "Perfumes, cosméticos e cuidados pessoais com atendimento próximo e compra simples.",
+            "cor_suave": "#fff7f3",
+            "diferenciais": (
+                ("🎁", "Embalagem para presente", "Uma apresentação especial para cada ocasião."),
+                ("🚀", "Envio rápido", "Agilidade para receber seu pedido."),
+                ("💝", "Presente perfeito", "Opções selecionadas para surpreender."),
+            ),
+            "passos_produto": (
+                ("1", "Navegue pelo catálogo", "Descubra perfumes, cosméticos e novidades."),
+                ("2", "Escolha seus produtos", "Adicione um ou mais itens ao pedido."),
+                ("3", "Envie seu pedido", "Confirme os dados e a forma de entrega."),
+                ("4", "Receba com carinho", "A loja combina os detalhes pelo WhatsApp."),
+            ),
+        },
+        "moda": {
+            "classe": "moda",
+            "rotulo": "Moda e roupas",
+            "kicker": "Estilo para o seu dia a dia",
+            "titulo_catalogo": "Peças selecionadas para renovar seu estilo",
+            "descricao_padrao": "Moda com qualidade, estilo e atendimento personalizado para ajudar em cada escolha.",
+            "cor_suave": "#fff7f7",
+            "diferenciais": (
+                ("✨", "Peças selecionadas", "Curadoria pensada para estilo e qualidade."),
+                ("📏", "Ajuda com tamanhos", "Orientação para escolher com segurança."),
+                ("💬", "Atendimento personalizado", "Converse diretamente com a loja."),
+            ),
+            "passos_produto": (
+                ("1", "Explore a coleção", "Veja modelos, detalhes e categorias."),
+                ("2", "Escolha suas peças", "Adicione os itens que mais combinam com você."),
+                ("3", "Confirme pelo WhatsApp", "Tire dúvidas de tamanho e disponibilidade."),
+                ("4", "Receba ou retire", "Combine a melhor forma de entrega com a loja."),
+            ),
+        },
+        "mercado": {
+            "classe": "mercado",
+            "rotulo": "Mercado e variedades",
+            "kicker": "Variedade para facilitar sua rotina",
+            "titulo_catalogo": "Produtos úteis para o dia a dia",
+            "descricao_padrao": "Variedade, praticidade e atendimento rápido para encontrar o que você precisa.",
+            "cor_suave": "#f6fbf6",
+            "diferenciais": (
+                ("🚚", "Entrega rápida", "Receba com praticidade na região atendida."),
+                ("💰", "Preços acessíveis", "Boas opções para diferentes necessidades."),
+                ("📦", "Produtos disponíveis", "Catálogo atualizado para facilitar a compra."),
+            ),
+            "passos_produto": (
+                ("1", "Procure no catálogo", "Use a busca e as categorias para encontrar itens."),
+                ("2", "Monte seu pedido", "Adicione as quantidades que deseja."),
+                ("3", "Informe a entrega", "Preencha seus dados e endereço."),
+                ("4", "Receba seu pedido", "A loja confirma tudo pelo WhatsApp."),
+            ),
+        },
+        "servicos": {
+            "classe": "servicos",
+            "rotulo": "Serviços",
+            "kicker": "Serviços e soluções profissionais",
+            "titulo_catalogo": "Escolha o serviço ideal para sua necessidade",
+            "descricao_padrao": "Atendimento profissional, qualidade e soluções pensadas para cada necessidade.",
+            "cor_suave": "#f4f8fb",
+            "diferenciais": (
+                ("📅", "Agendamento fácil", "Escolha o serviço e solicite o melhor horário."),
+                ("⚡", "Resposta rápida", "Contato direto para confirmar o atendimento."),
+                ("✅", "Atendimento profissional", "Serviços apresentados com clareza e confiança."),
+            ),
+            "passos_produto": (
+                ("1", "Conheça os serviços", "Veja descrições, duração e condições."),
+                ("2", "Escolha o atendimento", "Agende ou solicite uma avaliação prévia."),
+                ("3", "Confirme seus dados", "Informe contato, data e necessidade."),
+                ("4", "Aguarde a confirmação", "A empresa retorna para concluir o agendamento."),
+            ),
+        },
+        "pecas": {
+            "classe": "pecas",
+            "rotulo": "Peças e oficina",
+            "kicker": "Peças, oficina e suporte técnico",
+            "titulo_catalogo": "Peças e serviços para manter tudo funcionando",
+            "descricao_padrao": "Peças, manutenção e atendimento técnico para encontrar a solução certa.",
+            "cor_suave": "#f5f7fa",
+            "diferenciais": (
+                ("🔧", "Atendimento técnico", "Orientação para escolher peças e serviços."),
+                ("📦", "Peças e serviços", "Soluções reunidas em um único catálogo."),
+                ("🛡️", "Suporte especializado", "Contato direto para confirmar aplicação e disponibilidade."),
+            ),
+            "passos_produto": (
+                ("1", "Busque a solução", "Consulte peças, aplicações e serviços."),
+                ("2", "Selecione o item", "Escolha o produto ou atendimento necessário."),
+                ("3", "Confirme a aplicação", "Converse com o suporte técnico pelo WhatsApp."),
+                ("4", "Receba ou agende", "Combine retirada, entrega ou execução do serviço."),
+            ),
+        },
+    }
+
+    exibir_produtos = configuracao_bool("vitrine", "exibir_produtos", True, empresa_id_vitrine)
+    exibir_servicos = configuracao_bool("vitrine", "exibir_servicos", True, empresa_id_vitrine)
+    tem_produtos = bool(produtos) and exibir_produtos
+    tem_servicos = bool(servicos) and exibir_servicos
+
+    if categoria_configuracao not in perfis_categoria:
+        categoria_configuracao = "servicos" if tem_servicos and not tem_produtos else "mercado"
+    perfil_categoria = perfis_categoria[categoria_configuracao]
+    categoria = html.escape(str(perfil_categoria["rotulo"]))
+    categoria_classe = html.escape(str(perfil_categoria["classe"]))
+    categoria_kicker = html.escape(str(perfil_categoria["kicker"]))
+    titulo_catalogo = html.escape(str(perfil_categoria["titulo_catalogo"]))
+    cor_categoria_suave = html.escape(str(perfil_categoria["cor_suave"]))
+
     descricao_empresa_raw = str(config_vitrine.get("descricao_empresa") or "").strip()
     texto_institucional_raw = (
         descricao_empresa_raw
         or str(regras_vitrine.get("texto_institucional") or "").strip()
-        or f"Atendimento profissional, qualidade e soluções pensadas para cada necessidade de {nome_loja_raw}."
+        or str(perfil_categoria["descricao_padrao"])
     )
     descricao_seo_raw = str(regras_vitrine.get("seo_descricao") or texto_institucional_raw)
     descricao_seo = html.escape(descricao_seo_raw)
     texto_institucional = html.escape(texto_institucional_raw)
+
     instagram_raw = str(config_vitrine.get("instagram") or "").strip()
-    instagram = html.escape(instagram_raw)
-    categoria_configuracao = str(config_vitrine.get("categoria") or "").strip().lower()
-    categoria_raw = str(config_vitrine.get("categoria") or "Produtos e serviços").strip()
-    categoria = html.escape(categoria_raw.replace("_", " ").title())
     logo_path = str(config_vitrine.get("logo_path") or "").strip()
     logo_url = f"/vitrine-upload/{html.escape(logo_path)}" if logo_path else ""
     iniciais_loja = "".join(parte[:1] for parte in nome_loja_raw.split()[:2]).upper() or "GF"
     if tipo_identidade_visual == "logo" and logo_url:
         logo_nav_html = (
-            f'<img src="{logo_url}" alt="{nome_loja}" class="marca-logo-img" '
-            'crossorigin="anonymous">'
+            f'<img src="{logo_url}" alt="{nome_loja}" class="marca-logo-img" crossorigin="anonymous">'
         )
-        logo_hero_html = (
+        logo_apresentacao_html = (
             f'<img src="{logo_url}" alt="{nome_loja}" id="brandColorSource" '
-            'class="hero-logo-img" crossorigin="anonymous">'
+            'class="apresentacao-logo-img" crossorigin="anonymous">'
         )
     else:
         logo_nav_html = f'<span class="marca-iniciais">{html.escape(iniciais_loja)}</span>'
-        logo_hero_html = f'<span class="hero-logo-iniciais">{html.escape(iniciais_loja)}</span>'
+        logo_apresentacao_html = (
+            f'<span class="apresentacao-logo-iniciais">{html.escape(iniciais_loja)}</span>'
+        )
 
     exibir_preco = configuracao_bool("vitrine", "exibir_preco", True, empresa_id_vitrine)
-    exibir_produtos = configuracao_bool("vitrine", "exibir_produtos", True, empresa_id_vitrine)
-    exibir_servicos = configuracao_bool("vitrine", "exibir_servicos", True, empresa_id_vitrine)
     modo_contato = str(regras_vitrine.get("modo_contato") or "pedido")
-    permitir_pedido = modo_contato == "pedido" and exibir_produtos and bool(produtos)
+    permitir_pedido = modo_contato == "pedido" and tem_produtos
     controlar_estoque = configuracao_bool("vitrine", "controlar_estoque", True, empresa_id_vitrine)
     quantidade_minima = max(1, int(float(regras_vitrine.get("quantidade_minima") or 1)))
     codigo_agenda = garantir_codigo_indicacao_empresa(empresa_id_vitrine)
@@ -25324,46 +25437,27 @@ def renderizar_vitrine_publica_html(
     whatsapp_publico_url = f"https://wa.me/{telefone_whatsapp}" if telefone_whatsapp else ""
     whatsapp_publico_url_html = html.escape(whatsapp_publico_url)
 
-    tem_produtos = bool(produtos) and exibir_produtos
-    tem_servicos = bool(servicos) and exibir_servicos
     tipo_inicial = "servico" if tem_servicos and (not tem_produtos or categoria_configuracao == "servicos") else "produto"
     if tipo_inicial == "produto" and not tem_produtos and tem_servicos:
         tipo_inicial = "servico"
 
-    itens_para_destaque = servicos if tipo_inicial == "servico" else produtos
-    imagem_destaque_path = ""
-    for item_destaque in itens_para_destaque:
-        caminho_candidato = str(item_destaque.get("imagem_path") or "").strip()
-        if caminho_candidato:
-            imagem_destaque_path = caminho_candidato
-            break
-    if not imagem_destaque_path:
-        for item_destaque in [*servicos, *produtos]:
-            caminho_candidato = str(item_destaque.get("imagem_path") or "").strip()
-            if caminho_candidato:
-                imagem_destaque_path = caminho_candidato
-                break
-    imagem_destaque_url = (
-        f"/vitrine-upload/{html.escape(imagem_destaque_path)}" if imagem_destaque_path else ""
-    )
-    hero_media_style = (
-        f' style="background-image:linear-gradient(90deg,rgba(7,26,43,.18),rgba(7,26,43,.72)),'
-        f'url(\'{imagem_destaque_url}\')"'
-        if imagem_destaque_url
-        else ""
-    )
-
     whatsapp_topo_html = ""
-    whatsapp_hero_html = ""
+    whatsapp_apresentacao_html = ""
     if whatsapp_publico_url:
         whatsapp_topo_html = (
             f'<a class="nav-whatsapp" href="{whatsapp_publico_url_html}" target="_blank" rel="noopener">'
-            '<span aria-hidden="true">◉</span> Chamar no WhatsApp</a>'
+            '<span aria-hidden="true">◉</span><span>WhatsApp</span></a>'
         )
-        whatsapp_hero_html = (
-            f'<a class="hero-whatsapp" href="{whatsapp_publico_url_html}" target="_blank" rel="noopener">'
-            '<span aria-hidden="true">◉</span> Chamar no WhatsApp</a>'
+        whatsapp_apresentacao_html = (
+            f'<a class="btn-publico btn-whatsapp" href="{whatsapp_publico_url_html}" '
+            'target="_blank" rel="noopener"><span aria-hidden="true">◉</span> Chamar no WhatsApp</a>'
         )
+
+    carrinho_nav_html = (
+        '<a class="nav-carrinho" href="#carrinhoProdutos"><span aria-hidden="true">▣</span> Carrinho</a>'
+        if permitir_pedido
+        else ""
+    )
 
     instagram_html = ""
     if instagram_raw:
@@ -25372,13 +25466,37 @@ def renderizar_vitrine_publica_html(
             instagram_usuario = instagram_url.lstrip("@").strip()
             instagram_url = f"https://instagram.com/{urllib.parse.quote(instagram_usuario)}"
         instagram_html = (
-            f'<a href="{html.escape(instagram_url)}" target="_blank" rel="noopener">'
-            f'{instagram}</a>'
+            f'<a class="social-link instagram" href="{html.escape(instagram_url)}" '
+            'target="_blank" rel="noopener">Instagram</a>'
         )
-    footer_contato_html = (
-        f'<p class="instagram-footer">Siga no Instagram: {instagram_html}</p>'
-        if instagram_html
-        else '<p class="instagram-footer">Desenvolvido pela <a href="https://nettsan.com.br" target="_blank" rel="noopener">Nettsan</a></p>'
+    whatsapp_social_html = (
+        f'<a class="social-link whatsapp" href="{whatsapp_publico_url_html}" '
+        'target="_blank" rel="noopener">WhatsApp</a>'
+        if whatsapp_publico_url
+        else ""
+    )
+
+    diferenciais_html = "".join(
+        f'<article class="diferencial-card"><span>{html.escape(icone)}</span><div><strong>{html.escape(titulo)}</strong>'
+        f'<small>{html.escape(descricao)}</small></div></article>'
+        for icone, titulo, descricao in perfil_categoria["diferenciais"]
+    )
+
+    passos_produto_html = "".join(
+        f'<article class="passo-card"><span>{html.escape(numero)}</span><div><strong>{html.escape(titulo)}</strong>'
+        f'<small>{html.escape(descricao)}</small></div></article>'
+        for numero, titulo, descricao in perfil_categoria["passos_produto"]
+    )
+    passos_servico = (
+        ("1", "Escolha o serviço", "Confira descrição, duração e forma de contratação."),
+        ("2", "Agende ou solicite avaliação", "Selecione um horário ou envie as informações necessárias."),
+        ("3", "Confirme seus dados", "Informe contato e detalhes do atendimento."),
+        ("4", "Receba a confirmação", "A empresa retorna para finalizar o agendamento."),
+    )
+    passos_servico_html = "".join(
+        f'<article class="passo-card"><span>{html.escape(numero)}</span><div><strong>{html.escape(titulo)}</strong>'
+        f'<small>{html.escape(descricao)}</small></div></article>'
+        for numero, titulo, descricao in passos_servico
     )
 
     cards: list[str] = []
@@ -25414,7 +25532,7 @@ def renderizar_vitrine_publica_html(
                 acao_principal = (
                     f'<button type="button" onclick="adicionarCarrinho({produto_id}, '
                     f'{json.dumps(nome_raw, ensure_ascii=False)}, {json.dumps(preco_raw, ensure_ascii=False)})">'
-                    'Adicionar ao carrinho</button>'
+                    'Adicionar</button>'
                 )
             elif whatsapp_publico_url:
                 acao_principal = (
@@ -25431,9 +25549,9 @@ def renderizar_vitrine_publica_html(
                 acao_principal = f'<button type="button" disabled>{mensagem_indisponivel}</button>'
                 acao_secundaria = ""
             cards.append(
-                f"""<article class="catalogo-card produto-card" style="{'display:flex' if tipo_inicial == 'produto' else 'display:none'}" data-tipo="produto" data-categoria="{categoria_item}" data-nome="{html.escape(nome_raw.lower())}">
-<button class="item-imagem" type="button" onclick="registrarItem('produto',{produto_id})">{imagem_html}<span class="item-tipo-icon" aria-hidden="true">▦</span></button>
-<div class="item-info"><small>Produto • {categoria_item}</small><h3>{nome}</h3><p>{descricao}</p>{preco_html}<div class="item-acoes">{acao_principal}{acao_secundaria}</div></div></article>"""
+                f'''<article class="catalogo-card produto-card" data-tipo="produto" data-categoria="{categoria_item}" data-nome="{html.escape(nome_raw.lower())}">
+<button class="item-imagem" type="button" onclick="registrarItem('produto',{produto_id})">{imagem_html}</button>
+<div class="item-info"><small>Produto • {categoria_item}</small><h3>{nome}</h3><p>{descricao}</p>{preco_html}<div class="item-acoes">{acao_principal}{acao_secundaria}</div></div></article>'''
             )
 
     if exibir_servicos:
@@ -25462,7 +25580,9 @@ def renderizar_vitrine_publica_html(
                 preco_html = f"<strong>R$ {preco}</strong>" if exibir_preco else "<strong>Consulte o valor</strong>"
                 duracao_html = f'<span class="duracao">Duração: {duracao or "A combinar"}</span>'
                 texto_acao = "Agendar serviço"
-            agenda_url = f"/agendar/{urllib.parse.quote(codigo_agenda)}?servico_id={servico_id}&origem=vitrine_online"
+            agenda_url = (
+                f"/agendar/{urllib.parse.quote(codigo_agenda)}?servico_id={servico_id}&origem=vitrine_online"
+            )
             acao_whatsapp = ""
             if whatsapp_publico_url:
                 acao_whatsapp = (
@@ -25470,9 +25590,9 @@ def renderizar_vitrine_publica_html(
                     'WhatsApp</a>'
                 )
             cards.append(
-                f"""<article class="catalogo-card servico-card" style="{'display:flex' if tipo_inicial == 'servico' else 'display:none'}" data-tipo="servico" data-categoria="{categoria_item}" data-nome="{html.escape(nome_raw.lower())}">
-<a class="item-imagem" href="{agenda_url}" onclick="registrarItem('servico',{servico_id})">{imagem_html}<span class="item-tipo-icon" aria-hidden="true">⚙</span></a>
-<div class="item-info"><small>Serviço • {categoria_item}</small><h3>{nome}</h3><p>{descricao}</p><div class="item-meta">{duracao_html}{preco_html}</div><div class="item-acoes"><a class="acao-principal" href="{agenda_url}" onclick="registrarItem('servico',{servico_id})">{texto_acao}</a>{acao_whatsapp}</div></div></article>"""
+                f'''<article class="catalogo-card servico-card" data-tipo="servico" data-categoria="{categoria_item}" data-nome="{html.escape(nome_raw.lower())}">
+<a class="item-imagem" href="{agenda_url}" onclick="registrarItem('servico',{servico_id})">{imagem_html}</a>
+<div class="item-info"><small>Serviço • {categoria_item}</small><h3>{nome}</h3><p>{descricao}</p><div class="item-meta">{duracao_html}{preco_html}</div><div class="item-acoes"><a class="acao-principal" href="{agenda_url}" onclick="registrarItem('servico',{servico_id})">{texto_acao}</a>{acao_whatsapp}</div></div></article>'''
             )
 
     def botoes_categorias(categorias: set[str], tipo: str) -> str:
@@ -25499,6 +25619,7 @@ def renderizar_vitrine_publica_html(
         if whatsapp_url
         else ""
     )
+
     slug = html.escape(str(config_vitrine.get("slug") or ""))
     formas_entrega = lista_configuracao_modulo("vitrine", "formas_entrega", empresa_id_vitrine) or [
         "Entrega",
@@ -25508,9 +25629,23 @@ def renderizar_vitrine_publica_html(
         f'<option value="{_normalizar_chave_campo_configuravel(rotulo)}">{html.escape(rotulo)}</option>'
         for rotulo in formas_entrega
     )
+
     carrinho_html = ""
     if permitir_pedido:
-        carrinho_html = f"""<aside class="carrinho" id="carrinhoProdutos"><div class="carrinho-cabecalho"><span aria-hidden="true">▣</span><div><small>Seu pedido</small><h2>Carrinho</h2></div></div><div id="itensCarrinho" class="carrinho-itens">Nenhum item adicionado.</div><strong id="totalCarrinho" class="carrinho-total">Total: R$ 0,00</strong><form class="form-pedido" method="post" action="/loja/{slug}/pedido" onsubmit="return prepararPedido()"><input name="cliente_nome" placeholder="Seu nome" required><input name="cliente_whatsapp" placeholder="Seu WhatsApp" required><select name="tipo_entrega">{entrega_html}</select><input name="endereco" placeholder="Endereço, se for entrega"><select name="forma_pagamento"><option value="pix">PIX</option><option value="dinheiro">Dinheiro</option><option value="cartao">Cartão</option></select><textarea name="observacoes" placeholder="Observações do pedido"></textarea><input type="hidden" name="itens_json" id="itensJson"><button class="finalizar" type="submit">Confirmar pedido</button></form></aside>"""
+        carrinho_html = f'''<aside class="carrinho" id="carrinhoProdutos">
+<div class="carrinho-cabecalho"><span aria-hidden="true">▣</span><div><small>Seu pedido</small><h2>Carrinho</h2></div></div>
+<div id="itensCarrinho" class="carrinho-itens">Nenhum item adicionado.</div>
+<strong id="totalCarrinho" class="carrinho-total">Total: R$ 0,00</strong>
+<form class="form-pedido" method="post" action="/loja/{slug}/pedido" onsubmit="return prepararPedido()">
+<input name="cliente_nome" placeholder="Seu nome" required>
+<input name="cliente_whatsapp" placeholder="Seu WhatsApp" required>
+<select name="tipo_entrega">{entrega_html}</select>
+<input name="endereco" placeholder="Endereço, se for entrega">
+<select name="forma_pagamento"><option value="pix">PIX</option><option value="dinheiro">Dinheiro</option><option value="cartao">Cartão</option></select>
+<textarea name="observacoes" placeholder="Observações do pedido"></textarea>
+<input type="hidden" name="itens_json" id="itensJson">
+<button class="finalizar" type="submit">Confirmar pedido</button>
+</form></aside>'''
     if carrinho_html and tipo_inicial != "produto":
         carrinho_html = carrinho_html.replace('id="carrinhoProdutos"', 'id="carrinhoProdutos" hidden', 1)
     classe_conteudo = "conteudo com-carrinho" if tipo_inicial == "produto" and carrinho_html else "conteudo"
@@ -25527,7 +25662,16 @@ def renderizar_vitrine_publica_html(
             'data-tipo="servico" onclick="selecionarTipo(\'servico\',this)">Serviços</button>'
         )
 
-    estilo = """
+    formas_pagamento = lista_configuracao_modulo("vendas", "formas_pagamento", empresa_id_vitrine) or [
+        "PIX",
+        "Dinheiro",
+        "Cartão",
+    ]
+    formas_pagamento_html = "".join(
+        f'<span>{html.escape(str(forma))}</span>' for forma in formas_pagamento[:8]
+    )
+
+    estilo = r'''
 <style>
 :root{
     --brand-primary:__COR_PRINCIPAL__;
@@ -25535,276 +25679,317 @@ def renderizar_vitrine_publica_html(
     --brand-accent:__COR_DESTAQUE__;
     --brand-accent-soft:rgba(245,158,11,.16);
     --brand-accent-text:#071a2b;
+    --category-soft:__COR_CATEGORIA_SUAVE__;
     --surface:#ffffff;
-    --surface-soft:#f4f7fb;
-    --text:#0f172a;
-    --text-soft:#64748b;
-    --border:#dbe3ef;
-    --shadow:0 18px 44px rgba(15,23,42,.12);
+    --text:#172033;
+    --text-soft:#667085;
+    --border:#e3e7ee;
+    --shadow:0 14px 38px rgba(15,23,42,.09);
 }
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
-body{margin:0;font-family:Inter,Arial,Helvetica,sans-serif;background:var(--surface-soft);color:var(--text)}
+body{margin:0;font-family:Inter,Arial,Helvetica,sans-serif;background:var(--category-soft);color:var(--text)}
 a{color:inherit}
-.topo{position:relative;overflow:hidden;background:linear-gradient(135deg,var(--brand-primary),var(--brand-primary-2));color:#fff}
-.topo::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 15% 18%,rgba(255,255,255,.1),transparent 30%),linear-gradient(115deg,transparent 55%,rgba(255,255,255,.04));pointer-events:none}
-.navbar{position:relative;z-index:5;border-bottom:1px solid rgba(255,255,255,.14);background:rgba(3,15,28,.2);backdrop-filter:blur(10px)}
-.navbar-inner{width:min(1240px,calc(100% - 36px));min-height:72px;margin:auto;display:flex;align-items:center;gap:28px}
-.marca-nav{min-width:0;display:flex;align-items:center;gap:12px;text-decoration:none}
-.marca-logo{width:54px;height:54px;display:grid;place-items:center;overflow:hidden;border-radius:14px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);flex:0 0 auto}
+button,input,select,textarea{font:inherit}
+[hidden]{display:none!important}
+.site-header{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--category-soft) 92%,#fff 8%);border-bottom:1px solid color-mix(in srgb,var(--brand-primary) 12%,transparent);backdrop-filter:blur(14px)}
+.navbar-inner{width:min(1180px,calc(100% - 32px));min-height:68px;margin:auto;display:flex;align-items:center;gap:22px}
+.marca-nav{min-width:0;display:flex;align-items:center;gap:11px;text-decoration:none}
+.marca-logo{width:48px;height:48px;display:grid;place-items:center;overflow:hidden;border-radius:14px;background:#fff;border:1px solid var(--border);box-shadow:0 6px 18px rgba(15,23,42,.08);flex:0 0 auto}
 .marca-logo-img{width:100%;height:100%;object-fit:contain;display:block;padding:3px}
-.marca-iniciais{font-size:18px;font-weight:1000}
+.marca-iniciais{font-weight:1000;font-size:17px;color:var(--brand-primary)}
 .marca-texto{min-width:0;display:grid;gap:2px}
-.marca-texto strong{font-size:20px;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.marca-texto small{font-size:11px;text-transform:uppercase;letter-spacing:.14em;opacity:.78;font-weight:900}
-.nav-links{margin-left:auto;display:flex;align-items:center;gap:26px}
-.nav-links a{position:relative;text-decoration:none;font-size:14px;font-weight:850;opacity:.88}
-.nav-links a:hover{opacity:1}
-.nav-links a::after{content:"";position:absolute;left:0;right:100%;bottom:-9px;height:2px;background:var(--brand-accent);transition:right .2s ease}
-.nav-links a:hover::after{right:0}
-.nav-whatsapp{min-height:42px;display:inline-flex;align-items:center;gap:8px;padding:0 16px;border:1px solid var(--brand-accent);border-radius:11px;color:#fff;text-decoration:none;font-size:13px;font-weight:900;white-space:nowrap}
-.hero{position:relative;z-index:2;width:min(1240px,calc(100% - 36px));min-height:430px;margin:auto;display:grid;grid-template-columns:minmax(300px,.82fr) minmax(0,1.18fr);gap:46px;align-items:center;padding:38px 0 66px}
-.hero-brand-card{min-height:310px;display:grid;place-items:center;padding:32px;border:1px solid rgba(255,255,255,.18);border-radius:28px;background:linear-gradient(145deg,rgba(255,255,255,.08),rgba(0,0,0,.14));box-shadow:0 24px 60px rgba(0,0,0,.24);overflow:hidden}
-.hero-logo-img{width:100%;height:100%;max-width:420px;max-height:270px;object-fit:contain;display:block;filter:drop-shadow(0 16px 22px rgba(0,0,0,.22))}
-.hero-logo-iniciais{width:190px;height:190px;border-radius:34px;display:grid;place-items:center;background:var(--brand-accent);color:var(--brand-accent-text);font-size:64px;font-weight:1000}
-.hero-copy{position:relative;z-index:2;padding:16px 0}
-.hero-kicker{margin:0 0 12px;color:var(--brand-accent);font-size:13px;font-weight:1000;text-transform:uppercase;letter-spacing:.18em}
-.hero h1{max-width:760px;margin:0;font-size:clamp(42px,5.3vw,74px);line-height:.98;letter-spacing:-.045em;text-transform:uppercase;text-wrap:balance}
-.hero-subtitulo{margin:12px 0 0;color:var(--brand-accent);font-size:clamp(22px,2.2vw,32px);font-weight:900}
-.hero-descricao{max-width:680px;margin:18px 0 0;color:rgba(255,255,255,.82);font-size:17px;line-height:1.65}
-.hero-beneficios{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:24px 0}
-.hero-beneficio{display:flex;align-items:center;gap:10px;padding:10px 0;color:#fff;font-size:13px;font-weight:800}
-.hero-beneficio span{width:36px;height:36px;display:grid;place-items:center;border-radius:12px;background:var(--brand-accent-soft);color:var(--brand-accent);font-size:17px;flex:0 0 auto}
-.hero-acoes{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
-.hero-whatsapp{min-height:48px;display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:0 22px;border-radius:11px;background:var(--brand-accent);color:var(--brand-accent-text);text-decoration:none;font-weight:1000;box-shadow:0 12px 28px rgba(0,0,0,.18)}
-.hero-contato-texto{color:rgba(255,255,255,.72);font-size:12px;line-height:1.5}
-.hero-media{position:absolute;z-index:0;top:72px;right:0;bottom:0;width:38%;background-position:center;background-size:cover;opacity:.38;mask-image:linear-gradient(90deg,transparent,#000 34%);-webkit-mask-image:linear-gradient(90deg,transparent,#000 34%)}
-.hero-media:not([style]){background:radial-gradient(circle at center,var(--brand-accent-soft),transparent 65%)}
-.container{position:relative;z-index:6;width:min(1240px,calc(100% - 36px));margin:-34px auto 38px}
-.mensagem{margin-bottom:14px;padding:13px 16px;border:1px solid #a7f3d0;border-radius:14px;background:#ecfdf5;color:#047857;font-weight:850}
+.marca-texto strong{font-size:18px;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.marca-texto small{font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--text-soft);font-weight:900}
+.nav-links{margin-left:auto;display:flex;align-items:center;gap:24px}
+.nav-links a{text-decoration:none;font-size:13px;font-weight:850;color:var(--text-soft)}
+.nav-links a:hover{color:var(--brand-primary)}
+.nav-whatsapp,.nav-carrinho{min-height:40px;display:inline-flex;align-items:center;gap:7px;padding:0 14px;border-radius:12px;text-decoration:none;font-size:12px;font-weight:900;white-space:nowrap}
+.nav-whatsapp{background:#16a34a;color:#fff}
+.nav-carrinho{border:1px solid var(--border);background:#fff;color:var(--brand-primary)}
+.apresentacao{padding:46px 0 24px;background:linear-gradient(180deg,color-mix(in srgb,var(--brand-primary) 5%,var(--category-soft)),var(--category-soft))}
+.apresentacao-inner{width:min(1180px,calc(100% - 32px));margin:auto;display:grid;grid-template-columns:260px minmax(0,1fr);gap:42px;align-items:center}
+.apresentacao-logo{min-height:250px;display:grid;place-items:center;padding:24px;border-radius:28px;background:#fff;border:1px solid color-mix(in srgb,var(--brand-primary) 14%,var(--border));box-shadow:var(--shadow);overflow:hidden}
+.apresentacao-logo-img{width:100%;height:100%;max-height:210px;object-fit:contain;display:block}
+.apresentacao-logo-iniciais{width:150px;height:150px;display:grid;place-items:center;border-radius:34px;background:var(--brand-primary);color:#fff;font-size:52px;font-weight:1000}
+.apresentacao-copy{min-width:0}
+.apresentacao-kicker{margin:0 0 10px;color:var(--brand-primary);font-size:12px;font-weight:1000;text-transform:uppercase;letter-spacing:.16em}
+.apresentacao h1{margin:0;font-size:clamp(38px,5vw,66px);line-height:1;letter-spacing:-.045em;text-wrap:balance}
+.apresentacao-categoria{margin:12px 0 0;color:var(--brand-primary);font-size:22px;font-weight:900}
+.apresentacao-descricao{max-width:760px;margin:17px 0 0;color:var(--text-soft);font-size:16px;line-height:1.65}
+.apresentacao-acoes{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px}
+.btn-publico{min-height:46px;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:0 20px;border-radius:13px;text-decoration:none;font-weight:950}
+.btn-catalogo{background:var(--brand-primary);color:#fff}
+.btn-whatsapp{background:#16a34a;color:#fff}
+.sobre-diferenciais{width:min(1180px,calc(100% - 32px));margin:26px auto 0;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.45fr);gap:16px}
+.sobre-card,.diferenciais-grid{background:#fff;border:1px solid var(--border);border-radius:20px;box-shadow:0 8px 28px rgba(15,23,42,.05)}
+.sobre-card{padding:22px}
+.section-kicker{margin:0 0 8px;color:var(--brand-primary);font-size:11px;font-weight:1000;text-transform:uppercase;letter-spacing:.13em}
+.sobre-card h2,.catalogo-cabecalho h2,.passos-section h2{margin:0;font-size:24px;line-height:1.15}
+.sobre-card p{margin:10px 0 0;color:var(--text-soft);line-height:1.6}
+.diferenciais-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));padding:12px}
+.diferencial-card{display:flex;gap:10px;align-items:flex-start;padding:14px;border-radius:15px}
+.diferencial-card+ .diferencial-card{border-left:1px solid var(--border)}
+.diferencial-card>span{font-size:23px;line-height:1}
+.diferencial-card div{display:grid;gap:5px}
+.diferencial-card strong{font-size:13px}
+.diferencial-card small{color:var(--text-soft);font-size:11px;line-height:1.45}
+.container{width:min(1180px,calc(100% - 32px));margin:30px auto 44px}
+.mensagem{margin-bottom:14px;padding:13px 16px;border-radius:14px;background:#ecfdf5;color:#047857;font-weight:850}
 .whatsapp-final{display:block;margin-bottom:14px;padding:13px 16px;border-radius:14px;background:#16a34a;color:#fff;text-align:center;text-decoration:none;font-weight:900}
-.barra{display:grid;grid-template-columns:minmax(260px,1.2fr) auto;grid-template-areas:"busca abas" "categorias categorias";gap:14px 20px;padding:16px 18px;border:1px solid rgba(255,255,255,.72);border-radius:24px;background:rgba(255,255,255,.96);box-shadow:var(--shadow);backdrop-filter:blur(16px)}
+.catalogo-cabecalho{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:16px}
+.catalogo-cabecalho p:last-child{margin:7px 0 0;color:var(--text-soft)}
+.barra{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"busca abas" "categorias categorias";gap:12px;padding:16px;border:1px solid var(--border);border-radius:20px;background:#fff;box-shadow:0 10px 28px rgba(15,23,42,.06)}
 .busca-wrap{grid-area:busca;position:relative}
-.busca-wrap::before{content:"⌕";position:absolute;left:16px;top:50%;transform:translateY(-50%);color:#475569;font-size:24px;font-weight:900}
-.busca{width:100%;min-height:48px;padding:0 16px 0 48px;border:1px solid var(--border);border-radius:13px;background:#fff;color:var(--text);font-size:15px;outline:none}
-.busca:focus{border-color:var(--brand-accent);box-shadow:0 0 0 4px var(--brand-accent-soft)}
-.tipo-abas{grid-area:abas;display:flex;align-items:center;gap:9px;flex-wrap:wrap;justify-content:flex-end}
-.tipo-aba{min-height:44px;padding:0 24px;border:1px solid var(--border);border-radius:999px;background:#fff;color:#334155;font-size:13px;font-weight:950;cursor:pointer}
-.tipo-aba.active{border-color:var(--brand-accent);background:var(--brand-accent);color:var(--brand-accent-text)}
-.categorias{grid-area:categorias;display:flex;gap:8px;overflow-x:auto;padding-top:2px;scrollbar-width:thin}
-.categorias-grupo{display:flex;gap:8px}
-.categorias-grupo[hidden]{display:none}
-.categoria-botao{min-height:40px;padding:0 18px;border:1px solid var(--border);border-radius:999px;background:#fff;color:#334155;font-size:12px;font-weight:900;white-space:nowrap;cursor:pointer}
-.categoria-botao.active{border-color:var(--brand-primary);background:var(--brand-primary);color:#fff}
-.conteudo{display:block;margin-top:20px}
-.conteudo.com-carrinho{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px}
+.busca-wrap::before{content:"⌕";position:absolute;left:15px;top:50%;transform:translateY(-50%);color:var(--brand-primary);font-size:19px}
+.busca{width:100%;min-height:48px;border:1px solid var(--border);border-radius:13px;padding:0 15px 0 43px;font-size:15px;outline:none}
+.busca:focus{border-color:var(--brand-primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--brand-primary) 12%,transparent)}
+.tipo-abas{grid-area:abas;display:flex;gap:8px}
+.tipo-aba{min-height:48px;border:1px solid var(--border);border-radius:13px;padding:0 18px;background:#fff;color:var(--text-soft);font-weight:900;cursor:pointer}
+.tipo-aba.active{background:var(--brand-primary);border-color:var(--brand-primary);color:#fff}
+.categorias{grid-area:categorias;overflow:auto;padding-bottom:2px}
+.categorias-grupo{display:flex;gap:8px;min-width:max-content}
+.categoria-botao{border:1px solid var(--border);border-radius:999px;padding:9px 13px;background:#fff;color:var(--text-soft);font-size:12px;font-weight:850;white-space:nowrap;cursor:pointer}
+.categoria-botao.active{background:color-mix(in srgb,var(--brand-primary) 12%,#fff);border-color:color-mix(in srgb,var(--brand-primary) 24%,var(--border));color:var(--brand-primary)}
+.conteudo{display:block;margin-top:18px}
+.conteudo.com-carrinho{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:18px;align-items:start}
 .itens{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:stretch}
-.catalogo-card{position:relative;min-width:0;overflow:hidden;display:flex;flex-direction:column;border:1px solid var(--border);border-radius:20px;background:#fff;box-shadow:0 9px 24px rgba(15,23,42,.07);transition:transform .2s ease,box-shadow .2s ease}
-.catalogo-card:hover{transform:translateY(-4px);box-shadow:0 18px 36px rgba(15,23,42,.13)}
-.item-imagem{position:relative;width:100%;height:220px;min-height:220px;max-height:220px;flex:0 0 220px;display:grid;place-items:center;overflow:hidden;border:0;background:#e8edf4;color:#64748b;text-decoration:none;cursor:pointer}
-.item-imagem img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .35s ease}
-.catalogo-card:hover .item-imagem img{transform:scale(1.045)}
-.item-sem-imagem{font-size:14px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
-.item-tipo-icon{position:absolute;top:14px;left:14px;width:40px;height:40px;display:grid;place-items:center;border-radius:12px;background:var(--brand-accent);color:var(--brand-accent-text);font-size:18px;font-weight:1000;box-shadow:0 8px 20px rgba(0,0,0,.15)}
-.item-info{position:relative;z-index:2;min-height:270px;display:flex;flex-direction:column;gap:9px;padding:17px;background:#fff}
-.item-info small{color:#64748b;font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.05em}
-.item-info h3{margin:0;color:var(--text);font-size:19px;line-height:1.22}
-.item-info p{display:-webkit-box;min-height:60px;margin:0;overflow:hidden;color:#64748b;font-size:13px;line-height:1.5;-webkit-line-clamp:3;-webkit-box-orient:vertical}
-.item-info>strong{margin-top:auto;color:var(--text);font-size:19px}
-.item-meta{margin-top:auto;display:grid;gap:6px}
-.item-meta strong{font-size:19px}
-.duracao{color:#475569;font-size:12px;font-weight:850}
-.item-acoes{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:5px}
-.item-acoes button,.item-acoes a,.finalizar{min-height:42px;display:inline-flex;align-items:center;justify-content:center;padding:0 14px;border:1px solid transparent;border-radius:10px;text-align:center;text-decoration:none;font-size:12px;font-weight:950;cursor:pointer}
-.item-acoes button,.acao-principal,.finalizar{background:var(--brand-accent);color:var(--brand-accent-text)}
-.acao-outline{border-color:var(--border)!important;background:#fff;color:#334155}
-.item-acoes button:disabled{background:#cbd5e1;color:#64748b;cursor:not-allowed}
-.carrinho{position:sticky;top:16px;align-self:start;padding:18px;border:1px solid var(--border);border-radius:20px;background:#fff;box-shadow:0 12px 30px rgba(15,23,42,.09)}
-.carrinho[hidden]{display:none}
-.carrinho-cabecalho{display:flex;align-items:center;gap:10px;padding-bottom:13px;border-bottom:1px solid #edf2f7}
-.carrinho-cabecalho>span{width:40px;height:40px;display:grid;place-items:center;border-radius:12px;background:var(--brand-accent-soft);color:var(--brand-accent);font-weight:1000}
-.carrinho-cabecalho small{color:#64748b;font-size:10px;font-weight:950;text-transform:uppercase;letter-spacing:.09em}
-.carrinho h2{margin:2px 0 0;font-size:20px}
-.carrinho-itens{padding:14px 0;color:#64748b;font-size:13px}
-.item-carrinho{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid #edf2f7;color:#334155}
-.carrinho-total{display:block;padding:12px 0;border-top:1px solid #edf2f7;font-size:17px}
-.form-pedido{display:grid;gap:9px;margin-top:8px}
-.form-pedido input,.form-pedido select,.form-pedido textarea{width:100%;min-height:42px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:#fff;font:inherit}
-.form-pedido textarea{min-height:74px;resize:vertical}
-.finalizar{width:100%;border:0}
-.como-funciona{margin-top:24px;padding:22px;border-radius:22px;background:var(--brand-primary);color:#fff;box-shadow:0 14px 34px rgba(15,23,42,.16)}
-.como-funciona-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0}
-.conf-item{display:flex;align-items:flex-start;gap:12px;padding:4px 22px;border-right:1px solid rgba(255,255,255,.14)}
-.conf-item:first-child{padding-left:0}.conf-item:last-child{padding-right:0;border-right:0}
-.conf-icon{width:42px;height:42px;display:grid;place-items:center;border-radius:13px;background:var(--brand-accent-soft);color:var(--brand-accent);font-size:20px;flex:0 0 auto}
-.conf-item strong{display:block;margin-bottom:4px;font-size:14px}
-.conf-item small{display:block;color:rgba(255,255,255,.7);font-size:11px;line-height:1.45}
-.footer{margin-top:22px;padding:26px 18px 30px;background:#071a2b;color:#fff}
-.footer-inner{width:min(1240px,100%);margin:auto;display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}
-.footer-marca{display:flex;align-items:center;gap:12px}.footer-marca .marca-logo{width:44px;height:44px}
-.footer p{margin:0;color:rgba(255,255,255,.7);font-size:12px}
-.footer a{color:var(--brand-accent);font-weight:900;text-decoration:none}
-.vazio{grid-column:1/-1;padding:44px;border:1px dashed #cbd5e1;border-radius:20px;background:#fff;color:#64748b;text-align:center;font-weight:800}
-body.template-loja-clean .hero-brand-card{background:rgba(255,255,255,.96)}
-body.template-loja-clean .hero-logo-img{filter:none}
-body.template-whatsapp-direto .item-acoes{grid-template-columns:1fr}
-body.template-whatsapp-direto .acao-outline{display:none}
-@media(max-width:1060px){
-    .nav-links{display:none}.hero{grid-template-columns:310px minmax(0,1fr);gap:28px}.hero-beneficios{grid-template-columns:1fr}.itens{grid-template-columns:repeat(2,minmax(0,1fr))}.como-funciona-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.conf-item{border-right:0;padding:0}
+.catalogo-card{min-width:0;display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--border);border-radius:19px;background:#fff;box-shadow:0 8px 24px rgba(15,23,42,.055)}
+.item-imagem{width:100%;height:250px;min-height:250px;display:grid;place-items:center;border:0;background:#f5f6f8;overflow:hidden;cursor:pointer;text-decoration:none}
+.item-imagem img{width:100%;height:100%;object-fit:contain;display:block;background:#fff}
+.item-sem-imagem{color:var(--text-soft);font-weight:850}
+.item-info{flex:1;display:flex;flex-direction:column;gap:9px;padding:15px}
+.item-info small{color:var(--text-soft);font-weight:800}
+.item-info h3{margin:0;font-size:17px;line-height:1.3}
+.item-info p{display:-webkit-box;min-height:42px;margin:0;overflow:hidden;color:var(--text-soft);line-height:1.45;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.item-info>strong,.item-meta strong{font-size:20px;color:var(--brand-primary)}
+.item-meta{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.duracao{font-size:12px;font-weight:850;color:var(--text-soft)}
+.item-acoes{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:auto;padding-top:4px}
+.item-acoes button,.acao-principal,.acao-outline{min-height:40px;display:inline-flex;align-items:center;justify-content:center;border-radius:11px;padding:0 12px;text-decoration:none;font-size:12px;font-weight:950;cursor:pointer}
+.item-acoes button,.acao-principal{border:0;background:var(--brand-primary);color:#fff}
+.item-acoes button:disabled{background:#d1d5db;color:#6b7280;cursor:not-allowed}
+.acao-outline{border:1px solid var(--border);background:#fff;color:var(--brand-primary)}
+.carrinho{position:sticky;top:86px;padding:18px;border:1px solid var(--border);border-radius:20px;background:#fff;box-shadow:var(--shadow)}
+.carrinho-cabecalho{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.carrinho-cabecalho>span{width:38px;height:38px;display:grid;place-items:center;border-radius:12px;background:color-mix(in srgb,var(--brand-primary) 12%,#fff);color:var(--brand-primary)}
+.carrinho-cabecalho small{color:var(--text-soft);font-weight:800}
+.carrinho-cabecalho h2{margin:2px 0 0;font-size:20px}
+.carrinho-itens{color:var(--text-soft);font-size:13px}
+.item-carrinho{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.carrinho-total{display:block;margin-top:12px;font-size:18px}
+.form-pedido{display:grid;gap:9px;margin-top:14px}
+.form-pedido input,.form-pedido select,.form-pedido textarea{width:100%;min-height:42px;border:1px solid var(--border);border-radius:11px;padding:10px 11px;background:#fff}
+.form-pedido textarea{min-height:76px;resize:vertical}
+.finalizar{min-height:44px;border:0;border-radius:12px;background:var(--brand-primary);color:#fff;font-weight:950;cursor:pointer}
+.vazio{grid-column:1/-1;padding:30px;border:1px dashed var(--border);border-radius:18px;background:#fff;text-align:center;color:var(--text-soft)}
+.paginacao{display:flex;align-items:center;justify-content:center;gap:7px;margin:22px 0 0;flex-wrap:wrap}
+.paginacao button{min-width:36px;height:36px;border:1px solid var(--border);border-radius:10px;background:#fff;color:var(--text-soft);font-weight:900;cursor:pointer}
+.paginacao button.active{background:var(--brand-primary);border-color:var(--brand-primary);color:#fff}
+.paginacao button:disabled{opacity:.4;cursor:not-allowed}
+.passos-section{margin-top:32px;padding:24px;border:1px solid var(--border);border-radius:22px;background:#fff;box-shadow:0 8px 28px rgba(15,23,42,.05)}
+.passos-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:18px}
+.passo-card{position:relative;display:flex;gap:11px;align-items:flex-start;padding:16px;border:1px solid var(--border);border-radius:16px;background:var(--category-soft)}
+.passo-card>span{width:30px;height:30px;display:grid;place-items:center;border-radius:50%;background:var(--brand-primary);color:#fff;font-size:12px;font-weight:1000;flex:0 0 auto}
+.passo-card div{display:grid;gap:5px}
+.passo-card strong{font-size:13px}
+.passo-card small{color:var(--text-soft);font-size:11px;line-height:1.45}
+.pagamentos{margin-top:18px;text-align:center}
+.pagamentos p{margin:0 0 10px;color:var(--text-soft);font-size:12px;font-weight:850}
+.pagamentos-lista{display:flex;justify-content:center;gap:7px;flex-wrap:wrap}
+.pagamentos-lista span{padding:7px 10px;border:1px solid var(--border);border-radius:999px;background:#fff;color:var(--text-soft);font-size:11px;font-weight:850}
+.footer{padding:28px 0;background:#fff;border-top:1px solid var(--border)}
+.footer-inner{width:min(1180px,calc(100% - 32px));margin:auto;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.footer-marca{display:flex;align-items:center;gap:10px}
+.footer-marca strong{display:block}
+.footer-marca p{margin:3px 0 0;color:var(--text-soft);font-size:12px}
+.footer-social{display:flex;gap:8px;flex-wrap:wrap}
+.social-link{padding:9px 12px;border-radius:11px;text-decoration:none;font-size:12px;font-weight:900}
+.social-link.instagram{background:#fdf2f8;color:#be185d}
+.social-link.whatsapp{background:#dcfce7;color:#15803d}
+.footer-credit{width:100%;margin:2px 0 0;color:var(--text-soft);font-size:11px;text-align:center}
+.footer-credit a{font-weight:900;color:var(--brand-primary)}
+@media(max-width:980px){
+    .nav-links{display:none}.apresentacao-inner{grid-template-columns:220px minmax(0,1fr);gap:28px}.apresentacao-logo{min-height:220px}.sobre-diferenciais{grid-template-columns:1fr}.conteudo.com-carrinho{grid-template-columns:1fr}.carrinho{position:static}.itens{grid-template-columns:repeat(2,minmax(0,1fr))}.passos-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
-@media(max-width:820px){
-    .navbar-inner{min-height:64px}.marca-texto small{display:none}.nav-whatsapp{margin-left:auto}.hero{grid-template-columns:1fr;padding:28px 0 58px}.hero-brand-card{min-height:230px;padding:22px}.hero-logo-img{max-height:210px}.hero-copy{text-align:center}.hero-descricao{margin-left:auto;margin-right:auto}.hero-beneficios{grid-template-columns:repeat(3,minmax(0,1fr));text-align:left}.hero-acoes{justify-content:center}.hero-media{display:none}.barra{grid-template-columns:1fr;grid-template-areas:"busca" "abas" "categorias"}.tipo-abas{justify-content:flex-start}.conteudo.com-carrinho{grid-template-columns:1fr}.carrinho{position:static}.container{margin-top:-26px}
-}
-@media(max-width:620px){
-    .navbar-inner,.hero,.container{width:min(100% - 24px,1240px)}.marca-logo{width:46px;height:46px}.marca-texto strong{font-size:16px}.nav-whatsapp{width:42px;min-width:42px;padding:0;justify-content:center;font-size:0}.nav-whatsapp span{font-size:18px}.hero h1{font-size:38px}.hero-subtitulo{font-size:21px}.hero-descricao{font-size:14px}.hero-beneficios{grid-template-columns:1fr;gap:4px}.hero-beneficio{justify-content:center}.hero-brand-card{min-height:205px;border-radius:22px}.hero-logo-img{max-height:180px}.barra{padding:14px;border-radius:19px}.tipo-abas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%}.tipo-aba{width:100%;padding:0 12px}.itens{grid-template-columns:1fr}.item-imagem{height:230px;min-height:230px;max-height:230px;flex-basis:230px}.item-info{min-height:0}.como-funciona-grid{grid-template-columns:1fr}.footer-inner{justify-content:center;text-align:center}.footer-marca{justify-content:center}.instagram-footer{width:100%}
+@media(max-width:680px){
+    .navbar-inner,.apresentacao-inner,.sobre-diferenciais,.container,.footer-inner{width:min(100% - 22px,1180px)}.navbar-inner{min-height:62px;gap:9px}.marca-logo{width:43px;height:43px}.marca-texto strong{font-size:15px}.marca-texto small{display:none}.nav-whatsapp{margin-left:auto;width:42px;min-width:42px;padding:0;justify-content:center}.nav-whatsapp span:last-child{display:none}.nav-carrinho{font-size:0;width:42px;min-width:42px;padding:0;justify-content:center}.nav-carrinho span{font-size:16px}.apresentacao{padding-top:26px}.apresentacao-inner{grid-template-columns:1fr;gap:20px}.apresentacao-logo{min-height:190px;padding:18px}.apresentacao-logo-img{max-height:170px}.apresentacao-copy{text-align:center}.apresentacao h1{font-size:38px}.apresentacao-categoria{font-size:19px}.apresentacao-descricao{font-size:14px}.apresentacao-acoes{justify-content:center}.sobre-diferenciais{margin-top:18px}.diferenciais-grid{grid-template-columns:1fr}.diferencial-card+ .diferencial-card{border-left:0;border-top:1px solid var(--border)}.catalogo-cabecalho{align-items:flex-start;flex-direction:column}.barra{grid-template-columns:1fr;grid-template-areas:"busca" "abas" "categorias"}.tipo-abas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.tipo-aba{padding:0 10px}.itens{grid-template-columns:1fr}.item-imagem{height:250px;min-height:250px}.passos-grid{grid-template-columns:1fr}.footer-inner{justify-content:center;text-align:center}.footer-marca{justify-content:center}.footer-social{justify-content:center}.footer-credit{text-align:center}
 }
 </style>
-"""
+'''
     estilo = (
         estilo.replace("__COR_PRINCIPAL__", cor_principal)
         .replace("__COR_SECUNDARIA__", cor_secundaria)
         .replace("__COR_DESTAQUE__", cor_destaque)
+        .replace("__COR_CATEGORIA_SUAVE__", cor_categoria_suave)
     )
 
-    corpo = f"""<!DOCTYPE html>
+    corpo = r'''<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1.0">
-    <meta name="theme-color" content="{cor_principal}">
-    <title>{titulo_seo}</title>
-    <meta name="description" content="{descricao_seo}">
-    {estilo}
+    <meta name="theme-color" content="__COR_PRINCIPAL__">
+    <title>__TITULO_SEO__</title>
+    <meta name="description" content="__DESCRICAO_SEO__">
+    __ESTILO__
 </head>
-<body class="identity-{tipo_identidade_visual}" data-identity-mode="{tipo_identidade_visual}">
-<header class="topo" id="inicio">
-    <nav class="navbar" aria-label="Navegação principal">
-        <div class="navbar-inner">
-            <a class="marca-nav" href="#inicio" aria-label="Início - {nome_loja}">
-                <span class="marca-logo">{logo_nav_html}</span>
-                <span class="marca-texto"><strong>{nome_loja}</strong><small>{categoria}</small></span>
-            </a>
-            <div class="nav-links">
-                <a href="#inicio">Início</a>
-                <a href="#catalogo">Catálogo</a>
-                <a href="#como-funciona">Como funciona</a>
-                <a href="#contato">Contato</a>
-            </div>
-            {whatsapp_topo_html}
-        </div>
-    </nav>
-    <div class="hero-media"{hero_media_style}></div>
-    <section class="hero">
-        <div class="hero-brand-card">{logo_hero_html}</div>
-        <div class="hero-copy">
-            <p class="hero-kicker">Produtos e soluções profissionais</p>
-            <h1>{nome_loja}</h1>
-            <p class="hero-subtitulo">{categoria}</p>
-            <p class="hero-descricao">{texto_institucional}</p>
-            <div class="hero-beneficios">
-                <div class="hero-beneficio"><span>✓</span>Atendimento profissional</div>
-                <div class="hero-beneficio"><span>⚡</span>Resposta ágil</div>
-                <div class="hero-beneficio"><span>★</span>Qualidade garantida</div>
-            </div>
-            <div class="hero-acoes">{whatsapp_hero_html}<span class="hero-contato-texto">Atendimento rápido<br>e direto pelo WhatsApp</span></div>
-        </div>
-    </section>
+<body class="identity-__IDENTIDADE__ categoria-__CATEGORIA_CLASSE__" data-identity-mode="__IDENTIDADE__">
+<header class="site-header" id="inicio">
+    <div class="navbar-inner">
+        <a class="marca-nav" href="#inicio" aria-label="Início - __NOME_LOJA__">
+            <span class="marca-logo">__LOGO_NAV__</span>
+            <span class="marca-texto"><strong>__NOME_LOJA__</strong><small>__CATEGORIA__</small></span>
+        </a>
+        <nav class="nav-links" aria-label="Navegação principal">
+            <a href="#inicio">Início</a>
+            <a href="#catalogo">Catálogo</a>
+            <a href="#sobre">Sobre nós</a>
+        </nav>
+        __WHATSAPP_TOPO__
+        __CARRINHO_NAV__
+    </div>
 </header>
+<section class="apresentacao">
+    <div class="apresentacao-inner">
+        <div class="apresentacao-logo">__LOGO_APRESENTACAO__</div>
+        <div class="apresentacao-copy">
+            <p class="apresentacao-kicker">__KICKER__</p>
+            <h1>__NOME_LOJA__</h1>
+            <p class="apresentacao-categoria">__CATEGORIA__</p>
+            <p class="apresentacao-descricao">__DESCRICAO_EMPRESA__</p>
+            <div class="apresentacao-acoes">
+                <a class="btn-publico btn-catalogo" href="#catalogo">Ver catálogo</a>
+                __WHATSAPP_APRESENTACAO__
+            </div>
+        </div>
+    </div>
+</section>
+<section class="sobre-diferenciais" id="sobre">
+    <article class="sobre-card">
+        <p class="section-kicker">Sobre nós</p>
+        <h2>Conheça __NOME_LOJA__</h2>
+        <p>__DESCRICAO_EMPRESA__</p>
+    </article>
+    <div class="diferenciais-grid">__DIFERENCIAIS__</div>
+</section>
 <main class="container" id="catalogo">
-    {mensagem_html}
-    {whatsapp_final_html}
+    __MENSAGEM__
+    __WHATSAPP_FINAL__
+    <header class="catalogo-cabecalho">
+        <div>
+            <p class="section-kicker">Catálogo</p>
+            <h2 id="tituloCatalogo">__TITULO_CATALOGO__</h2>
+            <p>Busque, filtre e escolha com tranquilidade.</p>
+        </div>
+    </header>
     <section class="barra" aria-label="Filtros do catálogo">
-        <div class="busca-wrap"><input class="busca" id="busca" placeholder="Buscar {'serviço' if tipo_inicial == 'servico' else 'produto'}..." oninput="filtrarItens()"></div>
-        <div class="tipo-abas">{abas_html}</div>
+        <div class="busca-wrap"><input class="busca" id="busca" placeholder="Buscar produto, serviço ou categoria..." oninput="filtrarItens()"></div>
+        <div class="tipo-abas">__ABAS__</div>
         <div class="categorias">
-            <div class="categorias-grupo" id="categoriasProduto" {'hidden' if tipo_inicial != 'produto' else ''}>{categorias_produtos_html}</div>
-            <div class="categorias-grupo" id="categoriasServico" {'hidden' if tipo_inicial != 'servico' else ''}>{categorias_servicos_html}</div>
+            <div class="categorias-grupo" id="categoriasProduto" __OCULTAR_CATEGORIAS_PRODUTO__>__CATEGORIAS_PRODUTOS__</div>
+            <div class="categorias-grupo" id="categoriasServico" __OCULTAR_CATEGORIAS_SERVICO__>__CATEGORIAS_SERVICOS__</div>
         </div>
     </section>
-    <section class="{classe_conteudo}" id="conteudoCatalogo">
-        <div class="itens" id="itens">{cards_html}</div>
-        {carrinho_html}
+    <section class="__CLASSE_CONTEUDO__" id="conteudoCatalogo">
+        <div>
+            <div class="itens" id="itens">__CARDS__</div>
+            <nav class="paginacao" id="paginacaoCatalogo" aria-label="Paginação do catálogo"></nav>
+        </div>
+        __CARRINHO__
     </section>
-    <section class="como-funciona" id="como-funciona">
-        <div class="como-funciona-grid">
-            <div class="conf-item"><span class="conf-icon">✓</span><div><strong>Segurança e confiança</strong><small>Atendimento com responsabilidade e transparência.</small></div></div>
-            <div class="conf-item"><span class="conf-icon">◷</span><div><strong>Atendimento ágil</strong><small>Contato simples para pedir, consultar ou agendar.</small></div></div>
-            <div class="conf-item"><span class="conf-icon">◇</span><div><strong>Compromisso com você</strong><small>Produtos e serviços apresentados de forma clara.</small></div></div>
-            <div class="conf-item"><span class="conf-icon">★</span><div><strong>Qualidade garantida</strong><small>Experiência profissional do primeiro contato à entrega.</small></div></div>
+    <section class="passos-section" id="passos">
+        <p class="section-kicker">Passo a passo</p>
+        <h2 id="tituloPassos">Como comprar</h2>
+        <div class="passos-grid" id="passosProduto" __OCULTAR_PASSOS_PRODUTO__>__PASSOS_PRODUTO__</div>
+        <div class="passos-grid" id="passosServico" __OCULTAR_PASSOS_SERVICO__>__PASSOS_SERVICO__</div>
+        <div class="pagamentos" id="pagamentosVitrine" __OCULTAR_PAGAMENTOS__>
+            <p>Formas de pagamento aceitas</p>
+            <div class="pagamentos-lista">__FORMAS_PAGAMENTO__</div>
         </div>
     </section>
 </main>
-<footer class="footer" id="contato">
+<footer class="footer">
     <div class="footer-inner">
-        <div class="footer-marca"><span class="marca-logo">{logo_nav_html}</span><div><strong>{nome_loja}</strong><p>{categoria}</p></div></div>
-        <p>Vitrine online para produtos, serviços, pedidos e agendamentos.</p>
-        {footer_contato_html}
+        <div class="footer-marca"><span class="marca-logo">__LOGO_NAV__</span><div><strong>__NOME_LOJA__</strong><p>__CATEGORIA__</p></div></div>
+        <div class="footer-social">__INSTAGRAM_SOCIAL____WHATSAPP_SOCIAL__</div>
+        <p class="footer-credit">Desenvolvido pela <a href="https://nettsan.com.br" target="_blank" rel="noopener">Nettsan</a></p>
     </div>
 </footer>
 <script>
 let carrinho=[];
-let tipoAtivo={json.dumps(tipo_inicial)};
+let tipoAtivo=__TIPO_INICIAL_JSON__;
 let categoriaAtiva='';
-function moedaNumero(v){{return parseFloat(String(v).replace(/\\./g,'').replace(',','.'))||0}}
-function moedaBR(v){{return v.toFixed(2).replace('.',',')}}
-function registrarItem(tipo,id){{fetch('/loja/{slug}/evento',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{tipo:tipo,item_id:id||''}})}}).catch(()=>{{}})}}
-function adicionarCarrinho(id,nome,preco){{registrarItem('carrinho',id);const item=carrinho.find(i=>i.id===id);if(item)item.quantidade+=1;else carrinho.push({{id,nome,preco,quantidade:1}});renderCarrinho()}}
-function renderCarrinho(){{const el=document.getElementById('itensCarrinho');if(!el)return;if(!carrinho.length){{el.innerHTML='Nenhum item adicionado.';document.getElementById('totalCarrinho').innerText='Total: R$ 0,00';return}}let total=0;el.innerHTML=carrinho.map(i=>{{const sub=moedaNumero(i.preco)*i.quantidade;total+=sub;return `<div class="item-carrinho"><span>${{i.quantidade}}x ${{i.nome}}</span><strong>R$ ${{moedaBR(sub)}}</strong></div>`}}).join('');document.getElementById('totalCarrinho').innerText='Total: R$ '+moedaBR(total)}}
-function prepararPedido(){{const quantidade=carrinho.reduce((t,i)=>t+i.quantidade,0);if(quantidade<{quantidade_minima}){{alert('A quantidade mínima do pedido é {quantidade_minima}.');return false}}document.getElementById('itensJson').value=JSON.stringify(carrinho);return true}}
-function aplicarFiltros(){{const termo=(document.getElementById('busca').value||'').toLowerCase();document.querySelectorAll('.catalogo-card').forEach(card=>{{const tipoOk=card.dataset.tipo===tipoAtivo;const categoriaOk=!categoriaAtiva||card.dataset.categoria===categoriaAtiva;const buscaOk=card.dataset.nome.includes(termo);card.style.display=(tipoOk&&categoriaOk&&buscaOk)?'flex':'none'}})}}
-function selecionarTipo(tipo,botao){{tipoAtivo=tipo;categoriaAtiva='';document.querySelectorAll('.tipo-aba').forEach(item=>item.classList.toggle('active',item===botao));const grupoProduto=document.getElementById('categoriasProduto');const grupoServico=document.getElementById('categoriasServico');if(grupoProduto)grupoProduto.hidden=tipo!=='produto';if(grupoServico)grupoServico.hidden=tipo!=='servico';document.querySelectorAll('.categoria-botao').forEach(item=>item.classList.toggle('active',item.dataset.tipo===tipo&&!item.dataset.categoria));const carrinhoEl=document.getElementById('carrinhoProdutos');const conteudo=document.getElementById('conteudoCatalogo');if(carrinhoEl)carrinhoEl.hidden=tipo!=='produto';if(conteudo)conteudo.classList.toggle('com-carrinho',tipo==='produto'&&!!carrinhoEl);const busca=document.getElementById('busca');if(busca){{busca.value='';busca.placeholder=tipo==='produto'?'Buscar produto...':'Buscar serviço...'}}aplicarFiltros()}}
-function filtrarCategoria(tipo,categoria,botao){{if(tipo!==tipoAtivo)return;categoriaAtiva=categoria||'';document.querySelectorAll(`.categoria-botao[data-tipo="${{tipo}}"]`).forEach(item=>item.classList.toggle('active',item===botao));aplicarFiltros()}}
-function filtrarItens(){{aplicarFiltros()}}
-function limitar(valor,min,max){{return Math.min(max,Math.max(min,valor))}}
-function rgbParaHsl(r,g,b){{r/=255;g/=255;b/=255;const max=Math.max(r,g,b),min=Math.min(r,g,b);let h=0,s=0;const l=(max+min)/2;if(max!==min){{const d=max-min;s=l>.5?d/(2-max-min):d/(max+min);switch(max){{case r:h=(g-b)/d+(g<b?6:0);break;case g:h=(b-r)/d+2;break;default:h=(r-g)/d+4}}h/=6}}return{{h,s,l}}}}
-function ajustarCor(cor,delta){{return cor.map(v=>limitar(Math.round(v+delta),0,255))}}
-function corCss(cor){{return `rgb(${{cor[0]}},${{cor[1]}},${{cor[2]}})`}}
-function distanciaCor(a,b){{return Math.sqrt((a[0]-b[0])**2+(a[1]-b[1])**2+(a[2]-b[2])**2)}}
-function aplicarCoresDaLogo(){{
-    if(document.body.dataset.identityMode!=='logo')return;
-    const img=document.getElementById('brandColorSource');
-    if(!img||img.tagName!=='IMG')return;
-    const processar=()=>{{
-        try{{
-            const canvas=document.createElement('canvas');canvas.width=120;canvas.height=120;
-            const ctx=canvas.getContext('2d',{{willReadFrequently:true}});if(!ctx)return;
-            ctx.clearRect(0,0,120,120);
-            const escala=Math.min(120/img.naturalWidth,120/img.naturalHeight);
-            const w=img.naturalWidth*escala,h=img.naturalHeight*escala;
-            ctx.drawImage(img,(120-w)/2,(120-h)/2,w,h);
-            const dados=ctx.getImageData(0,0,120,120).data;
-            const mapa=new Map();
-            for(let i=0;i<dados.length;i+=16){{
-                const a=dados[i+3];if(a<170)continue;
-                const r=dados[i],g=dados[i+1],b=dados[i+2];
-                const max=Math.max(r,g,b),min=Math.min(r,g,b);
-                if(min>244||max<10)continue;
-                const qr=Math.round(r/24)*24,qg=Math.round(g/24)*24,qb=Math.round(b/24)*24;
-                const chave=`${{qr}},${{qg}},${{qb}}`;mapa.set(chave,(mapa.get(chave)||0)+1);
-            }}
-            const cores=[...mapa.entries()].map(([chave,count])=>{{const rgb=chave.split(',').map(Number);const hsl=rgbParaHsl(...rgb);return{{rgb,count,...hsl}}}}).sort((a,b)=>b.count-a.count).slice(0,24);
-            if(!cores.length)return;
-            const escuras=cores.filter(c=>c.l<.48);
-            const principal=(escuras.length?escuras:cores).sort((a,b)=>(b.count*(1-b.l))-(a.count*(1-a.l)))[0].rgb;
-            const vivas=cores.filter(c=>c.s>.35&&c.l>.22&&c.l<.82&&distanciaCor(c.rgb,principal)>80);
-            const destaque=(vivas.length?vivas:cores.filter(c=>distanciaCor(c.rgb,principal)>70)).sort((a,b)=>(b.count*(.5+b.s))-(a.count*(.5+a.s)))[0]?.rgb||[245,158,11];
-            const raiz=document.documentElement;
-            raiz.style.setProperty('--brand-primary',corCss(principal));
-            raiz.style.setProperty('--brand-primary-2',corCss(ajustarCor(principal,32)));
-            raiz.style.setProperty('--brand-accent',corCss(destaque));
-            raiz.style.setProperty('--brand-accent-soft',`rgba(${{destaque[0]}},${{destaque[1]}},${{destaque[2]}},.17)`);
-            const brilho=(destaque[0]*299+destaque[1]*587+destaque[2]*114)/1000;
-            raiz.style.setProperty('--brand-accent-text',brilho>155?'#071a2b':'#ffffff');
-        }}catch(e){{}}
-    }};
-    if(img.complete&&img.naturalWidth)processar();else img.addEventListener('load',processar,{{once:true}});
-}}
-document.addEventListener('DOMContentLoaded',()=>{{const botao=document.querySelector(`.tipo-aba[data-tipo="${{tipoAtivo}}"]`);if(botao)selecionarTipo(tipoAtivo,botao);else aplicarFiltros();aplicarCoresDaLogo()}});
+let paginaAtual=1;
+const itensPorPagina=9;
+function moedaNumero(v){return parseFloat(String(v).replace(/\./g,'').replace(',','.'))||0}
+function moedaBR(v){return v.toFixed(2).replace('.',',')}
+function registrarItem(tipo,id){fetch('/loja/__SLUG__/evento',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tipo:tipo,item_id:id||''})}).catch(()=>{})}
+function adicionarCarrinho(id,nome,preco){registrarItem('carrinho',id);const item=carrinho.find(i=>i.id===id);if(item)item.quantidade+=1;else carrinho.push({id,nome,preco,quantidade:1});renderCarrinho()}
+function renderCarrinho(){const el=document.getElementById('itensCarrinho');if(!el)return;if(!carrinho.length){el.innerHTML='Nenhum item adicionado.';document.getElementById('totalCarrinho').innerText='Total: R$ 0,00';return}let total=0;el.innerHTML=carrinho.map(i=>{const sub=moedaNumero(i.preco)*i.quantidade;total+=sub;return `<div class="item-carrinho"><span>${i.quantidade}x ${i.nome}</span><strong>R$ ${moedaBR(sub)}</strong></div>`}).join('');document.getElementById('totalCarrinho').innerText='Total: R$ '+moedaBR(total)}
+function prepararPedido(){const quantidade=carrinho.reduce((t,i)=>t+i.quantidade,0);if(quantidade<__QUANTIDADE_MINIMA__){alert('A quantidade mínima do pedido é __QUANTIDADE_MINIMA__.');return false}document.getElementById('itensJson').value=JSON.stringify(carrinho);return true}
+function obterCardsFiltrados(){const termo=(document.getElementById('busca').value||'').trim().toLowerCase();return [...document.querySelectorAll('.catalogo-card')].filter(card=>{const tipoOk=card.dataset.tipo===tipoAtivo;const categoriaOk=!categoriaAtiva||card.dataset.categoria===categoriaAtiva;const buscaOk=!termo||card.dataset.nome.includes(termo)||card.dataset.categoria.toLowerCase().includes(termo);return tipoOk&&categoriaOk&&buscaOk})}
+function renderizarPaginacao(total){const paginas=Math.max(1,Math.ceil(total/itensPorPagina));paginaAtual=Math.min(paginaAtual,paginas);const nav=document.getElementById('paginacaoCatalogo');if(!nav)return;if(total<=itensPorPagina){nav.innerHTML='';return}let html=`<button type="button" ${paginaAtual===1?'disabled':''} onclick="mudarPagina(${paginaAtual-1})" aria-label="Página anterior">‹</button>`;for(let pagina=1;pagina<=paginas;pagina++){if(paginas>8&&pagina>2&&pagina<paginas-1&&Math.abs(pagina-paginaAtual)>1){if(!html.endsWith('<span>…</span>'))html+='<span>…</span>';continue}html+=`<button type="button" class="${pagina===paginaAtual?'active':''}" onclick="mudarPagina(${pagina})">${pagina}</button>`}html+=`<button type="button" ${paginaAtual===paginas?'disabled':''} onclick="mudarPagina(${paginaAtual+1})" aria-label="Próxima página">›</button>`;nav.innerHTML=html}
+function aplicarFiltros(resetPagina=false){if(resetPagina)paginaAtual=1;const filtrados=obterCardsFiltrados();document.querySelectorAll('.catalogo-card').forEach(card=>card.hidden=true);const inicio=(paginaAtual-1)*itensPorPagina;filtrados.slice(inicio,inicio+itensPorPagina).forEach(card=>card.hidden=false);renderizarPaginacao(filtrados.length)}
+function mudarPagina(pagina){paginaAtual=Math.max(1,pagina);aplicarFiltros(false);document.getElementById('catalogo').scrollIntoView({behavior:'smooth',block:'start'})}
+function atualizarSecoesTipo(){const produto=tipoAtivo==='produto';const passosProduto=document.getElementById('passosProduto');const passosServico=document.getElementById('passosServico');const pagamentos=document.getElementById('pagamentosVitrine');const titulo=document.getElementById('tituloPassos');if(passosProduto)passosProduto.hidden=!produto;if(passosServico)passosServico.hidden=produto;if(pagamentos)pagamentos.hidden=!produto;if(titulo)titulo.textContent=produto?'Como comprar':'Como agendar'}
+function selecionarTipo(tipo,botao){tipoAtivo=tipo;categoriaAtiva='';document.querySelectorAll('.tipo-aba').forEach(item=>item.classList.toggle('active',item===botao));const grupoProduto=document.getElementById('categoriasProduto');const grupoServico=document.getElementById('categoriasServico');if(grupoProduto)grupoProduto.hidden=tipo!=='produto';if(grupoServico)grupoServico.hidden=tipo!=='servico';document.querySelectorAll('.categoria-botao').forEach(item=>item.classList.toggle('active',item.dataset.tipo===tipo&&!item.dataset.categoria));const carrinhoEl=document.getElementById('carrinhoProdutos');const conteudo=document.getElementById('conteudoCatalogo');if(carrinhoEl)carrinhoEl.hidden=tipo!=='produto';if(conteudo)conteudo.classList.toggle('com-carrinho',tipo==='produto'&&!!carrinhoEl);const busca=document.getElementById('busca');if(busca)busca.value='';atualizarSecoesTipo();aplicarFiltros(true)}
+function filtrarCategoria(tipo,categoria,botao){if(tipo!==tipoAtivo)return;categoriaAtiva=categoria||'';document.querySelectorAll(`.categoria-botao[data-tipo="${tipo}"]`).forEach(item=>item.classList.toggle('active',item===botao));aplicarFiltros(true)}
+function filtrarItens(){aplicarFiltros(true)}
+function limitar(valor,min,max){return Math.min(max,Math.max(min,valor))}
+function rgbParaHsl(r,g,b){r/=255;g/=255;b/=255;const max=Math.max(r,g,b),min=Math.min(r,g,b);let h=0,s=0;const l=(max+min)/2;if(max!==min){const d=max-min;s=l>.5?d/(2-max-min):d/(max+min);switch(max){case r:h=(g-b)/d+(g<b?6:0);break;case g:h=(b-r)/d+2;break;default:h=(r-g)/d+4}h/=6}return{h,s,l}}
+function ajustarCor(cor,delta){return cor.map(v=>limitar(Math.round(v+delta),0,255))}
+function corCss(cor){return `rgb(${cor[0]},${cor[1]},${cor[2]})`}
+function distanciaCor(a,b){return Math.sqrt((a[0]-b[0])**2+(a[1]-b[1])**2+(a[2]-b[2])**2)}
+function aplicarCoresDaLogo(){if(document.body.dataset.identityMode!=='logo')return;const img=document.getElementById('brandColorSource');if(!img||img.tagName!=='IMG')return;const processar=()=>{try{const canvas=document.createElement('canvas');canvas.width=120;canvas.height=120;const ctx=canvas.getContext('2d',{willReadFrequently:true});if(!ctx)return;ctx.clearRect(0,0,120,120);const escala=Math.min(120/img.naturalWidth,120/img.naturalHeight);const w=img.naturalWidth*escala,h=img.naturalHeight*escala;ctx.drawImage(img,(120-w)/2,(120-h)/2,w,h);const dados=ctx.getImageData(0,0,120,120).data;const mapa=new Map();for(let i=0;i<dados.length;i+=16){const a=dados[i+3];if(a<170)continue;const r=dados[i],g=dados[i+1],b=dados[i+2];const max=Math.max(r,g,b),min=Math.min(r,g,b);if(min>244||max<10)continue;const qr=Math.round(r/24)*24,qg=Math.round(g/24)*24,qb=Math.round(b/24)*24;const chave=`${qr},${qg},${qb}`;mapa.set(chave,(mapa.get(chave)||0)+1)}const cores=[...mapa.entries()].map(([chave,count])=>{const rgb=chave.split(',').map(Number);const hsl=rgbParaHsl(...rgb);return{rgb,count,...hsl}}).sort((a,b)=>b.count-a.count).slice(0,24);if(!cores.length)return;const escuras=cores.filter(c=>c.l<.48);const principal=(escuras.length?escuras:cores).sort((a,b)=>(b.count*(1-b.l))-(a.count*(1-a.l)))[0].rgb;const vivas=cores.filter(c=>c.s>.35&&c.l>.22&&c.l<.82&&distanciaCor(c.rgb,principal)>80);const destaque=(vivas.length?vivas:cores.filter(c=>distanciaCor(c.rgb,principal)>70)).sort((a,b)=>(b.count*(.5+b.s))-(a.count*(.5+a.s)))[0]?.rgb||[245,158,11];const raiz=document.documentElement;raiz.style.setProperty('--brand-primary',corCss(principal));raiz.style.setProperty('--brand-primary-2',corCss(ajustarCor(principal,32)));raiz.style.setProperty('--brand-accent',corCss(destaque));raiz.style.setProperty('--brand-accent-soft',`rgba(${destaque[0]},${destaque[1]},${destaque[2]},.16)`);const brilho=(destaque[0]*299+destaque[1]*587+destaque[2]*114)/1000;raiz.style.setProperty('--brand-accent-text',brilho>155?'#071a2b':'#ffffff')}catch(e){}};if(img.complete&&img.naturalWidth)processar();else img.addEventListener('load',processar,{once:true})}
+document.addEventListener('DOMContentLoaded',()=>{const botao=document.querySelector(`.tipo-aba[data-tipo="${tipoAtivo}"]`);if(botao)selecionarTipo(tipoAtivo,botao);else{atualizarSecoesTipo();aplicarFiltros(true)}aplicarCoresDaLogo()});
 </script>
 </body>
-</html>"""
-    return corpo
+</html>'''
 
+    substituicoes = {
+        "__COR_PRINCIPAL__": cor_principal,
+        "__TITULO_SEO__": titulo_seo,
+        "__DESCRICAO_SEO__": descricao_seo,
+        "__ESTILO__": estilo,
+        "__IDENTIDADE__": tipo_identidade_visual,
+        "__CATEGORIA_CLASSE__": categoria_classe,
+        "__NOME_LOJA__": nome_loja,
+        "__LOGO_NAV__": logo_nav_html,
+        "__CATEGORIA__": categoria,
+        "__WHATSAPP_TOPO__": whatsapp_topo_html,
+        "__CARRINHO_NAV__": carrinho_nav_html,
+        "__LOGO_APRESENTACAO__": logo_apresentacao_html,
+        "__KICKER__": categoria_kicker,
+        "__DESCRICAO_EMPRESA__": texto_institucional,
+        "__WHATSAPP_APRESENTACAO__": whatsapp_apresentacao_html,
+        "__DIFERENCIAIS__": diferenciais_html,
+        "__MENSAGEM__": mensagem_html,
+        "__WHATSAPP_FINAL__": whatsapp_final_html,
+        "__TITULO_CATALOGO__": titulo_catalogo,
+        "__ABAS__": abas_html,
+        "__OCULTAR_CATEGORIAS_PRODUTO__": "hidden" if tipo_inicial != "produto" else "",
+        "__CATEGORIAS_PRODUTOS__": categorias_produtos_html,
+        "__OCULTAR_CATEGORIAS_SERVICO__": "hidden" if tipo_inicial != "servico" else "",
+        "__CATEGORIAS_SERVICOS__": categorias_servicos_html,
+        "__CLASSE_CONTEUDO__": classe_conteudo,
+        "__CARDS__": cards_html,
+        "__CARRINHO__": carrinho_html,
+        "__OCULTAR_PASSOS_PRODUTO__": "hidden" if tipo_inicial != "produto" else "",
+        "__PASSOS_PRODUTO__": passos_produto_html,
+        "__OCULTAR_PASSOS_SERVICO__": "hidden" if tipo_inicial != "servico" else "",
+        "__PASSOS_SERVICO__": passos_servico_html,
+        "__OCULTAR_PAGAMENTOS__": "hidden" if tipo_inicial != "produto" else "",
+        "__FORMAS_PAGAMENTO__": formas_pagamento_html,
+        "__INSTAGRAM_SOCIAL__": instagram_html,
+        "__WHATSAPP_SOCIAL__": whatsapp_social_html,
+        "__TIPO_INICIAL_JSON__": json.dumps(tipo_inicial),
+        "__SLUG__": slug,
+        "__QUANTIDADE_MINIMA__": str(quantidade_minima),
+    }
+    for marcador, valor in substituicoes.items():
+        corpo = corpo.replace(marcador, valor)
+    return corpo
 
 @app.route("/vitrine-upload/<path:caminho>")
 def servir_upload_vitrine_publico(caminho: str) -> Response:
