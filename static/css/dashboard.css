@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\static\css\dashboard.css
-Último recode: 2026-07-28 04:45 (America/Bahia)
-Motivo: Adicionar central de notificações responsiva com prioridades, histórico e ações de leitura.
+Último recode: 2026-07-29 10:45 (America/Bahia)
+Motivo: Adicionar seleção exclusiva de identidade visual por logo ou cores na Vitrine.
 */
 
 :root {
@@ -7036,5 +7036,208 @@ body.focus-mode-body .main-content.focus-mode-main {
     .notifications-pagination-links,
     .notifications-pagination a {
         width: 100%;
+    }
+}
+
+/* ==========================================================================
+   VITRINE - IDENTIDADE VISUAL EXCLUSIVA POR LOGO OU CORES
+   ========================================================================== */
+.vitrine-identity-config {
+    display: grid;
+    gap: 14px;
+    padding: 16px;
+    border: 1px solid #dbe3ef;
+    border-radius: 18px;
+    background: #f8fafc;
+}
+
+.vitrine-identity-heading span,
+.vitrine-identity-heading strong,
+.vitrine-identity-heading small {
+    display: block;
+}
+
+.vitrine-identity-heading span {
+    margin-bottom: 4px;
+    color: #2563eb;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+}
+
+.vitrine-identity-heading strong {
+    color: #0f172a;
+    font-size: 16px;
+}
+
+.vitrine-identity-heading small {
+    margin-top: 5px;
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.vitrine-identity-options {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.vitrine-identity-option {
+    position: relative;
+    display: grid !important;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 12px !important;
+    min-height: 112px;
+    padding: 16px;
+    border: 2px solid #e2e8f0;
+    border-radius: 16px;
+    background: #ffffff;
+    cursor: pointer;
+    transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+
+.vitrine-identity-option:hover {
+    border-color: #94a3b8;
+    transform: translateY(-1px);
+}
+
+.vitrine-identity-option.is-active {
+    border-color: #16a34a;
+    box-shadow: 0 0 0 3px rgba(22, 163, 74, .12);
+}
+
+.vitrine-identity-option input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.vitrine-identity-option > span:last-child {
+    min-width: 0;
+}
+
+.vitrine-identity-option strong,
+.vitrine-identity-option small {
+    display: block;
+}
+
+.vitrine-identity-option strong {
+    margin-bottom: 5px;
+    color: #0f172a;
+    font-size: 14px;
+}
+
+.vitrine-identity-option small {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.45;
+}
+
+.vitrine-identity-icon {
+    width: 44px;
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 14px;
+    background: #e2e8f0;
+    color: #334155;
+    font-size: 20px;
+    font-weight: 900;
+}
+
+.vitrine-identity-option.is-active .vitrine-identity-icon {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.vitrine-identity-panel {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(240px, .9fr);
+    gap: 14px;
+    align-items: center;
+    padding: 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    background: #ffffff;
+}
+
+.vitrine-identity-panel[hidden] {
+    display: none !important;
+}
+
+.vitrine-colors-panel {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.vitrine-logo-current {
+    min-height: 76px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 14px;
+    background: #f8fafc;
+}
+
+.vitrine-logo-current img,
+.vitrine-logo-placeholder {
+    flex: 0 0 58px;
+    width: 58px;
+    height: 58px;
+    border-radius: 14px;
+}
+
+.vitrine-logo-current img {
+    object-fit: cover;
+}
+
+.vitrine-logo-placeholder {
+    display: grid;
+    place-items: center;
+    background: #e2e8f0;
+    color: #334155;
+    font-weight: 900;
+}
+
+.vitrine-logo-current strong,
+.vitrine-logo-current small {
+    display: block;
+}
+
+.vitrine-logo-current strong {
+    color: #0f172a;
+    font-size: 13px;
+}
+
+.vitrine-logo-current small {
+    margin-top: 4px;
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+.preview-store.identity-cores .preview-hero {
+    padding-left: 26px;
+}
+
+.preview-store.identity-cores .preview-logo {
+    display: none !important;
+}
+
+@media (max-width: 820px) {
+    .vitrine-identity-options,
+    .vitrine-identity-panel,
+    .vitrine-colors-panel {
+        grid-template-columns: 1fr;
+    }
+
+    .vitrine-identity-option {
+        min-height: 96px;
     }
 }

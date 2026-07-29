@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vitrine.html
-Último recode: 2026-07-26 15:40 (America/Bahia)
-Motivo: Diferenciar serviços com agendamento direto e serviços que exigem avaliação prévia.
+Último recode: 2026-07-29 10:45 (America/Bahia)
+Motivo: Permitir escolha exclusiva entre logo ou cores na identidade visual da Vitrine.
 #}
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -24,6 +24,9 @@ Motivo: Diferenciar serviços com agendamento direto e serviços que exigem aval
     {% set cor_secundaria = vitrine.get('cor_secundaria') or '#f59e0b' %}
     {% set status_vitrine = vitrine.get('status') or 'rascunho' %}
     {% set template_atual = vitrine.get('template') or 'catalogo-premium' %}
+    {% set tipo_identidade_visual = vitrine.get('tipo_identidade_visual') or ('logo' if vitrine.get('logo_path') else 'cores') %}
+    {% set cor_preview_principal = '#0f172a' if tipo_identidade_visual == 'logo' else cor_principal %}
+    {% set cor_preview_secundaria = '#334155' if tipo_identidade_visual == 'logo' else cor_secundaria %}
 
     <main class="main-content focus-mode-main">
         <header class="focus-mode-header">
@@ -94,11 +97,64 @@ Motivo: Diferenciar serviços com agendamento direto e serviços que exigem aval
                         </label>
                     </div>
 
+                    <section class="vitrine-identity-config" data-vitrine-identity>
+                        <div class="vitrine-identity-heading">
+                            <div>
+                                <span>Identidade visual da vitrine</span>
+                                <strong>Escolha logo ou cores personalizadas</strong>
+                                <small>As duas opções são exclusivas. A vitrine aplicará somente o modo selecionado.</small>
+                            </div>
+                        </div>
+
+                        <div class="vitrine-identity-options" role="radiogroup" aria-label="Identidade visual da vitrine">
+                            <label class="vitrine-identity-option {% if tipo_identidade_visual == 'logo' %}is-active{% endif %}" data-identity-option="logo">
+                                <input type="radio" name="tipo_identidade_visual" value="logo" {% if tipo_identidade_visual == 'logo' %}checked{% endif %}>
+                                <span class="vitrine-identity-icon" aria-hidden="true">▣</span>
+                                <span>
+                                    <strong>Usar logo da loja</strong>
+                                    <small>A imagem será o destaque e o sistema usará uma base visual neutra.</small>
+                                </span>
+                            </label>
+
+                            <label class="vitrine-identity-option {% if tipo_identidade_visual == 'cores' %}is-active{% endif %}" data-identity-option="cores">
+                                <input type="radio" name="tipo_identidade_visual" value="cores" {% if tipo_identidade_visual == 'cores' %}checked{% endif %}>
+                                <span class="vitrine-identity-icon" aria-hidden="true">◐</span>
+                                <span>
+                                    <strong>Usar cores personalizadas</strong>
+                                    <small>O nome da loja será o destaque, sem exibir a logo na vitrine pública.</small>
+                                </span>
+                            </label>
+                        </div>
+
+                        <div class="vitrine-identity-panel" data-identity-panel="logo" {% if tipo_identidade_visual != 'logo' %}hidden{% endif %}>
+                            <label>
+                                Logo da loja
+                                <input type="file" name="logo_loja" accept="image/*" data-vitrine-logo-input>
+                            </label>
+                            <div class="vitrine-logo-current" data-vitrine-logo-current>
+                                {% if vitrine.get('logo_path') %}
+                                    <img src="{{ url_for('servir_upload_vitrine_publico', caminho=vitrine.get('logo_path')) }}" alt="Logo atual da loja" data-vitrine-logo-image>
+                                    <span><strong>Logo atual salva</strong><small>Envie outro arquivo somente para substituí-la.</small></span>
+                                {% else %}
+                                    <span class="vitrine-logo-placeholder" data-vitrine-logo-placeholder>GF</span>
+                                    <span><strong>Nenhuma logo enviada</strong><small>Escolha uma imagem antes de salvar neste modo.</small></span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="vitrine-identity-panel vitrine-colors-panel" data-identity-panel="cores" {% if tipo_identidade_visual != 'cores' %}hidden{% endif %}>
+                            <label>
+                                Cor principal
+                                <input type="color" name="cor_principal" value="{{ cor_principal }}" data-vitrine-primary-color>
+                            </label>
+                            <label>
+                                Cor secundária
+                                <input type="color" name="cor_secundaria" value="{{ cor_secundaria }}" data-vitrine-secondary-color>
+                            </label>
+                        </div>
+                    </section>
+
                     <div class="form-grid-2">
-                        <label>
-                            Logo ou foto da loja
-                            <input type="file" name="logo_loja" accept="image/*">
-                        </label>
                         <label>
                             Categoria principal
                             <select name="categoria">
@@ -109,17 +165,6 @@ Motivo: Diferenciar serviços com agendamento direto e serviços que exigem aval
                                 <option value="servicos" {% if vitrine.get('categoria') == 'servicos' %}selected{% endif %}>Serviços</option>
                                 <option value="pecas" {% if vitrine.get('categoria') == 'pecas' %}selected{% endif %}>Peças e oficina</option>
                             </select>
-                        </label>
-                    </div>
-
-                    <div class="form-grid-3">
-                        <label>
-                            Cor principal
-                            <input type="color" name="cor_principal" value="{{ cor_principal }}">
-                        </label>
-                        <label>
-                            Cor secundária
-                            <input type="color" name="cor_secundaria" value="{{ cor_secundaria }}">
                         </label>
                         <label>
                             Modelo visual
@@ -423,17 +468,17 @@ Motivo: Diferenciar serviços com agendamento direto e serviços que exigem aval
                 {% endif %}
             </div>
 
-            <div class="preview-store" style="--vitrine-primary: {{ cor_principal }}; --vitrine-secondary: {{ cor_secundaria }};">
+            <div class="preview-store identity-{{ tipo_identidade_visual }}" style="--vitrine-primary: {{ cor_preview_principal }}; --vitrine-secondary: {{ cor_preview_secundaria }};" data-vitrine-preview>
                 <div class="preview-hero">
-                    <div class="preview-logo">
+                    <div class="preview-logo" data-vitrine-preview-logo {% if tipo_identidade_visual != 'logo' %}hidden{% endif %}>
                         {% if vitrine.get('logo_path') %}
-                            <img src="{{ url_for('servir_upload_vitrine_publico', caminho=vitrine.get('logo_path')) }}" alt="Logo da loja">
+                            <img src="{{ url_for('servir_upload_vitrine_publico', caminho=vitrine.get('logo_path')) }}" alt="Logo da loja" data-vitrine-preview-logo-image>
                         {% else %}
-                            {{ (vitrine.get('nome_loja') or 'GF')[:2]|upper }}
+                            <span data-vitrine-preview-logo-placeholder>{{ (vitrine.get('nome_loja') or 'GF')[:2]|upper }}</span>
                         {% endif %}
                     </div>
                     <div>
-                        <h3>{{ vitrine.get('nome_loja') or 'Sua loja online' }}</h3>
+                        <h3 data-vitrine-preview-name>{{ vitrine.get('nome_loja') or 'Sua loja online' }}</h3>
                         <p>Produtos para venda e serviços com agendamento online.</p>
                     </div>
                 </div>
@@ -483,6 +528,100 @@ Motivo: Diferenciar serviços com agendamento direto e serviços que exigem aval
                 formulario.action = "{{ url_for('vitrine_servico_status') }}";
                 formulario.submit();
             }
+
+            function configurarIdentidadeVisualVitrine() {
+                const formulario = document.querySelector(".vitrine-form");
+                const opcoes = Array.from(document.querySelectorAll('[data-identity-option]'));
+                const paineis = Array.from(document.querySelectorAll('[data-identity-panel]'));
+                const preview = document.querySelector('[data-vitrine-preview]');
+                const previewLogo = document.querySelector('[data-vitrine-preview-logo]');
+                const previewLogoImage = document.querySelector('[data-vitrine-preview-logo-image]');
+                const previewLogoPlaceholder = document.querySelector('[data-vitrine-preview-logo-placeholder]');
+                const logoInput = document.querySelector('[data-vitrine-logo-input]');
+                const logoAtual = document.querySelector('[data-vitrine-logo-current]');
+                const corPrincipal = document.querySelector('[data-vitrine-primary-color]');
+                const corSecundaria = document.querySelector('[data-vitrine-secondary-color]');
+                const nomeLoja = formulario ? formulario.querySelector('input[name="nome_loja"]') : null;
+                const previewNome = document.querySelector('[data-vitrine-preview-name]');
+                const possuiLogoSalva = {{ 'true' if vitrine.get('logo_path') else 'false' }};
+                let possuiLogoSelecionada = false;
+
+                if (!formulario || !opcoes.length) return;
+
+                function modoAtual() {
+                    const selecionado = formulario.querySelector('input[name="tipo_identidade_visual"]:checked');
+                    return selecionado ? selecionado.value : "cores";
+                }
+
+                function atualizarPreview() {
+                    const modo = modoAtual();
+                    const usarLogo = modo === "logo";
+                    opcoes.forEach(function (opcao) {
+                        opcao.classList.toggle("is-active", opcao.dataset.identityOption === modo);
+                    });
+                    paineis.forEach(function (painel) {
+                        painel.hidden = painel.dataset.identityPanel !== modo;
+                    });
+
+                    if (preview) {
+                        preview.classList.toggle("identity-logo", usarLogo);
+                        preview.classList.toggle("identity-cores", !usarLogo);
+                        preview.style.setProperty("--vitrine-primary", usarLogo ? "#0f172a" : (corPrincipal ? corPrincipal.value : "#111827"));
+                        preview.style.setProperty("--vitrine-secondary", usarLogo ? "#334155" : (corSecundaria ? corSecundaria.value : "#f59e0b"));
+                    }
+                    if (previewLogo) previewLogo.hidden = !usarLogo;
+                }
+
+                opcoes.forEach(function (opcao) {
+                    const radio = opcao.querySelector('input[type="radio"]');
+                    if (radio) radio.addEventListener("change", atualizarPreview);
+                });
+
+                [corPrincipal, corSecundaria].forEach(function (campo) {
+                    if (campo) campo.addEventListener("input", atualizarPreview);
+                });
+
+                if (nomeLoja) {
+                    nomeLoja.addEventListener("input", function () {
+                        const nome = nomeLoja.value.trim() || "Sua loja online";
+                        if (previewNome) previewNome.textContent = nome;
+                        if (previewLogoPlaceholder) previewLogoPlaceholder.textContent = nome.slice(0, 2).toUpperCase();
+                    });
+                }
+
+                if (logoInput) {
+                    logoInput.addEventListener("change", function () {
+                        const arquivo = logoInput.files && logoInput.files[0];
+                        possuiLogoSelecionada = Boolean(arquivo);
+                        if (!arquivo) return;
+                        const leitor = new FileReader();
+                        leitor.addEventListener("load", function () {
+                            const origem = String(leitor.result || "");
+                            if (previewLogoImage) {
+                                previewLogoImage.src = origem;
+                            } else if (previewLogo) {
+                                previewLogo.innerHTML = '<img src="' + origem + '" alt="Prévia da nova logo" data-vitrine-preview-logo-image>';
+                            }
+                            if (logoAtual) {
+                                logoAtual.innerHTML = '<img src="' + origem + '" alt="Nova logo selecionada"><span><strong>Nova logo selecionada</strong><small>Ela será enviada ao salvar a vitrine.</small></span>';
+                            }
+                        });
+                        leitor.readAsDataURL(arquivo);
+                    });
+                }
+
+                formulario.addEventListener("submit", function (event) {
+                    if (modoAtual() === "logo" && !possuiLogoSalva && !possuiLogoSelecionada) {
+                        event.preventDefault();
+                        alert("Envie uma logo antes de salvar a vitrine neste modo.");
+                        if (logoInput) logoInput.focus();
+                    }
+                });
+
+                atualizarPreview();
+            }
+
+            configurarIdentidadeVisualVitrine();
 
             document.addEventListener("keydown", function (event) {
                 if (event.key === "Escape") {

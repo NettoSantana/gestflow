@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-28 04:45 (America/Bahia)
-# Motivo: Implementar central interna de notificações com alertas automáticos, histórico e leitura por usuário.
+# Último recode: 2026-07-29 10:45 (America/Bahia)
+# Motivo: Permitir identidade visual exclusiva da Vitrine por logo ou por cores personalizadas.
 
 from __future__ import annotations
 
@@ -4509,6 +4509,7 @@ def iniciar_banco() -> None:
                 slug TEXT,
                 logo_path TEXT,
                 categoria TEXT,
+                tipo_identidade_visual TEXT NOT NULL DEFAULT 'cores',
                 cor_principal TEXT,
                 cor_secundaria TEXT,
                 template TEXT,
@@ -5284,12 +5285,37 @@ def iniciar_banco() -> None:
             str(row["name"])
             for row in conn.execute("PRAGMA table_info(vitrine_configuracoes)").fetchall()
         }
+        coluna_identidade_visual_criada = "tipo_identidade_visual" not in colunas_vitrine_configuracoes
         for coluna, tipo_coluna in {
             "servicos_vistos": "INTEGER NOT NULL DEFAULT 0",
             "agendamentos_gerados": "INTEGER NOT NULL DEFAULT 0",
+            "tipo_identidade_visual": "TEXT NOT NULL DEFAULT 'cores'",
         }.items():
             if coluna not in colunas_vitrine_configuracoes:
                 conn.execute(f"ALTER TABLE vitrine_configuracoes ADD COLUMN {coluna} {tipo_coluna}")
+
+        if coluna_identidade_visual_criada:
+            conn.execute(
+                """
+                UPDATE vitrine_configuracoes
+                SET tipo_identidade_visual = CASE
+                    WHEN TRIM(COALESCE(logo_path, '')) <> '' THEN 'logo'
+                    ELSE 'cores'
+                END
+                """
+            )
+        else:
+            conn.execute(
+                """
+                UPDATE vitrine_configuracoes
+                SET tipo_identidade_visual = CASE
+                    WHEN LOWER(TRIM(COALESCE(tipo_identidade_visual, ''))) IN ('logo', 'cores')
+                        THEN LOWER(TRIM(tipo_identidade_visual))
+                    WHEN TRIM(COALESCE(logo_path, '')) <> '' THEN 'logo'
+                    ELSE 'cores'
+                END
+                """
+            )
 
         colunas_vitrine_eventos = {
             str(row["name"])
@@ -24289,7 +24315,16 @@ def montar_vitrine_formulario(config_atual: dict[str, Any] | None = None) -> dic
     if not slug:
         slug = f"loja-{empresa_logada_id()}"
 
+    tipo_identidade_visual = (request.form.get("tipo_identidade_visual") or "cores").strip().lower()
+    if tipo_identidade_visual not in {"logo", "cores"}:
+        tipo_identidade_visual = "cores"
+
     logo_path = salvar_logo_vitrine_upload() or str(config_atual.get("logo_path") or "")
+    if tipo_identidade_visual == "logo" and not logo_path:
+        raise ValueError("Envie uma logo antes de usar a identidade visual por logo.")
+
+    cor_principal_atual = str(config_atual.get("cor_principal") or "#111827").strip() or "#111827"
+    cor_secundaria_atual = str(config_atual.get("cor_secundaria") or "#f59e0b").strip() or "#f59e0b"
 
     return {
         "nome_loja": nome_loja,
@@ -24298,8 +24333,9 @@ def montar_vitrine_formulario(config_atual: dict[str, Any] | None = None) -> dic
         "slug": slug,
         "logo_path": logo_path,
         "categoria": (request.form.get("categoria") or "").strip(),
-        "cor_principal": (request.form.get("cor_principal") or "#111827").strip() or "#111827",
-        "cor_secundaria": (request.form.get("cor_secundaria") or "#f59e0b").strip() or "#f59e0b",
+        "tipo_identidade_visual": tipo_identidade_visual,
+        "cor_principal": (request.form.get("cor_principal") or cor_principal_atual).strip() or cor_principal_atual,
+        "cor_secundaria": (request.form.get("cor_secundaria") or cor_secundaria_atual).strip() or cor_secundaria_atual,
         "template": (request.form.get("template") or "catalogo-premium").strip() or "catalogo-premium",
         "status": (request.form.get("status") or "rascunho").strip() or "rascunho",
     }
@@ -24320,6 +24356,7 @@ def buscar_vitrine_configuracao() -> dict[str, Any]:
                 slug,
                 logo_path,
                 categoria,
+                tipo_identidade_visual,
                 cor_principal,
                 cor_secundaria,
                 template,
@@ -24349,6 +24386,7 @@ def buscar_vitrine_configuracao() -> dict[str, Any]:
             "slug": "",
             "logo_path": "",
             "categoria": "",
+            "tipo_identidade_visual": "cores",
             "cor_principal": "#111827",
             "cor_secundaria": "#f59e0b",
             "template": "catalogo-premium",
@@ -24392,12 +24430,13 @@ def salvar_vitrine_configuracao_db(dados: dict[str, str]) -> None:
                     slug,
                     logo_path,
                     categoria,
+                    tipo_identidade_visual,
                     cor_principal,
                     cor_secundaria,
                     template,
                     status,
                     atualizado_em
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     empresa_id,
@@ -24407,6 +24446,7 @@ def salvar_vitrine_configuracao_db(dados: dict[str, str]) -> None:
                     dados["slug"],
                     dados["logo_path"],
                     dados["categoria"],
+                    dados["tipo_identidade_visual"],
                     dados["cor_principal"],
                     dados["cor_secundaria"],
                     dados["template"],
@@ -24425,6 +24465,7 @@ def salvar_vitrine_configuracao_db(dados: dict[str, str]) -> None:
                     slug = ?,
                     logo_path = ?,
                     categoria = ?,
+                    tipo_identidade_visual = ?,
                     cor_principal = ?,
                     cor_secundaria = ?,
                     template = ?,
@@ -24439,6 +24480,7 @@ def salvar_vitrine_configuracao_db(dados: dict[str, str]) -> None:
                     dados["slug"],
                     dados["logo_path"],
                     dados["categoria"],
+                    dados["tipo_identidade_visual"],
                     dados["cor_principal"],
                     dados["cor_secundaria"],
                     dados["template"],
@@ -25208,8 +25250,17 @@ def renderizar_vitrine_publica_html(
     servicos = servicos or []
     empresa_id_vitrine = int(config_vitrine.get("empresa_id") or 0)
     regras_vitrine = buscar_configuracoes_modulo("vitrine", empresa_id_vitrine)
-    cor_principal = html.escape(str(config_vitrine.get("cor_principal") or regras_vitrine.get("cor_primaria") or "#111827"))
-    cor_secundaria = html.escape(str(config_vitrine.get("cor_secundaria") or regras_vitrine.get("cor_secundaria") or "#f59e0b"))
+    tipo_identidade_visual = str(config_vitrine.get("tipo_identidade_visual") or "cores").strip().lower()
+    if tipo_identidade_visual not in {"logo", "cores"}:
+        tipo_identidade_visual = "logo" if str(config_vitrine.get("logo_path") or "").strip() else "cores"
+
+    if tipo_identidade_visual == "logo":
+        cor_principal = "#0f172a"
+        cor_secundaria = "#334155"
+    else:
+        cor_principal = html.escape(str(config_vitrine.get("cor_principal") or regras_vitrine.get("cor_primaria") or "#111827"))
+        cor_secundaria = html.escape(str(config_vitrine.get("cor_secundaria") or regras_vitrine.get("cor_secundaria") or "#f59e0b"))
+
     nome_loja = html.escape(str(config_vitrine.get("nome_loja") or regras_vitrine.get("nome_publico") or "Vitrine Online"))
     titulo_seo = html.escape(str(regras_vitrine.get("seo_titulo") or nome_loja))
     descricao_seo = html.escape(str(regras_vitrine.get("seo_descricao") or f"Produtos e serviços de {nome_loja}"))
@@ -25217,7 +25268,13 @@ def renderizar_vitrine_publica_html(
     categoria_configuracao = str(config_vitrine.get("categoria") or "").strip().lower()
     categoria = html.escape(str(config_vitrine.get("categoria") or "Produtos e serviços"))
     logo_path = str(config_vitrine.get("logo_path") or "").strip()
-    logo_html = f'<img src="/vitrine-upload/{html.escape(logo_path)}" alt="{nome_loja}">' if logo_path else nome_loja[:2].upper()
+    if tipo_identidade_visual == "logo":
+        logo_conteudo = f'<img src="/vitrine-upload/{html.escape(logo_path)}" alt="{nome_loja}">' if logo_path else nome_loja[:2].upper()
+        logo_html = f'<div class="logo">{logo_conteudo}</div>'
+        classe_topo_inner = "topo-inner com-logo"
+    else:
+        logo_html = ""
+        classe_topo_inner = "topo-inner sem-logo"
     exibir_preco = configuracao_bool("vitrine", "exibir_preco", True, empresa_id_vitrine)
     exibir_produtos = configuracao_bool("vitrine", "exibir_produtos", True, empresa_id_vitrine)
     exibir_servicos = configuracao_bool("vitrine", "exibir_servicos", True, empresa_id_vitrine)
@@ -25324,7 +25381,7 @@ def renderizar_vitrine_publica_html(
 
     return f"""<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>{titulo_seo}</title><meta name="description" content="{descricao_seo}"><style>
 *{{box-sizing:border-box}}body{{margin:0;font-family:Arial,sans-serif;background:#f3f4f6;color:#111827}}.topo{{background:linear-gradient(135deg,{cor_principal},{cor_secundaria});color:#fff;padding:28px 18px 34px}}.topo-inner{{max-width:1120px;margin:auto;display:flex;align-items:center;gap:16px}}.logo{{width:76px;height:76px;border-radius:22px;background:#fff;color:{cor_principal};display:grid;place-items:center;font-weight:900;font-size:22px;overflow:hidden;flex:0 0 auto}}.logo img,.item-imagem img{{width:100%;height:100%;object-fit:cover;display:block}}.topo h1{{margin:0;font-size:30px}}.topo p{{margin:6px 0 0;opacity:.9}}.container{{max-width:1120px;margin:-22px auto 40px;padding:0 18px}}.barra{{background:#fff;border-radius:22px;padding:16px;box-shadow:0 12px 30px rgba(0,0,0,.08);display:grid;gap:12px}}.tipo-abas{{display:flex;gap:10px;flex-wrap:wrap}}.tipo-aba{{min-height:44px;border:1px solid #dbe3ef;border-radius:14px;padding:0 20px;background:#fff;color:#334155;font-weight:900;cursor:pointer}}.tipo-aba.active{{background:{cor_principal};border-color:{cor_principal};color:#fff}}.busca{{width:100%;min-height:46px;border:1px solid #e5e7eb;border-radius:14px;padding:0 14px;font-size:16px}}.categorias{{display:flex;gap:8px;overflow:auto}}.categorias-grupo{{display:flex;gap:8px}}.categorias-grupo[hidden]{{display:none}}.categoria-botao{{border:0;border-radius:999px;padding:10px 14px;background:#eef2ff;font-weight:800;white-space:nowrap;cursor:pointer}}.categoria-botao.active{{background:#dbeafe;color:#1d4ed8}}.conteudo{{display:block;margin-top:18px}}.conteudo.com-carrinho{{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px}}.itens{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:start}}.catalogo-card{{background:#fff;border-radius:22px;overflow:hidden;border:1px solid #e5e7eb;display:flex;flex-direction:column;min-width:0;box-shadow:0 8px 24px rgba(15,23,42,.05)}}.item-imagem{{width:100%;height:210px;min-height:210px;max-height:210px;flex:0 0 210px;border:0;background:#e5e7eb;display:grid;place-items:center;color:#6b7280;font-weight:900;cursor:pointer;text-decoration:none;overflow:hidden}}.item-info{{position:relative;z-index:2;background:#fff;padding:16px;display:grid;gap:9px;min-height:250px}}.item-info small{{color:#6b7280;font-weight:800}}.item-info h3{{margin:0;font-size:18px;line-height:1.25}}.item-info p{{margin:0;color:#6b7280;min-height:42px;line-height:1.45}}.item-info strong{{font-size:20px;color:#0f172a}}.duracao{{font-size:13px;font-weight:800;color:#475569}}.item-info button,.item-info a.agendar,.finalizar,.whatsapp-final{{border:0;border-radius:14px;padding:12px;background:{cor_principal};color:#fff;font-weight:900;cursor:pointer;text-align:center;text-decoration:none;margin-top:auto}}.item-info a.contato{{border-radius:14px;padding:12px;background:#16a34a;color:#fff;font-weight:900;text-align:center;text-decoration:none;margin-top:auto}}.carrinho{{background:#fff;border-radius:22px;border:1px solid #e5e7eb;padding:16px;position:sticky;top:16px;align-self:start}}.carrinho[hidden]{{display:none}}.carrinho h2{{margin:0 0 12px}}.item-carrinho{{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid #e5e7eb;padding:10px 0}}.form-pedido{{display:grid;gap:10px;margin-top:14px}}.form-pedido input,.form-pedido select,.form-pedido textarea{{width:100%;min-height:42px;border:1px solid #d1d5db;border-radius:12px;padding:10px}}.mensagem{{background:#ecfdf5;color:#047857;border-radius:16px;padding:12px;margin-bottom:14px;font-weight:800}}.whatsapp-final{{display:block;margin-bottom:14px;background:#16a34a}}.vazio{{background:#fff;border-radius:22px;padding:30px;text-align:center;color:#6b7280}}@media(max-width:900px){{.conteudo.com-carrinho{{grid-template-columns:1fr}}.itens{{grid-template-columns:repeat(2,minmax(0,1fr))}}.topo-inner{{align-items:flex-start}}.carrinho{{position:static}}}}@media(max-width:620px){{.itens{{grid-template-columns:1fr}}.item-imagem{{height:220px;min-height:220px;max-height:220px;flex-basis:220px}}.item-info{{min-height:0}}}}
-</style></head><body><header class="topo"><div class="topo-inner"><div class="logo">{logo_html}</div><div><h1>{nome_loja}</h1><p>{categoria} {('• ' + instagram) if instagram else ''}</p></div></div></header><main class="container">{mensagem_html}{whatsapp_html}<section class="barra"><div class="tipo-abas">{abas_html}</div><input class="busca" id="busca" placeholder="Buscar {'serviço' if tipo_inicial == 'servico' else 'produto'}..." oninput="filtrarItens()"><div class="categorias"><div class="categorias-grupo" id="categoriasProduto" {'hidden' if tipo_inicial != 'produto' else ''}>{categorias_produtos_html}</div><div class="categorias-grupo" id="categoriasServico" {'hidden' if tipo_inicial != 'servico' else ''}>{categorias_servicos_html}</div></div></section><section class="{classe_conteudo}" id="conteudoCatalogo"><div class="itens" id="itens">{cards_html}</div>{carrinho_html}</section></main><script>
+</style></head><body><header class="topo"><div class="{classe_topo_inner}">{logo_html}<div><h1>{nome_loja}</h1><p>{categoria} {('• ' + instagram) if instagram else ''}</p></div></div></header><main class="container">{mensagem_html}{whatsapp_html}<section class="barra"><div class="tipo-abas">{abas_html}</div><input class="busca" id="busca" placeholder="Buscar {'serviço' if tipo_inicial == 'servico' else 'produto'}..." oninput="filtrarItens()"><div class="categorias"><div class="categorias-grupo" id="categoriasProduto" {'hidden' if tipo_inicial != 'produto' else ''}>{categorias_produtos_html}</div><div class="categorias-grupo" id="categoriasServico" {'hidden' if tipo_inicial != 'servico' else ''}>{categorias_servicos_html}</div></div></section><section class="{classe_conteudo}" id="conteudoCatalogo"><div class="itens" id="itens">{cards_html}</div>{carrinho_html}</section></main><script>
 let carrinho=[];let tipoAtivo={json.dumps(tipo_inicial)};let categoriaAtiva='';
 function moedaNumero(v){{return parseFloat(String(v).replace(/\\./g,'').replace(',','.'))||0}}
 function moedaBR(v){{return v.toFixed(2).replace('.',',')}}
@@ -25509,7 +25566,10 @@ def vitrine_servico_status() -> Response:
 def vitrine() -> str | Response:
     config_vitrine = buscar_vitrine_configuracao()
     if request.method == "POST":
-        dados = montar_vitrine_formulario(config_vitrine)
+        try:
+            dados = montar_vitrine_formulario(config_vitrine)
+        except ValueError as exc:
+            return redirect(url_for("vitrine", erro=str(exc)))
         salvar_vitrine_configuracao_db(dados)
         return redirect(url_for("vitrine", mensagem="Configuração da vitrine salva com sucesso."))
     empresa_id = empresa_logada_id()
