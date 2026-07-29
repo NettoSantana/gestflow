@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_detalhe.html
-Último recode: 2026-07-29 13:15 (America/Bahia)
-Motivo: Simplificar o menu de ações, remover submenus aninhados e exibir todas as opções diretamente ao abrir o botão.
+Último recode: 2026-07-29 13:27 (America/Bahia)
+Motivo: Corrigir definitivamente o menu de ações, remover details/target blank e garantir que A4 e Cupom abram rotas distintas no mesmo navegador.
 -->
 
 <!DOCTYPE html>
@@ -13,15 +13,15 @@ Motivo: Simplificar o menu de ações, remover submenus aninhados e exibir todas
     <link rel="stylesheet" href="/static/css/dashboard.css">
 
     <style>
-        .budget-action-menu {
+        .gf-action-menu {
             position: relative;
             display: inline-block;
         }
 
-        .budget-action-trigger {
-            list-style: none;
+        .gf-action-trigger {
             width: 34px;
             height: 34px;
+            border: 0;
             border-radius: 8px;
             background: #16a34a;
             color: #ffffff;
@@ -30,23 +30,22 @@ Motivo: Simplificar o menu de ações, remover submenus aninhados e exibir todas
             justify-content: center;
             cursor: pointer;
             font-weight: 800;
-            border: none;
             box-shadow: 0 8px 18px rgba(22, 163, 74, 0.20);
             user-select: none;
         }
 
-        .budget-action-trigger::-webkit-details-marker {
-            display: none;
+        .gf-action-trigger:hover,
+        .gf-action-trigger:focus-visible,
+        .gf-action-trigger[aria-expanded="true"] {
+            background: #15803d;
+            outline: none;
         }
 
-        .budget-action-trigger::marker {
-            content: "";
-        }
-
-        .budget-action-panel {
+        .gf-action-panel {
             position: fixed;
             z-index: 9999;
-            min-width: 190px;
+            min-width: 220px;
+            max-width: calc(100vw - 16px);
             background: #ffffff;
             border: 1px solid #d8dee8;
             border-radius: 10px;
@@ -55,15 +54,16 @@ Motivo: Simplificar o menu de ações, remover submenus aninhados e exibir todas
             display: none;
         }
 
-        .budget-action-dropdown[open] .budget-action-panel {
+        .gf-action-panel.is-open {
             display: block;
         }
 
-        .budget-action-panel a {
+        .gf-action-panel a {
             display: flex;
             align-items: center;
             gap: 9px;
-            min-height: 38px;
+            width: 100%;
+            min-height: 40px;
             padding: 9px 10px;
             color: #1f2937;
             text-decoration: none;
@@ -74,18 +74,18 @@ Motivo: Simplificar o menu de ações, remover submenus aninhados e exibir todas
             white-space: nowrap;
         }
 
-        .budget-action-panel a:hover,
-        .budget-action-panel a:focus-visible {
+        .gf-action-panel a:hover,
+        .gf-action-panel a:focus-visible {
             background: #f1f5f9;
             color: #0f172a;
             outline: none;
         }
 
-        .budget-action-panel a + a {
+        .gf-action-panel a + a {
             margin-top: 2px;
         }
 
-        .budget-action-row {
+        .gf-action-row {
             display: inline-flex;
             align-items: center;
             gap: 8px;
@@ -380,50 +380,23 @@ Motivo: Simplificar o menu de ações, remover submenus aninhados e exibir todas
         <section class="panel table-panel">
             <div class="panel-header page-header">
                 <div><h3>Apresentação ao cliente</h3><p class="page-subtitle">Esta é a composição que será exibida no PDF e no cupom.</p></div>
-                <div class="budget-action-row">
+                <div class="gf-action-row">
                     <a href="/orcamentos/{{ orcamento.id }}/editar#aba-apresentacao" class="btn-primary-green">Editar apresentação</a>
-                    <div class="budget-action-menu">
-                        <details class="budget-action-dropdown">
-                            <summary class="budget-action-trigger" title="Mais ações do orçamento" aria-label="Mais ações do orçamento">⌄</summary>
-                            <div class="budget-action-panel">
-                                <a href="/orcamentos/{{ orcamento.id }}/imprimir/a4" target="_blank">🖨 Imprimir A4</a>
-                                <a href="/orcamentos/{{ orcamento.id }}/imprimir/cupom" target="_blank">🧾 Imprimir Cupom</a>
-                                <a href="/orcamentos/{{ orcamento.id }}/gerar/copia">↻ Gerar cópia</a>
-                                {% if venda_gerada %}
-                                    <a href="/vendas/{{ venda_gerada.id }}">✓ Abrir venda Nº {{ venda_gerada.numero or venda_gerada.id }}</a>
-                                {% else %}
-                                    <a href="/orcamentos/{{ orcamento.id }}/gerar/venda">🛒 Gerar venda</a>
-                                {% endif %}
-                                <a href="/orcamentos/{{ orcamento.id }}?gerar=os">🛠 Gerar OS</a>
-                            </div>
-                        </details>
+                    <div class="gf-action-menu" data-gf-action-menu data-gf-action-open="false">
+                        <button type="button" class="gf-action-trigger" data-gf-action-trigger aria-expanded="false" title="Mais ações do orçamento" aria-label="Mais ações do orçamento">⌄</button>
+                        <div class="gf-action-panel" data-gf-action-panel>
+                            <a href="/orcamentos/{{ orcamento.id }}/imprimir/a4">🖨 Imprimir A4</a>
+                            <a href="/orcamentos/{{ orcamento.id }}/imprimir/cupom">🧾 Imprimir Cupom</a>
+                            <a href="/orcamentos/{{ orcamento.id }}/gerar/copia">↻ Gerar cópia</a>
+                            {% if venda_gerada %}
+                                <a href="/vendas/{{ venda_gerada.id }}">✓ Abrir venda gerada</a>
+                            {% else %}
+                                <a href="/orcamentos/{{ orcamento.id }}?gerar=venda">🛒 Gerar venda</a>
+                            {% endif %}
+                            <a href="/orcamentos/{{ orcamento.id }}?gerar=os">🛠 Gerar OS</a>
+                        </div>
                     </div>
                 </div>
-            </div>
-            {% if modo == 'detalhado' %}
-                <div class="internal-warning">O modo detalhado exibe todos os produtos e serviços ao cliente.</div>
-                <div class="table-shell"><table class="client-table"><thead><tr><th>Tipo</th><th>Nome</th><th>Descrição</th><th>Qtd.</th><th>Valor unit.</th><th>Subtotal</th></tr></thead><tbody>{% for item in itens %}<tr><td>{{ item.tipo_item }}</td><td>{{ item.descricao }}</td><td>{{ item.detalhes }}</td><td>{{ item.quantidade }}</td><td>{{ item.valor_unitario }}</td><td>{{ item.subtotal }}</td></tr>{% else %}<tr><td colspan="6" class="empty-table">Nenhum item informado.</td></tr>{% endfor %}</tbody></table></div>
-            {% else %}
-                <div class="table-shell"><table class="client-table"><thead><tr><th>Descrição comercial</th><th>Detalhes</th><th>Qtd.</th><th>Valor</th><th>Subtotal</th></tr></thead><tbody>{% for item in itens_apresentacao %}<tr><td><strong>{{ item.descricao }}</strong></td><td>{{ item.detalhes }}</td><td>{{ item.quantidade }}</td><td>{{ item.valor_unitario }}</td><td>{{ item.subtotal }}</td></tr>{% else %}<tr><td colspan="5" class="empty-table">A apresentação será gerada automaticamente ao imprimir.</td></tr>{% endfor %}</tbody></table></div>
-            {% endif %}
-        </section>
-
-        <section class="panel table-panel">
-            <div class="panel-header page-header"><div><h3>Composição interna</h3><p class="page-subtitle">Produtos e serviços usados nos cálculos. Estes itens não aparecem ao cliente nos modos agrupado e global.</p></div>{% if dados_gerador %}<a href="/orcamentos/{{ orcamento.id }}/gerador/revisao" class="btn-dark">Editar dados do Gerador</a>{% endif %}</div>
-            <div class="internal-warning">Uso interno: custos, quantidades e composição técnica devem ser mantidos aqui para cálculo, estoque, OS e análise de margem.</div>
-            <div class="table-shell"><table class="client-table"><thead><tr><th>Tipo</th><th>Nome</th><th>Descrição</th><th>Qtd.</th><th>Valor unit.</th><th>Desconto</th><th>Subtotal</th></tr></thead><tbody>{% for item in itens %}<tr><td>{{ item.tipo_item }}</td><td>{{ item.descricao }}</td><td>{{ item.detalhes }}</td><td>{{ item.quantidade }}</td><td>{{ item.valor_unitario }}</td><td>{{ item.desconto }}</td><td>{{ item.subtotal }}</td></tr>{% else %}<tr><td colspan="7" class="empty-table">Nenhum item interno informado.</td></tr>{% endfor %}</tbody></table></div>
-        </section>
-
-        <section class="panel page-section">
-            <div class="panel-header page-header"><div><h3>Resumo financeiro</h3><p class="page-subtitle">Totais e informações complementares do orçamento.</p></div></div><div class="gf-financial-kpis"><div><span>Valor previsto</span><strong>R$ {{ resumo_atividade.previsto_formatado }}</strong></div><div><span>Recebido</span><strong>R$ {{ resumo_atividade.recebido_formatado }}</strong></div><div><span>A receber</span><strong>R$ {{ resumo_atividade.a_receber_formatado }}</strong></div><div><span>Custos</span><strong>R$ {{ resumo_atividade.custos_formatado }}</strong></div><div><span>Resultado atual</span><strong>R$ {{ resumo_atividade.resultado_formatado }}</strong></div><div><span>Margem atual</span><strong>{{ resumo_atividade.margem_formatada }}%</strong></div></div>{% if atividade %}<p><a class="btn-light" href="/financeiro/atividades/{{ atividade.id }}">Ver movimentações da atividade</a></p>{% endif %}
-            <div class="panel-summary">
-                <div><span>Total produtos interno</span><strong>{{ orcamento.total_produtos or '0,00' }}</strong></div>
-                <div><span>Total serviços interno</span><strong>{{ orcamento.total_servicos or '0,00' }}</strong></div>
-                <div><span>Desconto</span><strong>{{ orcamento.desconto_valor or '0,00' }}</strong></div>
-                <div><span>Valor total</span><strong>R$ {{ orcamento.valor_total or '0,00' }}</strong></div>
-                <div><span>Descrição comercial</span><strong>{{ orcamento.descricao_comercial or '-' }}</strong></div>
-                <div><span>Descrição editada</span><strong>{{ orcamento.descricao_comercial or orcamento.observacoes or (itens[0].detalhes if itens else '-') }}</strong></div>
-                <div><span>Cadastro</span><strong>{{ orcamento.criado_em or '-' }}</strong></div>
             </div>
         </section>
 
@@ -478,77 +451,158 @@ Motivo: Simplificar o menu de ações, remover submenus aninhados e exibir todas
         {% endif %}
 
         <script>
-            function posicionarMenuOrcamento(menu) {
-                const trigger = menu.querySelector(".budget-action-trigger");
-                const panel = menu.querySelector(".budget-action-panel");
+            (function configurarMenuAcoesDiretas() {
+                let sequenciaMenu = 0;
 
-                if (!trigger || !panel) {
-                    return;
+                function obterIdMenu(menu) {
+                    if (!menu.dataset.gfActionMenuId) {
+                        sequenciaMenu += 1;
+                        menu.dataset.gfActionMenuId = "gf-action-menu-" + sequenciaMenu;
+                    }
+                    return menu.dataset.gfActionMenuId;
                 }
 
-                const rect = trigger.getBoundingClientRect();
-                const largura = Math.max(panel.offsetWidth || 230, 230);
-                const margem = 8;
-                let left = rect.right - largura;
-
-                if (left < margem) {
-                    left = margem;
+                function obterPainel(menu) {
+                    const id = obterIdMenu(menu);
+                    return menu.querySelector("[data-gf-action-panel]")
+                        || document.querySelector('[data-gf-action-owner="' + id + '"]');
                 }
 
-                if (left + largura > window.innerWidth - margem) {
-                    left = window.innerWidth - largura - margem;
+                function fecharMenu(menu) {
+                    const trigger = menu.querySelector("[data-gf-action-trigger]");
+                    const painel = obterPainel(menu);
+
+                    menu.dataset.gfActionOpen = "false";
+                    if (trigger) {
+                        trigger.setAttribute("aria-expanded", "false");
+                    }
+
+                    if (!painel) {
+                        return;
+                    }
+
+                    painel.classList.remove("is-open");
+                    painel.style.top = "";
+                    painel.style.left = "";
+                    painel.removeAttribute("data-gf-action-owner");
+
+                    if (painel.parentElement === document.body) {
+                        menu.appendChild(painel);
+                    }
                 }
 
-                const altura = panel.offsetHeight || 260;
-                let top = rect.bottom + margem;
-
-                if (top + altura > window.innerHeight - margem) {
-                    top = rect.top - altura - margem;
-                }
-
-                if (top < margem) {
-                    top = margem;
-                }
-
-                panel.style.top = top + "px";
-                panel.style.left = left + "px";
-            }
-
-            document.addEventListener("toggle", function(event) {
-                const menu = event.target;
-
-                if (!menu.classList || !menu.classList.contains("budget-action-dropdown")) {
-                    return;
-                }
-
-                if (menu.open) {
-                    document.querySelectorAll(".budget-action-dropdown[open]").forEach(function(outroMenu) {
-                        if (outroMenu !== menu) {
-                            outroMenu.removeAttribute("open");
+                function fecharTodos(exceto) {
+                    document.querySelectorAll("[data-gf-action-menu]").forEach(function(menu) {
+                        if (menu !== exceto && menu.dataset.gfActionOpen === "true") {
+                            fecharMenu(menu);
                         }
                     });
-
-                    posicionarMenuOrcamento(menu);
-                }
-            }, true);
-
-            document.addEventListener("click", function(event) {
-                if (event.target.closest(".budget-action-menu")) {
-                    return;
                 }
 
-                document.querySelectorAll(".budget-action-dropdown[open]").forEach(function(menu) {
-                    menu.removeAttribute("open");
+                function posicionarMenu(menu) {
+                    const trigger = menu.querySelector("[data-gf-action-trigger]");
+                    const painel = obterPainel(menu);
+
+                    if (!trigger || !painel || menu.dataset.gfActionOpen !== "true") {
+                        return;
+                    }
+
+                    const rect = trigger.getBoundingClientRect();
+                    const margem = 8;
+                    const largura = Math.max(painel.offsetWidth || 220, 220);
+                    const altura = painel.offsetHeight || 260;
+                    let left = rect.right - largura;
+                    let top = rect.bottom + margem;
+
+                    left = Math.max(margem, Math.min(left, window.innerWidth - largura - margem));
+
+                    if (top + altura > window.innerHeight - margem) {
+                        top = rect.top - altura - margem;
+                    }
+
+                    top = Math.max(margem, top);
+                    painel.style.left = left + "px";
+                    painel.style.top = top + "px";
+                }
+
+                function abrirMenu(menu) {
+                    const trigger = menu.querySelector("[data-gf-action-trigger]");
+                    const painel = obterPainel(menu);
+
+                    if (!trigger || !painel) {
+                        return;
+                    }
+
+                    fecharTodos(menu);
+                    const id = obterIdMenu(menu);
+                    painel.dataset.gfActionOwner = id;
+
+                    if (painel.parentElement !== document.body) {
+                        document.body.appendChild(painel);
+                    }
+
+                    menu.dataset.gfActionOpen = "true";
+                    trigger.setAttribute("aria-expanded", "true");
+                    painel.classList.add("is-open");
+                    posicionarMenu(menu);
+                }
+
+                function menuDoPainel(painel) {
+                    const id = painel && painel.dataset ? painel.dataset.gfActionOwner : "";
+                    return id ? document.querySelector('[data-gf-action-menu-id="' + id + '"]') : null;
+                }
+
+                document.addEventListener("click", function(evento) {
+                    const link = evento.target.closest("[data-gf-action-panel] a[href]");
+                    if (link) {
+                        evento.preventDefault();
+                        evento.stopImmediatePropagation();
+                        const destino = link.getAttribute("href");
+                        if (destino) {
+                            window.location.assign(destino);
+                        }
+                        return;
+                    }
+
+                    const trigger = evento.target.closest("[data-gf-action-trigger]");
+                    if (trigger) {
+                        evento.preventDefault();
+                        evento.stopImmediatePropagation();
+                        const menu = trigger.closest("[data-gf-action-menu]");
+                        if (!menu) {
+                            return;
+                        }
+
+                        if (menu.dataset.gfActionOpen === "true") {
+                            fecharMenu(menu);
+                        } else {
+                            abrirMenu(menu);
+                        }
+                        return;
+                    }
+
+                    const painel = evento.target.closest("[data-gf-action-panel]");
+                    if (painel) {
+                        return;
+                    }
+
+                    fecharTodos(null);
+                }, true);
+
+                window.addEventListener("scroll", function() {
+                    document.querySelectorAll('[data-gf-action-menu][data-gf-action-open="true"]').forEach(posicionarMenu);
+                }, true);
+
+                window.addEventListener("resize", function() {
+                    document.querySelectorAll('[data-gf-action-menu][data-gf-action-open="true"]').forEach(posicionarMenu);
                 });
-            });
 
-            window.addEventListener("scroll", function() {
-                document.querySelectorAll(".budget-action-dropdown[open]").forEach(posicionarMenuOrcamento);
-            }, true);
-
-            window.addEventListener("resize", function() {
-                document.querySelectorAll(".budget-action-dropdown[open]").forEach(posicionarMenuOrcamento);
-            });
+                window.addEventListener("keydown", function(evento) {
+                    if (evento.key === "Escape") {
+                        fecharTodos(null);
+                    }
+                });
+            })();
         </script>
 
 

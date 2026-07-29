@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\venda_detalhe.html
-Último recode: 2026-07-29 13:15 (America/Bahia)
-Motivo: Simplificar o menu de ações, remover submenus aninhados e exibir todas as opções diretamente ao abrir o botão.
+Último recode: 2026-07-29 13:27 (America/Bahia)
+Motivo: Corrigir definitivamente o menu de ações, remover details/target blank e garantir que A4 e Cupom abram rotas distintas no mesmo navegador.
 -->
 
 <!DOCTYPE html>
@@ -13,15 +13,15 @@ Motivo: Simplificar o menu de ações, remover submenus aninhados e exibir todas
     <link rel="stylesheet" href="/static/css/dashboard.css">
 
     <style>
-        .sale-action-menu {
+        .gf-action-menu {
             position: relative;
             display: inline-block;
         }
 
-        .sale-action-trigger {
-            list-style: none;
+        .gf-action-trigger {
             width: 34px;
             height: 34px;
+            border: 0;
             border-radius: 8px;
             background: #16a34a;
             color: #ffffff;
@@ -30,23 +30,22 @@ Motivo: Simplificar o menu de ações, remover submenus aninhados e exibir todas
             justify-content: center;
             cursor: pointer;
             font-weight: 800;
-            border: none;
             box-shadow: 0 8px 18px rgba(22, 163, 74, 0.20);
             user-select: none;
         }
 
-        .sale-action-trigger::-webkit-details-marker {
-            display: none;
+        .gf-action-trigger:hover,
+        .gf-action-trigger:focus-visible,
+        .gf-action-trigger[aria-expanded="true"] {
+            background: #15803d;
+            outline: none;
         }
 
-        .sale-action-trigger::marker {
-            content: "";
-        }
-
-        .sale-action-panel {
+        .gf-action-panel {
             position: fixed;
             z-index: 9999;
-            min-width: 190px;
+            min-width: 220px;
+            max-width: calc(100vw - 16px);
             background: #ffffff;
             border: 1px solid #d8dee8;
             border-radius: 10px;
@@ -55,16 +54,16 @@ Motivo: Simplificar o menu de ações, remover submenus aninhados e exibir todas
             display: none;
         }
 
-        .sale-action-dropdown[open] .sale-action-panel {
+        .gf-action-panel.is-open {
             display: block;
         }
 
-        .sale-action-panel a,
-        .sale-action-panel span {
+        .gf-action-panel a {
             display: flex;
             align-items: center;
             gap: 9px;
-            min-height: 38px;
+            width: 100%;
+            min-height: 40px;
             padding: 9px 10px;
             color: #1f2937;
             text-decoration: none;
@@ -75,21 +74,18 @@ Motivo: Simplificar o menu de ações, remover submenus aninhados e exibir todas
             white-space: nowrap;
         }
 
-        .sale-action-panel a:hover,
-        .sale-action-panel a:focus-visible,
-        .sale-action-panel span:hover {
+        .gf-action-panel a:hover,
+        .gf-action-panel a:focus-visible {
             background: #f1f5f9;
             color: #0f172a;
             outline: none;
         }
 
-        .sale-action-panel a + a,
-        .sale-action-panel span + a,
-        .sale-action-panel a + span {
+        .gf-action-panel a + a {
             margin-top: 2px;
         }
 
-        .sale-action-row {
+        .gf-action-row {
             display: inline-flex;
             align-items: center;
             gap: 8px;
@@ -381,19 +377,16 @@ Motivo: Simplificar o menu de ações, remover submenus aninhados e exibir todas
                     <p class="page-subtitle">Produtos e serviços incluídos nesta venda.</p>
                 </div>
 
-                <div class="sale-action-row">
+                <div class="gf-action-row">
                     <a href="/vendas/{{ venda.id }}/editar" class="btn-primary-green" style="text-decoration:none;">Editar Venda</a>
-
-                    <div class="sale-action-menu">
-                        <details class="sale-action-dropdown">
-                            <summary class="sale-action-trigger" title="Mais ações da venda" aria-label="Mais ações da venda">⌄</summary>
-                            <div class="sale-action-panel">
-                                <a href="/vendas/{{ venda.id }}/imprimir/a4" target="_blank">🖨 Imprimir A4</a>
-                                <a href="/vendas/{{ venda.id }}/imprimir/cupom" target="_blank">🧾 Imprimir Cupom</a>
-                                <a href="/vendas/{{ venda.id }}/gerar/copia">↻ Gerar cópia</a>
-                                <a href="/vendas/{{ venda.id }}/gerar/os">🛠 Gerar OS</a>
-                            </div>
-                        </details>
+                    <div class="gf-action-menu" data-gf-action-menu data-gf-action-open="false">
+                        <button type="button" class="gf-action-trigger" data-gf-action-trigger aria-expanded="false" title="Mais ações da venda" aria-label="Mais ações da venda">⌄</button>
+                        <div class="gf-action-panel" data-gf-action-panel>
+                            <a href="/vendas/{{ venda.id }}/imprimir/a4">🖨 Imprimir A4</a>
+                            <a href="/vendas/{{ venda.id }}/imprimir/cupom">🧾 Imprimir Cupom</a>
+                            <a href="/vendas/{{ venda.id }}/gerar/copia">↻ Gerar cópia</a>
+                            <a href="/vendas/{{ venda.id }}/gerar/os">🛠 Gerar OS</a>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -483,77 +476,158 @@ Motivo: Simplificar o menu de ações, remover submenus aninhados e exibir todas
         </section>
 
         <script>
-            function posicionarMenuVenda(menu) {
-                const trigger = menu.querySelector(".sale-action-trigger");
-                const panel = menu.querySelector(".sale-action-panel");
+            (function configurarMenuAcoesDiretas() {
+                let sequenciaMenu = 0;
 
-                if (!trigger || !panel) {
-                    return;
+                function obterIdMenu(menu) {
+                    if (!menu.dataset.gfActionMenuId) {
+                        sequenciaMenu += 1;
+                        menu.dataset.gfActionMenuId = "gf-action-menu-" + sequenciaMenu;
+                    }
+                    return menu.dataset.gfActionMenuId;
                 }
 
-                const rect = trigger.getBoundingClientRect();
-                const largura = Math.max(panel.offsetWidth || 230, 230);
-                const margem = 8;
-                let left = rect.right - largura;
-
-                if (left < margem) {
-                    left = margem;
+                function obterPainel(menu) {
+                    const id = obterIdMenu(menu);
+                    return menu.querySelector("[data-gf-action-panel]")
+                        || document.querySelector('[data-gf-action-owner="' + id + '"]');
                 }
 
-                if (left + largura > window.innerWidth - margem) {
-                    left = window.innerWidth - largura - margem;
+                function fecharMenu(menu) {
+                    const trigger = menu.querySelector("[data-gf-action-trigger]");
+                    const painel = obterPainel(menu);
+
+                    menu.dataset.gfActionOpen = "false";
+                    if (trigger) {
+                        trigger.setAttribute("aria-expanded", "false");
+                    }
+
+                    if (!painel) {
+                        return;
+                    }
+
+                    painel.classList.remove("is-open");
+                    painel.style.top = "";
+                    painel.style.left = "";
+                    painel.removeAttribute("data-gf-action-owner");
+
+                    if (painel.parentElement === document.body) {
+                        menu.appendChild(painel);
+                    }
                 }
 
-                const alturaEstimativa = panel.offsetHeight || 220;
-                let top = rect.bottom + margem;
-
-                if (top + alturaEstimativa > window.innerHeight - margem) {
-                    top = rect.top - alturaEstimativa - margem;
-                }
-
-                if (top < margem) {
-                    top = margem;
-                }
-
-                panel.style.top = top + "px";
-                panel.style.left = left + "px";
-            }
-
-            document.addEventListener("toggle", function(event) {
-                const menu = event.target;
-
-                if (!menu.classList || !menu.classList.contains("sale-action-dropdown")) {
-                    return;
-                }
-
-                if (menu.open) {
-                    document.querySelectorAll(".sale-action-dropdown[open]").forEach(function(outroMenu) {
-                        if (outroMenu !== menu) {
-                            outroMenu.removeAttribute("open");
+                function fecharTodos(exceto) {
+                    document.querySelectorAll("[data-gf-action-menu]").forEach(function(menu) {
+                        if (menu !== exceto && menu.dataset.gfActionOpen === "true") {
+                            fecharMenu(menu);
                         }
                     });
-
-                    posicionarMenuVenda(menu);
-                }
-            }, true);
-
-            document.addEventListener("click", function(event) {
-                if (event.target.closest(".sale-action-menu")) {
-                    return;
                 }
 
-                document.querySelectorAll(".sale-action-dropdown[open]").forEach(function(menu) {
-                    menu.removeAttribute("open");
+                function posicionarMenu(menu) {
+                    const trigger = menu.querySelector("[data-gf-action-trigger]");
+                    const painel = obterPainel(menu);
+
+                    if (!trigger || !painel || menu.dataset.gfActionOpen !== "true") {
+                        return;
+                    }
+
+                    const rect = trigger.getBoundingClientRect();
+                    const margem = 8;
+                    const largura = Math.max(painel.offsetWidth || 220, 220);
+                    const altura = painel.offsetHeight || 260;
+                    let left = rect.right - largura;
+                    let top = rect.bottom + margem;
+
+                    left = Math.max(margem, Math.min(left, window.innerWidth - largura - margem));
+
+                    if (top + altura > window.innerHeight - margem) {
+                        top = rect.top - altura - margem;
+                    }
+
+                    top = Math.max(margem, top);
+                    painel.style.left = left + "px";
+                    painel.style.top = top + "px";
+                }
+
+                function abrirMenu(menu) {
+                    const trigger = menu.querySelector("[data-gf-action-trigger]");
+                    const painel = obterPainel(menu);
+
+                    if (!trigger || !painel) {
+                        return;
+                    }
+
+                    fecharTodos(menu);
+                    const id = obterIdMenu(menu);
+                    painel.dataset.gfActionOwner = id;
+
+                    if (painel.parentElement !== document.body) {
+                        document.body.appendChild(painel);
+                    }
+
+                    menu.dataset.gfActionOpen = "true";
+                    trigger.setAttribute("aria-expanded", "true");
+                    painel.classList.add("is-open");
+                    posicionarMenu(menu);
+                }
+
+                function menuDoPainel(painel) {
+                    const id = painel && painel.dataset ? painel.dataset.gfActionOwner : "";
+                    return id ? document.querySelector('[data-gf-action-menu-id="' + id + '"]') : null;
+                }
+
+                document.addEventListener("click", function(evento) {
+                    const link = evento.target.closest("[data-gf-action-panel] a[href]");
+                    if (link) {
+                        evento.preventDefault();
+                        evento.stopImmediatePropagation();
+                        const destino = link.getAttribute("href");
+                        if (destino) {
+                            window.location.assign(destino);
+                        }
+                        return;
+                    }
+
+                    const trigger = evento.target.closest("[data-gf-action-trigger]");
+                    if (trigger) {
+                        evento.preventDefault();
+                        evento.stopImmediatePropagation();
+                        const menu = trigger.closest("[data-gf-action-menu]");
+                        if (!menu) {
+                            return;
+                        }
+
+                        if (menu.dataset.gfActionOpen === "true") {
+                            fecharMenu(menu);
+                        } else {
+                            abrirMenu(menu);
+                        }
+                        return;
+                    }
+
+                    const painel = evento.target.closest("[data-gf-action-panel]");
+                    if (painel) {
+                        return;
+                    }
+
+                    fecharTodos(null);
+                }, true);
+
+                window.addEventListener("scroll", function() {
+                    document.querySelectorAll('[data-gf-action-menu][data-gf-action-open="true"]').forEach(posicionarMenu);
+                }, true);
+
+                window.addEventListener("resize", function() {
+                    document.querySelectorAll('[data-gf-action-menu][data-gf-action-open="true"]').forEach(posicionarMenu);
                 });
-            });
 
-            window.addEventListener("scroll", function() {
-                document.querySelectorAll(".sale-action-dropdown[open]").forEach(posicionarMenuVenda);
-            }, true);
-
-            window.addEventListener("resize", function() {
-                document.querySelectorAll(".sale-action-dropdown[open]").forEach(posicionarMenuVenda);
-            });
+                window.addEventListener("keydown", function(evento) {
+                    if (evento.key === "Escape") {
+                        fecharTodos(null);
+                    }
+                });
+            })();
         </script>
 
 
