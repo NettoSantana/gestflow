@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\venda_detalhe.html
-Último recode: 2026-07-14 21:10 (America/Bahia)
-Motivo: Exibir condição de pagamento e cronograma financeiro da venda.
+Último recode: 2026-07-29 14:38 (America/Bahia)
+Motivo: Trocar links de impressão do diálogo por botões independentes com URL explícita para impedir A4 e Cupom de acionarem a mesma rota.
 -->
 
 <!DOCTYPE html>
@@ -13,15 +13,16 @@ Motivo: Exibir condição de pagamento e cronograma financeiro da venda.
     <link rel="stylesheet" href="/static/css/dashboard.css">
 
     <style>
+        .budget-action-menu,
         .sale-action-menu {
             position: relative;
             display: inline-block;
         }
 
-        .sale-action-trigger {
-            list-style: none;
+        .gf-action-dialog-trigger {
             width: 34px;
             height: 34px;
+            border: 0;
             border-radius: 8px;
             background: #16a34a;
             color: #ffffff;
@@ -29,91 +30,136 @@ Motivo: Exibir condição de pagamento e cronograma financeiro da venda.
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            font-weight: 800;
-            border: none;
+            font-weight: 900;
             box-shadow: 0 8px 18px rgba(22, 163, 74, 0.20);
             user-select: none;
         }
 
-        .sale-action-trigger::-webkit-details-marker {
-            display: none;
+        .gf-action-dialog-trigger:hover,
+        .gf-action-dialog-trigger:focus-visible {
+            background: #15803d;
+            outline: 3px solid rgba(22, 163, 74, 0.20);
+            outline-offset: 2px;
         }
 
-        .sale-action-trigger::marker {
-            content: "";
-        }
-
-        .sale-action-panel {
-            position: fixed;
-            z-index: 9999;
-            min-width: 190px;
+        .gf-action-dialog {
+            width: min(420px, calc(100vw - 32px));
+            max-height: calc(100vh - 32px);
+            margin: auto;
+            padding: 0;
+            border: 0;
+            border-radius: 18px;
             background: #ffffff;
-            border: 1px solid #d8dee8;
+            color: #0f172a;
+            box-shadow: 0 28px 80px rgba(15, 23, 42, 0.30);
+            overflow: hidden;
+        }
+
+        .gf-action-dialog::backdrop {
+            background: rgba(15, 23, 42, 0.58);
+            backdrop-filter: blur(2px);
+        }
+
+        .gf-action-dialog-card {
+            padding: 20px;
+            overflow-y: auto;
+            max-height: calc(100vh - 32px);
+        }
+
+        .gf-action-dialog-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .gf-action-dialog-header h3 {
+            margin: 0;
+            color: #0f172a;
+            font-size: 19px;
+        }
+
+        .gf-action-dialog-header p {
+            margin: 5px 0 0;
+            color: #64748b;
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        .gf-action-dialog-close {
+            flex: 0 0 auto;
+            width: 36px;
+            height: 36px;
+            border: 0;
             border-radius: 10px;
-            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.20);
-            padding: 6px;
-            display: none;
+            background: #f1f5f9;
+            color: #0f172a;
+            cursor: pointer;
+            font-size: 20px;
+            font-weight: 900;
         }
 
-        .sale-action-dropdown[open] .sale-action-panel {
-            display: block;
+        .gf-action-dialog-close:hover {
+            background: #e2e8f0;
         }
 
-        .sale-action-submenu {
-            border-radius: 8px;
+        .gf-action-dialog-actions {
+            display: grid;
+            gap: 8px;
+            margin-top: 16px;
         }
 
-        .sale-action-submenu summary,
-        .sale-action-panel a,
-        .sale-action-panel span {
+        .gf-action-dialog-actions a,
+        .gf-action-dialog-actions button,
+        .gf-action-dialog-disabled {
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 9px 10px;
-            color: #1f2937;
+            gap: 10px;
+            width: 100%;
+            min-height: 44px;
+            padding: 11px 13px;
+            border: 1px solid #e2e8f0;
+            border-radius: 11px;
+            background: #ffffff;
+            color: #1e293b;
             text-decoration: none;
-            font-size: 13px;
-            cursor: pointer;
-            border-radius: 8px;
-            white-space: nowrap;
-        }
-
-        .sale-action-submenu summary::-webkit-details-marker {
-            display: none;
-        }
-
-        .sale-action-submenu summary::marker {
-            content: "";
-        }
-
-        .sale-action-submenu summary::after {
-            content: "›";
-            margin-left: auto;
+            font-size: 14px;
             font-weight: 800;
+            line-height: 1.3;
         }
 
-        .sale-action-submenu summary:hover,
-        .sale-action-panel a:hover,
-        .sale-action-panel span:hover {
-            background: #f1f5f9;
+        .gf-action-dialog-actions button {
+            appearance: none;
+            font-family: inherit;
+            text-align: left;
+            cursor: pointer;
         }
 
-        .sale-action-submenu[open] summary {
-            background: #0f172a;
-            color: #ffffff;
+        .gf-action-dialog-actions a:hover,
+        .gf-action-dialog-actions a:focus-visible,
+        .gf-action-dialog-actions button:hover,
+        .gf-action-dialog-actions button:focus-visible {
+            border-color: #bbf7d0;
+            background: #f0fdf4;
+            color: #166534;
+            outline: none;
         }
 
-        .sale-action-subitems {
-            padding-left: 10px;
-            border-left: 2px solid #e5e7eb;
-            margin-left: 12px;
+        .gf-action-dialog-disabled {
+            background: #f8fafc;
+            color: #64748b;
+            cursor: default;
         }
 
+        .budget-action-row,
         .sale-action-row {
             display: inline-flex;
             align-items: center;
             gap: 8px;
         }
+
     </style>
 
     <style>
@@ -405,26 +451,35 @@ Motivo: Exibir condição de pagamento e cronograma financeiro da venda.
                     <a href="/vendas/{{ venda.id }}/editar" class="btn-primary-green" style="text-decoration:none;">Editar Venda</a>
 
                     <div class="sale-action-menu">
-                        <details class="sale-action-dropdown">
-                            <summary class="sale-action-trigger" title="Mais ações da venda" aria-label="Mais ações da venda">⌄</summary>
-                            <div class="sale-action-panel">
-                                <details class="sale-action-submenu">
-                                    <summary>🖨 Imprimir</summary>
-                                    <div class="sale-action-subitems">
-                                        <a href="/vendas/{{ venda.id }}/imprimir/a4">A4</a>
-                                        <a href="/vendas/{{ venda.id }}/imprimir/cupom">Cupom</a>
+                        <button
+                            type="button"
+                            class="gf-action-dialog-trigger"
+                            title="Mais ações da venda"
+                            aria-label="Mais ações da venda"
+                            aria-haspopup="dialog"
+                            data-gf-action-dialog="venda-acoes-{{ venda.id }}"
+                        >⌄</button>
+                        <dialog
+                            class="gf-action-dialog"
+                            id="venda-acoes-{{ venda.id }}"
+                            aria-labelledby="venda-acoes-titulo-{{ venda.id }}"
+                        >
+                            <div class="gf-action-dialog-card">
+                                <div class="gf-action-dialog-header">
+                                    <div>
+                                        <h3 id="venda-acoes-titulo-{{ venda.id }}">Ações da venda</h3>
+                                        <p>{{ venda.numero or ('Venda ' ~ venda.id) }}</p>
                                     </div>
-                                </details>
-
-                                <details class="sale-action-submenu">
-                                    <summary>↻ Gerar</summary>
-                                    <div class="sale-action-subitems">
-                                        <a href="/vendas/{{ venda.id }}/gerar/copia">Cópia</a>
-                                        <a href="/vendas/{{ venda.id }}/gerar/os">OS</a>
-                                    </div>
-                                </details>
+                                    <button type="button" class="gf-action-dialog-close" data-gf-action-dialog-close aria-label="Fechar">×</button>
+                                </div>
+                                <div class="gf-action-dialog-actions">
+                                    <button type="button" data-gf-print-url="/vendas/{{ venda.id }}/imprimir/a4" aria-label="Abrir impressão A4 em nova aba">🖨 Imprimir A4</button>
+                                    <button type="button" data-gf-print-url="/vendas/{{ venda.id }}/imprimir/cupom" aria-label="Abrir impressão Cupom em nova aba">🧾 Imprimir Cupom</button>
+                                    <a href="/vendas/{{ venda.id }}/gerar/copia">↻ Gerar cópia</a>
+                                    <a href="/vendas/{{ venda.id }}/gerar/os">🛠 Gerar OS</a>
+                                </div>
                             </div>
-                        </details>
+                        </dialog>
                     </div>
                 </div>
             </div>
@@ -514,77 +569,96 @@ Motivo: Exibir condição de pagamento e cronograma financeiro da venda.
         </section>
 
         <script>
-            function posicionarMenuVenda(menu) {
-                const trigger = menu.querySelector(".sale-action-trigger");
-                const panel = menu.querySelector(".sale-action-panel");
+            (function configurarDialogosAcoesGestFlow() {
+                function fecharDialogo(dialogo) {
+                    if (!dialogo) {
+                        return;
+                    }
 
-                if (!trigger || !panel) {
-                    return;
+                    if (typeof dialogo.close === "function" && dialogo.open) {
+                        dialogo.close();
+                    } else {
+                        dialogo.removeAttribute("open");
+                    }
                 }
 
-                const rect = trigger.getBoundingClientRect();
-                const largura = 190;
-                const margem = 8;
-                let left = rect.right - largura;
+                function abrirImpressaoEmNovaAba(botaoImpressao) {
+                    const urlImpressao = botaoImpressao.getAttribute("data-gf-print-url");
 
-                if (left < margem) {
-                    left = margem;
+                    if (!urlImpressao) {
+                        return;
+                    }
+
+                    console.info("[GestFlow] Abrindo impressão:", urlImpressao);
+
+                    const novaAba = window.open(urlImpressao, "_blank");
+
+                    if (novaAba) {
+                        novaAba.opener = null;
+                    } else {
+                        window.alert("O navegador bloqueou a nova aba. Libere pop-ups para imprimir.");
+                    }
+
+                    fecharDialogo(botaoImpressao.closest("dialog"));
                 }
 
-                if (left + largura > window.innerWidth - margem) {
-                    left = window.innerWidth - largura - margem;
-                }
-
-                const alturaEstimativa = 210;
-                let top = rect.bottom + margem;
-
-                if (top + alturaEstimativa > window.innerHeight - margem) {
-                    top = rect.top - alturaEstimativa - margem;
-                }
-
-                if (top < margem) {
-                    top = margem;
-                }
-
-                panel.style.top = top + "px";
-                panel.style.left = left + "px";
-            }
-
-            document.addEventListener("toggle", function(event) {
-                const menu = event.target;
-
-                if (!menu.classList || !menu.classList.contains("sale-action-dropdown")) {
-                    return;
-                }
-
-                if (menu.open) {
-                    document.querySelectorAll(".sale-action-dropdown[open]").forEach(function(outroMenu) {
-                        if (outroMenu !== menu) {
-                            outroMenu.removeAttribute("open");
-                        }
-                    });
-
-                    posicionarMenuVenda(menu);
-                }
-            }, true);
-
-            document.addEventListener("click", function(event) {
-                if (event.target.closest(".sale-action-menu")) {
-                    return;
-                }
-
-                document.querySelectorAll(".sale-action-dropdown[open]").forEach(function(menu) {
-                    menu.removeAttribute("open");
+                document.querySelectorAll("[data-gf-print-url]").forEach(function(botaoImpressao) {
+                    botaoImpressao.addEventListener("click", function(evento) {
+                        evento.preventDefault();
+                        evento.stopPropagation();
+                        evento.stopImmediatePropagation();
+                        abrirImpressaoEmNovaAba(botaoImpressao);
+                    }, true);
                 });
-            });
 
-            window.addEventListener("scroll", function() {
-                document.querySelectorAll(".sale-action-dropdown[open]").forEach(posicionarMenuVenda);
-            }, true);
+                document.addEventListener("click", function(evento) {
+                    const gatilho = evento.target.closest("[data-gf-action-dialog]");
 
-            window.addEventListener("resize", function() {
-                document.querySelectorAll(".sale-action-dropdown[open]").forEach(posicionarMenuVenda);
-            });
+                    if (gatilho) {
+                        evento.preventDefault();
+                        evento.stopPropagation();
+
+                        const dialogoId = gatilho.getAttribute("data-gf-action-dialog");
+                        const dialogo = dialogoId ? document.getElementById(dialogoId) : null;
+
+                        if (!dialogo) {
+                            return;
+                        }
+
+                        if (typeof dialogo.showModal === "function") {
+                            if (!dialogo.open) {
+                                dialogo.showModal();
+                            }
+                        } else {
+                            dialogo.setAttribute("open", "");
+                        }
+
+                        return;
+                    }
+
+
+                    const fechar = evento.target.closest("[data-gf-action-dialog-close]");
+
+                    if (fechar) {
+                        fecharDialogo(fechar.closest("dialog"));
+                        return;
+                    }
+
+                    const dialogo = evento.target.closest("dialog.gf-action-dialog");
+
+                    if (dialogo && evento.target === dialogo) {
+                        const area = dialogo.getBoundingClientRect();
+                        const dentro = evento.clientX >= area.left
+                            && evento.clientX <= area.right
+                            && evento.clientY >= area.top
+                            && evento.clientY <= area.bottom;
+
+                        if (!dentro) {
+                            fecharDialogo(dialogo);
+                        }
+                    }
+                });
+            })();
         </script>
 
 

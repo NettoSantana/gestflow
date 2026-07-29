@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordens_servico.html
-Último recode: 2026-07-27 21:55 (America/Bahia)
-Motivo: Remover cadastro redundante e padronizar hierarquia, indicadores e cores do módulo Ordens de Serviço.
+Último recode: 2026-07-29 14:38 (America/Bahia)
+Motivo: Trocar links de impressão do diálogo por botões independentes com URL explícita para impedir A4 e Cupom de acionarem a mesma rota.
 -->
 
 <!DOCTYPE html>
@@ -154,15 +154,16 @@ Motivo: Remover cadastro redundante e padronizar hierarquia, indicadores e cores
             gap: 8px;
         }
 
-        .budget-action-menu {
+        .budget-action-menu,
+        .sale-action-menu {
             position: relative;
             display: inline-block;
         }
 
-        .budget-action-trigger {
-            list-style: none;
+        .gf-action-dialog-trigger {
             width: 34px;
             height: 34px;
+            border: 0;
             border-radius: 8px;
             background: #16a34a;
             color: #ffffff;
@@ -170,86 +171,131 @@ Motivo: Remover cadastro redundante e padronizar hierarquia, indicadores e cores
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            font-weight: 800;
-            border: none;
+            font-weight: 900;
             box-shadow: 0 8px 18px rgba(22, 163, 74, 0.20);
             user-select: none;
         }
 
-        .budget-action-trigger::-webkit-details-marker {
-            display: none;
+        .gf-action-dialog-trigger:hover,
+        .gf-action-dialog-trigger:focus-visible {
+            background: #15803d;
+            outline: 3px solid rgba(22, 163, 74, 0.20);
+            outline-offset: 2px;
         }
 
-        .budget-action-trigger::marker {
-            content: "";
-        }
-
-        .budget-action-panel {
-            position: fixed;
-            z-index: 9999;
-            min-width: 190px;
+        .gf-action-dialog {
+            width: min(420px, calc(100vw - 32px));
+            max-height: calc(100vh - 32px);
+            margin: auto;
+            padding: 0;
+            border: 0;
+            border-radius: 18px;
             background: #ffffff;
-            border: 1px solid #d8dee8;
+            color: #0f172a;
+            box-shadow: 0 28px 80px rgba(15, 23, 42, 0.30);
+            overflow: hidden;
+        }
+
+        .gf-action-dialog::backdrop {
+            background: rgba(15, 23, 42, 0.58);
+            backdrop-filter: blur(2px);
+        }
+
+        .gf-action-dialog-card {
+            padding: 20px;
+            overflow-y: auto;
+            max-height: calc(100vh - 32px);
+        }
+
+        .gf-action-dialog-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .gf-action-dialog-header h3 {
+            margin: 0;
+            color: #0f172a;
+            font-size: 19px;
+        }
+
+        .gf-action-dialog-header p {
+            margin: 5px 0 0;
+            color: #64748b;
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        .gf-action-dialog-close {
+            flex: 0 0 auto;
+            width: 36px;
+            height: 36px;
+            border: 0;
             border-radius: 10px;
-            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.20);
-            padding: 6px;
-            display: none;
+            background: #f1f5f9;
+            color: #0f172a;
+            cursor: pointer;
+            font-size: 20px;
+            font-weight: 900;
         }
 
-        .budget-action-dropdown[open] .budget-action-panel,
-        .budget-action-panel.is-open {
-            display: block;
+        .gf-action-dialog-close:hover {
+            background: #e2e8f0;
         }
 
-        .budget-action-submenu {
-            border-radius: 8px;
+        .gf-action-dialog-actions {
+            display: grid;
+            gap: 8px;
+            margin-top: 16px;
         }
 
-        .budget-action-submenu summary,
-        .budget-action-panel a {
+        .gf-action-dialog-actions a,
+        .gf-action-dialog-actions button,
+        .gf-action-dialog-disabled {
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 9px 10px;
-            color: #1f2937;
+            gap: 10px;
+            width: 100%;
+            min-height: 44px;
+            padding: 11px 13px;
+            border: 1px solid #e2e8f0;
+            border-radius: 11px;
+            background: #ffffff;
+            color: #1e293b;
             text-decoration: none;
-            font-size: 13px;
-            cursor: pointer;
-            border-radius: 8px;
-            white-space: nowrap;
-        }
-
-        .budget-action-submenu summary::-webkit-details-marker {
-            display: none;
-        }
-
-        .budget-action-submenu summary::marker {
-            content: "";
-        }
-
-        .budget-action-submenu summary::after {
-            content: "›";
-            margin-left: auto;
+            font-size: 14px;
             font-weight: 800;
+            line-height: 1.3;
         }
 
-        .budget-action-submenu summary:hover,
-        .budget-action-panel a:hover {
-            background: #f1f5f9;
+        .gf-action-dialog-actions button {
+            appearance: none;
+            font-family: inherit;
+            text-align: left;
+            cursor: pointer;
         }
 
-        .budget-action-submenu[open] summary {
-            background: #0f172a;
-            color: #ffffff;
+        .gf-action-dialog-actions a:hover,
+        .gf-action-dialog-actions a:focus-visible,
+        .gf-action-dialog-actions button:hover,
+        .gf-action-dialog-actions button:focus-visible {
+            border-color: #bbf7d0;
+            background: #f0fdf4;
+            color: #166534;
+            outline: none;
         }
 
-        .budget-action-subitems {
-            padding-left: 10px;
-            border-left: 2px solid #e5e7eb;
-            margin-left: 12px;
+        .gf-action-dialog-disabled {
+            background: #f8fafc;
+            color: #64748b;
+            cursor: default;
         }
 
-        .budget-action-row {
+        .budget-action-row,
+        .sale-action-row {
             display: inline-flex;
             align-items: center;
             gap: 8px;
@@ -1233,34 +1279,38 @@ Motivo: Remover cadastro redundante e padronizar hierarquia, indicadores e cores
                                                 <button type="submit" class="action-button delete" title="Excluir OS" aria-label="Excluir OS">×</button>
                                             </form>
                                             <div class="budget-action-menu">
-                                                <details class="budget-action-dropdown">
-                                                    <summary class="budget-action-trigger" title="Mais ações da OS" aria-label="Mais ações da OS">⌄</summary>
-                                                    <div class="budget-action-panel">
-                                                        <details class="budget-action-submenu">
-                                                            <summary>🖨 Imprimir</summary>
-                                                            <div class="budget-action-subitems">
-                                                                <a href="/ordens-servico/{{ os.id }}/imprimir/a4" target="_blank">A4</a>
-                                                                <a href="/ordens-servico/{{ os.id }}/imprimir/cupom" target="_blank">Cupom</a>
+                                                <button
+                                                    type="button"
+                                                    class="gf-action-dialog-trigger"
+                                                    title="Mais ações da OS"
+                                                    aria-label="Mais ações da OS"
+                                                    aria-haspopup="dialog"
+                                                    data-gf-action-dialog="os-acoes-{{ os.id }}"
+                                                >⌄</button>
+                                                <dialog
+                                                    class="gf-action-dialog"
+                                                    id="os-acoes-{{ os.id }}"
+                                                    aria-labelledby="os-acoes-titulo-{{ os.id }}"
+                                                >
+                                                    <div class="gf-action-dialog-card">
+                                                        <div class="gf-action-dialog-header">
+                                                            <div>
+                                                                <h3 id="os-acoes-titulo-{{ os.id }}">Ações da ordem de serviço</h3>
+                                                                <p>{{ os.numero or ('OS ' ~ os.id) }}</p>
                                                             </div>
-                                                        </details>
-                                                        <details class="budget-action-submenu">
-                                                            <summary>📲 WhatsApp</summary>
-                                                            <div class="budget-action-subitems">
-                                                                <a href="/whatsapp/pdf/ordem_servico/{{ os.id }}">Enviar PDF</a>
-                                                            </div>
-                                                        </details>
-                                                        <details class="budget-action-submenu">
-                                                            <summary>↪ Gerar</summary>
-                                                            <div class="budget-action-subitems">
-                                                                <a href="/ordens-servico/{{ os.id }}/links">Atualizar links públicos</a>
-                                                                <a href="/os/cliente/{{ os.token_cliente }}" target="_blank">Link do cliente</a>
-                                                                <a href="/os/campo/{{ os.token_campo }}" target="_blank">Link do técnico/campo</a>
-                                                                <a href="/ordens-servico/{{ os.id }}/gerar/copia">Cópia</a>
-
-                                                            </div>
-                                                        </details>
+                                                            <button type="button" class="gf-action-dialog-close" data-gf-action-dialog-close aria-label="Fechar">×</button>
+                                                        </div>
+                                                        <div class="gf-action-dialog-actions">
+                                                            <button type="button" data-gf-print-url="/ordens-servico/{{ os.id }}/imprimir/a4" aria-label="Abrir impressão A4 em nova aba">🖨 Imprimir A4</button>
+                                                            <button type="button" data-gf-print-url="/ordens-servico/{{ os.id }}/imprimir/cupom" aria-label="Abrir impressão Cupom em nova aba">🧾 Imprimir Cupom</button>
+                                                            <a href="/whatsapp/pdf/ordem_servico/{{ os.id }}">📲 Enviar PDF por WhatsApp</a>
+                                                            <a href="/ordens-servico/{{ os.id }}/links">🔗 Atualizar links públicos</a>
+                                                            <a href="/os/cliente/{{ os.token_cliente }}" target="_blank" rel="noopener noreferrer">👤 Abrir link do cliente</a>
+                                                            <a href="/os/campo/{{ os.token_campo }}" target="_blank" rel="noopener noreferrer">🧰 Abrir link técnico/campo</a>
+                                                            <a href="/ordens-servico/{{ os.id }}/gerar/copia">↻ Gerar cópia</a>
+                                                        </div>
                                                     </div>
-                                                </details>
+                                                </dialog>
                                             </div>
                                         </div>
                                     </td>
@@ -1476,125 +1526,96 @@ Motivo: Remover cadastro redundante e padronizar hierarquia, indicadores e cores
             }
 
 
-            function obterPainelMenuOrcamento(menu) {
-                if (!menu.dataset.budgetMenuId) {
-                    menu.dataset.budgetMenuId = "budget-menu-" + Math.random().toString(36).slice(2);
+            (function configurarDialogosAcoesGestFlow() {
+                function fecharDialogo(dialogo) {
+                    if (!dialogo) {
+                        return;
+                    }
+
+                    if (typeof dialogo.close === "function" && dialogo.open) {
+                        dialogo.close();
+                    } else {
+                        dialogo.removeAttribute("open");
+                    }
                 }
 
-                return menu.querySelector(".budget-action-panel")
-                    || document.querySelector('.budget-action-panel[data-budget-owner="' + menu.dataset.budgetMenuId + '"]');
-            }
+                function abrirImpressaoEmNovaAba(botaoImpressao) {
+                    const urlImpressao = botaoImpressao.getAttribute("data-gf-print-url");
 
-            function abrirPainelMenuOrcamento(menu) {
-                const panel = obterPainelMenuOrcamento(menu);
+                    if (!urlImpressao) {
+                        return;
+                    }
 
-                if (!panel) {
-                    return;
+                    console.info("[GestFlow] Abrindo impressão:", urlImpressao);
+
+                    const novaAba = window.open(urlImpressao, "_blank");
+
+                    if (novaAba) {
+                        novaAba.opener = null;
+                    } else {
+                        window.alert("O navegador bloqueou a nova aba. Libere pop-ups para imprimir.");
+                    }
+
+                    fecharDialogo(botaoImpressao.closest("dialog"));
                 }
 
-                panel.dataset.budgetOwner = menu.dataset.budgetMenuId;
-                panel.classList.add("is-open");
-
-                if (panel.parentElement !== document.body) {
-                    document.body.appendChild(panel);
-                }
-            }
-
-            function fecharPainelMenuOrcamento(menu) {
-                const panel = obterPainelMenuOrcamento(menu);
-
-                if (!panel) {
-                    return;
-                }
-
-                panel.classList.remove("is-open");
-                panel.style.top = "";
-                panel.style.left = "";
-
-                if (panel.parentElement === document.body) {
-                    menu.appendChild(panel);
-                }
-            }
-
-            function posicionarMenuOrcamento(menu) {
-                const trigger = menu.querySelector(".budget-action-trigger");
-                const panel = obterPainelMenuOrcamento(menu);
-
-                if (!trigger || !panel) {
-                    return;
-                }
-
-                const rect = trigger.getBoundingClientRect();
-                const largura = Math.max(panel.offsetWidth || 190, 190);
-                const margem = 8;
-                let left = rect.right - largura;
-
-                if (left < margem) {
-                    left = margem;
-                }
-
-                if (left + largura > window.innerWidth - margem) {
-                    left = window.innerWidth - largura - margem;
-                }
-
-                const altura = panel.offsetHeight || 210;
-                let top = rect.bottom + margem;
-
-                if (top + altura > window.innerHeight - margem) {
-                    top = rect.top - altura - margem;
-                }
-
-                if (top < margem) {
-                    top = margem;
-                }
-
-                panel.style.top = top + "px";
-                panel.style.left = left + "px";
-            }
-
-            document.addEventListener("toggle", function(event) {
-                const menu = event.target;
-
-                if (!menu.classList || !menu.classList.contains("budget-action-dropdown")) {
-                    return;
-                }
-
-                if (menu.open) {
-                    document.querySelectorAll(".budget-action-dropdown[open]").forEach(function(outroMenu) {
-                        if (outroMenu !== menu) {
-                            outroMenu.removeAttribute("open");
-                            fecharPainelMenuOrcamento(outroMenu);
-                        }
-                    });
-
-                    abrirPainelMenuOrcamento(menu);
-
-                    requestAnimationFrame(function() {
-                        posicionarMenuOrcamento(menu);
-                    });
-                } else {
-                    fecharPainelMenuOrcamento(menu);
-                }
-            }, true);
-
-            document.addEventListener("click", function(evento) {
-                if (evento.target.closest(".budget-action-menu") || evento.target.closest(".budget-action-panel")) {
-                    return;
-                }
-
-                document.querySelectorAll(".budget-action-dropdown[open]").forEach(function(menu) {
-                    menu.removeAttribute("open");
-                    fecharPainelMenuOrcamento(menu);
+                document.querySelectorAll("[data-gf-print-url]").forEach(function(botaoImpressao) {
+                    botaoImpressao.addEventListener("click", function(evento) {
+                        evento.preventDefault();
+                        evento.stopPropagation();
+                        evento.stopImmediatePropagation();
+                        abrirImpressaoEmNovaAba(botaoImpressao);
+                    }, true);
                 });
-            });
 
-            window.addEventListener("scroll", function() {
-                document.querySelectorAll(".budget-action-dropdown[open]").forEach(posicionarMenuOrcamento);
-            }, true);
+                document.addEventListener("click", function(evento) {
+                    const gatilho = evento.target.closest("[data-gf-action-dialog]");
 
-            window.addEventListener("resize", function() {
-                document.querySelectorAll(".budget-action-dropdown[open]").forEach(posicionarMenuOrcamento);
-            });
+                    if (gatilho) {
+                        evento.preventDefault();
+                        evento.stopPropagation();
+
+                        const dialogoId = gatilho.getAttribute("data-gf-action-dialog");
+                        const dialogo = dialogoId ? document.getElementById(dialogoId) : null;
+
+                        if (!dialogo) {
+                            return;
+                        }
+
+                        if (typeof dialogo.showModal === "function") {
+                            if (!dialogo.open) {
+                                dialogo.showModal();
+                            }
+                        } else {
+                            dialogo.setAttribute("open", "");
+                        }
+
+                        return;
+                    }
+
+
+                    const fechar = evento.target.closest("[data-gf-action-dialog-close]");
+
+                    if (fechar) {
+                        fecharDialogo(fechar.closest("dialog"));
+                        return;
+                    }
+
+                    const dialogo = evento.target.closest("dialog.gf-action-dialog");
+
+                    if (dialogo && evento.target === dialogo) {
+                        const area = dialogo.getBoundingClientRect();
+                        const dentro = evento.clientX >= area.left
+                            && evento.clientX <= area.right
+                            && evento.clientY >= area.top
+                            && evento.clientY <= area.bottom;
+
+                        if (!dentro) {
+                            fecharDialogo(dialogo);
+                        }
+                    }
+                });
+            })();
 
             function criarLinha(tipo, dados) {
                 const linha = document.createElement("tr");

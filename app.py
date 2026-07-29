@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-28 04:45 (America/Bahia)
-# Motivo: Implementar central interna de notificações com alertas automáticos, histórico e leitura por usuário.
+# Último recode: 2026-07-29 12:46 (America/Bahia)
+# Motivo: Adaptar a Vitrine pública por categoria e logo, remover redundâncias e melhorar catálogo, compra e agendamento.
 
 from __future__ import annotations
 
@@ -4509,6 +4509,8 @@ def iniciar_banco() -> None:
                 slug TEXT,
                 logo_path TEXT,
                 categoria TEXT,
+                descricao_empresa TEXT,
+                tipo_identidade_visual TEXT NOT NULL DEFAULT 'cores',
                 cor_principal TEXT,
                 cor_secundaria TEXT,
                 template TEXT,
@@ -5284,12 +5286,38 @@ def iniciar_banco() -> None:
             str(row["name"])
             for row in conn.execute("PRAGMA table_info(vitrine_configuracoes)").fetchall()
         }
+        coluna_identidade_visual_criada = "tipo_identidade_visual" not in colunas_vitrine_configuracoes
         for coluna, tipo_coluna in {
             "servicos_vistos": "INTEGER NOT NULL DEFAULT 0",
             "agendamentos_gerados": "INTEGER NOT NULL DEFAULT 0",
+            "descricao_empresa": "TEXT",
+            "tipo_identidade_visual": "TEXT NOT NULL DEFAULT 'cores'",
         }.items():
             if coluna not in colunas_vitrine_configuracoes:
                 conn.execute(f"ALTER TABLE vitrine_configuracoes ADD COLUMN {coluna} {tipo_coluna}")
+
+        if coluna_identidade_visual_criada:
+            conn.execute(
+                """
+                UPDATE vitrine_configuracoes
+                SET tipo_identidade_visual = CASE
+                    WHEN TRIM(COALESCE(logo_path, '')) <> '' THEN 'logo'
+                    ELSE 'cores'
+                END
+                """
+            )
+        else:
+            conn.execute(
+                """
+                UPDATE vitrine_configuracoes
+                SET tipo_identidade_visual = CASE
+                    WHEN LOWER(TRIM(COALESCE(tipo_identidade_visual, ''))) IN ('logo', 'cores')
+                        THEN LOWER(TRIM(tipo_identidade_visual))
+                    WHEN TRIM(COALESCE(logo_path, '')) <> '' THEN 'logo'
+                    ELSE 'cores'
+                END
+                """
+            )
 
         colunas_vitrine_eventos = {
             str(row["name"])
@@ -24289,7 +24317,16 @@ def montar_vitrine_formulario(config_atual: dict[str, Any] | None = None) -> dic
     if not slug:
         slug = f"loja-{empresa_logada_id()}"
 
+    tipo_identidade_visual = (request.form.get("tipo_identidade_visual") or "cores").strip().lower()
+    if tipo_identidade_visual not in {"logo", "cores"}:
+        tipo_identidade_visual = "cores"
+
     logo_path = salvar_logo_vitrine_upload() or str(config_atual.get("logo_path") or "")
+    if tipo_identidade_visual == "logo" and not logo_path:
+        raise ValueError("Envie uma logo antes de usar a identidade visual por logo.")
+
+    cor_principal_atual = str(config_atual.get("cor_principal") or "#111827").strip() or "#111827"
+    cor_secundaria_atual = str(config_atual.get("cor_secundaria") or "#f59e0b").strip() or "#f59e0b"
 
     return {
         "nome_loja": nome_loja,
@@ -24298,9 +24335,11 @@ def montar_vitrine_formulario(config_atual: dict[str, Any] | None = None) -> dic
         "slug": slug,
         "logo_path": logo_path,
         "categoria": (request.form.get("categoria") or "").strip(),
-        "cor_principal": (request.form.get("cor_principal") or "#111827").strip() or "#111827",
-        "cor_secundaria": (request.form.get("cor_secundaria") or "#f59e0b").strip() or "#f59e0b",
-        "template": (request.form.get("template") or "catalogo-premium").strip() or "catalogo-premium",
+        "descricao_empresa": (request.form.get("descricao_empresa") or "").strip()[:600],
+        "tipo_identidade_visual": tipo_identidade_visual,
+        "cor_principal": (request.form.get("cor_principal") or cor_principal_atual).strip() or cor_principal_atual,
+        "cor_secundaria": (request.form.get("cor_secundaria") or cor_secundaria_atual).strip() or cor_secundaria_atual,
+        "template": "catalogo-premium",
         "status": (request.form.get("status") or "rascunho").strip() or "rascunho",
     }
 
@@ -24320,6 +24359,8 @@ def buscar_vitrine_configuracao() -> dict[str, Any]:
                 slug,
                 logo_path,
                 categoria,
+                descricao_empresa,
+                tipo_identidade_visual,
                 cor_principal,
                 cor_secundaria,
                 template,
@@ -24349,6 +24390,8 @@ def buscar_vitrine_configuracao() -> dict[str, Any]:
             "slug": "",
             "logo_path": "",
             "categoria": "",
+            "descricao_empresa": "",
+            "tipo_identidade_visual": "cores",
             "cor_principal": "#111827",
             "cor_secundaria": "#f59e0b",
             "template": "catalogo-premium",
@@ -24392,12 +24435,14 @@ def salvar_vitrine_configuracao_db(dados: dict[str, str]) -> None:
                     slug,
                     logo_path,
                     categoria,
+                    descricao_empresa,
+                    tipo_identidade_visual,
                     cor_principal,
                     cor_secundaria,
                     template,
                     status,
                     atualizado_em
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     empresa_id,
@@ -24407,6 +24452,8 @@ def salvar_vitrine_configuracao_db(dados: dict[str, str]) -> None:
                     dados["slug"],
                     dados["logo_path"],
                     dados["categoria"],
+                    dados["descricao_empresa"],
+                    dados["tipo_identidade_visual"],
                     dados["cor_principal"],
                     dados["cor_secundaria"],
                     dados["template"],
@@ -24425,6 +24472,8 @@ def salvar_vitrine_configuracao_db(dados: dict[str, str]) -> None:
                     slug = ?,
                     logo_path = ?,
                     categoria = ?,
+                    descricao_empresa = ?,
+                    tipo_identidade_visual = ?,
                     cor_principal = ?,
                     cor_secundaria = ?,
                     template = ?,
@@ -24439,6 +24488,8 @@ def salvar_vitrine_configuracao_db(dados: dict[str, str]) -> None:
                     dados["slug"],
                     dados["logo_path"],
                     dados["categoria"],
+                    dados["descricao_empresa"],
+                    dados["tipo_identidade_visual"],
                     dados["cor_principal"],
                     dados["cor_secundaria"],
                     dados["template"],
@@ -25208,31 +25259,245 @@ def renderizar_vitrine_publica_html(
     servicos = servicos or []
     empresa_id_vitrine = int(config_vitrine.get("empresa_id") or 0)
     regras_vitrine = buscar_configuracoes_modulo("vitrine", empresa_id_vitrine)
-    cor_principal = html.escape(str(config_vitrine.get("cor_principal") or regras_vitrine.get("cor_primaria") or "#111827"))
-    cor_secundaria = html.escape(str(config_vitrine.get("cor_secundaria") or regras_vitrine.get("cor_secundaria") or "#f59e0b"))
-    nome_loja = html.escape(str(config_vitrine.get("nome_loja") or regras_vitrine.get("nome_publico") or "Vitrine Online"))
-    titulo_seo = html.escape(str(regras_vitrine.get("seo_titulo") or nome_loja))
-    descricao_seo = html.escape(str(regras_vitrine.get("seo_descricao") or f"Produtos e serviços de {nome_loja}"))
-    instagram = html.escape(str(config_vitrine.get("instagram") or ""))
+
+    tipo_identidade_visual = str(config_vitrine.get("tipo_identidade_visual") or "cores").strip().lower()
+    if tipo_identidade_visual not in {"logo", "cores"}:
+        tipo_identidade_visual = "logo" if str(config_vitrine.get("logo_path") or "").strip() else "cores"
+
+    if tipo_identidade_visual == "logo":
+        cor_principal = "#071a2b"
+        cor_secundaria = "#123b59"
+        cor_destaque = "#f59e0b"
+    else:
+        cor_principal = html.escape(
+            str(config_vitrine.get("cor_principal") or regras_vitrine.get("cor_primaria") or "#111827")
+        )
+        cor_secundaria = html.escape(
+            str(config_vitrine.get("cor_secundaria") or regras_vitrine.get("cor_secundaria") or "#f59e0b")
+        )
+        cor_destaque = cor_secundaria
+
+    nome_loja_raw = str(
+        config_vitrine.get("nome_loja") or regras_vitrine.get("nome_publico") or "Vitrine Online"
+    ).strip()
+    nome_loja = html.escape(nome_loja_raw)
+    titulo_seo = html.escape(str(regras_vitrine.get("seo_titulo") or nome_loja_raw))
+
     categoria_configuracao = str(config_vitrine.get("categoria") or "").strip().lower()
-    categoria = html.escape(str(config_vitrine.get("categoria") or "Produtos e serviços"))
-    logo_path = str(config_vitrine.get("logo_path") or "").strip()
-    logo_html = f'<img src="/vitrine-upload/{html.escape(logo_path)}" alt="{nome_loja}">' if logo_path else nome_loja[:2].upper()
-    exibir_preco = configuracao_bool("vitrine", "exibir_preco", True, empresa_id_vitrine)
+    perfis_categoria: dict[str, dict[str, Any]] = {
+        "perfumaria": {
+            "classe": "perfumaria",
+            "rotulo": "Perfumaria e cosméticos",
+            "kicker": "Beleza, cuidados e presentes",
+            "titulo_catalogo": "Lançamentos, cuidados e produtos selecionados",
+            "descricao_padrao": "Perfumes, cosméticos e cuidados pessoais com atendimento próximo e compra simples.",
+            "cor_suave": "#fff7f3",
+            "diferenciais": (
+                ("🎁", "Embalagem para presente", "Uma apresentação especial para cada ocasião."),
+                ("🚀", "Envio rápido", "Agilidade para receber seu pedido."),
+                ("💝", "Presente perfeito", "Opções selecionadas para surpreender."),
+            ),
+            "passos_produto": (
+                ("1", "Navegue pelo catálogo", "Descubra perfumes, cosméticos e novidades."),
+                ("2", "Escolha seus produtos", "Adicione um ou mais itens ao pedido."),
+                ("3", "Envie seu pedido", "Confirme os dados e a forma de entrega."),
+                ("4", "Receba com carinho", "A loja combina os detalhes pelo WhatsApp."),
+            ),
+        },
+        "moda": {
+            "classe": "moda",
+            "rotulo": "Moda e roupas",
+            "kicker": "Estilo para o seu dia a dia",
+            "titulo_catalogo": "Peças selecionadas para renovar seu estilo",
+            "descricao_padrao": "Moda com qualidade, estilo e atendimento personalizado para ajudar em cada escolha.",
+            "cor_suave": "#fff7f7",
+            "diferenciais": (
+                ("✨", "Peças selecionadas", "Curadoria pensada para estilo e qualidade."),
+                ("📏", "Ajuda com tamanhos", "Orientação para escolher com segurança."),
+                ("💬", "Atendimento personalizado", "Converse diretamente com a loja."),
+            ),
+            "passos_produto": (
+                ("1", "Explore a coleção", "Veja modelos, detalhes e categorias."),
+                ("2", "Escolha suas peças", "Adicione os itens que mais combinam com você."),
+                ("3", "Confirme pelo WhatsApp", "Tire dúvidas de tamanho e disponibilidade."),
+                ("4", "Receba ou retire", "Combine a melhor forma de entrega com a loja."),
+            ),
+        },
+        "mercado": {
+            "classe": "mercado",
+            "rotulo": "Mercado e variedades",
+            "kicker": "Variedade para facilitar sua rotina",
+            "titulo_catalogo": "Produtos úteis para o dia a dia",
+            "descricao_padrao": "Variedade, praticidade e atendimento rápido para encontrar o que você precisa.",
+            "cor_suave": "#f6fbf6",
+            "diferenciais": (
+                ("🚚", "Entrega rápida", "Receba com praticidade na região atendida."),
+                ("💰", "Preços acessíveis", "Boas opções para diferentes necessidades."),
+                ("📦", "Produtos disponíveis", "Catálogo atualizado para facilitar a compra."),
+            ),
+            "passos_produto": (
+                ("1", "Procure no catálogo", "Use a busca e as categorias para encontrar itens."),
+                ("2", "Monte seu pedido", "Adicione as quantidades que deseja."),
+                ("3", "Informe a entrega", "Preencha seus dados e endereço."),
+                ("4", "Receba seu pedido", "A loja confirma tudo pelo WhatsApp."),
+            ),
+        },
+        "servicos": {
+            "classe": "servicos",
+            "rotulo": "Serviços",
+            "kicker": "Serviços e soluções profissionais",
+            "titulo_catalogo": "Escolha o serviço ideal para sua necessidade",
+            "descricao_padrao": "Atendimento profissional, qualidade e soluções pensadas para cada necessidade.",
+            "cor_suave": "#f4f8fb",
+            "diferenciais": (
+                ("📅", "Agendamento fácil", "Escolha o serviço e solicite o melhor horário."),
+                ("⚡", "Resposta rápida", "Contato direto para confirmar o atendimento."),
+                ("✅", "Atendimento profissional", "Serviços apresentados com clareza e confiança."),
+            ),
+            "passos_produto": (
+                ("1", "Conheça os serviços", "Veja descrições, duração e condições."),
+                ("2", "Escolha o atendimento", "Agende ou solicite uma avaliação prévia."),
+                ("3", "Confirme seus dados", "Informe contato, data e necessidade."),
+                ("4", "Aguarde a confirmação", "A empresa retorna para concluir o agendamento."),
+            ),
+        },
+        "pecas": {
+            "classe": "pecas",
+            "rotulo": "Peças e oficina",
+            "kicker": "Peças, oficina e suporte técnico",
+            "titulo_catalogo": "Peças e serviços para manter tudo funcionando",
+            "descricao_padrao": "Peças, manutenção e atendimento técnico para encontrar a solução certa.",
+            "cor_suave": "#f5f7fa",
+            "diferenciais": (
+                ("🔧", "Atendimento técnico", "Orientação para escolher peças e serviços."),
+                ("📦", "Peças e serviços", "Soluções reunidas em um único catálogo."),
+                ("🛡️", "Suporte especializado", "Contato direto para confirmar aplicação e disponibilidade."),
+            ),
+            "passos_produto": (
+                ("1", "Busque a solução", "Consulte peças, aplicações e serviços."),
+                ("2", "Selecione o item", "Escolha o produto ou atendimento necessário."),
+                ("3", "Confirme a aplicação", "Converse com o suporte técnico pelo WhatsApp."),
+                ("4", "Receba ou agende", "Combine retirada, entrega ou execução do serviço."),
+            ),
+        },
+    }
+
     exibir_produtos = configuracao_bool("vitrine", "exibir_produtos", True, empresa_id_vitrine)
     exibir_servicos = configuracao_bool("vitrine", "exibir_servicos", True, empresa_id_vitrine)
-    modo_contato = str(regras_vitrine.get("modo_contato") or "pedido")
-    permitir_pedido = modo_contato == "pedido" and exibir_produtos and bool(produtos)
-    controlar_estoque = configuracao_bool("vitrine", "controlar_estoque", True, empresa_id_vitrine)
-    quantidade_minima = max(1, int(float(regras_vitrine.get("quantidade_minima") or 1)))
-    whatsapp = html.escape(str(config_vitrine.get("whatsapp") or ""))
-    codigo_agenda = garantir_codigo_indicacao_empresa(empresa_id_vitrine)
-
     tem_produtos = bool(produtos) and exibir_produtos
     tem_servicos = bool(servicos) and exibir_servicos
+
+    if categoria_configuracao not in perfis_categoria:
+        categoria_configuracao = "servicos" if tem_servicos and not tem_produtos else "mercado"
+    perfil_categoria = perfis_categoria[categoria_configuracao]
+    categoria = html.escape(str(perfil_categoria["rotulo"]))
+    categoria_classe = html.escape(str(perfil_categoria["classe"]))
+    categoria_kicker = html.escape(str(perfil_categoria["kicker"]))
+    titulo_catalogo = html.escape(str(perfil_categoria["titulo_catalogo"]))
+    cor_categoria_suave = html.escape(str(perfil_categoria["cor_suave"]))
+
+    descricao_empresa_raw = str(config_vitrine.get("descricao_empresa") or "").strip()
+    texto_institucional_raw = (
+        descricao_empresa_raw
+        or str(regras_vitrine.get("texto_institucional") or "").strip()
+        or str(perfil_categoria["descricao_padrao"])
+    )
+    descricao_seo_raw = str(regras_vitrine.get("seo_descricao") or texto_institucional_raw)
+    descricao_seo = html.escape(descricao_seo_raw)
+    texto_institucional = html.escape(texto_institucional_raw)
+
+    instagram_raw = str(config_vitrine.get("instagram") or "").strip()
+    logo_path = str(config_vitrine.get("logo_path") or "").strip()
+    logo_url = f"/vitrine-upload/{html.escape(logo_path)}" if logo_path else ""
+    iniciais_loja = "".join(parte[:1] for parte in nome_loja_raw.split()[:2]).upper() or "GF"
+    if tipo_identidade_visual == "logo" and logo_url:
+        logo_nav_html = (
+            f'<img src="{logo_url}" alt="{nome_loja}" class="marca-logo-img" crossorigin="anonymous">'
+        )
+        logo_apresentacao_html = (
+            f'<img src="{logo_url}" alt="{nome_loja}" id="brandColorSource" '
+            'class="apresentacao-logo-img" crossorigin="anonymous">'
+        )
+    else:
+        logo_nav_html = f'<span class="marca-iniciais">{html.escape(iniciais_loja)}</span>'
+        logo_apresentacao_html = (
+            f'<span class="apresentacao-logo-iniciais">{html.escape(iniciais_loja)}</span>'
+        )
+
+    exibir_preco = configuracao_bool("vitrine", "exibir_preco", True, empresa_id_vitrine)
+    modo_contato = str(regras_vitrine.get("modo_contato") or "pedido")
+    permitir_pedido = modo_contato == "pedido" and tem_produtos
+    controlar_estoque = configuracao_bool("vitrine", "controlar_estoque", True, empresa_id_vitrine)
+    quantidade_minima = max(1, int(float(regras_vitrine.get("quantidade_minima") or 1)))
+    codigo_agenda = garantir_codigo_indicacao_empresa(empresa_id_vitrine)
+
+    telefone_whatsapp = normalizar_telefone_publico(config_vitrine.get("whatsapp"))
+    if telefone_whatsapp and not telefone_whatsapp.startswith("55"):
+        telefone_whatsapp = f"55{telefone_whatsapp}"
+    whatsapp_publico_url = f"https://wa.me/{telefone_whatsapp}" if telefone_whatsapp else ""
+    whatsapp_publico_url_html = html.escape(whatsapp_publico_url)
+
     tipo_inicial = "servico" if tem_servicos and (not tem_produtos or categoria_configuracao == "servicos") else "produto"
     if tipo_inicial == "produto" and not tem_produtos and tem_servicos:
         tipo_inicial = "servico"
+
+    whatsapp_topo_html = ""
+    whatsapp_apresentacao_html = ""
+    if whatsapp_publico_url:
+        whatsapp_topo_html = (
+            f'<a class="nav-whatsapp" href="{whatsapp_publico_url_html}" target="_blank" rel="noopener">'
+            '<span aria-hidden="true">◉</span><span>WhatsApp</span></a>'
+        )
+        whatsapp_apresentacao_html = (
+            f'<a class="btn-publico btn-whatsapp" href="{whatsapp_publico_url_html}" '
+            'target="_blank" rel="noopener"><span aria-hidden="true">◉</span> Chamar no WhatsApp</a>'
+        )
+
+    carrinho_nav_html = (
+        '<a class="nav-carrinho" href="#carrinhoProdutos"><span aria-hidden="true">▣</span> Carrinho</a>'
+        if permitir_pedido
+        else ""
+    )
+
+    instagram_html = ""
+    if instagram_raw:
+        instagram_url = instagram_raw
+        if not instagram_url.startswith(("http://", "https://")):
+            instagram_usuario = instagram_url.lstrip("@").strip()
+            instagram_url = f"https://instagram.com/{urllib.parse.quote(instagram_usuario)}"
+        instagram_html = (
+            f'<a class="social-link instagram" href="{html.escape(instagram_url)}" '
+            'target="_blank" rel="noopener">Instagram</a>'
+        )
+    whatsapp_social_html = (
+        f'<a class="social-link whatsapp" href="{whatsapp_publico_url_html}" '
+        'target="_blank" rel="noopener">WhatsApp</a>'
+        if whatsapp_publico_url
+        else ""
+    )
+
+    diferenciais_html = "".join(
+        f'<article class="diferencial-card"><span>{html.escape(icone)}</span><div><strong>{html.escape(titulo)}</strong>'
+        f'<small>{html.escape(descricao)}</small></div></article>'
+        for icone, titulo, descricao in perfil_categoria["diferenciais"]
+    )
+
+    passos_produto_html = "".join(
+        f'<article class="passo-card"><span>{html.escape(numero)}</span><div><strong>{html.escape(titulo)}</strong>'
+        f'<small>{html.escape(descricao)}</small></div></article>'
+        for numero, titulo, descricao in perfil_categoria["passos_produto"]
+    )
+    passos_servico = (
+        ("1", "Escolha o serviço", "Confira descrição, duração e forma de contratação."),
+        ("2", "Agende ou solicite avaliação", "Selecione um horário ou envie as informações necessárias."),
+        ("3", "Confirme seus dados", "Informe contato e detalhes do atendimento."),
+        ("4", "Receba a confirmação", "A empresa retorna para finalizar o agendamento."),
+    )
+    passos_servico_html = "".join(
+        f'<article class="passo-card"><span>{html.escape(numero)}</span><div><strong>{html.escape(titulo)}</strong>'
+        f'<small>{html.escape(descricao)}</small></div></article>'
+        for numero, titulo, descricao in passos_servico
+    )
 
     cards: list[str] = []
     categorias_produtos: set[str] = set()
@@ -25244,24 +25509,50 @@ def renderizar_vitrine_publica_html(
             nome_raw = str(produto.get("nome") or "Produto")
             nome = html.escape(nome_raw)
             descricao = html.escape(str(produto.get("descricao") or ""))
-            categoria_raw = str(produto.get("categoria") or "Produtos").strip() or "Produtos"
-            categoria_item = html.escape(categoria_raw)
-            categorias_produtos.add(categoria_raw)
+            categoria_raw_item = str(produto.get("categoria") or "Produtos").strip() or "Produtos"
+            categoria_item = html.escape(categoria_raw_item)
+            categorias_produtos.add(categoria_raw_item)
             preco_raw = str(produto.get("preco") or "0,00")
             preco = html.escape(preco_raw)
             disponivel = not controlar_estoque or _converter_valor_brl(produto.get("estoque_atual")) > 0
             imagem_path = str(produto.get("imagem_path") or "").strip()
-            imagem_html = f'<img src="/vitrine-upload/{html.escape(imagem_path)}" alt="{nome}">' if imagem_path else '<span>Produto</span>'
+            imagem_html = (
+                f'<img src="/vitrine-upload/{html.escape(imagem_path)}" alt="{nome}" loading="lazy">'
+                if imagem_path
+                else '<span class="item-sem-imagem">Produto</span>'
+            )
             preco_html = f"<strong>R$ {preco}</strong>" if exibir_preco else "<strong>Consulte o valor</strong>"
+            acao_secundaria = ""
+            if whatsapp_publico_url:
+                acao_secundaria = (
+                    f'<a class="acao-outline" href="{whatsapp_publico_url_html}" target="_blank" rel="noopener">'
+                    'WhatsApp</a>'
+                )
             if permitir_pedido and disponivel:
-                acao_html = f'<button type="button" onclick="adicionarCarrinho({produto_id}, {json.dumps(nome_raw, ensure_ascii=False)}, {json.dumps(preco_raw, ensure_ascii=False)})">Adicionar ao carrinho</button>'
+                acao_principal = (
+                    f'<button type="button" onclick="adicionarCarrinho({produto_id}, '
+                    f'{json.dumps(nome_raw, ensure_ascii=False)}, {json.dumps(preco_raw, ensure_ascii=False)})">'
+                    'Adicionar</button>'
+                )
+            elif whatsapp_publico_url:
+                acao_principal = (
+                    f'<a class="acao-principal" href="{whatsapp_publico_url_html}" target="_blank" rel="noopener">'
+                    'Consultar produto</a>'
+                )
+                acao_secundaria = ""
             else:
-                acao_html = f'<a class="contato" href="https://wa.me/{whatsapp}" target="_blank" rel="noopener">Consultar no WhatsApp</a>'
+                acao_principal = '<button type="button" disabled>Contato indisponível</button>'
             if not disponivel:
-                acao_html = f'<button type="button" disabled>{html.escape(str(regras_vitrine.get("mensagem_indisponivel") or "Produto indisponível no momento."))}</button>'
-            cards.append(f"""<article class="catalogo-card produto-card" style="{'display:flex' if tipo_inicial == 'produto' else 'display:none'}" data-tipo="produto" data-categoria="{categoria_item}" data-nome="{html.escape(nome_raw.lower())}">
+                mensagem_indisponivel = html.escape(
+                    str(regras_vitrine.get("mensagem_indisponivel") or "Produto indisponível no momento.")
+                )
+                acao_principal = f'<button type="button" disabled>{mensagem_indisponivel}</button>'
+                acao_secundaria = ""
+            cards.append(
+                f'''<article class="catalogo-card produto-card" data-tipo="produto" data-categoria="{categoria_item}" data-nome="{html.escape(nome_raw.lower())}">
 <button class="item-imagem" type="button" onclick="registrarItem('produto',{produto_id})">{imagem_html}</button>
-<div class="item-info"><small>Produto • {categoria_item}</small><h3>{nome}</h3><p>{descricao}</p>{preco_html}{acao_html}</div></article>""")
+<div class="item-info"><small>Produto • {categoria_item}</small><h3>{nome}</h3><p>{descricao}</p>{preco_html}<div class="item-acoes">{acao_principal}{acao_secundaria}</div></div></article>'''
+            )
 
     if exibir_servicos:
         for servico in servicos:
@@ -25269,33 +25560,52 @@ def renderizar_vitrine_publica_html(
             nome_raw = str(servico.get("nome") or "Serviço")
             nome = html.escape(nome_raw)
             descricao = html.escape(str(servico.get("descricao") or ""))
-            categoria_raw = str(servico.get("categoria") or "Serviços").strip() or "Serviços"
-            categoria_item = html.escape(categoria_raw)
-            categorias_servicos.add(categoria_raw)
+            categoria_raw_item = str(servico.get("categoria") or "Serviços").strip() or "Serviços"
+            categoria_item = html.escape(categoria_raw_item)
+            categorias_servicos.add(categoria_raw_item)
             tipo_contratacao = normalizar_tipo_contratacao_servico(servico.get("tipo_contratacao"))
             preco = html.escape(str(servico.get("preco") or "0,00"))
             duracao = html.escape(str(servico.get("tempo_estimado") or ""))
             imagem_path = str(servico.get("imagem_path") or "").strip()
-            imagem_html = f'<img src="/vitrine-upload/{html.escape(imagem_path)}" alt="{nome}">' if imagem_path else '<span>Serviço</span>'
+            imagem_html = (
+                f'<img src="/vitrine-upload/{html.escape(imagem_path)}" alt="{nome}" loading="lazy">'
+                if imagem_path
+                else '<span class="item-sem-imagem">Serviço</span>'
+            )
             if tipo_contratacao == "a_combinar":
                 preco_html = "<strong>Valor a combinar</strong>"
-                duracao_html = '<span class="duracao">Duração definida após avaliação</span>'
+                duracao_html = '<span class="duracao">Avaliação prévia</span>'
                 texto_acao = "Solicitar avaliação"
             else:
                 preco_html = f"<strong>R$ {preco}</strong>" if exibir_preco else "<strong>Consulte o valor</strong>"
                 duracao_html = f'<span class="duracao">Duração: {duracao or "A combinar"}</span>'
-                texto_acao = "Agendar este serviço"
-            agenda_url = f"/agendar/{urllib.parse.quote(codigo_agenda)}?servico_id={servico_id}&origem=vitrine_online"
-            cards.append(f"""<article class="catalogo-card servico-card" style="{'display:flex' if tipo_inicial == 'servico' else 'display:none'}" data-tipo="servico" data-categoria="{categoria_item}" data-nome="{html.escape(nome_raw.lower())}">
+                texto_acao = "Agendar serviço"
+            agenda_url = (
+                f"/agendar/{urllib.parse.quote(codigo_agenda)}?servico_id={servico_id}&origem=vitrine_online"
+            )
+            acao_whatsapp = ""
+            if whatsapp_publico_url:
+                acao_whatsapp = (
+                    f'<a class="acao-outline" href="{whatsapp_publico_url_html}" target="_blank" rel="noopener">'
+                    'WhatsApp</a>'
+                )
+            cards.append(
+                f'''<article class="catalogo-card servico-card" data-tipo="servico" data-categoria="{categoria_item}" data-nome="{html.escape(nome_raw.lower())}">
 <a class="item-imagem" href="{agenda_url}" onclick="registrarItem('servico',{servico_id})">{imagem_html}</a>
-<div class="item-info"><small>Serviço • {categoria_item}</small><h3>{nome}</h3><p>{descricao}</p>{duracao_html}{preco_html}<a class="agendar" href="{agenda_url}" onclick="registrarItem('servico',{servico_id})">{texto_acao}</a></div></article>""")
+<div class="item-info"><small>Serviço • {categoria_item}</small><h3>{nome}</h3><p>{descricao}</p><div class="item-meta">{duracao_html}{preco_html}</div><div class="item-acoes"><a class="acao-principal" href="{agenda_url}" onclick="registrarItem('servico',{servico_id})">{texto_acao}</a>{acao_whatsapp}</div></div></article>'''
+            )
 
     def botoes_categorias(categorias: set[str], tipo: str) -> str:
-        botoes = [f'<button class="categoria-botao active" type="button" data-tipo="{tipo}" data-categoria="" onclick="filtrarCategoria(\'{tipo}\',\'\',this)">Todos</button>']
+        botoes = [
+            f'<button class="categoria-botao active" type="button" data-tipo="{tipo}" data-categoria="" '
+            f'onclick="filtrarCategoria(\'{tipo}\',\'\',this)">Todos</button>'
+        ]
         for item in sorted(categorias):
             item_js = html.escape(json.dumps(item, ensure_ascii=False), quote=True)
             botoes.append(
-                f'<button class="categoria-botao" type="button" data-tipo="{tipo}" data-categoria="{html.escape(item)}" onclick="filtrarCategoria(\'{tipo}\',{item_js},this)">{html.escape(item)}</button>'
+                f'<button class="categoria-botao" type="button" data-tipo="{tipo}" '
+                f'data-categoria="{html.escape(item)}" onclick="filtrarCategoria(\'{tipo}\',{item_js},this)">'
+                f'{html.escape(item)}</button>'
             )
         return "".join(botoes)
 
@@ -25303,42 +25613,383 @@ def renderizar_vitrine_publica_html(
     categorias_servicos_html = botoes_categorias(categorias_servicos, "servico")
     cards_html = "\n".join(cards) or '<div class="vazio">Nenhum produto ou serviço publicado ainda.</div>'
     mensagem_html = f'<div class="mensagem">{html.escape(mensagem)}</div>' if mensagem else ""
-    whatsapp_html = f'<a class="whatsapp-final" href="{html.escape(whatsapp_url)}" target="_blank" rel="noopener">Enviar pedido no WhatsApp</a>' if whatsapp_url else ""
+    whatsapp_final_html = (
+        f'<a class="whatsapp-final" href="{html.escape(whatsapp_url)}" target="_blank" rel="noopener">'
+        'Enviar pedido no WhatsApp</a>'
+        if whatsapp_url
+        else ""
+    )
+
     slug = html.escape(str(config_vitrine.get("slug") or ""))
-    formas_entrega = lista_configuracao_modulo("vitrine", "formas_entrega", empresa_id_vitrine) or ["Entrega", "Retirada no local"]
-    entrega_html = "".join(f'<option value="{_normalizar_chave_campo_configuravel(rotulo)}">{html.escape(rotulo)}</option>' for rotulo in formas_entrega)
+    formas_entrega = lista_configuracao_modulo("vitrine", "formas_entrega", empresa_id_vitrine) or [
+        "Entrega",
+        "Retirada no local",
+    ]
+    entrega_html = "".join(
+        f'<option value="{_normalizar_chave_campo_configuravel(rotulo)}">{html.escape(rotulo)}</option>'
+        for rotulo in formas_entrega
+    )
+
     carrinho_html = ""
     if permitir_pedido:
-        carrinho_html = f"""<aside class="carrinho" id="carrinhoProdutos"><h2>Carrinho de produtos</h2><div id="itensCarrinho">Nenhum item adicionado.</div><strong id="totalCarrinho">Total: R$ 0,00</strong><form class="form-pedido" method="post" action="/loja/{slug}/pedido" onsubmit="return prepararPedido()"><input name="cliente_nome" placeholder="Seu nome" required><input name="cliente_whatsapp" placeholder="Seu WhatsApp" required><select name="tipo_entrega">{entrega_html}</select><input name="endereco" placeholder="Endereço, se for entrega"><select name="forma_pagamento"><option value="pix">PIX</option><option value="dinheiro">Dinheiro</option><option value="cartao">Cartão</option></select><textarea name="observacoes" placeholder="Observações do pedido"></textarea><input type="hidden" name="itens_json" id="itensJson"><button class="finalizar" type="submit">Confirmar pedido</button></form></aside>"""
-
+        carrinho_html = f'''<aside class="carrinho" id="carrinhoProdutos">
+<div class="carrinho-cabecalho"><span aria-hidden="true">▣</span><div><small>Seu pedido</small><h2>Carrinho</h2></div></div>
+<div id="itensCarrinho" class="carrinho-itens">Nenhum item adicionado.</div>
+<strong id="totalCarrinho" class="carrinho-total">Total: R$ 0,00</strong>
+<form class="form-pedido" method="post" action="/loja/{slug}/pedido" onsubmit="return prepararPedido()">
+<input name="cliente_nome" placeholder="Seu nome" required>
+<input name="cliente_whatsapp" placeholder="Seu WhatsApp" required>
+<select name="tipo_entrega">{entrega_html}</select>
+<input name="endereco" placeholder="Endereço, se for entrega">
+<select name="forma_pagamento"><option value="pix">PIX</option><option value="dinheiro">Dinheiro</option><option value="cartao">Cartão</option></select>
+<textarea name="observacoes" placeholder="Observações do pedido"></textarea>
+<input type="hidden" name="itens_json" id="itensJson">
+<button class="finalizar" type="submit">Confirmar pedido</button>
+</form></aside>'''
     if carrinho_html and tipo_inicial != "produto":
-        carrinho_html = carrinho_html.replace(
-            'id="carrinhoProdutos"', 'id="carrinhoProdutos" hidden', 1
-        )
+        carrinho_html = carrinho_html.replace('id="carrinhoProdutos"', 'id="carrinhoProdutos" hidden', 1)
     classe_conteudo = "conteudo com-carrinho" if tipo_inicial == "produto" and carrinho_html else "conteudo"
+
     abas_html = ""
     if tem_produtos:
-        abas_html += f'<button type="button" class="tipo-aba{" active" if tipo_inicial == "produto" else ""}" data-tipo="produto" onclick="selecionarTipo(\'produto\',this)">Produtos</button>'
+        abas_html += (
+            f'<button type="button" class="tipo-aba{" active" if tipo_inicial == "produto" else ""}" '
+            'data-tipo="produto" onclick="selecionarTipo(\'produto\',this)">Produtos</button>'
+        )
     if tem_servicos:
-        abas_html += f'<button type="button" class="tipo-aba{" active" if tipo_inicial == "servico" else ""}" data-tipo="servico" onclick="selecionarTipo(\'servico\',this)">Serviços</button>'
+        abas_html += (
+            f'<button type="button" class="tipo-aba{" active" if tipo_inicial == "servico" else ""}" '
+            'data-tipo="servico" onclick="selecionarTipo(\'servico\',this)">Serviços</button>'
+        )
 
-    return f"""<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>{titulo_seo}</title><meta name="description" content="{descricao_seo}"><style>
-*{{box-sizing:border-box}}body{{margin:0;font-family:Arial,sans-serif;background:#f3f4f6;color:#111827}}.topo{{background:linear-gradient(135deg,{cor_principal},{cor_secundaria});color:#fff;padding:28px 18px 34px}}.topo-inner{{max-width:1120px;margin:auto;display:flex;align-items:center;gap:16px}}.logo{{width:76px;height:76px;border-radius:22px;background:#fff;color:{cor_principal};display:grid;place-items:center;font-weight:900;font-size:22px;overflow:hidden;flex:0 0 auto}}.logo img,.item-imagem img{{width:100%;height:100%;object-fit:cover;display:block}}.topo h1{{margin:0;font-size:30px}}.topo p{{margin:6px 0 0;opacity:.9}}.container{{max-width:1120px;margin:-22px auto 40px;padding:0 18px}}.barra{{background:#fff;border-radius:22px;padding:16px;box-shadow:0 12px 30px rgba(0,0,0,.08);display:grid;gap:12px}}.tipo-abas{{display:flex;gap:10px;flex-wrap:wrap}}.tipo-aba{{min-height:44px;border:1px solid #dbe3ef;border-radius:14px;padding:0 20px;background:#fff;color:#334155;font-weight:900;cursor:pointer}}.tipo-aba.active{{background:{cor_principal};border-color:{cor_principal};color:#fff}}.busca{{width:100%;min-height:46px;border:1px solid #e5e7eb;border-radius:14px;padding:0 14px;font-size:16px}}.categorias{{display:flex;gap:8px;overflow:auto}}.categorias-grupo{{display:flex;gap:8px}}.categorias-grupo[hidden]{{display:none}}.categoria-botao{{border:0;border-radius:999px;padding:10px 14px;background:#eef2ff;font-weight:800;white-space:nowrap;cursor:pointer}}.categoria-botao.active{{background:#dbeafe;color:#1d4ed8}}.conteudo{{display:block;margin-top:18px}}.conteudo.com-carrinho{{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px}}.itens{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:start}}.catalogo-card{{background:#fff;border-radius:22px;overflow:hidden;border:1px solid #e5e7eb;display:flex;flex-direction:column;min-width:0;box-shadow:0 8px 24px rgba(15,23,42,.05)}}.item-imagem{{width:100%;height:210px;min-height:210px;max-height:210px;flex:0 0 210px;border:0;background:#e5e7eb;display:grid;place-items:center;color:#6b7280;font-weight:900;cursor:pointer;text-decoration:none;overflow:hidden}}.item-info{{position:relative;z-index:2;background:#fff;padding:16px;display:grid;gap:9px;min-height:250px}}.item-info small{{color:#6b7280;font-weight:800}}.item-info h3{{margin:0;font-size:18px;line-height:1.25}}.item-info p{{margin:0;color:#6b7280;min-height:42px;line-height:1.45}}.item-info strong{{font-size:20px;color:#0f172a}}.duracao{{font-size:13px;font-weight:800;color:#475569}}.item-info button,.item-info a.agendar,.finalizar,.whatsapp-final{{border:0;border-radius:14px;padding:12px;background:{cor_principal};color:#fff;font-weight:900;cursor:pointer;text-align:center;text-decoration:none;margin-top:auto}}.item-info a.contato{{border-radius:14px;padding:12px;background:#16a34a;color:#fff;font-weight:900;text-align:center;text-decoration:none;margin-top:auto}}.carrinho{{background:#fff;border-radius:22px;border:1px solid #e5e7eb;padding:16px;position:sticky;top:16px;align-self:start}}.carrinho[hidden]{{display:none}}.carrinho h2{{margin:0 0 12px}}.item-carrinho{{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid #e5e7eb;padding:10px 0}}.form-pedido{{display:grid;gap:10px;margin-top:14px}}.form-pedido input,.form-pedido select,.form-pedido textarea{{width:100%;min-height:42px;border:1px solid #d1d5db;border-radius:12px;padding:10px}}.mensagem{{background:#ecfdf5;color:#047857;border-radius:16px;padding:12px;margin-bottom:14px;font-weight:800}}.whatsapp-final{{display:block;margin-bottom:14px;background:#16a34a}}.vazio{{background:#fff;border-radius:22px;padding:30px;text-align:center;color:#6b7280}}@media(max-width:900px){{.conteudo.com-carrinho{{grid-template-columns:1fr}}.itens{{grid-template-columns:repeat(2,minmax(0,1fr))}}.topo-inner{{align-items:flex-start}}.carrinho{{position:static}}}}@media(max-width:620px){{.itens{{grid-template-columns:1fr}}.item-imagem{{height:220px;min-height:220px;max-height:220px;flex-basis:220px}}.item-info{{min-height:0}}}}
-</style></head><body><header class="topo"><div class="topo-inner"><div class="logo">{logo_html}</div><div><h1>{nome_loja}</h1><p>{categoria} {('• ' + instagram) if instagram else ''}</p></div></div></header><main class="container">{mensagem_html}{whatsapp_html}<section class="barra"><div class="tipo-abas">{abas_html}</div><input class="busca" id="busca" placeholder="Buscar {'serviço' if tipo_inicial == 'servico' else 'produto'}..." oninput="filtrarItens()"><div class="categorias"><div class="categorias-grupo" id="categoriasProduto" {'hidden' if tipo_inicial != 'produto' else ''}>{categorias_produtos_html}</div><div class="categorias-grupo" id="categoriasServico" {'hidden' if tipo_inicial != 'servico' else ''}>{categorias_servicos_html}</div></div></section><section class="{classe_conteudo}" id="conteudoCatalogo"><div class="itens" id="itens">{cards_html}</div>{carrinho_html}</section></main><script>
-let carrinho=[];let tipoAtivo={json.dumps(tipo_inicial)};let categoriaAtiva='';
-function moedaNumero(v){{return parseFloat(String(v).replace(/\\./g,'').replace(',','.'))||0}}
-function moedaBR(v){{return v.toFixed(2).replace('.',',')}}
-function registrarItem(tipo,id){{fetch('/loja/{slug}/evento',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{tipo:tipo,item_id:id||''}})}}).catch(()=>{{}})}}
-function adicionarCarrinho(id,nome,preco){{registrarItem('carrinho',id);const item=carrinho.find(i=>i.id===id);if(item)item.quantidade+=1;else carrinho.push({{id,nome,preco,quantidade:1}});renderCarrinho()}}
-function renderCarrinho(){{const el=document.getElementById('itensCarrinho');if(!el)return;if(!carrinho.length){{el.innerHTML='Nenhum item adicionado.';document.getElementById('totalCarrinho').innerText='Total: R$ 0,00';return}}let total=0;el.innerHTML=carrinho.map(i=>{{const sub=moedaNumero(i.preco)*i.quantidade;total+=sub;return `<div class="item-carrinho"><span>${{i.quantidade}}x ${{i.nome}}</span><strong>R$ ${{moedaBR(sub)}}</strong></div>`}}).join('');document.getElementById('totalCarrinho').innerText='Total: R$ '+moedaBR(total)}}
-function prepararPedido(){{const quantidade=carrinho.reduce((t,i)=>t+i.quantidade,0);if(quantidade<{quantidade_minima}){{alert('A quantidade mínima do pedido é {quantidade_minima}.');return false}}document.getElementById('itensJson').value=JSON.stringify(carrinho);return true}}
-function aplicarFiltros(){{const termo=(document.getElementById('busca').value||'').toLowerCase();document.querySelectorAll('.catalogo-card').forEach(card=>{{const tipoOk=card.dataset.tipo===tipoAtivo;const categoriaOk=!categoriaAtiva||card.dataset.categoria===categoriaAtiva;const buscaOk=card.dataset.nome.includes(termo);card.style.display=(tipoOk&&categoriaOk&&buscaOk)?'flex':'none'}})}}
-function selecionarTipo(tipo,botao){{tipoAtivo=tipo;categoriaAtiva='';document.querySelectorAll('.tipo-aba').forEach(item=>item.classList.toggle('active',item===botao));const grupoProduto=document.getElementById('categoriasProduto');const grupoServico=document.getElementById('categoriasServico');if(grupoProduto)grupoProduto.hidden=tipo!=='produto';if(grupoServico)grupoServico.hidden=tipo!=='servico';document.querySelectorAll('.categoria-botao').forEach(item=>item.classList.toggle('active',item.dataset.tipo===tipo&&!item.dataset.categoria));const carrinhoEl=document.getElementById('carrinhoProdutos');const conteudo=document.getElementById('conteudoCatalogo');if(carrinhoEl)carrinhoEl.hidden=tipo!=='produto';if(conteudo)conteudo.classList.toggle('com-carrinho',tipo==='produto'&&!!carrinhoEl);const busca=document.getElementById('busca');if(busca){{busca.value='';busca.placeholder=tipo==='produto'?'Buscar produto...':'Buscar serviço...'}}aplicarFiltros()}}
-function filtrarCategoria(tipo,categoria,botao){{if(tipo!==tipoAtivo)return;categoriaAtiva=categoria||'';document.querySelectorAll(`.categoria-botao[data-tipo="${{tipo}}"]`).forEach(item=>item.classList.toggle('active',item===botao));aplicarFiltros()}}
-function filtrarItens(){{aplicarFiltros()}}
-document.addEventListener('DOMContentLoaded',()=>{{const botao=document.querySelector(`.tipo-aba[data-tipo="${{tipoAtivo}}"]`);if(botao)selecionarTipo(tipoAtivo,botao);else aplicarFiltros()}});
-</script></body></html>"""
+    formas_pagamento = lista_configuracao_modulo("vendas", "formas_pagamento", empresa_id_vitrine) or [
+        "PIX",
+        "Dinheiro",
+        "Cartão",
+    ]
+    formas_pagamento_html = "".join(
+        f'<span>{html.escape(str(forma))}</span>' for forma in formas_pagamento[:8]
+    )
 
+    estilo = r'''
+<style>
+:root{
+    --brand-primary:__COR_PRINCIPAL__;
+    --brand-primary-2:__COR_SECUNDARIA__;
+    --brand-accent:__COR_DESTAQUE__;
+    --brand-accent-soft:rgba(245,158,11,.16);
+    --brand-accent-text:#071a2b;
+    --category-soft:__COR_CATEGORIA_SUAVE__;
+    --surface:#ffffff;
+    --text:#172033;
+    --text-soft:#667085;
+    --border:#e3e7ee;
+    --shadow:0 14px 38px rgba(15,23,42,.09);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:Inter,Arial,Helvetica,sans-serif;background:var(--category-soft);color:var(--text)}
+a{color:inherit}
+button,input,select,textarea{font:inherit}
+[hidden]{display:none!important}
+.site-header{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--category-soft) 92%,#fff 8%);border-bottom:1px solid color-mix(in srgb,var(--brand-primary) 12%,transparent);backdrop-filter:blur(14px)}
+.navbar-inner{width:min(1180px,calc(100% - 32px));min-height:68px;margin:auto;display:flex;align-items:center;gap:22px}
+.marca-nav{min-width:0;display:flex;align-items:center;gap:11px;text-decoration:none}
+.marca-logo{width:48px;height:48px;display:grid;place-items:center;overflow:hidden;border-radius:14px;background:#fff;border:1px solid var(--border);box-shadow:0 6px 18px rgba(15,23,42,.08);flex:0 0 auto}
+.marca-logo-img{width:100%;height:100%;object-fit:contain;display:block;padding:3px}
+.marca-iniciais{font-weight:1000;font-size:17px;color:var(--brand-primary)}
+.marca-texto{min-width:0;display:grid;gap:2px}
+.marca-texto strong{font-size:18px;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.marca-texto small{font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--text-soft);font-weight:900}
+.nav-links{margin-left:auto;display:flex;align-items:center;gap:24px}
+.nav-links a{text-decoration:none;font-size:13px;font-weight:850;color:var(--text-soft)}
+.nav-links a:hover{color:var(--brand-primary)}
+.nav-whatsapp,.nav-carrinho{min-height:40px;display:inline-flex;align-items:center;gap:7px;padding:0 14px;border-radius:12px;text-decoration:none;font-size:12px;font-weight:900;white-space:nowrap}
+.nav-whatsapp{background:#16a34a;color:#fff}
+.nav-carrinho{border:1px solid var(--border);background:#fff;color:var(--brand-primary)}
+.apresentacao{padding:46px 0 24px;background:linear-gradient(180deg,color-mix(in srgb,var(--brand-primary) 5%,var(--category-soft)),var(--category-soft))}
+.apresentacao-inner{width:min(1180px,calc(100% - 32px));margin:auto;display:grid;grid-template-columns:260px minmax(0,1fr);gap:42px;align-items:center}
+.apresentacao-logo{min-height:250px;display:grid;place-items:center;padding:24px;border-radius:28px;background:#fff;border:1px solid color-mix(in srgb,var(--brand-primary) 14%,var(--border));box-shadow:var(--shadow);overflow:hidden}
+.apresentacao-logo-img{width:100%;height:100%;max-height:210px;object-fit:contain;display:block}
+.apresentacao-logo-iniciais{width:150px;height:150px;display:grid;place-items:center;border-radius:34px;background:var(--brand-primary);color:#fff;font-size:52px;font-weight:1000}
+.apresentacao-copy{min-width:0}
+.apresentacao-kicker{margin:0 0 10px;color:var(--brand-primary);font-size:12px;font-weight:1000;text-transform:uppercase;letter-spacing:.16em}
+.apresentacao h1{margin:0;font-size:clamp(38px,5vw,66px);line-height:1;letter-spacing:-.045em;text-wrap:balance}
+.apresentacao-categoria{margin:12px 0 0;color:var(--brand-primary);font-size:22px;font-weight:900}
+.apresentacao-descricao{max-width:760px;margin:17px 0 0;color:var(--text-soft);font-size:16px;line-height:1.65}
+.apresentacao-acoes{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px}
+.btn-publico{min-height:46px;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:0 20px;border-radius:13px;text-decoration:none;font-weight:950}
+.btn-catalogo{background:var(--brand-primary);color:#fff}
+.btn-whatsapp{background:#16a34a;color:#fff}
+.sobre-diferenciais{width:min(1180px,calc(100% - 32px));margin:26px auto 0;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.45fr);gap:16px}
+.sobre-card,.diferenciais-grid{background:#fff;border:1px solid var(--border);border-radius:20px;box-shadow:0 8px 28px rgba(15,23,42,.05)}
+.sobre-card{padding:22px}
+.section-kicker{margin:0 0 8px;color:var(--brand-primary);font-size:11px;font-weight:1000;text-transform:uppercase;letter-spacing:.13em}
+.sobre-card h2,.catalogo-cabecalho h2,.passos-section h2{margin:0;font-size:24px;line-height:1.15}
+.sobre-card p{margin:10px 0 0;color:var(--text-soft);line-height:1.6}
+.diferenciais-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));padding:12px}
+.diferencial-card{display:flex;gap:10px;align-items:flex-start;padding:14px;border-radius:15px}
+.diferencial-card+ .diferencial-card{border-left:1px solid var(--border)}
+.diferencial-card>span{font-size:23px;line-height:1}
+.diferencial-card div{display:grid;gap:5px}
+.diferencial-card strong{font-size:13px}
+.diferencial-card small{color:var(--text-soft);font-size:11px;line-height:1.45}
+.container{width:min(1180px,calc(100% - 32px));margin:30px auto 44px}
+.mensagem{margin-bottom:14px;padding:13px 16px;border-radius:14px;background:#ecfdf5;color:#047857;font-weight:850}
+.whatsapp-final{display:block;margin-bottom:14px;padding:13px 16px;border-radius:14px;background:#16a34a;color:#fff;text-align:center;text-decoration:none;font-weight:900}
+.catalogo-cabecalho{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:16px}
+.catalogo-cabecalho p:last-child{margin:7px 0 0;color:var(--text-soft)}
+.barra{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"busca abas" "categorias categorias";gap:12px;padding:16px;border:1px solid var(--border);border-radius:20px;background:#fff;box-shadow:0 10px 28px rgba(15,23,42,.06)}
+.busca-wrap{grid-area:busca;position:relative}
+.busca-wrap::before{content:"⌕";position:absolute;left:15px;top:50%;transform:translateY(-50%);color:var(--brand-primary);font-size:19px}
+.busca{width:100%;min-height:48px;border:1px solid var(--border);border-radius:13px;padding:0 15px 0 43px;font-size:15px;outline:none}
+.busca:focus{border-color:var(--brand-primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--brand-primary) 12%,transparent)}
+.tipo-abas{grid-area:abas;display:flex;gap:8px}
+.tipo-aba{min-height:48px;border:1px solid var(--border);border-radius:13px;padding:0 18px;background:#fff;color:var(--text-soft);font-weight:900;cursor:pointer}
+.tipo-aba.active{background:var(--brand-primary);border-color:var(--brand-primary);color:#fff}
+.categorias{grid-area:categorias;overflow:auto;padding-bottom:2px}
+.categorias-grupo{display:flex;gap:8px;min-width:max-content}
+.categoria-botao{border:1px solid var(--border);border-radius:999px;padding:9px 13px;background:#fff;color:var(--text-soft);font-size:12px;font-weight:850;white-space:nowrap;cursor:pointer}
+.categoria-botao.active{background:color-mix(in srgb,var(--brand-primary) 12%,#fff);border-color:color-mix(in srgb,var(--brand-primary) 24%,var(--border));color:var(--brand-primary)}
+.conteudo{display:block;margin-top:18px}
+.conteudo.com-carrinho{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:18px;align-items:start}
+.itens{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:stretch}
+.catalogo-card{min-width:0;display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--border);border-radius:19px;background:#fff;box-shadow:0 8px 24px rgba(15,23,42,.055)}
+.item-imagem{width:100%;height:250px;min-height:250px;display:grid;place-items:center;border:0;background:#f5f6f8;overflow:hidden;cursor:pointer;text-decoration:none}
+.item-imagem img{width:100%;height:100%;object-fit:contain;display:block;background:#fff}
+.item-sem-imagem{color:var(--text-soft);font-weight:850}
+.item-info{flex:1;display:flex;flex-direction:column;gap:9px;padding:15px}
+.item-info small{color:var(--text-soft);font-weight:800}
+.item-info h3{margin:0;font-size:17px;line-height:1.3}
+.item-info p{display:-webkit-box;min-height:42px;margin:0;overflow:hidden;color:var(--text-soft);line-height:1.45;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.item-info>strong,.item-meta strong{font-size:20px;color:var(--brand-primary)}
+.item-meta{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.duracao{font-size:12px;font-weight:850;color:var(--text-soft)}
+.item-acoes{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:auto;padding-top:4px}
+.item-acoes button,.acao-principal,.acao-outline{min-height:40px;display:inline-flex;align-items:center;justify-content:center;border-radius:11px;padding:0 12px;text-decoration:none;font-size:12px;font-weight:950;cursor:pointer}
+.item-acoes button,.acao-principal{border:0;background:var(--brand-primary);color:#fff}
+.item-acoes button:disabled{background:#d1d5db;color:#6b7280;cursor:not-allowed}
+.acao-outline{border:1px solid var(--border);background:#fff;color:var(--brand-primary)}
+.carrinho{position:sticky;top:86px;padding:18px;border:1px solid var(--border);border-radius:20px;background:#fff;box-shadow:var(--shadow)}
+.carrinho-cabecalho{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.carrinho-cabecalho>span{width:38px;height:38px;display:grid;place-items:center;border-radius:12px;background:color-mix(in srgb,var(--brand-primary) 12%,#fff);color:var(--brand-primary)}
+.carrinho-cabecalho small{color:var(--text-soft);font-weight:800}
+.carrinho-cabecalho h2{margin:2px 0 0;font-size:20px}
+.carrinho-itens{color:var(--text-soft);font-size:13px}
+.item-carrinho{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.carrinho-total{display:block;margin-top:12px;font-size:18px}
+.form-pedido{display:grid;gap:9px;margin-top:14px}
+.form-pedido input,.form-pedido select,.form-pedido textarea{width:100%;min-height:42px;border:1px solid var(--border);border-radius:11px;padding:10px 11px;background:#fff}
+.form-pedido textarea{min-height:76px;resize:vertical}
+.finalizar{min-height:44px;border:0;border-radius:12px;background:var(--brand-primary);color:#fff;font-weight:950;cursor:pointer}
+.vazio{grid-column:1/-1;padding:30px;border:1px dashed var(--border);border-radius:18px;background:#fff;text-align:center;color:var(--text-soft)}
+.paginacao{display:flex;align-items:center;justify-content:center;gap:7px;margin:22px 0 0;flex-wrap:wrap}
+.paginacao button{min-width:36px;height:36px;border:1px solid var(--border);border-radius:10px;background:#fff;color:var(--text-soft);font-weight:900;cursor:pointer}
+.paginacao button.active{background:var(--brand-primary);border-color:var(--brand-primary);color:#fff}
+.paginacao button:disabled{opacity:.4;cursor:not-allowed}
+.passos-section{margin-top:32px;padding:24px;border:1px solid var(--border);border-radius:22px;background:#fff;box-shadow:0 8px 28px rgba(15,23,42,.05)}
+.passos-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:18px}
+.passo-card{position:relative;display:flex;gap:11px;align-items:flex-start;padding:16px;border:1px solid var(--border);border-radius:16px;background:var(--category-soft)}
+.passo-card>span{width:30px;height:30px;display:grid;place-items:center;border-radius:50%;background:var(--brand-primary);color:#fff;font-size:12px;font-weight:1000;flex:0 0 auto}
+.passo-card div{display:grid;gap:5px}
+.passo-card strong{font-size:13px}
+.passo-card small{color:var(--text-soft);font-size:11px;line-height:1.45}
+.pagamentos{margin-top:18px;text-align:center}
+.pagamentos p{margin:0 0 10px;color:var(--text-soft);font-size:12px;font-weight:850}
+.pagamentos-lista{display:flex;justify-content:center;gap:7px;flex-wrap:wrap}
+.pagamentos-lista span{padding:7px 10px;border:1px solid var(--border);border-radius:999px;background:#fff;color:var(--text-soft);font-size:11px;font-weight:850}
+.footer{padding:28px 0;background:#fff;border-top:1px solid var(--border)}
+.footer-inner{width:min(1180px,calc(100% - 32px));margin:auto;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.footer-marca{display:flex;align-items:center;gap:10px}
+.footer-marca strong{display:block}
+.footer-marca p{margin:3px 0 0;color:var(--text-soft);font-size:12px}
+.footer-social{display:flex;gap:8px;flex-wrap:wrap}
+.social-link{padding:9px 12px;border-radius:11px;text-decoration:none;font-size:12px;font-weight:900}
+.social-link.instagram{background:#fdf2f8;color:#be185d}
+.social-link.whatsapp{background:#dcfce7;color:#15803d}
+.footer-credit{width:100%;margin:2px 0 0;color:var(--text-soft);font-size:11px;text-align:center}
+.footer-credit a{font-weight:900;color:var(--brand-primary)}
+@media(max-width:980px){
+    .nav-links{display:none}.apresentacao-inner{grid-template-columns:220px minmax(0,1fr);gap:28px}.apresentacao-logo{min-height:220px}.sobre-diferenciais{grid-template-columns:1fr}.conteudo.com-carrinho{grid-template-columns:1fr}.carrinho{position:static}.itens{grid-template-columns:repeat(2,minmax(0,1fr))}.passos-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:680px){
+    .navbar-inner,.apresentacao-inner,.sobre-diferenciais,.container,.footer-inner{width:min(100% - 22px,1180px)}.navbar-inner{min-height:62px;gap:9px}.marca-logo{width:43px;height:43px}.marca-texto strong{font-size:15px}.marca-texto small{display:none}.nav-whatsapp{margin-left:auto;width:42px;min-width:42px;padding:0;justify-content:center}.nav-whatsapp span:last-child{display:none}.nav-carrinho{font-size:0;width:42px;min-width:42px;padding:0;justify-content:center}.nav-carrinho span{font-size:16px}.apresentacao{padding-top:26px}.apresentacao-inner{grid-template-columns:1fr;gap:20px}.apresentacao-logo{min-height:190px;padding:18px}.apresentacao-logo-img{max-height:170px}.apresentacao-copy{text-align:center}.apresentacao h1{font-size:38px}.apresentacao-categoria{font-size:19px}.apresentacao-descricao{font-size:14px}.apresentacao-acoes{justify-content:center}.sobre-diferenciais{margin-top:18px}.diferenciais-grid{grid-template-columns:1fr}.diferencial-card+ .diferencial-card{border-left:0;border-top:1px solid var(--border)}.catalogo-cabecalho{align-items:flex-start;flex-direction:column}.barra{grid-template-columns:1fr;grid-template-areas:"busca" "abas" "categorias"}.tipo-abas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.tipo-aba{padding:0 10px}.itens{grid-template-columns:1fr}.item-imagem{height:250px;min-height:250px}.passos-grid{grid-template-columns:1fr}.footer-inner{justify-content:center;text-align:center}.footer-marca{justify-content:center}.footer-social{justify-content:center}.footer-credit{text-align:center}
+}
+</style>
+'''
+    estilo = (
+        estilo.replace("__COR_PRINCIPAL__", cor_principal)
+        .replace("__COR_SECUNDARIA__", cor_secundaria)
+        .replace("__COR_DESTAQUE__", cor_destaque)
+        .replace("__COR_CATEGORIA_SUAVE__", cor_categoria_suave)
+    )
+
+    corpo = r'''<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <meta name="theme-color" content="__COR_PRINCIPAL__">
+    <title>__TITULO_SEO__</title>
+    <meta name="description" content="__DESCRICAO_SEO__">
+    __ESTILO__
+</head>
+<body class="identity-__IDENTIDADE__ categoria-__CATEGORIA_CLASSE__" data-identity-mode="__IDENTIDADE__">
+<header class="site-header" id="inicio">
+    <div class="navbar-inner">
+        <a class="marca-nav" href="#inicio" aria-label="Início - __NOME_LOJA__">
+            <span class="marca-logo">__LOGO_NAV__</span>
+            <span class="marca-texto"><strong>__NOME_LOJA__</strong><small>__CATEGORIA__</small></span>
+        </a>
+        <nav class="nav-links" aria-label="Navegação principal">
+            <a href="#inicio">Início</a>
+            <a href="#catalogo">Catálogo</a>
+            <a href="#sobre">Sobre nós</a>
+        </nav>
+        __WHATSAPP_TOPO__
+        __CARRINHO_NAV__
+    </div>
+</header>
+<section class="apresentacao">
+    <div class="apresentacao-inner">
+        <div class="apresentacao-logo">__LOGO_APRESENTACAO__</div>
+        <div class="apresentacao-copy">
+            <p class="apresentacao-kicker">__KICKER__</p>
+            <h1>__NOME_LOJA__</h1>
+            <p class="apresentacao-categoria">__CATEGORIA__</p>
+            <p class="apresentacao-descricao">__DESCRICAO_EMPRESA__</p>
+            <div class="apresentacao-acoes">
+                <a class="btn-publico btn-catalogo" href="#catalogo">Ver catálogo</a>
+                __WHATSAPP_APRESENTACAO__
+            </div>
+        </div>
+    </div>
+</section>
+<section class="sobre-diferenciais" id="sobre">
+    <article class="sobre-card">
+        <p class="section-kicker">Sobre nós</p>
+        <h2>Conheça __NOME_LOJA__</h2>
+        <p>__DESCRICAO_EMPRESA__</p>
+    </article>
+    <div class="diferenciais-grid">__DIFERENCIAIS__</div>
+</section>
+<main class="container" id="catalogo">
+    __MENSAGEM__
+    __WHATSAPP_FINAL__
+    <header class="catalogo-cabecalho">
+        <div>
+            <p class="section-kicker">Catálogo</p>
+            <h2 id="tituloCatalogo">__TITULO_CATALOGO__</h2>
+            <p>Busque, filtre e escolha com tranquilidade.</p>
+        </div>
+    </header>
+    <section class="barra" aria-label="Filtros do catálogo">
+        <div class="busca-wrap"><input class="busca" id="busca" placeholder="Buscar produto, serviço ou categoria..." oninput="filtrarItens()"></div>
+        <div class="tipo-abas">__ABAS__</div>
+        <div class="categorias">
+            <div class="categorias-grupo" id="categoriasProduto" __OCULTAR_CATEGORIAS_PRODUTO__>__CATEGORIAS_PRODUTOS__</div>
+            <div class="categorias-grupo" id="categoriasServico" __OCULTAR_CATEGORIAS_SERVICO__>__CATEGORIAS_SERVICOS__</div>
+        </div>
+    </section>
+    <section class="__CLASSE_CONTEUDO__" id="conteudoCatalogo">
+        <div>
+            <div class="itens" id="itens">__CARDS__</div>
+            <nav class="paginacao" id="paginacaoCatalogo" aria-label="Paginação do catálogo"></nav>
+        </div>
+        __CARRINHO__
+    </section>
+    <section class="passos-section" id="passos">
+        <p class="section-kicker">Passo a passo</p>
+        <h2 id="tituloPassos">Como comprar</h2>
+        <div class="passos-grid" id="passosProduto" __OCULTAR_PASSOS_PRODUTO__>__PASSOS_PRODUTO__</div>
+        <div class="passos-grid" id="passosServico" __OCULTAR_PASSOS_SERVICO__>__PASSOS_SERVICO__</div>
+        <div class="pagamentos" id="pagamentosVitrine" __OCULTAR_PAGAMENTOS__>
+            <p>Formas de pagamento aceitas</p>
+            <div class="pagamentos-lista">__FORMAS_PAGAMENTO__</div>
+        </div>
+    </section>
+</main>
+<footer class="footer">
+    <div class="footer-inner">
+        <div class="footer-marca"><span class="marca-logo">__LOGO_NAV__</span><div><strong>__NOME_LOJA__</strong><p>__CATEGORIA__</p></div></div>
+        <div class="footer-social">__INSTAGRAM_SOCIAL____WHATSAPP_SOCIAL__</div>
+        <p class="footer-credit">Desenvolvido pela <a href="https://nettsan.com.br" target="_blank" rel="noopener">Nettsan</a></p>
+    </div>
+</footer>
+<script>
+let carrinho=[];
+let tipoAtivo=__TIPO_INICIAL_JSON__;
+let categoriaAtiva='';
+let paginaAtual=1;
+const itensPorPagina=9;
+function moedaNumero(v){return parseFloat(String(v).replace(/\./g,'').replace(',','.'))||0}
+function moedaBR(v){return v.toFixed(2).replace('.',',')}
+function registrarItem(tipo,id){fetch('/loja/__SLUG__/evento',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tipo:tipo,item_id:id||''})}).catch(()=>{})}
+function adicionarCarrinho(id,nome,preco){registrarItem('carrinho',id);const item=carrinho.find(i=>i.id===id);if(item)item.quantidade+=1;else carrinho.push({id,nome,preco,quantidade:1});renderCarrinho()}
+function renderCarrinho(){const el=document.getElementById('itensCarrinho');if(!el)return;if(!carrinho.length){el.innerHTML='Nenhum item adicionado.';document.getElementById('totalCarrinho').innerText='Total: R$ 0,00';return}let total=0;el.innerHTML=carrinho.map(i=>{const sub=moedaNumero(i.preco)*i.quantidade;total+=sub;return `<div class="item-carrinho"><span>${i.quantidade}x ${i.nome}</span><strong>R$ ${moedaBR(sub)}</strong></div>`}).join('');document.getElementById('totalCarrinho').innerText='Total: R$ '+moedaBR(total)}
+function prepararPedido(){const quantidade=carrinho.reduce((t,i)=>t+i.quantidade,0);if(quantidade<__QUANTIDADE_MINIMA__){alert('A quantidade mínima do pedido é __QUANTIDADE_MINIMA__.');return false}document.getElementById('itensJson').value=JSON.stringify(carrinho);return true}
+function obterCardsFiltrados(){const termo=(document.getElementById('busca').value||'').trim().toLowerCase();return [...document.querySelectorAll('.catalogo-card')].filter(card=>{const tipoOk=card.dataset.tipo===tipoAtivo;const categoriaOk=!categoriaAtiva||card.dataset.categoria===categoriaAtiva;const buscaOk=!termo||card.dataset.nome.includes(termo)||card.dataset.categoria.toLowerCase().includes(termo);return tipoOk&&categoriaOk&&buscaOk})}
+function renderizarPaginacao(total){const paginas=Math.max(1,Math.ceil(total/itensPorPagina));paginaAtual=Math.min(paginaAtual,paginas);const nav=document.getElementById('paginacaoCatalogo');if(!nav)return;if(total<=itensPorPagina){nav.innerHTML='';return}let html=`<button type="button" ${paginaAtual===1?'disabled':''} onclick="mudarPagina(${paginaAtual-1})" aria-label="Página anterior">‹</button>`;for(let pagina=1;pagina<=paginas;pagina++){if(paginas>8&&pagina>2&&pagina<paginas-1&&Math.abs(pagina-paginaAtual)>1){if(!html.endsWith('<span>…</span>'))html+='<span>…</span>';continue}html+=`<button type="button" class="${pagina===paginaAtual?'active':''}" onclick="mudarPagina(${pagina})">${pagina}</button>`}html+=`<button type="button" ${paginaAtual===paginas?'disabled':''} onclick="mudarPagina(${paginaAtual+1})" aria-label="Próxima página">›</button>`;nav.innerHTML=html}
+function aplicarFiltros(resetPagina=false){if(resetPagina)paginaAtual=1;const filtrados=obterCardsFiltrados();document.querySelectorAll('.catalogo-card').forEach(card=>card.hidden=true);const inicio=(paginaAtual-1)*itensPorPagina;filtrados.slice(inicio,inicio+itensPorPagina).forEach(card=>card.hidden=false);renderizarPaginacao(filtrados.length)}
+function mudarPagina(pagina){paginaAtual=Math.max(1,pagina);aplicarFiltros(false);document.getElementById('catalogo').scrollIntoView({behavior:'smooth',block:'start'})}
+function atualizarSecoesTipo(){const produto=tipoAtivo==='produto';const passosProduto=document.getElementById('passosProduto');const passosServico=document.getElementById('passosServico');const pagamentos=document.getElementById('pagamentosVitrine');const titulo=document.getElementById('tituloPassos');if(passosProduto)passosProduto.hidden=!produto;if(passosServico)passosServico.hidden=produto;if(pagamentos)pagamentos.hidden=!produto;if(titulo)titulo.textContent=produto?'Como comprar':'Como agendar'}
+function selecionarTipo(tipo,botao){tipoAtivo=tipo;categoriaAtiva='';document.querySelectorAll('.tipo-aba').forEach(item=>item.classList.toggle('active',item===botao));const grupoProduto=document.getElementById('categoriasProduto');const grupoServico=document.getElementById('categoriasServico');if(grupoProduto)grupoProduto.hidden=tipo!=='produto';if(grupoServico)grupoServico.hidden=tipo!=='servico';document.querySelectorAll('.categoria-botao').forEach(item=>item.classList.toggle('active',item.dataset.tipo===tipo&&!item.dataset.categoria));const carrinhoEl=document.getElementById('carrinhoProdutos');const conteudo=document.getElementById('conteudoCatalogo');if(carrinhoEl)carrinhoEl.hidden=tipo!=='produto';if(conteudo)conteudo.classList.toggle('com-carrinho',tipo==='produto'&&!!carrinhoEl);const busca=document.getElementById('busca');if(busca)busca.value='';atualizarSecoesTipo();aplicarFiltros(true)}
+function filtrarCategoria(tipo,categoria,botao){if(tipo!==tipoAtivo)return;categoriaAtiva=categoria||'';document.querySelectorAll(`.categoria-botao[data-tipo="${tipo}"]`).forEach(item=>item.classList.toggle('active',item===botao));aplicarFiltros(true)}
+function filtrarItens(){aplicarFiltros(true)}
+function limitar(valor,min,max){return Math.min(max,Math.max(min,valor))}
+function rgbParaHsl(r,g,b){r/=255;g/=255;b/=255;const max=Math.max(r,g,b),min=Math.min(r,g,b);let h=0,s=0;const l=(max+min)/2;if(max!==min){const d=max-min;s=l>.5?d/(2-max-min):d/(max+min);switch(max){case r:h=(g-b)/d+(g<b?6:0);break;case g:h=(b-r)/d+2;break;default:h=(r-g)/d+4}h/=6}return{h,s,l}}
+function ajustarCor(cor,delta){return cor.map(v=>limitar(Math.round(v+delta),0,255))}
+function corCss(cor){return `rgb(${cor[0]},${cor[1]},${cor[2]})`}
+function distanciaCor(a,b){return Math.sqrt((a[0]-b[0])**2+(a[1]-b[1])**2+(a[2]-b[2])**2)}
+function aplicarCoresDaLogo(){if(document.body.dataset.identityMode!=='logo')return;const img=document.getElementById('brandColorSource');if(!img||img.tagName!=='IMG')return;const processar=()=>{try{const canvas=document.createElement('canvas');canvas.width=120;canvas.height=120;const ctx=canvas.getContext('2d',{willReadFrequently:true});if(!ctx)return;ctx.clearRect(0,0,120,120);const escala=Math.min(120/img.naturalWidth,120/img.naturalHeight);const w=img.naturalWidth*escala,h=img.naturalHeight*escala;ctx.drawImage(img,(120-w)/2,(120-h)/2,w,h);const dados=ctx.getImageData(0,0,120,120).data;const mapa=new Map();for(let i=0;i<dados.length;i+=16){const a=dados[i+3];if(a<170)continue;const r=dados[i],g=dados[i+1],b=dados[i+2];const max=Math.max(r,g,b),min=Math.min(r,g,b);if(min>244||max<10)continue;const qr=Math.round(r/24)*24,qg=Math.round(g/24)*24,qb=Math.round(b/24)*24;const chave=`${qr},${qg},${qb}`;mapa.set(chave,(mapa.get(chave)||0)+1)}const cores=[...mapa.entries()].map(([chave,count])=>{const rgb=chave.split(',').map(Number);const hsl=rgbParaHsl(...rgb);return{rgb,count,...hsl}}).sort((a,b)=>b.count-a.count).slice(0,24);if(!cores.length)return;const escuras=cores.filter(c=>c.l<.48);const principal=(escuras.length?escuras:cores).sort((a,b)=>(b.count*(1-b.l))-(a.count*(1-a.l)))[0].rgb;const vivas=cores.filter(c=>c.s>.35&&c.l>.22&&c.l<.82&&distanciaCor(c.rgb,principal)>80);const destaque=(vivas.length?vivas:cores.filter(c=>distanciaCor(c.rgb,principal)>70)).sort((a,b)=>(b.count*(.5+b.s))-(a.count*(.5+a.s)))[0]?.rgb||[245,158,11];const raiz=document.documentElement;raiz.style.setProperty('--brand-primary',corCss(principal));raiz.style.setProperty('--brand-primary-2',corCss(ajustarCor(principal,32)));raiz.style.setProperty('--brand-accent',corCss(destaque));raiz.style.setProperty('--brand-accent-soft',`rgba(${destaque[0]},${destaque[1]},${destaque[2]},.16)`);const brilho=(destaque[0]*299+destaque[1]*587+destaque[2]*114)/1000;raiz.style.setProperty('--brand-accent-text',brilho>155?'#071a2b':'#ffffff')}catch(e){}};if(img.complete&&img.naturalWidth)processar();else img.addEventListener('load',processar,{once:true})}
+document.addEventListener('DOMContentLoaded',()=>{const botao=document.querySelector(`.tipo-aba[data-tipo="${tipoAtivo}"]`);if(botao)selecionarTipo(tipoAtivo,botao);else{atualizarSecoesTipo();aplicarFiltros(true)}aplicarCoresDaLogo()});
+</script>
+</body>
+</html>'''
+
+    substituicoes = {
+        "__COR_PRINCIPAL__": cor_principal,
+        "__TITULO_SEO__": titulo_seo,
+        "__DESCRICAO_SEO__": descricao_seo,
+        "__ESTILO__": estilo,
+        "__IDENTIDADE__": tipo_identidade_visual,
+        "__CATEGORIA_CLASSE__": categoria_classe,
+        "__NOME_LOJA__": nome_loja,
+        "__LOGO_NAV__": logo_nav_html,
+        "__CATEGORIA__": categoria,
+        "__WHATSAPP_TOPO__": whatsapp_topo_html,
+        "__CARRINHO_NAV__": carrinho_nav_html,
+        "__LOGO_APRESENTACAO__": logo_apresentacao_html,
+        "__KICKER__": categoria_kicker,
+        "__DESCRICAO_EMPRESA__": texto_institucional,
+        "__WHATSAPP_APRESENTACAO__": whatsapp_apresentacao_html,
+        "__DIFERENCIAIS__": diferenciais_html,
+        "__MENSAGEM__": mensagem_html,
+        "__WHATSAPP_FINAL__": whatsapp_final_html,
+        "__TITULO_CATALOGO__": titulo_catalogo,
+        "__ABAS__": abas_html,
+        "__OCULTAR_CATEGORIAS_PRODUTO__": "hidden" if tipo_inicial != "produto" else "",
+        "__CATEGORIAS_PRODUTOS__": categorias_produtos_html,
+        "__OCULTAR_CATEGORIAS_SERVICO__": "hidden" if tipo_inicial != "servico" else "",
+        "__CATEGORIAS_SERVICOS__": categorias_servicos_html,
+        "__CLASSE_CONTEUDO__": classe_conteudo,
+        "__CARDS__": cards_html,
+        "__CARRINHO__": carrinho_html,
+        "__OCULTAR_PASSOS_PRODUTO__": "hidden" if tipo_inicial != "produto" else "",
+        "__PASSOS_PRODUTO__": passos_produto_html,
+        "__OCULTAR_PASSOS_SERVICO__": "hidden" if tipo_inicial != "servico" else "",
+        "__PASSOS_SERVICO__": passos_servico_html,
+        "__OCULTAR_PAGAMENTOS__": "hidden" if tipo_inicial != "produto" else "",
+        "__FORMAS_PAGAMENTO__": formas_pagamento_html,
+        "__INSTAGRAM_SOCIAL__": instagram_html,
+        "__WHATSAPP_SOCIAL__": whatsapp_social_html,
+        "__TIPO_INICIAL_JSON__": json.dumps(tipo_inicial),
+        "__SLUG__": slug,
+        "__QUANTIDADE_MINIMA__": str(quantidade_minima),
+    }
+    for marcador, valor in substituicoes.items():
+        corpo = corpo.replace(marcador, valor)
+    return corpo
 
 @app.route("/vitrine-upload/<path:caminho>")
 def servir_upload_vitrine_publico(caminho: str) -> Response:
@@ -25509,7 +26160,10 @@ def vitrine_servico_status() -> Response:
 def vitrine() -> str | Response:
     config_vitrine = buscar_vitrine_configuracao()
     if request.method == "POST":
-        dados = montar_vitrine_formulario(config_vitrine)
+        try:
+            dados = montar_vitrine_formulario(config_vitrine)
+        except ValueError as exc:
+            return redirect(url_for("vitrine", erro=str(exc)))
         salvar_vitrine_configuracao_db(dados)
         return redirect(url_for("vitrine", mensagem="Configuração da vitrine salva com sucesso."))
     empresa_id = empresa_logada_id()
