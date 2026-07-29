@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamentos.html
-Último recode: 2026-07-27 17:24 (America/Bahia)
-Motivo: Mover o envio do orçamento para a lista e anexar o PDF diretamente no WhatsApp.
+Último recode: 2026-07-29 13:15 (America/Bahia)
+Motivo: Simplificar o menu de ações, remover submenus aninhados e exibir todas as opções diretamente ao abrir o botão.
 -->
 
 <!DOCTYPE html>
@@ -69,52 +69,30 @@ Motivo: Mover o envio do orçamento para a lista e anexar o PDF diretamente no W
             display: block;
         }
 
-        .budget-action-submenu {
-            border-radius: 8px;
-        }
-
-        .budget-action-submenu summary,
         .budget-action-panel a {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 9px;
+            min-height: 38px;
             padding: 9px 10px;
             color: #1f2937;
             text-decoration: none;
             font-size: 13px;
+            font-weight: 700;
             cursor: pointer;
             border-radius: 8px;
             white-space: nowrap;
         }
 
-        .budget-action-submenu summary::-webkit-details-marker {
-            display: none;
-        }
-
-        .budget-action-submenu summary::marker {
-            content: "";
-        }
-
-        .budget-action-submenu summary::after {
-            content: "›";
-            margin-left: auto;
-            font-weight: 800;
-        }
-
-        .budget-action-submenu summary:hover,
-        .budget-action-panel a:hover {
+        .budget-action-panel a:hover,
+        .budget-action-panel a:focus-visible {
             background: #f1f5f9;
+            color: #0f172a;
+            outline: none;
         }
 
-        .budget-action-submenu[open] summary {
-            background: #0f172a;
-            color: #ffffff;
-        }
-
-        .budget-action-subitems {
-            padding-left: 10px;
-            border-left: 2px solid #e5e7eb;
-            margin-left: 12px;
+        .budget-action-panel a + a {
+            margin-top: 2px;
         }
 
         .budget-action-row {
@@ -1061,33 +1039,16 @@ Motivo: Mover o envio do orçamento para a lista e anexar o PDF diretamente no W
                                                     <details class="budget-action-dropdown">
                                                         <summary class="budget-action-trigger" title="Mais ações do orçamento" aria-label="Mais ações do orçamento">⌄</summary>
                                                         <div class="budget-action-panel">
-                                                            <details class="budget-action-submenu">
-                                                                <summary>🖨 Imprimir</summary>
-                                                                <div class="budget-action-subitems">
-                                                                    <a href="/orcamentos/{{ orcamento.id }}/imprimir/a4" target="_blank">A4</a>
-                                                                    <a href="/orcamentos/{{ orcamento.id }}/imprimir/cupom" target="_blank">Cupom</a>
-                                                                </div>
-                                                            </details>
-
-                                                            <details class="budget-action-submenu">
-                                                                <summary>📲 WhatsApp</summary>
-                                                                <div class="budget-action-subitems">
-                                                                    <a href="/whatsapp/pdf/orcamento/{{ orcamento.id }}">Enviar PDF</a>
-                                                                </div>
-                                                            </details>
-
-                                                            <details class="budget-action-submenu">
-                                                                <summary>↻ Gerar</summary>
-                                                                <div class="budget-action-subitems">
-                                                                    <a href="/orcamentos/{{ orcamento.id }}/gerar/copia">Cópia</a>
-                                                                    {% if orcamento.venda_gerada_id %}
-                                                                        <a href="/vendas/{{ orcamento.venda_gerada_id }}">✓ Venda já gerada</a>
-                                                                    {% else %}
-                                                                        <a href="/orcamentos/{{ orcamento.id }}/gerar/venda">Gerar venda</a>
-                                                                    {% endif %}
-                                                                    <a href="/orcamentos/{{ orcamento.id }}?gerar=os">OS</a>
-                                                                </div>
-                                                            </details>
+                                                            <a href="/orcamentos/{{ orcamento.id }}/imprimir/a4" target="_blank">🖨 Imprimir A4</a>
+                                                            <a href="/orcamentos/{{ orcamento.id }}/imprimir/cupom" target="_blank">🧾 Imprimir Cupom</a>
+                                                            <a href="/whatsapp/pdf/orcamento/{{ orcamento.id }}">📲 Enviar PDF por WhatsApp</a>
+                                                            <a href="/orcamentos/{{ orcamento.id }}/gerar/copia">↻ Gerar cópia</a>
+                                                            {% if orcamento.venda_gerada_id %}
+                                                                <a href="/vendas/{{ orcamento.venda_gerada_id }}">✓ Abrir venda gerada</a>
+                                                            {% else %}
+                                                                <a href="/orcamentos/{{ orcamento.id }}/gerar/venda">🛒 Gerar venda</a>
+                                                            {% endif %}
+                                                            <a href="/orcamentos/{{ orcamento.id }}?gerar=os">🛠 Gerar OS</a>
                                                         </div>
                                                     </details>
                                                 </div>
@@ -1917,7 +1878,7 @@ Motivo: Mover o envio do orçamento para a lista e anexar o PDF diretamente no W
             window.addEventListener("resize", function() {
                 document.querySelectorAll(".budget-action-dropdown[open]").forEach(posicionarMenuOrcamento);
             });
-        </script>        </script>
+        </script>
 
 
     </main>

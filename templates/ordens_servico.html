@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordens_servico.html
-Último recode: 2026-07-27 21:55 (America/Bahia)
-Motivo: Remover cadastro redundante e padronizar hierarquia, indicadores e cores do módulo Ordens de Serviço.
+Último recode: 2026-07-29 13:15 (America/Bahia)
+Motivo: Simplificar o menu de ações, remover submenus aninhados e exibir todas as opções diretamente ao abrir o botão.
 -->
 
 <!DOCTYPE html>
@@ -201,52 +201,30 @@ Motivo: Remover cadastro redundante e padronizar hierarquia, indicadores e cores
             display: block;
         }
 
-        .budget-action-submenu {
-            border-radius: 8px;
-        }
-
-        .budget-action-submenu summary,
         .budget-action-panel a {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 9px;
+            min-height: 38px;
             padding: 9px 10px;
             color: #1f2937;
             text-decoration: none;
             font-size: 13px;
+            font-weight: 700;
             cursor: pointer;
             border-radius: 8px;
             white-space: nowrap;
         }
 
-        .budget-action-submenu summary::-webkit-details-marker {
-            display: none;
-        }
-
-        .budget-action-submenu summary::marker {
-            content: "";
-        }
-
-        .budget-action-submenu summary::after {
-            content: "›";
-            margin-left: auto;
-            font-weight: 800;
-        }
-
-        .budget-action-submenu summary:hover,
-        .budget-action-panel a:hover {
+        .budget-action-panel a:hover,
+        .budget-action-panel a:focus-visible {
             background: #f1f5f9;
+            color: #0f172a;
+            outline: none;
         }
 
-        .budget-action-submenu[open] summary {
-            background: #0f172a;
-            color: #ffffff;
-        }
-
-        .budget-action-subitems {
-            padding-left: 10px;
-            border-left: 2px solid #e5e7eb;
-            margin-left: 12px;
+        .budget-action-panel a + a {
+            margin-top: 2px;
         }
 
         .budget-action-row {
@@ -1236,29 +1214,13 @@ Motivo: Remover cadastro redundante e padronizar hierarquia, indicadores e cores
                                                 <details class="budget-action-dropdown">
                                                     <summary class="budget-action-trigger" title="Mais ações da OS" aria-label="Mais ações da OS">⌄</summary>
                                                     <div class="budget-action-panel">
-                                                        <details class="budget-action-submenu">
-                                                            <summary>🖨 Imprimir</summary>
-                                                            <div class="budget-action-subitems">
-                                                                <a href="/ordens-servico/{{ os.id }}/imprimir/a4" target="_blank">A4</a>
-                                                                <a href="/ordens-servico/{{ os.id }}/imprimir/cupom" target="_blank">Cupom</a>
-                                                            </div>
-                                                        </details>
-                                                        <details class="budget-action-submenu">
-                                                            <summary>📲 WhatsApp</summary>
-                                                            <div class="budget-action-subitems">
-                                                                <a href="/whatsapp/pdf/ordem_servico/{{ os.id }}">Enviar PDF</a>
-                                                            </div>
-                                                        </details>
-                                                        <details class="budget-action-submenu">
-                                                            <summary>↪ Gerar</summary>
-                                                            <div class="budget-action-subitems">
-                                                                <a href="/ordens-servico/{{ os.id }}/links">Atualizar links públicos</a>
-                                                                <a href="/os/cliente/{{ os.token_cliente }}" target="_blank">Link do cliente</a>
-                                                                <a href="/os/campo/{{ os.token_campo }}" target="_blank">Link do técnico/campo</a>
-                                                                <a href="/ordens-servico/{{ os.id }}/gerar/copia">Cópia</a>
-
-                                                            </div>
-                                                        </details>
+                                                        <a href="/ordens-servico/{{ os.id }}/imprimir/a4" target="_blank">🖨 Imprimir A4</a>
+                                                        <a href="/ordens-servico/{{ os.id }}/imprimir/cupom" target="_blank">🧾 Imprimir Cupom</a>
+                                                        <a href="/whatsapp/pdf/ordem_servico/{{ os.id }}">📲 Enviar PDF por WhatsApp</a>
+                                                        <a href="/ordens-servico/{{ os.id }}/links">🔗 Atualizar links públicos</a>
+                                                        <a href="/os/cliente/{{ os.token_cliente }}" target="_blank">👤 Abrir link do cliente</a>
+                                                        <a href="/os/campo/{{ os.token_campo }}" target="_blank">🛠 Abrir link técnico/campo</a>
+                                                        <a href="/ordens-servico/{{ os.id }}/gerar/copia">↻ Gerar cópia</a>
                                                     </div>
                                                 </details>
                                             </div>

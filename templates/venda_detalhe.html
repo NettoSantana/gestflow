@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\venda_detalhe.html
-Último recode: 2026-07-14 21:10 (America/Bahia)
-Motivo: Exibir condição de pagamento e cronograma financeiro da venda.
+Último recode: 2026-07-29 13:15 (America/Bahia)
+Motivo: Simplificar o menu de ações, remover submenus aninhados e exibir todas as opções diretamente ao abrir o botão.
 -->
 
 <!DOCTYPE html>
@@ -59,54 +59,34 @@ Motivo: Exibir condição de pagamento e cronograma financeiro da venda.
             display: block;
         }
 
-        .sale-action-submenu {
-            border-radius: 8px;
-        }
-
-        .sale-action-submenu summary,
         .sale-action-panel a,
         .sale-action-panel span {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 9px;
+            min-height: 38px;
             padding: 9px 10px;
             color: #1f2937;
             text-decoration: none;
             font-size: 13px;
+            font-weight: 700;
             cursor: pointer;
             border-radius: 8px;
             white-space: nowrap;
         }
 
-        .sale-action-submenu summary::-webkit-details-marker {
-            display: none;
-        }
-
-        .sale-action-submenu summary::marker {
-            content: "";
-        }
-
-        .sale-action-submenu summary::after {
-            content: "›";
-            margin-left: auto;
-            font-weight: 800;
-        }
-
-        .sale-action-submenu summary:hover,
         .sale-action-panel a:hover,
+        .sale-action-panel a:focus-visible,
         .sale-action-panel span:hover {
             background: #f1f5f9;
+            color: #0f172a;
+            outline: none;
         }
 
-        .sale-action-submenu[open] summary {
-            background: #0f172a;
-            color: #ffffff;
-        }
-
-        .sale-action-subitems {
-            padding-left: 10px;
-            border-left: 2px solid #e5e7eb;
-            margin-left: 12px;
+        .sale-action-panel a + a,
+        .sale-action-panel span + a,
+        .sale-action-panel a + span {
+            margin-top: 2px;
         }
 
         .sale-action-row {
@@ -408,21 +388,10 @@ Motivo: Exibir condição de pagamento e cronograma financeiro da venda.
                         <details class="sale-action-dropdown">
                             <summary class="sale-action-trigger" title="Mais ações da venda" aria-label="Mais ações da venda">⌄</summary>
                             <div class="sale-action-panel">
-                                <details class="sale-action-submenu">
-                                    <summary>🖨 Imprimir</summary>
-                                    <div class="sale-action-subitems">
-                                        <a href="/vendas/{{ venda.id }}/imprimir/a4">A4</a>
-                                        <a href="/vendas/{{ venda.id }}/imprimir/cupom">Cupom</a>
-                                    </div>
-                                </details>
-
-                                <details class="sale-action-submenu">
-                                    <summary>↻ Gerar</summary>
-                                    <div class="sale-action-subitems">
-                                        <a href="/vendas/{{ venda.id }}/gerar/copia">Cópia</a>
-                                        <a href="/vendas/{{ venda.id }}/gerar/os">OS</a>
-                                    </div>
-                                </details>
+                                <a href="/vendas/{{ venda.id }}/imprimir/a4" target="_blank">🖨 Imprimir A4</a>
+                                <a href="/vendas/{{ venda.id }}/imprimir/cupom" target="_blank">🧾 Imprimir Cupom</a>
+                                <a href="/vendas/{{ venda.id }}/gerar/copia">↻ Gerar cópia</a>
+                                <a href="/vendas/{{ venda.id }}/gerar/os">🛠 Gerar OS</a>
                             </div>
                         </details>
                     </div>
@@ -523,7 +492,7 @@ Motivo: Exibir condição de pagamento e cronograma financeiro da venda.
                 }
 
                 const rect = trigger.getBoundingClientRect();
-                const largura = 190;
+                const largura = Math.max(panel.offsetWidth || 230, 230);
                 const margem = 8;
                 let left = rect.right - largura;
 
@@ -535,7 +504,7 @@ Motivo: Exibir condição de pagamento e cronograma financeiro da venda.
                     left = window.innerWidth - largura - margem;
                 }
 
-                const alturaEstimativa = 210;
+                const alturaEstimativa = panel.offsetHeight || 220;
                 let top = rect.bottom + margem;
 
                 if (top + alturaEstimativa > window.innerHeight - margem) {

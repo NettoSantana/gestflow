@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_detalhe.html
-Último recode: 2026-07-16 17:13 (America/Bahia)
-Motivo: Mostrar a venda já vinculada e impedir nova geração pelo mesmo orçamento.
+Último recode: 2026-07-29 13:15 (America/Bahia)
+Motivo: Simplificar o menu de ações, remover submenus aninhados e exibir todas as opções diretamente ao abrir o botão.
 -->
 
 <!DOCTYPE html>
@@ -59,52 +59,30 @@ Motivo: Mostrar a venda já vinculada e impedir nova geração pelo mesmo orçam
             display: block;
         }
 
-        .budget-action-submenu {
-            border-radius: 8px;
-        }
-
-        .budget-action-submenu summary,
         .budget-action-panel a {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 9px;
+            min-height: 38px;
             padding: 9px 10px;
             color: #1f2937;
             text-decoration: none;
             font-size: 13px;
+            font-weight: 700;
             cursor: pointer;
             border-radius: 8px;
             white-space: nowrap;
         }
 
-        .budget-action-submenu summary::-webkit-details-marker {
-            display: none;
-        }
-
-        .budget-action-submenu summary::marker {
-            content: "";
-        }
-
-        .budget-action-submenu summary::after {
-            content: "›";
-            margin-left: auto;
-            font-weight: 800;
-        }
-
-        .budget-action-submenu summary:hover,
-        .budget-action-panel a:hover {
+        .budget-action-panel a:hover,
+        .budget-action-panel a:focus-visible {
             background: #f1f5f9;
+            color: #0f172a;
+            outline: none;
         }
 
-        .budget-action-submenu[open] summary {
-            background: #0f172a;
-            color: #ffffff;
-        }
-
-        .budget-action-subitems {
-            padding-left: 10px;
-            border-left: 2px solid #e5e7eb;
-            margin-left: 12px;
+        .budget-action-panel a + a {
+            margin-top: 2px;
         }
 
         .budget-action-row {
@@ -402,11 +380,25 @@ Motivo: Mostrar a venda já vinculada e impedir nova geração pelo mesmo orçam
         <section class="panel table-panel">
             <div class="panel-header page-header">
                 <div><h3>Apresentação ao cliente</h3><p class="page-subtitle">Esta é a composição que será exibida no PDF e no cupom.</p></div>
-                <div class="budget-action-row"><a href="/orcamentos/{{ orcamento.id }}/editar#aba-apresentacao" class="btn-primary-green">Editar apresentação</a><div class="budget-action-menu"><details class="budget-action-dropdown"><summary class="budget-action-trigger">⌄</summary><div class="budget-action-panel"><details class="budget-action-submenu"><summary>🖨 Imprimir</summary><div class="budget-action-subitems"><a href="/orcamentos/{{ orcamento.id }}/imprimir/a4" target="_blank">A4</a><a href="/orcamentos/{{ orcamento.id }}/imprimir/cupom" target="_blank">Cupom</a></div></details><details class="budget-action-submenu"><summary>↻ Gerar</summary><div class="budget-action-subitems"><a href="/orcamentos/{{ orcamento.id }}/gerar/copia">Cópia</a>{% if venda_gerada %}
-                                    <a href="/vendas/{{ venda_gerada.id }}">✓ Venda já gerada Nº {{ venda_gerada.numero or venda_gerada.id }}</a>
+                <div class="budget-action-row">
+                    <a href="/orcamentos/{{ orcamento.id }}/editar#aba-apresentacao" class="btn-primary-green">Editar apresentação</a>
+                    <div class="budget-action-menu">
+                        <details class="budget-action-dropdown">
+                            <summary class="budget-action-trigger" title="Mais ações do orçamento" aria-label="Mais ações do orçamento">⌄</summary>
+                            <div class="budget-action-panel">
+                                <a href="/orcamentos/{{ orcamento.id }}/imprimir/a4" target="_blank">🖨 Imprimir A4</a>
+                                <a href="/orcamentos/{{ orcamento.id }}/imprimir/cupom" target="_blank">🧾 Imprimir Cupom</a>
+                                <a href="/orcamentos/{{ orcamento.id }}/gerar/copia">↻ Gerar cópia</a>
+                                {% if venda_gerada %}
+                                    <a href="/vendas/{{ venda_gerada.id }}">✓ Abrir venda Nº {{ venda_gerada.numero or venda_gerada.id }}</a>
                                 {% else %}
-                                    <a href="/orcamentos/{{ orcamento.id }}/gerar/venda">Gerar venda</a>
-                                {% endif %}<a href="/orcamentos/{{ orcamento.id }}?gerar=os">OS</a></div></details></div></details></div></div>
+                                    <a href="/orcamentos/{{ orcamento.id }}/gerar/venda">🛒 Gerar venda</a>
+                                {% endif %}
+                                <a href="/orcamentos/{{ orcamento.id }}?gerar=os">🛠 Gerar OS</a>
+                            </div>
+                        </details>
+                    </div>
+                </div>
             </div>
             {% if modo == 'detalhado' %}
                 <div class="internal-warning">O modo detalhado exibe todos os produtos e serviços ao cliente.</div>
@@ -495,7 +487,7 @@ Motivo: Mostrar a venda já vinculada e impedir nova geração pelo mesmo orçam
                 }
 
                 const rect = trigger.getBoundingClientRect();
-                const largura = 190;
+                const largura = Math.max(panel.offsetWidth || 230, 230);
                 const margem = 8;
                 let left = rect.right - largura;
 
@@ -507,7 +499,18 @@ Motivo: Mostrar a venda já vinculada e impedir nova geração pelo mesmo orçam
                     left = window.innerWidth - largura - margem;
                 }
 
-                panel.style.top = (rect.bottom + margem) + "px";
+                const altura = panel.offsetHeight || 260;
+                let top = rect.bottom + margem;
+
+                if (top + altura > window.innerHeight - margem) {
+                    top = rect.top - altura - margem;
+                }
+
+                if (top < margem) {
+                    top = margem;
+                }
+
+                panel.style.top = top + "px";
                 panel.style.left = left + "px";
             }
 
