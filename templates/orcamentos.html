@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamentos.html
-Último recode: 2026-07-29 13:45 (America/Bahia)
-Motivo: Simplificar o menu de ações, separar A4 e Cupom com links nativos e manter a listagem aberta ao imprimir.
+Último recode: 2026-07-29 14:13 (America/Bahia)
+Motivo: Substituir o menu flutuante por diálogo nativo e separar definitivamente as ações A4 e Cupom.
 -->
 
 <!DOCTYPE html>
@@ -15,23 +15,19 @@ Motivo: Simplificar o menu de ações, separar A4 e Cupom com links nativos e ma
     <style>
 
         .orcamentos-page {
-            padding-bottom: 280px;
+            padding-bottom: 60px;
         }
 
-        .orcamentos-page .table-panel {
-            margin-bottom: 180px;
-        }
-
-
-        .budget-action-menu {
+        .budget-action-menu,
+        .sale-action-menu {
             position: relative;
             display: inline-block;
         }
 
-        .budget-action-trigger {
+        .gf-action-dialog-trigger {
             width: 34px;
             height: 34px;
-            border: none;
+            border: 0;
             border-radius: 8px;
             background: #16a34a;
             color: #ffffff;
@@ -39,58 +35,121 @@ Motivo: Simplificar o menu de ações, separar A4 e Cupom com links nativos e ma
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            font-weight: 800;
+            font-weight: 900;
             box-shadow: 0 8px 18px rgba(22, 163, 74, 0.20);
             user-select: none;
         }
 
-        .budget-action-trigger:hover,
-        .budget-action-trigger[aria-expanded="true"] {
+        .gf-action-dialog-trigger:hover,
+        .gf-action-dialog-trigger:focus-visible {
             background: #15803d;
+            outline: 3px solid rgba(22, 163, 74, 0.20);
+            outline-offset: 2px;
         }
 
-        .budget-action-panel {
-            position: fixed;
-            z-index: 9999;
-            min-width: 240px;
-            max-width: min(300px, calc(100vw - 16px));
+        .gf-action-dialog {
+            width: min(420px, calc(100vw - 32px));
+            max-height: calc(100vh - 32px);
+            margin: auto;
+            padding: 0;
+            border: 0;
+            border-radius: 18px;
             background: #ffffff;
-            border: 1px solid #d8dee8;
+            color: #0f172a;
+            box-shadow: 0 28px 80px rgba(15, 23, 42, 0.30);
+            overflow: hidden;
+        }
+
+        .gf-action-dialog::backdrop {
+            background: rgba(15, 23, 42, 0.58);
+            backdrop-filter: blur(2px);
+        }
+
+        .gf-action-dialog-card {
+            padding: 20px;
+            overflow-y: auto;
+            max-height: calc(100vh - 32px);
+        }
+
+        .gf-action-dialog-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .gf-action-dialog-header h3 {
+            margin: 0;
+            color: #0f172a;
+            font-size: 19px;
+        }
+
+        .gf-action-dialog-header p {
+            margin: 5px 0 0;
+            color: #64748b;
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        .gf-action-dialog-close {
+            flex: 0 0 auto;
+            width: 36px;
+            height: 36px;
+            border: 0;
             border-radius: 10px;
-            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.20);
-            padding: 6px;
+            background: #f1f5f9;
+            color: #0f172a;
+            cursor: pointer;
+            font-size: 20px;
+            font-weight: 900;
         }
 
-        .budget-action-panel[hidden] {
-            display: none !important;
+        .gf-action-dialog-close:hover {
+            background: #e2e8f0;
         }
 
-        .budget-action-panel a,
-        .budget-action-panel .budget-action-disabled {
+        .gf-action-dialog-actions {
+            display: grid;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .gf-action-dialog-actions a,
+        .gf-action-dialog-disabled {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
             width: 100%;
-            padding: 10px 11px;
-            color: #1f2937;
+            min-height: 44px;
+            padding: 11px 13px;
+            border: 1px solid #e2e8f0;
+            border-radius: 11px;
+            background: #ffffff;
+            color: #1e293b;
             text-decoration: none;
-            font-size: 13px;
-            line-height: 1.25;
-            border-radius: 8px;
-            white-space: nowrap;
+            font-size: 14px;
+            font-weight: 800;
+            line-height: 1.3;
         }
 
-        .budget-action-panel a:hover {
-            background: #f1f5f9;
+        .gf-action-dialog-actions a:hover,
+        .gf-action-dialog-actions a:focus-visible {
+            border-color: #bbf7d0;
+            background: #f0fdf4;
+            color: #166534;
+            outline: none;
         }
 
-        .budget-action-panel .budget-action-disabled {
-            color: #64748b;
+        .gf-action-dialog-disabled {
             background: #f8fafc;
+            color: #64748b;
             cursor: default;
         }
 
-        .budget-action-row {
+        .budget-action-row,
+        .sale-action-row {
             display: inline-flex;
             align-items: center;
             gap: 8px;
@@ -1031,19 +1090,41 @@ Motivo: Simplificar o menu de ações, separar A4 e Cupom com links nativos e ma
                                                 <button type="submit" title="Excluir orçamento" aria-label="Excluir orçamento" class="action-button delete">×</button>
                                             </form>
                                             <div class="budget-action-menu">
-                                                <button type="button" class="budget-action-trigger" title="Mais ações do orçamento" aria-label="Mais ações do orçamento" aria-expanded="false">⌄</button>
-                                                <div class="budget-action-panel" hidden>
-                                                    <a href="/orcamentos/{{ orcamento.id }}/imprimir/a4" target="_blank" rel="noopener noreferrer">🖨 Imprimir A4</a>
-                                                    <a href="/orcamentos/{{ orcamento.id }}/imprimir/cupom" target="_blank" rel="noopener noreferrer">🧾 Imprimir Cupom</a>
-                                                    <a href="/whatsapp/pdf/orcamento/{{ orcamento.id }}">📲 Enviar PDF por WhatsApp</a>
-                                                    <a href="/orcamentos/{{ orcamento.id }}/gerar/copia">↻ Gerar cópia</a>
-                                                    {% if orcamento.venda_gerada_id %}
-                                                        <a href="/vendas/{{ orcamento.venda_gerada_id }}">✓ Abrir venda gerada</a>
-                                                    {% else %}
-                                                        <a href="/orcamentos/{{ orcamento.id }}/gerar/venda">🛒 Gerar venda</a>
-                                                    {% endif %}
-                                                    <a href="/orcamentos/{{ orcamento.id }}?gerar=os">🛠 Gerar OS</a>
-                                                </div>
+                                                <button
+                                                    type="button"
+                                                    class="gf-action-dialog-trigger"
+                                                    title="Mais ações do orçamento"
+                                                    aria-label="Mais ações do orçamento"
+                                                    aria-haspopup="dialog"
+                                                    data-gf-action-dialog="orcamento-acoes-{{ orcamento.id }}"
+                                                >⌄</button>
+                                                <dialog
+                                                    class="gf-action-dialog"
+                                                    id="orcamento-acoes-{{ orcamento.id }}"
+                                                    aria-labelledby="orcamento-acoes-titulo-{{ orcamento.id }}"
+                                                >
+                                                    <div class="gf-action-dialog-card">
+                                                        <div class="gf-action-dialog-header">
+                                                            <div>
+                                                                <h3 id="orcamento-acoes-titulo-{{ orcamento.id }}">Ações do orçamento</h3>
+                                                                <p>{{ orcamento.numero or ('Orçamento ' ~ orcamento.id) }}</p>
+                                                            </div>
+                                                            <button type="button" class="gf-action-dialog-close" data-gf-action-dialog-close aria-label="Fechar">×</button>
+                                                        </div>
+                                                        <div class="gf-action-dialog-actions">
+                                                            <a href="/orcamentos/{{ orcamento.id }}/imprimir/a4" target="_blank" rel="noopener noreferrer">🖨 Imprimir A4</a>
+                                                            <a href="/orcamentos/{{ orcamento.id }}/imprimir/cupom" target="_blank" rel="noopener noreferrer">🧾 Imprimir Cupom</a>
+                                                            <a href="/whatsapp/pdf/orcamento/{{ orcamento.id }}">📲 Enviar PDF por WhatsApp</a>
+                                                            <a href="/orcamentos/{{ orcamento.id }}/gerar/copia">↻ Gerar cópia</a>
+                                                            {% if orcamento.venda_gerada_id %}
+                                                                <a href="/vendas/{{ orcamento.venda_gerada_id }}">✓ Abrir venda gerada</a>
+                                                            {% else %}
+                                                                <a href="/orcamentos/{{ orcamento.id }}/gerar/venda">🛒 Gerar venda</a>
+                                                            {% endif %}
+                                                            <a href="/orcamentos/{{ orcamento.id }}?gerar=os">🛠 Gerar OS</a>
+                                                        </div>
+                                                    </div>
+                                                </dialog>
                                             </div>
                                         </div>
                                     </td>
@@ -1753,118 +1834,64 @@ Motivo: Simplificar o menu de ações, separar A4 e Cupom com links nativos e ma
         </script>
 
         <script>
-
-            (function configurarMenuAcoesGestFlow() {
-                const menuSelector = ".budget-action-menu";
-                const triggerSelector = ".budget-action-trigger";
-                const panelSelector = ".budget-action-panel";
-
-                function fecharMenu(menu) {
-                    const trigger = menu ? menu.querySelector(triggerSelector) : null;
-                    const panel = menu ? menu.querySelector(panelSelector) : null;
-
-                    if (panel) {
-                        panel.hidden = true;
-                        panel.style.top = "";
-                        panel.style.left = "";
-                    }
-
-                    if (trigger) {
-                        trigger.setAttribute("aria-expanded", "false");
-                    }
-                }
-
-                function fecharTodos(exceto) {
-                    document.querySelectorAll(menuSelector).forEach(function(menu) {
-                        if (menu !== exceto) {
-                            fecharMenu(menu);
-                        }
-                    });
-                }
-
-                function posicionarMenu(menu) {
-                    const trigger = menu.querySelector(triggerSelector);
-                    const panel = menu.querySelector(panelSelector);
-
-                    if (!trigger || !panel || panel.hidden) {
+            (function configurarDialogosAcoesGestFlow() {
+                function fecharDialogo(dialogo) {
+                    if (!dialogo) {
                         return;
                     }
 
-                    const rect = trigger.getBoundingClientRect();
-                    const margem = 8;
-                    const largura = Math.max(panel.offsetWidth || 240, 240);
-                    const altura = panel.offsetHeight || 260;
-                    let left = rect.right - largura;
-                    let top = rect.bottom + margem;
-
-                    if (left < margem) {
-                        left = margem;
+                    if (typeof dialogo.close === "function" && dialogo.open) {
+                        dialogo.close();
+                    } else {
+                        dialogo.removeAttribute("open");
                     }
-
-                    if (left + largura > window.innerWidth - margem) {
-                        left = window.innerWidth - largura - margem;
-                    }
-
-                    if (top + altura > window.innerHeight - margem) {
-                        top = rect.top - altura - margem;
-                    }
-
-                    if (top < margem) {
-                        top = margem;
-                    }
-
-                    panel.style.left = left + "px";
-                    panel.style.top = top + "px";
                 }
 
-                document.addEventListener("click", function(event) {
-                    const trigger = event.target.closest(triggerSelector);
+                document.addEventListener("click", function(evento) {
+                    const gatilho = evento.target.closest("[data-gf-action-dialog]");
 
-                    if (trigger) {
-                        event.preventDefault();
-                        event.stopPropagation();
+                    if (gatilho) {
+                        evento.preventDefault();
+                        evento.stopPropagation();
 
-                        const menu = trigger.closest(menuSelector);
-                        const panel = menu ? menu.querySelector(panelSelector) : null;
+                        const dialogoId = gatilho.getAttribute("data-gf-action-dialog");
+                        const dialogo = dialogoId ? document.getElementById(dialogoId) : null;
 
-                        if (!menu || !panel) {
+                        if (!dialogo) {
                             return;
                         }
 
-                        const abrir = panel.hidden;
-                        fecharTodos(menu);
-                        panel.hidden = !abrir;
-                        trigger.setAttribute("aria-expanded", abrir ? "true" : "false");
-
-                        if (abrir) {
-                            requestAnimationFrame(function() {
-                                posicionarMenu(menu);
-                            });
+                        if (typeof dialogo.showModal === "function") {
+                            if (!dialogo.open) {
+                                dialogo.showModal();
+                            }
+                        } else {
+                            dialogo.setAttribute("open", "");
                         }
 
                         return;
                     }
 
-                    const linkAcao = event.target.closest(panelSelector + " a");
-                    if (linkAcao) {
-                        const menu = linkAcao.closest(menuSelector);
-                        window.setTimeout(function() {
-                            fecharMenu(menu);
-                        }, 0);
+                    const fechar = evento.target.closest("[data-gf-action-dialog-close]");
+
+                    if (fechar) {
+                        fecharDialogo(fechar.closest("dialog"));
                         return;
                     }
 
-                    if (!event.target.closest(panelSelector)) {
-                        fecharTodos(null);
+                    const dialogo = evento.target.closest("dialog.gf-action-dialog");
+
+                    if (dialogo && evento.target === dialogo) {
+                        const area = dialogo.getBoundingClientRect();
+                        const dentro = evento.clientX >= area.left
+                            && evento.clientX <= area.right
+                            && evento.clientY >= area.top
+                            && evento.clientY <= area.bottom;
+
+                        if (!dentro) {
+                            fecharDialogo(dialogo);
+                        }
                     }
-                });
-
-                window.addEventListener("scroll", function() {
-                    document.querySelectorAll(menuSelector).forEach(posicionarMenu);
-                }, true);
-
-                window.addEventListener("resize", function() {
-                    document.querySelectorAll(menuSelector).forEach(posicionarMenu);
                 });
             })();
         </script>
