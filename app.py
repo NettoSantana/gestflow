@@ -4509,6 +4509,7 @@ def iniciar_banco() -> None:
                 slug TEXT,
                 logo_path TEXT,
                 categoria TEXT,
+                descricao_empresa TEXT,
                 tipo_identidade_visual TEXT NOT NULL DEFAULT 'cores',
                 cor_principal TEXT,
                 cor_secundaria TEXT,
@@ -5289,6 +5290,7 @@ def iniciar_banco() -> None:
         for coluna, tipo_coluna in {
             "servicos_vistos": "INTEGER NOT NULL DEFAULT 0",
             "agendamentos_gerados": "INTEGER NOT NULL DEFAULT 0",
+            "descricao_empresa": "TEXT",
             "tipo_identidade_visual": "TEXT NOT NULL DEFAULT 'cores'",
         }.items():
             if coluna not in colunas_vitrine_configuracoes:
@@ -24333,10 +24335,11 @@ def montar_vitrine_formulario(config_atual: dict[str, Any] | None = None) -> dic
         "slug": slug,
         "logo_path": logo_path,
         "categoria": (request.form.get("categoria") or "").strip(),
+        "descricao_empresa": (request.form.get("descricao_empresa") or "").strip()[:600],
         "tipo_identidade_visual": tipo_identidade_visual,
         "cor_principal": (request.form.get("cor_principal") or cor_principal_atual).strip() or cor_principal_atual,
         "cor_secundaria": (request.form.get("cor_secundaria") or cor_secundaria_atual).strip() or cor_secundaria_atual,
-        "template": (request.form.get("template") or "catalogo-premium").strip() or "catalogo-premium",
+        "template": "catalogo-premium",
         "status": (request.form.get("status") or "rascunho").strip() or "rascunho",
     }
 
@@ -24356,6 +24359,7 @@ def buscar_vitrine_configuracao() -> dict[str, Any]:
                 slug,
                 logo_path,
                 categoria,
+                descricao_empresa,
                 tipo_identidade_visual,
                 cor_principal,
                 cor_secundaria,
@@ -24386,6 +24390,7 @@ def buscar_vitrine_configuracao() -> dict[str, Any]:
             "slug": "",
             "logo_path": "",
             "categoria": "",
+            "descricao_empresa": "",
             "tipo_identidade_visual": "cores",
             "cor_principal": "#111827",
             "cor_secundaria": "#f59e0b",
@@ -24430,13 +24435,14 @@ def salvar_vitrine_configuracao_db(dados: dict[str, str]) -> None:
                     slug,
                     logo_path,
                     categoria,
+                    descricao_empresa,
                     tipo_identidade_visual,
                     cor_principal,
                     cor_secundaria,
                     template,
                     status,
                     atualizado_em
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     empresa_id,
@@ -24446,6 +24452,7 @@ def salvar_vitrine_configuracao_db(dados: dict[str, str]) -> None:
                     dados["slug"],
                     dados["logo_path"],
                     dados["categoria"],
+                    dados["descricao_empresa"],
                     dados["tipo_identidade_visual"],
                     dados["cor_principal"],
                     dados["cor_secundaria"],
@@ -24465,6 +24472,7 @@ def salvar_vitrine_configuracao_db(dados: dict[str, str]) -> None:
                     slug = ?,
                     logo_path = ?,
                     categoria = ?,
+                    descricao_empresa = ?,
                     tipo_identidade_visual = ?,
                     cor_principal = ?,
                     cor_secundaria = ?,
@@ -24480,6 +24488,7 @@ def salvar_vitrine_configuracao_db(dados: dict[str, str]) -> None:
                     dados["slug"],
                     dados["logo_path"],
                     dados["categoria"],
+                    dados["descricao_empresa"],
                     dados["tipo_identidade_visual"],
                     dados["cor_principal"],
                     dados["cor_secundaria"],
@@ -25270,23 +25279,20 @@ def renderizar_vitrine_publica_html(
     nome_loja_raw = str(config_vitrine.get("nome_loja") or regras_vitrine.get("nome_publico") or "Vitrine Online").strip()
     nome_loja = html.escape(nome_loja_raw)
     titulo_seo = html.escape(str(regras_vitrine.get("seo_titulo") or nome_loja_raw))
-    descricao_seo_raw = str(regras_vitrine.get("seo_descricao") or f"Produtos e serviços de {nome_loja_raw}")
-    descricao_seo = html.escape(descricao_seo_raw)
-    texto_institucional = html.escape(
-        str(
-            regras_vitrine.get("texto_institucional")
-            or f"Atendimento profissional, qualidade e soluções pensadas para cada necessidade de {nome_loja_raw}."
-        )
+    descricao_empresa_raw = str(config_vitrine.get("descricao_empresa") or "").strip()
+    texto_institucional_raw = (
+        descricao_empresa_raw
+        or str(regras_vitrine.get("texto_institucional") or "").strip()
+        or f"Atendimento profissional, qualidade e soluções pensadas para cada necessidade de {nome_loja_raw}."
     )
+    descricao_seo_raw = str(regras_vitrine.get("seo_descricao") or texto_institucional_raw)
+    descricao_seo = html.escape(descricao_seo_raw)
+    texto_institucional = html.escape(texto_institucional_raw)
     instagram_raw = str(config_vitrine.get("instagram") or "").strip()
     instagram = html.escape(instagram_raw)
     categoria_configuracao = str(config_vitrine.get("categoria") or "").strip().lower()
     categoria_raw = str(config_vitrine.get("categoria") or "Produtos e serviços").strip()
     categoria = html.escape(categoria_raw.replace("_", " ").title())
-    template_atual = str(config_vitrine.get("template") or "catalogo-premium").strip().lower()
-    if template_atual not in {"catalogo-premium", "loja-clean", "whatsapp-direto"}:
-        template_atual = "catalogo-premium"
-
     logo_path = str(config_vitrine.get("logo_path") or "").strip()
     logo_url = f"/vitrine-upload/{html.escape(logo_path)}" if logo_path else ""
     iniciais_loja = "".join(parte[:1] for parte in nome_loja_raw.split()[:2]).upper() or "GF"
@@ -25670,7 +25676,7 @@ body.template-whatsapp-direto .acao-outline{display:none}
     <meta name="description" content="{descricao_seo}">
     {estilo}
 </head>
-<body class="identity-{tipo_identidade_visual} template-{template_atual}" data-identity-mode="{tipo_identidade_visual}">
+<body class="identity-{tipo_identidade_visual}" data-identity-mode="{tipo_identidade_visual}">
 <header class="topo" id="inicio">
     <nav class="navbar" aria-label="Navegação principal">
         <div class="navbar-inner">

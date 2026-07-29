@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vitrine.html
-Último recode: 2026-07-29 10:45 (America/Bahia)
-Motivo: Permitir escolha exclusiva entre logo ou cores na identidade visual da Vitrine.
+Último recode: 2026-07-29 11:48 (America/Bahia)
+Motivo: Adicionar descrição da empresa, remover templates sem uso e simplificar a configuração da identidade visual.
 #}
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -23,7 +23,6 @@ Motivo: Permitir escolha exclusiva entre logo ou cores na identidade visual da V
     {% set cor_principal = vitrine.get('cor_principal') or '#111827' %}
     {% set cor_secundaria = vitrine.get('cor_secundaria') or '#f59e0b' %}
     {% set status_vitrine = vitrine.get('status') or 'rascunho' %}
-    {% set template_atual = vitrine.get('template') or 'catalogo-premium' %}
     {% set tipo_identidade_visual = vitrine.get('tipo_identidade_visual') or ('logo' if vitrine.get('logo_path') else 'cores') %}
     {% set cor_preview_principal = '#0f172a' if tipo_identidade_visual == 'logo' else cor_principal %}
     {% set cor_preview_secundaria = '#334155' if tipo_identidade_visual == 'logo' else cor_secundaria %}
@@ -97,6 +96,18 @@ Motivo: Permitir escolha exclusiva entre logo ou cores na identidade visual da V
                         </label>
                     </div>
 
+                    <label class="vitrine-company-description">
+                        Descrição da empresa
+                        <textarea
+                            name="descricao_empresa"
+                            rows="4"
+                            maxlength="600"
+                            placeholder="Ex.: Empresa especializada em manutenção elétrica, mecânica e automação industrial, com atendimento ágil e foco em segurança."
+                            data-vitrine-company-description
+                        >{{ vitrine.get('descricao_empresa') or '' }}</textarea>
+                        <small>Este texto aparecerá em destaque na página pública. Limite de 600 caracteres.</small>
+                    </label>
+
                     <section class="vitrine-identity-config" data-vitrine-identity>
                         <div class="vitrine-identity-heading">
                             <div>
@@ -127,19 +138,19 @@ Motivo: Permitir escolha exclusiva entre logo ou cores na identidade visual da V
                         </div>
 
                         <div class="vitrine-identity-panel" data-identity-panel="logo" {% if tipo_identidade_visual != 'logo' %}hidden{% endif %}>
-                            <label>
-                                Logo da loja
-                                <input type="file" name="logo_loja" accept="image/*" data-vitrine-logo-input>
-                            </label>
-                            <div class="vitrine-logo-current" data-vitrine-logo-current>
+                            <div class="vitrine-logo-upload-card" data-vitrine-logo-current>
                                 {% if vitrine.get('logo_path') %}
-                                    <img src="{{ url_for('servir_upload_vitrine_publico', caminho=vitrine.get('logo_path')) }}" alt="Logo atual da loja" data-vitrine-logo-image>
-                                    <span><strong>Logo atual salva</strong><small>Envie outro arquivo somente para substituí-la.</small></span>
+                                    <img src="{{ url_for('servir_upload_vitrine_publico', caminho=vitrine.get('logo_path')) }}" alt="Logo usada na vitrine" data-vitrine-logo-image>
+                                    <span><strong>Logo usada na vitrine</strong><small>A imagem será ampliada e incorporada ao cabeçalho da página pública.</small></span>
                                 {% else %}
                                     <span class="vitrine-logo-placeholder" data-vitrine-logo-placeholder>GF</span>
-                                    <span><strong>Nenhuma logo enviada</strong><small>Escolha uma imagem antes de salvar neste modo.</small></span>
+                                    <span><strong>Adicione a logo da empresa</strong><small>Prefira PNG com fundo transparente ou imagem em alta resolução.</small></span>
                                 {% endif %}
                             </div>
+                            <label class="vitrine-logo-file-action">
+                                <span>{{ 'Trocar logo' if vitrine.get('logo_path') else 'Escolher logo' }}</span>
+                                <input type="file" name="logo_loja" accept="image/*" data-vitrine-logo-input>
+                            </label>
                         </div>
 
                         <div class="vitrine-identity-panel vitrine-colors-panel" data-identity-panel="cores" {% if tipo_identidade_visual != 'cores' %}hidden{% endif %}>
@@ -154,7 +165,7 @@ Motivo: Permitir escolha exclusiva entre logo ou cores na identidade visual da V
                         </div>
                     </section>
 
-                    <div class="form-grid-2">
+                    <div class="form-grid-2 vitrine-category-grid">
                         <label>
                             Categoria principal
                             <select name="categoria">
@@ -164,14 +175,6 @@ Motivo: Permitir escolha exclusiva entre logo ou cores na identidade visual da V
                                 <option value="mercado" {% if vitrine.get('categoria') == 'mercado' %}selected{% endif %}>Mercado e variedades</option>
                                 <option value="servicos" {% if vitrine.get('categoria') == 'servicos' %}selected{% endif %}>Serviços</option>
                                 <option value="pecas" {% if vitrine.get('categoria') == 'pecas' %}selected{% endif %}>Peças e oficina</option>
-                            </select>
-                        </label>
-                        <label>
-                            Modelo visual
-                            <select name="template">
-                                <option value="catalogo-premium" {% if template_atual == 'catalogo-premium' %}selected{% endif %}>Catálogo Premium</option>
-                                <option value="loja-clean" {% if template_atual == 'loja-clean' %}selected{% endif %}>Loja Clean</option>
-                                <option value="whatsapp-direto" {% if template_atual == 'whatsapp-direto' %}selected{% endif %}>WhatsApp Direto</option>
                             </select>
                         </label>
                     </div>
@@ -223,32 +226,6 @@ Motivo: Permitir escolha exclusiva entre logo ou cores na identidade visual da V
             </aside>
         </section>
 
-        <section class="vitrine-card" id="templates-vitrine">
-            <div class="vitrine-card-header">
-                <div>
-                    <p class="card-kicker">Modelos prontos</p>
-                    <h2>Escolha um template para começar</h2>
-                </div>
-            </div>
-
-            <div class="template-grid">
-                <button class="template-card {% if template_atual == 'catalogo-premium' %}active{% endif %}" type="button">
-                    <span class="template-preview template-premium"></span>
-                    <strong>Catálogo Premium</strong>
-                    <small>Ideal para perfumaria, cosméticos e produtos com imagem forte.</small>
-                </button>
-                <button class="template-card {% if template_atual == 'loja-clean' %}active{% endif %}" type="button">
-                    <span class="template-preview template-clean"></span>
-                    <strong>Loja Clean</strong>
-                    <small>Visual direto para variedades, mercado e loja pequena.</small>
-                </button>
-                <button class="template-card {% if template_atual == 'whatsapp-direto' %}active{% endif %}" type="button">
-                    <span class="template-preview template-whatsapp"></span>
-                    <strong>WhatsApp Direto</strong>
-                    <small>Modelo simples para vender rápido pelo atendimento.</small>
-                </button>
-            </div>
-        </section>
 
         <section class="vitrine-grid" id="produtos-vitrine">
             <article class="vitrine-card">
@@ -479,7 +456,7 @@ Motivo: Permitir escolha exclusiva entre logo ou cores na identidade visual da V
                     </div>
                     <div>
                         <h3 data-vitrine-preview-name>{{ vitrine.get('nome_loja') or 'Sua loja online' }}</h3>
-                        <p>Produtos para venda e serviços com agendamento online.</p>
+                        <p data-vitrine-preview-description>{{ vitrine.get('descricao_empresa') or 'Produtos para venda e serviços com agendamento online.' }}</p>
                     </div>
                 </div>
 
@@ -542,7 +519,9 @@ Motivo: Permitir escolha exclusiva entre logo ou cores na identidade visual da V
                 const corPrincipal = document.querySelector('[data-vitrine-primary-color]');
                 const corSecundaria = document.querySelector('[data-vitrine-secondary-color]');
                 const nomeLoja = formulario ? formulario.querySelector('input[name="nome_loja"]') : null;
+                const descricaoEmpresa = formulario ? formulario.querySelector('[data-vitrine-company-description]') : null;
                 const previewNome = document.querySelector('[data-vitrine-preview-name]');
+                const previewDescricao = document.querySelector('[data-vitrine-preview-description]');
                 const possuiLogoSalva = {{ 'true' if vitrine.get('logo_path') else 'false' }};
                 let possuiLogoSelecionada = false;
 
@@ -589,6 +568,13 @@ Motivo: Permitir escolha exclusiva entre logo ou cores na identidade visual da V
                     });
                 }
 
+                if (descricaoEmpresa) {
+                    descricaoEmpresa.addEventListener("input", function () {
+                        const descricao = descricaoEmpresa.value.trim() || "Produtos para venda e serviços com agendamento online.";
+                        if (previewDescricao) previewDescricao.textContent = descricao;
+                    });
+                }
+
                 if (logoInput) {
                     logoInput.addEventListener("change", function () {
                         const arquivo = logoInput.files && logoInput.files[0];
@@ -603,7 +589,7 @@ Motivo: Permitir escolha exclusiva entre logo ou cores na identidade visual da V
                                 previewLogo.innerHTML = '<img src="' + origem + '" alt="Prévia da nova logo" data-vitrine-preview-logo-image>';
                             }
                             if (logoAtual) {
-                                logoAtual.innerHTML = '<img src="' + origem + '" alt="Nova logo selecionada"><span><strong>Nova logo selecionada</strong><small>Ela será enviada ao salvar a vitrine.</small></span>';
+                                logoAtual.innerHTML = '<img src="' + origem + '" alt="Nova logo selecionada"><span><strong>Nova logo selecionada</strong><small>Ela será incorporada ao cabeçalho quando a vitrine for salva.</small></span>';
                             }
                         });
                         leitor.readAsDataURL(arquivo);
@@ -875,7 +861,6 @@ Motivo: Permitir escolha exclusiva entre logo ou cores na identidade visual da V
         .ranking-row span,
         .hint-text,
         .empty-state p,
-        .template-card small,
         .preview-hero p,
         .product-admin-top small {
             color: #6b7280;
@@ -891,43 +876,6 @@ Motivo: Permitir escolha exclusiva entre logo ou cores na identidade visual da V
             margin: 14px 0 0;
             font-size: 13px;
             line-height: 1.5;
-        }
-
-        .template-grid {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 14px;
-        }
-
-        .template-card {
-            display: grid;
-            gap: 10px;
-            text-align: left;
-            border: 1px solid #e5e7eb;
-            border-radius: 18px;
-            background: #ffffff;
-            padding: 14px;
-            cursor: pointer;
-        }
-
-        .template-card.active {
-            border-color: #111827;
-            box-shadow: inset 0 0 0 1px #111827;
-        }
-
-        .template-preview {
-            display: block;
-            min-height: 88px;
-            border-radius: 14px;
-            background: linear-gradient(135deg, #111827, #f59e0b);
-        }
-
-        .template-clean {
-            background: linear-gradient(135deg, #f9fafb, #d1d5db);
-        }
-
-        .template-whatsapp {
-            background: linear-gradient(135deg, #16a34a, #bbf7d0);
         }
 
         .product-admin-card {
@@ -1120,7 +1068,6 @@ Motivo: Permitir escolha exclusiva entre logo ou cores na identidade visual da V
             .vitrine-grid,
             .form-grid-2,
             .form-grid-3,
-            .template-grid,
             .preview-products {
                 grid-template-columns: 1fr;
             }

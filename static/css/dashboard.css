@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\static\css\dashboard.css
-Último recode: 2026-07-29 10:45 (America/Bahia)
-Motivo: Adicionar seleção exclusiva de identidade visual por logo ou cores na Vitrine.
+Último recode: 2026-07-29 11:48 (America/Bahia)
+Motivo: Melhorar o bloco de logo e o campo de descrição da empresa na configuração da Vitrine.
 */
 
 :root {
@@ -7174,7 +7174,7 @@ body.focus-mode-body .main-content.focus-mode-main {
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.vitrine-logo-current {
+.vitrine-logo-upload-card {
     min-height: 76px;
     display: flex;
     align-items: center;
@@ -7185,7 +7185,7 @@ body.focus-mode-body .main-content.focus-mode-main {
     background: #f8fafc;
 }
 
-.vitrine-logo-current img,
+.vitrine-logo-upload-card img,
 .vitrine-logo-placeholder {
     flex: 0 0 58px;
     width: 58px;
@@ -7193,8 +7193,9 @@ body.focus-mode-body .main-content.focus-mode-main {
     border-radius: 14px;
 }
 
-.vitrine-logo-current img {
-    object-fit: cover;
+.vitrine-logo-upload-card img {
+    object-fit: contain;
+    background: #ffffff;
 }
 
 .vitrine-logo-placeholder {
@@ -7205,21 +7206,75 @@ body.focus-mode-body .main-content.focus-mode-main {
     font-weight: 900;
 }
 
-.vitrine-logo-current strong,
-.vitrine-logo-current small {
+.vitrine-logo-upload-card strong,
+.vitrine-logo-upload-card small {
     display: block;
 }
 
-.vitrine-logo-current strong {
+.vitrine-logo-upload-card strong {
     color: #0f172a;
     font-size: 13px;
 }
 
-.vitrine-logo-current small {
+.vitrine-logo-upload-card small {
     margin-top: 4px;
     color: #64748b;
     font-size: 11px;
     line-height: 1.4;
+}
+
+.vitrine-logo-file-action {
+    min-height: 76px;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    border: 1px dashed #94a3b8;
+    border-radius: 14px;
+    background: #f8fafc;
+    color: #0f172a;
+    font-size: 13px;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.vitrine-logo-file-action:hover {
+    border-color: #16a34a;
+    background: #f0fdf4;
+    color: #166534;
+}
+
+.vitrine-logo-file-action input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.vitrine-company-description {
+    display: grid !important;
+    gap: 8px !important;
+}
+
+.vitrine-company-description textarea {
+    min-height: 112px;
+    resize: vertical;
+    line-height: 1.5;
+}
+
+.vitrine-company-description small {
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.45;
+}
+
+.vitrine-category-grid {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.vitrine-category-grid > label {
+    max-width: 520px;
 }
 
 .preview-store.identity-cores .preview-hero {
