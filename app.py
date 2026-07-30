@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-30 10:10 (America/Bahia)
-# Motivo: Corrigir as aspas do botão Adicionar para executar o carrinho da vitrine pública.
+# Último recode: 2026-07-30 10:20 (America/Bahia)
+# Motivo: Corrigir a conversão do preço do produto no carrinho da vitrine pública.
 
 from __future__ import annotations
 
@@ -25925,7 +25925,7 @@ let tipoAtivo=__TIPO_INICIAL_JSON__;
 let categoriaAtiva='';
 let paginaAtual=1;
 const itensPorPagina=9;
-function moedaNumero(v){return parseFloat(String(v).replace(/\./g,'').replace(',','.'))||0}
+function moedaNumero(v){const valor=String(v).trim();return parseFloat(valor.includes(',')?valor.replace(/\./g,'').replace(',','.'):valor)||0}
 function moedaBR(v){return v.toFixed(2).replace('.',',')}
 function registrarItem(tipo,id){fetch('/loja/__SLUG__/evento',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tipo:tipo,item_id:id||''})}).catch(()=>{})}
 function adicionarCarrinho(id,nome,preco){registrarItem('carrinho',id);const item=carrinho.find(i=>i.id===id);if(item)item.quantidade+=1;else carrinho.push({id,nome,preco,quantidade:1});renderCarrinho()}
