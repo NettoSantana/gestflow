@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-30 09:05 (America/Bahia)
-# Motivo: Separar venda excluída de venda cancelada e ocultar exclusões lógicas das consultas.
+# Último recode: 2026-07-30 10:10 (America/Bahia)
+# Motivo: Corrigir as aspas do botão Adicionar para executar o carrinho da vitrine pública.
 
 from __future__ import annotations
 
@@ -25533,7 +25533,8 @@ def renderizar_vitrine_publica_html(
             if permitir_pedido and disponivel:
                 acao_principal = (
                     f'<button type="button" onclick="adicionarCarrinho({produto_id}, '
-                    f'{json.dumps(nome_raw, ensure_ascii=False)}, {json.dumps(preco_raw, ensure_ascii=False)})">'
+                    f'{html.escape(json.dumps(nome_raw, ensure_ascii=False), quote=True)}, '
+                    f'{html.escape(json.dumps(preco_raw, ensure_ascii=False), quote=True)})">'
                     'Adicionar</button>'
                 )
             elif whatsapp_publico_url:
