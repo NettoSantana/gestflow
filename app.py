@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-30 17:21 (America/Bahia)
-# Motivo: Centralizar a versão 1.0.0 do GestFlow para exibição discreta na barra lateral.
+# Último recode: 2026-07-30 17:34 (America/Bahia)
+# Motivo: Tornar o CPF/CNPJ opcional no cadastro de clientes.
 
 from __future__ import annotations
 
@@ -19877,8 +19877,6 @@ def validar_regras_configuradas_requisicao(modulo: str) -> str:
         documentos = lista_configuracao_modulo("cadastros", "documentos_obrigatorios")
         exige_documento = any("cpf" in item.lower() or "cnpj" in item.lower() for item in documentos)
         endpoint = str(request.endpoint or "")
-        if exige_documento and "cliente" in endpoint and not str(request.form.get("cliente_documento") or "").strip():
-            return "CPF/CNPJ é obrigatório conforme as configurações de Cadastros."
         if exige_documento and "fornecedor" in endpoint and not str(request.form.get("fornecedor_documento") or "").strip():
             return "CPF/CNPJ é obrigatório conforme as configurações de Cadastros."
         documento_cliente = str(request.form.get("cliente_documento") or "").strip()

@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\configuracoes.html
-Último recode: 2026-07-25 09:27 (America/Bahia)
-Motivo: Exibir somente as configurações do módulo escolhido no sidebar e remover a central única de módulos.
+Último recode: 2026-07-30 17:55 (America/Bahia)
+Motivo: Manter a central de configurações somente na página inicial e exibir diretamente o conteúdo das páginas internas.
 -->
 
 <!DOCTYPE html>
@@ -180,7 +180,7 @@ Motivo: Exibir somente as configurações do módulo escolhido no sidebar e remo
         {% set modulos_sistema = modulos_sistema|default([], true) %}
         {% set modulos_ativos = modulos_ativos|default({}, true) %}
 
-        {% if aba != 'regras_modulos' %}
+        {% if aba == 'gerais' %}
         <section class="panel page-section">
             <div class="panel-header page-header">
                 <div>
@@ -250,102 +250,7 @@ Motivo: Exibir somente as configurações do módulo escolhido no sidebar e remo
         </section>
         {% endif %}
 
-        <section class="dashboard-grid config-dashboard-grid {% if aba == 'regras_modulos' %}module-only{% endif %}">
-
-            {% if aba != 'regras_modulos' %}
-            <div class="panel table-panel config-menu-panel">
-                <h3>Menu de configurações</h3>
-                <div class="config-menu-list">
-                    <a href="/configuracoes" class="config-menu-item {% if aba == 'gerais' %}active{% endif %}">
-                        <span>⚙</span>
-                        <div>
-                            <strong>Gerais</strong>
-                            <small>Preferências básicas</small>
-                        </div>
-                    </a>
-
-                    <a href="/configuracoes/plano" class="config-menu-item {% if aba == 'plano' %}active{% endif %}">
-                        <span>☆</span>
-                        <div>
-                            <strong>Meu plano</strong>
-                            <small>Plano atual e assinatura</small>
-                        </div>
-                    </a>
-
-                    <a href="/indicacoes" class="config-menu-item">
-                        <span>↗</span>
-                        <div>
-                            <strong>Indicações</strong>
-                            <small>Link, indicados e repasses</small>
-                        </div>
-                    </a>
-
-                    <a href="/configuracoes/usuarios" class="config-menu-item {% if aba == 'usuarios' %}active{% endif %}">
-                        <span>♟</span>
-                        <div>
-                            <strong>Usuários</strong>
-                            <small>Equipe e permissões</small>
-                        </div>
-                    </a>
-
-                    <a href="/configuracoes/modulos" class="config-menu-item {% if aba == 'modulos' %}active{% endif %}">
-                        <span>▦</span>
-                        <div>
-                            <strong>Módulos do sistema</strong>
-                            <small>Ative só o que a empresa usa</small>
-                        </div>
-                    </a>
-
-                    <a href="/configuracoes/empresa" class="config-menu-item {% if aba == 'empresa' %}active{% endif %}">
-                        <span>▣</span>
-                        <div>
-                            <strong>Dados da empresa</strong>
-                            <small>Cadastro do cliente</small>
-                        </div>
-                    </a>
-
-                    <a href="/configuracoes/marca" class="config-menu-item {% if aba == 'marca' %}active{% endif %}">
-                        <span>▧</span>
-                        <div>
-                            <strong>Marca da empresa</strong>
-                            <small>Logo, cor e identidade</small>
-                        </div>
-                    </a>
-
-                    <a href="/configuracoes/lojas" class="config-menu-item {% if aba == 'lojas' %}active{% endif %}">
-                        <span>▤</span>
-                        <div>
-                            <strong>Empresas / Lojas</strong>
-                            <small>Matriz, filial e unidade</small>
-                        </div>
-                    </a>
-
-                    <div class="config-menu-item disabled">
-                        <span>◆</span>
-                        <div>
-                            <strong>Certificado digital</strong>
-                            <small>Fica para etapa fiscal</small>
-                        </div>
-                    </div>
-
-                    <div class="config-menu-item disabled">
-                        <span>✉</span>
-                        <div>
-                            <strong>Modelos de e-mails</strong>
-                            <small>Gerenciados dentro de cada módulo</small>
-                        </div>
-                    </div>
-
-                    <div class="config-menu-item disabled">
-                        <span>⚑</span>
-                        <div>
-                            <strong>Avisos por e-mail</strong>
-                            <small>Ativados pelas regras de cada módulo</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
+        <section class="dashboard-grid config-dashboard-grid module-only">
 
             <div class="panel chart-panel config-content-panel">
                 {% if aba == 'regras_modulos' %}
