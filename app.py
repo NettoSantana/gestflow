@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-30 11:32 (America/Bahia)
-# Motivo: Corrigir a identificação dos produtos do carrinho para gravar e exibir os pedidos na central da vitrine.
+# Último recode: 2026-07-30 12:18 (America/Bahia)
+# Motivo: Notificar automaticamente o responsável por novos pedidos e agendamentos recebidos pela vitrine.
 
 from __future__ import annotations
 
@@ -885,6 +885,9 @@ CONFIGURACOES_MODULOS_DEFINICOES = [
             _campo_configuracao_modulo("formas_entrega", "Formas de entrega", "lista", "Entrega\nRetirada no local", secao="Entrega"),
             _campo_configuracao_modulo("regioes_taxas_entrega", "Regiões e taxas de entrega", "texto_longo", "", secao="Entrega"),
             _campo_configuracao_modulo("whatsapp", "WhatsApp de atendimento", "texto", "", secao="Contato"),
+            _campo_configuracao_modulo("notificar_responsavel_whatsapp", "Notificar responsável por WhatsApp", "booleano", True, secao="Notificações"),
+            _campo_configuracao_modulo("whatsapp_responsavel", "WhatsApp responsável pelas notificações", "texto", "", secao="Notificações", ajuda="Informe DDI, DDD e número. Exemplo: 5571999999999."),
+            _campo_configuracao_modulo("template_notificacao_whatsapp", "Template aprovado da Meta", "texto", "", secao="Notificações", ajuda="Opcional. Use um template com 4 variáveis no corpo: tipo, número, cliente e resumo."),
             _campo_configuracao_modulo("texto_institucional", "Texto institucional", "texto_longo", "", secao="Conteúdo"),
             _campo_configuracao_modulo("politica_troca", "Política de troca", "texto_longo", "", secao="Políticas"),
             _campo_configuracao_modulo("politica_privacidade", "Política de privacidade", "texto_longo", "", secao="Políticas"),
@@ -6778,6 +6781,19 @@ def salvar_agendamento_publico_db(empresa_id: int, cliente: dict[str, Any], dado
                 (empresa_id,),
             )
         conn.commit()
+    if str(dados.get("origem") or "") == "vitrine_online":
+        resumo = (
+            f"{dados.get('servico_nome') or 'Serviço não informado'} — "
+            f"{formatar_data_br(dados.get('data_agendamento')) or dados.get('data_agendamento') or '-'} "
+            f"às {dados.get('hora_inicio') or '--:--'}"
+        )
+        notificar_responsavel_vitrine_whatsapp(
+            empresa_id,
+            "agendamento",
+            agendamento_id,
+            str(cliente.get("nome") or ""),
+            resumo,
+        )
     return agendamento_id
 
 
@@ -25498,6 +25514,85 @@ def montar_whatsapp_pedido_vitrine(config_vitrine: dict[str, Any], pedido_id: in
     return f"https://wa.me/{telefone}?text={texto}" if telefone else ""
 
 
+def notificar_responsavel_vitrine_whatsapp(
+    empresa_id: int,
+    tipo: str,
+    registro_id: int,
+    cliente_nome: Any,
+    resumo: Any,
+) -> tuple[bool, str]:
+    regras = buscar_configuracoes_modulo("vitrine", empresa_id)
+    if not _configuracao_bool(regras.get("notificar_responsavel_whatsapp"), True):
+        return False, "Notificação por WhatsApp desativada nas configurações da vitrine."
+
+    destinatario = str(regras.get("whatsapp_responsavel") or "").strip()
+    if not destinatario:
+        app.logger.info(
+            "Notificação da vitrine não enviada: WhatsApp responsável não configurado para a empresa %s.",
+            empresa_id,
+        )
+        return False, "WhatsApp responsável não configurado."
+
+    tipo_normalizado = str(tipo or "").strip().lower()
+    tipo_titulo = "Agendamento" if tipo_normalizado == "agendamento" else "Pedido"
+    cliente = str(cliente_nome or "").strip() or "Cliente não informado"
+    resumo_texto = str(resumo or "").strip() or "Consulte os detalhes na Central da Vitrine."
+    numero_registro = f"#{int(registro_id or 0)}"
+    template = str(regras.get("template_notificacao_whatsapp") or "").strip()
+
+    try:
+        if template:
+            componentes = [
+                {
+                    "type": "body",
+                    "parameters": [
+                        {"type": "text", "text": tipo_titulo[:80]},
+                        {"type": "text", "text": numero_registro[:80]},
+                        {"type": "text", "text": cliente[:240]},
+                        {"type": "text", "text": resumo_texto[:900]},
+                    ],
+                }
+            ]
+            sucesso, detalhe, _ = enviar_whatsapp_template(
+                destinatario,
+                template,
+                idioma=_variavel_ambiente_whatsapp("WHATSAPP_TEMPLATE_LANGUAGE") or "pt_BR",
+                componentes=componentes,
+            )
+        else:
+            mensagem = "\n".join(
+                [
+                    f"Novo {tipo_titulo.lower()} recebido na vitrine",
+                    f"{tipo_titulo} {numero_registro}",
+                    f"Cliente: {cliente}",
+                    resumo_texto,
+                    "Acesse o GestFlow e abra a Central da Vitrine para atender.",
+                ]
+            )
+            sucesso, detalhe, _ = enviar_whatsapp(
+                destinatario,
+                mensagem,
+                preview_url=False,
+            )
+    except Exception as exc:
+        app.logger.exception(
+            "Falha inesperada ao notificar responsável da vitrine sobre %s %s.",
+            tipo_normalizado or "entrada",
+            numero_registro,
+        )
+        return False, f"Falha inesperada ao enviar a notificação: {exc}"
+
+    if not sucesso:
+        app.logger.warning(
+            "Notificação da vitrine não enviada para a empresa %s (%s %s): %s",
+            empresa_id,
+            tipo_normalizado or "entrada",
+            numero_registro,
+            detalhe,
+        )
+    return sucesso, detalhe
+
+
 def aplicar_configuracoes_vitrine_publica(
     config_vitrine: dict[str, Any],
     produtos: list[dict[str, Any]],
@@ -26347,6 +26442,14 @@ def vitrine_pedido_publico(slug: str) -> str | Response:
         return renderizar_vitrine_publica_html(config_vitrine, produtos, servicos, f"O pedido mínimo é de {quantidade_minima:g} item(ns).")
 
     pedido_id = salvar_pedido_vitrine_db(empresa_id, dados, itens)
+    total_pedido = sum(float(item.get("subtotal_numero") or 0) for item in itens)
+    notificar_responsavel_vitrine_whatsapp(
+        empresa_id,
+        "pedido",
+        pedido_id,
+        dados.get("cliente_nome"),
+        f"Total: R$ {_formatar_moeda_brl(total_pedido)}",
+    )
     whatsapp_url = montar_whatsapp_pedido_vitrine(config_vitrine, pedido_id, dados, itens)
     produtos = listar_produtos_vitrine_empresa(empresa_id)
     servicos = listar_servicos_vitrine_empresa(empresa_id)
