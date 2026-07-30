@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-30 10:56 (America/Bahia)
-# Motivo: Criar a central clicável da vitrine, exibir pedidos e agendamentos, notificar novas entradas e corrigir a publicação de serviços.
+# Último recode: 2026-07-30 11:32 (America/Bahia)
+# Motivo: Corrigir a identificação dos produtos do carrinho para gravar e exibir os pedidos na central da vitrine.
 
 from __future__ import annotations
 
@@ -25424,7 +25424,7 @@ def montar_itens_pedido_vitrine(empresa_id: int, itens_json: Any) -> list[dict[s
         itens_recebidos = []
 
     produtos = listar_produtos_vitrine_empresa(empresa_id)
-    produtos_por_id = {int(produto.get("id") or produto.get("produto_id") or 0): produto for produto in produtos}
+    produtos_por_id = {int(produto.get("produto_id") or produto.get("id") or 0): produto for produto in produtos}
     itens: list[dict[str, Any]] = []
 
     if not isinstance(itens_recebidos, list):
