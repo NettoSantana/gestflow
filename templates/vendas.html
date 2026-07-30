@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vendas.html
-Último recode: 2026-07-27 20:58 (America/Bahia)
-Motivo: Padronizar Vendas conforme Orçamentos e remover a chamada redundante Abrir cadastro.
+Último recode: 2026-07-30 14:16 (America/Bahia)
+Motivo: Preencher a venda a partir de pedidos e agendamentos da vitrine e retornar à Central após salvar.
 -->
 
 <!DOCTYPE html>
@@ -368,6 +368,9 @@ Motivo: Padronizar Vendas conforme Orçamentos e remover a chamada redundante Ab
         .pagamento-previa{grid-column:1/-1;margin-top:4px;border:1px solid #dbe5f1;border-radius:12px;background:#fff;padding:12px}
         .pagamento-previa strong{display:block;margin-bottom:6px;color:#0f172a}
         .pagamento-previa-lista{display:grid;gap:5px;color:#475569;font-size:12px;font-weight:700}
+        .venda-origem-vitrine{margin-bottom:16px;padding:14px 16px;border:1px solid #86efac;border-radius:14px;background:#f0fdf4;color:#166534}
+        .venda-origem-vitrine strong{display:block;margin-bottom:4px}
+        .venda-origem-vitrine span{font-size:13px;font-weight:700}
         @media(max-width:720px){.pagamento-venda-grid{grid-template-columns:1fr}}
 
     </style>
@@ -380,6 +383,10 @@ Motivo: Padronizar Vendas conforme Orçamentos e remover a chamada redundante Ab
         {% include "partials/topbar.html" %}
 
 {% set vendas_lista = vendas|default([]) %}
+        {% set venda_preparada = venda_preparada|default({}, true) %}
+        {% set itens_iniciais = itens_iniciais|default([], true) %}
+        {% set origem_vitrine_tipo = origem_vitrine_tipo|default('', true) %}
+        {% set origem_vitrine_id = origem_vitrine_id|default(0, true) %}
         {% set paginacao = paginacao|default({}, true) %}
         {% set busca = busca|default('', true) %}
         {% set ordenar = ordenar|default('id', true) %}
@@ -448,6 +455,17 @@ Motivo: Padronizar Vendas conforme Orçamentos e remover a chamada redundante Ab
 
         <form id="form-nova-venda" action="/vendas" method="post" class="client-form">
             <div class="gestflow-form-error{% if request.args.get('erro') %} show{% endif %}" data-form-error>{% if request.args.get('erro') %}{{ request.args.get('erro') }}{% endif %}</div>
+            {% if origem_vitrine_tipo %}
+                <div class="venda-origem-vitrine">
+                    <strong>Venda preparada pela Central da Vitrine</strong>
+                    <span>
+                        {{ 'Pedido' if origem_vitrine_tipo == 'pedido' else 'Agendamento' }}
+                        #{{ origem_vitrine_id }}. Confira os dados e informe a condição de pagamento antes de salvar.
+                    </span>
+                </div>
+            {% endif %}
+            <input type="hidden" name="origem_vitrine_pedido_id" value="{{ origem_vitrine_id if origem_vitrine_tipo == 'pedido' else '' }}">
+            <input type="hidden" name="origem_vitrine_agendamento_id" value="{{ origem_vitrine_id if origem_vitrine_tipo == 'agendamento' else '' }}">
             <section class="panel page-section">
                 <div class="panel-header page-header">
                     <div>
@@ -468,8 +486,11 @@ Motivo: Padronizar Vendas conforme Orçamentos e remover a chamada redundante Ab
                         <label for="venda_cliente">Cliente</label>
                         <select id="venda_cliente" name="venda_cliente" class="form-control quick-cliente-select" required>
                             <option value="">Selecione</option>
+                            {% if venda_preparada.get('cliente') and venda_preparada.get('cliente') not in clientes|default([])|map(attribute='nome')|list %}
+                                <option value="{{ venda_preparada.get('cliente') }}" selected>{{ venda_preparada.get('cliente') }}</option>
+                            {% endif %}
                             {% for cliente in clientes|default([]) %}
-                                <option value="{{ cliente.nome }}" {% if false %}selected{% endif %}>{{ cliente.nome }}</option>
+                                <option value="{{ cliente.nome }}" {% if venda_preparada.get('cliente') == cliente.nome %}selected{% endif %}>{{ cliente.nome }}</option>
                             {% endfor %}
                             <option value="__novo_cliente__" class="quick-new-option">+ Adicionar novo cliente</option>
                         </select>
@@ -479,8 +500,11 @@ Motivo: Padronizar Vendas conforme Orçamentos e remover a chamada redundante Ab
                         <label for="venda_responsavel">Vendedor / responsável</label>
                         <select id="venda_responsavel" name="venda_responsavel" class="form-control quick-responsavel-select" required>
                             <option value="">Selecione</option>
+                            {% if venda_preparada.get('responsavel') and venda_preparada.get('responsavel') not in funcionarios|default([])|map(attribute='nome')|list %}
+                                <option value="{{ venda_preparada.get('responsavel') }}" selected>{{ venda_preparada.get('responsavel') }}</option>
+                            {% endif %}
                             {% for funcionario in funcionarios|default([]) %}
-                                <option value="{{ funcionario.nome }}">{{ funcionario.nome }}</option>
+                                <option value="{{ funcionario.nome }}" {% if venda_preparada.get('responsavel') == funcionario.nome %}selected{% endif %}>{{ funcionario.nome }}</option>
                             {% endfor %}
                             <option value="__novo_responsavel__" class="quick-new-option">+ Adicionar novo responsável</option>
                         </select>
@@ -488,39 +512,39 @@ Motivo: Padronizar Vendas conforme Orçamentos e remover a chamada redundante Ab
 
                     <div class="form-group">
                         <label for="venda_data">Data</label>
-                        <input id="venda_data" name="venda_data" type="date" class="form-control" required>
+                        <input id="venda_data" name="venda_data" type="date" value="{{ venda_preparada.get('data') or '' }}" class="form-control" required>
                     </div>
 
                     <div class="form-group">
                         <label for="venda_prazo_entrega">Prazo de entrega</label>
-                        <input id="venda_prazo_entrega" name="venda_prazo_entrega" type="text" placeholder="Ex: imediato, 3 dias úteis" class="form-control">
+                        <input id="venda_prazo_entrega" name="venda_prazo_entrega" type="text" value="{{ venda_preparada.get('prazo_entrega') or '' }}" placeholder="Ex: imediato, 3 dias úteis" class="form-control">
                     </div>
 
                     <div class="form-group">
                         <label for="venda_canal_venda">Canal de venda</label>
-                        <input id="venda_canal_venda" name="venda_canal_venda" type="text" placeholder="Ex: WhatsApp, balcão, indicação" class="form-control" required>
+                        <input id="venda_canal_venda" name="venda_canal_venda" type="text" value="{{ venda_preparada.get('canal_venda') or '' }}" placeholder="Ex: WhatsApp, balcão, indicação" class="form-control" required>
                     </div>
 
                     <div class="form-group">
                         <label for="venda_centro_custo">Centro de custo</label>
-                        <input id="venda_centro_custo" name="venda_centro_custo" type="text" placeholder="Ex: Geral" class="form-control">
+                        <input id="venda_centro_custo" name="venda_centro_custo" type="text" value="{{ venda_preparada.get('centro_custo') or '' }}" placeholder="Ex: Geral" class="form-control">
                     </div>
 
                     <div class="form-group">
                         <label for="venda_tipo">Tipo</label>
                         <select id="venda_tipo" name="venda_tipo" class="form-control">
-                            <option value="misto">Misto</option>
-                            <option value="produto">Produto</option>
-                            <option value="servico">Serviço</option>
+                            <option value="misto" {% if (venda_preparada.get('tipo') or 'misto') == 'misto' %}selected{% endif %}>Misto</option>
+                            <option value="produto" {% if venda_preparada.get('tipo') == 'produto' %}selected{% endif %}>Produto</option>
+                            <option value="servico" {% if venda_preparada.get('tipo') == 'servico' %}selected{% endif %}>Serviço</option>
                         </select>
                     </div>
 
                     <div class="form-group">
                         <label for="venda_status">Situação</label>
                         <select id="venda_status" name="venda_status" class="form-control">
-                            <option value="aberta">Aberta</option>
-                            <option value="concretizada">Concretizada</option>
-                            <option value="cancelada">Cancelada</option>
+                            <option value="aberta" {% if (venda_preparada.get('status') or 'aberta') == 'aberta' %}selected{% endif %}>Aberta</option>
+                            <option value="concretizada" {% if venda_preparada.get('status') in ['concretizada', 'finalizada'] %}selected{% endif %}>Concretizada</option>
+                            <option value="cancelada" {% if venda_preparada.get('status') == 'cancelada' %}selected{% endif %}>Cancelada</option>
                         </select>
                     </div>
                 </div>
@@ -597,27 +621,27 @@ Motivo: Padronizar Vendas conforme Orçamentos e remover a chamada redundante Ab
                 <div class="form-grid">
                     <div class="form-group">
                         <label for="venda_total_produtos">Total produtos</label>
-                        <input id="venda_total_produtos" name="venda_total_produtos" type="text" placeholder="0,00" class="form-control" readonly>
+                        <input id="venda_total_produtos" name="venda_total_produtos" type="text" value="{{ venda_preparada.get('total_produtos') or '0,00' }}" placeholder="0,00" class="form-control" readonly>
                     </div>
 
                     <div class="form-group">
                         <label for="venda_total_servicos">Total serviços</label>
-                        <input id="venda_total_servicos" name="venda_total_servicos" type="text" placeholder="0,00" class="form-control" readonly>
+                        <input id="venda_total_servicos" name="venda_total_servicos" type="text" value="{{ venda_preparada.get('total_servicos') or '0,00' }}" placeholder="0,00" class="form-control" readonly>
                     </div>
 
                     <div class="form-group">
                         <label for="venda_desconto_valor">Desconto R$</label>
-                        <input id="venda_desconto_valor" name="venda_desconto_valor" type="text" placeholder="0,00" class="form-control">
+                        <input id="venda_desconto_valor" name="venda_desconto_valor" type="text" value="{{ venda_preparada.get('desconto_valor') or '0,00' }}" placeholder="0,00" class="form-control">
                     </div>
 
                     <div class="form-group">
                         <label for="venda_desconto_percentual">Desconto %</label>
-                        <input id="venda_desconto_percentual" name="venda_desconto_percentual" type="text" placeholder="0" class="form-control">
+                        <input id="venda_desconto_percentual" name="venda_desconto_percentual" type="text" value="{{ venda_preparada.get('desconto_percentual') or '0,00' }}" placeholder="0" class="form-control">
                     </div>
 
                     <div class="form-group">
                         <label for="venda_valor_total">Valor total</label>
-                        <input id="venda_valor_total" name="venda_valor_total" type="text" placeholder="0,00" class="form-control" readonly>
+                        <input id="venda_valor_total" name="venda_valor_total" type="text" value="{{ venda_preparada.get('valor_total') or '0,00' }}" placeholder="0,00" class="form-control" readonly>
                     </div>
 
 
@@ -626,10 +650,10 @@ Motivo: Padronizar Vendas conforme Orçamentos e remover a chamada redundante Ab
                             <div class="form-group">
                                 <label for="venda_condicao_pagamento">Condição de pagamento</label>
                                 <select id="venda_condicao_pagamento" name="venda_condicao_pagamento" class="form-control" required>
-                                    <option value="avista">À vista</option>
-                                    <option value="prazo">Pagamento único a prazo</option>
-                                    <option value="parcelado">Parcelado</option>
-                                    <option value="entrada_parcelas">Entrada + parcelas</option>
+                                    <option value="avista" {% if (venda_preparada.get('condicao_pagamento') or 'avista') == 'avista' %}selected{% endif %}>À vista</option>
+                                    <option value="prazo" {% if venda_preparada.get('condicao_pagamento') == 'prazo' %}selected{% endif %}>Pagamento único a prazo</option>
+                                    <option value="parcelado" {% if venda_preparada.get('condicao_pagamento') == 'parcelado' %}selected{% endif %}>Parcelado</option>
+                                    <option value="entrada_parcelas" {% if venda_preparada.get('condicao_pagamento') == 'entrada_parcelas' %}selected{% endif %}>Entrada + parcelas</option>
                                 </select>
                             </div>
 
@@ -637,47 +661,47 @@ Motivo: Padronizar Vendas conforme Orçamentos e remover a chamada redundante Ab
                                 <label for="venda_meio_pagamento">Meio de pagamento</label>
                                 <select id="venda_meio_pagamento" name="venda_meio_pagamento" class="form-control" required>
                                     <option value="">Selecione</option>
-                                    <option value="Dinheiro">Dinheiro</option>
-                                    <option value="Pix">Pix</option>
-                                    <option value="Cartão de débito">Cartão de débito</option>
-                                    <option value="Cartão de crédito">Cartão de crédito</option>
-                                    <option value="Transferência">Transferência</option>
-                                    <option value="Boleto">Boleto</option>
-                                    <option value="Outro">Outro</option>
+                                    <option value="Dinheiro" {% if venda_preparada.get('meio_pagamento') == 'Dinheiro' %}selected{% endif %}>Dinheiro</option>
+                                    <option value="Pix" {% if venda_preparada.get('meio_pagamento') == 'Pix' %}selected{% endif %}>Pix</option>
+                                    <option value="Cartão de débito" {% if venda_preparada.get('meio_pagamento') == 'Cartão de débito' %}selected{% endif %}>Cartão de débito</option>
+                                    <option value="Cartão de crédito" {% if venda_preparada.get('meio_pagamento') == 'Cartão de crédito' %}selected{% endif %}>Cartão de crédito</option>
+                                    <option value="Transferência" {% if venda_preparada.get('meio_pagamento') == 'Transferência' %}selected{% endif %}>Transferência</option>
+                                    <option value="Boleto" {% if venda_preparada.get('meio_pagamento') == 'Boleto' %}selected{% endif %}>Boleto</option>
+                                    <option value="Outro" {% if venda_preparada.get('meio_pagamento') == 'Outro' %}selected{% endif %}>Outro</option>
                                 </select>
                                 <input type="hidden" id="venda_forma_pagamento" name="venda_forma_pagamento">
                             </div>
 
                             <div class="form-group pagamento-campo-condicional" data-pagamento-campo="entrada">
                                 <label for="venda_valor_entrada">Valor da entrada</label>
-                                <input id="venda_valor_entrada" name="venda_valor_entrada" type="text" value="0,00" class="form-control" inputmode="decimal">
+                                <input id="venda_valor_entrada" name="venda_valor_entrada" type="text" value="{{ venda_preparada.get('valor_entrada') or '0,00' }}" class="form-control" inputmode="decimal">
                             </div>
 
                             <div class="form-group pagamento-campo-condicional" data-pagamento-campo="entrada">
                                 <label for="venda_meio_pagamento_entrada">Meio da entrada</label>
                                 <select id="venda_meio_pagamento_entrada" name="venda_meio_pagamento_entrada" class="form-control">
                                     <option value="">Selecione</option>
-                                    <option value="Dinheiro">Dinheiro</option>
-                                    <option value="Pix">Pix</option>
-                                    <option value="Cartão de débito">Cartão de débito</option>
-                                    <option value="Cartão de crédito">Cartão de crédito</option>
-                                    <option value="Transferência">Transferência</option>
+                                    <option value="Dinheiro" {% if venda_preparada.get('meio_pagamento_entrada') == 'Dinheiro' %}selected{% endif %}>Dinheiro</option>
+                                    <option value="Pix" {% if venda_preparada.get('meio_pagamento_entrada') == 'Pix' %}selected{% endif %}>Pix</option>
+                                    <option value="Cartão de débito" {% if venda_preparada.get('meio_pagamento_entrada') == 'Cartão de débito' %}selected{% endif %}>Cartão de débito</option>
+                                    <option value="Cartão de crédito" {% if venda_preparada.get('meio_pagamento_entrada') == 'Cartão de crédito' %}selected{% endif %}>Cartão de crédito</option>
+                                    <option value="Transferência" {% if venda_preparada.get('meio_pagamento_entrada') == 'Transferência' %}selected{% endif %}>Transferência</option>
                                 </select>
                             </div>
 
                             <div class="form-group pagamento-campo-condicional" data-pagamento-campo="entrada">
                                 <label for="venda_data_entrada">Data da entrada</label>
-                                <input id="venda_data_entrada" name="venda_data_entrada" type="date" class="form-control">
+                                <input id="venda_data_entrada" name="venda_data_entrada" type="date" value="{{ venda_preparada.get('data_entrada') or '' }}" class="form-control">
                             </div>
 
                             <div class="form-group pagamento-campo-condicional" data-pagamento-campo="parcelas">
                                 <label for="venda_quantidade_parcelas">Quantidade de parcelas</label>
-                                <input id="venda_quantidade_parcelas" name="venda_quantidade_parcelas" type="number" min="1" max="120" value="1" class="form-control">
+                                <input id="venda_quantidade_parcelas" name="venda_quantidade_parcelas" type="number" min="1" max="120" value="{{ venda_preparada.get('quantidade_parcelas') or 1 }}" class="form-control">
                             </div>
 
                             <div class="form-group pagamento-campo-condicional" data-pagamento-campo="vencimento">
                                 <label for="venda_primeiro_vencimento">Primeiro vencimento</label>
-                                <input id="venda_primeiro_vencimento" name="venda_primeiro_vencimento" type="date" class="form-control">
+                                <input id="venda_primeiro_vencimento" name="venda_primeiro_vencimento" type="date" value="{{ venda_preparada.get('primeiro_vencimento') or '' }}" class="form-control">
                             </div>
 
                             <input type="hidden" name="venda_intervalo_parcelas" value="mensal">
@@ -692,17 +716,23 @@ Motivo: Padronizar Vendas conforme Orçamentos e remover a chamada redundante Ab
 
                     <div class="form-group">
                         <label for="venda_observacoes">Observações para o cliente</label>
-                        <textarea id="venda_observacoes" name="venda_observacoes" rows="6" placeholder="Observações que podem aparecer no comprovante" class="form-control venda-observacoes"></textarea>
+                        <textarea id="venda_observacoes" name="venda_observacoes" rows="6" placeholder="Observações que podem aparecer no comprovante" class="form-control venda-observacoes">{{ venda_preparada.get('observacoes') or '' }}</textarea>
                     </div>
 
                     <div class="form-group">
                         <label for="venda_observacoes_internas">Observações internas</label>
-                        <textarea id="venda_observacoes_internas" name="venda_observacoes_internas" rows="6" placeholder="Uso interno" class="form-control venda-observacoes"></textarea>
+                        <textarea id="venda_observacoes_internas" name="venda_observacoes_internas" rows="6" placeholder="Uso interno" class="form-control venda-observacoes">{{ venda_preparada.get('observacoes_internas') or '' }}</textarea>
                     </div>
                 </div>
 
                 <div class="form-actions">
-                    <label for="venda-cadastro-toggle" class="btn-light">Cancelar</label>
+                    {% if origem_vitrine_tipo == 'pedido' %}
+                        <a class="btn-light" href="{{ url_for('vitrine', aba='pedidos', pedido_id=origem_vitrine_id, _anchor='central-vitrine') }}">Cancelar e voltar</a>
+                    {% elif origem_vitrine_tipo == 'agendamento' %}
+                        <a class="btn-light" href="{{ url_for('vitrine', aba='agendamentos', agendamento_id=origem_vitrine_id, _anchor='central-vitrine') }}">Cancelar e voltar</a>
+                    {% else %}
+                        <label for="venda-cadastro-toggle" class="btn-light">Cancelar</label>
+                    {% endif %}
                     <button type="submit" class="btn-primary-green">Salvar Venda</button>
                 </div>
             </section>
@@ -978,7 +1008,7 @@ Motivo: Padronizar Vendas conforme Orçamentos e remover a chamada redundante Ab
                 {% endfor %}
             ];
 
-            window.itensIniciais = [];
+            window.itensIniciais = {{ itens_iniciais|tojson }};
         </script>
 
         <script>
