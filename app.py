@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-30 15:22 (America/Bahia)
-# Motivo: Padronizar a situação de vendas como Concretizada e migrar registros antigos marcados como Finalizada.
+# Último recode: 2026-07-30 17:21 (America/Bahia)
+# Motivo: Centralizar a versão 1.0.0 do GestFlow para exibição discreta na barra lateral.
 
 from __future__ import annotations
 
@@ -40,6 +40,7 @@ import config
 app = Flask(__name__)
 app.secret_key = getattr(config, "SECRET_KEY", "gestflow-dev-secret-key-trocar-em-producao")
 app.permanent_session_lifetime = timedelta(days=30)
+GESTFLOW_VERSAO = "1.0.0"
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
@@ -3399,6 +3400,7 @@ def injetar_usuario_logado() -> dict[str, Any]:
         "data_hoje": formatar_data_br(hoje_empresa()),
         "data_hora_atual": formatar_data_hora_br(agora_empresa().isoformat(timespec="seconds")),
         "timezone_empresa": timezone_empresa(),
+        "gestflow_versao": GESTFLOW_VERSAO,
         "gestflow_modulos": GESTFLOW_MODULOS,
         "gestflow_modulos_ativos": buscar_modulos_empresa() if session.get("usuario_id") else dict(GESTFLOW_MODULOS_PADRAO),
         "modulo_ativo": modulo_empresa_ativo,

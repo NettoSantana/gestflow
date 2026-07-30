@@ -1,7 +1,7 @@
 ﻿{#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\partials\sidebar.html
-Último recode: 2026-07-26 10:15 (America/Bahia)
-Motivo: Adicionar Manutenção de dados ao menu exclusivo do superadministrador.
+Último recode: 2026-07-30 17:21 (America/Bahia)
+Motivo: Exibir discretamente a versão centralizada do GestFlow no rodapé da barra lateral.
 #}
 {% set _path = request.path if request is defined else '' %}
 {% set _config_grupo = request.view_args.get('grupo', '') if request is defined and request.view_args else '' %}
@@ -333,6 +333,7 @@ Motivo: Adicionar Manutenção de dados ao menu exclusivo do superadministrador.
         {% endif %}
         <a href="/instalar" class="footer-item {% if _path.startswith('/instalar') %}active{% endif %}" style="text-decoration: none;">▣ Instalar app</a>
         <a href="/sair" class="footer-item" style="text-decoration: none;">Sair</a>
+        <div class="sidebar-version" aria-label="Versão do GestFlow">GestFlow v{{ gestflow_versao|default('1.0.0', true) }}</div>
     </div>
 </aside>
 <div class="sidebar-backdrop" aria-hidden="true"></div>
@@ -360,6 +361,16 @@ Motivo: Adicionar Manutenção de dados ao menu exclusivo do superadministrador.
         height: auto;
         display: block;
         object-fit: contain;
+    }
+
+    .sidebar-version {
+        padding: 8px 12px 2px;
+        color: rgba(255, 255, 255, 0.45);
+        font-size: 11px;
+        line-height: 1;
+        text-align: center;
+        letter-spacing: 0.02em;
+        user-select: none;
     }
 
     @media (max-width: 1024px) {
