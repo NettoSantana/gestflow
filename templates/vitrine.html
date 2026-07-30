@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vitrine.html
-Último recode: 2026-07-30 10:56 (America/Bahia)
-Motivo: Criar a central clicável da vitrine com pedidos, agendamentos, eventos, itens publicados e alertas internos.
+Último recode: 2026-07-30 13:11 (America/Bahia)
+Motivo: Controlar o atendimento dos pedidos da vitrine e mostrar a venda gerada somente na conclusão.
 #}
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -36,6 +36,12 @@ Motivo: Criar a central clicável da vitrine com pedidos, agendamentos, eventos,
     {% set tipo_identidade_visual = vitrine.get('tipo_identidade_visual') or ('logo' if vitrine.get('logo_path') else 'cores') %}
     {% set cor_preview_principal = '#0f172a' if tipo_identidade_visual == 'logo' else cor_principal %}
     {% set cor_preview_secundaria = '#334155' if tipo_identidade_visual == 'logo' else cor_secundaria %}
+    {% set status_pedido_rotulos = {
+        'novo': 'Novo',
+        'em_atendimento': 'Em atendimento',
+        'concluido': 'Concluído',
+        'cancelado': 'Cancelado'
+    } %}
 
     <main class="main-content focus-mode-main">
         <header class="focus-mode-header">
@@ -301,7 +307,10 @@ Motivo: Criar a central clicável da vitrine com pedidos, agendamentos, eventos,
                     <button type="button" data-vitrine-tab="pedidos">
                         <span>Pedidos recebidos</span>
                         <strong>{{ pedidos_vitrine|length }}</strong>
-                        <small>{{ central_vitrine.get('novos_pedidos') or 0 }} novo(s)</small>
+                        <small>
+                            {{ central_vitrine.get('novos_pedidos') or 0 }} novo(s) ·
+                            {{ central_vitrine.get('pedidos_em_atendimento') or 0 }} em atendimento
+                        </small>
                     </button>
                     <button type="button" data-vitrine-tab="agendamentos">
                         <span>Agenda e avaliações</span>
@@ -324,9 +333,10 @@ Motivo: Criar a central clicável da vitrine com pedidos, agendamentos, eventos,
                     <div>
                         <h3>Últimos pedidos</h3>
                         {% for pedido in pedidos_vitrine[:5] %}
+                            {% set status_pedido = pedido.get('status') or 'novo' %}
                             <button class="vitrine-compact-row" type="button" data-vitrine-tab="pedidos">
                                 <span><strong>#{{ pedido.get('id') }} · {{ pedido.get('cliente_nome') or 'Cliente não informado' }}</strong><small>{{ pedido.get('criado_em_exibicao') }}</small></span>
-                                <b>R$ {{ pedido.get('total') or '0,00' }}</b>
+                                <b>{{ status_pedido_rotulos.get(status_pedido, status_pedido|replace('_', ' ')|title) }} · R$ {{ pedido.get('total') or '0,00' }}</b>
                             </button>
                         {% else %}
                             <p class="vitrine-empty-message">Nenhum pedido recebido ainda.</p>
@@ -353,7 +363,8 @@ Motivo: Criar a central clicável da vitrine com pedidos, agendamentos, eventos,
                 </div>
                 <div class="vitrine-record-list">
                     {% for pedido in pedidos_vitrine %}
-                        <article class="vitrine-record-card" id="pedido-{{ pedido.get('id') }}">
+                        {% set status_pedido = pedido.get('status') or 'novo' %}
+                        <article class="vitrine-record-card pedido-status-{{ status_pedido|replace('_', '-') }}" id="pedido-{{ pedido.get('id') }}">
                             <header>
                                 <div>
                                     <span>Pedido #{{ pedido.get('id') }}</span>
@@ -361,7 +372,7 @@ Motivo: Criar a central clicável da vitrine com pedidos, agendamentos, eventos,
                                     <small>{{ pedido.get('criado_em_exibicao') }}</small>
                                 </div>
                                 <div class="vitrine-record-status">
-                                    <span>{{ pedido.get('status')|replace('_', ' ')|title }}</span>
+                                    <span class="status-{{ status_pedido|replace('_', '-') }}">{{ status_pedido_rotulos.get(status_pedido, status_pedido|replace('_', ' ')|title) }}</span>
                                     <strong>R$ {{ pedido.get('total') or '0,00' }}</strong>
                                 </div>
                             </header>
@@ -370,6 +381,18 @@ Motivo: Criar a central clicável da vitrine com pedidos, agendamentos, eventos,
                                 <span>Entrega: {{ pedido.get('tipo_entrega') or '-' }}</span>
                                 <span>Pagamento: {{ pedido.get('forma_pagamento') or '-' }}</span>
                             </div>
+                            {% if pedido.get('atendido_por_nome') %}
+                                <div class="vitrine-record-meta">
+                                    <span>Responsável: {{ pedido.get('atendido_por_nome') }}</span>
+                                    {% if status_pedido == 'em_atendimento' %}
+                                        <span>Iniciado em: {{ pedido.get('atendimento_iniciado_em_exibicao') or '-' }}</span>
+                                    {% elif status_pedido == 'concluido' %}
+                                        <span>Concluído em: {{ pedido.get('concluido_em_exibicao') or '-' }}</span>
+                                    {% elif status_pedido == 'cancelado' %}
+                                        <span>Cancelado em: {{ pedido.get('cancelado_em_exibicao') or '-' }}</span>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
                             {% if pedido.get('endereco') %}<p><strong>Endereço:</strong> {{ pedido.get('endereco') }}</p>{% endif %}
                             <div class="vitrine-order-items">
                                 {% for item in pedido.get('itens') or [] %}
@@ -382,9 +405,33 @@ Motivo: Criar a central clicável da vitrine com pedidos, agendamentos, eventos,
                                 {% endfor %}
                             </div>
                             {% if pedido.get('observacoes') %}<p><strong>Observações:</strong> {{ pedido.get('observacoes') }}</p>{% endif %}
-                            {% if pedido.get('whatsapp_url') %}
-                                <a class="btn btn-secondary btn-small" href="{{ pedido.get('whatsapp_url') }}" target="_blank" rel="noopener">Falar com o cliente</a>
-                            {% endif %}
+                            <div class="vitrine-order-actions">
+                                {% if status_pedido == 'novo' %}
+                                    <form method="post" action="{{ url_for('atualizar_pedido_vitrine_atendimento', pedido_id=pedido.get('id')) }}">
+                                        <button class="btn btn-primary btn-small" type="submit">Iniciar atendimento</button>
+                                    </form>
+                                {% elif status_pedido == 'em_atendimento' %}
+                                    <form method="post" action="{{ url_for('finalizar_pedido_vitrine_venda', pedido_id=pedido.get('id')) }}" onsubmit="return window.confirm('Concluir este pedido e gerar a venda, a baixa de estoque e o financeiro?');">
+                                        <button class="btn btn-success btn-small" type="submit">Concluir e gerar venda</button>
+                                    </form>
+                                {% endif %}
+
+                                {% if status_pedido in ['novo', 'em_atendimento'] %}
+                                    <form method="post" action="{{ url_for('cancelar_pedido_vitrine', pedido_id=pedido.get('id')) }}" onsubmit="return window.confirm('Cancelar este pedido sem gerar venda, estoque ou financeiro?');">
+                                        <button class="btn btn-danger btn-small" type="submit">Cancelar pedido</button>
+                                    </form>
+                                {% endif %}
+
+                                {% if pedido.get('venda_id') %}
+                                    <a class="btn btn-success-soft btn-small" href="{{ url_for('ver_venda', venda_id=pedido.get('venda_id')) }}">
+                                        Ver venda {{ pedido.get('venda_numero') or ('#' ~ pedido.get('venda_id')) }}
+                                    </a>
+                                {% endif %}
+
+                                {% if pedido.get('whatsapp_url') %}
+                                    <a class="btn btn-secondary btn-small" href="{{ pedido.get('whatsapp_url') }}" target="_blank" rel="noopener">Falar com o cliente</a>
+                                {% endif %}
+                            </div>
                         </article>
                     {% else %}
                         <div class="vitrine-empty-panel"><strong>Nenhum pedido gerado</strong><span>Os próximos pedidos aparecerão aqui antes da abertura do WhatsApp.</span></div>
@@ -1125,6 +1172,23 @@ Motivo: Criar a central clicável da vitrine com pedidos, agendamentos, eventos,
             border-color: #e5e7eb;
         }
 
+        .btn-success {
+            background: #047857;
+            color: #ffffff;
+        }
+
+        .btn-success-soft {
+            color: #047857;
+            border-color: #a7f3d0;
+            background: #ecfdf5;
+        }
+
+        .btn-danger {
+            color: #b91c1c;
+            border-color: #fecaca;
+            background: #fef2f2;
+        }
+
         .btn-small {
             min-height: 34px;
             padding: 8px 12px;
@@ -1522,10 +1586,46 @@ Motivo: Criar a central clicável da vitrine com pedidos, agendamentos, eventos,
         .vitrine-record-status span {
             padding: 5px 8px;
             border-radius: 999px;
-            color: #166534;
-            background: #dcfce7;
+            color: #374151;
+            background: #f3f4f6;
             font-size: 11px;
             font-weight: 900;
+        }
+
+        .vitrine-record-status .status-novo {
+            color: #92400e;
+            background: #fef3c7;
+        }
+
+        .vitrine-record-status .status-em-atendimento {
+            color: #1d4ed8;
+            background: #dbeafe;
+        }
+
+        .vitrine-record-status .status-concluido {
+            color: #166534;
+            background: #dcfce7;
+        }
+
+        .vitrine-record-status .status-cancelado {
+            color: #991b1b;
+            background: #fee2e2;
+        }
+
+        .vitrine-record-card.pedido-status-em-atendimento {
+            border-color: #93c5fd;
+            background: #eff6ff;
+        }
+
+        .vitrine-record-card.pedido-status-concluido {
+            border-color: #a7f3d0;
+            background: #f0fdf4;
+        }
+
+        .vitrine-record-card.pedido-status-cancelado {
+            opacity: 0.78;
+            border-color: #fecaca;
+            background: #fef2f2;
         }
 
         .vitrine-record-meta {
@@ -1545,6 +1645,17 @@ Motivo: Criar a central clicável da vitrine com pedidos, agendamentos, eventos,
             padding: 12px;
             border-radius: 14px;
             background: #ffffff;
+        }
+
+        .vitrine-order-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .vitrine-order-actions form {
+            margin: 0;
         }
 
         .vitrine-empty-panel {
@@ -1787,6 +1898,12 @@ Motivo: Criar a central clicável da vitrine com pedidos, agendamentos, eventos,
             .vitrine-record-status {
                 justify-items: start;
                 text-align: left;
+            }
+
+            .vitrine-order-actions,
+            .vitrine-order-actions form,
+            .vitrine-order-actions .btn {
+                width: 100%;
             }
         }
     </style>

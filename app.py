@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-30 12:18 (America/Bahia)
-# Motivo: Notificar automaticamente o responsável por novos pedidos e agendamentos recebidos pela vitrine.
+# Último recode: 2026-07-30 13:03 (America/Bahia)
+# Motivo: Controlar o atendimento dos pedidos da vitrine e convertê-los em venda, estoque e financeiro somente na conclusão.
 
 from __future__ import annotations
 
@@ -4074,6 +4074,8 @@ def iniciar_banco() -> None:
             """
             CREATE TABLE IF NOT EXISTS vendas (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER,
+                origem_vitrine_pedido_id INTEGER,
                 numero TEXT,
                 cliente TEXT,
                 responsavel TEXT,
@@ -4799,9 +4801,40 @@ def iniciar_banco() -> None:
                 total TEXT,
                 status TEXT NOT NULL DEFAULT 'novo',
                 origem TEXT NOT NULL DEFAULT 'vitrine',
+                venda_id INTEGER,
+                atendido_por_usuario_id INTEGER,
+                atendido_por_nome TEXT,
+                atendimento_iniciado_em TEXT,
+                concluido_em TEXT,
+                cancelado_em TEXT,
+                atualizado_em TEXT,
                 criado_em TEXT DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (empresa_id) REFERENCES empresas (id)
+                FOREIGN KEY (empresa_id) REFERENCES empresas (id),
+                FOREIGN KEY (venda_id) REFERENCES vendas (id)
             )
+            """
+        )
+        colunas_vitrine_pedidos = {
+            str(row["name"])
+            for row in conn.execute("PRAGMA table_info(vitrine_pedidos)").fetchall()
+        }
+        migracoes_vitrine_pedidos = {
+            "venda_id": "INTEGER",
+            "atendido_por_usuario_id": "INTEGER",
+            "atendido_por_nome": "TEXT",
+            "atendimento_iniciado_em": "TEXT",
+            "concluido_em": "TEXT",
+            "cancelado_em": "TEXT",
+            "atualizado_em": "TEXT",
+        }
+        for coluna, tipo_coluna in migracoes_vitrine_pedidos.items():
+            if coluna not in colunas_vitrine_pedidos:
+                conn.execute(f"ALTER TABLE vitrine_pedidos ADD COLUMN {coluna} {tipo_coluna}")
+        conn.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_vitrine_pedidos_venda_unica
+            ON vitrine_pedidos (empresa_id, venda_id)
+            WHERE venda_id IS NOT NULL
             """
         )
 
@@ -5543,10 +5576,18 @@ def iniciar_banco() -> None:
             "primeiro_vencimento": "TEXT",
             "intervalo_parcelas": "TEXT NOT NULL DEFAULT 'mensal'",
             "origem_orcamento_id": "INTEGER",
+            "origem_vitrine_pedido_id": "INTEGER",
         }
         for coluna, tipo_coluna in colunas_vendas_pagamento.items():
             if coluna not in colunas_vendas_pagamento_existentes:
                 conn.execute(f"ALTER TABLE vendas ADD COLUMN {coluna} {tipo_coluna}")
+        conn.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_vendas_origem_vitrine_unica
+            ON vendas (empresa_id, origem_vitrine_pedido_id)
+            WHERE origem_vitrine_pedido_id IS NOT NULL
+            """
+        )
 
         conn.execute(
             """
@@ -13429,6 +13470,7 @@ def salvar_venda_db(venda: dict[str, str], itens: list[dict[str, str]]) -> int:
             INSERT INTO vendas (
                 empresa_id,
                 origem_orcamento_id,
+                origem_vitrine_pedido_id,
                 numero,
                 cliente,
                 responsavel,
@@ -13456,11 +13498,12 @@ def salvar_venda_db(venda: dict[str, str], itens: list[dict[str, str]]) -> int:
                 intervalo_parcelas,
                 observacoes,
                 observacoes_internas
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id,
                 venda.get("origem_orcamento_id") or None,
+                venda.get("origem_vitrine_pedido_id") or None,
                 venda["numero"],
                 venda["cliente"],
                 venda["responsavel"],
@@ -25154,10 +25197,15 @@ def montar_central_vitrine_admin(empresa_id: int) -> dict[str, Any]:
     with conectar_db() as conn:
         pedidos_rows = conn.execute(
             """
-            SELECT *
-            FROM vitrine_pedidos
-            WHERE empresa_id = ?
-            ORDER BY id DESC
+            SELECT
+                p.*,
+                v.numero AS venda_numero
+            FROM vitrine_pedidos p
+            LEFT JOIN vendas v
+              ON v.id = p.venda_id
+             AND v.empresa_id = p.empresa_id
+            WHERE p.empresa_id = ?
+            ORDER BY p.id DESC
             LIMIT 100
             """,
             (empresa_id,),
@@ -25261,6 +25309,11 @@ def montar_central_vitrine_admin(empresa_id: int) -> dict[str, Any]:
         pedido_id = int(pedido["id"])
         pedido["itens"] = itens_por_pedido.get(pedido_id, [])
         pedido["criado_em_exibicao"] = formatar_data_hora_br(pedido.get("criado_em"))
+        pedido["atendimento_iniciado_em_exibicao"] = formatar_data_hora_br(
+            pedido.get("atendimento_iniciado_em")
+        )
+        pedido["concluido_em_exibicao"] = formatar_data_hora_br(pedido.get("concluido_em"))
+        pedido["cancelado_em_exibicao"] = formatar_data_hora_br(pedido.get("cancelado_em"))
         telefone = normalizar_telefone_publico(pedido.get("cliente_whatsapp"))
         if telefone and not telefone.startswith("55"):
             telefone = f"55{telefone}"
@@ -25306,6 +25359,15 @@ def montar_central_vitrine_admin(empresa_id: int) -> dict[str, Any]:
         ],
         "carrinhos": [item for item in eventos if item.get("tipo") == "carrinho"],
         "novos_pedidos": sum(1 for item in pedidos if item.get("status") == "novo"),
+        "pedidos_em_atendimento": sum(
+            1 for item in pedidos if item.get("status") == "em_atendimento"
+        ),
+        "pedidos_concluidos": sum(
+            1 for item in pedidos if item.get("status") == "concluido"
+        ),
+        "pedidos_cancelados": sum(
+            1 for item in pedidos if item.get("status") == "cancelado"
+        ),
         "agendamentos_pendentes": sum(
             1
             for item in agendamentos
@@ -25431,6 +25493,279 @@ def salvar_pedido_vitrine_db(empresa_id: int, dados: dict[str, Any], itens: list
         conn.commit()
 
     return pedido_id
+
+
+def buscar_pedido_vitrine_admin(pedido_id: int) -> dict[str, Any] | None:
+    empresa_id = empresa_logada_id()
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                p.*,
+                v.numero AS venda_numero
+            FROM vitrine_pedidos p
+            LEFT JOIN vendas v
+              ON v.id = p.venda_id
+             AND v.empresa_id = p.empresa_id
+            WHERE p.id = ?
+              AND p.empresa_id = ?
+            LIMIT 1
+            """,
+            (pedido_id, empresa_id),
+        ).fetchone()
+        if row is None:
+            return None
+        itens_rows = conn.execute(
+            """
+            SELECT *
+            FROM vitrine_pedido_itens
+            WHERE pedido_id = ?
+              AND empresa_id = ?
+            ORDER BY id ASC
+            """,
+            (pedido_id, empresa_id),
+        ).fetchall()
+
+    pedido = dict(row)
+    pedido["itens"] = [dict(item) for item in itens_rows]
+    return pedido
+
+
+def buscar_venda_por_pedido_vitrine_id(pedido_id: int) -> dict[str, Any] | None:
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT id, numero, status
+            FROM vendas
+            WHERE empresa_id = ?
+              AND origem_vitrine_pedido_id = ?
+            LIMIT 1
+            """,
+            (empresa_logada_id(), pedido_id),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def montar_venda_pedido_vitrine(
+    pedido: dict[str, Any],
+) -> tuple[dict[str, Any], list[dict[str, str]]]:
+    pedido_id = int(pedido.get("id") or 0)
+    itens_venda: list[dict[str, str]] = []
+    total = 0.0
+
+    for item in pedido.get("itens") or []:
+        quantidade = _converter_valor_brl(item.get("quantidade"))
+        valor_unitario = _converter_valor_brl(item.get("valor_unitario"))
+        subtotal = _converter_valor_brl(item.get("subtotal"))
+        if subtotal <= 0:
+            subtotal = quantidade * valor_unitario
+        total += subtotal
+        itens_venda.append(
+            {
+                "tipo_item": "produto",
+                "descricao": str(item.get("produto_nome") or "Produto da vitrine").strip(),
+                "detalhes": f"Pedido da vitrine #{pedido_id}.",
+                "quantidade": str(item.get("quantidade") or "1"),
+                "valor_unitario": str(item.get("valor_unitario") or "0,00"),
+                "desconto": "0,00",
+                "subtotal": _formatar_moeda_brl(subtotal),
+            }
+        )
+
+    total_formatado = _formatar_moeda_brl(total)
+    forma_pagamento = str(pedido.get("forma_pagamento") or "A definir").strip() or "A definir"
+    observacoes_internas = [
+        f"Venda gerada pelo pedido da vitrine #{pedido_id}.",
+        f"WhatsApp do cliente: {pedido.get('cliente_whatsapp') or '-'}.",
+        f"Entrega: {pedido.get('tipo_entrega') or '-'}.",
+    ]
+    if str(pedido.get("endereco") or "").strip():
+        observacoes_internas.append(f"Endereço: {str(pedido.get('endereco')).strip()}.")
+    if str(pedido.get("observacoes") or "").strip():
+        observacoes_internas.append(
+            f"Observações do pedido: {str(pedido.get('observacoes')).strip()}"
+        )
+
+    venda: dict[str, Any] = {
+        "origem_vitrine_pedido_id": pedido_id,
+        "numero": "",
+        "cliente": str(pedido.get("cliente_nome") or "Cliente da vitrine").strip(),
+        "responsavel": str(session.get("usuario_nome") or "Administrador").strip(),
+        "data": hoje_empresa().isoformat(),
+        "prazo_entrega": "",
+        "canal_venda": "Vitrine online",
+        "centro_custo": "Vitrine",
+        "centro_custo_id": "",
+        "atividade_financeira_id": "",
+        "tipo": "produto",
+        "status": "finalizada",
+        "total_produtos": total_formatado,
+        "total_servicos": "0,00",
+        "desconto_valor": "0,00",
+        "desconto_percentual": "0,00",
+        "valor_total": total_formatado,
+        "forma_pagamento": forma_pagamento,
+        "condicao_pagamento": "avista",
+        "meio_pagamento": forma_pagamento,
+        "valor_entrada": "0,00",
+        "meio_pagamento_entrada": "",
+        "data_entrada": hoje_empresa().isoformat(),
+        "quantidade_parcelas": 1,
+        "primeiro_vencimento": hoje_empresa().isoformat(),
+        "intervalo_parcelas": "mensal",
+        "observacoes": f"Pedido da vitrine #{pedido_id}.",
+        "observacoes_internas": "\n".join(observacoes_internas),
+    }
+    return venda, itens_venda
+
+
+def gerar_venda_pedido_vitrine_db(
+    pedido_id: int,
+) -> tuple[int | None, bool, str]:
+    pedido = buscar_pedido_vitrine_admin(pedido_id)
+    if pedido is None:
+        return None, False, "Pedido não encontrado nesta empresa."
+
+    venda_existente_id = int(pedido.get("venda_id") or 0)
+    if venda_existente_id > 0:
+        return (
+            venda_existente_id,
+            False,
+            f"Este pedido já gerou a venda {pedido.get('venda_numero') or venda_existente_id}.",
+        )
+
+    if str(pedido.get("status") or "").strip().lower() != "em_atendimento":
+        return None, False, "Inicie o atendimento antes de concluir o pedido."
+
+    venda, itens_venda = montar_venda_pedido_vitrine(pedido)
+    erro_validacao = validar_venda_para_salvar(venda, itens_venda)
+    if erro_validacao:
+        return None, False, erro_validacao
+
+    try:
+        validar_estoque_para_venda_db(itens_venda)
+    except ValueError as exc:
+        return None, False, str(exc)
+
+    if not reservar_operacao_configurada(
+        "vitrine",
+        "pedido",
+        pedido_id,
+        "gerar_venda",
+    ):
+        venda_existente = buscar_venda_por_pedido_vitrine_id(pedido_id)
+        if venda_existente is not None:
+            return (
+                int(venda_existente["id"]),
+                False,
+                f"Este pedido já gerou a venda {venda_existente.get('numero') or venda_existente['id']}.",
+            )
+        return None, False, "A conclusão deste pedido já está sendo processada."
+
+    try:
+        venda_id = salvar_venda_db(venda, itens_venda)
+    except (sqlite3.Error, ValueError, TypeError) as exc:
+        liberar_operacao_configurada("vitrine", "pedido", pedido_id, "gerar_venda")
+        app.logger.exception("Falha ao gerar venda pelo pedido da vitrine %s.", pedido_id)
+        return None, False, f"Não foi possível gerar a venda: {exc}"
+
+    agora = agora_empresa().isoformat(timespec="seconds")
+    try:
+        with conectar_db() as conn:
+            cursor = conn.execute(
+                """
+                UPDATE vitrine_pedidos
+                SET
+                    status = 'concluido',
+                    venda_id = ?,
+                    atendido_por_usuario_id = ?,
+                    atendido_por_nome = ?,
+                    concluido_em = ?,
+                    atualizado_em = ?
+                WHERE id = ?
+                  AND empresa_id = ?
+                  AND venda_id IS NULL
+                """,
+                (
+                    venda_id,
+                    usuario_logado_id(),
+                    str(session.get("usuario_nome") or "Administrador").strip(),
+                    agora,
+                    agora,
+                    pedido_id,
+                    empresa_logada_id(),
+                ),
+            )
+            conn.commit()
+        if cursor.rowcount != 1:
+            raise sqlite3.IntegrityError("O pedido não pôde ser vinculado à venda gerada.")
+    except sqlite3.Error as exc:
+        finalizar_operacao_configurada(
+            "vitrine",
+            "pedido",
+            pedido_id,
+            "gerar_venda",
+            "",
+            {"venda_id": venda_id, "erro_vinculo": str(exc)},
+        )
+        app.logger.exception(
+            "Venda %s criada, mas o vínculo com o pedido da vitrine %s falhou.",
+            venda_id,
+            pedido_id,
+        )
+        return (
+            venda_id,
+            True,
+            "A venda foi criada, mas o vínculo com o pedido precisa ser verificado.",
+        )
+
+    falhas_integracao: list[str] = []
+    try:
+        baixar_estoque_por_venda_db(venda_id, venda, itens_venda)
+    except (sqlite3.Error, ValueError, TypeError) as exc:
+        falhas_integracao.append(f"estoque: {exc}")
+        app.logger.exception(
+            "Falha na baixa de estoque da venda %s gerada pela vitrine.",
+            venda_id,
+        )
+
+    try:
+        gerar_conta_receber_por_venda_db(venda_id, venda)
+    except (sqlite3.Error, ValueError, TypeError) as exc:
+        falhas_integracao.append(f"financeiro: {exc}")
+        app.logger.exception(
+            "Falha no financeiro da venda %s gerada pela vitrine.",
+            venda_id,
+        )
+
+    finalizar_operacao_configurada(
+        "vitrine",
+        "pedido",
+        pedido_id,
+        "gerar_venda",
+        "",
+        {
+            "venda_id": venda_id,
+            "venda_numero": str(venda.get("numero") or ""),
+            "falhas_integracao": falhas_integracao,
+        },
+    )
+
+    if falhas_integracao:
+        return (
+            venda_id,
+            True,
+            (
+                f"Venda {venda.get('numero') or venda_id} criada. "
+                "Verifique as integrações de estoque e financeiro."
+            ),
+        )
+
+    return (
+        venda_id,
+        True,
+        f"Pedido concluído e venda {venda.get('numero') or venda_id} gerada com sucesso.",
+    )
 
 
 def montar_itens_pedido_vitrine(empresa_id: int, itens_json: Any) -> list[dict[str, Any]]:
@@ -26454,6 +26789,184 @@ def vitrine_pedido_publico(slug: str) -> str | Response:
     produtos = listar_produtos_vitrine_empresa(empresa_id)
     servicos = listar_servicos_vitrine_empresa(empresa_id)
     return renderizar_vitrine_publica_html(config_vitrine, produtos, servicos, f"Pedido #{pedido_id} gerado com sucesso.", whatsapp_url)
+
+
+def redirecionar_pedido_central_vitrine(
+    pedido_id: int,
+    *,
+    mensagem: str = "",
+    erro: str = "",
+) -> Response:
+    parametros: dict[str, Any] = {
+        "aba": "pedidos",
+        "pedido_id": pedido_id,
+        "_anchor": "central-vitrine",
+    }
+    if mensagem:
+        parametros["mensagem"] = mensagem
+    if erro:
+        parametros["erro"] = erro
+    return redirect(url_for("vitrine", **parametros))
+
+
+@app.post("/vitrine/pedidos/<int:pedido_id>/iniciar-atendimento")
+def atualizar_pedido_vitrine_atendimento(pedido_id: int) -> Response:
+    pedido = buscar_pedido_vitrine_admin(pedido_id)
+    if pedido is None:
+        return redirecionar_pedido_central_vitrine(
+            pedido_id,
+            erro="Pedido não encontrado nesta empresa.",
+        )
+    if int(pedido.get("venda_id") or 0) > 0 or pedido.get("status") == "concluido":
+        return redirecionar_pedido_central_vitrine(
+            pedido_id,
+            erro="Este pedido já foi concluído e não pode voltar para atendimento.",
+        )
+    if pedido.get("status") == "cancelado":
+        return redirecionar_pedido_central_vitrine(
+            pedido_id,
+            erro="Este pedido foi cancelado e não pode ser atendido.",
+        )
+
+    agora = agora_empresa().isoformat(timespec="seconds")
+    with conectar_db() as conn:
+        cursor = conn.execute(
+            """
+            UPDATE vitrine_pedidos
+            SET
+                status = 'em_atendimento',
+                atendido_por_usuario_id = ?,
+                atendido_por_nome = ?,
+                atendimento_iniciado_em = COALESCE(atendimento_iniciado_em, ?),
+                atualizado_em = ?
+            WHERE id = ?
+              AND empresa_id = ?
+              AND status = 'novo'
+              AND venda_id IS NULL
+            """,
+            (
+                usuario_logado_id(),
+                str(session.get("usuario_nome") or "Administrador").strip(),
+                agora,
+                agora,
+                pedido_id,
+                empresa_logada_id(),
+            ),
+        )
+        conn.commit()
+
+    if cursor.rowcount != 1:
+        return redirecionar_pedido_central_vitrine(
+            pedido_id,
+            erro="O pedido não está mais disponível para iniciar atendimento.",
+        )
+
+    registrar_atividade_usuario(
+        "atualizacao",
+        "vitrine",
+        f"Iniciou atendimento do pedido da vitrine #{pedido_id}",
+        request.path,
+        registro_id=pedido_id,
+    )
+    return redirecionar_pedido_central_vitrine(
+        pedido_id,
+        mensagem=f"Atendimento do pedido #{pedido_id} iniciado.",
+    )
+
+
+@app.post("/vitrine/pedidos/<int:pedido_id>/cancelar")
+def cancelar_pedido_vitrine(pedido_id: int) -> Response:
+    pedido = buscar_pedido_vitrine_admin(pedido_id)
+    if pedido is None:
+        return redirecionar_pedido_central_vitrine(
+            pedido_id,
+            erro="Pedido não encontrado nesta empresa.",
+        )
+    if int(pedido.get("venda_id") or 0) > 0 or pedido.get("status") == "concluido":
+        return redirecionar_pedido_central_vitrine(
+            pedido_id,
+            erro="O pedido já gerou uma venda e não pode ser cancelado por esta tela.",
+        )
+    if pedido.get("status") == "cancelado":
+        return redirecionar_pedido_central_vitrine(
+            pedido_id,
+            erro="Este pedido já está cancelado.",
+        )
+
+    agora = agora_empresa().isoformat(timespec="seconds")
+    with conectar_db() as conn:
+        cursor = conn.execute(
+            """
+            UPDATE vitrine_pedidos
+            SET
+                status = 'cancelado',
+                atendido_por_usuario_id = ?,
+                atendido_por_nome = ?,
+                cancelado_em = ?,
+                atualizado_em = ?
+            WHERE id = ?
+              AND empresa_id = ?
+              AND status IN ('novo', 'em_atendimento')
+              AND venda_id IS NULL
+            """,
+            (
+                usuario_logado_id(),
+                str(session.get("usuario_nome") or "Administrador").strip(),
+                agora,
+                agora,
+                pedido_id,
+                empresa_logada_id(),
+            ),
+        )
+        conn.commit()
+
+    if cursor.rowcount != 1:
+        return redirecionar_pedido_central_vitrine(
+            pedido_id,
+            erro="O pedido não está mais disponível para cancelamento.",
+        )
+
+    registrar_atividade_usuario(
+        "atualizacao",
+        "vitrine",
+        f"Cancelou o pedido da vitrine #{pedido_id}",
+        request.path,
+        registro_id=pedido_id,
+    )
+    return redirecionar_pedido_central_vitrine(
+        pedido_id,
+        mensagem=f"Pedido #{pedido_id} cancelado sem gerar venda.",
+    )
+
+
+@app.post("/vitrine/pedidos/<int:pedido_id>/concluir-venda")
+def finalizar_pedido_vitrine_venda(pedido_id: int) -> Response:
+    if not usuario_tem_permissao("vendas", "criar"):
+        return redirecionar_pedido_central_vitrine(
+            pedido_id,
+            erro="Seu usuário não tem permissão para criar vendas.",
+        )
+
+    venda_id, venda_criada, mensagem = gerar_venda_pedido_vitrine_db(pedido_id)
+    if venda_id is None:
+        return redirecionar_pedido_central_vitrine(
+            pedido_id,
+            erro=mensagem,
+        )
+
+    if venda_criada:
+        registrar_atividade_usuario(
+            "criacao",
+            "vitrine",
+            f"Concluiu o pedido da vitrine #{pedido_id} e gerou a venda #{venda_id}",
+            request.path,
+            registro_id=pedido_id,
+        )
+    return redirecionar_pedido_central_vitrine(
+        pedido_id,
+        mensagem=mensagem,
+    )
+
 
 @app.post("/vitrine/produtos/publicar")
 def vitrine_produto_publicar() -> Response:
