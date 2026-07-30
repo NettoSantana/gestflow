@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-29 12:46 (America/Bahia)
-# Motivo: Adaptar a Vitrine pública por categoria e logo, remover redundâncias e melhorar catálogo, compra e agendamento.
+# Último recode: 2026-07-30 09:05 (America/Bahia)
+# Motivo: Separar venda excluída de venda cancelada e ocultar exclusões lógicas das consultas.
 
 from __future__ import annotations
 
@@ -10167,7 +10167,7 @@ VENDAS_ORDENACAO = {
 def montar_filtros_vendas(busca: Any) -> tuple[str, list[Any]]:
     empresa_id = empresa_logada_id()
     termo = str(busca or "").strip()
-    where = "WHERE empresa_id = ?"
+    where = "WHERE empresa_id = ? AND LOWER(TRIM(COALESCE(status, ''))) <> 'excluida'"
     parametros: list[Any] = [empresa_id]
 
     if termo:
@@ -10246,9 +10246,9 @@ def resumir_vendas_cadastradas() -> dict[str, int]:
     empresa_id = empresa_logada_id()
 
     with conectar_db() as conn:
-        total = conn.execute("SELECT COUNT(*) AS total FROM vendas WHERE empresa_id = ?", (empresa_id,)).fetchone()["total"]
-        abertas = conn.execute("SELECT COUNT(*) AS total FROM vendas WHERE empresa_id = ? AND status = ?", (empresa_id, "aberta")).fetchone()["total"]
-        finalizadas = conn.execute("SELECT COUNT(*) AS total FROM vendas WHERE empresa_id = ? AND status = ?", (empresa_id, "finalizada")).fetchone()["total"]
+        total = conn.execute("SELECT COUNT(*) AS total FROM vendas WHERE empresa_id = ? AND LOWER(TRIM(COALESCE(status, ''))) <> 'excluida'", (empresa_id,)).fetchone()["total"]
+        abertas = conn.execute("SELECT COUNT(*) AS total FROM vendas WHERE empresa_id = ? AND status = ? AND LOWER(TRIM(COALESCE(status, ''))) <> 'excluida'", (empresa_id, "aberta")).fetchone()["total"]
+        finalizadas = conn.execute("SELECT COUNT(*) AS total FROM vendas WHERE empresa_id = ? AND status = ? AND LOWER(TRIM(COALESCE(status, ''))) <> 'excluida'", (empresa_id, "finalizada")).fetchone()["total"]
 
     return {"total": int(total or 0), "abertas": int(abertas or 0), "finalizadas": int(finalizadas or 0)}
 
@@ -13611,6 +13611,7 @@ def listar_vendas() -> list[dict[str, Any]]:
                 criado_em
             FROM vendas
             WHERE empresa_id = ?
+              AND LOWER(TRIM(COALESCE(status, ''))) <> 'excluida'
             ORDER BY id DESC
             """,
             (empresa_id,),
@@ -13659,6 +13660,7 @@ def buscar_venda_por_id(venda_id: int) -> dict[str, Any] | None:
             FROM vendas
             WHERE id = ?
               AND empresa_id = ?
+              AND LOWER(TRIM(COALESCE(status, ''))) <> 'excluida'
             """,
             (venda_id, empresa_id),
         ).fetchone()
@@ -13810,7 +13812,7 @@ def atualizar_venda_db(venda_id: int, venda: dict[str, str], itens: list[dict[st
 
 def excluir_venda_db(venda_id: int) -> None:
     empresa_id = empresa_logada_id()
-    if aplicar_exclusao_logica_configurada("vendas", venda_id, "cancelada"):
+    if aplicar_exclusao_logica_configurada("vendas", venda_id, "excluida"):
         return
 
     with conectar_db() as conn:
