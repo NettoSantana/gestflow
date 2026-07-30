@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-30 13:03 (America/Bahia)
-# Motivo: Controlar o atendimento dos pedidos da vitrine e convertê-los em venda, estoque e financeiro somente na conclusão.
+# Último recode: 2026-07-30 14:16 (America/Bahia)
+# Motivo: Preparar vendas de pedidos e agendamentos da vitrine, concluir após o pagamento informado e corrigir o Dashboard.
 
 from __future__ import annotations
 
@@ -3061,7 +3061,7 @@ def sincronizar_notificacoes_usuario_atual() -> None:
                 FROM agendamentos
                 WHERE empresa_id = ?
                   AND origem IN ('vitrine_online', 'avaliacao_vitrine')
-                  AND status NOT IN ('concluido', 'cancelado', 'nao_compareceu')
+                  AND status IN ('novo', 'agendado')
                 ORDER BY id DESC
                 LIMIT 100
                 """,
@@ -4076,6 +4076,7 @@ def iniciar_banco() -> None:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 empresa_id INTEGER,
                 origem_vitrine_pedido_id INTEGER,
+                origem_vitrine_agendamento_id INTEGER,
                 numero TEXT,
                 cliente TEXT,
                 responsavel TEXT,
@@ -4897,9 +4898,40 @@ def iniciar_banco() -> None:
                 token_publico_cliente TEXT,
                 criado_via_publico TEXT DEFAULT 'nao',
                 venda_id INTEGER,
+                atendido_por_usuario_id INTEGER,
+                atendido_por_nome TEXT,
+                confirmado_em TEXT,
+                atendimento_iniciado_em TEXT,
+                concluido_em TEXT,
+                cancelado_em TEXT,
+                nao_compareceu_em TEXT,
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 atualizado_em TEXT
             )
+            """
+        )
+        colunas_agendamentos = {
+            str(row["name"])
+            for row in conn.execute("PRAGMA table_info(agendamentos)").fetchall()
+        }
+        migracoes_agendamentos = {
+            "venda_id": "INTEGER",
+            "atendido_por_usuario_id": "INTEGER",
+            "atendido_por_nome": "TEXT",
+            "confirmado_em": "TEXT",
+            "atendimento_iniciado_em": "TEXT",
+            "concluido_em": "TEXT",
+            "cancelado_em": "TEXT",
+            "nao_compareceu_em": "TEXT",
+        }
+        for coluna, tipo_coluna in migracoes_agendamentos.items():
+            if coluna not in colunas_agendamentos:
+                conn.execute(f"ALTER TABLE agendamentos ADD COLUMN {coluna} {tipo_coluna}")
+        conn.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_agendamentos_venda_unica
+            ON agendamentos (empresa_id, venda_id)
+            WHERE venda_id IS NOT NULL
             """
         )
 
@@ -5577,6 +5609,7 @@ def iniciar_banco() -> None:
             "intervalo_parcelas": "TEXT NOT NULL DEFAULT 'mensal'",
             "origem_orcamento_id": "INTEGER",
             "origem_vitrine_pedido_id": "INTEGER",
+            "origem_vitrine_agendamento_id": "INTEGER",
         }
         for coluna, tipo_coluna in colunas_vendas_pagamento.items():
             if coluna not in colunas_vendas_pagamento_existentes:
@@ -5586,6 +5619,13 @@ def iniciar_banco() -> None:
             CREATE UNIQUE INDEX IF NOT EXISTS idx_vendas_origem_vitrine_unica
             ON vendas (empresa_id, origem_vitrine_pedido_id)
             WHERE origem_vitrine_pedido_id IS NOT NULL
+            """
+        )
+        conn.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_vendas_origem_agendamento_vitrine_unica
+            ON vendas (empresa_id, origem_vitrine_agendamento_id)
+            WHERE origem_vitrine_agendamento_id IS NOT NULL
             """
         )
 
@@ -13471,6 +13511,7 @@ def salvar_venda_db(venda: dict[str, str], itens: list[dict[str, str]]) -> int:
                 empresa_id,
                 origem_orcamento_id,
                 origem_vitrine_pedido_id,
+                origem_vitrine_agendamento_id,
                 numero,
                 cliente,
                 responsavel,
@@ -13498,12 +13539,13 @@ def salvar_venda_db(venda: dict[str, str], itens: list[dict[str, str]]) -> int:
                 intervalo_parcelas,
                 observacoes,
                 observacoes_internas
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id,
                 venda.get("origem_orcamento_id") or None,
                 venda.get("origem_vitrine_pedido_id") or None,
+                venda.get("origem_vitrine_agendamento_id") or None,
                 venda["numero"],
                 venda["cliente"],
                 venda["responsavel"],
@@ -14004,6 +14046,8 @@ def excluir_venda_db(venda_id: int) -> None:
 
 def montar_venda_formulario(numero_padrao: str = "") -> dict[str, str]:
     return {
+        "origem_vitrine_pedido_id": (request.form.get("origem_vitrine_pedido_id") or "").strip(),
+        "origem_vitrine_agendamento_id": (request.form.get("origem_vitrine_agendamento_id") or "").strip(),
         "numero": (request.form.get("venda_numero") or numero_padrao).strip(),
         "cliente": (request.form.get("venda_cliente") or "").strip(),
         "responsavel": (request.form.get("venda_responsavel") or "").strip(),
@@ -18021,6 +18065,10 @@ def montar_dashboard() -> dict[str, Any]:
         )
 
     for venda in vendas_lista:
+        status_venda = str(venda.get("status") or "").strip().lower()
+        if status_venda in {"cancelada", "excluida"}:
+            continue
+
         data_venda = _converter_data_iso(venda.get("data"))
         valor = _converter_valor_brl(venda.get("valor_total"))
 
@@ -21884,7 +21932,7 @@ def excluir_empresa_cliente_admin_db(empresa_id: int) -> bool:
 
 
 
-AGENDAMENTOS_STATUS = ["agendado", "confirmado", "em_atendimento", "concluido", "cancelado", "nao_compareceu"]
+AGENDAMENTOS_STATUS = ["novo", "agendado", "confirmado", "em_atendimento", "concluido", "cancelado", "nao_compareceu"]
 PONTO_ACOES = {
     "entrada": "Entrada",
     "saida_intervalo": "Saída para intervalo",
@@ -25232,11 +25280,16 @@ def montar_central_vitrine_admin(empresa_id: int) -> dict[str, Any]:
 
         agendamentos_rows = conn.execute(
             """
-            SELECT *
-            FROM agendamentos
-            WHERE empresa_id = ?
-              AND origem IN ('vitrine_online', 'avaliacao_vitrine')
-            ORDER BY id DESC
+            SELECT
+                a.*,
+                v.numero AS venda_numero
+            FROM agendamentos a
+            LEFT JOIN vendas v
+              ON v.id = a.venda_id
+             AND v.empresa_id = a.empresa_id
+            WHERE a.empresa_id = ?
+              AND a.origem IN ('vitrine_online', 'avaliacao_vitrine')
+            ORDER BY a.id DESC
             LIMIT 100
             """,
             (empresa_id,),
@@ -25325,6 +25378,21 @@ def montar_central_vitrine_admin(empresa_id: int) -> dict[str, Any]:
         agendamento = dict(row)
         agendamento["data_exibicao"] = formatar_data_br(agendamento.get("data_agendamento"))
         agendamento["criado_em_exibicao"] = formatar_data_hora_br(agendamento.get("criado_em"))
+        agendamento["confirmado_em_exibicao"] = formatar_data_hora_br(
+            agendamento.get("confirmado_em")
+        )
+        agendamento["atendimento_iniciado_em_exibicao"] = formatar_data_hora_br(
+            agendamento.get("atendimento_iniciado_em")
+        )
+        agendamento["concluido_em_exibicao"] = formatar_data_hora_br(
+            agendamento.get("concluido_em")
+        )
+        agendamento["cancelado_em_exibicao"] = formatar_data_hora_br(
+            agendamento.get("cancelado_em")
+        )
+        agendamento["nao_compareceu_em_exibicao"] = formatar_data_hora_br(
+            agendamento.get("nao_compareceu_em")
+        )
         telefone = normalizar_telefone_publico(agendamento.get("cliente_telefone"))
         if telefone and not telefone.startswith("55"):
             telefone = f"55{telefone}"
@@ -25766,6 +25834,276 @@ def gerar_venda_pedido_vitrine_db(
         True,
         f"Pedido concluído e venda {venda.get('numero') or venda_id} gerada com sucesso.",
     )
+
+
+def buscar_agendamento_vitrine_admin(agendamento_id: int) -> dict[str, Any] | None:
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                a.*,
+                v.numero AS venda_numero
+            FROM agendamentos a
+            LEFT JOIN vendas v
+              ON v.id = a.venda_id
+             AND v.empresa_id = a.empresa_id
+            WHERE a.id = ?
+              AND a.empresa_id = ?
+              AND a.origem IN ('vitrine_online', 'avaliacao_vitrine')
+            LIMIT 1
+            """,
+            (agendamento_id, empresa_logada_id()),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def buscar_venda_por_agendamento_vitrine_id(
+    agendamento_id: int,
+) -> dict[str, Any] | None:
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT id, numero, status
+            FROM vendas
+            WHERE empresa_id = ?
+              AND origem_vitrine_agendamento_id = ?
+            LIMIT 1
+            """,
+            (empresa_logada_id(), agendamento_id),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def montar_preparo_venda_pedido_vitrine(
+    pedido: dict[str, Any],
+) -> tuple[dict[str, Any], list[dict[str, str]]]:
+    venda, itens = montar_venda_pedido_vitrine(pedido)
+    venda.update(
+        {
+            "status": "concretizada",
+            "forma_pagamento": "",
+            "condicao_pagamento": "avista",
+            "meio_pagamento": "",
+            "valor_entrada": "0,00",
+            "meio_pagamento_entrada": "",
+            "data_entrada": hoje_empresa().isoformat(),
+            "quantidade_parcelas": 1,
+            "primeiro_vencimento": hoje_empresa().isoformat(),
+        }
+    )
+    return venda, itens
+
+
+def montar_preparo_venda_agendamento_vitrine(
+    agendamento: dict[str, Any],
+) -> tuple[dict[str, Any], list[dict[str, str]]]:
+    agendamento_id = int(agendamento.get("id") or 0)
+    valor = str(agendamento.get("valor") or "0,00").strip() or "0,00"
+    profissional = str(
+        agendamento.get("profissional_nome")
+        or agendamento.get("atendido_por_nome")
+        or session.get("usuario_nome")
+        or "Administrador"
+    ).strip()
+    venda: dict[str, Any] = {
+        "origem_vitrine_agendamento_id": agendamento_id,
+        "numero": "",
+        "cliente": str(
+            agendamento.get("cliente_nome") or "Cliente da vitrine"
+        ).strip(),
+        "responsavel": profissional,
+        "data": hoje_empresa().isoformat(),
+        "prazo_entrega": "",
+        "canal_venda": "Agendamento da vitrine",
+        "centro_custo": "Serviços",
+        "centro_custo_id": "",
+        "atividade_financeira_id": "",
+        "tipo": "servico",
+        "status": "concretizada",
+        "total_produtos": "0,00",
+        "total_servicos": valor,
+        "desconto_valor": "0,00",
+        "desconto_percentual": "0,00",
+        "valor_total": valor,
+        "forma_pagamento": "",
+        "condicao_pagamento": "avista",
+        "meio_pagamento": "",
+        "valor_entrada": "0,00",
+        "meio_pagamento_entrada": "",
+        "data_entrada": hoje_empresa().isoformat(),
+        "quantidade_parcelas": 1,
+        "primeiro_vencimento": hoje_empresa().isoformat(),
+        "intervalo_parcelas": "mensal",
+        "observacoes": f"Serviço realizado no agendamento da vitrine #{agendamento_id}.",
+        "observacoes_internas": (
+            f"Venda preparada pelo agendamento da vitrine #{agendamento_id}.\n"
+            f"Atendimento: {formatar_data_br(agendamento.get('data_agendamento'))} "
+            f"às {agendamento.get('hora_inicio') or '--:--'}.\n"
+            f"WhatsApp do cliente: {agendamento.get('cliente_telefone') or '-'}.\n"
+            f"Observações: {agendamento.get('observacoes') or '-'}."
+        ),
+    }
+    itens = [
+        {
+            "tipo_item": "servico",
+            "descricao": str(
+                agendamento.get("servico_nome") or "Serviço agendado"
+            ).strip(),
+            "detalhes": (
+                f"Agendamento #{agendamento_id} em "
+                f"{formatar_data_br(agendamento.get('data_agendamento'))} "
+                f"às {agendamento.get('hora_inicio') or '--:--'}."
+            ),
+            "quantidade": "1",
+            "valor_unitario": valor,
+            "desconto": "0,00",
+            "subtotal": valor,
+        }
+    ]
+    return venda, itens
+
+
+def carregar_preparo_venda_vitrine(
+    pedido_id_valor: Any = "",
+    agendamento_id_valor: Any = "",
+) -> tuple[dict[str, Any], list[dict[str, str]], str, int, str]:
+    pedido_texto = str(pedido_id_valor or "").strip()
+    agendamento_texto = str(agendamento_id_valor or "").strip()
+    if pedido_texto and agendamento_texto:
+        return {}, [], "", 0, "Escolha somente um pedido ou agendamento por venda."
+
+    if pedido_texto:
+        if not pedido_texto.isdigit():
+            return {}, [], "pedido", 0, "Pedido inválido para preparar a venda."
+        pedido_id = int(pedido_texto)
+        pedido = buscar_pedido_vitrine_admin(pedido_id)
+        if pedido is None:
+            return {}, [], "pedido", pedido_id, "Pedido não encontrado nesta empresa."
+        venda_existente = buscar_venda_por_pedido_vitrine_id(pedido_id)
+        if int(pedido.get("venda_id") or 0) > 0 or venda_existente is not None:
+            numero = pedido.get("venda_numero") or (venda_existente or {}).get("numero")
+            return (
+                {},
+                [],
+                "pedido",
+                pedido_id,
+                f"Este pedido já gerou a venda {numero or pedido.get('venda_id')}.",
+            )
+        if str(pedido.get("status") or "").strip() != "em_atendimento":
+            return (
+                {},
+                [],
+                "pedido",
+                pedido_id,
+                "Inicie o atendimento do pedido antes de preparar a venda.",
+            )
+        venda, itens = montar_preparo_venda_pedido_vitrine(pedido)
+        return venda, itens, "pedido", pedido_id, ""
+
+    if agendamento_texto:
+        if not agendamento_texto.isdigit():
+            return (
+                {},
+                [],
+                "agendamento",
+                0,
+                "Agendamento inválido para preparar a venda.",
+            )
+        agendamento_id = int(agendamento_texto)
+        agendamento = buscar_agendamento_vitrine_admin(agendamento_id)
+        if agendamento is None:
+            return (
+                {},
+                [],
+                "agendamento",
+                agendamento_id,
+                "Agendamento não encontrado nesta empresa.",
+            )
+        venda_existente = buscar_venda_por_agendamento_vitrine_id(agendamento_id)
+        if int(agendamento.get("venda_id") or 0) > 0 or venda_existente is not None:
+            numero = (
+                agendamento.get("venda_numero")
+                or (venda_existente or {}).get("numero")
+            )
+            return (
+                {},
+                [],
+                "agendamento",
+                agendamento_id,
+                f"Este agendamento já gerou a venda {numero or agendamento.get('venda_id')}.",
+            )
+        if str(agendamento.get("status") or "").strip() != "em_atendimento":
+            return (
+                {},
+                [],
+                "agendamento",
+                agendamento_id,
+                "Inicie o atendimento do agendamento antes de preparar a venda.",
+            )
+        venda, itens = montar_preparo_venda_agendamento_vitrine(agendamento)
+        return venda, itens, "agendamento", agendamento_id, ""
+
+    return {}, [], "", 0, ""
+
+
+def vincular_venda_origem_vitrine_db(
+    venda_id: int,
+    origem_tipo: str,
+    origem_id: int,
+) -> bool:
+    agora = agora_empresa().isoformat(timespec="seconds")
+    usuario_id = usuario_logado_id()
+    usuario_nome = str(session.get("usuario_nome") or "Administrador").strip()
+    with conectar_db() as conn:
+        if origem_tipo == "pedido":
+            cursor = conn.execute(
+                """
+                UPDATE vitrine_pedidos
+                SET status = 'concluido', venda_id = ?,
+                    atendido_por_usuario_id = ?, atendido_por_nome = ?,
+                    concluido_em = ?, atualizado_em = ?
+                WHERE id = ?
+                  AND empresa_id = ?
+                  AND status = 'em_atendimento'
+                  AND venda_id IS NULL
+                """,
+                (
+                    venda_id,
+                    usuario_id,
+                    usuario_nome,
+                    agora,
+                    agora,
+                    origem_id,
+                    empresa_logada_id(),
+                ),
+            )
+        elif origem_tipo == "agendamento":
+            cursor = conn.execute(
+                """
+                UPDATE agendamentos
+                SET status = 'concluido', venda_id = ?,
+                    atendido_por_usuario_id = ?, atendido_por_nome = ?,
+                    concluido_em = ?, atualizado_em = ?
+                WHERE id = ?
+                  AND empresa_id = ?
+                  AND origem IN ('vitrine_online', 'avaliacao_vitrine')
+                  AND status = 'em_atendimento'
+                  AND venda_id IS NULL
+                """,
+                (
+                    venda_id,
+                    usuario_id,
+                    usuario_nome,
+                    agora,
+                    agora,
+                    origem_id,
+                    empresa_logada_id(),
+                ),
+            )
+        else:
+            return True
+        conn.commit()
+    return cursor.rowcount == 1
 
 
 def montar_itens_pedido_vitrine(empresa_id: int, itens_json: Any) -> list[dict[str, Any]]:
@@ -26939,32 +27277,340 @@ def cancelar_pedido_vitrine(pedido_id: int) -> Response:
     )
 
 
-@app.post("/vitrine/pedidos/<int:pedido_id>/concluir-venda")
-def finalizar_pedido_vitrine_venda(pedido_id: int) -> Response:
+@app.get("/vitrine/pedidos/<int:pedido_id>/preparar-venda")
+def preparar_venda_pedido_vitrine(pedido_id: int) -> Response:
     if not usuario_tem_permissao("vendas", "criar"):
         return redirecionar_pedido_central_vitrine(
             pedido_id,
             erro="Seu usuário não tem permissão para criar vendas.",
         )
 
-    venda_id, venda_criada, mensagem = gerar_venda_pedido_vitrine_db(pedido_id)
-    if venda_id is None:
+    _, _, _, _, erro = carregar_preparo_venda_vitrine(
+        pedido_id_valor=pedido_id
+    )
+    if erro:
         return redirecionar_pedido_central_vitrine(
             pedido_id,
-            erro=mensagem,
+            erro=erro,
+        )
+    return redirect(
+        url_for(
+            "vendas",
+            origem_vitrine_pedido_id=pedido_id,
+            _anchor="form-nova-venda",
+        )
+    )
+
+
+@app.post("/vitrine/pedidos/<int:pedido_id>/concluir-venda")
+def finalizar_pedido_vitrine_venda(pedido_id: int) -> Response:
+    return preparar_venda_pedido_vitrine(pedido_id)
+
+
+def redirecionar_agendamento_central_vitrine(
+    agendamento_id: int,
+    mensagem: str = "",
+    erro: str = "",
+) -> Response:
+    parametros: dict[str, Any] = {
+        "aba": "agendamentos",
+        "agendamento_id": agendamento_id,
+    }
+    if mensagem:
+        parametros["mensagem"] = mensagem
+    if erro:
+        parametros["erro"] = erro
+    return redirect(
+        url_for(
+            "vitrine",
+            **parametros,
+            _anchor="central-vitrine",
+        )
+    )
+
+
+@app.post("/vitrine/agendamentos/<int:agendamento_id>/confirmar")
+def confirmar_agendamento_vitrine(agendamento_id: int) -> Response:
+    agendamento = buscar_agendamento_vitrine_admin(agendamento_id)
+    if agendamento is None:
+        return redirecionar_agendamento_central_vitrine(
+            agendamento_id,
+            erro="Agendamento não encontrado nesta empresa.",
+        )
+    if int(agendamento.get("venda_id") or 0) > 0:
+        return redirecionar_agendamento_central_vitrine(
+            agendamento_id,
+            erro="Este agendamento já possui uma venda vinculada.",
+        )
+    if str(agendamento.get("status") or "").strip() not in {"novo", "agendado"}:
+        return redirecionar_agendamento_central_vitrine(
+            agendamento_id,
+            erro="Este agendamento não está disponível para confirmação.",
         )
 
-    if venda_criada:
-        registrar_atividade_usuario(
-            "criacao",
-            "vitrine",
-            f"Concluiu o pedido da vitrine #{pedido_id} e gerou a venda #{venda_id}",
-            request.path,
-            registro_id=pedido_id,
+    data_agendamento = str(request.form.get("data_agendamento") or "").strip()
+    hora_inicio = _normalizar_hora_hhmm(request.form.get("hora_inicio"))
+    profissional_id = str(request.form.get("profissional_id") or "").strip()
+    profissionais = listar_profissionais_agendamento_empresa(empresa_logada_id())
+    if not data_agendamento or not hora_inicio:
+        return redirecionar_agendamento_central_vitrine(
+            agendamento_id,
+            erro="Informe a data e o horário para confirmar o agendamento.",
         )
-    return redirecionar_pedido_central_vitrine(
-        pedido_id,
-        mensagem=mensagem,
+    try:
+        data_confirmacao = date.fromisoformat(data_agendamento)
+    except ValueError:
+        return redirecionar_agendamento_central_vitrine(
+            agendamento_id,
+            erro="A data informada para o agendamento é inválida.",
+        )
+    if data_confirmacao < hoje_empresa():
+        return redirecionar_agendamento_central_vitrine(
+            agendamento_id,
+            erro="A data do agendamento não pode estar no passado.",
+        )
+    if not profissionais:
+        return redirecionar_agendamento_central_vitrine(
+            agendamento_id,
+            erro="Cadastre um funcionário ativo antes de confirmar o profissional.",
+        )
+    if not profissional_id.isdigit():
+        return redirecionar_agendamento_central_vitrine(
+            agendamento_id,
+            erro="Selecione o profissional responsável pelo atendimento.",
+        )
+
+    inicio_minutos = _minutos_hora_agendamento(hora_inicio, -1)
+    try:
+        duracao_minutos = max(5, int(float(agendamento.get("duracao_minutos") or 60)))
+    except (TypeError, ValueError):
+        duracao_minutos = 60
+    fim_minutos = inicio_minutos + duracao_minutos
+    profissional_resolvido_id, profissional_nome = resolver_profissional_agendamento(
+        empresa_logada_id(),
+        data_agendamento,
+        profissional_id,
+        inicio_minutos,
+        fim_minutos,
+        agendamento_id,
+    )
+    if (
+        profissional_resolvido_id in {"", "__indisponivel__"}
+        or not profissional_nome
+    ):
+        return redirecionar_agendamento_central_vitrine(
+            agendamento_id,
+            erro="O profissional selecionado não está disponível nesse período.",
+        )
+
+    agora = agora_empresa().isoformat(timespec="seconds")
+    with conectar_db() as conn:
+        cursor = conn.execute(
+            """
+            UPDATE agendamentos
+            SET status = 'confirmado', data_agendamento = ?, hora_inicio = ?,
+                hora_fim = ?, profissional_id = ?, profissional_nome = ?,
+                atendido_por_usuario_id = ?, atendido_por_nome = ?,
+                confirmado_em = ?, atualizado_em = ?
+            WHERE id = ?
+              AND empresa_id = ?
+              AND origem IN ('vitrine_online', 'avaliacao_vitrine')
+              AND status IN ('novo', 'agendado')
+              AND venda_id IS NULL
+            """,
+            (
+                data_agendamento,
+                hora_inicio,
+                _hora_agendamento_por_minutos(fim_minutos),
+                profissional_resolvido_id,
+                profissional_nome,
+                usuario_logado_id(),
+                str(session.get("usuario_nome") or "Administrador").strip(),
+                agora,
+                agora,
+                agendamento_id,
+                empresa_logada_id(),
+            ),
+        )
+        conn.commit()
+    if cursor.rowcount != 1:
+        return redirecionar_agendamento_central_vitrine(
+            agendamento_id,
+            erro="O agendamento não está mais disponível para confirmação.",
+        )
+    registrar_atividade_usuario(
+        "atualizacao",
+        "vitrine",
+        f"Confirmou o agendamento da vitrine #{agendamento_id}",
+        request.path,
+        registro_id=agendamento_id,
+    )
+    return redirecionar_agendamento_central_vitrine(
+        agendamento_id,
+        mensagem=f"Agendamento #{agendamento_id} confirmado.",
+    )
+
+
+@app.post("/vitrine/agendamentos/<int:agendamento_id>/iniciar")
+def iniciar_atendimento_agendamento_vitrine(agendamento_id: int) -> Response:
+    agendamento = buscar_agendamento_vitrine_admin(agendamento_id)
+    if agendamento is None:
+        return redirecionar_agendamento_central_vitrine(
+            agendamento_id,
+            erro="Agendamento não encontrado nesta empresa.",
+        )
+    if str(agendamento.get("status") or "").strip() != "confirmado":
+        return redirecionar_agendamento_central_vitrine(
+            agendamento_id,
+            erro="Confirme o agendamento antes de iniciar o atendimento.",
+        )
+    agora = agora_empresa().isoformat(timespec="seconds")
+    with conectar_db() as conn:
+        cursor = conn.execute(
+            """
+            UPDATE agendamentos
+            SET status = 'em_atendimento', atendido_por_usuario_id = ?,
+                atendido_por_nome = ?, atendimento_iniciado_em = ?,
+                atualizado_em = ?
+            WHERE id = ?
+              AND empresa_id = ?
+              AND origem IN ('vitrine_online', 'avaliacao_vitrine')
+              AND status = 'confirmado'
+              AND venda_id IS NULL
+            """,
+            (
+                usuario_logado_id(),
+                str(session.get("usuario_nome") or "Administrador").strip(),
+                agora,
+                agora,
+                agendamento_id,
+                empresa_logada_id(),
+            ),
+        )
+        conn.commit()
+    if cursor.rowcount != 1:
+        return redirecionar_agendamento_central_vitrine(
+            agendamento_id,
+            erro="O agendamento não está mais disponível para iniciar.",
+        )
+    return redirecionar_agendamento_central_vitrine(
+        agendamento_id,
+        mensagem=f"Atendimento do agendamento #{agendamento_id} iniciado.",
+    )
+
+
+@app.post("/vitrine/agendamentos/<int:agendamento_id>/cancelar")
+def cancelar_agendamento_vitrine(agendamento_id: int) -> Response:
+    agendamento = buscar_agendamento_vitrine_admin(agendamento_id)
+    if agendamento is None:
+        return redirecionar_agendamento_central_vitrine(
+            agendamento_id,
+            erro="Agendamento não encontrado nesta empresa.",
+        )
+    if int(agendamento.get("venda_id") or 0) > 0:
+        return redirecionar_agendamento_central_vitrine(
+            agendamento_id,
+            erro="O agendamento não pode ser cancelado porque já gerou uma venda.",
+        )
+    if str(agendamento.get("status") or "").strip() not in {
+        "novo",
+        "agendado",
+        "confirmado",
+        "em_atendimento",
+    }:
+        return redirecionar_agendamento_central_vitrine(
+            agendamento_id,
+            erro="Este agendamento não está disponível para cancelamento.",
+        )
+    agora = agora_empresa().isoformat(timespec="seconds")
+    with conectar_db() as conn:
+        cursor = conn.execute(
+            """
+            UPDATE agendamentos
+            SET status = 'cancelado', cancelado_em = ?, atualizado_em = ?
+            WHERE id = ?
+              AND empresa_id = ?
+              AND origem IN ('vitrine_online', 'avaliacao_vitrine')
+              AND status IN ('novo', 'agendado', 'confirmado', 'em_atendimento')
+              AND venda_id IS NULL
+            """,
+            (agora, agora, agendamento_id, empresa_logada_id()),
+        )
+        conn.commit()
+    if cursor.rowcount != 1:
+        return redirecionar_agendamento_central_vitrine(
+            agendamento_id,
+            erro="O agendamento não está mais disponível para cancelamento.",
+        )
+    return redirecionar_agendamento_central_vitrine(
+        agendamento_id,
+        mensagem=f"Agendamento #{agendamento_id} cancelado.",
+    )
+
+
+@app.post("/vitrine/agendamentos/<int:agendamento_id>/nao-compareceu")
+def marcar_nao_comparecimento_agendamento_vitrine(
+    agendamento_id: int,
+) -> Response:
+    agendamento = buscar_agendamento_vitrine_admin(agendamento_id)
+    if agendamento is None:
+        return redirecionar_agendamento_central_vitrine(
+            agendamento_id,
+            erro="Agendamento não encontrado nesta empresa.",
+        )
+    if str(agendamento.get("status") or "").strip() != "confirmado":
+        return redirecionar_agendamento_central_vitrine(
+            agendamento_id,
+            erro="Somente um agendamento confirmado pode ser marcado como não compareceu.",
+        )
+    agora = agora_empresa().isoformat(timespec="seconds")
+    with conectar_db() as conn:
+        cursor = conn.execute(
+            """
+            UPDATE agendamentos
+            SET status = 'nao_compareceu', nao_compareceu_em = ?,
+                atualizado_em = ?
+            WHERE id = ?
+              AND empresa_id = ?
+              AND origem IN ('vitrine_online', 'avaliacao_vitrine')
+              AND status = 'confirmado'
+              AND venda_id IS NULL
+            """,
+            (agora, agora, agendamento_id, empresa_logada_id()),
+        )
+        conn.commit()
+    if cursor.rowcount != 1:
+        return redirecionar_agendamento_central_vitrine(
+            agendamento_id,
+            erro="O agendamento não está mais disponível para esta ação.",
+        )
+    return redirecionar_agendamento_central_vitrine(
+        agendamento_id,
+        mensagem=f"Agendamento #{agendamento_id} marcado como não compareceu.",
+    )
+
+
+@app.get("/vitrine/agendamentos/<int:agendamento_id>/preparar-venda")
+def preparar_venda_agendamento_vitrine(agendamento_id: int) -> Response:
+    if not usuario_tem_permissao("vendas", "criar"):
+        return redirecionar_agendamento_central_vitrine(
+            agendamento_id,
+            erro="Seu usuário não tem permissão para criar vendas.",
+        )
+    _, _, _, _, erro = carregar_preparo_venda_vitrine(
+        agendamento_id_valor=agendamento_id
+    )
+    if erro:
+        return redirecionar_agendamento_central_vitrine(
+            agendamento_id,
+            erro=erro,
+        )
+    return redirect(
+        url_for(
+            "vendas",
+            origem_vitrine_agendamento_id=agendamento_id,
+            _anchor="form-nova-venda",
+        )
     )
 
 
@@ -27098,6 +27744,7 @@ def vitrine() -> str | Response:
         ranking_vitrine=listar_ranking_produtos_vitrine(empresa_id),
         ranking_servicos_vitrine=listar_ranking_servicos_vitrine(empresa_id),
         central_vitrine=central_vitrine,
+        profissionais_vitrine=listar_profissionais_agendamento_empresa(empresa_id),
         aba_vitrine=aba_vitrine,
         link_publico=(f"{request.url_root.rstrip('/')}/loja/{config_vitrine.get('slug')}" if config_vitrine.get("slug") else ""),
         mensagem=(request.args.get("mensagem") or "").strip(),
@@ -32374,7 +33021,28 @@ def venda_balcao_salvar_fechamento_caixa() -> Response:
     return redirect(url_for("venda_balcao"))
 
 @app.get("/vendas")
-def vendas() -> str:
+def vendas() -> str | Response:
+    venda_preparada, itens_preparados, origem_tipo, origem_id, erro_preparo = (
+        carregar_preparo_venda_vitrine(
+            pedido_id_valor=request.args.get("origem_vitrine_pedido_id"),
+            agendamento_id_valor=request.args.get(
+                "origem_vitrine_agendamento_id"
+            ),
+        )
+    )
+    if erro_preparo and origem_tipo == "pedido":
+        return redirecionar_pedido_central_vitrine(
+            origem_id,
+            erro=erro_preparo,
+        )
+    if erro_preparo and origem_tipo == "agendamento":
+        return redirecionar_agendamento_central_vitrine(
+            origem_id,
+            erro=erro_preparo,
+        )
+    if erro_preparo:
+        return redirect(url_for("vendas", erro=erro_preparo))
+
     contexto_vendas = montar_contexto_vendas_paginado()
     clientes_lista = listar_clientes()
     funcionarios_lista = listar_funcionarios()
@@ -32397,6 +33065,10 @@ def vendas() -> str:
         produtos=produtos_lista,
         servicos=servicos_lista,
         proximo_numero=proximo_numero,
+        venda_preparada=venda_preparada,
+        itens_iniciais=itens_preparados,
+        origem_vitrine_tipo=origem_tipo,
+        origem_vitrine_id=origem_id,
     )
 
 
@@ -32432,15 +33104,164 @@ def vendas_devolucoes() -> str:
 def salvar_venda() -> Response:
     venda = montar_venda_formulario(numero_padrao=proximo_numero_venda())
     itens = montar_venda_itens_formulario()
+    _, _, origem_tipo, origem_id, erro_origem = carregar_preparo_venda_vitrine(
+        pedido_id_valor=venda.get("origem_vitrine_pedido_id"),
+        agendamento_id_valor=venda.get("origem_vitrine_agendamento_id"),
+    )
+    if erro_origem and origem_tipo == "pedido":
+        return redirecionar_pedido_central_vitrine(
+            origem_id,
+            erro=erro_origem,
+        )
+    if erro_origem and origem_tipo == "agendamento":
+        return redirecionar_agendamento_central_vitrine(
+            origem_id,
+            erro=erro_origem,
+        )
+    if erro_origem:
+        return redirect(url_for("vendas", erro=erro_origem))
+
+    if origem_tipo:
+        venda["status"] = "concretizada"
+
     erro_validacao = validar_venda_para_salvar(venda, itens)
 
     if erro_validacao:
+        if origem_tipo == "pedido":
+            return redirect(
+                url_for(
+                    "vendas",
+                    origem_vitrine_pedido_id=origem_id,
+                    erro=erro_validacao,
+                    _anchor="form-nova-venda",
+                )
+            )
+        if origem_tipo == "agendamento":
+            return redirect(
+                url_for(
+                    "vendas",
+                    origem_vitrine_agendamento_id=origem_id,
+                    erro=erro_validacao,
+                    _anchor="form-nova-venda",
+                )
+            )
         return redirect(url_for("vendas", erro=erro_validacao))
 
-    venda_id = salvar_venda_db(venda, itens)
+    if origem_tipo:
+        try:
+            validar_estoque_para_venda_db(itens)
+        except ValueError as exc:
+            parametro_origem = (
+                {"origem_vitrine_pedido_id": origem_id}
+                if origem_tipo == "pedido"
+                else {"origem_vitrine_agendamento_id": origem_id}
+            )
+            return redirect(
+                url_for(
+                    "vendas",
+                    **parametro_origem,
+                    erro=str(exc),
+                    _anchor="form-nova-venda",
+                )
+            )
+
+    try:
+        venda_id = salvar_venda_db(venda, itens)
+    except sqlite3.IntegrityError:
+        if origem_tipo == "pedido":
+            venda_existente = buscar_venda_por_pedido_vitrine_id(origem_id)
+            return redirecionar_pedido_central_vitrine(
+                origem_id,
+                erro=(
+                    "Este pedido já possui a venda "
+                    f"{(venda_existente or {}).get('numero') or 'vinculada'}."
+                ),
+            )
+        if origem_tipo == "agendamento":
+            venda_existente = buscar_venda_por_agendamento_vitrine_id(origem_id)
+            return redirecionar_agendamento_central_vitrine(
+                origem_id,
+                erro=(
+                    "Este agendamento já possui a venda "
+                    f"{(venda_existente or {}).get('numero') or 'vinculada'}."
+                ),
+            )
+        raise
+
+    if origem_tipo and not vincular_venda_origem_vitrine_db(
+        venda_id,
+        origem_tipo,
+        origem_id,
+    ):
+        with conectar_db() as conn:
+            conn.execute(
+                "DELETE FROM venda_itens WHERE venda_id = ? AND empresa_id = ?",
+                (venda_id, empresa_logada_id()),
+            )
+            conn.execute(
+                "DELETE FROM vendas WHERE id = ? AND empresa_id = ?",
+                (venda_id, empresa_logada_id()),
+            )
+            conn.commit()
+        mensagem_erro = (
+            "O registro foi alterado durante a preparação. "
+            "Nenhuma venda foi mantida; abra o pedido ou agendamento novamente."
+        )
+        if origem_tipo == "pedido":
+            return redirecionar_pedido_central_vitrine(
+                origem_id,
+                erro=mensagem_erro,
+            )
+        return redirecionar_agendamento_central_vitrine(
+            origem_id,
+            erro=mensagem_erro,
+        )
+
     baixar_estoque_por_venda_db(venda_id, venda, itens)
     gerar_conta_receber_por_venda_db(venda_id, venda)
-    registrar_atividade_usuario("criacao", "vendas", f"Criou venda {venda.get('numero') or venda_id}", request.path)
+    registrar_atividade_usuario(
+        "criacao",
+        "vendas",
+        f"Criou venda {venda.get('numero') or venda_id}",
+        request.path,
+    )
+
+    if origem_tipo == "pedido":
+        registrar_atividade_usuario(
+            "atualizacao",
+            "vitrine",
+            (
+                f"Concluiu o pedido da vitrine #{origem_id} "
+                f"com a venda {venda.get('numero') or venda_id}"
+            ),
+            request.path,
+            registro_id=origem_id,
+        )
+        return redirecionar_pedido_central_vitrine(
+            origem_id,
+            mensagem=(
+                f"Pedido #{origem_id} concluído com a venda "
+                f"{venda.get('numero') or venda_id}."
+            ),
+        )
+    if origem_tipo == "agendamento":
+        registrar_atividade_usuario(
+            "atualizacao",
+            "vitrine",
+            (
+                f"Concluiu o agendamento da vitrine #{origem_id} "
+                f"com a venda {venda.get('numero') or venda_id}"
+            ),
+            request.path,
+            registro_id=origem_id,
+        )
+        return redirecionar_agendamento_central_vitrine(
+            origem_id,
+            mensagem=(
+                f"Agendamento #{origem_id} concluído com a venda "
+                f"{venda.get('numero') or venda_id}."
+            ),
+        )
 
     return redirect(
         url_for(
@@ -33556,6 +34377,11 @@ def agendamento_publico(codigo_empresa: str) -> str | Response:
                         mensagem = "Não existe profissional disponível durante todo o período escolhido."
                     else:
                         confirmado = configuracao_bool("agendamentos", "confirmacao_automatica", True, empresa_id)
+                        status_agendamento_publico = (
+                            "novo"
+                            if origem_agendamento == "vitrine_online"
+                            else ("confirmado" if confirmado else "agendado")
+                        )
                         dados = {
                             "servico_id": str(servico.get("id") or ""),
                             "servico_nome": str(servico.get("nome") or ""),
@@ -33565,14 +34391,22 @@ def agendamento_publico(codigo_empresa: str) -> str | Response:
                             "data_agendamento": data_agendamento,
                             "hora_inicio": hora_inicio,
                             "hora_fim": _hora_agendamento_por_minutos(fim_minutos),
-                            "status": "confirmado" if confirmado else "agendado",
+                            "status": status_agendamento_publico,
                             "valor": str(servico.get("valor_venda") or ""),
                             "observacoes": str(request.form.get("observacoes") or "").strip(),
                             "origem": origem_agendamento,
                         }
                         agendamento_id = str(salvar_agendamento_publico_db(empresa_id, cliente, dados))
                         token_cliente = str(cliente.get("token_publico") or "")
-                        sucesso = "Agendamento confirmado com sucesso." if confirmado else "Agendamento solicitado com sucesso. Aguarde a confirmação da empresa."
+                        sucesso = (
+                            "Agendamento solicitado com sucesso. Aguarde a confirmação da empresa."
+                            if origem_agendamento == "vitrine_online"
+                            else (
+                                "Agendamento confirmado com sucesso."
+                                if confirmado
+                                else "Agendamento solicitado com sucesso. Aguarde a confirmação da empresa."
+                            )
+                        )
                         mensagem = ""
 
     data_agendamento = _normalizar_data_iso(request.form.get("data_agendamento") or request.args.get("data") or hoje_iso, hoje_iso)
@@ -33782,10 +34616,23 @@ def status_agendamento(agendamento_id: int) -> Response:
 
 @app.post("/agendamentos/<int:agendamento_id>/gerar-venda")
 def gerar_venda_agendamento(agendamento_id: int) -> Response:
+    agendamento = buscar_agendamento_vitrine_admin(agendamento_id)
+    if agendamento is not None:
+        return preparar_venda_agendamento_vitrine(agendamento_id)
     venda_id = gerar_venda_por_agendamento_db(agendamento_id)
     if venda_id is None:
-        return redirect(url_for("agendamentos", erro="Não foi possível gerar venda para este agendamento."))
-    registrar_atividade_usuario("criacao", "agendamentos", f"Gerou venda pelo agendamento #{agendamento_id}", request.path)
+        return redirect(
+            url_for(
+                "agendamentos",
+                erro="Não foi possível gerar venda para este agendamento.",
+            )
+        )
+    registrar_atividade_usuario(
+        "criacao",
+        "agendamentos",
+        f"Gerou venda pelo agendamento #{agendamento_id}",
+        request.path,
+    )
     return redirect(url_for("ver_venda", venda_id=venda_id))
 
 
