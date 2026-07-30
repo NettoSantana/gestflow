@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-29 12:46 (America/Bahia)
-# Motivo: Adaptar a Vitrine pública por categoria e logo, remover redundâncias e melhorar catálogo, compra e agendamento.
+# Último recode: 2026-07-30 10:56 (America/Bahia)
+# Motivo: Criar a central clicável da vitrine, exibir pedidos e agendamentos, notificar novas entradas e corrigir a publicação de serviços.
 
 from __future__ import annotations
 
@@ -3016,6 +3016,115 @@ def sincronizar_notificacoes_usuario_atual() -> None:
                         + "."
                     ),
                     url=f"/agendamentos?data_inicio={hoje_iso}&data_fim={hoje_iso}",
+                )
+
+        if usuario_tem_permissao("vitrine", "visualizar"):
+            pedidos_vitrine = conn.execute(
+                """
+                SELECT id, cliente_nome, total, status
+                FROM vitrine_pedidos
+                WHERE empresa_id = ?
+                  AND status = 'novo'
+                ORDER BY id DESC
+                LIMIT 100
+                """,
+                (empresa_id,),
+            ).fetchall()
+            for row in pedidos_vitrine:
+                pedido = dict(row)
+                pedido_id = int(pedido["id"])
+                chave = f"vitrine_pedido_novo:{pedido_id}"
+                chaves_ativas.add(chave)
+                _notificacao_upsert(
+                    conn,
+                    empresa_id=empresa_id,
+                    usuario_id=usuario_id,
+                    chave=chave,
+                    origem="vitrine_pedido",
+                    origem_id=pedido_id,
+                    categoria="vitrine",
+                    prioridade="alta",
+                    titulo=f"Novo pedido da vitrine #{pedido_id}",
+                    mensagem=(
+                        f"{pedido.get('cliente_nome') or 'Cliente não informado'}"
+                        f" — {_notificacao_moeda(pedido.get('total'))}."
+                    ),
+                    url=f"/vitrine?aba=pedidos&pedido_id={pedido_id}#central-vitrine",
+                )
+
+            agendamentos_vitrine = conn.execute(
+                """
+                SELECT id, cliente_nome, servico_nome, data_agendamento, hora_inicio, status
+                FROM agendamentos
+                WHERE empresa_id = ?
+                  AND origem IN ('vitrine_online', 'avaliacao_vitrine')
+                  AND status NOT IN ('concluido', 'cancelado', 'nao_compareceu')
+                ORDER BY id DESC
+                LIMIT 100
+                """,
+                (empresa_id,),
+            ).fetchall()
+            for row in agendamentos_vitrine:
+                agendamento = dict(row)
+                agendamento_id = int(agendamento["id"])
+                chave = f"vitrine_agendamento_novo:{agendamento_id}"
+                chaves_ativas.add(chave)
+                _notificacao_upsert(
+                    conn,
+                    empresa_id=empresa_id,
+                    usuario_id=usuario_id,
+                    chave=chave,
+                    origem="vitrine_agendamento",
+                    origem_id=agendamento_id,
+                    categoria="vitrine",
+                    prioridade="alta",
+                    titulo=f"Novo agendamento da vitrine #{agendamento_id}",
+                    mensagem=(
+                        f"{agendamento.get('cliente_nome') or 'Cliente não informado'} — "
+                        f"{agendamento.get('servico_nome') or 'Serviço não informado'} — "
+                        f"{formatar_data_br(agendamento.get('data_agendamento'))} "
+                        f"às {agendamento.get('hora_inicio') or '--:--'}."
+                    ),
+                    url=f"/vitrine?aba=agendamentos&agendamento_id={agendamento_id}#central-vitrine",
+                )
+
+            solicitacoes_vitrine = conn.execute(
+                """
+                SELECT id, cliente_nome, servico_nome, data_desejada, status
+                FROM solicitacoes_avaliacao
+                WHERE empresa_id = ?
+                  AND origem = 'vitrine_online'
+                  AND status IN ('aguardando_avaliacao', 'em_analise', 'avaliada')
+                ORDER BY id DESC
+                LIMIT 100
+                """,
+                (empresa_id,),
+            ).fetchall()
+            for row in solicitacoes_vitrine:
+                solicitacao = dict(row)
+                solicitacao_id = int(solicitacao["id"])
+                chave = f"vitrine_solicitacao_nova:{solicitacao_id}"
+                chaves_ativas.add(chave)
+                _notificacao_upsert(
+                    conn,
+                    empresa_id=empresa_id,
+                    usuario_id=usuario_id,
+                    chave=chave,
+                    origem="vitrine_solicitacao",
+                    origem_id=solicitacao_id,
+                    categoria="vitrine",
+                    prioridade="alta",
+                    titulo=f"Nova solicitação da vitrine #{solicitacao_id}",
+                    mensagem=(
+                        f"{solicitacao.get('cliente_nome') or 'Cliente não informado'} — "
+                        f"{solicitacao.get('servico_nome') or 'Serviço não informado'}"
+                        + (
+                            f" — preferência {formatar_data_br(solicitacao.get('data_desejada'))}."
+                            if solicitacao.get("data_desejada")
+                            else "."
+                        )
+                    ),
+                    url=f"/vitrine?aba=agendamentos&solicitacao_id={solicitacao_id}#central-vitrine",
                 )
 
         if usuario_tem_permissao("ordens_servico", "visualizar"):
@@ -10167,7 +10276,7 @@ VENDAS_ORDENACAO = {
 def montar_filtros_vendas(busca: Any) -> tuple[str, list[Any]]:
     empresa_id = empresa_logada_id()
     termo = str(busca or "").strip()
-    where = "WHERE empresa_id = ?"
+    where = "WHERE empresa_id = ? AND LOWER(TRIM(COALESCE(status, ''))) <> 'excluida'"
     parametros: list[Any] = [empresa_id]
 
     if termo:
@@ -10246,9 +10355,9 @@ def resumir_vendas_cadastradas() -> dict[str, int]:
     empresa_id = empresa_logada_id()
 
     with conectar_db() as conn:
-        total = conn.execute("SELECT COUNT(*) AS total FROM vendas WHERE empresa_id = ?", (empresa_id,)).fetchone()["total"]
-        abertas = conn.execute("SELECT COUNT(*) AS total FROM vendas WHERE empresa_id = ? AND status = ?", (empresa_id, "aberta")).fetchone()["total"]
-        finalizadas = conn.execute("SELECT COUNT(*) AS total FROM vendas WHERE empresa_id = ? AND status = ?", (empresa_id, "finalizada")).fetchone()["total"]
+        total = conn.execute("SELECT COUNT(*) AS total FROM vendas WHERE empresa_id = ? AND LOWER(TRIM(COALESCE(status, ''))) <> 'excluida'", (empresa_id,)).fetchone()["total"]
+        abertas = conn.execute("SELECT COUNT(*) AS total FROM vendas WHERE empresa_id = ? AND status = ? AND LOWER(TRIM(COALESCE(status, ''))) <> 'excluida'", (empresa_id, "aberta")).fetchone()["total"]
+        finalizadas = conn.execute("SELECT COUNT(*) AS total FROM vendas WHERE empresa_id = ? AND status = ? AND LOWER(TRIM(COALESCE(status, ''))) <> 'excluida'", (empresa_id, "finalizada")).fetchone()["total"]
 
     return {"total": int(total or 0), "abertas": int(abertas or 0), "finalizadas": int(finalizadas or 0)}
 
@@ -13611,6 +13720,7 @@ def listar_vendas() -> list[dict[str, Any]]:
                 criado_em
             FROM vendas
             WHERE empresa_id = ?
+              AND LOWER(TRIM(COALESCE(status, ''))) <> 'excluida'
             ORDER BY id DESC
             """,
             (empresa_id,),
@@ -13659,6 +13769,7 @@ def buscar_venda_por_id(venda_id: int) -> dict[str, Any] | None:
             FROM vendas
             WHERE id = ?
               AND empresa_id = ?
+              AND LOWER(TRIM(COALESCE(status, ''))) <> 'excluida'
             """,
             (venda_id, empresa_id),
         ).fetchone()
@@ -13810,7 +13921,7 @@ def atualizar_venda_db(venda_id: int, venda: dict[str, str], itens: list[dict[st
 
 def excluir_venda_db(venda_id: int) -> None:
     empresa_id = empresa_logada_id()
-    if aplicar_exclusao_logica_configurada("vendas", venda_id, "cancelada"):
+    if aplicar_exclusao_logica_configurada("vendas", venda_id, "excluida"):
         return
 
     with conectar_db() as conn:
@@ -24915,6 +25026,9 @@ def salvar_servico_vitrine_publicacao_db(servico_id: int, dados: dict[str, str])
         imagem_path = str(dados.get("imagem_path") or "").strip()
         if not imagem_path and row is not None:
             imagem_path = str(row["imagem_path"] or "")
+        status_normalizado = str(dados.get("status") or "publicado").strip().lower()
+        if status_normalizado not in {"publicado", "rascunho", "oculto"}:
+            status_normalizado = "publicado"
         valores = (
             str(dados.get("nome") or servico.get("nome") or "").strip(),
             str(dados.get("descricao") or servico.get("observacoes") or "").strip(),
@@ -24922,7 +25036,7 @@ def salvar_servico_vitrine_publicacao_db(servico_id: int, dados: dict[str, str])
             str(dados.get("preco") or servico.get("valor_venda") or "0,00").strip(),
             imagem_path,
             "sim" if str(dados.get("destaque") or "nao") == "sim" else "nao",
-            str(dados.get("status") or "publicado").strip() or "publicado",
+            status_normalizado,
             atualizado_em,
         )
         if row is None:
@@ -25018,6 +25132,175 @@ def listar_ranking_produtos_vitrine(empresa_id: int, limite: int = 10) -> list[d
         ).fetchall()
 
     return [dict(row) for row in rows]
+
+
+def montar_central_vitrine_admin(empresa_id: int) -> dict[str, Any]:
+    with conectar_db() as conn:
+        pedidos_rows = conn.execute(
+            """
+            SELECT *
+            FROM vitrine_pedidos
+            WHERE empresa_id = ?
+            ORDER BY id DESC
+            LIMIT 100
+            """,
+            (empresa_id,),
+        ).fetchall()
+        pedido_ids = [int(row["id"]) for row in pedidos_rows]
+        itens_por_pedido: dict[int, list[dict[str, Any]]] = {
+            pedido_id: [] for pedido_id in pedido_ids
+        }
+        if pedido_ids:
+            placeholders = ",".join("?" for _ in pedido_ids)
+            itens_rows = conn.execute(
+                f"""
+                SELECT *
+                FROM vitrine_pedido_itens
+                WHERE empresa_id = ?
+                  AND pedido_id IN ({placeholders})
+                ORDER BY pedido_id DESC, id ASC
+                """,
+                (empresa_id, *pedido_ids),
+            ).fetchall()
+            for row in itens_rows:
+                item = dict(row)
+                itens_por_pedido.setdefault(int(item["pedido_id"]), []).append(item)
+
+        agendamentos_rows = conn.execute(
+            """
+            SELECT *
+            FROM agendamentos
+            WHERE empresa_id = ?
+              AND origem IN ('vitrine_online', 'avaliacao_vitrine')
+            ORDER BY id DESC
+            LIMIT 100
+            """,
+            (empresa_id,),
+        ).fetchall()
+        solicitacoes_rows = conn.execute(
+            """
+            SELECT *
+            FROM solicitacoes_avaliacao
+            WHERE empresa_id = ?
+              AND origem = 'vitrine_online'
+            ORDER BY id DESC
+            LIMIT 100
+            """,
+            (empresa_id,),
+        ).fetchall()
+        eventos_rows = conn.execute(
+            """
+            SELECT
+                e.*,
+                CASE
+                    WHEN e.tipo IN ('produto', 'carrinho', 'pedido') THEN (
+                        SELECT COALESCE(
+                            (
+                                SELECT vp_id.nome
+                                FROM vitrine_produtos vp_id
+                                WHERE vp_id.empresa_id = e.empresa_id
+                                  AND vp_id.id = e.produto_id
+                                LIMIT 1
+                            ),
+                            (
+                                SELECT vp_produto.nome
+                                FROM vitrine_produtos vp_produto
+                                WHERE vp_produto.empresa_id = e.empresa_id
+                                  AND vp_produto.produto_id = e.produto_id
+                                LIMIT 1
+                            )
+                        )
+                    )
+                    WHEN e.tipo IN ('servico', 'agendamento') THEN (
+                        SELECT COALESCE(
+                            (
+                                SELECT vs_id.nome
+                                FROM vitrine_servicos vs_id
+                                WHERE vs_id.empresa_id = e.empresa_id
+                                  AND vs_id.id = e.servico_id
+                                LIMIT 1
+                            ),
+                            (
+                                SELECT vs_servico.nome
+                                FROM vitrine_servicos vs_servico
+                                WHERE vs_servico.empresa_id = e.empresa_id
+                                  AND vs_servico.servico_id = e.servico_id
+                                LIMIT 1
+                            )
+                        )
+                    )
+                    ELSE ''
+                END AS item_nome
+            FROM vitrine_eventos e
+            WHERE e.empresa_id = ?
+            ORDER BY e.id DESC
+            LIMIT 200
+            """,
+            (empresa_id,),
+        ).fetchall()
+
+    pedidos: list[dict[str, Any]] = []
+    for row in pedidos_rows:
+        pedido = dict(row)
+        pedido_id = int(pedido["id"])
+        pedido["itens"] = itens_por_pedido.get(pedido_id, [])
+        pedido["criado_em_exibicao"] = formatar_data_hora_br(pedido.get("criado_em"))
+        telefone = normalizar_telefone_publico(pedido.get("cliente_whatsapp"))
+        if telefone and not telefone.startswith("55"):
+            telefone = f"55{telefone}"
+        pedido["whatsapp_url"] = f"https://wa.me/{telefone}" if telefone else ""
+        pedidos.append(pedido)
+
+    agendamentos: list[dict[str, Any]] = []
+    for row in agendamentos_rows:
+        agendamento = dict(row)
+        agendamento["data_exibicao"] = formatar_data_br(agendamento.get("data_agendamento"))
+        agendamento["criado_em_exibicao"] = formatar_data_hora_br(agendamento.get("criado_em"))
+        telefone = normalizar_telefone_publico(agendamento.get("cliente_telefone"))
+        if telefone and not telefone.startswith("55"):
+            telefone = f"55{telefone}"
+        agendamento["whatsapp_url"] = f"https://wa.me/{telefone}" if telefone else ""
+        agendamentos.append(agendamento)
+
+    solicitacoes: list[dict[str, Any]] = []
+    for row in solicitacoes_rows:
+        solicitacao = dict(row)
+        solicitacao["data_exibicao"] = formatar_data_br(solicitacao.get("data_desejada"))
+        solicitacao["criado_em_exibicao"] = formatar_data_hora_br(solicitacao.get("criado_em"))
+        telefone = normalizar_telefone_publico(solicitacao.get("cliente_telefone"))
+        if telefone and not telefone.startswith("55"):
+            telefone = f"55{telefone}"
+        solicitacao["whatsapp_url"] = f"https://wa.me/{telefone}" if telefone else ""
+        solicitacoes.append(solicitacao)
+
+    eventos = []
+    for row in eventos_rows:
+        evento = dict(row)
+        evento["criado_em_exibicao"] = formatar_data_hora_br(evento.get("criado_em"))
+        eventos.append(evento)
+
+    return {
+        "pedidos": pedidos,
+        "agendamentos": agendamentos,
+        "solicitacoes": solicitacoes,
+        "eventos": eventos,
+        "visitas": [item for item in eventos if item.get("tipo") == "visita"],
+        "visualizacoes": [
+            item for item in eventos if item.get("tipo") in {"produto", "servico"}
+        ],
+        "carrinhos": [item for item in eventos if item.get("tipo") == "carrinho"],
+        "novos_pedidos": sum(1 for item in pedidos if item.get("status") == "novo"),
+        "agendamentos_pendentes": sum(
+            1
+            for item in agendamentos
+            if item.get("status") not in {"concluido", "cancelado", "nao_compareceu"}
+        ),
+        "solicitacoes_pendentes": sum(
+            1
+            for item in solicitacoes
+            if item.get("status") in {"aguardando_avaliacao", "em_analise", "avaliada"}
+        ),
+    }
 
 
 def registrar_evento_vitrine(empresa_id: int, tipo: str, item_id: Any = "", origem: Any = "") -> None:
@@ -25531,7 +25814,8 @@ def renderizar_vitrine_publica_html(
             if permitir_pedido and disponivel:
                 acao_principal = (
                     f'<button type="button" onclick="adicionarCarrinho({produto_id}, '
-                    f'{json.dumps(nome_raw, ensure_ascii=False)}, {json.dumps(preco_raw, ensure_ascii=False)})">'
+                    f'{html.escape(json.dumps(nome_raw, ensure_ascii=False), quote=True)}, '
+                    f'{html.escape(json.dumps(preco_raw, ensure_ascii=False), quote=True)})">'
                     'Adicionar</button>'
                 )
             elif whatsapp_publico_url:
@@ -25922,7 +26206,7 @@ let tipoAtivo=__TIPO_INICIAL_JSON__;
 let categoriaAtiva='';
 let paginaAtual=1;
 const itensPorPagina=9;
-function moedaNumero(v){return parseFloat(String(v).replace(/\./g,'').replace(',','.'))||0}
+function moedaNumero(v){const valor=String(v).trim();return parseFloat(valor.includes(',')?valor.replace(/\./g,'').replace(',','.'):valor)||0}
 function moedaBR(v){return v.toFixed(2).replace('.',',')}
 function registrarItem(tipo,id){fetch('/loja/__SLUG__/evento',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tipo:tipo,item_id:id||''})}).catch(()=>{})}
 function adicionarCarrinho(id,nome,preco){registrarItem('carrinho',id);const item=carrinho.find(i=>i.id===id);if(item)item.quantidade+=1;else carrinho.push({id,nome,preco,quantidade:1});renderCarrinho()}
@@ -26138,7 +26422,13 @@ def vitrine_servico_publicar() -> Response:
         "status": request.form.get("status") or "publicado",
     }
     salvar_servico_vitrine_publicacao_db(servico_id, dados)
-    return redirect(url_for("vitrine", mensagem="Serviço atualizado na vitrine com sucesso."))
+    status_salvo = str(dados["status"] or "publicado").strip().lower()
+    mensagem = (
+        "Serviço publicado na vitrine com sucesso."
+        if status_salvo == "publicado"
+        else "Serviço atualizado na vitrine com sucesso."
+    )
+    return redirect(url_for("vitrine", mensagem=mensagem))
 
 
 @app.post("/vitrine/servicos/status")
@@ -26167,15 +26457,32 @@ def vitrine() -> str | Response:
         salvar_vitrine_configuracao_db(dados)
         return redirect(url_for("vitrine", mensagem="Configuração da vitrine salva com sucesso."))
     empresa_id = empresa_logada_id()
+    produtos_admin = listar_produtos_vitrine_admin(empresa_id)
+    servicos_admin = listar_servicos_vitrine_admin(empresa_id)
+    central_vitrine = montar_central_vitrine_admin(empresa_id)
+    central_vitrine["produtos_publicados"] = [
+        item for item in produtos_admin if item.get("publicado")
+    ]
+    central_vitrine["servicos_publicados"] = [
+        item for item in servicos_admin if item.get("publicado")
+    ]
+    aba_vitrine = str(request.args.get("aba") or "visao-geral").strip().lower()
+    if aba_vitrine not in {
+        "visao-geral", "pedidos", "agendamentos", "carrinhos",
+        "visualizacoes", "publicados",
+    }:
+        aba_vitrine = "visao-geral"
     return render_template(
         "vitrine.html",
         vitrine=config_vitrine,
         produtos_vitrine=listar_produtos_vitrine_empresa(empresa_id),
-        produtos_vitrine_admin=listar_produtos_vitrine_admin(empresa_id),
+        produtos_vitrine_admin=produtos_admin,
         servicos_vitrine=listar_servicos_vitrine_empresa(empresa_id),
-        servicos_vitrine_admin=listar_servicos_vitrine_admin(empresa_id),
+        servicos_vitrine_admin=servicos_admin,
         ranking_vitrine=listar_ranking_produtos_vitrine(empresa_id),
         ranking_servicos_vitrine=listar_ranking_servicos_vitrine(empresa_id),
+        central_vitrine=central_vitrine,
+        aba_vitrine=aba_vitrine,
         link_publico=(f"{request.url_root.rstrip('/')}/loja/{config_vitrine.get('slug')}" if config_vitrine.get("slug") else ""),
         mensagem=(request.args.get("mensagem") or "").strip(),
         erro=(request.args.get("erro") or "").strip(),

@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vitrine.html
-Último recode: 2026-07-29 11:48 (America/Bahia)
-Motivo: Adicionar descrição da empresa, remover templates sem uso e simplificar a configuração da identidade visual.
+Último recode: 2026-07-30 10:56 (America/Bahia)
+Motivo: Criar a central clicável da vitrine com pedidos, agendamentos, eventos, itens publicados e alertas internos.
 #}
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -20,6 +20,16 @@ Motivo: Adicionar descrição da empresa, remover templates sem uso e simplifica
     {% set servicos_vitrine_admin = servicos_vitrine_admin or [] %}
     {% set ranking_vitrine = ranking_vitrine or [] %}
     {% set ranking_servicos_vitrine = ranking_servicos_vitrine or [] %}
+    {% set central_vitrine = central_vitrine or {} %}
+    {% set aba_vitrine = aba_vitrine or 'visao-geral' %}
+    {% set pedidos_vitrine = central_vitrine.get('pedidos') or [] %}
+    {% set agendamentos_vitrine = central_vitrine.get('agendamentos') or [] %}
+    {% set solicitacoes_vitrine = central_vitrine.get('solicitacoes') or [] %}
+    {% set visitas_vitrine = central_vitrine.get('visitas') or [] %}
+    {% set visualizacoes_vitrine = central_vitrine.get('visualizacoes') or [] %}
+    {% set carrinhos_vitrine = central_vitrine.get('carrinhos') or [] %}
+    {% set produtos_publicados = central_vitrine.get('produtos_publicados') or [] %}
+    {% set servicos_publicados = central_vitrine.get('servicos_publicados') or [] %}
     {% set cor_principal = vitrine.get('cor_principal') or '#111827' %}
     {% set cor_secundaria = vitrine.get('cor_secundaria') or '#f59e0b' %}
     {% set status_vitrine = vitrine.get('status') or 'rascunho' %}
@@ -59,6 +69,22 @@ Motivo: Adicionar descrição da empresa, remover templates sem uso e simplifica
 
         {% if erro %}
             <div class="alert alert-error">{{ erro }}</div>
+        {% endif %}
+
+        {% set total_alertas_vitrine = (central_vitrine.get('novos_pedidos') or 0) + (central_vitrine.get('agendamentos_pendentes') or 0) + (central_vitrine.get('solicitacoes_pendentes') or 0) %}
+        {% if total_alertas_vitrine %}
+            <button class="vitrine-alert-strip" type="button" data-vitrine-tab="visao-geral">
+                <span class="vitrine-alert-dot" aria-hidden="true"></span>
+                <span>
+                    <strong>{{ total_alertas_vitrine }} entrada(s) aguardando atenção</strong>
+                    <small>
+                        {{ central_vitrine.get('novos_pedidos') or 0 }} pedido(s),
+                        {{ central_vitrine.get('agendamentos_pendentes') or 0 }} agendamento(s) e
+                        {{ central_vitrine.get('solicitacoes_pendentes') or 0 }} solicitação(ões).
+                    </small>
+                </span>
+                <span class="vitrine-alert-action">Abrir central</span>
+            </button>
         {% endif %}
 
         <section class="vitrine-grid vitrine-grid-destaque">
@@ -197,33 +223,311 @@ Motivo: Adicionar descrição da empresa, remover templates sem uso e simplifica
                 <p class="card-kicker">Desempenho</p>
                 <h2>Resumo da vitrine</h2>
                 <div class="metric-list">
-                    <div class="metric-item">
+                    <button class="metric-item" type="button" data-vitrine-tab="visualizacoes">
                         <span>Visitas</span>
                         <strong>{{ vitrine.get('visitas') or 0 }}</strong>
-                    </div>
-                    <div class="metric-item">
+                    </button>
+                    <button class="metric-item" type="button" data-vitrine-tab="visualizacoes">
                         <span>Produtos vistos</span>
                         <strong>{{ vitrine.get('produtos_vistos') or 0 }}</strong>
-                    </div>
-                    <div class="metric-item">
+                    </button>
+                    <button class="metric-item" type="button" data-vitrine-tab="visualizacoes">
                         <span>Serviços vistos</span>
                         <strong>{{ vitrine.get('servicos_vistos') or 0 }}</strong>
-                    </div>
-                    <div class="metric-item">
+                    </button>
+                    <button class="metric-item" type="button" data-vitrine-tab="carrinhos">
                         <span>Itens no carrinho</span>
                         <strong>{{ vitrine.get('itens_carrinho') or 0 }}</strong>
-                    </div>
-                    <div class="metric-item">
+                    </button>
+                    <button class="metric-item" type="button" data-vitrine-tab="pedidos">
                         <span>Pedidos gerados</span>
                         <strong>{{ vitrine.get('pedidos_gerados') or 0 }}</strong>
-                    </div>
-                    <div class="metric-item">
+                    </button>
+                    <button class="metric-item" type="button" data-vitrine-tab="agendamentos">
                         <span>Agendamentos da vitrine</span>
                         <strong>{{ vitrine.get('agendamentos_gerados') or 0 }}</strong>
+                    </button>
+                    <button class="metric-item" type="button" data-vitrine-tab="publicados">
+                        <span>Produtos publicados</span>
+                        <strong>{{ produtos_publicados|length }}</strong>
+                    </button>
+                    <button class="metric-item" type="button" data-vitrine-tab="publicados">
+                        <span>Serviços publicados</span>
+                        <strong>{{ servicos_publicados|length }}</strong>
+                    </button>
+                    <button class="metric-item metric-item-total" type="button" data-vitrine-tab="publicados">
+                        <span>Total publicado</span>
+                        <strong>{{ produtos_publicados|length + servicos_publicados|length }}</strong>
+                    </button>
+                </div>
+                <p class="hint-text">Clique em qualquer indicador para abrir os registros correspondentes.</p>
+            </aside>
+        </section>
+
+        <section
+            class="vitrine-card vitrine-central"
+            id="central-vitrine"
+            data-vitrine-central
+            data-aba-inicial="{{ aba_vitrine }}"
+        >
+            <div class="vitrine-card-header">
+                <div>
+                    <p class="card-kicker">Acompanhamento</p>
+                    <h2>Central da vitrine</h2>
+                    <p class="hint-text">Pedidos são gravados antes da abertura do WhatsApp. Agendamentos e solicitações aparecem assim que forem enviados.</p>
+                </div>
+                <span class="status-pill">{{ pedidos_vitrine|length + agendamentos_vitrine|length + solicitacoes_vitrine|length }} registro(s)</span>
+            </div>
+
+            <div class="vitrine-central-tabs" role="tablist" aria-label="Central da vitrine">
+                <button type="button" data-vitrine-tab="visao-geral">Visão geral</button>
+                <button type="button" data-vitrine-tab="pedidos">
+                    Pedidos
+                    {% if central_vitrine.get('novos_pedidos') %}<span>{{ central_vitrine.get('novos_pedidos') }}</span>{% endif %}
+                </button>
+                <button type="button" data-vitrine-tab="agendamentos">
+                    Agendamentos
+                    {% if (central_vitrine.get('agendamentos_pendentes') or 0) + (central_vitrine.get('solicitacoes_pendentes') or 0) %}
+                        <span>{{ (central_vitrine.get('agendamentos_pendentes') or 0) + (central_vitrine.get('solicitacoes_pendentes') or 0) }}</span>
+                    {% endif %}
+                </button>
+                <button type="button" data-vitrine-tab="carrinhos">Carrinhos</button>
+                <button type="button" data-vitrine-tab="visualizacoes">Visualizações</button>
+                <button type="button" data-vitrine-tab="publicados">Itens publicados</button>
+            </div>
+
+            <div class="vitrine-central-panel" data-vitrine-panel="visao-geral">
+                <div class="vitrine-overview-grid">
+                    <button type="button" data-vitrine-tab="pedidos">
+                        <span>Pedidos recebidos</span>
+                        <strong>{{ pedidos_vitrine|length }}</strong>
+                        <small>{{ central_vitrine.get('novos_pedidos') or 0 }} novo(s)</small>
+                    </button>
+                    <button type="button" data-vitrine-tab="agendamentos">
+                        <span>Agenda e avaliações</span>
+                        <strong>{{ agendamentos_vitrine|length + solicitacoes_vitrine|length }}</strong>
+                        <small>{{ (central_vitrine.get('agendamentos_pendentes') or 0) + (central_vitrine.get('solicitacoes_pendentes') or 0) }} pendente(s)</small>
+                    </button>
+                    <button type="button" data-vitrine-tab="publicados">
+                        <span>Itens publicados</span>
+                        <strong>{{ produtos_publicados|length + servicos_publicados|length }}</strong>
+                        <small>{{ produtos_publicados|length }} produto(s) e {{ servicos_publicados|length }} serviço(s)</small>
+                    </button>
+                    <button type="button" data-vitrine-tab="visualizacoes">
+                        <span>Eventos recentes</span>
+                        <strong>{{ central_vitrine.get('eventos')|length if central_vitrine.get('eventos') else 0 }}</strong>
+                        <small>Acessos, visualizações e carrinhos</small>
+                    </button>
+                </div>
+
+                <div class="vitrine-central-columns">
+                    <div>
+                        <h3>Últimos pedidos</h3>
+                        {% for pedido in pedidos_vitrine[:5] %}
+                            <button class="vitrine-compact-row" type="button" data-vitrine-tab="pedidos">
+                                <span><strong>#{{ pedido.get('id') }} · {{ pedido.get('cliente_nome') or 'Cliente não informado' }}</strong><small>{{ pedido.get('criado_em_exibicao') }}</small></span>
+                                <b>R$ {{ pedido.get('total') or '0,00' }}</b>
+                            </button>
+                        {% else %}
+                            <p class="vitrine-empty-message">Nenhum pedido recebido ainda.</p>
+                        {% endfor %}
+                    </div>
+                    <div>
+                        <h3>Próximos agendamentos</h3>
+                        {% for agendamento in agendamentos_vitrine[:5] %}
+                            <button class="vitrine-compact-row" type="button" data-vitrine-tab="agendamentos">
+                                <span><strong>#{{ agendamento.get('id') }} · {{ agendamento.get('cliente_nome') or 'Cliente não informado' }}</strong><small>{{ agendamento.get('servico_nome') or 'Serviço não informado' }}</small></span>
+                                <b>{{ agendamento.get('data_exibicao') }} {{ agendamento.get('hora_inicio') or '' }}</b>
+                            </button>
+                        {% else %}
+                            <p class="vitrine-empty-message">Nenhum agendamento recebido ainda.</p>
+                        {% endfor %}
                     </div>
                 </div>
-                <p class="hint-text">Os números serão atualizados conforme os clientes acessarem a vitrine pública.</p>
-            </aside>
+            </div>
+
+            <div class="vitrine-central-panel" data-vitrine-panel="pedidos" hidden>
+                <div class="vitrine-panel-heading">
+                    <div><h3>Pedidos gerados</h3><p>Dados do cliente, itens, valores e situação.</p></div>
+                    <strong>{{ pedidos_vitrine|length }}</strong>
+                </div>
+                <div class="vitrine-record-list">
+                    {% for pedido in pedidos_vitrine %}
+                        <article class="vitrine-record-card" id="pedido-{{ pedido.get('id') }}">
+                            <header>
+                                <div>
+                                    <span>Pedido #{{ pedido.get('id') }}</span>
+                                    <strong>{{ pedido.get('cliente_nome') or 'Cliente não informado' }}</strong>
+                                    <small>{{ pedido.get('criado_em_exibicao') }}</small>
+                                </div>
+                                <div class="vitrine-record-status">
+                                    <span>{{ pedido.get('status')|replace('_', ' ')|title }}</span>
+                                    <strong>R$ {{ pedido.get('total') or '0,00' }}</strong>
+                                </div>
+                            </header>
+                            <div class="vitrine-record-meta">
+                                <span>WhatsApp: {{ pedido.get('cliente_whatsapp') or '-' }}</span>
+                                <span>Entrega: {{ pedido.get('tipo_entrega') or '-' }}</span>
+                                <span>Pagamento: {{ pedido.get('forma_pagamento') or '-' }}</span>
+                            </div>
+                            {% if pedido.get('endereco') %}<p><strong>Endereço:</strong> {{ pedido.get('endereco') }}</p>{% endif %}
+                            <div class="vitrine-order-items">
+                                {% for item in pedido.get('itens') or [] %}
+                                    <div>
+                                        <span>{{ item.get('quantidade') or 1 }}x {{ item.get('produto_nome') or 'Produto' }}</span>
+                                        <strong>R$ {{ item.get('subtotal') or '0,00' }}</strong>
+                                    </div>
+                                {% else %}
+                                    <p>Nenhum item encontrado para este pedido.</p>
+                                {% endfor %}
+                            </div>
+                            {% if pedido.get('observacoes') %}<p><strong>Observações:</strong> {{ pedido.get('observacoes') }}</p>{% endif %}
+                            {% if pedido.get('whatsapp_url') %}
+                                <a class="btn btn-secondary btn-small" href="{{ pedido.get('whatsapp_url') }}" target="_blank" rel="noopener">Falar com o cliente</a>
+                            {% endif %}
+                        </article>
+                    {% else %}
+                        <div class="vitrine-empty-panel"><strong>Nenhum pedido gerado</strong><span>Os próximos pedidos aparecerão aqui antes da abertura do WhatsApp.</span></div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="vitrine-central-panel" data-vitrine-panel="agendamentos" hidden>
+                <div class="vitrine-panel-heading">
+                    <div><h3>Agendamentos da vitrine</h3><p>Atendimentos com data e horário definidos.</p></div>
+                    <strong>{{ agendamentos_vitrine|length }}</strong>
+                </div>
+                <div class="vitrine-record-list">
+                    {% for agendamento in agendamentos_vitrine %}
+                        <article class="vitrine-record-card" id="agendamento-{{ agendamento.get('id') }}">
+                            <header>
+                                <div>
+                                    <span>Agendamento #{{ agendamento.get('id') }}</span>
+                                    <strong>{{ agendamento.get('cliente_nome') or 'Cliente não informado' }}</strong>
+                                    <small>Recebido em {{ agendamento.get('criado_em_exibicao') }}</small>
+                                </div>
+                                <div class="vitrine-record-status">
+                                    <span>{{ agendamento.get('status')|replace('_', ' ')|title }}</span>
+                                    <strong>{{ agendamento.get('data_exibicao') }} às {{ agendamento.get('hora_inicio') or '--:--' }}</strong>
+                                </div>
+                            </header>
+                            <div class="vitrine-record-meta">
+                                <span>Serviço: {{ agendamento.get('servico_nome') or '-' }}</span>
+                                <span>Telefone: {{ agendamento.get('cliente_telefone') or '-' }}</span>
+                                <span>Profissional: {{ agendamento.get('profissional_nome') or 'A definir' }}</span>
+                            </div>
+                            {% if agendamento.get('observacoes') %}<p><strong>Observações:</strong> {{ agendamento.get('observacoes') }}</p>{% endif %}
+                            {% if agendamento.get('whatsapp_url') %}
+                                <a class="btn btn-secondary btn-small" href="{{ agendamento.get('whatsapp_url') }}" target="_blank" rel="noopener">Falar com o cliente</a>
+                            {% endif %}
+                        </article>
+                    {% else %}
+                        <div class="vitrine-empty-panel"><strong>Nenhum agendamento recebido</strong><span>Os agendamentos confirmados pela vitrine aparecerão aqui.</span></div>
+                    {% endfor %}
+                </div>
+
+                <div class="vitrine-panel-heading vitrine-panel-heading-secondary">
+                    <div><h3>Solicitações de avaliação</h3><p>Serviços com valor ou duração a definir antes do agendamento.</p></div>
+                    <strong>{{ solicitacoes_vitrine|length }}</strong>
+                </div>
+                <div class="vitrine-record-list">
+                    {% for solicitacao in solicitacoes_vitrine %}
+                        <article class="vitrine-record-card" id="solicitacao-{{ solicitacao.get('id') }}">
+                            <header>
+                                <div>
+                                    <span>Solicitação #{{ solicitacao.get('id') }}</span>
+                                    <strong>{{ solicitacao.get('cliente_nome') or 'Cliente não informado' }}</strong>
+                                    <small>{{ solicitacao.get('criado_em_exibicao') }}</small>
+                                </div>
+                                <div class="vitrine-record-status">
+                                    <span>{{ solicitacao.get('status')|replace('_', ' ')|title }}</span>
+                                    <strong>{{ solicitacao.get('data_exibicao') or 'Data a combinar' }}</strong>
+                                </div>
+                            </header>
+                            <div class="vitrine-record-meta">
+                                <span>Serviço: {{ solicitacao.get('servico_nome') or '-' }}</span>
+                                <span>Telefone: {{ solicitacao.get('cliente_telefone') or '-' }}</span>
+                                <span>Período: {{ solicitacao.get('periodo_preferido')|replace('_', ' ')|title }}</span>
+                            </div>
+                            {% if solicitacao.get('observacoes_cliente') %}<p><strong>Observações:</strong> {{ solicitacao.get('observacoes_cliente') }}</p>{% endif %}
+                            {% if solicitacao.get('whatsapp_url') %}
+                                <a class="btn btn-secondary btn-small" href="{{ solicitacao.get('whatsapp_url') }}" target="_blank" rel="noopener">Falar com o cliente</a>
+                            {% endif %}
+                        </article>
+                    {% else %}
+                        <div class="vitrine-empty-panel"><strong>Nenhuma solicitação de avaliação</strong><span>Serviços “a combinar” aparecerão aqui quando o cliente enviar os dados.</span></div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="vitrine-central-panel" data-vitrine-panel="carrinhos" hidden>
+                <div class="vitrine-panel-heading">
+                    <div><h3>Itens adicionados ao carrinho</h3><p>Histórico recente de intenção de compra.</p></div>
+                    <strong>{{ vitrine.get('itens_carrinho') or 0 }}</strong>
+                </div>
+                <div class="vitrine-event-list">
+                    {% for evento in carrinhos_vitrine %}
+                        <div><span><strong>{{ evento.get('item_nome') or 'Produto' }}</strong><small>Adicionado ao carrinho</small></span><b>{{ evento.get('criado_em_exibicao') }}</b></div>
+                    {% else %}
+                        <div class="vitrine-empty-panel"><strong>Nenhum item adicionado</strong><span>Os eventos de carrinho aparecerão aqui.</span></div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="vitrine-central-panel" data-vitrine-panel="visualizacoes" hidden>
+                <div class="vitrine-central-columns">
+                    <div>
+                        <div class="vitrine-panel-heading"><div><h3>Visitas recentes</h3><p>Aberturas da página pública.</p></div><strong>{{ vitrine.get('visitas') or 0 }}</strong></div>
+                        <div class="vitrine-event-list">
+                            {% for evento in visitas_vitrine %}
+                                <div><span><strong>Visita à vitrine</strong><small>{{ evento.get('origem') or 'Acesso direto' }}</small></span><b>{{ evento.get('criado_em_exibicao') }}</b></div>
+                            {% else %}
+                                <div class="vitrine-empty-panel"><strong>Nenhuma visita registrada</strong></div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div>
+                        <div class="vitrine-panel-heading"><div><h3>Itens visualizados</h3><p>Produtos e serviços abertos.</p></div><strong>{{ visualizacoes_vitrine|length }}</strong></div>
+                        <div class="vitrine-event-list">
+                            {% for evento in visualizacoes_vitrine %}
+                                <div><span><strong>{{ evento.get('item_nome') or ('Produto' if evento.get('tipo') == 'produto' else 'Serviço') }}</strong><small>{{ evento.get('tipo')|title }} visualizado</small></span><b>{{ evento.get('criado_em_exibicao') }}</b></div>
+                            {% else %}
+                                <div class="vitrine-empty-panel"><strong>Nenhum item visualizado</strong></div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="vitrine-central-panel" data-vitrine-panel="publicados" hidden>
+                <div class="vitrine-published-summary">
+                    <div><span>Produtos publicados</span><strong>{{ produtos_publicados|length }}</strong></div>
+                    <div><span>Serviços publicados</span><strong>{{ servicos_publicados|length }}</strong></div>
+                    <div><span>Total publicado</span><strong>{{ produtos_publicados|length + servicos_publicados|length }}</strong></div>
+                </div>
+                <div class="vitrine-central-columns">
+                    <div>
+                        <h3>Produtos publicados</h3>
+                        <div class="vitrine-published-list">
+                            {% for produto in produtos_publicados %}
+                                <a href="#produtos-vitrine"><span><strong>{{ produto.get('nome') }}</strong><small>{{ produto.get('categoria') or 'Produtos' }}</small></span><b>R$ {{ produto.get('preco') or '0,00' }}</b></a>
+                            {% else %}
+                                <div class="vitrine-empty-panel"><strong>Nenhum produto publicado</strong></div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div>
+                        <h3>Serviços publicados</h3>
+                        <div class="vitrine-published-list">
+                            {% for servico in servicos_publicados %}
+                                <a href="#servicos-vitrine"><span><strong>{{ servico.get('nome') }}</strong><small>{{ servico.get('categoria') or 'Serviços' }}</small></span><b>{{ 'A combinar' if servico.get('tipo_contratacao') == 'a_combinar' else ('R$ ' ~ (servico.get('preco') or '0,00')) }}</b></a>
+                            {% else %}
+                                <div class="vitrine-empty-panel"><strong>Nenhum serviço publicado</strong></div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
         </section>
 
 
@@ -413,6 +717,10 @@ Motivo: Adicionar descrição da empresa, remover templates sem uso e simplifica
                                         <button class="btn btn-secondary btn-small" type="button" onclick="alterarStatusServicoVitrine(this,'oculto')">Remover da vitrine</button>
                                         <button class="btn btn-secondary btn-small" type="button" onclick="alterarStatusServicoVitrine(this,'rascunho')">Salvar como rascunho</button>
                                     </div>
+                                {% else %}
+                                    <div class="product-admin-status-actions">
+                                        <button class="btn btn-primary btn-small" type="button" onclick="alterarStatusServicoVitrine(this,'publicado')">Publicar agora</button>
+                                    </div>
                                 {% endif %}
                             </form>
                         {% endfor %}
@@ -498,12 +806,81 @@ Motivo: Adicionar descrição da empresa, remover templates sem uso e simplifica
             }
 
             function alterarStatusServicoVitrine(botao, status) {
-                const formulario = botao.closest("form");
-                const campoStatus = formulario ? formulario.querySelector('select[name="status"]') : null;
-                if (!formulario || !campoStatus) return;
-                campoStatus.value = status;
-                formulario.action = "{{ url_for('vitrine_servico_status') }}";
-                formulario.submit();
+                const formularioOrigem = botao.closest("form");
+                const campoServico = formularioOrigem ? formularioOrigem.querySelector('input[name="servico_id"]') : null;
+                if (!campoServico || !campoServico.value) return;
+
+                const formularioStatus = document.createElement("form");
+                formularioStatus.method = "post";
+                formularioStatus.action = "{{ url_for('vitrine_servico_status') }}";
+
+                const servicoId = document.createElement("input");
+                servicoId.type = "hidden";
+                servicoId.name = "servico_id";
+                servicoId.value = campoServico.value;
+
+                const novoStatus = document.createElement("input");
+                novoStatus.type = "hidden";
+                novoStatus.name = "status";
+                novoStatus.value = status;
+
+                formularioStatus.appendChild(servicoId);
+                formularioStatus.appendChild(novoStatus);
+                document.body.appendChild(formularioStatus);
+                formularioStatus.submit();
+            }
+
+            function configurarCentralVitrine() {
+                const central = document.querySelector("[data-vitrine-central]");
+                if (!central) return;
+
+                const botoes = Array.from(document.querySelectorAll("[data-vitrine-tab]"));
+                const paineis = Array.from(central.querySelectorAll("[data-vitrine-panel]"));
+                const abasValidas = paineis.map(function (painel) {
+                    return painel.dataset.vitrinePanel;
+                });
+
+                function ativarAba(aba, rolar) {
+                    const abaFinal = abasValidas.includes(aba) ? aba : "visao-geral";
+                    paineis.forEach(function (painel) {
+                        painel.hidden = painel.dataset.vitrinePanel !== abaFinal;
+                    });
+                    central.querySelectorAll(".vitrine-central-tabs [data-vitrine-tab]").forEach(function (botao) {
+                        botao.classList.toggle("is-active", botao.dataset.vitrineTab === abaFinal);
+                    });
+
+                    const url = new URL(window.location.href);
+                    url.searchParams.set("aba", abaFinal);
+                    window.history.replaceState({}, "", url.pathname + url.search + "#central-vitrine");
+
+                    if (rolar) {
+                        central.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }
+                }
+
+                botoes.forEach(function (botao) {
+                    botao.addEventListener("click", function () {
+                        ativarAba(botao.dataset.vitrineTab, true);
+                    });
+                });
+
+                ativarAba(central.dataset.abaInicial || "visao-geral", false);
+
+                const parametros = new URLSearchParams(window.location.search);
+                const foco = parametros.get("pedido_id")
+                    ? "pedido-" + parametros.get("pedido_id")
+                    : parametros.get("agendamento_id")
+                        ? "agendamento-" + parametros.get("agendamento_id")
+                        : parametros.get("solicitacao_id")
+                            ? "solicitacao-" + parametros.get("solicitacao_id")
+                            : "";
+                const registro = foco ? document.getElementById(foco) : null;
+                if (registro) {
+                    registro.classList.add("is-highlighted");
+                    window.setTimeout(function () {
+                        registro.scrollIntoView({ behavior: "smooth", block: "center" });
+                    }, 120);
+                }
             }
 
             function configurarIdentidadeVisualVitrine() {
@@ -608,6 +985,7 @@ Motivo: Adicionar descrição da empresa, remover templates sem uso e simplifica
             }
 
             configurarIdentidadeVisualVitrine();
+            configurarCentralVitrine();
 
             document.addEventListener("keydown", function (event) {
                 if (event.key === "Escape") {
@@ -683,6 +1061,44 @@ Motivo: Adicionar descrição da empresa, remover templates sem uso e simplifica
             background: #fef2f2;
             color: #b91c1c;
             border: 1px solid #fecaca;
+        }
+
+        .vitrine-alert-strip {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            margin: 0 0 18px;
+            padding: 14px 16px;
+            border: 1px solid #fde68a;
+            border-radius: 16px;
+            color: #78350f;
+            background: #fffbeb;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .vitrine-alert-strip strong,
+        .vitrine-alert-strip small {
+            display: block;
+        }
+
+        .vitrine-alert-strip small {
+            margin-top: 3px;
+            color: #92400e;
+        }
+
+        .vitrine-alert-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 999px;
+            background: #f59e0b;
+            box-shadow: 0 0 0 5px rgba(245, 158, 11, 0.16);
+        }
+
+        .vitrine-alert-action {
+            font-weight: 900;
         }
 
         .btn {
@@ -857,6 +1273,25 @@ Motivo: Adicionar descrição da empresa, remover templates sem uso e simplifica
             background: #f9fafb;
         }
 
+        button.metric-item {
+            width: 100%;
+            border: 1px solid transparent;
+            font: inherit;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        button.metric-item:hover,
+        button.metric-item:focus-visible {
+            border-color: #111827;
+            background: #ffffff;
+            outline: none;
+        }
+
+        .metric-item-total {
+            background: #eef2ff;
+        }
+
         .metric-item span,
         .ranking-row span,
         .hint-text,
@@ -876,6 +1311,255 @@ Motivo: Adicionar descrição da empresa, remover templates sem uso e simplifica
             margin: 14px 0 0;
             font-size: 13px;
             line-height: 1.5;
+        }
+
+        .vitrine-central {
+            margin-bottom: 18px;
+            scroll-margin-top: 18px;
+        }
+
+        .vitrine-central-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 18px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .vitrine-central-tabs button {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 40px;
+            padding: 9px 13px;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            color: #374151;
+            background: #ffffff;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .vitrine-central-tabs button.is-active {
+            border-color: #111827;
+            color: #ffffff;
+            background: #111827;
+        }
+
+        .vitrine-central-tabs button span {
+            display: inline-grid;
+            place-items: center;
+            min-width: 20px;
+            height: 20px;
+            padding: 0 5px;
+            border-radius: 999px;
+            color: #ffffff;
+            background: #dc2626;
+            font-size: 11px;
+        }
+
+        .vitrine-central-panel[hidden] {
+            display: none;
+        }
+
+        .vitrine-overview-grid,
+        .vitrine-published-summary {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .vitrine-overview-grid button,
+        .vitrine-published-summary div {
+            display: grid;
+            gap: 5px;
+            min-height: 112px;
+            padding: 16px;
+            border: 1px solid #e5e7eb;
+            border-radius: 16px;
+            color: #111827;
+            background: #f9fafb;
+            text-align: left;
+        }
+
+        .vitrine-overview-grid button {
+            cursor: pointer;
+        }
+
+        .vitrine-overview-grid button:hover {
+            border-color: #111827;
+            background: #ffffff;
+        }
+
+        .vitrine-overview-grid strong,
+        .vitrine-published-summary strong {
+            font-size: 28px;
+        }
+
+        .vitrine-overview-grid small,
+        .vitrine-published-summary span {
+            color: #6b7280;
+        }
+
+        .vitrine-central-columns {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 18px;
+            margin-top: 18px;
+        }
+
+        .vitrine-central-columns h3,
+        .vitrine-panel-heading h3 {
+            margin: 0;
+            color: #111827;
+        }
+
+        .vitrine-compact-row,
+        .vitrine-event-list > div,
+        .vitrine-published-list a {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            width: 100%;
+            margin-top: 8px;
+            padding: 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            color: #111827;
+            background: #ffffff;
+            text-align: left;
+            text-decoration: none;
+        }
+
+        .vitrine-compact-row {
+            cursor: pointer;
+        }
+
+        .vitrine-compact-row span,
+        .vitrine-event-list span,
+        .vitrine-published-list span {
+            display: grid;
+            gap: 4px;
+        }
+
+        .vitrine-compact-row small,
+        .vitrine-event-list small,
+        .vitrine-published-list small,
+        .vitrine-empty-message {
+            color: #6b7280;
+        }
+
+        .vitrine-panel-heading {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+
+        .vitrine-panel-heading p {
+            margin: 4px 0 0;
+            color: #6b7280;
+        }
+
+        .vitrine-panel-heading > strong {
+            font-size: 24px;
+        }
+
+        .vitrine-panel-heading-secondary {
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .vitrine-record-list {
+            display: grid;
+            gap: 12px;
+        }
+
+        .vitrine-record-card {
+            display: grid;
+            gap: 12px;
+            padding: 16px;
+            border: 1px solid #e5e7eb;
+            border-radius: 18px;
+            background: #f9fafb;
+        }
+
+        .vitrine-record-card.is-highlighted {
+            border-color: #f59e0b;
+            box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.16);
+        }
+
+        .vitrine-record-card header,
+        .vitrine-record-meta,
+        .vitrine-order-items > div {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .vitrine-record-card header > div,
+        .vitrine-record-status {
+            display: grid;
+            gap: 4px;
+        }
+
+        .vitrine-record-card header span,
+        .vitrine-record-card header small,
+        .vitrine-record-meta {
+            color: #6b7280;
+        }
+
+        .vitrine-record-status {
+            justify-items: end;
+            text-align: right;
+        }
+
+        .vitrine-record-status span {
+            padding: 5px 8px;
+            border-radius: 999px;
+            color: #166534;
+            background: #dcfce7;
+            font-size: 11px;
+            font-weight: 900;
+        }
+
+        .vitrine-record-meta {
+            flex-wrap: wrap;
+            justify-content: flex-start;
+            font-size: 13px;
+        }
+
+        .vitrine-record-card p {
+            margin: 0;
+            color: #374151;
+        }
+
+        .vitrine-order-items {
+            display: grid;
+            gap: 7px;
+            padding: 12px;
+            border-radius: 14px;
+            background: #ffffff;
+        }
+
+        .vitrine-empty-panel {
+            display: grid !important;
+            justify-items: center;
+            gap: 6px !important;
+            padding: 24px !important;
+            color: #6b7280 !important;
+            border: 1px dashed #d1d5db !important;
+            background: #f9fafb !important;
+            text-align: center !important;
+        }
+
+        .vitrine-published-summary {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
         }
 
         .product-admin-card {
@@ -1068,7 +1752,10 @@ Motivo: Adicionar descrição da empresa, remover templates sem uso e simplifica
             .vitrine-grid,
             .form-grid-2,
             .form-grid-3,
-            .preview-products {
+            .preview-products,
+            .vitrine-overview-grid,
+            .vitrine-published-summary,
+            .vitrine-central-columns {
                 grid-template-columns: 1fr;
             }
 
@@ -1082,6 +1769,24 @@ Motivo: Adicionar descrição da empresa, remover templates sem uso e simplifica
             .btn,
             .product-admin-actions select {
                 width: 100%;
+            }
+
+            .vitrine-alert-strip {
+                grid-template-columns: auto 1fr;
+            }
+
+            .vitrine-alert-action {
+                grid-column: 2;
+            }
+
+            .vitrine-record-card header,
+            .vitrine-order-items > div {
+                flex-direction: column;
+            }
+
+            .vitrine-record-status {
+                justify-items: start;
+                text-align: left;
             }
         }
     </style>
