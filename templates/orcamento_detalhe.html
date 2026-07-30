@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_detalhe.html
-Último recode: 2026-07-29 14:38 (America/Bahia)
-Motivo: Trocar links de impressão do diálogo por botões independentes com URL explícita para impedir A4 e Cupom de acionarem a mesma rota.
+Último recode: 2026-07-30 19:29 (America/Bahia)
+Motivo: Ocultar acessos de edição no detalhe de orçamentos em situação final.
 -->
 
 <!DOCTYPE html>
@@ -425,15 +425,18 @@ Motivo: Trocar links de impressão do diálogo por botões independentes com URL
         {% include "partials/topbar.html" %}
         {% set origem = orcamento.origem|default('manual', true) %}
         {% set modo = orcamento.modo_apresentacao|default('agrupado', true) %}
+        {% set orcamento_status_final = (orcamento.status|default('', true)|lower|trim) in ['aprovado', 'aprovada', 'reprovado', 'reprovada', 'recusado', 'recusada', 'cancelado', 'cancelada'] %}
 
         {% if request.args.get('sucesso') %}<div class="form-alert-success">{{ request.args.get('sucesso') }}</div>{% endif %}
         {% if request.args.get('erro') %}<div class="form-alert-error">{{ request.args.get('erro') }}</div>{% endif %}
 
         <nav class="budget-tabs" aria-label="Abas do orçamento">
             <a class="budget-tab active" href="/orcamentos/{{ orcamento.id }}">Visão geral</a>
-            <a class="budget-tab" href="/orcamentos/{{ orcamento.id }}/editar">Orçamento</a>
-            <a class="budget-tab" href="/orcamentos/{{ orcamento.id }}/editar#aba-apresentacao">Apresentação ao cliente</a>
-            {% if dados_gerador %}<a class="budget-tab" href="/orcamentos/{{ orcamento.id }}/gerador/revisao">Dados do Gerador</a>{% endif %}
+            {% if not orcamento_status_final %}
+                <a class="budget-tab" href="/orcamentos/{{ orcamento.id }}/editar">Orçamento</a>
+                <a class="budget-tab" href="/orcamentos/{{ orcamento.id }}/editar#aba-apresentacao">Apresentação ao cliente</a>
+                {% if dados_gerador %}<a class="budget-tab" href="/orcamentos/{{ orcamento.id }}/gerador/revisao">Dados do Gerador</a>{% endif %}
+            {% endif %}
             {% if dados_gerador %}<a class="budget-tab" href="/orcamentos/{{ orcamento.id }}/gerador/historico">Histórico</a>{% endif %}
         </nav>
 
@@ -450,7 +453,7 @@ Motivo: Trocar links de impressão do diálogo por botões independentes com URL
         <section class="panel table-panel">
             <div class="panel-header page-header">
                 <div><h3>Apresentação ao cliente</h3><p class="page-subtitle">Esta é a composição que será exibida no PDF e no cupom.</p></div>
-                <div class="budget-action-row"><a href="/orcamentos/{{ orcamento.id }}/editar#aba-apresentacao" class="btn-primary-green">Editar apresentação</a><div class="budget-action-menu">
+                <div class="budget-action-row">{% if not orcamento_status_final %}<a href="/orcamentos/{{ orcamento.id }}/editar#aba-apresentacao" class="btn-primary-green">Editar apresentação</a>{% endif %}<div class="budget-action-menu">
                         <button
                             type="button"
                             class="gf-action-dialog-trigger"
@@ -496,7 +499,7 @@ Motivo: Trocar links de impressão do diálogo por botões independentes com URL
         </section>
 
         <section class="panel table-panel">
-            <div class="panel-header page-header"><div><h3>Composição interna</h3><p class="page-subtitle">Produtos e serviços usados nos cálculos. Estes itens não aparecem ao cliente nos modos agrupado e global.</p></div>{% if dados_gerador %}<a href="/orcamentos/{{ orcamento.id }}/gerador/revisao" class="btn-dark">Editar dados do Gerador</a>{% endif %}</div>
+            <div class="panel-header page-header"><div><h3>Composição interna</h3><p class="page-subtitle">Produtos e serviços usados nos cálculos. Estes itens não aparecem ao cliente nos modos agrupado e global.</p></div>{% if dados_gerador and not orcamento_status_final %}<a href="/orcamentos/{{ orcamento.id }}/gerador/revisao" class="btn-dark">Editar dados do Gerador</a>{% endif %}</div>
             <div class="internal-warning">Uso interno: custos, quantidades e composição técnica devem ser mantidos aqui para cálculo, estoque, OS e análise de margem.</div>
             <div class="table-shell"><table class="client-table"><thead><tr><th>Tipo</th><th>Nome</th><th>Descrição</th><th>Qtd.</th><th>Valor unit.</th><th>Desconto</th><th>Subtotal</th></tr></thead><tbody>{% for item in itens %}<tr><td>{{ item.tipo_item }}</td><td>{{ item.descricao }}</td><td>{{ item.detalhes }}</td><td>{{ item.quantidade }}</td><td>{{ item.valor_unitario }}</td><td>{{ item.desconto }}</td><td>{{ item.subtotal }}</td></tr>{% else %}<tr><td colspan="7" class="empty-table">Nenhum item interno informado.</td></tr>{% endfor %}</tbody></table></div>
         </section>
@@ -517,7 +520,7 @@ Motivo: Trocar links de impressão do diálogo por botões independentes com URL
         <section class="panel page-section">
             <div class="panel-header page-header">
                 <div><h3>Escopo e observações para o cliente</h3><p class="page-subtitle">Visualização organizada do conteúdo que acompanha a proposta.</p></div>
-                <a href="/orcamentos/{{ orcamento.id }}/editar#aba-escopo" class="btn-light">Editar escopo</a>
+                {% if not orcamento_status_final %}<a href="/orcamentos/{{ orcamento.id }}/editar#aba-escopo" class="btn-light">Editar escopo</a>{% endif %}
             </div>
             <div class="scope-view">
                 {% for paragrafo in escopo_formatado.texto_livre|default([]) %}

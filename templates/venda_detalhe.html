@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\venda_detalhe.html
-Último recode: 2026-07-29 14:38 (America/Bahia)
-Motivo: Trocar links de impressão do diálogo por botões independentes com URL explícita para impedir A4 e Cupom de acionarem a mesma rota.
+Último recode: 2026-07-30 19:29 (America/Bahia)
+Motivo: Ocultar a edição no detalhe de vendas concretizadas, finalizadas ou canceladas.
 -->
 
 <!DOCTYPE html>
@@ -448,7 +448,10 @@ Motivo: Trocar links de impressão do diálogo por botões independentes com URL
                 </div>
 
                 <div class="sale-action-row">
-                    <a href="/vendas/{{ venda.id }}/editar" class="btn-primary-green" style="text-decoration:none;">Editar Venda</a>
+                    {% set venda_status_final = (venda.status|default('', true)|lower|trim) in ['concretizada', 'finalizada', 'finalizado', 'cancelada', 'cancelado'] %}
+                    {% if not venda_status_final %}
+                        <a href="/vendas/{{ venda.id }}/editar" class="btn-primary-green" style="text-decoration:none;">Editar Venda</a>
+                    {% endif %}
 
                     <div class="sale-action-menu">
                         <button

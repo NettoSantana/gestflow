@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-30 18:47 (America/Bahia)
-# Motivo: Bloquear alterações e exclusões de vendas, orçamentos e ordens de serviço em situação final.
+# Último recode: 2026-07-30 19:29 (America/Bahia)
+# Motivo: Reconhecer orçamento recusado como situação final no bloqueio de alterações e exclusões.
 
 from __future__ import annotations
 
@@ -19628,6 +19628,8 @@ REGISTROS_FINAIS_BLOQUEIO = {
             "aprovada": "ele já está aprovado",
             "reprovado": "ele já está reprovado",
             "reprovada": "ele já está reprovado",
+            "recusado": "ele já está recusado",
+            "recusada": "ele já está recusado",
             "cancelado": "ele está cancelado",
             "cancelada": "ele está cancelado",
         },
