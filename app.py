@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-30 14:16 (America/Bahia)
-# Motivo: Preparar vendas de pedidos e agendamentos da vitrine, concluir após o pagamento informado e corrigir o Dashboard.
+# Último recode: 2026-07-30 15:22 (America/Bahia)
+# Motivo: Padronizar a situação de vendas como Concretizada e migrar registros antigos marcados como Finalizada.
 
 from __future__ import annotations
 
@@ -506,7 +506,7 @@ CONFIGURACOES_MODULOS_DEFINICOES = [
         "campos": [
             _campo_configuracao_modulo("prefixo_numero", "Prefixo da numeração", "texto", "VEN", secao="Numeração"),
             _campo_configuracao_modulo("tipos_venda", "Tipos de venda", "lista", "Produtos\nServiços\nMista", secao="Fluxo"),
-            _campo_configuracao_modulo("situacoes", "Situações", "lista", "Aberta\nFinalizada\nCancelada", secao="Fluxo"),
+            _campo_configuracao_modulo("situacoes", "Situações", "lista", "Aberta\nConcretizada\nCancelada", secao="Fluxo"),
             _campo_configuracao_modulo("vendedor_padrao", "Vendedor padrão", "texto", "", secao="Padrões"),
             _campo_configuracao_modulo("tabela_preco_padrao", "Tabela de preço padrão", "texto", "Padrão", secao="Valores"),
             _campo_configuracao_modulo("desconto_maximo_percentual", "Desconto máximo (%)", "numero", 100, secao="Valores", minimo=0, maximo=100),
@@ -524,7 +524,7 @@ CONFIGURACOES_MODULOS_DEFINICOES = [
             _campo_configuracao_modulo("politica_troca", "Política de troca e devolução", "texto_longo", "", secao="Documentos"),
             _campo_configuracao_modulo("modelo_email", "Modelo de e-mail", "texto_longo", "Venda {numero} registrada com sucesso.", secao="Comunicação"),
             _campo_configuracao_modulo("modelo_whatsapp", "Modelo de WhatsApp", "texto_longo", "Olá! Seguem os dados da venda {numero}.", secao="Comunicação"),
-            _campo_configuracao_modulo("editar_finalizada", "Permitir editar venda finalizada", "booleano", False, secao="Segurança"),
+            _campo_configuracao_modulo("editar_finalizada", "Permitir editar venda concretizada", "booleano", False, secao="Segurança"),
             _campo_configuracao_modulo("autorizar_cancelamento", "Exigir autorização para cancelar", "booleano", True, secao="Segurança"),
             _campo_configuracao_modulo("cliente_obrigatorio", "Exigir cliente", "booleano", False, secao="Validações"),
         ],
@@ -5639,6 +5639,13 @@ def iniciar_banco() -> None:
                 intervalo_parcelas = COALESCE(NULLIF(TRIM(intervalo_parcelas), ''), 'mensal')
             """
         )
+        conn.execute(
+            """
+            UPDATE vendas
+            SET status = 'concretizada'
+            WHERE LOWER(TRIM(COALESCE(status, ''))) IN ('finalizada', 'finalizado')
+            """
+        )
 
         migracoes_centro_custo = {
             "orcamentos": {"centro_custo_id": "INTEGER", "atividade_financeira_id": "INTEGER"},
@@ -9132,7 +9139,7 @@ def validar_estoque_para_venda_db(itens: list[dict[str, str]]) -> None:
         if float(dados["saldo"]) - float(dados["quantidade"]) < 0:
             raise ValueError(
                 f"Estoque insuficiente para {dados['nome']}. "
-                "A venda não foi finalizada. Ajuste a quantidade, faça uma entrada no estoque ou habilite a venda sem estoque nas configurações."
+                "A venda não foi concretizada. Ajuste a quantidade, faça uma entrada no estoque ou habilite a venda sem estoque nas configurações."
             )
 
 
@@ -10454,7 +10461,7 @@ def resumir_vendas_cadastradas() -> dict[str, int]:
     with conectar_db() as conn:
         total = conn.execute("SELECT COUNT(*) AS total FROM vendas WHERE empresa_id = ? AND LOWER(TRIM(COALESCE(status, ''))) <> 'excluida'", (empresa_id,)).fetchone()["total"]
         abertas = conn.execute("SELECT COUNT(*) AS total FROM vendas WHERE empresa_id = ? AND status = ? AND LOWER(TRIM(COALESCE(status, ''))) <> 'excluida'", (empresa_id, "aberta")).fetchone()["total"]
-        finalizadas = conn.execute("SELECT COUNT(*) AS total FROM vendas WHERE empresa_id = ? AND status = ? AND LOWER(TRIM(COALESCE(status, ''))) <> 'excluida'", (empresa_id, "finalizada")).fetchone()["total"]
+        finalizadas = conn.execute("SELECT COUNT(*) AS total FROM vendas WHERE empresa_id = ? AND status = ? AND LOWER(TRIM(COALESCE(status, ''))) <> 'excluida'", (empresa_id, "concretizada")).fetchone()["total"]
 
     return {"total": int(total or 0), "abertas": int(abertas or 0), "finalizadas": int(finalizadas or 0)}
 
@@ -13492,9 +13499,16 @@ def proximo_numero_venda(data_venda: Any = None) -> str:
             reservar=False,
         )
 
+
+def normalizar_status_venda(valor: Any) -> str:
+    status = str(valor or "").strip().lower()
+    return "concretizada" if status in {"finalizada", "finalizado"} else (status or "aberta")
+
+
 def salvar_venda_db(venda: dict[str, str], itens: list[dict[str, str]]) -> int:
     empresa_id = empresa_logada_id()
     venda.update(normalizar_vinculos_financeiros_documento(venda))
+    venda["status"] = normalizar_status_venda(venda.get("status"))
     ano_numero = _ano_numero_venda(venda.get("data"))
 
     with conectar_db() as conn:
@@ -13911,6 +13925,7 @@ def listar_venda_itens(venda_id: int) -> list[dict[str, Any]]:
 def atualizar_venda_db(venda_id: int, venda: dict[str, str], itens: list[dict[str, str]]) -> None:
     empresa_id = empresa_logada_id()
     venda = normalizar_vinculos_financeiros_documento(venda)
+    venda["status"] = normalizar_status_venda(venda.get("status"))
 
     with conectar_db() as conn:
         conn.execute(
@@ -14058,7 +14073,7 @@ def montar_venda_formulario(numero_padrao: str = "") -> dict[str, str]:
         "centro_custo_id": (request.form.get("venda_centro_custo_id") or "").strip(),
         "atividade_financeira_id": (request.form.get("venda_atividade_financeira_id") or "").strip(),
         "tipo": (request.form.get("venda_tipo") or "misto").strip() or "misto",
-        "status": (request.form.get("venda_status") or "aberta").strip() or "aberta",
+        "status": normalizar_status_venda(request.form.get("venda_status") or "aberta"),
         "total_produtos": (request.form.get("venda_total_produtos") or "0,00").strip(),
         "total_servicos": (request.form.get("venda_total_servicos") or "0,00").strip(),
         "desconto_valor": (request.form.get("venda_desconto_valor") or "0,00").strip(),
@@ -18465,6 +18480,19 @@ def buscar_configuracoes_modulo(
             }
         )
 
+    if definicao["codigo"] == "vendas":
+        situacoes = valores.get("situacoes", "")
+        if isinstance(situacoes, list):
+            valores["situacoes"] = [
+                "Concretizada" if str(item).strip().lower() in {"finalizada", "finalizado"} else item
+                for item in situacoes
+            ]
+        else:
+            valores["situacoes"] = "\n".join(
+                "Concretizada" if linha.strip().lower() in {"finalizada", "finalizado"} else linha
+                for linha in str(situacoes or "").splitlines()
+            )
+
     return valores
 
 
@@ -22257,7 +22285,7 @@ def gerar_venda_por_agendamento_db(agendamento_id: int) -> int | None:
         "canal_venda": "Agendamento",
         "centro_custo": "Serviço agendado",
         "tipo": "servico",
-        "status": "finalizada",
+        "status": "concretizada",
         "total_produtos": "0,00",
         "total_servicos": valor,
         "desconto_valor": "0,00",
@@ -25666,7 +25694,7 @@ def montar_venda_pedido_vitrine(
         "centro_custo_id": "",
         "atividade_financeira_id": "",
         "tipo": "produto",
-        "status": "finalizada",
+        "status": "concretizada",
         "total_produtos": total_formatado,
         "total_servicos": "0,00",
         "desconto_valor": "0,00",
