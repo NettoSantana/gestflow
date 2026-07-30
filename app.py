@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-30 17:34 (America/Bahia)
-# Motivo: Tornar o CPF/CNPJ opcional no cadastro de clientes.
+# Último recode: 2026-07-30 18:47 (America/Bahia)
+# Motivo: Bloquear alterações e exclusões de vendas, orçamentos e ordens de serviço em situação final.
 
 from __future__ import annotations
 
@@ -19611,6 +19611,57 @@ def _texto_comparacao_configuracao(valor: Any) -> str:
     return re.sub(r"[^a-z0-9]+", "", texto)
 
 
+REGISTROS_FINAIS_BLOQUEIO = {
+    "vendas": {
+        "entidade": "esta venda",
+        "destino": "vendas",
+        "motivos": {
+            "concretizada": "ela já está concretizada",
+            "cancelada": "ela está cancelada",
+        },
+    },
+    "orcamentos": {
+        "entidade": "este orçamento",
+        "destino": "orcamentos",
+        "motivos": {
+            "aprovado": "ele já está aprovado",
+            "aprovada": "ele já está aprovado",
+            "reprovado": "ele já está reprovado",
+            "reprovada": "ele já está reprovado",
+            "cancelado": "ele está cancelado",
+            "cancelada": "ele está cancelado",
+        },
+    },
+    "ordens_servico": {
+        "entidade": "esta ordem de serviço",
+        "destino": "ordens_servico",
+        "motivos": {
+            "concluida": "ela já está concluída",
+            "concluido": "ela já está concluída",
+            "finalizada": "ela já está finalizada",
+            "finalizado": "ela já está finalizada",
+            "cancelada": "ela está cancelada",
+            "cancelado": "ela está cancelada",
+        },
+    },
+}
+
+
+def mensagem_bloqueio_registro_final(
+    modulo: str,
+    status: Any,
+    acao: str = "alterar",
+) -> str:
+    configuracao = REGISTROS_FINAIS_BLOQUEIO.get(str(modulo or "").strip())
+    if not configuracao:
+        return ""
+    status_normalizado = _texto_comparacao_configuracao(status)
+    motivo = configuracao["motivos"].get(status_normalizado)
+    if not motivo:
+        return ""
+    return f"Não é possível {acao} {configuracao['entidade']} porque {motivo}."
+
+
 def valor_permitido_configuracao(modulo: str, chave: str, valor: Any) -> bool:
     opcoes = lista_configuracao_modulo(modulo, chave)
     if not opcoes:
@@ -19947,12 +19998,80 @@ def validar_regras_configuradas_requisicao(modulo: str) -> str:
     return ""
 
 
+REGISTROS_FINAIS_ENDPOINTS = {
+    "editar_venda": ("vendas", "venda_id", "alterar"),
+    "atualizar_venda": ("vendas", "venda_id", "alterar"),
+    "excluir_venda": ("vendas", "venda_id", "excluir"),
+    "revisar_gerador_orcamento": ("orcamentos", "orcamento_id", "alterar"),
+    "editar_orcamento": ("orcamentos", "orcamento_id", "alterar"),
+    "atualizar_orcamento": ("orcamentos", "orcamento_id", "alterar"),
+    "excluir_orcamento": ("orcamentos", "orcamento_id", "excluir"),
+    "gerar_links_publicos_ordem_servico": ("ordens_servico", "ordem_servico_id", "alterar"),
+    "gerar_link_acompanhamento_ordem_servico": ("ordens_servico", "ordem_servico_id", "alterar"),
+    "editar_acompanhamento_ordem_servico_interno_rota": ("ordens_servico", "ordem_servico_id", "alterar"),
+    "excluir_acompanhamento_ordem_servico_interno_rota": ("ordens_servico", "ordem_servico_id", "alterar"),
+    "editar_ordem_servico": ("ordens_servico", "ordem_servico_id", "alterar"),
+    "upload_foto_ordem_servico_edicao": ("ordens_servico", "ordem_servico_id", "alterar"),
+    "excluir_foto_ordem_servico_edicao": ("ordens_servico", "ordem_servico_id", "alterar"),
+    "atualizar_ordem_servico": ("ordens_servico", "ordem_servico_id", "alterar"),
+    "excluir_ordem_servico": ("ordens_servico", "ordem_servico_id", "excluir"),
+}
+
+REGISTROS_FINAIS_BUSCAS = {
+    "vendas": buscar_venda_por_id,
+    "orcamentos": buscar_orcamento_por_id,
+    "ordens_servico": buscar_ordem_servico_por_id,
+}
+
+REGISTROS_FINAIS_ENDPOINTS_JSON = {
+    "upload_foto_ordem_servico_edicao",
+    "excluir_foto_ordem_servico_edicao",
+}
+
+
+def validar_bloqueio_registro_final_requisicao() -> Response | None:
+    endpoint = str(request.endpoint or "")
+    regra = REGISTROS_FINAIS_ENDPOINTS.get(endpoint)
+    if regra is None:
+        return None
+
+    modulo, argumento_id, acao = regra
+    registro_id = (request.view_args or {}).get(argumento_id)
+    if not str(registro_id or "").isdigit():
+        return None
+
+    buscar_registro = REGISTROS_FINAIS_BUSCAS[modulo]
+    registro = buscar_registro(int(registro_id))
+    if registro is None:
+        return None
+
+    mensagem = mensagem_bloqueio_registro_final(
+        modulo,
+        registro.get("status"),
+        acao,
+    )
+    if not mensagem:
+        return None
+
+    if endpoint in REGISTROS_FINAIS_ENDPOINTS_JSON:
+        resposta = jsonify({"ok": False, "erro": mensagem})
+        resposta.status_code = 409
+        return resposta
+
+    destino = REGISTROS_FINAIS_BLOQUEIO[modulo]["destino"]
+    return redirect(url_for(destino, erro=mensagem))
+
+
 @app.before_request
 def aplicar_regras_configuradas_antes_requisicao() -> Response | None:
     empresa_id = int(session.get("empresa_id") or 0)
     endpoint = str(request.endpoint or "")
     if empresa_id <= 0:
         return None
+
+    bloqueio_registro_final = validar_bloqueio_registro_final_requisicao()
+    if bloqueio_registro_final is not None:
+        return bloqueio_registro_final
 
     limite_mb = int(float(valor_configuracao_modulo("gerais", "tamanho_maximo_anexo_mb", 10) or 10))
     if request.content_length and request.content_length > limite_mb * 1024 * 1024:
