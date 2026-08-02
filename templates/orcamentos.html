@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamentos.html
-Último recode: 2026-07-30 19:29 (America/Bahia)
-Motivo: Ocultar edição, revisão do Gerador e exclusão de orçamentos em situação final.
+Último recode: 2026-08-02 11:37 (America/Bahia)
+Motivo: Simplificar e compactar a lista de orçamentos, removendo as colunas Tipo e Validade.
 -->
 
 <!DOCTYPE html>
@@ -279,8 +279,8 @@ Motivo: Ocultar edição, revisão do Gerador e exclusão de orçamentos em situ
 
         .orcamentos-lista-table {
             border-collapse: separate !important;
-            border-spacing: 0 10px !important;
-            min-width: 900px;
+            border-spacing: 0 8px !important;
+            min-width: 760px;
         }
 
         .orcamentos-lista-table thead th {
@@ -297,8 +297,35 @@ Motivo: Ocultar edição, revisão do Gerador e exclusão de orçamentos em situ
 
         .orcamentos-lista-table tbody td {
             border-bottom: 0 !important;
-            padding-top: 14px !important;
-            padding-bottom: 14px !important;
+            padding-top: 10px !important;
+            padding-bottom: 10px !important;
+            vertical-align: middle;
+        }
+
+        .orcamentos-lista-table th:nth-child(1),
+        .orcamentos-lista-table td:nth-child(1) {
+            width: 52px;
+            white-space: nowrap;
+        }
+
+        .orcamentos-lista-table th:nth-child(2),
+        .orcamentos-lista-table td:nth-child(2) {
+            width: 180px;
+        }
+
+        .orcamentos-lista-table th:nth-child(4),
+        .orcamentos-lista-table td:nth-child(4),
+        .orcamentos-lista-table th:nth-child(5),
+        .orcamentos-lista-table td:nth-child(5),
+        .orcamentos-lista-table th:nth-child(6),
+        .orcamentos-lista-table td:nth-child(6) {
+            white-space: nowrap;
+        }
+
+        .orcamentos-lista-table th:last-child,
+        .orcamentos-lista-table td:last-child {
+            width: 210px;
+            white-space: nowrap;
         }
 
         .orcamentos-lista-table tbody td:first-child {
@@ -1001,7 +1028,7 @@ Motivo: Ocultar edição, revisão do Gerador e exclusão de orçamentos em situ
 
             <div class="client-actions">
                 <form action="/orcamentos" method="get" class="orcamento-search-form">
-                    <input type="text" name="busca" value="{{ busca }}" placeholder="Buscar por número, cliente, status, data, validade ou responsável" class="client-search">
+                    <input type="text" name="busca" value="{{ busca }}" placeholder="Buscar por número, cliente, status, data ou responsável" class="client-search">
                     <input type="hidden" name="ordenar" value="{{ ordenar }}">
                     <input type="hidden" name="direcao" value="{{ direcao }}">
 
@@ -1043,12 +1070,6 @@ Motivo: Ocultar edição, revisão do Gerador e exclusão de orçamentos em situ
                                 </a>
                             </th>
                             <th>
-                                <a href="{{ url_for('orcamentos', pagina=1, por_pagina=por_pagina, ordenar='tipo', direcao='desc' if ordenar == 'tipo' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
-                                    Tipo
-                                    {% if ordenar == 'tipo' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
-                                </a>
-                            </th>
-                            <th>
                                 <a href="{{ url_for('orcamentos', pagina=1, por_pagina=por_pagina, ordenar='status', direcao='desc' if ordenar == 'status' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
                                     Status
                                     {% if ordenar == 'status' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
@@ -1058,12 +1079,6 @@ Motivo: Ocultar edição, revisão do Gerador e exclusão de orçamentos em situ
                                 <a href="{{ url_for('orcamentos', pagina=1, por_pagina=por_pagina, ordenar='data', direcao='desc' if ordenar == 'data' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
                                     Data
                                     {% if ordenar == 'data' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
-                                </a>
-                            </th>
-                            <th>
-                                <a href="{{ url_for('orcamentos', pagina=1, por_pagina=por_pagina, ordenar='validade', direcao='desc' if ordenar == 'validade' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
-                                    Validade
-                                    {% if ordenar == 'validade' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
                                 </a>
                             </th>
                             <th>
@@ -1087,10 +1102,8 @@ Motivo: Ocultar edição, revisão do Gerador e exclusão de orçamentos em situ
                                         <span class="budget-mode-badge">{{ orcamento.modo_apresentacao|default('agrupado', true)|replace('_',' ') }}</span>
                                     </td>
                                     <td>{{ orcamento.cliente }}</td>
-                                    <td>{{ orcamento.tipo }}</td>
                                     <td><span class="status-pill {{ orcamento.status }}">{{ orcamento.status }}</span></td>
                                     <td>{{ orcamento.data }}</td>
-                                    <td>{{ orcamento.validade }}</td>
                                     <td>{{ orcamento.valor_total }}</td>
                                     <td>
                                         <div class="action-buttons">
@@ -1145,7 +1158,7 @@ Motivo: Ocultar edição, revisão do Gerador e exclusão de orçamentos em situ
                             {% endfor %}
                         {% else %}
                             <tr>
-                                <td colspan="9" class="empty-table empty-table-box">
+                                <td colspan="7" class="empty-table empty-table-box">
                                     <div class="empty-table-content">
                                         <div class="empty-table-icon">▣</div>
                                         <strong>Nenhum orçamento cadastrado.</strong>
