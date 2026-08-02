@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordens_servico.html
-Último recode: 2026-07-29 14:38 (America/Bahia)
-Motivo: Trocar links de impressão do diálogo por botões independentes com URL explícita para impedir A4 e Cupom de acionarem a mesma rota.
+Último recode: 2026-07-30 19:29 (America/Bahia)
+Motivo: Ocultar edição, exclusão e atualização de links de ordens de serviço em situação final.
 -->
 
 <!DOCTYPE html>
@@ -1269,15 +1269,18 @@ Motivo: Trocar links de impressão do diálogo por botões independentes com URL
                     <tbody>
                         {% if ordens_lista %}
                             {% for os in ordens_lista %}
+                                {% set os_status_final = (os.status|default('', true)|lower|trim) in ['concluida', 'concluída', 'concluido', 'concluído', 'finalizada', 'finalizado', 'cancelada', 'cancelado'] %}
                                 <tr>
                                     <td>{{ os.id }}</td><td>{{ os.numero }}</td><td>{{ os.cliente }}</td><td>{{ os.equipamento }}</td><td><span class="status-pill {{ os.status }}">{{ os.status }}</span></td><td>{{ os.prioridade }}</td><td>{{ os.data_abertura }}</td><td>{{ os.valor_total }}</td>
                                     <td>
                                         <div class="action-buttons os-action-wrap">
                                             <a href="/ordens-servico/{{ os.id }}" title="Ver OS" aria-label="Ver OS" class="action-button view">🔍</a>
-                                            <a href="/ordens-servico/{{ os.id }}/editar" title="Editar OS" aria-label="Editar OS" class="action-button edit">✎</a>
-                                            <form action="/ordens-servico/{{ os.id }}/excluir" method="post" style="display:inline;" onsubmit="return confirm('Deseja excluir esta OS?');">
-                                                <button type="submit" class="action-button delete" title="Excluir OS" aria-label="Excluir OS">×</button>
-                                            </form>
+                                            {% if not os_status_final %}
+                                                <a href="/ordens-servico/{{ os.id }}/editar" title="Editar OS" aria-label="Editar OS" class="action-button edit">✎</a>
+                                                <form action="/ordens-servico/{{ os.id }}/excluir" method="post" style="display:inline;" onsubmit="return confirm('Deseja excluir esta OS?');">
+                                                    <button type="submit" class="action-button delete" title="Excluir OS" aria-label="Excluir OS">×</button>
+                                                </form>
+                                            {% endif %}
                                             <div class="budget-action-menu">
                                                 <button
                                                     type="button"
@@ -1304,7 +1307,7 @@ Motivo: Trocar links de impressão do diálogo por botões independentes com URL
                                                             <button type="button" data-gf-print-url="/ordens-servico/{{ os.id }}/imprimir/a4" aria-label="Abrir impressão A4 em nova aba">🖨 Imprimir A4</button>
                                                             <button type="button" data-gf-print-url="/ordens-servico/{{ os.id }}/imprimir/cupom" aria-label="Abrir impressão Cupom em nova aba">🧾 Imprimir Cupom</button>
                                                             <a href="/whatsapp/pdf/ordem_servico/{{ os.id }}">📲 Enviar PDF por WhatsApp</a>
-                                                            <a href="/ordens-servico/{{ os.id }}/links">🔗 Atualizar links públicos</a>
+                                                            {% if not os_status_final %}<a href="/ordens-servico/{{ os.id }}/links">🔗 Atualizar links públicos</a>{% endif %}
                                                             <a href="/os/cliente/{{ os.token_cliente }}" target="_blank" rel="noopener noreferrer">👤 Abrir link do cliente</a>
                                                             <a href="/os/campo/{{ os.token_campo }}" target="_blank" rel="noopener noreferrer">🧰 Abrir link técnico/campo</a>
                                                             <a href="/ordens-servico/{{ os.id }}/gerar/copia">↻ Gerar cópia</a>

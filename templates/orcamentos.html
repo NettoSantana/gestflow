@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamentos.html
-Último recode: 2026-07-29 14:38 (America/Bahia)
-Motivo: Trocar links de impressão do diálogo por botões independentes com URL explícita para impedir A4 e Cupom de acionarem a mesma rota.
+Último recode: 2026-07-30 19:29 (America/Bahia)
+Motivo: Ocultar edição, revisão do Gerador e exclusão de orçamentos em situação final.
 -->
 
 <!DOCTYPE html>
@@ -1078,6 +1078,7 @@ Motivo: Trocar links de impressão do diálogo por botões independentes com URL
                     <tbody>
                         {% if orcamentos_lista %}
                             {% for orcamento in orcamentos_lista %}
+                                {% set orcamento_status_final = (orcamento.status|default('', true)|lower|trim) in ['aprovado', 'aprovada', 'reprovado', 'reprovada', 'recusado', 'recusada', 'cancelado', 'cancelada'] %}
                                 <tr>
                                     <td>{{ orcamento.id }}</td>
                                     <td>
@@ -1094,11 +1095,13 @@ Motivo: Trocar links de impressão do diálogo por botões independentes com URL
                                     <td>
                                         <div class="action-buttons">
                                             <a href="/orcamentos/{{ orcamento.id }}" title="Ver orçamento" aria-label="Ver orçamento" class="action-button view">🔍</a>
-                                            <a href="/orcamentos/{{ orcamento.id }}/editar" title="Editar orçamento" aria-label="Editar orçamento" class="action-button edit">✎</a>
-                                            {% if orcamento.origem == 'gerador' %}<a href="/orcamentos/{{ orcamento.id }}/gerador/revisao" title="Editar dados do Gerador" aria-label="Editar dados do Gerador" class="action-button generator">⚙</a>{% endif %}
-                                            <form action="/orcamentos/{{ orcamento.id }}/excluir" method="post" onsubmit="return confirm('Tem certeza que deseja excluir este orçamento?');" class="action-form">
-                                                <button type="submit" title="Excluir orçamento" aria-label="Excluir orçamento" class="action-button delete">×</button>
-                                            </form>
+                                            {% if not orcamento_status_final %}
+                                                <a href="/orcamentos/{{ orcamento.id }}/editar" title="Editar orçamento" aria-label="Editar orçamento" class="action-button edit">✎</a>
+                                                {% if orcamento.origem == 'gerador' %}<a href="/orcamentos/{{ orcamento.id }}/gerador/revisao" title="Editar dados do Gerador" aria-label="Editar dados do Gerador" class="action-button generator">⚙</a>{% endif %}
+                                                <form action="/orcamentos/{{ orcamento.id }}/excluir" method="post" onsubmit="return confirm('Tem certeza que deseja excluir este orçamento?');" class="action-form">
+                                                    <button type="submit" title="Excluir orçamento" aria-label="Excluir orçamento" class="action-button delete">×</button>
+                                                </form>
+                                            {% endif %}
                                             <div class="budget-action-menu">
                                                 <button
                                                     type="button"

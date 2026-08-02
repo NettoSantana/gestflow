@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vendas.html
-Último recode: 2026-07-30 14:16 (America/Bahia)
-Motivo: Preencher a venda a partir de pedidos e agendamentos da vitrine e retornar à Central após salvar.
+Último recode: 2026-07-30 19:01 (America/Bahia)
+Motivo: Ocultar as ações de editar e excluir para vendas concretizadas, finalizadas antigas ou canceladas.
 -->
 
 <!DOCTYPE html>
@@ -794,11 +794,15 @@ Motivo: Preencher a venda a partir de pedidos e agendamentos da vitrine e retorn
                                     <td>
                                         <div class="action-buttons">
                                             <a href="/vendas/{{ venda.id }}" title="Ver venda" aria-label="Ver venda" class="action-button view" style="text-decoration:none;">🔍</a>
+                                            {% if venda.status|string|lower not in ['concretizada', 'finalizada', 'cancelada'] %}
                                             <a href="/vendas/{{ venda.id }}/editar" title="Editar venda" aria-label="Editar venda" class="action-button edit" style="text-decoration:none;">✎</a>
+                                            {% endif %}
                                             <a href="/whatsapp/pdf/venda/{{ venda.id }}" title="Enviar PDF pelo WhatsApp" aria-label="Enviar PDF pelo WhatsApp" class="action-button" style="background:#128c7e;color:#fff;text-decoration:none;">📲</a>
+                                            {% if venda.status|string|lower not in ['concretizada', 'finalizada', 'cancelada'] %}
                                             <form action="/vendas/{{ venda.id }}/excluir" method="post" style="display:inline;" onsubmit="return confirm('Excluir esta venda?');">
                                                 <button type="submit" title="Excluir venda" aria-label="Excluir venda" class="action-button delete">×</button>
                                             </form>
+                                            {% endif %}
                                         </div>
                                     </td>
                                 </tr>
