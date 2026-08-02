@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-07-30 19:29 (America/Bahia)
-# Motivo: Reconhecer orçamento recusado como situação final no bloqueio de alterações e exclusões.
+# Último recode: 2026-08-02 07:36 (America/Bahia)
+# Motivo: Tornar centro de custo opcional e impedir bloqueio que descartava o formulário de orçamento.
 
 from __future__ import annotations
 
@@ -707,7 +707,7 @@ CONFIGURACOES_MODULOS_DEFINICOES = [
             _campo_configuracao_modulo("centro_padrao_vendas", "Centro padrão de vendas", "texto", "", secao="Padrões"),
             _campo_configuracao_modulo("centro_padrao_os", "Centro padrão de OS", "texto", "", secao="Padrões"),
             _campo_configuracao_modulo("centro_padrao_contratos", "Centro padrão de contratos", "texto", "", secao="Padrões"),
-            _campo_configuracao_modulo("vinculo_obrigatorio", "Vínculo com centro", "selecao", "obrigatorio", secao="Validações", opcoes=_OPCOES_OPCIONAL_OBRIGATORIO),
+            _campo_configuracao_modulo("vinculo_obrigatorio", "Vínculo com centro", "selecao", "opcional", secao="Validações", opcoes=_OPCOES_OPCIONAL_OBRIGATORIO),
             _campo_configuracao_modulo("permitir_rateio", "Permitir rateio entre centros", "booleano", True, secao="Rateio"),
             _campo_configuracao_modulo("categorias_receita", "Categorias consideradas receita", "lista", "Vendas\nServiços\nContratos", secao="DRE"),
             _campo_configuracao_modulo("categorias_custo", "Categorias consideradas custo", "lista", "Materiais\nMão de obra\nTerceiros", secao="DRE"),
@@ -19890,26 +19890,8 @@ def _validar_desconto_configurado(modulo: str) -> str:
 
 
 def _validar_centro_custo_configurado(modulo: str) -> str:
-    obrigatorio = configuracao_bool("centros_custo_dre", "vinculo_obrigatorio", True)
-    if modulo == "gestao_atividades":
-        obrigatorio = configuracao_bool(modulo, "centro_custo_obrigatorio", False)
-    if not obrigatorio:
-        return ""
-    with conectar_db() as conn:
-        existe_centro = conn.execute(
-            "SELECT 1 FROM centros_custo WHERE empresa_id = ? AND LOWER(COALESCE(status, 'ativo')) = 'ativo' LIMIT 1",
-            (empresa_logada_id(),),
-        ).fetchone()
-    if existe_centro is None:
-        return ""
-    campos = (
-        "orcamento_centro_custo_id", "venda_centro_custo_id", "os_centro_custo_id",
-        "financeiro_centro_custo_id", "centro_custo_id",
-    )
-    if any(str(request.form.get(campo) or "").strip() for campo in campos):
-        return ""
-    if modulo in {"orcamentos", "vendas", "ordens_servico", "financeiro", "contratos", "gestao_atividades"}:
-        return "Selecione o centro de custo obrigatório definido nas configurações."
+    # Centro de custo é sempre opcional. A ausência do vínculo não pode bloquear
+    # o salvamento nem provocar redirecionamento com perda do formulário.
     return ""
 
 
