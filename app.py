@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-02 07:36 (America/Bahia)
-# Motivo: Tornar centro de custo opcional e impedir bloqueio que descartava o formulário de orçamento.
+# Último recode: 2026-08-02 12:25 (America/Bahia)
+# Motivo: Adicionar busca avançada, seleção de colunas e exportação CSV na lista de orçamentos.
 
 from __future__ import annotations
 
@@ -10155,39 +10155,197 @@ def listar_orcamentos() -> list[dict[str, Any]]:
     return [dict(row) for row in rows]
 
 
-def montar_filtros_orcamentos(busca: Any) -> tuple[str, list[Any]]:
-    empresa_id = empresa_logada_id()
-    termo = str(busca or "").strip()
+ORCAMENTOS_ORDENACAO = {
+    "id": "o.id",
+    "numero": "o.numero",
+    "cliente": "o.cliente",
+    "responsavel": "o.responsavel",
+    "tipo": "o.tipo",
+    "status": "o.status",
+    "data": "o.data",
+    "prazo_entrega": "o.prazo_entrega",
+    "validade": "o.validade",
+    "centro_custo": "o.centro_custo",
+    "origem": "o.origem",
+    "modo_apresentacao": "o.modo_apresentacao",
+    "valor_total": "o.valor_total",
+}
 
-    where = "WHERE empresa_id = ?"
+ORCAMENTOS_COLUNAS_EXPORTACAO = {
+    "id": ("ID", "id"),
+    "numero": ("Número", "numero"),
+    "cliente": ("Cliente", "cliente"),
+    "responsavel": ("Responsável", "responsavel"),
+    "status": ("Status", "status"),
+    "data": ("Data", "data"),
+    "prazo_entrega": ("Prazo de entrega", "prazo_entrega"),
+    "validade": ("Validade", "validade"),
+    "tipo": ("Tipo", "tipo"),
+    "centro_custo": ("Centro de custo", "centro_custo"),
+    "origem": ("Origem", "origem"),
+    "modo_apresentacao": ("Apresentação", "modo_apresentacao"),
+    "valor_total": ("Valor total", "valor_total"),
+}
+
+ORCAMENTOS_COLUNAS_PADRAO = [
+    "id", "numero", "cliente", "status", "data", "valor_total"
+]
+
+
+def _normalizar_decimal_filtro(valor: Any) -> float | None:
+    texto = str(valor or "").strip().replace("R$", "").replace(" ", "")
+    if not texto:
+        return None
+    if "," in texto:
+        texto = texto.replace(".", "").replace(",", ".")
+    try:
+        return float(texto)
+    except (TypeError, ValueError):
+        return None
+
+
+def montar_filtros_orcamentos_avancados() -> dict[str, str]:
+    chaves = (
+        "busca", "numero", "cliente", "responsavel", "status", "data_de", "data_ate",
+        "prazo_entrega", "produto", "servico", "centro_custo", "origem",
+        "modo_apresentacao", "tipo", "valor_min", "valor_max",
+    )
+    return {chave: str(request.args.get(chave) or "").strip() for chave in chaves}
+
+
+def montar_filtros_orcamentos(filtros: dict[str, str]) -> tuple[str, list[Any]]:
+    empresa_id = empresa_logada_id()
+    condicoes = ["o.empresa_id = ?"]
     parametros: list[Any] = [empresa_id]
 
-    if termo:
-        termo_like = f"%{termo}%"
-        where += """
-          AND (
-                numero LIKE ?
-             OR cliente LIKE ?
-             OR responsavel LIKE ?
-             OR tipo LIKE ?
-             OR status LIKE ?
-             OR data LIKE ?
-             OR validade LIKE ?
-             OR valor_total LIKE ?
-          )
-        """
-        parametros.extend([
-            termo_like,
-            termo_like,
-            termo_like,
-            termo_like,
-            termo_like,
-            termo_like,
-            termo_like,
-            termo_like,
-        ])
+    busca = filtros.get("busca", "")
+    if busca:
+        termo_like = f"%{busca}%"
+        condicoes.append("""
+            (
+                o.numero LIKE ? OR o.cliente LIKE ? OR o.responsavel LIKE ? OR
+                o.tipo LIKE ? OR o.status LIKE ? OR o.data LIKE ? OR
+                o.validade LIKE ? OR o.valor_total LIKE ? OR o.centro_custo LIKE ?
+            )
+        """)
+        parametros.extend([termo_like] * 9)
 
-    return where, parametros
+    filtros_like = {
+        "numero": "o.numero",
+        "cliente": "o.cliente",
+        "responsavel": "o.responsavel",
+        "prazo_entrega": "o.prazo_entrega",
+        "centro_custo": "o.centro_custo",
+    }
+    for chave, coluna in filtros_like.items():
+        valor = filtros.get(chave, "")
+        if valor:
+            condicoes.append(f"{coluna} LIKE ?")
+            parametros.append(f"%{valor}%")
+
+    filtros_iguais = {
+        "status": "o.status",
+        "origem": "o.origem",
+        "modo_apresentacao": "o.modo_apresentacao",
+        "tipo": "o.tipo",
+    }
+    for chave, coluna in filtros_iguais.items():
+        valor = filtros.get(chave, "")
+        if valor:
+            condicoes.append(f"LOWER(TRIM(COALESCE({coluna}, ''))) = LOWER(?)")
+            parametros.append(valor)
+
+    if filtros.get("data_de"):
+        condicoes.append("date(o.data) >= date(?)")
+        parametros.append(filtros["data_de"])
+    if filtros.get("data_ate"):
+        condicoes.append("date(o.data) <= date(?)")
+        parametros.append(filtros["data_ate"])
+
+    for chave, tipo_item in (("produto", "produto"), ("servico", "servico")):
+        valor = filtros.get(chave, "")
+        if valor:
+            condicoes.append("""
+                EXISTS (
+                    SELECT 1
+                    FROM orcamento_itens oi
+                    WHERE oi.empresa_id = o.empresa_id
+                      AND oi.orcamento_id = o.id
+                      AND oi.tipo_item = ?
+                      AND (oi.descricao LIKE ? OR oi.detalhes LIKE ?)
+                )
+            """)
+            parametros.extend([tipo_item, f"%{valor}%", f"%{valor}%"])
+
+    expressao_valor = """
+        CASE
+            WHEN instr(COALESCE(o.valor_total, ''), ',') > 0
+                THEN CAST(REPLACE(REPLACE(REPLACE(COALESCE(o.valor_total, '0'), 'R$', ''), '.', ''), ',', '.') AS REAL)
+            ELSE CAST(REPLACE(REPLACE(COALESCE(o.valor_total, '0'), 'R$', ''), ' ', '') AS REAL)
+        END
+    """
+    valor_min = _normalizar_decimal_filtro(filtros.get("valor_min"))
+    valor_max = _normalizar_decimal_filtro(filtros.get("valor_max"))
+    if valor_min is not None:
+        condicoes.append(f"({expressao_valor}) >= ?")
+        parametros.append(valor_min)
+    if valor_max is not None:
+        condicoes.append(f"({expressao_valor}) <= ?")
+        parametros.append(valor_max)
+
+    return "WHERE " + " AND ".join(condicoes), parametros
+
+
+def listar_orcamentos_filtrados(
+    filtros: dict[str, str],
+    ordenar: str = "id",
+    direcao: str = "desc",
+    *,
+    pagina: int | None = None,
+    por_pagina: int | None = None,
+) -> tuple[list[dict[str, Any]], int]:
+    coluna_sql = ORCAMENTOS_ORDENACAO.get(str(ordenar or "").strip(), "o.id")
+    direcao_sql = "ASC" if str(direcao or "").strip().lower() == "asc" else "DESC"
+    where, parametros = montar_filtros_orcamentos(filtros)
+
+    limite_sql = ""
+    parametros_lista = list(parametros)
+    if pagina is not None and por_pagina is not None:
+        pagina = max(int(pagina or 1), 1)
+        por_pagina = int(por_pagina or 20)
+        limite_sql = "LIMIT ? OFFSET ?"
+        parametros_lista.extend([por_pagina, (pagina - 1) * por_pagina])
+
+    with conectar_db() as conn:
+        total = conn.execute(
+            f"SELECT COUNT(*) AS total FROM orcamentos o {where}",
+            parametros,
+        ).fetchone()["total"]
+        rows = conn.execute(
+            f"""
+            SELECT
+                o.id, o.empresa_id, o.numero, o.cliente, o.responsavel, o.data,
+                o.prazo_entrega, o.validade, o.canal_venda, o.centro_custo,
+                o.centro_custo_id, o.introducao, o.tipo, o.status,
+                o.total_produtos, o.total_servicos, o.desconto_valor,
+                o.desconto_percentual, o.valor_total, o.forma_pagamento,
+                o.observacoes, o.observacoes_internas, o.origem,
+                o.modo_apresentacao, o.descricao_comercial, o.criado_em,
+                (
+                    SELECT v.id FROM vendas v
+                    WHERE v.empresa_id = o.empresa_id
+                      AND v.origem_orcamento_id = o.id
+                    ORDER BY v.id ASC LIMIT 1
+                ) AS venda_gerada_id
+            FROM orcamentos o
+            {where}
+            ORDER BY {coluna_sql} {direcao_sql}, o.id DESC
+            {limite_sql}
+            """,
+            parametros_lista,
+        ).fetchall()
+
+    return [dict(row) for row in rows], int(total or 0)
 
 
 def listar_orcamentos_paginado(
@@ -10196,83 +10354,17 @@ def listar_orcamentos_paginado(
     por_pagina: int = 20,
     ordenar: str = "id",
     direcao: str = "desc",
+    filtros: dict[str, str] | None = None,
 ) -> tuple[list[dict[str, Any]], int]:
-    colunas_ordenacao = {
-        "id": "id",
-        "numero": "numero",
-        "cliente": "cliente",
-        "responsavel": "responsavel",
-        "tipo": "tipo",
-        "status": "status",
-        "data": "data",
-        "validade": "validade",
-        "valor_total": "valor_total",
-    }
-
-    coluna_sql = colunas_ordenacao.get(str(ordenar or "").strip(), "id")
-    direcao_sql = "ASC" if str(direcao or "").strip().lower() == "asc" else "DESC"
-    pagina = max(int(pagina or 1), 1)
-    por_pagina = int(por_pagina or 20)
-    offset = (pagina - 1) * por_pagina
-    where, parametros = montar_filtros_orcamentos(busca)
-
-    with conectar_db() as conn:
-        total = conn.execute(
-            f"""
-            SELECT COUNT(*) AS total
-            FROM orcamentos
-            {where}
-            """,
-            parametros,
-        ).fetchone()["total"]
-
-        rows = conn.execute(
-            f"""
-            SELECT
-                id,
-                empresa_id,
-                numero,
-                cliente,
-                responsavel,
-                data,
-                prazo_entrega,
-                validade,
-                canal_venda,
-                centro_custo,
-                introducao,
-                tipo,
-                status,
-                total_produtos,
-                total_servicos,
-                desconto_valor,
-                desconto_percentual,
-                valor_total,
-                forma_pagamento,
-                observacoes,
-                observacoes_internas,
-                origem,
-                modo_apresentacao,
-                descricao_comercial,
-                criado_em,
-                (
-                    SELECT v.id
-                    FROM vendas v
-                    WHERE v.empresa_id = orcamentos.empresa_id
-                      AND v.origem_orcamento_id = orcamentos.id
-                    ORDER BY v.id ASC
-                    LIMIT 1
-                ) AS venda_gerada_id
-            FROM orcamentos
-            {where}
-            ORDER BY {coluna_sql} {direcao_sql}, id DESC
-            LIMIT ?
-            OFFSET ?
-            """,
-            [*parametros, por_pagina, offset],
-        ).fetchall()
-
-    return [dict(row) for row in rows], int(total or 0)
-
+    filtros_ativos = dict(filtros or {})
+    filtros_ativos["busca"] = str(busca or filtros_ativos.get("busca") or "").strip()
+    return listar_orcamentos_filtrados(
+        filtros_ativos,
+        ordenar,
+        direcao,
+        pagina=pagina,
+        por_pagina=por_pagina,
+    )
 
 def resumir_orcamentos_cadastrados() -> dict[str, int]:
     empresa_id = empresa_logada_id()
@@ -10301,38 +10393,48 @@ def resumir_orcamentos_cadastrados() -> dict[str, int]:
 
 
 def montar_contexto_orcamentos_paginado() -> dict[str, Any]:
-    busca = (request.args.get("busca") or "").strip()
+    filtros = montar_filtros_orcamentos_avancados()
     pagina = _normalizar_inteiro_query(request.args.get("pagina"), 1)
     por_pagina = _normalizar_inteiro_query(request.args.get("por_pagina"), 20)
-
     if por_pagina not in {10, 20, 50, 100}:
         por_pagina = 20
 
-    ordenar = (request.args.get("ordenar") or "id").strip()
-    direcao = (request.args.get("direcao") or "desc").strip().lower()
-
+    ordenar = str(request.args.get("ordenar") or "id").strip()
+    if ordenar not in ORCAMENTOS_ORDENACAO:
+        ordenar = "id"
+    direcao = str(request.args.get("direcao") or "desc").strip().lower()
     if direcao not in {"asc", "desc"}:
         direcao = "desc"
 
     orcamentos_lista, total = listar_orcamentos_paginado(
-        busca=busca,
+        busca=filtros["busca"],
         pagina=pagina,
         por_pagina=por_pagina,
         ordenar=ordenar,
         direcao=direcao,
+        filtros=filtros,
     )
     paginacao = montar_paginacao(total, pagina, por_pagina)
+    if pagina != paginacao["pagina"] and total > 0:
+        pagina = paginacao["pagina"]
+        orcamentos_lista, total = listar_orcamentos_paginado(
+            busca=filtros["busca"], pagina=pagina, por_pagina=por_pagina,
+            ordenar=ordenar, direcao=direcao, filtros=filtros,
+        )
 
     orcamentos_exibicao = formatar_lista_datas_documento_exibicao(
-        orcamentos_lista,
-        ("data", "validade"),
+        orcamentos_lista, ("data", "validade")
     )
+    filtros_url = {chave: valor for chave, valor in filtros.items() if valor}
 
     return {
         "itens": orcamentos_exibicao,
         "paginacao": paginacao,
         "resumo_geral": resumir_orcamentos_cadastrados(),
-        "busca": busca,
+        "busca": filtros["busca"],
+        "filtros": filtros,
+        "filtros_url": filtros_url,
+        "filtros_ativos": any(bool(valor) for chave, valor in filtros.items() if chave != "busca"),
         "pagina": paginacao["pagina"],
         "por_pagina": por_pagina,
         "ordenar": ordenar,
@@ -33741,7 +33843,52 @@ def orcamentos() -> str:
         por_pagina=contexto_orcamentos["por_pagina"],
         ordenar=contexto_orcamentos["ordenar"],
         direcao=contexto_orcamentos["direcao"],
+        filtros=contexto_orcamentos["filtros"],
+        filtros_url=contexto_orcamentos["filtros_url"],
+        filtros_ativos=contexto_orcamentos["filtros_ativos"],
         centros_custo=listar_centros_custo(),
+    )
+
+
+@app.get("/orcamentos/exportar.csv")
+def exportar_orcamentos_csv() -> Response:
+    if not usuario_tem_permissao("orcamentos", "exportar"):
+        return Response("Acesso negado à exportação de orçamentos.", status=403)
+
+    filtros = montar_filtros_orcamentos_avancados()
+    ordenar = str(request.args.get("ordenar") or "id").strip()
+    if ordenar not in ORCAMENTOS_ORDENACAO:
+        ordenar = "id"
+    direcao = str(request.args.get("direcao") or "desc").strip().lower()
+    if direcao not in {"asc", "desc"}:
+        direcao = "desc"
+
+    colunas_solicitadas = [
+        item.strip() for item in str(request.args.get("colunas") or "").split(",") if item.strip()
+    ]
+    colunas = [item for item in colunas_solicitadas if item in ORCAMENTOS_COLUNAS_EXPORTACAO]
+    if not colunas:
+        colunas = list(ORCAMENTOS_COLUNAS_PADRAO)
+
+    registros, _ = listar_orcamentos_filtrados(filtros, ordenar, direcao)
+    saida = io.StringIO(newline="")
+    saida.write("\ufeff")
+    escritor = csv.writer(saida, delimiter=";")
+    escritor.writerow([ORCAMENTOS_COLUNAS_EXPORTACAO[coluna][0] for coluna in colunas])
+    for registro in registros:
+        escritor.writerow([
+            str(registro.get(ORCAMENTOS_COLUNAS_EXPORTACAO[coluna][1]) or "")
+            for coluna in colunas
+        ])
+
+    nome = f"orcamentos_{hoje_empresa().isoformat()}.csv"
+    registrar_atividade_usuario(
+        "exportacao", "orcamentos", f"Exportou {len(registros)} orçamento(s) em CSV", request.path
+    )
+    return Response(
+        saida.getvalue(),
+        mimetype="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{nome}"'},
     )
 
 

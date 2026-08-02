@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamentos.html
-Último recode: 2026-08-02 11:37 (America/Bahia)
-Motivo: Simplificar e compactar a lista de orçamentos, removendo as colunas Tipo e Validade.
+Último recode: 2026-08-02 12:25 (America/Bahia)
+Motivo: Adicionar busca avançada, gerenciamento de colunas e exportação CSV na lista de orçamentos.
 -->
 
 <!DOCTYPE html>
@@ -596,6 +596,36 @@ Motivo: Simplificar e compactar a lista de orçamentos, removendo as colunas Tip
         .commercial-note { margin-top:10px; padding:12px 14px; border:1px solid #bfdbfe; border-radius:12px; background:#eff6ff; color:#1e40af; font-size:12px; font-weight:800; line-height:1.45; }
         .action-button.generator { background:#7c3aed; }
         @media(max-width:720px){.commercial-config{grid-template-columns:1fr}}
+
+
+        /* BUSCA AVANÇADA, COLUNAS E EXPORTAÇÃO */
+        .budget-list-toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+        .budget-list-toolbar-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; position:relative; }
+        .budget-toolbar-button { min-height:38px; padding:0 13px; border:1px solid #dbe4f0; border-radius:10px; background:#fff; color:#0f172a; display:inline-flex; align-items:center; justify-content:center; gap:7px; font:inherit; font-size:13px; font-weight:900; cursor:pointer; }
+        .budget-toolbar-button:hover, .budget-toolbar-button.active { background:#eff6ff; border-color:#93c5fd; color:#1d4ed8; }
+        .budget-toolbar-button.dark { background:#0f172a; border-color:#0f172a; color:#fff; }
+        .budget-toolbar-button.dark:hover, .budget-toolbar-button.dark.active { background:#1e293b; color:#fff; }
+        .budget-dropdown { position:relative; }
+        .budget-dropdown-menu { position:absolute; z-index:120; top:calc(100% + 8px); right:0; min-width:220px; padding:10px; border:1px solid #dbe4f0; border-radius:12px; background:#fff; box-shadow:0 18px 45px rgba(15,23,42,.18); display:none; }
+        .budget-dropdown.open .budget-dropdown-menu { display:block; }
+        .budget-dropdown-title { margin:0 0 8px; padding:0 4px 8px; border-bottom:1px solid #e2e8f0; color:#475569; font-size:12px; font-weight:900; text-transform:uppercase; }
+        .budget-column-option { display:flex; align-items:center; gap:9px; min-height:32px; padding:5px 4px; color:#334155; font-size:13px; font-weight:800; cursor:pointer; }
+        .budget-column-option input { width:16px; height:16px; margin:0; }
+        .budget-menu-link { width:100%; min-height:38px; padding:8px 10px; border:0; border-radius:8px; background:transparent; color:#1e293b; display:flex; align-items:center; gap:8px; text-decoration:none; font:inherit; font-size:13px; font-weight:800; cursor:pointer; }
+        .budget-menu-link:hover { background:#f0fdf4; color:#166534; }
+        .budget-advanced-panel { display:none; margin-top:14px; padding:16px; border:1px solid #dbe4f0; border-radius:14px; background:#f8fafc; }
+        .budget-advanced-panel.open { display:block; }
+        .budget-advanced-grid { display:grid; grid-template-columns:repeat(4,minmax(170px,1fr)); gap:12px; }
+        .budget-advanced-actions { display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; }
+        .budget-filter-active { display:inline-flex; align-items:center; min-height:24px; padding:0 9px; border-radius:999px; background:#dbeafe; color:#1d4ed8; font-size:11px; font-weight:900; }
+        .budget-list-table [data-column].is-column-hidden { display:none !important; }
+        .budget-list-table td[data-column="cliente"] { min-width:220px; }
+        .budget-list-table td[data-column="responsavel"] { min-width:170px; }
+        .budget-list-table td[data-column="centro_custo"] { min-width:160px; }
+        .budget-list-table td[data-column="acoes"] { min-width:210px; }
+        @media(max-width:1050px){.budget-advanced-grid{grid-template-columns:repeat(2,minmax(180px,1fr));}}
+        @media(max-width:650px){.budget-advanced-grid{grid-template-columns:1fr}.budget-list-toolbar-actions{width:100%}.budget-toolbar-button{flex:1}.budget-dropdown{flex:1}.budget-dropdown>.budget-toolbar-button{width:100%}}
+
 </style>
 </head>
 <body>
@@ -612,6 +642,9 @@ Motivo: Simplificar e compactar a lista de orçamentos, removendo as colunas Tip
         {% set ordenar = ordenar|default('id', true) %}
         {% set direcao = direcao|default('desc', true) %}
         {% set por_pagina = por_pagina|default(20, true) %}
+        {% set filtros = filtros|default({}, true) %}
+        {% set filtros_url = filtros_url|default({}, true) %}
+        {% set filtros_ativos = filtros_ativos|default(false, true) %}
 
         <section class="panel page-section">
             <div class="panel-header page-header">
@@ -1014,211 +1047,117 @@ Motivo: Simplificar e compactar a lista de orçamentos, removendo as colunas Tip
 
 
         <section class="panel table-panel">
-            <div class="panel-header page-header">
+            <div class="panel-header page-header budget-list-toolbar">
                 <div>
                     <h3>Lista de orçamentos</h3>
-                    <p class="page-subtitle">Pesquise, visualize e mantenha os orçamentos cadastrados.</p>
+                    <p class="page-subtitle">Pesquise, filtre, personalize as colunas e exporte os orçamentos.</p>
                 </div>
+                <div class="budget-list-toolbar-actions">
+                    {% if filtros_ativos or busca %}<span class="budget-filter-active">Filtros aplicados</span>{% endif %}
+                    <button type="button" class="budget-toolbar-button{% if filtros_ativos %} active{% endif %}" id="budget-advanced-toggle" aria-expanded="{{ 'true' if filtros_ativos else 'false' }}">⌕ Busca avançada</button>
+                    <div class="budget-dropdown" data-budget-dropdown>
+                        <button type="button" class="budget-toolbar-button" data-budget-dropdown-toggle>▤ Colunas</button>
+                        <div class="budget-dropdown-menu" data-budget-columns-menu>
+                            <p class="budget-dropdown-title">Gerenciar colunas</p>
+                            {% for codigo, rotulo in [
+                                ('id','ID'),('numero','Número'),('cliente','Cliente'),('responsavel','Responsável'),
+                                ('status','Status'),('data','Data'),('prazo_entrega','Prazo de entrega'),
+                                ('validade','Validade'),('tipo','Tipo'),('centro_custo','Centro de custo'),
+                                ('origem','Origem'),('modo_apresentacao','Apresentação'),('valor_total','Valor total')
+                            ] %}
+                                <label class="budget-column-option"><input type="checkbox" value="{{ codigo }}" data-budget-column-checkbox> {{ rotulo }}</label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="budget-dropdown" data-budget-dropdown>
+                        <button type="button" class="budget-toolbar-button dark" data-budget-dropdown-toggle>⚙ Mais ações</button>
+                        <div class="budget-dropdown-menu">
+                            <button type="button" class="budget-menu-link" id="budget-export-csv">⇩ Exportar CSV</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-                <div class="client-toolbar">
-                    <button type="button" class="btn-light">Exportar</button>
-                    <button type="button" class="btn-light">Filtros</button>
-                </div>
+            <div id="budget-advanced-panel" class="budget-advanced-panel{% if filtros_ativos %} open{% endif %}">
+                <form action="/orcamentos" method="get" id="budget-advanced-form">
+                    <input type="hidden" name="ordenar" value="{{ ordenar }}">
+                    <input type="hidden" name="direcao" value="{{ direcao }}">
+                    <input type="hidden" name="por_pagina" value="{{ por_pagina }}">
+                    <div class="budget-advanced-grid">
+                        <div class="form-group"><label for="filtro_numero">Número</label><input id="filtro_numero" name="numero" value="{{ filtros.numero|default('') }}" class="form-control" placeholder="Ex: ORC-2026-0051"></div>
+                        <div class="form-group"><label for="filtro_cliente">Cliente</label><input id="filtro_cliente" name="cliente" value="{{ filtros.cliente|default('') }}" class="form-control" placeholder="Nome do cliente"></div>
+                        <div class="form-group"><label for="filtro_responsavel">Responsável</label><input id="filtro_responsavel" name="responsavel" value="{{ filtros.responsavel|default('') }}" class="form-control" placeholder="Nome do responsável"></div>
+                        <div class="form-group"><label for="filtro_status">Status</label><select id="filtro_status" name="status" class="form-control"><option value="">Todos</option>{% for valor, nome in [('aberto','Aberto'),('aprovado','Aprovado'),('recusado','Recusado'),('cancelado','Cancelado')] %}<option value="{{ valor }}"{% if filtros.status == valor %} selected{% endif %}>{{ nome }}</option>{% endfor %}</select></div>
+                        <div class="form-group"><label for="filtro_data_de">Data inicial</label><input id="filtro_data_de" name="data_de" type="date" value="{{ filtros.data_de|default('') }}" class="form-control"></div>
+                        <div class="form-group"><label for="filtro_data_ate">Data final</label><input id="filtro_data_ate" name="data_ate" type="date" value="{{ filtros.data_ate|default('') }}" class="form-control"></div>
+                        <div class="form-group"><label for="filtro_prazo">Prazo de entrega</label><input id="filtro_prazo" name="prazo_entrega" value="{{ filtros.prazo_entrega|default('') }}" class="form-control" placeholder="Ex: 10 dias"></div>
+                        <div class="form-group"><label for="filtro_centro">Centro de custo</label><select id="filtro_centro" name="centro_custo" class="form-control"><option value="">Todos</option>{% for centro in centros_custo|default([]) %}{% set nome_centro = (centro.codigo ~ ' - ' if centro.codigo else '') ~ centro.nome %}<option value="{{ centro.nome }}"{% if filtros.centro_custo == centro.nome %} selected{% endif %}>{{ nome_centro }}</option>{% endfor %}</select></div>
+                        <div class="form-group"><label for="filtro_produto">Produto</label><input id="filtro_produto" name="produto" value="{{ filtros.produto|default('') }}" class="form-control" placeholder="Produto do orçamento"></div>
+                        <div class="form-group"><label for="filtro_servico">Serviço</label><input id="filtro_servico" name="servico" value="{{ filtros.servico|default('') }}" class="form-control" placeholder="Serviço do orçamento"></div>
+                        <div class="form-group"><label for="filtro_origem">Origem</label><select id="filtro_origem" name="origem" class="form-control"><option value="">Todas</option><option value="manual"{% if filtros.origem == 'manual' %} selected{% endif %}>Manual</option><option value="gerador"{% if filtros.origem == 'gerador' %} selected{% endif %}>Gerador</option></select></div>
+                        <div class="form-group"><label for="filtro_modo">Apresentação</label><select id="filtro_modo" name="modo_apresentacao" class="form-control"><option value="">Todas</option>{% for valor, nome in [('agrupado','Agrupado'),('global','Valor global'),('detalhado','Detalhado')] %}<option value="{{ valor }}"{% if filtros.modo_apresentacao == valor %} selected{% endif %}>{{ nome }}</option>{% endfor %}</select></div>
+                        <div class="form-group"><label for="filtro_tipo">Tipo</label><select id="filtro_tipo" name="tipo" class="form-control"><option value="">Todos</option>{% for valor, nome in [('misto','Misto'),('produto','Produto'),('servico','Serviço')] %}<option value="{{ valor }}"{% if filtros.tipo == valor %} selected{% endif %}>{{ nome }}</option>{% endfor %}</select></div>
+                        <div class="form-group"><label for="filtro_valor_min">Valor mínimo</label><input id="filtro_valor_min" name="valor_min" value="{{ filtros.valor_min|default('') }}" class="form-control" placeholder="0,00"></div>
+                        <div class="form-group"><label for="filtro_valor_max">Valor máximo</label><input id="filtro_valor_max" name="valor_max" value="{{ filtros.valor_max|default('') }}" class="form-control" placeholder="0,00"></div>
+                    </div>
+                    <div class="budget-advanced-actions"><button type="submit" class="btn-primary-green">Buscar</button><a href="{{ url_for('orcamentos') }}" class="btn-light">Limpar</a></div>
+                </form>
             </div>
 
             <div class="client-actions">
                 <form action="/orcamentos" method="get" class="orcamento-search-form">
+                    {% for chave, valor in filtros_url.items() %}{% if chave != 'busca' %}<input type="hidden" name="{{ chave }}" value="{{ valor }}">{% endif %}{% endfor %}
                     <input type="text" name="busca" value="{{ busca }}" placeholder="Buscar por número, cliente, status, data ou responsável" class="client-search">
-                    <input type="hidden" name="ordenar" value="{{ ordenar }}">
-                    <input type="hidden" name="direcao" value="{{ direcao }}">
-
-                    <select name="por_pagina" class="form-control per-page-select" onchange="this.form.submit()">
-                        <option value="10" {% if por_pagina == 10 %}selected{% endif %}>10 por página</option>
-                        <option value="20" {% if por_pagina == 20 %}selected{% endif %}>20 por página</option>
-                        <option value="50" {% if por_pagina == 50 %}selected{% endif %}>50 por página</option>
-                        <option value="100" {% if por_pagina == 100 %}selected{% endif %}>100 por página</option>
-                    </select>
-
+                    <input type="hidden" name="ordenar" value="{{ ordenar }}"><input type="hidden" name="direcao" value="{{ direcao }}">
+                    <select name="por_pagina" class="form-control per-page-select" onchange="this.form.submit()">{% for quantidade in [10,20,50,100] %}<option value="{{ quantidade }}"{% if por_pagina == quantidade %} selected{% endif %}>{{ quantidade }} por página</option>{% endfor %}</select>
                     <button type="submit" class="btn-dark">Buscar</button>
-
-                    {% if busca %}
-                        <a href="{{ url_for('orcamentos', por_pagina=por_pagina, ordenar=ordenar, direcao=direcao) }}" class="clear-search-link">Limpar</a>
-                    {% endif %}
+                    {% if busca %}<a href="{{ url_for('orcamentos') }}" class="clear-search-link">Limpar busca</a>{% endif %}
                 </form>
             </div>
 
             <div class="table-shell orcamentos-lista-shell">
-                <table class="client-table orcamentos-lista-table">
-                    <thead>
-                        <tr>
-                            <th>
-                                <a href="{{ url_for('orcamentos', pagina=1, por_pagina=por_pagina, ordenar='id', direcao='desc' if ordenar == 'id' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
-                                    ID
-                                    {% if ordenar == 'id' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
-                                </a>
-                            </th>
-                            <th>
-                                <a href="{{ url_for('orcamentos', pagina=1, por_pagina=por_pagina, ordenar='numero', direcao='desc' if ordenar == 'numero' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
-                                    Número
-                                    {% if ordenar == 'numero' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
-                                </a>
-                            </th>
-                            <th>
-                                <a href="{{ url_for('orcamentos', pagina=1, por_pagina=por_pagina, ordenar='cliente', direcao='desc' if ordenar == 'cliente' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
-                                    Cliente
-                                    {% if ordenar == 'cliente' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
-                                </a>
-                            </th>
-                            <th>
-                                <a href="{{ url_for('orcamentos', pagina=1, por_pagina=por_pagina, ordenar='status', direcao='desc' if ordenar == 'status' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
-                                    Status
-                                    {% if ordenar == 'status' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
-                                </a>
-                            </th>
-                            <th>
-                                <a href="{{ url_for('orcamentos', pagina=1, por_pagina=por_pagina, ordenar='data', direcao='desc' if ordenar == 'data' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
-                                    Data
-                                    {% if ordenar == 'data' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
-                                </a>
-                            </th>
-                            <th>
-                                <a href="{{ url_for('orcamentos', pagina=1, por_pagina=por_pagina, ordenar='valor_total', direcao='desc' if ordenar == 'valor_total' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
-                                    Valor total
-                                    {% if ordenar == 'valor_total' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
-                                </a>
-                            </th>
-                            <th>Ações</th>
-                        </tr>
-                    </thead>
+                <table class="client-table orcamentos-lista-table budget-list-table" id="budget-list-table">
+                    <thead><tr>
+                        {% for codigo, rotulo, campo_ordem in [
+                            ('id','ID','id'),('numero','Número','numero'),('cliente','Cliente','cliente'),('responsavel','Responsável','responsavel'),('status','Status','status'),('data','Data','data'),('prazo_entrega','Prazo de entrega','prazo_entrega'),('validade','Validade','validade'),('tipo','Tipo','tipo'),('centro_custo','Centro de custo','centro_custo'),('origem','Origem','origem'),('modo_apresentacao','Apresentação','modo_apresentacao'),('valor_total','Valor total','valor_total')
+                        ] %}
+                        <th data-column="{{ codigo }}"><a href="#" class="sortable-link budget-query-link" data-page="1" data-order="{{ campo_ordem }}" data-direction="{{ 'desc' if ordenar == campo_ordem and direcao == 'asc' else 'asc' }}">{{ rotulo }}{% if ordenar == campo_ordem %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                        {% endfor %}
+                        <th data-column="acoes">Ações</th>
+                    </tr></thead>
                     <tbody>
-                        {% if orcamentos_lista %}
-                            {% for orcamento in orcamentos_lista %}
-                                {% set orcamento_status_final = (orcamento.status|default('', true)|lower|trim) in ['aprovado', 'aprovada', 'reprovado', 'reprovada', 'recusado', 'recusada', 'cancelado', 'cancelada'] %}
-                                <tr>
-                                    <td>{{ orcamento.id }}</td>
-                                    <td>
-                                        <strong>{{ orcamento.numero }}</strong><br>
-                                        <span class="budget-origin-badge {{ orcamento.origem|default('manual', true) }}">{{ 'Gerador' if orcamento.origem == 'gerador' else 'Manual' }}</span>
-                                        <span class="budget-mode-badge">{{ orcamento.modo_apresentacao|default('agrupado', true)|replace('_',' ') }}</span>
-                                    </td>
-                                    <td>{{ orcamento.cliente }}</td>
-                                    <td><span class="status-pill {{ orcamento.status }}">{{ orcamento.status }}</span></td>
-                                    <td>{{ orcamento.data }}</td>
-                                    <td>{{ orcamento.valor_total }}</td>
-                                    <td>
-                                        <div class="action-buttons">
-                                            <a href="/orcamentos/{{ orcamento.id }}" title="Ver orçamento" aria-label="Ver orçamento" class="action-button view">🔍</a>
-                                            {% if not orcamento_status_final %}
-                                                <a href="/orcamentos/{{ orcamento.id }}/editar" title="Editar orçamento" aria-label="Editar orçamento" class="action-button edit">✎</a>
-                                                {% if orcamento.origem == 'gerador' %}<a href="/orcamentos/{{ orcamento.id }}/gerador/revisao" title="Editar dados do Gerador" aria-label="Editar dados do Gerador" class="action-button generator">⚙</a>{% endif %}
-                                                <form action="/orcamentos/{{ orcamento.id }}/excluir" method="post" onsubmit="return confirm('Tem certeza que deseja excluir este orçamento?');" class="action-form">
-                                                    <button type="submit" title="Excluir orçamento" aria-label="Excluir orçamento" class="action-button delete">×</button>
-                                                </form>
-                                            {% endif %}
-                                            <div class="budget-action-menu">
-                                                <button
-                                                    type="button"
-                                                    class="gf-action-dialog-trigger"
-                                                    title="Mais ações do orçamento"
-                                                    aria-label="Mais ações do orçamento"
-                                                    aria-haspopup="dialog"
-                                                    data-gf-action-dialog="orcamento-acoes-{{ orcamento.id }}"
-                                                >⌄</button>
-                                                <dialog
-                                                    class="gf-action-dialog"
-                                                    id="orcamento-acoes-{{ orcamento.id }}"
-                                                    aria-labelledby="orcamento-acoes-titulo-{{ orcamento.id }}"
-                                                >
-                                                    <div class="gf-action-dialog-card">
-                                                        <div class="gf-action-dialog-header">
-                                                            <div>
-                                                                <h3 id="orcamento-acoes-titulo-{{ orcamento.id }}">Ações do orçamento</h3>
-                                                                <p>{{ orcamento.numero or ('Orçamento ' ~ orcamento.id) }}</p>
-                                                            </div>
-                                                            <button type="button" class="gf-action-dialog-close" data-gf-action-dialog-close aria-label="Fechar">×</button>
-                                                        </div>
-                                                        <div class="gf-action-dialog-actions">
-                                                            <button type="button" data-gf-print-url="/orcamentos/{{ orcamento.id }}/imprimir/a4" aria-label="Abrir impressão A4 em nova aba">🖨 Imprimir A4</button>
-                                                            <button type="button" data-gf-print-url="/orcamentos/{{ orcamento.id }}/imprimir/cupom" aria-label="Abrir impressão Cupom em nova aba">🧾 Imprimir Cupom</button>
-                                                            <a href="/whatsapp/pdf/orcamento/{{ orcamento.id }}">📲 Enviar PDF por WhatsApp</a>
-                                                            <a href="/orcamentos/{{ orcamento.id }}/gerar/copia">↻ Gerar cópia</a>
-                                                            {% if orcamento.venda_gerada_id %}
-                                                                <a href="/vendas/{{ orcamento.venda_gerada_id }}">✓ Abrir venda gerada</a>
-                                                            {% else %}
-                                                                <a href="/orcamentos/{{ orcamento.id }}/gerar/venda">🛒 Gerar venda</a>
-                                                            {% endif %}
-                                                            <a href="/orcamentos/{{ orcamento.id }}?gerar=os">🛠 Gerar OS</a>
-                                                        </div>
-                                                    </div>
-                                                </dialog>
-                                            </div>
-                                        </div>
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        {% else %}
-                            <tr>
-                                <td colspan="7" class="empty-table empty-table-box">
-                                    <div class="empty-table-content">
-                                        <div class="empty-table-icon">▣</div>
-                                        <strong>Nenhum orçamento cadastrado.</strong>
-                                        <span>Use o botão Novo Orçamento para iniciar o cadastro.</span>
-                                    </div>
-                                </td>
-                            </tr>
-                        {% endif %}
+                        {% if orcamentos_lista %}{% for orcamento in orcamentos_lista %}
+                        {% set orcamento_status_final = (orcamento.status|default('', true)|lower|trim) in ['aprovado','aprovada','reprovado','reprovada','recusado','recusada','cancelado','cancelada'] %}
+                        <tr>
+                            <td data-column="id">{{ orcamento.id }}</td>
+                            <td data-column="numero"><strong>{{ orcamento.numero }}</strong><br><span class="budget-origin-badge {{ orcamento.origem|default('manual', true) }}">{{ 'Gerador' if orcamento.origem == 'gerador' else 'Manual' }}</span><span class="budget-mode-badge">{{ orcamento.modo_apresentacao|default('agrupado', true)|replace('_',' ') }}</span></td>
+                            <td data-column="cliente">{{ orcamento.cliente }}</td><td data-column="responsavel">{{ orcamento.responsavel or '-' }}</td>
+                            <td data-column="status"><span class="status-pill {{ orcamento.status }}">{{ orcamento.status }}</span></td><td data-column="data">{{ orcamento.data }}</td>
+                            <td data-column="prazo_entrega">{{ orcamento.prazo_entrega or '-' }}</td><td data-column="validade">{{ orcamento.validade or '-' }}</td><td data-column="tipo">{{ orcamento.tipo or '-' }}</td>
+                            <td data-column="centro_custo">{{ orcamento.centro_custo or '-' }}</td><td data-column="origem">{{ 'Gerador' if orcamento.origem == 'gerador' else 'Manual' }}</td><td data-column="modo_apresentacao">{{ orcamento.modo_apresentacao|default('agrupado', true)|replace('_',' ') }}</td><td data-column="valor_total">{{ orcamento.valor_total }}</td>
+                            <td data-column="acoes"><div class="action-buttons"><a href="/orcamentos/{{ orcamento.id }}" title="Ver orçamento" class="action-button view">🔍</a>{% if not orcamento_status_final %}<a href="/orcamentos/{{ orcamento.id }}/editar" title="Editar orçamento" class="action-button edit">✎</a>{% if orcamento.origem == 'gerador' %}<a href="/orcamentos/{{ orcamento.id }}/gerador/revisao" title="Editar dados do Gerador" class="action-button generator">⚙</a>{% endif %}<form action="/orcamentos/{{ orcamento.id }}/excluir" method="post" onsubmit="return confirm('Tem certeza que deseja excluir este orçamento?');" class="action-form"><button type="submit" title="Excluir orçamento" class="action-button delete">×</button></form>{% endif %}<div class="budget-action-menu"><button type="button" class="gf-action-dialog-trigger" title="Mais ações do orçamento" data-gf-action-dialog="orcamento-acoes-{{ orcamento.id }}">⌄</button><dialog class="gf-action-dialog" id="orcamento-acoes-{{ orcamento.id }}"><div class="gf-action-dialog-card"><div class="gf-action-dialog-header"><div><h3>Ações do orçamento</h3><p>{{ orcamento.numero or ('Orçamento ' ~ orcamento.id) }}</p></div><button type="button" class="gf-action-dialog-close" data-gf-action-dialog-close>×</button></div><div class="gf-action-dialog-actions"><button type="button" data-gf-print-url="/orcamentos/{{ orcamento.id }}/imprimir/a4">🖨 Imprimir A4</button><button type="button" data-gf-print-url="/orcamentos/{{ orcamento.id }}/imprimir/cupom">🧾 Imprimir Cupom</button><a href="/whatsapp/pdf/orcamento/{{ orcamento.id }}">📲 Enviar PDF por WhatsApp</a><a href="/orcamentos/{{ orcamento.id }}/gerar/copia">↻ Gerar cópia</a>{% if orcamento.venda_gerada_id %}<a href="/vendas/{{ orcamento.venda_gerada_id }}">✓ Abrir venda gerada</a>{% else %}<a href="/orcamentos/{{ orcamento.id }}/gerar/venda">🛒 Gerar venda</a>{% endif %}<a href="/orcamentos/{{ orcamento.id }}?gerar=os">🛠 Gerar OS</a></div></div></dialog></div></div></td>
+                        </tr>{% endfor %}{% else %}<tr><td colspan="14" class="empty-table empty-table-box"><div class="empty-table-content"><div class="empty-table-icon">▣</div><strong>Nenhum orçamento encontrado.</strong><span>Revise os filtros ou cadastre um novo orçamento.</span></div></td></tr>{% endif %}
                     </tbody>
                 </table>
             </div>
-
-            <div class="pagination-bar">
-                <div>
-                    {% if paginacao.total|default(0, true) > 0 %}
-                        Mostrando {{ paginacao.inicio }} a {{ paginacao.fim }} de um total de {{ paginacao.total }}
-                    {% else %}
-                        Nenhum orçamento encontrado
-                    {% endif %}
-                </div>
-
-                {% if paginacao.total_paginas|default(1, true) > 1 %}
-                    <div class="pagination-links">
-                        {% if paginacao.tem_anterior %}
-                            <a href="{{ url_for('orcamentos', pagina=paginacao.anterior, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">‹</a>
-                        {% else %}
-                            <span class="disabled-page">‹</span>
-                        {% endif %}
-
-                        {% if 1 not in paginacao.paginas %}
-                            <a href="{{ url_for('orcamentos', pagina=1, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">1</a>
-                            {% if paginacao.paginas[0] > 2 %}
-                                <span class="disabled-page">...</span>
-                            {% endif %}
-                        {% endif %}
-
-                        {% for numero_pagina in paginacao.paginas %}
-                            {% if numero_pagina == paginacao.pagina %}
-                                <span class="current-page">{{ numero_pagina }}</span>
-                            {% else %}
-                                <a href="{{ url_for('orcamentos', pagina=numero_pagina, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">{{ numero_pagina }}</a>
-                            {% endif %}
-                        {% endfor %}
-
-                        {% if paginacao.total_paginas not in paginacao.paginas %}
-                            {% if paginacao.paginas[-1] < paginacao.total_paginas - 1 %}
-                                <span class="disabled-page">...</span>
-                            {% endif %}
-                            <a href="{{ url_for('orcamentos', pagina=paginacao.total_paginas, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">{{ paginacao.total_paginas }}</a>
-                        {% endif %}
-
-                        {% if paginacao.tem_proxima %}
-                            <a href="{{ url_for('orcamentos', pagina=paginacao.proxima, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">›</a>
-                        {% else %}
-                            <span class="disabled-page">›</span>
-                        {% endif %}
-                    </div>
-                {% endif %}
-            </div>
+            <div class="pagination-bar"><div>{% if paginacao.total|default(0,true)>0 %}Mostrando {{ paginacao.inicio }} a {{ paginacao.fim }} de {{ paginacao.total }}{% else %}Nenhum orçamento encontrado{% endif %}</div>{% if paginacao.total_paginas|default(1,true)>1 %}<div class="pagination-links">{% if paginacao.tem_anterior %}<a href="#" class="budget-query-link" data-page="{{ paginacao.anterior }}">‹</a>{% else %}<span class="disabled-page">‹</span>{% endif %}{% for numero_pagina in paginacao.paginas %}{% if numero_pagina == paginacao.pagina %}<span class="current-page">{{ numero_pagina }}</span>{% else %}<a href="#" class="budget-query-link" data-page="{{ numero_pagina }}">{{ numero_pagina }}</a>{% endif %}{% endfor %}{% if paginacao.tem_proxima %}<a href="#" class="budget-query-link" data-page="{{ paginacao.proxima }}">›</a>{% else %}<span class="disabled-page">›</span>{% endif %}</div>{% endif %}</div>
         </section>
+
+        <script>
+            (function configurarListaOrcamentos() {
+                const colunasPadrao = ['id','numero','cliente','status','data','valor_total'];
+                const chaveStorage = 'gestflow.orcamentos.colunas.v1';
+                const todasColunas = Array.from(document.querySelectorAll('[data-budget-column-checkbox]')).map(c => c.value);
+                function lerColunas() { try { const v=JSON.parse(localStorage.getItem(chaveStorage)||'[]'); return Array.isArray(v)&&v.length?v.filter(c=>todasColunas.includes(c)):colunasPadrao; } catch(e){ return colunasPadrao; } }
+                function aplicarColunas(colunas) { const ativas=new Set(colunas); document.querySelectorAll('#budget-list-table [data-column]').forEach(el=>{ if(el.dataset.column==='acoes') return; el.classList.toggle('is-column-hidden',!ativas.has(el.dataset.column)); }); document.querySelectorAll('[data-budget-column-checkbox]').forEach(c=>c.checked=ativas.has(c.value)); }
+                let colunasAtivas=lerColunas(); aplicarColunas(colunasAtivas);
+                document.querySelectorAll('[data-budget-column-checkbox]').forEach(c=>c.addEventListener('change',function(){ const marcadas=Array.from(document.querySelectorAll('[data-budget-column-checkbox]:checked')).map(i=>i.value); if(!marcadas.length){this.checked=true;return;} colunasAtivas=marcadas; localStorage.setItem(chaveStorage,JSON.stringify(marcadas)); aplicarColunas(marcadas); }));
+                const toggle=document.getElementById('budget-advanced-toggle'), painel=document.getElementById('budget-advanced-panel'); if(toggle&&painel) toggle.addEventListener('click',()=>{const aberto=painel.classList.toggle('open');toggle.classList.toggle('active',aberto);toggle.setAttribute('aria-expanded',String(aberto));});
+                document.querySelectorAll('[data-budget-dropdown-toggle]').forEach(btn=>btn.addEventListener('click',e=>{e.stopPropagation();const atual=btn.closest('[data-budget-dropdown]');document.querySelectorAll('[data-budget-dropdown].open').forEach(d=>{if(d!==atual)d.classList.remove('open')});atual.classList.toggle('open');})); document.addEventListener('click',e=>{if(!e.target.closest('[data-budget-dropdown]'))document.querySelectorAll('[data-budget-dropdown].open').forEach(d=>d.classList.remove('open'));});
+                document.querySelectorAll('.budget-query-link').forEach(link=>link.addEventListener('click',e=>{e.preventDefault();const params=new URLSearchParams(window.location.search);if(link.dataset.page)params.set('pagina',link.dataset.page);if(link.dataset.order)params.set('ordenar',link.dataset.order);if(link.dataset.direction)params.set('direcao',link.dataset.direction);window.location.href='/orcamentos?'+params.toString();}));
+                const exportar=document.getElementById('budget-export-csv'); if(exportar) exportar.addEventListener('click',()=>{const params=new URLSearchParams(window.location.search);params.delete('pagina');params.delete('por_pagina');params.set('colunas',colunasAtivas.join(','));window.location.href='/orcamentos/exportar.csv?'+params.toString();});
+            })();
+        </script>
 
         <script>
             window.opcoesProdutos = [
