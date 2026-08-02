@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordens_servico.html
-Último recode: 2026-07-30 19:29 (America/Bahia)
-Motivo: Ocultar edição, exclusão e atualização de links de ordens de serviço em situação final.
+Último recode: 2026-08-02 13:41 (America/Bahia)
+Motivo: Adicionar busca avançada, seleção de colunas e exportação CSV à listagem.
 -->
 
 <!DOCTYPE html>
@@ -2791,6 +2791,8 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 });
 </script>
+
+    {% include "partials/lista_avancada.html" %}
 
 </body>
 </html>

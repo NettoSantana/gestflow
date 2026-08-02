@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\funcionarios.html
-Último recode: 2026-07-27 21:40 (America/Bahia)
-Motivo: Padronizar o módulo no Design System global do GestFlow baseado em Orçamentos.
+Último recode: 2026-08-02 13:41 (America/Bahia)
+Motivo: Adicionar busca avançada, seleção de colunas e exportação CSV à listagem.
 -->
 
 <!DOCTYPE html>
@@ -720,6 +720,8 @@ document.querySelectorAll('.funcionario-custo-input').forEach(function(input) {
             }
         });
     </script>
+
+    {% include "partials/lista_avancada.html" %}
 
 </body>
 </html>

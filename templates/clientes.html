@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\clientes.html
-Último recode: 2026-07-15 08:04 (America/Bahia)
-Motivo: Adicionar consulta automática de CNPJ com preenchimento dos dados do cliente.
+Último recode: 2026-08-02 13:41 (America/Bahia)
+Motivo: Adicionar busca avançada, seleção de colunas e exportação CSV à listagem.
 -->
 
 <!DOCTYPE html>
@@ -819,6 +819,8 @@ Motivo: Adicionar consulta automática de CNPJ com preenchimento dos dados do cl
             configurarConsultaCnpj();
         });
     </script>
+
+    {% include "partials/lista_avancada.html" %}
 
 </body>
 </html>

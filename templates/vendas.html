@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vendas.html
-Último recode: 2026-07-30 19:01 (America/Bahia)
-Motivo: Ocultar as ações de editar e excluir para vendas concretizadas, finalizadas antigas ou canceladas.
+Último recode: 2026-08-02 13:41 (America/Bahia)
+Motivo: Adicionar busca avançada, seleção de colunas e exportação CSV à listagem.
 -->
 
 <!DOCTYPE html>
@@ -2028,6 +2028,8 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 });
 </script>
+
+    {% include "partials/lista_avancada.html" %}
 
 </body>
 </html>
