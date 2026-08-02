@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamentos.html
-Último recode: 2026-08-02 12:25 (America/Bahia)
-Motivo: Adicionar busca avançada, gerenciamento de colunas e exportação CSV na lista de orçamentos.
+Último recode: 2026-08-02 17:09 (America/Bahia)
+Motivo: Igualar os botões Busca avançada, Colunas e Mais ações ao padrão preto das demais listagens.
 -->
 
 <!DOCTYPE html>
@@ -1054,9 +1054,9 @@ Motivo: Adicionar busca avançada, gerenciamento de colunas e exportação CSV n
                 </div>
                 <div class="budget-list-toolbar-actions">
                     {% if filtros_ativos or busca %}<span class="budget-filter-active">Filtros aplicados</span>{% endif %}
-                    <button type="button" class="budget-toolbar-button{% if filtros_ativos %} active{% endif %}" id="budget-advanced-toggle" aria-expanded="{{ 'true' if filtros_ativos else 'false' }}">⌕ Busca avançada</button>
+                    <button type="button" class="budget-toolbar-button dark{% if filtros_ativos %} active{% endif %}" id="budget-advanced-toggle" aria-expanded="{{ 'true' if filtros_ativos else 'false' }}">⌕ Busca avançada</button>
                     <div class="budget-dropdown" data-budget-dropdown>
-                        <button type="button" class="budget-toolbar-button" data-budget-dropdown-toggle>▤ Colunas</button>
+                        <button type="button" class="budget-toolbar-button dark" data-budget-dropdown-toggle>▤ Colunas</button>
                         <div class="budget-dropdown-menu" data-budget-columns-menu>
                             <p class="budget-dropdown-title">Gerenciar colunas</p>
                             {% for codigo, rotulo in [

@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\partials\lista_avancada.html
-Último recode: 2026-08-02 13:47 (America/Bahia)
-Motivo: Manter intactos os botões de ações das tabelas e padronizar em preto os controles de busca avançada, colunas e exportação.
+Último recode: 2026-08-02 17:09 (America/Bahia)
+Motivo: Padronizar as listagens com botões pretos e usar o rótulo curto Colunas em todas as telas.
 -->
 
 <style>
@@ -57,7 +57,7 @@ Motivo: Manter intactos os botões de ações das tabelas e padronizar em preto 
         const shell = tabela.closest(".table-shell") || tabela.parentElement;
         const tools = document.createElement("div");
         tools.className = "gf-list-tools";
-        tools.innerHTML = '<span class="gf-list-result"></span><button type="button" data-gf-panel="filtros" aria-expanded="false">Busca avançada</button><button type="button" data-gf-panel="colunas" aria-expanded="false">Gerenciar colunas</button><button type="button" data-gf-exportar>Exportar CSV</button>';
+        tools.innerHTML = '<span class="gf-list-result"></span><button type="button" data-gf-panel="filtros" aria-expanded="false">Busca avançada</button><button type="button" data-gf-panel="colunas" aria-expanded="false">Colunas</button><button type="button" data-gf-exportar>Exportar CSV</button>';
 
         const painelFiltros = document.createElement("div");
         painelFiltros.className = "gf-list-panel";
