@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vitrine.html
-Último recode: 2026-07-30 14:16 (America/Bahia)
-Motivo: Preparar vendas de pedidos e agendamentos somente após o atendimento e controlar todos os estados da Central.
+Último recode: 2026-08-06 19:40 (America/Bahia)
+Motivo: Permitir remover a foto atual de produtos e serviços publicados na Vitrine Online.
 #}
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -716,6 +716,18 @@ Motivo: Preparar vendas de pedidos e agendamentos somente após o atendimento e 
                                     <label>
                                         Foto do produto
                                         <input type="file" name="imagem_produto" accept="image/*">
+                                        {% if produto.get('imagem_path') %}
+                                            <span class="vitrine-current-image">
+                                                <img src="{{ url_for('servir_upload_vitrine_publico', caminho=produto.get('imagem_path')) }}" alt="Foto atual de {{ produto.get('nome') }}">
+                                                <span>
+                                                    <strong>Foto atual</strong>
+                                                    <label class="inline-check vitrine-remove-image-check">
+                                                        <input type="checkbox" name="remover_imagem" value="sim">
+                                                        Remover foto ao salvar
+                                                    </label>
+                                                </span>
+                                            </span>
+                                        {% endif %}
                                     </label>
                                 </div>
 
@@ -834,7 +846,22 @@ Motivo: Preparar vendas de pedidos e agendamentos somente após o atendimento e 
                                 </div>
                                 <div class="form-grid-2 product-admin-fields">
                                     <label>Categoria<input type="text" name="categoria" value="{{ servico.get('categoria') or 'Serviços' }}"></label>
-                                    <label>Foto do serviço<input type="file" name="imagem_servico" accept="image/*"></label>
+                                    <label>
+                                        Foto do serviço
+                                        <input type="file" name="imagem_servico" accept="image/*">
+                                        {% if servico.get('imagem_path') %}
+                                            <span class="vitrine-current-image">
+                                                <img src="{{ url_for('servir_upload_vitrine_publico', caminho=servico.get('imagem_path')) }}" alt="Foto atual de {{ servico.get('nome') }}">
+                                                <span>
+                                                    <strong>Foto atual</strong>
+                                                    <label class="inline-check vitrine-remove-image-check">
+                                                        <input type="checkbox" name="remover_imagem" value="sim">
+                                                        Remover foto ao salvar
+                                                    </label>
+                                                </span>
+                                            </span>
+                                        {% endif %}
+                                    </label>
                                 </div>
                                 <label class="product-admin-description">Descrição<textarea name="descricao" rows="3" placeholder="Explique o que será realizado">{{ servico.get('descricao') or '' }}</textarea></label>
                                 <div class="product-admin-actions">
@@ -1118,8 +1145,24 @@ Motivo: Preparar vendas de pedidos e agendamentos somente após o atendimento e 
                 atualizarPreview();
             }
 
+            function configurarRemocaoFotosVitrine() {
+                document.querySelectorAll('input[name="remover_imagem"]').forEach(function (campo) {
+                    const formulario = campo.closest("form");
+                    if (!formulario) return;
+
+                    formulario.addEventListener("submit", function (event) {
+                        if (!campo.checked) return;
+                        const confirmar = window.confirm("Remover definitivamente a foto atual deste item?");
+                        if (!confirmar) {
+                            event.preventDefault();
+                        }
+                    });
+                });
+            }
+
             configurarIdentidadeVisualVitrine();
             configurarCentralVitrine();
+            configurarRemocaoFotosVitrine();
 
             document.addEventListener("keydown", function (event) {
                 if (event.key === "Escape") {
@@ -1881,6 +1924,35 @@ Motivo: Preparar vendas de pedidos e agendamentos somente após o atendimento e 
         .inline-check input {
             width: auto;
             min-height: auto;
+        }
+
+        .vitrine-current-image {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            background: #ffffff;
+        }
+
+        .vitrine-current-image > img {
+            width: 64px;
+            height: 64px;
+            flex: 0 0 64px;
+            object-fit: cover;
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .vitrine-current-image > span {
+            display: grid;
+            gap: 8px;
+        }
+
+        .vitrine-remove-image-check {
+            color: #b91c1c !important;
+            font-size: 12px !important;
         }
 
         .empty-state {
