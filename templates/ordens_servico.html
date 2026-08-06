@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordens_servico.html
-Último recode: 2026-08-02 13:47 (America/Bahia)
-Motivo: Adicionar filtros avançados sem alterar os botões de ações e padronizar os novos controles em preto.
+Último recode: 2026-08-06 20:21 (America/Bahia)
+Motivo: Corrigir a altura da barra lateral na tela de Ordens de Serviço.
 -->
 
 <!DOCTYPE html>
@@ -13,6 +13,19 @@ Motivo: Adicionar filtros avançados sem alterar os botões de ações e padroni
     <link rel="stylesheet" href="/static/css/dashboard.css">
 
     <style>
+        /* Mantém a barra lateral fixa e com altura total nesta tela. */
+        body > .sidebar {
+            position: fixed !important;
+            top: 0 !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            width: 238px !important;
+            height: 100vh !important;
+            min-height: 100vh !important;
+            max-height: 100vh !important;
+            overflow: hidden !important;
+        }
+
         .os-form-section {
             border: 1px solid #dbe3ef;
             border-radius: 12px;
