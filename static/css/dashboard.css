@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\static\css\dashboard.css
-Último recode: 2026-07-29 11:48 (America/Bahia)
-Motivo: Melhorar o bloco de logo e o campo de descrição da empresa na configuração da Vitrine.
+Último recode: 2026-08-06 20:42 (America/Bahia)
+Motivo: Permitir rolagem da sidebar inteira no desktop e evitar que o rodapé esconda módulos.
 */
 
 :root {
@@ -1717,6 +1717,29 @@ canvas {
 .sidebar-footer .footer-item:hover {
     background: rgba(255, 255, 255, 0.08);
     color: #ffffff;
+}
+
+/* DESKTOP: uma única rolagem para toda a sidebar.
+   O rodapé segue o fluxo e não reduz a área disponível para os módulos. */
+@media (min-width: 1025px) {
+    .sidebar {
+        display: block;
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+
+    .sidebar-nav {
+        overflow: visible;
+        padding-right: 0;
+        padding-bottom: 0;
+    }
+
+    .sidebar-footer {
+        margin-top: 24px;
+        padding-top: 14px;
+        padding-bottom: 14px;
+        background: transparent;
+    }
 }
 
 @media (max-width: 1024px) {
