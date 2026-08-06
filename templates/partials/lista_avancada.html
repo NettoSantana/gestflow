@@ -1,15 +1,15 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\partials\lista_avancada.html
-Último recode: 2026-08-02 17:09 (America/Bahia)
-Motivo: Padronizar as listagens com botões pretos e usar o rótulo curto Colunas em todas as telas.
+Último recode: 2026-08-06 20:52 (America/Bahia)
+Motivo: Evitar conflito entre o painel interno dos filtros avançados e os painéis principais das listagens.
 -->
 
 <style>
     .gf-list-tools{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin:0 0 14px}
     .gf-list-tools button{min-height:38px;padding:0 13px;border:1px solid #0f172a;border-radius:10px;background:#0f172a;color:#fff;font:inherit;font-size:13px;font-weight:800;cursor:pointer}
     .gf-list-tools button:hover,.gf-list-tools button[aria-expanded="true"]{background:#020617;border-color:#020617;color:#fff}
-    .gf-list-panel{display:none;margin:0 0 14px;padding:16px;border:1px solid #dbe4f0;border-radius:14px;background:#f8fafc}
-    .gf-list-panel.is-open{display:block}
+    .gf-list-tools-panel{display:none;margin:0 0 14px;padding:16px;border:1px solid #dbe4f0;border-radius:14px;background:#f8fafc}
+    .gf-list-tools-panel.is-open{display:block}
     .gf-list-panel-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}
     .gf-list-panel-header h4{margin:0;color:#0f172a;font-size:16px}
     .gf-list-panel-header p{margin:4px 0 0;color:#64748b;font-size:12px}
@@ -25,7 +25,7 @@ Motivo: Padronizar as listagens com botões pretos e usar o rótulo curto Coluna
     .gf-list-column-option input{width:16px;height:16px}
     .gf-list-result{margin-right:auto;font-size:12px;font-weight:800;color:#64748b}
     .gf-list-hidden-column{display:none!important}
-    @media(max-width:720px){.gf-list-tools{justify-content:stretch}.gf-list-tools button{flex:1 1 auto}.gf-list-panel{padding:12px}}
+    @media(max-width:720px){.gf-list-tools{justify-content:stretch}.gf-list-tools button{flex:1 1 auto}.gf-list-tools-panel{padding:12px}}
 </style>
 
 <script>
@@ -60,12 +60,12 @@ Motivo: Padronizar as listagens com botões pretos e usar o rótulo curto Coluna
         tools.innerHTML = '<span class="gf-list-result"></span><button type="button" data-gf-panel="filtros" aria-expanded="false">Busca avançada</button><button type="button" data-gf-panel="colunas" aria-expanded="false">Colunas</button><button type="button" data-gf-exportar>Exportar CSV</button>';
 
         const painelFiltros = document.createElement("div");
-        painelFiltros.className = "gf-list-panel";
+        painelFiltros.className = "gf-list-tools-panel";
         painelFiltros.dataset.gfPanelContent = "filtros";
         painelFiltros.innerHTML = '<div class="gf-list-panel-header"><div><h4>Busca avançada</h4><p>Preencha somente os campos que deseja filtrar.</p></div></div><div class="gf-list-filter-grid"></div><div class="gf-list-panel-actions"><button type="button" class="gf-list-clear">Limpar</button><button type="button" class="gf-list-apply">Buscar</button></div>';
 
         const painelColunas = document.createElement("div");
-        painelColunas.className = "gf-list-panel";
+        painelColunas.className = "gf-list-tools-panel";
         painelColunas.dataset.gfPanelContent = "colunas";
         painelColunas.innerHTML = '<div class="gf-list-panel-header"><div><h4>Gerenciar colunas</h4><p>Escolha quais informações devem aparecer nesta lista.</p></div></div><div class="gf-list-columns"></div><div class="gf-list-panel-actions"><button type="button" data-gf-restaurar>Restaurar padrão</button></div>';
 
