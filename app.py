@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-06 19:40 (America/Bahia)
-# Motivo: Permitir remover fotos atuais de produtos e serviços publicados na Vitrine Online.
+# Último recode: 2026-08-06 19:59 (America/Bahia)
+# Motivo: Adicionar remoção da logo e galeria de fotos com imagem principal para produtos e serviços da Vitrine Online.
 
 from __future__ import annotations
 
@@ -4691,6 +4691,27 @@ def iniciar_banco() -> None:
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS vitrine_imagens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                empresa_id INTEGER NOT NULL,
+                item_tipo TEXT NOT NULL,
+                item_id INTEGER NOT NULL,
+                imagem_path TEXT NOT NULL,
+                principal INTEGER NOT NULL DEFAULT 0,
+                ordem INTEGER NOT NULL DEFAULT 0,
+                criado_em TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_vitrine_imagens_item
+            ON vitrine_imagens (empresa_id, item_tipo, item_id, principal DESC, ordem ASC, id ASC)
+            """
+        )
+
         conn.execute(
             """
             CREATE UNIQUE INDEX IF NOT EXISTS idx_vitrine_servicos_empresa_servico
@@ -24772,7 +24793,10 @@ def montar_vitrine_formulario(config_atual: dict[str, Any] | None = None) -> dic
     if tipo_identidade_visual not in {"logo", "cores"}:
         tipo_identidade_visual = "cores"
 
-    logo_path = salvar_logo_vitrine_upload() or str(config_atual.get("logo_path") or "")
+    logo_anterior = str(config_atual.get("logo_path") or "").strip()
+    remover_logo = str(request.form.get("remover_logo") or "").strip().lower() == "sim"
+    logo_nova = salvar_logo_vitrine_upload()
+    logo_path = "" if remover_logo else (logo_nova or logo_anterior)
     if tipo_identidade_visual == "logo" and not logo_path:
         raise ValueError("Envie uma logo antes de usar a identidade visual por logo.")
 
@@ -24785,6 +24809,8 @@ def montar_vitrine_formulario(config_atual: dict[str, Any] | None = None) -> dic
         "instagram": (request.form.get("instagram") or "").strip(),
         "slug": slug,
         "logo_path": logo_path,
+        "logo_anterior": logo_anterior,
+        "remover_logo": "sim" if remover_logo else "nao",
         "categoria": (request.form.get("categoria") or "").strip(),
         "descricao_empresa": (request.form.get("descricao_empresa") or "").strip()[:600],
         "tipo_identidade_visual": tipo_identidade_visual,
@@ -24952,6 +24978,8 @@ def salvar_vitrine_configuracao_db(dados: dict[str, str]) -> None:
 
         conn.commit()
 
+    if dados.get("remover_logo") == "sim" and dados.get("logo_anterior"):
+        remover_arquivo_imagem_vitrine(dados.get("logo_anterior"))
 
 
 def buscar_vitrine_configuracao_por_slug(slug: Any) -> dict[str, Any] | None:
@@ -24973,6 +25001,95 @@ def buscar_vitrine_configuracao_por_slug(slug: Any) -> dict[str, Any] | None:
         ).fetchone()
 
     return dict(row) if row else None
+
+
+def listar_imagens_vitrine_item(empresa_id: int, item_tipo: str, item_id: int, fallback: str = "") -> list[dict[str, Any]]:
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, imagem_path, principal, ordem
+            FROM vitrine_imagens
+            WHERE empresa_id = ? AND item_tipo = ? AND item_id = ?
+            ORDER BY principal DESC, ordem ASC, id ASC
+            """,
+            (empresa_id, item_tipo, item_id),
+        ).fetchall()
+    imagens = [dict(row) for row in rows]
+    fallback_limpo = str(fallback or "").strip()
+    if not imagens and fallback_limpo:
+        imagens = [{"id": 0, "imagem_path": fallback_limpo, "principal": 1, "ordem": 0}]
+    return imagens
+
+
+def anexar_galerias_vitrine(itens: list[dict[str, Any]], empresa_id: int, item_tipo: str, chave_id: str) -> list[dict[str, Any]]:
+    for item in itens:
+        item_id = int(item.get(chave_id) or item.get("id") or 0)
+        imagens = listar_imagens_vitrine_item(empresa_id, item_tipo, item_id, str(item.get("imagem_path") or ""))
+        item["imagens"] = imagens
+        item["imagem_path"] = str((imagens[0] if imagens else {}).get("imagem_path") or "")
+    return itens
+
+
+def salvar_galeria_vitrine_upload(item_tipo: str, item_id: int, campo: str) -> None:
+    empresa_id = empresa_logada_id()
+    arquivos = [arquivo for arquivo in request.files.getlist(campo) if arquivo and arquivo.filename]
+    with conectar_db() as conn:
+        existentes = conn.execute(
+            "SELECT COUNT(*) AS total FROM vitrine_imagens WHERE empresa_id = ? AND item_tipo = ? AND item_id = ?",
+            (empresa_id, item_tipo, item_id),
+        ).fetchone()
+        total = int(existentes["total"] or 0)
+        for arquivo in arquivos[:max(0, 6-total)]:
+            if not extensao_arquivo_permitida(arquivo.filename, EXTENSOES_FOTO_VITRINE_PERMITIDAS):
+                continue
+            extensao = secure_filename(arquivo.filename).rsplit(".", 1)[-1].lower()
+            nome_final = f"vitrine_{item_tipo}_{empresa_id}_{item_id}_{secrets.token_hex(6)}.{extensao}"
+            arquivo.save(VITRINE_UPLOAD_DIR / nome_final)
+            caminho = f"uploads/vitrines/{nome_final}"
+            principal = 1 if total == 0 else 0
+            conn.execute(
+                "INSERT INTO vitrine_imagens (empresa_id,item_tipo,item_id,imagem_path,principal,ordem) VALUES (?,?,?,?,?,?)",
+                (empresa_id,item_tipo,item_id,caminho,principal,total),
+            )
+            total += 1
+        conn.commit()
+
+
+def atualizar_galeria_vitrine_formulario(item_tipo: str, item_id: int) -> str:
+    empresa_id = empresa_logada_id()
+    remover_ids = {int(v) for v in request.form.getlist("remover_foto_ids") if str(v).isdigit()}
+    principal_id = int(request.form.get("foto_principal_id") or 0) if str(request.form.get("foto_principal_id") or "").isdigit() else 0
+    removidos: list[str] = []
+    with conectar_db() as conn:
+        if remover_ids:
+            placeholders = ",".join("?" for _ in remover_ids)
+            rows = conn.execute(
+                f"SELECT id,imagem_path FROM vitrine_imagens WHERE empresa_id=? AND item_tipo=? AND item_id=? AND id IN ({placeholders})",
+                (empresa_id,item_tipo,item_id,*sorted(remover_ids)),
+            ).fetchall()
+            removidos = [str(row["imagem_path"] or "") for row in rows]
+            conn.execute(
+                f"DELETE FROM vitrine_imagens WHERE empresa_id=? AND item_tipo=? AND item_id=? AND id IN ({placeholders})",
+                (empresa_id,item_tipo,item_id,*sorted(remover_ids)),
+            )
+        if principal_id and principal_id not in remover_ids:
+            conn.execute(
+                "UPDATE vitrine_imagens SET principal=CASE WHEN id=? THEN 1 ELSE 0 END WHERE empresa_id=? AND item_tipo=? AND item_id=?",
+                (principal_id,empresa_id,item_tipo,item_id),
+            )
+        row = conn.execute(
+            "SELECT id,imagem_path FROM vitrine_imagens WHERE empresa_id=? AND item_tipo=? AND item_id=? ORDER BY principal DESC,ordem,id LIMIT 1",
+            (empresa_id,item_tipo,item_id),
+        ).fetchone()
+        if row:
+            conn.execute(
+                "UPDATE vitrine_imagens SET principal=CASE WHEN id=? THEN 1 ELSE 0 END WHERE empresa_id=? AND item_tipo=? AND item_id=?",
+                (int(row["id"]),empresa_id,item_tipo,item_id),
+            )
+        conn.commit()
+    for caminho in removidos:
+        remover_arquivo_imagem_vitrine(caminho)
+    return str(row["imagem_path"] or "") if row else ""
 
 
 def listar_produtos_vitrine_empresa(empresa_id: int) -> list[dict[str, Any]]:
@@ -25007,7 +25124,7 @@ def listar_produtos_vitrine_empresa(empresa_id: int) -> list[dict[str, Any]]:
             (empresa_id,),
         ).fetchall()
 
-    return [dict(row) for row in rows]
+    return anexar_galerias_vitrine([dict(row) for row in rows], empresa_id, "produto", "produto_id")
 
 
 def listar_produtos_vitrine_admin(empresa_id: int) -> list[dict[str, Any]]:
@@ -25071,7 +25188,7 @@ def listar_produtos_vitrine_admin(empresa_id: int) -> list[dict[str, Any]]:
             }
         )
 
-    return produtos
+    return anexar_galerias_vitrine(produtos, empresa_id, "produto", "produto_id")
 
 
 def buscar_produto_vitrine_admin(produto_id: int) -> dict[str, Any] | None:
@@ -25311,7 +25428,7 @@ def listar_servicos_vitrine_empresa(empresa_id: int) -> list[dict[str, Any]]:
             """,
             (empresa_id,),
         ).fetchall()
-    return [dict(row) for row in rows]
+    return anexar_galerias_vitrine([dict(row) for row in rows], empresa_id, "servico", "servico_id")
 
 
 def listar_servicos_vitrine_admin(empresa_id: int) -> list[dict[str, Any]]:
@@ -25363,7 +25480,7 @@ def listar_servicos_vitrine_admin(empresa_id: int) -> list[dict[str, Any]]:
             "acessos": int(item.get("acessos") or 0),
             "agendamentos": int(item.get("agendamentos") or 0),
         })
-    return itens
+    return anexar_galerias_vitrine(itens, empresa_id, "servico", "servico_id")
 
 
 def salvar_imagem_servico_vitrine_upload(servico_id: int) -> str:
@@ -26835,7 +26952,10 @@ def renderizar_vitrine_publica_html(
             preco_raw = str(produto.get("preco") or "0,00")
             preco = html.escape(preco_raw)
             disponivel = not controlar_estoque or _converter_valor_brl(produto.get("estoque_atual")) > 0
-            imagem_path = str(produto.get("imagem_path") or "").strip()
+            imagens = produto.get("imagens") or []
+            imagens_paths = [str(item.get("imagem_path") or "") for item in imagens if item.get("imagem_path")]
+            imagem_path = imagens_paths[0] if imagens_paths else str(produto.get("imagem_path") or "").strip()
+            imagens_json = html.escape(json.dumps(imagens_paths, ensure_ascii=False), quote=True)
             imagem_html = (
                 f'<img src="/vitrine-upload/{html.escape(imagem_path)}" alt="{nome}" loading="lazy">'
                 if imagem_path
@@ -26871,7 +26991,7 @@ def renderizar_vitrine_publica_html(
                 acao_secundaria = ""
             cards.append(
                 f'''<article class="catalogo-card produto-card" data-tipo="produto" data-categoria="{categoria_item}" data-nome="{html.escape(nome_raw.lower())}">
-<button class="item-imagem" type="button" onclick="registrarItem('produto',{produto_id})">{imagem_html}</button>
+<button class="item-imagem" type="button" onclick="abrirGaleria({imagens_json}, {html.escape(json.dumps(nome_raw, ensure_ascii=False), quote=True)});registrarItem('produto',{produto_id})">{imagem_html}<span class="galeria-contador">{len(imagens_paths) if imagens_paths else 0} foto(s)</span></button>
 <div class="item-info"><small>Produto • {categoria_item}</small><h3>{nome}</h3><p>{descricao}</p>{preco_html}<div class="item-acoes">{acao_principal}{acao_secundaria}</div></div></article>'''
             )
 
@@ -26887,7 +27007,10 @@ def renderizar_vitrine_publica_html(
             tipo_contratacao = normalizar_tipo_contratacao_servico(servico.get("tipo_contratacao"))
             preco = html.escape(str(servico.get("preco") or "0,00"))
             duracao = html.escape(str(servico.get("tempo_estimado") or ""))
-            imagem_path = str(servico.get("imagem_path") or "").strip()
+            imagens = servico.get("imagens") or []
+            imagens_paths = [str(item.get("imagem_path") or "") for item in imagens if item.get("imagem_path")]
+            imagem_path = imagens_paths[0] if imagens_paths else str(servico.get("imagem_path") or "").strip()
+            imagens_json = html.escape(json.dumps(imagens_paths, ensure_ascii=False), quote=True)
             imagem_html = (
                 f'<img src="/vitrine-upload/{html.escape(imagem_path)}" alt="{nome}" loading="lazy">'
                 if imagem_path
@@ -26912,7 +27035,7 @@ def renderizar_vitrine_publica_html(
                 )
             cards.append(
                 f'''<article class="catalogo-card servico-card" data-tipo="servico" data-categoria="{categoria_item}" data-nome="{html.escape(nome_raw.lower())}">
-<a class="item-imagem" href="{agenda_url}" onclick="registrarItem('servico',{servico_id})">{imagem_html}</a>
+<button class="item-imagem" type="button" onclick="abrirGaleria({imagens_json}, {html.escape(json.dumps(nome_raw, ensure_ascii=False), quote=True)});registrarItem('servico',{servico_id})">{imagem_html}<span class="galeria-contador">{len(imagens_paths) if imagens_paths else 0} foto(s)</span></button>
 <div class="item-info"><small>Serviço • {categoria_item}</small><h3>{nome}</h3><p>{descricao}</p><div class="item-meta">{duracao_html}{preco_html}</div><div class="item-acoes"><a class="acao-principal" href="{agenda_url}" onclick="registrarItem('servico',{servico_id})">{texto_acao}</a>{acao_whatsapp}</div></div></article>'''
             )
 
@@ -27077,7 +27200,7 @@ button,input,select,textarea{font:inherit}
 .itens{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:stretch}
 .catalogo-card{min-width:0;display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--border);border-radius:19px;background:#fff;box-shadow:0 8px 24px rgba(15,23,42,.055)}
 .item-imagem{width:100%;height:250px;min-height:250px;display:grid;place-items:center;border:0;background:#f5f6f8;overflow:hidden;cursor:pointer;text-decoration:none}
-.item-imagem img{width:100%;height:100%;object-fit:contain;display:block;background:#fff}
+.item-imagem{position:relative}.item-imagem img{width:100%;height:100%;object-fit:contain;display:block;background:#fff}.galeria-contador{position:absolute;right:10px;bottom:10px;padding:5px 8px;border-radius:999px;background:rgba(15,23,42,.78);color:#fff;font-size:11px;font-weight:900}.galeria-modal{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.82)}.galeria-modal.aberta{display:flex}.galeria-box{position:relative;width:min(900px,96vw);height:min(720px,88vh);display:grid;place-items:center;border-radius:20px;background:#fff;overflow:hidden}.galeria-box img{max-width:100%;max-height:100%;object-fit:contain}.galeria-fechar,.galeria-anterior,.galeria-proxima{position:absolute;z-index:2;border:0;border-radius:999px;background:rgba(15,23,42,.82);color:#fff;font-weight:900;cursor:pointer}.galeria-fechar{top:14px;right:14px;width:42px;height:42px}.galeria-anterior,.galeria-proxima{top:50%;width:44px;height:44px;transform:translateY(-50%)}.galeria-anterior{left:14px}.galeria-proxima{right:14px}.galeria-titulo{position:absolute;left:16px;right:70px;top:16px;color:#111827;font-weight:900}
 .item-sem-imagem{color:var(--text-soft);font-weight:850}
 .item-info{flex:1;display:flex;flex-direction:column;gap:9px;padding:15px}
 .item-info small{color:var(--text-soft);font-weight:800}
@@ -27245,7 +27368,7 @@ let paginaAtual=1;
 const itensPorPagina=9;
 function moedaNumero(v){const valor=String(v).trim();return parseFloat(valor.includes(',')?valor.replace(/\./g,'').replace(',','.'):valor)||0}
 function moedaBR(v){return v.toFixed(2).replace('.',',')}
-function registrarItem(tipo,id){fetch('/loja/__SLUG__/evento',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tipo:tipo,item_id:id||''})}).catch(()=>{})}
+let galeriaFotos=[],galeriaIndice=0;function abrirGaleria(fotos,titulo){if(!Array.isArray(fotos)||!fotos.length)return;galeriaFotos=fotos;galeriaIndice=0;document.getElementById('galeriaTitulo').textContent=titulo||'';atualizarFotoGaleria();document.getElementById('galeriaModal').classList.add('aberta')}function atualizarFotoGaleria(){document.getElementById('galeriaImagem').src='/vitrine-upload/'+galeriaFotos[galeriaIndice]}function mudarFoto(delta){if(!galeriaFotos.length)return;galeriaIndice=(galeriaIndice+delta+galeriaFotos.length)%galeriaFotos.length;atualizarFotoGaleria()}function fecharGaleria(){document.getElementById('galeriaModal').classList.remove('aberta')}function registrarItem(tipo,id){fetch('/loja/__SLUG__/evento',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tipo:tipo,item_id:id||''})}).catch(()=>{})}
 function adicionarCarrinho(id,nome,preco){registrarItem('carrinho',id);const item=carrinho.find(i=>i.id===id);if(item)item.quantidade+=1;else carrinho.push({id,nome,preco,quantidade:1});renderCarrinho()}
 function renderCarrinho(){const el=document.getElementById('itensCarrinho');if(!el)return;if(!carrinho.length){el.innerHTML='Nenhum item adicionado.';document.getElementById('totalCarrinho').innerText='Total: R$ 0,00';return}let total=0;el.innerHTML=carrinho.map(i=>{const sub=moedaNumero(i.preco)*i.quantidade;total+=sub;return `<div class="item-carrinho"><span>${i.quantidade}x ${i.nome}</span><strong>R$ ${moedaBR(sub)}</strong></div>`}).join('');document.getElementById('totalCarrinho').innerText='Total: R$ '+moedaBR(total)}
 function prepararPedido(){const quantidade=carrinho.reduce((t,i)=>t+i.quantidade,0);if(quantidade<__QUANTIDADE_MINIMA__){alert('A quantidade mínima do pedido é __QUANTIDADE_MINIMA__.');return false}document.getElementById('itensJson').value=JSON.stringify(carrinho);return true}
@@ -27908,6 +28031,12 @@ def vitrine_produto_publicar() -> Response:
         "status": request.form.get("status") or "publicado",
     }
     salvar_produto_vitrine_publicacao_db(produto_id, dados)
+    salvar_galeria_vitrine_upload("produto", produto_id, "fotos_produto")
+    principal = atualizar_galeria_vitrine_formulario("produto", produto_id)
+    if principal:
+        with conectar_db() as conn:
+            conn.execute("UPDATE vitrine_produtos SET imagem_path=? WHERE empresa_id=? AND produto_id=?", (principal, empresa_logada_id(), produto_id))
+            conn.commit()
     return redirect(url_for("vitrine", mensagem="Produto atualizado na vitrine com sucesso."))
 
 
@@ -27955,6 +28084,12 @@ def vitrine_servico_publicar() -> Response:
         "status": request.form.get("status") or "publicado",
     }
     salvar_servico_vitrine_publicacao_db(servico_id, dados)
+    salvar_galeria_vitrine_upload("servico", servico_id, "fotos_servico")
+    principal = atualizar_galeria_vitrine_formulario("servico", servico_id)
+    if principal:
+        with conectar_db() as conn:
+            conn.execute("UPDATE vitrine_servicos SET imagem_path=? WHERE empresa_id=? AND servico_id=?", (principal, empresa_logada_id(), servico_id))
+            conn.commit()
     status_salvo = str(dados["status"] or "publicado").strip().lower()
     mensagem = (
         "Serviço publicado na vitrine com sucesso."
