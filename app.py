@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-02 12:25 (America/Bahia)
-# Motivo: Adicionar busca avançada, seleção de colunas e exportação CSV na lista de orçamentos.
+# Último recode: 2026-08-06 19:40 (America/Bahia)
+# Motivo: Permitir remover fotos atuais de produtos e serviços publicados na Vitrine Online.
 
 from __future__ import annotations
 
@@ -25102,6 +25102,26 @@ def buscar_produto_vitrine_admin(produto_id: int) -> dict[str, Any] | None:
     return dict(row) if row else None
 
 
+def remover_arquivo_imagem_vitrine(caminho_relativo: Any) -> None:
+    caminho_texto = str(caminho_relativo or "").strip().replace("\\", "/")
+    prefixo_permitido = "uploads/vitrines/"
+
+    if not caminho_texto.startswith(prefixo_permitido):
+        return
+
+    nome_arquivo = Path(caminho_texto).name
+    caminho_arquivo = (VITRINE_UPLOAD_DIR / nome_arquivo).resolve()
+    diretorio_vitrine = VITRINE_UPLOAD_DIR.resolve()
+
+    if caminho_arquivo.parent != diretorio_vitrine:
+        return
+
+    try:
+        caminho_arquivo.unlink(missing_ok=True)
+    except OSError:
+        app.logger.exception("Não foi possível remover a imagem da vitrine: %s", caminho_texto)
+
+
 def salvar_imagem_produto_vitrine_upload(produto_id: int) -> str:
     arquivo = request.files.get("imagem_produto")
 
@@ -25120,7 +25140,7 @@ def salvar_imagem_produto_vitrine_upload(produto_id: int) -> str:
     return f"uploads/vitrines/{nome_final}"
 
 
-def salvar_produto_vitrine_publicacao_db(produto_id: int, dados: dict[str, str]) -> None:
+def salvar_produto_vitrine_publicacao_db(produto_id: int, dados: dict[str, Any]) -> None:
     empresa_id = empresa_logada_id()
     produto = buscar_produto_vitrine_admin(produto_id)
 
@@ -25141,9 +25161,14 @@ def salvar_produto_vitrine_publicacao_db(produto_id: int, dados: dict[str, str])
             (empresa_id, produto_id),
         ).fetchone()
 
+        imagem_anterior = str(row["imagem_path"] or "").strip() if row is not None else ""
+        remover_imagem = str(dados.get("remover_imagem") or "").strip().lower() == "sim"
         imagem_path = str(dados.get("imagem_path") or "").strip()
-        if not imagem_path and row is not None:
-            imagem_path = str(row["imagem_path"] or "")
+
+        if remover_imagem:
+            imagem_path = ""
+        elif not imagem_path:
+            imagem_path = imagem_anterior
 
         valores = (
             str(dados.get("nome") or produto.get("nome") or "").strip(),
@@ -25194,6 +25219,9 @@ def salvar_produto_vitrine_publicacao_db(produto_id: int, dados: dict[str, str])
             )
 
         conn.commit()
+
+    if remover_imagem and imagem_anterior:
+        remover_arquivo_imagem_vitrine(imagem_anterior)
 
 
 def alterar_status_produto_vitrine_db(produto_id: int, status: str) -> None:
@@ -25352,7 +25380,7 @@ def salvar_imagem_servico_vitrine_upload(servico_id: int) -> str:
     return f"uploads/vitrines/{nome_final}"
 
 
-def salvar_servico_vitrine_publicacao_db(servico_id: int, dados: dict[str, str]) -> None:
+def salvar_servico_vitrine_publicacao_db(servico_id: int, dados: dict[str, Any]) -> None:
     empresa_id = empresa_logada_id()
     servico = buscar_servico_empresa(empresa_id, servico_id)
     if servico is None:
@@ -25363,9 +25391,14 @@ def salvar_servico_vitrine_publicacao_db(servico_id: int, dados: dict[str, str])
             "SELECT id, imagem_path FROM vitrine_servicos WHERE empresa_id = ? AND servico_id = ? LIMIT 1",
             (empresa_id, servico_id),
         ).fetchone()
+        imagem_anterior = str(row["imagem_path"] or "").strip() if row is not None else ""
+        remover_imagem = str(dados.get("remover_imagem") or "").strip().lower() == "sim"
         imagem_path = str(dados.get("imagem_path") or "").strip()
-        if not imagem_path and row is not None:
-            imagem_path = str(row["imagem_path"] or "")
+
+        if remover_imagem:
+            imagem_path = ""
+        elif not imagem_path:
+            imagem_path = imagem_anterior
         status_normalizado = str(dados.get("status") or "publicado").strip().lower()
         if status_normalizado not in {"publicado", "rascunho", "oculto"}:
             status_normalizado = "publicado"
@@ -25400,6 +25433,9 @@ def salvar_servico_vitrine_publicacao_db(servico_id: int, dados: dict[str, str])
                 (*valores, empresa_id, servico_id),
             )
         conn.commit()
+
+    if remover_imagem and imagem_anterior:
+        remover_arquivo_imagem_vitrine(imagem_anterior)
 
 
 def alterar_status_servico_vitrine_db(servico_id: int, status: str) -> None:
@@ -27867,6 +27903,7 @@ def vitrine_produto_publicar() -> Response:
         "categoria": request.form.get("categoria") or produto.get("categoria") or "Produtos",
         "preco": request.form.get("preco") or produto.get("preco_venda") or "0,00",
         "imagem_path": imagem_path,
+        "remover_imagem": "sim" if request.form.get("remover_imagem") == "sim" else "nao",
         "destaque": "sim" if request.form.get("destaque") == "sim" else "nao",
         "status": request.form.get("status") or "publicado",
     }
@@ -27913,6 +27950,7 @@ def vitrine_servico_publicar() -> Response:
             else request.form.get("preco") or servico.get("valor_venda") or "0,00"
         ),
         "imagem_path": salvar_imagem_servico_vitrine_upload(servico_id),
+        "remover_imagem": "sim" if request.form.get("remover_imagem") == "sim" else "nao",
         "destaque": "sim" if request.form.get("destaque") == "sim" else "nao",
         "status": request.form.get("status") or "publicado",
     }
