@@ -1,7 +1,7 @@
 ﻿{#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\partials\sidebar.html
-Último recode: 2026-07-30 17:21 (America/Bahia)
-Motivo: Exibir discretamente a versão centralizada do GestFlow no rodapé da barra lateral.
+Último recode: 2026-08-06 20:25 (America/Bahia)
+Motivo: Manter o módulo ativo visível ao abrir páginas com menu lateral rolável.
 #}
 {% set _path = request.path if request is defined else '' %}
 {% set _config_grupo = request.view_args.get('grupo', '') if request is defined and request.view_args else '' %}
@@ -393,6 +393,27 @@ Motivo: Exibir discretamente a versão centralizada do GestFlow no rodapé da ba
             return;
         }
 
+        function manterModuloAtivoVisivel() {
+            const navegacao = sidebar.querySelector('.sidebar-nav');
+            const itemAtivo = navegacao ? navegacao.querySelector('.menu-group.active, .menu-item.active') : null;
+
+            if (!navegacao || !itemAtivo) {
+                return;
+            }
+
+            const limiteSuperior = navegacao.scrollTop;
+            const limiteInferior = limiteSuperior + navegacao.clientHeight;
+            const itemSuperior = itemAtivo.offsetTop;
+            const itemInferior = itemSuperior + itemAtivo.offsetHeight;
+
+            if (itemSuperior < limiteSuperior || itemInferior > limiteInferior) {
+                navegacao.scrollTop = Math.max(
+                    0,
+                    itemSuperior - Math.round((navegacao.clientHeight - itemAtivo.offsetHeight) / 2)
+                );
+            }
+        }
+
         let backdrop = document.querySelector('.sidebar-backdrop');
         if (!backdrop) {
             backdrop = document.createElement('div');
@@ -498,6 +519,9 @@ Motivo: Exibir discretamente a versão centralizada do GestFlow no rodapé da ba
                 fecharMenu();
             }
         });
+
+        manterModuloAtivoVisivel();
+        window.setTimeout(manterModuloAtivoVisivel, 120);
     }
 
     if (document.readyState === 'loading') {
