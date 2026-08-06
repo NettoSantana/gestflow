@@ -1,7 +1,7 @@
 ﻿{#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\partials\sidebar.html
-Último recode: 2026-08-06 20:25 (America/Bahia)
-Motivo: Manter o módulo ativo visível ao abrir páginas com menu lateral rolável.
+Último recode: 2026-08-06 20:30 (America/Bahia)
+Motivo: Posicionar corretamente o título do módulo ativo dentro da área rolável da sidebar.
 #}
 {% set _path = request.path if request is defined else '' %}
 {% set _config_grupo = request.view_args.get('grupo', '') if request is defined and request.view_args else '' %}
@@ -401,16 +401,17 @@ Motivo: Manter o módulo ativo visível ao abrir páginas com menu lateral rolá
                 return;
             }
 
-            const limiteSuperior = navegacao.scrollTop;
-            const limiteInferior = limiteSuperior + navegacao.clientHeight;
-            const itemSuperior = itemAtivo.offsetTop;
-            const itemInferior = itemSuperior + itemAtivo.offsetHeight;
+            const alvoAtivo = itemAtivo.matches('.menu-group')
+                ? (itemAtivo.querySelector(':scope > details > summary') || itemAtivo)
+                : itemAtivo;
+            const margemVisivel = 14;
+            const navegacaoRect = navegacao.getBoundingClientRect();
+            const alvoRect = alvoAtivo.getBoundingClientRect();
 
-            if (itemSuperior < limiteSuperior || itemInferior > limiteInferior) {
-                navegacao.scrollTop = Math.max(
-                    0,
-                    itemSuperior - Math.round((navegacao.clientHeight - itemAtivo.offsetHeight) / 2)
-                );
+            if (alvoRect.top < navegacaoRect.top + margemVisivel) {
+                navegacao.scrollTop += alvoRect.top - navegacaoRect.top - margemVisivel;
+            } else if (alvoRect.bottom > navegacaoRect.bottom - margemVisivel) {
+                navegacao.scrollTop += alvoRect.bottom - navegacaoRect.bottom + margemVisivel;
             }
         }
 
