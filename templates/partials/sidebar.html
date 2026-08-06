@@ -1,7 +1,7 @@
 ﻿{#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\partials\sidebar.html
-Último recode: 2026-08-06 20:30 (America/Bahia)
-Motivo: Posicionar corretamente o título do módulo ativo dentro da área rolável da sidebar.
+Último recode: 2026-08-06 20:42 (America/Bahia)
+Motivo: Remover o reposicionamento automático e manter somente o comportamento móvel da sidebar.
 #}
 {% set _path = request.path if request is defined else '' %}
 {% set _config_grupo = request.view_args.get('grupo', '') if request is defined and request.view_args else '' %}
@@ -393,28 +393,6 @@ Motivo: Posicionar corretamente o título do módulo ativo dentro da área rolá
             return;
         }
 
-        function manterModuloAtivoVisivel() {
-            const navegacao = sidebar.querySelector('.sidebar-nav');
-            const itemAtivo = navegacao ? navegacao.querySelector('.menu-group.active, .menu-item.active') : null;
-
-            if (!navegacao || !itemAtivo) {
-                return;
-            }
-
-            const alvoAtivo = itemAtivo.matches('.menu-group')
-                ? (itemAtivo.querySelector(':scope > details > summary') || itemAtivo)
-                : itemAtivo;
-            const margemVisivel = 14;
-            const navegacaoRect = navegacao.getBoundingClientRect();
-            const alvoRect = alvoAtivo.getBoundingClientRect();
-
-            if (alvoRect.top < navegacaoRect.top + margemVisivel) {
-                navegacao.scrollTop += alvoRect.top - navegacaoRect.top - margemVisivel;
-            } else if (alvoRect.bottom > navegacaoRect.bottom - margemVisivel) {
-                navegacao.scrollTop += alvoRect.bottom - navegacaoRect.bottom + margemVisivel;
-            }
-        }
-
         let backdrop = document.querySelector('.sidebar-backdrop');
         if (!backdrop) {
             backdrop = document.createElement('div');
@@ -521,8 +499,6 @@ Motivo: Posicionar corretamente o título do módulo ativo dentro da área rolá
             }
         });
 
-        manterModuloAtivoVisivel();
-        window.setTimeout(manterModuloAtivoVisivel, 120);
     }
 
     if (document.readyState === 'loading') {
