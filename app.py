@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-10 22:41 (America/Bahia)
-# Motivo: Permitir cadastro de produto totalmente independente na Vitrine Online, sem criar Produto, movimentar Estoque ou gerar Venda no GestFlow.
+# Último recode: 2026-08-10 23:02 (America/Bahia)
+# Motivo: Melhorar automaticamente o contraste das cores de ação da Vitrine pública sem alterar a identidade visual escolhida pela loja.
 
 from __future__ import annotations
 
@@ -27432,18 +27432,60 @@ def renderizar_vitrine_publica_html(
     if tipo_identidade_visual not in {"logo", "cores"}:
         tipo_identidade_visual = "logo" if str(config_vitrine.get("logo_path") or "").strip() else "cores"
 
+    def _normalizar_cor_hex_vitrine(valor: Any, padrao: str) -> str:
+        cor = str(valor or "").strip()
+        if re.fullmatch(r"#[0-9a-fA-F]{6}", cor):
+            return cor.lower()
+        return padrao
+
+    def _luminancia_relativa_vitrine(cor_hex: str) -> float:
+        canais = [int(cor_hex[indice:indice + 2], 16) / 255 for indice in (1, 3, 5)]
+        lineares = [
+            canal / 12.92 if canal <= 0.04045 else ((canal + 0.055) / 1.055) ** 2.4
+            for canal in canais
+        ]
+        return (0.2126 * lineares[0]) + (0.7152 * lineares[1]) + (0.0722 * lineares[2])
+
+    def _contraste_vitrine(cor_a: str, cor_b: str) -> float:
+        lum_a = _luminancia_relativa_vitrine(cor_a)
+        lum_b = _luminancia_relativa_vitrine(cor_b)
+        mais_clara = max(lum_a, lum_b)
+        mais_escura = min(lum_a, lum_b)
+        return (mais_clara + 0.05) / (mais_escura + 0.05)
+
+    def _cor_acao_vitrine(cor_base: str) -> tuple[str, str]:
+        cor = _normalizar_cor_hex_vitrine(cor_base, "#111827")
+        if _contraste_vitrine(cor, "#ffffff") >= 4.5:
+            return cor, "#ffffff"
+
+        rgb_original = tuple(int(cor[indice:indice + 2], 16) for indice in (1, 3, 5))
+        for percentual in range(10, 81, 5):
+            fator = 1 - (percentual / 100)
+            rgb = tuple(round(canal * fator) for canal in rgb_original)
+            candidata = "#" + "".join(f"{canal:02x}" for canal in rgb)
+            if _contraste_vitrine(candidata, "#ffffff") >= 4.5:
+                return candidata, "#ffffff"
+
+        return "#111827", "#ffffff"
+
     if tipo_identidade_visual == "logo":
         cor_principal = "#071a2b"
         cor_secundaria = "#123b59"
         cor_destaque = "#f59e0b"
+        cor_acao, cor_acao_texto = "#071a2b", "#ffffff"
     else:
-        cor_principal = html.escape(
-            str(config_vitrine.get("cor_principal") or regras_vitrine.get("cor_primaria") or "#111827")
+        cor_principal_raw = _normalizar_cor_hex_vitrine(
+            config_vitrine.get("cor_principal") or regras_vitrine.get("cor_primaria"),
+            "#111827",
         )
-        cor_secundaria = html.escape(
-            str(config_vitrine.get("cor_secundaria") or regras_vitrine.get("cor_secundaria") or "#f59e0b")
+        cor_secundaria_raw = _normalizar_cor_hex_vitrine(
+            config_vitrine.get("cor_secundaria") or regras_vitrine.get("cor_secundaria"),
+            "#f59e0b",
         )
+        cor_principal = html.escape(cor_principal_raw)
+        cor_secundaria = html.escape(cor_secundaria_raw)
         cor_destaque = cor_secundaria
+        cor_acao, cor_acao_texto = _cor_acao_vitrine(cor_principal_raw)
 
     nome_loja_raw = str(
         config_vitrine.get("nome_loja") or regras_vitrine.get("nome_publico") or "Vitrine Online"
@@ -27878,6 +27920,8 @@ def renderizar_vitrine_publica_html(
 :root{
     --brand-primary:__COR_PRINCIPAL__;
     --brand-primary-2:__COR_SECUNDARIA__;
+    --brand-action:__COR_ACAO__;
+    --brand-action-text:__COR_ACAO_TEXTO__;
     --brand-accent:__COR_DESTAQUE__;
     --brand-accent-soft:rgba(245,158,11,.16);
     --brand-accent-text:#071a2b;
@@ -27899,34 +27943,34 @@ button,input,select,textarea{font:inherit}
 .marca-nav{min-width:0;display:flex;align-items:center;gap:11px;text-decoration:none}
 .marca-logo{width:48px;height:48px;display:grid;place-items:center;overflow:hidden;border-radius:14px;background:#fff;border:1px solid var(--border);box-shadow:0 6px 18px rgba(15,23,42,.08);flex:0 0 auto}
 .marca-logo-img{width:100%;height:100%;object-fit:contain;display:block;padding:3px}
-.marca-iniciais{font-weight:1000;font-size:17px;color:var(--brand-primary)}
+.marca-iniciais{font-weight:1000;font-size:17px;color:var(--brand-action)}
 .marca-texto{min-width:0;display:grid;gap:2px}
 .marca-texto strong{font-size:18px;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .marca-texto small{font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--text-soft);font-weight:900}
 .nav-links{margin-left:auto;display:flex;align-items:center;gap:24px}
 .nav-links a{text-decoration:none;font-size:13px;font-weight:850;color:var(--text-soft)}
-.nav-links a:hover{color:var(--brand-primary)}
+.nav-links a:hover{color:var(--brand-action)}
 .nav-whatsapp,.nav-carrinho{min-height:40px;display:inline-flex;align-items:center;gap:7px;padding:0 14px;border-radius:12px;text-decoration:none;font-size:12px;font-weight:900;white-space:nowrap}
 .nav-whatsapp{background:#16a34a;color:#fff}
-.nav-carrinho{border:1px solid var(--border);background:#fff;color:var(--brand-primary)}
+.nav-carrinho{border:1px solid var(--border);background:#fff;color:var(--brand-action)}
 .apresentacao{padding:46px 0 24px;background:linear-gradient(180deg,color-mix(in srgb,var(--brand-primary) 5%,var(--category-soft)),var(--category-soft))}
 .apresentacao-inner{width:min(1180px,calc(100% - 32px));margin:auto;display:grid;grid-template-columns:260px minmax(0,1fr);gap:42px;align-items:center}
 .apresentacao-logo{min-height:250px;display:grid;place-items:center;padding:24px;border-radius:28px;background:#fff;border:1px solid color-mix(in srgb,var(--brand-primary) 14%,var(--border));box-shadow:var(--shadow);overflow:hidden}
 .apresentacao-logo-img{width:100%;height:100%;max-height:210px;object-fit:contain;display:block}
-.apresentacao-logo-iniciais{width:150px;height:150px;display:grid;place-items:center;border-radius:34px;background:var(--brand-primary);color:#fff;font-size:52px;font-weight:1000}
+.apresentacao-logo-iniciais{width:150px;height:150px;display:grid;place-items:center;border-radius:34px;background:var(--brand-action);color:var(--brand-action-text);font-size:52px;font-weight:1000}
 .apresentacao-copy{min-width:0}
-.apresentacao-kicker{margin:0 0 10px;color:var(--brand-primary);font-size:12px;font-weight:1000;text-transform:uppercase;letter-spacing:.16em}
+.apresentacao-kicker{margin:0 0 10px;color:var(--brand-action);font-size:12px;font-weight:1000;text-transform:uppercase;letter-spacing:.16em}
 .apresentacao h1{margin:0;font-size:clamp(38px,5vw,66px);line-height:1;letter-spacing:-.045em;text-wrap:balance}
-.apresentacao-categoria{margin:12px 0 0;color:var(--brand-primary);font-size:22px;font-weight:900}
+.apresentacao-categoria{margin:12px 0 0;color:var(--brand-action);font-size:22px;font-weight:900}
 .apresentacao-descricao{max-width:760px;margin:17px 0 0;color:var(--text-soft);font-size:16px;line-height:1.65}
 .apresentacao-acoes{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px}
 .btn-publico{min-height:46px;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:0 20px;border-radius:13px;text-decoration:none;font-weight:950}
-.btn-catalogo{background:var(--brand-primary);color:#fff}
+.btn-catalogo{background:var(--brand-action);color:var(--brand-action-text)}
 .btn-whatsapp{background:#16a34a;color:#fff}
 .sobre-diferenciais{width:min(1180px,calc(100% - 32px));margin:26px auto 0;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.45fr);gap:16px}
 .sobre-card,.diferenciais-grid{background:#fff;border:1px solid var(--border);border-radius:20px;box-shadow:0 8px 28px rgba(15,23,42,.05)}
 .sobre-card{padding:22px}
-.section-kicker{margin:0 0 8px;color:var(--brand-primary);font-size:11px;font-weight:1000;text-transform:uppercase;letter-spacing:.13em}
+.section-kicker{margin:0 0 8px;color:var(--brand-action);font-size:11px;font-weight:1000;text-transform:uppercase;letter-spacing:.13em}
 .sobre-card h2,.catalogo-cabecalho h2,.passos-section h2{margin:0;font-size:24px;line-height:1.15}
 .sobre-card p{margin:10px 0 0;color:var(--text-soft);line-height:1.6}
 .diferenciais-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));padding:12px}
@@ -27943,16 +27987,16 @@ button,input,select,textarea{font:inherit}
 .catalogo-cabecalho p:last-child{margin:7px 0 0;color:var(--text-soft)}
 .barra{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"busca abas" "categorias categorias";gap:12px;padding:16px;border:1px solid var(--border);border-radius:20px;background:#fff;box-shadow:0 10px 28px rgba(15,23,42,.06)}
 .busca-wrap{grid-area:busca;position:relative}
-.busca-wrap::before{content:"⌕";position:absolute;left:15px;top:50%;transform:translateY(-50%);color:var(--brand-primary);font-size:19px}
+.busca-wrap::before{content:"⌕";position:absolute;left:15px;top:50%;transform:translateY(-50%);color:var(--brand-action);font-size:19px}
 .busca{width:100%;min-height:48px;border:1px solid var(--border);border-radius:13px;padding:0 15px 0 43px;font-size:15px;outline:none}
-.busca:focus{border-color:var(--brand-primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--brand-primary) 12%,transparent)}
+.busca:focus{border-color:var(--brand-action);box-shadow:0 0 0 3px color-mix(in srgb,var(--brand-action) 12%,transparent)}
 .tipo-abas{grid-area:abas;display:flex;gap:8px}
 .tipo-aba{min-height:48px;border:1px solid var(--border);border-radius:13px;padding:0 18px;background:#fff;color:var(--text-soft);font-weight:900;cursor:pointer}
-.tipo-aba.active{background:var(--brand-primary);border-color:var(--brand-primary);color:#fff}
+.tipo-aba.active{background:var(--brand-action);border-color:var(--brand-action);color:var(--brand-action-text)}
 .categorias{grid-area:categorias;overflow:auto;padding-bottom:2px}
 .categorias-grupo{display:flex;gap:8px;min-width:max-content}
 .categoria-botao{border:1px solid var(--border);border-radius:999px;padding:9px 13px;background:#fff;color:var(--text-soft);font-size:12px;font-weight:850;white-space:nowrap;cursor:pointer}
-.categoria-botao.active{background:color-mix(in srgb,var(--brand-primary) 12%,#fff);border-color:color-mix(in srgb,var(--brand-primary) 24%,var(--border));color:var(--brand-primary)}
+.categoria-botao.active{background:color-mix(in srgb,var(--brand-primary) 12%,#fff);border-color:color-mix(in srgb,var(--brand-primary) 24%,var(--border));color:var(--brand-action)}
 .conteudo{display:block;margin-top:18px}
 .conteudo.com-carrinho{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:18px;align-items:start}
 .itens{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:stretch}
@@ -27965,17 +28009,17 @@ button,input,select,textarea{font:inherit}
 .item-info h3{margin:0;font-size:17px;line-height:1.3}
 .item-indisponivel{display:inline-flex;align-self:flex-start;padding:4px 8px;border-radius:999px;background:#f3f4f6;color:#6b7280;font-size:11px;font-weight:900}
 .item-info p{display:-webkit-box;min-height:42px;margin:0;overflow:hidden;color:var(--text-soft);line-height:1.45;-webkit-line-clamp:2;-webkit-box-orient:vertical}
-.item-info>strong,.item-meta strong{font-size:20px;color:var(--brand-primary)}
+.item-info>strong,.item-meta strong{font-size:20px;color:var(--brand-action)}
 .item-meta{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .duracao{font-size:12px;font-weight:850;color:var(--text-soft)}
 .item-acoes{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:auto;padding-top:4px}
 .item-acoes button,.acao-principal,.acao-outline{min-height:40px;display:inline-flex;align-items:center;justify-content:center;border-radius:11px;padding:0 12px;text-decoration:none;font-size:12px;font-weight:950;cursor:pointer}
-.item-acoes button,.acao-principal{border:0;background:var(--brand-primary);color:#fff}
+.item-acoes button,.acao-principal{border:0;background:var(--brand-action);color:var(--brand-action-text)}
 .item-acoes button:disabled{background:#d1d5db;color:#6b7280;cursor:not-allowed}
-.acao-outline{border:1px solid var(--border);background:#fff;color:var(--brand-primary)}
+.acao-outline{border:1px solid color-mix(in srgb,var(--brand-action) 28%,var(--border));background:#fff;color:var(--brand-action)}
 .carrinho{position:sticky;top:86px;padding:18px;border:1px solid var(--border);border-radius:20px;background:#fff;box-shadow:var(--shadow)}
 .carrinho-cabecalho{display:flex;align-items:center;gap:10px;margin-bottom:12px}
-.carrinho-cabecalho>span{width:38px;height:38px;display:grid;place-items:center;border-radius:12px;background:color-mix(in srgb,var(--brand-primary) 12%,#fff);color:var(--brand-primary)}
+.carrinho-cabecalho>span{width:38px;height:38px;display:grid;place-items:center;border-radius:12px;background:color-mix(in srgb,var(--brand-primary) 12%,#fff);color:var(--brand-action)}
 .carrinho-cabecalho small{color:var(--text-soft);font-weight:800}
 .carrinho-cabecalho h2{margin:2px 0 0;font-size:20px}
 .carrinho-itens{color:var(--text-soft);font-size:13px}
@@ -27984,16 +28028,16 @@ button,input,select,textarea{font:inherit}
 .form-pedido{display:grid;gap:9px;margin-top:14px}
 .form-pedido input,.form-pedido select,.form-pedido textarea{width:100%;min-height:42px;border:1px solid var(--border);border-radius:11px;padding:10px 11px;background:#fff}
 .form-pedido textarea{min-height:76px;resize:vertical}
-.finalizar{min-height:44px;border:0;border-radius:12px;background:var(--brand-primary);color:#fff;font-weight:950;cursor:pointer}
+.finalizar{min-height:44px;border:0;border-radius:12px;background:var(--brand-action);color:var(--brand-action-text);font-weight:950;cursor:pointer}
 .vazio{grid-column:1/-1;padding:30px;border:1px dashed var(--border);border-radius:18px;background:#fff;text-align:center;color:var(--text-soft)}
 .paginacao{display:flex;align-items:center;justify-content:center;gap:7px;margin:22px 0 0;flex-wrap:wrap}
 .paginacao button{min-width:36px;height:36px;border:1px solid var(--border);border-radius:10px;background:#fff;color:var(--text-soft);font-weight:900;cursor:pointer}
-.paginacao button.active{background:var(--brand-primary);border-color:var(--brand-primary);color:#fff}
+.paginacao button.active{background:var(--brand-action);border-color:var(--brand-action);color:var(--brand-action-text)}
 .paginacao button:disabled{opacity:.4;cursor:not-allowed}
 .passos-section{margin-top:32px;padding:24px;border:1px solid var(--border);border-radius:22px;background:#fff;box-shadow:0 8px 28px rgba(15,23,42,.05)}
 .passos-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:18px}
 .passo-card{position:relative;display:flex;gap:11px;align-items:flex-start;padding:16px;border:1px solid var(--border);border-radius:16px;background:var(--category-soft)}
-.passo-card>span{width:30px;height:30px;display:grid;place-items:center;border-radius:50%;background:var(--brand-primary);color:#fff;font-size:12px;font-weight:1000;flex:0 0 auto}
+.passo-card>span{width:30px;height:30px;display:grid;place-items:center;border-radius:50%;background:var(--brand-action);color:var(--brand-action-text);font-size:12px;font-weight:1000;flex:0 0 auto}
 .passo-card div{display:grid;gap:5px}
 .passo-card strong{font-size:13px}
 .passo-card small{color:var(--text-soft);font-size:11px;line-height:1.45}
@@ -28011,7 +28055,7 @@ button,input,select,textarea{font:inherit}
 .social-link.instagram{background:#fdf2f8;color:#be185d}
 .social-link.whatsapp{background:#dcfce7;color:#15803d}
 .footer-credit{width:100%;margin:2px 0 0;color:var(--text-soft);font-size:11px;text-align:center}
-.footer-credit a{font-weight:900;color:var(--brand-primary)}
+.footer-credit a{font-weight:900;color:var(--brand-action)}
 @media(max-width:980px){
     .nav-links{display:none}.apresentacao-inner{grid-template-columns:220px minmax(0,1fr);gap:28px}.apresentacao-logo{min-height:220px}.sobre-diferenciais{grid-template-columns:1fr}.conteudo.com-carrinho{grid-template-columns:1fr}.carrinho{position:static}.itens{grid-template-columns:repeat(2,minmax(0,1fr))}.passos-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
@@ -28023,6 +28067,8 @@ button,input,select,textarea{font:inherit}
     estilo = (
         estilo.replace("__COR_PRINCIPAL__", cor_principal)
         .replace("__COR_SECUNDARIA__", cor_secundaria)
+        .replace("__COR_ACAO__", cor_acao)
+        .replace("__COR_ACAO_TEXTO__", cor_acao_texto)
         .replace("__COR_DESTAQUE__", cor_destaque)
         .replace("__COR_CATEGORIA_SUAVE__", cor_categoria_suave)
     )
