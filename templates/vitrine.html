@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vitrine.html
-Último recode: 2026-08-11 10:37 (America/Bahia)
-Motivo: Substituir os controles simples por editor real de logo com zoom, deslocamento horizontal/vertical, arraste direto na prévia, moldura, fundo e restauração do padrão.
+Último recode: 2026-08-11 10:52 (America/Bahia)
+Motivo: Restaurar a estrutura do bloco de identidade visual, fazendo o editor de logo ocupar a linha inteira e centralizando prévia e controles sem alterar seu funcionamento.
 #}
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -2695,7 +2695,23 @@ Motivo: Substituir os controles simples por editor real de logo com zoom, desloc
         }
 
 
-        .vitrine-logo-editor { display:grid;gap:16px;margin-top:14px; }
+        .vitrine-identity-panel[data-identity-panel="logo"] > .vitrine-remove-image-check {
+            grid-column: 1 / -1;
+            justify-self: start;
+        }
+        .vitrine-identity-panel[data-identity-panel="logo"] > .vitrine-logo-editor {
+            grid-column: 1 / -1;
+            justify-self: center;
+            width: min(100%, 900px);
+            margin: 18px auto 0;
+        }
+        .vitrine-logo-editor { display:grid;gap:16px; }
+        .vitrine-logo-live-preview,
+        .vitrine-logo-controls {
+            width: 100%;
+            max-width: 860px;
+            margin-inline: auto;
+        }
         .vitrine-logo-live-preview {
             --logo-preview-zoom:1;
             --logo-preview-x:0%;
