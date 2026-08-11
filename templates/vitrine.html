@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vitrine.html
-Último recode: 2026-08-10 22:50 (America/Bahia)
-Motivo: Adicionar cadastro de produto exclusivo da Vitrine no modo independente.
+Último recode: 2026-08-11 05:52 (America/Bahia)
+Motivo: Adicionar filtros por status na central de pedidos da Vitrine Online.
 #}
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -396,10 +396,17 @@ Motivo: Adicionar cadastro de produto exclusivo da Vitrine no modo independente.
                     <div><h3>Pedidos gerados</h3><p>Dados do cliente, itens, valores e situação.</p></div>
                     <strong>{{ pedidos_vitrine|length }}</strong>
                 </div>
-                <div class="vitrine-record-list">
+                <div class="vitrine-pedido-filtros" data-pedido-filtros role="tablist" aria-label="Filtrar pedidos por status">
+                    <button type="button" data-pedido-filtro="todos"><span>Todos</span><b data-pedido-contador="todos">0</b></button>
+                    <button type="button" data-pedido-filtro="novo"><span>Novos</span><b data-pedido-contador="novo">0</b></button>
+                    <button type="button" data-pedido-filtro="em_atendimento"><span>Em andamento</span><b data-pedido-contador="em_atendimento">0</b></button>
+                    <button type="button" data-pedido-filtro="concluido"><span>Concluídos</span><b data-pedido-contador="concluido">0</b></button>
+                    <button type="button" data-pedido-filtro="cancelado"><span>Cancelados</span><b data-pedido-contador="cancelado">0</b></button>
+                </div>
+                <div class="vitrine-record-list" data-pedido-lista>
                     {% for pedido in pedidos_vitrine %}
                         {% set status_pedido = pedido.get('status') or 'novo' %}
-                        <article class="vitrine-record-card pedido-status-{{ status_pedido|replace('_', '-') }}" id="pedido-{{ pedido.get('id') }}">
+                        <article class="vitrine-record-card pedido-status-{{ status_pedido|replace('_', '-') }}" id="pedido-{{ pedido.get('id') }}" data-pedido-status="{{ status_pedido }}">
                             <header>
                                 <div>
                                     <span>Pedido #{{ pedido.get('id') }}</span>
@@ -477,6 +484,10 @@ Motivo: Adicionar cadastro de produto exclusivo da Vitrine no modo independente.
                     {% else %}
                         <div class="vitrine-empty-panel"><strong>Nenhum pedido gerado</strong><span>Os próximos pedidos aparecerão aqui antes da abertura do WhatsApp.</span></div>
                     {% endfor %}
+                </div>
+                <div class="vitrine-pedidos-filtro-vazio" data-pedido-filtro-vazio hidden>
+                    <strong>Nenhum pedido neste status</strong>
+                    <span>Escolha outro filtro para visualizar os demais pedidos.</span>
                 </div>
             </div>
 
@@ -1266,6 +1277,60 @@ Motivo: Adicionar cadastro de produto exclusivo da Vitrine no modo independente.
                 }
             }
 
+            function configurarFiltrosPedidosVitrine() {
+                const filtros = document.querySelector("[data-pedido-filtros]");
+                const lista = document.querySelector("[data-pedido-lista]");
+                const vazio = document.querySelector("[data-pedido-filtro-vazio]");
+                if (!filtros || !lista) return;
+                const botoes = Array.from(filtros.querySelectorAll("[data-pedido-filtro]"));
+                const pedidos = Array.from(lista.querySelectorAll("[data-pedido-status]"));
+                const validos = ["todos", "novo", "em_atendimento", "concluido", "cancelado"];
+                const rotulos = {todos: "pedido", novo: "pedido novo", em_atendimento: "pedido em andamento", concluido: "pedido concluído", cancelado: "pedido cancelado"};
+
+                const contadores = {todos: pedidos.length, novo: 0, em_atendimento: 0, concluido: 0, cancelado: 0};
+                pedidos.forEach(function (pedido) {
+                    const status = pedido.dataset.pedidoStatus || "novo";
+                    if (status in contadores) contadores[status] += 1;
+                });
+                Object.keys(contadores).forEach(function (status) {
+                    const campo = filtros.querySelector('[data-pedido-contador="' + status + '"]');
+                    if (campo) campo.textContent = contadores[status];
+                });
+
+                function aplicar(status, atualizarUrl) {
+                    const atual = validos.includes(status) ? status : "novo";
+                    let visiveis = 0;
+                    pedidos.forEach(function (pedido) {
+                        const mostrar = atual === "todos" || pedido.dataset.pedidoStatus === atual;
+                        pedido.hidden = !mostrar;
+                        if (mostrar) visiveis += 1;
+                    });
+                    botoes.forEach(function (botao) {
+                        const ativo = botao.dataset.pedidoFiltro === atual;
+                        botao.classList.toggle("is-active", ativo);
+                        botao.setAttribute("aria-selected", ativo ? "true" : "false");
+                    });
+                    if (vazio) {
+                        vazio.hidden = visiveis > 0 || pedidos.length === 0;
+                        const titulo = vazio.querySelector("strong");
+                        if (titulo && !visiveis) titulo.textContent = "Nenhum " + rotulos[atual] + " neste status";
+                    }
+                    if (atualizarUrl) {
+                        const url = new URL(window.location.href);
+                        url.searchParams.set("aba", "pedidos");
+                        url.searchParams.set("pedido_status", atual);
+                        window.history.replaceState({}, "", url.pathname + url.search + "#central-vitrine");
+                    }
+                }
+
+                botoes.forEach(function (botao) {
+                    botao.addEventListener("click", function () { aplicar(botao.dataset.pedidoFiltro || "novo", true); });
+                });
+                const params = new URLSearchParams(window.location.search);
+                const pedidoFocado = params.get("pedido_id") ? document.getElementById("pedido-" + params.get("pedido_id")) : null;
+                aplicar((pedidoFocado && pedidoFocado.dataset.pedidoStatus) || params.get("pedido_status") || "novo", false);
+            }
+
             function configurarIdentidadeVisualVitrine() {
                 const formulario = document.querySelector(".vitrine-form");
                 const opcoes = Array.from(document.querySelectorAll('[data-identity-option]'));
@@ -1386,6 +1451,7 @@ Motivo: Adicionar cadastro de produto exclusivo da Vitrine no modo independente.
 
             configurarIdentidadeVisualVitrine();
             configurarCentralVitrine();
+            configurarFiltrosPedidosVitrine();
             configurarRemocaoFotosVitrine();
 
             document.addEventListener("keydown", function (event) {
@@ -1823,6 +1889,62 @@ Motivo: Adicionar cadastro de produto exclusivo da Vitrine no modo independente.
         .vitrine-central-panel[hidden] {
             display: none;
         }
+
+        .vitrine-pedido-filtros {
+            display:flex;
+            flex-wrap:wrap;
+            gap:8px;
+            margin:0 0 16px;
+            padding:12px;
+            border:1px solid #e5e7eb;
+            border-radius:16px;
+            background:#f9fafb; }
+        .vitrine-pedido-filtros button {
+            display:inline-flex;
+            align-items:center;
+            gap:8px;
+            min-height:38px;
+            padding:8px 12px;
+            border:1px solid #d1d5db;
+            border-radius:999px;
+            color:#374151;
+            background:#fff;
+            font:inherit;
+            font-size:13px;
+            font-weight:800;
+            cursor:pointer;
+        }
+        .vitrine-pedido-filtros button:hover { border-color:#9ca3af; }
+        .vitrine-pedido-filtros button b {
+            display:inline-grid;
+            place-items:center;
+            min-width:24px;
+            height:24px;
+            padding:0 6px;
+            border-radius:999px;
+            color:#374151;
+            background:#f3f4f6;
+            font-size:11px; }
+        .vitrine-pedido-filtros button[data-pedido-filtro="todos"].is-active { border-color:#111827;color:#fff;background:#111827; }
+        .vitrine-pedido-filtros button[data-pedido-filtro="novo"].is-active { border-color:#f59e0b;color:#78350f;background:#fef3c7; }
+        .vitrine-pedido-filtros button[data-pedido-filtro="em_atendimento"].is-active { border-color:#3b82f6;color:#1e3a8a;background:#dbeafe; }
+        .vitrine-pedido-filtros button[data-pedido-filtro="concluido"].is-active { border-color:#22c55e;color:#14532d;background:#dcfce7; }
+        .vitrine-pedido-filtros button[data-pedido-filtro="cancelado"].is-active { border-color:#ef4444;color:#7f1d1d;background:#fee2e2; }
+        .vitrine-pedido-filtros button.is-active b { color:inherit;background:rgba(255,255,255,.72); }
+        .vitrine-record-card[hidden], .vitrine-pedidos-filtro-vazio[hidden] { display:none; }
+        .vitrine-pedidos-filtro-vazio {
+            display:grid;
+            justify-items:center;
+            gap:6px;
+            padding:28px 18px;
+            border:1px dashed #d1d5db;
+            border-radius:16px;
+            color:#6b7280;
+            background:#f9fafb;
+            text-align:center;
+            align-content:center;
+            min-height:110px; }
+        .vitrine-pedidos-filtro-vazio strong { color:#111827; }
 
         .vitrine-overview-grid,
         .vitrine-published-summary {
