@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-11 11:12 (America/Bahia)
-# Motivo: Fazer a logo do destaque público reproduzir o mesmo enquadramento da prévia administrativa, com a mesma moldura, dimensões, zoom e posição salvos.
+# Último recode: 2026-08-11 11:29 (America/Bahia)
+# Motivo: Forçar o recorte físico da logo pública no formato salvo usando border-radius e clip-path no contêiner e na própria imagem.
 
 from __future__ import annotations
 
@@ -28248,6 +28248,11 @@ def renderizar_vitrine_publica_html(
     if logo_formato not in {"sem_moldura", "arredondado", "circular"}:
         logo_formato = "arredondado"
     logo_raio = {"sem_moldura": "0px", "arredondado": "24px", "circular": "999px"}[logo_formato]
+    logo_clip = {
+        "sem_moldura": "inset(0 round 0px)",
+        "arredondado": "inset(0 round 24px)",
+        "circular": "circle(50% at 50% 50%)",
+    }[logo_formato]
     logo_borda = "transparent" if logo_formato == "sem_moldura" else "var(--border)"
 
     logo_fundo = str(config_vitrine.get("logo_fundo") or "#ffffff").strip().lower()
@@ -28583,6 +28588,7 @@ def renderizar_vitrine_publica_html(
     --logo-y:__LOGO_OFFSET_Y__%;
     --logo-bg:__LOGO_FUNDO__;
     --logo-radius:__LOGO_RAIO__;
+    --logo-clip:__LOGO_CLIP__;
     --logo-border:__LOGO_BORDA__;
 }
 *{box-sizing:border-box}
@@ -28594,8 +28600,8 @@ button,input,select,textarea{font:inherit}
 .site-header{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--category-soft) 92%,#fff 8%);border-bottom:1px solid color-mix(in srgb,var(--brand-primary) 12%,transparent);backdrop-filter:blur(14px)}
 .navbar-inner{width:min(1180px,calc(100% - 32px));min-height:68px;margin:auto;display:flex;align-items:center;gap:22px}
 .marca-nav{min-width:0;display:flex;align-items:center;gap:11px;text-decoration:none}
-.marca-logo{width:44px;height:44px;display:grid;place-items:center;overflow:hidden;border-radius:min(var(--logo-radius),13px);background:var(--logo-bg);border:1px solid var(--logo-border);box-shadow:0 5px 16px rgba(15,23,42,.07);flex:0 0 auto}
-.marca-logo-img{width:100%;height:100%;object-fit:contain;display:block;transform:translate(var(--logo-x),var(--logo-y)) scale(var(--logo-zoom));transform-origin:center;will-change:transform}
+.marca-logo{width:44px;height:44px;display:grid;place-items:center;overflow:hidden;border-radius:min(var(--logo-radius),13px);clip-path:var(--logo-clip);-webkit-clip-path:var(--logo-clip);background:var(--logo-bg);border:1px solid var(--logo-border);box-shadow:0 5px 16px rgba(15,23,42,.07);flex:0 0 auto;isolation:isolate}
+.marca-logo-img{width:100%;height:100%;object-fit:contain;display:block;border-radius:inherit;clip-path:var(--logo-clip);-webkit-clip-path:var(--logo-clip);transform:translate(var(--logo-x),var(--logo-y)) scale(var(--logo-zoom));transform-origin:center;will-change:transform}
 .marca-iniciais{font-weight:1000;font-size:17px;color:var(--brand-action)}
 .marca-texto{min-width:0;display:grid;gap:2px}
 .marca-texto strong{font-size:18px;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -28608,8 +28614,8 @@ button,input,select,textarea{font:inherit}
 .nav-carrinho{border:1px solid var(--border);background:#fff;color:var(--brand-action)}
 .apresentacao{padding:46px 0 24px;background:linear-gradient(180deg,color-mix(in srgb,var(--brand-primary) 5%,var(--category-soft)),var(--category-soft))}
 .apresentacao-inner{width:min(1180px,calc(100% - 32px));margin:auto;display:grid;grid-template-columns:240px minmax(0,1fr);gap:24px;align-items:center}
-.apresentacao-logo{width:240px;height:240px;display:grid;place-items:center;padding:0;border-radius:var(--logo-radius);background:var(--logo-bg);border:1px solid var(--logo-border);box-shadow:0 12px 28px rgba(15,23,42,.08);overflow:hidden}
-.apresentacao-logo-img{width:100%;height:100%;object-fit:contain;display:block;transform:translate(var(--logo-x),var(--logo-y)) scale(var(--logo-zoom));transform-origin:center;will-change:transform}
+.apresentacao-logo{width:240px;height:240px;display:grid;place-items:center;padding:0;border-radius:var(--logo-radius);clip-path:var(--logo-clip);-webkit-clip-path:var(--logo-clip);background:var(--logo-bg);border:1px solid var(--logo-border);box-shadow:0 12px 28px rgba(15,23,42,.08);overflow:hidden;isolation:isolate}
+.apresentacao-logo-img{width:100%;height:100%;object-fit:contain;display:block;border-radius:inherit;clip-path:var(--logo-clip);-webkit-clip-path:var(--logo-clip);transform:translate(var(--logo-x),var(--logo-y)) scale(var(--logo-zoom));transform-origin:center;will-change:transform}
 .apresentacao-logo-iniciais{width:150px;height:150px;display:grid;place-items:center;border-radius:34px;background:var(--brand-action);color:var(--brand-action-text);font-size:52px;font-weight:1000}
 .apresentacao-copy{min-width:0}
 .apresentacao-kicker{margin:0 0 10px;color:var(--brand-action);font-size:12px;font-weight:1000;text-transform:uppercase;letter-spacing:.16em}
@@ -28863,6 +28869,7 @@ document.addEventListener('DOMContentLoaded',()=>{const botao=document.querySele
         "__LOGO_OFFSET_Y__": str(logo_offset_y),
         "__LOGO_FUNDO__": logo_fundo,
         "__LOGO_RAIO__": logo_raio,
+        "__LOGO_CLIP__": logo_clip,
         "__LOGO_BORDA__": logo_borda,
         "__TITULO_SEO__": titulo_seo,
         "__DESCRICAO_SEO__": descricao_seo,
