@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vitrine.html
-Último recode: 2026-08-11 05:52 (America/Bahia)
-Motivo: Adicionar filtros por status na central de pedidos da Vitrine Online.
+Último recode: 2026-08-11 08:30 (America/Bahia)
+Motivo: Correlacionar cada item do pedido ao produto exato da Vitrine e permitir abrir diretamente o cadastro correspondente.
 #}
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -439,7 +439,16 @@ Motivo: Adicionar filtros por status na central de pedidos da Vitrine Online.
                             <div class="vitrine-order-items">
                                 {% for item in pedido.get('itens') or [] %}
                                     <div>
-                                        <span>{{ item.get('quantidade') or 1 }}x {{ item.get('produto_nome') or 'Produto' }}</span>
+                                        <span class="vitrine-order-product-summary">
+                                            <span>{{ item.get('quantidade') or 1 }}x {{ item.get('produto_nome') or 'Produto' }}</span>
+                                            {% if item.get('vitrine_produto_id') %}
+                                                <a
+                                                    class="vitrine-order-product-link"
+                                                    href="#produto-vitrine-{{ item.get('vitrine_produto_id') }}"
+                                                    data-vitrine-produto-link="{{ item.get('vitrine_produto_id') }}"
+                                                >Ver produto</a>
+                                            {% endif %}
+                                        </span>
                                         <strong>R$ {{ item.get('subtotal') or '0,00' }}</strong>
                                     </div>
                                 {% else %}
@@ -797,10 +806,12 @@ Motivo: Adicionar filtros por status na central de pedidos da Vitrine Online.
                         {% for produto in produtos_vitrine_admin %}
                             <form
                                 class="product-admin-card catalog-simple-card"
+                                {% if produto.get('vitrine_id') %}id="produto-vitrine-{{ produto.get('vitrine_id') }}"{% endif %}
                                 method="post"
                                 action="{{ url_for('vitrine_produto_independente_salvar') if produto.get('produto_independente') else url_for('vitrine_produto_publicar') }}"
                                 enctype="multipart/form-data"
                                 data-produto-independente="{{ 'sim' if produto.get('produto_independente') else 'nao' }}"
+                                {% if produto.get('vitrine_id') %}data-vitrine-produto-id="{{ produto.get('vitrine_id') }}"{% endif %}
                             >
                                 <input type="hidden" name="produto_id" value="{{ produto.get('produto_id') }}">
                                 {% if produto.get('produto_independente') %}
@@ -1188,6 +1199,46 @@ Motivo: Adicionar filtros por status na central de pedidos da Vitrine Online.
                 botao.textContent = editor.hidden ? "✏ Editar" : "✕ Fechar";
             }
 
+            function abrirProdutoCorrelacionadoVitrine(vitrineProdutoId) {
+                const produtoId = String(vitrineProdutoId || "").trim();
+                if (!produtoId) return false;
+
+                const card = document.getElementById("produto-vitrine-" + produtoId);
+                if (!card) return false;
+
+                document.querySelectorAll(".catalog-simple-card.is-product-focus").forEach(function (item) {
+                    item.classList.remove("is-product-focus");
+                });
+                card.classList.add("is-product-focus");
+
+                const editor = card.querySelector("[data-vitrine-editor]");
+                const botaoEditar = card.querySelector('.catalog-quick-actions button[onclick*="alternarEditorVitrine"]');
+                if (editor && editor.hidden) {
+                    editor.hidden = false;
+                    if (botaoEditar) botaoEditar.textContent = "✕ Fechar";
+                }
+
+                window.history.replaceState({}, "", window.location.pathname + window.location.search + "#produto-vitrine-" + produtoId);
+                window.setTimeout(function () {
+                    card.scrollIntoView({ behavior: "smooth", block: "center" });
+                }, 80);
+                window.setTimeout(function () {
+                    card.classList.remove("is-product-focus");
+                }, 2600);
+                return true;
+            }
+
+            function configurarLinksProdutosPedidosVitrine() {
+                document.querySelectorAll("[data-vitrine-produto-link]").forEach(function (link) {
+                    link.addEventListener("click", function (event) {
+                        const produtoId = link.dataset.vitrineProdutoLink || "";
+                        if (abrirProdutoCorrelacionadoVitrine(produtoId)) {
+                            event.preventDefault();
+                        }
+                    });
+                });
+            }
+
             function alterarStatusProdutoVitrine(botao, status) {
                 const formulario = botao.closest("form");
                 const campoStatus = formulario ? formulario.querySelector('select[name="status"]') : null;
@@ -1452,6 +1503,7 @@ Motivo: Adicionar filtros por status na central de pedidos da Vitrine Online.
             configurarIdentidadeVisualVitrine();
             configurarCentralVitrine();
             configurarFiltrosPedidosVitrine();
+            configurarLinksProdutosPedidosVitrine();
             configurarRemocaoFotosVitrine();
 
             document.addEventListener("keydown", function (event) {
@@ -2200,6 +2252,29 @@ Motivo: Adicionar filtros por status na central de pedidos da Vitrine Online.
             padding: 12px;
             border-radius: 14px;
             background: #ffffff;
+        }
+
+        .vitrine-order-product-summary {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .vitrine-order-product-link {
+            color: #1d4ed8;
+            font-size: 12px;
+            font-weight: 800;
+            text-decoration: none;
+        }
+
+        .vitrine-order-product-link:hover {
+            text-decoration: underline;
+        }
+
+        .catalog-simple-card.is-product-focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.14);
         }
 
         .vitrine-order-actions {
