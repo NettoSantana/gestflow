@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-11 08:13 (America/Bahia)
-# Motivo: Correlacionar cada item do pedido da Vitrine ao produto exato da Vitrine e ao Produto do GestFlow quando houver origem vinculada.
+# Último recode: 2026-08-11 08:51 (America/Bahia)
+# Motivo: Adicionar suporte seguro ao botão dinâmico "Abrir pedido" no template de notificação WhatsApp da Vitrine.
 
 from __future__ import annotations
 
@@ -905,6 +905,14 @@ CONFIGURACOES_MODULOS_DEFINICOES = [
             _campo_configuracao_modulo("notificar_responsavel_whatsapp", "Notificar responsável por WhatsApp", "booleano", True, secao="Notificações"),
             _campo_configuracao_modulo("whatsapp_responsavel", "WhatsApp responsável pelas notificações", "texto", "", secao="Notificações", ajuda="Informe DDI, DDD e número. Exemplo: 5571999999999."),
             _campo_configuracao_modulo("template_notificacao_whatsapp", "Template aprovado da Meta", "texto", "", secao="Notificações", ajuda="Opcional. Use um template com 4 variáveis no corpo: tipo, número, cliente e resumo."),
+            _campo_configuracao_modulo(
+                "template_notificacao_whatsapp_botao_pedido",
+                "Template possui botão Abrir pedido",
+                "booleano",
+                False,
+                secao="Notificações",
+                ajuda="Ative somente quando o template aprovado da Meta tiver um botão URL dinâmico na posição 0. O GestFlow enviará o número do pedido como variável do botão.",
+            ),
             _campo_configuracao_modulo("texto_institucional", "Texto institucional", "texto_longo", "", secao="Conteúdo"),
             _campo_configuracao_modulo("politica_troca", "Política de troca", "texto_longo", "", secao="Políticas"),
             _campo_configuracao_modulo("politica_privacidade", "Política de privacidade", "texto_longo", "", secao="Políticas"),
@@ -27794,6 +27802,10 @@ def notificar_responsavel_vitrine_whatsapp(
     resumo_texto = re.sub(r"\s{2,}", " ", resumo_texto).strip()
     numero_registro = str(int(registro_id or 0))
     template = str(regras.get("template_notificacao_whatsapp") or "").strip()
+    template_botao_pedido = _configuracao_bool(
+        regras.get("template_notificacao_whatsapp_botao_pedido"),
+        False,
+    )
     link_registro = ""
     if tipo_normalizado == "pedido":
         try:
@@ -27820,6 +27832,17 @@ def notificar_responsavel_vitrine_whatsapp(
                     ],
                 }
             ]
+            if tipo_normalizado == "pedido" and template_botao_pedido:
+                componentes.append(
+                    {
+                        "type": "button",
+                        "sub_type": "url",
+                        "index": "0",
+                        "parameters": [
+                            {"type": "text", "text": numero_registro[:80]},
+                        ],
+                    }
+                )
             sucesso, detalhe, _ = enviar_whatsapp_template(
                 destinatario,
                 template,
