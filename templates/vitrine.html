@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vitrine.html
-Último recode: 2026-08-11 08:30 (America/Bahia)
-Motivo: Correlacionar cada item do pedido ao produto exato da Vitrine e permitir abrir diretamente o cadastro correspondente.
+Último recode: 2026-08-11 09:24 (America/Bahia)
+Motivo: Exibir ação de exclusão definitiva somente para pedidos novos da Vitrine, com confirmação explícita antes do envio ao backend.
 #}
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -476,6 +476,12 @@ Motivo: Correlacionar cada item do pedido ao produto exato da Vitrine e permitir
                                 {% if status_pedido in ['novo', 'em_atendimento'] %}
                                     <form method="post" action="{{ url_for('cancelar_pedido_vitrine', pedido_id=pedido.get('id')) }}" onsubmit="return window.confirm('Cancelar este pedido sem gerar venda, estoque ou financeiro?');">
                                         <button class="btn btn-danger btn-small" type="submit">Cancelar pedido</button>
+                                    </form>
+                                {% endif %}
+
+                                {% if status_pedido == 'novo' %}
+                                    <form method="post" action="{{ url_for('excluir_pedido_vitrine', pedido_id=pedido.get('id')) }}" onsubmit="return window.confirm('Excluir definitivamente o Pedido #{{ pedido.get('id') }}? Esta ação não pode ser desfeita.');">
+                                        <button class="btn btn-danger btn-small" type="submit">Excluir pedido</button>
                                     </form>
                                 {% endif %}
 
