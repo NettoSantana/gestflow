@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-06 19:59 (America/Bahia)
-# Motivo: Adicionar remoção da logo e galeria de fotos com imagem principal para produtos e serviços da Vitrine Online.
+# Último recode: 2026-08-10 21:56 (America/Bahia)
+# Motivo: Simplificar a gestão da Vitrine Online e separar integração de produtos/serviços, estoque e vendas.
 
 from __future__ import annotations
 
@@ -871,6 +871,22 @@ CONFIGURACOES_MODULOS_DEFINICOES = [
         "descricao": "Identidade pública, catálogo, preços, pedidos, entrega, contato e SEO.",
         "campos": [
             _campo_configuracao_modulo("ativa", "Ativar vitrine", "booleano", True, secao="Publicação"),
+            _campo_configuracao_modulo(
+                "integrar_produtos_gestflow",
+                "Integrar produtos com Produtos / Estoque / Vendas",
+                "booleano",
+                True,
+                secao="Integrações",
+                ajuda="Ativado: a Vitrine acompanha o cadastro normal, estoque e vendas. Desativado: os produtos já publicados ficam independentes e os pedidos não geram venda no GestFlow.",
+            ),
+            _campo_configuracao_modulo(
+                "integrar_servicos_gestflow",
+                "Integrar serviços com Serviços / Vendas",
+                "booleano",
+                True,
+                secao="Integrações",
+                ajuda="Ativado: a Vitrine acompanha o cadastro normal e permite gerar venda. Desativado: os serviços já publicados mantêm os dados próprios da Vitrine e o atendimento não gera venda automaticamente.",
+            ),
             _campo_configuracao_modulo("nome_publico", "Nome público", "texto", "", secao="Identidade"),
             _campo_configuracao_modulo("slug", "Endereço personalizado", "texto", "", secao="Publicação"),
             _campo_configuracao_modulo("cor_primaria", "Cor principal", "texto", "#1458f5", secao="Identidade"),
@@ -4679,6 +4695,11 @@ def iniciar_banco() -> None:
                 descricao TEXT,
                 categoria TEXT,
                 preco TEXT,
+                tempo_estimado TEXT,
+                tempo_estimado_valor TEXT,
+                tempo_estimado_unidade TEXT,
+                tempo_estimado_minutos INTEGER DEFAULT 60,
+                tipo_contratacao TEXT DEFAULT 'valor_fixo',
                 imagem_path TEXT,
                 destaque TEXT NOT NULL DEFAULT 'nao',
                 status TEXT NOT NULL DEFAULT 'publicado',
@@ -4691,6 +4712,59 @@ def iniciar_banco() -> None:
             )
             """
         )
+        colunas_vitrine_servicos = {
+            str(row["name"])
+            for row in conn.execute("PRAGMA table_info(vitrine_servicos)").fetchall()
+        }
+        migracoes_vitrine_servicos = {
+            "tempo_estimado": "TEXT",
+            "tempo_estimado_valor": "TEXT",
+            "tempo_estimado_unidade": "TEXT",
+            "tempo_estimado_minutos": "INTEGER DEFAULT 60",
+            "tipo_contratacao": "TEXT DEFAULT 'valor_fixo'",
+        }
+        colunas_vitrine_servicos_criadas: list[str] = []
+        for coluna, tipo_coluna in migracoes_vitrine_servicos.items():
+            if coluna not in colunas_vitrine_servicos:
+                conn.execute(f"ALTER TABLE vitrine_servicos ADD COLUMN {coluna} {tipo_coluna}")
+                colunas_vitrine_servicos_criadas.append(coluna)
+        if colunas_vitrine_servicos_criadas:
+            conn.execute(
+                """
+                UPDATE vitrine_servicos
+                SET
+                    tempo_estimado = (
+                        SELECT s.tempo_estimado FROM servicos s
+                        WHERE s.id = vitrine_servicos.servico_id
+                          AND s.empresa_id = vitrine_servicos.empresa_id
+                    ),
+                    tempo_estimado_valor = (
+                        SELECT s.tempo_estimado_valor FROM servicos s
+                        WHERE s.id = vitrine_servicos.servico_id
+                          AND s.empresa_id = vitrine_servicos.empresa_id
+                    ),
+                    tempo_estimado_unidade = (
+                        SELECT s.tempo_estimado_unidade FROM servicos s
+                        WHERE s.id = vitrine_servicos.servico_id
+                          AND s.empresa_id = vitrine_servicos.empresa_id
+                    ),
+                    tempo_estimado_minutos = COALESCE((
+                        SELECT s.tempo_estimado_minutos FROM servicos s
+                        WHERE s.id = vitrine_servicos.servico_id
+                          AND s.empresa_id = vitrine_servicos.empresa_id
+                    ), 60),
+                    tipo_contratacao = COALESCE((
+                        SELECT s.tipo_contratacao FROM servicos s
+                        WHERE s.id = vitrine_servicos.servico_id
+                          AND s.empresa_id = vitrine_servicos.empresa_id
+                    ), 'valor_fixo')
+                WHERE EXISTS (
+                    SELECT 1 FROM servicos s
+                    WHERE s.id = vitrine_servicos.servico_id
+                      AND s.empresa_id = vitrine_servicos.empresa_id
+                )
+                """
+            )
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS vitrine_imagens (
@@ -4825,6 +4899,7 @@ def iniciar_banco() -> None:
                 total TEXT,
                 status TEXT NOT NULL DEFAULT 'novo',
                 origem TEXT NOT NULL DEFAULT 'vitrine',
+                integrado_vendas TEXT NOT NULL DEFAULT 'sim',
                 venda_id INTEGER,
                 atendido_por_usuario_id INTEGER,
                 atendido_por_nome TEXT,
@@ -4843,6 +4918,7 @@ def iniciar_banco() -> None:
             for row in conn.execute("PRAGMA table_info(vitrine_pedidos)").fetchall()
         }
         migracoes_vitrine_pedidos = {
+            "integrado_vendas": "TEXT NOT NULL DEFAULT 'sim'",
             "venda_id": "INTEGER",
             "atendido_por_usuario_id": "INTEGER",
             "atendido_por_nome": "TEXT",
@@ -4920,6 +4996,7 @@ def iniciar_banco() -> None:
                 origem TEXT DEFAULT 'manual',
                 token_publico_cliente TEXT,
                 criado_via_publico TEXT DEFAULT 'nao',
+                vitrine_integrado_vendas TEXT NOT NULL DEFAULT 'sim',
                 venda_id INTEGER,
                 atendido_por_usuario_id INTEGER,
                 atendido_por_nome TEXT,
@@ -4938,6 +5015,7 @@ def iniciar_banco() -> None:
             for row in conn.execute("PRAGMA table_info(agendamentos)").fetchall()
         }
         migracoes_agendamentos = {
+            "vitrine_integrado_vendas": "TEXT NOT NULL DEFAULT 'sim'",
             "venda_id": "INTEGER",
             "atendido_por_usuario_id": "INTEGER",
             "atendido_por_nome": "TEXT",
@@ -6812,9 +6890,10 @@ def listar_horarios_agendamento_publico(
     data_agendamento: Any,
     profissional_id: Any = "",
     servico_id: Any = "",
+    origem: Any = "",
 ) -> list[str]:
     data_iso = _normalizar_data_iso(data_agendamento, hoje_empresa().isoformat())
-    servico = buscar_servico_empresa(empresa_id, servico_id)
+    servico = buscar_servico_vitrine_agendamento(empresa_id, servico_id, origem)
     duracao = duracao_efetiva_servico_minutos(servico, empresa_id)
     configuracoes = buscar_configuracoes_modulo("agendamentos", empresa_id)
     try:
@@ -6851,6 +6930,13 @@ def listar_horarios_agendamento_publico(
 
 
 def salvar_agendamento_publico_db(empresa_id: int, cliente: dict[str, Any], dados: dict[str, str]) -> int:
+    origem = str(dados.get("origem") or "link_publico")
+    vitrine_integrado_vendas = (
+        "nao"
+        if origem == "vitrine_online" and not vitrine_servicos_integrados(empresa_id)
+        else "sim"
+    )
+
     with conectar_db() as conn:
         cursor = conn.execute(
             """
@@ -6858,8 +6944,9 @@ def salvar_agendamento_publico_db(empresa_id: int, cliente: dict[str, Any], dado
                 empresa_id, cliente_id, cliente_nome, cliente_telefone, servico_id,
                 servico_nome, duracao_minutos, profissional_id, profissional_nome,
                 data_agendamento, hora_inicio, hora_fim, status, valor, observacoes,
-                origem, token_publico_cliente, criado_via_publico, atualizado_em
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                origem, token_publico_cliente, criado_via_publico,
+                vitrine_integrado_vendas, atualizado_em
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id, int(cliente.get("id") or 0), str(cliente.get("nome") or ""),
@@ -6868,13 +6955,14 @@ def salvar_agendamento_publico_db(empresa_id: int, cliente: dict[str, Any], dado
                 dados.get("profissional_id") or "", dados.get("profissional_nome") or "",
                 dados["data_agendamento"], dados["hora_inicio"], dados["hora_fim"],
                 dados.get("status") or "agendado", dados.get("valor") or "",
-                dados.get("observacoes") or "", dados.get("origem") or "link_publico",
+                dados.get("observacoes") or "", origem,
                 str(cliente.get("token_publico") or ""), "sim",
+                vitrine_integrado_vendas,
                 agora_empresa().isoformat(timespec="seconds"),
             ),
         )
         agendamento_id = int(cursor.lastrowid)
-        if str(dados.get("origem") or "") == "vitrine_online":
+        if origem == "vitrine_online":
             conn.execute(
                 """
                 UPDATE vitrine_servicos
@@ -6892,7 +6980,8 @@ def salvar_agendamento_publico_db(empresa_id: int, cliente: dict[str, Any], dado
                 (empresa_id,),
             )
         conn.commit()
-    if str(dados.get("origem") or "") == "vitrine_online":
+
+    if origem == "vitrine_online":
         resumo = (
             f"{dados.get('servico_nome') or 'Serviço não informado'} — "
             f"{formatar_data_br(dados.get('data_agendamento')) or dados.get('data_agendamento') or '-'} "
@@ -18817,11 +18906,138 @@ def registrar_auditoria_configuracao_modulo_db(
         conn.commit()
 
 
+def congelar_catalogo_vitrine_ao_desintegrar(
+    empresa_id: int,
+    *,
+    produtos: bool = False,
+    servicos: bool = False,
+) -> None:
+    if not produtos and not servicos:
+        return
+
+    agora = agora_empresa().isoformat(timespec="seconds")
+    with conectar_db() as conn:
+        if produtos:
+            conn.execute(
+                """
+                UPDATE vitrine_produtos
+                SET
+                    nome = COALESCE((
+                        SELECT p.nome FROM produtos p
+                        WHERE p.id = vitrine_produtos.produto_id
+                          AND p.empresa_id = vitrine_produtos.empresa_id
+                    ), nome),
+                    descricao = COALESCE((
+                        SELECT p.observacoes FROM produtos p
+                        WHERE p.id = vitrine_produtos.produto_id
+                          AND p.empresa_id = vitrine_produtos.empresa_id
+                    ), descricao),
+                    categoria = COALESCE((
+                        SELECT p.categoria FROM produtos p
+                        WHERE p.id = vitrine_produtos.produto_id
+                          AND p.empresa_id = vitrine_produtos.empresa_id
+                    ), categoria),
+                    preco = COALESCE((
+                        SELECT p.preco_venda FROM produtos p
+                        WHERE p.id = vitrine_produtos.produto_id
+                          AND p.empresa_id = vitrine_produtos.empresa_id
+                    ), preco),
+                    atualizado_em = ?
+                WHERE empresa_id = ?
+                  AND EXISTS (
+                    SELECT 1 FROM produtos p
+                    WHERE p.id = vitrine_produtos.produto_id
+                      AND p.empresa_id = vitrine_produtos.empresa_id
+                  )
+                """,
+                (agora, empresa_id),
+            )
+
+        if servicos:
+            conn.execute(
+                """
+                UPDATE vitrine_servicos
+                SET
+                    nome = COALESCE((
+                        SELECT s.nome FROM servicos s
+                        WHERE s.id = vitrine_servicos.servico_id
+                          AND s.empresa_id = vitrine_servicos.empresa_id
+                    ), nome),
+                    descricao = COALESCE((
+                        SELECT s.observacoes FROM servicos s
+                        WHERE s.id = vitrine_servicos.servico_id
+                          AND s.empresa_id = vitrine_servicos.empresa_id
+                    ), descricao),
+                    categoria = COALESCE((
+                        SELECT s.categoria FROM servicos s
+                        WHERE s.id = vitrine_servicos.servico_id
+                          AND s.empresa_id = vitrine_servicos.empresa_id
+                    ), categoria),
+                    preco = COALESCE((
+                        SELECT s.valor_venda FROM servicos s
+                        WHERE s.id = vitrine_servicos.servico_id
+                          AND s.empresa_id = vitrine_servicos.empresa_id
+                    ), preco),
+                    tempo_estimado = COALESCE((
+                        SELECT s.tempo_estimado FROM servicos s
+                        WHERE s.id = vitrine_servicos.servico_id
+                          AND s.empresa_id = vitrine_servicos.empresa_id
+                    ), tempo_estimado),
+                    tempo_estimado_valor = COALESCE((
+                        SELECT s.tempo_estimado_valor FROM servicos s
+                        WHERE s.id = vitrine_servicos.servico_id
+                          AND s.empresa_id = vitrine_servicos.empresa_id
+                    ), tempo_estimado_valor),
+                    tempo_estimado_unidade = COALESCE((
+                        SELECT s.tempo_estimado_unidade FROM servicos s
+                        WHERE s.id = vitrine_servicos.servico_id
+                          AND s.empresa_id = vitrine_servicos.empresa_id
+                    ), tempo_estimado_unidade),
+                    tempo_estimado_minutos = COALESCE((
+                        SELECT s.tempo_estimado_minutos FROM servicos s
+                        WHERE s.id = vitrine_servicos.servico_id
+                          AND s.empresa_id = vitrine_servicos.empresa_id
+                    ), tempo_estimado_minutos, 60),
+                    tipo_contratacao = COALESCE((
+                        SELECT s.tipo_contratacao FROM servicos s
+                        WHERE s.id = vitrine_servicos.servico_id
+                          AND s.empresa_id = vitrine_servicos.empresa_id
+                    ), tipo_contratacao, 'valor_fixo'),
+                    atualizado_em = ?
+                WHERE empresa_id = ?
+                  AND EXISTS (
+                    SELECT 1 FROM servicos s
+                    WHERE s.id = vitrine_servicos.servico_id
+                      AND s.empresa_id = vitrine_servicos.empresa_id
+                  )
+                """,
+                (agora, empresa_id),
+            )
+
+        conn.commit()
+
+
 def salvar_configuracoes_modulo_db(
     codigo: str,
     valores: dict[str, Any],
 ) -> None:
     valores_anteriores = buscar_configuracoes_modulo(codigo)
+
+    if codigo == "vitrine":
+        desintegrar_produtos = (
+            _configuracao_bool(valores_anteriores.get("integrar_produtos_gestflow"), True)
+            and not _configuracao_bool(valores.get("integrar_produtos_gestflow"), True)
+        )
+        desintegrar_servicos = (
+            _configuracao_bool(valores_anteriores.get("integrar_servicos_gestflow"), True)
+            and not _configuracao_bool(valores.get("integrar_servicos_gestflow"), True)
+        )
+        congelar_catalogo_vitrine_ao_desintegrar(
+            empresa_logada_id(),
+            produtos=desintegrar_produtos,
+            servicos=desintegrar_servicos,
+        )
+
     agora = agora_empresa().isoformat(timespec="seconds")
     usuario_id = int(session.get("usuario_id") or 0) or None
     usuario_nome = str(session.get("usuario_nome") or "").strip()
@@ -25092,73 +25308,39 @@ def atualizar_galeria_vitrine_formulario(item_tipo: str, item_id: int) -> str:
     return str(row["imagem_path"] or "") if row else ""
 
 
+def vitrine_produtos_integrados(empresa_id: int) -> bool:
+    return configuracao_bool("vitrine", "integrar_produtos_gestflow", True, empresa_id)
+
+
+def vitrine_servicos_integrados(empresa_id: int) -> bool:
+    return configuracao_bool("vitrine", "integrar_servicos_gestflow", True, empresa_id)
+
+
 def listar_produtos_vitrine_empresa(empresa_id: int) -> list[dict[str, Any]]:
+    integrado = vitrine_produtos_integrados(empresa_id)
+    controlar_estoque = configuracao_bool("vitrine", "controlar_estoque", True, empresa_id)
+    permitir_sem_estoque = configuracao_bool("vendas", "permitir_sem_estoque", False, empresa_id)
+
     with conectar_db() as conn:
         rows = conn.execute(
             """
             SELECT
-                vitrine_produtos.id,
-                vitrine_produtos.empresa_id,
-                vitrine_produtos.produto_id,
-                vitrine_produtos.nome,
-                vitrine_produtos.descricao,
-                vitrine_produtos.categoria,
-                vitrine_produtos.preco,
-                vitrine_produtos.imagem_path,
-                vitrine_produtos.destaque,
-                vitrine_produtos.status,
-                vitrine_produtos.acessos,
-                vitrine_produtos.carrinhos,
-                vitrine_produtos.pedidos,
-                produtos.estoque_atual
-            FROM vitrine_produtos
-            LEFT JOIN produtos
-              ON produtos.id = vitrine_produtos.produto_id
-             AND produtos.empresa_id = vitrine_produtos.empresa_id
-            WHERE vitrine_produtos.empresa_id = ?
-              AND LOWER(COALESCE(vitrine_produtos.status, 'publicado')) = 'publicado'
+                vp.*,
+                p.nome AS produto_nome,
+                p.categoria AS produto_categoria,
+                p.preco_venda AS produto_preco_venda,
+                p.observacoes AS produto_observacoes,
+                p.status AS produto_status,
+                p.estoque_atual AS estoque_atual
+            FROM vitrine_produtos vp
+            LEFT JOIN produtos p
+              ON p.id = vp.produto_id
+             AND p.empresa_id = vp.empresa_id
+            WHERE vp.empresa_id = ?
+              AND LOWER(COALESCE(vp.status, 'publicado')) IN ('publicado', 'indisponivel')
             ORDER BY
-                CASE WHEN LOWER(COALESCE(vitrine_produtos.destaque, 'nao')) = 'sim' THEN 0 ELSE 1 END,
-                vitrine_produtos.nome ASC
-            """,
-            (empresa_id,),
-        ).fetchall()
-
-    return anexar_galerias_vitrine([dict(row) for row in rows], empresa_id, "produto", "produto_id")
-
-
-def listar_produtos_vitrine_admin(empresa_id: int) -> list[dict[str, Any]]:
-    with conectar_db() as conn:
-        rows = conn.execute(
-            """
-            SELECT
-                produtos.id AS produto_id,
-                produtos.nome AS produto_nome,
-                produtos.codigo AS produto_codigo,
-                produtos.categoria AS produto_categoria,
-                produtos.unidade AS produto_unidade,
-                produtos.estoque_atual AS produto_estoque_atual,
-                produtos.preco_venda AS produto_preco_venda,
-                produtos.observacoes AS produto_observacoes,
-                produtos.status AS produto_status,
-                vitrine_produtos.id AS vitrine_id,
-                vitrine_produtos.nome AS vitrine_nome,
-                vitrine_produtos.descricao AS vitrine_descricao,
-                vitrine_produtos.categoria AS vitrine_categoria,
-                vitrine_produtos.preco AS vitrine_preco,
-                vitrine_produtos.imagem_path AS vitrine_imagem_path,
-                vitrine_produtos.destaque AS vitrine_destaque,
-                vitrine_produtos.status AS vitrine_status,
-                COALESCE(vitrine_produtos.acessos, 0) AS acessos,
-                COALESCE(vitrine_produtos.carrinhos, 0) AS carrinhos,
-                COALESCE(vitrine_produtos.pedidos, 0) AS pedidos
-            FROM produtos
-            LEFT JOIN vitrine_produtos
-              ON vitrine_produtos.produto_id = produtos.id
-             AND vitrine_produtos.empresa_id = produtos.empresa_id
-            WHERE produtos.empresa_id = ?
-              AND LOWER(COALESCE(produtos.status, 'ativo')) = 'ativo'
-            ORDER BY produtos.nome ASC
+                CASE WHEN LOWER(COALESCE(vp.destaque, 'nao')) = 'sim' THEN 0 ELSE 1 END,
+                vp.nome ASC
             """,
             (empresa_id,),
         ).fetchall()
@@ -25166,22 +25348,143 @@ def listar_produtos_vitrine_admin(empresa_id: int) -> list[dict[str, Any]]:
     produtos: list[dict[str, Any]] = []
     for row in rows:
         item = dict(row)
-        publicado = str(item.get("vitrine_status") or "").strip().lower() == "publicado"
+        status_vitrine = str(item.get("status") or "publicado").strip().lower()
+        status_produto = str(item.get("produto_status") or "").strip().lower()
+
+        if integrado and status_produto != "ativo":
+            continue
+
+        if integrado:
+            item["nome"] = str(item.get("produto_nome") or item.get("nome") or "")
+            item["descricao"] = str(item.get("produto_observacoes") or "")
+            item["categoria"] = str(item.get("produto_categoria") or "Produtos")
+            item["preco"] = str(item.get("produto_preco_venda") or "0,00")
+        else:
+            item["estoque_atual"] = ""
+
+        saldo_positivo = _converter_valor_brl(item.get("estoque_atual")) > 0
+        item["integrado"] = integrado
+        item["disponivel_compra"] = (
+            status_vitrine != "indisponivel"
+            and (
+                not integrado
+                or not controlar_estoque
+                or permitir_sem_estoque
+                or saldo_positivo
+            )
+        )
+        produtos.append(item)
+
+    return anexar_galerias_vitrine(produtos, empresa_id, "produto", "produto_id")
+
+
+def listar_produtos_vitrine_admin(empresa_id: int) -> list[dict[str, Any]]:
+    integrado = vitrine_produtos_integrados(empresa_id)
+
+    with conectar_db() as conn:
+        if integrado:
+            rows = conn.execute(
+                """
+                SELECT
+                    p.id AS produto_id,
+                    p.nome AS produto_nome,
+                    p.codigo AS produto_codigo,
+                    p.categoria AS produto_categoria,
+                    p.unidade AS produto_unidade,
+                    p.estoque_atual AS produto_estoque_atual,
+                    p.preco_venda AS produto_preco_venda,
+                    p.observacoes AS produto_observacoes,
+                    p.status AS produto_status,
+                    vp.id AS vitrine_id,
+                    vp.nome AS vitrine_nome,
+                    vp.descricao AS vitrine_descricao,
+                    vp.categoria AS vitrine_categoria,
+                    vp.preco AS vitrine_preco,
+                    vp.imagem_path AS vitrine_imagem_path,
+                    vp.destaque AS vitrine_destaque,
+                    vp.status AS vitrine_status,
+                    COALESCE(vp.acessos, 0) AS acessos,
+                    COALESCE(vp.carrinhos, 0) AS carrinhos,
+                    COALESCE(vp.pedidos, 0) AS pedidos
+                FROM produtos p
+                LEFT JOIN vitrine_produtos vp
+                  ON vp.produto_id = p.id
+                 AND vp.empresa_id = p.empresa_id
+                WHERE p.empresa_id = ?
+                  AND LOWER(COALESCE(p.status, 'ativo')) = 'ativo'
+                ORDER BY p.nome ASC
+                """,
+                (empresa_id,),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                """
+                SELECT
+                    vp.produto_id,
+                    p.nome AS produto_nome,
+                    p.codigo AS produto_codigo,
+                    p.categoria AS produto_categoria,
+                    p.unidade AS produto_unidade,
+                    p.estoque_atual AS produto_estoque_atual,
+                    p.preco_venda AS produto_preco_venda,
+                    p.observacoes AS produto_observacoes,
+                    p.status AS produto_status,
+                    vp.id AS vitrine_id,
+                    vp.nome AS vitrine_nome,
+                    vp.descricao AS vitrine_descricao,
+                    vp.categoria AS vitrine_categoria,
+                    vp.preco AS vitrine_preco,
+                    vp.imagem_path AS vitrine_imagem_path,
+                    vp.destaque AS vitrine_destaque,
+                    vp.status AS vitrine_status,
+                    COALESCE(vp.acessos, 0) AS acessos,
+                    COALESCE(vp.carrinhos, 0) AS carrinhos,
+                    COALESCE(vp.pedidos, 0) AS pedidos
+                FROM vitrine_produtos vp
+                LEFT JOIN produtos p
+                  ON p.id = vp.produto_id
+                 AND p.empresa_id = vp.empresa_id
+                WHERE vp.empresa_id = ?
+                ORDER BY vp.nome ASC
+                """,
+                (empresa_id,),
+            ).fetchall()
+
+    produtos: list[dict[str, Any]] = []
+    for row in rows:
+        item = dict(row)
+        status = str(item.get("vitrine_status") or "nao_publicado").strip().lower()
+        if integrado:
+            nome = str(item.get("produto_nome") or "")
+            categoria = str(item.get("produto_categoria") or "Produtos")
+            descricao = str(item.get("produto_observacoes") or "")
+            preco = str(item.get("produto_preco_venda") or "0,00")
+            estoque_atual = str(item.get("produto_estoque_atual") or "0")
+        else:
+            nome = str(item.get("vitrine_nome") or item.get("produto_nome") or "")
+            categoria = str(item.get("vitrine_categoria") or item.get("produto_categoria") or "Produtos")
+            descricao = str(item.get("vitrine_descricao") or item.get("produto_observacoes") or "")
+            preco = str(item.get("vitrine_preco") or item.get("produto_preco_venda") or "0,00")
+            estoque_atual = "Independente"
+
         produtos.append(
             {
                 "produto_id": int(item.get("produto_id") or 0),
                 "vitrine_id": item.get("vitrine_id") or "",
-                "nome": str(item.get("vitrine_nome") or item.get("produto_nome") or ""),
+                "nome": nome,
                 "codigo": str(item.get("produto_codigo") or ""),
-                "categoria": str(item.get("vitrine_categoria") or item.get("produto_categoria") or "Produtos"),
+                "categoria": categoria,
                 "unidade": str(item.get("produto_unidade") or ""),
-                "estoque_atual": str(item.get("produto_estoque_atual") or ""),
-                "descricao": str(item.get("vitrine_descricao") or item.get("produto_observacoes") or ""),
-                "preco": str(item.get("vitrine_preco") or item.get("produto_preco_venda") or "0,00"),
+                "estoque_atual": estoque_atual,
+                "descricao": descricao,
+                "preco": preco,
                 "imagem_path": str(item.get("vitrine_imagem_path") or ""),
                 "destaque": str(item.get("vitrine_destaque") or "nao"),
-                "status": str(item.get("vitrine_status") or "nao_publicado"),
-                "publicado": publicado,
+                "status": status,
+                "publicado": status == "publicado",
+                "visivel": status in {"publicado", "indisponivel"},
+                "indisponivel": status == "indisponivel",
+                "integrado": integrado,
                 "acessos": int(item.get("acessos") or 0),
                 "carrinhos": int(item.get("carrinhos") or 0),
                 "pedidos": int(item.get("pedidos") or 0),
@@ -25193,24 +25496,51 @@ def listar_produtos_vitrine_admin(empresa_id: int) -> list[dict[str, Any]]:
 
 def buscar_produto_vitrine_admin(produto_id: int) -> dict[str, Any] | None:
     empresa_id = empresa_logada_id()
+    integrado = vitrine_produtos_integrados(empresa_id)
 
     with conectar_db() as conn:
+        if integrado:
+            row = conn.execute(
+                """
+                SELECT
+                    id,
+                    empresa_id,
+                    nome,
+                    codigo,
+                    categoria,
+                    unidade,
+                    estoque_atual,
+                    preco_venda,
+                    observacoes,
+                    status
+                FROM produtos
+                WHERE id = ?
+                  AND empresa_id = ?
+                LIMIT 1
+                """,
+                (produto_id, empresa_id),
+            ).fetchone()
+            return dict(row) if row else None
+
         row = conn.execute(
             """
             SELECT
-                id,
-                empresa_id,
-                nome,
-                codigo,
-                categoria,
-                unidade,
-                estoque_atual,
-                preco_venda,
-                observacoes,
-                status
-            FROM produtos
-            WHERE id = ?
-              AND empresa_id = ?
+                vp.produto_id AS id,
+                vp.empresa_id,
+                vp.nome,
+                COALESCE(p.codigo, '') AS codigo,
+                vp.categoria,
+                COALESCE(p.unidade, '') AS unidade,
+                '' AS estoque_atual,
+                vp.preco AS preco_venda,
+                vp.descricao AS observacoes,
+                'ativo' AS status
+            FROM vitrine_produtos vp
+            LEFT JOIN produtos p
+              ON p.id = vp.produto_id
+             AND p.empresa_id = vp.empresa_id
+            WHERE vp.produto_id = ?
+              AND vp.empresa_id = ?
             LIMIT 1
             """,
             (produto_id, empresa_id),
@@ -25259,12 +25589,16 @@ def salvar_imagem_produto_vitrine_upload(produto_id: int) -> str:
 
 def salvar_produto_vitrine_publicacao_db(produto_id: int, dados: dict[str, Any]) -> None:
     empresa_id = empresa_logada_id()
+    integrado = vitrine_produtos_integrados(empresa_id)
     produto = buscar_produto_vitrine_admin(produto_id)
 
     if produto is None:
         return
 
     atualizado_em = agora_empresa().isoformat(timespec="seconds")
+    status_normalizado = str(dados.get("status") or "publicado").strip().lower()
+    if status_normalizado not in {"publicado", "rascunho", "oculto", "indisponivel"}:
+        status_normalizado = "publicado"
 
     with conectar_db() as conn:
         row = conn.execute(
@@ -25287,14 +25621,25 @@ def salvar_produto_vitrine_publicacao_db(produto_id: int, dados: dict[str, Any])
         elif not imagem_path:
             imagem_path = imagem_anterior
 
+        if integrado:
+            nome = str(produto.get("nome") or "").strip()
+            descricao = str(produto.get("observacoes") or "").strip()
+            categoria = str(produto.get("categoria") or "Produtos").strip()
+            preco = str(produto.get("preco_venda") or "0,00").strip()
+        else:
+            nome = str(dados.get("nome") or produto.get("nome") or "").strip()
+            descricao = str(dados.get("descricao") or produto.get("observacoes") or "").strip()
+            categoria = str(dados.get("categoria") or produto.get("categoria") or "Produtos").strip()
+            preco = str(dados.get("preco") or produto.get("preco_venda") or "0,00").strip()
+
         valores = (
-            str(dados.get("nome") or produto.get("nome") or "").strip(),
-            str(dados.get("descricao") or produto.get("observacoes") or "").strip(),
-            str(dados.get("categoria") or produto.get("categoria") or "Produtos").strip(),
-            str(dados.get("preco") or produto.get("preco_venda") or "0,00").strip(),
+            nome,
+            descricao,
+            categoria,
+            preco,
             imagem_path,
             str(dados.get("destaque") or "nao").strip() or "nao",
-            str(dados.get("status") or "publicado").strip() or "publicado",
+            status_normalizado,
             atualizado_em,
         )
 
@@ -25345,7 +25690,7 @@ def alterar_status_produto_vitrine_db(produto_id: int, status: str) -> None:
     empresa_id = empresa_logada_id()
     status_normalizado = str(status or "publicado").strip().lower()
 
-    if status_normalizado not in {"publicado", "rascunho", "oculto"}:
+    if status_normalizado not in {"publicado", "rascunho", "oculto", "indisponivel"}:
         status_normalizado = "publicado"
 
     produto = buscar_produto_vitrine_admin(produto_id)
@@ -25401,86 +25746,359 @@ def alterar_status_produto_vitrine_db(produto_id: int, status: str) -> None:
                 WHERE empresa_id = ?
                   AND produto_id = ?
                 """,
-                (status_normalizado, agora_empresa().isoformat(timespec="seconds"), empresa_id, produto_id),
+                (
+                    status_normalizado,
+                    agora_empresa().isoformat(timespec="seconds"),
+                    empresa_id,
+                    produto_id,
+                ),
             )
 
         conn.commit()
 
 
+def remover_item_vitrine_db(item_tipo: str, item_id: int) -> bool:
+    empresa_id = empresa_logada_id()
+    tipo = str(item_tipo or "").strip().lower()
+    if tipo not in {"produto", "servico"}:
+        return False
+
+    tabela = "vitrine_produtos" if tipo == "produto" else "vitrine_servicos"
+    coluna_id = "produto_id" if tipo == "produto" else "servico_id"
+    arquivos: set[str] = set()
+
+    with conectar_db() as conn:
+        row = conn.execute(
+            f"SELECT id, imagem_path FROM {tabela} WHERE empresa_id = ? AND {coluna_id} = ? LIMIT 1",
+            (empresa_id, item_id),
+        ).fetchone()
+        if row is None:
+            return False
+
+        caminho_principal = str(row["imagem_path"] or "").strip()
+        if caminho_principal:
+            arquivos.add(caminho_principal)
+
+        imagens = conn.execute(
+            """
+            SELECT imagem_path
+            FROM vitrine_imagens
+            WHERE empresa_id = ? AND item_tipo = ? AND item_id = ?
+            """,
+            (empresa_id, tipo, item_id),
+        ).fetchall()
+        arquivos.update(
+            str(imagem["imagem_path"] or "").strip()
+            for imagem in imagens
+            if str(imagem["imagem_path"] or "").strip()
+        )
+
+        conn.execute(
+            "DELETE FROM vitrine_imagens WHERE empresa_id = ? AND item_tipo = ? AND item_id = ?",
+            (empresa_id, tipo, item_id),
+        )
+        conn.execute(
+            f"DELETE FROM {tabela} WHERE empresa_id = ? AND {coluna_id} = ?",
+            (empresa_id, item_id),
+        )
+        conn.commit()
+
+    for caminho in arquivos:
+        remover_arquivo_imagem_vitrine(caminho)
+    return True
+
 
 def listar_servicos_vitrine_empresa(empresa_id: int) -> list[dict[str, Any]]:
+    integrado = vitrine_servicos_integrados(empresa_id)
+
     with conectar_db() as conn:
         rows = conn.execute(
             """
-            SELECT vs.*, s.tempo_estimado, s.tempo_estimado_valor,
-                   s.tempo_estimado_unidade, s.tempo_estimado_minutos,
-                   s.tipo_contratacao,
-                   (SELECT COUNT(*) FROM servico_perguntas p
-                    WHERE p.empresa_id = s.empresa_id AND p.servico_id = s.id AND p.status = 'ativo')
-                   AS perguntas_quantidade
+            SELECT
+                vs.*,
+                s.nome AS servico_nome,
+                s.categoria AS servico_categoria,
+                s.valor_venda AS servico_valor_venda,
+                s.observacoes AS servico_observacoes,
+                s.status AS servico_status,
+                s.tempo_estimado AS servico_tempo_estimado,
+                s.tempo_estimado_valor AS servico_tempo_estimado_valor,
+                s.tempo_estimado_unidade AS servico_tempo_estimado_unidade,
+                s.tempo_estimado_minutos AS servico_tempo_estimado_minutos,
+                s.tipo_contratacao AS servico_tipo_contratacao,
+                (
+                    SELECT COUNT(*)
+                    FROM servico_perguntas p
+                    WHERE p.empresa_id = vs.empresa_id
+                      AND p.servico_id = vs.servico_id
+                      AND p.status = 'ativo'
+                ) AS perguntas_quantidade
             FROM vitrine_servicos vs
-            JOIN servicos s ON s.id = vs.servico_id AND s.empresa_id = vs.empresa_id
+            LEFT JOIN servicos s
+              ON s.id = vs.servico_id
+             AND s.empresa_id = vs.empresa_id
             WHERE vs.empresa_id = ?
-              AND LOWER(COALESCE(vs.status, 'publicado')) = 'publicado'
-              AND LOWER(COALESCE(s.status, 'ativo')) = 'ativo'
-            ORDER BY CASE WHEN LOWER(COALESCE(vs.destaque, 'nao')) = 'sim' THEN 0 ELSE 1 END,
-                     vs.nome ASC
+              AND LOWER(COALESCE(vs.status, 'publicado')) IN ('publicado', 'indisponivel')
+            ORDER BY
+                CASE WHEN LOWER(COALESCE(vs.destaque, 'nao')) = 'sim' THEN 0 ELSE 1 END,
+                vs.nome ASC
             """,
             (empresa_id,),
         ).fetchall()
-    return anexar_galerias_vitrine([dict(row) for row in rows], empresa_id, "servico", "servico_id")
+
+    servicos: list[dict[str, Any]] = []
+    for row in rows:
+        item = dict(row)
+        status_vitrine = str(item.get("status") or "publicado").strip().lower()
+        status_servico = str(item.get("servico_status") or "").strip().lower()
+
+        if integrado and status_servico != "ativo":
+            continue
+
+        if integrado:
+            item["nome"] = str(item.get("servico_nome") or item.get("nome") or "")
+            item["descricao"] = str(item.get("servico_observacoes") or "")
+            item["categoria"] = str(item.get("servico_categoria") or "Serviços")
+            item["preco"] = str(item.get("servico_valor_venda") or "0,00")
+            item["tempo_estimado"] = str(item.get("servico_tempo_estimado") or "")
+            item["tempo_estimado_valor"] = str(item.get("servico_tempo_estimado_valor") or "")
+            item["tempo_estimado_unidade"] = str(item.get("servico_tempo_estimado_unidade") or "horas")
+            item["tempo_estimado_minutos"] = int(item.get("servico_tempo_estimado_minutos") or 60)
+            item["tipo_contratacao"] = normalizar_tipo_contratacao_servico(
+                item.get("servico_tipo_contratacao")
+            )
+        else:
+            item["tempo_estimado_minutos"] = int(item.get("tempo_estimado_minutos") or 60)
+            item["tipo_contratacao"] = normalizar_tipo_contratacao_servico(
+                item.get("tipo_contratacao")
+            )
+
+        item["integrado"] = integrado
+        item["disponivel_agendamento"] = status_vitrine != "indisponivel"
+        servicos.append(item)
+
+    return anexar_galerias_vitrine(servicos, empresa_id, "servico", "servico_id")
 
 
 def listar_servicos_vitrine_admin(empresa_id: int) -> list[dict[str, Any]]:
+    integrado = vitrine_servicos_integrados(empresa_id)
+
     with conectar_db() as conn:
-        rows = conn.execute(
-            """
-            SELECT s.id AS servico_id, s.nome AS servico_nome, s.codigo AS servico_codigo,
-                   s.categoria AS servico_categoria, s.valor_venda AS servico_valor_venda,
-                   s.observacoes AS servico_observacoes, s.status AS servico_status,
-                   s.tempo_estimado, s.tempo_estimado_valor, s.tempo_estimado_unidade,
-                   s.tempo_estimado_minutos, s.tipo_contratacao,
-                   (SELECT COUNT(*) FROM servico_perguntas p
-                    WHERE p.empresa_id = s.empresa_id AND p.servico_id = s.id AND p.status = 'ativo')
-                   AS perguntas_quantidade, vs.id AS vitrine_id, vs.nome AS vitrine_nome,
-                   vs.descricao AS vitrine_descricao, vs.categoria AS vitrine_categoria,
-                   vs.preco AS vitrine_preco, vs.imagem_path AS vitrine_imagem_path,
-                   vs.destaque AS vitrine_destaque, vs.status AS vitrine_status,
-                   COALESCE(vs.acessos, 0) AS acessos,
-                   COALESCE(vs.agendamentos, 0) AS agendamentos
-            FROM servicos s
-            LEFT JOIN vitrine_servicos vs
-              ON vs.servico_id = s.id AND vs.empresa_id = s.empresa_id
-            WHERE s.empresa_id = ? AND LOWER(COALESCE(s.status, 'ativo')) = 'ativo'
-            ORDER BY s.nome ASC
-            """,
-            (empresa_id,),
-        ).fetchall()
+        if integrado:
+            rows = conn.execute(
+                """
+                SELECT
+                    s.id AS servico_id,
+                    s.nome AS servico_nome,
+                    s.codigo AS servico_codigo,
+                    s.categoria AS servico_categoria,
+                    s.valor_venda AS servico_valor_venda,
+                    s.observacoes AS servico_observacoes,
+                    s.status AS servico_status,
+                    s.tempo_estimado,
+                    s.tempo_estimado_valor,
+                    s.tempo_estimado_unidade,
+                    s.tempo_estimado_minutos,
+                    s.tipo_contratacao,
+                    (
+                        SELECT COUNT(*)
+                        FROM servico_perguntas p
+                        WHERE p.empresa_id = s.empresa_id
+                          AND p.servico_id = s.id
+                          AND p.status = 'ativo'
+                    ) AS perguntas_quantidade,
+                    vs.id AS vitrine_id,
+                    vs.nome AS vitrine_nome,
+                    vs.descricao AS vitrine_descricao,
+                    vs.categoria AS vitrine_categoria,
+                    vs.preco AS vitrine_preco,
+                    vs.imagem_path AS vitrine_imagem_path,
+                    vs.destaque AS vitrine_destaque,
+                    vs.status AS vitrine_status,
+                    COALESCE(vs.acessos, 0) AS acessos,
+                    COALESCE(vs.agendamentos, 0) AS agendamentos
+                FROM servicos s
+                LEFT JOIN vitrine_servicos vs
+                  ON vs.servico_id = s.id
+                 AND vs.empresa_id = s.empresa_id
+                WHERE s.empresa_id = ?
+                  AND LOWER(COALESCE(s.status, 'ativo')) = 'ativo'
+                ORDER BY s.nome ASC
+                """,
+                (empresa_id,),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                """
+                SELECT
+                    vs.servico_id,
+                    s.nome AS servico_nome,
+                    s.codigo AS servico_codigo,
+                    s.categoria AS servico_categoria,
+                    s.valor_venda AS servico_valor_venda,
+                    s.observacoes AS servico_observacoes,
+                    s.status AS servico_status,
+                    vs.tempo_estimado,
+                    vs.tempo_estimado_valor,
+                    vs.tempo_estimado_unidade,
+                    vs.tempo_estimado_minutos,
+                    vs.tipo_contratacao,
+                    (
+                        SELECT COUNT(*)
+                        FROM servico_perguntas p
+                        WHERE p.empresa_id = vs.empresa_id
+                          AND p.servico_id = vs.servico_id
+                          AND p.status = 'ativo'
+                    ) AS perguntas_quantidade,
+                    vs.id AS vitrine_id,
+                    vs.nome AS vitrine_nome,
+                    vs.descricao AS vitrine_descricao,
+                    vs.categoria AS vitrine_categoria,
+                    vs.preco AS vitrine_preco,
+                    vs.imagem_path AS vitrine_imagem_path,
+                    vs.destaque AS vitrine_destaque,
+                    vs.status AS vitrine_status,
+                    COALESCE(vs.acessos, 0) AS acessos,
+                    COALESCE(vs.agendamentos, 0) AS agendamentos
+                FROM vitrine_servicos vs
+                LEFT JOIN servicos s
+                  ON s.id = vs.servico_id
+                 AND s.empresa_id = vs.empresa_id
+                WHERE vs.empresa_id = ?
+                ORDER BY vs.nome ASC
+                """,
+                (empresa_id,),
+            ).fetchall()
+
     itens: list[dict[str, Any]] = []
     for row in rows:
         item = dict(row)
-        itens.append({
-            "servico_id": int(item.get("servico_id") or 0),
-            "vitrine_id": item.get("vitrine_id") or "",
-            "nome": str(item.get("vitrine_nome") or item.get("servico_nome") or ""),
-            "codigo": str(item.get("servico_codigo") or ""),
-            "categoria": str(item.get("vitrine_categoria") or item.get("servico_categoria") or "Serviços"),
-            "descricao": str(item.get("vitrine_descricao") or item.get("servico_observacoes") or ""),
-            "preco": str(item.get("vitrine_preco") or item.get("servico_valor_venda") or "0,00"),
-            "imagem_path": str(item.get("vitrine_imagem_path") or ""),
-            "destaque": str(item.get("vitrine_destaque") or "nao"),
-            "status": str(item.get("vitrine_status") or "nao_publicado"),
-            "publicado": str(item.get("vitrine_status") or "").lower() == "publicado",
-            "tempo_estimado": str(item.get("tempo_estimado") or ""),
-            "tempo_estimado_valor": str(item.get("tempo_estimado_valor") or ""),
-            "tempo_estimado_unidade": str(item.get("tempo_estimado_unidade") or "horas"),
-            "tempo_estimado_minutos": int(item.get("tempo_estimado_minutos") or 60),
-            "tipo_contratacao": normalizar_tipo_contratacao_servico(item.get("tipo_contratacao")),
-            "perguntas_quantidade": int(item.get("perguntas_quantidade") or 0),
-            "acessos": int(item.get("acessos") or 0),
-            "agendamentos": int(item.get("agendamentos") or 0),
-        })
+        status = str(item.get("vitrine_status") or "nao_publicado").strip().lower()
+        if integrado:
+            nome = str(item.get("servico_nome") or "")
+            categoria = str(item.get("servico_categoria") or "Serviços")
+            descricao = str(item.get("servico_observacoes") or "")
+            preco = str(item.get("servico_valor_venda") or "0,00")
+        else:
+            nome = str(item.get("vitrine_nome") or item.get("servico_nome") or "")
+            categoria = str(item.get("vitrine_categoria") or item.get("servico_categoria") or "Serviços")
+            descricao = str(item.get("vitrine_descricao") or item.get("servico_observacoes") or "")
+            preco = str(item.get("vitrine_preco") or item.get("servico_valor_venda") or "0,00")
+
+        itens.append(
+            {
+                "servico_id": int(item.get("servico_id") or 0),
+                "vitrine_id": item.get("vitrine_id") or "",
+                "nome": nome,
+                "codigo": str(item.get("servico_codigo") or ""),
+                "categoria": categoria,
+                "descricao": descricao,
+                "preco": preco,
+                "imagem_path": str(item.get("vitrine_imagem_path") or ""),
+                "destaque": str(item.get("vitrine_destaque") or "nao"),
+                "status": status,
+                "publicado": status == "publicado",
+                "visivel": status in {"publicado", "indisponivel"},
+                "indisponivel": status == "indisponivel",
+                "integrado": integrado,
+                "tempo_estimado": str(item.get("tempo_estimado") or ""),
+                "tempo_estimado_valor": str(item.get("tempo_estimado_valor") or ""),
+                "tempo_estimado_unidade": str(item.get("tempo_estimado_unidade") or "horas"),
+                "tempo_estimado_minutos": int(item.get("tempo_estimado_minutos") or 60),
+                "tipo_contratacao": normalizar_tipo_contratacao_servico(
+                    item.get("tipo_contratacao")
+                ),
+                "perguntas_quantidade": int(item.get("perguntas_quantidade") or 0),
+                "acessos": int(item.get("acessos") or 0),
+                "agendamentos": int(item.get("agendamentos") or 0),
+            }
+        )
+
     return anexar_galerias_vitrine(itens, empresa_id, "servico", "servico_id")
+
+
+def buscar_servico_vitrine_admin_item(
+    empresa_id: int,
+    servico_id: int,
+) -> dict[str, Any] | None:
+    for item in listar_servicos_vitrine_admin(empresa_id):
+        if int(item.get("servico_id") or 0) == int(servico_id):
+            return item
+    return None
+
+
+def buscar_servico_vitrine_agendamento(
+    empresa_id: int,
+    servico_id: Any,
+    origem: Any = "",
+) -> dict[str, Any] | None:
+    origem_normalizada = str(origem or "").strip()
+    if origem_normalizada != "vitrine_online" or vitrine_servicos_integrados(empresa_id):
+        return buscar_servico_empresa(empresa_id, servico_id)
+
+    servico_texto = str(servico_id or "").strip()
+    if not servico_texto.isdigit():
+        return None
+
+    for item in listar_servicos_vitrine_empresa(empresa_id):
+        if (
+            int(item.get("servico_id") or 0) == int(servico_texto)
+            and bool(item.get("disponivel_agendamento"))
+        ):
+            return {
+                "id": int(item.get("servico_id") or 0),
+                "empresa_id": empresa_id,
+                "nome": str(item.get("nome") or ""),
+                "valor_venda": str(item.get("preco") or "0,00"),
+                "tempo_estimado": str(item.get("tempo_estimado") or ""),
+                "tempo_estimado_valor": str(item.get("tempo_estimado_valor") or ""),
+                "tempo_estimado_unidade": str(item.get("tempo_estimado_unidade") or "horas"),
+                "tempo_estimado_minutos": int(item.get("tempo_estimado_minutos") or 60),
+                "tipo_contratacao": normalizar_tipo_contratacao_servico(
+                    item.get("tipo_contratacao")
+                ),
+                "status": "ativo",
+            }
+    return None
+
+
+def listar_servicos_agendamento_publico_vitrine(
+    empresa_id: int,
+    origem: Any = "",
+) -> list[dict[str, Any]]:
+    if str(origem or "").strip() != "vitrine_online" or vitrine_servicos_integrados(empresa_id):
+        with conectar_db() as conn:
+            rows = conn.execute(
+                """
+                SELECT id, nome, valor_venda, tempo_estimado, tempo_estimado_valor,
+                       tempo_estimado_unidade, tempo_estimado_minutos, tipo_contratacao
+                FROM servicos
+                WHERE empresa_id = ? AND LOWER(COALESCE(status, 'ativo')) = 'ativo'
+                ORDER BY nome ASC
+                """,
+                (empresa_id,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    servicos: list[dict[str, Any]] = []
+    for item in listar_servicos_vitrine_empresa(empresa_id):
+        if not item.get("disponivel_agendamento"):
+            continue
+        servicos.append(
+            {
+                "id": int(item.get("servico_id") or 0),
+                "nome": str(item.get("nome") or ""),
+                "valor_venda": str(item.get("preco") or "0,00"),
+                "tempo_estimado": str(item.get("tempo_estimado") or ""),
+                "tempo_estimado_valor": str(item.get("tempo_estimado_valor") or ""),
+                "tempo_estimado_unidade": str(item.get("tempo_estimado_unidade") or "horas"),
+                "tempo_estimado_minutos": int(item.get("tempo_estimado_minutos") or 60),
+                "tipo_contratacao": normalizar_tipo_contratacao_servico(
+                    item.get("tipo_contratacao")
+                ),
+            }
+        )
+    return servicos
 
 
 def salvar_imagem_servico_vitrine_upload(servico_id: int) -> str:
@@ -25499,43 +26117,105 @@ def salvar_imagem_servico_vitrine_upload(servico_id: int) -> str:
 
 def salvar_servico_vitrine_publicacao_db(servico_id: int, dados: dict[str, Any]) -> None:
     empresa_id = empresa_logada_id()
-    servico = buscar_servico_empresa(empresa_id, servico_id)
-    if servico is None:
-        return
+    integrado = vitrine_servicos_integrados(empresa_id)
+    servico_base = buscar_servico_empresa(empresa_id, servico_id)
     atualizado_em = agora_empresa().isoformat(timespec="seconds")
+
     with conectar_db() as conn:
         row = conn.execute(
-            "SELECT id, imagem_path FROM vitrine_servicos WHERE empresa_id = ? AND servico_id = ? LIMIT 1",
+            """
+            SELECT *
+            FROM vitrine_servicos
+            WHERE empresa_id = ? AND servico_id = ?
+            LIMIT 1
+            """,
             (empresa_id, servico_id),
         ).fetchone()
-        imagem_anterior = str(row["imagem_path"] or "").strip() if row is not None else ""
+
+        if integrado and servico_base is None:
+            return
+        if not integrado and row is None:
+            return
+
+        row_dict = dict(row) if row is not None else {}
+        referencia = servico_base or {
+            "nome": row_dict.get("nome"),
+            "observacoes": row_dict.get("descricao"),
+            "categoria": row_dict.get("categoria"),
+            "valor_venda": row_dict.get("preco"),
+            "tempo_estimado": row_dict.get("tempo_estimado"),
+            "tempo_estimado_valor": row_dict.get("tempo_estimado_valor"),
+            "tempo_estimado_unidade": row_dict.get("tempo_estimado_unidade"),
+            "tempo_estimado_minutos": row_dict.get("tempo_estimado_minutos"),
+            "tipo_contratacao": row_dict.get("tipo_contratacao"),
+        }
+
+        imagem_anterior = str(row_dict.get("imagem_path") or "")
         remover_imagem = str(dados.get("remover_imagem") or "").strip().lower() == "sim"
         imagem_path = str(dados.get("imagem_path") or "").strip()
-
         if remover_imagem:
             imagem_path = ""
         elif not imagem_path:
             imagem_path = imagem_anterior
+
         status_normalizado = str(dados.get("status") or "publicado").strip().lower()
-        if status_normalizado not in {"publicado", "rascunho", "oculto"}:
+        if status_normalizado not in {"publicado", "rascunho", "oculto", "indisponivel"}:
             status_normalizado = "publicado"
+
+        if integrado:
+            nome = str(referencia.get("nome") or "").strip()
+            descricao = str(referencia.get("observacoes") or "").strip()
+            categoria = str(referencia.get("categoria") or "Serviços").strip()
+            preco = str(referencia.get("valor_venda") or "0,00").strip()
+            tempo_estimado = str(referencia.get("tempo_estimado") or "")
+            tempo_estimado_valor = str(referencia.get("tempo_estimado_valor") or "")
+            tempo_estimado_unidade = str(referencia.get("tempo_estimado_unidade") or "horas")
+            tempo_estimado_minutos = int(referencia.get("tempo_estimado_minutos") or 60)
+            tipo_contratacao = normalizar_tipo_contratacao_servico(
+                referencia.get("tipo_contratacao")
+            )
+        else:
+            nome = str(dados.get("nome") or row_dict.get("nome") or "").strip()
+            descricao = str(dados.get("descricao") or row_dict.get("descricao") or "").strip()
+            categoria = str(dados.get("categoria") or row_dict.get("categoria") or "Serviços").strip()
+            preco = str(dados.get("preco") or row_dict.get("preco") or "0,00").strip()
+            tempo_estimado = str(row_dict.get("tempo_estimado") or referencia.get("tempo_estimado") or "")
+            tempo_estimado_valor = str(row_dict.get("tempo_estimado_valor") or referencia.get("tempo_estimado_valor") or "")
+            tempo_estimado_unidade = str(row_dict.get("tempo_estimado_unidade") or referencia.get("tempo_estimado_unidade") or "horas")
+            tempo_estimado_minutos = int(
+                row_dict.get("tempo_estimado_minutos")
+                or referencia.get("tempo_estimado_minutos")
+                or 60
+            )
+            tipo_contratacao = normalizar_tipo_contratacao_servico(
+                row_dict.get("tipo_contratacao") or referencia.get("tipo_contratacao")
+            )
+
         valores = (
-            str(dados.get("nome") or servico.get("nome") or "").strip(),
-            str(dados.get("descricao") or servico.get("observacoes") or "").strip(),
-            str(dados.get("categoria") or servico.get("categoria") or "Serviços").strip(),
-            str(dados.get("preco") or servico.get("valor_venda") or "0,00").strip(),
+            nome,
+            descricao,
+            categoria,
+            preco,
+            tempo_estimado,
+            tempo_estimado_valor,
+            tempo_estimado_unidade,
+            tempo_estimado_minutos,
+            tipo_contratacao,
             imagem_path,
             "sim" if str(dados.get("destaque") or "nao") == "sim" else "nao",
             status_normalizado,
             atualizado_em,
         )
+
         if row is None:
             conn.execute(
                 """
                 INSERT INTO vitrine_servicos (
                     empresa_id, servico_id, nome, descricao, categoria, preco,
+                    tempo_estimado, tempo_estimado_valor, tempo_estimado_unidade,
+                    tempo_estimado_minutos, tipo_contratacao,
                     imagem_path, destaque, status, atualizado_em
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (empresa_id, servico_id, *valores),
             )
@@ -25543,7 +26223,10 @@ def salvar_servico_vitrine_publicacao_db(servico_id: int, dados: dict[str, Any])
             conn.execute(
                 """
                 UPDATE vitrine_servicos
-                SET nome = ?, descricao = ?, categoria = ?, preco = ?, imagem_path = ?,
+                SET nome = ?, descricao = ?, categoria = ?, preco = ?,
+                    tempo_estimado = ?, tempo_estimado_valor = ?,
+                    tempo_estimado_unidade = ?, tempo_estimado_minutos = ?,
+                    tipo_contratacao = ?, imagem_path = ?,
                     destaque = ?, status = ?, atualizado_em = ?
                 WHERE empresa_id = ? AND servico_id = ?
                 """,
@@ -25558,11 +26241,13 @@ def salvar_servico_vitrine_publicacao_db(servico_id: int, dados: dict[str, Any])
 def alterar_status_servico_vitrine_db(servico_id: int, status: str) -> None:
     empresa_id = empresa_logada_id()
     status_normalizado = str(status or "publicado").strip().lower()
-    if status_normalizado not in {"publicado", "rascunho", "oculto"}:
+    if status_normalizado not in {"publicado", "rascunho", "oculto", "indisponivel"}:
         status_normalizado = "publicado"
-    servico = buscar_servico_empresa(empresa_id, servico_id)
+
+    servico = buscar_servico_vitrine_admin_item(empresa_id, servico_id)
     if servico is None:
         return
+
     with conectar_db() as conn:
         row = conn.execute(
             "SELECT id FROM vitrine_servicos WHERE empresa_id = ? AND servico_id = ? LIMIT 1",
@@ -25573,21 +26258,40 @@ def alterar_status_servico_vitrine_db(servico_id: int, status: str) -> None:
                 """
                 INSERT INTO vitrine_servicos (
                     empresa_id, servico_id, nome, descricao, categoria, preco,
+                    tempo_estimado, tempo_estimado_valor, tempo_estimado_unidade,
+                    tempo_estimado_minutos, tipo_contratacao,
                     imagem_path, destaque, status, atualizado_em
-                ) VALUES (?, ?, ?, ?, ?, ?, '', 'nao', ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', 'nao', ?, ?)
                 """,
                 (
-                    empresa_id, servico_id, str(servico.get("nome") or ""),
-                    str(servico.get("observacoes") or ""),
+                    empresa_id,
+                    servico_id,
+                    str(servico.get("nome") or ""),
+                    str(servico.get("descricao") or ""),
                     str(servico.get("categoria") or "Serviços"),
-                    str(servico.get("valor_venda") or "0,00"), status_normalizado,
+                    str(servico.get("preco") or "0,00"),
+                    str(servico.get("tempo_estimado") or ""),
+                    str(servico.get("tempo_estimado_valor") or ""),
+                    str(servico.get("tempo_estimado_unidade") or "horas"),
+                    int(servico.get("tempo_estimado_minutos") or 60),
+                    normalizar_tipo_contratacao_servico(servico.get("tipo_contratacao")),
+                    status_normalizado,
                     agora_empresa().isoformat(timespec="seconds"),
                 ),
             )
         else:
             conn.execute(
-                "UPDATE vitrine_servicos SET status = ?, atualizado_em = ? WHERE empresa_id = ? AND servico_id = ?",
-                (status_normalizado, agora_empresa().isoformat(timespec="seconds"), empresa_id, servico_id),
+                """
+                UPDATE vitrine_servicos
+                SET status = ?, atualizado_em = ?
+                WHERE empresa_id = ? AND servico_id = ?
+                """,
+                (
+                    status_normalizado,
+                    agora_empresa().isoformat(timespec="seconds"),
+                    empresa_id,
+                    servico_id,
+                ),
             )
         conn.commit()
 
@@ -25881,6 +26585,7 @@ def registrar_evento_vitrine(empresa_id: int, tipo: str, item_id: Any = "", orig
 
 def salvar_pedido_vitrine_db(empresa_id: int, dados: dict[str, Any], itens: list[dict[str, Any]]) -> int:
     total = sum(float(item.get("subtotal_numero") or 0) for item in itens)
+    integrado_vendas = "sim" if vitrine_produtos_integrados(empresa_id) else "nao"
 
     with conectar_db() as conn:
         cursor = conn.execute(
@@ -25894,8 +26599,9 @@ def salvar_pedido_vitrine_db(empresa_id: int, dados: dict[str, Any], itens: list
                 forma_pagamento,
                 observacoes,
                 total,
-                status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                status,
+                integrado_vendas
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id,
@@ -25907,6 +26613,7 @@ def salvar_pedido_vitrine_db(empresa_id: int, dados: dict[str, Any], itens: list
                 str(dados.get("observacoes") or "").strip(),
                 _formatar_moeda_brl(total),
                 "novo",
+                integrado_vendas,
             ),
         )
         pedido_id = int(cursor.lastrowid)
@@ -26365,6 +27072,14 @@ def carregar_preparo_venda_vitrine(
         pedido = buscar_pedido_vitrine_admin(pedido_id)
         if pedido is None:
             return {}, [], "pedido", pedido_id, "Pedido não encontrado nesta empresa."
+        if str(pedido.get("integrado_vendas") or "sim").strip().lower() == "nao":
+            return (
+                {},
+                [],
+                "pedido",
+                pedido_id,
+                "Este pedido é independente da Vitrine e não gera venda no GestFlow.",
+            )
         venda_existente = buscar_venda_por_pedido_vitrine_id(pedido_id)
         if int(pedido.get("venda_id") or 0) > 0 or venda_existente is not None:
             numero = pedido.get("venda_numero") or (venda_existente or {}).get("numero")
@@ -26404,6 +27119,14 @@ def carregar_preparo_venda_vitrine(
                 "agendamento",
                 agendamento_id,
                 "Agendamento não encontrado nesta empresa.",
+            )
+        if str(agendamento.get("vitrine_integrado_vendas") or "sim").strip().lower() == "nao":
+            return (
+                {},
+                [],
+                "agendamento",
+                agendamento_id,
+                "Este atendimento é independente da Vitrine e não gera venda no GestFlow.",
             )
         venda_existente = buscar_venda_por_agendamento_vitrine_id(agendamento_id)
         if int(agendamento.get("venda_id") or 0) > 0 or venda_existente is not None:
@@ -26517,7 +27240,7 @@ def montar_itens_pedido_vitrine(empresa_id: int, itens_json: Any) -> list[dict[s
 
         quantidade = max(quantidade, 1)
         produto = produtos_por_id.get(produto_id)
-        if produto is None:
+        if produto is None or not bool(produto.get("disponivel_compra")):
             continue
 
         preco_numero = _converter_valor_brl(produto.get("preco"))
@@ -26951,7 +27674,12 @@ def renderizar_vitrine_publica_html(
             categorias_produtos.add(categoria_raw_item)
             preco_raw = str(produto.get("preco") or "0,00")
             preco = html.escape(preco_raw)
-            disponivel = not controlar_estoque or _converter_valor_brl(produto.get("estoque_atual")) > 0
+            disponivel = bool(produto.get("disponivel_compra"))
+            indisponivel_html = (
+                '<span class="item-indisponivel">Indisponível</span>'
+                if not disponivel
+                else ""
+            )
             imagens = produto.get("imagens") or []
             imagens_paths = [str(item.get("imagem_path") or "") for item in imagens if item.get("imagem_path")]
             imagem_path = imagens_paths[0] if imagens_paths else str(produto.get("imagem_path") or "").strip()
@@ -26996,7 +27724,7 @@ def renderizar_vitrine_publica_html(
 {f'<button class="item-imagem-seta item-imagem-anterior" type="button" aria-label="Foto anterior" onclick="mudarFotoCard(this,-1)">‹</button><button class="item-imagem-seta item-imagem-proxima" type="button" aria-label="Próxima foto" onclick="mudarFotoCard(this,1)">›</button>' if len(imagens_paths) > 1 else ''}
 <span class="galeria-contador"><span data-foto-atual>{1 if imagens_paths else 0}</span>/{len(imagens_paths)}</span>
 </div>
-<div class="item-info"><small>Produto • {categoria_item}</small><h3>{nome}</h3><p>{descricao}</p>{preco_html}<div class="item-acoes">{acao_principal}{acao_secundaria}</div></div></article>'''
+<div class="item-info"><small>Produto • {categoria_item}</small><h3>{nome}</h3>{indisponivel_html}<p>{descricao}</p>{preco_html}<div class="item-acoes">{acao_principal}{acao_secundaria}</div></div></article>'''
             )
 
     if exibir_servicos:
@@ -27028,6 +27756,12 @@ def renderizar_vitrine_publica_html(
                 preco_html = f"<strong>R$ {preco}</strong>" if exibir_preco else "<strong>Consulte o valor</strong>"
                 duracao_html = f'<span class="duracao">Duração: {duracao or "A combinar"}</span>'
                 texto_acao = "Agendar serviço"
+            disponivel_agendamento = bool(servico.get("disponivel_agendamento"))
+            indisponivel_html = (
+                '<span class="item-indisponivel">Indisponível</span>'
+                if not disponivel_agendamento
+                else ""
+            )
             agenda_url = (
                 f"/agendar/{urllib.parse.quote(codigo_agenda)}?servico_id={servico_id}&origem=vitrine_online"
             )
@@ -27037,6 +27771,14 @@ def renderizar_vitrine_publica_html(
                     f'<a class="acao-outline" href="{whatsapp_publico_url_html}" target="_blank" rel="noopener">'
                     'WhatsApp</a>'
                 )
+            if disponivel_agendamento:
+                acao_principal_servico = (
+                    f'<a class="acao-principal" href="{agenda_url}" '
+                    f'onclick="registrarItem(\'servico\',{servico_id})">{texto_acao}</a>'
+                )
+            else:
+                acao_principal_servico = '<button type="button" disabled>Indisponível</button>'
+                acao_whatsapp = ""
             cards.append(
                 f'''<article class="catalogo-card servico-card" data-tipo="servico" data-categoria="{categoria_item}" data-nome="{html.escape(nome_raw.lower())}">
 <div class="item-imagem" data-fotos="{imagens_json}" data-indice="0">
@@ -27044,7 +27786,7 @@ def renderizar_vitrine_publica_html(
 {f'<button class="item-imagem-seta item-imagem-anterior" type="button" aria-label="Foto anterior" onclick="mudarFotoCard(this,-1)">‹</button><button class="item-imagem-seta item-imagem-proxima" type="button" aria-label="Próxima foto" onclick="mudarFotoCard(this,1)">›</button>' if len(imagens_paths) > 1 else ''}
 <span class="galeria-contador"><span data-foto-atual>{1 if imagens_paths else 0}</span>/{len(imagens_paths)}</span>
 </div>
-<div class="item-info"><small>Serviço • {categoria_item}</small><h3>{nome}</h3><p>{descricao}</p><div class="item-meta">{duracao_html}{preco_html}</div><div class="item-acoes"><a class="acao-principal" href="{agenda_url}" onclick="registrarItem('servico',{servico_id})">{texto_acao}</a>{acao_whatsapp}</div></div></article>'''
+<div class="item-info"><small>Serviço • {categoria_item}</small><h3>{nome}</h3>{indisponivel_html}<p>{descricao}</p><div class="item-meta">{duracao_html}{preco_html}</div><div class="item-acoes">{acao_principal_servico}{acao_whatsapp}</div></div></article>'''
             )
 
     def botoes_categorias(categorias: set[str], tipo: str) -> str:
@@ -27213,6 +27955,7 @@ button,input,select,textarea{font:inherit}
 .item-info{flex:1;display:flex;flex-direction:column;gap:9px;padding:15px}
 .item-info small{color:var(--text-soft);font-weight:800}
 .item-info h3{margin:0;font-size:17px;line-height:1.3}
+.item-indisponivel{display:inline-flex;align-self:flex-start;padding:4px 8px;border-radius:999px;background:#f3f4f6;color:#6b7280;font-size:11px;font-weight:900}
 .item-info p{display:-webkit-box;min-height:42px;margin:0;overflow:hidden;color:var(--text-soft);line-height:1.45;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .item-info>strong,.item-meta strong{font-size:20px;color:var(--brand-primary)}
 .item-meta{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
@@ -27677,6 +28420,71 @@ def cancelar_pedido_vitrine(pedido_id: int) -> Response:
     )
 
 
+@app.post("/vitrine/pedidos/<int:pedido_id>/concluir")
+def concluir_pedido_vitrine_independente(pedido_id: int) -> Response:
+    pedido = buscar_pedido_vitrine_admin(pedido_id)
+    if pedido is None:
+        return redirecionar_pedido_central_vitrine(
+            pedido_id,
+            erro="Pedido não encontrado nesta empresa.",
+        )
+    if str(pedido.get("integrado_vendas") or "sim").strip().lower() != "nao":
+        return redirecionar_pedido_central_vitrine(
+            pedido_id,
+            erro="Este pedido está integrado às Vendas do GestFlow.",
+        )
+    if str(pedido.get("status") or "").strip() != "em_atendimento":
+        return redirecionar_pedido_central_vitrine(
+            pedido_id,
+            erro="Inicie o atendimento antes de concluir o pedido.",
+        )
+
+    agora = agora_empresa().isoformat(timespec="seconds")
+    with conectar_db() as conn:
+        cursor = conn.execute(
+            """
+            UPDATE vitrine_pedidos
+            SET status = 'concluido',
+                atendido_por_usuario_id = ?,
+                atendido_por_nome = ?,
+                concluido_em = ?,
+                atualizado_em = ?
+            WHERE id = ?
+              AND empresa_id = ?
+              AND status = 'em_atendimento'
+              AND venda_id IS NULL
+              AND LOWER(COALESCE(integrado_vendas, 'sim')) = 'nao'
+            """,
+            (
+                usuario_logado_id(),
+                str(session.get("usuario_nome") or "Administrador").strip(),
+                agora,
+                agora,
+                pedido_id,
+                empresa_logada_id(),
+            ),
+        )
+        conn.commit()
+
+    if cursor.rowcount != 1:
+        return redirecionar_pedido_central_vitrine(
+            pedido_id,
+            erro="O pedido não está mais disponível para conclusão.",
+        )
+
+    registrar_atividade_usuario(
+        "atualizacao",
+        "vitrine",
+        f"Concluiu o pedido independente da vitrine #{pedido_id}",
+        request.path,
+        registro_id=pedido_id,
+    )
+    return redirecionar_pedido_central_vitrine(
+        pedido_id,
+        mensagem=f"Pedido #{pedido_id} concluído somente na Vitrine, sem gerar venda ou estoque.",
+    )
+
+
 @app.get("/vitrine/pedidos/<int:pedido_id>/preparar-venda")
 def preparar_venda_pedido_vitrine(pedido_id: int) -> Response:
     if not usuario_tem_permissao("vendas", "criar"):
@@ -27990,6 +28798,71 @@ def marcar_nao_comparecimento_agendamento_vitrine(
     )
 
 
+@app.post("/vitrine/agendamentos/<int:agendamento_id>/concluir")
+def concluir_agendamento_vitrine_independente(agendamento_id: int) -> Response:
+    agendamento = buscar_agendamento_vitrine_admin(agendamento_id)
+    if agendamento is None:
+        return redirecionar_agendamento_central_vitrine(
+            agendamento_id,
+            erro="Agendamento não encontrado nesta empresa.",
+        )
+    if str(agendamento.get("vitrine_integrado_vendas") or "sim").strip().lower() != "nao":
+        return redirecionar_agendamento_central_vitrine(
+            agendamento_id,
+            erro="Este atendimento está integrado às Vendas do GestFlow.",
+        )
+    if str(agendamento.get("status") or "").strip() != "em_atendimento":
+        return redirecionar_agendamento_central_vitrine(
+            agendamento_id,
+            erro="Inicie o atendimento antes de concluir.",
+        )
+
+    agora = agora_empresa().isoformat(timespec="seconds")
+    with conectar_db() as conn:
+        cursor = conn.execute(
+            """
+            UPDATE agendamentos
+            SET status = 'concluido',
+                atendido_por_usuario_id = ?,
+                atendido_por_nome = ?,
+                concluido_em = ?,
+                atualizado_em = ?
+            WHERE id = ?
+              AND empresa_id = ?
+              AND status = 'em_atendimento'
+              AND venda_id IS NULL
+              AND LOWER(COALESCE(vitrine_integrado_vendas, 'sim')) = 'nao'
+            """,
+            (
+                usuario_logado_id(),
+                str(session.get("usuario_nome") or "Administrador").strip(),
+                agora,
+                agora,
+                agendamento_id,
+                empresa_logada_id(),
+            ),
+        )
+        conn.commit()
+
+    if cursor.rowcount != 1:
+        return redirecionar_agendamento_central_vitrine(
+            agendamento_id,
+            erro="O atendimento não está mais disponível para conclusão.",
+        )
+
+    registrar_atividade_usuario(
+        "atualizacao",
+        "vitrine",
+        f"Concluiu o atendimento independente da vitrine #{agendamento_id}",
+        request.path,
+        registro_id=agendamento_id,
+    )
+    return redirecionar_agendamento_central_vitrine(
+        agendamento_id,
+        mensagem=f"Atendimento #{agendamento_id} concluído sem gerar venda.",
+    )
+
+
 @app.get("/vitrine/agendamentos/<int:agendamento_id>/preparar-venda")
 def preparar_venda_agendamento_vitrine(agendamento_id: int) -> Response:
     if not usuario_tem_permissao("vendas", "criar"):
@@ -28043,7 +28916,10 @@ def vitrine_produto_publicar() -> Response:
     principal = atualizar_galeria_vitrine_formulario("produto", produto_id)
     if principal:
         with conectar_db() as conn:
-            conn.execute("UPDATE vitrine_produtos SET imagem_path=? WHERE empresa_id=? AND produto_id=?", (principal, empresa_logada_id(), produto_id))
+            conn.execute(
+                "UPDATE vitrine_produtos SET imagem_path=? WHERE empresa_id=? AND produto_id=?",
+                (principal, empresa_logada_id(), produto_id),
+            )
             conn.commit()
     return redirect(url_for("vitrine", mensagem="Produto atualizado na vitrine com sucesso."))
 
@@ -28051,22 +28927,39 @@ def vitrine_produto_publicar() -> Response:
 @app.post("/vitrine/produtos/status")
 def vitrine_produto_status() -> Response:
     produto_id_texto = str(request.form.get("produto_id") or "").strip()
-    status = str(request.form.get("status") or "publicado").strip()
+    status = str(request.form.get("status") or "publicado").strip().lower()
 
     if not produto_id_texto.isdigit():
         return redirect(url_for("vitrine", erro="Produto inválido para alterar status."))
 
     alterar_status_produto_vitrine_db(int(produto_id_texto), status)
 
-    if status == "publicado":
-        mensagem = "Produto publicado na vitrine."
-    elif status == "oculto":
-        mensagem = "Produto removido da vitrine pública."
-    else:
-        mensagem = "Produto salvo como rascunho na vitrine."
+    mensagem = {
+        "publicado": "Produto disponível e publicado na vitrine.",
+        "indisponivel": "Produto mantido na vitrine como indisponível.",
+        "oculto": "Produto ocultado da vitrine pública.",
+        "rascunho": "Produto salvo como rascunho na vitrine.",
+    }.get(status, "Status do produto atualizado.")
 
     return redirect(url_for("vitrine", mensagem=mensagem))
 
+
+@app.post("/vitrine/produtos/remover")
+def vitrine_produto_remover() -> Response:
+    produto_id_texto = str(request.form.get("produto_id") or "").strip()
+    if not produto_id_texto.isdigit():
+        return redirect(url_for("vitrine", erro="Produto inválido para remover da vitrine."))
+
+    removido = remover_item_vitrine_db("produto", int(produto_id_texto))
+    if not removido:
+        return redirect(url_for("vitrine", erro="Produto não encontrado na vitrine."))
+
+    return redirect(
+        url_for(
+            "vitrine",
+            mensagem="Produto removido somente da Vitrine. O cadastro normal não foi excluído.",
+        )
+    )
 
 
 @app.post("/vitrine/servicos/publicar")
@@ -28074,17 +28967,21 @@ def vitrine_servico_publicar() -> Response:
     servico_id_texto = str(request.form.get("servico_id") or "").strip()
     if not servico_id_texto.isdigit():
         return redirect(url_for("vitrine", erro="Selecione um serviço válido para publicar."))
+
     servico_id = int(servico_id_texto)
-    servico = buscar_servico_empresa(empresa_logada_id(), servico_id)
+    servico = buscar_servico_vitrine_admin_item(empresa_logada_id(), servico_id)
     if servico is None:
         return redirect(url_for("vitrine", erro="Serviço não encontrado nesta empresa."))
+
+    tipo_contratacao = normalizar_tipo_contratacao_servico(servico.get("tipo_contratacao"))
     dados = {
         "nome": request.form.get("nome") or servico.get("nome") or "",
-        "descricao": request.form.get("descricao") or servico.get("observacoes") or "",
+        "descricao": request.form.get("descricao") or servico.get("descricao") or "",
         "categoria": request.form.get("categoria") or servico.get("categoria") or "Serviços",
         "preco": (
-            "" if normalizar_tipo_contratacao_servico(servico.get("tipo_contratacao")) == "a_combinar"
-            else request.form.get("preco") or servico.get("valor_venda") or "0,00"
+            ""
+            if tipo_contratacao == "a_combinar"
+            else request.form.get("preco") or servico.get("preco") or "0,00"
         ),
         "imagem_path": salvar_imagem_servico_vitrine_upload(servico_id),
         "remover_imagem": "sim" if request.form.get("remover_imagem") == "sim" else "nao",
@@ -28096,30 +28993,55 @@ def vitrine_servico_publicar() -> Response:
     principal = atualizar_galeria_vitrine_formulario("servico", servico_id)
     if principal:
         with conectar_db() as conn:
-            conn.execute("UPDATE vitrine_servicos SET imagem_path=? WHERE empresa_id=? AND servico_id=?", (principal, empresa_logada_id(), servico_id))
+            conn.execute(
+                "UPDATE vitrine_servicos SET imagem_path=? WHERE empresa_id=? AND servico_id=?",
+                (principal, empresa_logada_id(), servico_id),
+            )
             conn.commit()
+
     status_salvo = str(dados["status"] or "publicado").strip().lower()
-    mensagem = (
-        "Serviço publicado na vitrine com sucesso."
-        if status_salvo == "publicado"
-        else "Serviço atualizado na vitrine com sucesso."
-    )
+    mensagem = {
+        "publicado": "Serviço disponível e publicado na vitrine.",
+        "indisponivel": "Serviço mantido na vitrine como indisponível.",
+        "oculto": "Serviço ocultado da vitrine pública.",
+        "rascunho": "Serviço salvo como rascunho na vitrine.",
+    }.get(status_salvo, "Serviço atualizado na vitrine com sucesso.")
     return redirect(url_for("vitrine", mensagem=mensagem))
 
 
 @app.post("/vitrine/servicos/status")
 def vitrine_servico_status() -> Response:
     servico_id_texto = str(request.form.get("servico_id") or "").strip()
-    status = str(request.form.get("status") or "publicado").strip()
+    status = str(request.form.get("status") or "publicado").strip().lower()
     if not servico_id_texto.isdigit():
         return redirect(url_for("vitrine", erro="Serviço inválido para alterar status."))
+
     alterar_status_servico_vitrine_db(int(servico_id_texto), status)
     mensagem = {
-        "publicado": "Serviço publicado na vitrine.",
-        "oculto": "Serviço removido da vitrine pública.",
+        "publicado": "Serviço disponível e publicado na vitrine.",
+        "indisponivel": "Serviço mantido na vitrine como indisponível.",
+        "oculto": "Serviço ocultado da vitrine pública.",
         "rascunho": "Serviço salvo como rascunho na vitrine.",
     }.get(status, "Status do serviço atualizado.")
     return redirect(url_for("vitrine", mensagem=mensagem))
+
+
+@app.post("/vitrine/servicos/remover")
+def vitrine_servico_remover() -> Response:
+    servico_id_texto = str(request.form.get("servico_id") or "").strip()
+    if not servico_id_texto.isdigit():
+        return redirect(url_for("vitrine", erro="Serviço inválido para remover da vitrine."))
+
+    removido = remover_item_vitrine_db("servico", int(servico_id_texto))
+    if not removido:
+        return redirect(url_for("vitrine", erro="Serviço não encontrado na vitrine."))
+
+    return redirect(
+        url_for(
+            "vitrine",
+            mensagem="Serviço removido somente da Vitrine. O cadastro normal não foi excluído.",
+        )
+    )
 
 
 @app.route("/vitrine", methods=["GET", "POST"])
@@ -28137,10 +29059,10 @@ def vitrine() -> str | Response:
     servicos_admin = listar_servicos_vitrine_admin(empresa_id)
     central_vitrine = montar_central_vitrine_admin(empresa_id)
     central_vitrine["produtos_publicados"] = [
-        item for item in produtos_admin if item.get("publicado")
+        item for item in produtos_admin if item.get("visivel")
     ]
     central_vitrine["servicos_publicados"] = [
-        item for item in servicos_admin if item.get("publicado")
+        item for item in servicos_admin if item.get("visivel")
     ]
     aba_vitrine = str(request.args.get("aba") or "visao-geral").strip().lower()
     if aba_vitrine not in {
@@ -28159,6 +29081,8 @@ def vitrine() -> str | Response:
         ranking_servicos_vitrine=listar_ranking_servicos_vitrine(empresa_id),
         central_vitrine=central_vitrine,
         profissionais_vitrine=listar_profissionais_agendamento_empresa(empresa_id),
+        integrar_produtos_vitrine=vitrine_produtos_integrados(empresa_id),
+        integrar_servicos_vitrine=vitrine_servicos_integrados(empresa_id),
         aba_vitrine=aba_vitrine,
         link_publico=(f"{request.url_root.rstrip('/')}/loja/{config_vitrine.get('slug')}" if config_vitrine.get("slug") else ""),
         mensagem=(request.args.get("mensagem") or "").strip(),
@@ -34752,7 +35676,7 @@ def agendamento_publico(codigo_empresa: str) -> str | Response:
                             nome or str((cliente_existente or {}).get("nome") or ""),
                             telefone,
                         )
-            servico = buscar_servico_empresa(empresa_id, servico_id)
+            servico = buscar_servico_vitrine_agendamento(empresa_id, servico_id, origem_agendamento)
             if cliente is not None and (
                 servico is None
                 or str(servico.get("status") or "").lower() != "ativo"
@@ -34789,7 +35713,7 @@ def agendamento_publico(codigo_empresa: str) -> str | Response:
                     mensagem = "Identifique seu WhatsApp antes de confirmar."
                 else:
                     cliente = criar_ou_atualizar_cliente_publico(empresa_id, nome, telefone)
-            servico = buscar_servico_empresa(empresa_id, servico_id)
+            servico = buscar_servico_vitrine_agendamento(empresa_id, servico_id, origem_agendamento)
             data_agendamento = _normalizar_data_iso(request.form.get("data_agendamento"), hoje_iso)
             hora_inicio = _normalizar_hora_hhmm(request.form.get("hora_inicio"))
             if cliente is None:
@@ -34820,7 +35744,11 @@ def agendamento_publico(codigo_empresa: str) -> str | Response:
                     mensagem = f"O agendamento permite no máximo {maxima / 24:g} dia(s) de antecedência."
                     continue_confirmacao = False
                 horarios_disponiveis = listar_horarios_agendamento_publico(
-                    empresa_id, data_agendamento, request.form.get("profissional_id"), servico_id
+                    empresa_id,
+                    data_agendamento,
+                    request.form.get("profissional_id"),
+                    servico_id,
+                    origem_agendamento,
                 )
                 if continue_confirmacao and hora_inicio not in horarios_disponiveis:
                     mensagem = "Esse período acabou de ficar indisponível. Escolha outro horário."
@@ -34873,24 +35801,25 @@ def agendamento_publico(codigo_empresa: str) -> str | Response:
     if cliente:
         token_cliente = str(cliente.get("token_publico") or token_cliente)
     funcionarios = listar_profissionais_agendamento_empresa(empresa_id)
-    with conectar_db() as conn:
-        servicos = [dict(row) for row in conn.execute(
-            """
-            SELECT id, nome, valor_venda, tempo_estimado, tempo_estimado_valor,
-                   tempo_estimado_unidade, tempo_estimado_minutos, tipo_contratacao
-            FROM servicos
-            WHERE empresa_id = ? AND LOWER(COALESCE(status, 'ativo')) = 'ativo'
-            ORDER BY nome ASC
-            """, (empresa_id,)
-        ).fetchall()]
-    servico_selecionado = buscar_servico_empresa(empresa_id, servico_id)
+    servicos = listar_servicos_agendamento_publico_vitrine(empresa_id, origem_agendamento)
+    servico_selecionado = buscar_servico_vitrine_agendamento(
+        empresa_id,
+        servico_id,
+        origem_agendamento,
+    )
     perguntas_servico = (
         listar_perguntas_servico(int(servico_selecionado.get("id") or 0), empresa_id)
         if servico_selecionado and normalizar_tipo_contratacao_servico(servico_selecionado.get("tipo_contratacao")) == "a_combinar"
         else []
     )
     horarios = (
-        listar_horarios_agendamento_publico(empresa_id, data_agendamento, profissional_id, servico_id)
+        listar_horarios_agendamento_publico(
+            empresa_id,
+            data_agendamento,
+            profissional_id,
+            servico_id,
+            origem_agendamento,
+        )
         if servico_selecionado and normalizar_tipo_contratacao_servico(servico_selecionado.get("tipo_contratacao")) == "valor_fixo"
         else []
     )
@@ -35033,6 +35962,15 @@ def agendar_solicitacao_avaliacao(solicitacao_id: int) -> Response:
         return redirect(url_for("agendamentos", erro=erro_disponibilidade))
     agendamento_id = salvar_agendamento_db(dados)
     with conectar_db() as conn:
+        if not vitrine_servicos_integrados(empresa_logada_id()):
+            conn.execute(
+                """
+                UPDATE agendamentos
+                SET vitrine_integrado_vendas = 'nao'
+                WHERE id = ? AND empresa_id = ?
+                """,
+                (agendamento_id, empresa_logada_id()),
+            )
         conn.execute(
             """
             UPDATE solicitacoes_avaliacao
