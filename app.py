@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-11 06:21 (America/Bahia)
-# Motivo: Corrigir os parâmetros do template WhatsApp da Vitrine para enviar somente o resumo aprovado no quarto campo.
+# Último recode: 2026-08-11 08:13 (America/Bahia)
+# Motivo: Correlacionar cada item do pedido da Vitrine ao produto exato da Vitrine e ao Produto do GestFlow quando houver origem vinculada.
 
 from __future__ import annotations
 
@@ -1504,7 +1504,22 @@ def _mensagem_erro_graph_whatsapp(payload: Any, status_http: int | None = None) 
             mensagem = str(erro.get("message") or "").strip()
             codigo = str(erro.get("code") or "").strip()
             subcodigo = str(erro.get("error_subcode") or "").strip()
-            partes = [parte for parte in (mensagem, f"código {codigo}" if codigo else "", f"subcódigo {subcodigo}" if subcodigo else "") if parte]
+            dados_erro = erro.get("error_data") or {}
+            detalhes = str(dados_erro.get("details") or "").strip() if isinstance(dados_erro, dict) else ""
+            titulo_usuario = str(erro.get("error_user_title") or "").strip()
+            mensagem_usuario = str(erro.get("error_user_msg") or "").strip()
+            partes = [
+                parte
+                for parte in (
+                    mensagem,
+                    f"código {codigo}" if codigo else "",
+                    f"subcódigo {subcodigo}" if subcodigo else "",
+                    f"detalhes: {detalhes}" if detalhes else "",
+                    f"título: {titulo_usuario}" if titulo_usuario else "",
+                    f"orientação: {mensagem_usuario}" if mensagem_usuario else "",
+                )
+                if parte
+            ]
             if partes:
                 return " | ".join(partes)
     return f"A API do WhatsApp retornou HTTP {status_http}." if status_http else "A API do WhatsApp recusou a solicitação."
@@ -1602,6 +1617,11 @@ def enviar_payload_whatsapp(
             message_id = str(((resposta_json.get("messages") or [{}])[0] or {}).get("id") or "").strip()
             detalhe = f"Mensagem aceita pela Meta{f' ({message_id})' if message_id else ''}."
             _registrar_envio_whatsapp(destinatario=numero, tipo=tipo, texto=texto_log, payload_enviado=payload, resposta_api=resposta_json, sucesso=True)
+            app.logger.warning(
+                "WhatsApp aceito pela Meta: tipo=%s | message_id=%s",
+                tipo,
+                message_id or "-",
+            )
             return True, detalhe, resposta_json
     except urllib.error.HTTPError as exc:
         bruto = exc.read().decode("utf-8", errors="replace")
@@ -1611,6 +1631,14 @@ def enviar_payload_whatsapp(
             resposta_json = {"raw": bruto[:2000]}
         detalhe = _mensagem_erro_graph_whatsapp(resposta_json, exc.code)
         app.logger.warning("Envio do WhatsApp recusado pela Meta: %s", detalhe)
+        if tipo == "template":
+            template_diagnostico = payload.get("template") or {}
+            app.logger.warning(
+                "Diagnóstico do template WhatsApp recusado (sem token/destinatário): HTTP %s | template=%s | resposta=%s",
+                exc.code,
+                _json_canonico_whatsapp(template_diagnostico),
+                _json_canonico_whatsapp(resposta_json),
+            )
         _registrar_envio_whatsapp(destinatario=numero, tipo=tipo, texto=texto_log, payload_enviado=payload, resposta_api=resposta_json, sucesso=False, erro=detalhe)
         return False, detalhe, resposta_json
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
@@ -2140,6 +2168,25 @@ def _registrar_eventos_whatsapp(payload: dict[str, Any], corpo_bruto: bytes) -> 
             )
             if cursor.rowcount == 1:
                 inseridos += 1
+                if str(evento.get("event_type") or "") == "message_status":
+                    status_whatsapp = str(evento.get("message_status") or "").strip() or "desconhecido"
+                    message_id_whatsapp = str(evento.get("message_id") or "").strip() or "-"
+                    erro_codigo_whatsapp = str(evento.get("error_code") or "").strip()
+                    erro_titulo_whatsapp = str(evento.get("error_title") or "").strip()
+                    erro_mensagem_whatsapp = str(evento.get("error_message") or "").strip()
+                    detalhes_erro_whatsapp = " | ".join(
+                        parte
+                        for parte in (erro_codigo_whatsapp, erro_titulo_whatsapp, erro_mensagem_whatsapp)
+                        if parte
+                    )
+                    mensagem_log_status = (
+                        f"WhatsApp status: {status_whatsapp} | message_id={message_id_whatsapp}"
+                        f" | erro={detalhes_erro_whatsapp or '-'}"
+                    )
+                    if status_whatsapp.lower() == "failed":
+                        app.logger.warning(mensagem_log_status)
+                    else:
+                        app.logger.warning(mensagem_log_status)
             else:
                 duplicados += 1
 
@@ -3432,6 +3479,7 @@ def injetar_usuario_logado() -> dict[str, Any]:
 def exigir_login_rotas_internas() -> Response | None:
     rotas_publicas = {
         "portal",
+        "politica_privacidade",
         "planos",
         "novo_cadastro",
         "login",
@@ -4945,6 +4993,9 @@ def iniciar_banco() -> None:
                 empresa_id INTEGER NOT NULL,
                 pedido_id INTEGER NOT NULL,
                 produto_id INTEGER,
+                vitrine_produto_id INTEGER,
+                gestflow_produto_id INTEGER,
+                origem_produto TEXT NOT NULL DEFAULT 'legado',
                 produto_nome TEXT,
                 quantidade TEXT,
                 valor_unitario TEXT,
@@ -4953,6 +5004,118 @@ def iniciar_banco() -> None:
                 FOREIGN KEY (pedido_id) REFERENCES vitrine_pedidos (id),
                 FOREIGN KEY (produto_id) REFERENCES produtos (id)
             )
+            """
+        )
+        colunas_vitrine_pedido_itens = {
+            str(row["name"])
+            for row in conn.execute("PRAGMA table_info(vitrine_pedido_itens)").fetchall()
+        }
+        migracoes_vitrine_pedido_itens = {
+            "vitrine_produto_id": "INTEGER",
+            "gestflow_produto_id": "INTEGER",
+            "origem_produto": "TEXT NOT NULL DEFAULT 'legado'",
+        }
+        for coluna, tipo_coluna in migracoes_vitrine_pedido_itens.items():
+            if coluna not in colunas_vitrine_pedido_itens:
+                conn.execute(
+                    f"ALTER TABLE vitrine_pedido_itens ADD COLUMN {coluna} {tipo_coluna}"
+                )
+
+        itens_legados_correlacao = conn.execute(
+            """
+            SELECT
+                i.id,
+                i.empresa_id,
+                i.produto_id,
+                i.vitrine_produto_id,
+                i.gestflow_produto_id,
+                i.origem_produto,
+                p.integrado_vendas
+            FROM vitrine_pedido_itens i
+            LEFT JOIN vitrine_pedidos p
+              ON p.id = i.pedido_id
+             AND p.empresa_id = i.empresa_id
+            WHERE i.vitrine_produto_id IS NULL
+               OR COALESCE(i.origem_produto, '') IN ('', 'legado')
+            """
+        ).fetchall()
+        for item_legado in itens_legados_correlacao:
+            produto_id_legado = int(item_legado["produto_id"] or 0)
+            if produto_id_legado <= 0:
+                continue
+
+            origem_legada = (
+                "integrado"
+                if str(item_legado["integrado_vendas"] or "").strip().lower() == "sim"
+                else "independente"
+            )
+            if origem_legada == "integrado":
+                produto_vitrine_legado = conn.execute(
+                    """
+                    SELECT id, produto_id
+                    FROM vitrine_produtos
+                    WHERE empresa_id = ?
+                      AND produto_id = ?
+                    ORDER BY id ASC
+                    LIMIT 1
+                    """,
+                    (int(item_legado["empresa_id"]), produto_id_legado),
+                ).fetchone()
+            else:
+                produto_vitrine_legado = conn.execute(
+                    """
+                    SELECT id, produto_id
+                    FROM vitrine_produtos
+                    WHERE empresa_id = ?
+                      AND id = ?
+                    LIMIT 1
+                    """,
+                    (int(item_legado["empresa_id"]), produto_id_legado),
+                ).fetchone()
+                if produto_vitrine_legado is None:
+                    produto_vitrine_legado = conn.execute(
+                        """
+                        SELECT id, produto_id
+                        FROM vitrine_produtos
+                        WHERE empresa_id = ?
+                          AND produto_id = ?
+                        ORDER BY id ASC
+                        LIMIT 1
+                        """,
+                        (int(item_legado["empresa_id"]), produto_id_legado),
+                    ).fetchone()
+
+            if produto_vitrine_legado is None:
+                continue
+
+            gestflow_produto_id_legado = int(produto_vitrine_legado["produto_id"] or 0)
+            conn.execute(
+                """
+                UPDATE vitrine_pedido_itens
+                SET
+                    vitrine_produto_id = ?,
+                    gestflow_produto_id = ?,
+                    origem_produto = ?
+                WHERE id = ?
+                """,
+                (
+                    int(produto_vitrine_legado["id"]),
+                    gestflow_produto_id_legado or None,
+                    origem_legada,
+                    int(item_legado["id"]),
+                ),
+            )
+
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_vitrine_pedido_itens_produto_vitrine
+            ON vitrine_pedido_itens (empresa_id, vitrine_produto_id, pedido_id)
+            """
+        )
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_vitrine_pedido_itens_produto_gestflow
+            ON vitrine_pedido_itens (empresa_id, gestflow_produto_id, pedido_id)
             """
         )
 
@@ -24483,6 +24646,254 @@ def portal() -> str:
     return render_template("portal.html")
 
 
+@app.get("/politica-de-privacidade")
+def politica_privacidade() -> Response:
+    pagina = """<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="index,follow">
+    <meta name="description" content="Política de Privacidade do GestFlow, plataforma de gestão desenvolvida pela NettSan.">
+    <title>Política de Privacidade | GestFlow</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #f5f7fb;
+            --card: #ffffff;
+            --text: #111827;
+            --muted: #5f6b7a;
+            --border: #dde3ec;
+            --accent: #111827;
+            --soft: #eef2f7;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            color: var(--text);
+            background: var(--bg);
+            line-height: 1.65;
+        }
+        a { color: inherit; }
+        .page {
+            width: min(980px, calc(100% - 32px));
+            margin: 0 auto;
+            padding: 32px 0 56px;
+        }
+        .hero,
+        .section {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 22px;
+        }
+        .hero { padding: 32px; }
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        .brand-mark {
+            display: grid;
+            place-items: center;
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            color: #fff;
+            background: var(--accent);
+            font-weight: 900;
+        }
+        .brand strong,
+        .brand small { display: block; }
+        .brand small { color: var(--muted); }
+        h1 {
+            margin: 0;
+            font-size: clamp(30px, 5vw, 48px);
+            line-height: 1.08;
+        }
+        .lead {
+            max-width: 760px;
+            margin: 18px 0 0;
+            color: var(--muted);
+            font-size: 18px;
+        }
+        .updated {
+            display: inline-flex;
+            margin-top: 20px;
+            padding: 7px 11px;
+            border-radius: 999px;
+            background: var(--soft);
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 700;
+        }
+        .section {
+            margin-top: 16px;
+            padding: 26px 30px;
+        }
+        h2 {
+            margin: 0 0 12px;
+            font-size: 22px;
+        }
+        h3 {
+            margin: 20px 0 8px;
+            font-size: 17px;
+        }
+        p { margin: 10px 0; }
+        ul { margin: 10px 0; padding-left: 22px; }
+        li + li { margin-top: 7px; }
+        .note {
+            margin-top: 16px;
+            padding: 14px 16px;
+            border-radius: 14px;
+            background: var(--soft);
+            color: var(--muted);
+        }
+        .contact {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 16px;
+        }
+        .contact a {
+            display: inline-flex;
+            min-height: 42px;
+            align-items: center;
+            padding: 9px 14px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: #fff;
+            text-decoration: none;
+            font-weight: 800;
+        }
+        footer {
+            padding: 24px 4px 0;
+            color: var(--muted);
+            text-align: center;
+            font-size: 13px;
+        }
+        @media (max-width: 640px) {
+            .page { width: min(100% - 20px, 980px); padding-top: 12px; }
+            .hero, .section { border-radius: 16px; padding: 22px 18px; }
+        }
+    </style>
+</head>
+<body>
+    <main class="page">
+        <section class="hero">
+            <div class="brand">
+                <span class="brand-mark">GF</span>
+                <span><strong>GestFlow</strong><small>Desenvolvido pela NettSan</small></span>
+            </div>
+            <h1>Política de Privacidade</h1>
+            <p class="lead">Esta política explica como o GestFlow trata dados pessoais durante o uso da plataforma, da Vitrine Online e das integrações de comunicação, incluindo WhatsApp.</p>
+            <span class="updated">Última atualização: 11 de agosto de 2026</span>
+        </section>
+
+        <section class="section">
+            <h2>1. Quem somos</h2>
+            <p>O GestFlow é uma plataforma de gestão empresarial desenvolvida pela NettSan. O sistema oferece recursos de cadastro, atendimento, vendas, serviços, estoque, financeiro, ordens de serviço, Vitrine Online e integrações de comunicação.</p>
+            <p>Dependendo da forma de uso, a empresa cliente do GestFlow pode atuar como controladora dos dados de seus próprios clientes, funcionários, fornecedores e demais contatos, enquanto a NettSan pode atuar como operadora ou provedora da plataforma, conforme a relação aplicável.</p>
+        </section>
+
+        <section class="section">
+            <h2>2. Dados que podem ser tratados</h2>
+            <p>O GestFlow pode tratar dados fornecidos diretamente pelos usuários ou gerados durante o uso do sistema, incluindo:</p>
+            <ul>
+                <li>dados de identificação e contato, como nome, telefone, WhatsApp e e-mail;</li>
+                <li>dados cadastrais de clientes, fornecedores, funcionários e empresas;</li>
+                <li>informações de pedidos, vendas, agendamentos, serviços, contratos, orçamentos e ordens de serviço;</li>
+                <li>endereços e informações necessárias para entrega ou execução de serviços;</li>
+                <li>dados de pagamentos e condições comerciais, sem que o GestFlow tenha como objetivo armazenar dados completos de cartões;</li>
+                <li>mensagens e metadados necessários para integrações de comunicação, inclusive WhatsApp;</li>
+                <li>registros técnicos e de segurança, como data e hora de acesso, eventos do sistema, endereço IP e informações de sessão quando necessários à operação e proteção da plataforma;</li>
+                <li>arquivos, fotos, anexos e informações inseridas voluntariamente pelos usuários nos módulos do sistema.</li>
+            </ul>
+            <div class="note">O GestFlow não solicita dados pessoais sensíveis como requisito padrão de uso. Usuários devem evitar inserir dados sensíveis em campos livres quando eles não forem necessários para a finalidade do serviço.</div>
+        </section>
+
+        <section class="section">
+            <h2>3. Para que usamos os dados</h2>
+            <p>Os dados podem ser utilizados para:</p>
+            <ul>
+                <li>criar e administrar contas e empresas no GestFlow;</li>
+                <li>executar funcionalidades contratadas e manter os registros empresariais inseridos pelo usuário;</li>
+                <li>processar pedidos, vendas, agendamentos e atendimentos;</li>
+                <li>enviar comunicações operacionais e notificações solicitadas ou configuradas pelo usuário;</li>
+                <li>integrar o GestFlow a serviços externos autorizados, como WhatsApp e provedores de infraestrutura;</li>
+                <li>prevenir fraudes, acessos indevidos e incidentes de segurança;</li>
+                <li>atender obrigações legais, regulatórias, contratuais e solicitações legítimas de autoridades;</li>
+                <li>melhorar estabilidade, desempenho e experiência de uso da plataforma.</li>
+            </ul>
+        </section>
+
+        <section class="section">
+            <h2>4. Bases legais e princípios</h2>
+            <p>O tratamento de dados observa a Lei Geral de Proteção de Dados Pessoais — LGPD (Lei nº 13.709/2018) e pode ocorrer, conforme o caso, para execução de contrato ou procedimentos preliminares, cumprimento de obrigação legal ou regulatória, exercício regular de direitos, legítimo interesse ou consentimento quando ele for a base adequada.</p>
+            <p>Buscamos aplicar os princípios de finalidade, adequação, necessidade, transparência, segurança, prevenção e responsabilização no tratamento de dados pessoais.</p>
+        </section>
+
+        <section class="section">
+            <h2>5. Compartilhamento e integrações</h2>
+            <p>Os dados podem ser compartilhados apenas na medida necessária com fornecedores e plataformas que apoiam a operação do GestFlow, como serviços de hospedagem, banco de dados, envio de e-mail, comunicação e WhatsApp.</p>
+            <p>Quando uma integração de terceiros é ativada, o tratamento também pode ficar sujeito aos termos e políticas desse terceiro. O GestFlow não vende dados pessoais para anunciantes.</p>
+        </section>
+
+        <section class="section">
+            <h2>6. WhatsApp e Meta</h2>
+            <p>Quando a integração com WhatsApp é utilizada, o GestFlow pode enviar e receber informações necessárias à comunicação entre a empresa usuária e seus clientes ou responsáveis. Isso pode incluir telefone, nome, identificadores de mensagem, conteúdo operacional e status de entrega.</p>
+            <p>Esses dados são transmitidos à infraestrutura do WhatsApp/Meta exclusivamente para viabilizar a funcionalidade configurada pelo usuário e ficam sujeitos também às políticas aplicáveis da Meta e do WhatsApp.</p>
+        </section>
+
+        <section class="section">
+            <h2>7. Cookies, sessão e segurança</h2>
+            <p>O GestFlow pode usar cookies e mecanismos equivalentes estritamente necessários para autenticação, manutenção de sessão, preferências técnicas e segurança. Também adotamos medidas técnicas e administrativas destinadas a reduzir riscos de acesso não autorizado, perda, alteração ou divulgação indevida de dados.</p>
+            <p>Nenhum sistema é totalmente imune a riscos. Caso seja identificado incidente relevante envolvendo dados pessoais, serão adotadas as medidas cabíveis de investigação, contenção e comunicação conforme a legislação aplicável.</p>
+        </section>
+
+        <section class="section">
+            <h2>8. Retenção e exclusão</h2>
+            <p>Os dados são mantidos pelo período necessário para cumprir as finalidades descritas nesta política, obrigações legais e contratuais, segurança, auditoria e exercício regular de direitos. Os prazos podem variar conforme o tipo de informação e as configurações da empresa usuária.</p>
+            <p>Quando não houver mais fundamento para manutenção, os dados poderão ser eliminados, anonimizados ou mantidos de forma restrita quando houver obrigação legal ou necessidade legítima de preservação.</p>
+        </section>
+
+        <section class="section">
+            <h2>9. Direitos do titular</h2>
+            <p>Nos termos da LGPD, o titular pode solicitar, quando aplicável:</p>
+            <ul>
+                <li>confirmação da existência de tratamento e acesso aos dados;</li>
+                <li>correção de dados incompletos, inexatos ou desatualizados;</li>
+                <li>anonimização, bloqueio ou eliminação de dados desnecessários, excessivos ou tratados em desconformidade;</li>
+                <li>portabilidade, observadas as regras legais e regulatórias;</li>
+                <li>informações sobre compartilhamentos realizados;</li>
+                <li>revogação do consentimento quando essa for a base legal utilizada;</li>
+                <li>eliminação dos dados tratados com consentimento, ressalvadas as hipóteses legais de conservação.</li>
+            </ul>
+            <p>Quando os dados tiverem sido inseridos por uma empresa cliente do GestFlow, a solicitação poderá precisar ser tratada diretamente com essa empresa, que poderá ser a controladora responsável por decidir sobre o tratamento.</p>
+        </section>
+
+        <section class="section">
+            <h2>10. Como solicitar acesso, correção ou exclusão</h2>
+            <p>Solicitações relacionadas à privacidade e proteção de dados podem ser encaminhadas pelos canais oficiais da NettSan. Para facilitar a análise, informe seu nome, meio de contato, relação com o GestFlow e a natureza da solicitação.</p>
+            <div class="contact">
+                <a href="https://nettsan.com.br" target="_blank" rel="noopener noreferrer">Acessar NettSan</a>
+                <a href="/portal">Acessar GestFlow</a>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2>11. Alterações desta política</h2>
+            <p>Esta política pode ser atualizada para refletir mudanças legais, operacionais ou técnicas. A versão vigente permanecerá disponível publicamente neste endereço, com indicação da data da última atualização.</p>
+        </section>
+
+        <footer>GestFlow · NettSan · Política de Privacidade</footer>
+    </main>
+</body>
+</html>"""
+    return Response(pagina, mimetype="text/html")
+
+
 @app.get("/instalar")
 def pwa_instalar() -> str:
     return render_template("pwa_instalar.html")
@@ -26374,6 +26785,10 @@ def montar_central_vitrine_admin(empresa_id: int) -> dict[str, Any]:
             ).fetchall()
             for row in itens_rows:
                 item = dict(row)
+                item["produto_correlacionado"] = bool(
+                    int(item.get("vitrine_produto_id") or 0)
+                    or int(item.get("gestflow_produto_id") or 0)
+                )
                 itens_por_pedido.setdefault(int(item["pedido_id"]), []).append(item)
 
         agendamentos_rows = conn.execute(
@@ -26628,32 +27043,44 @@ def salvar_pedido_vitrine_db(empresa_id: int, dados: dict[str, Any], itens: list
 
         for item in itens:
             produto_id = int(item.get("produto_id") or 0)
+            vitrine_produto_id = int(item.get("vitrine_produto_id") or 0)
+            gestflow_produto_id = int(item.get("gestflow_produto_id") or 0)
+            origem_produto = str(item.get("origem_produto") or "independente").strip().lower()
+            if origem_produto not in {"integrado", "independente"}:
+                origem_produto = "independente"
             conn.execute(
                 """
                 INSERT INTO vitrine_pedido_itens (
                     empresa_id,
                     pedido_id,
                     produto_id,
+                    vitrine_produto_id,
+                    gestflow_produto_id,
+                    origem_produto,
                     produto_nome,
                     quantidade,
                     valor_unitario,
                     subtotal
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     empresa_id,
                     pedido_id,
                     produto_id,
+                    vitrine_produto_id or None,
+                    gestflow_produto_id or None,
+                    origem_produto,
                     str(item.get("nome") or ""),
                     str(item.get("quantidade") or "1"),
                     str(item.get("preco") or "0,00"),
                     _formatar_moeda_brl(float(item.get("subtotal_numero") or 0)),
                 ),
             )
-            conn.execute(
-                "UPDATE vitrine_produtos SET pedidos = COALESCE(pedidos, 0) + 1 WHERE empresa_id = ? AND (id = ? OR produto_id = ?)",
-                (empresa_id, produto_id, produto_id),
-            )
+            if vitrine_produto_id > 0:
+                conn.execute(
+                    "UPDATE vitrine_produtos SET pedidos = COALESCE(pedidos, 0) + 1 WHERE empresa_id = ? AND id = ?",
+                    (empresa_id, vitrine_produto_id),
+                )
 
         conn.execute(
             "UPDATE vitrine_configuracoes SET pedidos_gerados = COALESCE(pedidos_gerados, 0) + 1 WHERE empresa_id = ?",
@@ -26696,7 +27123,14 @@ def buscar_pedido_vitrine_admin(pedido_id: int) -> dict[str, Any] | None:
         ).fetchall()
 
     pedido = dict(row)
-    pedido["itens"] = [dict(item) for item in itens_rows]
+    pedido["itens"] = []
+    for item_row in itens_rows:
+        item = dict(item_row)
+        item["produto_correlacionado"] = bool(
+            int(item.get("vitrine_produto_id") or 0)
+            or int(item.get("gestflow_produto_id") or 0)
+        )
+        pedido["itens"].append(item)
     return pedido
 
 
@@ -27230,7 +27664,16 @@ def montar_itens_pedido_vitrine(empresa_id: int, itens_json: Any) -> list[dict[s
         itens_recebidos = []
 
     produtos = listar_produtos_vitrine_empresa(empresa_id)
-    produtos_por_id = {int(produto.get("produto_id") or produto.get("id") or 0): produto for produto in produtos}
+    produtos_por_vitrine_id = {
+        int(produto.get("id") or 0): produto
+        for produto in produtos
+        if int(produto.get("id") or 0) > 0
+    }
+    produtos_por_id_legado: dict[int, dict[str, Any]] = {}
+    for produto in produtos:
+        produto_id_gestflow = int(produto.get("produto_id") or 0)
+        if produto_id_gestflow > 0:
+            produtos_por_id_legado.setdefault(produto_id_gestflow, produto)
     controlar_estoque = configuracao_bool("vitrine", "controlar_estoque", True, empresa_id)
     permitir_sem_estoque = configuracao_bool("vendas", "permitir_sem_estoque", False, empresa_id)
     itens: list[dict[str, Any]] = []
@@ -27249,7 +27692,9 @@ def montar_itens_pedido_vitrine(empresa_id: int, itens_json: Any) -> list[dict[s
             continue
 
         quantidade = max(quantidade, 1)
-        produto = produtos_por_id.get(produto_id)
+        produto = produtos_por_vitrine_id.get(produto_id)
+        if produto is None:
+            produto = produtos_por_id_legado.get(produto_id)
         if produto is None or not bool(produto.get("disponivel_compra")):
             continue
 
@@ -27261,9 +27706,19 @@ def montar_itens_pedido_vitrine(empresa_id: int, itens_json: Any) -> list[dict[s
 
         preco_numero = _converter_valor_brl(produto.get("preco"))
         subtotal = preco_numero * quantidade
+        vitrine_produto_id = int(produto.get("id") or 0)
+        gestflow_produto_id = int(produto.get("produto_id") or 0)
+        origem_produto = (
+            "integrado"
+            if bool(produto.get("integrado")) and gestflow_produto_id > 0
+            else "independente"
+        )
         itens.append(
             {
-                "produto_id": produto_id,
+                "produto_id": gestflow_produto_id or vitrine_produto_id,
+                "vitrine_produto_id": vitrine_produto_id,
+                "gestflow_produto_id": gestflow_produto_id or None,
+                "origem_produto": origem_produto,
                 "nome": str(produto.get("nome") or ""),
                 "quantidade": str(quantidade),
                 "preco": str(produto.get("preco") or "0,00"),
@@ -27335,7 +27790,9 @@ def notificar_responsavel_vitrine_whatsapp(
     tipo_titulo = "Agendamento" if tipo_normalizado == "agendamento" else "Pedido"
     cliente = str(cliente_nome or "").strip() or "Cliente não informado"
     resumo_texto = str(resumo or "").strip() or "Consulte os detalhes na Central da Vitrine."
-    numero_registro = f"#{int(registro_id or 0)}"
+    resumo_texto = re.sub(r"[\r\n\t]+", " ", resumo_texto)
+    resumo_texto = re.sub(r"\s{2,}", " ", resumo_texto).strip()
+    numero_registro = str(int(registro_id or 0))
     template = str(regras.get("template_notificacao_whatsapp") or "").strip()
     link_registro = ""
     if tipo_normalizado == "pedido":
@@ -27735,7 +28192,7 @@ def renderizar_vitrine_publica_html(
 
     if exibir_produtos:
         for produto in produtos:
-            produto_id = int(produto.get("produto_id") or produto.get("id") or 0)
+            produto_id = int(produto.get("id") or 0)
             nome_raw = str(produto.get("nome") or "Produto")
             nome = html.escape(nome_raw)
             descricao = html.escape(str(produto.get("descricao") or ""))
@@ -28356,7 +28813,7 @@ def vitrine_pedido_publico(slug: str) -> str | Response:
         f"{item.get('quantidade') or 1}x {item.get('nome') or 'Produto'}"
         for item in itens
     )
-    resumo_pedido = "\n".join(
+    resumo_pedido = " | ".join(
         [
             f"Itens: {resumo_itens}",
             f"Total: R$ {_formatar_moeda_brl(total_pedido)}",
