@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-11 06:29 (America/Bahia)
-# Motivo: Corrigir o número do registro enviado ao template WhatsApp da Vitrine, removendo o prefixo # do parâmetro {{2}}.
+# Último recode: 2026-08-11 06:34 (America/Bahia)
+# Motivo: Adicionar diagnóstico detalhado das recusas de template WhatsApp da Vitrine sem expor token ou destinatário.
 
 from __future__ import annotations
 
@@ -1504,7 +1504,22 @@ def _mensagem_erro_graph_whatsapp(payload: Any, status_http: int | None = None) 
             mensagem = str(erro.get("message") or "").strip()
             codigo = str(erro.get("code") or "").strip()
             subcodigo = str(erro.get("error_subcode") or "").strip()
-            partes = [parte for parte in (mensagem, f"código {codigo}" if codigo else "", f"subcódigo {subcodigo}" if subcodigo else "") if parte]
+            dados_erro = erro.get("error_data") or {}
+            detalhes = str(dados_erro.get("details") or "").strip() if isinstance(dados_erro, dict) else ""
+            titulo_usuario = str(erro.get("error_user_title") or "").strip()
+            mensagem_usuario = str(erro.get("error_user_msg") or "").strip()
+            partes = [
+                parte
+                for parte in (
+                    mensagem,
+                    f"código {codigo}" if codigo else "",
+                    f"subcódigo {subcodigo}" if subcodigo else "",
+                    f"detalhes: {detalhes}" if detalhes else "",
+                    f"título: {titulo_usuario}" if titulo_usuario else "",
+                    f"orientação: {mensagem_usuario}" if mensagem_usuario else "",
+                )
+                if parte
+            ]
             if partes:
                 return " | ".join(partes)
     return f"A API do WhatsApp retornou HTTP {status_http}." if status_http else "A API do WhatsApp recusou a solicitação."
@@ -1611,6 +1626,14 @@ def enviar_payload_whatsapp(
             resposta_json = {"raw": bruto[:2000]}
         detalhe = _mensagem_erro_graph_whatsapp(resposta_json, exc.code)
         app.logger.warning("Envio do WhatsApp recusado pela Meta: %s", detalhe)
+        if tipo == "template":
+            template_diagnostico = payload.get("template") or {}
+            app.logger.warning(
+                "Diagnóstico do template WhatsApp recusado (sem token/destinatário): HTTP %s | template=%s | resposta=%s",
+                exc.code,
+                _json_canonico_whatsapp(template_diagnostico),
+                _json_canonico_whatsapp(resposta_json),
+            )
         _registrar_envio_whatsapp(destinatario=numero, tipo=tipo, texto=texto_log, payload_enviado=payload, resposta_api=resposta_json, sucesso=False, erro=detalhe)
         return False, detalhe, resposta_json
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
