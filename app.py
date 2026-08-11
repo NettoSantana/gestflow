@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-10 21:56 (America/Bahia)
-# Motivo: Simplificar a gestão da Vitrine Online e separar integração de produtos/serviços, estoque e vendas.
+# Último recode: 2026-08-10 22:41 (America/Bahia)
+# Motivo: Permitir cadastro de produto totalmente independente na Vitrine Online, sem criar Produto, movimentar Estoque ou gerar Venda no GestFlow.
 
 from __future__ import annotations
 
@@ -25239,7 +25239,7 @@ def listar_imagens_vitrine_item(empresa_id: int, item_tipo: str, item_id: int, f
 
 def anexar_galerias_vitrine(itens: list[dict[str, Any]], empresa_id: int, item_tipo: str, chave_id: str) -> list[dict[str, Any]]:
     for item in itens:
-        item_id = int(item.get(chave_id) or item.get("id") or 0)
+        item_id = int(item.get("galeria_item_id") or item.get(chave_id) or item.get("id") or 0)
         imagens = listar_imagens_vitrine_item(empresa_id, item_tipo, item_id, str(item.get("imagem_path") or ""))
         item["imagens"] = imagens
         item["imagem_path"] = str((imagens[0] if imagens else {}).get("imagem_path") or "")
@@ -25361,6 +25361,8 @@ def listar_produtos_vitrine_empresa(empresa_id: int) -> list[dict[str, Any]]:
             item["preco"] = str(item.get("produto_preco_venda") or "0,00")
         else:
             item["estoque_atual"] = ""
+            if int(item.get("produto_id") or 0) <= 0 and int(item.get("id") or 0) > 0:
+                item["galeria_item_id"] = -int(item.get("id"))
 
         saldo_positivo = _converter_valor_brl(item.get("estoque_atual")) > 0
         item["integrado"] = integrado
@@ -25467,10 +25469,16 @@ def listar_produtos_vitrine_admin(empresa_id: int) -> list[dict[str, Any]]:
             preco = str(item.get("vitrine_preco") or item.get("produto_preco_venda") or "0,00")
             estoque_atual = "Independente"
 
+        produto_id_real = int(item.get("produto_id") or 0)
+        vitrine_id = int(item.get("vitrine_id") or 0)
+        produto_independente = not integrado and produto_id_real <= 0 and vitrine_id > 0
+
         produtos.append(
             {
-                "produto_id": int(item.get("produto_id") or 0),
-                "vitrine_id": item.get("vitrine_id") or "",
+                "produto_id": produto_id_real,
+                "vitrine_id": vitrine_id or "",
+                "galeria_item_id": -vitrine_id if produto_independente else produto_id_real,
+                "produto_independente": produto_independente,
                 "nome": nome,
                 "codigo": str(item.get("produto_codigo") or ""),
                 "categoria": categoria,
@@ -28883,6 +28891,197 @@ def preparar_venda_agendamento_vitrine(agendamento_id: int) -> Response:
             "vendas",
             origem_vitrine_agendamento_id=agendamento_id,
             _anchor="form-nova-venda",
+        )
+    )
+
+
+def buscar_produto_vitrine_independente(vitrine_id: int, empresa_id: int | None = None) -> dict[str, Any] | None:
+    empresa = int(empresa_id or empresa_logada_id())
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT *
+            FROM vitrine_produtos
+            WHERE id = ?
+              AND empresa_id = ?
+              AND produto_id IS NULL
+            LIMIT 1
+            """,
+            (vitrine_id, empresa),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def _status_produto_vitrine_formulario(valor: Any) -> str:
+    status = str(valor or "publicado").strip().lower()
+    return status if status in {"publicado", "indisponivel", "oculto", "rascunho"} else "publicado"
+
+
+@app.post("/vitrine/produtos/independente/salvar")
+def vitrine_produto_independente_salvar() -> Response:
+    empresa_id = empresa_logada_id()
+    if vitrine_produtos_integrados(empresa_id):
+        return redirect(
+            url_for(
+                "vitrine",
+                erro="Desative a integração de Produtos antes de criar um produto exclusivo da Vitrine.",
+                _anchor="produtos-vitrine",
+            )
+        )
+
+    vitrine_id_texto = str(request.form.get("vitrine_id") or "").strip()
+    vitrine_id = int(vitrine_id_texto) if vitrine_id_texto.isdigit() else 0
+    nome = str(request.form.get("nome") or "").strip()
+    if not nome:
+        return redirect(
+            url_for(
+                "vitrine",
+                erro="Informe o nome do produto.",
+                _anchor="produtos-vitrine",
+            )
+        )
+
+    if vitrine_id and buscar_produto_vitrine_independente(vitrine_id, empresa_id) is None:
+        return redirect(
+            url_for(
+                "vitrine",
+                erro="Produto independente não encontrado nesta Vitrine.",
+                _anchor="produtos-vitrine",
+            )
+        )
+
+    dados = (
+        nome,
+        str(request.form.get("descricao") or "").strip(),
+        str(request.form.get("categoria") or "Produtos").strip() or "Produtos",
+        str(request.form.get("preco") or "0,00").strip() or "0,00",
+        "sim" if request.form.get("destaque") == "sim" else "nao",
+        _status_produto_vitrine_formulario(request.form.get("status")),
+        agora_empresa().isoformat(timespec="seconds"),
+    )
+
+    with conectar_db() as conn:
+        if vitrine_id:
+            conn.execute(
+                """
+                UPDATE vitrine_produtos
+                SET nome=?, descricao=?, categoria=?, preco=?, destaque=?, status=?, atualizado_em=?
+                WHERE id=? AND empresa_id=? AND produto_id IS NULL
+                """,
+                (*dados, vitrine_id, empresa_id),
+            )
+        else:
+            cursor = conn.execute(
+                """
+                INSERT INTO vitrine_produtos (
+                    empresa_id, produto_id, nome, descricao, categoria, preco,
+                    imagem_path, destaque, status, atualizado_em
+                ) VALUES (?, NULL, ?, ?, ?, ?, '', ?, ?, ?)
+                """,
+                (empresa_id, *dados),
+            )
+            vitrine_id = int(cursor.lastrowid)
+        conn.commit()
+
+    galeria_item_id = -vitrine_id
+    salvar_galeria_vitrine_upload("produto", galeria_item_id, "fotos_produto")
+    principal = atualizar_galeria_vitrine_formulario("produto", galeria_item_id)
+    if principal:
+        with conectar_db() as conn:
+            conn.execute(
+                "UPDATE vitrine_produtos SET imagem_path=? WHERE id=? AND empresa_id=? AND produto_id IS NULL",
+                (principal, vitrine_id, empresa_id),
+            )
+            conn.commit()
+
+    acao = "Atualizou" if vitrine_id_texto else "Criou"
+    registrar_atividade_usuario(
+        "atualizacao" if vitrine_id_texto else "criacao",
+        "vitrine",
+        f"{acao} produto independente na vitrine: {nome}",
+        request.path,
+        registro_id=vitrine_id,
+    )
+    return redirect(
+        url_for(
+            "vitrine",
+            mensagem="Produto salvo somente na Vitrine. Produto, Estoque e Vendas do GestFlow permanecem independentes.",
+            _anchor="produtos-vitrine",
+        )
+    )
+
+
+@app.post("/vitrine/produtos/independente/status")
+def vitrine_produto_independente_status() -> Response:
+    empresa_id = empresa_logada_id()
+    vitrine_id_texto = str(request.form.get("vitrine_id") or "").strip()
+    if not vitrine_id_texto.isdigit():
+        return redirect(url_for("vitrine", erro="Produto independente inválido.", _anchor="produtos-vitrine"))
+
+    vitrine_id = int(vitrine_id_texto)
+    status = _status_produto_vitrine_formulario(request.form.get("status"))
+    with conectar_db() as conn:
+        cursor = conn.execute(
+            """
+            UPDATE vitrine_produtos
+            SET status=?, atualizado_em=?
+            WHERE id=? AND empresa_id=? AND produto_id IS NULL
+            """,
+            (status, agora_empresa().isoformat(timespec="seconds"), vitrine_id, empresa_id),
+        )
+        conn.commit()
+
+    if cursor.rowcount != 1:
+        return redirect(url_for("vitrine", erro="Produto independente não encontrado.", _anchor="produtos-vitrine"))
+
+    mensagem = {
+        "publicado": "Produto disponibilizado na Vitrine.",
+        "indisponivel": "Produto marcado como indisponível.",
+        "oculto": "Produto ocultado da Vitrine pública.",
+        "rascunho": "Produto salvo como rascunho.",
+    }.get(status, "Status atualizado.")
+    return redirect(url_for("vitrine", mensagem=mensagem, _anchor="produtos-vitrine"))
+
+
+@app.post("/vitrine/produtos/independente/remover")
+def vitrine_produto_independente_remover() -> Response:
+    empresa_id = empresa_logada_id()
+    vitrine_id_texto = str(request.form.get("vitrine_id") or "").strip()
+    if not vitrine_id_texto.isdigit():
+        return redirect(url_for("vitrine", erro="Produto independente inválido.", _anchor="produtos-vitrine"))
+
+    vitrine_id = int(vitrine_id_texto)
+    produto = buscar_produto_vitrine_independente(vitrine_id, empresa_id)
+    if produto is None:
+        return redirect(url_for("vitrine", erro="Produto independente não encontrado.", _anchor="produtos-vitrine"))
+
+    arquivos = {str(produto.get("imagem_path") or "").strip()}
+    galeria_item_id = -vitrine_id
+    with conectar_db() as conn:
+        imagens = conn.execute(
+            "SELECT imagem_path FROM vitrine_imagens WHERE empresa_id=? AND item_tipo='produto' AND item_id=?",
+            (empresa_id, galeria_item_id),
+        ).fetchall()
+        arquivos.update(str(item["imagem_path"] or "").strip() for item in imagens)
+        conn.execute(
+            "DELETE FROM vitrine_imagens WHERE empresa_id=? AND item_tipo='produto' AND item_id=?",
+            (empresa_id, galeria_item_id),
+        )
+        conn.execute(
+            "DELETE FROM vitrine_produtos WHERE id=? AND empresa_id=? AND produto_id IS NULL",
+            (vitrine_id, empresa_id),
+        )
+        conn.commit()
+
+    for caminho in arquivos:
+        if caminho:
+            remover_arquivo_imagem_vitrine(caminho)
+
+    return redirect(
+        url_for(
+            "vitrine",
+            mensagem="Produto independente excluído somente da Vitrine.",
+            _anchor="produtos-vitrine",
         )
     )
 
