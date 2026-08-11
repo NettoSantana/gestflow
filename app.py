@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-11 06:01 (America/Bahia)
-# Motivo: Enviar automaticamente ao WhatsApp responsável um resumo completo e link direto de todo novo pedido salvo pela Vitrine Online.
+# Último recode: 2026-08-11 06:21 (America/Bahia)
+# Motivo: Corrigir os parâmetros do template WhatsApp da Vitrine para enviar somente o resumo aprovado no quarto campo.
 
 from __future__ import annotations
 
@@ -27359,14 +27359,7 @@ def notificar_responsavel_vitrine_whatsapp(
                         {"type": "text", "text": tipo_titulo[:80]},
                         {"type": "text", "text": numero_registro[:80]},
                         {"type": "text", "text": cliente[:240]},
-                        {
-                            "type": "text",
-                            "text": (
-                                f"{resumo_texto}\nAbrir pedido: {link_registro}"
-                                if link_registro
-                                else resumo_texto
-                            )[:900],
-                        },
+                        {"type": "text", "text": resumo_texto[:900]},
                     ],
                 }
             ]
