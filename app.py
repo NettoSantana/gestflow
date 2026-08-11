@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-11 06:48 (America/Bahia)
-# Motivo: Registrar no Railway a aceitação e os status de entrega das mensagens enviadas pela WhatsApp Cloud API.
+# Último recode: 2026-08-11 06:59 (America/Bahia)
+# Motivo: Elevar temporariamente os logs de aceitação e status do WhatsApp para WARNING e tornar o diagnóstico visível no Railway.
 
 from __future__ import annotations
 
@@ -1617,7 +1617,7 @@ def enviar_payload_whatsapp(
             message_id = str(((resposta_json.get("messages") or [{}])[0] or {}).get("id") or "").strip()
             detalhe = f"Mensagem aceita pela Meta{f' ({message_id})' if message_id else ''}."
             _registrar_envio_whatsapp(destinatario=numero, tipo=tipo, texto=texto_log, payload_enviado=payload, resposta_api=resposta_json, sucesso=True)
-            app.logger.info(
+            app.logger.warning(
                 "WhatsApp aceito pela Meta: tipo=%s | message_id=%s",
                 tipo,
                 message_id or "-",
@@ -2186,7 +2186,7 @@ def _registrar_eventos_whatsapp(payload: dict[str, Any], corpo_bruto: bytes) -> 
                     if status_whatsapp.lower() == "failed":
                         app.logger.warning(mensagem_log_status)
                     else:
-                        app.logger.info(mensagem_log_status)
+                        app.logger.warning(mensagem_log_status)
             else:
                 duplicados += 1
 
