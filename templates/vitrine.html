@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vitrine.html
-Último recode: 2026-08-06 19:59 (America/Bahia)
-Motivo: Adicionar remoção da logo e galeria de fotos com imagem principal para produtos e serviços da Vitrine Online.
+Último recode: 2026-08-10 21:56 (America/Bahia)
+Motivo: Simplificar a gestão de produtos e serviços da Vitrine Online, com integração independente e status indisponível.
 #}
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -25,6 +25,8 @@ Motivo: Adicionar remoção da logo e galeria de fotos com imagem principal para
     {% set pedidos_vitrine = central_vitrine.get('pedidos') or [] %}
     {% set agendamentos_vitrine = central_vitrine.get('agendamentos') or [] %}
     {% set profissionais_vitrine = profissionais_vitrine or [] %}
+    {% set integrar_produtos_vitrine = integrar_produtos_vitrine if integrar_produtos_vitrine is defined else true %}
+    {% set integrar_servicos_vitrine = integrar_servicos_vitrine if integrar_servicos_vitrine is defined else true %}
     {% set solicitacoes_vitrine = central_vitrine.get('solicitacoes') or [] %}
     {% set visitas_vitrine = central_vitrine.get('visitas') or [] %}
     {% set visualizacoes_vitrine = central_vitrine.get('visualizacoes') or [] %}
@@ -102,6 +104,24 @@ Motivo: Adicionar remoção da logo e galeria de fotos com imagem principal para
                 <span class="vitrine-alert-action">Abrir central</span>
             </button>
         {% endif %}
+
+        <section class="vitrine-integration-summary">
+            <div class="vitrine-integration-item">
+                <span>Produtos</span>
+                <strong>{{ 'Integrados ao GestFlow' if integrar_produtos_vitrine else 'Independentes' }}</strong>
+                <small>
+                    {{ 'Usam cadastro, estoque e vendas do GestFlow.' if integrar_produtos_vitrine else 'Funcionam só na Vitrine e não geram venda/estoque no GestFlow.' }}
+                </small>
+            </div>
+            <div class="vitrine-integration-item">
+                <span>Serviços</span>
+                <strong>{{ 'Integrados ao GestFlow' if integrar_servicos_vitrine else 'Independentes' }}</strong>
+                <small>
+                    {{ 'Usam o cadastro normal e podem gerar venda.' if integrar_servicos_vitrine else 'Mantêm os dados da Vitrine e o atendimento não gera venda.' }}
+                </small>
+            </div>
+            <a class="btn btn-secondary btn-small" href="/configuracoes/modulo/vitrine?modulo=vitrine">Alterar integração</a>
+        </section>
 
         <section class="vitrine-grid vitrine-grid-destaque">
             <article class="vitrine-card vitrine-card-principal">
@@ -427,9 +447,15 @@ Motivo: Adicionar remoção da logo e galeria de fotos com imagem principal para
                                         <button class="btn btn-primary btn-small" type="submit">Iniciar atendimento</button>
                                     </form>
                                 {% elif status_pedido == 'em_atendimento' %}
-                                    <a class="btn btn-success btn-small" href="{{ url_for('preparar_venda_pedido_vitrine', pedido_id=pedido.get('id')) }}">
-                                        Preparar venda
-                                    </a>
+                                    {% if (pedido.get('integrado_vendas') or 'sim') == 'nao' %}
+                                        <form method="post" action="{{ url_for('concluir_pedido_vitrine_independente', pedido_id=pedido.get('id')) }}">
+                                            <button class="btn btn-success btn-small" type="submit">Concluir pedido</button>
+                                        </form>
+                                    {% else %}
+                                        <a class="btn btn-success btn-small" href="{{ url_for('preparar_venda_pedido_vitrine', pedido_id=pedido.get('id')) }}">
+                                            Preparar venda
+                                        </a>
+                                    {% endif %}
                                 {% endif %}
 
                                 {% if status_pedido in ['novo', 'em_atendimento'] %}
@@ -535,9 +561,15 @@ Motivo: Adicionar remoção da logo e galeria de fotos com imagem principal para
                                         <button class="btn btn-secondary btn-small" type="submit">Não compareceu</button>
                                     </form>
                                 {% elif status_agendamento == 'em_atendimento' %}
-                                    <a class="btn btn-success btn-small" href="{{ url_for('preparar_venda_agendamento_vitrine', agendamento_id=agendamento.get('id')) }}">
-                                        Preparar venda
-                                    </a>
+                                    {% if (agendamento.get('vitrine_integrado_vendas') or 'sim') == 'nao' %}
+                                        <form method="post" action="{{ url_for('concluir_agendamento_vitrine_independente', agendamento_id=agendamento.get('id')) }}">
+                                            <button class="btn btn-success btn-small" type="submit">Concluir atendimento</button>
+                                        </form>
+                                    {% else %}
+                                        <a class="btn btn-success btn-small" href="{{ url_for('preparar_venda_agendamento_vitrine', agendamento_id=agendamento.get('id')) }}">
+                                            Preparar venda
+                                        </a>
+                                    {% endif %}
                                 {% elif status_agendamento == 'nao_compareceu' %}
                                     <a class="btn btn-primary btn-small" href="{{ url_for('agendamentos', editar_id=agendamento.get('id'), data_inicio=agendamento.get('data_agendamento'), data_fim=agendamento.get('data_agendamento')) }}">
                                         Reagendar
@@ -677,109 +709,147 @@ Motivo: Adicionar remoção da logo e galeria de fotos com imagem principal para
                     <div>
                         <p class="card-kicker">Catálogo</p>
                         <h2>Produtos da vitrine</h2>
+                        <p class="hint-text">
+                            {{ 'Nome, preço e estoque vêm do cadastro de Produtos.' if integrar_produtos_vitrine else 'Modo independente: estoque e vendas do GestFlow não interferem nestes itens.' }}
+                        </p>
                     </div>
-                    <a class="btn btn-primary" href="{{ url_for('produtos') }}">Cadastrar produto</a>
+                    {% if integrar_produtos_vitrine %}
+                        <a class="btn btn-primary" href="{{ url_for('produtos') }}">Cadastrar produto</a>
+                    {% endif %}
                 </div>
 
                 {% if produtos_vitrine_admin %}
                     <div class="product-admin-list">
                         {% for produto in produtos_vitrine_admin %}
-                            <form class="product-admin-card" method="post" action="{{ url_for('vitrine_produto_publicar') }}" enctype="multipart/form-data">
+                            <form class="product-admin-card catalog-simple-card" method="post" action="{{ url_for('vitrine_produto_publicar') }}" enctype="multipart/form-data">
                                 <input type="hidden" name="produto_id" value="{{ produto.get('produto_id') }}">
 
-                                <div class="product-admin-top">
-                                    <div>
+                                <div class="catalog-simple-summary">
+                                    <div class="catalog-simple-title">
                                         <strong>{{ produto.get('nome') }}</strong>
                                         <small>
-                                            Código: {{ produto.get('codigo') or '-' }} |
-                                            Estoque: {{ produto.get('estoque_atual') or '-' }} |
-                                            Status: {{ produto.get('status') or 'não publicado' }}
+                                            {% if produto.get('codigo') %}Código: {{ produto.get('codigo') }} · {% endif %}
+                                            {% if integrar_produtos_vitrine %}Estoque: {{ produto.get('estoque_atual') or '0' }} · {% else %}Estoque: independente · {% endif %}
+                                            R$ {{ produto.get('preco') or '0,00' }}
                                         </small>
                                     </div>
-                                    {% if produto.get('publicado') %}
-                                        <span class="status-pill">Publicado</span>
+                                    {% if produto.get('status') == 'publicado' %}
+                                        <span class="status-pill">Disponível</span>
+                                    {% elif produto.get('status') == 'indisponivel' %}
+                                        <span class="status-pill status-indisponivel">Indisponível</span>
+                                    {% elif produto.get('status') == 'oculto' %}
+                                        <span class="status-pill status-rascunho">Oculto</span>
+                                    {% elif produto.get('status') == 'rascunho' %}
+                                        <span class="status-pill status-rascunho">Rascunho</span>
                                     {% else %}
-                                        <span class="status-pill status-rascunho">Fora da vitrine</span>
+                                        <span class="status-pill status-neutral">Fora da vitrine</span>
                                     {% endif %}
                                 </div>
 
-                                <div class="form-grid-2 product-admin-fields">
-                                    <label>
-                                        Nome na vitrine
-                                        <input type="text" name="nome" value="{{ produto.get('nome') or '' }}">
-                                    </label>
-                                    <label>
-                                        Preço
-                                        <input type="text" name="preco" value="{{ produto.get('preco') or '0,00' }}">
-                                    </label>
+                                <div class="catalog-quick-actions">
+                                    <button class="btn btn-secondary btn-small" type="button" onclick="alternarEditorVitrine(this)">✏ Editar</button>
+
+                                    {% if produto.get('status') == 'publicado' %}
+                                        <button class="btn btn-secondary btn-small" type="button" onclick="alterarStatusProdutoVitrine(this, 'indisponivel')">◉ Indisponível</button>
+                                    {% elif produto.get('status') == 'indisponivel' %}
+                                        <button class="btn btn-primary btn-small" type="button" onclick="alterarStatusProdutoVitrine(this, 'publicado')">✓ Disponibilizar</button>
+                                    {% else %}
+                                        <button class="btn btn-primary btn-small" type="button" onclick="alterarStatusProdutoVitrine(this, 'publicado')">✓ Publicar</button>
+                                    {% endif %}
+
+                                    {% if produto.get('vitrine_id') %}
+                                        <button
+                                            class="btn btn-danger btn-small"
+                                            type="submit"
+                                            formaction="{{ url_for('vitrine_produto_remover') }}"
+                                            formmethod="post"
+                                            formnovalidate
+                                            onclick="return window.confirm('Remover este produto somente da Vitrine? O cadastro normal não será excluído.');"
+                                        >🗑 Excluir</button>
+                                    {% else %}
+                                        <button class="btn btn-danger btn-small" type="button" disabled title="Este produto ainda não foi incluído na Vitrine.">🗑 Excluir</button>
+                                    {% endif %}
                                 </div>
 
-                                <div class="form-grid-2 product-admin-fields">
-                                    <label>
-                                        Categoria
-                                        <input type="text" name="categoria" value="{{ produto.get('categoria') or 'Produtos' }}">
-                                    </label>
-                                    <div class="vitrine-gallery-manager">
-                                        <strong>Galeria do produto</strong>
-                                        <input type="file" name="fotos_produto" accept="image/*" multiple>
-                                        <small>Até 6 fotos. Marque a principal e selecione quais deseja excluir.</small>
-                                        <div class="vitrine-gallery-grid">
-                                            {% for foto in produto.get('imagens') or [] %}
-                                                <article class="vitrine-gallery-thumb">
-                                                    <img src="{{ url_for('servir_upload_vitrine_publico', caminho=foto.get('imagem_path')) }}" alt="Foto de {{ produto.get('nome') }}">
-                                                    {% if foto.get('id') %}
-                                                        <label><input type="radio" name="foto_principal_id" value="{{ foto.get('id') }}" {% if foto.get('principal') %}checked{% endif %}> Principal</label>
-                                                        <label class="danger"><input type="checkbox" name="remover_foto_ids" value="{{ foto.get('id') }}"> Excluir</label>
-                                                    {% else %}
-                                                        <small>Foto antiga — será migrada ao adicionar nova foto.</small>
-                                                    {% endif %}
-                                                </article>
-                                            {% endfor %}
+                                <div class="catalog-editor" data-vitrine-editor hidden>
+                                    <div class="catalog-editor-note">
+                                        {% if integrar_produtos_vitrine %}
+                                            <strong>Integrado ao GestFlow</strong>
+                                            <span>Nome, preço, categoria, descrição e estoque acompanham o cadastro normal. Aqui você cuida da apresentação e disponibilidade.</span>
+                                        {% else %}
+                                            <strong>Produto independente</strong>
+                                            <span>Alterações feitas aqui não mudam Produto, Estoque ou Venda do GestFlow.</span>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="form-grid-2 product-admin-fields">
+                                        <label>
+                                            Nome na vitrine
+                                            <input type="text" name="nome" value="{{ produto.get('nome') or '' }}" {% if integrar_produtos_vitrine %}readonly{% endif %}>
+                                        </label>
+                                        <label>
+                                            Preço
+                                            <input type="text" name="preco" value="{{ produto.get('preco') or '0,00' }}" {% if integrar_produtos_vitrine %}readonly{% endif %}>
+                                        </label>
+                                    </div>
+
+                                    <div class="form-grid-2 product-admin-fields">
+                                        <label>
+                                            Categoria
+                                            <input type="text" name="categoria" value="{{ produto.get('categoria') or 'Produtos' }}" {% if integrar_produtos_vitrine %}readonly{% endif %}>
+                                        </label>
+                                        <div class="vitrine-gallery-manager">
+                                            <strong>Galeria do produto</strong>
+                                            <input type="file" name="fotos_produto" accept="image/*" multiple>
+                                            <small>Até 6 fotos. Marque a principal e selecione quais deseja excluir.</small>
+                                            <div class="vitrine-gallery-grid">
+                                                {% for foto in produto.get('imagens') or [] %}
+                                                    <article class="vitrine-gallery-thumb">
+                                                        <img src="{{ url_for('servir_upload_vitrine_publico', caminho=foto.get('imagem_path')) }}" alt="Foto de {{ produto.get('nome') }}">
+                                                        {% if foto.get('id') %}
+                                                            <label><input type="radio" name="foto_principal_id" value="{{ foto.get('id') }}" {% if foto.get('principal') %}checked{% endif %}> Principal</label>
+                                                            <label class="danger"><input type="checkbox" name="remover_foto_ids" value="{{ foto.get('id') }}"> Excluir</label>
+                                                        {% else %}
+                                                            <small>Foto antiga — será migrada ao adicionar nova foto.</small>
+                                                        {% endif %}
+                                                    </article>
+                                                {% endfor %}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
 
-                                <label class="product-admin-description">
-                                    Descrição
-                                    <textarea name="descricao" rows="3" placeholder="Descrição curta para a vitrine">{{ produto.get('descricao') or '' }}</textarea>
-                                </label>
-
-                                <div class="product-admin-actions">
-                                    <label class="inline-check">
-                                        <input type="checkbox" name="destaque" value="sim" {% if produto.get('destaque') == 'sim' %}checked{% endif %}>
-                                        Destaque
+                                    <label class="product-admin-description">
+                                        Descrição
+                                        <textarea name="descricao" rows="3" placeholder="Descrição curta para a vitrine" {% if integrar_produtos_vitrine %}readonly{% endif %}>{{ produto.get('descricao') or '' }}</textarea>
                                     </label>
-                                    <select name="status">
-                                        <option value="publicado" {% if produto.get('status') == 'publicado' %}selected{% endif %}>Publicado</option>
-                                        <option value="rascunho" {% if produto.get('status') == 'rascunho' %}selected{% endif %}>Rascunho</option>
-                                        <option value="oculto" {% if produto.get('status') == 'oculto' %}selected{% endif %}>Oculto</option>
-                                    </select>
-                                    <button class="btn btn-primary" type="submit">Salvar na vitrine</button>
-                                </div>
 
-                                {% if produto.get('publicado') %}
-                                    <div class="product-admin-status-actions">
-                                        <button
-                                            class="btn btn-secondary btn-small"
-                                            type="button"
-                                            onclick="alterarStatusProdutoVitrine(this, 'oculto')"
-                                        >Remover da vitrine</button>
-                                        <button
-                                            class="btn btn-secondary btn-small"
-                                            type="button"
-                                            onclick="alterarStatusProdutoVitrine(this, 'rascunho')"
-                                        >Salvar como rascunho</button>
+                                    <div class="product-admin-actions">
+                                        <label class="inline-check">
+                                            <input type="checkbox" name="destaque" value="sim" {% if produto.get('destaque') == 'sim' %}checked{% endif %}>
+                                            Destaque
+                                        </label>
+                                        <select name="status">
+                                            <option value="publicado" {% if produto.get('status') == 'publicado' %}selected{% endif %}>Disponível</option>
+                                            <option value="indisponivel" {% if produto.get('status') == 'indisponivel' %}selected{% endif %}>Indisponível</option>
+                                            <option value="oculto" {% if produto.get('status') == 'oculto' %}selected{% endif %}>Oculto</option>
+                                            <option value="rascunho" {% if produto.get('status') == 'rascunho' %}selected{% endif %}>Rascunho</option>
+                                        </select>
+                                        <button class="btn btn-primary" type="submit">Salvar</button>
                                     </div>
-                                {% endif %}
+                                </div>
                             </form>
                         {% endfor %}
                     </div>
                 {% else %}
                     <div class="empty-state">
                         <div class="empty-icon">▧</div>
-                        <h3>Nenhum produto cadastrado ainda</h3>
-                        <p>Cadastre produtos no GestFlow e volte aqui para publicar na vitrine.</p>
-                        <a class="btn btn-primary" href="{{ url_for('produtos') }}">Cadastrar produto</a>
+                        <h3>Nenhum produto na Vitrine</h3>
+                        {% if integrar_produtos_vitrine %}
+                            <p>Cadastre produtos no GestFlow e publique os que desejar.</p>
+                            <a class="btn btn-primary" href="{{ url_for('produtos') }}">Cadastrar produto</a>
+                        {% else %}
+                            <p>Não existem produtos publicados para manter no modo independente.</p>
+                        {% endif %}
                     </div>
                 {% endif %}
             </article>
@@ -820,93 +890,187 @@ Motivo: Adicionar remoção da logo e galeria de fotos com imagem principal para
                     <div>
                         <p class="card-kicker">Catálogo com agenda</p>
                         <h2>Serviços da vitrine</h2>
-                        <p class="hint-text">A duração vem do cadastro do serviço e define quais horários poderão ser oferecidos ao cliente.</p>
+                        <p class="hint-text">
+                            {{ 'Nome, preço e duração vêm do cadastro de Serviços.' if integrar_servicos_vitrine else 'Modo independente: os dados comerciais ficam na Vitrine e o atendimento não gera venda.' }}
+                        </p>
                     </div>
-                    <a class="btn btn-primary" href="{{ url_for('servicos') }}">Cadastrar serviço</a>
+                    {% if integrar_servicos_vitrine %}
+                        <a class="btn btn-primary" href="{{ url_for('servicos') }}">Cadastrar serviço</a>
+                    {% endif %}
                 </div>
 
                 {% if servicos_vitrine_admin %}
                     <div class="product-admin-list">
                         {% for servico in servicos_vitrine_admin %}
-                            <form class="product-admin-card service-admin-card" method="post" action="{{ url_for('vitrine_servico_publicar') }}" enctype="multipart/form-data">
+                            <form class="product-admin-card service-admin-card catalog-simple-card" method="post" action="{{ url_for('vitrine_servico_publicar') }}" enctype="multipart/form-data">
                                 <input type="hidden" name="servico_id" value="{{ servico.get('servico_id') }}">
-                                <div class="product-admin-top">
-                                    <div>
+
+                                <div class="catalog-simple-summary">
+                                    <div class="catalog-simple-title">
                                         <strong>{{ servico.get('nome') }}</strong>
-                                        <small>Código: {{ servico.get('codigo') or '-' }} | {{ 'Valor a combinar' if servico.get('tipo_contratacao') == 'a_combinar' else 'Valor fixo' }} | Perguntas: {{ servico.get('perguntas_quantidade') or 0 }} | Acessos: {{ servico.get('acessos') or 0 }} | Agendamentos: {{ servico.get('agendamentos') or 0 }}</small>
+                                        <small>
+                                            {% if servico.get('codigo') %}Código: {{ servico.get('codigo') }} · {% endif %}
+                                            {{ 'Avaliação prévia' if servico.get('tipo_contratacao') == 'a_combinar' else (servico.get('tempo_estimado') or 'Duração não informada') }}
+                                            ·
+                                            {{ 'Valor a combinar' if servico.get('tipo_contratacao') == 'a_combinar' else ('R$ ' ~ (servico.get('preco') or '0,00')) }}
+                                        </small>
                                     </div>
-                                    {% if servico.get('publicado') %}<span class="status-pill">Publicado</span>{% else %}<span class="status-pill status-rascunho">Fora da vitrine</span>{% endif %}
+                                    {% if servico.get('status') == 'publicado' %}
+                                        <span class="status-pill">Disponível</span>
+                                    {% elif servico.get('status') == 'indisponivel' %}
+                                        <span class="status-pill status-indisponivel">Indisponível</span>
+                                    {% elif servico.get('status') == 'oculto' %}
+                                        <span class="status-pill status-rascunho">Oculto</span>
+                                    {% elif servico.get('status') == 'rascunho' %}
+                                        <span class="status-pill status-rascunho">Rascunho</span>
+                                    {% else %}
+                                        <span class="status-pill status-neutral">Fora da vitrine</span>
+                                    {% endif %}
                                 </div>
-                                <div class="service-duration-banner">
-                                    <span>{{ 'Avaliação prévia' if servico.get('tipo_contratacao') == 'a_combinar' else 'Duração usada na agenda' }}</span>
-                                    <strong>{{ (servico.get('perguntas_quantidade') ~ ' pergunta(s) para o cliente') if servico.get('tipo_contratacao') == 'a_combinar' else (servico.get('tempo_estimado') or 'Não informada') }}</strong>
-                                    <small>{{ 'O botão público será Solicitar avaliação.' if servico.get('tipo_contratacao') == 'a_combinar' else 'O botão público será Agendar este serviço.' }}</small>
+
+                                <div class="catalog-quick-actions">
+                                    <button class="btn btn-secondary btn-small" type="button" onclick="alternarEditorVitrine(this)">✏ Editar</button>
+
+                                    {% if servico.get('status') == 'publicado' %}
+                                        <button class="btn btn-secondary btn-small" type="button" onclick="alterarStatusServicoVitrine(this, 'indisponivel')">◉ Indisponível</button>
+                                    {% elif servico.get('status') == 'indisponivel' %}
+                                        <button class="btn btn-primary btn-small" type="button" onclick="alterarStatusServicoVitrine(this, 'publicado')">✓ Disponibilizar</button>
+                                    {% else %}
+                                        <button class="btn btn-primary btn-small" type="button" onclick="alterarStatusServicoVitrine(this, 'publicado')">✓ Publicar</button>
+                                    {% endif %}
+
+                                    {% if servico.get('vitrine_id') %}
+                                        <button
+                                            class="btn btn-danger btn-small"
+                                            type="submit"
+                                            formaction="{{ url_for('vitrine_servico_remover') }}"
+                                            formmethod="post"
+                                            formnovalidate
+                                            onclick="return window.confirm('Remover este serviço somente da Vitrine? O cadastro normal não será excluído.');"
+                                        >🗑 Excluir</button>
+                                    {% else %}
+                                        <button class="btn btn-danger btn-small" type="button" disabled title="Este serviço ainda não foi incluído na Vitrine.">🗑 Excluir</button>
+                                    {% endif %}
                                 </div>
-                                <div class="form-grid-2 product-admin-fields">
-                                    <label>Nome na vitrine<input type="text" name="nome" value="{{ servico.get('nome') or '' }}"></label>
-                                    <label>Preço
-                                        {% if servico.get('tipo_contratacao') == 'a_combinar' %}
-                                            <input type="text" value="Valor a combinar" readonly disabled>
+
+                                <div class="catalog-editor" data-vitrine-editor hidden>
+                                    <div class="catalog-editor-note">
+                                        {% if integrar_servicos_vitrine %}
+                                            <strong>Integrado ao GestFlow</strong>
+                                            <span>Nome, preço, categoria e duração acompanham o cadastro normal. Aqui você cuida da apresentação e disponibilidade.</span>
                                         {% else %}
-                                            <input type="text" name="preco" value="{{ servico.get('preco') or '0,00' }}">
+                                            <strong>Serviço independente</strong>
+                                            <span>Os dados comerciais da Vitrine não alteram o cadastro normal e o atendimento não gera Venda no GestFlow.</span>
                                         {% endif %}
-                                    </label>
-                                </div>
-                                <div class="form-grid-2 product-admin-fields">
-                                    <label>Categoria<input type="text" name="categoria" value="{{ servico.get('categoria') or 'Serviços' }}"></label>
-                                    <div class="vitrine-gallery-manager">
-                                        <strong>Galeria do serviço</strong>
-                                        <input type="file" name="fotos_servico" accept="image/*" multiple>
-                                        <small>Até 6 fotos. Marque a principal e selecione quais deseja excluir.</small>
-                                        <div class="vitrine-gallery-grid">
-                                            {% for foto in servico.get('imagens') or [] %}
-                                                <article class="vitrine-gallery-thumb">
-                                                    <img src="{{ url_for('servir_upload_vitrine_publico', caminho=foto.get('imagem_path')) }}" alt="Foto de {{ servico.get('nome') }}">
-                                                    {% if foto.get('id') %}
-                                                        <label><input type="radio" name="foto_principal_id" value="{{ foto.get('id') }}" {% if foto.get('principal') %}checked{% endif %}> Principal</label>
-                                                        <label class="danger"><input type="checkbox" name="remover_foto_ids" value="{{ foto.get('id') }}"> Excluir</label>
-                                                    {% else %}
-                                                        <small>Foto antiga — será migrada ao adicionar nova foto.</small>
-                                                    {% endif %}
-                                                </article>
-                                            {% endfor %}
+                                    </div>
+
+                                    <div class="service-duration-banner">
+                                        <span>{{ 'Avaliação prévia' if servico.get('tipo_contratacao') == 'a_combinar' else 'Duração usada na agenda' }}</span>
+                                        <strong>{{ (servico.get('perguntas_quantidade') ~ ' pergunta(s) para o cliente') if servico.get('tipo_contratacao') == 'a_combinar' else (servico.get('tempo_estimado') or 'Não informada') }}</strong>
+                                        <small>{{ 'O botão público será Solicitar avaliação.' if servico.get('tipo_contratacao') == 'a_combinar' else 'O botão público será Agendar este serviço.' }}</small>
+                                    </div>
+
+                                    <div class="form-grid-2 product-admin-fields">
+                                        <label>
+                                            Nome na vitrine
+                                            <input type="text" name="nome" value="{{ servico.get('nome') or '' }}" {% if integrar_servicos_vitrine %}readonly{% endif %}>
+                                        </label>
+                                        <label>
+                                            Preço
+                                            {% if servico.get('tipo_contratacao') == 'a_combinar' %}
+                                                <input type="text" value="Valor a combinar" readonly disabled>
+                                            {% else %}
+                                                <input type="text" name="preco" value="{{ servico.get('preco') or '0,00' }}" {% if integrar_servicos_vitrine %}readonly{% endif %}>
+                                            {% endif %}
+                                        </label>
+                                    </div>
+
+                                    <div class="form-grid-2 product-admin-fields">
+                                        <label>
+                                            Categoria
+                                            <input type="text" name="categoria" value="{{ servico.get('categoria') or 'Serviços' }}" {% if integrar_servicos_vitrine %}readonly{% endif %}>
+                                        </label>
+                                        <div class="vitrine-gallery-manager">
+                                            <strong>Galeria do serviço</strong>
+                                            <input type="file" name="fotos_servico" accept="image/*" multiple>
+                                            <small>Até 6 fotos. Marque a principal e selecione quais deseja excluir.</small>
+                                            <div class="vitrine-gallery-grid">
+                                                {% for foto in servico.get('imagens') or [] %}
+                                                    <article class="vitrine-gallery-thumb">
+                                                        <img src="{{ url_for('servir_upload_vitrine_publico', caminho=foto.get('imagem_path')) }}" alt="Foto de {{ servico.get('nome') }}">
+                                                        {% if foto.get('id') %}
+                                                            <label><input type="radio" name="foto_principal_id" value="{{ foto.get('id') }}" {% if foto.get('principal') %}checked{% endif %}> Principal</label>
+                                                            <label class="danger"><input type="checkbox" name="remover_foto_ids" value="{{ foto.get('id') }}"> Excluir</label>
+                                                        {% else %}
+                                                            <small>Foto antiga — será migrada ao adicionar nova foto.</small>
+                                                        {% endif %}
+                                                    </article>
+                                                {% endfor %}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                <label class="product-admin-description">Descrição<textarea name="descricao" rows="3" placeholder="Explique o que será realizado">{{ servico.get('descricao') or '' }}</textarea></label>
-                                <div class="product-admin-actions">
-                                    <label class="inline-check"><input type="checkbox" name="destaque" value="sim" {% if servico.get('destaque') == 'sim' %}checked{% endif %}>Destaque</label>
-                                    <select name="status">
-                                        <option value="publicado" {% if servico.get('status') == 'publicado' %}selected{% endif %}>Publicado</option>
-                                        <option value="rascunho" {% if servico.get('status') == 'rascunho' %}selected{% endif %}>Rascunho</option>
-                                        <option value="oculto" {% if servico.get('status') == 'oculto' %}selected{% endif %}>Oculto</option>
-                                    </select>
-                                    <button class="btn btn-primary" type="submit">Salvar na vitrine</button>
-                                </div>
-                                {% if servico.get('publicado') %}
-                                    <div class="product-admin-status-actions">
-                                        <button class="btn btn-secondary btn-small" type="button" onclick="alterarStatusServicoVitrine(this,'oculto')">Remover da vitrine</button>
-                                        <button class="btn btn-secondary btn-small" type="button" onclick="alterarStatusServicoVitrine(this,'rascunho')">Salvar como rascunho</button>
+
+                                    <label class="product-admin-description">
+                                        Descrição
+                                        <textarea name="descricao" rows="3" placeholder="Explique o que será realizado" {% if integrar_servicos_vitrine %}readonly{% endif %}>{{ servico.get('descricao') or '' }}</textarea>
+                                    </label>
+
+                                    <div class="product-admin-actions">
+                                        <label class="inline-check">
+                                            <input type="checkbox" name="destaque" value="sim" {% if servico.get('destaque') == 'sim' %}checked{% endif %}>
+                                            Destaque
+                                        </label>
+                                        <select name="status">
+                                            <option value="publicado" {% if servico.get('status') == 'publicado' %}selected{% endif %}>Disponível</option>
+                                            <option value="indisponivel" {% if servico.get('status') == 'indisponivel' %}selected{% endif %}>Indisponível</option>
+                                            <option value="oculto" {% if servico.get('status') == 'oculto' %}selected{% endif %}>Oculto</option>
+                                            <option value="rascunho" {% if servico.get('status') == 'rascunho' %}selected{% endif %}>Rascunho</option>
+                                        </select>
+                                        <button class="btn btn-primary" type="submit">Salvar</button>
                                     </div>
-                                {% else %}
-                                    <div class="product-admin-status-actions">
-                                        <button class="btn btn-primary btn-small" type="button" onclick="alterarStatusServicoVitrine(this,'publicado')">Publicar agora</button>
-                                    </div>
-                                {% endif %}
+                                </div>
                             </form>
                         {% endfor %}
                     </div>
                 {% else %}
-                    <div class="empty-state"><div class="empty-icon">◇</div><h3>Nenhum serviço cadastrado</h3><p>Cadastre o serviço e informe a duração para poder publicá-lo.</p><a class="btn btn-primary" href="{{ url_for('servicos') }}">Cadastrar serviço</a></div>
+                    <div class="empty-state">
+                        <div class="empty-icon">◇</div>
+                        <h3>Nenhum serviço na Vitrine</h3>
+                        {% if integrar_servicos_vitrine %}
+                            <p>Cadastre o serviço no GestFlow e publique quando quiser.</p>
+                            <a class="btn btn-primary" href="{{ url_for('servicos') }}">Cadastrar serviço</a>
+                        {% else %}
+                            <p>Não existem serviços publicados para manter no modo independente.</p>
+                        {% endif %}
+                    </div>
                 {% endif %}
             </article>
+
             <article class="vitrine-card">
-                <div class="vitrine-card-header"><div><p class="card-kicker">Conversão</p><h2>Serviços mais acessados</h2></div></div>
+                <div class="vitrine-card-header">
+                    <div>
+                        <p class="card-kicker">Conversão</p>
+                        <h2>Serviços mais acessados</h2>
+                    </div>
+                </div>
                 <div class="ranking-list">
-                    <div class="ranking-row muted"><span>Serviço</span><strong>Acessos / agendas</strong></div>
+                    <div class="ranking-row muted">
+                        <span>Serviço</span>
+                        <strong>Acessos / agendas</strong>
+                    </div>
                     {% if ranking_servicos_vitrine %}
-                        {% for item in ranking_servicos_vitrine %}<div class="ranking-row"><span>{{ item.get('nome') }}</span><strong>{{ item.get('acessos') or 0 }} / {{ item.get('agendamentos') or 0 }}</strong></div>{% endfor %}
-                    {% else %}<div class="ranking-row"><span>Aguardando acessos reais</span><strong>0 / 0</strong></div>{% endif %}
+                        {% for item in ranking_servicos_vitrine %}
+                            <div class="ranking-row">
+                                <span>{{ item.get('nome') }}</span>
+                                <strong>{{ item.get('acessos') or 0 }} / {{ item.get('agendamentos') or 0 }}</strong>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="ranking-row">
+                            <span>Aguardando acessos reais</span>
+                            <strong>0 / 0</strong>
+                        </div>
+                    {% endif %}
                 </div>
             </article>
         </section>
@@ -945,13 +1109,23 @@ Motivo: Adicionar remoção da logo e galeria de fotos com imagem principal para
                     {% for produto in produtos_vitrine[:3] %}
                         <div class="preview-product-card">
                             {% if produto.get('imagem_path') %}<img class="preview-product-img real-img" src="{{ url_for('servir_upload_vitrine_publico', caminho=produto.get('imagem_path')) }}" alt="{{ produto.get('nome') }}">{% else %}<div class="preview-product-img"></div>{% endif %}
-                            <small>Produto</small><strong>{{ produto.get('nome') }}</strong><span>R$ {{ produto.get('preco') or '0,00' }}</span><button type="button">Adicionar</button>
+                            <small>Produto</small><strong>{{ produto.get('nome') }}</strong><span>R$ {{ produto.get('preco') or '0,00' }}</span>
+                            {% if produto.get('disponivel_compra') %}
+                                <button type="button">Adicionar</button>
+                            {% else %}
+                                <button type="button" disabled>Indisponível</button>
+                            {% endif %}
                         </div>
                     {% endfor %}
                     {% for servico in servicos_vitrine[:3] %}
                         <div class="preview-product-card preview-service-card">
                             {% if servico.get('imagem_path') %}<img class="preview-product-img real-img" src="{{ url_for('servir_upload_vitrine_publico', caminho=servico.get('imagem_path')) }}" alt="{{ servico.get('nome') }}">{% else %}<div class="preview-product-img service-image-placeholder">Serviço</div>{% endif %}
-                            <small>Serviço • {{ 'Avaliação prévia' if servico.get('tipo_contratacao') == 'a_combinar' else servico.get('tempo_estimado') }}</small><strong>{{ servico.get('nome') }}</strong><span>{{ 'Valor a combinar' if servico.get('tipo_contratacao') == 'a_combinar' else ('R$ ' ~ (servico.get('preco') or '0,00')) }}</span><button type="button">{{ 'Solicitar avaliação' if servico.get('tipo_contratacao') == 'a_combinar' else 'Agendar' }}</button>
+                            <small>Serviço • {{ 'Avaliação prévia' if servico.get('tipo_contratacao') == 'a_combinar' else servico.get('tempo_estimado') }}</small><strong>{{ servico.get('nome') }}</strong><span>{{ 'Valor a combinar' if servico.get('tipo_contratacao') == 'a_combinar' else ('R$ ' ~ (servico.get('preco') or '0,00')) }}</span>
+                            {% if servico.get('disponivel_agendamento') %}
+                                <button type="button">{{ 'Solicitar avaliação' if servico.get('tipo_contratacao') == 'a_combinar' else 'Agendar' }}</button>
+                            {% else %}
+                                <button type="button" disabled>Indisponível</button>
+                            {% endif %}
                         </div>
                     {% endfor %}
                     {% if not produtos_vitrine and not servicos_vitrine %}
@@ -965,6 +1139,15 @@ Motivo: Adicionar remoção da logo e galeria de fotos com imagem principal para
         <script>
             function sairModoFocoVitrine() {
                 window.location.href = "/";
+            }
+
+            function alternarEditorVitrine(botao) {
+                const card = botao.closest(".catalog-simple-card");
+                const editor = card ? card.querySelector("[data-vitrine-editor]") : null;
+                if (!editor) return;
+
+                editor.hidden = !editor.hidden;
+                botao.textContent = editor.hidden ? "✏ Editar" : "✕ Fechar";
             }
 
             function alterarStatusProdutoVitrine(botao, status) {
@@ -1252,6 +1435,43 @@ Motivo: Adicionar remoção da logo e galeria de fotos com imagem principal para
             border: 1px solid #fecaca;
         }
 
+
+        .vitrine-integration-summary {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+            align-items: stretch;
+            gap: 12px;
+            margin: 0 0 18px;
+            padding: 14px;
+            border: 1px solid #e5e7eb;
+            border-radius: 18px;
+            background: #ffffff;
+        }
+
+        .vitrine-integration-item {
+            display: grid;
+            gap: 4px;
+            padding: 10px 12px;
+            border-radius: 14px;
+            background: #f9fafb;
+        }
+
+        .vitrine-integration-item span {
+            color: #6b7280;
+            font-size: 11px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .vitrine-integration-item strong {
+            color: #111827;
+        }
+
+        .vitrine-integration-item small {
+            color: #6b7280;
+            line-height: 1.4;
+        }
+
         .vitrine-alert-strip {
             display: grid;
             grid-template-columns: auto minmax(0, 1fr) auto;
@@ -1380,6 +1600,12 @@ Motivo: Adicionar remoção da logo e galeria de fotos com imagem principal para
         .status-rascunho {
             background: #fffbeb;
             color: #b45309;
+        }
+
+        .status-indisponivel,
+        .status-neutral {
+            background: #f3f4f6;
+            color: #6b7280;
         }
 
         .vitrine-form,
@@ -1883,6 +2109,75 @@ Motivo: Adicionar remoção da logo e galeria de fotos com imagem principal para
             grid-template-columns: repeat(3, minmax(0, 1fr));
         }
 
+
+        .catalog-simple-card {
+            gap: 12px;
+        }
+
+        .catalog-simple-summary {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .catalog-simple-title {
+            min-width: 0;
+        }
+
+        .catalog-simple-title strong {
+            display: block;
+            color: #111827;
+            font-size: 16px;
+        }
+
+        .catalog-simple-title small {
+            display: block;
+            margin-top: 4px;
+            color: #6b7280;
+            font-size: 12px;
+        }
+
+        .catalog-quick-actions {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .catalog-quick-actions .btn {
+            width: 100%;
+        }
+
+        .catalog-editor {
+            display: grid;
+            gap: 16px;
+            padding-top: 14px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .catalog-editor[hidden] {
+            display: none;
+        }
+
+        .catalog-editor-note {
+            display: grid;
+            gap: 4px;
+            padding: 12px;
+            border-radius: 14px;
+            background: #eef2ff;
+            color: #3730a3;
+        }
+
+        .catalog-editor-note span {
+            font-size: 12px;
+            line-height: 1.45;
+        }
+
+        .btn:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+
         .vitrine-gallery-manager { display:grid;gap:10px;padding:12px;border:1px solid #dbe3ef;border-radius:14px;background:#fff; }
         .vitrine-gallery-manager > small { color:#64748b;font-size:12px;font-weight:700; }
         .vitrine-gallery-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px; }
@@ -2109,6 +2404,8 @@ Motivo: Adicionar remoção da logo e galeria de fotos com imagem principal para
             }
 
             .vitrine-grid,
+            .vitrine-integration-summary,
+            .catalog-quick-actions,
             .form-grid-2,
             .form-grid-3,
             .preview-products,
