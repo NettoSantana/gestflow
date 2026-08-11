@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-11 11:29 (America/Bahia)
-# Motivo: Forçar o recorte físico da logo pública no formato salvo usando border-radius e clip-path no contêiner e na própria imagem.
+# Último recode: 2026-08-11 11:46 (America/Bahia)
+# Motivo: Corrigir a ordem de substituição das variáveis de zoom, posição, fundo e moldura da logo antes de inserir o CSS na Vitrine pública.
 
 from __future__ import annotations
 
@@ -28732,6 +28732,13 @@ button,input,select,textarea{font:inherit}
         .replace("__COR_ACAO_TEXTO__", cor_acao_texto)
         .replace("__COR_DESTAQUE__", cor_destaque)
         .replace("__COR_CATEGORIA_SUAVE__", cor_categoria_suave)
+        .replace("__LOGO_ZOOM_FACTOR__", f"{logo_zoom / 100:.3f}")
+        .replace("__LOGO_OFFSET_X__", str(logo_offset_x))
+        .replace("__LOGO_OFFSET_Y__", str(logo_offset_y))
+        .replace("__LOGO_FUNDO__", logo_fundo)
+        .replace("__LOGO_RAIO__", logo_raio)
+        .replace("__LOGO_CLIP__", logo_clip)
+        .replace("__LOGO_BORDA__", logo_borda)
     )
 
     corpo = r'''<!DOCTYPE html>
