@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-11 06:34 (America/Bahia)
-# Motivo: Adicionar diagnóstico detalhado das recusas de template WhatsApp da Vitrine sem expor token ou destinatário.
+# Último recode: 2026-08-11 06:39 (America/Bahia)
+# Motivo: Corrigir o resumo do template WhatsApp da Vitrine para uma única linha sem caracteres proibidos pela Meta.
 
 from __future__ import annotations
 
@@ -27358,6 +27358,8 @@ def notificar_responsavel_vitrine_whatsapp(
     tipo_titulo = "Agendamento" if tipo_normalizado == "agendamento" else "Pedido"
     cliente = str(cliente_nome or "").strip() or "Cliente não informado"
     resumo_texto = str(resumo or "").strip() or "Consulte os detalhes na Central da Vitrine."
+    resumo_texto = re.sub(r"[\r\n\t]+", " ", resumo_texto)
+    resumo_texto = re.sub(r"\s{2,}", " ", resumo_texto).strip()
     numero_registro = str(int(registro_id or 0))
     template = str(regras.get("template_notificacao_whatsapp") or "").strip()
     link_registro = ""
@@ -28379,7 +28381,7 @@ def vitrine_pedido_publico(slug: str) -> str | Response:
         f"{item.get('quantidade') or 1}x {item.get('nome') or 'Produto'}"
         for item in itens
     )
-    resumo_pedido = "\n".join(
+    resumo_pedido = " | ".join(
         [
             f"Itens: {resumo_itens}",
             f"Total: R$ {_formatar_moeda_brl(total_pedido)}",
