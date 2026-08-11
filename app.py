@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-11 06:59 (America/Bahia)
-# Motivo: Elevar temporariamente os logs de aceitação e status do WhatsApp para WARNING e tornar o diagnóstico visível no Railway.
+# Último recode: 2026-08-11 07:25 (America/Bahia)
+# Motivo: Adicionar página pública de Política de Privacidade do GestFlow para LGPD e publicação do app na Meta.
 
 from __future__ import annotations
 
@@ -3479,6 +3479,7 @@ def injetar_usuario_logado() -> dict[str, Any]:
 def exigir_login_rotas_internas() -> Response | None:
     rotas_publicas = {
         "portal",
+        "politica_privacidade",
         "planos",
         "novo_cadastro",
         "login",
@@ -24528,6 +24529,254 @@ def admin_atualizar_status_comissao_indicacao(comissao_id: int) -> Response:
 @app.get("/portal")
 def portal() -> str:
     return render_template("portal.html")
+
+
+@app.get("/politica-de-privacidade")
+def politica_privacidade() -> Response:
+    pagina = """<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="index,follow">
+    <meta name="description" content="Política de Privacidade do GestFlow, plataforma de gestão desenvolvida pela NettSan.">
+    <title>Política de Privacidade | GestFlow</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #f5f7fb;
+            --card: #ffffff;
+            --text: #111827;
+            --muted: #5f6b7a;
+            --border: #dde3ec;
+            --accent: #111827;
+            --soft: #eef2f7;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            color: var(--text);
+            background: var(--bg);
+            line-height: 1.65;
+        }
+        a { color: inherit; }
+        .page {
+            width: min(980px, calc(100% - 32px));
+            margin: 0 auto;
+            padding: 32px 0 56px;
+        }
+        .hero,
+        .section {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 22px;
+        }
+        .hero { padding: 32px; }
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        .brand-mark {
+            display: grid;
+            place-items: center;
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            color: #fff;
+            background: var(--accent);
+            font-weight: 900;
+        }
+        .brand strong,
+        .brand small { display: block; }
+        .brand small { color: var(--muted); }
+        h1 {
+            margin: 0;
+            font-size: clamp(30px, 5vw, 48px);
+            line-height: 1.08;
+        }
+        .lead {
+            max-width: 760px;
+            margin: 18px 0 0;
+            color: var(--muted);
+            font-size: 18px;
+        }
+        .updated {
+            display: inline-flex;
+            margin-top: 20px;
+            padding: 7px 11px;
+            border-radius: 999px;
+            background: var(--soft);
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 700;
+        }
+        .section {
+            margin-top: 16px;
+            padding: 26px 30px;
+        }
+        h2 {
+            margin: 0 0 12px;
+            font-size: 22px;
+        }
+        h3 {
+            margin: 20px 0 8px;
+            font-size: 17px;
+        }
+        p { margin: 10px 0; }
+        ul { margin: 10px 0; padding-left: 22px; }
+        li + li { margin-top: 7px; }
+        .note {
+            margin-top: 16px;
+            padding: 14px 16px;
+            border-radius: 14px;
+            background: var(--soft);
+            color: var(--muted);
+        }
+        .contact {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 16px;
+        }
+        .contact a {
+            display: inline-flex;
+            min-height: 42px;
+            align-items: center;
+            padding: 9px 14px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: #fff;
+            text-decoration: none;
+            font-weight: 800;
+        }
+        footer {
+            padding: 24px 4px 0;
+            color: var(--muted);
+            text-align: center;
+            font-size: 13px;
+        }
+        @media (max-width: 640px) {
+            .page { width: min(100% - 20px, 980px); padding-top: 12px; }
+            .hero, .section { border-radius: 16px; padding: 22px 18px; }
+        }
+    </style>
+</head>
+<body>
+    <main class="page">
+        <section class="hero">
+            <div class="brand">
+                <span class="brand-mark">GF</span>
+                <span><strong>GestFlow</strong><small>Desenvolvido pela NettSan</small></span>
+            </div>
+            <h1>Política de Privacidade</h1>
+            <p class="lead">Esta política explica como o GestFlow trata dados pessoais durante o uso da plataforma, da Vitrine Online e das integrações de comunicação, incluindo WhatsApp.</p>
+            <span class="updated">Última atualização: 11 de agosto de 2026</span>
+        </section>
+
+        <section class="section">
+            <h2>1. Quem somos</h2>
+            <p>O GestFlow é uma plataforma de gestão empresarial desenvolvida pela NettSan. O sistema oferece recursos de cadastro, atendimento, vendas, serviços, estoque, financeiro, ordens de serviço, Vitrine Online e integrações de comunicação.</p>
+            <p>Dependendo da forma de uso, a empresa cliente do GestFlow pode atuar como controladora dos dados de seus próprios clientes, funcionários, fornecedores e demais contatos, enquanto a NettSan pode atuar como operadora ou provedora da plataforma, conforme a relação aplicável.</p>
+        </section>
+
+        <section class="section">
+            <h2>2. Dados que podem ser tratados</h2>
+            <p>O GestFlow pode tratar dados fornecidos diretamente pelos usuários ou gerados durante o uso do sistema, incluindo:</p>
+            <ul>
+                <li>dados de identificação e contato, como nome, telefone, WhatsApp e e-mail;</li>
+                <li>dados cadastrais de clientes, fornecedores, funcionários e empresas;</li>
+                <li>informações de pedidos, vendas, agendamentos, serviços, contratos, orçamentos e ordens de serviço;</li>
+                <li>endereços e informações necessárias para entrega ou execução de serviços;</li>
+                <li>dados de pagamentos e condições comerciais, sem que o GestFlow tenha como objetivo armazenar dados completos de cartões;</li>
+                <li>mensagens e metadados necessários para integrações de comunicação, inclusive WhatsApp;</li>
+                <li>registros técnicos e de segurança, como data e hora de acesso, eventos do sistema, endereço IP e informações de sessão quando necessários à operação e proteção da plataforma;</li>
+                <li>arquivos, fotos, anexos e informações inseridas voluntariamente pelos usuários nos módulos do sistema.</li>
+            </ul>
+            <div class="note">O GestFlow não solicita dados pessoais sensíveis como requisito padrão de uso. Usuários devem evitar inserir dados sensíveis em campos livres quando eles não forem necessários para a finalidade do serviço.</div>
+        </section>
+
+        <section class="section">
+            <h2>3. Para que usamos os dados</h2>
+            <p>Os dados podem ser utilizados para:</p>
+            <ul>
+                <li>criar e administrar contas e empresas no GestFlow;</li>
+                <li>executar funcionalidades contratadas e manter os registros empresariais inseridos pelo usuário;</li>
+                <li>processar pedidos, vendas, agendamentos e atendimentos;</li>
+                <li>enviar comunicações operacionais e notificações solicitadas ou configuradas pelo usuário;</li>
+                <li>integrar o GestFlow a serviços externos autorizados, como WhatsApp e provedores de infraestrutura;</li>
+                <li>prevenir fraudes, acessos indevidos e incidentes de segurança;</li>
+                <li>atender obrigações legais, regulatórias, contratuais e solicitações legítimas de autoridades;</li>
+                <li>melhorar estabilidade, desempenho e experiência de uso da plataforma.</li>
+            </ul>
+        </section>
+
+        <section class="section">
+            <h2>4. Bases legais e princípios</h2>
+            <p>O tratamento de dados observa a Lei Geral de Proteção de Dados Pessoais — LGPD (Lei nº 13.709/2018) e pode ocorrer, conforme o caso, para execução de contrato ou procedimentos preliminares, cumprimento de obrigação legal ou regulatória, exercício regular de direitos, legítimo interesse ou consentimento quando ele for a base adequada.</p>
+            <p>Buscamos aplicar os princípios de finalidade, adequação, necessidade, transparência, segurança, prevenção e responsabilização no tratamento de dados pessoais.</p>
+        </section>
+
+        <section class="section">
+            <h2>5. Compartilhamento e integrações</h2>
+            <p>Os dados podem ser compartilhados apenas na medida necessária com fornecedores e plataformas que apoiam a operação do GestFlow, como serviços de hospedagem, banco de dados, envio de e-mail, comunicação e WhatsApp.</p>
+            <p>Quando uma integração de terceiros é ativada, o tratamento também pode ficar sujeito aos termos e políticas desse terceiro. O GestFlow não vende dados pessoais para anunciantes.</p>
+        </section>
+
+        <section class="section">
+            <h2>6. WhatsApp e Meta</h2>
+            <p>Quando a integração com WhatsApp é utilizada, o GestFlow pode enviar e receber informações necessárias à comunicação entre a empresa usuária e seus clientes ou responsáveis. Isso pode incluir telefone, nome, identificadores de mensagem, conteúdo operacional e status de entrega.</p>
+            <p>Esses dados são transmitidos à infraestrutura do WhatsApp/Meta exclusivamente para viabilizar a funcionalidade configurada pelo usuário e ficam sujeitos também às políticas aplicáveis da Meta e do WhatsApp.</p>
+        </section>
+
+        <section class="section">
+            <h2>7. Cookies, sessão e segurança</h2>
+            <p>O GestFlow pode usar cookies e mecanismos equivalentes estritamente necessários para autenticação, manutenção de sessão, preferências técnicas e segurança. Também adotamos medidas técnicas e administrativas destinadas a reduzir riscos de acesso não autorizado, perda, alteração ou divulgação indevida de dados.</p>
+            <p>Nenhum sistema é totalmente imune a riscos. Caso seja identificado incidente relevante envolvendo dados pessoais, serão adotadas as medidas cabíveis de investigação, contenção e comunicação conforme a legislação aplicável.</p>
+        </section>
+
+        <section class="section">
+            <h2>8. Retenção e exclusão</h2>
+            <p>Os dados são mantidos pelo período necessário para cumprir as finalidades descritas nesta política, obrigações legais e contratuais, segurança, auditoria e exercício regular de direitos. Os prazos podem variar conforme o tipo de informação e as configurações da empresa usuária.</p>
+            <p>Quando não houver mais fundamento para manutenção, os dados poderão ser eliminados, anonimizados ou mantidos de forma restrita quando houver obrigação legal ou necessidade legítima de preservação.</p>
+        </section>
+
+        <section class="section">
+            <h2>9. Direitos do titular</h2>
+            <p>Nos termos da LGPD, o titular pode solicitar, quando aplicável:</p>
+            <ul>
+                <li>confirmação da existência de tratamento e acesso aos dados;</li>
+                <li>correção de dados incompletos, inexatos ou desatualizados;</li>
+                <li>anonimização, bloqueio ou eliminação de dados desnecessários, excessivos ou tratados em desconformidade;</li>
+                <li>portabilidade, observadas as regras legais e regulatórias;</li>
+                <li>informações sobre compartilhamentos realizados;</li>
+                <li>revogação do consentimento quando essa for a base legal utilizada;</li>
+                <li>eliminação dos dados tratados com consentimento, ressalvadas as hipóteses legais de conservação.</li>
+            </ul>
+            <p>Quando os dados tiverem sido inseridos por uma empresa cliente do GestFlow, a solicitação poderá precisar ser tratada diretamente com essa empresa, que poderá ser a controladora responsável por decidir sobre o tratamento.</p>
+        </section>
+
+        <section class="section">
+            <h2>10. Como solicitar acesso, correção ou exclusão</h2>
+            <p>Solicitações relacionadas à privacidade e proteção de dados podem ser encaminhadas pelos canais oficiais da NettSan. Para facilitar a análise, informe seu nome, meio de contato, relação com o GestFlow e a natureza da solicitação.</p>
+            <div class="contact">
+                <a href="https://nettsan.com.br" target="_blank" rel="noopener noreferrer">Acessar NettSan</a>
+                <a href="/portal">Acessar GestFlow</a>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2>11. Alterações desta política</h2>
+            <p>Esta política pode ser atualizada para refletir mudanças legais, operacionais ou técnicas. A versão vigente permanecerá disponível publicamente neste endereço, com indicação da data da última atualização.</p>
+        </section>
+
+        <footer>GestFlow · NettSan · Política de Privacidade</footer>
+    </main>
+</body>
+</html>"""
+    return Response(pagina, mimetype="text/html")
 
 
 @app.get("/instalar")
