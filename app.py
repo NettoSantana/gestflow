@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-11 07:25 (America/Bahia)
-# Motivo: Adicionar página pública de Política de Privacidade do GestFlow para LGPD e publicação do app na Meta.
+# Último recode: 2026-08-11 08:13 (America/Bahia)
+# Motivo: Correlacionar cada item do pedido da Vitrine ao produto exato da Vitrine e ao Produto do GestFlow quando houver origem vinculada.
 
 from __future__ import annotations
 
@@ -4993,6 +4993,9 @@ def iniciar_banco() -> None:
                 empresa_id INTEGER NOT NULL,
                 pedido_id INTEGER NOT NULL,
                 produto_id INTEGER,
+                vitrine_produto_id INTEGER,
+                gestflow_produto_id INTEGER,
+                origem_produto TEXT NOT NULL DEFAULT 'legado',
                 produto_nome TEXT,
                 quantidade TEXT,
                 valor_unitario TEXT,
@@ -5001,6 +5004,118 @@ def iniciar_banco() -> None:
                 FOREIGN KEY (pedido_id) REFERENCES vitrine_pedidos (id),
                 FOREIGN KEY (produto_id) REFERENCES produtos (id)
             )
+            """
+        )
+        colunas_vitrine_pedido_itens = {
+            str(row["name"])
+            for row in conn.execute("PRAGMA table_info(vitrine_pedido_itens)").fetchall()
+        }
+        migracoes_vitrine_pedido_itens = {
+            "vitrine_produto_id": "INTEGER",
+            "gestflow_produto_id": "INTEGER",
+            "origem_produto": "TEXT NOT NULL DEFAULT 'legado'",
+        }
+        for coluna, tipo_coluna in migracoes_vitrine_pedido_itens.items():
+            if coluna not in colunas_vitrine_pedido_itens:
+                conn.execute(
+                    f"ALTER TABLE vitrine_pedido_itens ADD COLUMN {coluna} {tipo_coluna}"
+                )
+
+        itens_legados_correlacao = conn.execute(
+            """
+            SELECT
+                i.id,
+                i.empresa_id,
+                i.produto_id,
+                i.vitrine_produto_id,
+                i.gestflow_produto_id,
+                i.origem_produto,
+                p.integrado_vendas
+            FROM vitrine_pedido_itens i
+            LEFT JOIN vitrine_pedidos p
+              ON p.id = i.pedido_id
+             AND p.empresa_id = i.empresa_id
+            WHERE i.vitrine_produto_id IS NULL
+               OR COALESCE(i.origem_produto, '') IN ('', 'legado')
+            """
+        ).fetchall()
+        for item_legado in itens_legados_correlacao:
+            produto_id_legado = int(item_legado["produto_id"] or 0)
+            if produto_id_legado <= 0:
+                continue
+
+            origem_legada = (
+                "integrado"
+                if str(item_legado["integrado_vendas"] or "").strip().lower() == "sim"
+                else "independente"
+            )
+            if origem_legada == "integrado":
+                produto_vitrine_legado = conn.execute(
+                    """
+                    SELECT id, produto_id
+                    FROM vitrine_produtos
+                    WHERE empresa_id = ?
+                      AND produto_id = ?
+                    ORDER BY id ASC
+                    LIMIT 1
+                    """,
+                    (int(item_legado["empresa_id"]), produto_id_legado),
+                ).fetchone()
+            else:
+                produto_vitrine_legado = conn.execute(
+                    """
+                    SELECT id, produto_id
+                    FROM vitrine_produtos
+                    WHERE empresa_id = ?
+                      AND id = ?
+                    LIMIT 1
+                    """,
+                    (int(item_legado["empresa_id"]), produto_id_legado),
+                ).fetchone()
+                if produto_vitrine_legado is None:
+                    produto_vitrine_legado = conn.execute(
+                        """
+                        SELECT id, produto_id
+                        FROM vitrine_produtos
+                        WHERE empresa_id = ?
+                          AND produto_id = ?
+                        ORDER BY id ASC
+                        LIMIT 1
+                        """,
+                        (int(item_legado["empresa_id"]), produto_id_legado),
+                    ).fetchone()
+
+            if produto_vitrine_legado is None:
+                continue
+
+            gestflow_produto_id_legado = int(produto_vitrine_legado["produto_id"] or 0)
+            conn.execute(
+                """
+                UPDATE vitrine_pedido_itens
+                SET
+                    vitrine_produto_id = ?,
+                    gestflow_produto_id = ?,
+                    origem_produto = ?
+                WHERE id = ?
+                """,
+                (
+                    int(produto_vitrine_legado["id"]),
+                    gestflow_produto_id_legado or None,
+                    origem_legada,
+                    int(item_legado["id"]),
+                ),
+            )
+
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_vitrine_pedido_itens_produto_vitrine
+            ON vitrine_pedido_itens (empresa_id, vitrine_produto_id, pedido_id)
+            """
+        )
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_vitrine_pedido_itens_produto_gestflow
+            ON vitrine_pedido_itens (empresa_id, gestflow_produto_id, pedido_id)
             """
         )
 
@@ -26670,6 +26785,10 @@ def montar_central_vitrine_admin(empresa_id: int) -> dict[str, Any]:
             ).fetchall()
             for row in itens_rows:
                 item = dict(row)
+                item["produto_correlacionado"] = bool(
+                    int(item.get("vitrine_produto_id") or 0)
+                    or int(item.get("gestflow_produto_id") or 0)
+                )
                 itens_por_pedido.setdefault(int(item["pedido_id"]), []).append(item)
 
         agendamentos_rows = conn.execute(
@@ -26924,32 +27043,44 @@ def salvar_pedido_vitrine_db(empresa_id: int, dados: dict[str, Any], itens: list
 
         for item in itens:
             produto_id = int(item.get("produto_id") or 0)
+            vitrine_produto_id = int(item.get("vitrine_produto_id") or 0)
+            gestflow_produto_id = int(item.get("gestflow_produto_id") or 0)
+            origem_produto = str(item.get("origem_produto") or "independente").strip().lower()
+            if origem_produto not in {"integrado", "independente"}:
+                origem_produto = "independente"
             conn.execute(
                 """
                 INSERT INTO vitrine_pedido_itens (
                     empresa_id,
                     pedido_id,
                     produto_id,
+                    vitrine_produto_id,
+                    gestflow_produto_id,
+                    origem_produto,
                     produto_nome,
                     quantidade,
                     valor_unitario,
                     subtotal
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     empresa_id,
                     pedido_id,
                     produto_id,
+                    vitrine_produto_id or None,
+                    gestflow_produto_id or None,
+                    origem_produto,
                     str(item.get("nome") or ""),
                     str(item.get("quantidade") or "1"),
                     str(item.get("preco") or "0,00"),
                     _formatar_moeda_brl(float(item.get("subtotal_numero") or 0)),
                 ),
             )
-            conn.execute(
-                "UPDATE vitrine_produtos SET pedidos = COALESCE(pedidos, 0) + 1 WHERE empresa_id = ? AND (id = ? OR produto_id = ?)",
-                (empresa_id, produto_id, produto_id),
-            )
+            if vitrine_produto_id > 0:
+                conn.execute(
+                    "UPDATE vitrine_produtos SET pedidos = COALESCE(pedidos, 0) + 1 WHERE empresa_id = ? AND id = ?",
+                    (empresa_id, vitrine_produto_id),
+                )
 
         conn.execute(
             "UPDATE vitrine_configuracoes SET pedidos_gerados = COALESCE(pedidos_gerados, 0) + 1 WHERE empresa_id = ?",
@@ -26992,7 +27123,14 @@ def buscar_pedido_vitrine_admin(pedido_id: int) -> dict[str, Any] | None:
         ).fetchall()
 
     pedido = dict(row)
-    pedido["itens"] = [dict(item) for item in itens_rows]
+    pedido["itens"] = []
+    for item_row in itens_rows:
+        item = dict(item_row)
+        item["produto_correlacionado"] = bool(
+            int(item.get("vitrine_produto_id") or 0)
+            or int(item.get("gestflow_produto_id") or 0)
+        )
+        pedido["itens"].append(item)
     return pedido
 
 
@@ -27526,7 +27664,16 @@ def montar_itens_pedido_vitrine(empresa_id: int, itens_json: Any) -> list[dict[s
         itens_recebidos = []
 
     produtos = listar_produtos_vitrine_empresa(empresa_id)
-    produtos_por_id = {int(produto.get("produto_id") or produto.get("id") or 0): produto for produto in produtos}
+    produtos_por_vitrine_id = {
+        int(produto.get("id") or 0): produto
+        for produto in produtos
+        if int(produto.get("id") or 0) > 0
+    }
+    produtos_por_id_legado: dict[int, dict[str, Any]] = {}
+    for produto in produtos:
+        produto_id_gestflow = int(produto.get("produto_id") or 0)
+        if produto_id_gestflow > 0:
+            produtos_por_id_legado.setdefault(produto_id_gestflow, produto)
     controlar_estoque = configuracao_bool("vitrine", "controlar_estoque", True, empresa_id)
     permitir_sem_estoque = configuracao_bool("vendas", "permitir_sem_estoque", False, empresa_id)
     itens: list[dict[str, Any]] = []
@@ -27545,7 +27692,9 @@ def montar_itens_pedido_vitrine(empresa_id: int, itens_json: Any) -> list[dict[s
             continue
 
         quantidade = max(quantidade, 1)
-        produto = produtos_por_id.get(produto_id)
+        produto = produtos_por_vitrine_id.get(produto_id)
+        if produto is None:
+            produto = produtos_por_id_legado.get(produto_id)
         if produto is None or not bool(produto.get("disponivel_compra")):
             continue
 
@@ -27557,9 +27706,19 @@ def montar_itens_pedido_vitrine(empresa_id: int, itens_json: Any) -> list[dict[s
 
         preco_numero = _converter_valor_brl(produto.get("preco"))
         subtotal = preco_numero * quantidade
+        vitrine_produto_id = int(produto.get("id") or 0)
+        gestflow_produto_id = int(produto.get("produto_id") or 0)
+        origem_produto = (
+            "integrado"
+            if bool(produto.get("integrado")) and gestflow_produto_id > 0
+            else "independente"
+        )
         itens.append(
             {
-                "produto_id": produto_id,
+                "produto_id": gestflow_produto_id or vitrine_produto_id,
+                "vitrine_produto_id": vitrine_produto_id,
+                "gestflow_produto_id": gestflow_produto_id or None,
+                "origem_produto": origem_produto,
                 "nome": str(produto.get("nome") or ""),
                 "quantidade": str(quantidade),
                 "preco": str(produto.get("preco") or "0,00"),
@@ -28033,7 +28192,7 @@ def renderizar_vitrine_publica_html(
 
     if exibir_produtos:
         for produto in produtos:
-            produto_id = int(produto.get("produto_id") or produto.get("id") or 0)
+            produto_id = int(produto.get("id") or 0)
             nome_raw = str(produto.get("nome") or "Produto")
             nome = html.escape(nome_raw)
             descricao = html.escape(str(produto.get("descricao") or ""))
