@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-11 09:24 (America/Bahia)
-# Motivo: Permitir excluir definitivamente apenas pedidos novos da Vitrine, removendo seus itens e preservando pedidos em atendimento, concluídos, cancelados ou vinculados a venda.
+# Último recode: 2026-08-11 10:20 (America/Bahia)
+# Motivo: Permitir ajuste simples da logo da Vitrine (tamanho, posição, formato e fundo), salvar a configuração e aplicá-la na página pública com padrão automático seguro.
 
 from __future__ import annotations
 
@@ -4697,6 +4697,10 @@ def iniciar_banco() -> None:
                 instagram TEXT,
                 slug TEXT,
                 logo_path TEXT,
+                logo_tamanho INTEGER NOT NULL DEFAULT 100,
+                logo_posicao TEXT NOT NULL DEFAULT 'centro',
+                logo_formato TEXT NOT NULL DEFAULT 'arredondado',
+                logo_fundo TEXT NOT NULL DEFAULT '#ffffff',
                 categoria TEXT,
                 descricao_empresa TEXT,
                 tipo_identidade_visual TEXT NOT NULL DEFAULT 'cores',
@@ -5741,6 +5745,10 @@ def iniciar_banco() -> None:
             "agendamentos_gerados": "INTEGER NOT NULL DEFAULT 0",
             "descricao_empresa": "TEXT",
             "tipo_identidade_visual": "TEXT NOT NULL DEFAULT 'cores'",
+            "logo_tamanho": "INTEGER NOT NULL DEFAULT 100",
+            "logo_posicao": "TEXT NOT NULL DEFAULT 'centro'",
+            "logo_formato": "TEXT NOT NULL DEFAULT 'arredondado'",
+            "logo_fundo": "TEXT NOT NULL DEFAULT '#ffffff'",
         }.items():
             if coluna not in colunas_vitrine_configuracoes:
                 conn.execute(f"ALTER TABLE vitrine_configuracoes ADD COLUMN {coluna} {tipo_coluna}")
@@ -25438,12 +25446,34 @@ def montar_vitrine_formulario(config_atual: dict[str, Any] | None = None) -> dic
     cor_principal_atual = str(config_atual.get("cor_principal") or "#111827").strip() or "#111827"
     cor_secundaria_atual = str(config_atual.get("cor_secundaria") or "#f59e0b").strip() or "#f59e0b"
 
+    try:
+        logo_tamanho = int(request.form.get("logo_tamanho") or config_atual.get("logo_tamanho") or 100)
+    except (TypeError, ValueError):
+        logo_tamanho = 100
+    logo_tamanho = max(60, min(140, logo_tamanho))
+
+    logo_posicao = str(request.form.get("logo_posicao") or config_atual.get("logo_posicao") or "centro").strip().lower()
+    if logo_posicao not in {"esquerda", "centro", "direita"}:
+        logo_posicao = "centro"
+
+    logo_formato = str(request.form.get("logo_formato") or config_atual.get("logo_formato") or "arredondado").strip().lower()
+    if logo_formato not in {"quadrado", "arredondado", "circular"}:
+        logo_formato = "arredondado"
+
+    logo_fundo = str(request.form.get("logo_fundo") or config_atual.get("logo_fundo") or "#ffffff").strip().lower()
+    if not re.fullmatch(r"#[0-9a-f]{6}", logo_fundo):
+        logo_fundo = "#ffffff"
+
     return {
         "nome_loja": nome_loja,
         "whatsapp": (request.form.get("whatsapp") or "").strip(),
         "instagram": (request.form.get("instagram") or "").strip(),
         "slug": slug,
         "logo_path": logo_path,
+        "logo_tamanho": str(logo_tamanho),
+        "logo_posicao": logo_posicao,
+        "logo_formato": logo_formato,
+        "logo_fundo": logo_fundo,
         "logo_anterior": logo_anterior,
         "remover_logo": "sim" if remover_logo else "nao",
         "categoria": (request.form.get("categoria") or "").strip(),
@@ -25470,6 +25500,10 @@ def buscar_vitrine_configuracao() -> dict[str, Any]:
                 instagram,
                 slug,
                 logo_path,
+                logo_tamanho,
+                logo_posicao,
+                logo_formato,
+                logo_fundo,
                 categoria,
                 descricao_empresa,
                 tipo_identidade_visual,
@@ -25501,6 +25535,10 @@ def buscar_vitrine_configuracao() -> dict[str, Any]:
             "instagram": "",
             "slug": "",
             "logo_path": "",
+            "logo_tamanho": 100,
+            "logo_posicao": "centro",
+            "logo_formato": "arredondado",
+            "logo_fundo": "#ffffff",
             "categoria": "",
             "descricao_empresa": "",
             "tipo_identidade_visual": "cores",
@@ -25546,6 +25584,10 @@ def salvar_vitrine_configuracao_db(dados: dict[str, str]) -> None:
                     instagram,
                     slug,
                     logo_path,
+                    logo_tamanho,
+                    logo_posicao,
+                    logo_formato,
+                    logo_fundo,
                     categoria,
                     descricao_empresa,
                     tipo_identidade_visual,
@@ -25554,7 +25596,7 @@ def salvar_vitrine_configuracao_db(dados: dict[str, str]) -> None:
                     template,
                     status,
                     atualizado_em
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     empresa_id,
@@ -25563,6 +25605,10 @@ def salvar_vitrine_configuracao_db(dados: dict[str, str]) -> None:
                     dados["instagram"],
                     dados["slug"],
                     dados["logo_path"],
+                    int(dados["logo_tamanho"]),
+                    dados["logo_posicao"],
+                    dados["logo_formato"],
+                    dados["logo_fundo"],
                     dados["categoria"],
                     dados["descricao_empresa"],
                     dados["tipo_identidade_visual"],
@@ -25583,6 +25629,10 @@ def salvar_vitrine_configuracao_db(dados: dict[str, str]) -> None:
                     instagram = ?,
                     slug = ?,
                     logo_path = ?,
+                    logo_tamanho = ?,
+                    logo_posicao = ?,
+                    logo_formato = ?,
+                    logo_fundo = ?,
                     categoria = ?,
                     descricao_empresa = ?,
                     tipo_identidade_visual = ?,
@@ -25599,6 +25649,10 @@ def salvar_vitrine_configuracao_db(dados: dict[str, str]) -> None:
                     dados["instagram"],
                     dados["slug"],
                     dados["logo_path"],
+                    int(dados["logo_tamanho"]),
+                    dados["logo_posicao"],
+                    dados["logo_formato"],
+                    dados["logo_fundo"],
                     dados["categoria"],
                     dados["descricao_empresa"],
                     dados["tipo_identidade_visual"],
@@ -28119,6 +28173,28 @@ def renderizar_vitrine_publica_html(
     instagram_raw = str(config_vitrine.get("instagram") or "").strip()
     logo_path = str(config_vitrine.get("logo_path") or "").strip()
     logo_url = f"/vitrine-upload/{html.escape(logo_path)}" if logo_path else ""
+
+    try:
+        logo_tamanho = int(config_vitrine.get("logo_tamanho") or 100)
+    except (TypeError, ValueError):
+        logo_tamanho = 100
+    logo_tamanho = max(60, min(140, logo_tamanho))
+
+    logo_posicao = str(config_vitrine.get("logo_posicao") or "centro").strip().lower()
+    if logo_posicao not in {"esquerda", "centro", "direita"}:
+        logo_posicao = "centro"
+    logo_justify = {"esquerda": "start", "centro": "center", "direita": "end"}[logo_posicao]
+    logo_object_position = {"esquerda": "left center", "centro": "center center", "direita": "right center"}[logo_posicao]
+
+    logo_formato = str(config_vitrine.get("logo_formato") or "arredondado").strip().lower()
+    if logo_formato not in {"quadrado", "arredondado", "circular"}:
+        logo_formato = "arredondado"
+    logo_raio = {"quadrado": "4px", "arredondado": "28px", "circular": "999px"}[logo_formato]
+
+    logo_fundo = str(config_vitrine.get("logo_fundo") or "#ffffff").strip().lower()
+    if not re.fullmatch(r"#[0-9a-f]{6}", logo_fundo):
+        logo_fundo = "#ffffff"
+
     iniciais_loja = "".join(parte[:1] for parte in nome_loja_raw.split()[:2]).upper() or "GF"
     if tipo_identidade_visual == "logo" and logo_url:
         logo_nav_html = (
@@ -28443,6 +28519,11 @@ def renderizar_vitrine_publica_html(
     --text-soft:#667085;
     --border:#e3e7ee;
     --shadow:0 14px 38px rgba(15,23,42,.09);
+    --logo-scale:__LOGO_TAMANHO__%;
+    --logo-bg:__LOGO_FUNDO__;
+    --logo-radius:__LOGO_RAIO__;
+    --logo-justify:__LOGO_JUSTIFY__;
+    --logo-object-position:__LOGO_OBJECT_POSITION__;
 }
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
@@ -28453,8 +28534,8 @@ button,input,select,textarea{font:inherit}
 .site-header{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--category-soft) 92%,#fff 8%);border-bottom:1px solid color-mix(in srgb,var(--brand-primary) 12%,transparent);backdrop-filter:blur(14px)}
 .navbar-inner{width:min(1180px,calc(100% - 32px));min-height:68px;margin:auto;display:flex;align-items:center;gap:22px}
 .marca-nav{min-width:0;display:flex;align-items:center;gap:11px;text-decoration:none}
-.marca-logo{width:48px;height:48px;display:grid;place-items:center;overflow:hidden;border-radius:14px;background:#fff;border:1px solid var(--border);box-shadow:0 6px 18px rgba(15,23,42,.08);flex:0 0 auto}
-.marca-logo-img{width:100%;height:100%;object-fit:contain;display:block;padding:3px}
+.marca-logo{width:48px;height:48px;display:grid;place-items:center;overflow:hidden;border-radius:min(var(--logo-radius),14px);background:var(--logo-bg);border:1px solid var(--border);box-shadow:0 6px 18px rgba(15,23,42,.08);flex:0 0 auto}
+.marca-logo-img{width:min(var(--logo-scale),140%);height:min(var(--logo-scale),140%);object-fit:contain;object-position:var(--logo-object-position);display:block;padding:3px}
 .marca-iniciais{font-weight:1000;font-size:17px;color:var(--brand-action)}
 .marca-texto{min-width:0;display:grid;gap:2px}
 .marca-texto strong{font-size:18px;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -28467,8 +28548,8 @@ button,input,select,textarea{font:inherit}
 .nav-carrinho{border:1px solid var(--border);background:#fff;color:var(--brand-action)}
 .apresentacao{padding:46px 0 24px;background:linear-gradient(180deg,color-mix(in srgb,var(--brand-primary) 5%,var(--category-soft)),var(--category-soft))}
 .apresentacao-inner{width:min(1180px,calc(100% - 32px));margin:auto;display:grid;grid-template-columns:260px minmax(0,1fr);gap:42px;align-items:center}
-.apresentacao-logo{min-height:250px;display:grid;place-items:center;padding:24px;border-radius:28px;background:#fff;border:1px solid color-mix(in srgb,var(--brand-primary) 14%,var(--border));box-shadow:var(--shadow);overflow:hidden}
-.apresentacao-logo-img{width:100%;height:100%;max-height:210px;object-fit:contain;display:block}
+.apresentacao-logo{min-height:250px;display:grid;align-items:center;justify-items:var(--logo-justify);padding:24px;border-radius:var(--logo-radius);background:var(--logo-bg);border:1px solid color-mix(in srgb,var(--brand-primary) 14%,var(--border));box-shadow:var(--shadow);overflow:hidden}
+.apresentacao-logo-img{width:var(--logo-scale);height:var(--logo-scale);max-width:140%;max-height:210px;object-fit:contain;object-position:var(--logo-object-position);display:block}
 .apresentacao-logo-iniciais{width:150px;height:150px;display:grid;place-items:center;border-radius:34px;background:var(--brand-action);color:var(--brand-action-text);font-size:52px;font-weight:1000}
 .apresentacao-copy{min-width:0}
 .apresentacao-kicker{margin:0 0 10px;color:var(--brand-action);font-size:12px;font-weight:1000;text-transform:uppercase;letter-spacing:.16em}
@@ -28717,6 +28798,11 @@ document.addEventListener('DOMContentLoaded',()=>{const botao=document.querySele
 
     substituicoes = {
         "__COR_PRINCIPAL__": cor_principal,
+        "__LOGO_TAMANHO__": str(logo_tamanho),
+        "__LOGO_FUNDO__": logo_fundo,
+        "__LOGO_RAIO__": logo_raio,
+        "__LOGO_JUSTIFY__": logo_justify,
+        "__LOGO_OBJECT_POSITION__": logo_object_position,
         "__TITULO_SEO__": titulo_seo,
         "__DESCRICAO_SEO__": descricao_seo,
         "__ESTILO__": estilo,
