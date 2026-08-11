@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-10 23:02 (America/Bahia)
-# Motivo: Melhorar automaticamente o contraste das cores de ação da Vitrine pública sem alterar a identidade visual escolhida pela loja.
+# Último recode: 2026-08-10 23:15 (America/Bahia)
+# Motivo: Melhorar o enquadramento das fotos da Vitrine pública e permitir selecionar múltiplas unidades do mesmo produto no card e no carrinho.
 
 from __future__ import annotations
 
@@ -27231,6 +27231,8 @@ def montar_itens_pedido_vitrine(empresa_id: int, itens_json: Any) -> list[dict[s
 
     produtos = listar_produtos_vitrine_empresa(empresa_id)
     produtos_por_id = {int(produto.get("produto_id") or produto.get("id") or 0): produto for produto in produtos}
+    controlar_estoque = configuracao_bool("vitrine", "controlar_estoque", True, empresa_id)
+    permitir_sem_estoque = configuracao_bool("vendas", "permitir_sem_estoque", False, empresa_id)
     itens: list[dict[str, Any]] = []
 
     if not isinstance(itens_recebidos, list):
@@ -27250,6 +27252,12 @@ def montar_itens_pedido_vitrine(empresa_id: int, itens_json: Any) -> list[dict[s
         produto = produtos_por_id.get(produto_id)
         if produto is None or not bool(produto.get("disponivel_compra")):
             continue
+
+        if bool(produto.get("integrado")) and controlar_estoque and not permitir_sem_estoque:
+            estoque_disponivel = max(0, int(math.floor(_converter_valor_brl(produto.get("estoque_atual")))))
+            if estoque_disponivel <= 0:
+                continue
+            quantidade = min(quantidade, estoque_disponivel)
 
         preco_numero = _converter_valor_brl(produto.get("preco"))
         subtotal = preco_numero * quantidade
@@ -27746,11 +27754,23 @@ def renderizar_vitrine_publica_html(
                     f'<a class="acao-outline" href="{whatsapp_publico_url_html}" target="_blank" rel="noopener">'
                     'WhatsApp</a>'
                 )
+            quantidade_maxima = 999
+            if bool(produto.get("integrado")) and controlar_estoque and not configuracao_bool(
+                "vendas", "permitir_sem_estoque", False, empresa_id_vitrine
+            ):
+                quantidade_maxima = max(1, int(math.floor(_converter_valor_brl(produto.get("estoque_atual")))))
+            seletor_quantidade = (
+                f'<div class="quantidade-produto" data-max="{quantidade_maxima}">'
+                '<button type="button" aria-label="Diminuir quantidade" onclick="ajustarQuantidadeCard(this,-1)">−</button>'
+                f'<input type="number" min="1" max="{quantidade_maxima}" value="1" aria-label="Quantidade" oninput="normalizarQuantidadeCard(this)">'
+                '<button type="button" aria-label="Aumentar quantidade" onclick="ajustarQuantidadeCard(this,1)">+</button>'
+                '</div>'
+            )
             if permitir_pedido and disponivel:
                 acao_principal = (
-                    f'<button type="button" onclick="adicionarCarrinho({produto_id}, '
+                    f'<button type="button" onclick="adicionarCarrinhoDoCard(this,{produto_id}, '
                     f'{html.escape(json.dumps(nome_raw, ensure_ascii=False), quote=True)}, '
-                    f'{html.escape(json.dumps(preco_raw, ensure_ascii=False), quote=True)})">'
+                    f'{html.escape(json.dumps(preco_raw, ensure_ascii=False), quote=True)}, {quantidade_maxima})">'
                     'Adicionar</button>'
                 )
             elif whatsapp_publico_url:
@@ -27774,7 +27794,7 @@ def renderizar_vitrine_publica_html(
 {f'<button class="item-imagem-seta item-imagem-anterior" type="button" aria-label="Foto anterior" onclick="mudarFotoCard(this,-1)">‹</button><button class="item-imagem-seta item-imagem-proxima" type="button" aria-label="Próxima foto" onclick="mudarFotoCard(this,1)">›</button>' if len(imagens_paths) > 1 else ''}
 <span class="galeria-contador"><span data-foto-atual>{1 if imagens_paths else 0}</span>/{len(imagens_paths)}</span>
 </div>
-<div class="item-info"><small>Produto • {categoria_item}</small><h3>{nome}</h3>{indisponivel_html}<p>{descricao}</p>{preco_html}<div class="item-acoes">{acao_principal}{acao_secundaria}</div></div></article>'''
+<div class="item-info"><small>Produto • {categoria_item}</small><h3>{nome}</h3>{indisponivel_html}<p>{descricao}</p>{preco_html}{seletor_quantidade if permitir_pedido and disponivel else ''}<div class="item-acoes">{acao_principal}{acao_secundaria}</div></div></article>'''
             )
 
     if exibir_servicos:
@@ -28002,7 +28022,7 @@ button,input,select,textarea{font:inherit}
 .itens{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:stretch}
 .catalogo-card{min-width:0;display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--border);border-radius:19px;background:#fff;box-shadow:0 8px 24px rgba(15,23,42,.055)}
 .item-imagem{position:relative;width:100%;height:250px;min-height:250px;display:grid;place-items:center;border:0;background:#f5f6f8;overflow:hidden;text-decoration:none}
-.item-imagem-abrir{width:100%;height:100%;display:grid;place-items:center;border:0;padding:0;background:transparent;cursor:zoom-in}.item-imagem img{width:100%;height:100%;object-fit:contain;display:block;background:#fff}.item-imagem-seta{position:absolute;top:50%;z-index:3;width:42px;height:42px;display:grid;place-items:center;transform:translateY(-50%);border:1px solid rgba(255,255,255,.55);border-radius:999px;background:rgba(15,23,42,.82);color:#fff;font-size:28px;font-weight:900;line-height:1;cursor:pointer;box-shadow:0 6px 18px rgba(15,23,42,.28)}.item-imagem-seta:hover,.item-imagem-seta:focus-visible{background:#0f172a;outline:3px solid rgba(255,255,255,.55)}.item-imagem-anterior{left:10px}.item-imagem-proxima{right:10px}.galeria-contador{position:absolute;right:10px;bottom:10px;z-index:3;padding:5px 8px;border-radius:999px;background:rgba(15,23,42,.78);color:#fff;font-size:11px;font-weight:900}.galeria-modal{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.82)}.galeria-modal.aberta{display:flex}.galeria-box{position:relative;width:min(900px,96vw);height:min(720px,88vh);display:grid;place-items:center;border-radius:20px;background:#fff;overflow:hidden}.galeria-box img{max-width:100%;max-height:100%;object-fit:contain}.galeria-fechar,.galeria-anterior,.galeria-proxima{position:absolute;z-index:2;border:0;border-radius:999px;background:rgba(15,23,42,.82);color:#fff;font-weight:900;cursor:pointer}.galeria-fechar{top:14px;right:14px;width:42px;height:42px}.galeria-anterior,.galeria-proxima{top:50%;width:44px;height:44px;transform:translateY(-50%)}.galeria-anterior{left:14px}.galeria-proxima{right:14px}.galeria-titulo{position:absolute;left:16px;right:70px;top:16px;color:#111827;font-weight:900}
+.item-imagem-abrir{width:100%;height:100%;display:grid;place-items:center;border:0;padding:0;background:transparent;cursor:zoom-in}.item-imagem img{width:100%;height:100%;object-fit:contain;display:block;background:#fff}.produto-card .item-imagem{height:auto;aspect-ratio:4/5;min-height:320px}.produto-card .item-imagem img{object-fit:cover;object-position:center}.item-imagem-seta{position:absolute;top:50%;z-index:3;width:42px;height:42px;display:grid;place-items:center;transform:translateY(-50%);border:1px solid rgba(255,255,255,.55);border-radius:999px;background:rgba(15,23,42,.82);color:#fff;font-size:28px;font-weight:900;line-height:1;cursor:pointer;box-shadow:0 6px 18px rgba(15,23,42,.28)}.item-imagem-seta:hover,.item-imagem-seta:focus-visible{background:#0f172a;outline:3px solid rgba(255,255,255,.55)}.item-imagem-anterior{left:10px}.item-imagem-proxima{right:10px}.galeria-contador{position:absolute;right:10px;bottom:10px;z-index:3;padding:5px 8px;border-radius:999px;background:rgba(15,23,42,.78);color:#fff;font-size:11px;font-weight:900}.galeria-modal{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.82)}.galeria-modal.aberta{display:flex}.galeria-box{position:relative;width:min(900px,96vw);height:min(720px,88vh);display:grid;place-items:center;border-radius:20px;background:#fff;overflow:hidden}.galeria-box img{max-width:100%;max-height:100%;object-fit:contain}.galeria-fechar,.galeria-anterior,.galeria-proxima{position:absolute;z-index:2;border:0;border-radius:999px;background:rgba(15,23,42,.82);color:#fff;font-weight:900;cursor:pointer}.galeria-fechar{top:14px;right:14px;width:42px;height:42px}.galeria-anterior,.galeria-proxima{top:50%;width:44px;height:44px;transform:translateY(-50%)}.galeria-anterior{left:14px}.galeria-proxima{right:14px}.galeria-titulo{position:absolute;left:16px;right:70px;top:16px;color:#111827;font-weight:900}
 .item-sem-imagem{color:var(--text-soft);font-weight:850}
 .item-info{flex:1;display:flex;flex-direction:column;gap:9px;padding:15px}
 .item-info small{color:var(--text-soft);font-weight:800}
@@ -28010,12 +28030,14 @@ button,input,select,textarea{font:inherit}
 .item-indisponivel{display:inline-flex;align-self:flex-start;padding:4px 8px;border-radius:999px;background:#f3f4f6;color:#6b7280;font-size:11px;font-weight:900}
 .item-info p{display:-webkit-box;min-height:42px;margin:0;overflow:hidden;color:var(--text-soft);line-height:1.45;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .item-info>strong,.item-meta strong{font-size:20px;color:var(--brand-action)}
+.quantidade-produto{display:grid;grid-template-columns:38px minmax(54px,72px) 38px;align-items:center;gap:7px;width:max-content;margin-top:2px}.quantidade-produto button{width:38px;height:38px;border:1px solid var(--border);border-radius:10px;background:#fff;color:var(--brand-action);font-size:20px;font-weight:1000;cursor:pointer}.quantidade-produto input{width:100%;height:38px;border:1px solid var(--border);border-radius:10px;text-align:center;font-weight:950;color:var(--text);background:#fff}.quantidade-produto input::-webkit-inner-spin-button,.quantidade-produto input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 .item-meta{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .duracao{font-size:12px;font-weight:850;color:var(--text-soft)}
 .item-acoes{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:auto;padding-top:4px}
 .item-acoes button,.acao-principal,.acao-outline{min-height:40px;display:inline-flex;align-items:center;justify-content:center;border-radius:11px;padding:0 12px;text-decoration:none;font-size:12px;font-weight:950;cursor:pointer}
 .item-acoes button,.acao-principal{border:0;background:var(--brand-action);color:var(--brand-action-text)}
 .item-acoes button:disabled{background:#d1d5db;color:#6b7280;cursor:not-allowed}
+.item-carrinho{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center}.item-carrinho-info{display:grid;gap:3px;min-width:0}.item-carrinho-info span{font-weight:850}.item-carrinho-info small{color:var(--text-soft)}.item-carrinho-final{display:grid;gap:6px;justify-items:end}.quantidade-carrinho{display:grid;grid-template-columns:30px 32px 30px;align-items:center;gap:4px}.quantidade-carrinho button{width:30px;height:30px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--brand-action);font-size:16px;font-weight:1000;cursor:pointer}.quantidade-carrinho b{text-align:center;font-size:13px}.remover-carrinho{border:0;background:transparent;color:#b42318;font-size:11px;font-weight:850;cursor:pointer;padding:0}
 .acao-outline{border:1px solid color-mix(in srgb,var(--brand-action) 28%,var(--border));background:#fff;color:var(--brand-action)}
 .carrinho{position:sticky;top:86px;padding:18px;border:1px solid var(--border);border-radius:20px;background:#fff;box-shadow:var(--shadow)}
 .carrinho-cabecalho{display:flex;align-items:center;gap:10px;margin-bottom:12px}
@@ -28060,7 +28082,7 @@ button,input,select,textarea{font:inherit}
     .nav-links{display:none}.apresentacao-inner{grid-template-columns:220px minmax(0,1fr);gap:28px}.apresentacao-logo{min-height:220px}.sobre-diferenciais{grid-template-columns:1fr}.conteudo.com-carrinho{grid-template-columns:1fr}.carrinho{position:static}.itens{grid-template-columns:repeat(2,minmax(0,1fr))}.passos-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(max-width:680px){
-    .navbar-inner,.apresentacao-inner,.sobre-diferenciais,.container,.footer-inner{width:min(100% - 22px,1180px)}.navbar-inner{min-height:62px;gap:9px}.marca-logo{width:43px;height:43px}.marca-texto strong{font-size:15px}.marca-texto small{display:none}.nav-whatsapp{margin-left:auto;width:42px;min-width:42px;padding:0;justify-content:center}.nav-whatsapp span:last-child{display:none}.nav-carrinho{font-size:0;width:42px;min-width:42px;padding:0;justify-content:center}.nav-carrinho span{font-size:16px}.apresentacao{padding-top:26px}.apresentacao-inner{grid-template-columns:1fr;gap:20px}.apresentacao-logo{min-height:190px;padding:18px}.apresentacao-logo-img{max-height:170px}.apresentacao-copy{text-align:center}.apresentacao h1{font-size:38px}.apresentacao-categoria{font-size:19px}.apresentacao-descricao{font-size:14px}.apresentacao-acoes{justify-content:center}.sobre-diferenciais{margin-top:18px}.diferenciais-grid{grid-template-columns:1fr}.diferencial-card+ .diferencial-card{border-left:0;border-top:1px solid var(--border)}.catalogo-cabecalho{align-items:flex-start;flex-direction:column}.barra{grid-template-columns:1fr;grid-template-areas:"busca" "abas" "categorias"}.tipo-abas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.tipo-aba{padding:0 10px}.itens{grid-template-columns:1fr}.item-imagem{height:250px;min-height:250px}.passos-grid{grid-template-columns:1fr}.footer-inner{justify-content:center;text-align:center}.footer-marca{justify-content:center}.footer-social{justify-content:center}.footer-credit{text-align:center}
+    .navbar-inner,.apresentacao-inner,.sobre-diferenciais,.container,.footer-inner{width:min(100% - 22px,1180px)}.navbar-inner{min-height:62px;gap:9px}.marca-logo{width:43px;height:43px}.marca-texto strong{font-size:15px}.marca-texto small{display:none}.nav-whatsapp{margin-left:auto;width:42px;min-width:42px;padding:0;justify-content:center}.nav-whatsapp span:last-child{display:none}.nav-carrinho{font-size:0;width:42px;min-width:42px;padding:0;justify-content:center}.nav-carrinho span{font-size:16px}.apresentacao{padding-top:26px}.apresentacao-inner{grid-template-columns:1fr;gap:20px}.apresentacao-logo{min-height:190px;padding:18px}.apresentacao-logo-img{max-height:170px}.apresentacao-copy{text-align:center}.apresentacao h1{font-size:38px}.apresentacao-categoria{font-size:19px}.apresentacao-descricao{font-size:14px}.apresentacao-acoes{justify-content:center}.sobre-diferenciais{margin-top:18px}.diferenciais-grid{grid-template-columns:1fr}.diferencial-card+ .diferencial-card{border-left:0;border-top:1px solid var(--border)}.catalogo-cabecalho{align-items:flex-start;flex-direction:column}.barra{grid-template-columns:1fr;grid-template-areas:"busca" "abas" "categorias"}.tipo-abas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.tipo-aba{padding:0 10px}.itens{grid-template-columns:1fr}.produto-card .item-imagem{min-height:300px}.passos-grid{grid-template-columns:1fr}.footer-inner{justify-content:center;text-align:center}.footer-marca{justify-content:center}.footer-social{justify-content:center}.footer-credit{text-align:center}
 }
 </style>
 '''
@@ -28174,8 +28196,13 @@ const itensPorPagina=9;
 function moedaNumero(v){const valor=String(v).trim();return parseFloat(valor.includes(',')?valor.replace(/\./g,'').replace(',','.'):valor)||0}
 function moedaBR(v){return v.toFixed(2).replace('.',',')}
 let galeriaFotos=[],galeriaIndice=0;function fotosDoCard(card){try{const fotos=JSON.parse(card?.dataset?.fotos||'[]');return Array.isArray(fotos)?fotos:[]}catch(e){return[]}}function atualizarFotoCard(card){const fotos=fotosDoCard(card);if(!fotos.length)return;const indice=Math.max(0,Math.min(Number(card.dataset.indice)||0,fotos.length-1));card.dataset.indice=String(indice);const imagem=card.querySelector('.item-imagem-abrir img');if(imagem)imagem.src='/vitrine-upload/'+fotos[indice];const atual=card.querySelector('[data-foto-atual]');if(atual)atual.textContent=String(indice+1)}function mudarFotoCard(botao,delta){const card=botao.closest('.item-imagem');const fotos=fotosDoCard(card);if(!card||fotos.length<2)return;const atual=Number(card.dataset.indice)||0;card.dataset.indice=String((atual+delta+fotos.length)%fotos.length);atualizarFotoCard(card)}function abrirGaleriaCard(card,titulo,tipo,id){const fotos=fotosDoCard(card);if(!fotos.length)return;galeriaFotos=fotos;galeriaIndice=Number(card.dataset.indice)||0;document.getElementById('galeriaTitulo').textContent=titulo||'';atualizarFotoGaleria();document.getElementById('galeriaModal').classList.add('aberta');registrarItem(tipo,id)}function abrirGaleria(fotos,titulo){if(!Array.isArray(fotos)||!fotos.length)return;galeriaFotos=fotos;galeriaIndice=0;document.getElementById('galeriaTitulo').textContent=titulo||'';atualizarFotoGaleria();document.getElementById('galeriaModal').classList.add('aberta')}function atualizarFotoGaleria(){document.getElementById('galeriaImagem').src='/vitrine-upload/'+galeriaFotos[galeriaIndice]}function mudarFoto(delta){if(!galeriaFotos.length)return;galeriaIndice=(galeriaIndice+delta+galeriaFotos.length)%galeriaFotos.length;atualizarFotoGaleria()}function fecharGaleria(){document.getElementById('galeriaModal').classList.remove('aberta')}function registrarItem(tipo,id){fetch('/loja/__SLUG__/evento',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tipo:tipo,item_id:id||''})}).catch(()=>{})}
-function adicionarCarrinho(id,nome,preco){registrarItem('carrinho',id);const item=carrinho.find(i=>i.id===id);if(item)item.quantidade+=1;else carrinho.push({id,nome,preco,quantidade:1});renderCarrinho()}
-function renderCarrinho(){const el=document.getElementById('itensCarrinho');if(!el)return;if(!carrinho.length){el.innerHTML='Nenhum item adicionado.';document.getElementById('totalCarrinho').innerText='Total: R$ 0,00';return}let total=0;el.innerHTML=carrinho.map(i=>{const sub=moedaNumero(i.preco)*i.quantidade;total+=sub;return `<div class="item-carrinho"><span>${i.quantidade}x ${i.nome}</span><strong>R$ ${moedaBR(sub)}</strong></div>`}).join('');document.getElementById('totalCarrinho').innerText='Total: R$ '+moedaBR(total)}
+function normalizarQuantidadeCard(input){const max=Math.max(1,Number(input.max)||999);input.value=String(limitar(Math.round(Number(input.value)||1),1,max))}
+function ajustarQuantidadeCard(botao,delta){const grupo=botao.closest('.quantidade-produto');const input=grupo?grupo.querySelector('input'):null;if(!input)return;const max=Math.max(1,Number(input.max)||999);input.value=String(limitar((Number(input.value)||1)+delta,1,max))}
+function adicionarCarrinhoDoCard(botao,id,nome,preco,max){const card=botao.closest('.produto-card');const input=card?card.querySelector('.quantidade-produto input'):null;const quantidade=input?Math.max(1,Math.round(Number(input.value)||1)):1;adicionarCarrinho(id,nome,preco,quantidade,max);if(input)input.value='1'}
+function adicionarCarrinho(id,nome,preco,quantidade=1,max=999){registrarItem('carrinho',id);const limite=Math.max(1,Number(max)||999);const qtd=Math.max(1,Math.round(Number(quantidade)||1));const item=carrinho.find(i=>i.id===id);if(item){item.max=Math.max(1,Number(item.max)||limite);item.quantidade=Math.min(item.max,item.quantidade+qtd)}else{carrinho.push({id,nome,preco,quantidade:Math.min(limite,qtd),max:limite})}renderCarrinho()}
+function alterarQuantidadeCarrinho(id,delta){const item=carrinho.find(i=>i.id===id);if(!item)return;const max=Math.max(1,Number(item.max)||999);item.quantidade=limitar(item.quantidade+delta,1,max);renderCarrinho()}
+function removerCarrinho(id){carrinho=carrinho.filter(i=>i.id!==id);renderCarrinho()}
+function renderCarrinho(){const el=document.getElementById('itensCarrinho');if(!el)return;if(!carrinho.length){el.innerHTML='Nenhum item adicionado.';document.getElementById('totalCarrinho').innerText='Total: R$ 0,00';return}let total=0;el.innerHTML=carrinho.map(i=>{const sub=moedaNumero(i.preco)*i.quantidade;total+=sub;return `<div class="item-carrinho"><div class="item-carrinho-info"><span>${i.nome}</span><small>R$ ${moedaBR(moedaNumero(i.preco))} cada</small><button class="remover-carrinho" type="button" onclick="removerCarrinho(${i.id})">Remover</button></div><div class="item-carrinho-final"><div class="quantidade-carrinho"><button type="button" aria-label="Diminuir quantidade" onclick="alterarQuantidadeCarrinho(${i.id},-1)">−</button><b>${i.quantidade}</b><button type="button" aria-label="Aumentar quantidade" onclick="alterarQuantidadeCarrinho(${i.id},1)">+</button></div><strong>R$ ${moedaBR(sub)}</strong></div></div>`}).join('');document.getElementById('totalCarrinho').innerText='Total: R$ '+moedaBR(total)}
 function prepararPedido(){const quantidade=carrinho.reduce((t,i)=>t+i.quantidade,0);if(quantidade<__QUANTIDADE_MINIMA__){alert('A quantidade mínima do pedido é __QUANTIDADE_MINIMA__.');return false}document.getElementById('itensJson').value=JSON.stringify(carrinho);return true}
 function obterCardsFiltrados(){const termo=(document.getElementById('busca').value||'').trim().toLowerCase();return [...document.querySelectorAll('.catalogo-card')].filter(card=>{const tipoOk=card.dataset.tipo===tipoAtivo;const categoriaOk=!categoriaAtiva||card.dataset.categoria===categoriaAtiva;const buscaOk=!termo||card.dataset.nome.includes(termo)||card.dataset.categoria.toLowerCase().includes(termo);return tipoOk&&categoriaOk&&buscaOk})}
 function renderizarPaginacao(total){const paginas=Math.max(1,Math.ceil(total/itensPorPagina));paginaAtual=Math.min(paginaAtual,paginas);const nav=document.getElementById('paginacaoCatalogo');if(!nav)return;if(total<=itensPorPagina){nav.innerHTML='';return}let html=`<button type="button" ${paginaAtual===1?'disabled':''} onclick="mudarPagina(${paginaAtual-1})" aria-label="Página anterior">‹</button>`;for(let pagina=1;pagina<=paginas;pagina++){if(paginas>8&&pagina>2&&pagina<paginas-1&&Math.abs(pagina-paginaAtual)>1){if(!html.endsWith('<span>…</span>'))html+='<span>…</span>';continue}html+=`<button type="button" class="${pagina===paginaAtual?'active':''}" onclick="mudarPagina(${pagina})">${pagina}</button>`}html+=`<button type="button" ${paginaAtual===paginas?'disabled':''} onclick="mudarPagina(${paginaAtual+1})" aria-label="Próxima página">›</button>`;nav.innerHTML=html}
