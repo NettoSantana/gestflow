@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-10 23:15 (America/Bahia)
-# Motivo: Melhorar o enquadramento das fotos da Vitrine pública e permitir selecionar múltiplas unidades do mesmo produto no card e no carrinho.
+# Último recode: 2026-08-11 06:01 (America/Bahia)
+# Motivo: Enviar automaticamente ao WhatsApp responsável um resumo completo e link direto de todo novo pedido salvo pela Vitrine Online.
 
 from __future__ import annotations
 
@@ -27337,6 +27337,18 @@ def notificar_responsavel_vitrine_whatsapp(
     resumo_texto = str(resumo or "").strip() or "Consulte os detalhes na Central da Vitrine."
     numero_registro = f"#{int(registro_id or 0)}"
     template = str(regras.get("template_notificacao_whatsapp") or "").strip()
+    link_registro = ""
+    if tipo_normalizado == "pedido":
+        try:
+            link_registro = url_for(
+                "vitrine",
+                aba="pedidos",
+                pedido_id=int(registro_id or 0),
+                _anchor="central-vitrine",
+                _external=True,
+            )
+        except Exception:
+            link_registro = ""
 
     try:
         if template:
@@ -27347,7 +27359,14 @@ def notificar_responsavel_vitrine_whatsapp(
                         {"type": "text", "text": tipo_titulo[:80]},
                         {"type": "text", "text": numero_registro[:80]},
                         {"type": "text", "text": cliente[:240]},
-                        {"type": "text", "text": resumo_texto[:900]},
+                        {
+                            "type": "text",
+                            "text": (
+                                f"{resumo_texto}\nAbrir pedido: {link_registro}"
+                                if link_registro
+                                else resumo_texto
+                            )[:900],
+                        },
                     ],
                 }
             ]
@@ -27364,7 +27383,7 @@ def notificar_responsavel_vitrine_whatsapp(
                     f"{tipo_titulo} {numero_registro}",
                     f"Cliente: {cliente}",
                     resumo_texto,
-                    "Acesse o GestFlow e abra a Central da Vitrine para atender.",
+                    f"Abrir pedido: {link_registro}" if link_registro else "Acesse o GestFlow e abra a Central da Vitrine para atender.",
                 ]
             )
             sucesso, detalhe, _ = enviar_whatsapp(
@@ -28340,12 +28359,24 @@ def vitrine_pedido_publico(slug: str) -> str | Response:
 
     pedido_id = salvar_pedido_vitrine_db(empresa_id, dados, itens)
     total_pedido = sum(float(item.get("subtotal_numero") or 0) for item in itens)
+    resumo_itens = "; ".join(
+        f"{item.get('quantidade') or 1}x {item.get('nome') or 'Produto'}"
+        for item in itens
+    )
+    resumo_pedido = "\n".join(
+        [
+            f"Itens: {resumo_itens}",
+            f"Total: R$ {_formatar_moeda_brl(total_pedido)}",
+            f"Entrega: {dados.get('tipo_entrega') or '-'}",
+            f"Pagamento: {dados.get('forma_pagamento') or '-'}",
+        ]
+    )
     notificar_responsavel_vitrine_whatsapp(
         empresa_id,
         "pedido",
         pedido_id,
         dados.get("cliente_nome"),
-        f"Total: R$ {_formatar_moeda_brl(total_pedido)}",
+        resumo_pedido,
     )
     whatsapp_url = montar_whatsapp_pedido_vitrine(config_vitrine, pedido_id, dados, itens)
     produtos = listar_produtos_vitrine_empresa(empresa_id)
