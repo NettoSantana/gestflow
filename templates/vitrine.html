@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vitrine.html
-Último recode: 2026-08-11 10:52 (America/Bahia)
-Motivo: Restaurar a estrutura do bloco de identidade visual, fazendo o editor de logo ocupar a linha inteira e centralizando prévia e controles sem alterar seu funcionamento.
+Último recode: 2026-08-11 11:12 (America/Bahia)
+Motivo: Reorganizar o formulário de produtos para dar largura total à galeria, eliminando a coluna vazia e ampliando a gestão visual das fotos sem alterar upload, principal ou exclusão.
 #}
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -839,22 +839,27 @@ Motivo: Restaurar a estrutura do bloco de identidade visual, fazendo o editor de
                             </label>
                         </div>
 
-                        <div class="form-grid-2 product-admin-fields">
+                        <div class="product-admin-stack">
                             <label>
                                 Categoria
                                 <input type="text" name="categoria" value="Produtos" placeholder="Ex.: Roupas">
                             </label>
-                            <div class="vitrine-gallery-manager">
-                                <strong>Fotos do produto</strong>
-                                <input type="file" name="fotos_produto" accept="image/*" multiple>
-                                <small>Você pode adicionar até 6 fotos.</small>
+
+                            <label class="product-admin-description">
+                                Descrição
+                                <textarea name="descricao" rows="3" placeholder="Descrição curta para a vitrine"></textarea>
+                            </label>
+
+                            <div class="vitrine-gallery-manager vitrine-gallery-manager-wide">
+                                <div class="vitrine-gallery-heading">
+                                    <div>
+                                        <strong>Fotos do produto</strong>
+                                        <small>Você pode adicionar até 6 fotos.</small>
+                                    </div>
+                                    <input type="file" name="fotos_produto" accept="image/*" multiple>
+                                </div>
                             </div>
                         </div>
-
-                        <label class="product-admin-description">
-                            Descrição
-                            <textarea name="descricao" rows="3" placeholder="Descrição curta para a vitrine"></textarea>
-                        </label>
 
                         <div class="product-admin-actions">
                             <label class="inline-check">
@@ -959,22 +964,34 @@ Motivo: Restaurar a estrutura do bloco de identidade visual, fazendo o editor de
                                         </label>
                                     </div>
 
-                                    <div class="form-grid-2 product-admin-fields">
+                                    <div class="product-admin-stack">
                                         <label>
                                             Categoria
                                             <input type="text" name="categoria" value="{{ produto.get('categoria') or 'Produtos' }}" {% if integrar_produtos_vitrine %}readonly{% endif %}>
                                         </label>
-                                        <div class="vitrine-gallery-manager">
-                                            <strong>Galeria do produto</strong>
-                                            <input type="file" name="fotos_produto" accept="image/*" multiple>
-                                            <small>Até 6 fotos. Marque a principal e selecione quais deseja excluir.</small>
+
+                                        <label class="product-admin-description">
+                                            Descrição
+                                            <textarea name="descricao" rows="3" placeholder="Descrição curta para a vitrine" {% if integrar_produtos_vitrine %}readonly{% endif %}>{{ produto.get('descricao') or '' }}</textarea>
+                                        </label>
+
+                                        <div class="vitrine-gallery-manager vitrine-gallery-manager-wide">
+                                            <div class="vitrine-gallery-heading">
+                                                <div>
+                                                    <strong>Galeria do produto</strong>
+                                                    <small>Até 6 fotos. Marque a principal e selecione quais deseja excluir.</small>
+                                                </div>
+                                                <input type="file" name="fotos_produto" accept="image/*" multiple>
+                                            </div>
                                             <div class="vitrine-gallery-grid">
                                                 {% for foto in produto.get('imagens') or [] %}
                                                     <article class="vitrine-gallery-thumb">
                                                         <img src="{{ url_for('servir_upload_vitrine_publico', caminho=foto.get('imagem_path')) }}" alt="Foto de {{ produto.get('nome') }}">
                                                         {% if foto.get('id') %}
-                                                            <label><input type="radio" name="foto_principal_id" value="{{ foto.get('id') }}" {% if foto.get('principal') %}checked{% endif %}> Principal</label>
-                                                            <label class="danger"><input type="checkbox" name="remover_foto_ids" value="{{ foto.get('id') }}"> Excluir</label>
+                                                            <div class="vitrine-gallery-thumb-actions">
+                                                                <label><input type="radio" name="foto_principal_id" value="{{ foto.get('id') }}" {% if foto.get('principal') %}checked{% endif %}> Principal</label>
+                                                                <label class="danger"><input type="checkbox" name="remover_foto_ids" value="{{ foto.get('id') }}"> Excluir</label>
+                                                            </div>
                                                         {% else %}
                                                             <small>Foto antiga — será migrada ao adicionar nova foto.</small>
                                                         {% endif %}
@@ -983,11 +1000,6 @@ Motivo: Restaurar a estrutura do bloco de identidade visual, fazendo o editor de
                                             </div>
                                         </div>
                                     </div>
-
-                                    <label class="product-admin-description">
-                                        Descrição
-                                        <textarea name="descricao" rows="3" placeholder="Descrição curta para a vitrine" {% if integrar_produtos_vitrine %}readonly{% endif %}>{{ produto.get('descricao') or '' }}</textarea>
-                                    </label>
 
                                     <div class="product-admin-actions">
                                         <label class="inline-check">
@@ -2559,14 +2571,28 @@ Motivo: Restaurar a estrutura do bloco de identidade visual, fazendo o editor de
             cursor: not-allowed;
         }
 
-        .vitrine-gallery-manager { display:grid;gap:10px;padding:12px;border:1px solid #dbe3ef;border-radius:14px;background:#fff; }
+        .product-admin-stack { display:grid;gap:14px; }
+        .vitrine-gallery-manager { display:grid;gap:14px;padding:16px;border:1px solid #dbe3ef;border-radius:16px;background:#fff; }
+        .vitrine-gallery-manager-wide { width:100%; }
+        .vitrine-gallery-heading { display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap; }
+        .vitrine-gallery-heading > div { display:grid;gap:4px; }
+        .vitrine-gallery-heading small,
         .vitrine-gallery-manager > small { color:#64748b;font-size:12px;font-weight:700; }
-        .vitrine-gallery-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px; }
-        .vitrine-gallery-thumb { display:grid;gap:7px;padding:8px;border:1px solid #e5e7eb;border-radius:12px;background:#f8fafc; }
-        .vitrine-gallery-thumb img { width:100%;height:110px;object-fit:contain;border-radius:9px;background:#fff; }
-        .vitrine-gallery-thumb label { display:flex!important;grid-template-columns:auto 1fr!important;align-items:center;gap:6px;font-size:12px!important; }
+        .vitrine-gallery-heading input[type="file"] { width:min(100%,380px); }
+        .vitrine-gallery-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,210px));gap:12px;justify-content:flex-start; }
+        .vitrine-gallery-thumb { display:grid;gap:9px;padding:10px;border:1px solid #e5e7eb;border-radius:14px;background:#f8fafc; }
+        .vitrine-gallery-thumb img { width:100%;height:180px;object-fit:contain;border-radius:10px;background:#fff; }
+        .vitrine-gallery-thumb-actions { display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap; }
+        .vitrine-gallery-thumb label { display:flex!important;grid-template-columns:auto 1fr!important;align-items:center;gap:6px;font-size:12px!important;font-weight:800!important; }
         .vitrine-gallery-thumb label input { width:auto!important;min-height:auto!important; }
         .vitrine-gallery-thumb label.danger { color:#b91c1c!important; }
+
+        @media (max-width: 640px) {
+            .vitrine-gallery-heading { align-items:stretch; }
+            .vitrine-gallery-heading input[type="file"] { width:100%; }
+            .vitrine-gallery-grid { grid-template-columns:1fr; }
+            .vitrine-gallery-thumb img { height:240px; }
+        }
 
         .catalog-new-product-card {
             margin-bottom: 14px;

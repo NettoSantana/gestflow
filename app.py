@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-11 11:04 (America/Bahia)
-# Motivo: Centralizar e tornar adaptativa a grade do catálogo público para acompanhar a nova estrutura visual da Vitrine sem alterar carrinho, filtros ou fluxo de pedidos.
+# Último recode: 2026-08-11 11:12 (America/Bahia)
+# Motivo: Fazer a logo do destaque público reproduzir o mesmo enquadramento da prévia administrativa, com a mesma moldura, dimensões, zoom e posição salvos.
 
 from __future__ import annotations
 
@@ -28607,8 +28607,8 @@ button,input,select,textarea{font:inherit}
 .nav-whatsapp{background:#16a34a;color:#fff}
 .nav-carrinho{border:1px solid var(--border);background:#fff;color:var(--brand-action)}
 .apresentacao{padding:46px 0 24px;background:linear-gradient(180deg,color-mix(in srgb,var(--brand-primary) 5%,var(--category-soft)),var(--category-soft))}
-.apresentacao-inner{width:min(1180px,calc(100% - 32px));margin:auto;display:grid;grid-template-columns:220px minmax(0,1fr);gap:40px;align-items:center}
-.apresentacao-logo{width:220px;height:220px;display:grid;place-items:center;padding:0;border-radius:var(--logo-radius);background:var(--logo-bg);border:1px solid var(--logo-border);box-shadow:0 12px 32px rgba(15,23,42,.08);overflow:hidden}
+.apresentacao-inner{width:min(1180px,calc(100% - 32px));margin:auto;display:grid;grid-template-columns:240px minmax(0,1fr);gap:24px;align-items:center}
+.apresentacao-logo{width:240px;height:240px;display:grid;place-items:center;padding:0;border-radius:var(--logo-radius);background:var(--logo-bg);border:1px solid var(--logo-border);box-shadow:0 12px 28px rgba(15,23,42,.08);overflow:hidden}
 .apresentacao-logo-img{width:100%;height:100%;object-fit:contain;display:block;transform:translate(var(--logo-x),var(--logo-y)) scale(var(--logo-zoom));transform-origin:center;will-change:transform}
 .apresentacao-logo-iniciais{width:150px;height:150px;display:grid;place-items:center;border-radius:34px;background:var(--brand-action);color:var(--brand-action-text);font-size:52px;font-weight:1000}
 .apresentacao-copy{min-width:0}
@@ -28712,10 +28712,10 @@ button,input,select,textarea{font:inherit}
 .footer-credit{width:100%;margin:2px 0 0;color:var(--text-soft);font-size:11px;text-align:center}
 .footer-credit a{font-weight:900;color:var(--brand-action)}
 @media(max-width:980px){
-    .nav-links{display:none}.apresentacao-inner{grid-template-columns:220px minmax(0,1fr);gap:28px}.apresentacao-logo{min-height:220px}.sobre-diferenciais{grid-template-columns:1fr}.conteudo.com-carrinho{grid-template-columns:1fr}.carrinho{position:static}.itens{grid-template-columns:repeat(auto-fit,minmax(220px,300px));justify-content:center}.passos-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .nav-links{display:none}.apresentacao-inner{grid-template-columns:240px minmax(0,1fr);gap:24px}.apresentacao-logo{min-height:240px}.sobre-diferenciais{grid-template-columns:1fr}.conteudo.com-carrinho{grid-template-columns:1fr}.carrinho{position:static}.itens{grid-template-columns:repeat(auto-fit,minmax(220px,300px));justify-content:center}.passos-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(max-width:680px){
-    .navbar-inner,.apresentacao-inner,.sobre-diferenciais,.container,.footer-inner{width:min(100% - 22px,1180px)}.navbar-inner{min-height:62px;gap:9px}.marca-logo{width:43px;height:43px}.marca-texto strong{font-size:15px}.marca-texto small{display:none}.nav-whatsapp{margin-left:auto;width:42px;min-width:42px;padding:0;justify-content:center}.nav-whatsapp span:last-child{display:none}.nav-carrinho{font-size:0;width:42px;min-width:42px;padding:0;justify-content:center}.nav-carrinho span{font-size:16px}.apresentacao{padding-top:26px}.apresentacao-inner{grid-template-columns:1fr;gap:20px}.apresentacao-logo{width:190px;height:190px;min-height:0;margin:auto;padding:0}.apresentacao-logo-img{max-height:none}.apresentacao-copy{text-align:center}.apresentacao h1{font-size:38px}.apresentacao-categoria{font-size:19px}.apresentacao-descricao{font-size:14px}.apresentacao-acoes{justify-content:center}.sobre-diferenciais{margin-top:18px}.diferenciais-grid{grid-template-columns:1fr}.diferencial-card+ .diferencial-card{border-left:0;border-top:1px solid var(--border)}.catalogo-cabecalho{align-items:flex-start;flex-direction:column}.barra{grid-template-columns:1fr;grid-template-areas:"busca" "abas" "categorias"}.tipo-abas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.tipo-aba{padding:0 10px}.itens{grid-template-columns:minmax(0,420px);justify-content:center}.produto-card .item-imagem{min-height:300px}.passos-grid{grid-template-columns:1fr}.footer-inner{justify-content:center;text-align:center}.footer-marca{justify-content:center}.footer-social{justify-content:center}.footer-credit{text-align:center}
+    .navbar-inner,.apresentacao-inner,.sobre-diferenciais,.container,.footer-inner{width:min(100% - 22px,1180px)}.navbar-inner{min-height:62px;gap:9px}.marca-logo{width:43px;height:43px}.marca-texto strong{font-size:15px}.marca-texto small{display:none}.nav-whatsapp{margin-left:auto;width:42px;min-width:42px;padding:0;justify-content:center}.nav-whatsapp span:last-child{display:none}.nav-carrinho{font-size:0;width:42px;min-width:42px;padding:0;justify-content:center}.nav-carrinho span{font-size:16px}.apresentacao{padding-top:26px}.apresentacao-inner{grid-template-columns:1fr;gap:20px}.apresentacao-logo{width:min(240px,76vw);height:min(240px,76vw);min-height:0;margin:auto;padding:0}.apresentacao-logo-img{max-height:none}.apresentacao-copy{text-align:center}.apresentacao h1{font-size:38px}.apresentacao-categoria{font-size:19px}.apresentacao-descricao{font-size:14px}.apresentacao-acoes{justify-content:center}.sobre-diferenciais{margin-top:18px}.diferenciais-grid{grid-template-columns:1fr}.diferencial-card+ .diferencial-card{border-left:0;border-top:1px solid var(--border)}.catalogo-cabecalho{align-items:flex-start;flex-direction:column}.barra{grid-template-columns:1fr;grid-template-areas:"busca" "abas" "categorias"}.tipo-abas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.tipo-aba{padding:0 10px}.itens{grid-template-columns:minmax(0,420px);justify-content:center}.produto-card .item-imagem{min-height:300px}.passos-grid{grid-template-columns:1fr}.footer-inner{justify-content:center;text-align:center}.footer-marca{justify-content:center}.footer-social{justify-content:center}.footer-credit{text-align:center}
 }
 </style>
 '''
