@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vitrine.html
-Último recode: 2026-08-10 22:27 (America/Bahia)
-Motivo: Remover a seção de pré-visualização interna da Vitrine Online.
+Último recode: 2026-08-10 22:50 (America/Bahia)
+Motivo: Adicionar cadastro de produto exclusivo da Vitrine no modo independente.
 #}
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -714,14 +714,87 @@ Motivo: Remover a seção de pré-visualização interna da Vitrine Online.
                     </div>
                     {% if integrar_produtos_vitrine %}
                         <a class="btn btn-primary" href="{{ url_for('produtos') }}">Cadastrar produto</a>
+                    {% else %}
+                        <button class="btn btn-primary" type="button" onclick="alternarNovoProdutoVitrine()">+ Adicionar produto</button>
                     {% endif %}
                 </div>
+
+                {% if not integrar_produtos_vitrine %}
+                    <form
+                        class="product-admin-card catalog-new-product-card"
+                        method="post"
+                        action="{{ url_for('vitrine_produto_independente_salvar') }}"
+                        enctype="multipart/form-data"
+                        data-vitrine-new-product
+                        hidden
+                    >
+                        <div class="catalog-simple-summary">
+                            <div class="catalog-simple-title">
+                                <strong>Novo produto da Vitrine</strong>
+                                <small>Este item existirá somente na Vitrine. Não cria Produto, não movimenta Estoque e não gera Venda no GestFlow.</small>
+                            </div>
+                            <span class="status-pill status-neutral">Independente</span>
+                        </div>
+
+                        <div class="form-grid-2 product-admin-fields">
+                            <label>
+                                Nome do produto
+                                <input type="text" name="nome" required placeholder="Ex.: Camiseta básica">
+                            </label>
+                            <label>
+                                Preço
+                                <input type="text" name="preco" value="0,00" required placeholder="0,00">
+                            </label>
+                        </div>
+
+                        <div class="form-grid-2 product-admin-fields">
+                            <label>
+                                Categoria
+                                <input type="text" name="categoria" value="Produtos" placeholder="Ex.: Roupas">
+                            </label>
+                            <div class="vitrine-gallery-manager">
+                                <strong>Fotos do produto</strong>
+                                <input type="file" name="fotos_produto" accept="image/*" multiple>
+                                <small>Você pode adicionar até 6 fotos.</small>
+                            </div>
+                        </div>
+
+                        <label class="product-admin-description">
+                            Descrição
+                            <textarea name="descricao" rows="3" placeholder="Descrição curta para a vitrine"></textarea>
+                        </label>
+
+                        <div class="product-admin-actions">
+                            <label class="inline-check">
+                                <input type="checkbox" name="destaque" value="sim">
+                                Destaque
+                            </label>
+                            <select name="status">
+                                <option value="publicado" selected>Disponível</option>
+                                <option value="indisponivel">Indisponível</option>
+                                <option value="oculto">Oculto</option>
+                                <option value="rascunho">Rascunho</option>
+                            </select>
+                            <button class="btn btn-secondary" type="button" onclick="alternarNovoProdutoVitrine(false)">Cancelar</button>
+                            <button class="btn btn-primary" type="submit">Salvar produto</button>
+                        </div>
+                    </form>
+                {% endif %}
 
                 {% if produtos_vitrine_admin %}
                     <div class="product-admin-list">
                         {% for produto in produtos_vitrine_admin %}
-                            <form class="product-admin-card catalog-simple-card" method="post" action="{{ url_for('vitrine_produto_publicar') }}" enctype="multipart/form-data">
+                            <form
+                                class="product-admin-card catalog-simple-card"
+                                method="post"
+                                action="{{ url_for('vitrine_produto_independente_salvar') if produto.get('produto_independente') else url_for('vitrine_produto_publicar') }}"
+                                enctype="multipart/form-data"
+                                data-produto-independente="{{ 'sim' if produto.get('produto_independente') else 'nao' }}"
+                            >
                                 <input type="hidden" name="produto_id" value="{{ produto.get('produto_id') }}">
+                                {% if produto.get('produto_independente') %}
+                                    <input type="hidden" name="vitrine_id" value="{{ produto.get('vitrine_id') }}">
+                                {% endif %}
 
                                 <div class="catalog-simple-summary">
                                     <div class="catalog-simple-title">
@@ -760,10 +833,10 @@ Motivo: Remover a seção de pré-visualização interna da Vitrine Online.
                                         <button
                                             class="btn btn-danger btn-small"
                                             type="submit"
-                                            formaction="{{ url_for('vitrine_produto_remover') }}"
+                                            formaction="{{ url_for('vitrine_produto_independente_remover') if produto.get('produto_independente') else url_for('vitrine_produto_remover') }}"
                                             formmethod="post"
                                             formnovalidate
-                                            onclick="return window.confirm('Remover este produto somente da Vitrine? O cadastro normal não será excluído.');"
+                                            onclick="return window.confirm('{{ 'Excluir este produto independente somente da Vitrine?' if produto.get('produto_independente') else 'Remover este produto somente da Vitrine? O cadastro normal não será excluído.' }}');"
                                         >🗑 Excluir</button>
                                     {% else %}
                                         <button class="btn btn-danger btn-small" type="button" disabled title="Este produto ainda não foi incluído na Vitrine.">🗑 Excluir</button>
@@ -1079,6 +1152,22 @@ Motivo: Remover a seção de pré-visualização interna da Vitrine Online.
                 window.location.href = "/";
             }
 
+            function alternarNovoProdutoVitrine(forcarAbrir) {
+                const formulario = document.querySelector("[data-vitrine-new-product]");
+                if (!formulario) return;
+
+                const deveAbrir = typeof forcarAbrir === "boolean" ? forcarAbrir : formulario.hidden;
+                formulario.hidden = !deveAbrir;
+
+                if (deveAbrir) {
+                    formulario.scrollIntoView({ behavior: "smooth", block: "center" });
+                    const campoNome = formulario.querySelector('input[name="nome"]');
+                    if (campoNome) window.setTimeout(function () { campoNome.focus(); }, 180);
+                } else {
+                    formulario.reset();
+                }
+            }
+
             function alternarEditorVitrine(botao) {
                 const card = botao.closest(".catalog-simple-card");
                 const editor = card ? card.querySelector("[data-vitrine-editor]") : null;
@@ -1093,7 +1182,9 @@ Motivo: Remover a seção de pré-visualização interna da Vitrine Online.
                 const campoStatus = formulario ? formulario.querySelector('select[name="status"]') : null;
                 if (!formulario || !campoStatus) return;
                 campoStatus.value = status;
-                formulario.action = "{{ url_for('vitrine_produto_status') }}";
+                formulario.action = formulario.dataset.produtoIndependente === "sim"
+                    ? "{{ url_for('vitrine_produto_independente_status') }}"
+                    : "{{ url_for('vitrine_produto_status') }}";
                 formulario.submit();
             }
 
@@ -2124,6 +2215,16 @@ Motivo: Remover a seção de pré-visualização interna da Vitrine Online.
         .vitrine-gallery-thumb label { display:flex!important;grid-template-columns:auto 1fr!important;align-items:center;gap:6px;font-size:12px!important; }
         .vitrine-gallery-thumb label input { width:auto!important;min-height:auto!important; }
         .vitrine-gallery-thumb label.danger { color:#b91c1c!important; }
+
+        .catalog-new-product-card {
+            margin-bottom: 14px;
+            border-color: #cbd5e1;
+            background: #ffffff;
+        }
+
+        .catalog-new-product-card[hidden] {
+            display: none;
+        }
 
         .product-admin-card {
             border: 1px solid #e5e7eb;
