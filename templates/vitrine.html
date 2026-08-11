@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vitrine.html
-Último recode: 2026-08-11 10:20 (America/Bahia)
-Motivo: Adicionar controles simples e prévia ao vivo para tamanho, posição, formato e fundo da logo da Vitrine.
+Último recode: 2026-08-11 10:37 (America/Bahia)
+Motivo: Substituir os controles simples por editor real de logo com zoom, deslocamento horizontal/vertical, arraste direto na prévia, moldura, fundo e restauração do padrão.
 #}
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -37,9 +37,10 @@ Motivo: Adicionar controles simples e prévia ao vivo para tamanho, posição, f
     {% set cor_secundaria = vitrine.get('cor_secundaria') or '#f59e0b' %}
     {% set status_vitrine = vitrine.get('status') or 'rascunho' %}
     {% set tipo_identidade_visual = vitrine.get('tipo_identidade_visual') or ('logo' if vitrine.get('logo_path') else 'cores') %}
-    {% set logo_tamanho = vitrine.get('logo_tamanho') or 100 %}
-    {% set logo_posicao = vitrine.get('logo_posicao') or 'centro' %}
-    {% set logo_formato = vitrine.get('logo_formato') or 'arredondado' %}
+    {% set logo_zoom = vitrine.get('logo_zoom') or 100 %}
+    {% set logo_offset_x = vitrine.get('logo_offset_x') or 0 %}
+    {% set logo_offset_y = vitrine.get('logo_offset_y') or 0 %}
+    {% set logo_formato = 'sem_moldura' if (vitrine.get('logo_formato') or '') == 'quadrado' else (vitrine.get('logo_formato') or 'arredondado') %}
     {% set logo_fundo = vitrine.get('logo_fundo') or '#ffffff' %}
     {% set cor_preview_principal = '#0f172a' if tipo_identidade_visual == 'logo' else cor_principal %}
     {% set cor_preview_secundaria = '#334155' if tipo_identidade_visual == 'logo' else cor_secundaria %}
@@ -223,45 +224,64 @@ Motivo: Adicionar controles simples e prévia ao vivo para tamanho, posição, f
                                 </label>
                             {% endif %}
 
-                            <div class="vitrine-logo-controls">
-                                <label class="vitrine-logo-control vitrine-logo-size-control">
-                                    <span>Tamanho da logo <strong data-logo-size-value>{{ logo_tamanho }}%</strong></span>
-                                    <input type="range" name="logo_tamanho" min="60" max="140" step="5" value="{{ logo_tamanho }}" data-vitrine-logo-size>
-                                </label>
-                                <label class="vitrine-logo-control">
-                                    <span>Posição</span>
-                                    <select name="logo_posicao" data-vitrine-logo-position>
-                                        <option value="esquerda" {% if logo_posicao == 'esquerda' %}selected{% endif %}>Esquerda</option>
-                                        <option value="centro" {% if logo_posicao == 'centro' %}selected{% endif %}>Centro</option>
-                                        <option value="direita" {% if logo_posicao == 'direita' %}selected{% endif %}>Direita</option>
-                                    </select>
-                                </label>
-                                <label class="vitrine-logo-control">
-                                    <span>Formato da moldura</span>
-                                    <select name="logo_formato" data-vitrine-logo-format>
-                                        <option value="quadrado" {% if logo_formato == 'quadrado' %}selected{% endif %}>Quadrado</option>
-                                        <option value="arredondado" {% if logo_formato == 'arredondado' %}selected{% endif %}>Arredondado</option>
-                                        <option value="circular" {% if logo_formato == 'circular' %}selected{% endif %}>Circular</option>
-                                    </select>
-                                </label>
-                                <label class="vitrine-logo-control vitrine-logo-bg-control">
-                                    <span>Fundo da logo</span>
-                                    <input type="color" name="logo_fundo" value="{{ logo_fundo }}" data-vitrine-logo-background>
-                                </label>
-                            </div>
-
-                            <div class="vitrine-logo-live-preview" data-vitrine-logo-preview data-position="{{ logo_posicao }}" data-format="{{ logo_formato }}" style="--logo-preview-scale:{{ logo_tamanho }}%;--logo-preview-bg:{{ logo_fundo }};">
-                                <span class="vitrine-logo-preview-label">Prévia</span>
-                                <div class="vitrine-logo-preview-frame">
-                                    {% if vitrine.get('logo_path') %}
-                                        <img src="{{ url_for('servir_upload_vitrine_publico', caminho=vitrine.get('logo_path')) }}" alt="Prévia da logo" data-vitrine-preview-logo-image>
-                                    {% else %}
-                                        <span class="vitrine-logo-preview-placeholder" data-vitrine-preview-logo-placeholder>GF</span>
-                                    {% endif %}
+                            <div class="vitrine-logo-editor">
+                                <div
+                                    class="vitrine-logo-live-preview"
+                                    data-vitrine-logo-preview
+                                    data-format="{{ logo_formato }}"
+                                    style="--logo-preview-zoom:{{ (logo_zoom|int) / 100 }};--logo-preview-x:{{ logo_offset_x }}%;--logo-preview-y:{{ logo_offset_y }}%;--logo-preview-bg:{{ logo_fundo }};"
+                                >
+                                    <div class="vitrine-logo-preview-heading">
+                                        <span>Prévia da identidade</span>
+                                        <small>Arraste a logo dentro da moldura para reposicionar.</small>
+                                    </div>
+                                    <div class="vitrine-logo-preview-stage">
+                                        <div class="vitrine-logo-preview-frame" data-vitrine-logo-drag-area title="Arraste para reposicionar a logo">
+                                            {% if vitrine.get('logo_path') %}
+                                                <img src="{{ url_for('servir_upload_vitrine_publico', caminho=vitrine.get('logo_path')) }}" alt="Prévia da logo" data-vitrine-preview-logo-image draggable="false">
+                                            {% else %}
+                                                <span class="vitrine-logo-preview-placeholder" data-vitrine-preview-logo-placeholder>GF</span>
+                                            {% endif %}
+                                        </div>
+                                        <div class="vitrine-logo-preview-copy">
+                                            <span>Como ficará no destaque da Vitrine</span>
+                                            <strong data-vitrine-preview-name>{{ vitrine.get('nome_loja') or 'Sua loja online' }}</strong>
+                                            <small data-vitrine-preview-description>{{ vitrine.get('descricao_empresa') or 'Produtos para venda e serviços com agendamento online.' }}</small>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="vitrine-logo-preview-copy">
-                                    <strong data-vitrine-preview-name>{{ vitrine.get('nome_loja') or 'Sua loja online' }}</strong>
-                                    <small data-vitrine-preview-description>{{ vitrine.get('descricao_empresa') or 'Produtos para venda e serviços com agendamento online.' }}</small>
+
+                                <div class="vitrine-logo-controls">
+                                    <label class="vitrine-logo-control">
+                                        <span>Zoom da imagem <strong data-logo-zoom-value>{{ logo_zoom }}%</strong></span>
+                                        <input type="range" name="logo_zoom" min="60" max="300" step="5" value="{{ logo_zoom }}" data-vitrine-logo-zoom>
+                                    </label>
+                                    <label class="vitrine-logo-control">
+                                        <span>Posição horizontal <strong data-logo-x-value>{{ logo_offset_x }}</strong></span>
+                                        <input type="range" name="logo_offset_x" min="-50" max="50" step="1" value="{{ logo_offset_x }}" data-vitrine-logo-x>
+                                    </label>
+                                    <label class="vitrine-logo-control">
+                                        <span>Posição vertical <strong data-logo-y-value>{{ logo_offset_y }}</strong></span>
+                                        <input type="range" name="logo_offset_y" min="-50" max="50" step="1" value="{{ logo_offset_y }}" data-vitrine-logo-y>
+                                    </label>
+                                    <div class="vitrine-logo-options-row">
+                                        <label class="vitrine-logo-control">
+                                            <span>Moldura</span>
+                                            <select name="logo_formato" data-vitrine-logo-format>
+                                                <option value="sem_moldura" {% if logo_formato == 'sem_moldura' %}selected{% endif %}>Sem moldura</option>
+                                                <option value="arredondado" {% if logo_formato == 'arredondado' %}selected{% endif %}>Arredondada</option>
+                                                <option value="circular" {% if logo_formato == 'circular' %}selected{% endif %}>Circular</option>
+                                            </select>
+                                        </label>
+                                        <label class="vitrine-logo-control vitrine-logo-bg-control">
+                                            <span>Fundo</span>
+                                            <input type="color" name="logo_fundo" value="{{ logo_fundo }}" data-vitrine-logo-background>
+                                        </label>
+                                    </div>
+                                    <div class="vitrine-logo-editor-actions">
+                                        <button type="button" class="btn btn-secondary btn-small" data-vitrine-logo-reset>Restaurar padrão</button>
+                                        <small>O mesmo recorte será usado no cabeçalho e no destaque da página pública.</small>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1452,11 +1472,16 @@ Motivo: Adicionar controles simples e prévia ao vivo para tamanho, posição, f
                 const previewNome = document.querySelector('[data-vitrine-preview-name]');
                 const previewDescricao = document.querySelector('[data-vitrine-preview-description]');
                 const logoPreview = document.querySelector('[data-vitrine-logo-preview]');
-                const logoTamanho = document.querySelector('[data-vitrine-logo-size]');
-                const logoTamanhoValor = document.querySelector('[data-logo-size-value]');
-                const logoPosicao = document.querySelector('[data-vitrine-logo-position]');
+                const logoZoom = document.querySelector('[data-vitrine-logo-zoom]');
+                const logoZoomValor = document.querySelector('[data-logo-zoom-value]');
+                const logoOffsetX = document.querySelector('[data-vitrine-logo-x]');
+                const logoOffsetXValor = document.querySelector('[data-logo-x-value]');
+                const logoOffsetY = document.querySelector('[data-vitrine-logo-y]');
+                const logoOffsetYValor = document.querySelector('[data-logo-y-value]');
                 const logoFormato = document.querySelector('[data-vitrine-logo-format]');
                 const logoFundo = document.querySelector('[data-vitrine-logo-background]');
+                const logoReset = document.querySelector('[data-vitrine-logo-reset]');
+                const logoDragArea = document.querySelector('[data-vitrine-logo-drag-area]');
                 const possuiLogoSalva = {{ 'true' if vitrine.get('logo_path') else 'false' }};
                 let possuiLogoSelecionada = false;
 
@@ -1485,15 +1510,19 @@ Motivo: Adicionar controles simples e prévia ao vivo para tamanho, posição, f
                     }
                     if (previewLogo) previewLogo.hidden = !usarLogo;
                     if (logoPreview) {
-                        const tamanho = logoTamanho ? logoTamanho.value : "100";
-                        const posicao = logoPosicao ? logoPosicao.value : "centro";
+                        const zoom = logoZoom ? Number(logoZoom.value || 100) : 100;
+                        const offsetX = logoOffsetX ? Number(logoOffsetX.value || 0) : 0;
+                        const offsetY = logoOffsetY ? Number(logoOffsetY.value || 0) : 0;
                         const formato = logoFormato ? logoFormato.value : "arredondado";
                         const fundo = logoFundo ? logoFundo.value : "#ffffff";
-                        logoPreview.style.setProperty("--logo-preview-scale", tamanho + "%");
+                        logoPreview.style.setProperty("--logo-preview-zoom", String(zoom / 100));
+                        logoPreview.style.setProperty("--logo-preview-x", offsetX + "%");
+                        logoPreview.style.setProperty("--logo-preview-y", offsetY + "%");
                         logoPreview.style.setProperty("--logo-preview-bg", fundo);
-                        logoPreview.dataset.position = posicao;
                         logoPreview.dataset.format = formato;
-                        if (logoTamanhoValor) logoTamanhoValor.textContent = tamanho + "%";
+                        if (logoZoomValor) logoZoomValor.textContent = zoom + "%";
+                        if (logoOffsetXValor) logoOffsetXValor.textContent = String(offsetX);
+                        if (logoOffsetYValor) logoOffsetYValor.textContent = String(offsetY);
                     }
                 }
 
@@ -1502,12 +1531,59 @@ Motivo: Adicionar controles simples e prévia ao vivo para tamanho, posição, f
                     if (radio) radio.addEventListener("change", atualizarPreview);
                 });
 
-                [corPrincipal, corSecundaria, logoTamanho, logoFundo].forEach(function (campo) {
+                [corPrincipal, corSecundaria, logoZoom, logoOffsetX, logoOffsetY, logoFundo].forEach(function (campo) {
                     if (campo) campo.addEventListener("input", atualizarPreview);
                 });
-                [logoPosicao, logoFormato].forEach(function (campo) {
-                    if (campo) campo.addEventListener("change", atualizarPreview);
-                });
+                if (logoFormato) logoFormato.addEventListener("change", atualizarPreview);
+
+                if (logoReset) {
+                    logoReset.addEventListener("click", function () {
+                        if (logoZoom) logoZoom.value = "100";
+                        if (logoOffsetX) logoOffsetX.value = "0";
+                        if (logoOffsetY) logoOffsetY.value = "0";
+                        if (logoFormato) logoFormato.value = "arredondado";
+                        if (logoFundo) logoFundo.value = "#ffffff";
+                        atualizarPreview();
+                    });
+                }
+
+                if (logoDragArea && logoOffsetX && logoOffsetY) {
+                    let arraste = null;
+                    const limitar = function (valor, minimo, maximo) {
+                        return Math.max(minimo, Math.min(maximo, valor));
+                    };
+                    const encerrarArraste = function (event) {
+                        if (!arraste || (event && event.pointerId !== arraste.pointerId)) return;
+                        logoDragArea.classList.remove("is-dragging");
+                        arraste = null;
+                    };
+                    logoDragArea.addEventListener("pointerdown", function (event) {
+                        if (!logoDragArea.querySelector("img")) return;
+                        arraste = {
+                            pointerId: event.pointerId,
+                            x: event.clientX,
+                            y: event.clientY,
+                            offsetX: Number(logoOffsetX.value || 0),
+                            offsetY: Number(logoOffsetY.value || 0)
+                        };
+                        logoDragArea.setPointerCapture(event.pointerId);
+                        logoDragArea.classList.add("is-dragging");
+                        event.preventDefault();
+                    });
+                    logoDragArea.addEventListener("pointermove", function (event) {
+                        if (!arraste || event.pointerId !== arraste.pointerId) return;
+                        const rect = logoDragArea.getBoundingClientRect();
+                        if (!rect.width || !rect.height) return;
+                        const novoX = limitar(arraste.offsetX + ((event.clientX - arraste.x) / rect.width) * 100, -50, 50);
+                        const novoY = limitar(arraste.offsetY + ((event.clientY - arraste.y) / rect.height) * 100, -50, 50);
+                        logoOffsetX.value = String(Math.round(novoX));
+                        logoOffsetY.value = String(Math.round(novoY));
+                        atualizarPreview();
+                    });
+                    logoDragArea.addEventListener("pointerup", encerrarArraste);
+                    logoDragArea.addEventListener("pointercancel", encerrarArraste);
+                    logoDragArea.addEventListener("lostpointercapture", encerrarArraste);
+                }
 
                 if (nomeLoja) {
                     nomeLoja.addEventListener("input", function () {
@@ -1537,7 +1613,7 @@ Motivo: Adicionar controles simples e prévia ao vivo para tamanho, posição, f
                                 imagensPreview.forEach(function (imagem) { imagem.src = origem; });
                             } else if (logoPreview) {
                                 const frame = logoPreview.querySelector(".vitrine-logo-preview-frame");
-                                if (frame) frame.innerHTML = '<img src="' + origem + '" alt="Prévia da nova logo" data-vitrine-preview-logo-image>';
+                                if (frame) frame.innerHTML = '<img src="' + origem + '" alt="Prévia da nova logo" data-vitrine-preview-logo-image draggable="false">';
                             }
                             if (previewLogoImage) {
                                 previewLogoImage.src = origem;
@@ -2619,64 +2695,56 @@ Motivo: Adicionar controles simples e prévia ao vivo para tamanho, posição, f
         }
 
 
-        .vitrine-logo-controls {
-            display: grid;
-            grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(140px, 0.8fr));
-            gap: 12px;
-            margin-top: 14px;
-            padding: 14px;
-            border: 1px solid #e5e7eb;
-            border-radius: 16px;
-            background: #f9fafb;
+        .vitrine-logo-editor { display:grid;gap:16px;margin-top:14px; }
+        .vitrine-logo-live-preview {
+            --logo-preview-zoom:1;
+            --logo-preview-x:0%;
+            --logo-preview-y:0%;
+            --logo-preview-bg:#fff;
+            display:grid;gap:16px;padding:20px;border:1px solid #e5e7eb;border-radius:20px;background:#fff;
         }
+        .vitrine-logo-preview-heading { display:flex;align-items:flex-start;justify-content:space-between;gap:16px; }
+        .vitrine-logo-preview-heading span { color:#111827;font-size:13px;font-weight:950; }
+        .vitrine-logo-preview-heading small { color:#667085;font-size:12px;text-align:right; }
+        .vitrine-logo-preview-stage { display:grid;grid-template-columns:240px minmax(0,1fr);align-items:center;gap:24px;padding:20px;border-radius:18px;background:#fff7f7; }
+        .vitrine-logo-preview-frame {
+            width:240px;height:240px;display:grid;place-items:center;overflow:hidden;touch-action:none;user-select:none;cursor:grab;
+            background:var(--logo-preview-bg);border:1px solid #e5e7eb;box-shadow:0 12px 28px rgba(15,23,42,.08);
+            transition:border-radius .18s ease,background .18s ease,border-color .18s ease;
+        }
+        .vitrine-logo-preview-frame.is-dragging { cursor:grabbing;outline:3px solid rgba(15,23,42,.12); }
+        .vitrine-logo-live-preview[data-format="sem_moldura"] .vitrine-logo-preview-frame { border-radius:0;border-color:transparent;box-shadow:none; }
+        .vitrine-logo-live-preview[data-format="arredondado"] .vitrine-logo-preview-frame { border-radius:24px; }
+        .vitrine-logo-live-preview[data-format="circular"] .vitrine-logo-preview-frame { border-radius:999px; }
+        .vitrine-logo-preview-frame img {
+            width:100%;height:100%;object-fit:contain;display:block;pointer-events:none;
+            transform:translate(var(--logo-preview-x),var(--logo-preview-y)) scale(var(--logo-preview-zoom));
+            transform-origin:center;will-change:transform;
+        }
+        .vitrine-logo-preview-placeholder { width:92px;height:92px;display:grid;place-items:center;border-radius:24px;background:#111827;color:#fff;font-size:30px;font-weight:950; }
+        .vitrine-logo-preview-copy { display:grid;gap:8px;min-width:0; }
+        .vitrine-logo-preview-copy > span { color:#9ca3af;font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase; }
+        .vitrine-logo-preview-copy strong { color:#111827;font-size:clamp(28px,4vw,46px);line-height:1.02;letter-spacing:-.035em; }
+        .vitrine-logo-preview-copy small { max-width:520px;color:#667085;font-size:14px;line-height:1.55; }
+        .vitrine-logo-controls { display:grid;gap:15px;padding:18px;border:1px solid #e5e7eb;border-radius:18px;background:#f9fafb; }
         .vitrine-logo-control { display:grid;align-content:start;gap:8px;min-width:0;color:#374151;font-size:12px;font-weight:800; }
         .vitrine-logo-control > span { display:flex;align-items:center;justify-content:space-between;gap:8px; }
+        .vitrine-logo-control > span strong { min-width:48px;text-align:right;color:#111827; }
+        .vitrine-logo-control input[type="range"] { width:100%;accent-color:#111827; }
         .vitrine-logo-control select,.vitrine-logo-control input[type="color"] { width:100%;min-height:42px; }
-        .vitrine-logo-size-control input[type="range"] { width:100%;accent-color:#111827; }
         .vitrine-logo-bg-control input[type="color"] { padding:4px;border:1px solid #d1d5db;border-radius:10px;background:#fff; }
-        .vitrine-logo-live-preview {
-            --logo-preview-scale:100%;
-            --logo-preview-bg:#fff;
-            display:grid;
-            grid-template-columns:180px minmax(0,1fr);
-            align-items:center;
-            gap:20px;
-            position:relative;
-            margin-top:14px;
-            padding:20px;
-            border:1px solid #e5e7eb;
-            border-radius:20px;
-            background:#fff7f7;
-            overflow:hidden;
-        }
-        .vitrine-logo-preview-label { position:absolute;top:10px;right:12px;color:#9ca3af;font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase; }
-        .vitrine-logo-preview-frame {
-            width:180px;height:180px;display:grid;align-items:center;justify-items:center;padding:16px;overflow:hidden;
-            background:var(--logo-preview-bg);border:1px solid #e5e7eb;box-shadow:0 12px 28px rgba(15,23,42,.08);
-            transition:border-radius .18s ease,background .18s ease;
-        }
-        .vitrine-logo-live-preview[data-format="quadrado"] .vitrine-logo-preview-frame { border-radius:4px; }
-        .vitrine-logo-live-preview[data-format="arredondado"] .vitrine-logo-preview-frame { border-radius:28px; }
-        .vitrine-logo-live-preview[data-format="circular"] .vitrine-logo-preview-frame { border-radius:999px; }
-        .vitrine-logo-live-preview[data-position="esquerda"] .vitrine-logo-preview-frame { justify-items:start; }
-        .vitrine-logo-live-preview[data-position="centro"] .vitrine-logo-preview-frame { justify-items:center; }
-        .vitrine-logo-live-preview[data-position="direita"] .vitrine-logo-preview-frame { justify-items:end; }
-        .vitrine-logo-preview-frame img { width:var(--logo-preview-scale);height:var(--logo-preview-scale);max-width:140%;max-height:140%;object-fit:contain;transition:width .18s ease,height .18s ease; }
-        .vitrine-logo-live-preview[data-position="esquerda"] .vitrine-logo-preview-frame img { object-position:left center; }
-        .vitrine-logo-live-preview[data-position="centro"] .vitrine-logo-preview-frame img { object-position:center center; }
-        .vitrine-logo-live-preview[data-position="direita"] .vitrine-logo-preview-frame img { object-position:right center; }
-        .vitrine-logo-preview-placeholder { width:86px;height:86px;display:grid;place-items:center;border-radius:22px;background:#111827;color:#fff;font-size:28px;font-weight:950; }
-        .vitrine-logo-preview-copy { display:grid;gap:8px;min-width:0; }
-        .vitrine-logo-preview-copy strong { color:#111827;font-size:clamp(22px,3vw,38px);line-height:1.05; }
-        .vitrine-logo-preview-copy small { max-width:580px;color:#667085;font-size:14px;line-height:1.55; }
-        @media (max-width:900px) {
-            .vitrine-logo-controls { grid-template-columns:repeat(2,minmax(0,1fr)); }
-            .vitrine-logo-live-preview { grid-template-columns:130px minmax(0,1fr); }
-            .vitrine-logo-preview-frame { width:130px;height:130px; }
+        .vitrine-logo-options-row { display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,.55fr);gap:14px; }
+        .vitrine-logo-editor-actions { display:flex;align-items:center;justify-content:space-between;gap:14px;padding-top:2px; }
+        .vitrine-logo-editor-actions small { color:#667085;font-size:11px;text-align:right; }
+        @media (max-width:780px) {
+            .vitrine-logo-preview-stage { grid-template-columns:1fr;justify-items:center;text-align:center; }
+            .vitrine-logo-preview-copy { justify-items:center; }
+            .vitrine-logo-preview-heading,.vitrine-logo-editor-actions { display:grid;justify-items:start; }
+            .vitrine-logo-preview-heading small,.vitrine-logo-editor-actions small { text-align:left; }
         }
         @media (max-width:620px) {
-            .vitrine-logo-controls,.vitrine-logo-live-preview { grid-template-columns:1fr; }
-            .vitrine-logo-preview-frame { width:150px;height:150px; }
+            .vitrine-logo-preview-frame { width:min(240px,76vw);height:min(240px,76vw); }
+            .vitrine-logo-options-row { grid-template-columns:1fr; }
         }
 
         .preview-store {

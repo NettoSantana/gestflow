@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-11 10:20 (America/Bahia)
-# Motivo: Permitir ajuste simples da logo da Vitrine (tamanho, posição, formato e fundo), salvar a configuração e aplicá-la na página pública com padrão automático seguro.
+# Último recode: 2026-08-11 10:37 (America/Bahia)
+# Motivo: Substituir o ajuste simples da logo da Vitrine por editor real com zoom, deslocamento horizontal/vertical, moldura, fundo e aplicação consistente no cabeçalho e hero públicos.
 
 from __future__ import annotations
 
@@ -4699,6 +4699,9 @@ def iniciar_banco() -> None:
                 logo_path TEXT,
                 logo_tamanho INTEGER NOT NULL DEFAULT 100,
                 logo_posicao TEXT NOT NULL DEFAULT 'centro',
+                logo_zoom INTEGER NOT NULL DEFAULT 100,
+                logo_offset_x INTEGER NOT NULL DEFAULT 0,
+                logo_offset_y INTEGER NOT NULL DEFAULT 0,
                 logo_formato TEXT NOT NULL DEFAULT 'arredondado',
                 logo_fundo TEXT NOT NULL DEFAULT '#ffffff',
                 categoria TEXT,
@@ -5740,6 +5743,9 @@ def iniciar_banco() -> None:
             for row in conn.execute("PRAGMA table_info(vitrine_configuracoes)").fetchall()
         }
         coluna_identidade_visual_criada = "tipo_identidade_visual" not in colunas_vitrine_configuracoes
+        coluna_logo_zoom_criada = "logo_zoom" not in colunas_vitrine_configuracoes
+        coluna_logo_offset_x_criada = "logo_offset_x" not in colunas_vitrine_configuracoes
+        coluna_logo_offset_y_criada = "logo_offset_y" not in colunas_vitrine_configuracoes
         for coluna, tipo_coluna in {
             "servicos_vistos": "INTEGER NOT NULL DEFAULT 0",
             "agendamentos_gerados": "INTEGER NOT NULL DEFAULT 0",
@@ -5747,11 +5753,38 @@ def iniciar_banco() -> None:
             "tipo_identidade_visual": "TEXT NOT NULL DEFAULT 'cores'",
             "logo_tamanho": "INTEGER NOT NULL DEFAULT 100",
             "logo_posicao": "TEXT NOT NULL DEFAULT 'centro'",
+            "logo_zoom": "INTEGER NOT NULL DEFAULT 100",
+            "logo_offset_x": "INTEGER NOT NULL DEFAULT 0",
+            "logo_offset_y": "INTEGER NOT NULL DEFAULT 0",
             "logo_formato": "TEXT NOT NULL DEFAULT 'arredondado'",
             "logo_fundo": "TEXT NOT NULL DEFAULT '#ffffff'",
         }.items():
             if coluna not in colunas_vitrine_configuracoes:
                 conn.execute(f"ALTER TABLE vitrine_configuracoes ADD COLUMN {coluna} {tipo_coluna}")
+
+        if coluna_logo_zoom_criada:
+            conn.execute(
+                """
+                UPDATE vitrine_configuracoes
+                SET logo_zoom = CASE
+                    WHEN COALESCE(logo_tamanho, 100) BETWEEN 60 AND 300 THEN COALESCE(logo_tamanho, 100)
+                    ELSE 100
+                END
+                """
+            )
+        if coluna_logo_offset_x_criada:
+            conn.execute(
+                """
+                UPDATE vitrine_configuracoes
+                SET logo_offset_x = CASE LOWER(TRIM(COALESCE(logo_posicao, 'centro')))
+                    WHEN 'esquerda' THEN -20
+                    WHEN 'direita' THEN 20
+                    ELSE 0
+                END
+                """
+            )
+        if coluna_logo_offset_y_criada:
+            conn.execute("UPDATE vitrine_configuracoes SET logo_offset_y = 0")
 
         if coluna_identidade_visual_criada:
             conn.execute(
@@ -25447,17 +25480,27 @@ def montar_vitrine_formulario(config_atual: dict[str, Any] | None = None) -> dic
     cor_secundaria_atual = str(config_atual.get("cor_secundaria") or "#f59e0b").strip() or "#f59e0b"
 
     try:
-        logo_tamanho = int(request.form.get("logo_tamanho") or config_atual.get("logo_tamanho") or 100)
+        logo_zoom = int(request.form.get("logo_zoom") or config_atual.get("logo_zoom") or 100)
     except (TypeError, ValueError):
-        logo_tamanho = 100
-    logo_tamanho = max(60, min(140, logo_tamanho))
+        logo_zoom = 100
+    logo_zoom = max(60, min(300, logo_zoom))
 
-    logo_posicao = str(request.form.get("logo_posicao") or config_atual.get("logo_posicao") or "centro").strip().lower()
-    if logo_posicao not in {"esquerda", "centro", "direita"}:
-        logo_posicao = "centro"
+    try:
+        logo_offset_x = int(request.form.get("logo_offset_x") or config_atual.get("logo_offset_x") or 0)
+    except (TypeError, ValueError):
+        logo_offset_x = 0
+    logo_offset_x = max(-50, min(50, logo_offset_x))
+
+    try:
+        logo_offset_y = int(request.form.get("logo_offset_y") or config_atual.get("logo_offset_y") or 0)
+    except (TypeError, ValueError):
+        logo_offset_y = 0
+    logo_offset_y = max(-50, min(50, logo_offset_y))
 
     logo_formato = str(request.form.get("logo_formato") or config_atual.get("logo_formato") or "arredondado").strip().lower()
-    if logo_formato not in {"quadrado", "arredondado", "circular"}:
+    if logo_formato == "quadrado":
+        logo_formato = "sem_moldura"
+    if logo_formato not in {"sem_moldura", "arredondado", "circular"}:
         logo_formato = "arredondado"
 
     logo_fundo = str(request.form.get("logo_fundo") or config_atual.get("logo_fundo") or "#ffffff").strip().lower()
@@ -25470,8 +25513,9 @@ def montar_vitrine_formulario(config_atual: dict[str, Any] | None = None) -> dic
         "instagram": (request.form.get("instagram") or "").strip(),
         "slug": slug,
         "logo_path": logo_path,
-        "logo_tamanho": str(logo_tamanho),
-        "logo_posicao": logo_posicao,
+        "logo_zoom": str(logo_zoom),
+        "logo_offset_x": str(logo_offset_x),
+        "logo_offset_y": str(logo_offset_y),
         "logo_formato": logo_formato,
         "logo_fundo": logo_fundo,
         "logo_anterior": logo_anterior,
@@ -25500,8 +25544,9 @@ def buscar_vitrine_configuracao() -> dict[str, Any]:
                 instagram,
                 slug,
                 logo_path,
-                logo_tamanho,
-                logo_posicao,
+                logo_zoom,
+                logo_offset_x,
+                logo_offset_y,
                 logo_formato,
                 logo_fundo,
                 categoria,
@@ -25535,8 +25580,9 @@ def buscar_vitrine_configuracao() -> dict[str, Any]:
             "instagram": "",
             "slug": "",
             "logo_path": "",
-            "logo_tamanho": 100,
-            "logo_posicao": "centro",
+            "logo_zoom": 100,
+            "logo_offset_x": 0,
+            "logo_offset_y": 0,
             "logo_formato": "arredondado",
             "logo_fundo": "#ffffff",
             "categoria": "",
@@ -25584,8 +25630,9 @@ def salvar_vitrine_configuracao_db(dados: dict[str, str]) -> None:
                     instagram,
                     slug,
                     logo_path,
-                    logo_tamanho,
-                    logo_posicao,
+                    logo_zoom,
+                    logo_offset_x,
+                    logo_offset_y,
                     logo_formato,
                     logo_fundo,
                     categoria,
@@ -25596,7 +25643,7 @@ def salvar_vitrine_configuracao_db(dados: dict[str, str]) -> None:
                     template,
                     status,
                     atualizado_em
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     empresa_id,
@@ -25605,8 +25652,9 @@ def salvar_vitrine_configuracao_db(dados: dict[str, str]) -> None:
                     dados["instagram"],
                     dados["slug"],
                     dados["logo_path"],
-                    int(dados["logo_tamanho"]),
-                    dados["logo_posicao"],
+                    int(dados["logo_zoom"]),
+                    int(dados["logo_offset_x"]),
+                    int(dados["logo_offset_y"]),
                     dados["logo_formato"],
                     dados["logo_fundo"],
                     dados["categoria"],
@@ -25629,8 +25677,9 @@ def salvar_vitrine_configuracao_db(dados: dict[str, str]) -> None:
                     instagram = ?,
                     slug = ?,
                     logo_path = ?,
-                    logo_tamanho = ?,
-                    logo_posicao = ?,
+                    logo_zoom = ?,
+                    logo_offset_x = ?,
+                    logo_offset_y = ?,
                     logo_formato = ?,
                     logo_fundo = ?,
                     categoria = ?,
@@ -25649,8 +25698,9 @@ def salvar_vitrine_configuracao_db(dados: dict[str, str]) -> None:
                     dados["instagram"],
                     dados["slug"],
                     dados["logo_path"],
-                    int(dados["logo_tamanho"]),
-                    dados["logo_posicao"],
+                    int(dados["logo_zoom"]),
+                    int(dados["logo_offset_x"]),
+                    int(dados["logo_offset_y"]),
                     dados["logo_formato"],
                     dados["logo_fundo"],
                     dados["categoria"],
@@ -28175,21 +28225,30 @@ def renderizar_vitrine_publica_html(
     logo_url = f"/vitrine-upload/{html.escape(logo_path)}" if logo_path else ""
 
     try:
-        logo_tamanho = int(config_vitrine.get("logo_tamanho") or 100)
+        logo_zoom = int(config_vitrine.get("logo_zoom") or 100)
     except (TypeError, ValueError):
-        logo_tamanho = 100
-    logo_tamanho = max(60, min(140, logo_tamanho))
+        logo_zoom = 100
+    logo_zoom = max(60, min(300, logo_zoom))
 
-    logo_posicao = str(config_vitrine.get("logo_posicao") or "centro").strip().lower()
-    if logo_posicao not in {"esquerda", "centro", "direita"}:
-        logo_posicao = "centro"
-    logo_justify = {"esquerda": "start", "centro": "center", "direita": "end"}[logo_posicao]
-    logo_object_position = {"esquerda": "left center", "centro": "center center", "direita": "right center"}[logo_posicao]
+    try:
+        logo_offset_x = int(config_vitrine.get("logo_offset_x") or 0)
+    except (TypeError, ValueError):
+        logo_offset_x = 0
+    logo_offset_x = max(-50, min(50, logo_offset_x))
+
+    try:
+        logo_offset_y = int(config_vitrine.get("logo_offset_y") or 0)
+    except (TypeError, ValueError):
+        logo_offset_y = 0
+    logo_offset_y = max(-50, min(50, logo_offset_y))
 
     logo_formato = str(config_vitrine.get("logo_formato") or "arredondado").strip().lower()
-    if logo_formato not in {"quadrado", "arredondado", "circular"}:
+    if logo_formato == "quadrado":
+        logo_formato = "sem_moldura"
+    if logo_formato not in {"sem_moldura", "arredondado", "circular"}:
         logo_formato = "arredondado"
-    logo_raio = {"quadrado": "4px", "arredondado": "28px", "circular": "999px"}[logo_formato]
+    logo_raio = {"sem_moldura": "0px", "arredondado": "24px", "circular": "999px"}[logo_formato]
+    logo_borda = "transparent" if logo_formato == "sem_moldura" else "var(--border)"
 
     logo_fundo = str(config_vitrine.get("logo_fundo") or "#ffffff").strip().lower()
     if not re.fullmatch(r"#[0-9a-f]{6}", logo_fundo):
@@ -28519,11 +28578,12 @@ def renderizar_vitrine_publica_html(
     --text-soft:#667085;
     --border:#e3e7ee;
     --shadow:0 14px 38px rgba(15,23,42,.09);
-    --logo-scale:__LOGO_TAMANHO__%;
+    --logo-zoom:__LOGO_ZOOM_FACTOR__;
+    --logo-x:__LOGO_OFFSET_X__%;
+    --logo-y:__LOGO_OFFSET_Y__%;
     --logo-bg:__LOGO_FUNDO__;
     --logo-radius:__LOGO_RAIO__;
-    --logo-justify:__LOGO_JUSTIFY__;
-    --logo-object-position:__LOGO_OBJECT_POSITION__;
+    --logo-border:__LOGO_BORDA__;
 }
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
@@ -28534,8 +28594,8 @@ button,input,select,textarea{font:inherit}
 .site-header{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--category-soft) 92%,#fff 8%);border-bottom:1px solid color-mix(in srgb,var(--brand-primary) 12%,transparent);backdrop-filter:blur(14px)}
 .navbar-inner{width:min(1180px,calc(100% - 32px));min-height:68px;margin:auto;display:flex;align-items:center;gap:22px}
 .marca-nav{min-width:0;display:flex;align-items:center;gap:11px;text-decoration:none}
-.marca-logo{width:48px;height:48px;display:grid;place-items:center;overflow:hidden;border-radius:min(var(--logo-radius),14px);background:var(--logo-bg);border:1px solid var(--border);box-shadow:0 6px 18px rgba(15,23,42,.08);flex:0 0 auto}
-.marca-logo-img{width:min(var(--logo-scale),140%);height:min(var(--logo-scale),140%);object-fit:contain;object-position:var(--logo-object-position);display:block;padding:3px}
+.marca-logo{width:44px;height:44px;display:grid;place-items:center;overflow:hidden;border-radius:min(var(--logo-radius),13px);background:var(--logo-bg);border:1px solid var(--logo-border);box-shadow:0 5px 16px rgba(15,23,42,.07);flex:0 0 auto}
+.marca-logo-img{width:100%;height:100%;object-fit:contain;display:block;transform:translate(var(--logo-x),var(--logo-y)) scale(var(--logo-zoom));transform-origin:center;will-change:transform}
 .marca-iniciais{font-weight:1000;font-size:17px;color:var(--brand-action)}
 .marca-texto{min-width:0;display:grid;gap:2px}
 .marca-texto strong{font-size:18px;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -28547,9 +28607,9 @@ button,input,select,textarea{font:inherit}
 .nav-whatsapp{background:#16a34a;color:#fff}
 .nav-carrinho{border:1px solid var(--border);background:#fff;color:var(--brand-action)}
 .apresentacao{padding:46px 0 24px;background:linear-gradient(180deg,color-mix(in srgb,var(--brand-primary) 5%,var(--category-soft)),var(--category-soft))}
-.apresentacao-inner{width:min(1180px,calc(100% - 32px));margin:auto;display:grid;grid-template-columns:260px minmax(0,1fr);gap:42px;align-items:center}
-.apresentacao-logo{min-height:250px;display:grid;align-items:center;justify-items:var(--logo-justify);padding:24px;border-radius:var(--logo-radius);background:var(--logo-bg);border:1px solid color-mix(in srgb,var(--brand-primary) 14%,var(--border));box-shadow:var(--shadow);overflow:hidden}
-.apresentacao-logo-img{width:var(--logo-scale);height:var(--logo-scale);max-width:140%;max-height:210px;object-fit:contain;object-position:var(--logo-object-position);display:block}
+.apresentacao-inner{width:min(1180px,calc(100% - 32px));margin:auto;display:grid;grid-template-columns:220px minmax(0,1fr);gap:40px;align-items:center}
+.apresentacao-logo{width:220px;height:220px;display:grid;place-items:center;padding:0;border-radius:var(--logo-radius);background:var(--logo-bg);border:1px solid var(--logo-border);box-shadow:0 12px 32px rgba(15,23,42,.08);overflow:hidden}
+.apresentacao-logo-img{width:100%;height:100%;object-fit:contain;display:block;transform:translate(var(--logo-x),var(--logo-y)) scale(var(--logo-zoom));transform-origin:center;will-change:transform}
 .apresentacao-logo-iniciais{width:150px;height:150px;display:grid;place-items:center;border-radius:34px;background:var(--brand-action);color:var(--brand-action-text);font-size:52px;font-weight:1000}
 .apresentacao-copy{min-width:0}
 .apresentacao-kicker{margin:0 0 10px;color:var(--brand-action);font-size:12px;font-weight:1000;text-transform:uppercase;letter-spacing:.16em}
@@ -28655,7 +28715,7 @@ button,input,select,textarea{font:inherit}
     .nav-links{display:none}.apresentacao-inner{grid-template-columns:220px minmax(0,1fr);gap:28px}.apresentacao-logo{min-height:220px}.sobre-diferenciais{grid-template-columns:1fr}.conteudo.com-carrinho{grid-template-columns:1fr}.carrinho{position:static}.itens{grid-template-columns:repeat(2,minmax(0,1fr))}.passos-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(max-width:680px){
-    .navbar-inner,.apresentacao-inner,.sobre-diferenciais,.container,.footer-inner{width:min(100% - 22px,1180px)}.navbar-inner{min-height:62px;gap:9px}.marca-logo{width:43px;height:43px}.marca-texto strong{font-size:15px}.marca-texto small{display:none}.nav-whatsapp{margin-left:auto;width:42px;min-width:42px;padding:0;justify-content:center}.nav-whatsapp span:last-child{display:none}.nav-carrinho{font-size:0;width:42px;min-width:42px;padding:0;justify-content:center}.nav-carrinho span{font-size:16px}.apresentacao{padding-top:26px}.apresentacao-inner{grid-template-columns:1fr;gap:20px}.apresentacao-logo{min-height:190px;padding:18px}.apresentacao-logo-img{max-height:170px}.apresentacao-copy{text-align:center}.apresentacao h1{font-size:38px}.apresentacao-categoria{font-size:19px}.apresentacao-descricao{font-size:14px}.apresentacao-acoes{justify-content:center}.sobre-diferenciais{margin-top:18px}.diferenciais-grid{grid-template-columns:1fr}.diferencial-card+ .diferencial-card{border-left:0;border-top:1px solid var(--border)}.catalogo-cabecalho{align-items:flex-start;flex-direction:column}.barra{grid-template-columns:1fr;grid-template-areas:"busca" "abas" "categorias"}.tipo-abas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.tipo-aba{padding:0 10px}.itens{grid-template-columns:1fr}.produto-card .item-imagem{min-height:300px}.passos-grid{grid-template-columns:1fr}.footer-inner{justify-content:center;text-align:center}.footer-marca{justify-content:center}.footer-social{justify-content:center}.footer-credit{text-align:center}
+    .navbar-inner,.apresentacao-inner,.sobre-diferenciais,.container,.footer-inner{width:min(100% - 22px,1180px)}.navbar-inner{min-height:62px;gap:9px}.marca-logo{width:43px;height:43px}.marca-texto strong{font-size:15px}.marca-texto small{display:none}.nav-whatsapp{margin-left:auto;width:42px;min-width:42px;padding:0;justify-content:center}.nav-whatsapp span:last-child{display:none}.nav-carrinho{font-size:0;width:42px;min-width:42px;padding:0;justify-content:center}.nav-carrinho span{font-size:16px}.apresentacao{padding-top:26px}.apresentacao-inner{grid-template-columns:1fr;gap:20px}.apresentacao-logo{width:190px;height:190px;min-height:0;margin:auto;padding:0}.apresentacao-logo-img{max-height:none}.apresentacao-copy{text-align:center}.apresentacao h1{font-size:38px}.apresentacao-categoria{font-size:19px}.apresentacao-descricao{font-size:14px}.apresentacao-acoes{justify-content:center}.sobre-diferenciais{margin-top:18px}.diferenciais-grid{grid-template-columns:1fr}.diferencial-card+ .diferencial-card{border-left:0;border-top:1px solid var(--border)}.catalogo-cabecalho{align-items:flex-start;flex-direction:column}.barra{grid-template-columns:1fr;grid-template-areas:"busca" "abas" "categorias"}.tipo-abas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.tipo-aba{padding:0 10px}.itens{grid-template-columns:1fr}.produto-card .item-imagem{min-height:300px}.passos-grid{grid-template-columns:1fr}.footer-inner{justify-content:center;text-align:center}.footer-marca{justify-content:center}.footer-social{justify-content:center}.footer-credit{text-align:center}
 }
 </style>
 '''
@@ -28798,11 +28858,12 @@ document.addEventListener('DOMContentLoaded',()=>{const botao=document.querySele
 
     substituicoes = {
         "__COR_PRINCIPAL__": cor_principal,
-        "__LOGO_TAMANHO__": str(logo_tamanho),
+        "__LOGO_ZOOM_FACTOR__": f"{logo_zoom / 100:.3f}",
+        "__LOGO_OFFSET_X__": str(logo_offset_x),
+        "__LOGO_OFFSET_Y__": str(logo_offset_y),
         "__LOGO_FUNDO__": logo_fundo,
         "__LOGO_RAIO__": logo_raio,
-        "__LOGO_JUSTIFY__": logo_justify,
-        "__LOGO_OBJECT_POSITION__": logo_object_position,
+        "__LOGO_BORDA__": logo_borda,
         "__TITULO_SEO__": titulo_seo,
         "__DESCRICAO_SEO__": descricao_seo,
         "__ESTILO__": estilo,
