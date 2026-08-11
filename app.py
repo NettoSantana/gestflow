@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-11 06:21 (America/Bahia)
-# Motivo: Corrigir os parâmetros do template WhatsApp da Vitrine para enviar somente o resumo aprovado no quarto campo.
+# Último recode: 2026-08-11 06:29 (America/Bahia)
+# Motivo: Corrigir o número do registro enviado ao template WhatsApp da Vitrine, removendo o prefixo # do parâmetro {{2}}.
 
 from __future__ import annotations
 
@@ -27335,7 +27335,7 @@ def notificar_responsavel_vitrine_whatsapp(
     tipo_titulo = "Agendamento" if tipo_normalizado == "agendamento" else "Pedido"
     cliente = str(cliente_nome or "").strip() or "Cliente não informado"
     resumo_texto = str(resumo or "").strip() or "Consulte os detalhes na Central da Vitrine."
-    numero_registro = f"#{int(registro_id or 0)}"
+    numero_registro = str(int(registro_id or 0))
     template = str(regras.get("template_notificacao_whatsapp") or "").strip()
     link_registro = ""
     if tipo_normalizado == "pedido":
