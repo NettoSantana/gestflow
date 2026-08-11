@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-11 06:39 (America/Bahia)
-# Motivo: Corrigir o resumo do template WhatsApp da Vitrine para uma única linha sem caracteres proibidos pela Meta.
+# Último recode: 2026-08-11 06:48 (America/Bahia)
+# Motivo: Registrar no Railway a aceitação e os status de entrega das mensagens enviadas pela WhatsApp Cloud API.
 
 from __future__ import annotations
 
@@ -1617,6 +1617,11 @@ def enviar_payload_whatsapp(
             message_id = str(((resposta_json.get("messages") or [{}])[0] or {}).get("id") or "").strip()
             detalhe = f"Mensagem aceita pela Meta{f' ({message_id})' if message_id else ''}."
             _registrar_envio_whatsapp(destinatario=numero, tipo=tipo, texto=texto_log, payload_enviado=payload, resposta_api=resposta_json, sucesso=True)
+            app.logger.info(
+                "WhatsApp aceito pela Meta: tipo=%s | message_id=%s",
+                tipo,
+                message_id or "-",
+            )
             return True, detalhe, resposta_json
     except urllib.error.HTTPError as exc:
         bruto = exc.read().decode("utf-8", errors="replace")
@@ -2163,6 +2168,25 @@ def _registrar_eventos_whatsapp(payload: dict[str, Any], corpo_bruto: bytes) -> 
             )
             if cursor.rowcount == 1:
                 inseridos += 1
+                if str(evento.get("event_type") or "") == "message_status":
+                    status_whatsapp = str(evento.get("message_status") or "").strip() or "desconhecido"
+                    message_id_whatsapp = str(evento.get("message_id") or "").strip() or "-"
+                    erro_codigo_whatsapp = str(evento.get("error_code") or "").strip()
+                    erro_titulo_whatsapp = str(evento.get("error_title") or "").strip()
+                    erro_mensagem_whatsapp = str(evento.get("error_message") or "").strip()
+                    detalhes_erro_whatsapp = " | ".join(
+                        parte
+                        for parte in (erro_codigo_whatsapp, erro_titulo_whatsapp, erro_mensagem_whatsapp)
+                        if parte
+                    )
+                    mensagem_log_status = (
+                        f"WhatsApp status: {status_whatsapp} | message_id={message_id_whatsapp}"
+                        f" | erro={detalhes_erro_whatsapp or '-'}"
+                    )
+                    if status_whatsapp.lower() == "failed":
+                        app.logger.warning(mensagem_log_status)
+                    else:
+                        app.logger.info(mensagem_log_status)
             else:
                 duplicados += 1
 
