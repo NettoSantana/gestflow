@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-11 08:13 (America/Bahia)
-# Motivo: Correlacionar cada item do pedido da Vitrine ao produto exato da Vitrine e ao Produto do GestFlow quando houver origem vinculada.
+# Último recode: 2026-08-11 09:24 (America/Bahia)
+# Motivo: Permitir excluir definitivamente apenas pedidos novos da Vitrine, removendo seus itens e preservando pedidos em atendimento, concluídos, cancelados ou vinculados a venda.
 
 from __future__ import annotations
 
@@ -905,6 +905,14 @@ CONFIGURACOES_MODULOS_DEFINICOES = [
             _campo_configuracao_modulo("notificar_responsavel_whatsapp", "Notificar responsável por WhatsApp", "booleano", True, secao="Notificações"),
             _campo_configuracao_modulo("whatsapp_responsavel", "WhatsApp responsável pelas notificações", "texto", "", secao="Notificações", ajuda="Informe DDI, DDD e número. Exemplo: 5571999999999."),
             _campo_configuracao_modulo("template_notificacao_whatsapp", "Template aprovado da Meta", "texto", "", secao="Notificações", ajuda="Opcional. Use um template com 4 variáveis no corpo: tipo, número, cliente e resumo."),
+            _campo_configuracao_modulo(
+                "template_notificacao_whatsapp_botao_pedido",
+                "Template possui botão Abrir pedido",
+                "booleano",
+                False,
+                secao="Notificações",
+                ajuda="Ative somente quando o template aprovado da Meta tiver um botão URL dinâmico na posição 0. O GestFlow enviará o número do pedido como variável do botão.",
+            ),
             _campo_configuracao_modulo("texto_institucional", "Texto institucional", "texto_longo", "", secao="Conteúdo"),
             _campo_configuracao_modulo("politica_troca", "Política de troca", "texto_longo", "", secao="Políticas"),
             _campo_configuracao_modulo("politica_privacidade", "Política de privacidade", "texto_longo", "", secao="Políticas"),
@@ -27794,6 +27802,10 @@ def notificar_responsavel_vitrine_whatsapp(
     resumo_texto = re.sub(r"\s{2,}", " ", resumo_texto).strip()
     numero_registro = str(int(registro_id or 0))
     template = str(regras.get("template_notificacao_whatsapp") or "").strip()
+    template_botao_pedido = _configuracao_bool(
+        regras.get("template_notificacao_whatsapp_botao_pedido"),
+        False,
+    )
     link_registro = ""
     if tipo_normalizado == "pedido":
         try:
@@ -27820,6 +27832,17 @@ def notificar_responsavel_vitrine_whatsapp(
                     ],
                 }
             ]
+            if tipo_normalizado == "pedido" and template_botao_pedido:
+                componentes.append(
+                    {
+                        "type": "button",
+                        "sub_type": "url",
+                        "index": "0",
+                        "parameters": [
+                            {"type": "text", "text": numero_registro[:80]},
+                        ],
+                    }
+                )
             sucesso, detalhe, _ = enviar_whatsapp_template(
                 destinatario,
                 template,
@@ -28979,6 +29002,125 @@ def cancelar_pedido_vitrine(pedido_id: int) -> Response:
     return redirecionar_pedido_central_vitrine(
         pedido_id,
         mensagem=f"Pedido #{pedido_id} cancelado sem gerar venda.",
+    )
+
+
+@app.post("/vitrine/pedidos/<int:pedido_id>/excluir")
+def excluir_pedido_vitrine(pedido_id: int) -> Response:
+    pedido = buscar_pedido_vitrine_admin(pedido_id)
+    if pedido is None:
+        return redirecionar_pedido_central_vitrine(
+            pedido_id,
+            erro="Pedido não encontrado nesta empresa.",
+        )
+    if int(pedido.get("venda_id") or 0) > 0:
+        return redirecionar_pedido_central_vitrine(
+            pedido_id,
+            erro="O pedido já está vinculado a uma venda e não pode ser excluído.",
+        )
+    if pedido.get("status") != "novo":
+        return redirecionar_pedido_central_vitrine(
+            pedido_id,
+            erro="Somente pedidos novos podem ser excluídos.",
+        )
+
+    empresa_id = empresa_logada_id()
+    produtos_vitrine_afetados: dict[int, int] = {}
+
+    with conectar_db() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        pedido_atual = conn.execute(
+            """
+            SELECT status, venda_id
+            FROM vitrine_pedidos
+            WHERE id = ?
+              AND empresa_id = ?
+            LIMIT 1
+            """,
+            (pedido_id, empresa_id),
+        ).fetchone()
+        if (
+            pedido_atual is None
+            or str(pedido_atual["status"] or "") != "novo"
+            or int(pedido_atual["venda_id"] or 0) > 0
+        ):
+            conn.rollback()
+            return redirecionar_pedido_central_vitrine(
+                pedido_id,
+                erro="O pedido não está mais disponível para exclusão.",
+            )
+
+        itens_rows = conn.execute(
+            """
+            SELECT vitrine_produto_id
+            FROM vitrine_pedido_itens
+            WHERE pedido_id = ?
+              AND empresa_id = ?
+            """,
+            (pedido_id, empresa_id),
+        ).fetchall()
+        for item_row in itens_rows:
+            vitrine_produto_id = int(item_row["vitrine_produto_id"] or 0)
+            if vitrine_produto_id > 0:
+                produtos_vitrine_afetados[vitrine_produto_id] = (
+                    produtos_vitrine_afetados.get(vitrine_produto_id, 0) + 1
+                )
+
+        conn.execute(
+            "DELETE FROM vitrine_pedido_itens WHERE pedido_id = ? AND empresa_id = ?",
+            (pedido_id, empresa_id),
+        )
+        cursor = conn.execute(
+            """
+            DELETE FROM vitrine_pedidos
+            WHERE id = ?
+              AND empresa_id = ?
+              AND status = 'novo'
+              AND venda_id IS NULL
+            """,
+            (pedido_id, empresa_id),
+        )
+        if cursor.rowcount != 1:
+            conn.rollback()
+            return redirecionar_pedido_central_vitrine(
+                pedido_id,
+                erro="O pedido não está mais disponível para exclusão.",
+            )
+
+        for vitrine_produto_id, quantidade_registros in produtos_vitrine_afetados.items():
+            conn.execute(
+                """
+                UPDATE vitrine_produtos
+                SET pedidos = MAX(COALESCE(pedidos, 0) - ?, 0)
+                WHERE empresa_id = ?
+                  AND id = ?
+                """,
+                (quantidade_registros, empresa_id, vitrine_produto_id),
+            )
+        conn.execute(
+            """
+            UPDATE vitrine_configuracoes
+            SET pedidos_gerados = MAX(COALESCE(pedidos_gerados, 0) - 1, 0)
+            WHERE empresa_id = ?
+            """,
+            (empresa_id,),
+        )
+        conn.commit()
+
+    registrar_atividade_usuario(
+        "exclusao",
+        "vitrine",
+        f"Excluiu definitivamente o pedido novo da vitrine #{pedido_id}",
+        request.path,
+        registro_id=pedido_id,
+    )
+    return redirect(
+        url_for(
+            "vitrine",
+            aba="pedidos",
+            mensagem=f"Pedido #{pedido_id} excluído definitivamente.",
+            _anchor="central-vitrine",
+        )
     )
 
 
