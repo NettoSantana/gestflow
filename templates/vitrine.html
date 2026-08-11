@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vitrine.html
-Último recode: 2026-08-10 21:56 (America/Bahia)
-Motivo: Simplificar a gestão de produtos e serviços da Vitrine Online, com integração independente e status indisponível.
+Último recode: 2026-08-10 22:27 (America/Bahia)
+Motivo: Remover a seção de pré-visualização interna da Vitrine Online.
 #}
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -75,7 +75,6 @@ Motivo: Simplificar a gestão de produtos e serviços da Vitrine Online, com int
                 <p class="page-subtitle">Escolha item por item: produtos entram no carrinho e serviços recebem foto, preço, duração e botão de agendamento.</p>
             </div>
             <div class="page-actions">
-                <a class="btn btn-secondary" href="#previa-publica">Ver prévia</a>
                 <a class="btn btn-secondary" href="#produtos-vitrine">Publicar produto</a>
                 <a class="btn btn-primary" href="#servicos-vitrine">Publicar serviço</a>
             </div>
@@ -1073,67 +1072,6 @@ Motivo: Simplificar a gestão de produtos e serviços da Vitrine Online, com int
                     {% endif %}
                 </div>
             </article>
-        </section>
-
-        <section class="vitrine-card" id="previa-publica">
-            <div class="vitrine-card-header">
-                <div>
-                    <p class="card-kicker">Prévia</p>
-                    <h2>Como o cliente verá a loja</h2>
-                </div>
-                {% if link_publico %}
-                    <a class="status-pill" href="{{ link_publico }}" target="_blank" rel="noopener">Abrir vitrine pública</a>
-                {% else %}
-                    <span class="status-pill">Defina o slug para gerar link</span>
-                {% endif %}
-            </div>
-
-            <div class="preview-store identity-{{ tipo_identidade_visual }}" style="--vitrine-primary: {{ cor_preview_principal }}; --vitrine-secondary: {{ cor_preview_secundaria }};" data-vitrine-preview>
-                <div class="preview-hero">
-                    <div class="preview-logo" data-vitrine-preview-logo {% if tipo_identidade_visual != 'logo' %}hidden{% endif %}>
-                        {% if vitrine.get('logo_path') %}
-                            <img src="{{ url_for('servir_upload_vitrine_publico', caminho=vitrine.get('logo_path')) }}" alt="Logo da loja" data-vitrine-preview-logo-image>
-                        {% else %}
-                            <span data-vitrine-preview-logo-placeholder>{{ (vitrine.get('nome_loja') or 'GF')[:2]|upper }}</span>
-                        {% endif %}
-                    </div>
-                    <div>
-                        <h3 data-vitrine-preview-name>{{ vitrine.get('nome_loja') or 'Sua loja online' }}</h3>
-                        <p data-vitrine-preview-description>{{ vitrine.get('descricao_empresa') or 'Produtos para venda e serviços com agendamento online.' }}</p>
-                    </div>
-                </div>
-
-                <div class="preview-search">Buscar produto ou serviço...</div>
-
-                <div class="preview-products">
-                    {% for produto in produtos_vitrine[:3] %}
-                        <div class="preview-product-card">
-                            {% if produto.get('imagem_path') %}<img class="preview-product-img real-img" src="{{ url_for('servir_upload_vitrine_publico', caminho=produto.get('imagem_path')) }}" alt="{{ produto.get('nome') }}">{% else %}<div class="preview-product-img"></div>{% endif %}
-                            <small>Produto</small><strong>{{ produto.get('nome') }}</strong><span>R$ {{ produto.get('preco') or '0,00' }}</span>
-                            {% if produto.get('disponivel_compra') %}
-                                <button type="button">Adicionar</button>
-                            {% else %}
-                                <button type="button" disabled>Indisponível</button>
-                            {% endif %}
-                        </div>
-                    {% endfor %}
-                    {% for servico in servicos_vitrine[:3] %}
-                        <div class="preview-product-card preview-service-card">
-                            {% if servico.get('imagem_path') %}<img class="preview-product-img real-img" src="{{ url_for('servir_upload_vitrine_publico', caminho=servico.get('imagem_path')) }}" alt="{{ servico.get('nome') }}">{% else %}<div class="preview-product-img service-image-placeholder">Serviço</div>{% endif %}
-                            <small>Serviço • {{ 'Avaliação prévia' if servico.get('tipo_contratacao') == 'a_combinar' else servico.get('tempo_estimado') }}</small><strong>{{ servico.get('nome') }}</strong><span>{{ 'Valor a combinar' if servico.get('tipo_contratacao') == 'a_combinar' else ('R$ ' ~ (servico.get('preco') or '0,00')) }}</span>
-                            {% if servico.get('disponivel_agendamento') %}
-                                <button type="button">{{ 'Solicitar avaliação' if servico.get('tipo_contratacao') == 'a_combinar' else 'Agendar' }}</button>
-                            {% else %}
-                                <button type="button" disabled>Indisponível</button>
-                            {% endif %}
-                        </div>
-                    {% endfor %}
-                    {% if not produtos_vitrine and not servicos_vitrine %}
-                        <div class="preview-product-card"><div class="preview-product-img"></div><small>Produto</small><strong>Produto destaque</strong><span>R$ 0,00</span><button type="button">Adicionar</button></div>
-                        <div class="preview-product-card preview-service-card"><div class="preview-product-img service-image-placeholder">Serviço</div><small>Serviço • 1 hora</small><strong>Serviço destaque</strong><span>R$ 0,00</span><button type="button">Agendar</button></div>
-                    {% endif %}
-                </div>
-            </div>
         </section>
 
         <script>
