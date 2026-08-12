@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vitrine.html
-Último recode: 2026-08-11 11:12 (America/Bahia)
-Motivo: Reorganizar o formulário de produtos para dar largura total à galeria, eliminando a coluna vazia e ampliando a gestão visual das fotos sem alterar upload, principal ou exclusão.
+Último recode: 2026-08-12 15:50 (America/Bahia)
+Motivo: Trocar a ação de edição dos produtos por Expandir/Recolher, mantendo o editor fechado por padrão e preservando a abertura correlacionada pelos pedidos.
 #}
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -918,7 +918,7 @@ Motivo: Reorganizar o formulário de produtos para dar largura total à galeria,
                                 </div>
 
                                 <div class="catalog-quick-actions">
-                                    <button class="btn btn-secondary btn-small" type="button" onclick="alternarEditorVitrine(this)">✏ Editar</button>
+                                    <button class="btn btn-secondary btn-small" type="button" data-editor-fechado="Expandir" data-editor-aberto="Recolher" aria-expanded="false" onclick="alternarEditorVitrine(this)">Expandir</button>
 
                                     {% if produto.get('status') == 'publicado' %}
                                         <button class="btn btn-secondary btn-small" type="button" onclick="alterarStatusProdutoVitrine(this, 'indisponivel')">◉ Indisponível</button>
@@ -1274,13 +1274,21 @@ Motivo: Reorganizar o formulário de produtos para dar largura total à galeria,
                 }
             }
 
+            function atualizarBotaoEditorVitrine(botao, aberto) {
+                if (!botao) return;
+                const rotuloFechado = botao.dataset.editorFechado || "✏ Editar";
+                const rotuloAberto = botao.dataset.editorAberto || "✕ Fechar";
+                botao.textContent = aberto ? rotuloAberto : rotuloFechado;
+                botao.setAttribute("aria-expanded", aberto ? "true" : "false");
+            }
+
             function alternarEditorVitrine(botao) {
                 const card = botao.closest(".catalog-simple-card");
                 const editor = card ? card.querySelector("[data-vitrine-editor]") : null;
                 if (!editor) return;
 
                 editor.hidden = !editor.hidden;
-                botao.textContent = editor.hidden ? "✏ Editar" : "✕ Fechar";
+                atualizarBotaoEditorVitrine(botao, !editor.hidden);
             }
 
             function abrirProdutoCorrelacionadoVitrine(vitrineProdutoId) {
@@ -1299,8 +1307,8 @@ Motivo: Reorganizar o formulário de produtos para dar largura total à galeria,
                 const botaoEditar = card.querySelector('.catalog-quick-actions button[onclick*="alternarEditorVitrine"]');
                 if (editor && editor.hidden) {
                     editor.hidden = false;
-                    if (botaoEditar) botaoEditar.textContent = "✕ Fechar";
                 }
+                if (botaoEditar) atualizarBotaoEditorVitrine(botaoEditar, true);
 
                 window.history.replaceState({}, "", window.location.pathname + window.location.search + "#produto-vitrine-" + produtoId);
                 window.setTimeout(function () {
