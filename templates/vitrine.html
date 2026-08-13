@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vitrine.html
-Último recode: 2026-08-12 23:18 (America/Bahia)
-Motivo: Transformar a galeria de produtos em galeria de mídias, aceitando fotos e vídeos MP4 com exclusão e prévia no painel.
+Último recode: 2026-08-12 23:35 (America/Bahia)
+Motivo: Transformar a Vitrine em Central Operacional, removendo configurações permanentes e consolidando pedidos, agenda, catálogo e desempenho.
 #}
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -62,27 +62,29 @@ Motivo: Transformar a galeria de produtos em galeria de mídias, aceitando fotos
     } %}
 
     <main class="main-content focus-mode-main">
-        <header class="focus-mode-header">
-            <div class="focus-mode-heading">
-                <span class="focus-mode-eyebrow">Modo foco</span>
-                <strong>Vitrine Online</strong>
-                <small>Gerencie produtos e serviços sem distrações.</small>
-            </div>
-            <button type="button" class="focus-mode-exit" onclick="sairModoFocoVitrine()" title="Voltar ao painel">
-                <span>← Voltar ao painel</span>
-                <kbd>Esc</kbd>
-            </button>
-        </header>
 
-        <header class="page-header">
+        {% set total_alertas_vitrine = (central_vitrine.get('novos_pedidos') or 0) + (central_vitrine.get('agendamentos_pendentes') or 0) + (central_vitrine.get('solicitacoes_pendentes') or 0) %}
+        {% set total_entradas_vitrine = pedidos_vitrine|length + agendamentos_vitrine|length %}
+        {% set total_visitas_vitrine = vitrine.get('visitas') or 0 %}
+        {% set total_publicados_vitrine = produtos_publicados|length + servicos_publicados|length %}
+
+        <header class="vitrine-operational-header">
             <div>
-                <p class="page-kicker">Vitrine Online</p>
-                <h1>Monte sua vitrine para vender produtos e agendar serviços</h1>
-                <p class="page-subtitle">Escolha item por item: produtos entram no carrinho e serviços recebem foto, preço, duração e botão de agendamento.</p>
+                <div class="vitrine-operational-title-line">
+                    <span class="page-kicker">Central Operacional</span>
+                    <span class="status-pill {% if status_vitrine == 'rascunho' %}status-rascunho{% endif %}">
+                        {{ 'Publicada' if status_vitrine == 'publicado' else status_vitrine|replace('_', ' ')|title }}
+                    </span>
+                </div>
+                <h1>Vitrine Online</h1>
+                <p>Acompanhe pedidos, agendamentos, produtos e serviços sem misturar a operação com as configurações da loja.</p>
             </div>
-            <div class="page-actions">
-                <a class="btn btn-secondary" href="#produtos-vitrine">Publicar produto</a>
-                <a class="btn btn-primary" href="#servicos-vitrine">Publicar serviço</a>
+            <div class="vitrine-operational-actions">
+                <a class="btn btn-secondary" href="/">← Voltar ao painel</a>
+                {% if link_publico %}
+                    <a class="btn btn-secondary" href="{{ link_publico }}" target="_blank" rel="noopener">Ver vitrine</a>
+                {% endif %}
+                <a class="btn btn-primary" href="/configuracoes/modulo/vitrine?modulo=vitrine">Configurações</a>
             </div>
         </header>
 
@@ -94,322 +96,117 @@ Motivo: Transformar a galeria de produtos em galeria de mídias, aceitando fotos
             <div class="alert alert-error">{{ erro }}</div>
         {% endif %}
 
-        {% set total_alertas_vitrine = (central_vitrine.get('novos_pedidos') or 0) + (central_vitrine.get('agendamentos_pendentes') or 0) + (central_vitrine.get('solicitacoes_pendentes') or 0) %}
         {% if total_alertas_vitrine %}
-            <button class="vitrine-alert-strip" type="button" data-vitrine-tab="visao-geral">
+            <div class="vitrine-operational-alert">
                 <span class="vitrine-alert-dot" aria-hidden="true"></span>
-                <span>
+                <div>
                     <strong>{{ total_alertas_vitrine }} entrada(s) aguardando atenção</strong>
                     <small>
                         {{ central_vitrine.get('novos_pedidos') or 0 }} pedido(s),
                         {{ central_vitrine.get('agendamentos_pendentes') or 0 }} agendamento(s) e
                         {{ central_vitrine.get('solicitacoes_pendentes') or 0 }} solicitação(ões).
                     </small>
-                </span>
-                <span class="vitrine-alert-action">Abrir central</span>
-            </button>
+                </div>
+            </div>
         {% endif %}
 
-        <section class="vitrine-integration-summary">
-            <div class="vitrine-integration-item">
+        <section class="vitrine-operational-metrics" aria-label="Resumo operacional da Vitrine">
+            <article>
+                <span>Visualizações</span>
+                <strong>{{ total_visitas_vitrine }}</strong>
+            </article>
+            <button type="button" data-vitrine-tab="pedidos">
+                <span>Pedidos</span>
+                <strong>{{ pedidos_vitrine|length }}</strong>
+                {% if central_vitrine.get('novos_pedidos') %}<small>{{ central_vitrine.get('novos_pedidos') }} novo(s)</small>{% endif %}
+            </button>
+            <button type="button" data-vitrine-tab="agendamentos">
+                <span>Agendamentos</span>
+                <strong>{{ agendamentos_vitrine|length }}</strong>
+                {% if central_vitrine.get('agendamentos_pendentes') %}<small>{{ central_vitrine.get('agendamentos_pendentes') }} pendente(s)</small>{% endif %}
+            </button>
+            <a href="#produtos-vitrine">
                 <span>Produtos</span>
-                <strong>{{ 'Integrados ao GestFlow' if integrar_produtos_vitrine else 'Independentes' }}</strong>
-                <small>
-                    {{ 'Usam cadastro, estoque e vendas do GestFlow.' if integrar_produtos_vitrine else 'Funcionam só na Vitrine e não geram venda/estoque no GestFlow.' }}
-                </small>
-            </div>
-            <div class="vitrine-integration-item">
+                <strong>{{ produtos_publicados|length }}</strong>
+            </a>
+            <a href="#servicos-vitrine">
                 <span>Serviços</span>
-                <strong>{{ 'Integrados ao GestFlow' if integrar_servicos_vitrine else 'Independentes' }}</strong>
-                <small>
-                    {{ 'Usam o cadastro normal e podem gerar venda.' if integrar_servicos_vitrine else 'Mantêm os dados da Vitrine e o atendimento não gera venda.' }}
-                </small>
-            </div>
-            <a class="btn btn-secondary btn-small" href="/configuracoes/modulo/vitrine?modulo=vitrine">Alterar integração</a>
+                <strong>{{ servicos_publicados|length }}</strong>
+            </a>
         </section>
 
-        <section class="vitrine-grid vitrine-grid-destaque">
-            <article class="vitrine-card vitrine-card-principal">
+        <section class="vitrine-operational-recent-grid">
+            <article class="vitrine-card vitrine-operational-recent">
                 <div class="vitrine-card-header">
                     <div>
-                        <p class="card-kicker">Configuração rápida</p>
-                        <h2>Dados da vitrine</h2>
+                        <p class="card-kicker">Operação</p>
+                        <h2>Pedidos recentes</h2>
                     </div>
-                    <span class="status-pill {% if status_vitrine == 'rascunho' %}status-rascunho{% endif %}">
-                        {{ status_vitrine|replace('_', ' ')|title }}
-                    </span>
+                    <button class="btn btn-secondary btn-small" type="button" data-vitrine-tab="pedidos">Ver todos</button>
                 </div>
-
-                <form class="vitrine-form" method="post" action="{{ url_for('vitrine') }}" enctype="multipart/form-data">
-                    <div class="form-grid-2">
-                        <label>
-                            Nome da loja
-                            <input type="text" name="nome_loja" value="{{ vitrine.get('nome_loja') or '' }}" placeholder="Ex.: Ale Vieira Fragrâncias">
-                        </label>
-                        <label>
-                            WhatsApp para pedidos
-                            <input type="text" name="whatsapp" value="{{ vitrine.get('whatsapp') or '' }}" placeholder="Ex.: 71999999999">
-                        </label>
-                    </div>
-
-                    <div class="form-grid-2">
-                        <label>
-                            Instagram
-                            <input type="text" name="instagram" value="{{ vitrine.get('instagram') or '' }}" placeholder="Ex.: @minhaloja">
-                        </label>
-                        <label>
-                            Link público desejado
-                            <input type="text" name="slug" value="{{ vitrine.get('slug') or '' }}" placeholder="Ex.: ale-vieira-fragrancias">
-                        </label>
-                    </div>
-
-                    <label class="vitrine-company-description">
-                        Descrição da empresa
-                        <textarea
-                            name="descricao_empresa"
-                            rows="4"
-                            maxlength="600"
-                            placeholder="Ex.: Empresa especializada em manutenção elétrica, mecânica e automação industrial, com atendimento ágil e foco em segurança."
-                            data-vitrine-company-description
-                        >{{ vitrine.get('descricao_empresa') or '' }}</textarea>
-                        <small>Este texto aparecerá em destaque na página pública. Limite de 600 caracteres.</small>
-                    </label>
-
-                    <section class="vitrine-identity-config" data-vitrine-identity>
-                        <div class="vitrine-identity-heading">
-                            <div>
-                                <span>Identidade visual da vitrine</span>
-                                <strong>Escolha logo ou cores personalizadas</strong>
-                                <small>As duas opções são exclusivas. A vitrine aplicará somente o modo selecionado.</small>
-                            </div>
+                <div class="vitrine-operational-list">
+                    {% for pedido in pedidos_vitrine[:5] %}
+                        {% set status_pedido = pedido.get('status') or 'novo' %}
+                        <button type="button" data-vitrine-tab="pedidos">
+                            <span>
+                                <strong>#{{ pedido.get('id') }} · {{ pedido.get('cliente_nome') or 'Cliente não informado' }}</strong>
+                                <small>{{ pedido.get('criado_em_exibicao') }}</small>
+                            </span>
+                            <b>{{ status_pedido_rotulos.get(status_pedido, status_pedido|replace('_', ' ')|title) }} · R$ {{ pedido.get('total') or '0,00' }}</b>
+                        </button>
+                    {% else %}
+                        <div class="vitrine-operational-empty">
+                            <strong>Nenhum pedido pendente</strong>
+                            <span>Os próximos pedidos aparecerão aqui.</span>
                         </div>
-
-                        <div class="vitrine-identity-options" role="radiogroup" aria-label="Identidade visual da vitrine">
-                            <label class="vitrine-identity-option {% if tipo_identidade_visual == 'logo' %}is-active{% endif %}" data-identity-option="logo">
-                                <input type="radio" name="tipo_identidade_visual" value="logo" {% if tipo_identidade_visual == 'logo' %}checked{% endif %}>
-                                <span class="vitrine-identity-icon" aria-hidden="true">▣</span>
-                                <span>
-                                    <strong>Usar logo da loja</strong>
-                                    <small>A imagem será o destaque e o sistema usará uma base visual neutra.</small>
-                                </span>
-                            </label>
-
-                            <label class="vitrine-identity-option {% if tipo_identidade_visual == 'cores' %}is-active{% endif %}" data-identity-option="cores">
-                                <input type="radio" name="tipo_identidade_visual" value="cores" {% if tipo_identidade_visual == 'cores' %}checked{% endif %}>
-                                <span class="vitrine-identity-icon" aria-hidden="true">◐</span>
-                                <span>
-                                    <strong>Usar cores personalizadas</strong>
-                                    <small>O nome da loja será o destaque, sem exibir a logo na vitrine pública.</small>
-                                </span>
-                            </label>
-                        </div>
-
-                        <div class="vitrine-identity-panel" data-identity-panel="logo" {% if tipo_identidade_visual != 'logo' %}hidden{% endif %}>
-                            <div class="vitrine-logo-upload-card" data-vitrine-logo-current>
-                                {% if vitrine.get('logo_path') %}
-                                    <img src="{{ url_for('servir_upload_vitrine_publico', caminho=vitrine.get('logo_path')) }}" alt="Logo usada na vitrine" data-vitrine-logo-image>
-                                    <span><strong>Logo usada na vitrine</strong><small>A imagem será ampliada e incorporada ao cabeçalho da página pública.</small></span>
-                                {% else %}
-                                    <span class="vitrine-logo-placeholder" data-vitrine-logo-placeholder>GF</span>
-                                    <span><strong>Adicione a logo da empresa</strong><small>Prefira PNG com fundo transparente ou imagem em alta resolução.</small></span>
-                                {% endif %}
-                            </div>
-                            <label class="vitrine-logo-file-action">
-                                <span>{{ 'Trocar logo' if vitrine.get('logo_path') else 'Escolher logo' }}</span>
-                                <input type="file" name="logo_loja" accept="image/*" data-vitrine-logo-input>
-                            </label>
-                            {% if vitrine.get('logo_path') %}
-                                <label class="inline-check vitrine-remove-image-check">
-                                    <input type="checkbox" name="remover_logo" value="sim">
-                                    Remover logo ao salvar
-                                </label>
-                            {% endif %}
-
-                            <div class="vitrine-logo-editor">
-                                <div
-                                    class="vitrine-logo-live-preview"
-                                    data-vitrine-logo-preview
-                                    data-format="{{ logo_formato }}"
-                                    style="--logo-preview-zoom:{{ (logo_zoom|int) / 100 }};--logo-preview-x:{{ logo_offset_x }}%;--logo-preview-y:{{ logo_offset_y }}%;--logo-preview-bg:{{ logo_fundo }};"
-                                >
-                                    <div class="vitrine-logo-preview-heading">
-                                        <span>Prévia da identidade</span>
-                                        <small>Arraste a logo dentro da moldura para reposicionar.</small>
-                                    </div>
-                                    <div class="vitrine-logo-preview-stage">
-                                        <div class="vitrine-logo-preview-frame" data-vitrine-logo-drag-area title="Arraste para reposicionar a logo">
-                                            {% if vitrine.get('logo_path') %}
-                                                <img src="{{ url_for('servir_upload_vitrine_publico', caminho=vitrine.get('logo_path')) }}" alt="Prévia da logo" data-vitrine-preview-logo-image draggable="false">
-                                            {% else %}
-                                                <span class="vitrine-logo-preview-placeholder" data-vitrine-preview-logo-placeholder>GF</span>
-                                            {% endif %}
-                                        </div>
-                                        <div class="vitrine-logo-preview-copy">
-                                            <span>Como ficará no destaque da Vitrine</span>
-                                            <strong data-vitrine-preview-name>{{ vitrine.get('nome_loja') or 'Sua loja online' }}</strong>
-                                            <small data-vitrine-preview-description>{{ vitrine.get('descricao_empresa') or 'Produtos para venda e serviços com agendamento online.' }}</small>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="vitrine-logo-controls">
-                                    <label class="vitrine-logo-control">
-                                        <span>Zoom da imagem <strong data-logo-zoom-value>{{ logo_zoom }}%</strong></span>
-                                        <input type="range" name="logo_zoom" min="60" max="300" step="5" value="{{ logo_zoom }}" data-vitrine-logo-zoom>
-                                    </label>
-                                    <label class="vitrine-logo-control">
-                                        <span>Posição horizontal <strong data-logo-x-value>{{ logo_offset_x }}</strong></span>
-                                        <input type="range" name="logo_offset_x" min="-50" max="50" step="1" value="{{ logo_offset_x }}" data-vitrine-logo-x>
-                                    </label>
-                                    <label class="vitrine-logo-control">
-                                        <span>Posição vertical <strong data-logo-y-value>{{ logo_offset_y }}</strong></span>
-                                        <input type="range" name="logo_offset_y" min="-50" max="50" step="1" value="{{ logo_offset_y }}" data-vitrine-logo-y>
-                                    </label>
-                                    <div class="vitrine-logo-options-row">
-                                        <label class="vitrine-logo-control">
-                                            <span>Moldura</span>
-                                            <select name="logo_formato" data-vitrine-logo-format>
-                                                <option value="sem_moldura" {% if logo_formato == 'sem_moldura' %}selected{% endif %}>Sem moldura</option>
-                                                <option value="arredondado" {% if logo_formato == 'arredondado' %}selected{% endif %}>Arredondada</option>
-                                                <option value="circular" {% if logo_formato == 'circular' %}selected{% endif %}>Circular</option>
-                                            </select>
-                                        </label>
-                                        <label class="vitrine-logo-control vitrine-logo-bg-control">
-                                            <span>Fundo</span>
-                                            <input type="color" name="logo_fundo" value="{{ logo_fundo }}" data-vitrine-logo-background>
-                                        </label>
-                                    </div>
-                                    <div class="vitrine-logo-editor-actions">
-                                        <button type="button" class="btn btn-secondary btn-small" data-vitrine-logo-reset>Restaurar padrão</button>
-                                        <small>O mesmo recorte será usado no cabeçalho e no destaque da página pública.</small>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="vitrine-identity-panel vitrine-colors-panel" data-identity-panel="cores" {% if tipo_identidade_visual != 'cores' %}hidden{% endif %}>
-                            <label>
-                                Cor principal
-                                <input type="color" name="cor_principal" value="{{ cor_principal }}" data-vitrine-primary-color>
-                            </label>
-                            <label>
-                                Cor secundária
-                                <input type="color" name="cor_secundaria" value="{{ cor_secundaria }}" data-vitrine-secondary-color>
-                            </label>
-                        </div>
-                    </section>
-
-                    <div class="form-grid-2 vitrine-category-grid">
-                        <label>
-                            Categoria principal
-                            <select name="categoria">
-                                <option value="">Selecionar categoria</option>
-                                <option value="perfumaria" {% if vitrine.get('categoria') == 'perfumaria' %}selected{% endif %}>Perfumaria e cosméticos</option>
-                                <option value="moda" {% if vitrine.get('categoria') == 'moda' %}selected{% endif %}>Moda e roupas</option>
-                                <option value="mercado" {% if vitrine.get('categoria') == 'mercado' %}selected{% endif %}>Mercado e variedades</option>
-                                <option value="servicos" {% if vitrine.get('categoria') == 'servicos' %}selected{% endif %}>Serviços</option>
-                                <option value="pecas" {% if vitrine.get('categoria') == 'pecas' %}selected{% endif %}>Peças e oficina</option>
-                            </select>
-                        </label>
-                    </div>
-
-                    <section class="vitrine-catalog-config">
-                        <div class="vitrine-catalog-config-heading">
-                            <div>
-                                <span>Personalização do catálogo</span>
-                                <strong>Formato dos cards</strong>
-                                <small>As fotos sempre serão exibidas inteiras, sem recorte.</small>
-                            </div>
-                        </div>
-                        <div class="vitrine-catalog-config-grid">
-                            <label>
-                                Formato dos produtos
-                                <select name="catalogo_formato">
-                                    <option value="vertical" {% if catalogo_formato == 'vertical' %}selected{% endif %}>Vertical</option>
-                                    <option value="quadrado" {% if catalogo_formato == 'quadrado' %}selected{% endif %}>Quadrado</option>
-                                    <option value="horizontal" {% if catalogo_formato == 'horizontal' %}selected{% endif %}>Horizontal</option>
-                                </select>
-                                <small>O formato muda o card, mas não corta a foto original.</small>
-                            </label>
-                        </div>
-                    </section>
-
-                    <div class="form-actions">
-                        <button class="btn btn-primary" type="submit" name="status" value="publicado">Salvar e publicar</button>
-                        <button class="btn btn-secondary" type="submit" name="status" value="rascunho">Salvar rascunho</button>
-                    </div>
-                </form>
-
-                {% if link_publico %}
-                    <div class="public-link-box">
-                        <span>Link público da vitrine</span>
-                        <a href="{{ link_publico }}" target="_blank" rel="noopener">{{ link_publico }}</a>
-                    </div>
-                {% endif %}
+                    {% endfor %}
+                </div>
             </article>
 
-            <aside class="vitrine-card vitrine-resumo-card">
-                <p class="card-kicker">Desempenho</p>
-                <h2>Resumo da vitrine</h2>
-                <div class="metric-list">
-                    <button class="metric-item" type="button" data-vitrine-tab="visualizacoes">
-                        <span>Visitas</span>
-                        <strong>{{ vitrine.get('visitas') or 0 }}</strong>
-                    </button>
-                    <button class="metric-item" type="button" data-vitrine-tab="visualizacoes">
-                        <span>Produtos vistos</span>
-                        <strong>{{ vitrine.get('produtos_vistos') or 0 }}</strong>
-                    </button>
-                    <button class="metric-item" type="button" data-vitrine-tab="visualizacoes">
-                        <span>Serviços vistos</span>
-                        <strong>{{ vitrine.get('servicos_vistos') or 0 }}</strong>
-                    </button>
-                    <button class="metric-item" type="button" data-vitrine-tab="carrinhos">
-                        <span>Itens no carrinho</span>
-                        <strong>{{ vitrine.get('itens_carrinho') or 0 }}</strong>
-                    </button>
-                    <button class="metric-item" type="button" data-vitrine-tab="pedidos">
-                        <span>Pedidos gerados</span>
-                        <strong>{{ vitrine.get('pedidos_gerados') or 0 }}</strong>
-                    </button>
-                    <button class="metric-item" type="button" data-vitrine-tab="agendamentos">
-                        <span>Agendamentos da vitrine</span>
-                        <strong>{{ vitrine.get('agendamentos_gerados') or 0 }}</strong>
-                    </button>
-                    <button class="metric-item" type="button" data-vitrine-tab="publicados">
-                        <span>Produtos publicados</span>
-                        <strong>{{ produtos_publicados|length }}</strong>
-                    </button>
-                    <button class="metric-item" type="button" data-vitrine-tab="publicados">
-                        <span>Serviços publicados</span>
-                        <strong>{{ servicos_publicados|length }}</strong>
-                    </button>
-                    <button class="metric-item metric-item-total" type="button" data-vitrine-tab="publicados">
-                        <span>Total publicado</span>
-                        <strong>{{ produtos_publicados|length + servicos_publicados|length }}</strong>
-                    </button>
+            <article class="vitrine-card vitrine-operational-recent">
+                <div class="vitrine-card-header">
+                    <div>
+                        <p class="card-kicker">Agenda</p>
+                        <h2>Próximos agendamentos</h2>
+                    </div>
+                    <button class="btn btn-secondary btn-small" type="button" data-vitrine-tab="agendamentos">Ver todos</button>
                 </div>
-                <p class="hint-text">Clique em qualquer indicador para abrir os registros correspondentes.</p>
-            </aside>
+                <div class="vitrine-operational-list">
+                    {% for agendamento in agendamentos_vitrine[:5] %}
+                        <button type="button" data-vitrine-tab="agendamentos">
+                            <span>
+                                <strong>#{{ agendamento.get('id') }} · {{ agendamento.get('cliente_nome') or 'Cliente não informado' }}</strong>
+                                <small>{{ agendamento.get('servico_nome') or 'Serviço não informado' }}</small>
+                            </span>
+                            <b>{{ agendamento.get('data_exibicao') }} {{ agendamento.get('hora_inicio') or '' }}</b>
+                        </button>
+                    {% else %}
+                        <div class="vitrine-operational-empty">
+                            <strong>Nenhum agendamento</strong>
+                            <span>Os próximos horários aparecerão aqui.</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            </article>
         </section>
 
         <section
-            class="vitrine-card vitrine-central"
+            class="vitrine-card vitrine-central vitrine-operational-detail"
             id="central-vitrine"
             data-vitrine-central
             data-aba-inicial="{{ aba_vitrine }}"
+            {% if aba_vitrine == 'visao-geral' %}hidden{% endif %}
         >
             <div class="vitrine-card-header">
                 <div>
-                    <p class="card-kicker">Acompanhamento</p>
-                    <h2>Central da vitrine</h2>
-                    <p class="hint-text">Pedidos são gravados antes da abertura do WhatsApp. Agendamentos e solicitações aparecem assim que forem enviados.</p>
+                    <p class="card-kicker">Detalhamento</p>
+                    <h2>Registros da Vitrine</h2>
+                    <p class="hint-text">Abra somente quando precisar analisar o histórico completo.</p>
                 </div>
-                <span class="status-pill">{{ pedidos_vitrine|length + agendamentos_vitrine|length + solicitacoes_vitrine|length }} registro(s)</span>
+                <button type="button" class="btn btn-secondary btn-small" data-vitrine-close>Recolher detalhes</button>
             </div>
 
-            <div class="vitrine-central-tabs" role="tablist" aria-label="Central da vitrine">
-                <button type="button" data-vitrine-tab="visao-geral">Visão geral</button>
+            <div class="vitrine-central-tabs" role="tablist" aria-label="Registros da Vitrine">
                 <button type="button" data-vitrine-tab="pedidos">
                     Pedidos
                     {% if central_vitrine.get('novos_pedidos') %}<span>{{ central_vitrine.get('novos_pedidos') }}</span>{% endif %}
@@ -422,61 +219,7 @@ Motivo: Transformar a galeria de produtos em galeria de mídias, aceitando fotos
                 </button>
                 <button type="button" data-vitrine-tab="carrinhos">Carrinhos</button>
                 <button type="button" data-vitrine-tab="visualizacoes">Visualizações</button>
-                <button type="button" data-vitrine-tab="publicados">Itens publicados</button>
-            </div>
-
-            <div class="vitrine-central-panel" data-vitrine-panel="visao-geral">
-                <div class="vitrine-overview-grid">
-                    <button type="button" data-vitrine-tab="pedidos">
-                        <span>Pedidos recebidos</span>
-                        <strong>{{ pedidos_vitrine|length }}</strong>
-                        <small>
-                            {{ central_vitrine.get('novos_pedidos') or 0 }} novo(s) ·
-                            {{ central_vitrine.get('pedidos_em_atendimento') or 0 }} em atendimento
-                        </small>
-                    </button>
-                    <button type="button" data-vitrine-tab="agendamentos">
-                        <span>Agenda e avaliações</span>
-                        <strong>{{ agendamentos_vitrine|length + solicitacoes_vitrine|length }}</strong>
-                        <small>{{ (central_vitrine.get('agendamentos_pendentes') or 0) + (central_vitrine.get('solicitacoes_pendentes') or 0) }} pendente(s)</small>
-                    </button>
-                    <button type="button" data-vitrine-tab="publicados">
-                        <span>Itens publicados</span>
-                        <strong>{{ produtos_publicados|length + servicos_publicados|length }}</strong>
-                        <small>{{ produtos_publicados|length }} produto(s) e {{ servicos_publicados|length }} serviço(s)</small>
-                    </button>
-                    <button type="button" data-vitrine-tab="visualizacoes">
-                        <span>Eventos recentes</span>
-                        <strong>{{ central_vitrine.get('eventos')|length if central_vitrine.get('eventos') else 0 }}</strong>
-                        <small>Acessos, visualizações e carrinhos</small>
-                    </button>
-                </div>
-
-                <div class="vitrine-central-columns">
-                    <div>
-                        <h3>Últimos pedidos</h3>
-                        {% for pedido in pedidos_vitrine[:5] %}
-                            {% set status_pedido = pedido.get('status') or 'novo' %}
-                            <button class="vitrine-compact-row" type="button" data-vitrine-tab="pedidos">
-                                <span><strong>#{{ pedido.get('id') }} · {{ pedido.get('cliente_nome') or 'Cliente não informado' }}</strong><small>{{ pedido.get('criado_em_exibicao') }}</small></span>
-                                <b>{{ status_pedido_rotulos.get(status_pedido, status_pedido|replace('_', ' ')|title) }} · R$ {{ pedido.get('total') or '0,00' }}</b>
-                            </button>
-                        {% else %}
-                            <p class="vitrine-empty-message">Nenhum pedido recebido ainda.</p>
-                        {% endfor %}
-                    </div>
-                    <div>
-                        <h3>Próximos agendamentos</h3>
-                        {% for agendamento in agendamentos_vitrine[:5] %}
-                            <button class="vitrine-compact-row" type="button" data-vitrine-tab="agendamentos">
-                                <span><strong>#{{ agendamento.get('id') }} · {{ agendamento.get('cliente_nome') or 'Cliente não informado' }}</strong><small>{{ agendamento.get('servico_nome') or 'Serviço não informado' }}</small></span>
-                                <b>{{ agendamento.get('data_exibicao') }} {{ agendamento.get('hora_inicio') or '' }}</b>
-                            </button>
-                        {% else %}
-                            <p class="vitrine-empty-message">Nenhum agendamento recebido ainda.</p>
-                        {% endfor %}
-                    </div>
-                </div>
+                <button type="button" data-vitrine-tab="publicados">Publicados</button>
             </div>
 
             <div class="vitrine-central-panel" data-vitrine-panel="pedidos" hidden>
@@ -593,6 +336,7 @@ Motivo: Transformar a galeria de produtos em galeria de mídias, aceitando fotos
                     <span>Escolha outro filtro para visualizar os demais pedidos.</span>
                 </div>
             </div>
+
 
             <div class="vitrine-central-panel" data-vitrine-panel="agendamentos" hidden>
                 <div class="vitrine-panel-heading">
@@ -745,6 +489,7 @@ Motivo: Transformar a galeria de produtos em galeria de mídias, aceitando fotos
                 </div>
             </div>
 
+
             <div class="vitrine-central-panel" data-vitrine-panel="carrinhos" hidden>
                 <div class="vitrine-panel-heading">
                     <div><h3>Itens adicionados ao carrinho</h3><p>Histórico recente de intenção de compra.</p></div>
@@ -758,6 +503,7 @@ Motivo: Transformar a galeria de produtos em galeria de mídias, aceitando fotos
                     {% endfor %}
                 </div>
             </div>
+
 
             <div class="vitrine-central-panel" data-vitrine-panel="visualizacoes" hidden>
                 <div class="vitrine-central-columns">
@@ -783,6 +529,7 @@ Motivo: Transformar a galeria de produtos em galeria de mídias, aceitando fotos
                     </div>
                 </div>
             </div>
+
 
             <div class="vitrine-central-panel" data-vitrine-panel="publicados" hidden>
                 <div class="vitrine-published-summary">
@@ -813,10 +560,10 @@ Motivo: Transformar a galeria de produtos em galeria de mídias, aceitando fotos
                     </div>
                 </div>
             </div>
+
         </section>
 
-
-        <section class="vitrine-grid" id="produtos-vitrine">
+        <section class="vitrine-operational-section" id="produtos-vitrine">
             <article class="vitrine-card">
                 <div class="vitrine-card-header">
                     <div>
@@ -827,7 +574,7 @@ Motivo: Transformar a galeria de produtos em galeria de mídias, aceitando fotos
                         </p>
                     </div>
                     {% if integrar_produtos_vitrine %}
-                        <a class="btn btn-primary" href="{{ url_for('produtos') }}">Cadastrar produto</a>
+                        <a class="btn btn-primary" href="{{ url_for('produtos') }}">+ Adicionar produto</a>
                     {% else %}
                         <button class="btn btn-primary" type="button" onclick="alternarNovoProdutoVitrine()">+ Adicionar produto</button>
                     {% endif %}
@@ -1056,45 +803,16 @@ Motivo: Transformar a galeria de produtos em galeria de mídias, aceitando fotos
                         <h3>Nenhum produto na Vitrine</h3>
                         {% if integrar_produtos_vitrine %}
                             <p>Cadastre produtos no GestFlow e publique os que desejar.</p>
-                            <a class="btn btn-primary" href="{{ url_for('produtos') }}">Cadastrar produto</a>
+                            <a class="btn btn-primary" href="{{ url_for('produtos') }}">+ Adicionar produto</a>
                         {% else %}
                             <p>Não existem produtos publicados para manter no modo independente.</p>
                         {% endif %}
                     </div>
                 {% endif %}
             </article>
-
-            <article class="vitrine-card">
-                <div class="vitrine-card-header">
-                    <div>
-                        <p class="card-kicker">Acessos</p>
-                        <h2>Itens mais acessados</h2>
-                    </div>
-                </div>
-
-                <div class="ranking-list">
-                    <div class="ranking-row muted">
-                        <span>Produto</span>
-                        <strong>Acessos</strong>
-                    </div>
-                    {% if ranking_vitrine %}
-                        {% for item in ranking_vitrine %}
-                            <div class="ranking-row">
-                                <span>{{ item.get('nome') }}</span>
-                                <strong>{{ item.get('acessos') or 0 }}</strong>
-                            </div>
-                        {% endfor %}
-                    {% else %}
-                        <div class="ranking-row">
-                            <span>Aguardando acessos reais</span>
-                            <strong>0</strong>
-                        </div>
-                    {% endif %}
-                </div>
-            </article>
         </section>
 
-        <section class="vitrine-grid" id="servicos-vitrine">
+        <section class="vitrine-operational-section" id="servicos-vitrine">
             <article class="vitrine-card">
                 <div class="vitrine-card-header">
                     <div>
@@ -1105,7 +823,7 @@ Motivo: Transformar a galeria de produtos em galeria de mídias, aceitando fotos
                         </p>
                     </div>
                     {% if integrar_servicos_vitrine %}
-                        <a class="btn btn-primary" href="{{ url_for('servicos') }}">Cadastrar serviço</a>
+                        <a class="btn btn-primary" href="{{ url_for('servicos') }}">+ Adicionar serviço</a>
                     {% endif %}
                 </div>
 
@@ -1139,7 +857,7 @@ Motivo: Transformar a galeria de produtos em galeria de mídias, aceitando fotos
                                 </div>
 
                                 <div class="catalog-quick-actions">
-                                    <button class="btn btn-secondary btn-small" type="button" onclick="alternarEditorVitrine(this)">✏ Editar</button>
+                                    <button class="btn btn-secondary btn-small" type="button" data-editor-fechado="Expandir" data-editor-aberto="Recolher" aria-expanded="false" onclick="alternarEditorVitrine(this)">Expandir</button>
 
                                     {% if servico.get('status') == 'publicado' %}
                                         <button class="btn btn-secondary btn-small" type="button" onclick="alterarStatusServicoVitrine(this, 'indisponivel')">◉ Indisponível</button>
@@ -1248,41 +966,62 @@ Motivo: Transformar a galeria de produtos em galeria de mídias, aceitando fotos
                         <h3>Nenhum serviço na Vitrine</h3>
                         {% if integrar_servicos_vitrine %}
                             <p>Cadastre o serviço no GestFlow e publique quando quiser.</p>
-                            <a class="btn btn-primary" href="{{ url_for('servicos') }}">Cadastrar serviço</a>
+                            <a class="btn btn-primary" href="{{ url_for('servicos') }}">+ Adicionar serviço</a>
                         {% else %}
                             <p>Não existem serviços publicados para manter no modo independente.</p>
                         {% endif %}
                     </div>
                 {% endif %}
             </article>
+        </section>
 
-            <article class="vitrine-card">
-                <div class="vitrine-card-header">
-                    <div>
-                        <p class="card-kicker">Conversão</p>
-                        <h2>Serviços mais acessados</h2>
-                    </div>
+
+        <section class="vitrine-card vitrine-performance-card" id="desempenho-vitrine">
+            <div class="vitrine-card-header">
+                <div>
+                    <p class="card-kicker">Desempenho</p>
+                    <h2>Resumo de conversão</h2>
+                    <p class="hint-text">Indicadores essenciais, sem repetir informações ao longo da página.</p>
                 </div>
-                <div class="ranking-list">
-                    <div class="ranking-row muted">
-                        <span>Serviço</span>
-                        <strong>Acessos / agendas</strong>
-                    </div>
-                    {% if ranking_servicos_vitrine %}
-                        {% for item in ranking_servicos_vitrine %}
-                            <div class="ranking-row">
-                                <span>{{ item.get('nome') }}</span>
-                                <strong>{{ item.get('acessos') or 0 }} / {{ item.get('agendamentos') or 0 }}</strong>
-                            </div>
-                        {% endfor %}
+            </div>
+            <div class="vitrine-performance-grid">
+                <article>
+                    <span>Produto mais acessado</span>
+                    {% if ranking_vitrine %}
+                        <strong>{{ ranking_vitrine[0].get('nome') }}</strong>
+                        <small>{{ ranking_vitrine[0].get('acessos') or 0 }} acesso(s)</small>
                     {% else %}
-                        <div class="ranking-row">
-                            <span>Aguardando acessos reais</span>
-                            <strong>0 / 0</strong>
-                        </div>
+                        <strong>Sem dados</strong>
+                        <small>Aguardando acessos reais</small>
                     {% endif %}
-                </div>
-            </article>
+                </article>
+                <article>
+                    <span>Serviço mais acessado</span>
+                    {% if ranking_servicos_vitrine %}
+                        <strong>{{ ranking_servicos_vitrine[0].get('nome') }}</strong>
+                        <small>{{ ranking_servicos_vitrine[0].get('acessos') or 0 }} acesso(s) · {{ ranking_servicos_vitrine[0].get('agendamentos') or 0 }} agenda(s)</small>
+                    {% else %}
+                        <strong>Sem dados</strong>
+                        <small>Aguardando acessos reais</small>
+                    {% endif %}
+                </article>
+                <article>
+                    <span>Visualizações</span>
+                    <strong>{{ total_visitas_vitrine }}</strong>
+                    <small>{{ total_publicados_vitrine }} item(ns) publicado(s)</small>
+                </article>
+                <article>
+                    <span>Conversão</span>
+                    <strong>
+                        {% if total_visitas_vitrine %}
+                            {{ ((total_entradas_vitrine * 100) / total_visitas_vitrine)|round(1) }}%
+                        {% else %}
+                            0%
+                        {% endif %}
+                    </strong>
+                    <small>Pedidos + agendamentos ÷ visualizações</small>
+                </article>
+            </div>
         </section>
 
         <script>
@@ -1410,16 +1149,17 @@ Motivo: Transformar a galeria de produtos em galeria de mídias, aceitando fotos
                 });
 
                 function ativarAba(aba, rolar) {
-                    const abaFinal = abasValidas.includes(aba) ? aba : "visao-geral";
+                    if (!abasValidas.includes(aba)) return;
+                    central.hidden = false;
                     paineis.forEach(function (painel) {
-                        painel.hidden = painel.dataset.vitrinePanel !== abaFinal;
+                        painel.hidden = painel.dataset.vitrinePanel !== aba;
                     });
                     central.querySelectorAll(".vitrine-central-tabs [data-vitrine-tab]").forEach(function (botao) {
-                        botao.classList.toggle("is-active", botao.dataset.vitrineTab === abaFinal);
+                        botao.classList.toggle("is-active", botao.dataset.vitrineTab === aba);
                     });
 
                     const url = new URL(window.location.href);
-                    url.searchParams.set("aba", abaFinal);
+                    url.searchParams.set("aba", aba);
                     window.history.replaceState({}, "", url.pathname + url.search + "#central-vitrine");
 
                     if (rolar) {
@@ -1433,7 +1173,20 @@ Motivo: Transformar a galeria de produtos em galeria de mídias, aceitando fotos
                     });
                 });
 
-                ativarAba(central.dataset.abaInicial || "visao-geral", false);
+                const fechar = central.querySelector("[data-vitrine-close]");
+                if (fechar) {
+                    fechar.addEventListener("click", function () {
+                        central.hidden = true;
+                        const url = new URL(window.location.href);
+                        url.searchParams.set("aba", "visao-geral");
+                        window.history.replaceState({}, "", url.pathname + url.search);
+                    });
+                }
+
+                const abaInicial = central.dataset.abaInicial || "visao-geral";
+                if (abaInicial !== "visao-geral" && abasValidas.includes(abaInicial)) {
+                    ativarAba(abaInicial, false);
+                }
 
                 const parametros = new URLSearchParams(window.location.search);
                 const foco = parametros.get("pedido_id")
@@ -1445,6 +1198,7 @@ Motivo: Transformar a galeria de produtos em galeria de mídias, aceitando fotos
                             : "";
                 const registro = foco ? document.getElementById(foco) : null;
                 if (registro) {
+                    central.hidden = false;
                     registro.classList.add("is-highlighted");
                     window.setTimeout(function () {
                         registro.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -3094,6 +2848,314 @@ Motivo: Transformar a galeria de produtos em galeria de mídias, aceitando fotos
             }
         }
         @media (max-width: 900px) { .vitrine-catalog-config-grid { grid-template-columns: 1fr; } }
+
+        .vitrine-operational-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 20px;
+            margin-bottom: 16px;
+            padding: 20px 22px;
+            border: 1px solid #e2e8f0;
+            border-radius: 18px;
+            background: #ffffff;
+            box-shadow: 0 10px 28px rgba(15,23,42,.06);
+        }
+
+        .vitrine-operational-title-line {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .vitrine-operational-header h1 {
+            margin: 4px 0 5px;
+            color: #0f172a;
+            font-size: clamp(26px, 3vw, 36px);
+            line-height: 1.08;
+        }
+
+        .vitrine-operational-header p {
+            max-width: 720px;
+            margin: 0;
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 700;
+            line-height: 1.5;
+        }
+
+        .vitrine-operational-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .vitrine-operational-alert {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            padding: 12px 14px;
+            border: 1px solid #fed7aa;
+            border-radius: 14px;
+            background: #fff7ed;
+            color: #9a3412;
+        }
+
+        .vitrine-operational-alert strong,
+        .vitrine-operational-alert small {
+            display: block;
+        }
+
+        .vitrine-operational-alert small {
+            margin-top: 2px;
+            color: #b45309;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .vitrine-operational-metrics {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .vitrine-operational-metrics article,
+        .vitrine-operational-metrics button,
+        .vitrine-operational-metrics a {
+            min-width: 0;
+            min-height: 88px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: center;
+            padding: 14px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 15px;
+            background: #ffffff;
+            color: #0f172a;
+            text-align: left;
+            text-decoration: none;
+            box-shadow: 0 8px 22px rgba(15,23,42,.045);
+        }
+
+        .vitrine-operational-metrics button,
+        .vitrine-operational-metrics a {
+            cursor: pointer;
+        }
+
+        .vitrine-operational-metrics button:hover,
+        .vitrine-operational-metrics a:hover {
+            border-color: #bfdbfe;
+            background: #f8fbff;
+        }
+
+        .vitrine-operational-metrics span {
+            color: #64748b;
+            font-size: 11px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+        }
+
+        .vitrine-operational-metrics strong {
+            margin-top: 5px;
+            font-size: 24px;
+            line-height: 1;
+        }
+
+        .vitrine-operational-metrics small {
+            margin-top: 5px;
+            color: #b45309;
+            font-size: 10px;
+            font-weight: 800;
+        }
+
+        .vitrine-operational-recent-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .vitrine-operational-recent {
+            min-width: 0;
+        }
+
+        .vitrine-operational-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .vitrine-operational-list > button {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 11px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 11px;
+            background: #f8fafc;
+            color: #0f172a;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .vitrine-operational-list > button:hover {
+            border-color: #bfdbfe;
+            background: #eff6ff;
+        }
+
+        .vitrine-operational-list strong,
+        .vitrine-operational-list small {
+            display: block;
+        }
+
+        .vitrine-operational-list strong {
+            font-size: 12px;
+        }
+
+        .vitrine-operational-list small {
+            margin-top: 3px;
+            color: #64748b;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .vitrine-operational-list b {
+            flex: 0 0 auto;
+            color: #334155;
+            font-size: 10px;
+            text-align: right;
+        }
+
+        .vitrine-operational-empty {
+            min-height: 76px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 12px;
+            border: 1px dashed #cbd5e1;
+            border-radius: 11px;
+            background: #f8fafc;
+        }
+
+        .vitrine-operational-empty strong {
+            color: #334155;
+            font-size: 12px;
+        }
+
+        .vitrine-operational-empty span {
+            margin-top: 3px;
+            color: #94a3b8;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .vitrine-operational-detail {
+            margin-bottom: 16px;
+            scroll-margin-top: 18px;
+        }
+
+        .vitrine-operational-section {
+            margin-bottom: 16px;
+        }
+
+        .vitrine-operational-section > .vitrine-card {
+            width: 100%;
+        }
+
+        .vitrine-performance-card {
+            margin-bottom: 18px;
+        }
+
+        .vitrine-performance-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .vitrine-performance-grid article {
+            min-width: 0;
+            padding: 14px;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            background: #f8fafc;
+        }
+
+        .vitrine-performance-grid span,
+        .vitrine-performance-grid strong,
+        .vitrine-performance-grid small {
+            display: block;
+        }
+
+        .vitrine-performance-grid span {
+            color: #64748b;
+            font-size: 10px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .vitrine-performance-grid strong {
+            margin-top: 6px;
+            overflow: hidden;
+            color: #0f172a;
+            font-size: 15px;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .vitrine-performance-grid small {
+            margin-top: 4px;
+            color: #64748b;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        @media (max-width: 960px) {
+            .vitrine-operational-header {
+                flex-direction: column;
+            }
+
+            .vitrine-operational-actions {
+                justify-content: flex-start;
+            }
+
+            .vitrine-operational-metrics {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .vitrine-operational-recent-grid,
+            .vitrine-performance-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 560px) {
+            .vitrine-operational-metrics {
+                grid-template-columns: 1fr;
+            }
+
+            .vitrine-operational-actions .btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .vitrine-operational-list > button {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .vitrine-operational-list b {
+                text-align: left;
+            }
+        }
     </style>
 {% include 'partials/configuracoes_runtime.html' %}
 </body>
