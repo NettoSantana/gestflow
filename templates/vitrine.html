@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vitrine.html
-Último recode: 2026-08-12 23:06 (America/Bahia)
-Motivo: Ajustar preço para digitação tipo maquininha, mostrar o vídeo selecionado/salvo e manter os controles atuais da Vitrine.
+Último recode: 2026-08-12 23:18 (America/Bahia)
+Motivo: Transformar a galeria de produtos em galeria de mídias, aceitando fotos e vídeos MP4 com exclusão e prévia no painel.
 #}
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -43,8 +43,7 @@ Motivo: Ajustar preço para digitação tipo maquininha, mostrar o vídeo seleci
     {% set logo_formato = 'sem_moldura' if (vitrine.get('logo_formato') or '') == 'quadrado' else (vitrine.get('logo_formato') or 'arredondado') %}
     {% set logo_fundo = vitrine.get('logo_fundo') or '#ffffff' %}
     {% set catalogo_formato = vitrine.get('catalogo_formato') or 'vertical' %}
-    {% set video_path = vitrine.get('video_path') or '' %}
-    {% set cor_preview_principal = '#0f172a' if tipo_identidade_visual == 'logo' else cor_principal %}
+        {% set cor_preview_principal = '#0f172a' if tipo_identidade_visual == 'logo' else cor_principal %}
     {% set cor_preview_secundaria = '#334155' if tipo_identidade_visual == 'logo' else cor_secundaria %}
     {% set status_pedido_rotulos = {
         'novo': 'Novo',
@@ -318,7 +317,7 @@ Motivo: Ajustar preço para digitação tipo maquininha, mostrar o vídeo seleci
                         <div class="vitrine-catalog-config-heading">
                             <div>
                                 <span>Personalização do catálogo</span>
-                                <strong>Formato dos cards e vídeo da loja</strong>
+                                <strong>Formato dos cards</strong>
                                 <small>As fotos sempre serão exibidas inteiras, sem recorte.</small>
                             </div>
                         </div>
@@ -332,30 +331,6 @@ Motivo: Ajustar preço para digitação tipo maquininha, mostrar o vídeo seleci
                                 </select>
                                 <small>O formato muda o card, mas não corta a foto original.</small>
                             </label>
-                            <div class="vitrine-video-config" data-vitrine-video-config>
-                                <span>Vídeo do catálogo</span>
-                                <div class="vitrine-video-preview" data-vitrine-video-preview {% if not video_path %}hidden{% endif %}>
-                                    <video
-                                        controls
-                                        preload="metadata"
-                                        {% if video_path %}src="{{ url_for('servir_upload_vitrine_publico', caminho=video_path) }}"{% endif %}
-                                        data-vitrine-video-player
-                                    ></video>
-                                </div>
-                                <strong class="vitrine-video-status" data-vitrine-video-status>
-                                    {{ 'Vídeo salvo no catálogo' if video_path else 'Nenhum vídeo salvo' }}
-                                </strong>
-                                <div class="vitrine-video-actions">
-                                    <label class="vitrine-video-file">
-                                        {{ 'Trocar vídeo' if video_path else 'Escolher vídeo MP4' }}
-                                        <input type="file" name="video_catalogo" accept="video/mp4,.mp4" data-vitrine-video-input>
-                                    </label>
-                                    {% if video_path %}
-                                        <label class="inline-check danger"><input type="checkbox" name="remover_video" value="sim" data-vitrine-video-remove> Remover vídeo ao salvar</label>
-                                    {% endif %}
-                                </div>
-                                <small>MP4 de até 50 MB. Ao escolher um arquivo, a prévia aparece antes de salvar.</small>
-                            </div>
                         </div>
                     </section>
 
@@ -900,10 +875,10 @@ Motivo: Ajustar preço para digitação tipo maquininha, mostrar o vídeo seleci
                             <div class="vitrine-gallery-manager vitrine-gallery-manager-wide">
                                 <div class="vitrine-gallery-heading">
                                     <div>
-                                        <strong>Fotos do produto</strong>
-                                        <small>Você pode adicionar até 6 fotos.</small>
+                                        <strong>Galeria do produto</strong>
+                                        <small>Até 6 mídias entre fotos e vídeos MP4. Cada vídeo pode ter até 50 MB.</small>
                                     </div>
-                                    <input type="file" name="fotos_produto" accept="image/*" multiple>
+                                    <input type="file" name="fotos_produto" accept="image/*,video/mp4,.mp4" multiple>
                                 </div>
                             </div>
                         </div>
@@ -1026,21 +1001,31 @@ Motivo: Ajustar preço para digitação tipo maquininha, mostrar o vídeo seleci
                                             <div class="vitrine-gallery-heading">
                                                 <div>
                                                     <strong>Galeria do produto</strong>
-                                                    <small>Até 6 fotos. Marque a principal e selecione quais deseja excluir.</small>
+                                                    <small>Até 6 mídias entre fotos e vídeos MP4. Fotos podem ser principais; vídeos podem ser reproduzidos e excluídos.</small>
                                                 </div>
-                                                <input type="file" name="fotos_produto" accept="image/*" multiple>
+                                                <input type="file" name="fotos_produto" accept="image/*,video/mp4,.mp4" multiple>
                                             </div>
                                             <div class="vitrine-gallery-grid">
-                                                {% for foto in produto.get('imagens') or [] %}
+                                                {% for midia in produto.get('imagens') or [] %}
+                                                    {% set tipo_midia = midia.get('tipo_midia') or 'imagem' %}
                                                     <article class="vitrine-gallery-thumb">
-                                                        <img src="{{ url_for('servir_upload_vitrine_publico', caminho=foto.get('imagem_path')) }}" alt="Foto de {{ produto.get('nome') }}">
-                                                        {% if foto.get('id') %}
+                                                        {% if tipo_midia == 'video' %}
+                                                            <video controls preload="metadata" src="{{ url_for('servir_upload_vitrine_publico', caminho=midia.get('imagem_path')) }}"></video>
+                                                            <span class="vitrine-media-type">Vídeo MP4</span>
+                                                        {% else %}
+                                                            <img src="{{ url_for('servir_upload_vitrine_publico', caminho=midia.get('imagem_path')) }}" alt="Foto de {{ produto.get('nome') }}">
+                                                        {% endif %}
+                                                        {% if midia.get('id') %}
                                                             <div class="vitrine-gallery-thumb-actions">
-                                                                <label><input type="radio" name="foto_principal_id" value="{{ foto.get('id') }}" {% if foto.get('principal') %}checked{% endif %}> Principal</label>
-                                                                <label class="danger"><input type="checkbox" name="remover_foto_ids" value="{{ foto.get('id') }}"> Excluir</label>
+                                                                {% if tipo_midia != 'video' %}
+                                                                    <label><input type="radio" name="foto_principal_id" value="{{ midia.get('id') }}" {% if midia.get('principal') %}checked{% endif %}> Principal</label>
+                                                                {% else %}
+                                                                    <span></span>
+                                                                {% endif %}
+                                                                <label class="danger"><input type="checkbox" name="remover_midia_ids" value="{{ midia.get('id') }}"> Excluir</label>
                                                             </div>
                                                         {% else %}
-                                                            <small>Foto antiga — será migrada ao adicionar nova foto.</small>
+                                                            <small>Foto antiga — será migrada ao adicionar nova mídia.</small>
                                                         {% endif %}
                                                     </article>
                                                 {% endfor %}
@@ -1790,51 +1775,6 @@ Motivo: Ajustar preço para digitação tipo maquininha, mostrar o vídeo seleci
                 });
             }
 
-            function configurarVideoCatalogoVitrine() {
-                const bloco = document.querySelector('[data-vitrine-video-config]');
-                if (!bloco) return;
-
-                const input = bloco.querySelector('[data-vitrine-video-input]');
-                const preview = bloco.querySelector('[data-vitrine-video-preview]');
-                const player = bloco.querySelector('[data-vitrine-video-player]');
-                const status = bloco.querySelector('[data-vitrine-video-status]');
-                const remover = bloco.querySelector('[data-vitrine-video-remove]');
-                let urlTemporaria = '';
-
-                if (!input || !preview || !player || !status) return;
-
-                input.addEventListener('change', function () {
-                    const arquivo = input.files && input.files[0];
-                    if (!arquivo) return;
-
-                    if (arquivo.size > 50 * 1024 * 1024) {
-                        input.value = '';
-                        alert('O vídeo deve ter no máximo 50 MB.');
-                        return;
-                    }
-
-                    if (urlTemporaria) URL.revokeObjectURL(urlTemporaria);
-                    urlTemporaria = URL.createObjectURL(arquivo);
-                    player.src = urlTemporaria;
-                    player.load();
-                    preview.hidden = false;
-                    status.textContent = 'Selecionado: ' + arquivo.name + ' — salve a Vitrine para persistir';
-                    if (remover) remover.checked = false;
-                });
-
-                if (remover) {
-                    remover.addEventListener('change', function () {
-                        if (!remover.checked) return;
-                        input.value = '';
-                        status.textContent = 'O vídeo será removido ao salvar';
-                    });
-                }
-
-                window.addEventListener('beforeunload', function () {
-                    if (urlTemporaria) URL.revokeObjectURL(urlTemporaria);
-                });
-            }
-
             function configurarRemocaoFotosVitrine() {
                 document.querySelectorAll('input[name="remover_imagem"]').forEach(function (campo) {
                     const formulario = campo.closest("form");
@@ -1852,7 +1792,6 @@ Motivo: Ajustar preço para digitação tipo maquininha, mostrar o vídeo seleci
 
             configurarIdentidadeVisualVitrine();
             configurarCamposMoedaVitrine();
-            configurarVideoCatalogoVitrine();
             configurarCentralVitrine();
             configurarFiltrosPedidosVitrine();
             configurarLinksProdutosPedidosVitrine();
@@ -2185,12 +2124,6 @@ Motivo: Ajustar preço para digitação tipo maquininha, mostrar o vídeo seleci
         .vitrine-catalog-config-heading strong { display: block; margin-top: 3px; color: #111827; }
         .vitrine-catalog-config-heading small { display: block; margin-top: 4px; color: #6b7280; }
         .vitrine-catalog-config-grid { display: grid; grid-template-columns: minmax(220px, .7fr) minmax(300px, 1.3fr); gap: 16px; align-items: start; }
-        .vitrine-video-config { display: grid; gap: 9px; }
-        .vitrine-video-config video { width: 100%; max-height: 320px; border-radius: 14px; background: #000; object-fit: contain; }
-        .vitrine-video-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-        .vitrine-video-file { display: inline-flex !important; width: max-content; min-height: 38px; align-items: center; justify-content: center; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 10px; background: #fff; cursor: pointer; }
-        .vitrine-video-file input { display: none; }
-        .vitrine-video-config small { color: #6b7280; line-height: 1.45; }
         .money-input-wrap { display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: stretch; width: 100%; }
         .money-input-wrap > b { display: grid; place-items: center; border: 1px solid #d1d5db; border-right: 0; border-radius: 12px 0 0 12px; background: #f3f4f6; color: #374151; font-size: 13px; }
         .product-admin-card .money-input-wrap input, .service-admin-card .money-input-wrap input { border-radius: 0 12px 12px 0; }
@@ -2798,7 +2731,9 @@ Motivo: Ajustar preço para digitação tipo maquininha, mostrar o vídeo seleci
         .vitrine-gallery-heading input[type="file"] { width:min(100%,380px); }
         .vitrine-gallery-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,210px));gap:12px;justify-content:flex-start; }
         .vitrine-gallery-thumb { display:grid;gap:9px;padding:10px;border:1px solid #e5e7eb;border-radius:14px;background:#f8fafc; }
-        .vitrine-gallery-thumb img { width:100%;height:180px;object-fit:contain;border-radius:10px;background:#fff; }
+        .vitrine-gallery-thumb img, .vitrine-gallery-thumb video { width:100%;height:180px;object-fit:contain;border-radius:10px;background:#fff; }
+        .vitrine-gallery-thumb video { background:#000; }
+        .vitrine-media-type { color:#475569;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.05em; }
         .vitrine-gallery-thumb-actions { display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap; }
         .vitrine-gallery-thumb label { display:flex!important;grid-template-columns:auto 1fr!important;align-items:center;gap:6px;font-size:12px!important;font-weight:800!important; }
         .vitrine-gallery-thumb label input { width:auto!important;min-height:auto!important; }
@@ -2808,7 +2743,7 @@ Motivo: Ajustar preço para digitação tipo maquininha, mostrar o vídeo seleci
             .vitrine-gallery-heading { align-items:stretch; }
             .vitrine-gallery-heading input[type="file"] { width:100%; }
             .vitrine-gallery-grid { grid-template-columns:1fr; }
-            .vitrine-gallery-thumb img { height:240px; }
+            .vitrine-gallery-thumb img, .vitrine-gallery-thumb video { height:240px; }
         }
 
         .catalog-new-product-card {
