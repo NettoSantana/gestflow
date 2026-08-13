@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vitrine.html
-Último recode: 2026-08-12 15:50 (America/Bahia)
-Motivo: Trocar a ação de edição dos produtos por Expandir/Recolher, mantendo o editor fechado por padrão e preservando a abertura correlacionada pelos pedidos.
+Último recode: 2026-08-12 22:41 (America/Bahia)
+Motivo: Adicionar personalização de formato do catálogo, upload de vídeo e melhorar campos monetários com prefixo R$ sem alterar regras comerciais.
 #}
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -42,6 +42,8 @@ Motivo: Trocar a ação de edição dos produtos por Expandir/Recolher, mantendo
     {% set logo_offset_y = vitrine.get('logo_offset_y') or 0 %}
     {% set logo_formato = 'sem_moldura' if (vitrine.get('logo_formato') or '') == 'quadrado' else (vitrine.get('logo_formato') or 'arredondado') %}
     {% set logo_fundo = vitrine.get('logo_fundo') or '#ffffff' %}
+    {% set catalogo_formato = vitrine.get('catalogo_formato') or 'vertical' %}
+    {% set video_path = vitrine.get('video_path') or '' %}
     {% set cor_preview_principal = '#0f172a' if tipo_identidade_visual == 'logo' else cor_principal %}
     {% set cor_preview_secundaria = '#334155' if tipo_identidade_visual == 'logo' else cor_secundaria %}
     {% set status_pedido_rotulos = {
@@ -311,6 +313,40 @@ Motivo: Trocar a ação de edição dos produtos por Expandir/Recolher, mantendo
                             </select>
                         </label>
                     </div>
+
+                    <section class="vitrine-catalog-config">
+                        <div class="vitrine-catalog-config-heading">
+                            <div>
+                                <span>Personalização do catálogo</span>
+                                <strong>Formato dos cards e vídeo da loja</strong>
+                                <small>As fotos sempre serão exibidas inteiras, sem recorte.</small>
+                            </div>
+                        </div>
+                        <div class="vitrine-catalog-config-grid">
+                            <label>
+                                Formato dos produtos
+                                <select name="catalogo_formato">
+                                    <option value="vertical" {% if catalogo_formato == 'vertical' %}selected{% endif %}>Vertical</option>
+                                    <option value="quadrado" {% if catalogo_formato == 'quadrado' %}selected{% endif %}>Quadrado</option>
+                                    <option value="horizontal" {% if catalogo_formato == 'horizontal' %}selected{% endif %}>Horizontal</option>
+                                </select>
+                                <small>O formato muda o card, mas não corta a foto original.</small>
+                            </label>
+                            <div class="vitrine-video-config">
+                                <span>Vídeo do catálogo</span>
+                                {% if video_path %}
+                                    <video controls preload="metadata" src="{{ url_for('servir_upload_vitrine_publico', caminho=video_path) }}"></video>
+                                    <div class="vitrine-video-actions">
+                                        <label class="vitrine-video-file">Trocar vídeo<input type="file" name="video_catalogo" accept="video/mp4"></label>
+                                        <label class="inline-check danger"><input type="checkbox" name="remover_video" value="sim"> Remover vídeo ao salvar</label>
+                                    </div>
+                                {% else %}
+                                    <label class="vitrine-video-file">Escolher vídeo MP4<input type="file" name="video_catalogo" accept="video/mp4"></label>
+                                {% endif %}
+                                <small>MP4 de até 50 MB. O vídeo aparecerá em largura total antes do catálogo.</small>
+                            </div>
+                        </div>
+                    </section>
 
                     <div class="form-actions">
                         <button class="btn btn-primary" type="submit" name="status" value="publicado">Salvar e publicar</button>
@@ -835,7 +871,7 @@ Motivo: Trocar a ação de edição dos produtos por Expandir/Recolher, mantendo
                             </label>
                             <label>
                                 Preço
-                                <input type="text" name="preco" value="0,00" required placeholder="0,00">
+                                <span class="money-input-wrap"><b>R$</b><input type="text" name="preco" value="0,00" required inputmode="decimal" placeholder="0,00" data-vitrine-moeda></span>
                             </label>
                         </div>
 
@@ -960,7 +996,7 @@ Motivo: Trocar a ação de edição dos produtos por Expandir/Recolher, mantendo
                                         </label>
                                         <label>
                                             Preço
-                                            <input type="text" name="preco" value="{{ produto.get('preco') or '0,00' }}" {% if integrar_produtos_vitrine %}readonly{% endif %}>
+                                            <span class="money-input-wrap"><b>R$</b><input type="text" name="preco" value="{{ produto.get('preco') or '0,00' }}" inputmode="decimal" data-vitrine-moeda {% if integrar_produtos_vitrine %}readonly{% endif %}></span>
                                         </label>
                                     </div>
 
@@ -1158,7 +1194,7 @@ Motivo: Trocar a ação de edição dos produtos por Expandir/Recolher, mantendo
                                             {% if servico.get('tipo_contratacao') == 'a_combinar' %}
                                                 <input type="text" value="Valor a combinar" readonly disabled>
                                             {% else %}
-                                                <input type="text" name="preco" value="{{ servico.get('preco') or '0,00' }}" {% if integrar_servicos_vitrine %}readonly{% endif %}>
+                                                <span class="money-input-wrap"><b>R$</b><input type="text" name="preco" value="{{ servico.get('preco') or '0,00' }}" inputmode="decimal" data-vitrine-moeda {% if integrar_servicos_vitrine %}readonly{% endif %}></span>
                                             {% endif %}
                                         </label>
                                     </div>
@@ -1660,6 +1696,34 @@ Motivo: Trocar a ação de edição dos produtos por Expandir/Recolher, mantendo
                 atualizarPreview();
             }
 
+            function configurarCamposMoedaVitrine() {
+                document.querySelectorAll('[data-vitrine-moeda]').forEach(function (campo) {
+                    function limpar(valor) {
+                        return String(valor || '').replace(/R\$/gi, '').replace(/\s/g, '').replace(/[^0-9,.]/g, '');
+                    }
+                    function separar(valor) {
+                        const texto = limpar(valor);
+                        if (!texto) return { inteiro: '0', decimais: '00' };
+                        const ultimaVirgula = texto.lastIndexOf(',');
+                        const ultimoPonto = texto.lastIndexOf('.');
+                        const separador = Math.max(ultimaVirgula, ultimoPonto);
+                        const temDecimal = separador >= 0 && (texto.length - separador - 1) <= 2;
+                        const parteInteira = temDecimal ? texto.slice(0, separador) : texto;
+                        const parteDecimal = temDecimal ? texto.slice(separador + 1) : '';
+                        const inteiro = parteInteira.replace(/\D/g, '').replace(/^0+(?=\d)/, '') || '0';
+                        const decimais = (parteDecimal.replace(/\D/g, '') + '00').slice(0, 2);
+                        return { inteiro: inteiro, decimais: decimais };
+                    }
+                    function formatar() {
+                        const partes = separar(campo.value);
+                        campo.value = partes.inteiro.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + partes.decimais;
+                    }
+                    campo.addEventListener('input', function () { campo.value = limpar(campo.value); });
+                    campo.addEventListener('blur', formatar);
+                    formatar();
+                });
+            }
+
             function configurarRemocaoFotosVitrine() {
                 document.querySelectorAll('input[name="remover_imagem"]').forEach(function (campo) {
                     const formulario = campo.closest("form");
@@ -1676,6 +1740,7 @@ Motivo: Trocar a ação de edição dos produtos por Expandir/Recolher, mantendo
             }
 
             configurarIdentidadeVisualVitrine();
+            configurarCamposMoedaVitrine();
             configurarCentralVitrine();
             configurarFiltrosPedidosVitrine();
             configurarLinksProdutosPedidosVitrine();
@@ -1985,6 +2050,38 @@ Motivo: Trocar a ação de edição dos produtos por Expandir/Recolher, mantendo
         .vitrine-form input[type="color"] {
             padding: 4px;
         }
+
+        .vitrine-catalog-config {
+            display: grid;
+            gap: 14px;
+            padding: 16px;
+            border: 1px solid #e5e7eb;
+            border-radius: 18px;
+            background: #f9fafb;
+        }
+
+        .vitrine-catalog-config-heading span,
+        .vitrine-video-config > span {
+            display: block;
+            color: #6b7280;
+            font-size: 11px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+        }
+
+        .vitrine-catalog-config-heading strong { display: block; margin-top: 3px; color: #111827; }
+        .vitrine-catalog-config-heading small { display: block; margin-top: 4px; color: #6b7280; }
+        .vitrine-catalog-config-grid { display: grid; grid-template-columns: minmax(220px, .7fr) minmax(300px, 1.3fr); gap: 16px; align-items: start; }
+        .vitrine-video-config { display: grid; gap: 9px; }
+        .vitrine-video-config video { width: 100%; max-height: 320px; border-radius: 14px; background: #000; object-fit: contain; }
+        .vitrine-video-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .vitrine-video-file { display: inline-flex !important; width: max-content; min-height: 38px; align-items: center; justify-content: center; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 10px; background: #fff; cursor: pointer; }
+        .vitrine-video-file input { display: none; }
+        .vitrine-video-config small { color: #6b7280; line-height: 1.45; }
+        .money-input-wrap { display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: stretch; width: 100%; }
+        .money-input-wrap > b { display: grid; place-items: center; border: 1px solid #d1d5db; border-right: 0; border-radius: 12px 0 0 12px; background: #f3f4f6; color: #374151; font-size: 13px; }
+        .product-admin-card .money-input-wrap input, .service-admin-card .money-input-wrap input { border-radius: 0 12px 12px 0; }
 
         .public-link-box {
             display: grid;
@@ -2949,6 +3046,7 @@ Motivo: Trocar a ação de edição dos produtos por Expandir/Recolher, mantendo
                 width: 100%;
             }
         }
+        @media (max-width: 900px) { .vitrine-catalog-config-grid { grid-template-columns: 1fr; } }
     </style>
 {% include 'partials/configuracoes_runtime.html' %}
 </body>
