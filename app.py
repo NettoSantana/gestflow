@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-12 22:41 (America/Bahia)
-# Motivo: Personalizar formato do catálogo público, recolher categorias em menu, ampliar Sobre nós, permitir upload MP4 e manter fotos sem recorte.
+# Último recode: 2026-08-12 23:06 (America/Bahia)
+# Motivo: Remover a categoria dos blocos de marca da Vitrine pública, corrigir a exibição/digitação monetária e reforçar a persistência do vídeo MP4 do catálogo.
 
 from __future__ import annotations
 
@@ -25499,17 +25499,66 @@ def salvar_video_vitrine_upload() -> str:
     if not extensao_arquivo_permitida(arquivo.filename, EXTENSOES_VIDEO_VITRINE_PERMITIDAS):
         raise ValueError("O vídeo do catálogo deve estar no formato MP4.")
 
-    arquivo.stream.seek(0, os.SEEK_END)
-    tamanho = arquivo.stream.tell()
-    arquivo.stream.seek(0)
+    try:
+        arquivo.stream.seek(0, os.SEEK_END)
+        tamanho = int(arquivo.stream.tell() or 0)
+        arquivo.stream.seek(0)
+    except (AttributeError, OSError, ValueError) as exc:
+        raise ValueError("Não foi possível ler o vídeo selecionado. Escolha o arquivo novamente.") from exc
+
+    if tamanho <= 0:
+        raise ValueError("O vídeo selecionado está vazio ou não pôde ser lido.")
+
     if tamanho > VITRINE_VIDEO_MAX_MB * 1024 * 1024:
         raise ValueError(f"O vídeo do catálogo deve ter no máximo {VITRINE_VIDEO_MAX_MB} MB.")
 
     empresa_id = empresa_logada_id()
-    nome_final = f"vitrine_video_{empresa_id}_{int(datetime.now().timestamp())}.mp4"
+    nome_final = (
+        f"vitrine_video_{empresa_id}_{int(datetime.now().timestamp())}_"
+        f"{secrets.token_hex(4)}.mp4"
+    )
     caminho_final = VITRINE_UPLOAD_DIR / nome_final
-    arquivo.save(caminho_final)
+    caminho_temporario = VITRINE_UPLOAD_DIR / f".{nome_final}.upload"
+
+    try:
+        VITRINE_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+        arquivo.save(caminho_temporario)
+        if not caminho_temporario.exists() or caminho_temporario.stat().st_size <= 0:
+            raise OSError("arquivo temporário vazio")
+        caminho_temporario.replace(caminho_final)
+    except OSError as exc:
+        try:
+            caminho_temporario.unlink(missing_ok=True)
+        except OSError:
+            pass
+        app.logger.exception("Falha ao persistir vídeo da Vitrine: %s", nome_final)
+        raise ValueError("O vídeo não pôde ser gravado. Tente selecionar o arquivo novamente.") from exc
+
+    app.logger.warning(
+        "Vídeo da Vitrine salvo: empresa_id=%s | arquivo=%s | bytes=%s",
+        empresa_id,
+        nome_final,
+        tamanho,
+    )
     return f"uploads/vitrines/{nome_final}"
+
+
+def arquivo_vitrine_existe(caminho_relativo: Any) -> bool:
+    caminho_texto = str(caminho_relativo or "").strip().replace("\\", "/")
+    prefixo_permitido = "uploads/vitrines/"
+
+    if not caminho_texto.startswith(prefixo_permitido):
+        return False
+
+    nome_arquivo = Path(caminho_texto).name
+    caminho_arquivo = (VITRINE_UPLOAD_DIR / nome_arquivo).resolve()
+    diretorio_vitrine = VITRINE_UPLOAD_DIR.resolve()
+
+    return (
+        caminho_arquivo.parent == diretorio_vitrine
+        and caminho_arquivo.is_file()
+        and caminho_arquivo.stat().st_size > 0
+    )
 
 
 def montar_vitrine_formulario(config_atual: dict[str, Any] | None = None) -> dict[str, str]:
@@ -25797,11 +25846,23 @@ def salvar_vitrine_configuracao_db(dados: dict[str, str]) -> None:
 
         conn.commit()
 
+        video_salvo_row = conn.execute(
+            "SELECT video_path FROM vitrine_configuracoes WHERE empresa_id = ? LIMIT 1",
+            (empresa_id,),
+        ).fetchone()
+
+    video_atual = str(dados.get("video_path") or "").strip()
+    video_persistido = str(video_salvo_row["video_path"] or "").strip() if video_salvo_row else ""
+    if video_atual:
+        if video_persistido != video_atual:
+            raise ValueError("O vídeo foi recebido, mas o caminho não persistiu na configuração da Vitrine.")
+        if not arquivo_vitrine_existe(video_atual):
+            raise ValueError("O vídeo foi registrado, mas o arquivo não permaneceu salvo no armazenamento da Vitrine.")
+
     if dados.get("remover_logo") == "sim" and dados.get("logo_anterior"):
         remover_arquivo_imagem_vitrine(dados.get("logo_anterior"))
 
     video_anterior = str(dados.get("video_anterior") or "").strip()
-    video_atual = str(dados.get("video_path") or "").strip()
     if video_anterior and (dados.get("remover_video") == "sim" or (video_atual and video_atual != video_anterior)):
         remover_arquivo_imagem_vitrine(video_anterior)
 
@@ -28461,7 +28522,8 @@ def renderizar_vitrine_publica_html(
             categoria_item = html.escape(categoria_raw_item)
             categorias_produtos.add(categoria_raw_item)
             preco_raw = str(produto.get("preco") or "0,00")
-            preco = html.escape(preco_raw)
+            preco_normalizado = _formatar_moeda_brl(_converter_valor_brl(preco_raw))
+            preco = html.escape(preco_normalizado)
             disponivel = bool(produto.get("disponivel_compra"))
             indisponivel_html = (
                 '<span class="item-indisponivel">Indisponível</span>'
@@ -28500,7 +28562,7 @@ def renderizar_vitrine_publica_html(
                 acao_principal = (
                     f'<button type="button" onclick="adicionarCarrinhoDoCard(this,{produto_id}, '
                     f'{html.escape(json.dumps(nome_raw, ensure_ascii=False), quote=True)}, '
-                    f'{html.escape(json.dumps(preco_raw, ensure_ascii=False), quote=True)}, {quantidade_maxima})">'
+                    f'{html.escape(json.dumps(preco_normalizado, ensure_ascii=False), quote=True)}, {quantidade_maxima})">'
                     'Adicionar</button>'
                 )
             elif whatsapp_publico_url:
@@ -28537,7 +28599,9 @@ def renderizar_vitrine_publica_html(
             categoria_item = html.escape(categoria_raw_item)
             categorias_servicos.add(categoria_raw_item)
             tipo_contratacao = normalizar_tipo_contratacao_servico(servico.get("tipo_contratacao"))
-            preco = html.escape(str(servico.get("preco") or "0,00"))
+            preco = html.escape(
+                _formatar_moeda_brl(_converter_valor_brl(servico.get("preco") or "0,00"))
+            )
             duracao = html.escape(str(servico.get("tempo_estimado") or ""))
             imagens = servico.get("imagens") or []
             imagens_paths = [str(item.get("imagem_path") or "") for item in imagens if item.get("imagem_path")]
@@ -28856,7 +28920,7 @@ body.catalogo-formato-vertical .item-imagem{aspect-ratio:4/5}body.catalogo-forma
     <div class="navbar-inner">
         <a class="marca-nav" href="#inicio" aria-label="Início - __NOME_LOJA__">
             <span class="marca-logo">__LOGO_NAV__</span>
-            <span class="marca-texto"><strong>__NOME_LOJA__</strong><small>__CATEGORIA__</small></span>
+            <span class="marca-texto"><strong>__NOME_LOJA__</strong></span>
         </a>
         <nav class="nav-links" aria-label="Navegação principal">
             <a href="#inicio">Início</a>
@@ -28873,7 +28937,6 @@ body.catalogo-formato-vertical .item-imagem{aspect-ratio:4/5}body.catalogo-forma
         <div class="apresentacao-copy">
             <p class="apresentacao-kicker">__KICKER__</p>
             <h1>__NOME_LOJA__</h1>
-            <p class="apresentacao-categoria">__CATEGORIA__</p>
             <p class="apresentacao-descricao">__DESCRICAO_EMPRESA__</p>
             <div class="apresentacao-acoes">
                 <a class="btn-publico btn-catalogo" href="#catalogo">Ver catálogo</a>
@@ -28930,7 +28993,7 @@ __VIDEO_CATALOGO__
 </main>
 <footer class="footer">
     <div class="footer-inner">
-        <div class="footer-marca"><span class="marca-logo">__LOGO_NAV__</span><div><strong>__NOME_LOJA__</strong><p>__CATEGORIA__</p></div></div>
+        <div class="footer-marca"><span class="marca-logo">__LOGO_NAV__</span><div><strong>__NOME_LOJA__</strong></div></div>
         <div class="footer-social">__INSTAGRAM_SOCIAL____WHATSAPP_SOCIAL__</div>
         <p class="footer-credit">Desenvolvido pela <a href="https://nettsan.com.br" target="_blank" rel="noopener">Nettsan</a></p>
     </div>
@@ -30211,9 +30274,9 @@ def vitrine() -> str | Response:
     if request.method == "POST":
         try:
             dados = montar_vitrine_formulario(config_vitrine)
+            salvar_vitrine_configuracao_db(dados)
         except ValueError as exc:
             return redirect(url_for("vitrine", erro=str(exc)))
-        salvar_vitrine_configuracao_db(dados)
         return redirect(url_for("vitrine", mensagem="Configuração da vitrine salva com sucesso."))
     empresa_id = empresa_logada_id()
     produtos_admin = listar_produtos_vitrine_admin(empresa_id)

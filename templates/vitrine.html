@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vitrine.html
-Último recode: 2026-08-12 22:41 (America/Bahia)
-Motivo: Adicionar personalização de formato do catálogo, upload de vídeo e melhorar campos monetários com prefixo R$ sem alterar regras comerciais.
+Último recode: 2026-08-12 23:06 (America/Bahia)
+Motivo: Ajustar preço para digitação tipo maquininha, mostrar o vídeo selecionado/salvo e manter os controles atuais da Vitrine.
 #}
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -332,18 +332,29 @@ Motivo: Adicionar personalização de formato do catálogo, upload de vídeo e m
                                 </select>
                                 <small>O formato muda o card, mas não corta a foto original.</small>
                             </label>
-                            <div class="vitrine-video-config">
+                            <div class="vitrine-video-config" data-vitrine-video-config>
                                 <span>Vídeo do catálogo</span>
-                                {% if video_path %}
-                                    <video controls preload="metadata" src="{{ url_for('servir_upload_vitrine_publico', caminho=video_path) }}"></video>
-                                    <div class="vitrine-video-actions">
-                                        <label class="vitrine-video-file">Trocar vídeo<input type="file" name="video_catalogo" accept="video/mp4"></label>
-                                        <label class="inline-check danger"><input type="checkbox" name="remover_video" value="sim"> Remover vídeo ao salvar</label>
-                                    </div>
-                                {% else %}
-                                    <label class="vitrine-video-file">Escolher vídeo MP4<input type="file" name="video_catalogo" accept="video/mp4"></label>
-                                {% endif %}
-                                <small>MP4 de até 50 MB. O vídeo aparecerá em largura total antes do catálogo.</small>
+                                <div class="vitrine-video-preview" data-vitrine-video-preview {% if not video_path %}hidden{% endif %}>
+                                    <video
+                                        controls
+                                        preload="metadata"
+                                        {% if video_path %}src="{{ url_for('servir_upload_vitrine_publico', caminho=video_path) }}"{% endif %}
+                                        data-vitrine-video-player
+                                    ></video>
+                                </div>
+                                <strong class="vitrine-video-status" data-vitrine-video-status>
+                                    {{ 'Vídeo salvo no catálogo' if video_path else 'Nenhum vídeo salvo' }}
+                                </strong>
+                                <div class="vitrine-video-actions">
+                                    <label class="vitrine-video-file">
+                                        {{ 'Trocar vídeo' if video_path else 'Escolher vídeo MP4' }}
+                                        <input type="file" name="video_catalogo" accept="video/mp4,.mp4" data-vitrine-video-input>
+                                    </label>
+                                    {% if video_path %}
+                                        <label class="inline-check danger"><input type="checkbox" name="remover_video" value="sim" data-vitrine-video-remove> Remover vídeo ao salvar</label>
+                                    {% endif %}
+                                </div>
+                                <small>MP4 de até 50 MB. Ao escolher um arquivo, a prévia aparece antes de salvar.</small>
                             </div>
                         </div>
                     </section>
@@ -1698,29 +1709,129 @@ Motivo: Adicionar personalização de formato do catálogo, upload de vídeo e m
 
             function configurarCamposMoedaVitrine() {
                 document.querySelectorAll('[data-vitrine-moeda]').forEach(function (campo) {
-                    function limpar(valor) {
-                        return String(valor || '').replace(/R\$/gi, '').replace(/\s/g, '').replace(/[^0-9,.]/g, '');
+                    function centavosDoValor(valor) {
+                        const texto = String(valor || '').replace(/R\$/gi, '').trim();
+                        if (!texto) return 0;
+
+                        if (/[,.]/.test(texto)) {
+                            const normalizado = texto
+                                .replace(/\./g, '')
+                                .replace(',', '.')
+                                .replace(/[^0-9.]/g, '');
+                            const numero = Number(normalizado || 0);
+                            return Number.isFinite(numero) ? Math.max(0, Math.round(numero * 100)) : 0;
+                        }
+
+                        const digitos = texto.replace(/\D/g, '');
+                        return digitos ? Math.max(0, Number(digitos)) : 0;
                     }
-                    function separar(valor) {
-                        const texto = limpar(valor);
-                        if (!texto) return { inteiro: '0', decimais: '00' };
-                        const ultimaVirgula = texto.lastIndexOf(',');
-                        const ultimoPonto = texto.lastIndexOf('.');
-                        const separador = Math.max(ultimaVirgula, ultimoPonto);
-                        const temDecimal = separador >= 0 && (texto.length - separador - 1) <= 2;
-                        const parteInteira = temDecimal ? texto.slice(0, separador) : texto;
-                        const parteDecimal = temDecimal ? texto.slice(separador + 1) : '';
-                        const inteiro = parteInteira.replace(/\D/g, '').replace(/^0+(?=\d)/, '') || '0';
-                        const decimais = (parteDecimal.replace(/\D/g, '') + '00').slice(0, 2);
-                        return { inteiro: inteiro, decimais: decimais };
+
+                    function formatarCentavos(centavos) {
+                        const valor = Math.max(0, Number(centavos) || 0);
+                        const inteiro = Math.floor(valor / 100);
+                        const decimal = String(valor % 100).padStart(2, '0');
+                        return inteiro.toLocaleString('pt-BR') + ',' + decimal;
                     }
-                    function formatar() {
-                        const partes = separar(campo.value);
-                        campo.value = partes.inteiro.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + partes.decimais;
+
+                    let centavos = centavosDoValor(campo.value);
+                    campo.value = formatarCentavos(centavos);
+
+                    if (campo.readOnly || campo.disabled) return;
+
+                    campo.addEventListener('focus', function () {
+                        window.setTimeout(function () { campo.select(); }, 0);
+                    });
+
+                    campo.addEventListener('keydown', function (event) {
+                        if (event.ctrlKey || event.metaKey || event.altKey) return;
+
+                        if (/^\d$/.test(event.key)) {
+                            event.preventDefault();
+                            const tudoSelecionado = campo.selectionStart === 0 && campo.selectionEnd === campo.value.length;
+                            if (tudoSelecionado) centavos = 0;
+                            centavos = Math.min(99999999999, (centavos * 10) + Number(event.key));
+                            campo.value = formatarCentavos(centavos);
+                            campo.setSelectionRange(campo.value.length, campo.value.length);
+                            return;
+                        }
+
+                        if (event.key === 'Backspace') {
+                            event.preventDefault();
+                            centavos = Math.floor(centavos / 10);
+                            campo.value = formatarCentavos(centavos);
+                            campo.setSelectionRange(campo.value.length, campo.value.length);
+                            return;
+                        }
+
+                        if (event.key === 'Delete') {
+                            event.preventDefault();
+                            centavos = 0;
+                            campo.value = formatarCentavos(centavos);
+                            campo.setSelectionRange(campo.value.length, campo.value.length);
+                            return;
+                        }
+
+                        if ([',', '.', 'Decimal'].includes(event.key)) {
+                            event.preventDefault();
+                        }
+                    });
+
+                    campo.addEventListener('paste', function (event) {
+                        event.preventDefault();
+                        const texto = (event.clipboardData || window.clipboardData).getData('text') || '';
+                        centavos = centavosDoValor(texto);
+                        campo.value = formatarCentavos(centavos);
+                        campo.setSelectionRange(campo.value.length, campo.value.length);
+                    });
+
+                    campo.addEventListener('input', function () {
+                        campo.value = formatarCentavos(centavos);
+                    });
+                });
+            }
+
+            function configurarVideoCatalogoVitrine() {
+                const bloco = document.querySelector('[data-vitrine-video-config]');
+                if (!bloco) return;
+
+                const input = bloco.querySelector('[data-vitrine-video-input]');
+                const preview = bloco.querySelector('[data-vitrine-video-preview]');
+                const player = bloco.querySelector('[data-vitrine-video-player]');
+                const status = bloco.querySelector('[data-vitrine-video-status]');
+                const remover = bloco.querySelector('[data-vitrine-video-remove]');
+                let urlTemporaria = '';
+
+                if (!input || !preview || !player || !status) return;
+
+                input.addEventListener('change', function () {
+                    const arquivo = input.files && input.files[0];
+                    if (!arquivo) return;
+
+                    if (arquivo.size > 50 * 1024 * 1024) {
+                        input.value = '';
+                        alert('O vídeo deve ter no máximo 50 MB.');
+                        return;
                     }
-                    campo.addEventListener('input', function () { campo.value = limpar(campo.value); });
-                    campo.addEventListener('blur', formatar);
-                    formatar();
+
+                    if (urlTemporaria) URL.revokeObjectURL(urlTemporaria);
+                    urlTemporaria = URL.createObjectURL(arquivo);
+                    player.src = urlTemporaria;
+                    player.load();
+                    preview.hidden = false;
+                    status.textContent = 'Selecionado: ' + arquivo.name + ' — salve a Vitrine para persistir';
+                    if (remover) remover.checked = false;
+                });
+
+                if (remover) {
+                    remover.addEventListener('change', function () {
+                        if (!remover.checked) return;
+                        input.value = '';
+                        status.textContent = 'O vídeo será removido ao salvar';
+                    });
+                }
+
+                window.addEventListener('beforeunload', function () {
+                    if (urlTemporaria) URL.revokeObjectURL(urlTemporaria);
                 });
             }
 
@@ -1741,6 +1852,7 @@ Motivo: Adicionar personalização de formato do catálogo, upload de vídeo e m
 
             configurarIdentidadeVisualVitrine();
             configurarCamposMoedaVitrine();
+            configurarVideoCatalogoVitrine();
             configurarCentralVitrine();
             configurarFiltrosPedidosVitrine();
             configurarLinksProdutosPedidosVitrine();
