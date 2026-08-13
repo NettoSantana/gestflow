@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-12 22:14 (America/Bahia)
-# Motivo: Liberar reset controlado de empresas no MAIN/produção com backup obrigatório, confirmação reforçada e auditoria por ambiente.
+# Último recode: 2026-08-12 22:41 (America/Bahia)
+# Motivo: Personalizar formato do catálogo público, recolher categorias em menu, ampliar Sobre nós, permitir upload MP4 e manter fotos sem recorte.
 
 from __future__ import annotations
 
@@ -61,6 +61,8 @@ EXTENSOES_LOGO_PERMITIDAS = {"png", "jpg", "jpeg", "webp", "gif", "jfif", "avif"
 EXTENSOES_FOTO_OS_PERMITIDAS = {"png", "jpg", "jpeg", "jfif", "webp"}
 EXTENSOES_ANEXO_CONTRATO_PERMITIDAS = {"pdf", "png", "jpg", "jpeg", "webp", "doc", "docx"}
 EXTENSOES_FOTO_VITRINE_PERMITIDAS = {"png", "jpg", "jpeg", "webp"}
+EXTENSOES_VIDEO_VITRINE_PERMITIDAS = {"mp4"}
+VITRINE_VIDEO_MAX_MB = 50
 
 
 BRASILAPI_CNPJ_URL = "https://brasilapi.com.br/api/cnpj/v1/{cnpj}"
@@ -4704,6 +4706,8 @@ def iniciar_banco() -> None:
                 logo_offset_y INTEGER NOT NULL DEFAULT 0,
                 logo_formato TEXT NOT NULL DEFAULT 'arredondado',
                 logo_fundo TEXT NOT NULL DEFAULT '#ffffff',
+                catalogo_formato TEXT NOT NULL DEFAULT 'vertical',
+                video_path TEXT,
                 categoria TEXT,
                 descricao_empresa TEXT,
                 tipo_identidade_visual TEXT NOT NULL DEFAULT 'cores',
@@ -5758,6 +5762,8 @@ def iniciar_banco() -> None:
             "logo_offset_y": "INTEGER NOT NULL DEFAULT 0",
             "logo_formato": "TEXT NOT NULL DEFAULT 'arredondado'",
             "logo_fundo": "TEXT NOT NULL DEFAULT '#ffffff'",
+            "catalogo_formato": "TEXT NOT NULL DEFAULT 'vertical'",
+            "video_path": "TEXT",
         }.items():
             if coluna not in colunas_vitrine_configuracoes:
                 conn.execute(f"ALTER TABLE vitrine_configuracoes ADD COLUMN {coluna} {tipo_coluna}")
@@ -25484,6 +25490,28 @@ def salvar_logo_vitrine_upload() -> str:
     return f"uploads/vitrines/{nome_final}"
 
 
+def salvar_video_vitrine_upload() -> str:
+    arquivo = request.files.get("video_catalogo")
+
+    if arquivo is None or not arquivo.filename:
+        return ""
+
+    if not extensao_arquivo_permitida(arquivo.filename, EXTENSOES_VIDEO_VITRINE_PERMITIDAS):
+        raise ValueError("O vídeo do catálogo deve estar no formato MP4.")
+
+    arquivo.stream.seek(0, os.SEEK_END)
+    tamanho = arquivo.stream.tell()
+    arquivo.stream.seek(0)
+    if tamanho > VITRINE_VIDEO_MAX_MB * 1024 * 1024:
+        raise ValueError(f"O vídeo do catálogo deve ter no máximo {VITRINE_VIDEO_MAX_MB} MB.")
+
+    empresa_id = empresa_logada_id()
+    nome_final = f"vitrine_video_{empresa_id}_{int(datetime.now().timestamp())}.mp4"
+    caminho_final = VITRINE_UPLOAD_DIR / nome_final
+    arquivo.save(caminho_final)
+    return f"uploads/vitrines/{nome_final}"
+
+
 def montar_vitrine_formulario(config_atual: dict[str, Any] | None = None) -> dict[str, str]:
     config_atual = config_atual or {}
     nome_loja = (request.form.get("nome_loja") or "").strip()
@@ -25502,6 +25530,15 @@ def montar_vitrine_formulario(config_atual: dict[str, Any] | None = None) -> dic
     logo_path = "" if remover_logo else (logo_nova or logo_anterior)
     if tipo_identidade_visual == "logo" and not logo_path:
         raise ValueError("Envie uma logo antes de usar a identidade visual por logo.")
+
+    catalogo_formato = str(request.form.get("catalogo_formato") or config_atual.get("catalogo_formato") or "vertical").strip().lower()
+    if catalogo_formato not in {"vertical", "quadrado", "horizontal"}:
+        catalogo_formato = "vertical"
+
+    video_anterior = str(config_atual.get("video_path") or "").strip()
+    remover_video = str(request.form.get("remover_video") or "").strip().lower() == "sim"
+    video_novo = "" if remover_video else salvar_video_vitrine_upload()
+    video_path = "" if remover_video else (video_novo or video_anterior)
 
     cor_principal_atual = str(config_atual.get("cor_principal") or "#111827").strip() or "#111827"
     cor_secundaria_atual = str(config_atual.get("cor_secundaria") or "#f59e0b").strip() or "#f59e0b"
@@ -25547,6 +25584,10 @@ def montar_vitrine_formulario(config_atual: dict[str, Any] | None = None) -> dic
         "logo_fundo": logo_fundo,
         "logo_anterior": logo_anterior,
         "remover_logo": "sim" if remover_logo else "nao",
+        "catalogo_formato": catalogo_formato,
+        "video_path": video_path,
+        "video_anterior": video_anterior,
+        "remover_video": "sim" if remover_video else "nao",
         "categoria": (request.form.get("categoria") or "").strip(),
         "descricao_empresa": (request.form.get("descricao_empresa") or "").strip()[:600],
         "tipo_identidade_visual": tipo_identidade_visual,
@@ -25576,6 +25617,8 @@ def buscar_vitrine_configuracao() -> dict[str, Any]:
                 logo_offset_y,
                 logo_formato,
                 logo_fundo,
+                catalogo_formato,
+                video_path,
                 categoria,
                 descricao_empresa,
                 tipo_identidade_visual,
@@ -25612,6 +25655,8 @@ def buscar_vitrine_configuracao() -> dict[str, Any]:
             "logo_offset_y": 0,
             "logo_formato": "arredondado",
             "logo_fundo": "#ffffff",
+            "catalogo_formato": "vertical",
+            "video_path": "",
             "categoria": "",
             "descricao_empresa": "",
             "tipo_identidade_visual": "cores",
@@ -25662,6 +25707,8 @@ def salvar_vitrine_configuracao_db(dados: dict[str, str]) -> None:
                     logo_offset_y,
                     logo_formato,
                     logo_fundo,
+                    catalogo_formato,
+                    video_path,
                     categoria,
                     descricao_empresa,
                     tipo_identidade_visual,
@@ -25670,7 +25717,7 @@ def salvar_vitrine_configuracao_db(dados: dict[str, str]) -> None:
                     template,
                     status,
                     atualizado_em
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     empresa_id,
@@ -25684,6 +25731,8 @@ def salvar_vitrine_configuracao_db(dados: dict[str, str]) -> None:
                     int(dados["logo_offset_y"]),
                     dados["logo_formato"],
                     dados["logo_fundo"],
+                    dados["catalogo_formato"],
+                    dados["video_path"],
                     dados["categoria"],
                     dados["descricao_empresa"],
                     dados["tipo_identidade_visual"],
@@ -25709,6 +25758,8 @@ def salvar_vitrine_configuracao_db(dados: dict[str, str]) -> None:
                     logo_offset_y = ?,
                     logo_formato = ?,
                     logo_fundo = ?,
+                    catalogo_formato = ?,
+                    video_path = ?,
                     categoria = ?,
                     descricao_empresa = ?,
                     tipo_identidade_visual = ?,
@@ -25730,6 +25781,8 @@ def salvar_vitrine_configuracao_db(dados: dict[str, str]) -> None:
                     int(dados["logo_offset_y"]),
                     dados["logo_formato"],
                     dados["logo_fundo"],
+                    dados["catalogo_formato"],
+                    dados["video_path"],
                     dados["categoria"],
                     dados["descricao_empresa"],
                     dados["tipo_identidade_visual"],
@@ -25746,6 +25799,11 @@ def salvar_vitrine_configuracao_db(dados: dict[str, str]) -> None:
 
     if dados.get("remover_logo") == "sim" and dados.get("logo_anterior"):
         remover_arquivo_imagem_vitrine(dados.get("logo_anterior"))
+
+    video_anterior = str(dados.get("video_anterior") or "").strip()
+    video_atual = str(dados.get("video_path") or "").strip()
+    if video_anterior and (dados.get("remover_video") == "sim" or (video_atual and video_atual != video_anterior)):
+        remover_arquivo_imagem_vitrine(video_anterior)
 
 
 def buscar_vitrine_configuracao_por_slug(slug: Any) -> dict[str, Any] | None:
@@ -28059,6 +28117,19 @@ def renderizar_vitrine_publica_html(
     empresa_id_vitrine = int(config_vitrine.get("empresa_id") or 0)
     regras_vitrine = buscar_configuracoes_modulo("vitrine", empresa_id_vitrine)
 
+    catalogo_formato = str(config_vitrine.get("catalogo_formato") or "vertical").strip().lower()
+    if catalogo_formato not in {"vertical", "quadrado", "horizontal"}:
+        catalogo_formato = "vertical"
+    video_path = str(config_vitrine.get("video_path") or "").strip()
+    video_catalogo_html = (
+        '<section class="video-catalogo-section" aria-label="Vídeo da loja">'
+        '<div class="video-catalogo-heading"><p class="section-kicker">Vídeo</p><h2>Conheça mais</h2></div>'
+        f'<video controls preload="metadata" playsinline src="/vitrine-upload/{html.escape(video_path)}"></video>'
+        '</section>'
+        if video_path
+        else ""
+    )
+
     tipo_identidade_visual = str(config_vitrine.get("tipo_identidade_visual") or "cores").strip().lower()
     if tipo_identidade_visual not in {"logo", "cores"}:
         tipo_identidade_visual = "logo" if str(config_vitrine.get("logo_path") or "").strip() else "cores"
@@ -28453,7 +28524,7 @@ def renderizar_vitrine_publica_html(
 {f'<button class="item-imagem-seta item-imagem-anterior" type="button" aria-label="Foto anterior" onclick="mudarFotoCard(this,-1)">‹</button><button class="item-imagem-seta item-imagem-proxima" type="button" aria-label="Próxima foto" onclick="mudarFotoCard(this,1)">›</button>' if len(imagens_paths) > 1 else ''}
 <span class="galeria-contador"><span data-foto-atual>{1 if imagens_paths else 0}</span>/{len(imagens_paths)}</span>
 </div>
-<div class="item-info"><small>Produto • {categoria_item}</small><h3>{nome}</h3>{indisponivel_html}<p>{descricao}</p>{preco_html}{seletor_quantidade if permitir_pedido and disponivel else ''}<div class="item-acoes">{acao_principal}{acao_secundaria}</div></div></article>'''
+<div class="item-info"><h3>{nome}</h3>{indisponivel_html}<p>{descricao}</p>{preco_html}{seletor_quantidade if permitir_pedido and disponivel else ''}<div class="item-acoes">{acao_principal}{acao_secundaria}</div></div></article>'''
             )
 
     if exibir_servicos:
@@ -28515,7 +28586,7 @@ def renderizar_vitrine_publica_html(
 {f'<button class="item-imagem-seta item-imagem-anterior" type="button" aria-label="Foto anterior" onclick="mudarFotoCard(this,-1)">‹</button><button class="item-imagem-seta item-imagem-proxima" type="button" aria-label="Próxima foto" onclick="mudarFotoCard(this,1)">›</button>' if len(imagens_paths) > 1 else ''}
 <span class="galeria-contador"><span data-foto-atual>{1 if imagens_paths else 0}</span>/{len(imagens_paths)}</span>
 </div>
-<div class="item-info"><small>Serviço • {categoria_item}</small><h3>{nome}</h3>{indisponivel_html}<p>{descricao}</p><div class="item-meta">{duracao_html}{preco_html}</div><div class="item-acoes">{acao_principal_servico}{acao_whatsapp}</div></div></article>'''
+<div class="item-info"><h3>{nome}</h3>{indisponivel_html}<p>{descricao}</p><div class="item-meta">{duracao_html}{preco_html}</div><div class="item-acoes">{acao_principal_servico}{acao_whatsapp}</div></div></article>'''
             )
 
     def botoes_categorias(categorias: set[str], tipo: str) -> str:
@@ -28653,7 +28724,7 @@ button,input,select,textarea{font:inherit}
 .btn-publico{min-height:46px;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:0 20px;border-radius:13px;text-decoration:none;font-weight:950}
 .btn-catalogo{background:var(--brand-action);color:var(--brand-action-text)}
 .btn-whatsapp{background:#16a34a;color:#fff}
-.sobre-diferenciais{width:min(1180px,calc(100% - 32px));margin:26px auto 0;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.45fr);gap:16px}
+.sobre-diferenciais{width:min(1180px,calc(100% - 32px));margin:26px auto 0;display:grid;grid-template-columns:1fr;gap:16px}.sobre-card{width:100%;box-sizing:border-box}
 .sobre-card,.diferenciais-grid{background:#fff;border:1px solid var(--border);border-radius:20px;box-shadow:0 8px 28px rgba(15,23,42,.05)}
 .sobre-card{padding:22px}
 .section-kicker{margin:0 0 8px;color:var(--brand-action);font-size:11px;font-weight:1000;text-transform:uppercase;letter-spacing:.13em}
@@ -28666,20 +28737,22 @@ button,input,select,textarea{font:inherit}
 .diferencial-card div{display:grid;gap:5px}
 .diferencial-card strong{font-size:13px}
 .diferencial-card small{color:var(--text-soft);font-size:11px;line-height:1.45}
+.video-catalogo-section{width:min(1180px,calc(100% - 32px));margin:20px auto 0;padding:20px;border:1px solid var(--border);border-radius:22px;background:#fff;box-shadow:0 8px 28px rgba(15,23,42,.05);box-sizing:border-box}.video-catalogo-heading{margin-bottom:14px}.video-catalogo-heading h2{margin:0;font-size:24px}.video-catalogo-section video{display:block;width:100%;max-height:680px;border-radius:16px;background:#000;object-fit:contain}
 .container{width:min(1180px,calc(100% - 32px));margin:30px auto 44px}
 .mensagem{margin-bottom:14px;padding:13px 16px;border-radius:14px;background:#ecfdf5;color:#047857;font-weight:850}
 .whatsapp-final{display:block;margin-bottom:14px;padding:13px 16px;border-radius:14px;background:#16a34a;color:#fff;text-align:center;text-decoration:none;font-weight:900}
 .catalogo-cabecalho{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:16px}
 .catalogo-cabecalho p:last-child{margin:7px 0 0;color:var(--text-soft)}
-.barra{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"busca abas" "categorias categorias";gap:12px;padding:16px;border:1px solid var(--border);border-radius:20px;background:#fff;box-shadow:0 10px 28px rgba(15,23,42,.06)}
+.barra{display:grid;grid-template-columns:minmax(0,1fr) auto auto;grid-template-areas:"busca menu abas" "categorias categorias categorias";gap:12px;padding:16px;border:1px solid var(--border);border-radius:20px;background:#fff;box-shadow:0 10px 28px rgba(15,23,42,.06)}
 .busca-wrap{grid-area:busca;position:relative}
 .busca-wrap::before{content:"⌕";position:absolute;left:15px;top:50%;transform:translateY(-50%);color:var(--brand-action);font-size:19px}
 .busca{width:100%;min-height:48px;border:1px solid var(--border);border-radius:13px;padding:0 15px 0 43px;font-size:15px;outline:none}
 .busca:focus{border-color:var(--brand-action);box-shadow:0 0 0 3px color-mix(in srgb,var(--brand-action) 12%,transparent)}
+.categorias-toggle{grid-area:menu;width:48px;height:48px;display:grid;place-items:center;gap:4px;border:1px solid var(--border);border-radius:13px;background:#fff;cursor:pointer;padding:12px}.categorias-toggle span{display:block;width:22px;height:2px;border-radius:999px;background:var(--brand-action)}.categorias-toggle[aria-expanded="true"]{background:color-mix(in srgb,var(--brand-primary) 10%,#fff);border-color:color-mix(in srgb,var(--brand-primary) 28%,var(--border))}
 .tipo-abas{grid-area:abas;display:flex;gap:8px}
 .tipo-aba{min-height:48px;border:1px solid var(--border);border-radius:13px;padding:0 18px;background:#fff;color:var(--text-soft);font-weight:900;cursor:pointer}
 .tipo-aba.active{background:var(--brand-action);border-color:var(--brand-action);color:var(--brand-action-text)}
-.categorias{grid-area:categorias;overflow:auto;padding-bottom:2px}
+.categorias{grid-area:categorias;overflow:auto;padding:4px 0 2px}.categorias[hidden]{display:none}
 .categorias-grupo{display:flex;gap:8px;min-width:max-content}
 .categoria-botao{border:1px solid var(--border);border-radius:999px;padding:9px 13px;background:#fff;color:var(--text-soft);font-size:12px;font-weight:850;white-space:nowrap;cursor:pointer}
 .categoria-botao.active{background:color-mix(in srgb,var(--brand-primary) 12%,#fff);border-color:color-mix(in srgb,var(--brand-primary) 24%,var(--border));color:var(--brand-action)}
@@ -28687,8 +28760,8 @@ button,input,select,textarea{font:inherit}
 .conteudo.com-carrinho{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:18px;align-items:start}
 .itens{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,260px));gap:16px;align-items:stretch;justify-content:center;width:100%}
 .catalogo-card{min-width:0;display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--border);border-radius:19px;background:#fff;box-shadow:0 8px 24px rgba(15,23,42,.055)}
-.item-imagem{position:relative;width:100%;height:250px;min-height:250px;display:grid;place-items:center;border:0;background:#f5f6f8;overflow:hidden;text-decoration:none}
-.item-imagem-abrir{width:100%;height:100%;display:grid;place-items:center;border:0;padding:0;background:transparent;cursor:zoom-in}.item-imagem img{width:100%;height:100%;object-fit:contain;display:block;background:#fff}.produto-card .item-imagem{height:auto;min-height:0;aspect-ratio:auto;background:#fff}.produto-card .item-imagem-abrir{height:auto;min-height:0}.produto-card .item-imagem img{width:auto;max-width:100%;height:auto;max-height:none;object-fit:initial;object-position:initial;margin:auto}.item-imagem-seta{position:absolute;top:50%;z-index:3;width:42px;height:42px;display:grid;place-items:center;transform:translateY(-50%);border:1px solid rgba(255,255,255,.55);border-radius:999px;background:rgba(15,23,42,.82);color:#fff;font-size:28px;font-weight:900;line-height:1;cursor:pointer;box-shadow:0 6px 18px rgba(15,23,42,.28)}.item-imagem-seta:hover,.item-imagem-seta:focus-visible{background:#0f172a;outline:3px solid rgba(255,255,255,.55)}.item-imagem-anterior{left:10px}.item-imagem-proxima{right:10px}.galeria-contador{position:absolute;right:10px;bottom:10px;z-index:3;padding:5px 8px;border-radius:999px;background:rgba(15,23,42,.78);color:#fff;font-size:11px;font-weight:900}.galeria-modal{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.82)}.galeria-modal.aberta{display:flex}.galeria-box{position:relative;width:min(900px,96vw);height:min(720px,88vh);display:grid;place-items:center;border-radius:20px;background:#fff;overflow:hidden}.galeria-box img{max-width:100%;max-height:100%;object-fit:contain}.galeria-fechar,.galeria-anterior,.galeria-proxima{position:absolute;z-index:2;border:0;border-radius:999px;background:rgba(15,23,42,.82);color:#fff;font-weight:900;cursor:pointer}.galeria-fechar{top:14px;right:14px;width:42px;height:42px}.galeria-anterior,.galeria-proxima{top:50%;width:44px;height:44px;transform:translateY(-50%)}.galeria-anterior{left:14px}.galeria-proxima{right:14px}.galeria-titulo{position:absolute;left:16px;right:70px;top:16px;color:#111827;font-weight:900}
+.item-imagem{position:relative;width:100%;display:grid;place-items:center;border:0;background:#fff;overflow:hidden;text-decoration:none}.item-imagem-abrir{width:100%;height:100%;display:grid;place-items:center;border:0;padding:0;background:transparent;cursor:zoom-in}.item-imagem img{display:block;width:auto;height:auto;max-width:100%;max-height:100%;object-fit:contain;object-position:center;margin:auto;background:#fff}
+body.catalogo-formato-vertical .item-imagem{aspect-ratio:4/5}body.catalogo-formato-quadrado .item-imagem{aspect-ratio:1/1}body.catalogo-formato-horizontal .itens{grid-template-columns:repeat(auto-fit,minmax(420px,1fr));justify-content:stretch}body.catalogo-formato-horizontal .catalogo-card{display:grid;grid-template-columns:minmax(180px,42%) minmax(0,1fr)}body.catalogo-formato-horizontal .item-imagem{height:100%;min-height:250px;aspect-ratio:auto}body.catalogo-formato-horizontal .item-info{min-width:0}.item-imagem-seta{position:absolute;top:50%;z-index:3;width:42px;height:42px;display:grid;place-items:center;transform:translateY(-50%);border:1px solid rgba(255,255,255,.55);border-radius:999px;background:rgba(15,23,42,.82);color:#fff;font-size:28px;font-weight:900;line-height:1;cursor:pointer;box-shadow:0 6px 18px rgba(15,23,42,.28)}.item-imagem-seta:hover,.item-imagem-seta:focus-visible{background:#0f172a;outline:3px solid rgba(255,255,255,.55)}.item-imagem-anterior{left:10px}.item-imagem-proxima{right:10px}.galeria-contador{position:absolute;right:10px;bottom:10px;z-index:3;padding:5px 8px;border-radius:999px;background:rgba(15,23,42,.78);color:#fff;font-size:11px;font-weight:900}.galeria-modal{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.82)}.galeria-modal.aberta{display:flex}.galeria-box{position:relative;width:min(900px,96vw);height:min(720px,88vh);display:grid;place-items:center;border-radius:20px;background:#fff;overflow:hidden}.galeria-box img{max-width:100%;max-height:100%;object-fit:contain}.galeria-fechar,.galeria-anterior,.galeria-proxima{position:absolute;z-index:2;border:0;border-radius:999px;background:rgba(15,23,42,.82);color:#fff;font-weight:900;cursor:pointer}.galeria-fechar{top:14px;right:14px;width:42px;height:42px}.galeria-anterior,.galeria-proxima{top:50%;width:44px;height:44px;transform:translateY(-50%)}.galeria-anterior{left:14px}.galeria-proxima{right:14px}.galeria-titulo{position:absolute;left:16px;right:70px;top:16px;color:#111827;font-weight:900}
 .item-sem-imagem{color:var(--text-soft);font-weight:850}
 .item-info{flex:1;display:flex;flex-direction:column;gap:9px;padding:15px}
 .item-info small{color:var(--text-soft);font-weight:800}
@@ -28748,7 +28821,7 @@ button,input,select,textarea{font:inherit}
     .nav-links{display:none}.apresentacao-inner{grid-template-columns:240px minmax(0,1fr);gap:24px}.apresentacao-logo{min-height:240px}.sobre-diferenciais{grid-template-columns:1fr}.conteudo.com-carrinho{grid-template-columns:1fr}.carrinho{position:static}.itens{grid-template-columns:repeat(auto-fit,minmax(220px,300px));justify-content:center}.passos-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(max-width:680px){
-    .navbar-inner,.apresentacao-inner,.sobre-diferenciais,.container,.footer-inner{width:min(100% - 22px,1180px)}.navbar-inner{min-height:62px;gap:9px}.marca-logo{width:43px;height:43px}.marca-texto strong{font-size:15px}.marca-texto small{display:none}.nav-whatsapp{margin-left:auto;width:42px;min-width:42px;padding:0;justify-content:center}.nav-whatsapp span:last-child{display:none}.nav-carrinho{font-size:0;width:42px;min-width:42px;padding:0;justify-content:center}.nav-carrinho span{font-size:16px}.apresentacao{padding-top:26px}.apresentacao-inner{grid-template-columns:1fr;gap:20px}.apresentacao-logo{width:min(240px,76vw);height:min(240px,76vw);min-height:0;margin:auto;padding:0}.apresentacao-logo-img{max-height:none}.apresentacao-copy{text-align:center}.apresentacao h1{font-size:38px}.apresentacao-categoria{font-size:19px}.apresentacao-descricao{font-size:14px}.apresentacao-acoes{justify-content:center}.sobre-diferenciais{margin-top:18px}.diferenciais-grid{grid-template-columns:1fr}.diferencial-card+ .diferencial-card{border-left:0;border-top:1px solid var(--border)}.catalogo-cabecalho{align-items:flex-start;flex-direction:column}.barra{grid-template-columns:1fr;grid-template-areas:"busca" "abas" "categorias"}.tipo-abas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.tipo-aba{padding:0 10px}.itens{grid-template-columns:minmax(0,420px);justify-content:center}.produto-card .item-imagem{min-height:0}.passos-grid{grid-template-columns:1fr}.footer-inner{justify-content:center;text-align:center}.footer-marca{justify-content:center}.footer-social{justify-content:center}.footer-credit{text-align:center}
+    .navbar-inner,.apresentacao-inner,.sobre-diferenciais,.container,.footer-inner{width:min(100% - 22px,1180px)}.navbar-inner{min-height:62px;gap:9px}.marca-logo{width:43px;height:43px}.marca-texto strong{font-size:15px}.marca-texto small{display:none}.nav-whatsapp{margin-left:auto;width:42px;min-width:42px;padding:0;justify-content:center}.nav-whatsapp span:last-child{display:none}.nav-carrinho{font-size:0;width:42px;min-width:42px;padding:0;justify-content:center}.nav-carrinho span{font-size:16px}.apresentacao{padding-top:26px}.apresentacao-inner{grid-template-columns:1fr;gap:20px}.apresentacao-logo{width:min(240px,76vw);height:min(240px,76vw);min-height:0;margin:auto;padding:0}.apresentacao-logo-img{max-height:none}.apresentacao-copy{text-align:center}.apresentacao h1{font-size:38px}.apresentacao-categoria{font-size:19px}.apresentacao-descricao{font-size:14px}.apresentacao-acoes{justify-content:center}.sobre-diferenciais{margin-top:18px}.diferenciais-grid{grid-template-columns:1fr}.diferencial-card+ .diferencial-card{border-left:0;border-top:1px solid var(--border)}.catalogo-cabecalho{align-items:flex-start;flex-direction:column}.barra{grid-template-columns:minmax(0,1fr) 48px;grid-template-areas:"busca menu" "abas abas" "categorias categorias"}.tipo-abas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.tipo-aba{padding:0 10px}.itens{grid-template-columns:minmax(0,420px);justify-content:center}body.catalogo-formato-horizontal .itens{grid-template-columns:minmax(0,420px)}body.catalogo-formato-horizontal .catalogo-card{display:flex;flex-direction:column}body.catalogo-formato-horizontal .item-imagem{aspect-ratio:16/10;min-height:0}.passos-grid{grid-template-columns:1fr}.footer-inner{justify-content:center;text-align:center}.footer-marca{justify-content:center}.footer-social{justify-content:center}.footer-credit{text-align:center}
 }
 </style>
 '''
@@ -28778,7 +28851,7 @@ button,input,select,textarea{font:inherit}
     <meta name="description" content="__DESCRICAO_SEO__">
     __ESTILO__
 </head>
-<body class="identity-__IDENTIDADE__ categoria-__CATEGORIA_CLASSE__" data-identity-mode="__IDENTIDADE__">
+<body class="identity-__IDENTIDADE__ categoria-__CATEGORIA_CLASSE__ catalogo-formato-__FORMATO_CATALOGO__" data-identity-mode="__IDENTIDADE__">
 <header class="site-header" id="inicio">
     <div class="navbar-inner">
         <a class="marca-nav" href="#inicio" aria-label="Início - __NOME_LOJA__">
@@ -28817,6 +28890,7 @@ button,input,select,textarea{font:inherit}
     </article>
     <div class="diferenciais-grid">__DIFERENCIAIS__</div>
 </section>
+__VIDEO_CATALOGO__
 <main class="container" id="catalogo">
     __MENSAGEM__
     __WHATSAPP_FINAL__
@@ -28829,8 +28903,9 @@ button,input,select,textarea{font:inherit}
     </header>
     <section class="barra" aria-label="Filtros do catálogo">
         <div class="busca-wrap"><input class="busca" id="busca" placeholder="Buscar produto, serviço ou categoria..." oninput="filtrarItens()"></div>
+        <button class="categorias-toggle" id="categoriasToggle" type="button" aria-label="Abrir categorias" aria-expanded="false" onclick="alternarCategoriasCatalogo()"><span></span><span></span><span></span></button>
         <div class="tipo-abas">__ABAS__</div>
-        <div class="categorias">
+        <div class="categorias" id="categoriasCatalogo" hidden>
             <div class="categorias-grupo" id="categoriasProduto" __OCULTAR_CATEGORIAS_PRODUTO__>__CATEGORIAS_PRODUTOS__</div>
             <div class="categorias-grupo" id="categoriasServico" __OCULTAR_CATEGORIAS_SERVICO__>__CATEGORIAS_SERVICOS__</div>
         </div>
@@ -28882,6 +28957,7 @@ function renderizarPaginacao(total){const paginas=Math.max(1,Math.ceil(total/ite
 function aplicarFiltros(resetPagina=false){if(resetPagina)paginaAtual=1;const filtrados=obterCardsFiltrados();document.querySelectorAll('.catalogo-card').forEach(card=>card.hidden=true);const inicio=(paginaAtual-1)*itensPorPagina;filtrados.slice(inicio,inicio+itensPorPagina).forEach(card=>card.hidden=false);renderizarPaginacao(filtrados.length)}
 function mudarPagina(pagina){paginaAtual=Math.max(1,pagina);aplicarFiltros(false);document.getElementById('catalogo').scrollIntoView({behavior:'smooth',block:'start'})}
 function atualizarSecoesTipo(){const produto=tipoAtivo==='produto';const passosProduto=document.getElementById('passosProduto');const passosServico=document.getElementById('passosServico');const pagamentos=document.getElementById('pagamentosVitrine');const titulo=document.getElementById('tituloPassos');if(passosProduto)passosProduto.hidden=!produto;if(passosServico)passosServico.hidden=produto;if(pagamentos)pagamentos.hidden=!produto;if(titulo)titulo.textContent=produto?'Como comprar':'Como agendar'}
+function alternarCategoriasCatalogo(){const painel=document.getElementById('categoriasCatalogo');const botao=document.getElementById('categoriasToggle');if(!painel||!botao)return;const abrir=painel.hidden;painel.hidden=!abrir;botao.setAttribute('aria-expanded',abrir?'true':'false');botao.setAttribute('aria-label',abrir?'Recolher categorias':'Abrir categorias')}
 function selecionarTipo(tipo,botao){tipoAtivo=tipo;categoriaAtiva='';document.querySelectorAll('.tipo-aba').forEach(item=>item.classList.toggle('active',item===botao));const grupoProduto=document.getElementById('categoriasProduto');const grupoServico=document.getElementById('categoriasServico');if(grupoProduto)grupoProduto.hidden=tipo!=='produto';if(grupoServico)grupoServico.hidden=tipo!=='servico';document.querySelectorAll('.categoria-botao').forEach(item=>item.classList.toggle('active',item.dataset.tipo===tipo&&!item.dataset.categoria));const carrinhoEl=document.getElementById('carrinhoProdutos');const conteudo=document.getElementById('conteudoCatalogo');if(carrinhoEl)carrinhoEl.hidden=tipo!=='produto';if(conteudo)conteudo.classList.toggle('com-carrinho',tipo==='produto'&&!!carrinhoEl);const busca=document.getElementById('busca');if(busca)busca.value='';atualizarSecoesTipo();aplicarFiltros(true)}
 function filtrarCategoria(tipo,categoria,botao){if(tipo!==tipoAtivo)return;categoriaAtiva=categoria||'';document.querySelectorAll(`.categoria-botao[data-tipo="${tipo}"]`).forEach(item=>item.classList.toggle('active',item===botao));aplicarFiltros(true)}
 function filtrarItens(){aplicarFiltros(true)}
@@ -28910,6 +28986,8 @@ document.addEventListener('DOMContentLoaded',()=>{const botao=document.querySele
         "__ESTILO__": estilo,
         "__IDENTIDADE__": tipo_identidade_visual,
         "__CATEGORIA_CLASSE__": categoria_classe,
+        "__FORMATO_CATALOGO__": catalogo_formato,
+        "__VIDEO_CATALOGO__": video_catalogo_html,
         "__NOME_LOJA__": nome_loja,
         "__LOGO_NAV__": logo_nav_html,
         "__CATEGORIA__": categoria,
