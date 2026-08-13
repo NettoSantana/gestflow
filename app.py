@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-12 23:18 (America/Bahia)
-# Motivo: Permitir fotos e vídeos MP4 na galeria de cada produto da Vitrine, persistindo a mídia e exibindo-a no carrossel público.
+# Último recode: 2026-08-12 23:35 (America/Bahia)
+# Motivo: Separar a Central Operacional da Vitrine das configurações permanentes e concentrar a personalização da loja em Configurações da Vitrine.
 
 from __future__ import annotations
 
@@ -890,11 +890,6 @@ CONFIGURACOES_MODULOS_DEFINICOES = [
                 secao="Integrações",
                 ajuda="Ativado: a Vitrine acompanha o cadastro normal e permite gerar venda. Desativado: os serviços já publicados mantêm os dados próprios da Vitrine e o atendimento não gera venda automaticamente.",
             ),
-            _campo_configuracao_modulo("nome_publico", "Nome público", "texto", "", secao="Identidade"),
-            _campo_configuracao_modulo("slug", "Endereço personalizado", "texto", "", secao="Publicação"),
-            _campo_configuracao_modulo("cor_primaria", "Cor principal", "texto", "#1458f5", secao="Identidade"),
-            _campo_configuracao_modulo("cor_secundaria", "Cor secundária", "texto", "#0f172a", secao="Identidade"),
-            _campo_configuracao_modulo("banner", "Texto do banner", "texto_longo", "", secao="Identidade"),
             _campo_configuracao_modulo("exibir_produtos", "Exibir produtos", "booleano", True, secao="Catálogo"),
             _campo_configuracao_modulo("exibir_servicos", "Exibir serviços", "booleano", True, secao="Catálogo"),
             _campo_configuracao_modulo("categorias_publicas", "Categorias públicas", "lista", "", secao="Catálogo"),
@@ -904,7 +899,6 @@ CONFIGURACOES_MODULOS_DEFINICOES = [
             _campo_configuracao_modulo("quantidade_minima", "Quantidade mínima", "numero", 1, secao="Pedidos", minimo=1),
             _campo_configuracao_modulo("formas_entrega", "Formas de entrega", "lista", "Entrega\nRetirada no local", secao="Entrega"),
             _campo_configuracao_modulo("regioes_taxas_entrega", "Regiões e taxas de entrega", "texto_longo", "", secao="Entrega"),
-            _campo_configuracao_modulo("whatsapp", "WhatsApp de atendimento", "texto", "", secao="Contato"),
             _campo_configuracao_modulo("notificar_responsavel_whatsapp", "Notificar responsável por WhatsApp", "booleano", True, secao="Notificações"),
             _campo_configuracao_modulo("whatsapp_responsavel", "WhatsApp responsável pelas notificações", "texto", "", secao="Notificações", ajuda="Informe DDI, DDD e número. Exemplo: 5571999999999."),
             _campo_configuracao_modulo("template_notificacao_whatsapp", "Template aprovado da Meta", "texto", "", secao="Notificações", ajuda="Opcional. Use um template com 4 variáveis no corpo: tipo, número, cliente e resumo."),
@@ -916,7 +910,6 @@ CONFIGURACOES_MODULOS_DEFINICOES = [
                 secao="Notificações",
                 ajuda="Ative somente quando o template aprovado da Meta tiver um botão URL dinâmico na posição 0. O GestFlow enviará o número do pedido como variável do botão.",
             ),
-            _campo_configuracao_modulo("texto_institucional", "Texto institucional", "texto_longo", "", secao="Conteúdo"),
             _campo_configuracao_modulo("politica_troca", "Política de troca", "texto_longo", "", secao="Políticas"),
             _campo_configuracao_modulo("politica_privacidade", "Política de privacidade", "texto_longo", "", secao="Políticas"),
             _campo_configuracao_modulo("seo_titulo", "Título para busca e compartilhamento", "texto", "", secao="SEO"),
@@ -23908,6 +23901,16 @@ def configuracoes(grupo: str | None = None) -> str:
         request.args.get("modulo"),
         grupo or request.args.get("grupo"),
     )
+    vitrine_configuracao = (
+        buscar_vitrine_configuracao()
+        if contexto_regras["codigo_modulo_configuracao"] == "vitrine"
+        else {}
+    )
+    link_publico_vitrine = (
+        f"{request.url_root.rstrip('/')}/loja/{vitrine_configuracao.get('slug')}"
+        if vitrine_configuracao.get("slug")
+        else ""
+    )
 
     return render_template(
         "configuracoes.html",
@@ -23937,6 +23940,8 @@ def configuracoes(grupo: str | None = None) -> str:
         metadados_configuracao=contexto_regras["metadados_configuracao"],
         secoes_configuracao=contexto_regras["secoes_configuracao"],
         total_configuracoes=contexto_regras["total_configuracoes"],
+        vitrine_configuracao=vitrine_configuracao,
+        link_publico_vitrine=link_publico_vitrine,
         erro=request.args.get("erro", ""),
         sucesso=request.args.get("sucesso", ""),
     )
@@ -24003,6 +24008,52 @@ def salvar_regras_configuracao_modulo(codigo: str) -> Response:
         url_retorno_configuracao_modulo(
             codigo,
             sucesso=f"Configurações de {definicao['nome']} salvas com sucesso.",
+        )
+    )
+
+
+@app.post("/configuracoes/vitrine/publica")
+def salvar_configuracao_publica_vitrine() -> Response:
+    configuracao_anterior = buscar_vitrine_configuracao()
+    try:
+        dados = montar_vitrine_formulario(configuracao_anterior)
+        salvar_vitrine_configuracao_db(dados)
+    except ValueError as exc:
+        return redirect(
+            url_retorno_configuracao_modulo(
+                "vitrine",
+                erro=str(exc),
+            )
+        )
+
+    registrar_atividade_usuario(
+        "edicao",
+        "configuracoes",
+        "Atualizou a identidade e a apresentação pública da Vitrine.",
+        registro_id=empresa_logada_id(),
+        dados_anteriores={
+            chave: configuracao_anterior.get(chave)
+            for chave in (
+                "nome_loja", "whatsapp", "instagram", "slug", "logo_path",
+                "logo_zoom", "logo_offset_x", "logo_offset_y", "logo_formato",
+                "logo_fundo", "catalogo_formato", "categoria", "descricao_empresa",
+                "tipo_identidade_visual", "cor_principal", "cor_secundaria", "status",
+            )
+        },
+        dados_novos={
+            chave: dados.get(chave)
+            for chave in (
+                "nome_loja", "whatsapp", "instagram", "slug", "logo_path",
+                "logo_zoom", "logo_offset_x", "logo_offset_y", "logo_formato",
+                "logo_fundo", "catalogo_formato", "categoria", "descricao_empresa",
+                "tipo_identidade_visual", "cor_principal", "cor_secundaria", "status",
+            )
+        },
+    )
+    return redirect(
+        url_retorno_configuracao_modulo(
+            "vitrine",
+            sucesso="Identidade e apresentação da Vitrine salvas com sucesso.",
         )
     )
 
@@ -28280,14 +28331,6 @@ def aplicar_configuracoes_vitrine_publica(
     empresa_id = int(config_vitrine.get("empresa_id") or 0)
     regras = buscar_configuracoes_modulo("vitrine", empresa_id)
     configuracao = dict(config_vitrine)
-    substituicoes = {
-        "nome_loja": regras.get("nome_publico"), "slug": regras.get("slug"),
-        "cor_principal": regras.get("cor_primaria"), "cor_secundaria": regras.get("cor_secundaria"),
-        "whatsapp": regras.get("whatsapp"),
-    }
-    for chave, valor in substituicoes.items():
-        if str(valor or "").strip():
-            configuracao[chave] = str(valor).strip()
 
     categorias = {normalizar for normalizar in lista_configuracao_modulo("vitrine", "categorias_publicas", empresa_id)}
     produtos_filtrados = list(produtos) if configuracao_bool("vitrine", "exibir_produtos", True, empresa_id) else []

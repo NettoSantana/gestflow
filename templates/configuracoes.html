@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\configuracoes.html
-Último recode: 2026-07-30 17:55 (America/Bahia)
-Motivo: Manter a central de configurações somente na página inicial e exibir diretamente o conteúdo das páginas internas.
+Último recode: 2026-08-12 23:35 (America/Bahia)
+Motivo: Concentrar identidade, publicação e apresentação pública da Vitrine em Configurações, separando essas opções da operação diária.
 -->
 
 <!DOCTYPE html>
@@ -269,6 +269,253 @@ Motivo: Manter a central de configurações somente na página inicial e exibir 
 
                     {% if sucesso %}
                         <div class="config-alert success">{{ sucesso }}</div>
+                    {% endif %}
+
+                    {% if codigo_modulo_configuracao == 'vitrine' %}
+                        {% set vitrine_cfg = vitrine_configuracao|default({}, true) %}
+                        {% set vitrine_identidade = vitrine_cfg.get('tipo_identidade_visual') or ('logo' if vitrine_cfg.get('logo_path') else 'cores') %}
+                        {% set vitrine_logo_formato = 'sem_moldura' if (vitrine_cfg.get('logo_formato') or '') == 'quadrado' else (vitrine_cfg.get('logo_formato') or 'arredondado') %}
+                        <section class="vitrine-config-publica" data-vitrine-config-publica>
+                            <div class="vitrine-config-publica-header">
+                                <div>
+                                    <span class="page-kicker">Loja pública</span>
+                                    <h3>Identidade e apresentação da Vitrine</h3>
+                                    <p>Configure aqui o que muda raramente. Produtos, pedidos e agendamentos continuam na Central da Vitrine.</p>
+                                </div>
+                                <div class="vitrine-config-publica-actions">
+                                    <a href="{{ url_for('vitrine') }}" class="btn-light">Central da Vitrine</a>
+                                    {% if link_publico_vitrine %}
+                                        <a href="{{ link_publico_vitrine }}" target="_blank" rel="noopener" class="btn-dark">Ver vitrine</a>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <form
+                                class="vitrine-config-publica-form"
+                                action="{{ url_for('salvar_configuracao_publica_vitrine') }}"
+                                method="post"
+                                enctype="multipart/form-data"
+                            >
+                                <details class="vitrine-config-section" open>
+                                    <summary><span>Publicação e contato</span><small>Nome, endereço e canais da loja</small></summary>
+                                    <div class="vitrine-config-grid">
+                                        <div class="module-config-field">
+                                            <label for="vitrine_nome_loja">Nome da loja</label>
+                                            <input id="vitrine_nome_loja" name="nome_loja" type="text" value="{{ vitrine_cfg.get('nome_loja') or '' }}" class="form-control" placeholder="Ex.: Minha loja">
+                                        </div>
+                                        <div class="module-config-field">
+                                            <label for="vitrine_slug">Link público</label>
+                                            <input id="vitrine_slug" name="slug" type="text" value="{{ vitrine_cfg.get('slug') or '' }}" class="form-control" placeholder="Ex.: minha-loja">
+                                            {% if link_publico_vitrine %}<small class="module-config-help">{{ link_publico_vitrine }}</small>{% endif %}
+                                        </div>
+                                        <div class="module-config-field">
+                                            <label for="vitrine_whatsapp">WhatsApp para pedidos</label>
+                                            <input id="vitrine_whatsapp" name="whatsapp" type="text" value="{{ vitrine_cfg.get('whatsapp') or '' }}" class="form-control" placeholder="Ex.: 71999999999">
+                                        </div>
+                                        <div class="module-config-field">
+                                            <label for="vitrine_instagram">Instagram</label>
+                                            <input id="vitrine_instagram" name="instagram" type="text" value="{{ vitrine_cfg.get('instagram') or '' }}" class="form-control" placeholder="Ex.: @minhaloja">
+                                        </div>
+                                        <div class="module-config-field">
+                                            <label for="vitrine_status">Situação pública</label>
+                                            <select id="vitrine_status" name="status" class="form-control">
+                                                <option value="publicado" {% if (vitrine_cfg.get('status') or 'rascunho') == 'publicado' %}selected{% endif %}>Publicada</option>
+                                                <option value="rascunho" {% if (vitrine_cfg.get('status') or 'rascunho') == 'rascunho' %}selected{% endif %}>Rascunho</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </details>
+
+                                <details class="vitrine-config-section" open>
+                                    <summary><span>Conteúdo e catálogo</span><small>Apresentação institucional e formato dos produtos</small></summary>
+                                    <div class="vitrine-config-grid">
+                                        <div class="module-config-field wide">
+                                            <label for="vitrine_descricao_empresa">Descrição / Sobre nós</label>
+                                            <textarea id="vitrine_descricao_empresa" name="descricao_empresa" class="form-control module-config-textarea" rows="4" maxlength="600">{{ vitrine_cfg.get('descricao_empresa') or '' }}</textarea>
+                                            <small class="module-config-help">Esse texto aparece em destaque na página pública. Limite de 600 caracteres.</small>
+                                        </div>
+                                        <div class="module-config-field">
+                                            <label for="vitrine_categoria">Categoria principal</label>
+                                            <select id="vitrine_categoria" name="categoria" class="form-control">
+                                                <option value="">Selecionar categoria</option>
+                                                <option value="perfumaria" {% if vitrine_cfg.get('categoria') == 'perfumaria' %}selected{% endif %}>Perfumaria e cosméticos</option>
+                                                <option value="moda" {% if vitrine_cfg.get('categoria') == 'moda' %}selected{% endif %}>Moda e roupas</option>
+                                                <option value="mercado" {% if vitrine_cfg.get('categoria') == 'mercado' %}selected{% endif %}>Mercado e variedades</option>
+                                                <option value="servicos" {% if vitrine_cfg.get('categoria') == 'servicos' %}selected{% endif %}>Serviços</option>
+                                                <option value="pecas" {% if vitrine_cfg.get('categoria') == 'pecas' %}selected{% endif %}>Peças e oficina</option>
+                                            </select>
+                                        </div>
+                                        <div class="module-config-field">
+                                            <label for="vitrine_catalogo_formato">Formato dos cards</label>
+                                            <select id="vitrine_catalogo_formato" name="catalogo_formato" class="form-control">
+                                                <option value="vertical" {% if (vitrine_cfg.get('catalogo_formato') or 'vertical') == 'vertical' %}selected{% endif %}>Vertical</option>
+                                                <option value="quadrado" {% if vitrine_cfg.get('catalogo_formato') == 'quadrado' %}selected{% endif %}>Quadrado</option>
+                                                <option value="horizontal" {% if vitrine_cfg.get('catalogo_formato') == 'horizontal' %}selected{% endif %}>Horizontal</option>
+                                            </select>
+                                            <small class="module-config-help">O formato muda o card sem cortar a mídia original.</small>
+                                        </div>
+                                    </div>
+                                </details>
+
+                                <details class="vitrine-config-section" open>
+                                    <summary><span>Identidade visual</span><small>Logo, posição, moldura e cores</small></summary>
+                                    <div class="vitrine-identidade-opcoes">
+                                        <label class="vitrine-identidade-opcao">
+                                            <input type="radio" name="tipo_identidade_visual" value="logo" {% if vitrine_identidade == 'logo' %}checked{% endif %}>
+                                            <span><strong>Usar logo</strong><small>A logo será o destaque da página pública.</small></span>
+                                        </label>
+                                        <label class="vitrine-identidade-opcao">
+                                            <input type="radio" name="tipo_identidade_visual" value="cores" {% if vitrine_identidade == 'cores' %}checked{% endif %}>
+                                            <span><strong>Usar cores</strong><small>O nome da loja será o destaque visual.</small></span>
+                                        </label>
+                                    </div>
+
+                                    <div class="vitrine-identidade-painel" data-vitrine-identidade-painel="logo" {% if vitrine_identidade != 'logo' %}hidden{% endif %}>
+                                        <div class="vitrine-logo-config-grid">
+                                            <div class="vitrine-logo-config-preview" data-vitrine-logo-preview style="--logo-zoom:{{ ((vitrine_cfg.get('logo_zoom') or 100)|int) / 100 }};--logo-x:{{ vitrine_cfg.get('logo_offset_x') or 0 }}%;--logo-y:{{ vitrine_cfg.get('logo_offset_y') or 0 }}%;--logo-bg:{{ vitrine_cfg.get('logo_fundo') or '#ffffff' }};">
+                                                <div class="vitrine-logo-config-frame" data-logo-formato="{{ vitrine_logo_formato }}">
+                                                    {% if vitrine_cfg.get('logo_path') %}
+                                                        <img src="{{ url_for('servir_upload_vitrine_publico', caminho=vitrine_cfg.get('logo_path')) }}" alt="Logo atual" data-vitrine-logo-img>
+                                                    {% else %}
+                                                        <span data-vitrine-logo-placeholder>Sem logo</span>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            <div class="vitrine-logo-config-controls">
+                                                <div class="module-config-field wide">
+                                                    <label for="vitrine_logo_loja">Logo da loja</label>
+                                                    <input id="vitrine_logo_loja" name="logo_loja" type="file" accept="image/*" class="form-control" data-vitrine-logo-input>
+                                                    {% if vitrine_cfg.get('logo_path') %}
+                                                        <label class="vitrine-config-check"><input type="checkbox" name="remover_logo" value="sim"> Remover logo ao salvar</label>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="module-config-field">
+                                                    <label for="vitrine_logo_zoom">Zoom <strong data-logo-zoom-label>{{ vitrine_cfg.get('logo_zoom') or 100 }}%</strong></label>
+                                                    <input id="vitrine_logo_zoom" name="logo_zoom" type="range" min="60" max="300" step="5" value="{{ vitrine_cfg.get('logo_zoom') or 100 }}" data-vitrine-logo-zoom>
+                                                </div>
+                                                <div class="module-config-field">
+                                                    <label for="vitrine_logo_x">Posição horizontal <strong data-logo-x-label>{{ vitrine_cfg.get('logo_offset_x') or 0 }}</strong></label>
+                                                    <input id="vitrine_logo_x" name="logo_offset_x" type="range" min="-50" max="50" step="1" value="{{ vitrine_cfg.get('logo_offset_x') or 0 }}" data-vitrine-logo-x>
+                                                </div>
+                                                <div class="module-config-field">
+                                                    <label for="vitrine_logo_y">Posição vertical <strong data-logo-y-label>{{ vitrine_cfg.get('logo_offset_y') or 0 }}</strong></label>
+                                                    <input id="vitrine_logo_y" name="logo_offset_y" type="range" min="-50" max="50" step="1" value="{{ vitrine_cfg.get('logo_offset_y') or 0 }}" data-vitrine-logo-y>
+                                                </div>
+                                                <div class="module-config-field">
+                                                    <label for="vitrine_logo_formato">Moldura</label>
+                                                    <select id="vitrine_logo_formato" name="logo_formato" class="form-control" data-vitrine-logo-formato>
+                                                        <option value="sem_moldura" {% if vitrine_logo_formato == 'sem_moldura' %}selected{% endif %}>Sem moldura</option>
+                                                        <option value="arredondado" {% if vitrine_logo_formato == 'arredondado' %}selected{% endif %}>Arredondada</option>
+                                                        <option value="circular" {% if vitrine_logo_formato == 'circular' %}selected{% endif %}>Circular</option>
+                                                    </select>
+                                                </div>
+                                                <div class="module-config-field">
+                                                    <label for="vitrine_logo_fundo">Fundo</label>
+                                                    <input id="vitrine_logo_fundo" name="logo_fundo" type="color" value="{{ vitrine_cfg.get('logo_fundo') or '#ffffff' }}" class="form-control vitrine-color-input" data-vitrine-logo-fundo>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="vitrine-identidade-painel" data-vitrine-identidade-painel="cores" {% if vitrine_identidade != 'cores' %}hidden{% endif %}>
+                                        <div class="vitrine-config-grid">
+                                            <div class="module-config-field">
+                                                <label for="vitrine_cor_principal">Cor principal</label>
+                                                <input id="vitrine_cor_principal" name="cor_principal" type="color" value="{{ vitrine_cfg.get('cor_principal') or '#111827' }}" class="form-control vitrine-color-input">
+                                            </div>
+                                            <div class="module-config-field">
+                                                <label for="vitrine_cor_secundaria">Cor secundária</label>
+                                                <input id="vitrine_cor_secundaria" name="cor_secundaria" type="color" value="{{ vitrine_cfg.get('cor_secundaria') or '#f59e0b' }}" class="form-control vitrine-color-input">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </details>
+
+                                <div class="vitrine-config-publica-save">
+                                    <div>
+                                        <strong>Configuração pública da empresa</strong>
+                                        <small>Essas alterações mudam a aparência da loja; produtos e atendimentos não são alterados.</small>
+                                    </div>
+                                    <button type="submit" class="btn-primary-green">Salvar apresentação da Vitrine</button>
+                                </div>
+                            </form>
+                        </section>
+
+                        <script>
+                            document.addEventListener('DOMContentLoaded', function () {
+                                const raiz = document.querySelector('[data-vitrine-config-publica]');
+                                if (!raiz) return;
+
+                                const paineis = raiz.querySelectorAll('[data-vitrine-identidade-painel]');
+                                function atualizarIdentidade() {
+                                    const selecionado = raiz.querySelector('input[name="tipo_identidade_visual"]:checked');
+                                    const valor = selecionado ? selecionado.value : 'cores';
+                                    paineis.forEach(function (painel) {
+                                        painel.hidden = painel.getAttribute('data-vitrine-identidade-painel') !== valor;
+                                    });
+                                }
+                                raiz.querySelectorAll('input[name="tipo_identidade_visual"]').forEach(function (campo) {
+                                    campo.addEventListener('change', atualizarIdentidade);
+                                });
+                                atualizarIdentidade();
+
+                                const preview = raiz.querySelector('[data-vitrine-logo-preview]');
+                                const frame = raiz.querySelector('.vitrine-logo-config-frame');
+                                const img = raiz.querySelector('[data-vitrine-logo-img]');
+                                const inputLogo = raiz.querySelector('[data-vitrine-logo-input]');
+                                const zoom = raiz.querySelector('[data-vitrine-logo-zoom]');
+                                const eixoX = raiz.querySelector('[data-vitrine-logo-x]');
+                                const eixoY = raiz.querySelector('[data-vitrine-logo-y]');
+                                const fundo = raiz.querySelector('[data-vitrine-logo-fundo]');
+                                const formato = raiz.querySelector('[data-vitrine-logo-formato]');
+
+                                function atualizarPreview() {
+                                    if (!preview) return;
+                                    if (zoom) {
+                                        preview.style.setProperty('--logo-zoom', String(Number(zoom.value || 100) / 100));
+                                        const label = raiz.querySelector('[data-logo-zoom-label]');
+                                        if (label) label.textContent = zoom.value + '%';
+                                    }
+                                    if (eixoX) {
+                                        preview.style.setProperty('--logo-x', eixoX.value + '%');
+                                        const label = raiz.querySelector('[data-logo-x-label]');
+                                        if (label) label.textContent = eixoX.value;
+                                    }
+                                    if (eixoY) {
+                                        preview.style.setProperty('--logo-y', eixoY.value + '%');
+                                        const label = raiz.querySelector('[data-logo-y-label]');
+                                        if (label) label.textContent = eixoY.value;
+                                    }
+                                    if (fundo) preview.style.setProperty('--logo-bg', fundo.value);
+                                    if (frame && formato) frame.setAttribute('data-logo-formato', formato.value);
+                                }
+
+                                [zoom, eixoX, eixoY, fundo, formato].forEach(function (campo) {
+                                    if (campo) campo.addEventListener('input', atualizarPreview);
+                                });
+                                atualizarPreview();
+
+                                if (inputLogo) {
+                                    inputLogo.addEventListener('change', function () {
+                                        const arquivo = inputLogo.files && inputLogo.files[0];
+                                        if (!arquivo) return;
+                                        const leitor = new FileReader();
+                                        leitor.onload = function () {
+                                            let imagem = raiz.querySelector('[data-vitrine-logo-img]');
+                                            if (!imagem && frame) {
+                                                imagem = document.createElement('img');
+                                                imagem.setAttribute('data-vitrine-logo-img', '');
+                                                imagem.alt = 'Prévia da nova logo';
+                                                frame.innerHTML = '';
+                                                frame.appendChild(imagem);
+                                            }
+                                            if (imagem) imagem.src = String(leitor.result || '');
+                                        };
+                                        leitor.readAsDataURL(arquivo);
+                                    });
+                                }
+                            });
+                        </script>
                     {% endif %}
 
                     <div class="module-config-layout {% if modulos_configuraveis|length == 1 %}single-module{% endif %}">
@@ -1562,6 +1809,235 @@ Motivo: Manter a central de configurações somente na página inicial e exibir 
 
                 .module-config-toggle {
                     min-height: 66px;
+                }
+            }
+
+            .vitrine-config-publica {
+                margin-bottom: 18px;
+                padding: 18px;
+                border: 1px solid #bfdbfe;
+                border-radius: 18px;
+                background: linear-gradient(135deg, #eff6ff 0%, #ffffff 55%);
+            }
+
+            .vitrine-config-publica-header,
+            .vitrine-config-publica-save {
+                display: flex;
+                align-items: flex-start;
+                justify-content: space-between;
+                gap: 16px;
+            }
+
+            .vitrine-config-publica-header h3 {
+                margin: 3px 0 6px;
+                color: #0f172a;
+                font-size: 20px;
+            }
+
+            .vitrine-config-publica-header p {
+                margin: 0;
+                color: #64748b;
+                font-size: 12px;
+                font-weight: 700;
+                line-height: 1.45;
+            }
+
+            .vitrine-config-publica-actions {
+                display: flex;
+                gap: 8px;
+                flex-wrap: wrap;
+            }
+
+            .vitrine-config-publica-form {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+                margin-top: 16px;
+            }
+
+            .vitrine-config-section {
+                overflow: hidden;
+                border: 1px solid #dbe4f0;
+                border-radius: 14px;
+                background: #ffffff;
+            }
+
+            .vitrine-config-section > summary {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+                padding: 13px 15px;
+                background: #f8fafc;
+                color: #0f172a;
+                cursor: pointer;
+                font-size: 13px;
+                font-weight: 900;
+                list-style: none;
+            }
+
+            .vitrine-config-section > summary::-webkit-details-marker {
+                display: none;
+            }
+
+            .vitrine-config-section > summary small {
+                margin-left: auto;
+                color: #64748b;
+                font-size: 10px;
+            }
+
+            .vitrine-config-grid,
+            .vitrine-logo-config-controls {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 14px;
+                padding: 16px;
+            }
+
+            .vitrine-config-grid .wide,
+            .vitrine-logo-config-controls .wide {
+                grid-column: 1 / -1;
+            }
+
+            .vitrine-identidade-opcoes {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 12px;
+                padding: 16px 16px 0;
+            }
+
+            .vitrine-identidade-opcao {
+                display: flex;
+                align-items: flex-start;
+                gap: 10px;
+                padding: 12px;
+                border: 1px solid #dbe4f0;
+                border-radius: 12px;
+                background: #f8fafc;
+                cursor: pointer;
+            }
+
+            .vitrine-identidade-opcao strong,
+            .vitrine-identidade-opcao small {
+                display: block;
+            }
+
+            .vitrine-identidade-opcao small {
+                margin-top: 3px;
+                color: #64748b;
+                font-size: 10px;
+                font-weight: 700;
+            }
+
+            .vitrine-identidade-painel {
+                padding-top: 4px;
+            }
+
+            .vitrine-logo-config-grid {
+                display: grid;
+                grid-template-columns: 260px minmax(0, 1fr);
+                gap: 16px;
+                padding: 16px;
+            }
+
+            .vitrine-logo-config-preview {
+                min-height: 260px;
+                display: grid;
+                place-items: center;
+                border: 1px solid #dbe4f0;
+                border-radius: 14px;
+                background: #f8fafc;
+            }
+
+            .vitrine-logo-config-frame {
+                width: 190px;
+                height: 190px;
+                position: relative;
+                overflow: hidden;
+                display: grid;
+                place-items: center;
+                border: 1px solid #dbe4f0;
+                background: var(--logo-bg, #ffffff);
+            }
+
+            .vitrine-logo-config-frame[data-logo-formato="arredondado"] { border-radius: 24px; }
+            .vitrine-logo-config-frame[data-logo-formato="circular"] { border-radius: 50%; }
+            .vitrine-logo-config-frame[data-logo-formato="sem_moldura"] { border-color: transparent; }
+
+            .vitrine-logo-config-frame img {
+                width: 100%;
+                height: 100%;
+                object-fit: contain;
+                transform: translate(var(--logo-x, 0%), var(--logo-y, 0%)) scale(var(--logo-zoom, 1));
+                transform-origin: center;
+                user-select: none;
+            }
+
+            .vitrine-logo-config-frame span {
+                color: #94a3b8;
+                font-size: 12px;
+                font-weight: 900;
+            }
+
+            .vitrine-logo-config-controls {
+                padding: 0;
+                align-content: start;
+            }
+
+            .vitrine-logo-config-controls input[type="range"] {
+                width: 100%;
+            }
+
+            .vitrine-config-check {
+                display: block;
+                margin-top: 8px;
+                color: #b91c1c;
+                font-size: 11px;
+                font-weight: 800;
+            }
+
+            .vitrine-color-input {
+                min-height: 44px !important;
+                padding: 4px !important;
+            }
+
+            .vitrine-config-publica-save {
+                align-items: center;
+                padding: 14px 16px;
+                border: 1px solid #bbf7d0;
+                border-radius: 14px;
+                background: #f0fdf4;
+            }
+
+            .vitrine-config-publica-save strong,
+            .vitrine-config-publica-save small {
+                display: block;
+            }
+
+            .vitrine-config-publica-save strong { color: #166534; font-size: 12px; }
+            .vitrine-config-publica-save small { margin-top: 3px; color: #64748b; font-size: 10px; font-weight: 700; }
+
+            @media (max-width: 820px) {
+                .vitrine-config-publica-header,
+                .vitrine-config-publica-save {
+                    flex-direction: column;
+                    align-items: stretch;
+                }
+
+                .vitrine-config-grid,
+                .vitrine-identidade-opcoes,
+                .vitrine-logo-config-controls,
+                .vitrine-logo-config-grid {
+                    grid-template-columns: 1fr;
+                }
+
+                .vitrine-config-grid .wide,
+                .vitrine-logo-config-controls .wide {
+                    grid-column: auto;
+                }
+
+                .vitrine-logo-config-preview {
+                    min-height: 220px;
                 }
             }
         </style>
