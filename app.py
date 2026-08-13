@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-12 23:35 (America/Bahia)
-# Motivo: Separar a Central Operacional da Vitrine das configurações permanentes e concentrar a personalização da loja em Configurações da Vitrine.
+# Último recode: 2026-08-13 00:19 (America/Bahia)
+# Motivo: Reformular a Vitrine pública com navegação comercial, categorias, catálogo filtrável, detalhe de itens, carrinho lateral e rodapé, preservando pedidos, estoque, WhatsApp e agendamentos.
 
 from __future__ import annotations
 
@@ -28371,9 +28371,7 @@ def renderizar_vitrine_publica_html(
 
     def _normalizar_cor_hex_vitrine(valor: Any, padrao: str) -> str:
         cor = str(valor or "").strip()
-        if re.fullmatch(r"#[0-9a-fA-F]{6}", cor):
-            return cor.lower()
-        return padrao
+        return cor.lower() if re.fullmatch(r"#[0-9a-fA-F]{6}", cor) else padrao
 
     def _luminancia_relativa_vitrine(cor_hex: str) -> float:
         canais = [int(cor_hex[indice:indice + 2], 16) / 255 for indice in (1, 3, 5)]
@@ -28394,7 +28392,6 @@ def renderizar_vitrine_publica_html(
         cor = _normalizar_cor_hex_vitrine(cor_base, "#111827")
         if _contraste_vitrine(cor, "#ffffff") >= 4.5:
             return cor, "#ffffff"
-
         rgb_original = tuple(int(cor[indice:indice + 2], 16) for indice in (1, 3, 5))
         for percentual in range(10, 81, 5):
             fator = 1 - (percentual / 100)
@@ -28402,14 +28399,13 @@ def renderizar_vitrine_publica_html(
             candidata = "#" + "".join(f"{canal:02x}" for canal in rgb)
             if _contraste_vitrine(candidata, "#ffffff") >= 4.5:
                 return candidata, "#ffffff"
-
         return "#111827", "#ffffff"
 
     if tipo_identidade_visual == "logo":
-        cor_principal = "#071a2b"
-        cor_secundaria = "#123b59"
-        cor_destaque = "#f59e0b"
-        cor_acao, cor_acao_texto = "#071a2b", "#ffffff"
+        cor_principal = "#111111"
+        cor_secundaria = "#4b5563"
+        cor_destaque = "#111111"
+        cor_acao, cor_acao_texto = "#111111", "#ffffff"
     else:
         cor_principal_raw = _normalizar_cor_hex_vitrine(
             config_vitrine.get("cor_principal") or regras_vitrine.get("cor_primaria"),
@@ -28431,101 +28427,36 @@ def renderizar_vitrine_publica_html(
     titulo_seo = html.escape(str(regras_vitrine.get("seo_titulo") or nome_loja_raw))
 
     categoria_configuracao = str(config_vitrine.get("categoria") or "").strip().lower()
-    perfis_categoria: dict[str, dict[str, Any]] = {
+    perfis_categoria: dict[str, dict[str, str]] = {
         "perfumaria": {
             "classe": "perfumaria",
-            "rotulo": "Perfumaria e cosméticos",
             "kicker": "Beleza, cuidados e presentes",
-            "titulo_catalogo": "Lançamentos, cuidados e produtos selecionados",
-            "descricao_padrao": "Perfumes, cosméticos e cuidados pessoais com atendimento próximo e compra simples.",
-            "cor_suave": "#fff7f3",
-            "diferenciais": (
-                ("🎁", "Embalagem para presente", "Uma apresentação especial para cada ocasião."),
-                ("🚀", "Envio rápido", "Agilidade para receber seu pedido."),
-                ("💝", "Presente perfeito", "Opções selecionadas para surpreender."),
-            ),
-            "passos_produto": (
-                ("1", "Navegue pelo catálogo", "Descubra perfumes, cosméticos e novidades."),
-                ("2", "Escolha seus produtos", "Adicione um ou mais itens ao pedido."),
-                ("3", "Envie seu pedido", "Confirme os dados e a forma de entrega."),
-                ("4", "Receba com carinho", "A loja combina os detalhes pelo WhatsApp."),
-            ),
+            "titulo": "Escolhas que combinam com seu momento",
+            "descricao": "Perfumes, cosméticos e cuidados pessoais em uma experiência simples e próxima.",
         },
         "moda": {
             "classe": "moda",
-            "rotulo": "Moda e roupas",
             "kicker": "Estilo para o seu dia a dia",
-            "titulo_catalogo": "Peças selecionadas para renovar seu estilo",
-            "descricao_padrao": "Moda com qualidade, estilo e atendimento personalizado para ajudar em cada escolha.",
-            "cor_suave": "#fff7f7",
-            "diferenciais": (
-                ("✨", "Peças selecionadas", "Curadoria pensada para estilo e qualidade."),
-                ("📏", "Ajuda com tamanhos", "Orientação para escolher com segurança."),
-                ("💬", "Atendimento personalizado", "Converse diretamente com a loja."),
-            ),
-            "passos_produto": (
-                ("1", "Explore a coleção", "Veja modelos, detalhes e categorias."),
-                ("2", "Escolha suas peças", "Adicione os itens que mais combinam com você."),
-                ("3", "Confirme pelo WhatsApp", "Tire dúvidas de tamanho e disponibilidade."),
-                ("4", "Receba ou retire", "Combine a melhor forma de entrega com a loja."),
-            ),
+            "titulo": "Descubra peças que combinam com você",
+            "descricao": "Moda, qualidade e atendimento próximo para deixar sua escolha mais fácil.",
         },
         "mercado": {
             "classe": "mercado",
-            "rotulo": "Mercado e variedades",
-            "kicker": "Variedade para facilitar sua rotina",
-            "titulo_catalogo": "Produtos úteis para o dia a dia",
-            "descricao_padrao": "Variedade, praticidade e atendimento rápido para encontrar o que você precisa.",
-            "cor_suave": "#f6fbf6",
-            "diferenciais": (
-                ("🚚", "Entrega rápida", "Receba com praticidade na região atendida."),
-                ("💰", "Preços acessíveis", "Boas opções para diferentes necessidades."),
-                ("📦", "Produtos disponíveis", "Catálogo atualizado para facilitar a compra."),
-            ),
-            "passos_produto": (
-                ("1", "Procure no catálogo", "Use a busca e as categorias para encontrar itens."),
-                ("2", "Monte seu pedido", "Adicione as quantidades que deseja."),
-                ("3", "Informe a entrega", "Preencha seus dados e endereço."),
-                ("4", "Receba seu pedido", "A loja confirma tudo pelo WhatsApp."),
-            ),
+            "kicker": "Praticidade para sua rotina",
+            "titulo": "Encontre o que precisa em poucos cliques",
+            "descricao": "Produtos selecionados, compra simples e atendimento direto com a loja.",
         },
         "servicos": {
             "classe": "servicos",
-            "rotulo": "Serviços",
             "kicker": "Serviços e soluções profissionais",
-            "titulo_catalogo": "Escolha o serviço ideal para sua necessidade",
-            "descricao_padrao": "Atendimento profissional, qualidade e soluções pensadas para cada necessidade.",
-            "cor_suave": "#f4f8fb",
-            "diferenciais": (
-                ("📅", "Agendamento fácil", "Escolha o serviço e solicite o melhor horário."),
-                ("⚡", "Resposta rápida", "Contato direto para confirmar o atendimento."),
-                ("✅", "Atendimento profissional", "Serviços apresentados com clareza e confiança."),
-            ),
-            "passos_produto": (
-                ("1", "Conheça os serviços", "Veja descrições, duração e condições."),
-                ("2", "Escolha o atendimento", "Agende ou solicite uma avaliação prévia."),
-                ("3", "Confirme seus dados", "Informe contato, data e necessidade."),
-                ("4", "Aguarde a confirmação", "A empresa retorna para concluir o agendamento."),
-            ),
+            "titulo": "Escolha, agende e acompanhe com facilidade",
+            "descricao": "Conheça os serviços, veja condições e solicite seu atendimento online.",
         },
         "pecas": {
             "classe": "pecas",
-            "rotulo": "Peças e oficina",
             "kicker": "Peças, oficina e suporte técnico",
-            "titulo_catalogo": "Peças e serviços para manter tudo funcionando",
-            "descricao_padrao": "Peças, manutenção e atendimento técnico para encontrar a solução certa.",
-            "cor_suave": "#f5f7fa",
-            "diferenciais": (
-                ("🔧", "Atendimento técnico", "Orientação para escolher peças e serviços."),
-                ("📦", "Peças e serviços", "Soluções reunidas em um único catálogo."),
-                ("🛡️", "Suporte especializado", "Contato direto para confirmar aplicação e disponibilidade."),
-            ),
-            "passos_produto": (
-                ("1", "Busque a solução", "Consulte peças, aplicações e serviços."),
-                ("2", "Selecione o item", "Escolha o produto ou atendimento necessário."),
-                ("3", "Confirme a aplicação", "Converse com o suporte técnico pelo WhatsApp."),
-                ("4", "Receba ou agende", "Combine retirada, entrega ou execução do serviço."),
-            ),
+            "titulo": "Produtos e serviços para manter tudo funcionando",
+            "descricao": "Consulte peças, serviços e fale com quem entende da sua necessidade.",
         },
     }
 
@@ -28533,42 +28464,38 @@ def renderizar_vitrine_publica_html(
     exibir_servicos = configuracao_bool("vitrine", "exibir_servicos", True, empresa_id_vitrine)
     tem_produtos = bool(produtos) and exibir_produtos
     tem_servicos = bool(servicos) and exibir_servicos
-
     if categoria_configuracao not in perfis_categoria:
         categoria_configuracao = "servicos" if tem_servicos and not tem_produtos else "mercado"
     perfil_categoria = perfis_categoria[categoria_configuracao]
-    categoria = html.escape(str(perfil_categoria["rotulo"]))
-    categoria_classe = html.escape(str(perfil_categoria["classe"]))
-    categoria_kicker = html.escape(str(perfil_categoria["kicker"]))
-    titulo_catalogo = html.escape(str(perfil_categoria["titulo_catalogo"]))
-    cor_categoria_suave = html.escape(str(perfil_categoria["cor_suave"]))
 
     descricao_empresa_raw = str(config_vitrine.get("descricao_empresa") or "").strip()
     texto_institucional_raw = (
         descricao_empresa_raw
         or str(regras_vitrine.get("texto_institucional") or "").strip()
-        or str(perfil_categoria["descricao_padrao"])
+        or perfil_categoria["descricao"]
     )
     descricao_seo_raw = str(regras_vitrine.get("seo_descricao") or texto_institucional_raw)
     descricao_seo = html.escape(descricao_seo_raw)
     texto_institucional = html.escape(texto_institucional_raw)
+    hero_kicker = html.escape(perfil_categoria["kicker"])
+    hero_titulo = html.escape(perfil_categoria["titulo"])
+    categoria_classe = html.escape(perfil_categoria["classe"])
 
-    instagram_raw = str(config_vitrine.get("instagram") or "").strip()
     logo_path = str(config_vitrine.get("logo_path") or "").strip()
     logo_url = f"/vitrine-upload/{html.escape(logo_path)}" if logo_path else ""
+    video_path = str(config_vitrine.get("video_path") or "").strip()
+    video_url = f"/vitrine-upload/{html.escape(video_path)}" if video_path else ""
 
     try:
         logo_zoom = int(config_vitrine.get("logo_zoom") or 100)
     except (TypeError, ValueError):
         logo_zoom = 100
     logo_zoom = max(60, min(300, logo_zoom))
-
     try:
         logo_offset_x = int(config_vitrine.get("logo_offset_x") or 0)
     except (TypeError, ValueError):
         logo_offset_x = 0
     logo_offset_x = max(-50, min(50, logo_offset_x))
-
     try:
         logo_offset_y = int(config_vitrine.get("logo_offset_y") or 0)
     except (TypeError, ValueError):
@@ -28580,37 +28507,23 @@ def renderizar_vitrine_publica_html(
         logo_formato = "sem_moldura"
     if logo_formato not in {"sem_moldura", "arredondado", "circular"}:
         logo_formato = "arredondado"
-    logo_raio = {"sem_moldura": "0px", "arredondado": "24px", "circular": "999px"}[logo_formato]
-    logo_clip = {
-        "sem_moldura": "inset(0 round 0px)",
-        "arredondado": "inset(0 round 24px)",
-        "circular": "circle(50% at 50% 50%)",
-    }[logo_formato]
-    logo_borda = "transparent" if logo_formato == "sem_moldura" else "var(--border)"
-
-    logo_fundo = str(config_vitrine.get("logo_fundo") or "#ffffff").strip().lower()
-    if not re.fullmatch(r"#[0-9a-f]{6}", logo_fundo):
-        logo_fundo = "#ffffff"
+    logo_raio = {"sem_moldura": "0px", "arredondado": "18px", "circular": "999px"}[logo_formato]
+    logo_fundo = _normalizar_cor_hex_vitrine(config_vitrine.get("logo_fundo"), "#ffffff")
 
     iniciais_loja = "".join(parte[:1] for parte in nome_loja_raw.split()[:2]).upper() or "GF"
     if tipo_identidade_visual == "logo" and logo_url:
-        logo_nav_html = (
-            f'<img src="{logo_url}" alt="{nome_loja}" class="marca-logo-img" crossorigin="anonymous">'
-        )
-        logo_apresentacao_html = (
-            f'<img src="{logo_url}" alt="{nome_loja}" id="brandColorSource" '
-            'class="apresentacao-logo-img" crossorigin="anonymous">'
-        )
+        logo_nav_html = f'<img src="{logo_url}" alt="{nome_loja}" class="brand-logo-image" crossorigin="anonymous">'
+        logo_hero_html = f'<img src="{logo_url}" alt="{nome_loja}" id="brandColorSource" class="hero-brand-image" crossorigin="anonymous">'
     else:
-        logo_nav_html = f'<span class="marca-iniciais">{html.escape(iniciais_loja)}</span>'
-        logo_apresentacao_html = (
-            f'<span class="apresentacao-logo-iniciais">{html.escape(iniciais_loja)}</span>'
-        )
+        iniciais = html.escape(iniciais_loja)
+        logo_nav_html = f'<span class="brand-initials">{iniciais}</span>'
+        logo_hero_html = f'<span class="hero-brand-initials">{iniciais}</span>'
 
     exibir_preco = configuracao_bool("vitrine", "exibir_preco", True, empresa_id_vitrine)
     modo_contato = str(regras_vitrine.get("modo_contato") or "pedido")
     permitir_pedido = modo_contato == "pedido" and tem_produtos
     controlar_estoque = configuracao_bool("vitrine", "controlar_estoque", True, empresa_id_vitrine)
+    permitir_sem_estoque = configuracao_bool("vendas", "permitir_sem_estoque", False, empresa_id_vitrine)
     quantidade_minima = max(1, int(float(regras_vitrine.get("quantidade_minima") or 1)))
     codigo_agenda = garantir_codigo_indicacao_empresa(empresa_id_vitrine)
 
@@ -28620,664 +28533,582 @@ def renderizar_vitrine_publica_html(
     whatsapp_publico_url = f"https://wa.me/{telefone_whatsapp}" if telefone_whatsapp else ""
     whatsapp_publico_url_html = html.escape(whatsapp_publico_url)
 
-    tipo_inicial = "servico" if tem_servicos and (not tem_produtos or categoria_configuracao == "servicos") else "produto"
-    if tipo_inicial == "produto" and not tem_produtos and tem_servicos:
-        tipo_inicial = "servico"
-
-    whatsapp_topo_html = ""
-    whatsapp_apresentacao_html = ""
-    if whatsapp_publico_url:
-        whatsapp_topo_html = (
-            f'<a class="nav-whatsapp" href="{whatsapp_publico_url_html}" target="_blank" rel="noopener">'
-            '<span aria-hidden="true">◉</span><span>WhatsApp</span></a>'
-        )
-        whatsapp_apresentacao_html = (
-            f'<a class="btn-publico btn-whatsapp" href="{whatsapp_publico_url_html}" '
-            'target="_blank" rel="noopener"><span aria-hidden="true">◉</span> Chamar no WhatsApp</a>'
-        )
-
-    carrinho_nav_html = (
-        '<a class="nav-carrinho" href="#carrinhoProdutos"><span aria-hidden="true">▣</span> Carrinho</a>'
-        if permitir_pedido
-        else ""
-    )
-
-    instagram_html = ""
+    instagram_raw = str(config_vitrine.get("instagram") or "").strip()
+    instagram_url = ""
     if instagram_raw:
         instagram_url = instagram_raw
         if not instagram_url.startswith(("http://", "https://")):
-            instagram_usuario = instagram_url.lstrip("@").strip()
-            instagram_url = f"https://instagram.com/{urllib.parse.quote(instagram_usuario)}"
-        instagram_html = (
-            f'<a class="social-link instagram" href="{html.escape(instagram_url)}" '
-            'target="_blank" rel="noopener">Instagram</a>'
-        )
-    whatsapp_social_html = (
-        f'<a class="social-link whatsapp" href="{whatsapp_publico_url_html}" '
-        'target="_blank" rel="noopener">WhatsApp</a>'
-        if whatsapp_publico_url
-        else ""
-    )
+            instagram_url = f"https://instagram.com/{urllib.parse.quote(instagram_url.lstrip('@').strip())}"
 
-    diferenciais_html = "".join(
-        f'<article class="diferencial-card"><span>{html.escape(icone)}</span><div><strong>{html.escape(titulo)}</strong>'
-        f'<small>{html.escape(descricao)}</small></div></article>'
-        for icone, titulo, descricao in perfil_categoria["diferenciais"]
-    )
+    empresa_publica: dict[str, Any] = {}
+    try:
+        with conectar_db() as conn:
+            row_empresa = conn.execute(
+                "SELECT nome_fantasia, razao_social, documento, email, telefone FROM empresas WHERE id = ? LIMIT 1",
+                (empresa_id_vitrine,),
+            ).fetchone()
+        empresa_publica = dict(row_empresa) if row_empresa else {}
+    except sqlite3.Error:
+        empresa_publica = {}
 
-    passos_produto_html = "".join(
-        f'<article class="passo-card"><span>{html.escape(numero)}</span><div><strong>{html.escape(titulo)}</strong>'
-        f'<small>{html.escape(descricao)}</small></div></article>'
-        for numero, titulo, descricao in perfil_categoria["passos_produto"]
-    )
-    passos_servico = (
-        ("1", "Escolha o serviço", "Confira descrição, duração e forma de contratação."),
-        ("2", "Agende ou solicite avaliação", "Selecione um horário ou envie as informações necessárias."),
-        ("3", "Confirme seus dados", "Informe contato e detalhes do atendimento."),
-        ("4", "Receba a confirmação", "A empresa retorna para finalizar o agendamento."),
-    )
-    passos_servico_html = "".join(
-        f'<article class="passo-card"><span>{html.escape(numero)}</span><div><strong>{html.escape(titulo)}</strong>'
-        f'<small>{html.escape(descricao)}</small></div></article>'
-        for numero, titulo, descricao in passos_servico
-    )
+    email_publico = str(empresa_publica.get("email") or "").strip()
+    documento_publico = str(empresa_publica.get("documento") or "").strip()
+    telefone_publico = str(config_vitrine.get("whatsapp") or empresa_publica.get("telefone") or "").strip()
 
-    cards: list[str] = []
-    categorias_produtos: set[str] = set()
-    categorias_servicos: set[str] = set()
-
-    if exibir_produtos:
-        for produto in produtos:
-            produto_id = int(produto.get("id") or 0)
-            nome_raw = str(produto.get("nome") or "Produto")
-            nome = html.escape(nome_raw)
-            descricao = html.escape(str(produto.get("descricao") or ""))
-            categoria_raw_item = str(produto.get("categoria") or "Produtos").strip() or "Produtos"
-            categoria_item = html.escape(categoria_raw_item)
-            categorias_produtos.add(categoria_raw_item)
-            preco_raw = str(produto.get("preco") or "0,00")
-            preco_normalizado = _formatar_moeda_brl(_converter_valor_brl(preco_raw))
-            preco = html.escape(preco_normalizado)
-            disponivel = bool(produto.get("disponivel_compra"))
-            indisponivel_html = (
-                '<span class="item-indisponivel">Indisponível</span>'
-                if not disponivel
-                else ""
-            )
-            imagens = produto.get("imagens") or []
-            midias_produto = [
-                {
-                    "path": str(item.get("imagem_path") or ""),
-                    "tipo": "video" if str(item.get("tipo_midia") or "imagem").strip().lower() == "video" else "imagem",
-                }
-                for item in imagens
-                if item.get("imagem_path")
-            ]
-            if not midias_produto and str(produto.get("imagem_path") or "").strip():
-                midias_produto = [{"path": str(produto.get("imagem_path") or "").strip(), "tipo": "imagem"}]
-            primeira_midia = midias_produto[0] if midias_produto else {}
-            midias_json = html.escape(json.dumps(midias_produto, ensure_ascii=False), quote=True)
-            if primeira_midia.get("tipo") == "video":
-                imagem_html = (
-                    f'<video controls preload="metadata" playsinline src="/vitrine-upload/{html.escape(str(primeira_midia.get("path") or ""))}"></video>'
-                )
-            elif primeira_midia.get("path"):
-                imagem_html = (
-                    f"<button class=\"midia-imagem-zoom\" type=\"button\" onclick=\"abrirGaleriaCard(this.closest('.item-imagem'))\">"
-                    f'<img src="/vitrine-upload/{html.escape(str(primeira_midia.get("path") or ""))}" alt="{nome}" loading="lazy"></button>'
-                )
-            else:
-                imagem_html = '<span class="item-sem-imagem">Produto</span>'
-            preco_html = f"<strong>R$ {preco}</strong>" if exibir_preco else "<strong>Consulte o valor</strong>"
-            acao_secundaria = ""
-            if whatsapp_publico_url:
-                acao_secundaria = (
-                    f'<a class="acao-outline" href="{whatsapp_publico_url_html}" target="_blank" rel="noopener">'
-                    'WhatsApp</a>'
-                )
-            quantidade_maxima = 999
-            if bool(produto.get("integrado")) and controlar_estoque and not configuracao_bool(
-                "vendas", "permitir_sem_estoque", False, empresa_id_vitrine
-            ):
-                quantidade_maxima = max(1, int(math.floor(_converter_valor_brl(produto.get("estoque_atual")))))
-            seletor_quantidade = (
-                f'<div class="quantidade-produto" data-max="{quantidade_maxima}">'
-                '<button type="button" aria-label="Diminuir quantidade" onclick="ajustarQuantidadeCard(this,-1)">−</button>'
-                f'<input type="number" min="1" max="{quantidade_maxima}" value="1" aria-label="Quantidade" oninput="normalizarQuantidadeCard(this)">'
-                '<button type="button" aria-label="Aumentar quantidade" onclick="ajustarQuantidadeCard(this,1)">+</button>'
-                '</div>'
-            )
-            if permitir_pedido and disponivel:
-                acao_principal = (
-                    f'<button type="button" onclick="adicionarCarrinhoDoCard(this,{produto_id}, '
-                    f'{html.escape(json.dumps(nome_raw, ensure_ascii=False), quote=True)}, '
-                    f'{html.escape(json.dumps(preco_normalizado, ensure_ascii=False), quote=True)}, {quantidade_maxima})">'
-                    'Adicionar</button>'
-                )
-            elif whatsapp_publico_url:
-                acao_principal = (
-                    f'<a class="acao-principal" href="{whatsapp_publico_url_html}" target="_blank" rel="noopener">'
-                    'Consultar produto</a>'
-                )
-                acao_secundaria = ""
-            else:
-                acao_principal = '<button type="button" disabled>Contato indisponível</button>'
-            if not disponivel:
-                mensagem_indisponivel = html.escape(
-                    str(regras_vitrine.get("mensagem_indisponivel") or "Produto indisponível no momento.")
-                )
-                acao_principal = f'<button type="button" disabled>{mensagem_indisponivel}</button>'
-                acao_secundaria = ""
-            cards.append(
-                f'''<article class="catalogo-card produto-card" data-tipo="produto" data-categoria="{categoria_item}" data-nome="{html.escape(nome_raw.lower())}">
-<div class="item-imagem" data-fotos="{midias_json}" data-indice="0" data-titulo="{html.escape(nome_raw, quote=True)}" data-tipo-item="produto" data-item-id="{produto_id}">
-<div class="item-imagem-abrir">{imagem_html}</div>
-{f'<button class="item-imagem-seta item-imagem-anterior" type="button" aria-label="Mídia anterior" onclick="mudarFotoCard(this,-1)">‹</button><button class="item-imagem-seta item-imagem-proxima" type="button" aria-label="Próxima mídia" onclick="mudarFotoCard(this,1)">›</button>' if len(midias_produto) > 1 else ''}
-<span class="galeria-contador"><span data-foto-atual>{1 if midias_produto else 0}</span>/{len(midias_produto)}</span>
-</div>
-<div class="item-info"><h3>{nome}</h3>{indisponivel_html}<p>{descricao}</p>{preco_html}{seletor_quantidade if permitir_pedido and disponivel else ''}<div class="item-acoes">{acao_principal}{acao_secundaria}</div></div></article>'''
-            )
-
-    if exibir_servicos:
-        for servico in servicos:
-            servico_id = int(servico.get("servico_id") or servico.get("id") or 0)
-            nome_raw = str(servico.get("nome") or "Serviço")
-            nome = html.escape(nome_raw)
-            descricao = html.escape(str(servico.get("descricao") or ""))
-            categoria_raw_item = str(servico.get("categoria") or "Serviços").strip() or "Serviços"
-            categoria_item = html.escape(categoria_raw_item)
-            categorias_servicos.add(categoria_raw_item)
-            tipo_contratacao = normalizar_tipo_contratacao_servico(servico.get("tipo_contratacao"))
-            preco = html.escape(
-                _formatar_moeda_brl(_converter_valor_brl(servico.get("preco") or "0,00"))
-            )
-            duracao = html.escape(str(servico.get("tempo_estimado") or ""))
-            imagens = servico.get("imagens") or []
-            imagens_paths = [str(item.get("imagem_path") or "") for item in imagens if item.get("imagem_path")]
-            imagem_path = imagens_paths[0] if imagens_paths else str(servico.get("imagem_path") or "").strip()
-            imagens_json = html.escape(json.dumps(imagens_paths, ensure_ascii=False), quote=True)
-            imagem_html = (
-                f'<img src="/vitrine-upload/{html.escape(imagem_path)}" alt="{nome}" loading="lazy">'
-                if imagem_path
-                else '<span class="item-sem-imagem">Serviço</span>'
-            )
-            if tipo_contratacao == "a_combinar":
-                preco_html = "<strong>Valor a combinar</strong>"
-                duracao_html = '<span class="duracao">Avaliação prévia</span>'
-                texto_acao = "Solicitar avaliação"
-            else:
-                preco_html = f"<strong>R$ {preco}</strong>" if exibir_preco else "<strong>Consulte o valor</strong>"
-                duracao_html = f'<span class="duracao">Duração: {duracao or "A combinar"}</span>'
-                texto_acao = "Agendar serviço"
-            disponivel_agendamento = bool(servico.get("disponivel_agendamento"))
-            indisponivel_html = (
-                '<span class="item-indisponivel">Indisponível</span>'
-                if not disponivel_agendamento
-                else ""
-            )
-            agenda_url = (
-                f"/agendar/{urllib.parse.quote(codigo_agenda)}?servico_id={servico_id}&origem=vitrine_online"
-            )
-            acao_whatsapp = ""
-            if whatsapp_publico_url:
-                acao_whatsapp = (
-                    f'<a class="acao-outline" href="{whatsapp_publico_url_html}" target="_blank" rel="noopener">'
-                    'WhatsApp</a>'
-                )
-            if disponivel_agendamento:
-                acao_principal_servico = (
-                    f'<a class="acao-principal" href="{agenda_url}" '
-                    f'onclick="registrarItem(\'servico\',{servico_id})">{texto_acao}</a>'
-                )
-            else:
-                acao_principal_servico = '<button type="button" disabled>Indisponível</button>'
-                acao_whatsapp = ""
-            cards.append(
-                f'''<article class="catalogo-card servico-card" data-tipo="servico" data-categoria="{categoria_item}" data-nome="{html.escape(nome_raw.lower())}">
-<div class="item-imagem" data-fotos="{imagens_json}" data-indice="0" data-titulo="{html.escape(nome_raw, quote=True)}" data-tipo-item="servico" data-item-id="{servico_id}">
-<div class="item-imagem-abrir"><button class="midia-imagem-zoom" type="button" onclick="abrirGaleriaCard(this.closest('.item-imagem'))">{imagem_html}</button></div>
-{f'<button class="item-imagem-seta item-imagem-anterior" type="button" aria-label="Foto anterior" onclick="mudarFotoCard(this,-1)">‹</button><button class="item-imagem-seta item-imagem-proxima" type="button" aria-label="Próxima foto" onclick="mudarFotoCard(this,1)">›</button>' if len(imagens_paths) > 1 else ''}
-<span class="galeria-contador"><span data-foto-atual>{1 if imagens_paths else 0}</span>/{len(imagens_paths)}</span>
-</div>
-<div class="item-info"><h3>{nome}</h3>{indisponivel_html}<p>{descricao}</p><div class="item-meta">{duracao_html}{preco_html}</div><div class="item-acoes">{acao_principal_servico}{acao_whatsapp}</div></div></article>'''
-            )
-
-    def botoes_categorias(categorias: set[str], tipo: str) -> str:
-        botoes = [
-            f'<button class="categoria-botao active" type="button" data-tipo="{tipo}" data-categoria="" '
-            f'onclick="filtrarCategoria(\'{tipo}\',\'\',this)">Todos</button>'
-        ]
-        for item in sorted(categorias):
-            item_js = html.escape(json.dumps(item, ensure_ascii=False), quote=True)
-            botoes.append(
-                f'<button class="categoria-botao" type="button" data-tipo="{tipo}" '
-                f'data-categoria="{html.escape(item)}" onclick="filtrarCategoria(\'{tipo}\',{item_js},this)">'
-                f'{html.escape(item)}</button>'
-            )
-        return "".join(botoes)
-
-    categorias_produtos_html = botoes_categorias(categorias_produtos, "produto")
-    categorias_servicos_html = botoes_categorias(categorias_servicos, "servico")
-    cards_html = "\n".join(cards) or '<div class="vazio">Nenhum produto ou serviço publicado ainda.</div>'
-    mensagem_html = f'<div class="mensagem">{html.escape(mensagem)}</div>' if mensagem else ""
-    whatsapp_final_html = (
-        f'<a class="whatsapp-final" href="{html.escape(whatsapp_url)}" target="_blank" rel="noopener">'
-        'Enviar pedido no WhatsApp</a>'
-        if whatsapp_url
-        else ""
-    )
-
-    slug = html.escape(str(config_vitrine.get("slug") or ""))
     formas_entrega = lista_configuracao_modulo("vitrine", "formas_entrega", empresa_id_vitrine) or [
         "Entrega",
         "Retirada no local",
     ]
-    entrega_html = "".join(
-        f'<option value="{_normalizar_chave_campo_configuravel(rotulo)}">{html.escape(rotulo)}</option>'
-        for rotulo in formas_entrega
-    )
-
-    carrinho_html = ""
-    if permitir_pedido:
-        carrinho_html = f'''<aside class="carrinho" id="carrinhoProdutos">
-<div class="carrinho-cabecalho"><span aria-hidden="true">▣</span><div><small>Seu pedido</small><h2>Carrinho</h2></div></div>
-<div id="itensCarrinho" class="carrinho-itens">Nenhum item adicionado.</div>
-<strong id="totalCarrinho" class="carrinho-total">Total: R$ 0,00</strong>
-<form class="form-pedido" method="post" action="/loja/{slug}/pedido" onsubmit="return prepararPedido()">
-<input name="cliente_nome" placeholder="Seu nome" required>
-<input name="cliente_whatsapp" placeholder="Seu WhatsApp" required>
-<select name="tipo_entrega">{entrega_html}</select>
-<input name="endereco" placeholder="Endereço, se for entrega">
-<select name="forma_pagamento"><option value="pix">PIX</option><option value="dinheiro">Dinheiro</option><option value="cartao">Cartão</option></select>
-<textarea name="observacoes" placeholder="Observações do pedido"></textarea>
-<input type="hidden" name="itens_json" id="itensJson">
-<button class="finalizar" type="submit">Confirmar pedido</button>
-</form></aside>'''
-    if carrinho_html and tipo_inicial != "produto":
-        carrinho_html = carrinho_html.replace('id="carrinhoProdutos"', 'id="carrinhoProdutos" hidden', 1)
-    classe_conteudo = "conteudo com-carrinho" if tipo_inicial == "produto" and carrinho_html else "conteudo"
-
-    abas_html = ""
-    if tem_produtos:
-        abas_html += (
-            f'<button type="button" class="tipo-aba{" active" if tipo_inicial == "produto" else ""}" '
-            'data-tipo="produto" onclick="selecionarTipo(\'produto\',this)">Produtos</button>'
-        )
-    if tem_servicos:
-        abas_html += (
-            f'<button type="button" class="tipo-aba{" active" if tipo_inicial == "servico" else ""}" '
-            'data-tipo="servico" onclick="selecionarTipo(\'servico\',this)">Serviços</button>'
-        )
-
     formas_pagamento = lista_configuracao_modulo("vendas", "formas_pagamento", empresa_id_vitrine) or [
         "PIX",
         "Dinheiro",
         "Cartão",
     ]
-    formas_pagamento_html = "".join(
-        f'<span>{html.escape(str(forma))}</span>' for forma in formas_pagamento[:8]
+    try:
+        maximo_parcelas = max(1, int(float(valor_configuracao_modulo("vendas", "maximo_parcelas", 1, empresa_id_vitrine) or 1)))
+    except (TypeError, ValueError):
+        maximo_parcelas = 1
+
+    slug_raw = str(config_vitrine.get("slug") or "").strip()
+    slug = html.escape(slug_raw)
+
+    itens_publicos: list[dict[str, Any]] = []
+
+    if exibir_produtos:
+        for produto in produtos:
+            produto_id = int(produto.get("id") or 0)
+            nome_raw = str(produto.get("nome") or "Produto").strip() or "Produto"
+            categoria_raw = str(produto.get("categoria") or "Produtos").strip() or "Produtos"
+            descricao_raw = str(produto.get("descricao") or "").strip()
+            preco_numero = _converter_valor_brl(produto.get("preco"))
+            preco_formatado = _formatar_moeda_brl(preco_numero)
+            disponivel = bool(produto.get("disponivel_compra"))
+            quantidade_maxima = 999
+            if bool(produto.get("integrado")) and controlar_estoque and not permitir_sem_estoque:
+                quantidade_maxima = max(1, int(math.floor(_converter_valor_brl(produto.get("estoque_atual")))))
+            midias = [
+                {
+                    "path": str(midia.get("imagem_path") or "").strip(),
+                    "tipo": "video" if str(midia.get("tipo_midia") or "imagem").strip().lower() == "video" else "imagem",
+                }
+                for midia in (produto.get("imagens") or [])
+                if str(midia.get("imagem_path") or "").strip()
+            ]
+            if not midias and str(produto.get("imagem_path") or "").strip():
+                midias = [{"path": str(produto.get("imagem_path") or "").strip(), "tipo": "imagem"}]
+            itens_publicos.append(
+                {
+                    "tipo": "produto",
+                    "id": produto_id,
+                    "nome": nome_raw,
+                    "categoria": categoria_raw,
+                    "descricao": descricao_raw,
+                    "preco_numero": preco_numero,
+                    "preco": preco_formatado,
+                    "preco_label": f"R$ {preco_formatado}" if exibir_preco else "Consulte o valor",
+                    "disponivel": disponivel,
+                    "destaque": str(produto.get("destaque") or "nao").strip().lower() == "sim",
+                    "midias": midias,
+                    "max": quantidade_maxima,
+                    "duracao": "",
+                    "acao_url": "",
+                    "acao_texto": "Comprar",
+                }
+            )
+
+    if exibir_servicos:
+        for servico in servicos:
+            servico_id = int(servico.get("servico_id") or servico.get("id") or 0)
+            nome_raw = str(servico.get("nome") or "Serviço").strip() or "Serviço"
+            categoria_raw = str(servico.get("categoria") or "Serviços").strip() or "Serviços"
+            descricao_raw = str(servico.get("descricao") or "").strip()
+            preco_numero = _converter_valor_brl(servico.get("preco") or "0,00")
+            preco_formatado = _formatar_moeda_brl(preco_numero)
+            tipo_contratacao = normalizar_tipo_contratacao_servico(servico.get("tipo_contratacao"))
+            duracao = str(servico.get("tempo_estimado") or "").strip()
+            disponivel = bool(servico.get("disponivel_agendamento"))
+            midias = [
+                {"path": str(midia.get("imagem_path") or "").strip(), "tipo": "imagem"}
+                for midia in (servico.get("imagens") or [])
+                if str(midia.get("imagem_path") or "").strip()
+            ]
+            if not midias and str(servico.get("imagem_path") or "").strip():
+                midias = [{"path": str(servico.get("imagem_path") or "").strip(), "tipo": "imagem"}]
+            agenda_url = f"/agendar/{urllib.parse.quote(codigo_agenda)}?servico_id={servico_id}&origem=vitrine_online"
+            itens_publicos.append(
+                {
+                    "tipo": "servico",
+                    "id": servico_id,
+                    "nome": nome_raw,
+                    "categoria": categoria_raw,
+                    "descricao": descricao_raw,
+                    "preco_numero": preco_numero,
+                    "preco": preco_formatado,
+                    "preco_label": "Valor a combinar" if tipo_contratacao == "a_combinar" else (f"R$ {preco_formatado}" if exibir_preco else "Consulte o valor"),
+                    "disponivel": disponivel,
+                    "destaque": str(servico.get("destaque") or "nao").strip().lower() == "sim",
+                    "midias": midias,
+                    "max": 1,
+                    "duracao": "Avaliação prévia" if tipo_contratacao == "a_combinar" else (duracao or "Duração a combinar"),
+                    "acao_url": agenda_url,
+                    "acao_texto": "Solicitar avaliação" if tipo_contratacao == "a_combinar" else "Agendar",
+                }
+            )
+
+    def _primeira_imagem_item(item: dict[str, Any]) -> str:
+        for midia in item.get("midias") or []:
+            if midia.get("tipo") == "imagem" and midia.get("path"):
+                return str(midia.get("path") or "")
+        return ""
+
+    def _midia_card_html(item: dict[str, Any]) -> str:
+        imagem = _primeira_imagem_item(item)
+        if imagem:
+            return f'<img src="/vitrine-upload/{html.escape(imagem)}" alt="{html.escape(item["nome"])}" loading="lazy">'
+        midias = item.get("midias") or []
+        if midias and midias[0].get("tipo") == "video":
+            return (
+                f'<video muted playsinline preload="metadata" src="/vitrine-upload/{html.escape(str(midias[0].get("path") or ""))}"></video>'
+            )
+        return f'<span class="media-placeholder">{html.escape(item["tipo"].title())}</span>'
+
+    def _item_json_html(item: dict[str, Any]) -> str:
+        dados = {
+            "tipo": item["tipo"],
+            "id": item["id"],
+            "nome": item["nome"],
+            "categoria": item["categoria"],
+            "descricao": item["descricao"],
+            "preco": item["preco"],
+            "precoLabel": item["preco_label"],
+            "precoNumero": item["preco_numero"],
+            "disponivel": item["disponivel"],
+            "destaque": item["destaque"],
+            "midias": item["midias"],
+            "max": item["max"],
+            "duracao": item["duracao"],
+            "acaoUrl": item["acao_url"],
+            "acaoTexto": item["acao_texto"],
+        }
+        return html.escape(json.dumps(dados, ensure_ascii=False, separators=(",", ":")), quote=True)
+
+    def _card_catalogo_html(item: dict[str, Any], *, compacto: bool = False) -> str:
+        tipo = item["tipo"]
+        item_id = int(item["id"])
+        nome = html.escape(item["nome"])
+        categoria_item = html.escape(item["categoria"])
+        dados_item = _item_json_html(item)
+        badge = ""
+        if not item["disponivel"]:
+            badge = '<span class="card-badge card-badge-unavailable">Indisponível</span>'
+        elif item["destaque"]:
+            badge = '<span class="card-badge">Destaque</span>'
+        meta = ""
+        if tipo == "servico":
+            meta = f'<small class="card-duration">{html.escape(item["duracao"])}</small>'
+        acao = ""
+        if tipo == "produto":
+            if permitir_pedido and item["disponivel"]:
+                acao = (
+                    '<button type="button" class="card-buy" onclick="event.stopPropagation();adicionarItemDireto(this.closest(\'.store-card\'))">Comprar</button>'
+                )
+            elif whatsapp_publico_url and item["disponivel"]:
+                acao = f'<a class="card-buy" href="{whatsapp_publico_url_html}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Consultar</a>'
+            else:
+                acao = '<button type="button" class="card-buy" disabled>Indisponível</button>'
+        else:
+            if item["disponivel"]:
+                acao = f'<a class="card-buy" href="{html.escape(item["acao_url"])}" onclick="event.stopPropagation();registrarItem(\'servico\',{item_id})">{html.escape(item["acao_texto"])}</a>'
+            else:
+                acao = '<button type="button" class="card-buy" disabled>Indisponível</button>'
+        classe = "store-card store-card-compact" if compacto else "store-card"
+        catalog_attr = "" if compacto else ' data-catalog-item="1"'
+        return f'''<article class="{classe}" id="{tipo}-{item_id}" data-tipo="{tipo}" data-categoria="{categoria_item}" data-nome="{html.escape(item["nome"].lower(), quote=True)}" data-preco="{item["preco_numero"]}" data-disponivel="{1 if item["disponivel"] else 0}" data-item="{dados_item}"{catalog_attr}>
+<button class="card-media" type="button" onclick="abrirDetalheCard(this.closest('.store-card'))" aria-label="Ver {nome}">{_midia_card_html(item)}{badge}</button>
+<div class="card-body">
+<div class="card-copy"><small>{categoria_item}</small><h3>{nome}</h3>{meta}<strong>{html.escape(item["preco_label"])}</strong></div>
+<div class="card-actions">{acao}<button type="button" class="card-peek" onclick="event.stopPropagation();abrirDetalheCard(this.closest('.store-card'))">Ver</button></div>
+</div></article>'''
+
+    itens_destaque = [item for item in itens_publicos if item.get("destaque") and item.get("disponivel")]
+    if not itens_destaque:
+        itens_destaque = [item for item in itens_publicos if item.get("disponivel")]
+    itens_destaque = itens_destaque[:8]
+    destaques_html = "".join(_card_catalogo_html(item, compacto=True) for item in itens_destaque)
+
+    catalogo_html = "".join(_card_catalogo_html(item) for item in itens_publicos)
+    if not catalogo_html:
+        catalogo_html = '<div class="catalog-empty">Nenhum produto ou serviço publicado no momento.</div>'
+
+    categorias: dict[tuple[str, str], dict[str, Any]] = {}
+    for item in itens_publicos:
+        chave = (str(item["tipo"]), str(item["categoria"]))
+        if chave not in categorias:
+            categorias[chave] = {
+                "tipo": item["tipo"],
+                "nome": item["categoria"],
+                "imagem": _primeira_imagem_item(item),
+                "quantidade": 0,
+            }
+        categorias[chave]["quantidade"] += 1
+
+    categorias_cards = []
+    for categoria_info in list(categorias.values())[:10]:
+        imagem = categoria_info["imagem"]
+        if imagem:
+            visual = f'<img src="/vitrine-upload/{html.escape(imagem)}" alt="{html.escape(categoria_info["nome"])}" loading="lazy">'
+        else:
+            visual = '<span class="collection-placeholder">Coleção</span>'
+        categoria_js = html.escape(json.dumps(categoria_info["nome"], ensure_ascii=False), quote=True)
+        categorias_cards.append(
+            f'''<button class="collection-card" type="button" onclick="irParaCategoria('{categoria_info['tipo']}',{categoria_js})">
+<span class="collection-media">{visual}</span><span class="collection-copy"><strong>{html.escape(categoria_info['nome'])}</strong><small>{categoria_info['quantidade']} item(ns)</small></span></button>'''
+        )
+    categorias_html = "".join(categorias_cards)
+
+    filtros_categorias_html = ['<button type="button" class="filter-category active" data-filter-category="" onclick="selecionarCategoria(\'\',this)">Todas</button>']
+    for nome_categoria in sorted({item["categoria"] for item in itens_publicos}):
+        nome_js = html.escape(json.dumps(nome_categoria, ensure_ascii=False), quote=True)
+        filtros_categorias_html.append(
+            f'<button type="button" class="filter-category" data-filter-category="{html.escape(nome_categoria)}" onclick="selecionarCategoria({nome_js},this)">{html.escape(nome_categoria)}</button>'
+        )
+    filtros_categorias = "".join(filtros_categorias_html)
+
+    hero_itens = []
+    for item in itens_destaque + itens_publicos:
+        imagem = _primeira_imagem_item(item)
+        if imagem and imagem not in [registro["imagem"] for registro in hero_itens]:
+            hero_itens.append({"imagem": imagem, "nome": item["nome"]})
+        if len(hero_itens) >= 4:
+            break
+
+    if video_url:
+        hero_visual_html = f'''<div class="hero-video-wrap"><video class="hero-video" src="{video_url}" autoplay muted loop playsinline preload="metadata"></video><span class="hero-video-shade"></span></div>'''
+    elif hero_itens:
+        imagens_hero = "".join(
+            f'<figure class="hero-tile hero-tile-{indice + 1}"><img src="/vitrine-upload/{html.escape(item["imagem"])}" alt="{html.escape(item["nome"])}"></figure>'
+            for indice, item in enumerate(hero_itens)
+        )
+        hero_visual_html = f'<div class="hero-collage">{imagens_hero}</div>'
+    else:
+        hero_visual_html = f'<div class="hero-brand-fallback"><span class="hero-brand-frame">{logo_hero_html}</span><strong>{nome_loja}</strong></div>'
+
+    entrega_resumo = " / ".join(str(item) for item in formas_entrega[:2])
+    pagamento_resumo = " / ".join(str(item) for item in formas_pagamento[:3])
+    beneficios_html = "".join(
+        [
+            f'<article><span class="benefit-icon">↗</span><div><strong>Entrega e retirada</strong><small>{html.escape(entrega_resumo)}</small></div></article>',
+            f'<article><span class="benefit-icon">▣</span><div><strong>Pagamento facilitado</strong><small>{html.escape(pagamento_resumo)}{f" · até {maximo_parcelas}x" if maximo_parcelas > 1 else ""}</small></div></article>',
+            '<article><span class="benefit-icon">✓</span><div><strong>Pedido registrado</strong><small>Seu pedido chega direto à empresa pelo GestFlow.</small></div></article>',
+            '<article><span class="benefit-icon">◌</span><div><strong>Atendimento</strong><small>Fale diretamente com a empresa para tirar dúvidas.</small></div></article>',
+        ]
     )
 
-    estilo = r'''
-<style>
+    entrega_options = "".join(
+        f'<option value="{_normalizar_chave_campo_configuravel(rotulo)}">{html.escape(str(rotulo))}</option>'
+        for rotulo in formas_entrega
+    )
+    pagamento_options = "".join(
+        f'<option value="{_normalizar_chave_campo_configuravel(rotulo)}">{html.escape(str(rotulo))}</option>'
+        for rotulo in formas_pagamento
+    )
+
+    mensagem_html = ""
+    if mensagem:
+        mensagem_html = f'<div class="store-feedback" id="storeFeedback"><strong>{html.escape(mensagem)}</strong>'
+        if whatsapp_url:
+            mensagem_html += f'<a href="{html.escape(whatsapp_url)}" target="_blank" rel="noopener">Continuar no WhatsApp</a>'
+        mensagem_html += '<button type="button" onclick="this.parentElement.remove()" aria-label="Fechar">×</button></div>'
+
+    whatsapp_link_header = (
+        f'<a class="quick-action" href="{whatsapp_publico_url_html}" target="_blank" rel="noopener"><span class="quick-icon">◌</span><small>Atendimento</small></a>'
+        if whatsapp_publico_url
+        else '<a class="quick-action" href="#atendimento"><span class="quick-icon">◌</span><small>Atendimento</small></a>'
+    )
+    carrinho_header = (
+        '<button class="quick-action quick-cart" type="button" onclick="abrirCarrinho()"><span class="quick-icon">▱</span><small>Meu carrinho</small><b id="cartBadge">0</b></button>'
+        if permitir_pedido
+        else ""
+    )
+
+    brand_color_source_html = (
+        f'<img id="brandColorSource" src="{logo_url}" alt="" hidden crossorigin="anonymous">'
+        if tipo_identidade_visual == "logo" and logo_url
+        else ""
+    )
+
+    social_top_html = ""
+    if instagram_url:
+        social_top_html += f'<a href="{html.escape(instagram_url)}" target="_blank" rel="noopener" aria-label="Instagram">◎</a>'
+    if whatsapp_publico_url:
+        social_top_html += f'<a href="{whatsapp_publico_url_html}" target="_blank" rel="noopener" aria-label="WhatsApp">◉</a>'
+
+    contato_cards = []
+    if whatsapp_publico_url:
+        contato_cards.append(
+            f'<a href="{whatsapp_publico_url_html}" target="_blank" rel="noopener"><span>WhatsApp</span><strong>{html.escape(telefone_publico or "Falar agora")}</strong></a>'
+        )
+    if email_publico:
+        contato_cards.append(
+            f'<a href="mailto:{html.escape(email_publico)}"><span>E-mail</span><strong>{html.escape(email_publico)}</strong></a>'
+        )
+    if instagram_url:
+        contato_cards.append(
+            f'<a href="{html.escape(instagram_url)}" target="_blank" rel="noopener"><span>Instagram</span><strong>{html.escape(instagram_raw)}</strong></a>'
+        )
+    contato_cards_html = "".join(contato_cards) or '<div class="contact-empty">Use os canais informados pela empresa para entrar em contato.</div>'
+
+    footer_documento = f' · {html.escape(documento_publico)}' if documento_publico else ""
+
+    carrinho_html = ""
+    if permitir_pedido:
+        carrinho_html = f'''<div class="drawer-backdrop" id="cartBackdrop" onclick="fecharCarrinho()" hidden></div>
+<aside class="cart-drawer" id="cartDrawer" aria-label="Carrinho" aria-hidden="true">
+<div class="cart-head"><div><small>Seu pedido</small><h2>Meu carrinho</h2></div><button type="button" onclick="fecharCarrinho()" aria-label="Fechar carrinho">×</button></div>
+<div class="cart-items" id="cartItems"><div class="cart-empty">Seu carrinho está vazio.</div></div>
+<div class="cart-summary"><span>Total</span><strong id="cartTotal">R$ 0,00</strong></div>
+<form class="checkout-form" method="post" action="/loja/{slug}/pedido" onsubmit="return prepararPedido()">
+<h3>Finalizar pedido</h3>
+<label>Nome completo<input name="cliente_nome" autocomplete="name" required></label>
+<label>WhatsApp<input name="cliente_whatsapp" inputmode="tel" autocomplete="tel" required></label>
+<div class="checkout-grid"><label>Recebimento<select name="tipo_entrega">{entrega_options}</select></label><label>Pagamento<select name="forma_pagamento">{pagamento_options}</select></label></div>
+<label>Endereço<input name="endereco" placeholder="Preencha se for entrega"></label>
+<label>Observações<textarea name="observacoes" rows="3" placeholder="Tamanho, referência, ponto de entrega ou outra informação"></textarea></label>
+<input type="hidden" name="itens_json" id="itensJson">
+<button class="checkout-submit" id="checkoutSubmit" type="submit" disabled>Confirmar pedido</button>
+<small class="checkout-note">Pedido mínimo: {quantidade_minima} item(ns).</small>
+</form>
+</aside>'''
+
+    estilo = r'''<style>
 :root{
-    --brand-primary:__COR_PRINCIPAL__;
-    --brand-primary-2:__COR_SECUNDARIA__;
-    --brand-action:__COR_ACAO__;
-    --brand-action-text:__COR_ACAO_TEXTO__;
-    --brand-accent:__COR_DESTAQUE__;
-    --brand-accent-soft:rgba(245,158,11,.16);
-    --brand-accent-text:#071a2b;
-    --category-soft:__COR_CATEGORIA_SUAVE__;
-    --surface:#ffffff;
-    --text:#172033;
-    --text-soft:#667085;
-    --border:#e3e7ee;
-    --shadow:0 14px 38px rgba(15,23,42,.09);
-    --logo-zoom:__LOGO_ZOOM_FACTOR__;
-    --logo-x:__LOGO_OFFSET_X__%;
-    --logo-y:__LOGO_OFFSET_Y__%;
-    --logo-bg:__LOGO_FUNDO__;
-    --logo-radius:__LOGO_RAIO__;
-    --logo-clip:__LOGO_CLIP__;
-    --logo-border:__LOGO_BORDA__;
+  --brand:__COR_PRINCIPAL__;--brand-2:__COR_SECUNDARIA__;--action:__COR_ACAO__;--action-text:__COR_ACAO_TEXTO__;
+  --accent:__COR_DESTAQUE__;--page:#ffffff;--surface:#ffffff;--soft:#f6f6f6;--soft-2:#efefef;--text:#111111;--muted:#6f6f6f;
+  --line:#dedede;--danger:#a61b1b;--success:#15803d;--shadow:0 12px 30px rgba(0,0,0,.08);
+  --logo-zoom:__LOGO_ZOOM_FACTOR__;--logo-x:__LOGO_OFFSET_X__%;--logo-y:__LOGO_OFFSET_Y__%;--logo-bg:__LOGO_FUNDO__;--logo-radius:__LOGO_RAIO__;
 }
-*{box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{margin:0;font-family:Inter,Arial,Helvetica,sans-serif;background:var(--category-soft);color:var(--text)}
-a{color:inherit}
-button,input,select,textarea{font:inherit}
-[hidden]{display:none!important}
-.site-header{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--category-soft) 92%,#fff 8%);border-bottom:1px solid color-mix(in srgb,var(--brand-primary) 12%,transparent);backdrop-filter:blur(14px)}
-.navbar-inner{width:min(1180px,calc(100% - 32px));min-height:68px;margin:auto;display:flex;align-items:center;gap:22px}
-.marca-nav{min-width:0;display:flex;align-items:center;gap:11px;text-decoration:none}
-.marca-logo{width:44px;height:44px;display:grid;place-items:center;overflow:hidden;border-radius:min(var(--logo-radius),13px);clip-path:var(--logo-clip);-webkit-clip-path:var(--logo-clip);background:var(--logo-bg);border:1px solid var(--logo-border);box-shadow:0 5px 16px rgba(15,23,42,.07);flex:0 0 auto;isolation:isolate}
-.marca-logo-img{width:100%;height:100%;object-fit:contain;display:block;border-radius:inherit;clip-path:var(--logo-clip);-webkit-clip-path:var(--logo-clip);transform:translate(var(--logo-x),var(--logo-y)) scale(var(--logo-zoom));transform-origin:center;will-change:transform}
-.marca-iniciais{font-weight:1000;font-size:17px;color:var(--brand-action)}
-.marca-texto{min-width:0;display:grid;gap:2px}
-.marca-texto strong{font-size:18px;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.marca-texto small{font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:var(--text-soft);font-weight:900}
-.nav-links{margin-left:auto;display:flex;align-items:center;gap:24px}
-.nav-links a{text-decoration:none;font-size:13px;font-weight:850;color:var(--text-soft)}
-.nav-links a:hover{color:var(--brand-action)}
-.nav-whatsapp,.nav-carrinho{min-height:40px;display:inline-flex;align-items:center;gap:7px;padding:0 14px;border-radius:12px;text-decoration:none;font-size:12px;font-weight:900;white-space:nowrap}
-.nav-whatsapp{background:#16a34a;color:#fff}
-.nav-carrinho{border:1px solid var(--border);background:#fff;color:var(--brand-action)}
-.apresentacao{padding:46px 0 24px;background:linear-gradient(180deg,color-mix(in srgb,var(--brand-primary) 5%,var(--category-soft)),var(--category-soft))}
-.apresentacao-inner{width:min(1180px,calc(100% - 32px));margin:auto;display:grid;grid-template-columns:240px minmax(0,1fr);gap:24px;align-items:center}
-.apresentacao-logo{width:240px;height:240px;display:grid;place-items:center;padding:0;border-radius:var(--logo-radius);clip-path:var(--logo-clip);-webkit-clip-path:var(--logo-clip);background:var(--logo-bg);border:1px solid var(--logo-border);box-shadow:0 12px 28px rgba(15,23,42,.08);overflow:hidden;isolation:isolate}
-.apresentacao-logo-img{width:100%;height:100%;object-fit:contain;display:block;border-radius:inherit;clip-path:var(--logo-clip);-webkit-clip-path:var(--logo-clip);transform:translate(var(--logo-x),var(--logo-y)) scale(var(--logo-zoom));transform-origin:center;will-change:transform}
-.apresentacao-logo-iniciais{width:150px;height:150px;display:grid;place-items:center;border-radius:34px;background:var(--brand-action);color:var(--brand-action-text);font-size:52px;font-weight:1000}
-.apresentacao-copy{min-width:0}
-.apresentacao-kicker{margin:0 0 10px;color:var(--brand-action);font-size:12px;font-weight:1000;text-transform:uppercase;letter-spacing:.16em}
-.apresentacao h1{margin:0;font-size:clamp(38px,5vw,66px);line-height:1;letter-spacing:-.045em;text-wrap:balance}
-.apresentacao-categoria{margin:12px 0 0;color:var(--brand-action);font-size:22px;font-weight:900}
-.apresentacao-descricao{max-width:760px;margin:17px 0 0;color:var(--text-soft);font-size:16px;line-height:1.65}
-.apresentacao-acoes{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px}
-.btn-publico{min-height:46px;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:0 20px;border-radius:13px;text-decoration:none;font-weight:950}
-.btn-catalogo{background:var(--brand-action);color:var(--brand-action-text)}
-.btn-whatsapp{background:#16a34a;color:#fff}
-.sobre-diferenciais{width:min(1180px,calc(100% - 32px));margin:26px auto 0;display:grid;grid-template-columns:1fr;gap:16px}.sobre-card{width:100%;box-sizing:border-box}
-.sobre-card,.diferenciais-grid{background:#fff;border:1px solid var(--border);border-radius:20px;box-shadow:0 8px 28px rgba(15,23,42,.05)}
-.sobre-card{padding:22px}
-.section-kicker{margin:0 0 8px;color:var(--brand-action);font-size:11px;font-weight:1000;text-transform:uppercase;letter-spacing:.13em}
-.sobre-card h2,.catalogo-cabecalho h2,.passos-section h2{margin:0;font-size:24px;line-height:1.15}
-.sobre-card p{margin:10px 0 0;color:var(--text-soft);line-height:1.6}
-.diferenciais-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));padding:12px}
-.diferencial-card{display:flex;gap:10px;align-items:flex-start;padding:14px;border-radius:15px}
-.diferencial-card+ .diferencial-card{border-left:1px solid var(--border)}
-.diferencial-card>span{font-size:23px;line-height:1}
-.diferencial-card div{display:grid;gap:5px}
-.diferencial-card strong{font-size:13px}
-.diferencial-card small{color:var(--text-soft);font-size:11px;line-height:1.45}
-.video-catalogo-section{width:min(1180px,calc(100% - 32px));margin:20px auto 0;padding:20px;border:1px solid var(--border);border-radius:22px;background:#fff;box-shadow:0 8px 28px rgba(15,23,42,.05);box-sizing:border-box}.video-catalogo-heading{margin-bottom:14px}.video-catalogo-heading h2{margin:0;font-size:24px}.video-catalogo-section video{display:block;width:100%;max-height:680px;border-radius:16px;background:#000;object-fit:contain}
-.container{width:min(1180px,calc(100% - 32px));margin:30px auto 44px}
-.mensagem{margin-bottom:14px;padding:13px 16px;border-radius:14px;background:#ecfdf5;color:#047857;font-weight:850}
-.whatsapp-final{display:block;margin-bottom:14px;padding:13px 16px;border-radius:14px;background:#16a34a;color:#fff;text-align:center;text-decoration:none;font-weight:900}
-.catalogo-cabecalho{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:16px}
-.catalogo-cabecalho p:last-child{margin:7px 0 0;color:var(--text-soft)}
-.barra{display:grid;grid-template-columns:minmax(0,1fr) auto auto;grid-template-areas:"busca menu abas" "categorias categorias categorias";gap:12px;padding:16px;border:1px solid var(--border);border-radius:20px;background:#fff;box-shadow:0 10px 28px rgba(15,23,42,.06)}
-.busca-wrap{grid-area:busca;position:relative}
-.busca-wrap::before{content:"⌕";position:absolute;left:15px;top:50%;transform:translateY(-50%);color:var(--brand-action);font-size:19px}
-.busca{width:100%;min-height:48px;border:1px solid var(--border);border-radius:13px;padding:0 15px 0 43px;font-size:15px;outline:none}
-.busca:focus{border-color:var(--brand-action);box-shadow:0 0 0 3px color-mix(in srgb,var(--brand-action) 12%,transparent)}
-.categorias-toggle{grid-area:menu;width:48px;height:48px;display:grid;place-items:center;gap:4px;border:1px solid var(--border);border-radius:13px;background:#fff;cursor:pointer;padding:12px}.categorias-toggle span{display:block;width:22px;height:2px;border-radius:999px;background:var(--brand-action)}.categorias-toggle[aria-expanded="true"]{background:color-mix(in srgb,var(--brand-primary) 10%,#fff);border-color:color-mix(in srgb,var(--brand-primary) 28%,var(--border))}
-.tipo-abas{grid-area:abas;display:flex;gap:8px}
-.tipo-aba{min-height:48px;border:1px solid var(--border);border-radius:13px;padding:0 18px;background:#fff;color:var(--text-soft);font-weight:900;cursor:pointer}
-.tipo-aba.active{background:var(--brand-action);border-color:var(--brand-action);color:var(--brand-action-text)}
-.categorias{grid-area:categorias;overflow:auto;padding:4px 0 2px}.categorias[hidden]{display:none}
-.categorias-grupo{display:flex;gap:8px;min-width:max-content}
-.categoria-botao{border:1px solid var(--border);border-radius:999px;padding:9px 13px;background:#fff;color:var(--text-soft);font-size:12px;font-weight:850;white-space:nowrap;cursor:pointer}
-.categoria-botao.active{background:color-mix(in srgb,var(--brand-primary) 12%,#fff);border-color:color-mix(in srgb,var(--brand-primary) 24%,var(--border));color:var(--brand-action)}
-.conteudo{display:block;margin-top:18px}
-.conteudo.com-carrinho{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:18px;align-items:start}
-.itens{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,260px));gap:16px;align-items:stretch;justify-content:center;width:100%}
-.catalogo-card{min-width:0;display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--border);border-radius:19px;background:#fff;box-shadow:0 8px 24px rgba(15,23,42,.055)}
-.item-imagem{position:relative;width:100%;display:grid;place-items:center;border:0;background:#fff;overflow:hidden;text-decoration:none}.item-imagem-abrir{width:100%;height:100%;display:grid;place-items:center;border:0;padding:0;background:transparent}.midia-imagem-zoom{width:100%;height:100%;display:grid;place-items:center;border:0;padding:0;background:transparent;cursor:zoom-in}.item-imagem img,.item-imagem video{display:block;width:auto;height:auto;max-width:100%;max-height:100%;object-fit:contain;object-position:center;margin:auto;background:#fff}.item-imagem video{width:100%;height:100%;background:#000}
-body.catalogo-formato-vertical .item-imagem{aspect-ratio:4/5}body.catalogo-formato-quadrado .item-imagem{aspect-ratio:1/1}body.catalogo-formato-horizontal .itens{grid-template-columns:repeat(auto-fit,minmax(420px,1fr));justify-content:stretch}body.catalogo-formato-horizontal .catalogo-card{display:grid;grid-template-columns:minmax(180px,42%) minmax(0,1fr)}body.catalogo-formato-horizontal .item-imagem{height:100%;min-height:250px;aspect-ratio:auto}body.catalogo-formato-horizontal .item-info{min-width:0}.item-imagem-seta{position:absolute;top:50%;z-index:3;width:42px;height:42px;display:grid;place-items:center;transform:translateY(-50%);border:1px solid rgba(255,255,255,.55);border-radius:999px;background:rgba(15,23,42,.82);color:#fff;font-size:28px;font-weight:900;line-height:1;cursor:pointer;box-shadow:0 6px 18px rgba(15,23,42,.28)}.item-imagem-seta:hover,.item-imagem-seta:focus-visible{background:#0f172a;outline:3px solid rgba(255,255,255,.55)}.item-imagem-anterior{left:10px}.item-imagem-proxima{right:10px}.galeria-contador{position:absolute;right:10px;bottom:10px;z-index:3;padding:5px 8px;border-radius:999px;background:rgba(15,23,42,.78);color:#fff;font-size:11px;font-weight:900}.galeria-modal{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.82)}.galeria-modal.aberta{display:flex}.galeria-box{position:relative;width:min(900px,96vw);height:min(720px,88vh);display:grid;place-items:center;border-radius:20px;background:#fff;overflow:hidden}.galeria-conteudo{width:100%;height:100%;display:grid;place-items:center;padding:64px 64px 28px;box-sizing:border-box}.galeria-conteudo img,.galeria-conteudo video{display:block;max-width:100%;max-height:100%;object-fit:contain}.galeria-conteudo video{width:100%;height:100%;background:#000}.galeria-fechar,.galeria-anterior,.galeria-proxima{position:absolute;z-index:2;border:0;border-radius:999px;background:rgba(15,23,42,.82);color:#fff;font-weight:900;cursor:pointer}.galeria-fechar{top:14px;right:14px;width:42px;height:42px}.galeria-anterior,.galeria-proxima{top:50%;width:44px;height:44px;transform:translateY(-50%)}.galeria-anterior{left:14px}.galeria-proxima{right:14px}.galeria-titulo{position:absolute;left:16px;right:70px;top:16px;color:#111827;font-weight:900}
-.item-sem-imagem{color:var(--text-soft);font-weight:850}
-.item-info{flex:1;display:flex;flex-direction:column;gap:9px;padding:15px}
-.item-info small{color:var(--text-soft);font-weight:800}
-.item-info h3{margin:0;font-size:17px;line-height:1.3}
-.item-indisponivel{display:inline-flex;align-self:flex-start;padding:4px 8px;border-radius:999px;background:#f3f4f6;color:#6b7280;font-size:11px;font-weight:900}
-.item-info p{display:-webkit-box;min-height:42px;margin:0;overflow:hidden;color:var(--text-soft);line-height:1.45;-webkit-line-clamp:2;-webkit-box-orient:vertical}
-.item-info>strong,.item-meta strong{font-size:20px;color:var(--brand-action)}
-.quantidade-produto{display:grid;grid-template-columns:38px minmax(54px,72px) 38px;align-items:center;gap:7px;width:max-content;margin-top:2px}.quantidade-produto button{width:38px;height:38px;border:1px solid var(--border);border-radius:10px;background:#fff;color:var(--brand-action);font-size:20px;font-weight:1000;cursor:pointer}.quantidade-produto input{width:100%;height:38px;border:1px solid var(--border);border-radius:10px;text-align:center;font-weight:950;color:var(--text);background:#fff}.quantidade-produto input::-webkit-inner-spin-button,.quantidade-produto input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
-.item-meta{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-.duracao{font-size:12px;font-weight:850;color:var(--text-soft)}
-.item-acoes{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:auto;padding-top:4px}
-.item-acoes button,.acao-principal,.acao-outline{min-height:40px;display:inline-flex;align-items:center;justify-content:center;border-radius:11px;padding:0 12px;text-decoration:none;font-size:12px;font-weight:950;cursor:pointer}
-.item-acoes button,.acao-principal{border:0;background:var(--brand-action);color:var(--brand-action-text)}
-.item-acoes button:disabled{background:#d1d5db;color:#6b7280;cursor:not-allowed}
-.item-carrinho{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center}.item-carrinho-info{display:grid;gap:3px;min-width:0}.item-carrinho-info span{font-weight:850}.item-carrinho-info small{color:var(--text-soft)}.item-carrinho-final{display:grid;gap:6px;justify-items:end}.quantidade-carrinho{display:grid;grid-template-columns:30px 32px 30px;align-items:center;gap:4px}.quantidade-carrinho button{width:30px;height:30px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--brand-action);font-size:16px;font-weight:1000;cursor:pointer}.quantidade-carrinho b{text-align:center;font-size:13px}.remover-carrinho{border:0;background:transparent;color:#b42318;font-size:11px;font-weight:850;cursor:pointer;padding:0}
-.acao-outline{border:1px solid color-mix(in srgb,var(--brand-action) 28%,var(--border));background:#fff;color:var(--brand-action)}
-.carrinho{position:sticky;top:86px;padding:18px;border:1px solid var(--border);border-radius:20px;background:#fff;box-shadow:var(--shadow)}
-.carrinho-cabecalho{display:flex;align-items:center;gap:10px;margin-bottom:12px}
-.carrinho-cabecalho>span{width:38px;height:38px;display:grid;place-items:center;border-radius:12px;background:color-mix(in srgb,var(--brand-primary) 12%,#fff);color:var(--brand-action)}
-.carrinho-cabecalho small{color:var(--text-soft);font-weight:800}
-.carrinho-cabecalho h2{margin:2px 0 0;font-size:20px}
-.carrinho-itens{color:var(--text-soft);font-size:13px}
-.item-carrinho{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
-.carrinho-total{display:block;margin-top:12px;font-size:18px}
-.form-pedido{display:grid;gap:9px;margin-top:14px}
-.form-pedido input,.form-pedido select,.form-pedido textarea{width:100%;min-height:42px;border:1px solid var(--border);border-radius:11px;padding:10px 11px;background:#fff}
-.form-pedido textarea{min-height:76px;resize:vertical}
-.finalizar{min-height:44px;border:0;border-radius:12px;background:var(--brand-action);color:var(--brand-action-text);font-weight:950;cursor:pointer}
-.vazio{grid-column:1/-1;padding:30px;border:1px dashed var(--border);border-radius:18px;background:#fff;text-align:center;color:var(--text-soft)}
-.paginacao{display:flex;align-items:center;justify-content:center;gap:7px;margin:22px 0 0;flex-wrap:wrap}
-.paginacao button{min-width:36px;height:36px;border:1px solid var(--border);border-radius:10px;background:#fff;color:var(--text-soft);font-weight:900;cursor:pointer}
-.paginacao button.active{background:var(--brand-action);border-color:var(--brand-action);color:var(--brand-action-text)}
-.paginacao button:disabled{opacity:.4;cursor:not-allowed}
-.passos-section{margin-top:32px;padding:24px;border:1px solid var(--border);border-radius:22px;background:#fff;box-shadow:0 8px 28px rgba(15,23,42,.05)}
-.passos-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:18px}
-.passo-card{position:relative;display:flex;gap:11px;align-items:flex-start;padding:16px;border:1px solid var(--border);border-radius:16px;background:var(--category-soft)}
-.passo-card>span{width:30px;height:30px;display:grid;place-items:center;border-radius:50%;background:var(--brand-action);color:var(--brand-action-text);font-size:12px;font-weight:1000;flex:0 0 auto}
-.passo-card div{display:grid;gap:5px}
-.passo-card strong{font-size:13px}
-.passo-card small{color:var(--text-soft);font-size:11px;line-height:1.45}
-.pagamentos{margin-top:18px;text-align:center}
-.pagamentos p{margin:0 0 10px;color:var(--text-soft);font-size:12px;font-weight:850}
-.pagamentos-lista{display:flex;justify-content:center;gap:7px;flex-wrap:wrap}
-.pagamentos-lista span{padding:7px 10px;border:1px solid var(--border);border-radius:999px;background:#fff;color:var(--text-soft);font-size:11px;font-weight:850}
-.footer{padding:28px 0;background:#fff;border-top:1px solid var(--border)}
-.footer-inner{width:min(1180px,calc(100% - 32px));margin:auto;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
-.footer-marca{display:flex;align-items:center;gap:10px}
-.footer-marca strong{display:block}
-.footer-marca p{margin:3px 0 0;color:var(--text-soft);font-size:12px}
-.footer-social{display:flex;gap:8px;flex-wrap:wrap}
-.social-link{padding:9px 12px;border-radius:11px;text-decoration:none;font-size:12px;font-weight:900}
-.social-link.instagram{background:#fdf2f8;color:#be185d}
-.social-link.whatsapp{background:#dcfce7;color:#15803d}
-.footer-credit{width:100%;margin:2px 0 0;color:var(--text-soft);font-size:11px;text-align:center}
-.footer-credit a{font-weight:900;color:var(--brand-action)}
-@media(max-width:980px){
-    .nav-links{display:none}.apresentacao-inner{grid-template-columns:240px minmax(0,1fr);gap:24px}.apresentacao-logo{min-height:240px}.sobre-diferenciais{grid-template-columns:1fr}.conteudo.com-carrinho{grid-template-columns:1fr}.carrinho{position:static}.itens{grid-template-columns:repeat(auto-fit,minmax(220px,300px));justify-content:center}.passos-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-}
-@media(max-width:680px){
-    .navbar-inner,.apresentacao-inner,.sobre-diferenciais,.container,.footer-inner{width:min(100% - 22px,1180px)}.navbar-inner{min-height:62px;gap:9px}.marca-logo{width:43px;height:43px}.marca-texto strong{font-size:15px}.marca-texto small{display:none}.nav-whatsapp{margin-left:auto;width:42px;min-width:42px;padding:0;justify-content:center}.nav-whatsapp span:last-child{display:none}.nav-carrinho{font-size:0;width:42px;min-width:42px;padding:0;justify-content:center}.nav-carrinho span{font-size:16px}.apresentacao{padding-top:26px}.apresentacao-inner{grid-template-columns:1fr;gap:20px}.apresentacao-logo{width:min(240px,76vw);height:min(240px,76vw);min-height:0;margin:auto;padding:0}.apresentacao-logo-img{max-height:none}.apresentacao-copy{text-align:center}.apresentacao h1{font-size:38px}.apresentacao-categoria{font-size:19px}.apresentacao-descricao{font-size:14px}.apresentacao-acoes{justify-content:center}.sobre-diferenciais{margin-top:18px}.diferenciais-grid{grid-template-columns:1fr}.diferencial-card+ .diferencial-card{border-left:0;border-top:1px solid var(--border)}.catalogo-cabecalho{align-items:flex-start;flex-direction:column}.barra{grid-template-columns:minmax(0,1fr) 48px;grid-template-areas:"busca menu" "abas abas" "categorias categorias"}.tipo-abas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.tipo-aba{padding:0 10px}.itens{grid-template-columns:minmax(0,420px);justify-content:center}body.catalogo-formato-horizontal .itens{grid-template-columns:minmax(0,420px)}body.catalogo-formato-horizontal .catalogo-card{display:flex;flex-direction:column}body.catalogo-formato-horizontal .item-imagem{aspect-ratio:16/10;min-height:0}.passos-grid{grid-template-columns:1fr}.footer-inner{justify-content:center;text-align:center}.footer-marca{justify-content:center}.footer-social{justify-content:center}.footer-credit{text-align:center}
-}
-</style>
-'''
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--page);color:var(--text);font-family:Arial,Helvetica,sans-serif}button,input,select,textarea{font:inherit}button{color:inherit}a{color:inherit}[hidden]{display:none!important}
+.top-strip{min-height:30px;display:flex;align-items:center;justify-content:space-between;padding:0 max(14px,calc((100vw - 1240px)/2));font-size:11px;border-bottom:1px solid #eee;background:#fff}.top-social{display:flex;gap:10px}.top-social a{text-decoration:none;font-weight:900}.top-note{color:var(--muted)}
+.main-header{position:sticky;top:0;z-index:40;background:rgba(255,255,255,.96);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}.header-main{width:min(1240px,calc(100% - 28px));height:92px;margin:auto;display:grid;grid-template-columns:minmax(220px,1fr) auto minmax(220px,1fr);align-items:center;gap:28px}.header-search{position:relative;max-width:360px}.header-search input{width:100%;height:44px;border:1.5px solid #111;border-radius:8px;padding:0 46px 0 14px;background:#fff}.header-search button{position:absolute;right:5px;top:5px;width:34px;height:34px;border:0;background:transparent;font-size:22px;cursor:pointer}.brand-center{display:grid;place-items:center;text-decoration:none;min-width:120px}.brand-logo{width:72px;height:52px;display:grid;place-items:center;overflow:hidden;border-radius:var(--logo-radius);background:var(--logo-bg)}.brand-logo-image{width:100%;height:100%;object-fit:contain;transform:translate(var(--logo-x),var(--logo-y)) scale(var(--logo-zoom));transform-origin:center}.brand-initials{font-size:19px;font-weight:1000}.brand-name-mobile{display:none;font-weight:950}.quick-actions{justify-self:end;display:flex;gap:26px;align-items:center}.quick-action{position:relative;min-width:58px;display:grid;gap:5px;place-items:center;border:0;background:transparent;text-decoration:none;cursor:pointer}.quick-icon{font-size:25px;line-height:1}.quick-action small{font-size:10px;white-space:nowrap}.quick-cart b{position:absolute;right:4px;top:-5px;min-width:19px;height:19px;padding:0 5px;display:grid;place-items:center;border-radius:999px;background:#111;color:#fff;font-size:10px}
+.header-nav{border-top:1px solid #eee}.header-nav-inner{width:min(1240px,calc(100% - 28px));height:48px;margin:auto;display:flex;align-items:center;justify-content:center;gap:34px}.header-nav button,.header-nav a{border:0;background:transparent;text-decoration:none;font-size:13px;cursor:pointer}.header-nav button:hover,.header-nav a:hover{text-decoration:underline}
+.store-feedback{position:fixed;z-index:90;left:50%;top:18px;transform:translateX(-50%);width:min(680px,calc(100% - 24px));display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:10px;padding:14px 16px;border:1px solid #bbf7d0;border-radius:12px;background:#f0fdf4;box-shadow:var(--shadow);color:#166534}.store-feedback a{font-weight:900}.store-feedback button{width:30px;height:30px;border:0;background:transparent;font-size:22px;cursor:pointer}
+.hero{position:relative;overflow:hidden;background:#f4f4f4}.hero-inner{width:min(1240px,100%);min-height:430px;margin:auto;display:grid;grid-template-columns:minmax(360px,.9fr) minmax(500px,1.3fr);align-items:stretch}.hero-copy{display:flex;flex-direction:column;justify-content:center;padding:56px 54px}.hero-copy .kicker{margin:0 0 12px;font-size:12px;font-weight:900;letter-spacing:.16em;text-transform:uppercase}.hero-copy h1{max-width:560px;margin:0;font-size:clamp(42px,5vw,72px);line-height:.94;letter-spacing:-.045em}.hero-copy p{max-width:560px;margin:20px 0 0;color:#555;font-size:16px;line-height:1.6}.hero-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:26px}.btn-dark,.btn-light{min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:0 20px;border-radius:999px;text-decoration:none;font-size:12px;font-weight:950;cursor:pointer}.btn-dark{border:1px solid var(--action);background:var(--action);color:var(--action-text)}.btn-light{border:1px solid #111;background:#fff;color:#111}.hero-visual{position:relative;min-height:430px;overflow:hidden;background:#e8e8e8}.hero-video-wrap,.hero-video,.hero-collage,.hero-brand-fallback{width:100%;height:100%}.hero-video{object-fit:cover}.hero-video-shade{position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,.05),transparent 45%)}.hero-collage{position:relative;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:4px}.hero-tile{margin:0;overflow:hidden;background:#ddd}.hero-tile img{width:100%;height:100%;object-fit:cover}.hero-tile-1{grid-row:1/3}.hero-brand-fallback{display:grid;place-items:center;align-content:center;gap:18px}.hero-brand-frame{width:220px;height:220px;display:grid;place-items:center;overflow:hidden;border-radius:var(--logo-radius);background:var(--logo-bg)}.hero-brand-image{width:100%;height:100%;object-fit:contain;transform:translate(var(--logo-x),var(--logo-y)) scale(var(--logo-zoom));transform-origin:center}.hero-brand-initials{font-size:72px;font-weight:1000}.hero-brand-fallback strong{font-size:30px}
+.benefits{background:#efefef;border-top:1px solid #e1e1e1;border-bottom:1px solid #e1e1e1}.benefits-inner{width:min(1240px,calc(100% - 28px));min-height:92px;margin:auto;display:grid;grid-template-columns:repeat(4,1fr)}.benefits article{display:flex;align-items:center;gap:12px;padding:18px 24px;border-right:1px solid #d8d8d8}.benefits article:last-child{border-right:0}.benefit-icon{width:42px;height:42px;display:grid;place-items:center;border:1px solid #777;border-radius:50%;font-size:18px;flex:0 0 auto}.benefits strong,.benefits small{display:block}.benefits strong{font-size:11px;text-transform:uppercase}.benefits small{margin-top:4px;color:#666;font-size:10px;line-height:1.35}
+.section{width:min(1240px,calc(100% - 28px));margin:0 auto;padding:64px 0}.section-heading{display:flex;align-items:end;justify-content:space-between;gap:24px;margin-bottom:26px}.section-heading small{display:block;margin-bottom:7px;color:#777;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.12em}.section-heading h2{margin:0;font-size:32px;letter-spacing:-.025em}.section-heading p{max-width:520px;margin:0;color:#666;line-height:1.55}.section-heading a,.section-heading button{border:0;background:transparent;text-decoration:underline;font-size:12px;font-weight:850;cursor:pointer}.collections-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px}.collection-card{padding:0;border:1px solid #e3e3e3;border-radius:12px;background:#fff;overflow:hidden;text-align:left;cursor:pointer}.collection-media{aspect-ratio:1/1;display:block;overflow:hidden;background:#f3f3f3}.collection-media img{width:100%;height:100%;object-fit:cover;transition:transform .25s ease}.collection-card:hover .collection-media img{transform:scale(1.035)}.collection-placeholder{height:100%;display:grid;place-items:center;color:#888}.collection-copy{display:grid;gap:5px;padding:13px}.collection-copy strong{font-size:13px}.collection-copy small{color:#777;font-size:10px}
+.featured-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}.store-card{position:relative;min-width:0;border:1px solid #e1e1e1;border-radius:12px;background:#fff;overflow:hidden}.card-media{position:relative;width:100%;aspect-ratio:4/5;display:block;padding:0;border:0;background:#f2f2f2;overflow:hidden;cursor:pointer}.card-media img,.card-media video{width:100%;height:100%;object-fit:cover;display:block}.media-placeholder{height:100%;display:grid;place-items:center;color:#888;font-weight:850}.card-badge{position:absolute;left:10px;top:10px;z-index:2;padding:7px 9px;border-radius:999px;background:#111;color:#fff;font-size:9px;font-weight:950;text-transform:uppercase}.card-badge-unavailable{background:#4b4b4b}.card-body{display:grid;gap:12px;padding:13px}.card-copy{display:grid;gap:5px;text-align:center}.card-copy small{color:#777;font-size:10px}.card-copy h3{margin:0;font-size:13px;font-weight:500;line-height:1.35}.card-copy strong{font-size:16px}.card-duration{min-height:13px}.card-actions{display:grid;grid-template-columns:1fr auto;gap:7px}.card-buy,.card-peek{min-height:34px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:0 13px;text-decoration:none;font-size:9px;font-weight:950;text-transform:uppercase;letter-spacing:.06em;cursor:pointer}.card-buy{border:1px solid var(--action);background:var(--action);color:var(--action-text)}.card-buy:disabled{opacity:.45;cursor:not-allowed}.card-peek{border:1px solid #111;background:#fff;color:#111}.store-card-compact .card-body{padding:11px}.store-card-compact .card-actions{opacity:0;transform:translateY(4px);transition:.2s ease}.store-card-compact:hover .card-actions{opacity:1;transform:none}
+.catalog-section{background:#fafafa;border-top:1px solid #eee}.catalog-layout{display:grid;grid-template-columns:220px minmax(0,1fr);gap:34px}.catalog-sidebar{align-self:start;position:sticky;top:158px}.filter-block{padding:0 0 22px;margin-bottom:22px;border-bottom:1px solid #ddd}.filter-block h3{margin:0 0 13px;font-size:15px}.filter-categories{display:grid;gap:5px}.filter-category{padding:6px 0;border:0;background:transparent;text-align:left;color:#555;font-size:12px;cursor:pointer}.filter-category.active{color:#111;font-weight:900}.filter-check{display:flex;align-items:center;gap:8px;font-size:12px;color:#555}.catalog-toolbar{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:18px}.catalog-search{position:relative;flex:1;max-width:520px}.catalog-search input{width:100%;height:42px;border:1px solid #bbb;border-radius:8px;padding:0 13px}.catalog-types{display:flex;gap:5px;flex-wrap:wrap}.type-filter{height:36px;padding:0 13px;border:1px solid #ccc;border-radius:999px;background:#fff;font-size:10px;font-weight:850;cursor:pointer}.type-filter.active{border-color:#111;background:#111;color:#fff}.catalog-sort{height:38px;border:1px solid #ccc;border-radius:8px;background:#fff;padding:0 10px;font-size:11px}.catalog-count{margin:0 0 14px;color:#777;font-size:11px}.catalog-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}.catalog-empty{grid-column:1/-1;padding:48px 20px;border:1px dashed #ccc;border-radius:12px;background:#fff;text-align:center;color:#777}.pagination{display:flex;justify-content:center;gap:6px;margin-top:26px}.pagination button{min-width:36px;height:36px;border:1px solid #ccc;border-radius:7px;background:#fff;cursor:pointer}.pagination button.active{background:#111;color:#fff;border-color:#111}.mobile-filter-toggle{display:none}
+body.catalogo-formato-quadrado .card-media{aspect-ratio:1/1}body.catalogo-formato-horizontal .catalog-grid{grid-template-columns:repeat(2,minmax(0,1fr))}body.catalogo-formato-horizontal .catalog-grid .store-card{display:grid;grid-template-columns:42% 58%}body.catalogo-formato-horizontal .catalog-grid .card-media{aspect-ratio:auto;min-height:230px}body.catalogo-formato-horizontal .catalog-grid .card-body{align-content:center}
+.about-section{display:grid;grid-template-columns:1.2fr .8fr;gap:60px;align-items:start}.about-copy small{display:block;margin-bottom:10px;color:#777;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.12em}.about-copy h2{margin:0;font-size:36px}.about-copy p{margin:20px 0 0;color:#4e4e4e;font-size:17px;line-height:1.7}.about-facts{display:grid;gap:12px}.about-fact{padding:18px;border:1px solid #ddd;border-radius:10px}.about-fact strong{display:block;font-size:13px}.about-fact small{display:block;margin-top:5px;color:#777;line-height:1.45}
+.contact-section{background:#f1f1f1}.contact-grid{display:grid;grid-template-columns:.75fr 1.25fr;gap:50px}.contact-copy h2{margin:0;font-size:34px}.contact-copy p{color:#666;line-height:1.6}.contact-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.contact-cards a,.contact-empty{display:grid;gap:6px;padding:18px;border:1px solid #d6d6d6;border-radius:10px;background:#fff;text-decoration:none}.contact-cards span{color:#777;font-size:10px;text-transform:uppercase}.contact-cards strong{font-size:13px;word-break:break-word}
+.footer{background:#e8e8e8;border-top:1px solid #ddd}.footer-main{width:min(1240px,calc(100% - 28px));margin:auto;padding:44px 0;display:grid;grid-template-columns:1fr 1fr 1fr;gap:30px}.footer-main h3{margin:0 0 16px;font-size:15px}.footer-main a,.footer-main span{display:block;margin-top:9px;color:#333;text-decoration:none;font-size:12px}.footer-social-row{display:flex!important;gap:9px}.footer-social-row a{width:38px;height:38px;display:grid;place-items:center;margin:0;border-radius:50%;background:#111;color:#fff}.footer-bottom{background:#111;color:#fff}.footer-bottom-inner{width:min(1240px,calc(100% - 28px));min-height:48px;margin:auto;display:flex;align-items:center;justify-content:space-between;gap:20px;font-size:10px}.footer-bottom a{color:#fff}
+.detail-layer{position:fixed;inset:0;z-index:70;background:#fff;overflow:auto;transform:translateY(105%);transition:transform .28s ease}.detail-layer.open{transform:none}.detail-top{position:sticky;top:0;z-index:3;height:62px;display:flex;align-items:center;justify-content:space-between;padding:0 max(16px,calc((100vw - 1180px)/2));border-bottom:1px solid #ddd;background:rgba(255,255,255,.96);backdrop-filter:blur(10px)}.detail-top strong{font-size:13px}.detail-top button{width:38px;height:38px;border:1px solid #ccc;border-radius:50%;background:#fff;font-size:22px;cursor:pointer}.detail-shell{width:min(1180px,calc(100% - 28px));margin:auto;padding:28px 0 70px}.detail-main{display:grid;grid-template-columns:70px minmax(0,1.15fr) minmax(320px,.85fr);gap:18px;align-items:start}.detail-thumbs{display:grid;gap:8px}.detail-thumb{width:68px;aspect-ratio:1/1;border:1px solid #ddd;border-radius:9px;background:#f6f6f6;overflow:hidden;padding:0;cursor:pointer}.detail-thumb.active{border:2px solid #111}.detail-thumb img,.detail-thumb video{width:100%;height:100%;object-fit:cover}.detail-media{min-height:600px;display:grid;place-items:center;border-radius:12px;background:#f1f1f1;overflow:hidden}.detail-media img,.detail-media video{width:100%;height:100%;max-height:720px;object-fit:contain}.detail-info{position:sticky;top:90px;padding:8px 0 0 20px}.detail-breadcrumb{color:#888;font-size:10px}.detail-info h1{margin:14px 0 12px;font-size:34px;line-height:1.05}.detail-price{font-size:26px;font-weight:950}.detail-duration{display:block;margin-top:8px;color:#666;font-size:12px}.detail-description{margin:18px 0 0;color:#555;line-height:1.7}.detail-qty{display:grid;grid-template-columns:42px 62px 42px;gap:6px;margin:24px 0 12px}.detail-qty button,.detail-qty input{height:42px;border:1px solid #bbb;border-radius:8px;background:#fff;text-align:center}.detail-qty button{font-size:20px;cursor:pointer}.detail-actions{display:grid;grid-template-columns:1fr;gap:8px;margin-top:14px}.detail-primary,.detail-secondary{min-height:46px;display:flex;align-items:center;justify-content:center;border-radius:999px;text-decoration:none;font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.08em;cursor:pointer}.detail-primary{border:1px solid #111;background:#111;color:#fff}.detail-secondary{border:1px solid #111;background:#fff;color:#111}.detail-extra{margin-top:24px;padding-top:20px;border-top:1px solid #ddd}.detail-extra article{display:flex;gap:10px;margin-top:12px}.detail-extra strong,.detail-extra small{display:block}.detail-extra strong{font-size:11px}.detail-extra small{margin-top:3px;color:#777;font-size:10px;line-height:1.4}.detail-long-copy{max-width:840px;margin:46px 0 0 88px}.detail-long-copy h2{font-size:22px}.detail-long-copy p{color:#444;line-height:1.8;white-space:pre-line}
+.drawer-backdrop{position:fixed;inset:0;z-index:78;background:rgba(0,0,0,.38)}.cart-drawer{position:fixed;right:0;top:0;bottom:0;z-index:79;width:min(470px,100vw);padding:22px;background:#fff;box-shadow:-18px 0 42px rgba(0,0,0,.16);overflow:auto;transform:translateX(105%);transition:transform .24s ease}.cart-drawer.open{transform:none}.cart-head{display:flex;justify-content:space-between;align-items:center;padding-bottom:16px;border-bottom:1px solid #ddd}.cart-head small{color:#777}.cart-head h2{margin:3px 0 0}.cart-head button{width:38px;height:38px;border:1px solid #ccc;border-radius:50%;background:#fff;font-size:22px;cursor:pointer}.cart-items{display:grid;gap:12px;padding:18px 0}.cart-empty{padding:26px 10px;text-align:center;color:#777}.cart-item{display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:10px;align-items:center;padding-bottom:12px;border-bottom:1px solid #eee}.cart-item-media{width:64px;height:78px;border-radius:8px;background:#f2f2f2;overflow:hidden}.cart-item-media img{width:100%;height:100%;object-fit:cover}.cart-item strong,.cart-item small{display:block}.cart-item strong{font-size:12px}.cart-item small{margin-top:4px;color:#777;font-size:10px}.cart-item-controls{display:grid;justify-items:end;gap:7px}.cart-qty{display:grid;grid-template-columns:28px 28px 28px;align-items:center}.cart-qty button{width:28px;height:28px;border:1px solid #ccc;background:#fff;cursor:pointer}.cart-qty b{text-align:center;font-size:11px}.cart-remove{border:0;background:transparent;color:var(--danger);font-size:9px;font-weight:850;cursor:pointer}.cart-summary{display:flex;justify-content:space-between;padding:15px 0;border-top:1px solid #ddd;border-bottom:1px solid #ddd}.cart-summary strong{font-size:19px}.checkout-form{display:grid;gap:11px;padding-top:18px}.checkout-form h3{margin:0 0 4px}.checkout-form label{display:grid;gap:5px;color:#555;font-size:10px;font-weight:800}.checkout-form input,.checkout-form select,.checkout-form textarea{width:100%;min-height:42px;border:1px solid #bbb;border-radius:8px;padding:9px 10px;background:#fff}.checkout-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.checkout-submit{min-height:46px;border:0;border-radius:999px;background:#111;color:#fff;font-size:11px;font-weight:950;text-transform:uppercase;cursor:pointer}.checkout-submit:disabled{opacity:.4;cursor:not-allowed}.checkout-note{color:#777;text-align:center;font-size:9px}
+@media(max-width:1050px){.header-main{grid-template-columns:1fr auto 1fr}.hero-inner{grid-template-columns:1fr 1fr}.hero-copy{padding:42px 34px}.benefits-inner{grid-template-columns:repeat(2,1fr)}.benefits article:nth-child(2){border-right:0}.collections-grid{grid-template-columns:repeat(4,1fr)}.featured-grid,.catalog-grid{grid-template-columns:repeat(3,1fr)}.detail-main{grid-template-columns:60px minmax(0,1fr) 320px}.detail-media{min-height:520px}}
+@media(max-width:820px){.top-strip{display:none}.header-main{height:68px;grid-template-columns:1fr auto}.header-search{display:none}.brand-center{justify-self:start;display:flex;gap:9px}.brand-logo{width:52px;height:38px}.brand-name-mobile{display:block;font-size:13px}.quick-actions{gap:10px}.quick-action small{display:none}.quick-action{min-width:40px}.header-nav{overflow:auto}.header-nav-inner{justify-content:flex-start;width:max-content;min-width:100%;padding:0 14px;gap:26px}.hero-inner{grid-template-columns:1fr}.hero-copy{order:2;padding:36px 22px;text-align:center;align-items:center}.hero-copy h1{font-size:46px}.hero-visual{min-height:360px}.benefits-inner{width:100%;grid-template-columns:1fr 1fr}.benefits article{padding:14px}.collections-grid{grid-template-columns:repeat(2,1fr)}.featured-grid{grid-template-columns:repeat(2,1fr)}.catalog-layout{grid-template-columns:1fr}.catalog-sidebar{position:static;display:none;padding:14px;border:1px solid #ddd;border-radius:10px;background:#fff}.catalog-sidebar.open{display:block}.mobile-filter-toggle{display:inline-flex;height:38px;align-items:center;padding:0 12px;border:1px solid #bbb;border-radius:8px;background:#fff;font-size:11px}.catalog-toolbar{flex-wrap:wrap}.catalog-search{order:3;max-width:none;flex-basis:100%}.catalog-grid{grid-template-columns:repeat(2,1fr)}body.catalogo-formato-horizontal .catalog-grid{grid-template-columns:1fr}.about-section,.contact-grid{grid-template-columns:1fr;gap:26px}.detail-main{grid-template-columns:1fr}.detail-thumbs{order:2;display:flex;overflow:auto}.detail-thumb{flex:0 0 64px}.detail-media{order:1;min-height:420px}.detail-info{order:3;position:static;padding:10px 0}.detail-long-copy{margin:30px 0 0}.footer-main{grid-template-columns:1fr 1fr}.footer-bottom-inner{flex-direction:column;justify-content:center;padding:10px 0;text-align:center}}
+@media(max-width:540px){.quick-actions{gap:2px}.hero-visual{min-height:290px}.hero-copy h1{font-size:38px}.hero-copy p{font-size:14px}.benefits-inner{grid-template-columns:1fr}.benefits article{border-right:0;border-bottom:1px solid #ddd}.benefits article:last-child{border-bottom:0}.section{padding:46px 0}.section-heading{align-items:flex-start;flex-direction:column}.section-heading h2{font-size:27px}.collections-grid,.featured-grid,.catalog-grid{grid-template-columns:1fr 1fr;gap:10px}.card-body{padding:9px}.card-copy h3{font-size:11px}.card-copy strong{font-size:14px}.card-actions{grid-template-columns:1fr}.card-peek{display:none}.contact-cards{grid-template-columns:1fr}.footer-main{grid-template-columns:1fr}.footer-bottom-inner{font-size:9px}.detail-shell{width:min(100% - 20px,1180px)}.detail-media{min-height:360px}.checkout-grid{grid-template-columns:1fr}.cart-drawer{padding:16px}}
+</style>'''
     estilo = (
         estilo.replace("__COR_PRINCIPAL__", cor_principal)
         .replace("__COR_SECUNDARIA__", cor_secundaria)
         .replace("__COR_ACAO__", cor_acao)
         .replace("__COR_ACAO_TEXTO__", cor_acao_texto)
         .replace("__COR_DESTAQUE__", cor_destaque)
-        .replace("__COR_CATEGORIA_SUAVE__", cor_categoria_suave)
         .replace("__LOGO_ZOOM_FACTOR__", f"{logo_zoom / 100:.3f}")
         .replace("__LOGO_OFFSET_X__", str(logo_offset_x))
         .replace("__LOGO_OFFSET_Y__", str(logo_offset_y))
         .replace("__LOGO_FUNDO__", logo_fundo)
         .replace("__LOGO_RAIO__", logo_raio)
-        .replace("__LOGO_CLIP__", logo_clip)
-        .replace("__LOGO_BORDA__", logo_borda)
     )
 
     corpo = r'''<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1.0">
-    <meta name="theme-color" content="__COR_PRINCIPAL__">
-    <title>__TITULO_SEO__</title>
-    <meta name="description" content="__DESCRICAO_SEO__">
-    __ESTILO__
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="theme-color" content="__COR_PRINCIPAL__">
+<title>__TITULO_SEO__</title>
+<meta name="description" content="__DESCRICAO_SEO__">
+__ESTILO__
 </head>
 <body class="identity-__IDENTIDADE__ categoria-__CATEGORIA_CLASSE__ catalogo-formato-__FORMATO_CATALOGO__" data-identity-mode="__IDENTIDADE__">
-<header class="site-header" id="inicio">
-    <div class="navbar-inner">
-        <a class="marca-nav" href="#inicio" aria-label="Início - __NOME_LOJA__">
-            <span class="marca-logo">__LOGO_NAV__</span>
-            <span class="marca-texto"><strong>__NOME_LOJA__</strong></span>
-        </a>
-        <nav class="nav-links" aria-label="Navegação principal">
-            <a href="#inicio">Início</a>
-            <a href="#catalogo">Catálogo</a>
-            <a href="#sobre">Sobre nós</a>
-        </nav>
-        __WHATSAPP_TOPO__
-        __CARRINHO_NAV__
-    </div>
+__BRAND_COLOR_SOURCE__
+__MENSAGEM__
+<div class="top-strip"><div class="top-social">__SOCIAL_TOP__</div><span class="top-note">Vitrine oficial · atendimento direto com a empresa</span></div>
+<header class="main-header" id="inicio">
+  <div class="header-main">
+    <div class="header-search"><input id="headerSearch" type="search" placeholder="O que você está buscando?" onkeydown="if(event.key==='Enter'){event.preventDefault();aplicarBuscaGlobal()}"><button type="button" onclick="aplicarBuscaGlobal()" aria-label="Buscar">⌕</button></div>
+    <a class="brand-center" href="#inicio"><span class="brand-logo">__LOGO_NAV__</span><span class="brand-name-mobile">__NOME_LOJA__</span></a>
+    <div class="quick-actions">__ATENDIMENTO_HEADER____CARRINHO_HEADER__</div>
+  </div>
+  <nav class="header-nav" aria-label="Navegação principal"><div class="header-nav-inner">
+    <a href="#inicio">Início</a>
+    __NAV_PRODUTOS____NAV_SERVICOS__
+    <a href="#atendimento">Atendimento</a>
+    <a href="#quem-somos">Quem Somos</a>
+  </div></nav>
 </header>
-<section class="apresentacao">
-    <div class="apresentacao-inner">
-        <div class="apresentacao-logo">__LOGO_APRESENTACAO__</div>
-        <div class="apresentacao-copy">
-            <p class="apresentacao-kicker">__KICKER__</p>
-            <h1>__NOME_LOJA__</h1>
-            <p class="apresentacao-descricao">__DESCRICAO_EMPRESA__</p>
-            <div class="apresentacao-acoes">
-                <a class="btn-publico btn-catalogo" href="#catalogo">Ver catálogo</a>
-                __WHATSAPP_APRESENTACAO__
-            </div>
-        </div>
-    </div>
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-copy"><p class="kicker">__HERO_KICKER__</p><h1>__HERO_TITULO__</h1><p>__DESCRICAO_EMPRESA__</p><div class="hero-actions"><a class="btn-dark" href="#catalogo">Ver catálogo</a>__HERO_WHATSAPP__</div></div>
+    <div class="hero-visual">__HERO_VISUAL__</div>
+  </div>
 </section>
-<section class="sobre-diferenciais" id="sobre">
-    <article class="sobre-card">
-        <p class="section-kicker">Sobre nós</p>
-        <h2>Conheça __NOME_LOJA__</h2>
-        <p>__DESCRICAO_EMPRESA__</p>
-    </article>
-    <div class="diferenciais-grid">__DIFERENCIAIS__</div>
+<section class="benefits"><div class="benefits-inner">__BENEFICIOS__</div></section>
+<section class="section" id="colecoes" __OCULTAR_COLECOES__>
+  <div class="section-heading"><div><small>Categorias</small><h2>Explore por categoria</h2></div><p>Encontre produtos e serviços organizados de forma simples, como em uma loja online.</p></div>
+  <div class="collections-grid">__COLECOES__</div>
 </section>
-<main class="container" id="catalogo">
-    __MENSAGEM__
-    __WHATSAPP_FINAL__
-    <header class="catalogo-cabecalho">
-        <div>
-            <p class="section-kicker">Catálogo</p>
-            <h2 id="tituloCatalogo">__TITULO_CATALOGO__</h2>
-            <p>Busque, filtre e escolha com tranquilidade.</p>
+<section class="section" id="destaques" __OCULTAR_DESTAQUES__>
+  <div class="section-heading"><div><small>Seleção da loja</small><h2>Destaques</h2></div><button type="button" onclick="document.getElementById('catalogo').scrollIntoView({behavior:'smooth'})">Ver catálogo completo</button></div>
+  <div class="featured-grid">__DESTAQUES__</div>
+</section>
+<section class="catalog-section" id="catalogo">
+  <div class="section">
+    <div class="section-heading"><div><small>Catálogo</small><h2>Todos os itens</h2></div><p>Use busca, categorias e filtros para chegar mais rápido ao que procura.</p></div>
+    <div class="catalog-layout">
+      <aside class="catalog-sidebar" id="catalogSidebar">
+        <div class="filter-block"><h3>Categorias</h3><div class="filter-categories">__FILTROS_CATEGORIAS__</div></div>
+        <div class="filter-block"><h3>Disponibilidade</h3><label class="filter-check"><input type="checkbox" id="onlyAvailable" onchange="filtrarCatalogo(true)"> Somente disponíveis</label></div>
+      </aside>
+      <div>
+        <div class="catalog-toolbar">
+          <button class="mobile-filter-toggle" type="button" onclick="alternarFiltros()">Filtros</button>
+          <div class="catalog-types">__TIPOS_FILTRO__</div>
+          <select class="catalog-sort" id="catalogSort" onchange="filtrarCatalogo(true)"><option value="relevancia">Ordenar: relevância</option><option value="nome">Nome</option><option value="menor-preco">Menor preço</option><option value="maior-preco">Maior preço</option></select>
+          <div class="catalog-search"><input id="catalogSearch" type="search" placeholder="Buscar no catálogo..." oninput="filtrarCatalogo(true)"></div>
         </div>
-    </header>
-    <section class="barra" aria-label="Filtros do catálogo">
-        <div class="busca-wrap"><input class="busca" id="busca" placeholder="Buscar produto, serviço ou categoria..." oninput="filtrarItens()"></div>
-        <button class="categorias-toggle" id="categoriasToggle" type="button" aria-label="Abrir categorias" aria-expanded="false" onclick="alternarCategoriasCatalogo()"><span></span><span></span><span></span></button>
-        <div class="tipo-abas">__ABAS__</div>
-        <div class="categorias" id="categoriasCatalogo" hidden>
-            <div class="categorias-grupo" id="categoriasProduto" __OCULTAR_CATEGORIAS_PRODUTO__>__CATEGORIAS_PRODUTOS__</div>
-            <div class="categorias-grupo" id="categoriasServico" __OCULTAR_CATEGORIAS_SERVICO__>__CATEGORIAS_SERVICOS__</div>
-        </div>
-    </section>
-    <section class="__CLASSE_CONTEUDO__" id="conteudoCatalogo">
-        <div>
-            <div class="itens" id="itens">__CARDS__</div>
-            <nav class="paginacao" id="paginacaoCatalogo" aria-label="Paginação do catálogo"></nav>
-        </div>
-        __CARRINHO__
-    </section>
-    <section class="passos-section" id="passos">
-        <p class="section-kicker">Passo a passo</p>
-        <h2 id="tituloPassos">Como comprar</h2>
-        <div class="passos-grid" id="passosProduto" __OCULTAR_PASSOS_PRODUTO__>__PASSOS_PRODUTO__</div>
-        <div class="passos-grid" id="passosServico" __OCULTAR_PASSOS_SERVICO__>__PASSOS_SERVICO__</div>
-        <div class="pagamentos" id="pagamentosVitrine" __OCULTAR_PAGAMENTOS__>
-            <p>Formas de pagamento aceitas</p>
-            <div class="pagamentos-lista">__FORMAS_PAGAMENTO__</div>
-        </div>
-    </section>
-</main>
-<div class="galeria-modal" id="galeriaModal" role="dialog" aria-modal="true" aria-label="Galeria do item" onclick="if(event.target===this)fecharGaleria()">
-    <div class="galeria-box">
-        <strong class="galeria-titulo" id="galeriaTitulo"></strong>
-        <button class="galeria-fechar" type="button" aria-label="Fechar galeria" onclick="fecharGaleria()">×</button>
-        <button class="galeria-anterior" type="button" aria-label="Mídia anterior" onclick="mudarFoto(-1)">‹</button>
-        <div class="galeria-conteudo" id="galeriaConteudo"></div>
-        <button class="galeria-proxima" type="button" aria-label="Próxima mídia" onclick="mudarFoto(1)">›</button>
+        <p class="catalog-count" id="catalogCount"></p>
+        <div class="catalog-grid" id="catalogGrid">__CATALOGO__</div>
+        <nav class="pagination" id="catalogPagination" aria-label="Paginação"></nav>
+      </div>
     </div>
-</div>
+  </div>
+</section>
+<section class="section about-section" id="quem-somos">
+  <div class="about-copy"><small>Quem Somos</small><h2>Sobre __NOME_LOJA__</h2><p>__DESCRICAO_EMPRESA__</p></div>
+  <div class="about-facts"><article class="about-fact"><strong>Catálogo atualizado</strong><small>Os itens publicados são administrados diretamente pelo GestFlow.</small></article><article class="about-fact"><strong>Atendimento direto</strong><small>Você fala com a própria empresa para confirmar detalhes da compra ou serviço.</small></article><article class="about-fact"><strong>Produtos e serviços</strong><small>A mesma vitrine pode reunir venda de produtos e agendamento de serviços.</small></article></div>
+</section>
+<section class="contact-section" id="atendimento"><div class="section contact-grid"><div class="contact-copy"><h2>Atendimento</h2><p>Ficou com alguma dúvida? Use um dos canais abaixo para falar diretamente com __NOME_LOJA__.</p></div><div class="contact-cards">__CONTATOS__</div></div></section>
 <footer class="footer">
-    <div class="footer-inner">
-        <div class="footer-marca"><span class="marca-logo">__LOGO_NAV__</span><div><strong>__NOME_LOJA__</strong></div></div>
-        <div class="footer-social">__INSTAGRAM_SOCIAL____WHATSAPP_SOCIAL__</div>
-        <p class="footer-credit">Desenvolvido pela <a href="https://nettsan.com.br" target="_blank" rel="noopener">Nettsan</a></p>
-    </div>
+  <div class="footer-main"><div><h3>Departamentos</h3><a href="#inicio">Início</a><a href="#catalogo">Produtos e serviços</a><a href="#atendimento">Atendimento</a><a href="#quem-somos">Quem Somos</a></div><div><h3>Entre em contato</h3>__FOOTER_CONTATO__</div><div><h3>Permaneça conectado</h3><div class="footer-social-row">__FOOTER_SOCIAL__</div></div></div>
+  <div class="footer-bottom"><div class="footer-bottom-inner"><span>Copyright __NOME_LOJA____FOOTER_DOCUMENTO__ · 2026. Todos os direitos reservados.</span><span>criado com <a href="https://nettsan.com.br" target="_blank" rel="noopener">GestFlow / Nettsan</a></span></div></div>
 </footer>
+<div class="detail-layer" id="detailLayer" aria-hidden="true">
+  <div class="detail-top"><strong id="detailTopName">Detalhes</strong><button type="button" onclick="fecharDetalhe()" aria-label="Fechar">×</button></div>
+  <div class="detail-shell"><div class="detail-main"><div class="detail-thumbs" id="detailThumbs"></div><div class="detail-media" id="detailMedia"></div><div class="detail-info"><span class="detail-breadcrumb" id="detailBreadcrumb"></span><h1 id="detailName"></h1><strong class="detail-price" id="detailPrice"></strong><span class="detail-duration" id="detailDuration"></span><p class="detail-description" id="detailDescription"></p><div class="detail-qty" id="detailQty" hidden><button type="button" onclick="ajustarQtdDetalhe(-1)">−</button><input id="detailQtyInput" type="number" value="1" min="1"><button type="button" onclick="ajustarQtdDetalhe(1)">+</button></div><div class="detail-actions" id="detailActions"></div><div class="detail-extra"><article><span>✓</span><div><strong>Atendimento direto</strong><small>Confirme detalhes e disponibilidade com a empresa.</small></div></article><article><span>↗</span><div><strong>Entrega ou agendamento</strong><small>As opções disponíveis são definidas pela própria empresa.</small></div></article></div></div></div><div class="detail-long-copy"><h2>Descrição</h2><p id="detailLongDescription"></p></div></div>
+</div>
+__CARRINHO__
 <script>
 let carrinho=[];
-let tipoAtivo=__TIPO_INICIAL_JSON__;
 let categoriaAtiva='';
+let tipoAtivo='todos';
 let paginaAtual=1;
-const itensPorPagina=9;
-function moedaNumero(v){const valor=String(v).trim();return parseFloat(valor.includes(',')?valor.replace(/\./g,'').replace(',','.'):valor)||0}
-function moedaBR(v){return v.toFixed(2).replace('.',',')}
-let galeriaMidias=[],galeriaIndice=0;function midiasDoCard(card){try{const dados=JSON.parse(card?.dataset?.fotos||'[]');if(!Array.isArray(dados))return[];return dados.map(item=>typeof item==='string'?{path:item,tipo:'imagem'}:{path:String(item?.path||''),tipo:item?.tipo==='video'?'video':'imagem'}).filter(item=>item.path)}catch(e){return[]}}function caminhoMidia(midia){return'/vitrine-upload/'+encodeURI(String(midia?.path||''))}function montarMidiaCard(card,midia){const area=card?.querySelector('.item-imagem-abrir');if(!area)return;area.innerHTML='';if(!midia)return;const titulo=card.dataset.titulo||'Item';if(midia.tipo==='video'){const video=document.createElement('video');video.controls=true;video.preload='metadata';video.playsInline=true;video.src=caminhoMidia(midia);area.appendChild(video);return}const botao=document.createElement('button');botao.type='button';botao.className='midia-imagem-zoom';botao.setAttribute('aria-label','Ampliar '+titulo);botao.addEventListener('click',()=>abrirGaleriaCard(card));const img=document.createElement('img');img.src=caminhoMidia(midia);img.alt=titulo;img.loading='lazy';botao.appendChild(img);area.appendChild(botao)}function atualizarFotoCard(card){const midias=midiasDoCard(card);if(!midias.length)return;const indice=Math.max(0,Math.min(Number(card.dataset.indice)||0,midias.length-1));card.dataset.indice=String(indice);montarMidiaCard(card,midias[indice]);const atual=card.querySelector('[data-foto-atual]');if(atual)atual.textContent=String(indice+1)}function mudarFotoCard(botao,delta){const card=botao.closest('.item-imagem');const midias=midiasDoCard(card);if(!card||midias.length<2)return;const atual=Number(card.dataset.indice)||0;const videoAtual=card.querySelector('video');if(videoAtual)videoAtual.pause();card.dataset.indice=String((atual+delta+midias.length)%midias.length);atualizarFotoCard(card)}function abrirGaleriaCard(card){const midias=midiasDoCard(card);if(!midias.length)return;galeriaMidias=midias;galeriaIndice=Number(card.dataset.indice)||0;const titulo=card.dataset.titulo||'';document.getElementById('galeriaTitulo').textContent=titulo;atualizarFotoGaleria();document.getElementById('galeriaModal').classList.add('aberta');registrarItem(card.dataset.tipoItem||'',Number(card.dataset.itemId)||0)}function atualizarFotoGaleria(){const area=document.getElementById('galeriaConteudo');if(!area||!galeriaMidias.length)return;const atual=area.querySelector('video');if(atual)atual.pause();area.innerHTML='';const midia=galeriaMidias[galeriaIndice];if(midia.tipo==='video'){const video=document.createElement('video');video.controls=true;video.preload='metadata';video.playsInline=true;video.src=caminhoMidia(midia);area.appendChild(video)}else{const img=document.createElement('img');img.src=caminhoMidia(midia);img.alt=document.getElementById('galeriaTitulo')?.textContent||'Imagem ampliada';area.appendChild(img)}}function mudarFoto(delta){if(!galeriaMidias.length)return;galeriaIndice=(galeriaIndice+delta+galeriaMidias.length)%galeriaMidias.length;atualizarFotoGaleria()}function fecharGaleria(){const modal=document.getElementById('galeriaModal');const video=modal?.querySelector('video');if(video)video.pause();if(modal)modal.classList.remove('aberta')}function registrarItem(tipo,id){fetch('/loja/__SLUG__/evento',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tipo:tipo,item_id:id||''})}).catch(()=>{})}
-function normalizarQuantidadeCard(input){const max=Math.max(1,Number(input.max)||999);input.value=String(limitar(Math.round(Number(input.value)||1),1,max))}
-function ajustarQuantidadeCard(botao,delta){const grupo=botao.closest('.quantidade-produto');const input=grupo?grupo.querySelector('input'):null;if(!input)return;const max=Math.max(1,Number(input.max)||999);input.value=String(limitar((Number(input.value)||1)+delta,1,max))}
-function adicionarCarrinhoDoCard(botao,id,nome,preco,max){const card=botao.closest('.produto-card');const input=card?card.querySelector('.quantidade-produto input'):null;const quantidade=input?Math.max(1,Math.round(Number(input.value)||1)):1;adicionarCarrinho(id,nome,preco,quantidade,max);if(input)input.value='1'}
-function adicionarCarrinho(id,nome,preco,quantidade=1,max=999){registrarItem('carrinho',id);const limite=Math.max(1,Number(max)||999);const qtd=Math.max(1,Math.round(Number(quantidade)||1));const item=carrinho.find(i=>i.id===id);if(item){item.max=Math.max(1,Number(item.max)||limite);item.quantidade=Math.min(item.max,item.quantidade+qtd)}else{carrinho.push({id,nome,preco,quantidade:Math.min(limite,qtd),max:limite})}renderCarrinho()}
-function alterarQuantidadeCarrinho(id,delta){const item=carrinho.find(i=>i.id===id);if(!item)return;const max=Math.max(1,Number(item.max)||999);item.quantidade=limitar(item.quantidade+delta,1,max);renderCarrinho()}
+const itensPorPagina=12;
+let detalheAtual=null;
+let detalheMidiaIndice=0;
+const whatsappPublico=__WHATSAPP_JSON__;
+function registrarItem(tipo,id){fetch('/loja/__SLUG_RAW__/evento',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tipo:tipo,item_id:id||''})}).catch(()=>{})}
+function moedaBR(v){return Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
+function lerItem(card){try{return JSON.parse(card?.dataset?.item||'{}')}catch(e){return{}}}
+function caminhoMidia(midia){return'/vitrine-upload/'+encodeURI(String(midia?.path||''))}
+function aplicarBuscaGlobal(){const origem=document.getElementById('headerSearch');const destino=document.getElementById('catalogSearch');if(destino)destino.value=origem?.value||'';document.getElementById('catalogo')?.scrollIntoView({behavior:'smooth'});filtrarCatalogo(true)}
+function irCatalogo(tipo){tipoAtivo=tipo||'todos';document.querySelectorAll('.type-filter').forEach(b=>b.classList.toggle('active',b.dataset.type===tipoAtivo));document.getElementById('catalogo')?.scrollIntoView({behavior:'smooth'});filtrarCatalogo(true)}
+function irParaCategoria(tipo,categoria){tipoAtivo=tipo||'todos';categoriaAtiva=categoria||'';document.querySelectorAll('.type-filter').forEach(b=>b.classList.toggle('active',b.dataset.type===tipoAtivo));document.querySelectorAll('.filter-category').forEach(b=>b.classList.toggle('active',(b.dataset.filterCategory||'')===categoriaAtiva));document.getElementById('catalogo')?.scrollIntoView({behavior:'smooth'});filtrarCatalogo(true)}
+function selecionarTipo(tipo,botao){tipoAtivo=tipo||'todos';document.querySelectorAll('.type-filter').forEach(b=>b.classList.toggle('active',b===botao));filtrarCatalogo(true)}
+function selecionarCategoria(categoria,botao){categoriaAtiva=categoria||'';document.querySelectorAll('.filter-category').forEach(b=>b.classList.toggle('active',b===botao));filtrarCatalogo(true)}
+function alternarFiltros(){document.getElementById('catalogSidebar')?.classList.toggle('open')}
+function filtrarCatalogo(reiniciar=false){if(reiniciar)paginaAtual=1;const busca=(document.getElementById('catalogSearch')?.value||'').trim().toLowerCase();const soDisponiveis=Boolean(document.getElementById('onlyAvailable')?.checked);const sort=document.getElementById('catalogSort')?.value||'relevancia';const cards=[...document.querySelectorAll('[data-catalog-item="1"]')];let filtrados=cards.filter(card=>{const tipo=card.dataset.tipo||'';const categoria=card.dataset.categoria||'';const nome=card.dataset.nome||'';const okTipo=tipoAtivo==='todos'||tipo===tipoAtivo;const okCategoria=!categoriaAtiva||categoria===categoriaAtiva;const okBusca=!busca||nome.includes(busca)||categoria.toLowerCase().includes(busca);const okDisp=!soDisponiveis||card.dataset.disponivel==='1';return okTipo&&okCategoria&&okBusca&&okDisp});if(sort==='nome')filtrados.sort((a,b)=>(a.dataset.nome||'').localeCompare(b.dataset.nome||''));if(sort==='menor-preco')filtrados.sort((a,b)=>Number(a.dataset.preco||0)-Number(b.dataset.preco||0));if(sort==='maior-preco')filtrados.sort((a,b)=>Number(b.dataset.preco||0)-Number(a.dataset.preco||0));cards.forEach(card=>card.hidden=true);const paginas=Math.max(1,Math.ceil(filtrados.length/itensPorPagina));paginaAtual=Math.min(paginaAtual,paginas);const inicio=(paginaAtual-1)*itensPorPagina;filtrados.slice(inicio,inicio+itensPorPagina).forEach(card=>card.hidden=false);const contador=document.getElementById('catalogCount');if(contador)contador.textContent=`${filtrados.length} item(ns) encontrado(s)`;renderPaginacao(paginas)}
+function renderPaginacao(total){const nav=document.getElementById('catalogPagination');if(!nav)return;nav.innerHTML='';if(total<=1)return;for(let p=1;p<=total;p++){const b=document.createElement('button');b.type='button';b.textContent=String(p);b.classList.toggle('active',p===paginaAtual);b.addEventListener('click',()=>{paginaAtual=p;filtrarCatalogo(false);document.getElementById('catalogGrid')?.scrollIntoView({behavior:'smooth',block:'start'})});nav.appendChild(b)}}
+function abrirDetalheCard(card){const item=lerItem(card);if(!item?.id)return;detalheAtual=item;detalheMidiaIndice=0;document.getElementById('detailTopName').textContent=item.nome||'Detalhes';document.getElementById('detailBreadcrumb').textContent=`Início > ${item.categoria||''} > ${item.nome||''}`;document.getElementById('detailName').textContent=item.nome||'';document.getElementById('detailPrice').textContent=item.precoLabel||'';document.getElementById('detailDuration').textContent=item.tipo==='servico'?(item.duracao||''):'';document.getElementById('detailDescription').textContent=item.descricao||'Consulte a empresa para mais informações.';document.getElementById('detailLongDescription').textContent=item.descricao||'Consulte a empresa para mais informações sobre este item.';const qty=document.getElementById('detailQty');qty.hidden=!(item.tipo==='produto'&&item.disponivel&&__PERMITIR_PEDIDO_JS__);const input=document.getElementById('detailQtyInput');input.value='1';input.max=String(Math.max(1,Number(item.max)||999));montarThumbsDetalhe();montarMidiaDetalhe();montarAcoesDetalhe();document.getElementById('detailLayer').classList.add('open');document.getElementById('detailLayer').setAttribute('aria-hidden','false');document.body.style.overflow='hidden';history.replaceState({},'',`#${item.tipo}-${item.id}`);registrarItem(item.tipo,item.id)}
+function montarThumbsDetalhe(){const box=document.getElementById('detailThumbs');box.innerHTML='';const midias=Array.isArray(detalheAtual?.midias)?detalheAtual.midias:[];if(!midias.length)return;midias.forEach((midia,idx)=>{const b=document.createElement('button');b.type='button';b.className='detail-thumb'+(idx===detalheMidiaIndice?' active':'');if(midia.tipo==='video'){const v=document.createElement('video');v.muted=true;v.src=caminhoMidia(midia);b.appendChild(v)}else{const img=document.createElement('img');img.src=caminhoMidia(midia);img.alt=detalheAtual?.nome||'Imagem';b.appendChild(img)}b.addEventListener('click',()=>{detalheMidiaIndice=idx;montarThumbsDetalhe();montarMidiaDetalhe()});box.appendChild(b)})}
+function montarMidiaDetalhe(){const box=document.getElementById('detailMedia');box.innerHTML='';const midias=Array.isArray(detalheAtual?.midias)?detalheAtual.midias:[];const midia=midias[detalheMidiaIndice];if(!midia){box.innerHTML='<span class="media-placeholder">Sem imagem</span>';return}if(midia.tipo==='video'){const v=document.createElement('video');v.controls=true;v.playsInline=true;v.src=caminhoMidia(midia);box.appendChild(v)}else{const img=document.createElement('img');img.src=caminhoMidia(midia);img.alt=detalheAtual?.nome||'Imagem';box.appendChild(img)}}
+function montarAcoesDetalhe(){const box=document.getElementById('detailActions');box.innerHTML='';const item=detalheAtual;if(!item)return;if(item.tipo==='produto'){if(item.disponivel&&__PERMITIR_PEDIDO_JS__){const b=document.createElement('button');b.type='button';b.className='detail-primary';b.textContent='Adicionar ao carrinho';b.addEventListener('click',()=>{const qtd=Math.max(1,Math.min(Number(item.max)||999,Number(document.getElementById('detailQtyInput')?.value)||1));adicionarCarrinho(item,qtd);fecharDetalhe();abrirCarrinho()});box.appendChild(b)}else if(item.disponivel&&whatsappPublico){const a=document.createElement('a');a.className='detail-primary';a.href=whatsappPublico;a.target='_blank';a.rel='noopener';a.textContent='Consultar produto';box.appendChild(a)}else{const b=document.createElement('button');b.className='detail-primary';b.disabled=true;b.textContent='Indisponível';box.appendChild(b)}}else{if(item.disponivel){const a=document.createElement('a');a.className='detail-primary';a.href=item.acaoUrl||'#';a.textContent=item.acaoTexto||'Agendar';a.addEventListener('click',()=>registrarItem('servico',item.id));box.appendChild(a)}else{const b=document.createElement('button');b.className='detail-primary';b.disabled=true;b.textContent='Indisponível';box.appendChild(b)}}if(whatsappPublico){const a=document.createElement('a');a.className='detail-secondary';a.href=whatsappPublico;a.target='_blank';a.rel='noopener';a.textContent='Falar no WhatsApp';box.appendChild(a)}}
+function ajustarQtdDetalhe(delta){const input=document.getElementById('detailQtyInput');if(!input)return;const max=Math.max(1,Number(input.max)||999);input.value=String(Math.min(max,Math.max(1,(Number(input.value)||1)+delta)))}
+function fecharDetalhe(){const layer=document.getElementById('detailLayer');const video=layer?.querySelector('video');if(video)video.pause();layer?.classList.remove('open');layer?.setAttribute('aria-hidden','true');document.body.style.overflow='';if(location.hash.startsWith('#produto-')||location.hash.startsWith('#servico-'))history.replaceState({},'',location.pathname+location.search)}
+function adicionarItemDireto(card){const item=lerItem(card);if(!item?.id)return;adicionarCarrinho(item,1);abrirCarrinho()}
+function adicionarCarrinho(item,quantidade=1){if(!item?.id||item.tipo!=='produto'||!item.disponivel)return;registrarItem('carrinho',item.id);const limite=Math.max(1,Number(item.max)||999);const qtd=Math.max(1,Math.min(limite,Math.round(Number(quantidade)||1)));const existente=carrinho.find(i=>i.id===item.id);if(existente){existente.quantidade=Math.min(limite,existente.quantidade+qtd)}else{carrinho.push({id:item.id,nome:item.nome,preco:Number(item.precoNumero||0),precoLabel:item.precoLabel,quantidade:qtd,max:limite,midias:item.midias||[]})}renderCarrinho()}
+function alterarQuantidadeCarrinho(id,delta){const item=carrinho.find(i=>i.id===id);if(!item)return;item.quantidade=Math.min(item.max,Math.max(1,item.quantidade+delta));renderCarrinho()}
 function removerCarrinho(id){carrinho=carrinho.filter(i=>i.id!==id);renderCarrinho()}
-function renderCarrinho(){const el=document.getElementById('itensCarrinho');if(!el)return;if(!carrinho.length){el.innerHTML='Nenhum item adicionado.';document.getElementById('totalCarrinho').innerText='Total: R$ 0,00';return}let total=0;el.innerHTML=carrinho.map(i=>{const sub=moedaNumero(i.preco)*i.quantidade;total+=sub;return `<div class="item-carrinho"><div class="item-carrinho-info"><span>${i.nome}</span><small>R$ ${moedaBR(moedaNumero(i.preco))} cada</small><button class="remover-carrinho" type="button" onclick="removerCarrinho(${i.id})">Remover</button></div><div class="item-carrinho-final"><div class="quantidade-carrinho"><button type="button" aria-label="Diminuir quantidade" onclick="alterarQuantidadeCarrinho(${i.id},-1)">−</button><b>${i.quantidade}</b><button type="button" aria-label="Aumentar quantidade" onclick="alterarQuantidadeCarrinho(${i.id},1)">+</button></div><strong>R$ ${moedaBR(sub)}</strong></div></div>`}).join('');document.getElementById('totalCarrinho').innerText='Total: R$ '+moedaBR(total)}
-function prepararPedido(){const quantidade=carrinho.reduce((t,i)=>t+i.quantidade,0);if(quantidade<__QUANTIDADE_MINIMA__){alert('A quantidade mínima do pedido é __QUANTIDADE_MINIMA__.');return false}document.getElementById('itensJson').value=JSON.stringify(carrinho);return true}
-function obterCardsFiltrados(){const termo=(document.getElementById('busca').value||'').trim().toLowerCase();return [...document.querySelectorAll('.catalogo-card')].filter(card=>{const tipoOk=card.dataset.tipo===tipoAtivo;const categoriaOk=!categoriaAtiva||card.dataset.categoria===categoriaAtiva;const buscaOk=!termo||card.dataset.nome.includes(termo)||card.dataset.categoria.toLowerCase().includes(termo);return tipoOk&&categoriaOk&&buscaOk})}
-function renderizarPaginacao(total){const paginas=Math.max(1,Math.ceil(total/itensPorPagina));paginaAtual=Math.min(paginaAtual,paginas);const nav=document.getElementById('paginacaoCatalogo');if(!nav)return;if(total<=itensPorPagina){nav.innerHTML='';return}let html=`<button type="button" ${paginaAtual===1?'disabled':''} onclick="mudarPagina(${paginaAtual-1})" aria-label="Página anterior">‹</button>`;for(let pagina=1;pagina<=paginas;pagina++){if(paginas>8&&pagina>2&&pagina<paginas-1&&Math.abs(pagina-paginaAtual)>1){if(!html.endsWith('<span>…</span>'))html+='<span>…</span>';continue}html+=`<button type="button" class="${pagina===paginaAtual?'active':''}" onclick="mudarPagina(${pagina})">${pagina}</button>`}html+=`<button type="button" ${paginaAtual===paginas?'disabled':''} onclick="mudarPagina(${paginaAtual+1})" aria-label="Próxima página">›</button>`;nav.innerHTML=html}
-function aplicarFiltros(resetPagina=false){if(resetPagina)paginaAtual=1;const filtrados=obterCardsFiltrados();document.querySelectorAll('.catalogo-card').forEach(card=>card.hidden=true);const inicio=(paginaAtual-1)*itensPorPagina;filtrados.slice(inicio,inicio+itensPorPagina).forEach(card=>card.hidden=false);renderizarPaginacao(filtrados.length)}
-function mudarPagina(pagina){paginaAtual=Math.max(1,pagina);aplicarFiltros(false);document.getElementById('catalogo').scrollIntoView({behavior:'smooth',block:'start'})}
-function atualizarSecoesTipo(){const produto=tipoAtivo==='produto';const passosProduto=document.getElementById('passosProduto');const passosServico=document.getElementById('passosServico');const pagamentos=document.getElementById('pagamentosVitrine');const titulo=document.getElementById('tituloPassos');if(passosProduto)passosProduto.hidden=!produto;if(passosServico)passosServico.hidden=produto;if(pagamentos)pagamentos.hidden=!produto;if(titulo)titulo.textContent=produto?'Como comprar':'Como agendar'}
-function alternarCategoriasCatalogo(){const painel=document.getElementById('categoriasCatalogo');const botao=document.getElementById('categoriasToggle');if(!painel||!botao)return;const abrir=painel.hidden;painel.hidden=!abrir;botao.setAttribute('aria-expanded',abrir?'true':'false');botao.setAttribute('aria-label',abrir?'Recolher categorias':'Abrir categorias')}
-function selecionarTipo(tipo,botao){tipoAtivo=tipo;categoriaAtiva='';document.querySelectorAll('.tipo-aba').forEach(item=>item.classList.toggle('active',item===botao));const grupoProduto=document.getElementById('categoriasProduto');const grupoServico=document.getElementById('categoriasServico');if(grupoProduto)grupoProduto.hidden=tipo!=='produto';if(grupoServico)grupoServico.hidden=tipo!=='servico';document.querySelectorAll('.categoria-botao').forEach(item=>item.classList.toggle('active',item.dataset.tipo===tipo&&!item.dataset.categoria));const carrinhoEl=document.getElementById('carrinhoProdutos');const conteudo=document.getElementById('conteudoCatalogo');if(carrinhoEl)carrinhoEl.hidden=tipo!=='produto';if(conteudo)conteudo.classList.toggle('com-carrinho',tipo==='produto'&&!!carrinhoEl);const busca=document.getElementById('busca');if(busca)busca.value='';atualizarSecoesTipo();aplicarFiltros(true)}
-function filtrarCategoria(tipo,categoria,botao){if(tipo!==tipoAtivo)return;categoriaAtiva=categoria||'';document.querySelectorAll(`.categoria-botao[data-tipo="${tipo}"]`).forEach(item=>item.classList.toggle('active',item===botao));aplicarFiltros(true)}
-function filtrarItens(){aplicarFiltros(true)}
-function limitar(valor,min,max){return Math.min(max,Math.max(min,valor))}
+function renderCarrinho(){const box=document.getElementById('cartItems');const badge=document.getElementById('cartBadge');const totalEl=document.getElementById('cartTotal');const submit=document.getElementById('checkoutSubmit');const totalQtd=carrinho.reduce((s,i)=>s+i.quantidade,0);if(badge)badge.textContent=String(totalQtd);if(!box)return;if(!carrinho.length){box.innerHTML='<div class="cart-empty">Seu carrinho está vazio.</div>';if(totalEl)totalEl.textContent='R$ 0,00';if(submit)submit.disabled=true;return}box.innerHTML=carrinho.map(i=>{const img=(i.midias||[]).find(m=>m.tipo==='imagem'&&m.path);const media=img?`<img src="${caminhoMidia(img)}" alt="">`:'';return `<article class="cart-item"><span class="cart-item-media">${media}</span><div><strong>${escaparHtml(i.nome)}</strong><small>${escaparHtml(i.precoLabel||('R$ '+moedaBR(i.preco)))}</small></div><div class="cart-item-controls"><div class="cart-qty"><button type="button" onclick="alterarQuantidadeCarrinho(${i.id},-1)">−</button><b>${i.quantidade}</b><button type="button" onclick="alterarQuantidadeCarrinho(${i.id},1)">+</button></div><button type="button" class="cart-remove" onclick="removerCarrinho(${i.id})">Remover</button></div></article>`}).join('');const total=carrinho.reduce((s,i)=>s+(i.preco*i.quantidade),0);if(totalEl)totalEl.textContent='R$ '+moedaBR(total);if(submit)submit.disabled=false}
+function escaparHtml(v){return String(v??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function abrirCarrinho(){document.getElementById('cartBackdrop').hidden=false;document.getElementById('cartDrawer').classList.add('open');document.getElementById('cartDrawer').setAttribute('aria-hidden','false');document.body.style.overflow='hidden';renderCarrinho()}
+function fecharCarrinho(){const back=document.getElementById('cartBackdrop');if(back)back.hidden=true;document.getElementById('cartDrawer')?.classList.remove('open');document.getElementById('cartDrawer')?.setAttribute('aria-hidden','true');document.body.style.overflow=''}
+function prepararPedido(){if(!carrinho.length)return false;const totalQtd=carrinho.reduce((s,i)=>s+i.quantidade,0);if(totalQtd<__QUANTIDADE_MINIMA__){alert('O pedido mínimo é de __QUANTIDADE_MINIMA__ item(ns).');return false}document.getElementById('itensJson').value=JSON.stringify(carrinho.map(i=>({id:i.id,quantidade:i.quantidade})));return true}
+function abrirHashInicial(){const hash=location.hash.replace('#','');if(!hash)return;const card=document.getElementById(hash);if(card?.classList.contains('store-card'))abrirDetalheCard(card)}
 function rgbParaHsl(r,g,b){r/=255;g/=255;b/=255;const max=Math.max(r,g,b),min=Math.min(r,g,b);let h=0,s=0;const l=(max+min)/2;if(max!==min){const d=max-min;s=l>.5?d/(2-max-min):d/(max+min);switch(max){case r:h=(g-b)/d+(g<b?6:0);break;case g:h=(b-r)/d+2;break;default:h=(r-g)/d+4}h/=6}return{h,s,l}}
-function ajustarCor(cor,delta){return cor.map(v=>limitar(Math.round(v+delta),0,255))}
-function corCss(cor){return `rgb(${cor[0]},${cor[1]},${cor[2]})`}
-function distanciaCor(a,b){return Math.sqrt((a[0]-b[0])**2+(a[1]-b[1])**2+(a[2]-b[2])**2)}
-function aplicarCoresDaLogo(){if(document.body.dataset.identityMode!=='logo')return;const img=document.getElementById('brandColorSource');if(!img||img.tagName!=='IMG')return;const processar=()=>{try{const canvas=document.createElement('canvas');canvas.width=120;canvas.height=120;const ctx=canvas.getContext('2d',{willReadFrequently:true});if(!ctx)return;ctx.clearRect(0,0,120,120);const escala=Math.min(120/img.naturalWidth,120/img.naturalHeight);const w=img.naturalWidth*escala,h=img.naturalHeight*escala;ctx.drawImage(img,(120-w)/2,(120-h)/2,w,h);const dados=ctx.getImageData(0,0,120,120).data;const mapa=new Map();for(let i=0;i<dados.length;i+=16){const a=dados[i+3];if(a<170)continue;const r=dados[i],g=dados[i+1],b=dados[i+2];const max=Math.max(r,g,b),min=Math.min(r,g,b);if(min>244||max<10)continue;const qr=Math.round(r/24)*24,qg=Math.round(g/24)*24,qb=Math.round(b/24)*24;const chave=`${qr},${qg},${qb}`;mapa.set(chave,(mapa.get(chave)||0)+1)}const cores=[...mapa.entries()].map(([chave,count])=>{const rgb=chave.split(',').map(Number);const hsl=rgbParaHsl(...rgb);return{rgb,count,...hsl}}).sort((a,b)=>b.count-a.count).slice(0,24);if(!cores.length)return;const escuras=cores.filter(c=>c.l<.48);const principal=(escuras.length?escuras:cores).sort((a,b)=>(b.count*(1-b.l))-(a.count*(1-a.l)))[0].rgb;const vivas=cores.filter(c=>c.s>.35&&c.l>.22&&c.l<.82&&distanciaCor(c.rgb,principal)>80);const destaque=(vivas.length?vivas:cores.filter(c=>distanciaCor(c.rgb,principal)>70)).sort((a,b)=>(b.count*(.5+b.s))-(a.count*(.5+a.s)))[0]?.rgb||[245,158,11];const raiz=document.documentElement;raiz.style.setProperty('--brand-primary',corCss(principal));raiz.style.setProperty('--brand-primary-2',corCss(ajustarCor(principal,32)));raiz.style.setProperty('--brand-accent',corCss(destaque));raiz.style.setProperty('--brand-accent-soft',`rgba(${destaque[0]},${destaque[1]},${destaque[2]},.16)`);const brilho=(destaque[0]*299+destaque[1]*587+destaque[2]*114)/1000;raiz.style.setProperty('--brand-accent-text',brilho>155?'#071a2b':'#ffffff')}catch(e){}};if(img.complete&&img.naturalWidth)processar();else img.addEventListener('load',processar,{once:true})}
-document.addEventListener('DOMContentLoaded',()=>{const botao=document.querySelector(`.tipo-aba[data-tipo="${tipoAtivo}"]`);if(botao)selecionarTipo(tipoAtivo,botao);else{atualizarSecoesTipo();aplicarFiltros(true)}aplicarCoresDaLogo()});
+function corCss(c){return`rgb(${c[0]},${c[1]},${c[2]})`}function distanciaCor(a,b){return Math.sqrt((a[0]-b[0])**2+(a[1]-b[1])**2+(a[2]-b[2])**2)}
+function aplicarCoresDaLogo(){if(document.body.dataset.identityMode!=='logo')return;const img=document.getElementById('brandColorSource');if(!img||img.tagName!=='IMG')return;const processar=()=>{try{const canvas=document.createElement('canvas');canvas.width=100;canvas.height=100;const ctx=canvas.getContext('2d',{willReadFrequently:true});if(!ctx)return;const escala=Math.min(100/img.naturalWidth,100/img.naturalHeight),w=img.naturalWidth*escala,h=img.naturalHeight*escala;ctx.drawImage(img,(100-w)/2,(100-h)/2,w,h);const dados=ctx.getImageData(0,0,100,100).data,mapa=new Map();for(let i=0;i<dados.length;i+=16){if(dados[i+3]<180)continue;const r=dados[i],g=dados[i+1],b=dados[i+2],max=Math.max(r,g,b),min=Math.min(r,g,b);if(min>244||max<10)continue;const qr=Math.round(r/24)*24,qg=Math.round(g/24)*24,qb=Math.round(b/24)*24,ch=`${qr},${qg},${qb}`;mapa.set(ch,(mapa.get(ch)||0)+1)}const cores=[...mapa.entries()].map(([ch,count])=>{const rgb=ch.split(',').map(Number),hsl=rgbParaHsl(...rgb);return{rgb,count,...hsl}}).sort((a,b)=>b.count-a.count).slice(0,20);if(!cores.length)return;const principal=(cores.filter(c=>c.l<.5).length?cores.filter(c=>c.l<.5):cores)[0].rgb;const destaque=(cores.filter(c=>c.s>.32&&distanciaCor(c.rgb,principal)>70)[0]||cores[1]||cores[0]).rgb;const raiz=document.documentElement;raiz.style.setProperty('--brand',corCss(principal));raiz.style.setProperty('--brand-2',corCss(destaque));const brilho=(principal[0]*299+principal[1]*587+principal[2]*114)/1000;raiz.style.setProperty('--action',corCss(principal));raiz.style.setProperty('--action-text',brilho>155?'#111':'#fff')}catch(e){}};if(img.complete&&img.naturalWidth)processar();else img.addEventListener('load',processar,{once:true})}
+document.addEventListener('DOMContentLoaded',()=>{filtrarCatalogo(true);renderCarrinho();aplicarCoresDaLogo();setTimeout(abrirHashInicial,80)});document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(document.getElementById('detailLayer')?.classList.contains('open'))fecharDetalhe();else if(document.getElementById('cartDrawer')?.classList.contains('open'))fecharCarrinho()}});
 </script>
 </body>
 </html>'''
 
+    nav_produtos = '<button type="button" onclick="irCatalogo(\'produto\')">Produtos</button>' if tem_produtos else ""
+    nav_servicos = '<button type="button" onclick="irCatalogo(\'servico\')">Serviços</button>' if tem_servicos else ""
+    tipos_filtro = ['<button class="type-filter active" type="button" data-type="todos" onclick="selecionarTipo(\'todos\',this)">Todos</button>']
+    if tem_produtos:
+        tipos_filtro.append('<button class="type-filter" type="button" data-type="produto" onclick="selecionarTipo(\'produto\',this)">Produtos</button>')
+    if tem_servicos:
+        tipos_filtro.append('<button class="type-filter" type="button" data-type="servico" onclick="selecionarTipo(\'servico\',this)">Serviços</button>')
+
+    hero_whatsapp = (
+        f'<a class="btn-light" href="{whatsapp_publico_url_html}" target="_blank" rel="noopener">Falar no WhatsApp</a>'
+        if whatsapp_publico_url
+        else ""
+    )
+    footer_contato = ""
+    if telefone_publico:
+        footer_contato += f'<span>{html.escape(telefone_publico)}</span>'
+    if email_publico:
+        footer_contato += f'<a href="mailto:{html.escape(email_publico)}">{html.escape(email_publico)}</a>'
+    if not footer_contato:
+        footer_contato = '<a href="#atendimento">Atendimento</a>'
+    footer_social = ""
+    if instagram_url:
+        footer_social += f'<a href="{html.escape(instagram_url)}" target="_blank" rel="noopener" aria-label="Instagram">◎</a>'
+    if whatsapp_publico_url:
+        footer_social += f'<a href="{whatsapp_publico_url_html}" target="_blank" rel="noopener" aria-label="WhatsApp">◉</a>'
+    if not footer_social:
+        footer_social = '<a href="#inicio" aria-label="Início">⌂</a>'
+
     substituicoes = {
         "__COR_PRINCIPAL__": cor_principal,
-        "__LOGO_ZOOM_FACTOR__": f"{logo_zoom / 100:.3f}",
-        "__LOGO_OFFSET_X__": str(logo_offset_x),
-        "__LOGO_OFFSET_Y__": str(logo_offset_y),
-        "__LOGO_FUNDO__": logo_fundo,
-        "__LOGO_RAIO__": logo_raio,
-        "__LOGO_CLIP__": logo_clip,
-        "__LOGO_BORDA__": logo_borda,
         "__TITULO_SEO__": titulo_seo,
         "__DESCRICAO_SEO__": descricao_seo,
         "__ESTILO__": estilo,
-        "__IDENTIDADE__": tipo_identidade_visual,
+        "__IDENTIDADE__": html.escape(tipo_identidade_visual),
         "__CATEGORIA_CLASSE__": categoria_classe,
-        "__FORMATO_CATALOGO__": catalogo_formato,
-        "__NOME_LOJA__": nome_loja,
-        "__LOGO_NAV__": logo_nav_html,
-        "__CATEGORIA__": categoria,
-        "__WHATSAPP_TOPO__": whatsapp_topo_html,
-        "__CARRINHO_NAV__": carrinho_nav_html,
-        "__LOGO_APRESENTACAO__": logo_apresentacao_html,
-        "__KICKER__": categoria_kicker,
-        "__DESCRICAO_EMPRESA__": texto_institucional,
-        "__WHATSAPP_APRESENTACAO__": whatsapp_apresentacao_html,
-        "__DIFERENCIAIS__": diferenciais_html,
+        "__FORMATO_CATALOGO__": html.escape(catalogo_formato),
+        "__BRAND_COLOR_SOURCE__": brand_color_source_html,
         "__MENSAGEM__": mensagem_html,
-        "__WHATSAPP_FINAL__": whatsapp_final_html,
-        "__TITULO_CATALOGO__": titulo_catalogo,
-        "__ABAS__": abas_html,
-        "__OCULTAR_CATEGORIAS_PRODUTO__": "hidden" if tipo_inicial != "produto" else "",
-        "__CATEGORIAS_PRODUTOS__": categorias_produtos_html,
-        "__OCULTAR_CATEGORIAS_SERVICO__": "hidden" if tipo_inicial != "servico" else "",
-        "__CATEGORIAS_SERVICOS__": categorias_servicos_html,
-        "__CLASSE_CONTEUDO__": classe_conteudo,
-        "__CARDS__": cards_html,
+        "__SOCIAL_TOP__": social_top_html,
+        "__LOGO_NAV__": logo_nav_html,
+        "__NOME_LOJA__": nome_loja,
+        "__ATENDIMENTO_HEADER__": whatsapp_link_header,
+        "__CARRINHO_HEADER__": carrinho_header,
+        "__NAV_PRODUTOS__": nav_produtos,
+        "__NAV_SERVICOS__": nav_servicos,
+        "__HERO_KICKER__": hero_kicker,
+        "__HERO_TITULO__": hero_titulo,
+        "__DESCRICAO_EMPRESA__": texto_institucional,
+        "__HERO_WHATSAPP__": hero_whatsapp,
+        "__HERO_VISUAL__": hero_visual_html,
+        "__BENEFICIOS__": beneficios_html,
+        "__OCULTAR_COLECOES__": "" if categorias_html else "hidden",
+        "__COLECOES__": categorias_html,
+        "__OCULTAR_DESTAQUES__": "" if destaques_html else "hidden",
+        "__DESTAQUES__": destaques_html,
+        "__FILTROS_CATEGORIAS__": filtros_categorias,
+        "__TIPOS_FILTRO__": "".join(tipos_filtro),
+        "__CATALOGO__": catalogo_html,
+        "__CONTATOS__": contato_cards_html,
+        "__FOOTER_CONTATO__": footer_contato,
+        "__FOOTER_SOCIAL__": footer_social,
+        "__FOOTER_DOCUMENTO__": footer_documento,
         "__CARRINHO__": carrinho_html,
-        "__OCULTAR_PASSOS_PRODUTO__": "hidden" if tipo_inicial != "produto" else "",
-        "__PASSOS_PRODUTO__": passos_produto_html,
-        "__OCULTAR_PASSOS_SERVICO__": "hidden" if tipo_inicial != "servico" else "",
-        "__PASSOS_SERVICO__": passos_servico_html,
-        "__OCULTAR_PAGAMENTOS__": "hidden" if tipo_inicial != "produto" else "",
-        "__FORMAS_PAGAMENTO__": formas_pagamento_html,
-        "__INSTAGRAM_SOCIAL__": instagram_html,
-        "__WHATSAPP_SOCIAL__": whatsapp_social_html,
-        "__TIPO_INICIAL_JSON__": json.dumps(tipo_inicial),
-        "__SLUG__": slug,
+        "__WHATSAPP_JSON__": json.dumps(whatsapp_publico_url),
+        "__SLUG_RAW__": urllib.parse.quote(slug_raw),
+        "__PERMITIR_PEDIDO_JS__": "true" if permitir_pedido else "false",
         "__QUANTIDADE_MINIMA__": str(quantidade_minima),
     }
     for marcador, valor in substituicoes.items():

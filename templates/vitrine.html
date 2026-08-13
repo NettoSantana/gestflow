@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vitrine.html
-Último recode: 2026-08-12 23:35 (America/Bahia)
-Motivo: Transformar a Vitrine em Central Operacional, removendo configurações permanentes e consolidando pedidos, agenda, catálogo e desempenho.
+Último recode: 2026-08-13 00:19 (America/Bahia)
+Motivo: Consolidar a Central Operacional da Vitrine e ligar produtos e serviços diretamente ao novo catálogo público, com miniaturas e ações gerenciais mais claras.
 #}
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -664,14 +664,27 @@ Motivo: Transformar a Vitrine em Central Operacional, removendo configurações 
                                     <input type="hidden" name="vitrine_id" value="{{ produto.get('vitrine_id') }}">
                                 {% endif %}
 
+                                {% set midias_produto_resumo = produto.get('imagens') or [] %}
+                                {% set capa_produto_resumo = midias_produto_resumo[0] if midias_produto_resumo else {} %}
                                 <div class="catalog-simple-summary">
-                                    <div class="catalog-simple-title">
-                                        <strong>{{ produto.get('nome') }}</strong>
-                                        <small>
-                                            {% if produto.get('codigo') %}Código: {{ produto.get('codigo') }} · {% endif %}
-                                            {% if integrar_produtos_vitrine %}Estoque: {{ produto.get('estoque_atual') or '0' }} · {% else %}Estoque: independente · {% endif %}
-                                            R$ {{ produto.get('preco') or '0,00' }}
-                                        </small>
+                                    <div class="catalog-summary-main">
+                                        <span class="catalog-summary-thumb">
+                                            {% if capa_produto_resumo.get('imagem_path') and capa_produto_resumo.get('tipo_midia') != 'video' %}
+                                                <img src="{{ url_for('servir_upload_vitrine_publico', caminho=capa_produto_resumo.get('imagem_path')) }}" alt="{{ produto.get('nome') }}">
+                                            {% elif capa_produto_resumo.get('tipo_midia') == 'video' %}
+                                                <span>MP4</span>
+                                            {% else %}
+                                                <span>PROD</span>
+                                            {% endif %}
+                                        </span>
+                                        <div class="catalog-simple-title">
+                                            <strong>{{ produto.get('nome') }}</strong>
+                                            <small>
+                                                {% if produto.get('codigo') %}Código: {{ produto.get('codigo') }} · {% endif %}
+                                                {% if integrar_produtos_vitrine %}Estoque: {{ produto.get('estoque_atual') or '0' }} · {% else %}Estoque: independente · {% endif %}
+                                                R$ {{ produto.get('preco') or '0,00' }}
+                                            </small>
+                                        </div>
                                     </div>
                                     {% if produto.get('status') == 'publicado' %}
                                         <span class="status-pill">Disponível</span>
@@ -687,14 +700,20 @@ Motivo: Transformar a Vitrine em Central Operacional, removendo configurações 
                                 </div>
 
                                 <div class="catalog-quick-actions">
-                                    <button class="btn btn-secondary btn-small" type="button" data-editor-fechado="Expandir" data-editor-aberto="Recolher" aria-expanded="false" onclick="alternarEditorVitrine(this)">Expandir</button>
+                                    <button class="btn btn-secondary btn-small" type="button" data-editor-fechado="Editar" data-editor-aberto="Fechar edição" aria-expanded="false" onclick="alternarEditorVitrine(this)">Editar</button>
 
                                     {% if produto.get('status') == 'publicado' %}
-                                        <button class="btn btn-secondary btn-small" type="button" onclick="alterarStatusProdutoVitrine(this, 'indisponivel')">◉ Indisponível</button>
+                                        <button class="btn btn-secondary btn-small" type="button" onclick="alterarStatusProdutoVitrine(this, 'indisponivel')">Marcar indisponível</button>
                                     {% elif produto.get('status') == 'indisponivel' %}
-                                        <button class="btn btn-primary btn-small" type="button" onclick="alterarStatusProdutoVitrine(this, 'publicado')">✓ Disponibilizar</button>
+                                        <button class="btn btn-primary btn-small" type="button" onclick="alterarStatusProdutoVitrine(this, 'publicado')">Disponibilizar</button>
                                     {% else %}
-                                        <button class="btn btn-primary btn-small" type="button" onclick="alterarStatusProdutoVitrine(this, 'publicado')">✓ Publicar</button>
+                                        <button class="btn btn-primary btn-small" type="button" onclick="alterarStatusProdutoVitrine(this, 'publicado')">Publicar</button>
+                                    {% endif %}
+
+                                    {% if link_publico and produto.get('vitrine_id') and produto.get('status') in ['publicado', 'indisponivel'] %}
+                                        <a class="btn btn-secondary btn-small" href="{{ link_publico }}#produto-{{ produto.get('vitrine_id') }}" target="_blank" rel="noopener">Ver na vitrine</a>
+                                    {% else %}
+                                        <button class="btn btn-secondary btn-small" type="button" disabled>Ver na vitrine</button>
                                     {% endif %}
 
                                     {% if produto.get('vitrine_id') %}
@@ -705,9 +724,9 @@ Motivo: Transformar a Vitrine em Central Operacional, removendo configurações 
                                             formmethod="post"
                                             formnovalidate
                                             onclick="return window.confirm('{{ 'Excluir este produto independente somente da Vitrine?' if produto.get('produto_independente') else 'Remover este produto somente da Vitrine? O cadastro normal não será excluído.' }}');"
-                                        >🗑 Excluir</button>
+                                        >Excluir</button>
                                     {% else %}
-                                        <button class="btn btn-danger btn-small" type="button" disabled title="Este produto ainda não foi incluído na Vitrine.">🗑 Excluir</button>
+                                        <button class="btn btn-danger btn-small" type="button" disabled title="Este produto ainda não foi incluído na Vitrine.">Excluir</button>
                                     {% endif %}
                                 </div>
 
@@ -833,15 +852,26 @@ Motivo: Transformar a Vitrine em Central Operacional, removendo configurações 
                             <form class="product-admin-card service-admin-card catalog-simple-card" method="post" action="{{ url_for('vitrine_servico_publicar') }}" enctype="multipart/form-data">
                                 <input type="hidden" name="servico_id" value="{{ servico.get('servico_id') }}">
 
+                                {% set midias_servico_resumo = servico.get('imagens') or [] %}
+                                {% set capa_servico_resumo = midias_servico_resumo[0] if midias_servico_resumo else {} %}
                                 <div class="catalog-simple-summary">
-                                    <div class="catalog-simple-title">
-                                        <strong>{{ servico.get('nome') }}</strong>
-                                        <small>
-                                            {% if servico.get('codigo') %}Código: {{ servico.get('codigo') }} · {% endif %}
-                                            {{ 'Avaliação prévia' if servico.get('tipo_contratacao') == 'a_combinar' else (servico.get('tempo_estimado') or 'Duração não informada') }}
-                                            ·
-                                            {{ 'Valor a combinar' if servico.get('tipo_contratacao') == 'a_combinar' else ('R$ ' ~ (servico.get('preco') or '0,00')) }}
-                                        </small>
+                                    <div class="catalog-summary-main">
+                                        <span class="catalog-summary-thumb catalog-summary-thumb-service">
+                                            {% if capa_servico_resumo.get('imagem_path') %}
+                                                <img src="{{ url_for('servir_upload_vitrine_publico', caminho=capa_servico_resumo.get('imagem_path')) }}" alt="{{ servico.get('nome') }}">
+                                            {% else %}
+                                                <span>SERV</span>
+                                            {% endif %}
+                                        </span>
+                                        <div class="catalog-simple-title">
+                                            <strong>{{ servico.get('nome') }}</strong>
+                                            <small>
+                                                {% if servico.get('codigo') %}Código: {{ servico.get('codigo') }} · {% endif %}
+                                                {{ 'Avaliação prévia' if servico.get('tipo_contratacao') == 'a_combinar' else (servico.get('tempo_estimado') or 'Duração não informada') }}
+                                                ·
+                                                {{ 'Valor a combinar' if servico.get('tipo_contratacao') == 'a_combinar' else ('R$ ' ~ (servico.get('preco') or '0,00')) }}
+                                            </small>
+                                        </div>
                                     </div>
                                     {% if servico.get('status') == 'publicado' %}
                                         <span class="status-pill">Disponível</span>
@@ -857,14 +887,20 @@ Motivo: Transformar a Vitrine em Central Operacional, removendo configurações 
                                 </div>
 
                                 <div class="catalog-quick-actions">
-                                    <button class="btn btn-secondary btn-small" type="button" data-editor-fechado="Expandir" data-editor-aberto="Recolher" aria-expanded="false" onclick="alternarEditorVitrine(this)">Expandir</button>
+                                    <button class="btn btn-secondary btn-small" type="button" data-editor-fechado="Editar" data-editor-aberto="Fechar edição" aria-expanded="false" onclick="alternarEditorVitrine(this)">Editar</button>
 
                                     {% if servico.get('status') == 'publicado' %}
-                                        <button class="btn btn-secondary btn-small" type="button" onclick="alterarStatusServicoVitrine(this, 'indisponivel')">◉ Indisponível</button>
+                                        <button class="btn btn-secondary btn-small" type="button" onclick="alterarStatusServicoVitrine(this, 'indisponivel')">Marcar indisponível</button>
                                     {% elif servico.get('status') == 'indisponivel' %}
-                                        <button class="btn btn-primary btn-small" type="button" onclick="alterarStatusServicoVitrine(this, 'publicado')">✓ Disponibilizar</button>
+                                        <button class="btn btn-primary btn-small" type="button" onclick="alterarStatusServicoVitrine(this, 'publicado')">Disponibilizar</button>
                                     {% else %}
-                                        <button class="btn btn-primary btn-small" type="button" onclick="alterarStatusServicoVitrine(this, 'publicado')">✓ Publicar</button>
+                                        <button class="btn btn-primary btn-small" type="button" onclick="alterarStatusServicoVitrine(this, 'publicado')">Publicar</button>
+                                    {% endif %}
+
+                                    {% if link_publico and servico.get('servico_id') and servico.get('status') in ['publicado', 'indisponivel'] %}
+                                        <a class="btn btn-secondary btn-small" href="{{ link_publico }}#servico-{{ servico.get('servico_id') }}" target="_blank" rel="noopener">Ver na vitrine</a>
+                                    {% else %}
+                                        <button class="btn btn-secondary btn-small" type="button" disabled>Ver na vitrine</button>
                                     {% endif %}
 
                                     {% if servico.get('vitrine_id') %}
@@ -875,9 +911,9 @@ Motivo: Transformar a Vitrine em Central Operacional, removendo configurações 
                                             formmethod="post"
                                             formnovalidate
                                             onclick="return window.confirm('Remover este serviço somente da Vitrine? O cadastro normal não será excluído.');"
-                                        >🗑 Excluir</button>
+                                        >Excluir</button>
                                     {% else %}
-                                        <button class="btn btn-danger btn-small" type="button" disabled title="Este serviço ainda não foi incluído na Vitrine.">🗑 Excluir</button>
+                                        <button class="btn btn-danger btn-small" type="button" disabled title="Este serviço ainda não foi incluído na Vitrine.">Excluir</button>
                                     {% endif %}
                                 </div>
 
@@ -2413,9 +2449,42 @@ Motivo: Transformar a Vitrine em Central Operacional, removendo configurações 
 
         .catalog-simple-summary {
             display: flex;
-            align-items: flex-start;
+            align-items: center;
             justify-content: space-between;
+            gap: 14px;
+        }
+
+        .catalog-summary-main {
+            min-width: 0;
+            display: flex;
+            align-items: center;
             gap: 12px;
+        }
+
+        .catalog-summary-thumb {
+            width: 58px;
+            height: 72px;
+            flex: 0 0 58px;
+            display: grid;
+            place-items: center;
+            overflow: hidden;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            color: #64748b;
+            background: #ffffff;
+            font-size: 9px;
+            font-weight: 900;
+            letter-spacing: .04em;
+        }
+
+        .catalog-summary-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .catalog-summary-thumb-service {
+            background: #f0fdf4;
         }
 
         .catalog-simple-title {
@@ -2437,7 +2506,7 @@ Motivo: Transformar a Vitrine em Central Operacional, removendo configurações 
 
         .catalog-quick-actions {
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-columns: repeat(4, minmax(0, 1fr));
             gap: 8px;
         }
 
@@ -3138,6 +3207,16 @@ Motivo: Transformar a Vitrine em Central Operacional, removendo configurações 
         }
 
         @media (max-width: 560px) {
+            .catalog-simple-summary {
+                align-items: flex-start;
+            }
+
+            .catalog-summary-thumb {
+                width: 52px;
+                height: 64px;
+                flex-basis: 52px;
+            }
+
             .vitrine-operational-metrics {
                 grid-template-columns: 1fr;
             }
