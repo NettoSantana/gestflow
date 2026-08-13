@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-13 07:36 (America/Bahia)
-# Motivo: Corrigir o carrinho da Vitrine pública, remover busca/filtros redundantes e substituir o hero automático por apresentação institucional estática com a identidade da loja.
+# Último recode: 2026-08-13 07:54 (America/Bahia)
+# Motivo: Limpar automaticamente o carrinho persistido após a confirmação bem-sucedida de um pedido na Vitrine pública.
 
 from __future__ import annotations
 
@@ -28920,7 +28920,7 @@ def renderizar_vitrine_publica_html(
 
     mensagem_html = ""
     if mensagem:
-        mensagem_html = f'<div class="store-feedback" id="storeFeedback"><strong>{html.escape(mensagem)}</strong>'
+        mensagem_html = f'<div class="store-feedback" id="storeFeedback" data-pedido-concluido="{'1' if whatsapp_url else '0'}"><strong>{html.escape(mensagem)}</strong>'
         if whatsapp_url:
             mensagem_html += f'<a href="{html.escape(whatsapp_url)}" target="_blank" rel="noopener">Continuar no WhatsApp</a>'
         mensagem_html += '<button type="button" onclick="this.parentElement.remove()" aria-label="Fechar">×</button></div>'
@@ -29153,7 +29153,7 @@ function abrirHashInicial(){const hash=location.hash.replace('#','');if(!hash)re
 function rgbParaHsl(r,g,b){r/=255;g/=255;b/=255;const max=Math.max(r,g,b),min=Math.min(r,g,b);let h=0,s=0;const l=(max+min)/2;if(max!==min){const d=max-min;s=l>.5?d/(2-max-min):d/(max+min);switch(max){case r:h=(g-b)/d+(g<b?6:0);break;case g:h=(b-r)/d+2;break;default:h=(r-g)/d+4}h/=6}return{h,s,l}}
 function corCss(c){return`rgb(${c[0]},${c[1]},${c[2]})`}function distanciaCor(a,b){return Math.sqrt((a[0]-b[0])**2+(a[1]-b[1])**2+(a[2]-b[2])**2)}
 function aplicarCoresDaLogo(){if(document.body.dataset.identityMode!=='logo')return;const img=document.getElementById('brandColorSource');if(!img||img.tagName!=='IMG')return;const processar=()=>{try{const canvas=document.createElement('canvas');canvas.width=100;canvas.height=100;const ctx=canvas.getContext('2d',{willReadFrequently:true});if(!ctx)return;const escala=Math.min(100/img.naturalWidth,100/img.naturalHeight),w=img.naturalWidth*escala,h=img.naturalHeight*escala;ctx.drawImage(img,(100-w)/2,(100-h)/2,w,h);const dados=ctx.getImageData(0,0,100,100).data,mapa=new Map();for(let i=0;i<dados.length;i+=16){if(dados[i+3]<180)continue;const r=dados[i],g=dados[i+1],b=dados[i+2],max=Math.max(r,g,b),min=Math.min(r,g,b);if(min>244||max<10)continue;const qr=Math.round(r/24)*24,qg=Math.round(g/24)*24,qb=Math.round(b/24)*24,ch=`${qr},${qg},${qb}`;mapa.set(ch,(mapa.get(ch)||0)+1)}const cores=[...mapa.entries()].map(([ch,count])=>{const rgb=ch.split(',').map(Number),hsl=rgbParaHsl(...rgb);return{rgb,count,...hsl}}).sort((a,b)=>b.count-a.count).slice(0,20);if(!cores.length)return;const principal=(cores.filter(c=>c.l<.5).length?cores.filter(c=>c.l<.5):cores)[0].rgb;const destaque=(cores.filter(c=>c.s>.32&&distanciaCor(c.rgb,principal)>70)[0]||cores[1]||cores[0]).rgb;const raiz=document.documentElement;raiz.style.setProperty('--brand',corCss(principal));raiz.style.setProperty('--brand-2',corCss(destaque));const brilho=(principal[0]*299+principal[1]*587+principal[2]*114)/1000;raiz.style.setProperty('--action',corCss(principal));raiz.style.setProperty('--action-text',brilho>155?'#111':'#fff')}catch(e){}};if(img.complete&&img.naturalWidth)processar();else img.addEventListener('load',processar,{once:true})}
-document.addEventListener('DOMContentLoaded',()=>{carregarCarrinho();atualizarCategoriasVisiveis();filtrarCatalogo(true);renderCarrinho();aplicarCoresDaLogo();setTimeout(abrirHashInicial,80)});document.addEventListener('click',event=>{if(!event.target.closest('.nav-dropdown'))fecharMenusCategorias()});document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(document.getElementById('detailLayer')?.classList.contains('open'))fecharDetalhe();else if(document.getElementById('cartDrawer')?.classList.contains('open'))fecharCarrinho()}});
+document.addEventListener('DOMContentLoaded',()=>{if(document.getElementById('storeFeedback')?.dataset?.pedidoConcluido==='1'){carrinho=[];try{localStorage.removeItem(carrinhoStorageKey)}catch(e){}}carregarCarrinho();atualizarCategoriasVisiveis();filtrarCatalogo(true);renderCarrinho();aplicarCoresDaLogo();setTimeout(abrirHashInicial,80)});document.addEventListener('click',event=>{if(!event.target.closest('.nav-dropdown'))fecharMenusCategorias()});document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(document.getElementById('detailLayer')?.classList.contains('open'))fecharDetalhe();else if(document.getElementById('cartDrawer')?.classList.contains('open'))fecharCarrinho()}});
 </script>
 </body>
 </html>'''
