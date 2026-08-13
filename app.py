@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-12 23:06 (America/Bahia)
-# Motivo: Remover a categoria dos blocos de marca da Vitrine pública, corrigir a exibição/digitação monetária e reforçar a persistência do vídeo MP4 do catálogo.
+# Último recode: 2026-08-12 23:18 (America/Bahia)
+# Motivo: Permitir fotos e vídeos MP4 na galeria de cada produto da Vitrine, persistindo a mídia e exibindo-a no carrossel público.
 
 from __future__ import annotations
 
@@ -62,6 +62,7 @@ EXTENSOES_FOTO_OS_PERMITIDAS = {"png", "jpg", "jpeg", "jfif", "webp"}
 EXTENSOES_ANEXO_CONTRATO_PERMITIDAS = {"pdf", "png", "jpg", "jpeg", "webp", "doc", "docx"}
 EXTENSOES_FOTO_VITRINE_PERMITIDAS = {"png", "jpg", "jpeg", "webp"}
 EXTENSOES_VIDEO_VITRINE_PERMITIDAS = {"mp4"}
+EXTENSOES_MIDIA_PRODUTO_VITRINE_PERMITIDAS = EXTENSOES_FOTO_VITRINE_PERMITIDAS | EXTENSOES_VIDEO_VITRINE_PERMITIDAS
 VITRINE_VIDEO_MAX_MB = 50
 
 
@@ -4840,6 +4841,7 @@ def iniciar_banco() -> None:
                 item_tipo TEXT NOT NULL,
                 item_id INTEGER NOT NULL,
                 imagem_path TEXT NOT NULL,
+                tipo_midia TEXT NOT NULL DEFAULT 'imagem',
                 principal INTEGER NOT NULL DEFAULT 0,
                 ordem INTEGER NOT NULL DEFAULT 0,
                 criado_em TEXT DEFAULT CURRENT_TIMESTAMP
@@ -5741,6 +5743,15 @@ def iniciar_banco() -> None:
                 conn.execute(
                     f"ALTER TABLE solicitacoes_avaliacao ADD COLUMN {coluna} {tipo_coluna}"
                 )
+
+        colunas_vitrine_imagens = {
+            str(row["name"])
+            for row in conn.execute("PRAGMA table_info(vitrine_imagens)").fetchall()
+        }
+        if "tipo_midia" not in colunas_vitrine_imagens:
+            conn.execute(
+                "ALTER TABLE vitrine_imagens ADD COLUMN tipo_midia TEXT NOT NULL DEFAULT 'imagem'"
+            )
 
         colunas_vitrine_configuracoes = {
             str(row["name"])
@@ -20625,7 +20636,15 @@ def aplicar_regras_configuradas_antes_requisicao() -> Response | None:
         return bloqueio_registro_final
 
     limite_mb = int(float(valor_configuracao_modulo("gerais", "tamanho_maximo_anexo_mb", 10) or 10))
-    if request.content_length and request.content_length > limite_mb * 1024 * 1024:
+    limite_requisicao_mb = limite_mb
+    if endpoint in {"vitrine_produto_independente_salvar", "vitrine_produto_publicar"}:
+        limite_requisicao_mb = max(limite_mb, VITRINE_VIDEO_MAX_MB + 2)
+    if request.content_length and request.content_length > limite_requisicao_mb * 1024 * 1024:
+        if endpoint in {"vitrine_produto_independente_salvar", "vitrine_produto_publicar"}:
+            return _erro_regra_configurada(
+                "vitrine",
+                f"O envio da galeria ultrapassa {limite_requisicao_mb} MB por salvamento. Cada vídeo pode ter até {VITRINE_VIDEO_MAX_MB} MB.",
+            )
         if endpoint == "atualizar_contrato_anexos":
             contrato_id = _id_positivo_contrato((request.view_args or {}).get("contrato_id"))
             if contrato_id:
@@ -25892,17 +25911,22 @@ def listar_imagens_vitrine_item(empresa_id: int, item_tipo: str, item_id: int, f
     with conectar_db() as conn:
         rows = conn.execute(
             """
-            SELECT id, imagem_path, principal, ordem
+            SELECT id, imagem_path, tipo_midia, principal, ordem
             FROM vitrine_imagens
             WHERE empresa_id = ? AND item_tipo = ? AND item_id = ?
             ORDER BY principal DESC, ordem ASC, id ASC
             """,
             (empresa_id, item_tipo, item_id),
         ).fetchall()
-    imagens = [dict(row) for row in rows]
+    imagens = []
+    for row in rows:
+        item = dict(row)
+        tipo_midia = str(item.get("tipo_midia") or "imagem").strip().lower()
+        item["tipo_midia"] = "video" if tipo_midia == "video" else "imagem"
+        imagens.append(item)
     fallback_limpo = str(fallback or "").strip()
     if not imagens and fallback_limpo:
-        imagens = [{"id": 0, "imagem_path": fallback_limpo, "principal": 1, "ordem": 0}]
+        imagens = [{"id": 0, "imagem_path": fallback_limpo, "tipo_midia": "imagem", "principal": 1, "ordem": 0}]
     return imagens
 
 
@@ -25911,8 +25935,48 @@ def anexar_galerias_vitrine(itens: list[dict[str, Any]], empresa_id: int, item_t
         item_id = int(item.get("galeria_item_id") or item.get(chave_id) or item.get("id") or 0)
         imagens = listar_imagens_vitrine_item(empresa_id, item_tipo, item_id, str(item.get("imagem_path") or ""))
         item["imagens"] = imagens
-        item["imagem_path"] = str((imagens[0] if imagens else {}).get("imagem_path") or "")
+        primeira_imagem = next(
+            (midia for midia in imagens if str(midia.get("tipo_midia") or "imagem") == "imagem"),
+            None,
+        )
+        item["imagem_path"] = str((primeira_imagem or {}).get("imagem_path") or "")
     return itens
+
+
+def _tipo_midia_vitrine_por_arquivo(nome_arquivo: Any, item_tipo: str) -> str:
+    nome = str(nome_arquivo or "").strip()
+    if item_tipo == "produto" and extensao_arquivo_permitida(nome, EXTENSOES_VIDEO_VITRINE_PERMITIDAS):
+        return "video"
+    if extensao_arquivo_permitida(nome, EXTENSOES_FOTO_VITRINE_PERMITIDAS):
+        return "imagem"
+    return ""
+
+
+def _tamanho_upload_vitrine(arquivo: Any) -> int:
+    try:
+        arquivo.stream.seek(0, os.SEEK_END)
+        tamanho = int(arquivo.stream.tell() or 0)
+        arquivo.stream.seek(0)
+        return tamanho
+    except (AttributeError, OSError, ValueError):
+        return 0
+
+
+def validar_galeria_vitrine_upload(item_tipo: str, campo: str) -> str:
+    arquivos = [arquivo for arquivo in request.files.getlist(campo) if arquivo and arquivo.filename]
+    for arquivo in arquivos:
+        tipo_midia = _tipo_midia_vitrine_por_arquivo(arquivo.filename, item_tipo)
+        if not tipo_midia:
+            if item_tipo == "produto":
+                return "A galeria do produto aceita fotos JPG, JPEG, PNG, WEBP ou vídeo MP4."
+            return "A galeria aceita somente fotos JPG, JPEG, PNG ou WEBP."
+        if tipo_midia == "video":
+            tamanho = _tamanho_upload_vitrine(arquivo)
+            if tamanho <= 0:
+                return "Não foi possível ler o vídeo selecionado. Escolha o arquivo novamente."
+            if tamanho > VITRINE_VIDEO_MAX_MB * 1024 * 1024:
+                return f"Cada vídeo do produto deve ter no máximo {VITRINE_VIDEO_MAX_MB} MB."
+    return ""
 
 
 def salvar_galeria_vitrine_upload(item_tipo: str, item_id: int, campo: str) -> None:
@@ -25924,25 +25988,70 @@ def salvar_galeria_vitrine_upload(item_tipo: str, item_id: int, campo: str) -> N
             (empresa_id, item_tipo, item_id),
         ).fetchone()
         total = int(existentes["total"] or 0)
-        for arquivo in arquivos[:max(0, 6-total)]:
-            if not extensao_arquivo_permitida(arquivo.filename, EXTENSOES_FOTO_VITRINE_PERMITIDAS):
+        principal_existente = conn.execute(
+            """
+            SELECT COUNT(*) AS total
+            FROM vitrine_imagens
+            WHERE empresa_id = ? AND item_tipo = ? AND item_id = ?
+              AND COALESCE(tipo_midia, 'imagem') = 'imagem' AND principal = 1
+            """,
+            (empresa_id, item_tipo, item_id),
+        ).fetchone()
+        tem_principal = int(principal_existente["total"] or 0) > 0
+
+        for arquivo in arquivos[:max(0, 6 - total)]:
+            tipo_midia = _tipo_midia_vitrine_por_arquivo(arquivo.filename, item_tipo)
+            if not tipo_midia:
                 continue
+
             extensao = secure_filename(arquivo.filename).rsplit(".", 1)[-1].lower()
-            nome_final = f"vitrine_{item_tipo}_{empresa_id}_{item_id}_{secrets.token_hex(6)}.{extensao}"
-            arquivo.save(VITRINE_UPLOAD_DIR / nome_final)
+            prefixo = "video" if tipo_midia == "video" else item_tipo
+            nome_final = f"vitrine_{prefixo}_{empresa_id}_{item_id}_{secrets.token_hex(6)}.{extensao}"
+            caminho_final = VITRINE_UPLOAD_DIR / nome_final
+
+            if tipo_midia == "video":
+                tamanho = _tamanho_upload_vitrine(arquivo)
+                if tamanho <= 0 or tamanho > VITRINE_VIDEO_MAX_MB * 1024 * 1024:
+                    continue
+                caminho_temporario = VITRINE_UPLOAD_DIR / f".{nome_final}.upload"
+                try:
+                    arquivo.save(caminho_temporario)
+                    if not caminho_temporario.is_file() or caminho_temporario.stat().st_size <= 0:
+                        raise OSError("arquivo temporário vazio")
+                    caminho_temporario.replace(caminho_final)
+                except OSError:
+                    caminho_temporario.unlink(missing_ok=True)
+                    app.logger.exception("Falha ao salvar vídeo da galeria do produto: %s", nome_final)
+                    continue
+            else:
+                arquivo.save(caminho_final)
+
+            if not caminho_final.is_file() or caminho_final.stat().st_size <= 0:
+                continue
+
             caminho = f"uploads/vitrines/{nome_final}"
-            principal = 1 if total == 0 else 0
+            principal = 1 if tipo_midia == "imagem" and not tem_principal else 0
             conn.execute(
-                "INSERT INTO vitrine_imagens (empresa_id,item_tipo,item_id,imagem_path,principal,ordem) VALUES (?,?,?,?,?,?)",
-                (empresa_id,item_tipo,item_id,caminho,principal,total),
+                """
+                INSERT INTO vitrine_imagens (
+                    empresa_id, item_tipo, item_id, imagem_path, tipo_midia, principal, ordem
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (empresa_id, item_tipo, item_id, caminho, tipo_midia, principal, total),
             )
+            if principal:
+                tem_principal = True
             total += 1
         conn.commit()
 
 
 def atualizar_galeria_vitrine_formulario(item_tipo: str, item_id: int) -> str:
     empresa_id = empresa_logada_id()
-    remover_ids = {int(v) for v in request.form.getlist("remover_foto_ids") if str(v).isdigit()}
+    remover_ids = {
+        int(v)
+        for v in [*request.form.getlist("remover_foto_ids"), *request.form.getlist("remover_midia_ids")]
+        if str(v).isdigit()
+    }
     principal_id = int(request.form.get("foto_principal_id") or 0) if str(request.form.get("foto_principal_id") or "").isdigit() else 0
     removidos: list[str] = []
     with conectar_db() as conn:
@@ -25950,28 +26059,59 @@ def atualizar_galeria_vitrine_formulario(item_tipo: str, item_id: int) -> str:
             placeholders = ",".join("?" for _ in remover_ids)
             rows = conn.execute(
                 f"SELECT id,imagem_path FROM vitrine_imagens WHERE empresa_id=? AND item_tipo=? AND item_id=? AND id IN ({placeholders})",
-                (empresa_id,item_tipo,item_id,*sorted(remover_ids)),
+                (empresa_id, item_tipo, item_id, *sorted(remover_ids)),
             ).fetchall()
             removidos = [str(row["imagem_path"] or "") for row in rows]
             conn.execute(
                 f"DELETE FROM vitrine_imagens WHERE empresa_id=? AND item_tipo=? AND item_id=? AND id IN ({placeholders})",
-                (empresa_id,item_tipo,item_id,*sorted(remover_ids)),
+                (empresa_id, item_tipo, item_id, *sorted(remover_ids)),
             )
+
         if principal_id and principal_id not in remover_ids:
-            conn.execute(
-                "UPDATE vitrine_imagens SET principal=CASE WHEN id=? THEN 1 ELSE 0 END WHERE empresa_id=? AND item_tipo=? AND item_id=?",
-                (principal_id,empresa_id,item_tipo,item_id),
-            )
+            principal_valido = conn.execute(
+                """
+                SELECT id
+                FROM vitrine_imagens
+                WHERE id=? AND empresa_id=? AND item_tipo=? AND item_id=?
+                  AND COALESCE(tipo_midia, 'imagem')='imagem'
+                LIMIT 1
+                """,
+                (principal_id, empresa_id, item_tipo, item_id),
+            ).fetchone()
+            if principal_valido:
+                conn.execute(
+                    """
+                    UPDATE vitrine_imagens
+                    SET principal=CASE WHEN id=? THEN 1 ELSE 0 END
+                    WHERE empresa_id=? AND item_tipo=? AND item_id=?
+                      AND COALESCE(tipo_midia, 'imagem')='imagem'
+                    """,
+                    (principal_id, empresa_id, item_tipo, item_id),
+                )
+
         row = conn.execute(
-            "SELECT id,imagem_path FROM vitrine_imagens WHERE empresa_id=? AND item_tipo=? AND item_id=? ORDER BY principal DESC,ordem,id LIMIT 1",
-            (empresa_id,item_tipo,item_id),
+            """
+            SELECT id,imagem_path
+            FROM vitrine_imagens
+            WHERE empresa_id=? AND item_tipo=? AND item_id=?
+              AND COALESCE(tipo_midia, 'imagem')='imagem'
+            ORDER BY principal DESC,ordem,id
+            LIMIT 1
+            """,
+            (empresa_id, item_tipo, item_id),
         ).fetchone()
         if row:
             conn.execute(
-                "UPDATE vitrine_imagens SET principal=CASE WHEN id=? THEN 1 ELSE 0 END WHERE empresa_id=? AND item_tipo=? AND item_id=?",
-                (int(row["id"]),empresa_id,item_tipo,item_id),
+                """
+                UPDATE vitrine_imagens
+                SET principal=CASE WHEN id=? THEN 1 ELSE 0 END
+                WHERE empresa_id=? AND item_tipo=? AND item_id=?
+                  AND COALESCE(tipo_midia, 'imagem')='imagem'
+                """,
+                (int(row["id"]), empresa_id, item_tipo, item_id),
             )
         conn.commit()
+
     for caminho in removidos:
         remover_arquivo_imagem_vitrine(caminho)
     return str(row["imagem_path"] or "") if row else ""
@@ -28181,15 +28321,6 @@ def renderizar_vitrine_publica_html(
     catalogo_formato = str(config_vitrine.get("catalogo_formato") or "vertical").strip().lower()
     if catalogo_formato not in {"vertical", "quadrado", "horizontal"}:
         catalogo_formato = "vertical"
-    video_path = str(config_vitrine.get("video_path") or "").strip()
-    video_catalogo_html = (
-        '<section class="video-catalogo-section" aria-label="Vídeo da loja">'
-        '<div class="video-catalogo-heading"><p class="section-kicker">Vídeo</p><h2>Conheça mais</h2></div>'
-        f'<video controls preload="metadata" playsinline src="/vitrine-upload/{html.escape(video_path)}"></video>'
-        '</section>'
-        if video_path
-        else ""
-    )
 
     tipo_identidade_visual = str(config_vitrine.get("tipo_identidade_visual") or "cores").strip().lower()
     if tipo_identidade_visual not in {"logo", "cores"}:
@@ -28531,14 +28662,29 @@ def renderizar_vitrine_publica_html(
                 else ""
             )
             imagens = produto.get("imagens") or []
-            imagens_paths = [str(item.get("imagem_path") or "") for item in imagens if item.get("imagem_path")]
-            imagem_path = imagens_paths[0] if imagens_paths else str(produto.get("imagem_path") or "").strip()
-            imagens_json = html.escape(json.dumps(imagens_paths, ensure_ascii=False), quote=True)
-            imagem_html = (
-                f'<img src="/vitrine-upload/{html.escape(imagem_path)}" alt="{nome}" loading="lazy">'
-                if imagem_path
-                else '<span class="item-sem-imagem">Produto</span>'
-            )
+            midias_produto = [
+                {
+                    "path": str(item.get("imagem_path") or ""),
+                    "tipo": "video" if str(item.get("tipo_midia") or "imagem").strip().lower() == "video" else "imagem",
+                }
+                for item in imagens
+                if item.get("imagem_path")
+            ]
+            if not midias_produto and str(produto.get("imagem_path") or "").strip():
+                midias_produto = [{"path": str(produto.get("imagem_path") or "").strip(), "tipo": "imagem"}]
+            primeira_midia = midias_produto[0] if midias_produto else {}
+            midias_json = html.escape(json.dumps(midias_produto, ensure_ascii=False), quote=True)
+            if primeira_midia.get("tipo") == "video":
+                imagem_html = (
+                    f'<video controls preload="metadata" playsinline src="/vitrine-upload/{html.escape(str(primeira_midia.get("path") or ""))}"></video>'
+                )
+            elif primeira_midia.get("path"):
+                imagem_html = (
+                    f"<button class=\"midia-imagem-zoom\" type=\"button\" onclick=\"abrirGaleriaCard(this.closest('.item-imagem'))\">"
+                    f'<img src="/vitrine-upload/{html.escape(str(primeira_midia.get("path") or ""))}" alt="{nome}" loading="lazy"></button>'
+                )
+            else:
+                imagem_html = '<span class="item-sem-imagem">Produto</span>'
             preco_html = f"<strong>R$ {preco}</strong>" if exibir_preco else "<strong>Consulte o valor</strong>"
             acao_secundaria = ""
             if whatsapp_publico_url:
@@ -28581,10 +28727,10 @@ def renderizar_vitrine_publica_html(
                 acao_secundaria = ""
             cards.append(
                 f'''<article class="catalogo-card produto-card" data-tipo="produto" data-categoria="{categoria_item}" data-nome="{html.escape(nome_raw.lower())}">
-<div class="item-imagem" data-fotos="{imagens_json}" data-indice="0">
-<button class="item-imagem-abrir" type="button" onclick="abrirGaleriaCard(this.parentElement, {html.escape(json.dumps(nome_raw, ensure_ascii=False), quote=True)}, 'produto', {produto_id})">{imagem_html}</button>
-{f'<button class="item-imagem-seta item-imagem-anterior" type="button" aria-label="Foto anterior" onclick="mudarFotoCard(this,-1)">‹</button><button class="item-imagem-seta item-imagem-proxima" type="button" aria-label="Próxima foto" onclick="mudarFotoCard(this,1)">›</button>' if len(imagens_paths) > 1 else ''}
-<span class="galeria-contador"><span data-foto-atual>{1 if imagens_paths else 0}</span>/{len(imagens_paths)}</span>
+<div class="item-imagem" data-fotos="{midias_json}" data-indice="0" data-titulo="{html.escape(nome_raw, quote=True)}" data-tipo-item="produto" data-item-id="{produto_id}">
+<div class="item-imagem-abrir">{imagem_html}</div>
+{f'<button class="item-imagem-seta item-imagem-anterior" type="button" aria-label="Mídia anterior" onclick="mudarFotoCard(this,-1)">‹</button><button class="item-imagem-seta item-imagem-proxima" type="button" aria-label="Próxima mídia" onclick="mudarFotoCard(this,1)">›</button>' if len(midias_produto) > 1 else ''}
+<span class="galeria-contador"><span data-foto-atual>{1 if midias_produto else 0}</span>/{len(midias_produto)}</span>
 </div>
 <div class="item-info"><h3>{nome}</h3>{indisponivel_html}<p>{descricao}</p>{preco_html}{seletor_quantidade if permitir_pedido and disponivel else ''}<div class="item-acoes">{acao_principal}{acao_secundaria}</div></div></article>'''
             )
@@ -28645,8 +28791,8 @@ def renderizar_vitrine_publica_html(
                 acao_whatsapp = ""
             cards.append(
                 f'''<article class="catalogo-card servico-card" data-tipo="servico" data-categoria="{categoria_item}" data-nome="{html.escape(nome_raw.lower())}">
-<div class="item-imagem" data-fotos="{imagens_json}" data-indice="0">
-<button class="item-imagem-abrir" type="button" onclick="abrirGaleriaCard(this.parentElement, {html.escape(json.dumps(nome_raw, ensure_ascii=False), quote=True)}, 'servico', {servico_id})">{imagem_html}</button>
+<div class="item-imagem" data-fotos="{imagens_json}" data-indice="0" data-titulo="{html.escape(nome_raw, quote=True)}" data-tipo-item="servico" data-item-id="{servico_id}">
+<div class="item-imagem-abrir"><button class="midia-imagem-zoom" type="button" onclick="abrirGaleriaCard(this.closest('.item-imagem'))">{imagem_html}</button></div>
 {f'<button class="item-imagem-seta item-imagem-anterior" type="button" aria-label="Foto anterior" onclick="mudarFotoCard(this,-1)">‹</button><button class="item-imagem-seta item-imagem-proxima" type="button" aria-label="Próxima foto" onclick="mudarFotoCard(this,1)">›</button>' if len(imagens_paths) > 1 else ''}
 <span class="galeria-contador"><span data-foto-atual>{1 if imagens_paths else 0}</span>/{len(imagens_paths)}</span>
 </div>
@@ -28824,8 +28970,8 @@ button,input,select,textarea{font:inherit}
 .conteudo.com-carrinho{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:18px;align-items:start}
 .itens{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,260px));gap:16px;align-items:stretch;justify-content:center;width:100%}
 .catalogo-card{min-width:0;display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--border);border-radius:19px;background:#fff;box-shadow:0 8px 24px rgba(15,23,42,.055)}
-.item-imagem{position:relative;width:100%;display:grid;place-items:center;border:0;background:#fff;overflow:hidden;text-decoration:none}.item-imagem-abrir{width:100%;height:100%;display:grid;place-items:center;border:0;padding:0;background:transparent;cursor:zoom-in}.item-imagem img{display:block;width:auto;height:auto;max-width:100%;max-height:100%;object-fit:contain;object-position:center;margin:auto;background:#fff}
-body.catalogo-formato-vertical .item-imagem{aspect-ratio:4/5}body.catalogo-formato-quadrado .item-imagem{aspect-ratio:1/1}body.catalogo-formato-horizontal .itens{grid-template-columns:repeat(auto-fit,minmax(420px,1fr));justify-content:stretch}body.catalogo-formato-horizontal .catalogo-card{display:grid;grid-template-columns:minmax(180px,42%) minmax(0,1fr)}body.catalogo-formato-horizontal .item-imagem{height:100%;min-height:250px;aspect-ratio:auto}body.catalogo-formato-horizontal .item-info{min-width:0}.item-imagem-seta{position:absolute;top:50%;z-index:3;width:42px;height:42px;display:grid;place-items:center;transform:translateY(-50%);border:1px solid rgba(255,255,255,.55);border-radius:999px;background:rgba(15,23,42,.82);color:#fff;font-size:28px;font-weight:900;line-height:1;cursor:pointer;box-shadow:0 6px 18px rgba(15,23,42,.28)}.item-imagem-seta:hover,.item-imagem-seta:focus-visible{background:#0f172a;outline:3px solid rgba(255,255,255,.55)}.item-imagem-anterior{left:10px}.item-imagem-proxima{right:10px}.galeria-contador{position:absolute;right:10px;bottom:10px;z-index:3;padding:5px 8px;border-radius:999px;background:rgba(15,23,42,.78);color:#fff;font-size:11px;font-weight:900}.galeria-modal{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.82)}.galeria-modal.aberta{display:flex}.galeria-box{position:relative;width:min(900px,96vw);height:min(720px,88vh);display:grid;place-items:center;border-radius:20px;background:#fff;overflow:hidden}.galeria-box img{max-width:100%;max-height:100%;object-fit:contain}.galeria-fechar,.galeria-anterior,.galeria-proxima{position:absolute;z-index:2;border:0;border-radius:999px;background:rgba(15,23,42,.82);color:#fff;font-weight:900;cursor:pointer}.galeria-fechar{top:14px;right:14px;width:42px;height:42px}.galeria-anterior,.galeria-proxima{top:50%;width:44px;height:44px;transform:translateY(-50%)}.galeria-anterior{left:14px}.galeria-proxima{right:14px}.galeria-titulo{position:absolute;left:16px;right:70px;top:16px;color:#111827;font-weight:900}
+.item-imagem{position:relative;width:100%;display:grid;place-items:center;border:0;background:#fff;overflow:hidden;text-decoration:none}.item-imagem-abrir{width:100%;height:100%;display:grid;place-items:center;border:0;padding:0;background:transparent}.midia-imagem-zoom{width:100%;height:100%;display:grid;place-items:center;border:0;padding:0;background:transparent;cursor:zoom-in}.item-imagem img,.item-imagem video{display:block;width:auto;height:auto;max-width:100%;max-height:100%;object-fit:contain;object-position:center;margin:auto;background:#fff}.item-imagem video{width:100%;height:100%;background:#000}
+body.catalogo-formato-vertical .item-imagem{aspect-ratio:4/5}body.catalogo-formato-quadrado .item-imagem{aspect-ratio:1/1}body.catalogo-formato-horizontal .itens{grid-template-columns:repeat(auto-fit,minmax(420px,1fr));justify-content:stretch}body.catalogo-formato-horizontal .catalogo-card{display:grid;grid-template-columns:minmax(180px,42%) minmax(0,1fr)}body.catalogo-formato-horizontal .item-imagem{height:100%;min-height:250px;aspect-ratio:auto}body.catalogo-formato-horizontal .item-info{min-width:0}.item-imagem-seta{position:absolute;top:50%;z-index:3;width:42px;height:42px;display:grid;place-items:center;transform:translateY(-50%);border:1px solid rgba(255,255,255,.55);border-radius:999px;background:rgba(15,23,42,.82);color:#fff;font-size:28px;font-weight:900;line-height:1;cursor:pointer;box-shadow:0 6px 18px rgba(15,23,42,.28)}.item-imagem-seta:hover,.item-imagem-seta:focus-visible{background:#0f172a;outline:3px solid rgba(255,255,255,.55)}.item-imagem-anterior{left:10px}.item-imagem-proxima{right:10px}.galeria-contador{position:absolute;right:10px;bottom:10px;z-index:3;padding:5px 8px;border-radius:999px;background:rgba(15,23,42,.78);color:#fff;font-size:11px;font-weight:900}.galeria-modal{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.82)}.galeria-modal.aberta{display:flex}.galeria-box{position:relative;width:min(900px,96vw);height:min(720px,88vh);display:grid;place-items:center;border-radius:20px;background:#fff;overflow:hidden}.galeria-conteudo{width:100%;height:100%;display:grid;place-items:center;padding:64px 64px 28px;box-sizing:border-box}.galeria-conteudo img,.galeria-conteudo video{display:block;max-width:100%;max-height:100%;object-fit:contain}.galeria-conteudo video{width:100%;height:100%;background:#000}.galeria-fechar,.galeria-anterior,.galeria-proxima{position:absolute;z-index:2;border:0;border-radius:999px;background:rgba(15,23,42,.82);color:#fff;font-weight:900;cursor:pointer}.galeria-fechar{top:14px;right:14px;width:42px;height:42px}.galeria-anterior,.galeria-proxima{top:50%;width:44px;height:44px;transform:translateY(-50%)}.galeria-anterior{left:14px}.galeria-proxima{right:14px}.galeria-titulo{position:absolute;left:16px;right:70px;top:16px;color:#111827;font-weight:900}
 .item-sem-imagem{color:var(--text-soft);font-weight:850}
 .item-info{flex:1;display:flex;flex-direction:column;gap:9px;padding:15px}
 .item-info small{color:var(--text-soft);font-weight:800}
@@ -28953,7 +29099,6 @@ body.catalogo-formato-vertical .item-imagem{aspect-ratio:4/5}body.catalogo-forma
     </article>
     <div class="diferenciais-grid">__DIFERENCIAIS__</div>
 </section>
-__VIDEO_CATALOGO__
 <main class="container" id="catalogo">
     __MENSAGEM__
     __WHATSAPP_FINAL__
@@ -28991,6 +29136,15 @@ __VIDEO_CATALOGO__
         </div>
     </section>
 </main>
+<div class="galeria-modal" id="galeriaModal" role="dialog" aria-modal="true" aria-label="Galeria do item" onclick="if(event.target===this)fecharGaleria()">
+    <div class="galeria-box">
+        <strong class="galeria-titulo" id="galeriaTitulo"></strong>
+        <button class="galeria-fechar" type="button" aria-label="Fechar galeria" onclick="fecharGaleria()">×</button>
+        <button class="galeria-anterior" type="button" aria-label="Mídia anterior" onclick="mudarFoto(-1)">‹</button>
+        <div class="galeria-conteudo" id="galeriaConteudo"></div>
+        <button class="galeria-proxima" type="button" aria-label="Próxima mídia" onclick="mudarFoto(1)">›</button>
+    </div>
+</div>
 <footer class="footer">
     <div class="footer-inner">
         <div class="footer-marca"><span class="marca-logo">__LOGO_NAV__</span><div><strong>__NOME_LOJA__</strong></div></div>
@@ -29006,7 +29160,7 @@ let paginaAtual=1;
 const itensPorPagina=9;
 function moedaNumero(v){const valor=String(v).trim();return parseFloat(valor.includes(',')?valor.replace(/\./g,'').replace(',','.'):valor)||0}
 function moedaBR(v){return v.toFixed(2).replace('.',',')}
-let galeriaFotos=[],galeriaIndice=0;function fotosDoCard(card){try{const fotos=JSON.parse(card?.dataset?.fotos||'[]');return Array.isArray(fotos)?fotos:[]}catch(e){return[]}}function atualizarFotoCard(card){const fotos=fotosDoCard(card);if(!fotos.length)return;const indice=Math.max(0,Math.min(Number(card.dataset.indice)||0,fotos.length-1));card.dataset.indice=String(indice);const imagem=card.querySelector('.item-imagem-abrir img');if(imagem)imagem.src='/vitrine-upload/'+fotos[indice];const atual=card.querySelector('[data-foto-atual]');if(atual)atual.textContent=String(indice+1)}function mudarFotoCard(botao,delta){const card=botao.closest('.item-imagem');const fotos=fotosDoCard(card);if(!card||fotos.length<2)return;const atual=Number(card.dataset.indice)||0;card.dataset.indice=String((atual+delta+fotos.length)%fotos.length);atualizarFotoCard(card)}function abrirGaleriaCard(card,titulo,tipo,id){const fotos=fotosDoCard(card);if(!fotos.length)return;galeriaFotos=fotos;galeriaIndice=Number(card.dataset.indice)||0;document.getElementById('galeriaTitulo').textContent=titulo||'';atualizarFotoGaleria();document.getElementById('galeriaModal').classList.add('aberta');registrarItem(tipo,id)}function abrirGaleria(fotos,titulo){if(!Array.isArray(fotos)||!fotos.length)return;galeriaFotos=fotos;galeriaIndice=0;document.getElementById('galeriaTitulo').textContent=titulo||'';atualizarFotoGaleria();document.getElementById('galeriaModal').classList.add('aberta')}function atualizarFotoGaleria(){document.getElementById('galeriaImagem').src='/vitrine-upload/'+galeriaFotos[galeriaIndice]}function mudarFoto(delta){if(!galeriaFotos.length)return;galeriaIndice=(galeriaIndice+delta+galeriaFotos.length)%galeriaFotos.length;atualizarFotoGaleria()}function fecharGaleria(){document.getElementById('galeriaModal').classList.remove('aberta')}function registrarItem(tipo,id){fetch('/loja/__SLUG__/evento',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tipo:tipo,item_id:id||''})}).catch(()=>{})}
+let galeriaMidias=[],galeriaIndice=0;function midiasDoCard(card){try{const dados=JSON.parse(card?.dataset?.fotos||'[]');if(!Array.isArray(dados))return[];return dados.map(item=>typeof item==='string'?{path:item,tipo:'imagem'}:{path:String(item?.path||''),tipo:item?.tipo==='video'?'video':'imagem'}).filter(item=>item.path)}catch(e){return[]}}function caminhoMidia(midia){return'/vitrine-upload/'+encodeURI(String(midia?.path||''))}function montarMidiaCard(card,midia){const area=card?.querySelector('.item-imagem-abrir');if(!area)return;area.innerHTML='';if(!midia)return;const titulo=card.dataset.titulo||'Item';if(midia.tipo==='video'){const video=document.createElement('video');video.controls=true;video.preload='metadata';video.playsInline=true;video.src=caminhoMidia(midia);area.appendChild(video);return}const botao=document.createElement('button');botao.type='button';botao.className='midia-imagem-zoom';botao.setAttribute('aria-label','Ampliar '+titulo);botao.addEventListener('click',()=>abrirGaleriaCard(card));const img=document.createElement('img');img.src=caminhoMidia(midia);img.alt=titulo;img.loading='lazy';botao.appendChild(img);area.appendChild(botao)}function atualizarFotoCard(card){const midias=midiasDoCard(card);if(!midias.length)return;const indice=Math.max(0,Math.min(Number(card.dataset.indice)||0,midias.length-1));card.dataset.indice=String(indice);montarMidiaCard(card,midias[indice]);const atual=card.querySelector('[data-foto-atual]');if(atual)atual.textContent=String(indice+1)}function mudarFotoCard(botao,delta){const card=botao.closest('.item-imagem');const midias=midiasDoCard(card);if(!card||midias.length<2)return;const atual=Number(card.dataset.indice)||0;const videoAtual=card.querySelector('video');if(videoAtual)videoAtual.pause();card.dataset.indice=String((atual+delta+midias.length)%midias.length);atualizarFotoCard(card)}function abrirGaleriaCard(card){const midias=midiasDoCard(card);if(!midias.length)return;galeriaMidias=midias;galeriaIndice=Number(card.dataset.indice)||0;const titulo=card.dataset.titulo||'';document.getElementById('galeriaTitulo').textContent=titulo;atualizarFotoGaleria();document.getElementById('galeriaModal').classList.add('aberta');registrarItem(card.dataset.tipoItem||'',Number(card.dataset.itemId)||0)}function atualizarFotoGaleria(){const area=document.getElementById('galeriaConteudo');if(!area||!galeriaMidias.length)return;const atual=area.querySelector('video');if(atual)atual.pause();area.innerHTML='';const midia=galeriaMidias[galeriaIndice];if(midia.tipo==='video'){const video=document.createElement('video');video.controls=true;video.preload='metadata';video.playsInline=true;video.src=caminhoMidia(midia);area.appendChild(video)}else{const img=document.createElement('img');img.src=caminhoMidia(midia);img.alt=document.getElementById('galeriaTitulo')?.textContent||'Imagem ampliada';area.appendChild(img)}}function mudarFoto(delta){if(!galeriaMidias.length)return;galeriaIndice=(galeriaIndice+delta+galeriaMidias.length)%galeriaMidias.length;atualizarFotoGaleria()}function fecharGaleria(){const modal=document.getElementById('galeriaModal');const video=modal?.querySelector('video');if(video)video.pause();if(modal)modal.classList.remove('aberta')}function registrarItem(tipo,id){fetch('/loja/__SLUG__/evento',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tipo:tipo,item_id:id||''})}).catch(()=>{})}
 function normalizarQuantidadeCard(input){const max=Math.max(1,Number(input.max)||999);input.value=String(limitar(Math.round(Number(input.value)||1),1,max))}
 function ajustarQuantidadeCard(botao,delta){const grupo=botao.closest('.quantidade-produto');const input=grupo?grupo.querySelector('input'):null;if(!input)return;const max=Math.max(1,Number(input.max)||999);input.value=String(limitar((Number(input.value)||1)+delta,1,max))}
 function adicionarCarrinhoDoCard(botao,id,nome,preco,max){const card=botao.closest('.produto-card');const input=card?card.querySelector('.quantidade-produto input'):null;const quantidade=input?Math.max(1,Math.round(Number(input.value)||1)):1;adicionarCarrinho(id,nome,preco,quantidade,max);if(input)input.value='1'}
@@ -29050,7 +29204,6 @@ document.addEventListener('DOMContentLoaded',()=>{const botao=document.querySele
         "__IDENTIDADE__": tipo_identidade_visual,
         "__CATEGORIA_CLASSE__": categoria_classe,
         "__FORMATO_CATALOGO__": catalogo_formato,
-        "__VIDEO_CATALOGO__": video_catalogo_html,
         "__NOME_LOJA__": nome_loja,
         "__LOGO_NAV__": logo_nav_html,
         "__CATEGORIA__": categoria,
@@ -29975,6 +30128,10 @@ def vitrine_produto_independente_salvar() -> Response:
             )
         )
 
+    erro_galeria = validar_galeria_vitrine_upload("produto", "fotos_produto")
+    if erro_galeria:
+        return redirect(url_for("vitrine", erro=erro_galeria, _anchor="produtos-vitrine"))
+
     dados = (
         nome,
         str(request.form.get("descricao") or "").strip(),
@@ -30119,6 +30276,10 @@ def vitrine_produto_publicar() -> Response:
         return redirect(url_for("vitrine", erro="Selecione um produto válido para publicar."))
 
     produto_id = int(produto_id_texto)
+    erro_galeria = validar_galeria_vitrine_upload("produto", "fotos_produto")
+    if erro_galeria:
+        return redirect(url_for("vitrine", erro=erro_galeria, _anchor="produtos-vitrine"))
+
     imagem_path = salvar_imagem_produto_vitrine_upload(produto_id)
     produto = buscar_produto_vitrine_admin(produto_id)
 
