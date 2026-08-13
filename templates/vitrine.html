@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vitrine.html
-Último recode: 2026-08-13 00:19 (America/Bahia)
-Motivo: Consolidar a Central Operacional da Vitrine e ligar produtos e serviços diretamente ao novo catálogo público, com miniaturas e ações gerenciais mais claras.
+Último recode: 2026-08-13 07:09 (America/Bahia)
+Motivo: Permitir cadastrar e editar cores e tamanhos nos produtos independentes da Vitrine e exibir as variações escolhidas nos pedidos da Central Operacional.
 #}
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -271,7 +271,11 @@ Motivo: Consolidar a Central Operacional da Vitrine e ligar produtos e serviços
                                 {% for item in pedido.get('itens') or [] %}
                                     <div>
                                         <span class="vitrine-order-product-summary">
-                                            <span>{{ item.get('quantidade') or 1 }}x {{ item.get('produto_nome') or 'Produto' }}</span>
+                                            <span>
+                                                {{ item.get('quantidade') or 1 }}x {{ item.get('produto_nome') or 'Produto' }}
+                                                {% if item.get('variacao_cor') %} · {{ item.get('variacao_cor') }}{% endif %}
+                                                {% if item.get('variacao_tamanho') %} · {{ item.get('variacao_tamanho') }}{% endif %}
+                                            </span>
                                             {% if item.get('vitrine_produto_id') %}
                                                 <a
                                                     class="vitrine-order-product-link"
@@ -619,6 +623,25 @@ Motivo: Consolidar a Central Operacional da Vitrine e ligar produtos e serviços
                                 <textarea name="descricao" rows="3" placeholder="Descrição curta para a vitrine"></textarea>
                             </label>
 
+                            <div class="vitrine-variacoes-editor">
+                                <div class="vitrine-variacoes-heading">
+                                    <strong>Variações do produto</strong>
+                                    <small>Opcional. Use somente quando o cliente precisar escolher cor e/ou tamanho antes de adicionar ao carrinho.</small>
+                                </div>
+                                <div class="form-grid-2">
+                                    <label>
+                                        Cores disponíveis
+                                        <input type="text" name="variacoes_cores" placeholder="Ex.: Preto, Branco, Rosa, Azul">
+                                        <small>Separe as opções por vírgula.</small>
+                                    </label>
+                                    <label>
+                                        Tamanhos disponíveis
+                                        <input type="text" name="variacoes_tamanhos" placeholder="Ex.: P, M, G, GG">
+                                        <small>Separe as opções por vírgula.</small>
+                                    </label>
+                                </div>
+                            </div>
+
                             <div class="vitrine-gallery-manager vitrine-gallery-manager-wide">
                                 <div class="vitrine-gallery-heading">
                                     <div>
@@ -762,6 +785,27 @@ Motivo: Consolidar a Central Operacional da Vitrine e ligar produtos e serviços
                                             Descrição
                                             <textarea name="descricao" rows="3" placeholder="Descrição curta para a vitrine" {% if integrar_produtos_vitrine %}readonly{% endif %}>{{ produto.get('descricao') or '' }}</textarea>
                                         </label>
+
+                                        {% if produto.get('produto_independente') %}
+                                            <div class="vitrine-variacoes-editor">
+                                                <div class="vitrine-variacoes-heading">
+                                                    <strong>Variações do produto</strong>
+                                                    <small>Essas opções existem somente na Vitrine e serão registradas no carrinho e no pedido.</small>
+                                                </div>
+                                                <div class="form-grid-2">
+                                                    <label>
+                                                        Cores disponíveis
+                                                        <input type="text" name="variacoes_cores" value="{{ (produto.get('variacoes_cores') or '')|replace('\n', ', ') }}" placeholder="Ex.: Preto, Branco, Rosa, Azul">
+                                                        <small>Separe as opções por vírgula.</small>
+                                                    </label>
+                                                    <label>
+                                                        Tamanhos disponíveis
+                                                        <input type="text" name="variacoes_tamanhos" value="{{ (produto.get('variacoes_tamanhos') or '')|replace('\n', ', ') }}" placeholder="Ex.: P, M, G, GG">
+                                                        <small>Separe as opções por vírgula.</small>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        {% endif %}
 
                                         <div class="vitrine-gallery-manager vitrine-gallery-manager-wide">
                                             <div class="vitrine-gallery-heading">
@@ -2545,6 +2589,18 @@ Motivo: Consolidar a Central Operacional da Vitrine e ligar produtos e serviços
         }
 
         .product-admin-stack { display:grid;gap:14px; }
+        .vitrine-variacoes-editor {
+            display: grid;
+            gap: 14px;
+            padding: 16px;
+            border: 1px solid #dbe3ef;
+            border-radius: 16px;
+            background: #f8fafc;
+        }
+        .vitrine-variacoes-heading { display: grid; gap: 4px; }
+        .vitrine-variacoes-heading strong { color: #111827; }
+        .vitrine-variacoes-heading small,
+        .vitrine-variacoes-editor label > small { color: #64748b; font-size: 11px; font-weight: 700; }
         .vitrine-gallery-manager { display:grid;gap:14px;padding:16px;border:1px solid #dbe3ef;border-radius:16px;background:#fff; }
         .vitrine-gallery-manager-wide { width:100%; }
         .vitrine-gallery-heading { display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap; }
