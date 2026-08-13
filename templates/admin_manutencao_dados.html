@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\admin_manutencao_dados.html
-Último recode: 2026-07-26 10:15 (America/Bahia)
-Motivo: Criar painel exclusivo do superadministrador para reset de transações e reset geral por empresa.
+Último recode: 2026-08-12 22:14 (America/Bahia)
+Motivo: Liberar reset controlado no MAIN/produção com identificação visual, nome exato da empresa e frases reforçadas de confirmação.
 #}
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -21,13 +21,20 @@ Motivo: Criar painel exclusivo do superadministrador para reset de transações 
                 <h1>Manutenção de dados</h1>
                 <p>Limpe uma empresa de forma controlada, sempre com backup obrigatório e sem apagar os acessos.</p>
             </div>
-            <span class="environment-pill {% if ambiente_dev %}environment-dev{% else %}environment-blocked{% endif %}">
-                {% if ambiente_dev %}Ambiente DEV liberado{% else %}Reset bloqueado fora do DEV{% endif %}
+            <span class="environment-pill {% if ambiente_dev %}environment-dev{% else %}environment-main{% endif %}">
+                {% if ambiente_dev %}Ambiente DEV liberado{% else %}MAIN / PRODUÇÃO — reset controlado{% endif %}
             </span>
         </header>
 
         {% if sucesso %}<div class="maintenance-alert success">{{ sucesso }}</div>{% endif %}
         {% if erro %}<div class="maintenance-alert error">{{ erro }}</div>{% endif %}
+
+        {% if not ambiente_dev %}
+            <div class="production-warning">
+                <strong>Atenção: você está no MAIN / produção.</strong>
+                <span>Os dados selecionados são reais. Todo reset exige backup obrigatório, nome exato da empresa e uma frase de confirmação exclusiva do MAIN.</span>
+            </div>
+        {% endif %}
 
         <section class="maintenance-card company-card">
             <div>
@@ -76,9 +83,19 @@ Motivo: Criar painel exclusivo do superadministrador para reset de transações 
                 <form method="post" class="reset-form">
                     <input type="hidden" name="acao" value="transacoes">
                     <input type="hidden" name="empresa_id" value="{{ empresa_selecionada.get('id') if empresa_selecionada else '' }}">
-                    <label for="confirmacao_transacoes">Digite <strong>{{ frase_transacoes }}</strong></label>
+                    {% if not ambiente_dev %}
+                        <label for="nome_empresa_confirmacao_transacoes">Digite o nome exato da empresa</label>
+                        <input
+                            id="nome_empresa_confirmacao_transacoes"
+                            name="nome_empresa_confirmacao"
+                            autocomplete="off"
+                            required
+                            placeholder="{{ empresa_selecionada.get('nome_fantasia') if empresa_selecionada else '' }}"
+                        >
+                    {% endif %}
+                    <label for="confirmacao_transacoes">Depois digite <strong>{{ frase_transacoes }}</strong></label>
                     <input id="confirmacao_transacoes" name="confirmacao" autocomplete="off" required>
-                    <button class="reset-button transactions-button" type="submit" {% if not ambiente_dev or not empresa_selecionada %}disabled{% endif %}>
+                    <button class="reset-button transactions-button" type="submit" {% if not empresa_selecionada %}disabled{% endif %}>
                         Criar backup e resetar transações
                     </button>
                 </form>
@@ -106,7 +123,7 @@ Motivo: Criar painel exclusivo do superadministrador para reset de transações 
                     <input id="nome_empresa_confirmacao" name="nome_empresa_confirmacao" autocomplete="off" required placeholder="{{ empresa_selecionada.get('nome_fantasia') if empresa_selecionada else '' }}">
                     <label for="confirmacao_geral">Depois digite <strong>{{ frase_geral }}</strong></label>
                     <input id="confirmacao_geral" name="confirmacao" autocomplete="off" required>
-                    <button class="reset-button general-button" type="submit" {% if not ambiente_dev or not empresa_selecionada %}disabled{% endif %}>
+                    <button class="reset-button general-button" type="submit" {% if not empresa_selecionada %}disabled{% endif %}>
                         Criar backup e executar reset geral
                     </button>
                 </form>
@@ -120,8 +137,8 @@ Motivo: Criar painel exclusivo do superadministrador para reset de transações 
                 <span>✓ Empresa escolhida explicitamente</span>
                 <span>✓ Backup completo antes de apagar</span>
                 <span>✓ Transação única com rollback em caso de erro</span>
-                <span>✓ Operação bloqueada fora do ambiente DEV</span>
-                <span>✓ Registro de auditoria após a conclusão</span>
+                <span>✓ MAIN exige nome exato da empresa e frase reforçada</span>
+                <span>✓ Registro de ambiente, backup e resultado na auditoria</span>
             </div>
         </section>
     </main>
@@ -170,7 +187,20 @@ Motivo: Criar painel exclusivo do superadministrador para reset de transações 
             white-space: nowrap;
         }
         .environment-dev { background: #dcfce7; color: #166534; }
-        .environment-blocked { background: #fee2e2; color: #991b1b; }
+        .environment-main { background: #fee2e2; color: #991b1b; }
+        .production-warning {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-bottom: 18px;
+            padding: 14px 16px;
+            border: 1px solid #fca5a5;
+            border-radius: 14px;
+            background: #fff1f2;
+            color: #991b1b;
+        }
+        .production-warning strong { font-weight: 900; }
+        .production-warning span { color: #7f1d1d; line-height: 1.45; }
         .maintenance-alert { margin-bottom: 18px; padding: 14px 16px; border-radius: 14px; font-weight: 800; }
         .maintenance-alert.success { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
         .maintenance-alert.error { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }

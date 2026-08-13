@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-12 15:50 (America/Bahia)
-# Motivo: Restaurar o carrossel simples da Vitrine pública e exibir fotos de produtos na proporção original, sem recorte ou moldura de proporção fixa.
+# Último recode: 2026-08-12 22:14 (America/Bahia)
+# Motivo: Liberar reset controlado de empresas no MAIN/produção com backup obrigatório, confirmação reforçada e auditoria por ambiente.
 
 from __future__ import annotations
 
@@ -19772,6 +19772,8 @@ def gerar_backup_configurado(motivo: str) -> Path | None:
 RESET_BASE_DEV_FRASE_CONFIRMACAO = "RESETAR DEV"
 RESET_BASE_ADMIN_FRASE_TRANSACOES = "RESETAR TRANSAÇÕES"
 RESET_BASE_ADMIN_FRASE_GERAL = "RESETAR TUDO"
+RESET_BASE_ADMIN_FRASE_TRANSACOES_MAIN = "RESETAR TRANSAÇÕES MAIN"
+RESET_BASE_ADMIN_FRASE_GERAL_MAIN = "RESETAR TUDO MAIN"
 
 # Cadastros e personalizações removidos somente pelo reset geral.
 # Empresa, usuários, plano, módulos, permissões e configurações técnicas são preservados.
@@ -19882,9 +19884,13 @@ RESET_BASE_DEV_RELACOES_LEGADAS = {
 }
 
 
-def ambiente_reset_base_dev_liberado() -> bool:
+def ambiente_reset_base_nome() -> str:
     ambiente = str(getattr(config, "ENV", os.getenv("ENV", "")) or "").strip().upper()
-    return ambiente == "DEV"
+    return "DEV" if ambiente == "DEV" else "MAIN"
+
+
+def ambiente_reset_base_dev_liberado() -> bool:
+    return ambiente_reset_base_nome() == "DEV"
 
 
 def _tabelas_e_colunas_db(conn: sqlite3.Connection) -> dict[str, set[str]]:
@@ -20011,16 +20017,19 @@ def _remover_arquivos_reset_geral(arquivos: list[Path]) -> int:
     return removidos
 
 
-def _executar_reset_empresa_dev(
+def _executar_reset_empresa_controlado(
     empresa_id: int,
     *,
     incluir_cadastros: bool,
 ) -> dict[str, Any]:
-    if not ambiente_reset_base_dev_liberado():
-        raise PermissionError("O reset da base só pode ser executado quando ENV=DEV.")
+    if not usuario_logado_eh_admin_sistema():
+        raise PermissionError("Somente o superadministrador pode executar reset de empresa.")
 
+    ambiente_operacao = ambiente_reset_base_nome()
     tipo_reset = "geral" if incluir_cadastros else "transacoes"
-    backup = gerar_backup_configurado(f"antes_reset_{tipo_reset}_dev_empresa_{empresa_id}")
+    backup = gerar_backup_configurado(
+        f"antes_reset_{tipo_reset}_{ambiente_operacao.lower()}_empresa_{empresa_id}"
+    )
     if backup is None or not backup.exists():
         raise RuntimeError("O backup obrigatório não foi criado. Nenhum dado foi apagado.")
 
@@ -20136,15 +20145,16 @@ def _executar_reset_empresa_dev(
         "total_removido": sum(removidos.values()),
         "arquivos_removidos": arquivos_removidos,
         "tipo": tipo_reset,
+        "ambiente": ambiente_operacao,
     }
 
 
-def resetar_base_transacional_dev(empresa_id: int) -> dict[str, Any]:
-    return _executar_reset_empresa_dev(empresa_id, incluir_cadastros=False)
+def resetar_base_transacional_controlado(empresa_id: int) -> dict[str, Any]:
+    return _executar_reset_empresa_controlado(empresa_id, incluir_cadastros=False)
 
 
-def resetar_base_geral_dev(empresa_id: int) -> dict[str, Any]:
-    return _executar_reset_empresa_dev(empresa_id, incluir_cadastros=True)
+def resetar_base_geral_controlado(empresa_id: int) -> dict[str, Any]:
+    return _executar_reset_empresa_controlado(empresa_id, incluir_cadastros=True)
 
 def garantir_backup_automatico_diario() -> None:
     if not configuracao_bool("gerais", "backup_automatico", True):
@@ -23696,6 +23706,18 @@ def admin_manutencao_dados() -> str | Response:
         or ""
     ).strip()
     empresa_selecionada = None
+    ambiente_operacao = ambiente_reset_base_nome()
+    ambiente_dev = ambiente_operacao == "DEV"
+    frase_transacoes = (
+        RESET_BASE_ADMIN_FRASE_TRANSACOES
+        if ambiente_dev
+        else RESET_BASE_ADMIN_FRASE_TRANSACOES_MAIN
+    )
+    frase_geral = (
+        RESET_BASE_ADMIN_FRASE_GERAL
+        if ambiente_dev
+        else RESET_BASE_ADMIN_FRASE_GERAL_MAIN
+    )
 
     if empresa_id_texto.isdigit():
         empresa_selecionada = buscar_empresa_admin_por_id(int(empresa_id_texto))
@@ -23705,15 +23727,6 @@ def admin_manutencao_dados() -> str | Response:
         empresa_id_texto = str(empresas[0]["id"])
 
     if request.method == "POST":
-        if not ambiente_reset_base_dev_liberado():
-            return redirect(
-                url_for(
-                    "admin_manutencao_dados",
-                    empresa_id=empresa_id_texto,
-                    erro="Os resets estão bloqueados porque o ambiente não é DEV.",
-                )
-            )
-
         if empresa_selecionada is None:
             return redirect(
                 url_for(
@@ -23730,32 +23743,43 @@ def admin_manutencao_dados() -> str | Response:
             or empresa_selecionada.get("razao_social")
             or f"Empresa {empresa_id}"
         ).strip()
+        nome_confirmacao = str(request.form.get("nome_empresa_confirmacao") or "").strip()
 
         try:
+            if not ambiente_dev and nome_confirmacao.casefold() != nome_empresa.casefold():
+                raise ValueError(
+                    "No MAIN, digite exatamente o nome da empresa selecionada para confirmar o reset."
+                )
+
             if acao == "transacoes":
-                if confirmacao != RESET_BASE_ADMIN_FRASE_TRANSACOES:
+                if confirmacao != frase_transacoes:
                     raise ValueError(
-                        f'Digite exatamente "{RESET_BASE_ADMIN_FRASE_TRANSACOES}" para confirmar.'
+                        f'Digite exatamente "{frase_transacoes}" para confirmar.'
                     )
-                resultado = resetar_base_transacional_dev(empresa_id)
-                descricao_auditoria = "Resetou todas as transações da empresa no ambiente DEV."
+                resultado = resetar_base_transacional_controlado(empresa_id)
+                descricao_auditoria = (
+                    f"Resetou todas as transações da empresa no ambiente {ambiente_operacao}."
+                )
                 mensagem = (
-                    f'Transações de "{nome_empresa}" limpas com sucesso. '
+                    f'Transações de "{nome_empresa}" limpas com sucesso no {ambiente_operacao}. '
                     f'{resultado["total_removido"]} registros removidos. '
                     "Cadastros preservados e estoque zerado."
                 )
             elif acao == "geral":
-                nome_confirmacao = str(request.form.get("nome_empresa_confirmacao") or "").strip()
                 if nome_confirmacao.casefold() != nome_empresa.casefold():
-                    raise ValueError("Digite exatamente o nome da empresa selecionada para confirmar o reset geral.")
-                if confirmacao != RESET_BASE_ADMIN_FRASE_GERAL:
                     raise ValueError(
-                        f'Digite exatamente "{RESET_BASE_ADMIN_FRASE_GERAL}" para confirmar.'
+                        "Digite exatamente o nome da empresa selecionada para confirmar o reset geral."
                     )
-                resultado = resetar_base_geral_dev(empresa_id)
-                descricao_auditoria = "Executou reset geral da empresa no ambiente DEV."
+                if confirmacao != frase_geral:
+                    raise ValueError(
+                        f'Digite exatamente "{frase_geral}" para confirmar.'
+                    )
+                resultado = resetar_base_geral_controlado(empresa_id)
+                descricao_auditoria = (
+                    f"Executou reset geral da empresa no ambiente {ambiente_operacao}."
+                )
                 mensagem = (
-                    f'Reset geral de "{nome_empresa}" concluído. '
+                    f'Reset geral de "{nome_empresa}" concluído no {ambiente_operacao}. '
                     f'{resultado["total_removido"]} registros e '
                     f'{resultado["arquivos_removidos"]} arquivo(s) removidos. '
                     "Empresa, usuários, acessos e configurações técnicas foram preservados."
@@ -23764,9 +23788,10 @@ def admin_manutencao_dados() -> str | Response:
                 raise ValueError("Ação de reset inválida.")
         except (ValueError, PermissionError, RuntimeError, sqlite3.Error, OSError) as erro_reset:
             app.logger.exception(
-                "Falha na manutenção de dados da empresa %s. Ação: %s.",
+                "Falha na manutenção de dados da empresa %s. Ação: %s. Ambiente: %s.",
                 empresa_id,
                 acao,
+                ambiente_operacao,
             )
             return redirect(
                 url_for(
@@ -23785,6 +23810,7 @@ def admin_manutencao_dados() -> str | Response:
             dados_novos={
                 "empresa": nome_empresa,
                 "tipo_reset": resultado["tipo"],
+                "ambiente": resultado["ambiente"],
                 "backup": resultado["backup"],
                 "total_removido": resultado["total_removido"],
                 "arquivos_removidos": resultado["arquivos_removidos"],
@@ -23803,9 +23829,10 @@ def admin_manutencao_dados() -> str | Response:
         "admin_manutencao_dados.html",
         empresas=empresas,
         empresa_selecionada=empresa_selecionada,
-        ambiente_dev=ambiente_reset_base_dev_liberado(),
-        frase_transacoes=RESET_BASE_ADMIN_FRASE_TRANSACOES,
-        frase_geral=RESET_BASE_ADMIN_FRASE_GERAL,
+        ambiente_dev=ambiente_dev,
+        ambiente_reset=ambiente_operacao,
+        frase_transacoes=frase_transacoes,
+        frase_geral=frase_geral,
         erro=str(request.args.get("erro") or "").strip(),
         sucesso=str(request.args.get("sucesso") or "").strip(),
     )
