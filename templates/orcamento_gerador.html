@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_gerador.html
-Último recode: 2026-08-14 12:28 (America/Bahia)
-Motivo: Incluir alimentação e transporte por dia na linha de mão de obra, com estimativa fixa de dia, semana e mês.
+Último recode: 2026-08-14 12:38 (America/Bahia)
+Motivo: Organizar o Gerador por atividades recolhíveis, com materiais, mão de obra, adicionais e custos próprios, mantendo custos gerais separados.
 -->
 
 <!DOCTYPE html>
@@ -360,7 +360,7 @@ Motivo: Incluir alimentação e transporte por dia na linha de mão de obra, com
                 grid-template-columns: 1fr;
             }
         }
-    
+
         .budget-tabs {
             display: flex;
             gap: 8px;
@@ -888,6 +888,306 @@ Motivo: Incluir alimentação e transporte por dia na linha de mão de obra, com
             .painel-roi-area { min-height: 230px; }
         }
 
+
+        /* COMPOSIÇÃO POR ATIVIDADES - GERADOR DE ORÇAMENTOS */
+        .gerador-atividades-lista {
+            display: grid;
+            gap: 16px;
+        }
+
+        .gerador-atividade-card {
+            overflow: hidden;
+            border: 1px solid #d8e2ee;
+            border-radius: 16px;
+            background: #ffffff;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+        }
+
+        .gerador-atividade-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            min-height: 72px;
+            padding: 14px 16px;
+            background: #f8fafc;
+            border-bottom: 1px solid #e7edf5;
+        }
+
+        .gerador-atividade-card.is-collapsed .gerador-atividade-header {
+            border-bottom-color: transparent;
+        }
+
+        .gerador-atividade-identidade {
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+            border: 0;
+            padding: 0;
+            background: transparent;
+            color: inherit;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .gerador-atividade-numero {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 92px;
+            min-height: 30px;
+            padding: 5px 10px;
+            border-radius: 999px;
+            background: #e8f1ff;
+            color: #0758c9;
+            font-size: 11px;
+            font-weight: 950;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .gerador-atividade-titulo-wrap {
+            min-width: 0;
+        }
+
+        .gerador-atividade-titulo {
+            display: block;
+            overflow: hidden;
+            color: #0f172a;
+            font-size: 15px;
+            font-weight: 950;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .gerador-atividade-subtitulo {
+            display: block;
+            overflow: hidden;
+            margin-top: 3px;
+            color: #64748b;
+            font-size: 11px;
+            font-weight: 700;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .gerador-atividade-acoes {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .gerador-atividade-custo {
+            min-width: 126px;
+            padding: 7px 10px;
+            border: 1px solid #dce5ef;
+            border-radius: 10px;
+            background: #ffffff;
+            text-align: right;
+        }
+
+        .gerador-atividade-custo span,
+        .gerador-atividade-custo strong {
+            display: block;
+        }
+
+        .gerador-atividade-custo span {
+            color: #64748b;
+            font-size: 9px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .gerador-atividade-custo strong {
+            margin-top: 2px;
+            color: #0f172a;
+            font-size: 14px;
+            font-weight: 950;
+            white-space: nowrap;
+        }
+
+        .gerador-atividade-btn {
+            min-height: 34px;
+            padding: 0 10px;
+            border: 1px solid #d8e2ee;
+            border-radius: 9px;
+            background: #ffffff;
+            color: #334155;
+            font-size: 11px;
+            font-weight: 900;
+            cursor: pointer;
+        }
+
+        .gerador-atividade-btn:hover {
+            background: #f1f5f9;
+            color: #0f172a;
+        }
+
+        .gerador-atividade-btn.excluir {
+            color: #b91c1c;
+        }
+
+        .gerador-atividade-chevron {
+            width: 34px;
+            min-width: 34px;
+            padding: 0;
+            font-size: 18px;
+            line-height: 1;
+        }
+
+        .gerador-atividade-card.is-collapsed .gerador-atividade-chevron {
+            transform: rotate(-90deg);
+        }
+
+        .gerador-atividade-conteudo {
+            padding: 16px;
+        }
+
+        .gerador-atividade-conteudo[hidden] {
+            display: none !important;
+        }
+
+        .gerador-atividade-identificacao {
+            display: grid;
+            grid-template-columns: minmax(220px, .75fr) minmax(300px, 1.25fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .gerador-atividade-identificacao .form-group {
+            margin: 0;
+        }
+
+        .gerador-atividade-subsecao {
+            padding-top: 16px;
+            margin-top: 16px;
+            border-top: 1px solid #e7edf5;
+        }
+
+        .gerador-atividade-subsecao:first-of-type {
+            margin-top: 0;
+        }
+
+        .gerador-atividade-subheader {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .gerador-atividade-subheader h4 {
+            margin: 0;
+            color: #0f172a;
+            font-size: 13px;
+            font-weight: 950;
+        }
+
+        .gerador-atividade-subheader p {
+            margin: 3px 0 0;
+            color: #64748b;
+            font-size: 11px;
+            font-weight: 650;
+            line-height: 1.4;
+        }
+
+        .gerador-atividade-subheader .btn-primary-green,
+        .gerador-custos-gerais .btn-primary-green {
+            min-height: 34px;
+            padding: 0 11px;
+            font-size: 11px;
+        }
+
+        .gerador-atividade-vazio {
+            padding: 10px 12px;
+            border: 1px dashed #d8e2ee;
+            border-radius: 10px;
+            color: #64748b;
+            background: #fbfdff;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .gerador-resumo-atividades {
+            display: grid;
+            gap: 6px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .gerador-resumo-atividade-linha {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            color: #475569;
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        .gerador-resumo-atividade-linha span {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .gerador-resumo-atividade-linha strong {
+            color: #0f172a;
+            white-space: nowrap;
+        }
+
+        @media (max-width: 900px) {
+            .gerador-atividade-header {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .gerador-atividade-acoes {
+                justify-content: flex-start;
+            }
+
+            .gerador-atividade-custo {
+                text-align: left;
+            }
+
+            .gerador-atividade-identificacao {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .gerador-atividade-identidade {
+                align-items: flex-start;
+            }
+
+            .gerador-atividade-numero {
+                min-width: 78px;
+            }
+
+            .gerador-atividade-acoes {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .gerador-atividade-custo {
+                grid-column: 1 / -1;
+            }
+
+            .gerador-atividade-chevron {
+                width: 100%;
+            }
+
+            .gerador-atividade-subheader {
+                align-items: stretch;
+                flex-direction: column;
+            }
+        }
+
 </style>
 
 </head>
@@ -1015,96 +1315,30 @@ Motivo: Incluir alimentação e transporte por dia na linha de mão de obra, com
                         </div>
                     </section>
 
-                    <section class="panel page-section gerador-section gerador-section-materiais">
+                    <section class="panel page-section gerador-section gerador-section-atividades">
                         <div class="panel-header page-header">
                             <div>
-                                <h3>Materiais</h3>
-                                <p class="page-subtitle">Busque no cadastro. Se não existir, use + Adicionar novo material dentro da própria linha.</p>
+                                <h3>Composição do serviço</h3>
+                                <p class="page-subtitle">Separe o orçamento por atividades. Cada atividade pode ter materiais, mão de obra, adicionais e custos próprios.</p>
                             </div>
-                            <button type="button" class="btn-primary-green" onclick="adicionarMaterial()">+ Adicionar</button>
+                            <button type="button" class="btn-primary-green" onclick="adicionarAtividade()">+ Adicionar atividade</button>
                         </div>
 
-                        <div class="table-shell">
-                            <table class="client-table gerador-table">
-                                <thead>
-                                    <tr>
-                                        <th>Material</th>
-                                        <th>Unid.</th>
-                                        <th>Qtd.</th>
-                                        <th>Custo unit.</th>
-                                        <th>Perda %</th>
-                                        <th>Total custo</th>
-                                        <th>Ação</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="materiais-body"></tbody>
-                            </table>
-                        </div>
+                        <div id="atividades-body" class="gerador-atividades-lista"></div>
 
                         <div class="gerador-table-actions">
-                            <button type="button" class="btn-primary-green" onclick="adicionarMaterial()">+ Adicionar material</button>
-                            <span>Use este botão para lançar mais de um material no orçamento.</span>
+                            <button type="button" class="btn-primary-green" onclick="adicionarAtividade()">+ Adicionar atividade</button>
+                            <span>Feche as atividades concluídas para manter o Gerador compacto. O custo continua sendo somado normalmente.</span>
                         </div>
                     </section>
 
-                    <section class="panel page-section gerador-section gerador-section-mao-obra">
+                    <section class="panel page-section gerador-section gerador-custos-gerais">
                         <div class="panel-header page-header">
                             <div>
-                                <h3>Mão de obra</h3>
-                                <p class="page-subtitle">Busque funcionários cadastrados. O custo vem da área Custos do funcionário.</p>
+                                <h3>Custos gerais do serviço</h3>
+                                <p class="page-subtitle">Use apenas para custos que pertencem ao orçamento inteiro, como hospedagem, mobilização, ART, frete geral ou locações compartilhadas.</p>
                             </div>
-                            <button type="button" class="btn-primary-green" onclick="adicionarMaoObra()">+ Adicionar</button>
-                        </div>
-
-                        <div class="table-shell">
-                            <table class="client-table gerador-table">
-                                <thead>
-                                    <tr>
-                                        <th>Funcionário / Função</th>
-                                        <th>Pessoas</th>
-                                        <th>Tempo</th>
-                                        <th>Unidade</th>
-                                        <th>Custo unit.</th>
-                                        <th>Alimentação/dia</th>
-                                        <th>Transporte/dia</th>
-                                        <th>Total custo</th>
-                                        <th>Ação</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="mao-obra-body"></tbody>
-                            </table>
-                        </div>
-
-                        <div class="gerador-table-actions">
-                            <button type="button" class="btn-primary-green" onclick="adicionarMaoObra()">+ Adicionar mão de obra</button>
-                            <span>Alimentação e transporte usam estimativa fixa por pessoa: dia = 1, semana = 5 dias e mês = 22 dias.</span>
-                        </div>
-                    </section>
-
-                    <section class="panel page-section gerador-section gerador-section-adicionais">
-                        <div class="panel-header page-header">
-                            <div>
-                                <h3>Adicionais de mão de obra</h3>
-                                <p class="page-subtitle">Inclua hora extra, insalubridade, periculosidade e trabalhos especiais como altura, subestação, NR-10 e NR-12.</p>
-                            </div>
-                            <button type="button" class="btn-primary-green" onclick="adicionarAdicionalMaoObra()">+ Adicional</button>
-                        </div>
-
-                        <div id="adicionais-mao-obra-body" class="adicionais-mao-obra-lista"></div>
-
-                        <div class="gerador-table-actions">
-                            <button type="button" class="btn-primary-green" onclick="adicionarAdicionalMaoObra()">+ Adicionar adicional</button>
-                            <span>O valor usa a mesma margem comercial definida para mão de obra.</span>
-                        </div>
-                    </section>
-
-                    <section class="panel page-section gerador-section gerador-section-custos">
-                        <div class="panel-header page-header">
-                            <div>
-                                <h3>Custos adicionais</h3>
-                                <p class="page-subtitle">Coloque hospedagem, ART, ferramentas, consumíveis e outros custos.</p>
-                            </div>
-                            <button type="button" class="btn-primary-green" onclick="adicionarCusto()">+ Custo</button>
+                            <button type="button" class="btn-primary-green" onclick="adicionarCustoGeral()">+ Custo geral</button>
                         </div>
 
                         <div class="table-shell">
@@ -1116,8 +1350,13 @@ Motivo: Incluir alimentação e transporte por dia na linha de mão de obra, com
                                         <th>Ação</th>
                                     </tr>
                                 </thead>
-                                <tbody id="custos-body"></tbody>
+                                <tbody id="custos-gerais-body"></tbody>
                             </table>
+                        </div>
+
+                        <div class="gerador-table-actions">
+                            <button type="button" class="btn-primary-green" onclick="adicionarCustoGeral()">+ Adicionar custo geral</button>
+                            <span>Custos lançados aqui entram uma única vez no orçamento e não são duplicados entre atividades.</span>
                         </div>
                     </section>
 
@@ -1143,7 +1382,7 @@ Motivo: Incluir alimentação e transporte por dia na linha de mão de obra, com
                                 <textarea id="gerador_descricao_comercial" name="gerador_descricao_comercial" class="form-control textarea-control" placeholder="Ex: Adequação elétrica e mecânica NR-12 em 03 serras-fita, incluindo materiais, instalação, ajustes e testes.">{{ gerador_inicial.descricao_comercial|default(gerador_inicial.resumo_servico|default(''), true) }}</textarea>
                             </div>
                         </div>
-                        <div class="commercial-presentation-note">No modo Agrupado, o cliente verá somente grupos comerciais. No modo Valor global, verá uma única linha. O modo Detalhado mantém a impressão atual com todos os itens.</div>
+                        <div class="commercial-presentation-note">No modo Agrupado, o cliente verá as atividades do serviço sem a composição interna de custos. No modo Valor global, verá uma única linha. No modo Detalhado, materiais e serviços são apresentados com referência às atividades.</div>
                     </section>
 
                     <section class="panel page-section">
@@ -1197,6 +1436,7 @@ Motivo: Incluir alimentação e transporte por dia na linha de mão de obra, com
                         <div class="gerador-indicador"><span>Adicionais de mão de obra</span><strong id="res-custo-adicionais-mao">R$ 0,00</strong></div>
                         <div class="gerador-indicador"><span>Custos adicionais</span><strong id="res-custo-adicional">R$ 0,00</strong></div>
                         <div class="gerador-indicador"><span>Custo total</span><strong id="res-custo-total">R$ 0,00</strong></div>
+                        <div id="resumo-atividades" class="gerador-resumo-atividades"></div>
                     </div>
 
                     <div class="gerador-resumo-card">
@@ -1429,6 +1669,7 @@ const adicionaisMaoObraFormas = adicionaisMaoObraFormasBackend.length ? adiciona
 let materialLinhaAlvo = null;
 let funcionarioLinhaAlvo = null;
 let adicionalMaoObraSequencia = 0;
+let atividadeSequencia = 0;
 
 function textoSeguro(valor) {
     return String(valor || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -1497,20 +1738,296 @@ function formaPadraoTipoAdicional(codigo) {
     return 'fixo';
 }
 
-function removerLinha(botao) {
-    const linha = botao.closest('tr');
-    const eraMaoObra = Boolean(linha && linha.closest('#mao-obra-body'));
-    if (linha) linha.remove();
-    if (eraMaoObra) atualizarOpcoesFuncoesAdicionais();
+function buscarAtividade(atividadeId) {
+    const id = String(atividadeId || '').trim();
+    if (!id) return null;
+    return Array.from(document.querySelectorAll('.gerador-atividade-card')).find(card => card.dataset.atividadeId === id) || null;
+}
+
+function gerarAtividadeId() {
+    let id = '';
+    do {
+        atividadeSequencia += 1;
+        id = `atividade-${atividadeSequencia}`;
+    } while (buscarAtividade(id));
+    return id;
+}
+
+function normalizarAtividadeId(valor) {
+    const normalizado = String(valor || '')
+        .trim()
+        .replace(/[^a-zA-Z0-9_-]+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+    return normalizado || gerarAtividadeId();
+}
+
+function primeiraAtividadeId() {
+    return document.querySelector('.gerador-atividade-card')?.dataset.atividadeId || '';
+}
+
+function atividadeIdDoElemento(elemento) {
+    return elemento?.closest('.gerador-atividade-card')?.dataset.atividadeId || '';
+}
+
+function nomeAtividade(atividadeId) {
+    const card = buscarAtividade(atividadeId);
+    const nome = card?.querySelector('[name="atividade_nome"]')?.value?.trim() || '';
+    const numero = card?.querySelector('.gerador-atividade-numero')?.textContent?.trim() || 'Atividade';
+    return nome || numero;
+}
+
+function atualizarCabecalhoAtividade(card) {
+    if (!card) return;
+    const nome = card.querySelector('[name="atividade_nome"]')?.value?.trim() || '';
+    const descricao = card.querySelector('[name="atividade_descricao"]')?.value?.trim() || '';
+    const titulo = card.querySelector('.gerador-atividade-titulo');
+    const subtitulo = card.querySelector('.gerador-atividade-subtitulo');
+    const numero = card.querySelector('.gerador-atividade-numero')?.textContent?.trim() || 'Atividade';
+    if (titulo) titulo.textContent = nome || numero;
+    if (subtitulo) subtitulo.textContent = descricao || 'Materiais, mão de obra, adicionais e custos desta atividade.';
+}
+
+function reordenarAtividades() {
+    document.querySelectorAll('.gerador-atividade-card').forEach(function(card, indice) {
+        const numero = card.querySelector('.gerador-atividade-numero');
+        const ordem = card.querySelector('[name="atividade_ordem"]');
+        if (numero) numero.textContent = `Atividade ${String(indice + 1).padStart(2, '0')}`;
+        if (ordem) ordem.value = String(indice + 1);
+        atualizarCabecalhoAtividade(card);
+    });
+}
+
+function alternarAtividade(botao, forcarAberta = null) {
+    const card = botao?.closest('.gerador-atividade-card');
+    if (!card) return;
+    const conteudo = card.querySelector('.gerador-atividade-conteudo');
+    const estaFechada = card.classList.contains('is-collapsed');
+    const abrir = forcarAberta === null ? estaFechada : Boolean(forcarAberta);
+    card.classList.toggle('is-collapsed', !abrir);
+    if (conteudo) conteudo.hidden = !abrir;
+}
+
+function dadosMaterialLinha(tr) {
+    return {
+        descricao: tr.querySelector('[name="material_descricao"]')?.value || '',
+        unidade: tr.querySelector('[name="material_unidade"]')?.value || 'un',
+        quantidade: tr.querySelector('[name="material_quantidade"]')?.value || '1',
+        valor_unitario: tr.querySelector('[name="material_valor_unitario"]')?.value || '',
+        perda_percentual: tr.querySelector('[name="material_perda_percentual"]')?.value || '0',
+    };
+}
+
+function dadosMaoObraLinha(tr) {
+    return {
+        funcao: tr.querySelector('[name="mao_funcao"]')?.value || '',
+        pessoas: tr.querySelector('[name="mao_pessoas"]')?.value || '1',
+        tempo: tr.querySelector('[name="mao_tempo"]')?.value || '1',
+        unidade: tr.querySelector('[name="mao_unidade"]')?.value || 'dia',
+        custo_unitario: tr.querySelector('[name="mao_custo_unitario"]')?.value || '',
+        alimentacao_dia: tr.querySelector('[name="mao_alimentacao_dia"]')?.value || '',
+        transporte_dia: tr.querySelector('[name="mao_transporte_dia"]')?.value || '',
+    };
+}
+
+function dadosAdicionalCard(card) {
+    return {
+        tipo: card.querySelector('[name="adicional_tipo"]')?.value || '',
+        descricao: card.querySelector('[name="adicional_descricao"]')?.value || '',
+        funcao: card.querySelector('[name="adicional_funcao"]')?.value || '',
+        pessoas: card.querySelector('[name="adicional_pessoas"]')?.value || '1',
+        quantidade: card.querySelector('[name="adicional_quantidade"]')?.value || '1',
+        unidade: card.querySelector('[name="adicional_unidade"]')?.value || 'fixo',
+        forma_calculo: card.querySelector('[name="adicional_forma_calculo"]')?.value || 'fixo',
+        percentual: card.querySelector('[name="adicional_percentual"]')?.value || '',
+        valor_base: card.querySelector('[name="adicional_valor_base"]')?.value || '',
+        valor_unitario: card.querySelector('[name="adicional_valor_unitario"]')?.value || '',
+        exibir_cliente: card.querySelector('[name="adicional_exibir_cliente"]')?.value || 'nao',
+    };
+}
+
+function dadosCustoLinha(tr) {
+    return {
+        descricao: tr.querySelector('[name="custo_descricao"]')?.value || '',
+        valor: tr.querySelector('[name="custo_valor"]')?.value || '',
+    };
+}
+
+function coletarAtividade(card) {
+    return {
+        nome: card.querySelector('[name="atividade_nome"]')?.value || '',
+        descricao: card.querySelector('[name="atividade_descricao"]')?.value || '',
+        materiais: Array.from(card.querySelectorAll('.gerador-material-row')).map(dadosMaterialLinha),
+        mao_obra: Array.from(card.querySelectorAll('.gerador-mao-row')).map(dadosMaoObraLinha),
+        adicionais_mao_obra: Array.from(card.querySelectorAll('.adicional-mao-obra-card')).map(dadosAdicionalCard),
+        custos_adicionais: Array.from(card.querySelectorAll('.gerador-custo-row')).map(dadosCustoLinha),
+    };
+}
+
+function adicionarAtividade(dados = {}, expandir = true) {
+    dados = dados || {};
+    const body = document.getElementById('atividades-body');
+    if (!body) return null;
+
+    let atividadeId = normalizarAtividadeId(dados.id || dados.atividade_id || '');
+    if (buscarAtividade(atividadeId)) atividadeId = gerarAtividadeId();
+
+    const card = document.createElement('article');
+    card.className = 'gerador-atividade-card';
+    card.dataset.atividadeId = atividadeId;
+    card.innerHTML = `
+        <div class="gerador-atividade-header">
+            <button type="button" class="gerador-atividade-identidade" onclick="alternarAtividade(this)">
+                <span class="gerador-atividade-numero">Atividade</span>
+                <span class="gerador-atividade-titulo-wrap">
+                    <strong class="gerador-atividade-titulo">Atividade</strong>
+                    <span class="gerador-atividade-subtitulo">Materiais, mão de obra, adicionais e custos desta atividade.</span>
+                </span>
+            </button>
+            <div class="gerador-atividade-acoes">
+                <div class="gerador-atividade-custo"><span>Custo da atividade</span><strong class="atividade-total">R$ 0,00</strong></div>
+                <button type="button" class="gerador-atividade-btn" onclick="duplicarAtividade(this)">Duplicar</button>
+                <button type="button" class="gerador-atividade-btn excluir" onclick="removerAtividade(this)">Excluir</button>
+                <button type="button" class="gerador-atividade-btn gerador-atividade-chevron" onclick="alternarAtividade(this)" aria-label="Abrir ou fechar atividade">⌄</button>
+            </div>
+        </div>
+        <div class="gerador-atividade-conteudo">
+            <input type="hidden" name="atividade_id" value="${textoSeguro(atividadeId)}">
+            <input type="hidden" name="atividade_ordem" value="1">
+
+            <div class="gerador-atividade-identificacao">
+                <div class="form-group">
+                    <label>Nome da atividade</label>
+                    <input name="atividade_nome" type="text" class="form-control atividade-nome" placeholder="Ex: Desmontagem do equipamento" value="${textoSeguro(dados.nome || '')}">
+                </div>
+                <div class="form-group">
+                    <label>Descrição da atividade</label>
+                    <textarea name="atividade_descricao" class="form-control atividade-descricao" rows="2" placeholder="Descreva resumidamente o que será executado nesta atividade.">${textoSeguro(dados.descricao || '')}</textarea>
+                </div>
+            </div>
+
+            <div class="gerador-atividade-subsecao">
+                <div class="gerador-atividade-subheader">
+                    <div><h4>Materiais</h4><p>Materiais utilizados somente nesta atividade.</p></div>
+                    <button type="button" class="btn-primary-green" onclick="adicionarMaterial({}, '${textoSeguro(atividadeId)}')">+ Material</button>
+                </div>
+                <div class="table-shell">
+                    <table class="client-table gerador-table">
+                        <thead><tr><th>Material</th><th>Unid.</th><th>Qtd.</th><th>Custo unit.</th><th>Perda %</th><th>Total custo</th><th>Ação</th></tr></thead>
+                        <tbody class="atividade-materiais-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="gerador-atividade-subsecao">
+                <div class="gerador-atividade-subheader">
+                    <div><h4>Mão de obra</h4><p>Alimentação e transporte usam: dia = 1, semana = 5 dias e mês = 22 dias.</p></div>
+                    <button type="button" class="btn-primary-green" onclick="adicionarMaoObra({}, '${textoSeguro(atividadeId)}')">+ Mão de obra</button>
+                </div>
+                <div class="table-shell">
+                    <table class="client-table gerador-table">
+                        <thead><tr><th>Funcionário / Função</th><th>Pessoas</th><th>Tempo</th><th>Unidade</th><th>Custo unit.</th><th>Alimentação/dia</th><th>Transporte/dia</th><th>Total custo</th><th>Ação</th></tr></thead>
+                        <tbody class="atividade-mao-obra-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="gerador-atividade-subsecao">
+                <div class="gerador-atividade-subheader">
+                    <div><h4>Adicionais de mão de obra</h4><p>Hora extra, periculosidade, insalubridade e trabalhos especiais desta atividade.</p></div>
+                    <button type="button" class="btn-primary-green" onclick="adicionarAdicionalMaoObra({}, '${textoSeguro(atividadeId)}')">+ Adicional</button>
+                </div>
+                <div class="atividade-adicionais-body adicionais-mao-obra-lista"></div>
+            </div>
+
+            <div class="gerador-atividade-subsecao">
+                <div class="gerador-atividade-subheader">
+                    <div><h4>Outros custos da atividade</h4><p>Locação, ferramenta, frete específico, consumíveis ou custos que pertencem somente a esta atividade.</p></div>
+                    <button type="button" class="btn-primary-green" onclick="adicionarCusto({}, '${textoSeguro(atividadeId)}')">+ Custo</button>
+                </div>
+                <div class="table-shell">
+                    <table class="client-table gerador-table">
+                        <thead><tr><th>Descrição</th><th>Valor</th><th>Ação</th></tr></thead>
+                        <tbody class="atividade-custos-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    `;
+    body.appendChild(card);
+
+    const nome = card.querySelector('.atividade-nome');
+    const descricao = card.querySelector('.atividade-descricao');
+    [nome, descricao].forEach(function(campo) {
+        campo?.addEventListener('input', function() {
+            atualizarCabecalhoAtividade(card);
+            recalcularGerador();
+        });
+    });
+
+    reordenarAtividades();
+
+    const materiais = Array.isArray(dados.materiais) ? dados.materiais : [];
+    const maoObra = Array.isArray(dados.mao_obra) ? dados.mao_obra : [];
+    const adicionais = Array.isArray(dados.adicionais_mao_obra) ? dados.adicionais_mao_obra : [];
+    const custos = Array.isArray(dados.custos_adicionais) ? dados.custos_adicionais : [];
+    materiais.forEach(item => adicionarMaterial(item, atividadeId));
+    maoObra.forEach(item => adicionarMaoObra(item, atividadeId));
+    adicionais.forEach(item => adicionarAdicionalMaoObra(item, atividadeId));
+    custos.forEach(item => adicionarCusto(item, atividadeId));
+
+    if (!expandir) alternarAtividade(card.querySelector('.gerador-atividade-identidade'), false);
+    else alternarAtividade(card.querySelector('.gerador-atividade-identidade'), true);
+
+    atualizarOpcoesFuncoesAdicionais(atividadeId);
+    recalcularGerador();
+    return card;
+}
+
+function duplicarAtividade(botao) {
+    const card = botao?.closest('.gerador-atividade-card');
+    if (!card) return;
+    const dados = coletarAtividade(card);
+    const nomeAtual = String(dados.nome || nomeAtividade(card.dataset.atividadeId)).trim();
+    dados.nome = nomeAtual ? `${nomeAtual} - Cópia` : 'Atividade - Cópia';
+    adicionarAtividade(dados, true);
+}
+
+function removerAtividade(botao) {
+    const card = botao?.closest('.gerador-atividade-card');
+    if (!card) return;
+    const total = document.querySelectorAll('.gerador-atividade-card').length;
+    if (total <= 1) {
+        window.alert('O Gerador precisa manter pelo menos uma atividade.');
+        return;
+    }
+    const nome = nomeAtividade(card.dataset.atividadeId);
+    if (!window.confirm(`Excluir a atividade "${nome}" e todos os custos lançados nela?`)) return;
+    card.remove();
+    reordenarAtividades();
+    atualizarOpcoesFuncoesAdicionais();
     recalcularGerador();
 }
 
-function adicionarMaterial(dados = {}) {
-    const body = document.getElementById('materiais-body');
+function removerLinha(botao) {
+    const linha = botao.closest('tr');
+    const atividadeId = linha?.querySelector('[name="mao_atividade_id"]')?.value || '';
+    const eraMaoObra = Boolean(linha?.classList.contains('gerador-mao-row'));
+    if (linha) linha.remove();
+    if (eraMaoObra) atualizarOpcoesFuncoesAdicionais(atividadeId);
+    recalcularGerador();
+}
+
+function adicionarMaterial(dados = {}, atividadeId = '') {
+    dados = dados || {};
+    const id = String(atividadeId || dados.atividade_id || primeiraAtividadeId()).trim();
+    const atividade = buscarAtividade(id);
+    const body = atividade?.querySelector('.atividade-materiais-body');
+    if (!body) return;
     const tr = document.createElement('tr');
     tr.className = 'gerador-mobile-row gerador-material-row';
     tr.innerHTML = `
-        <td data-label="Material"><select name="material_descricao" class="form-control gerador-input material-select">${opcoesMateriais()}</select></td>
+        <td data-label="Material"><input name="material_atividade_id" type="hidden" value="${textoSeguro(id)}"><select name="material_descricao" class="form-control gerador-input material-select">${opcoesMateriais()}</select></td>
         <td data-label="Unidade"><input name="material_unidade" type="text" class="form-control gerador-input" value="${textoSeguro(dados.unidade || 'un')}"></td>
         <td data-label="Quantidade"><input name="material_quantidade" type="text" class="form-control gerador-input" value="${textoSeguro(dados.quantidade || '1')}"></td>
         <td data-label="Custo unitário"><input name="material_valor_unitario" type="text" class="form-control gerador-input" placeholder="0,00" value="${textoSeguro(dados.valor ?? dados.valor_unitario ?? '')}"></td>
@@ -1533,12 +2050,16 @@ function adicionarMaterial(dados = {}) {
     recalcularGerador();
 }
 
-function adicionarMaoObra(dados = {}) {
-    const body = document.getElementById('mao-obra-body');
+function adicionarMaoObra(dados = {}, atividadeId = '') {
+    dados = dados || {};
+    const id = String(atividadeId || dados.atividade_id || primeiraAtividadeId()).trim();
+    const atividade = buscarAtividade(id);
+    const body = atividade?.querySelector('.atividade-mao-obra-body');
+    if (!body) return;
     const tr = document.createElement('tr');
     tr.className = 'gerador-mobile-row gerador-mao-row';
     tr.innerHTML = `
-        <td data-label="Funcionário / função"><select name="mao_funcao" class="form-control gerador-input mao-select">${opcoesFuncionarios()}</select></td>
+        <td data-label="Funcionário / função"><input name="mao_atividade_id" type="hidden" value="${textoSeguro(id)}"><select name="mao_funcao" class="form-control gerador-input mao-select">${opcoesFuncionarios()}</select></td>
         <td data-label="Pessoas"><input name="mao_pessoas" type="text" class="form-control gerador-input" value="${textoSeguro(dados.pessoas || '1')}"></td>
         <td data-label="Tempo"><input name="mao_tempo" type="text" class="form-control gerador-input" value="${textoSeguro(dados.tempo || '1')}"></td>
         <td data-label="Unidade"><select name="mao_unidade" class="form-control gerador-input mao-unidade"><option value="hora">hora</option><option value="dia" selected>dia</option><option value="semana">semana</option><option value="mes">mês</option></select></td>
@@ -1562,17 +2083,22 @@ function adicionarMaoObra(dados = {}) {
         select.value = dados.funcao;
     }
     conectarEventosGerador(tr);
-    atualizarOpcoesFuncoesAdicionais();
+    atualizarOpcoesFuncoesAdicionais(id);
     recalcularGerador();
 }
 
-function adicionarAdicionalMaoObra(dados = {}) {
-    const body = document.getElementById('adicionais-mao-obra-body');
+function adicionarAdicionalMaoObra(dados = {}, atividadeId = '') {
+    dados = dados || {};
+    const id = String(atividadeId || dados.atividade_id || primeiraAtividadeId()).trim();
+    const atividade = buscarAtividade(id);
+    const body = atividade?.querySelector('.atividade-adicionais-body');
+    if (!body) return;
     const card = document.createElement('div');
     adicionalMaoObraSequencia += 1;
     card.className = 'adicional-mao-obra-card';
     card.dataset.adicionalId = String(adicionalMaoObraSequencia);
     card.innerHTML = `
+        <input name="adicional_atividade_id" type="hidden" value="${textoSeguro(id)}">
         <div class="adicional-mao-obra-topo">
             <strong>Adicional de mão de obra</strong>
             <button type="button" class="gerador-remove" onclick="removerAdicionalMaoObra(this)" aria-label="Remover adicional">×</button>
@@ -1589,7 +2115,7 @@ function adicionarAdicionalMaoObra(dados = {}) {
             <div class="form-group adicional-campo-duplo">
                 <label>Funcionário / função</label>
                 <select name="adicional_funcao" class="form-control gerador-input adicional-funcao" data-valor-inicial="${textoSeguro(dados.funcao ?? dados.funcionario_funcao ?? '')}"></select>
-                <small class="adicional-ajuda">Deixe em “Toda a mão de obra” para usar o custo completo da equipe.</small>
+                <small class="adicional-ajuda">Deixe em “Toda a mão de obra” para usar o custo base da equipe desta atividade.</small>
             </div>
             <div class="form-group adicional-campo-duplo">
                 <label>Forma de cálculo</label>
@@ -1611,7 +2137,7 @@ function adicionarAdicionalMaoObra(dados = {}) {
             <div class="form-group adicional-campo-base">
                 <label>Base da mão de obra</label>
                 <input name="adicional_valor_base" type="text" class="form-control gerador-input adicional-base" placeholder="Calculada automaticamente" value="${textoSeguro(dados.valor_base || '')}">
-                <small class="adicional-ajuda">O sistema preenche pelo funcionário selecionado ou por toda a equipe.</small>
+                <small class="adicional-ajuda">A base automática considera somente a mão de obra desta atividade e não inclui alimentação ou transporte.</small>
             </div>
             <div class="form-group adicional-campo-valor">
                 <label class="adicional-valor-label">Valor</label>
@@ -1641,7 +2167,7 @@ function adicionarAdicionalMaoObra(dados = {}) {
     exibir.value = dados.exibir_cliente === 'sim' ? 'sim' : 'nao';
 
     conectarEventosAdicionalMaoObra(card);
-    atualizarOpcoesFuncoesAdicionais();
+    atualizarOpcoesFuncoesAdicionais(id);
     atualizarAdicionalPorTipo(card, false);
     atualizarFormaCalculoAdicional(card);
     recalcularGerador();
@@ -1649,15 +2175,15 @@ function adicionarAdicionalMaoObra(dados = {}) {
 
 function removerAdicionalMaoObra(botao) {
     const card = botao.closest('.adicional-mao-obra-card');
+    const atividadeId = card?.querySelector('[name="adicional_atividade_id"]')?.value || '';
     if (card) card.remove();
+    atualizarOpcoesFuncoesAdicionais(atividadeId);
     recalcularGerador();
 }
 
 function conectarEventosAdicionalMaoObra(card) {
     card.querySelectorAll('.gerador-input').forEach(function(campo) {
-        if (!campo.classList.contains('adicional-base')) {
-            campo.addEventListener('input', recalcularGerador);
-        }
+        if (!campo.classList.contains('adicional-base')) campo.addEventListener('input', recalcularGerador);
         campo.addEventListener('change', recalcularGerador);
     });
 
@@ -1761,16 +2287,24 @@ function atualizarFormaCalculoAdicional(card) {
     }
 }
 
-function atualizarOpcoesFuncoesAdicionais() {
-    const funcoes = [];
-    document.querySelectorAll('#mao-obra-body .mao-select').forEach(function(select) {
-        const valor = select.value;
-        if (!valor || valor.startsWith('__novo')) return;
-        const texto = select.selectedOptions[0]?.textContent || valor;
-        if (!funcoes.some(item => item.valor === valor)) funcoes.push({ valor, texto });
-    });
+function atualizarOpcoesFuncoesAdicionais(atividadeId = '') {
+    document.querySelectorAll('.adicional-mao-obra-card').forEach(function(card) {
+        const idCard = card.querySelector('[name="adicional_atividade_id"]')?.value || '';
+        if (atividadeId && idCard !== atividadeId) return;
 
-    document.querySelectorAll('.adicional-funcao').forEach(function(select) {
+        const funcoes = [];
+        document.querySelectorAll('.gerador-mao-row').forEach(function(tr) {
+            const idMao = tr.querySelector('[name="mao_atividade_id"]')?.value || '';
+            if (idMao !== idCard) return;
+            const select = tr.querySelector('.mao-select');
+            const valor = select?.value || '';
+            if (!valor || valor.startsWith('__novo')) return;
+            const texto = select.selectedOptions[0]?.textContent || valor;
+            if (!funcoes.some(item => item.valor === valor)) funcoes.push({ valor, texto });
+        });
+
+        const select = card.querySelector('.adicional-funcao');
+        if (!select) return;
         const atual = select.value || select.dataset.valorInicial || '';
         select.innerHTML = '<option value="">Toda a mão de obra</option>' + funcoes.map(function(item) {
             return `<option value="${textoSeguro(item.valor)}">${textoSeguro(item.texto)}</option>`;
@@ -1781,9 +2315,11 @@ function atualizarOpcoesFuncoesAdicionais() {
     });
 }
 
-function custoMaoObraReferencia(funcao) {
+function custoMaoObraReferencia(funcao, atividadeId = '') {
     let total = 0;
-    document.querySelectorAll('#mao-obra-body tr').forEach(function(tr) {
+    document.querySelectorAll('.gerador-mao-row').forEach(function(tr) {
+        const idMao = tr.querySelector('[name="mao_atividade_id"]')?.value || '';
+        if (atividadeId && idMao !== atividadeId) return;
         const selecionada = tr.querySelector('.mao-select')?.value || '';
         if (funcao && selecionada !== funcao) return;
         const pessoas = numero(tr.querySelector('[name="mao_pessoas"]')?.value) || 1;
@@ -1797,6 +2333,7 @@ function custoMaoObraReferencia(funcao) {
 function calcularAdicionalMaoObra(card) {
     const forma = card.querySelector('.adicional-forma')?.value || 'fixo';
     const funcao = card.querySelector('.adicional-funcao')?.value || '';
+    const atividadeId = card.querySelector('[name="adicional_atividade_id"]')?.value || '';
     const pessoas = numero(card.querySelector('[name="adicional_pessoas"]')?.value) || 1;
     const quantidade = numero(card.querySelector('[name="adicional_quantidade"]')?.value) || 1;
     const percentual = numero(card.querySelector('[name="adicional_percentual"]')?.value);
@@ -1805,9 +2342,7 @@ function calcularAdicionalMaoObra(card) {
     let total = 0;
 
     if (forma === 'percentual_mao_obra') {
-        if (baseInput.dataset.manual !== 'sim') {
-            baseInput.value = moedaSemSimbolo(custoMaoObraReferencia(funcao));
-        }
+        if (baseInput.dataset.manual !== 'sim') baseInput.value = moedaSemSimbolo(custoMaoObraReferencia(funcao, atividadeId));
         total = numero(baseInput.value) * percentual / 100;
     } else if (forma === 'por_pessoa') {
         total = pessoas * valorUnitario;
@@ -1822,18 +2357,25 @@ function calcularAdicionalMaoObra(card) {
     return total;
 }
 
-function adicionarCusto(dados = {}) {
-    const body = document.getElementById('custos-body');
+function adicionarCusto(dados = {}, atividadeId = '') {
+    dados = dados || {};
+    const id = String(atividadeId || dados.atividade_id || '').trim();
+    const body = id ? buscarAtividade(id)?.querySelector('.atividade-custos-body') : document.getElementById('custos-gerais-body');
+    if (!body) return;
     const tr = document.createElement('tr');
     tr.className = 'gerador-mobile-row gerador-custo-row';
     tr.innerHTML = `
-        <td data-label="Descrição"><input name="custo_descricao" type="text" class="form-control gerador-descricao gerador-input" placeholder="Ex: Transporte" value="${textoSeguro(dados.descricao || '')}"></td>
+        <td data-label="Descrição"><input name="custo_atividade_id" type="hidden" value="${textoSeguro(id)}"><input name="custo_descricao" type="text" class="form-control gerador-descricao gerador-input" placeholder="${id ? 'Ex: Locação de plataforma' : 'Ex: Hospedagem / ART / mobilização'}" value="${textoSeguro(dados.descricao || '')}"></td>
         <td data-label="Valor"><input name="custo_valor" type="text" class="form-control gerador-input" placeholder="0,00" value="${textoSeguro(dados.valor ?? dados.valor_unitario ?? '')}"></td>
-        <td data-label="Ação" class="gerador-action-cell"><button type="button" class="gerador-remove" onclick="removerLinha(this)" aria-label="Excluir custo adicional">×</button></td>
+        <td data-label="Ação" class="gerador-action-cell"><button type="button" class="gerador-remove" onclick="removerLinha(this)" aria-label="Excluir custo">×</button></td>
     `;
     body.appendChild(tr);
     conectarEventosGerador(tr);
     recalcularGerador();
+}
+
+function adicionarCustoGeral() {
+    adicionarCusto({}, '');
 }
 
 function preencherCustoFuncionario(linha) {
@@ -1853,7 +2395,6 @@ function preencherCustoFuncionario(linha) {
     if (custo) linha.querySelector('[name="mao_custo_unitario"]').value = custo;
 }
 
-
 function textoMaiusculoTecnico(valor) {
     return String(valor || '')
         .normalize('NFD')
@@ -1872,25 +2413,27 @@ function textoMaiusculoTecnico(valor) {
 }
 
 function listaMateriaisEscopo() {
-    return Array.from(document.querySelectorAll('#materiais-body tr'))
+    return Array.from(document.querySelectorAll('.gerador-material-row'))
         .map(function(tr) {
             const select = tr.querySelector('.material-select');
             const descricao = select?.value || '';
             if (!descricao || descricao.startsWith('__novo')) return '';
             const qtd = tr.querySelector('[name="material_quantidade"]')?.value || '';
             const unidade = tr.querySelector('[name="material_unidade"]')?.value || '';
+            const atividadeId = tr.querySelector('[name="material_atividade_id"]')?.value || '';
+            const prefixo = textoMaiusculoTecnico(nomeAtividade(atividadeId));
             const qtdTexto = textoMaiusculoTecnico(qtd || '');
             const unTexto = textoMaiusculoTecnico(unidade || '');
             const descTexto = textoMaiusculoTecnico(descricao);
-            if (qtdTexto && unTexto) return `${qtdTexto} ${unTexto} - ${descTexto}`;
-            return descTexto;
+            const item = qtdTexto && unTexto ? `${qtdTexto} ${unTexto} - ${descTexto}` : descTexto;
+            return prefixo ? `${prefixo}: ${item}` : item;
         })
         .filter(Boolean)
-        .slice(0, 12);
+        .slice(0, 20);
 }
 
 function listaMaoObraEscopo() {
-    return Array.from(document.querySelectorAll('#mao-obra-body tr'))
+    return Array.from(document.querySelectorAll('.gerador-mao-row'))
         .map(function(tr) {
             const select = tr.querySelector('.mao-select');
             const descricao = select?.value || '';
@@ -1898,22 +2441,29 @@ function listaMaoObraEscopo() {
             const pessoas = tr.querySelector('[name="mao_pessoas"]')?.value || '';
             const tempo = tr.querySelector('[name="mao_tempo"]')?.value || '';
             const unidade = tr.querySelector('[name="mao_unidade"]')?.value || '';
+            const atividadeId = tr.querySelector('[name="mao_atividade_id"]')?.value || '';
+            const prefixo = textoMaiusculoTecnico(nomeAtividade(atividadeId));
             const descTexto = textoMaiusculoTecnico(descricao);
             const pessoasTexto = textoMaiusculoTecnico(pessoas || '');
             const tempoTexto = textoMaiusculoTecnico(tempo || '');
             const unidadeTexto = textoMaiusculoTecnico(unidade || '');
-            if (pessoasTexto && tempoTexto) return `${descTexto} - ${pessoasTexto} PESSOA(S) POR ${tempoTexto} ${unidadeTexto}`;
-            return descTexto;
+            const item = pessoasTexto && tempoTexto ? `${descTexto} - ${pessoasTexto} PESSOA(S) POR ${tempoTexto} ${unidadeTexto}` : descTexto;
+            return prefixo ? `${prefixo}: ${item}` : item;
         })
         .filter(Boolean)
-        .slice(0, 10);
+        .slice(0, 20);
 }
 
 function listaCustosEscopo() {
-    return Array.from(document.querySelectorAll('#custos-body [name="custo_descricao"]'))
-        .map(input => textoMaiusculoTecnico(input.value))
+    return Array.from(document.querySelectorAll('.gerador-custo-row'))
+        .map(function(tr) {
+            const descricao = textoMaiusculoTecnico(tr.querySelector('[name="custo_descricao"]')?.value || '');
+            if (!descricao) return '';
+            const atividadeId = tr.querySelector('[name="custo_atividade_id"]')?.value || '';
+            return atividadeId ? `${textoMaiusculoTecnico(nomeAtividade(atividadeId))}: ${descricao}` : `CUSTO GERAL: ${descricao}`;
+        })
         .filter(Boolean)
-        .slice(0, 10);
+        .slice(0, 20);
 }
 
 function listaAdicionaisMaoObraEscopo() {
@@ -1922,17 +2472,27 @@ function listaAdicionaisMaoObraEscopo() {
             const descricao = textoMaiusculoTecnico(card.querySelector('[name="adicional_descricao"]')?.value || '');
             if (!descricao) return '';
             const funcao = textoMaiusculoTecnico(card.querySelector('[name="adicional_funcao"]')?.value || '');
-            return funcao ? `${descricao} - ${funcao}` : descricao;
+            const atividadeId = card.querySelector('[name="adicional_atividade_id"]')?.value || '';
+            const prefixo = textoMaiusculoTecnico(nomeAtividade(atividadeId));
+            const item = funcao ? `${descricao} - ${funcao}` : descricao;
+            return prefixo ? `${prefixo}: ${item}` : item;
         })
         .filter(Boolean)
-        .slice(0, 10);
+        .slice(0, 20);
+}
+
+function listaAtividadesEscopo() {
+    return Array.from(document.querySelectorAll('.gerador-atividade-card'))
+        .map(function(card, indice) {
+            const nome = textoMaiusculoTecnico(card.querySelector('[name="atividade_nome"]')?.value || `ATIVIDADE ${indice + 1}`);
+            const descricao = textoMaiusculoTecnico(card.querySelector('[name="atividade_descricao"]')?.value || '');
+            return descricao ? `${nome} - ${descricao}` : nome;
+        })
+        .filter(Boolean);
 }
 
 function montarLinhasOuPadrao(lista, padrao) {
-    const origem = lista.length
-        ? lista
-        : (Array.isArray(padrao) ? padrao : String(padrao || '').split('\n'));
-
+    const origem = lista.length ? lista : (Array.isArray(padrao) ? padrao : String(padrao || '').split('\n'));
     return origem
         .map(item => String(item || '').replace(/^\s*[-–—•*]+\s*/, '').trim())
         .filter(Boolean)
@@ -1950,6 +2510,7 @@ function gerarEscopoAutomatico() {
     const maoObra = listaMaoObraEscopo();
     const adicionaisMaoObra = listaAdicionaisMaoObraEscopo();
     const custos = listaCustosEscopo();
+    const atividades = listaAtividadesEscopo();
 
     const objetivoBase = resumo
         ? `EXECUTAR SERVICOS DE ${resumo}, CONFORME SOLICITACAO DO CLIENTE, VISANDO ATENDER AS NECESSIDADES OPERACIONAIS, TECNICAS E DE UTILIZACAO.`
@@ -1963,12 +2524,14 @@ function gerarEscopoAutomatico() {
         ? `FOI IDENTIFICADA A NECESSIDADE DE INTERVENCAO TECNICA PARA ${resumo}, SENDO NECESSARIA A EXECUCAO DOS SERVICOS PREVISTOS PARA ATENDER AO PADRAO SOLICITADO PELO CLIENTE.`
         : `FOI IDENTIFICADA A NECESSIDADE DE INTERVENCAO TECNICA PARA ADEQUACAO, CORRECAO OU MELHORIA DAS CONDICOES EXISTENTES, CONFORME DEMANDA INFORMADA PELO CLIENTE E AVALIACAO PRELIMINAR DO SERVICO.`;
 
-    const servicosExecutadosPadrao = [
-        'MOBILIZACAO DA EQUIPE TECNICA',
-        `EXECUCAO DOS SERVICOS DE ${tipo} CONFORME ESCOPO DEFINIDO`,
-        'APLICACAO DOS MATERIAIS NECESSARIOS',
-        'AJUSTES, TESTES E VERIFICACAO FINAL DAS CONDICOES DE ENTREGA'
-    ];
+    const servicosExecutadosPadrao = atividades.length
+        ? atividades.map(item => `EXECUCAO DA ${item}`)
+        : [
+            'MOBILIZACAO DA EQUIPE TECNICA',
+            `EXECUCAO DOS SERVICOS DE ${tipo} CONFORME ESCOPO DEFINIDO`,
+            'APLICACAO DOS MATERIAIS NECESSARIOS',
+            'AJUSTES, TESTES E VERIFICACAO FINAL DAS CONDICOES DE ENTREGA'
+        ];
 
     maoObra.forEach(item => servicosExecutadosPadrao.push(`UTILIZACAO DE MAO DE OBRA: ${item}`));
     adicionaisMaoObra.forEach(item => servicosExecutadosPadrao.push(`ADICIONAL DE MAO DE OBRA: ${item}`));
@@ -1979,7 +2542,7 @@ function gerarEscopoAutomatico() {
         'CONSUMIVEIS, ACESSORIOS E ELEMENTOS COMPLEMENTARES NECESSARIOS PARA EXECUCAO DAS ATIVIDADES'
     ];
 
-    const texto = `1 OBJETIVO DO SERVICO\n\n${objetivoBase}\n\n2 DESCRICAO DO SERVICO\n\n${descricaoBase}\n\nAS ATIVIDADES DEVERAO SER EXECUTADAS CONFORME AS CONDICOES REAIS DE CAMPO, MANTENDO A FUNCIONALIDADE, A SEGURANCA E A INTEGRIDADE DOS CONJUNTOS OU SISTEMAS ENVOLVIDOS APOS A INTERVENCAO.\n\n3 DIAGNOSTICO TECNICO\n\n${diagnosticoBase}\n\nEM RAZAO DESSA NECESSIDADE, DEVERAO SER REALIZADOS OS SERVICOS DE PREPARACAO, EXECUCAO, AJUSTES, VERIFICACOES E FINALIZACAO, DE FORMA A GARANTIR CONDICOES ADEQUADAS DE USO APOS A INTERVENCAO.\n\n4 SERVICOS PREVISTOS\n\n${montarLinhasOuPadrao(servicosExecutadosPadrao, `EXECUCAO DOS SERVICOS DE ${tipo} CONFORME ESCOPO DEFINIDO`)}\n\n5 MATERIAIS E COMPONENTES\n\n${montarLinhasOuPadrao(materiais, materiaisPadrao)}\n\n6 CONDICOES DO SERVICO\n\nO ESCOPO CONTEMPLA A EXECUCAO DOS SERVICOS DESCRITOS, CONFORME SOLICITACAO DO CLIENTE ${cliente && cliente !== 'CLIENTE' ? ' ' + cliente : ''}.\n\nAS ALTERACOES, ADEQUACOES OU INTERVENCOES SERAO EXECUTADAS COM BASE NAS CONDICOES REAIS DO LOCAL E NAS DEFINICOES TECNICAS DE CAMPO.\n\nEVENTUAIS AJUSTES ADICIONAIS OU MODIFICACOES NAO PREVISTAS INICIALMENTE DEVERAO SER TRATADOS SEPARADAMENTE, CASO NECESSARIO.\n\nO SERVICO DEVERA GARANTIR A FUNCIONALIDADE, A SEGURANCA E AS CONDICOES ADEQUADAS DE UTILIZACAO APOS A EXECUCAO.\n\n7 PRAZO\n\nPRAZO DE EXECUCAO: ${prazo}.`;
+    const texto = `1 OBJETIVO DO SERVICO\n\n${objetivoBase}\n\n2 DESCRICAO DO SERVICO\n\n${descricaoBase}\n\nAS ATIVIDADES DEVERAO SER EXECUTADAS CONFORME AS CONDICOES REAIS DE CAMPO, MANTENDO A FUNCIONALIDADE, A SEGURANCA E A INTEGRIDADE DOS CONJUNTOS OU SISTEMAS ENVOLVIDOS APOS A INTERVENCAO.\n\n3 DIAGNOSTICO TECNICO\n\n${diagnosticoBase}\n\nEM RAZAO DESSA NECESSIDADE, DEVERAO SER REALIZADOS OS SERVICOS DE PREPARACAO, EXECUCAO, AJUSTES, VERIFICACOES E FINALIZACAO, DE FORMA A GARANTIR CONDICOES ADEQUADAS DE USO APOS A INTERVENCAO.\n\n4 ATIVIDADES E SERVICOS PREVISTOS\n\n${montarLinhasOuPadrao(servicosExecutadosPadrao, `EXECUCAO DOS SERVICOS DE ${tipo} CONFORME ESCOPO DEFINIDO`)}\n\n5 MATERIAIS E COMPONENTES\n\n${montarLinhasOuPadrao(materiais, materiaisPadrao)}\n\n6 CONDICOES DO SERVICO\n\nO ESCOPO CONTEMPLA A EXECUCAO DOS SERVICOS DESCRITOS, CONFORME SOLICITACAO DO CLIENTE ${cliente && cliente !== 'CLIENTE' ? ' ' + cliente : ''}.\n\nAS ALTERACOES, ADEQUACOES OU INTERVENCOES SERAO EXECUTADAS COM BASE NAS CONDICOES REAIS DO LOCAL E NAS DEFINICOES TECNICAS DE CAMPO.\n\nEVENTUAIS AJUSTES ADICIONAIS OU MODIFICACOES NAO PREVISTAS INICIALMENTE DEVERAO SER TRATADOS SEPARADAMENTE, CASO NECESSARIO.\n\nO SERVICO DEVERA GARANTIR A FUNCIONALIDADE, A SEGURANCA E AS CONDICOES ADEQUADAS DE UTILIZACAO APOS A EXECUCAO.\n\n7 PRAZO\n\nPRAZO DE EXECUCAO: ${prazo}.`;
 
     const campo = document.getElementById('gerador_escopo');
     if (campo) {
@@ -2011,9 +2574,15 @@ function conectarEventosGerador(raiz) {
     });
     raiz.querySelectorAll('.mao-select, .mao-unidade').forEach(function(campo) {
         campo.addEventListener('change', function() {
-            preencherCustoFuncionario(campo.closest('tr'));
-            atualizarOpcoesFuncoesAdicionais();
-            document.querySelectorAll('.adicional-base').forEach(base => { if (base.dataset.manual !== 'sim') base.dataset.manual = 'nao'; });
+            const linha = campo.closest('tr');
+            const atividadeId = linha?.querySelector('[name="mao_atividade_id"]')?.value || '';
+            preencherCustoFuncionario(linha);
+            atualizarOpcoesFuncoesAdicionais(atividadeId);
+            document.querySelectorAll('.adicional-mao-obra-card').forEach(function(card) {
+                if ((card.querySelector('[name="adicional_atividade_id"]')?.value || '') !== atividadeId) return;
+                const base = card.querySelector('.adicional-base');
+                if (base && base.dataset.manual !== 'sim') base.dataset.manual = 'nao';
+            });
             recalcularGerador();
         });
     });
@@ -2029,17 +2598,31 @@ function recalcularGerador() {
     let custoMao = 0;
     let custoAdicionaisMao = 0;
     let custoAdicional = 0;
+    let custoGeral = 0;
+    const totaisAtividades = new Map();
 
-    document.querySelectorAll('#materiais-body tr').forEach(function(tr) {
+    document.querySelectorAll('.gerador-atividade-card').forEach(function(card) {
+        totaisAtividades.set(card.dataset.atividadeId || '', 0);
+    });
+
+    const somarAtividade = function(atividadeId, valor) {
+        if (!atividadeId || !totaisAtividades.has(atividadeId)) return;
+        totaisAtividades.set(atividadeId, (totaisAtividades.get(atividadeId) || 0) + valor);
+    };
+
+    document.querySelectorAll('.gerador-material-row').forEach(function(tr) {
         const qtd = numero(tr.querySelector('[name="material_quantidade"]')?.value);
         const unit = numero(tr.querySelector('[name="material_valor_unitario"]')?.value);
         const perda = numero(tr.querySelector('[name="material_perda_percentual"]')?.value);
         const total = qtd * unit * (1 + perda / 100);
+        const atividadeId = tr.querySelector('[name="material_atividade_id"]')?.value || '';
         custoMaterial += total;
-        tr.querySelector('.linha-total').textContent = moeda(total);
+        somarAtividade(atividadeId, total);
+        const totalEl = tr.querySelector('.linha-total');
+        if (totalEl) totalEl.textContent = moeda(total);
     });
 
-    document.querySelectorAll('#mao-obra-body tr').forEach(function(tr) {
+    document.querySelectorAll('.gerador-mao-row').forEach(function(tr) {
         const pessoas = numero(tr.querySelector('[name="mao_pessoas"]')?.value) || 1;
         const tempo = numero(tr.querySelector('[name="mao_tempo"]')?.value) || 1;
         const unidade = tr.querySelector('[name="mao_unidade"]')?.value || 'dia';
@@ -2051,17 +2634,45 @@ function recalcularGerador() {
         const custoAlimentacao = pessoas * diasEstimados * alimentacaoDia;
         const custoTransporte = pessoas * diasEstimados * transporteDia;
         const total = custoBase + custoAlimentacao + custoTransporte;
+        const atividadeId = tr.querySelector('[name="mao_atividade_id"]')?.value || '';
         custoMao += total;
-        tr.querySelector('.linha-total').textContent = moeda(total);
+        somarAtividade(atividadeId, total);
+        const totalEl = tr.querySelector('.linha-total');
+        if (totalEl) totalEl.textContent = moeda(total);
     });
 
     document.querySelectorAll('.adicional-mao-obra-card').forEach(function(card) {
-        custoAdicionaisMao += calcularAdicionalMaoObra(card);
+        const total = calcularAdicionalMaoObra(card);
+        const atividadeId = card.querySelector('[name="adicional_atividade_id"]')?.value || '';
+        custoAdicionaisMao += total;
+        somarAtividade(atividadeId, total);
     });
 
-    document.querySelectorAll('#custos-body tr').forEach(function(tr) {
-        custoAdicional += numero(tr.querySelector('[name="custo_valor"]')?.value);
+    document.querySelectorAll('.gerador-custo-row').forEach(function(tr) {
+        const valor = numero(tr.querySelector('[name="custo_valor"]')?.value);
+        const atividadeId = tr.querySelector('[name="custo_atividade_id"]')?.value || '';
+        custoAdicional += valor;
+        if (atividadeId) somarAtividade(atividadeId, valor);
+        else custoGeral += valor;
     });
+
+    document.querySelectorAll('.gerador-atividade-card').forEach(function(card) {
+        const total = totaisAtividades.get(card.dataset.atividadeId || '') || 0;
+        const totalEl = card.querySelector('.atividade-total');
+        if (totalEl) totalEl.textContent = moeda(total);
+        atualizarCabecalhoAtividade(card);
+    });
+
+    const resumoAtividades = document.getElementById('resumo-atividades');
+    if (resumoAtividades) {
+        const linhas = Array.from(document.querySelectorAll('.gerador-atividade-card')).map(function(card) {
+            const id = card.dataset.atividadeId || '';
+            const total = totaisAtividades.get(id) || 0;
+            return `<div class="gerador-resumo-atividade-linha"><span>${textoSeguro(nomeAtividade(id))}</span><strong>${moeda(total)}</strong></div>`;
+        });
+        if (custoGeral > 0) linhas.push(`<div class="gerador-resumo-atividade-linha"><span>Custos gerais</span><strong>${moeda(custoGeral)}</strong></div>`);
+        resumoAtividades.innerHTML = linhas.join('');
+    }
 
     const margemMaterial = numero(document.getElementById('margem_material')?.value || 30);
     const margemMao = numero(document.getElementById('margem_mao_obra')?.value || 40);
@@ -2081,7 +2692,6 @@ function recalcularGerador() {
     const baseAntesImposto = base + administrativoValor + reservaValor;
     const divisor = 1 - (imposto / 100);
     const recomendado = divisor > 0 ? baseAntesImposto / divisor : baseAntesImposto;
-    const impostoValor = Math.max(recomendado - baseAntesImposto, 0);
     const minimo = Math.max(custoTotal * 1.10 / (divisor > 0 ? divisor : 1), custoTotal);
     const ideal = recomendado * 1.15;
 
@@ -2096,7 +2706,7 @@ function recalcularGerador() {
     const margemBruta = escolhido > 0 ? (lucroBruto / escolhido) * 100 : 0;
     const impostosEstimados = escolhido * imposto / 100;
     const despesasIndiretas = administrativoValor + reservaValor;
-    const lucroLiquido = lucroBruto - impostosEstimados;
+    const lucroLiquido = lucroBruto - impostosEstimados - despesasIndiretas;
     const margemLiquida = escolhido > 0 ? (lucroLiquido / escolhido) * 100 : 0;
     const markupCusto = custoTotal > 0 ? (lucroBruto / custoTotal) * 100 : 0;
 
@@ -2376,24 +2986,33 @@ window.addEventListener('DOMContentLoaded', function() {
     const formulario = document.getElementById('gerador-form');
     if (formulario) {
         formulario.addEventListener('keydown', function(evento) {
-            if (evento.key !== 'Enter' || evento.isComposing || evento.target instanceof HTMLTextAreaElement) {
-                return;
-            }
-
+            if (evento.key !== 'Enter' || evento.isComposing || evento.target instanceof HTMLTextAreaElement) return;
             evento.preventDefault();
         });
     }
 
+    const atividadesIniciais = Array.isArray(geradorInicial.atividades) ? geradorInicial.atividades : [];
     const materiais = Array.isArray(geradorInicial.materiais) ? geradorInicial.materiais : [];
     const maoObra = Array.isArray(geradorInicial.mao_obra) ? geradorInicial.mao_obra : [];
     const adicionais = Array.isArray(geradorInicial.adicionais_mao_obra) ? geradorInicial.adicionais_mao_obra : [];
     const custos = Array.isArray(geradorInicial.custos_adicionais) ? geradorInicial.custos_adicionais : [];
 
-    if (materiais.length) materiais.forEach(adicionarMaterial); else adicionarMaterial();
-    if (maoObra.length) maoObra.forEach(adicionarMaoObra); else adicionarMaoObra();
-    if (adicionais.length) adicionais.forEach(adicionarAdicionalMaoObra); else adicionarAdicionalMaoObra();
-    if (custos.length) custos.forEach(adicionarCusto); else adicionarCusto();
+    const atividadesBase = atividadesIniciais.length
+        ? atividadesIniciais
+        : [{ id: 'atividade-1', nome: 'Serviço principal', descricao: '' }];
 
+    atividadesBase.forEach(function(atividade, indice) {
+        adicionarAtividade(atividade, indice === 0);
+    });
+
+    const atividadePadrao = primeiraAtividadeId();
+    materiais.forEach(item => adicionarMaterial(item, item.atividade_id || atividadePadrao));
+    maoObra.forEach(item => adicionarMaoObra(item, item.atividade_id || atividadePadrao));
+    adicionais.forEach(item => adicionarAdicionalMaoObra(item, item.atividade_id || atividadePadrao));
+    custos.forEach(item => adicionarCusto(item, item.atividade_id || ''));
+
+    atualizarOpcoesFuncoesAdicionais();
+    reordenarAtividades();
     recalcularGerador();
 });
 </script>
