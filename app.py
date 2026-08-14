@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-14 12:28 (America/Bahia)
-# Motivo: Incluir alimentação e transporte por dia na mão de obra do Gerador, com estimativa fixa de 1 dia, 5 dias por semana e 22 dias por mês.
+# Último recode: 2026-08-14 12:38 (America/Bahia)
+# Motivo: Organizar o Gerador de Orçamentos por atividades, preservando custos por atividade e custos gerais na criação, revisão e apresentação.
 
 from __future__ import annotations
 
@@ -4063,6 +4063,7 @@ def iniciar_banco() -> None:
                 observacoes_cliente TEXT,
                 modo_apresentacao TEXT,
                 descricao_comercial TEXT,
+                atividades_json TEXT,
                 materiais_json TEXT,
                 mao_obra_json TEXT,
                 adicionais_json TEXT,
@@ -4108,6 +4109,7 @@ def iniciar_banco() -> None:
             for row in conn.execute("PRAGMA table_info(orcamento_gerador_dados)").fetchall()
         }
         colunas_mini_dre = {
+            "atividades_json": "TEXT",
             "lucro_bruto_estimado": "TEXT",
             "margem_bruta_estimada": "TEXT",
             "impostos_estimados": "TEXT",
@@ -12349,6 +12351,98 @@ def _json_lista_segura(valor: Any) -> list[dict[str, Any]]:
     return [dict(item) for item in dados if isinstance(item, dict)] if isinstance(dados, list) else []
 
 
+def _gerador_normalizar_atividade_id(valor: Any, padrao: str = "") -> str:
+    texto = re.sub(r"[^a-zA-Z0-9_-]+", "-", str(valor or "").strip())
+    texto = re.sub(r"-+", "-", texto).strip("-")
+    return (texto or str(padrao or "").strip())[:80]
+
+
+def _normalizar_atividades_gerador(
+    atividades: list[dict[str, Any]],
+    materiais: list[dict[str, Any]],
+    mao_obra: list[dict[str, Any]],
+    adicionais: list[dict[str, Any]],
+    custos: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    normalizadas: list[dict[str, Any]] = []
+    ids_usados: set[str] = set()
+
+    for indice, atividade in enumerate(atividades):
+        atividade_id = _gerador_normalizar_atividade_id(
+            atividade.get("id") or atividade.get("atividade_id"),
+            f"atividade-{indice + 1}",
+        )
+        base_id = atividade_id
+        sufixo = 2
+        while atividade_id in ids_usados:
+            atividade_id = f"{base_id}-{sufixo}"
+            sufixo += 1
+
+        try:
+            ordem = int(float(atividade.get("ordem") or indice + 1))
+        except (TypeError, ValueError):
+            ordem = indice + 1
+
+        normalizadas.append(
+            {
+                "id": atividade_id,
+                "nome": str(atividade.get("nome") or f"Atividade {indice + 1:02d}").strip() or f"Atividade {indice + 1:02d}",
+                "descricao": normalizar_texto_multilinha(atividade.get("descricao")),
+                "ordem": max(ordem, 1),
+            }
+        )
+        ids_usados.add(atividade_id)
+
+    referencias: list[str] = []
+    for colecao in (materiais, mao_obra, adicionais, custos):
+        for item in colecao:
+            atividade_id = _gerador_normalizar_atividade_id(item.get("atividade_id"))
+            if atividade_id and atividade_id not in referencias:
+                referencias.append(atividade_id)
+
+    for atividade_id in referencias:
+        if atividade_id in ids_usados:
+            continue
+        normalizadas.append(
+            {
+                "id": atividade_id,
+                "nome": f"Atividade {len(normalizadas) + 1:02d}",
+                "descricao": "",
+                "ordem": len(normalizadas) + 1,
+            }
+        )
+        ids_usados.add(atividade_id)
+
+    if not normalizadas:
+        normalizadas.append(
+            {
+                "id": "atividade-1",
+                "nome": "Serviço principal",
+                "descricao": "",
+                "ordem": 1,
+            }
+        )
+        ids_usados.add("atividade-1")
+
+    normalizadas.sort(key=lambda item: (int(item.get("ordem") or 0), str(item.get("nome") or "")))
+    for indice, atividade in enumerate(normalizadas, start=1):
+        atividade["ordem"] = indice
+
+    ids_validos = {str(item.get("id") or "") for item in normalizadas}
+    atividade_padrao = str(normalizadas[0].get("id") or "atividade-1")
+
+    for colecao in (materiais, mao_obra, adicionais):
+        for item in colecao:
+            atividade_id = _gerador_normalizar_atividade_id(item.get("atividade_id"))
+            item["atividade_id"] = atividade_id if atividade_id in ids_validos else atividade_padrao
+
+    for item in custos:
+        atividade_id = _gerador_normalizar_atividade_id(item.get("atividade_id"))
+        item["atividade_id"] = atividade_id if atividade_id in ids_validos else ""
+
+    return normalizadas
+
+
 def buscar_orcamento_gerador_dados(orcamento_id: int) -> dict[str, Any] | None:
     empresa_id = empresa_logada_id()
     with conectar_db() as conn:
@@ -12363,6 +12457,18 @@ def buscar_orcamento_gerador_dados(orcamento_id: int) -> dict[str, Any] | None:
     dados["mao_obra"] = _json_lista_segura(dados.get("mao_obra_json"))
     dados["adicionais_mao_obra"] = _json_lista_segura(dados.get("adicionais_json"))
     dados["custos_adicionais"] = _json_lista_segura(dados.get("custos_json"))
+    dados["atividades"] = _normalizar_atividades_gerador(
+        _json_lista_segura(dados.get("atividades_json")),
+        dados["materiais"],
+        dados["mao_obra"],
+        dados["adicionais_mao_obra"],
+        dados["custos_adicionais"],
+    )
+    dados["custo_geral"] = sum(
+        float(item.get("valor") or 0)
+        for item in dados["custos_adicionais"]
+        if not str(item.get("atividade_id") or "").strip()
+    )
     return dados
 
 
@@ -12381,6 +12487,7 @@ def salvar_orcamento_gerador_dados_db(orcamento_id: int, dados: dict[str, Any]) 
         "observacoes_cliente": str(dados.get("observacoes_cliente") or ""),
         "modo_apresentacao": normalizar_modo_apresentacao(dados.get("modo_apresentacao"), "agrupado"),
         "descricao_comercial": str(dados.get("descricao_comercial") or ""),
+        "atividades_json": json.dumps(list(dados.get("atividades") or []), ensure_ascii=False),
         "materiais_json": json.dumps(list(dados.get("materiais") or []), ensure_ascii=False),
         "mao_obra_json": json.dumps(list(dados.get("mao_obra") or []), ensure_ascii=False),
         "adicionais_json": json.dumps(list(dados.get("adicionais_mao_obra") or []), ensure_ascii=False),
@@ -13218,11 +13325,20 @@ def _normalizar_forma_calculo_adicional_mao_obra(valor: Any, tipo: str = "") -> 
 def _gerador_custo_mao_obra_referencia(
     mao_obra: list[dict[str, Any]],
     funcionario_funcao: Any,
+    atividade_id: Any = "",
 ) -> float:
     funcao_procurada = _normalizar_texto_busca(funcionario_funcao)
+    atividade_procurada = _gerador_normalizar_atividade_id(atividade_id)
+    itens_atividade = [
+        item
+        for item in mao_obra
+        if not atividade_procurada
+        or _gerador_normalizar_atividade_id(item.get("atividade_id")) == atividade_procurada
+    ]
+
     custo_total = sum(
         float(item.get("custo_base") if item.get("custo_base") is not None else item.get("custo") or 0)
-        for item in mao_obra
+        for item in itens_atividade
     )
 
     if not funcao_procurada:
@@ -13230,7 +13346,7 @@ def _gerador_custo_mao_obra_referencia(
 
     correspondencias_exatas = [
         item
-        for item in mao_obra
+        for item in itens_atividade
         if _normalizar_texto_busca(item.get("funcao")) == funcao_procurada
     ]
     if correspondencias_exatas:
@@ -13241,7 +13357,7 @@ def _gerador_custo_mao_obra_referencia(
 
     correspondencias_parciais = [
         item
-        for item in mao_obra
+        for item in itens_atividade
         if funcao_procurada in _normalizar_texto_busca(item.get("funcao"))
         or _normalizar_texto_busca(item.get("funcao")) in funcao_procurada
     ]
@@ -13278,7 +13394,10 @@ def _gerador_adicional_exibir_cliente(
 
 def _montar_adicionais_mao_obra_formulario(
     mao_obra: list[dict[str, Any]],
+    atividades_validas: set[str] | None = None,
+    atividade_padrao: str = "",
 ) -> list[dict[str, Any]]:
+    atividades = _limpar_lista_formulario("adicional_atividade_id")
     tipos = _limpar_lista_formulario("adicional_tipo")
     descricoes = _limpar_lista_formulario("adicional_descricao")
     funcoes = _limpar_lista_formulario("adicional_funcao")
@@ -13292,6 +13411,7 @@ def _montar_adicionais_mao_obra_formulario(
     exibir_cliente_lista = _limpar_lista_formulario("adicional_exibir_cliente")
 
     total_linhas = max(
+        len(atividades),
         len(tipos),
         len(descricoes),
         len(funcoes),
@@ -13305,6 +13425,7 @@ def _montar_adicionais_mao_obra_formulario(
         0,
     )
     adicionais: list[dict[str, Any]] = []
+    ids_validos = atividades_validas or set()
 
     for indice in range(total_linhas):
         tipo_bruto = _gerador_item_valor(tipos, indice)
@@ -13312,6 +13433,10 @@ def _montar_adicionais_mao_obra_formulario(
 
         if not tipo_bruto and not descricao_bruta:
             continue
+
+        atividade_id = _gerador_normalizar_atividade_id(_gerador_item_valor(atividades, indice))
+        if ids_validos and atividade_id not in ids_validos:
+            atividade_id = atividade_padrao
 
         tipo = _normalizar_tipo_adicional_mao_obra(tipo_bruto)
         tipo_nome = GERADOR_ADICIONAIS_MAO_OBRA_TIPOS_POR_CODIGO[tipo]
@@ -13329,6 +13454,7 @@ def _montar_adicionais_mao_obra_formulario(
         valor_base = valor_base_informado or _gerador_custo_mao_obra_referencia(
             mao_obra,
             funcionario_funcao,
+            atividade_id,
         )
 
         if forma_calculo == "percentual_mao_obra":
@@ -13352,6 +13478,7 @@ def _montar_adicionais_mao_obra_formulario(
 
         adicionais.append(
             {
+                "atividade_id": atividade_id or atividade_padrao,
                 "tipo": tipo,
                 "tipo_nome": tipo_nome,
                 "descricao": descricao,
@@ -13377,12 +13504,67 @@ def _montar_adicionais_mao_obra_formulario(
 
 
 def montar_gerador_orcamento_formulario() -> dict[str, Any]:
+    atividade_ids = _limpar_lista_formulario("atividade_id")
+    atividade_nomes = _limpar_lista_formulario("atividade_nome")
+    atividade_descricoes = _limpar_lista_formulario("atividade_descricao")
+    atividade_ordens = _limpar_lista_formulario("atividade_ordem")
+
+    atividades: list[dict[str, Any]] = []
+    ids_usados: set[str] = set()
+    total_atividades = max(
+        len(atividade_ids),
+        len(atividade_nomes),
+        len(atividade_descricoes),
+        len(atividade_ordens),
+        0,
+    )
+
+    for indice in range(total_atividades):
+        atividade_id = _gerador_normalizar_atividade_id(
+            _gerador_item_valor(atividade_ids, indice),
+            f"atividade-{indice + 1}",
+        )
+        base_id = atividade_id
+        sufixo = 2
+        while atividade_id in ids_usados:
+            atividade_id = f"{base_id}-{sufixo}"
+            sufixo += 1
+
+        nome = _gerador_item_valor(atividade_nomes, indice) or f"Atividade {indice + 1:02d}"
+        descricao = normalizar_texto_multilinha(_gerador_item_valor(atividade_descricoes, indice))
+        try:
+            ordem = int(float(_gerador_item_valor(atividade_ordens, indice) or indice + 1))
+        except (TypeError, ValueError):
+            ordem = indice + 1
+
+        atividades.append(
+            {
+                "id": atividade_id,
+                "nome": nome,
+                "descricao": descricao,
+                "ordem": max(ordem, 1),
+            }
+        )
+        ids_usados.add(atividade_id)
+
+    if not atividades:
+        atividades = [{"id": "atividade-1", "nome": "Serviço principal", "descricao": "", "ordem": 1}]
+
+    atividades.sort(key=lambda item: (int(item.get("ordem") or 0), str(item.get("nome") or "")))
+    for indice, atividade in enumerate(atividades, start=1):
+        atividade["ordem"] = indice
+
+    ids_validos = {str(item.get("id") or "") for item in atividades}
+    atividade_padrao = str(atividades[0].get("id") or "atividade-1")
+
+    materiais_atividade = _limpar_lista_formulario("material_atividade_id")
     materiais_descricao = _limpar_lista_formulario("material_descricao")
     materiais_unidade = _limpar_lista_formulario("material_unidade")
     materiais_quantidade = _limpar_lista_formulario("material_quantidade")
     materiais_valor = _limpar_lista_formulario("material_valor_unitario")
     materiais_perda = _limpar_lista_formulario("material_perda_percentual")
 
+    mao_atividade = _limpar_lista_formulario("mao_atividade_id")
     mao_funcao = _limpar_lista_formulario("mao_funcao")
     mao_pessoas = _limpar_lista_formulario("mao_pessoas")
     mao_tempo = _limpar_lista_formulario("mao_tempo")
@@ -13391,15 +13573,26 @@ def montar_gerador_orcamento_formulario() -> dict[str, Any]:
     mao_alimentacao_dia = _limpar_lista_formulario("mao_alimentacao_dia")
     mao_transporte_dia = _limpar_lista_formulario("mao_transporte_dia")
 
+    custos_atividade = _limpar_lista_formulario("custo_atividade_id")
     custos_descricao = _limpar_lista_formulario("custo_descricao")
     custos_valor = _limpar_lista_formulario("custo_valor")
 
     materiais: list[dict[str, Any]] = []
-    for indice in range(max(len(materiais_descricao), len(materiais_quantidade), len(materiais_valor), 0)):
+    total_materiais = max(
+        len(materiais_atividade),
+        len(materiais_descricao),
+        len(materiais_quantidade),
+        len(materiais_valor),
+        0,
+    )
+    for indice in range(total_materiais):
         descricao = _gerador_item_valor(materiais_descricao, indice)
         if not descricao:
             continue
 
+        atividade_id = _gerador_normalizar_atividade_id(_gerador_item_valor(materiais_atividade, indice))
+        if atividade_id not in ids_validos:
+            atividade_id = atividade_padrao
         quantidade = _converter_valor_brl(_gerador_item_valor(materiais_quantidade, indice))
         valor_unitario = _converter_valor_brl(_gerador_item_valor(materiais_valor, indice))
         perda_percentual = _converter_valor_brl(_gerador_item_valor(materiais_perda, indice))
@@ -13408,6 +13601,7 @@ def montar_gerador_orcamento_formulario() -> dict[str, Any]:
 
         materiais.append(
             {
+                "atividade_id": atividade_id,
                 "descricao": descricao,
                 "unidade": _gerador_item_valor(materiais_unidade, indice) or "un",
                 "quantidade": quantidade,
@@ -13419,6 +13613,7 @@ def montar_gerador_orcamento_formulario() -> dict[str, Any]:
 
     mao_obra: list[dict[str, Any]] = []
     total_linhas_mao_obra = max(
+        len(mao_atividade),
         len(mao_funcao),
         len(mao_pessoas),
         len(mao_tempo),
@@ -13435,6 +13630,9 @@ def montar_gerador_orcamento_formulario() -> dict[str, Any]:
         if not funcao:
             continue
 
+        atividade_id = _gerador_normalizar_atividade_id(_gerador_item_valor(mao_atividade, indice))
+        if atividade_id not in ids_validos:
+            atividade_id = atividade_padrao
         pessoas = _converter_valor_brl(_gerador_item_valor(mao_pessoas, indice)) or 1
         tempo = _converter_valor_brl(_gerador_item_valor(mao_tempo, indice)) or 1
         unidade = (_gerador_item_valor(mao_unidade, indice) or "dia").strip().lower()
@@ -13449,6 +13647,7 @@ def montar_gerador_orcamento_formulario() -> dict[str, Any]:
 
         mao_obra.append(
             {
+                "atividade_id": atividade_id,
                 "funcao": funcao,
                 "pessoas": pessoas,
                 "tempo": tempo,
@@ -13464,16 +13663,49 @@ def montar_gerador_orcamento_formulario() -> dict[str, Any]:
             }
         )
 
-    adicionais_mao_obra = _montar_adicionais_mao_obra_formulario(mao_obra)
+    adicionais_mao_obra = _montar_adicionais_mao_obra_formulario(
+        mao_obra,
+        ids_validos,
+        atividade_padrao,
+    )
 
     custos_adicionais: list[dict[str, Any]] = []
-    for indice in range(max(len(custos_descricao), len(custos_valor), 0)):
+    total_custos = max(len(custos_atividade), len(custos_descricao), len(custos_valor), 0)
+    for indice in range(total_custos):
         descricao = _gerador_item_valor(custos_descricao, indice)
         if not descricao:
             continue
 
+        atividade_id = _gerador_normalizar_atividade_id(_gerador_item_valor(custos_atividade, indice))
+        if atividade_id not in ids_validos:
+            atividade_id = ""
         valor = _converter_valor_brl(_gerador_item_valor(custos_valor, indice))
-        custos_adicionais.append({"descricao": descricao, "valor": valor})
+        custos_adicionais.append({"atividade_id": atividade_id, "descricao": descricao, "valor": valor})
+
+    totais_por_atividade: dict[str, dict[str, float]] = {
+        atividade_id: {
+            "custo_material": 0.0,
+            "custo_mao_obra": 0.0,
+            "custo_adicionais_mao_obra": 0.0,
+            "custo_outros": 0.0,
+        }
+        for atividade_id in ids_validos
+    }
+    for item in materiais:
+        totais_por_atividade[item["atividade_id"]]["custo_material"] += float(item.get("custo") or 0)
+    for item in mao_obra:
+        totais_por_atividade[item["atividade_id"]]["custo_mao_obra"] += float(item.get("custo") or 0)
+    for item in adicionais_mao_obra:
+        totais_por_atividade[item["atividade_id"]]["custo_adicionais_mao_obra"] += float(item.get("custo") or 0)
+    for item in custos_adicionais:
+        atividade_id = str(item.get("atividade_id") or "")
+        if atividade_id in totais_por_atividade:
+            totais_por_atividade[atividade_id]["custo_outros"] += float(item.get("valor") or 0)
+
+    for atividade in atividades:
+        totais = totais_por_atividade.get(str(atividade.get("id") or ""), {})
+        atividade.update(totais)
+        atividade["custo_total"] = sum(float(valor or 0) for valor in totais.values())
 
     margem_material = _valor_percentual_formulario("margem_material", 30.0)
     margem_mao_obra = _valor_percentual_formulario("margem_mao_obra", 40.0)
@@ -13486,6 +13718,7 @@ def montar_gerador_orcamento_formulario() -> dict[str, Any]:
     custo_mao_obra = sum(item["custo"] for item in mao_obra)
     custo_adicionais_mao_obra = sum(item["custo"] for item in adicionais_mao_obra)
     custo_adicional = sum(item["valor"] for item in custos_adicionais)
+    custo_geral = sum(item["valor"] for item in custos_adicionais if not item.get("atividade_id"))
     custo_total = custo_material + custo_mao_obra + custo_adicionais_mao_obra + custo_adicional
 
     venda_material = custo_material * (1 + (margem_material / 100))
@@ -13522,15 +13755,10 @@ def montar_gerador_orcamento_formulario() -> dict[str, Any]:
     margem_bruta_estimada = (lucro_bruto_estimado / valor_escolhido * 100) if valor_escolhido > 0 else 0
     impostos_estimados = valor_escolhido * (imposto_percentual / 100)
     despesas_indiretas_estimadas = administrativo_valor + reserva_valor
-    lucro_liquido_estimado = (
-        lucro_bruto_estimado
-        - impostos_estimados
-        - despesas_indiretas_estimadas
-    )
+    lucro_liquido_estimado = lucro_bruto_estimado - impostos_estimados - despesas_indiretas_estimadas
     margem_liquida_estimada = (lucro_liquido_estimado / valor_escolhido * 100) if valor_escolhido > 0 else 0
     markup_custo_estimado = (lucro_bruto_estimado / custo_total * 100) if custo_total > 0 else 0
 
-    # Compatibilidade: os campos antigos passam a guardar o resultado líquido real.
     lucro_estimado = lucro_liquido_estimado
     margem_estimado = margem_liquida_estimada
 
@@ -13547,6 +13775,7 @@ def montar_gerador_orcamento_formulario() -> dict[str, Any]:
         "observacoes_cliente": normalizar_texto_multilinha(request.form.get("gerador_observacoes_cliente")),
         "modo_apresentacao": normalizar_modo_apresentacao(request.form.get("gerador_modo_apresentacao"), "agrupado"),
         "descricao_comercial": str(request.form.get("gerador_descricao_comercial") or "").strip(),
+        "atividades": atividades,
         "materiais": materiais,
         "mao_obra": mao_obra,
         "adicionais_mao_obra": adicionais_mao_obra,
@@ -13561,6 +13790,7 @@ def montar_gerador_orcamento_formulario() -> dict[str, Any]:
         "custo_mao_obra": custo_mao_obra,
         "custo_adicionais_mao_obra": custo_adicionais_mao_obra,
         "custo_adicional": custo_adicional,
+        "custo_geral": custo_geral,
         "custo_total": custo_total,
         "venda_material": venda_material,
         "venda_mao_obra": venda_mao_obra,
@@ -13606,6 +13836,78 @@ def _gerador_alocar_total(valor_total: float, bases: list[float]) -> list[float]
     return valores
 
 
+def montar_apresentacao_atividades_gerador(dados: dict[str, Any]) -> list[dict[str, str]]:
+    if normalizar_modo_apresentacao(dados.get("modo_apresentacao"), "agrupado") != "agrupado":
+        return []
+
+    atividades = list(dados.get("atividades") or [])
+    if not atividades:
+        return []
+
+    materiais = list(dados.get("materiais") or [])
+    mao_obra = list(dados.get("mao_obra") or [])
+    adicionais = list(dados.get("adicionais_mao_obra") or [])
+    custos = list(dados.get("custos_adicionais") or [])
+    margem_material = float(dados.get("margem_material") or 0)
+    margem_mao = float(dados.get("margem_mao_obra") or 0)
+    margem_custos = float(dados.get("margem_custos") or 0)
+
+    linhas: list[dict[str, Any]] = []
+    for atividade in atividades:
+        atividade_id = str(atividade.get("id") or "").strip()
+        if not atividade_id:
+            continue
+        custo_material = sum(float(item.get("custo") or 0) for item in materiais if str(item.get("atividade_id") or "") == atividade_id)
+        custo_mao = sum(float(item.get("custo") or 0) for item in mao_obra if str(item.get("atividade_id") or "") == atividade_id)
+        custo_adicionais = sum(float(item.get("custo") or 0) for item in adicionais if str(item.get("atividade_id") or "") == atividade_id)
+        custo_outros = sum(float(item.get("valor") or 0) for item in custos if str(item.get("atividade_id") or "") == atividade_id)
+        base = (
+            custo_material * (1 + margem_material / 100)
+            + custo_mao * (1 + margem_mao / 100)
+            + custo_adicionais * (1 + margem_mao / 100)
+            + custo_outros * (1 + margem_custos / 100)
+        )
+        if base <= 0:
+            continue
+        linhas.append(
+            {
+                "atividade": atividade,
+                "base": base,
+            }
+        )
+
+    custo_geral = sum(float(item.get("valor") or 0) for item in custos if not str(item.get("atividade_id") or "").strip())
+    base_geral = custo_geral * (1 + margem_custos / 100)
+
+    if not linhas:
+        return []
+
+    soma_bases = sum(float(item["base"]) for item in linhas)
+    if base_geral > 0 and soma_bases > 0:
+        for item in linhas:
+            item["base"] = float(item["base"]) + base_geral * (float(item["base"]) / soma_bases)
+
+    valor_total = float(dados.get("valor_escolhido") or 0)
+    valores = _gerador_alocar_total(valor_total, [float(item["base"]) for item in linhas])
+    resultado: list[dict[str, str]] = []
+
+    for item, valor in zip(linhas, valores):
+        atividade = dict(item["atividade"])
+        nome = str(atividade.get("nome") or "Atividade do serviço").strip() or "Atividade do serviço"
+        descricao = str(atividade.get("descricao") or "").strip()
+        resultado.append(
+            {
+                "descricao": nome,
+                "detalhes": descricao or "Execução conforme escopo técnico e condições previstas para esta atividade.",
+                "quantidade": "1",
+                "valor_unitario": _formatar_moeda_brl(valor),
+                "subtotal": _formatar_moeda_brl(valor),
+            }
+        )
+
+    return resultado
+
+
 def montar_orcamento_por_gerador(
     dados: dict[str, Any],
     numero: str | None = None,
@@ -13617,13 +13919,20 @@ def montar_orcamento_por_gerador(
     venda_adicionais_mao_obra = float(dados.get("venda_adicionais_mao_obra") or 0)
     venda_custos = float(dados.get("venda_custos") or 0)
     margem_mao_obra = float(dados.get("margem_mao_obra") or 0)
+    margem_custos = float(dados.get("margem_custos") or 0)
     materiais = list(dados.get("materiais") or [])
+    mao_obra = list(dados.get("mao_obra") or [])
     adicionais_mao_obra = list(dados.get("adicionais_mao_obra") or [])
+    custos_adicionais = list(dados.get("custos_adicionais") or [])
+    atividades = list(dados.get("atividades") or [])
+    atividades_por_id = {
+        str(item.get("id") or ""): dict(item)
+        for item in atividades
+        if str(item.get("id") or "").strip()
+    }
 
-    # A composição abaixo é interna. A impressão usa a apresentação comercial escolhida,
-    # sem revelar produtos, quantidades e custos quando o modo for agrupado ou global.
-    bases_grupos = []
-    nomes_grupos = []
+    bases_grupos: list[float] = []
+    nomes_grupos: list[str] = []
 
     if venda_material > 0:
         bases_grupos.append(venda_material)
@@ -13659,12 +13968,17 @@ def montar_orcamento_por_gerador(
                 descricao = str(material.get("descricao") or "Material aplicado").strip()
                 quantidade_numero = float(material.get("quantidade") or 0) or 1.0
                 valor_unitario = valor_material / quantidade_numero if quantidade_numero > 0 else valor_material
+                atividade = atividades_por_id.get(str(material.get("atividade_id") or ""), {})
+                atividade_nome = str(atividade.get("nome") or "").strip()
+                detalhes = "Material previsto no Gerador de Orçamentos."
+                if atividade_nome:
+                    detalhes = f"Atividade: {atividade_nome}. {detalhes}"
 
                 itens.append(
                     {
                         "tipo_item": "produto",
                         "descricao": descricao,
-                        "detalhes": "Material previsto no Gerador de Orçamentos.",
+                        "detalhes": detalhes,
                         "quantidade": _formatar_numero_estoque(quantidade_numero),
                         "valor_unitario": _formatar_moeda_brl(valor_unitario),
                         "desconto": "0,00",
@@ -13686,70 +14000,91 @@ def montar_orcamento_por_gerador(
 
     if total_servicos_numero > 0:
         componentes_servicos: list[dict[str, Any]] = []
-        adicionais_visiveis: list[dict[str, Any]] = []
-        venda_adicionais_ocultos = 0.0
 
-        for adicional in adicionais_mao_obra:
-            custo_adicional = float(adicional.get("custo") or 0)
-            venda_adicional = custo_adicional * (1 + (margem_mao_obra / 100))
+        for atividade in atividades:
+            atividade_id = str(atividade.get("id") or "").strip()
+            if not atividade_id:
+                continue
 
-            if str(adicional.get("exibir_cliente") or "nao").strip().lower() == "sim":
-                adicional_com_venda = dict(adicional)
-                adicional_com_venda["venda"] = venda_adicional
-                adicionais_visiveis.append(adicional_com_venda)
-            else:
-                venda_adicionais_ocultos += venda_adicional
-
-        base_mao_obra_agrupada = venda_mao_obra + venda_adicionais_ocultos
-        if base_mao_obra_agrupada > 0:
-            componentes_servicos.append(
-                {
-                    "base": base_mao_obra_agrupada,
-                    "descricao": "Mão de obra técnica",
-                    "detalhes": "Equipe técnica, tempo de execução e mobilização conforme escopo do serviço.",
-                }
+            custo_mao = sum(
+                float(item.get("custo") or 0)
+                for item in mao_obra
+                if str(item.get("atividade_id") or "") == atividade_id
+            )
+            adicionais_atividade = [
+                item for item in adicionais_mao_obra
+                if str(item.get("atividade_id") or "") == atividade_id
+            ]
+            custo_adicionais_ocultos = sum(
+                float(item.get("custo") or 0)
+                for item in adicionais_atividade
+                if str(item.get("exibir_cliente") or "nao").strip().lower() != "sim"
+            )
+            custo_outros = sum(
+                float(item.get("valor") or 0)
+                for item in custos_adicionais
+                if str(item.get("atividade_id") or "") == atividade_id
+            )
+            base_atividade = (
+                custo_mao * (1 + margem_mao_obra / 100)
+                + custo_adicionais_ocultos * (1 + margem_mao_obra / 100)
+                + custo_outros * (1 + margem_custos / 100)
             )
 
-        for adicional in adicionais_visiveis:
-            detalhes_adicional = "Adicional de mão de obra aplicado conforme as condições previstas para a execução."
-            funcionario_funcao = str(adicional.get("funcionario_funcao") or "").strip()
-            if funcionario_funcao:
-                detalhes_adicional += f" Equipe/função: {funcionario_funcao}."
-
-            componentes_servicos.append(
-                {
-                    "base": float(adicional.get("venda") or 0),
-                    "descricao": str(adicional.get("descricao") or adicional.get("tipo_nome") or "Adicional de mão de obra"),
-                    "detalhes": detalhes_adicional,
-                }
-            )
-
-        venda_adicionais_componentes = sum(
-            float(componente.get("base") or 0)
-            for componente in componentes_servicos
-        ) - venda_mao_obra
-        diferenca_adicionais = venda_adicionais_mao_obra - venda_adicionais_componentes
-        if diferenca_adicionais > 0.01:
-            if componentes_servicos and componentes_servicos[0]["descricao"] == "Mão de obra técnica":
-                componentes_servicos[0]["base"] = float(componentes_servicos[0]["base"]) + diferenca_adicionais
-            else:
-                componentes_servicos.insert(
-                    0,
+            if base_atividade > 0:
+                nome = str(atividade.get("nome") or "Atividade do serviço").strip() or "Atividade do serviço"
+                descricao = str(atividade.get("descricao") or "").strip()
+                componentes_servicos.append(
                     {
-                        "base": diferenca_adicionais,
-                        "descricao": "Mão de obra técnica",
-                        "detalhes": "Equipe técnica e adicionais necessários à execução conforme escopo do serviço.",
-                    },
+                        "base": base_atividade,
+                        "descricao": nome,
+                        "detalhes": descricao or "Mão de obra e custos operacionais previstos para execução desta atividade.",
+                    }
                 )
 
-        if venda_custos > 0:
+            for adicional in adicionais_atividade:
+                if str(adicional.get("exibir_cliente") or "nao").strip().lower() != "sim":
+                    continue
+                venda_adicional = float(adicional.get("custo") or 0) * (1 + margem_mao_obra / 100)
+                if venda_adicional <= 0:
+                    continue
+                nome_atividade = str(atividade.get("nome") or "Atividade").strip() or "Atividade"
+                componentes_servicos.append(
+                    {
+                        "base": venda_adicional,
+                        "descricao": f"{nome_atividade} - {str(adicional.get('descricao') or adicional.get('tipo_nome') or 'Adicional de mão de obra').strip()}",
+                        "detalhes": "Adicional de mão de obra aplicado conforme as condições previstas para a execução desta atividade.",
+                    }
+                )
+
+        custo_geral = sum(
+            float(item.get("valor") or 0)
+            for item in custos_adicionais
+            if not str(item.get("atividade_id") or "").strip()
+        )
+        base_geral = custo_geral * (1 + margem_custos / 100)
+        if base_geral > 0:
             componentes_servicos.append(
                 {
-                    "base": venda_custos,
-                    "descricao": "Custos operacionais",
-                    "detalhes": "Deslocamento, ferramentas, consumíveis e demais custos operacionais necessários à execução.",
+                    "base": base_geral,
+                    "descricao": "Custos gerais de execução",
+                    "detalhes": "Mobilização, hospedagem, ART, fretes, locações compartilhadas e demais custos gerais previstos no serviço.",
                 }
             )
+
+        soma_componentes = sum(float(item.get("base") or 0) for item in componentes_servicos)
+        diferenca = servicos_base - soma_componentes
+        if diferenca > 0.01:
+            if componentes_servicos:
+                componentes_servicos[0]["base"] = float(componentes_servicos[0].get("base") or 0) + diferenca
+            else:
+                componentes_servicos.append(
+                    {
+                        "base": diferenca,
+                        "descricao": "Serviço técnico conforme escopo",
+                        "detalhes": str(dados.get("escopo") or "Serviço técnico gerado pelo Gerador de Orçamentos."),
+                    }
+                )
 
         if not componentes_servicos:
             componentes_servicos.append(
@@ -13768,7 +14103,6 @@ def montar_orcamento_por_gerador(
         for componente, valor_servico in zip(componentes_servicos, valores_servicos):
             if valor_servico <= 0:
                 continue
-
             itens.append(
                 {
                     "tipo_item": "servico",
@@ -13783,7 +14117,7 @@ def montar_orcamento_por_gerador(
 
     detalhes_internos = [
         "Orçamento gerado pelo Gerador de Orçamentos.",
-        "Materiais separados como PRODUTOS e mão de obra/adicionais/custos separados como SERVIÇOS, mantendo o padrão do orçamento manual.",
+        "A composição interna está organizada por atividades, preservando materiais, mão de obra, adicionais e custos gerais.",
         "A composição de impostos, administrativo, reserva técnica e lucro foi embutida nos itens comerciais.",
         f"Tipo de serviço: {dados.get('tipo_servico') or '-'}",
         f"Valor escolhido: {dados.get('tipo_valor') or 'recomendado'}",
@@ -13796,11 +14130,21 @@ def montar_orcamento_por_gerador(
         f"Margem estimada: {_formatar_moeda_brl(float(dados.get('margem_estimado') or 0))}%",
     ]
 
+    if atividades:
+        detalhes_internos.append("Resumo de custos por atividade:")
+        for atividade in atividades:
+            detalhes_internos.append(
+                f" - {atividade.get('nome') or 'Atividade'} | Custo: R$ {_formatar_moeda_brl(float(atividade.get('custo_total') or 0))}"
+            )
+
     if adicionais_mao_obra:
         detalhes_internos.append("Detalhamento dos adicionais de mão de obra:")
         for adicional in adicionais_mao_obra:
+            atividade = atividades_por_id.get(str(adicional.get("atividade_id") or ""), {})
+            atividade_nome = str(atividade.get("nome") or "").strip()
             detalhes_internos.append(
                 " - "
+                + (f"{atividade_nome} | " if atividade_nome else "")
                 + str(adicional.get("descricao") or adicional.get("tipo_nome") or "Adicional")
                 + f" | Forma: {adicional.get('forma_calculo_nome') or adicional.get('forma_calculo') or '-'}"
                 + f" | Custo: R$ {_formatar_moeda_brl(float(adicional.get('custo') or 0))}"
@@ -13855,7 +14199,13 @@ def gerar_orcamento_por_gerador_db(dados: dict[str, Any]) -> int:
     orcamento_id = salvar_orcamento_db(orcamento, itens)
     salvar_orcamento_adicionais_mao_obra_db(orcamento_id, adicionais)
     salvar_orcamento_gerador_dados_db(orcamento_id, dados)
-    sincronizar_apresentacao_orcamento_db(orcamento_id, orcamento, itens)
+    itens_atividades = montar_apresentacao_atividades_gerador(dados)
+    sincronizar_apresentacao_orcamento_db(
+        orcamento_id,
+        orcamento,
+        itens,
+        itens_informados=itens_atividades or None,
+    )
     return orcamento_id
 
 
@@ -13874,15 +14224,18 @@ def atualizar_orcamento_por_gerador_db(orcamento_id: int, dados: dict[str, Any])
     salvar_orcamento_adicionais_mao_obra_db(orcamento_id, adicionais)
     salvar_orcamento_gerador_dados_db(orcamento_id, dados)
 
+    itens_atividades = montar_apresentacao_atividades_gerador(dados)
     sincronizar_apresentacao_orcamento_db(
         orcamento_id,
         orcamento,
         itens,
-        preservar_descricoes=True,
+        itens_informados=itens_atividades or None,
+        preservar_descricoes=not bool(itens_atividades),
     )
 
     descricao_nova = str(dados.get("descricao_comercial") or dados.get("resumo_servico") or "").strip()
-    if descricao_nova:
+    modo = normalizar_modo_apresentacao(dados.get("modo_apresentacao"), "agrupado")
+    if descricao_nova and not (modo == "agrupado" and itens_atividades):
         itens_comerciais = listar_orcamento_apresentacao_itens(orcamento_id)
         if itens_comerciais:
             itens_comerciais[0]["descricao"] = descricao_nova
@@ -13890,7 +14243,6 @@ def atualizar_orcamento_por_gerador_db(orcamento_id: int, dados: dict[str, Any])
 
     registrar_historico_gerador_db(orcamento_id, dados_anteriores, dados)
     return True
-
 
 
 
