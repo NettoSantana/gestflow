@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-14 12:06 (America/Bahia)
-# Motivo: Ocultar Filtros e Ordenar do catálogo e exibi-los somente abaixo da busca ao clicar na lupa.
+# Último recode: 2026-08-14 12:28 (America/Bahia)
+# Motivo: Incluir alimentação e transporte por dia na mão de obra do Gerador, com estimativa fixa de 1 dia, 5 dias por semana e 22 dias por mês.
 
 from __future__ import annotations
 
@@ -13220,7 +13220,10 @@ def _gerador_custo_mao_obra_referencia(
     funcionario_funcao: Any,
 ) -> float:
     funcao_procurada = _normalizar_texto_busca(funcionario_funcao)
-    custo_total = sum(float(item.get("custo") or 0) for item in mao_obra)
+    custo_total = sum(
+        float(item.get("custo_base") if item.get("custo_base") is not None else item.get("custo") or 0)
+        for item in mao_obra
+    )
 
     if not funcao_procurada:
         return custo_total
@@ -13231,7 +13234,10 @@ def _gerador_custo_mao_obra_referencia(
         if _normalizar_texto_busca(item.get("funcao")) == funcao_procurada
     ]
     if correspondencias_exatas:
-        return sum(float(item.get("custo") or 0) for item in correspondencias_exatas)
+        return sum(
+            float(item.get("custo_base") if item.get("custo_base") is not None else item.get("custo") or 0)
+            for item in correspondencias_exatas
+        )
 
     correspondencias_parciais = [
         item
@@ -13240,7 +13246,10 @@ def _gerador_custo_mao_obra_referencia(
         or _normalizar_texto_busca(item.get("funcao")) in funcao_procurada
     ]
     if correspondencias_parciais:
-        return sum(float(item.get("custo") or 0) for item in correspondencias_parciais)
+        return sum(
+            float(item.get("custo_base") if item.get("custo_base") is not None else item.get("custo") or 0)
+            for item in correspondencias_parciais
+        )
 
     return custo_total
 
@@ -13379,6 +13388,8 @@ def montar_gerador_orcamento_formulario() -> dict[str, Any]:
     mao_tempo = _limpar_lista_formulario("mao_tempo")
     mao_unidade = _limpar_lista_formulario("mao_unidade")
     mao_custo = _limpar_lista_formulario("mao_custo_unitario")
+    mao_alimentacao_dia = _limpar_lista_formulario("mao_alimentacao_dia")
+    mao_transporte_dia = _limpar_lista_formulario("mao_transporte_dia")
 
     custos_descricao = _limpar_lista_formulario("custo_descricao")
     custos_valor = _limpar_lista_formulario("custo_valor")
@@ -13407,23 +13418,48 @@ def montar_gerador_orcamento_formulario() -> dict[str, Any]:
         )
 
     mao_obra: list[dict[str, Any]] = []
-    for indice in range(max(len(mao_funcao), len(mao_pessoas), len(mao_tempo), len(mao_custo), 0)):
+    total_linhas_mao_obra = max(
+        len(mao_funcao),
+        len(mao_pessoas),
+        len(mao_tempo),
+        len(mao_unidade),
+        len(mao_custo),
+        len(mao_alimentacao_dia),
+        len(mao_transporte_dia),
+        0,
+    )
+    fatores_dias_mao_obra = {"dia": 1.0, "semana": 5.0, "mes": 22.0}
+
+    for indice in range(total_linhas_mao_obra):
         funcao = _gerador_item_valor(mao_funcao, indice)
         if not funcao:
             continue
 
         pessoas = _converter_valor_brl(_gerador_item_valor(mao_pessoas, indice)) or 1
         tempo = _converter_valor_brl(_gerador_item_valor(mao_tempo, indice)) or 1
+        unidade = (_gerador_item_valor(mao_unidade, indice) or "dia").strip().lower()
         custo_unitario = _converter_valor_brl(_gerador_item_valor(mao_custo, indice))
-        custo = pessoas * tempo * custo_unitario
+        alimentacao_dia = _converter_valor_brl(_gerador_item_valor(mao_alimentacao_dia, indice))
+        transporte_dia = _converter_valor_brl(_gerador_item_valor(mao_transporte_dia, indice))
+        dias_estimados = tempo * fatores_dias_mao_obra.get(unidade, 0.0)
+        custo_base = pessoas * tempo * custo_unitario
+        custo_alimentacao = pessoas * dias_estimados * alimentacao_dia
+        custo_transporte = pessoas * dias_estimados * transporte_dia
+        custo = custo_base + custo_alimentacao + custo_transporte
 
         mao_obra.append(
             {
                 "funcao": funcao,
                 "pessoas": pessoas,
                 "tempo": tempo,
-                "unidade": _gerador_item_valor(mao_unidade, indice) or "dia",
+                "unidade": unidade,
                 "custo_unitario": custo_unitario,
+                "alimentacao_dia": alimentacao_dia,
+                "transporte_dia": transporte_dia,
+                "dias_estimados": dias_estimados,
+                "custo_base": custo_base,
+                "custo_alimentacao": custo_alimentacao,
+                "custo_transporte": custo_transporte,
                 "custo": custo,
             }
         )
