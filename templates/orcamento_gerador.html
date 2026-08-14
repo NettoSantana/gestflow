@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_gerador.html
-Último recode: 2026-07-22 11:08 (America/Bahia)
-Motivo: Destacar a numeração automática, ampliar as observações e impedir envio acidental do Gerador pela tecla Enter.
+Último recode: 2026-08-14 12:28 (America/Bahia)
+Motivo: Incluir alimentação e transporte por dia na linha de mão de obra, com estimativa fixa de dia, semana e mês.
 -->
 
 <!DOCTYPE html>
@@ -1065,6 +1065,8 @@ Motivo: Destacar a numeração automática, ampliar as observações e impedir e
                                         <th>Tempo</th>
                                         <th>Unidade</th>
                                         <th>Custo unit.</th>
+                                        <th>Alimentação/dia</th>
+                                        <th>Transporte/dia</th>
                                         <th>Total custo</th>
                                         <th>Ação</th>
                                     </tr>
@@ -1075,7 +1077,7 @@ Motivo: Destacar a numeração automática, ampliar as observações e impedir e
 
                         <div class="gerador-table-actions">
                             <button type="button" class="btn-primary-green" onclick="adicionarMaoObra()">+ Adicionar mão de obra</button>
-                            <span>Use este botão para lançar mais funcionários, funções ou equipes.</span>
+                            <span>Alimentação e transporte usam estimativa fixa por pessoa: dia = 1, semana = 5 dias e mês = 22 dias.</span>
                         </div>
                     </section>
 
@@ -1100,7 +1102,7 @@ Motivo: Destacar a numeração automática, ampliar as observações e impedir e
                         <div class="panel-header page-header">
                             <div>
                                 <h3>Custos adicionais</h3>
-                                <p class="page-subtitle">Coloque transporte, alimentação, hospedagem, ART, ferramentas, consumíveis e outros custos.</p>
+                                <p class="page-subtitle">Coloque hospedagem, ART, ferramentas, consumíveis e outros custos.</p>
                             </div>
                             <button type="button" class="btn-primary-green" onclick="adicionarCusto()">+ Custo</button>
                         </div>
@@ -1541,6 +1543,8 @@ function adicionarMaoObra(dados = {}) {
         <td data-label="Tempo"><input name="mao_tempo" type="text" class="form-control gerador-input" value="${textoSeguro(dados.tempo || '1')}"></td>
         <td data-label="Unidade"><select name="mao_unidade" class="form-control gerador-input mao-unidade"><option value="hora">hora</option><option value="dia" selected>dia</option><option value="semana">semana</option><option value="mes">mês</option></select></td>
         <td data-label="Custo unitário"><input name="mao_custo_unitario" type="text" class="form-control gerador-input" placeholder="0,00" value="${textoSeguro(dados.custo_unitario ?? dados.custo ?? '')}"></td>
+        <td data-label="Alimentação por dia"><input name="mao_alimentacao_dia" type="text" class="form-control gerador-input" placeholder="0,00" value="${textoSeguro(dados.alimentacao_dia ?? '')}"></td>
+        <td data-label="Transporte por dia"><input name="mao_transporte_dia" type="text" class="form-control gerador-input" placeholder="0,00" value="${textoSeguro(dados.transporte_dia ?? '')}"></td>
         <td data-label="Total da mão de obra" class="gerador-total-cell"><strong class="linha-total">R$ 0,00</strong></td>
         <td data-label="Ação" class="gerador-action-cell"><button type="button" class="gerador-remove" onclick="removerLinha(this)" aria-label="Excluir mão de obra">×</button></td>
     `;
@@ -2015,6 +2019,11 @@ function conectarEventosGerador(raiz) {
     });
 }
 
+function diasEstimadosMaoObra(unidade, tempo) {
+    const fatores = { dia: 1, semana: 5, mes: 22 };
+    return (fatores[String(unidade || '').trim()] || 0) * (numero(tempo) || 0);
+}
+
 function recalcularGerador() {
     let custoMaterial = 0;
     let custoMao = 0;
@@ -2033,8 +2042,15 @@ function recalcularGerador() {
     document.querySelectorAll('#mao-obra-body tr').forEach(function(tr) {
         const pessoas = numero(tr.querySelector('[name="mao_pessoas"]')?.value) || 1;
         const tempo = numero(tr.querySelector('[name="mao_tempo"]')?.value) || 1;
-        const custo = numero(tr.querySelector('[name="mao_custo_unitario"]')?.value);
-        const total = pessoas * tempo * custo;
+        const unidade = tr.querySelector('[name="mao_unidade"]')?.value || 'dia';
+        const custoUnitario = numero(tr.querySelector('[name="mao_custo_unitario"]')?.value);
+        const alimentacaoDia = numero(tr.querySelector('[name="mao_alimentacao_dia"]')?.value);
+        const transporteDia = numero(tr.querySelector('[name="mao_transporte_dia"]')?.value);
+        const diasEstimados = diasEstimadosMaoObra(unidade, tempo);
+        const custoBase = pessoas * tempo * custoUnitario;
+        const custoAlimentacao = pessoas * diasEstimados * alimentacaoDia;
+        const custoTransporte = pessoas * diasEstimados * transporteDia;
+        const total = custoBase + custoAlimentacao + custoTransporte;
         custoMao += total;
         tr.querySelector('.linha-total').textContent = moeda(total);
     });
