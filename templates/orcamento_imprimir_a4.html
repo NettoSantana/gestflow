@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_imprimir_a4.html
-Último recode: 2026-07-23 00:18 (America/Bahia)
-Motivo: Aplicar logo, assinatura, exibição de itens, cabeçalho e rodapé configurados por empresa.
+Último recode: 2026-08-16 10:00 (America/Bahia)
+Motivo: Padronizar títulos, alinhamento, parágrafos e listas do bloco Escopo e Observações na impressão A4 do orçamento.
 -->
 
 <!DOCTYPE html>
@@ -221,14 +221,14 @@ Motivo: Aplicar logo, assinatura, exibição de itens, cabeçalho e rodapé conf
 
         .scope-content {
             display: grid;
-            gap: 10px;
+            gap: 12px;
             padding-top: 8px;
         }
 
         .scope-free-text,
         .scope-extra-notes {
             display: grid;
-            gap: 7px;
+            gap: 8px;
         }
 
         .scope-section {
@@ -244,11 +244,13 @@ Motivo: Aplicar logo, assinatura, exibição de itens, cabeçalho e rodapé conf
             align-items: center;
             gap: 8px;
             margin: 0;
-            padding: 6px 8px;
+            padding: 7px 9px;
             background: #f1f5f9;
             color: #111827;
             font-size: 11px;
             font-weight: 800;
+            line-height: 1.35;
+            text-align: left;
             text-transform: uppercase;
             break-after: avoid;
             page-break-after: avoid;
@@ -258,6 +260,7 @@ Motivo: Aplicar logo, assinatura, exibição de itens, cabeçalho e rodapé conf
             min-width: 22px;
             height: 22px;
             display: inline-flex;
+            flex: 0 0 22px;
             align-items: center;
             justify-content: center;
             border-radius: 3px;
@@ -267,8 +270,8 @@ Motivo: Aplicar logo, assinatura, exibição de itens, cabeçalho e rodapé conf
 
         .scope-body {
             display: grid;
-            gap: 7px;
-            padding: 8px 10px;
+            gap: 9px;
+            padding: 9px 11px 10px;
         }
 
         .scope-body p,
@@ -276,31 +279,36 @@ Motivo: Aplicar logo, assinatura, exibição de itens, cabeçalho e rodapé conf
         .scope-extra-notes p {
             margin: 0;
             line-height: 1.55;
-            text-align: justify;
-            white-space: pre-wrap;
+            text-align: left;
+            white-space: normal;
+            overflow-wrap: anywhere;
             orphans: 3;
             widows: 3;
         }
 
         .scope-body ul {
             margin: 0;
-            padding-left: 19px;
+            padding-left: 21px;
             display: grid;
-            gap: 5px;
+            gap: 6px;
         }
 
         .scope-body li {
-            line-height: 1.45;
+            line-height: 1.5;
+            text-align: left;
+            padding-left: 1px;
             break-inside: avoid;
             page-break-inside: avoid;
         }
 
         .scope-extra-title {
             margin: 2px 0 0;
-            padding: 7px 0 0;
+            padding: 8px 0 0;
             border-top: 1px solid #d1d5db;
             font-size: 11px;
             font-weight: 800;
+            line-height: 1.35;
+            text-align: left;
             text-transform: uppercase;
             break-after: avoid;
             page-break-after: avoid;

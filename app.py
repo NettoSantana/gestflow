@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-16 09:30 (America/Bahia)
-# Motivo: Proteger orçamentos criados pelo Gerador contra edição manual da composição e direcionar a edição para a Revisão do Gerador.
+# Último recode: 2026-08-16 09:59 (America/Bahia)
+# Motivo: Padronizar a identificação dos títulos numerados do escopo na impressão A4, incluindo equipamentos, serviços contemplados, documentação técnica e entregáveis.
 
 from __future__ import annotations
 
@@ -11659,6 +11659,10 @@ ORCAMENTO_ESCOPO_TITULOS_ALTERNATIVOS = {
     "SERVICOS EXECUTADOS": "SERVIÇOS EXECUTADOS",
     "SERVICOS PREVISTOS": "SERVIÇOS PREVISTOS",
     "SERVICOS A SEREM EXECUTADOS": "SERVIÇOS A SEREM EXECUTADOS",
+    "SERVICOS CONTEMPLADOS": "SERVIÇOS CONTEMPLADOS",
+    "EQUIPAMENTOS CONTEMPLADOS": "EQUIPAMENTOS CONTEMPLADOS",
+    "DOCUMENTACAO TECNICA": "DOCUMENTAÇÃO TÉCNICA",
+    "ENTREGAVEIS": "ENTREGÁVEIS",
     "MATERIAIS E COMPONENTES": "MATERIAIS E COMPONENTES",
     "MATERIAIS ELETRICOS": "MATERIAIS ELÉTRICOS",
     "MATERIAIS MECANICOS": "MATERIAIS MECÂNICOS",
@@ -11676,7 +11680,10 @@ ORCAMENTO_ESCOPO_CABECALHO_REGEX = re.compile(
     r"OBJETIVO\s+DO\s+SERVI[CÇ]O|"
     r"DESCRI[CÇ][AÃ]O\s+DO\s+SERVI[CÇ]O|"
     r"DIAGN[OÓ]STICO\s+T[EÉ]CNICO|"
-    r"SERVI[CÇ]OS\s+(?:A\s+SEREM\s+)?(?:EXECUTADOS|PREVISTOS)|"
+    r"SERVI[CÇ]OS\s+(?:A\s+SEREM\s+)?(?:EXECUTADOS|PREVISTOS|CONTEMPLADOS)|"
+    r"EQUIPAMENTOS\s+CONTEMPLADOS|"
+    r"DOCUMENTA[CÇ][AÃ]O\s+T[EÉ]CNICA|"
+    r"ENTREG[AÁ]VEIS|"
     r"MATERIAIS\s+E\s+COMPONENTES|"
     r"MATERIAIS\s+EL[EÉ]TRICOS|"
     r"MATERIAIS\s+MEC[AÂ]NICOS|"
@@ -11929,7 +11936,7 @@ def formatar_escopo_orcamento(
         chave_titulo = _chave_titulo_escopo(titulo_secao)
         itens = (
             _extrair_itens_escopo(corpo, numero)
-            if numero == "4" or "MATERIAIS" in chave_titulo
+            if numero == "4" or "MATERIAIS" in chave_titulo or "ENTREGAVEIS" in chave_titulo
             else []
         )
         paragrafos = [] if itens else _extrair_paragrafos_escopo(corpo)
