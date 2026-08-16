@@ -1220,8 +1220,8 @@ Motivo: Organizar o Gerador por atividades recolhíveis, com materiais, mão de 
 
         {% if revisao and orcamento %}
             <nav class="budget-tabs" aria-label="Abas do orçamento">
-                <a class="budget-tab" href="/orcamentos/{{ orcamento.id }}/editar">Orçamento</a>
-                <a class="budget-tab" href="/orcamentos/{{ orcamento.id }}/editar#aba-apresentacao">Apresentação ao cliente</a>
+                <a class="budget-tab" href="/orcamentos/{{ orcamento.id }}">Orçamento</a>
+                <a class="budget-tab" href="#apresentacao-cliente">Apresentação ao cliente</a>
                 <a class="budget-tab active" href="/orcamentos/{{ orcamento.id }}/gerador/revisao">Dados do Gerador</a>
                 <a class="budget-tab" href="/orcamentos/{{ orcamento.id }}/gerador/historico">Histórico</a>
             </nav>
@@ -1229,6 +1229,9 @@ Motivo: Organizar o Gerador por atividades recolhíveis, com materiais, mão de 
 
         {% if request.args.get('erro') %}
             <div class="gerador-form-error">{{ request.args.get('erro') }}</div>
+        {% endif %}
+        {% if request.args.get('aviso') %}
+            <div class="commercial-presentation-note">{{ request.args.get('aviso') }}</div>
         {% endif %}
 
         <form id="gerador-form" action="{{ form_action|default('/orcamentos/gerador') }}" method="post">
@@ -1360,7 +1363,7 @@ Motivo: Organizar o Gerador por atividades recolhíveis, com materiais, mão de 
                         </div>
                     </section>
 
-                    <section class="panel page-section">
+                    <section class="panel page-section" id="apresentacao-cliente">
                         <div class="panel-header page-header">
                             <div>
                                 <h3>Apresentação ao cliente</h3>
@@ -1456,7 +1459,7 @@ Motivo: Organizar o Gerador por atividades recolhíveis, com materiais, mão de 
                             </label>
                             <label class="gerador-preco-opcao">
                                 <input type="radio" name="valor_escolhido_tipo" value="customizado" {% if gerador_inicial.tipo_valor == 'customizado' %}checked{% endif %}>
-                                <span><strong>Customizado</strong><span>Defina o valor manualmente.</span><input id="valor_customizado" name="valor_customizado" type="text" value="{{ gerador_inicial.valor_escolhido if gerador_inicial.tipo_valor == 'customizado' else '' }}" class="form-control" placeholder="0,00"></span>
+                                <span><strong>Customizado</strong><span>Defina o valor manualmente.</span><input id="valor_customizado" name="valor_customizado" type="text" value="{{ gerador_inicial.valor_escolhido if gerador_inicial.tipo_valor == 'customizado' else '' }}" class="form-control" placeholder="0,00" {% if gerador_inicial.tipo_valor != 'customizado' %}disabled{% endif %}></span>
                             </label>
                         </div>
                     </div>
@@ -2973,11 +2976,22 @@ function salvarFuncionarioRapidoGerador() {
         .catch(e => { erro.textContent = e.message; erro.classList.add('show'); });
 }
 
+function atualizarCampoCustomizado() {
+    const campo = document.getElementById('valor_customizado');
+    const selecionado = document.querySelector('input[name="valor_escolhido_tipo"]:checked')?.value || 'recomendado';
+    if (!campo) return;
+    campo.disabled = selecionado !== 'customizado';
+}
+
 function conectarEventosGlobaisGerador() {
     document.querySelectorAll('.gerador-parametro, input[name="valor_escolhido_tipo"], #valor_customizado').forEach(function(input) {
         input.addEventListener('input', recalcularGerador);
-        input.addEventListener('change', recalcularGerador);
+        input.addEventListener('change', function() {
+            atualizarCampoCustomizado();
+            recalcularGerador();
+        });
     });
+    atualizarCampoCustomizado();
 }
 
 window.addEventListener('DOMContentLoaded', function() {

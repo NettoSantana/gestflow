@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-14 12:38 (America/Bahia)
-# Motivo: Organizar o Gerador de Orçamentos por atividades, preservando custos por atividade e custos gerais na criação, revisão e apresentação.
+# Último recode: 2026-08-16 09:30 (America/Bahia)
+# Motivo: Proteger orçamentos criados pelo Gerador contra edição manual da composição e direcionar a edição para a Revisão do Gerador.
 
 from __future__ import annotations
 
@@ -37052,12 +37052,22 @@ def editar_orcamento(orcamento_id: int) -> str | Response:
     if orcamento is None:
         return redirect(url_for("orcamentos"))
 
+    dados_gerador = buscar_orcamento_gerador_dados(orcamento_id)
+    if dados_gerador is not None:
+        return redirect(
+            url_for(
+                "revisar_gerador_orcamento",
+                orcamento_id=orcamento_id,
+                aviso="Este orçamento foi criado pelo Gerador. A composição deve ser alterada em Dados do Gerador.",
+            )
+        )
+
     return render_template(
         "orcamento_editar.html",
         orcamento=orcamento,
         itens=listar_orcamento_itens(orcamento_id),
         itens_apresentacao=listar_orcamento_apresentacao_itens(orcamento_id),
-        dados_gerador=buscar_orcamento_gerador_dados(orcamento_id),
+        dados_gerador=None,
         modos_apresentacao=ORCAMENTO_MODOS_APRESENTACAO,
         clientes=listar_clientes(),
         funcionarios=listar_funcionarios(),
@@ -37074,6 +37084,15 @@ def atualizar_orcamento(orcamento_id: int) -> Response:
     orcamento_atual = buscar_orcamento_por_id(orcamento_id)
     if orcamento_atual is None:
         return redirect(url_for("orcamentos"))
+
+    if buscar_orcamento_gerador_dados(orcamento_id) is not None:
+        return redirect(
+            url_for(
+                "revisar_gerador_orcamento",
+                orcamento_id=orcamento_id,
+                erro="A composição deste orçamento é controlada pelo Gerador e não pode ser alterada pelo editor manual.",
+            )
+        )
 
     orcamento = montar_orcamento_formulario(numero_padrao=str(orcamento_atual["numero"] or ""))
     orcamento["numero"] = str(orcamento_atual["numero"] or "")
