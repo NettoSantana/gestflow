@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-16 09:59 (America/Bahia)
-# Motivo: Padronizar a identificação dos títulos numerados do escopo na impressão A4, incluindo equipamentos, serviços contemplados, documentação técnica e entregáveis.
+# Último recode: 2026-08-18 19:57 (America/Bahia)
+# Motivo: Padronizar cores da Vitrine com catálogo visual, cadastro de nova cor e persistência de nome + tom sem quebrar carrinho e pedidos.
 
 from __future__ import annotations
 
@@ -26764,6 +26764,7 @@ def listar_produtos_vitrine_admin(empresa_id: int) -> list[dict[str, Any]]:
                 "descricao": descricao,
                 "preco": preco,
                 "variacoes_cores": str(item.get("vitrine_variacoes_cores") or ""),
+                "variacoes_cores_detalhadas": _lista_cores_vitrine_detalhada(item.get("vitrine_variacoes_cores")),
                 "variacoes_tamanhos": str(item.get("vitrine_variacoes_tamanhos") or ""),
                 "imagem_path": str(item.get("vitrine_imagem_path") or ""),
                 "destaque": str(item.get("vitrine_destaque") or "nao"),
@@ -29040,7 +29041,8 @@ def renderizar_vitrine_publica_html(
             ]
             if not midias and str(produto.get("imagem_path") or "").strip():
                 midias = [{"path": str(produto.get("imagem_path") or "").strip(), "tipo": "imagem"}]
-            cores_produto = _lista_variacoes_vitrine(produto.get("variacoes_cores")) if not bool(produto.get("integrado")) else []
+            cores_detalhadas_produto = _lista_cores_vitrine_detalhada(produto.get("variacoes_cores")) if not bool(produto.get("integrado")) else []
+            cores_produto = [str(cor.get("nome") or "") for cor in cores_detalhadas_produto if str(cor.get("nome") or "").strip()]
             tamanhos_produto = _lista_variacoes_vitrine(produto.get("variacoes_tamanhos")) if not bool(produto.get("integrado")) else []
             itens_publicos.append(
                 {
@@ -29056,6 +29058,7 @@ def renderizar_vitrine_publica_html(
                     "destaque": str(produto.get("destaque") or "nao").strip().lower() == "sim",
                     "midias": midias,
                     "cores": cores_produto,
+                    "cores_detalhadas": cores_detalhadas_produto,
                     "tamanhos": tamanhos_produto,
                     "max": quantidade_maxima,
                     "duracao": "",
@@ -29175,17 +29178,7 @@ def renderizar_vitrine_publica_html(
         return html.escape(json.dumps(dados, ensure_ascii=False, separators=(",", ":")), quote=True)
 
     def _cor_visual_vitrine(nome_cor: Any) -> str:
-        texto = str(nome_cor or "").strip().lower()
-        if re.fullmatch(r"#[0-9a-f]{6}", texto):
-            return texto
-        mapa = {
-            "preto": "#111111", "branco": "#ffffff", "rosa": "#f4a6c1",
-            "azul": "#2563eb", "azul marinho": "#1e3a5f", "vermelho": "#dc2626",
-            "verde": "#16a34a", "amarelo": "#facc15", "cinza": "#9ca3af",
-            "bege": "#d6c6a8", "marrom": "#8b5e3c", "roxo": "#7c3aed",
-            "lilás": "#c4b5fd", "lilas": "#c4b5fd", "laranja": "#f97316",
-        }
-        return mapa.get(texto, "#d1d5db")
+        return _cor_hex_vitrine(nome_cor)
 
     def _opcoes_select_variacao(valores: list[str]) -> str:
         return "".join(
@@ -29200,6 +29193,12 @@ def renderizar_vitrine_publica_html(
         categoria_item = html.escape(item["categoria"])
         dados_item = _item_json_html(item)
         cores = [str(valor) for valor in (item.get("cores") or []) if str(valor).strip()]
+        cores_detalhadas = [dict(valor) for valor in (item.get("cores_detalhadas") or []) if isinstance(valor, dict)]
+        cores_visuais = {
+            _texto_comparacao_configuracao(cor.get("nome")): _cor_hex_vitrine(cor.get("nome"), cor.get("hex"))
+            for cor in cores_detalhadas
+            if str(cor.get("nome") or "").strip()
+        }
         tamanhos = [str(valor) for valor in (item.get("tamanhos") or []) if str(valor).strip()]
         possui_variacoes = tipo == "produto" and bool(cores or tamanhos)
         badge = ""
@@ -29214,7 +29213,7 @@ def renderizar_vitrine_publica_html(
         variacoes_resumo = ""
         if cores:
             bolinhas = "".join(
-                f'<span class="variant-dot" title="{html.escape(cor, quote=True)}" style="--variant-color:{_cor_visual_vitrine(cor)}"></span>'
+                f'<span class="variant-dot" title="{html.escape(cor, quote=True)}" style="--variant-color:{cores_visuais.get(_texto_comparacao_configuracao(cor), _cor_visual_vitrine(cor))}"></span>'
                 for cor in cores[:8]
             )
             variacoes_resumo += f'<div class="card-variant-dots" aria-label="Cores disponíveis">{bolinhas}</div>'
@@ -30512,10 +30511,95 @@ def _status_produto_vitrine_formulario(valor: Any) -> str:
     return status if status in {"publicado", "indisponivel", "oculto", "rascunho"} else "publicado"
 
 
+VITRINE_CORES_PADRAO: tuple[tuple[str, str], ...] = (
+    ("Preto", "#111111"),
+    ("Branco", "#ffffff"),
+    ("Off-white", "#f5f1e8"),
+    ("Bege", "#d6c6a8"),
+    ("Marrom", "#8b5e3c"),
+    ("Terracota", "#c66a4a"),
+    ("Amarelo", "#facc15"),
+    ("Azul bebê", "#9ed8f0"),
+    ("Azul", "#2563eb"),
+    ("Azul marinho", "#1e3a5f"),
+    ("Rosa", "#f4a6c1"),
+    ("Vermelho", "#dc2626"),
+    ("Verde", "#16a34a"),
+    ("Verde oliva", "#6b7a3a"),
+    ("Cinza", "#9ca3af"),
+    ("Nude", "#d8b4a0"),
+    ("Lilás", "#c4b5fd"),
+    ("Laranja", "#f97316"),
+    ("Roxo", "#7c3aed"),
+)
+
+
+def _cor_nome_canonico_vitrine(valor: Any) -> str:
+    nome = re.sub(r"\s+", " ", str(valor or "").strip())[:40]
+    if not nome:
+        return ""
+    chave = _texto_comparacao_configuracao(nome)
+    for nome_padrao, _ in VITRINE_CORES_PADRAO:
+        if _texto_comparacao_configuracao(nome_padrao) == chave:
+            return nome_padrao
+    return nome[:1].upper() + nome[1:].lower() if nome.isupper() else nome[:1].upper() + nome[1:]
+
+
+def _cor_hex_vitrine(nome: Any, valor_hex: Any = "") -> str:
+    chave = _texto_comparacao_configuracao(nome)
+    for nome_padrao, cor_hex in VITRINE_CORES_PADRAO:
+        if _texto_comparacao_configuracao(nome_padrao) == chave:
+            return cor_hex
+    informado = str(valor_hex or "").strip().lower()
+    if re.fullmatch(r"#[0-9a-f]{6}", informado):
+        return informado
+    return "#d1d5db"
+
+
+def _lista_cores_vitrine_detalhada(valor: Any) -> list[dict[str, str]]:
+    texto = str(valor or "").strip()
+    if not texto:
+        return []
+
+    bruto: list[Any] = []
+    if texto.startswith("["):
+        try:
+            carregado = json.loads(texto)
+            if isinstance(carregado, list):
+                bruto = carregado
+        except (TypeError, ValueError, json.JSONDecodeError):
+            bruto = []
+
+    if not bruto:
+        bruto = [parte for parte in re.split(r"[,;\n]+", texto) if str(parte or "").strip()]
+
+    itens: list[dict[str, str]] = []
+    vistos: set[str] = set()
+    for entrada in bruto:
+        if isinstance(entrada, dict):
+            nome = _cor_nome_canonico_vitrine(entrada.get("nome"))
+            cor_hex = _cor_hex_vitrine(nome, entrada.get("hex"))
+        else:
+            nome = _cor_nome_canonico_vitrine(entrada)
+            cor_hex = _cor_hex_vitrine(nome)
+        chave = _texto_comparacao_configuracao(nome)
+        if not nome or not chave or chave in vistos:
+            continue
+        vistos.add(chave)
+        itens.append({"nome": nome, "hex": cor_hex})
+        if len(itens) >= 30:
+            break
+    return itens
+
+
 def _lista_variacoes_vitrine(valor: Any) -> list[str]:
     texto = str(valor or "").strip()
     if not texto:
         return []
+    if texto.startswith("["):
+        cores = _lista_cores_vitrine_detalhada(texto)
+        if cores:
+            return [cor["nome"] for cor in cores]
     itens: list[str] = []
     vistos: set[str] = set()
     for parte in re.split(r"[,;\n]+", texto):
@@ -30530,8 +30614,31 @@ def _lista_variacoes_vitrine(valor: Any) -> list[str]:
     return itens
 
 
+def _normalizar_cores_vitrine_formulario(valor_nomes: Any, valor_json: Any) -> str:
+    detalhes = _lista_cores_vitrine_detalhada(valor_json)
+    if not detalhes:
+        detalhes = _lista_cores_vitrine_detalhada(valor_nomes)
+    if not detalhes:
+        return ""
+    return json.dumps(detalhes, ensure_ascii=False, separators=(",", ":"))
+
+
 def _normalizar_variacoes_vitrine_formulario(valor: Any) -> str:
     return "\n".join(_lista_variacoes_vitrine(valor))
+
+
+def _cores_vitrine_disponiveis_admin(produtos: list[dict[str, Any]]) -> list[dict[str, str]]:
+    disponiveis = [{"nome": nome, "hex": cor_hex} for nome, cor_hex in VITRINE_CORES_PADRAO]
+    vistos = {_texto_comparacao_configuracao(item["nome"]) for item in disponiveis}
+    for produto in produtos:
+        for cor in produto.get("variacoes_cores_detalhadas") or []:
+            nome = _cor_nome_canonico_vitrine(cor.get("nome"))
+            chave = _texto_comparacao_configuracao(nome)
+            if not chave or chave in vistos:
+                continue
+            vistos.add(chave)
+            disponiveis.append({"nome": nome, "hex": _cor_hex_vitrine(nome, cor.get("hex"))})
+    return disponiveis
 
 
 def _variacao_escolhida_vitrine(valor: Any, permitidas: list[str]) -> str:
@@ -30588,7 +30695,10 @@ def vitrine_produto_independente_salvar() -> Response:
         str(request.form.get("descricao") or "").strip(),
         str(request.form.get("categoria") or "Produtos").strip() or "Produtos",
         str(request.form.get("preco") or "0,00").strip() or "0,00",
-        _normalizar_variacoes_vitrine_formulario(request.form.get("variacoes_cores")),
+        _normalizar_cores_vitrine_formulario(
+            request.form.get("variacoes_cores"),
+            request.form.get("variacoes_cores_json"),
+        ),
         _normalizar_variacoes_vitrine_formulario(request.form.get("variacoes_tamanhos")),
         "sim" if request.form.get("destaque") == "sim" else "nao",
         _status_produto_vitrine_formulario(request.form.get("status")),
@@ -30914,6 +31024,7 @@ def vitrine() -> str | Response:
         vitrine=config_vitrine,
         produtos_vitrine=listar_produtos_vitrine_empresa(empresa_id),
         produtos_vitrine_admin=produtos_admin,
+        cores_vitrine_disponiveis=_cores_vitrine_disponiveis_admin(produtos_admin),
         servicos_vitrine=listar_servicos_vitrine_empresa(empresa_id),
         servicos_vitrine_admin=servicos_admin,
         ranking_vitrine=listar_ranking_produtos_vitrine(empresa_id),
