@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vitrine.html
-Último recode: 2026-08-18 19:57 (America/Bahia)
-Motivo: Padronizar seleção de cores da Vitrine com amostras visuais, catálogo reutilizável e cadastro de nova cor sem digitação livre.
+Último recode: 2026-08-19 03:46 (America/Bahia)
+Motivo: Compactar as variações da Vitrine, exibindo somente cores e tamanhos selecionados e abrindo os catálogos apenas sob demanda.
 #}
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -634,37 +634,58 @@ Motivo: Padronizar seleção de cores da Vitrine com amostras visuais, catálogo
                                         <input type="hidden" name="variacoes_cores" value="" data-vitrine-color-names>
                                         <input type="hidden" name="variacoes_cores_json" value="[]" data-vitrine-color-json>
                                         <span class="vitrine-color-label">Cores disponíveis</span>
-                                        <div class="vitrine-color-options" data-vitrine-color-options>
-                                            {% for cor in cores_vitrine_disponiveis %}
-                                                <button type="button" class="vitrine-color-option" data-cor-nome="{{ cor.get('nome') }}" data-cor-hex="{{ cor.get('hex') }}" aria-pressed="false">
-                                                    <span class="vitrine-color-swatch" style="--cor-opcao: {{ cor.get('hex') }}"></span>
-                                                    <b>{{ cor.get('nome') }}</b>
-                                                </button>
-                                            {% endfor %}
-                                        </div>
-                                        <button type="button" class="vitrine-new-color-trigger" data-vitrine-add-color>+ Nova cor</button>
-                                        <div class="vitrine-new-color-box" data-vitrine-new-color hidden>
-                                            <label>
-                                                Nome da nova cor
-                                                <input type="text" maxlength="40" placeholder="Ex.: Rosa antigo" data-vitrine-new-color-name>
-                                            </label>
-                                            <label>
-                                                Cor visual
-                                                <input type="color" value="#6b7280" data-vitrine-new-color-hex>
-                                            </label>
-                                            <div class="vitrine-new-color-actions">
-                                                <button type="button" class="btn btn-primary btn-small" data-vitrine-confirm-color>Adicionar cor</button>
-                                                <button type="button" class="btn btn-secondary btn-small" data-vitrine-cancel-color>Cancelar</button>
+                                        <div class="vitrine-selected-options" data-vitrine-selected-colors></div>
+                                        <button type="button" class="vitrine-variation-add-trigger" data-vitrine-open-colors>+ Adicionar cor</button>
+                                        <div class="vitrine-color-picker" data-vitrine-color-picker hidden>
+                                            <div class="vitrine-picker-heading">
+                                                <strong>Selecionar cor</strong>
+                                                <button type="button" aria-label="Fechar seleção de cores" data-vitrine-close-colors>×</button>
                                             </div>
-                                            <small class="vitrine-color-error" data-vitrine-color-error hidden></small>
+                                            <input type="search" class="vitrine-picker-search" placeholder="Buscar cor..." autocomplete="off" data-vitrine-color-search>
+                                            <div class="vitrine-color-options" data-vitrine-color-options>
+                                                {% for cor in cores_vitrine_disponiveis %}
+                                                    <button type="button" class="vitrine-color-option" data-cor-nome="{{ cor.get('nome') }}" data-cor-hex="{{ cor.get('hex') }}" aria-pressed="false">
+                                                        <span class="vitrine-color-swatch" style="--cor-opcao: {{ cor.get('hex') }}"></span>
+                                                        <b>{{ cor.get('nome') }}</b>
+                                                    </button>
+                                                {% endfor %}
+                                            </div>
+                                            <div class="vitrine-picker-footer">
+                                                <button type="button" class="vitrine-new-color-trigger" data-vitrine-add-color>+ Nova cor</button>
+                                            </div>
+                                            <div class="vitrine-new-color-box" data-vitrine-new-color hidden>
+                                                <label>
+                                                    Nome da nova cor
+                                                    <input type="text" maxlength="40" placeholder="Ex.: Rosa antigo" data-vitrine-new-color-name>
+                                                </label>
+                                                <label>
+                                                    Cor visual
+                                                    <input type="color" value="#6b7280" data-vitrine-new-color-hex>
+                                                </label>
+                                                <div class="vitrine-new-color-actions">
+                                                    <button type="button" class="btn btn-primary btn-small" data-vitrine-confirm-color>Adicionar cor</button>
+                                                    <button type="button" class="btn btn-secondary btn-small" data-vitrine-cancel-color>Cancelar</button>
+                                                </div>
+                                                <small class="vitrine-color-error" data-vitrine-color-error hidden></small>
+                                            </div>
                                         </div>
-                                        <small>Selecione as cores usadas neste produto. Se a cor não existir, use + Nova cor.</small>
+                                        <small>Mostramos aqui somente as cores escolhidas para este produto.</small>
                                     </div>
-                                    <label>
-                                        Tamanhos disponíveis
-                                        <input type="text" name="variacoes_tamanhos" placeholder="Ex.: P, M, G, GG">
-                                        <small>Separe as opções por vírgula.</small>
-                                    </label>
+                                    <div class="vitrine-size-editor" data-vitrine-size-editor data-tamanhos-iniciais="">
+                                        <input type="hidden" name="variacoes_tamanhos" value="" data-vitrine-size-input>
+                                        <span class="vitrine-color-label">Tamanhos disponíveis</span>
+                                        <div class="vitrine-selected-options" data-vitrine-selected-sizes></div>
+                                        <button type="button" class="vitrine-variation-add-trigger" data-vitrine-add-size>+ Adicionar tamanho</button>
+                                        <div class="vitrine-size-box" data-vitrine-size-box hidden>
+                                            <input type="text" maxlength="20" placeholder="Ex.: P, M, G ou Único" autocomplete="off" data-vitrine-size-name>
+                                            <div class="vitrine-size-actions">
+                                                <button type="button" class="btn btn-primary btn-small" data-vitrine-confirm-size>Adicionar</button>
+                                                <button type="button" class="btn btn-secondary btn-small" data-vitrine-cancel-size>Cancelar</button>
+                                            </div>
+                                            <small class="vitrine-size-error" data-vitrine-size-error hidden></small>
+                                        </div>
+                                        <small>Adicione somente os tamanhos vendidos neste produto.</small>
+                                    </div>
                                 </div>
                             </div>
 
@@ -823,37 +844,58 @@ Motivo: Padronizar seleção de cores da Vitrine com amostras visuais, catálogo
                                                         <input type="hidden" name="variacoes_cores" value="" data-vitrine-color-names>
                                                         <input type="hidden" name="variacoes_cores_json" value='{{ (produto.get("variacoes_cores_detalhadas") or [])|tojson|forceescape }}' data-vitrine-color-json>
                                                         <span class="vitrine-color-label">Cores disponíveis</span>
-                                                        <div class="vitrine-color-options" data-vitrine-color-options>
-                                                            {% for cor in cores_vitrine_disponiveis %}
-                                                                <button type="button" class="vitrine-color-option" data-cor-nome="{{ cor.get('nome') }}" data-cor-hex="{{ cor.get('hex') }}" aria-pressed="false">
-                                                                    <span class="vitrine-color-swatch" style="--cor-opcao: {{ cor.get('hex') }}"></span>
-                                                                    <b>{{ cor.get('nome') }}</b>
-                                                                </button>
-                                                            {% endfor %}
-                                                        </div>
-                                                        <button type="button" class="vitrine-new-color-trigger" data-vitrine-add-color>+ Nova cor</button>
-                                                        <div class="vitrine-new-color-box" data-vitrine-new-color hidden>
-                                                            <label>
-                                                                Nome da nova cor
-                                                                <input type="text" maxlength="40" placeholder="Ex.: Rosa antigo" data-vitrine-new-color-name>
-                                                            </label>
-                                                            <label>
-                                                                Cor visual
-                                                                <input type="color" value="#6b7280" data-vitrine-new-color-hex>
-                                                            </label>
-                                                            <div class="vitrine-new-color-actions">
-                                                                <button type="button" class="btn btn-primary btn-small" data-vitrine-confirm-color>Adicionar cor</button>
-                                                                <button type="button" class="btn btn-secondary btn-small" data-vitrine-cancel-color>Cancelar</button>
+                                                        <div class="vitrine-selected-options" data-vitrine-selected-colors></div>
+                                                        <button type="button" class="vitrine-variation-add-trigger" data-vitrine-open-colors>+ Adicionar cor</button>
+                                                        <div class="vitrine-color-picker" data-vitrine-color-picker hidden>
+                                                            <div class="vitrine-picker-heading">
+                                                                <strong>Selecionar cor</strong>
+                                                                <button type="button" aria-label="Fechar seleção de cores" data-vitrine-close-colors>×</button>
                                                             </div>
-                                                            <small class="vitrine-color-error" data-vitrine-color-error hidden></small>
+                                                            <input type="search" class="vitrine-picker-search" placeholder="Buscar cor..." autocomplete="off" data-vitrine-color-search>
+                                                            <div class="vitrine-color-options" data-vitrine-color-options>
+                                                                {% for cor in cores_vitrine_disponiveis %}
+                                                                    <button type="button" class="vitrine-color-option" data-cor-nome="{{ cor.get('nome') }}" data-cor-hex="{{ cor.get('hex') }}" aria-pressed="false">
+                                                                        <span class="vitrine-color-swatch" style="--cor-opcao: {{ cor.get('hex') }}"></span>
+                                                                        <b>{{ cor.get('nome') }}</b>
+                                                                    </button>
+                                                                {% endfor %}
+                                                            </div>
+                                                            <div class="vitrine-picker-footer">
+                                                                <button type="button" class="vitrine-new-color-trigger" data-vitrine-add-color>+ Nova cor</button>
+                                                            </div>
+                                                            <div class="vitrine-new-color-box" data-vitrine-new-color hidden>
+                                                                <label>
+                                                                    Nome da nova cor
+                                                                    <input type="text" maxlength="40" placeholder="Ex.: Rosa antigo" data-vitrine-new-color-name>
+                                                                </label>
+                                                                <label>
+                                                                    Cor visual
+                                                                    <input type="color" value="#6b7280" data-vitrine-new-color-hex>
+                                                                </label>
+                                                                <div class="vitrine-new-color-actions">
+                                                                    <button type="button" class="btn btn-primary btn-small" data-vitrine-confirm-color>Adicionar cor</button>
+                                                                    <button type="button" class="btn btn-secondary btn-small" data-vitrine-cancel-color>Cancelar</button>
+                                                                </div>
+                                                                <small class="vitrine-color-error" data-vitrine-color-error hidden></small>
+                                                            </div>
                                                         </div>
-                                                        <small>Selecione as cores usadas neste produto. Se a cor não existir, use + Nova cor.</small>
+                                                        <small>Mostramos aqui somente as cores escolhidas para este produto.</small>
                                                     </div>
-                                                    <label>
-                                                        Tamanhos disponíveis
-                                                        <input type="text" name="variacoes_tamanhos" value="{{ (produto.get('variacoes_tamanhos') or '')|replace('\n', ', ') }}" placeholder="Ex.: P, M, G, GG">
-                                                        <small>Separe as opções por vírgula.</small>
-                                                    </label>
+                                                    <div class="vitrine-size-editor" data-vitrine-size-editor data-tamanhos-iniciais="{{ (produto.get('variacoes_tamanhos') or '')|replace('\n', ', ')|e }}">
+                                                        <input type="hidden" name="variacoes_tamanhos" value="{{ (produto.get('variacoes_tamanhos') or '')|replace('\n', ', ') }}" data-vitrine-size-input>
+                                                        <span class="vitrine-color-label">Tamanhos disponíveis</span>
+                                                        <div class="vitrine-selected-options" data-vitrine-selected-sizes></div>
+                                                        <button type="button" class="vitrine-variation-add-trigger" data-vitrine-add-size>+ Adicionar tamanho</button>
+                                                        <div class="vitrine-size-box" data-vitrine-size-box hidden>
+                                                            <input type="text" maxlength="20" placeholder="Ex.: P, M, G ou Único" autocomplete="off" data-vitrine-size-name>
+                                                            <div class="vitrine-size-actions">
+                                                                <button type="button" class="btn btn-primary btn-small" data-vitrine-confirm-size>Adicionar</button>
+                                                                <button type="button" class="btn btn-secondary btn-small" data-vitrine-cancel-size>Cancelar</button>
+                                                            </div>
+                                                            <small class="vitrine-size-error" data-vitrine-size-error hidden></small>
+                                                        </div>
+                                                        <small>Adicione somente os tamanhos vendidos neste produto.</small>
+                                                    </div>
                                                 </div>
                                             </div>
                                         {% endif %}
@@ -1600,16 +1642,21 @@ Motivo: Padronizar seleção de cores da Vitrine com amostras visuais, catálogo
 
                 document.querySelectorAll("[data-vitrine-color-editor]").forEach(function (editor) {
                     const options = editor.querySelector("[data-vitrine-color-options]");
+                    const selectedBox = editor.querySelector("[data-vitrine-selected-colors]");
                     const namesInput = editor.querySelector("[data-vitrine-color-names]");
                     const jsonInput = editor.querySelector("[data-vitrine-color-json]");
-                    const openButton = editor.querySelector("[data-vitrine-add-color]");
+                    const picker = editor.querySelector("[data-vitrine-color-picker]");
+                    const openPicker = editor.querySelector("[data-vitrine-open-colors]");
+                    const closePicker = editor.querySelector("[data-vitrine-close-colors]");
+                    const searchInput = editor.querySelector("[data-vitrine-color-search]");
+                    const openNewColor = editor.querySelector("[data-vitrine-add-color]");
                     const newBox = editor.querySelector("[data-vitrine-new-color]");
                     const nameInput = editor.querySelector("[data-vitrine-new-color-name]");
                     const hexInput = editor.querySelector("[data-vitrine-new-color-hex]");
                     const confirmButton = editor.querySelector("[data-vitrine-confirm-color]");
                     const cancelButton = editor.querySelector("[data-vitrine-cancel-color]");
                     const error = editor.querySelector("[data-vitrine-color-error]");
-                    if (!options || !namesInput || !jsonInput) return;
+                    if (!options || !selectedBox || !namesInput || !jsonInput || !picker) return;
 
                     let iniciais = [];
                     try {
@@ -1618,7 +1665,6 @@ Motivo: Padronizar seleção de cores da Vitrine com amostras visuais, catálogo
                         iniciais = [];
                     }
                     if (!Array.isArray(iniciais)) iniciais = [];
-
                     const selecionadas = new Map();
 
                     function botaoPorChave(chave) {
@@ -1634,14 +1680,12 @@ Motivo: Padronizar seleção de cores da Vitrine com amostras visuais, catálogo
                         if (!nome || !chave) return null;
                         const existente = botaoPorChave(chave);
                         if (existente) return existente;
-
                         const botao = document.createElement("button");
                         botao.type = "button";
                         botao.className = "vitrine-color-option";
                         botao.dataset.corNome = nome;
                         botao.dataset.corHex = hex;
                         botao.setAttribute("aria-pressed", "false");
-
                         const swatch = document.createElement("span");
                         swatch.className = "vitrine-color-swatch";
                         swatch.style.setProperty("--cor-opcao", hex);
@@ -1653,6 +1697,38 @@ Motivo: Padronizar seleção de cores da Vitrine com amostras visuais, catálogo
                         return botao;
                     }
 
+                    function renderizarSelecionadas() {
+                        selectedBox.innerHTML = "";
+                        const lista = Array.from(selecionadas.values());
+                        if (!lista.length) {
+                            const vazio = document.createElement("span");
+                            vazio.className = "vitrine-selected-empty";
+                            vazio.textContent = "Nenhuma cor selecionada";
+                            selectedBox.appendChild(vazio);
+                            return;
+                        }
+                        lista.forEach(function (cor) {
+                            const chip = document.createElement("button");
+                            chip.type = "button";
+                            chip.className = "vitrine-selected-chip";
+                            chip.setAttribute("aria-label", "Remover cor " + cor.nome);
+                            const swatch = document.createElement("span");
+                            swatch.className = "vitrine-color-swatch";
+                            swatch.style.setProperty("--cor-opcao", cor.hex);
+                            const nome = document.createElement("b");
+                            nome.textContent = cor.nome;
+                            const remover = document.createElement("span");
+                            remover.className = "vitrine-chip-remove";
+                            remover.textContent = "×";
+                            chip.append(swatch, nome, remover);
+                            chip.addEventListener("click", function () {
+                                selecionadas.delete(normalizarChave(cor.nome));
+                                sincronizar();
+                            });
+                            selectedBox.appendChild(chip);
+                        });
+                    }
+
                     function sincronizar() {
                         const lista = Array.from(selecionadas.values());
                         namesInput.value = lista.map(function (cor) { return cor.nome; }).join(", ");
@@ -1662,22 +1738,12 @@ Motivo: Padronizar seleção de cores da Vitrine com amostras visuais, catálogo
                             botao.classList.toggle("is-selected", ativo);
                             botao.setAttribute("aria-pressed", ativo ? "true" : "false");
                         });
+                        renderizarSelecionadas();
                     }
 
-                    function alternar(botao) {
-                        const nome = normalizarNome(botao.dataset.corNome);
-                        const hex = normalizarHex(botao.dataset.corHex);
-                        const chave = normalizarChave(nome);
-                        if (!chave) return;
-                        if (selecionadas.has(chave)) selecionadas.delete(chave);
-                        else selecionadas.set(chave, {nome: nome, hex: hex});
-                        sincronizar();
-                    }
-
-                    function conectarBotao(botao) {
-                        if (botao.dataset.corConfigurada === "sim") return;
-                        botao.dataset.corConfigurada = "sim";
-                        botao.addEventListener("click", function () { alternar(botao); });
+                    function limparBusca() {
+                        if (searchInput) searchInput.value = "";
+                        options.querySelectorAll("[data-cor-nome]").forEach(function (botao) { botao.hidden = false; });
                     }
 
                     function mostrarErro(mensagem) {
@@ -1693,6 +1759,30 @@ Motivo: Padronizar seleção de cores da Vitrine com amostras visuais, catálogo
                         mostrarErro("");
                     }
 
+                    function fecharPicker() {
+                        picker.hidden = true;
+                        fecharNovaCor();
+                        limparBusca();
+                    }
+
+                    function selecionar(botao) {
+                        const nome = normalizarNome(botao.dataset.corNome);
+                        const hex = normalizarHex(botao.dataset.corHex);
+                        const chave = normalizarChave(nome);
+                        if (!chave) return;
+                        if (!selecionadas.has(chave)) {
+                            selecionadas.set(chave, {nome: nome, hex: hex});
+                            sincronizar();
+                        }
+                        fecharPicker();
+                    }
+
+                    function conectarBotao(botao) {
+                        if (botao.dataset.corConfigurada === "sim") return;
+                        botao.dataset.corConfigurada = "sim";
+                        botao.addEventListener("click", function () { selecionar(botao); });
+                    }
+
                     options.querySelectorAll("[data-cor-nome]").forEach(conectarBotao);
                     iniciais.forEach(function (cor) {
                         if (!cor || typeof cor !== "object") return;
@@ -1705,49 +1795,49 @@ Motivo: Padronizar seleção de cores da Vitrine com amostras visuais, catálogo
                     });
                     sincronizar();
 
-                    if (openButton && newBox) {
-                        openButton.addEventListener("click", function () {
-                            newBox.hidden = false;
-                            mostrarErro("");
-                            if (nameInput) window.setTimeout(function () { nameInput.focus(); }, 60);
+                    if (openPicker) openPicker.addEventListener("click", function () {
+                        picker.hidden = false;
+                        fecharNovaCor();
+                        limparBusca();
+                        if (searchInput) window.setTimeout(function () { searchInput.focus(); }, 60);
+                    });
+                    if (closePicker) closePicker.addEventListener("click", fecharPicker);
+                    if (searchInput) searchInput.addEventListener("input", function () {
+                        const busca = normalizarChave(searchInput.value);
+                        options.querySelectorAll("[data-cor-nome]").forEach(function (botao) {
+                            const chave = normalizarChave(botao.dataset.corNome);
+                            botao.hidden = Boolean(busca) && !chave.includes(busca);
                         });
-                    }
-
+                    });
+                    if (openNewColor && newBox) openNewColor.addEventListener("click", function () {
+                        newBox.hidden = false;
+                        mostrarErro("");
+                        if (nameInput) window.setTimeout(function () { nameInput.focus(); }, 60);
+                    });
                     if (cancelButton) cancelButton.addEventListener("click", fecharNovaCor);
-
-                    if (confirmButton) {
-                        confirmButton.addEventListener("click", function () {
-                            const nome = normalizarNome(nameInput ? nameInput.value : "");
-                            const hex = normalizarHex(hexInput ? hexInput.value : "");
-                            const chave = normalizarChave(nome);
-                            if (!nome || !chave) {
-                                mostrarErro("Informe o nome da nova cor.");
-                                if (nameInput) nameInput.focus();
-                                return;
-                            }
-
-                            const existente = botaoPorChave(chave);
-                            if (existente) {
-                                if (selecionadas.has(chave)) {
-                                    mostrarErro('A cor "' + existente.dataset.corNome + '" já está selecionada.');
-                                    return;
-                                }
-                                selecionadas.set(chave, {
-                                    nome: normalizarNome(existente.dataset.corNome),
-                                    hex: normalizarHex(existente.dataset.corHex)
-                                });
+                    if (confirmButton) confirmButton.addEventListener("click", function () {
+                        const nome = normalizarNome(nameInput ? nameInput.value : "");
+                        const hex = normalizarHex(hexInput ? hexInput.value : "");
+                        const chave = normalizarChave(nome);
+                        if (!nome || !chave) {
+                            mostrarErro("Informe o nome da nova cor.");
+                            if (nameInput) nameInput.focus();
+                            return;
+                        }
+                        const existente = botaoPorChave(chave);
+                        if (existente) {
+                            if (!selecionadas.has(chave)) {
+                                selecionadas.set(chave, {nome: normalizarNome(existente.dataset.corNome), hex: normalizarHex(existente.dataset.corHex)});
                                 sincronizar();
-                                fecharNovaCor();
-                                return;
                             }
-
-                            const botao = criarOpcao({nome: nome, hex: hex});
-                            selecionadas.set(chave, {nome: nome, hex: hex});
-                            sincronizar();
-                            fecharNovaCor();
-                            if (botao) botao.scrollIntoView({behavior: "smooth", block: "nearest", inline: "nearest"});
-                        });
-                    }
+                            fecharPicker();
+                            return;
+                        }
+                        criarOpcao({nome: nome, hex: hex});
+                        selecionadas.set(chave, {nome: nome, hex: hex});
+                        sincronizar();
+                        fecharPicker();
+                    });
 
                     const formulario = editor.closest("form");
                     if (formulario) {
@@ -1763,7 +1853,118 @@ Motivo: Padronizar seleção de cores da Vitrine com amostras visuais, catálogo
                                     selecionadas.set(chave, {nome: nome, hex: normalizarHex(cor.hex)});
                                 });
                                 sincronizar();
-                                fecharNovaCor();
+                                fecharPicker();
+                            }, 0);
+                        });
+                    }
+                });
+            }
+
+            function configurarTamanhosVitrine() {
+                const chaveTamanho = function (valor) {
+                    return String(valor || "").trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ");
+                };
+                const limparTamanho = function (valor) {
+                    return String(valor || "").trim().replace(/\s+/g, " ").slice(0, 20);
+                };
+                document.querySelectorAll("[data-vitrine-size-editor]").forEach(function (editor) {
+                    const hiddenInput = editor.querySelector("[data-vitrine-size-input]");
+                    const selectedBox = editor.querySelector("[data-vitrine-selected-sizes]");
+                    const openButton = editor.querySelector("[data-vitrine-add-size]");
+                    const box = editor.querySelector("[data-vitrine-size-box]");
+                    const nameInput = editor.querySelector("[data-vitrine-size-name]");
+                    const confirmButton = editor.querySelector("[data-vitrine-confirm-size]");
+                    const cancelButton = editor.querySelector("[data-vitrine-cancel-size]");
+                    const error = editor.querySelector("[data-vitrine-size-error]");
+                    if (!hiddenInput || !selectedBox || !box) return;
+                    const iniciaisTexto = editor.dataset.tamanhosIniciais || hiddenInput.value || "";
+                    const iniciais = iniciaisTexto.split(/[;,\n]+/).map(limparTamanho).filter(Boolean);
+                    const selecionados = new Map();
+                    iniciais.forEach(function (tamanho) {
+                        const chave = chaveTamanho(tamanho);
+                        if (chave && !selecionados.has(chave)) selecionados.set(chave, tamanho);
+                    });
+                    function mostrarErro(mensagem) {
+                        if (!error) return;
+                        error.textContent = mensagem || "";
+                        error.hidden = !mensagem;
+                    }
+                    function fechar() {
+                        box.hidden = true;
+                        if (nameInput) nameInput.value = "";
+                        mostrarErro("");
+                    }
+                    function sincronizar() {
+                        const lista = Array.from(selecionados.values());
+                        hiddenInput.value = lista.join(", ");
+                        selectedBox.innerHTML = "";
+                        if (!lista.length) {
+                            const vazio = document.createElement("span");
+                            vazio.className = "vitrine-selected-empty";
+                            vazio.textContent = "Nenhum tamanho selecionado";
+                            selectedBox.appendChild(vazio);
+                            return;
+                        }
+                        lista.forEach(function (tamanho) {
+                            const chip = document.createElement("button");
+                            chip.type = "button";
+                            chip.className = "vitrine-selected-chip vitrine-size-chip";
+                            chip.setAttribute("aria-label", "Remover tamanho " + tamanho);
+                            const nome = document.createElement("b");
+                            nome.textContent = tamanho;
+                            const remover = document.createElement("span");
+                            remover.className = "vitrine-chip-remove";
+                            remover.textContent = "×";
+                            chip.append(nome, remover);
+                            chip.addEventListener("click", function () {
+                                selecionados.delete(chaveTamanho(tamanho));
+                                sincronizar();
+                            });
+                            selectedBox.appendChild(chip);
+                        });
+                    }
+                    function adicionar() {
+                        const tamanho = limparTamanho(nameInput ? nameInput.value : "");
+                        const chave = chaveTamanho(tamanho);
+                        if (!tamanho || !chave) {
+                            mostrarErro("Informe o tamanho.");
+                            if (nameInput) nameInput.focus();
+                            return;
+                        }
+                        if (selecionados.has(chave)) {
+                            mostrarErro('O tamanho "' + selecionados.get(chave) + '" já está selecionado.');
+                            return;
+                        }
+                        selecionados.set(chave, tamanho);
+                        sincronizar();
+                        fechar();
+                    }
+                    sincronizar();
+                    if (openButton) openButton.addEventListener("click", function () {
+                        box.hidden = false;
+                        mostrarErro("");
+                        if (nameInput) window.setTimeout(function () { nameInput.focus(); }, 60);
+                    });
+                    if (cancelButton) cancelButton.addEventListener("click", fechar);
+                    if (confirmButton) confirmButton.addEventListener("click", adicionar);
+                    if (nameInput) nameInput.addEventListener("keydown", function (event) {
+                        if (event.key === "Enter") {
+                            event.preventDefault();
+                            adicionar();
+                        }
+                    });
+                    const formulario = editor.closest("form");
+                    if (formulario) {
+                        formulario.addEventListener("submit", sincronizar);
+                        formulario.addEventListener("reset", function () {
+                            window.setTimeout(function () {
+                                selecionados.clear();
+                                iniciais.forEach(function (tamanho) {
+                                    const chave = chaveTamanho(tamanho);
+                                    if (chave) selecionados.set(chave, tamanho);
+                                });
+                                sincronizar();
+                                fechar();
                             }, 0);
                         });
                     }
@@ -1870,6 +2071,7 @@ Motivo: Padronizar seleção de cores da Vitrine com amostras visuais, catálogo
 
             configurarIdentidadeVisualVitrine();
             configurarCoresVitrine();
+            configurarTamanhosVitrine();
             configurarCamposMoedaVitrine();
             configurarCentralVitrine();
             configurarFiltrosPedidosVitrine();
@@ -2846,38 +3048,71 @@ Motivo: Padronizar seleção de cores da Vitrine com amostras visuais, catálogo
         .vitrine-variacoes-heading strong { color: #111827; }
         .vitrine-variacoes-heading small,
         .vitrine-variacoes-editor label > small { color: #64748b; font-size: 11px; font-weight: 700; }
-        .vitrine-color-editor { display:grid;gap:10px;min-width:0; }
+        .vitrine-color-editor,
+        .vitrine-size-editor { display:grid;align-content:start;gap:10px;min-width:0; }
         .vitrine-color-label { color:#374151;font-size:13px;font-weight:800; }
-        .vitrine-color-options { display:flex;flex-wrap:wrap;gap:8px; }
-        .vitrine-color-option {
-            display:inline-flex;align-items:center;gap:7px;min-height:36px;padding:7px 10px;
-            border:1px solid #d1d5db;border-radius:999px;background:#fff;color:#374151;
-            font:inherit;font-size:12px;font-weight:800;cursor:pointer;transition:.16s ease;
+        .vitrine-selected-options { display:flex;flex-wrap:wrap;gap:7px;min-height:36px;align-items:center; }
+        .vitrine-selected-empty { color:#94a3b8;font-size:12px;font-weight:700; }
+        .vitrine-selected-chip {
+            display:inline-flex;align-items:center;gap:7px;min-height:34px;padding:6px 8px 6px 7px;
+            border:1px solid #cbd5e1;border-radius:999px;background:#fff;color:#1f2937;
+            font:inherit;font-size:12px;font-weight:800;cursor:pointer;
         }
-        .vitrine-color-option:hover { border-color:#94a3b8;background:#f8fafc; }
-        .vitrine-color-option.is-selected { border-color:#111827;background:#111827;color:#fff;box-shadow:0 0 0 2px rgba(17,24,39,.08); }
-        .vitrine-color-swatch {
-            width:18px;height:18px;flex:0 0 18px;border:1px solid rgba(15,23,42,.24);border-radius:999px;
-            background:var(--cor-opcao,#d1d5db);box-shadow:inset 0 0 0 2px rgba(255,255,255,.78);
-        }
-        .vitrine-color-option.is-selected .vitrine-color-swatch { border-color:rgba(255,255,255,.72); }
+        .vitrine-selected-chip:hover { border-color:#94a3b8;background:#f8fafc; }
+        .vitrine-chip-remove { display:grid;place-items:center;width:18px;height:18px;border-radius:999px;background:#f1f5f9;color:#64748b;font-size:14px;line-height:1; }
+        .vitrine-size-chip { padding-left:10px; }
+        .vitrine-variation-add-trigger,
         .vitrine-new-color-trigger {
             justify-self:start;min-height:34px;padding:7px 11px;border:1px dashed #94a3b8;border-radius:10px;
             background:#fff;color:#334155;font:inherit;font-size:12px;font-weight:850;cursor:pointer;
         }
+        .vitrine-variation-add-trigger:hover,
         .vitrine-new-color-trigger:hover { border-color:#111827;color:#111827; }
+        .vitrine-color-picker {
+            display:grid;gap:10px;padding:12px;border:1px solid #cbd5e1;border-radius:14px;background:#fff;
+            box-shadow:0 10px 24px rgba(15,23,42,.08);
+        }
+        .vitrine-color-picker[hidden] { display:none; }
+        .vitrine-picker-heading { display:flex;align-items:center;justify-content:space-between;gap:12px; }
+        .vitrine-picker-heading strong { color:#111827;font-size:13px; }
+        .vitrine-picker-heading button { width:30px;height:30px;border:0;border-radius:8px;background:#f1f5f9;color:#475569;font-size:20px;cursor:pointer; }
+        .vitrine-picker-search { min-height:38px!important;border-radius:10px!important; }
+        .vitrine-color-options { display:flex;flex-wrap:wrap;gap:7px;max-height:210px;overflow:auto;padding:2px; }
+        .vitrine-color-option {
+            display:inline-flex;align-items:center;gap:7px;min-height:34px;padding:6px 9px;
+            border:1px solid #d1d5db;border-radius:999px;background:#fff;color:#374151;
+            font:inherit;font-size:12px;font-weight:800;cursor:pointer;transition:.16s ease;
+        }
+        .vitrine-color-option[hidden] { display:none; }
+        .vitrine-color-option:hover { border-color:#94a3b8;background:#f8fafc; }
+        .vitrine-color-option.is-selected { border-color:#bfdbfe;background:#eff6ff;color:#1d4ed8; }
+        .vitrine-color-swatch {
+            width:18px;height:18px;flex:0 0 18px;border:1px solid rgba(15,23,42,.24);border-radius:999px;
+            background:var(--cor-opcao,#d1d5db);box-shadow:inset 0 0 0 2px rgba(255,255,255,.78);
+        }
+        .vitrine-picker-footer { display:flex;justify-content:flex-start;padding-top:2px;border-top:1px solid #f1f5f9; }
         .vitrine-new-color-box {
             display:grid;grid-template-columns:minmax(180px,1fr) minmax(120px,.35fr) auto;align-items:end;gap:10px;
-            padding:12px;border:1px solid #cbd5e1;border-radius:14px;background:#fff;
+            padding:12px;border:1px solid #dbe3ef;border-radius:12px;background:#f8fafc;
         }
         .vitrine-new-color-box[hidden] { display:none; }
         .vitrine-new-color-box input[type="color"] { min-height:42px;padding:4px;cursor:pointer; }
         .vitrine-new-color-actions { display:flex;gap:7px;align-items:center; }
-        .vitrine-color-error { grid-column:1 / -1;color:#b91c1c!important;font-size:11px!important;font-weight:800!important; }
+        .vitrine-color-error,
+        .vitrine-size-error { grid-column:1 / -1;color:#b91c1c!important;font-size:11px!important;font-weight:800!important; }
+        .vitrine-size-box {
+            display:grid;grid-template-columns:minmax(160px,1fr) auto;align-items:end;gap:8px;
+            padding:10px;border:1px solid #dbe3ef;border-radius:12px;background:#fff;
+        }
+        .vitrine-size-box[hidden] { display:none; }
+        .vitrine-size-actions { display:flex;gap:7px;align-items:center; }
         @media (max-width:760px) {
-            .vitrine-new-color-box { grid-template-columns:1fr; }
-            .vitrine-new-color-actions { width:100%; }
-            .vitrine-new-color-actions .btn { width:100%; }
+            .vitrine-new-color-box,
+            .vitrine-size-box { grid-template-columns:1fr; }
+            .vitrine-new-color-actions,
+            .vitrine-size-actions { width:100%; }
+            .vitrine-new-color-actions .btn,
+            .vitrine-size-actions .btn { width:100%; }
         }
         .vitrine-gallery-manager { display:grid;gap:14px;padding:16px;border:1px solid #dbe3ef;border-radius:16px;background:#fff; }
         .vitrine-gallery-manager-wide { width:100%; }
