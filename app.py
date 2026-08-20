@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-20 18:18 (America/Bahia)
-# Motivo: Programar retorno automático de produtos indisponíveis na Vitrine, com data de disponibilidade e proteção de estoque para itens integrados.
+# Último recode: 2026-08-20 18:50 (America/Bahia)
+# Motivo: Centralizar a alteração de status dos orçamentos na lista e na Revisão do Gerador, com transições controladas e auditoria.
 
 from __future__ import annotations
 
@@ -1088,6 +1088,55 @@ ORCAMENTO_MODOS_APRESENTACAO = [
     {"codigo": "detalhado", "nome": "Detalhado", "descricao": "Mostra todos os produtos e serviços do orçamento."},
 ]
 ORCAMENTO_MODOS_APRESENTACAO_VALIDOS = {item["codigo"] for item in ORCAMENTO_MODOS_APRESENTACAO}
+
+
+ORCAMENTO_STATUS = [
+    {"codigo": "aberto", "nome": "Aberto", "final": False},
+    {"codigo": "enviado", "nome": "Enviado", "final": False},
+    {"codigo": "aprovado", "nome": "Aprovado", "final": True},
+    {"codigo": "reprovado", "nome": "Reprovado", "final": True},
+    {"codigo": "cancelado", "nome": "Cancelado", "final": True},
+]
+ORCAMENTO_STATUS_POR_CODIGO = {item["codigo"]: item for item in ORCAMENTO_STATUS}
+ORCAMENTO_STATUS_ALIASES = {
+    "aberta": "aberto",
+    "aprovada": "aprovado",
+    "reprovada": "reprovado",
+    "recusado": "reprovado",
+    "recusada": "reprovado",
+    "cancelada": "cancelado",
+}
+ORCAMENTO_STATUS_TRANSICOES = {
+    "aberto": {"enviado", "aprovado", "reprovado", "cancelado"},
+    "enviado": {"aberto", "aprovado", "reprovado", "cancelado"},
+    "aprovado": set(),
+    "reprovado": set(),
+    "cancelado": set(),
+}
+
+
+def normalizar_status_orcamento(valor: Any, padrao: str = "aberto") -> str:
+    status = str(valor or "").strip().lower()
+    status = ORCAMENTO_STATUS_ALIASES.get(status, status)
+    if status in ORCAMENTO_STATUS_POR_CODIGO:
+        return status
+    return padrao if padrao in ORCAMENTO_STATUS_POR_CODIGO else ""
+
+
+def nome_status_orcamento(valor: Any) -> str:
+    codigo = normalizar_status_orcamento(valor, "aberto")
+    return str(ORCAMENTO_STATUS_POR_CODIGO.get(codigo, {}).get("nome") or codigo.title())
+
+
+def status_final_orcamento(valor: Any) -> bool:
+    codigo = normalizar_status_orcamento(valor, "aberto")
+    return bool(ORCAMENTO_STATUS_POR_CODIGO.get(codigo, {}).get("final"))
+
+
+def opcoes_transicao_status_orcamento(valor_atual: Any) -> list[dict[str, Any]]:
+    atual = normalizar_status_orcamento(valor_atual, "aberto")
+    permitidos = {atual, *ORCAMENTO_STATUS_TRANSICOES.get(atual, set())}
+    return [dict(item) for item in ORCAMENTO_STATUS if item["codigo"] in permitidos]
 
 
 GESTFLOW_SEGMENTOS = [
@@ -10597,8 +10646,16 @@ def montar_filtros_orcamentos(filtros: dict[str, str]) -> tuple[str, list[Any]]:
             condicoes.append(f"{coluna} LIKE ?")
             parametros.append(f"%{valor}%")
 
+    status_filtro = normalizar_status_orcamento(filtros.get("status"), "")
+    if status_filtro == "reprovado":
+        condicoes.append(
+            "LOWER(TRIM(COALESCE(o.status, ''))) IN ('reprovado', 'reprovada', 'recusado', 'recusada')"
+        )
+    elif status_filtro:
+        condicoes.append("LOWER(TRIM(COALESCE(o.status, ''))) = ?")
+        parametros.append(status_filtro)
+
     filtros_iguais = {
-        "status": "o.status",
         "origem": "o.origem",
         "modo_apresentacao": "o.modo_apresentacao",
         "tipo": "o.tipo",
@@ -10779,6 +10836,13 @@ def montar_contexto_orcamentos_paginado() -> dict[str, Any]:
     orcamentos_exibicao = formatar_lista_datas_documento_exibicao(
         orcamentos_lista, ("data", "validade")
     )
+    for item in orcamentos_exibicao:
+        status_codigo = normalizar_status_orcamento(item.get("status"), "aberto")
+        item["status_codigo"] = status_codigo
+        item["status_nome"] = nome_status_orcamento(status_codigo)
+        item["status_final"] = status_final_orcamento(status_codigo)
+        item["status_opcoes"] = opcoes_transicao_status_orcamento(status_codigo)
+
     filtros_url = {chave: valor for chave, valor in filtros.items() if valor}
 
     return {
@@ -12743,6 +12807,87 @@ def atualizar_orcamento_db(
     return True
 
 
+
+def atualizar_status_orcamento_db(
+    orcamento_id: int,
+    novo_status: Any,
+) -> tuple[bool, str, dict[str, Any] | None]:
+    empresa_id = empresa_logada_id()
+    status_novo = normalizar_status_orcamento(novo_status, "")
+    if not status_novo:
+        return False, "Status de orçamento inválido.", None
+
+    atualizado_em = agora_empresa().isoformat(timespec="seconds")
+    with conectar_db() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute(
+            """
+            SELECT id, numero, status, origem
+            FROM orcamentos
+            WHERE id = ? AND empresa_id = ?
+            """,
+            (orcamento_id, empresa_id),
+        ).fetchone()
+        if row is None:
+            conn.rollback()
+            return False, "Orçamento não encontrado.", None
+
+        registro = dict(row)
+        status_anterior_bruto = str(registro.get("status") or "aberto").strip().lower()
+        status_anterior = normalizar_status_orcamento(status_anterior_bruto, "aberto")
+
+        if status_novo != status_anterior:
+            if status_final_orcamento(status_anterior):
+                conn.rollback()
+                return (
+                    False,
+                    f"O orçamento está {nome_status_orcamento(status_anterior).lower()} e seu status é final.",
+                    {
+                        **registro,
+                        "status_anterior": status_anterior,
+                        "status_novo": status_anterior,
+                    },
+                )
+
+            permitidos = ORCAMENTO_STATUS_TRANSICOES.get(status_anterior, set())
+            if status_novo not in permitidos:
+                conn.rollback()
+                return (
+                    False,
+                    f"Não é permitido alterar de {nome_status_orcamento(status_anterior)} para {nome_status_orcamento(status_novo)}.",
+                    {
+                        **registro,
+                        "status_anterior": status_anterior,
+                        "status_novo": status_anterior,
+                    },
+                )
+
+        if status_novo != status_anterior_bruto:
+            conn.execute(
+                """
+                UPDATE orcamentos
+                SET status = ?,
+                    versao = COALESCE(versao, 1) + 1,
+                    atualizado_em = ?
+                WHERE id = ? AND empresa_id = ?
+                """,
+                (status_novo, atualizado_em, orcamento_id, empresa_id),
+            )
+        conn.commit()
+
+    return (
+        True,
+        "Status atualizado com sucesso.",
+        {
+            **registro,
+            "status_anterior": status_anterior,
+            "status_novo": status_novo,
+            "status_nome": nome_status_orcamento(status_novo),
+            "status_final": status_final_orcamento(status_novo),
+        },
+    )
+
+
 def excluir_orcamento_db(orcamento_id: int) -> None:
     empresa_id = empresa_logada_id()
     if aplicar_exclusao_logica_configurada("orcamentos", orcamento_id, "cancelado"):
@@ -12800,7 +12945,7 @@ def montar_orcamento_formulario(numero_padrao: str = "") -> dict[str, str]:
         "centro_custo_id": centro_custo_id,
         "introducao": (request.form.get("orcamento_introducao") or "").strip(),
         "tipo": (request.form.get("orcamento_tipo") or "misto").strip() or "misto",
-        "status": (request.form.get("orcamento_status") or "aberto").strip() or "aberto",
+        "status": normalizar_status_orcamento(request.form.get("orcamento_status"), "aberto"),
         "total_produtos": (request.form.get("orcamento_total_produtos") or "0,00").strip(),
         "total_servicos": (request.form.get("orcamento_total_servicos") or "0,00").strip(),
         "desconto_valor": (request.form.get("orcamento_desconto_valor") or "0,00").strip(),
@@ -37044,6 +37189,9 @@ def gerador_orcamentos() -> str | Response:
         gerador_dados={},
         modo_revisao=False,
         orcamento=None,
+        orcamento_status_atual="aberto",
+        orcamento_status_opcoes=opcoes_transicao_status_orcamento("aberto"),
+        orcamento_status_final=False,
         form_action=url_for("gerador_orcamentos"),
     )
 
@@ -37056,6 +37204,18 @@ def revisar_gerador_orcamento(orcamento_id: int) -> str | Response:
         return redirect(url_for("editar_orcamento", orcamento_id=orcamento_id, erro="Este orçamento não possui dados salvos do Gerador."))
 
     if request.method == "POST":
+        if status_final_orcamento(orcamento.get("status")):
+            return redirect(
+                url_for(
+                    "revisar_gerador_orcamento",
+                    orcamento_id=orcamento_id,
+                    erro=(
+                        f"O orçamento está {nome_status_orcamento(orcamento.get('status')).lower()} "
+                        "e não permite alterar a composição do Gerador."
+                    ),
+                )
+            )
+
         dados = montar_gerador_orcamento_formulario()
         if not dados["cliente"] or not dados["responsavel"]:
             return redirect(url_for("revisar_gerador_orcamento", orcamento_id=orcamento_id, erro="Cliente e responsável são obrigatórios."))
@@ -37078,6 +37238,9 @@ def revisar_gerador_orcamento(orcamento_id: int) -> str | Response:
         gerador_dados=dados_gerador,
         modo_revisao=True,
         orcamento=orcamento,
+        orcamento_status_atual=normalizar_status_orcamento(orcamento.get("status"), "aberto"),
+        orcamento_status_opcoes=opcoes_transicao_status_orcamento(orcamento.get("status")),
+        orcamento_status_final=status_final_orcamento(orcamento.get("status")),
         form_action=url_for("revisar_gerador_orcamento", orcamento_id=orcamento_id),
     )
 
@@ -37164,6 +37327,38 @@ def exportar_orcamentos_csv() -> Response:
         saida.getvalue(),
         mimetype="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{nome}"'},
+    )
+
+
+@app.post("/orcamentos/<int:orcamento_id>/status")
+def atualizar_status_orcamento(orcamento_id: int) -> Response:
+    novo_status = request.form.get("status")
+    sucesso, mensagem, resultado = atualizar_status_orcamento_db(orcamento_id, novo_status)
+    if not sucesso or resultado is None:
+        return jsonify({"ok": False, "erro": mensagem}), 409
+
+    status_anterior = str(resultado.get("status_anterior") or "aberto")
+    status_novo = str(resultado.get("status_novo") or status_anterior)
+    if status_novo != status_anterior:
+        numero = str(resultado.get("numero") or orcamento_id)
+        registrar_atividade_usuario(
+            "status",
+            "orcamentos",
+            (
+                f"Alterou status do orçamento {numero}: "
+                f"{nome_status_orcamento(status_anterior)} → {nome_status_orcamento(status_novo)}"
+            ),
+            request.path,
+        )
+
+    return jsonify(
+        {
+            "ok": True,
+            "mensagem": mensagem,
+            "status": status_novo,
+            "status_nome": nome_status_orcamento(status_novo),
+            "final": status_final_orcamento(status_novo),
+        }
     )
 
 
@@ -37390,6 +37585,18 @@ def editar_orcamento(orcamento_id: int) -> str | Response:
     if orcamento is None:
         return redirect(url_for("orcamentos"))
 
+    if status_final_orcamento(orcamento.get("status")):
+        return redirect(
+            url_for(
+                "ver_orcamento",
+                orcamento_id=orcamento_id,
+                aviso=(
+                    f"O orçamento está {nome_status_orcamento(orcamento.get('status')).lower()} "
+                    "e sua composição está protegida."
+                ),
+            )
+        )
+
     dados_gerador = buscar_orcamento_gerador_dados(orcamento_id)
     if dados_gerador is not None:
         return redirect(
@@ -37422,6 +37629,17 @@ def atualizar_orcamento(orcamento_id: int) -> Response:
     orcamento_atual = buscar_orcamento_por_id(orcamento_id)
     if orcamento_atual is None:
         return redirect(url_for("orcamentos"))
+
+    if status_final_orcamento(orcamento_atual.get("status")):
+        return redirect(
+            url_for(
+                "orcamentos",
+                erro=(
+                    f"O orçamento {orcamento_atual.get('numero') or orcamento_id} está "
+                    f"{nome_status_orcamento(orcamento_atual.get('status')).lower()} e não pode ser alterado."
+                ),
+            )
+        )
 
     if buscar_orcamento_gerador_dados(orcamento_id) is not None:
         return redirect(
