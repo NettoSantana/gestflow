@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamentos.html
-Último recode: 2026-08-02 17:09 (America/Bahia)
-Motivo: Igualar os botões Busca avançada, Colunas e Mais ações ao padrão preto das demais listagens.
+Último recode: 2026-08-20 18:50 (America/Bahia)
+Motivo: Tornar o status do orçamento clicável na listagem, com transições controladas e estados finais protegidos.
 -->
 
 <!DOCTYPE html>
@@ -626,6 +626,40 @@ Motivo: Igualar os botões Busca avançada, Colunas e Mais ações ao padrão pr
         @media(max-width:1050px){.budget-advanced-grid{grid-template-columns:repeat(2,minmax(180px,1fr));}}
         @media(max-width:650px){.budget-advanced-grid{grid-template-columns:1fr}.budget-list-toolbar-actions{width:100%}.budget-toolbar-button{flex:1}.budget-dropdown{flex:1}.budget-dropdown>.budget-toolbar-button{width:100%}}
 
+
+        /* STATUS COMERCIAL CLICÁVEL */
+        .budget-status-select {
+            min-width: 118px;
+            height: 34px;
+            padding: 0 30px 0 12px;
+            border: 1px solid transparent;
+            border-radius: 999px;
+            font: inherit;
+            font-size: 12px;
+            font-weight: 900;
+            line-height: 1;
+            cursor: pointer;
+            outline: none;
+            appearance: auto;
+        }
+
+        .budget-status-select:hover:not(:disabled),
+        .budget-status-select:focus-visible:not(:disabled) {
+            box-shadow: 0 0 0 3px rgba(15, 98, 254, 0.12);
+        }
+
+        .budget-status-select.status-aberto { background:#e2e8f0; color:#334155; }
+        .budget-status-select.status-enviado { background:#dbeafe; color:#1d4ed8; }
+        .budget-status-select.status-aprovado { background:#dcfce7; color:#166534; }
+        .budget-status-select.status-reprovado { background:#fee2e2; color:#991b1b; }
+        .budget-status-select.status-cancelado { background:#f1f5f9; color:#64748b; }
+
+        .budget-status-select:disabled {
+            opacity: 1;
+            cursor: not-allowed;
+            border-color: rgba(100, 116, 139, 0.18);
+        }
+
 </style>
 </head>
 <body>
@@ -759,8 +793,9 @@ Motivo: Igualar os botões Busca avançada, Colunas e Mais ações ao padrão pr
                         <label for="orcamento_status">Status</label>
                         <select id="orcamento_status" name="orcamento_status" class="form-control">
                             <option value="aberto">Aberto</option>
+                            <option value="enviado">Enviado</option>
                             <option value="aprovado">Aprovado</option>
-                            <option value="recusado">Recusado</option>
+                            <option value="reprovado">Reprovado</option>
                             <option value="cancelado">Cancelado</option>
                         </select>
                     </div>
@@ -1087,7 +1122,7 @@ Motivo: Igualar os botões Busca avançada, Colunas e Mais ações ao padrão pr
                         <div class="form-group"><label for="filtro_numero">Número</label><input id="filtro_numero" name="numero" value="{{ filtros.numero|default('') }}" class="form-control" placeholder="Ex: ORC-2026-0051"></div>
                         <div class="form-group"><label for="filtro_cliente">Cliente</label><input id="filtro_cliente" name="cliente" value="{{ filtros.cliente|default('') }}" class="form-control" placeholder="Nome do cliente"></div>
                         <div class="form-group"><label for="filtro_responsavel">Responsável</label><input id="filtro_responsavel" name="responsavel" value="{{ filtros.responsavel|default('') }}" class="form-control" placeholder="Nome do responsável"></div>
-                        <div class="form-group"><label for="filtro_status">Status</label><select id="filtro_status" name="status" class="form-control"><option value="">Todos</option>{% for valor, nome in [('aberto','Aberto'),('aprovado','Aprovado'),('recusado','Recusado'),('cancelado','Cancelado')] %}<option value="{{ valor }}"{% if filtros.status == valor %} selected{% endif %}>{{ nome }}</option>{% endfor %}</select></div>
+                        <div class="form-group"><label for="filtro_status">Status</label><select id="filtro_status" name="status" class="form-control"><option value="">Todos</option>{% for valor, nome in [('aberto','Aberto'),('enviado','Enviado'),('aprovado','Aprovado'),('reprovado','Reprovado'),('cancelado','Cancelado')] %}<option value="{{ valor }}"{% if filtros.status == valor %} selected{% endif %}>{{ nome }}</option>{% endfor %}</select></div>
                         <div class="form-group"><label for="filtro_data_de">Data inicial</label><input id="filtro_data_de" name="data_de" type="date" value="{{ filtros.data_de|default('') }}" class="form-control"></div>
                         <div class="form-group"><label for="filtro_data_ate">Data final</label><input id="filtro_data_ate" name="data_ate" type="date" value="{{ filtros.data_ate|default('') }}" class="form-control"></div>
                         <div class="form-group"><label for="filtro_prazo">Prazo de entrega</label><input id="filtro_prazo" name="prazo_entrega" value="{{ filtros.prazo_entrega|default('') }}" class="form-control" placeholder="Ex: 10 dias"></div>
@@ -1127,12 +1162,25 @@ Motivo: Igualar os botões Busca avançada, Colunas e Mais ações ao padrão pr
                     </tr></thead>
                     <tbody>
                         {% if orcamentos_lista %}{% for orcamento in orcamentos_lista %}
-                        {% set orcamento_status_final = (orcamento.status|default('', true)|lower|trim) in ['aprovado','aprovada','reprovado','reprovada','recusado','recusada','cancelado','cancelada'] %}
+                        {% set orcamento_status_final = orcamento.status_final|default(false, true) %}
                         <tr>
                             <td data-column="id">{{ orcamento.id }}</td>
                             <td data-column="numero"><strong>{{ orcamento.numero }}</strong><br><span class="budget-origin-badge {{ orcamento.origem|default('manual', true) }}">{{ 'Gerador' if orcamento.origem == 'gerador' else 'Manual' }}</span><span class="budget-mode-badge">{{ orcamento.modo_apresentacao|default('agrupado', true)|replace('_',' ') }}</span></td>
                             <td data-column="cliente">{{ orcamento.cliente }}</td><td data-column="responsavel">{{ orcamento.responsavel or '-' }}</td>
-                            <td data-column="status"><span class="status-pill {{ orcamento.status }}">{{ orcamento.status }}</span></td><td data-column="data">{{ orcamento.data }}</td>
+                            <td data-column="status">
+                                <select
+                                    class="budget-status-select status-{{ orcamento.status_codigo }}"
+                                    data-budget-status-select
+                                    data-status-url="{{ url_for('atualizar_status_orcamento', orcamento_id=orcamento.id) }}"
+                                    data-status-atual="{{ orcamento.status_codigo }}"
+                                    aria-label="Alterar status do orçamento {{ orcamento.numero }}"
+                                    {% if orcamento_status_final %}disabled title="Status final. A composição deste orçamento está protegida."{% endif %}
+                                >
+                                    {% for opcao in orcamento.status_opcoes %}
+                                        <option value="{{ opcao.codigo }}" {% if opcao.codigo == orcamento.status_codigo %}selected{% endif %}>{{ opcao.nome }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td><td data-column="data">{{ orcamento.data }}</td>
                             <td data-column="prazo_entrega">{{ orcamento.prazo_entrega or '-' }}</td><td data-column="validade">{{ orcamento.validade or '-' }}</td><td data-column="tipo">{{ orcamento.tipo or '-' }}</td>
                             <td data-column="centro_custo">{{ orcamento.centro_custo or '-' }}</td><td data-column="origem">{{ 'Gerador' if orcamento.origem == 'gerador' else 'Manual' }}</td><td data-column="modo_apresentacao">{{ orcamento.modo_apresentacao|default('agrupado', true)|replace('_',' ') }}</td><td data-column="valor_total">{{ orcamento.valor_total }}</td>
                             <td data-column="acoes"><div class="action-buttons"><a href="/orcamentos/{{ orcamento.id }}" title="Ver orçamento" class="action-button view">🔍</a>{% if not orcamento_status_final %}<a href="/orcamentos/{{ orcamento.id }}/editar" title="Editar orçamento" class="action-button edit">✎</a>{% if orcamento.origem == 'gerador' %}<a href="/orcamentos/{{ orcamento.id }}/gerador/revisao" title="Editar dados do Gerador" class="action-button generator">⚙</a>{% endif %}<form action="/orcamentos/{{ orcamento.id }}/excluir" method="post" onsubmit="return confirm('Tem certeza que deseja excluir este orçamento?');" class="action-form"><button type="submit" title="Excluir orçamento" class="action-button delete">×</button></form>{% endif %}<div class="budget-action-menu"><button type="button" class="gf-action-dialog-trigger" title="Mais ações do orçamento" data-gf-action-dialog="orcamento-acoes-{{ orcamento.id }}">⌄</button><dialog class="gf-action-dialog" id="orcamento-acoes-{{ orcamento.id }}"><div class="gf-action-dialog-card"><div class="gf-action-dialog-header"><div><h3>Ações do orçamento</h3><p>{{ orcamento.numero or ('Orçamento ' ~ orcamento.id) }}</p></div><button type="button" class="gf-action-dialog-close" data-gf-action-dialog-close>×</button></div><div class="gf-action-dialog-actions"><button type="button" data-gf-print-url="/orcamentos/{{ orcamento.id }}/imprimir/a4">🖨 Imprimir A4</button><button type="button" data-gf-print-url="/orcamentos/{{ orcamento.id }}/imprimir/cupom">🧾 Imprimir Cupom</button><a href="/whatsapp/pdf/orcamento/{{ orcamento.id }}">📲 Enviar PDF por WhatsApp</a><a href="/orcamentos/{{ orcamento.id }}/gerar/copia">↻ Gerar cópia</a>{% if orcamento.venda_gerada_id %}<a href="/vendas/{{ orcamento.venda_gerada_id }}">✓ Abrir venda gerada</a>{% else %}<a href="/orcamentos/{{ orcamento.id }}/gerar/venda">🛒 Gerar venda</a>{% endif %}<a href="/orcamentos/{{ orcamento.id }}?gerar=os">🛠 Gerar OS</a></div></div></dialog></div></div></td>
@@ -1156,6 +1204,42 @@ Motivo: Igualar os botões Busca avançada, Colunas e Mais ações ao padrão pr
                 document.querySelectorAll('[data-budget-dropdown-toggle]').forEach(btn=>btn.addEventListener('click',e=>{e.stopPropagation();const atual=btn.closest('[data-budget-dropdown]');document.querySelectorAll('[data-budget-dropdown].open').forEach(d=>{if(d!==atual)d.classList.remove('open')});atual.classList.toggle('open');})); document.addEventListener('click',e=>{if(!e.target.closest('[data-budget-dropdown]'))document.querySelectorAll('[data-budget-dropdown].open').forEach(d=>d.classList.remove('open'));});
                 document.querySelectorAll('.budget-query-link').forEach(link=>link.addEventListener('click',e=>{e.preventDefault();const params=new URLSearchParams(window.location.search);if(link.dataset.page)params.set('pagina',link.dataset.page);if(link.dataset.order)params.set('ordenar',link.dataset.order);if(link.dataset.direction)params.set('direcao',link.dataset.direction);window.location.href='/orcamentos?'+params.toString();}));
                 const exportar=document.getElementById('budget-export-csv'); if(exportar) exportar.addEventListener('click',()=>{const params=new URLSearchParams(window.location.search);params.delete('pagina');params.delete('por_pagina');params.set('colunas',colunasAtivas.join(','));window.location.href='/orcamentos/exportar.csv?'+params.toString();});
+
+                document.querySelectorAll('[data-budget-status-select]').forEach(function(campo) {
+                    campo.addEventListener('change', async function() {
+                        const statusAnterior = campo.dataset.statusAtual || 'aberto';
+                        const statusNovo = campo.value;
+                        const finais = new Set(['aprovado', 'reprovado', 'cancelado']);
+
+                        if (finais.has(statusNovo)) {
+                            const nome = campo.options[campo.selectedIndex] ? campo.options[campo.selectedIndex].textContent : statusNovo;
+                            if (!window.confirm('Alterar este orçamento para "' + nome + '"? Esse status é final e bloqueará alterações na composição.')) {
+                                campo.value = statusAnterior;
+                                return;
+                            }
+                        }
+
+                        campo.disabled = true;
+                        try {
+                            const dados = new URLSearchParams();
+                            dados.set('status', statusNovo);
+                            const resposta = await fetch(campo.dataset.statusUrl, {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'},
+                                body: dados.toString()
+                            });
+                            const payload = await resposta.json();
+                            if (!resposta.ok || !payload.ok) {
+                                throw new Error(payload.erro || 'Não foi possível alterar o status.');
+                            }
+                            window.location.reload();
+                        } catch (erro) {
+                            campo.value = statusAnterior;
+                            campo.disabled = false;
+                            window.alert(erro.message || 'Não foi possível alterar o status.');
+                        }
+                    });
+                });
             })();
         </script>
 
