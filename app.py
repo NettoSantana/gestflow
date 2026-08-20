@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-20 19:18 (America/Bahia)
-# Motivo: Tornar os status de Orçamentos configuráveis por empresa, com cores predefinidas e um único status finalizador que gera Venda.
+# Último recode: 2026-08-20 20:09 (America/Bahia)
+# Motivo: Corrigir o filtro da lista de Orçamentos para que status vazio signifique Todos, sem ocultar orçamentos após mudança de status.
 
 from __future__ import annotations
 
@@ -1274,8 +1274,22 @@ def codigo_status_orcamento_existente(valor: Any) -> str:
 
 
 def normalizar_status_orcamento(valor: Any, padrao: str = "aberto") -> str:
-    codigo = codigo_status_orcamento_existente(valor)
+    valor_texto = str(valor or "").strip()
     configurados = {item["codigo"] for item in listar_status_orcamento_configurados()}
+
+    # Em filtros, padrao="" significa que campo vazio deve representar Todos.
+    # Não podemos converter ausência de filtro para o status inicial do módulo.
+    if not valor_texto:
+        if not padrao:
+            return ""
+        padrao_codigo = _codigo_status_orcamento(padrao)
+        padrao_codigo = ORCAMENTO_STATUS_ALIASES.get(padrao_codigo, padrao_codigo)
+        if padrao_codigo in configurados:
+            return padrao_codigo
+        return status_inicial_orcamento()
+
+    codigo = _codigo_status_orcamento(valor_texto)
+    codigo = ORCAMENTO_STATUS_ALIASES.get(codigo, codigo)
     if codigo in configurados:
         return codigo
 
