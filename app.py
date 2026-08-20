@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-20 18:50 (America/Bahia)
-# Motivo: Centralizar a alteração de status dos orçamentos na lista e na Revisão do Gerador, com transições controladas e auditoria.
+# Último recode: 2026-08-20 19:18 (America/Bahia)
+# Motivo: Tornar os status de Orçamentos configuráveis por empresa, com cores predefinidas e um único status finalizador que gera Venda.
 
 from __future__ import annotations
 
@@ -474,7 +474,9 @@ CONFIGURACOES_MODULOS_DEFINICOES = [
             _campo_configuracao_modulo("prefixo_numero", "Prefixo da numeração", "texto", "ORC", secao="Numeração"),
             _campo_configuracao_modulo("reinicio_numeracao", "Reinício da numeração", "selecao", "anual", secao="Numeração", opcoes=(("anual", "Anual"), ("continuo", "Sequência contínua"))),
             _campo_configuracao_modulo("validade_padrao_dias", "Validade padrão (dias)", "numero", 15, secao="Prazos", minimo=0, maximo=3650),
-            _campo_configuracao_modulo("situacoes", "Situações", "lista", "Aberto\nEnviado\nAprovado\nReprovado\nCancelado", secao="Fluxo"),
+            _campo_configuracao_modulo("situacoes", "Situações", "lista", "Aberto\nEm andamento\nCancelado\nFinalizado", secao="Fluxo"),
+            _campo_configuracao_modulo("situacoes_config_json", "Configuração visual dos status", "texto_longo", "", secao="Fluxo", ajuda="Gerenciado pela tela visual de status dos Orçamentos."),
+            _campo_configuracao_modulo("situacao_finalizadora", "Status finalizador", "texto", "finalizado", secao="Fluxo", ajuda="Somente um status pode finalizar o orçamento e gerar Venda."),
             _campo_configuracao_modulo("prazo_execucao_padrao", "Prazo de execução padrão", "texto", "A combinar", secao="Prazos"),
             _campo_configuracao_modulo("condicoes_pagamento_padrao", "Condições de pagamento padrão", "texto_longo", "", secao="Comercial"),
             _campo_configuracao_modulo("observacoes_padrao", "Observações padrão", "texto_longo", "", secao="Documentos"),
@@ -1090,54 +1092,235 @@ ORCAMENTO_MODOS_APRESENTACAO = [
 ORCAMENTO_MODOS_APRESENTACAO_VALIDOS = {item["codigo"] for item in ORCAMENTO_MODOS_APRESENTACAO}
 
 
-ORCAMENTO_STATUS = [
-    {"codigo": "aberto", "nome": "Aberto", "final": False},
-    {"codigo": "enviado", "nome": "Enviado", "final": False},
-    {"codigo": "aprovado", "nome": "Aprovado", "final": True},
-    {"codigo": "reprovado", "nome": "Reprovado", "final": True},
-    {"codigo": "cancelado", "nome": "Cancelado", "final": True},
+ORCAMENTO_STATUS_CORES = [
+    {"codigo": "cinza", "nome": "Cinza", "fundo": "#e2e8f0", "texto": "#334155", "borda": "#cbd5e1"},
+    {"codigo": "azul", "nome": "Azul", "fundo": "#dbeafe", "texto": "#1d4ed8", "borda": "#93c5fd"},
+    {"codigo": "azul_claro", "nome": "Azul-claro", "fundo": "#e0f2fe", "texto": "#0369a1", "borda": "#7dd3fc"},
+    {"codigo": "verde", "nome": "Verde", "fundo": "#dcfce7", "texto": "#166534", "borda": "#86efac"},
+    {"codigo": "amarelo", "nome": "Amarelo", "fundo": "#fef9c3", "texto": "#854d0e", "borda": "#fde047"},
+    {"codigo": "laranja", "nome": "Laranja", "fundo": "#ffedd5", "texto": "#9a3412", "borda": "#fdba74"},
+    {"codigo": "vermelho", "nome": "Vermelho", "fundo": "#fee2e2", "texto": "#991b1b", "borda": "#fca5a5"},
+    {"codigo": "roxo", "nome": "Roxo", "fundo": "#f3e8ff", "texto": "#7e22ce", "borda": "#d8b4fe"},
 ]
-ORCAMENTO_STATUS_POR_CODIGO = {item["codigo"]: item for item in ORCAMENTO_STATUS}
+ORCAMENTO_STATUS_CORES_POR_CODIGO = {
+    item["codigo"]: item for item in ORCAMENTO_STATUS_CORES
+}
+ORCAMENTO_STATUS_PADRAO = [
+    {"codigo": "aberto", "nome": "Aberto", "cor": "cinza"},
+    {"codigo": "em_andamento", "nome": "Em andamento", "cor": "azul"},
+    {"codigo": "cancelado", "nome": "Cancelado", "cor": "vermelho"},
+    {"codigo": "finalizado", "nome": "Finalizado", "cor": "verde"},
+]
+ORCAMENTO_STATUS_FINALIZADOR_PADRAO = "finalizado"
 ORCAMENTO_STATUS_ALIASES = {
     "aberta": "aberto",
+    "cancelada": "cancelado",
+    "finalizada": "finalizado",
     "aprovada": "aprovado",
     "reprovada": "reprovado",
     "recusado": "reprovado",
     "recusada": "reprovado",
-    "cancelada": "cancelado",
 }
-ORCAMENTO_STATUS_TRANSICOES = {
-    "aberto": {"enviado", "aprovado", "reprovado", "cancelado"},
-    "enviado": {"aberto", "aprovado", "reprovado", "cancelado"},
-    "aprovado": set(),
-    "reprovado": set(),
-    "cancelado": set(),
-}
+
+
+def _codigo_status_orcamento(valor: Any) -> str:
+    texto = unicodedata.normalize("NFKD", str(valor or "").strip().lower())
+    texto = "".join(caractere for caractere in texto if not unicodedata.combining(caractere))
+    texto = re.sub(r"[^a-z0-9]+", "_", texto).strip("_")
+    return texto[:48]
+
+
+def _status_cor_orcamento(codigo_cor: Any) -> dict[str, str]:
+    codigo = str(codigo_cor or "").strip().lower()
+    return dict(
+        ORCAMENTO_STATUS_CORES_POR_CODIGO.get(
+            codigo,
+            ORCAMENTO_STATUS_CORES_POR_CODIGO["cinza"],
+        )
+    )
+
+
+def _normalizar_lista_status_orcamento(
+    itens: Any,
+) -> list[dict[str, str]]:
+    if not isinstance(itens, list):
+        return []
+
+    resultado: list[dict[str, str]] = []
+    codigos_usados: set[str] = set()
+    nomes_usados: set[str] = set()
+
+    for indice, item in enumerate(itens):
+        if not isinstance(item, dict):
+            continue
+        nome = re.sub(r"\s+", " ", str(item.get("nome") or "").strip())[:40]
+        if not nome:
+            continue
+        codigo = _codigo_status_orcamento(item.get("codigo") or nome)
+        if not codigo:
+            codigo = f"status_{indice + 1}"
+        base_codigo = codigo
+        sufixo = 2
+        while codigo in codigos_usados:
+            codigo = f"{base_codigo}_{sufixo}"[:48]
+            sufixo += 1
+        chave_nome = _codigo_status_orcamento(nome)
+        if chave_nome in nomes_usados:
+            continue
+        cor = str(item.get("cor") or "cinza").strip().lower()
+        if cor not in ORCAMENTO_STATUS_CORES_POR_CODIGO:
+            cor = "cinza"
+        codigos_usados.add(codigo)
+        nomes_usados.add(chave_nome)
+        resultado.append({"codigo": codigo, "nome": nome, "cor": cor})
+
+    return resultado
+
+
+def configuracao_status_orcamentos(
+    empresa_id: int | None = None,
+) -> dict[str, Any]:
+    try:
+        valores = buscar_configuracoes_modulo("orcamentos", empresa_id)
+    except NameError:
+        valores = {}
+
+    itens: list[dict[str, str]] = []
+    bruto_json = str(valores.get("situacoes_config_json") or "").strip()
+    if bruto_json:
+        try:
+            itens = _normalizar_lista_status_orcamento(json.loads(bruto_json))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            itens = []
+
+    if not itens:
+        situacoes = valores.get("situacoes", "")
+        if isinstance(situacoes, list):
+            nomes = [str(item).strip() for item in situacoes if str(item).strip()]
+        else:
+            nomes = [linha.strip() for linha in str(situacoes or "").splitlines() if linha.strip()]
+
+        cores_por_nome = {
+            "aberto": "cinza",
+            "em_andamento": "azul",
+            "cancelado": "vermelho",
+            "finalizado": "verde",
+            "enviado": "azul_claro",
+            "aprovado": "verde",
+            "reprovado": "vermelho",
+        }
+        itens = _normalizar_lista_status_orcamento(
+            [
+                {
+                    "codigo": _codigo_status_orcamento(nome),
+                    "nome": nome,
+                    "cor": cores_por_nome.get(_codigo_status_orcamento(nome), "cinza"),
+                }
+                for nome in nomes
+            ]
+        )
+
+    if not itens:
+        itens = [dict(item) for item in ORCAMENTO_STATUS_PADRAO]
+
+    finalizador = _codigo_status_orcamento(
+        valores.get("situacao_finalizadora") or ORCAMENTO_STATUS_FINALIZADOR_PADRAO
+    )
+    codigos = {item["codigo"] for item in itens}
+
+    if finalizador not in codigos:
+        if ORCAMENTO_STATUS_FINALIZADOR_PADRAO not in codigos:
+            itens.append({"codigo": "finalizado", "nome": "Finalizado", "cor": "verde"})
+        finalizador = ORCAMENTO_STATUS_FINALIZADOR_PADRAO
+
+    resultado: list[dict[str, Any]] = []
+    for item in itens:
+        cor = _status_cor_orcamento(item.get("cor"))
+        resultado.append(
+            {
+                **item,
+                "final": item["codigo"] == finalizador,
+                "cor_nome": cor["nome"],
+                "fundo": cor["fundo"],
+                "texto": cor["texto"],
+                "borda": cor["borda"],
+            }
+        )
+
+    return {
+        "itens": resultado,
+        "finalizador": finalizador,
+    }
+
+
+def listar_status_orcamento_configurados(
+    empresa_id: int | None = None,
+) -> list[dict[str, Any]]:
+    return [dict(item) for item in configuracao_status_orcamentos(empresa_id)["itens"]]
+
+
+def status_inicial_orcamento(empresa_id: int | None = None) -> str:
+    itens = listar_status_orcamento_configurados(empresa_id)
+    for item in itens:
+        if not item.get("final"):
+            return str(item["codigo"])
+    return str(itens[0]["codigo"]) if itens else "aberto"
+
+
+def codigo_status_orcamento_existente(valor: Any) -> str:
+    codigo = _codigo_status_orcamento(valor)
+    codigo = ORCAMENTO_STATUS_ALIASES.get(codigo, codigo)
+    return codigo or status_inicial_orcamento()
 
 
 def normalizar_status_orcamento(valor: Any, padrao: str = "aberto") -> str:
-    status = str(valor or "").strip().lower()
-    status = ORCAMENTO_STATUS_ALIASES.get(status, status)
-    if status in ORCAMENTO_STATUS_POR_CODIGO:
-        return status
-    return padrao if padrao in ORCAMENTO_STATUS_POR_CODIGO else ""
+    codigo = codigo_status_orcamento_existente(valor)
+    configurados = {item["codigo"] for item in listar_status_orcamento_configurados()}
+    if codigo in configurados:
+        return codigo
+
+    padrao_codigo = _codigo_status_orcamento(padrao)
+    padrao_codigo = ORCAMENTO_STATUS_ALIASES.get(padrao_codigo, padrao_codigo)
+    if padrao_codigo in configurados:
+        return padrao_codigo
+    if not padrao:
+        return ""
+    return status_inicial_orcamento()
+
+
+def _dados_status_orcamento(valor: Any) -> dict[str, Any]:
+    codigo = codigo_status_orcamento_existente(valor)
+    for item in listar_status_orcamento_configurados():
+        if item["codigo"] == codigo:
+            return dict(item)
+    cor = _status_cor_orcamento("cinza")
+    return {
+        "codigo": codigo,
+        "nome": str(valor or codigo.replace("_", " ").title()).strip() or codigo.replace("_", " ").title(),
+        "cor": "cinza",
+        "cor_nome": cor["nome"],
+        "fundo": cor["fundo"],
+        "texto": cor["texto"],
+        "borda": cor["borda"],
+        "final": False,
+        "legado": True,
+    }
 
 
 def nome_status_orcamento(valor: Any) -> str:
-    codigo = normalizar_status_orcamento(valor, "aberto")
-    return str(ORCAMENTO_STATUS_POR_CODIGO.get(codigo, {}).get("nome") or codigo.title())
+    return str(_dados_status_orcamento(valor).get("nome") or "Status")
 
 
 def status_final_orcamento(valor: Any) -> bool:
-    codigo = normalizar_status_orcamento(valor, "aberto")
-    return bool(ORCAMENTO_STATUS_POR_CODIGO.get(codigo, {}).get("final"))
+    return bool(_dados_status_orcamento(valor).get("final"))
 
 
 def opcoes_transicao_status_orcamento(valor_atual: Any) -> list[dict[str, Any]]:
-    atual = normalizar_status_orcamento(valor_atual, "aberto")
-    permitidos = {atual, *ORCAMENTO_STATUS_TRANSICOES.get(atual, set())}
-    return [dict(item) for item in ORCAMENTO_STATUS if item["codigo"] in permitidos]
-
+    atual = _dados_status_orcamento(valor_atual)
+    opcoes = listar_status_orcamento_configurados()
+    if not any(item["codigo"] == atual["codigo"] for item in opcoes):
+        return [atual, *opcoes]
+    return opcoes
 
 GESTFLOW_SEGMENTOS = [
     {"codigo": "mercadinho", "nome": "Mercadinho / Mercearia", "grupo": "Comércio / Varejo", "perfil": "comercio"},
@@ -9964,7 +10147,8 @@ def garantir_atividade_orcamento(orcamento_id: int) -> int | None:
             (empresa_id, orcamento_id),
         ).fetchone()
         agora = agora_empresa().isoformat(timespec="seconds")
-        status = "cancelado" if str(orcamento["status"] or "").lower() == "cancelado" else "ativo"
+        # Status de Orçamento é gerencial/visual. A atividade financeira só muda por sua própria regra.
+        status = "ativo"
         if existente:
             atividade_id = int(existente["id"])
             conn.execute(
@@ -10647,11 +10831,7 @@ def montar_filtros_orcamentos(filtros: dict[str, str]) -> tuple[str, list[Any]]:
             parametros.append(f"%{valor}%")
 
     status_filtro = normalizar_status_orcamento(filtros.get("status"), "")
-    if status_filtro == "reprovado":
-        condicoes.append(
-            "LOWER(TRIM(COALESCE(o.status, ''))) IN ('reprovado', 'reprovada', 'recusado', 'recusada')"
-        )
-    elif status_filtro:
+    if status_filtro:
         condicoes.append("LOWER(TRIM(COALESCE(o.status, ''))) = ?")
         parametros.append(status_filtro)
 
@@ -10777,29 +10957,42 @@ def listar_orcamentos_paginado(
         por_pagina=por_pagina,
     )
 
-def resumir_orcamentos_cadastrados() -> dict[str, int]:
+def resumir_orcamentos_cadastrados() -> dict[str, Any]:
     empresa_id = empresa_logada_id()
+    config_status = configuracao_status_orcamentos()
+    finalizador = str(config_status["finalizador"])
 
     with conectar_db() as conn:
-        total = conn.execute(
-            "SELECT COUNT(*) AS total FROM orcamentos WHERE empresa_id = ?",
-            (empresa_id,),
-        ).fetchone()["total"]
-
-        abertos = conn.execute(
-            "SELECT COUNT(*) AS total FROM orcamentos WHERE empresa_id = ? AND status = ?",
-            (empresa_id, "aberto"),
-        ).fetchone()["total"]
-
-        aprovados = conn.execute(
-            "SELECT COUNT(*) AS total FROM orcamentos WHERE empresa_id = ? AND status = ?",
-            (empresa_id, "aprovado"),
-        ).fetchone()["total"]
+        total = int(
+            conn.execute(
+                "SELECT COUNT(*) AS total FROM orcamentos WHERE empresa_id = ?",
+                (empresa_id,),
+            ).fetchone()["total"]
+            or 0
+        )
+        finalizados = int(
+            conn.execute(
+                """
+                SELECT COUNT(DISTINCT o.id) AS total
+                FROM orcamentos o
+                WHERE o.empresa_id = ?
+                  AND EXISTS (
+                      SELECT 1
+                      FROM vendas v
+                      WHERE v.empresa_id = o.empresa_id
+                        AND v.origem_orcamento_id = o.id
+                  )
+                """,
+                (empresa_id,),
+            ).fetchone()["total"]
+            or 0
+        )
 
     return {
-        "total": int(total or 0),
-        "abertos": int(abertos or 0),
-        "aprovados": int(aprovados or 0),
+        "total": total,
+        "em_acompanhamento": max(0, total - finalizados),
+        "finalizados": finalizados,
+        "finalizador_nome": nome_status_orcamento(finalizador),
     }
 
 
@@ -10837,10 +11030,15 @@ def montar_contexto_orcamentos_paginado() -> dict[str, Any]:
         orcamentos_lista, ("data", "validade")
     )
     for item in orcamentos_exibicao:
-        status_codigo = normalizar_status_orcamento(item.get("status"), "aberto")
+        status_dados = _dados_status_orcamento(item.get("status"))
+        status_codigo = str(status_dados["codigo"])
         item["status_codigo"] = status_codigo
-        item["status_nome"] = nome_status_orcamento(status_codigo)
-        item["status_final"] = status_final_orcamento(status_codigo)
+        item["status_nome"] = str(status_dados["nome"])
+        item["status_final"] = bool(item.get("venda_gerada_id"))
+        item["status_cor"] = str(status_dados.get("cor") or "cinza")
+        item["status_fundo"] = str(status_dados.get("fundo") or "#e2e8f0")
+        item["status_texto"] = str(status_dados.get("texto") or "#334155")
+        item["status_borda"] = str(status_dados.get("borda") or "#cbd5e1")
         item["status_opcoes"] = opcoes_transicao_status_orcamento(status_codigo)
 
     filtros_url = {chave: valor for chave, valor in filtros.items() if valor}
@@ -12815,7 +13013,7 @@ def atualizar_status_orcamento_db(
     empresa_id = empresa_logada_id()
     status_novo = normalizar_status_orcamento(novo_status, "")
     if not status_novo:
-        return False, "Status de orçamento inválido.", None
+        return False, "Status de orçamento inválido ou removido das Configurações.", None
 
     atualizado_em = agora_empresa().isoformat(timespec="seconds")
     with conectar_db() as conn:
@@ -12833,36 +13031,9 @@ def atualizar_status_orcamento_db(
             return False, "Orçamento não encontrado.", None
 
         registro = dict(row)
-        status_anterior_bruto = str(registro.get("status") or "aberto").strip().lower()
-        status_anterior = normalizar_status_orcamento(status_anterior_bruto, "aberto")
+        status_anterior = codigo_status_orcamento_existente(registro.get("status"))
 
         if status_novo != status_anterior:
-            if status_final_orcamento(status_anterior):
-                conn.rollback()
-                return (
-                    False,
-                    f"O orçamento está {nome_status_orcamento(status_anterior).lower()} e seu status é final.",
-                    {
-                        **registro,
-                        "status_anterior": status_anterior,
-                        "status_novo": status_anterior,
-                    },
-                )
-
-            permitidos = ORCAMENTO_STATUS_TRANSICOES.get(status_anterior, set())
-            if status_novo not in permitidos:
-                conn.rollback()
-                return (
-                    False,
-                    f"Não é permitido alterar de {nome_status_orcamento(status_anterior)} para {nome_status_orcamento(status_novo)}.",
-                    {
-                        **registro,
-                        "status_anterior": status_anterior,
-                        "status_novo": status_anterior,
-                    },
-                )
-
-        if status_novo != status_anterior_bruto:
             conn.execute(
                 """
                 UPDATE orcamentos
@@ -12875,6 +13046,7 @@ def atualizar_status_orcamento_db(
             )
         conn.commit()
 
+    dados_status = _dados_status_orcamento(status_novo)
     return (
         True,
         "Status atualizado com sucesso.",
@@ -12882,11 +13054,11 @@ def atualizar_status_orcamento_db(
             **registro,
             "status_anterior": status_anterior,
             "status_novo": status_novo,
-            "status_nome": nome_status_orcamento(status_novo),
-            "status_final": status_final_orcamento(status_novo),
+            "status_nome": dados_status["nome"],
+            "status_final": bool(dados_status.get("final")),
+            "status_cor": dados_status.get("cor"),
         },
     )
-
 
 def excluir_orcamento_db(orcamento_id: int) -> None:
     empresa_id = empresa_logada_id()
@@ -12945,7 +13117,7 @@ def montar_orcamento_formulario(numero_padrao: str = "") -> dict[str, str]:
         "centro_custo_id": centro_custo_id,
         "introducao": (request.form.get("orcamento_introducao") or "").strip(),
         "tipo": (request.form.get("orcamento_tipo") or "misto").strip() or "misto",
-        "status": normalizar_status_orcamento(request.form.get("orcamento_status"), "aberto"),
+        "status": normalizar_status_orcamento(request.form.get("orcamento_status"), status_inicial_orcamento()),
         "total_produtos": (request.form.get("orcamento_total_produtos") or "0,00").strip(),
         "total_servicos": (request.form.get("orcamento_total_servicos") or "0,00").strip(),
         "desconto_valor": (request.form.get("orcamento_desconto_valor") or "0,00").strip(),
@@ -13051,6 +13223,12 @@ def validar_orcamento_para_salvar(orcamento: dict[str, str], itens: list[dict[st
 
     if not _valor_formulario_positivo(orcamento["valor_total"]):
         return "O valor total do orçamento precisa ser maior que zero."
+
+    if status_final_orcamento(orcamento.get("status")):
+        return (
+            "O status finalizador só pode ser aplicado depois que o orçamento for criado, "
+            "pois ele exige confirmação e gera a Venda."
+        )
 
     return ""
 
@@ -13247,7 +13425,7 @@ def copiar_orcamento_db(orcamento_id: int) -> int | None:
         "centro_custo": str(orcamento_original.get("centro_custo") or ""),
         "introducao": str(orcamento_original.get("introducao") or ""),
         "tipo": str(orcamento_original.get("tipo") or "misto"),
-        "status": "aberto",
+        "status": status_inicial_orcamento(),
         "total_produtos": str(orcamento_original.get("total_produtos") or "0,00"),
         "total_servicos": str(orcamento_original.get("total_servicos") or "0,00"),
         "desconto_valor": str(orcamento_original.get("desconto_valor") or "0,00"),
@@ -14065,7 +14243,7 @@ def montar_apresentacao_atividades_gerador(dados: dict[str, Any]) -> list[dict[s
 def montar_orcamento_por_gerador(
     dados: dict[str, Any],
     numero: str | None = None,
-    status: str = "aberto",
+    status: str | None = None,
 ) -> tuple[dict[str, str], list[dict[str, str]], list[dict[str, Any]]]:
     valor_total = float(dados.get("valor_escolhido") or 0)
     venda_material = float(dados.get("venda_material") or 0)
@@ -14331,7 +14509,7 @@ def montar_orcamento_por_gerador(
         "centro_custo": str(dados.get("tipo_servico") or "Serviço técnico"),
         "introducao": "GESTFLOW apresenta abaixo sua proposta comercial para fornecimento de produtos e/ou execução de serviços conforme solicitado:",
         "tipo": tipo_orcamento,
-        "status": status or "aberto",
+        "status": status or status_inicial_orcamento(),
         "total_produtos": _formatar_moeda_brl(total_produtos_numero),
         "total_servicos": _formatar_moeda_brl(total_servicos_numero),
         "desconto_valor": "0,00",
@@ -14371,7 +14549,7 @@ def atualizar_orcamento_por_gerador_db(orcamento_id: int, dados: dict[str, Any])
     orcamento, itens, adicionais = montar_orcamento_por_gerador(
         dados,
         numero=str(orcamento_atual.get("numero") or ""),
-        status=str(orcamento_atual.get("status") or "aberto"),
+        status=str(orcamento_atual.get("status") or status_inicial_orcamento()),
     )
     orcamento["introducao"] = str(orcamento_atual.get("introducao") or orcamento.get("introducao") or "")
     atualizar_orcamento_db(orcamento_id, orcamento, itens)
@@ -19891,8 +20069,129 @@ def validar_configuracoes_modulo_operacional(
     codigo: str,
     valores: dict[str, Any],
 ) -> str:
+    if codigo == "orcamentos":
+        bruto_json = str(valores.get("situacoes_config_json") or "").strip()
+        if not bruto_json:
+            return "Cadastre pelo menos dois status para os Orçamentos."
+
+        try:
+            itens_brutos = json.loads(bruto_json)
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return "A configuração dos status dos Orçamentos está inválida."
+
+        if not isinstance(itens_brutos, list):
+            return "A configuração dos status dos Orçamentos está inválida."
+
+        nomes_brutos = [
+            re.sub(r"\s+", " ", str(item.get("nome") or "").strip())
+            for item in itens_brutos
+            if isinstance(item, dict)
+        ]
+        nomes_validos = [nome for nome in nomes_brutos if nome]
+        chaves_nomes = [_codigo_status_orcamento(nome) for nome in nomes_validos]
+        if len(nomes_validos) < 2:
+            return "Mantenha pelo menos dois status para os Orçamentos."
+        if len(set(chaves_nomes)) != len(chaves_nomes):
+            return "Não é permitido cadastrar dois status de Orçamento com o mesmo nome."
+
+        for item in itens_brutos:
+            if not isinstance(item, dict):
+                return "A configuração dos status dos Orçamentos está inválida."
+            cor = str(item.get("cor") or "").strip().lower()
+            if cor not in ORCAMENTO_STATUS_CORES_POR_CODIGO:
+                return "Escolha somente uma das cores predefinidas para os status dos Orçamentos."
+
+        itens = _normalizar_lista_status_orcamento(itens_brutos)
+        if len(itens) != len(nomes_validos):
+            return "Revise os nomes dos status dos Orçamentos antes de salvar."
+
+        finalizador = _codigo_status_orcamento(valores.get("situacao_finalizadora"))
+        codigos = {item["codigo"] for item in itens}
+        if not finalizador or finalizador not in codigos:
+            return "Escolha exatamente um status que finaliza o Orçamento e gera a Venda."
+
+        configuracao_anterior = configuracao_status_orcamentos()
+        finalizador_anterior = str(configuracao_anterior.get("finalizador") or "")
+        if finalizador != finalizador_anterior:
+            with conectar_db() as conn:
+                em_uso = conn.execute(
+                    """
+                    SELECT COUNT(*) AS total
+                    FROM orcamentos o
+                    WHERE o.empresa_id = ?
+                      AND LOWER(TRIM(COALESCE(o.status, ''))) = ?
+                      AND NOT EXISTS (
+                          SELECT 1
+                          FROM vendas v
+                          WHERE v.empresa_id = o.empresa_id
+                            AND v.origem_orcamento_id = o.id
+                      )
+                    """,
+                    (empresa_logada_id(), finalizador),
+                ).fetchone()
+            total_em_uso = int((em_uso["total"] if em_uso is not None else 0) or 0)
+            if total_em_uso:
+                nome_finalizador = next(
+                    (item["nome"] for item in itens if item["codigo"] == finalizador),
+                    finalizador,
+                )
+                return (
+                    f'Não é possível tornar "{nome_finalizador}" o status finalizador porque '
+                    f"{total_em_uso} orçamento(s) ainda usam esse status sem Venda gerada. "
+                    "Altere esses orçamentos para outro status e tente novamente."
+                )
+
+        codigos_novos = {item["codigo"] for item in itens}
+        codigos_removidos = {
+            str(item.get("codigo") or "")
+            for item in configuracao_anterior.get("itens", [])
+            if str(item.get("codigo") or "") and str(item.get("codigo") or "") not in codigos_novos
+        }
+        if codigos_removidos:
+            placeholders = ",".join("?" for _ in codigos_removidos)
+            with conectar_db() as conn:
+                rows_uso = conn.execute(
+                    f"""
+                    SELECT LOWER(TRIM(COALESCE(o.status, ''))) AS status, COUNT(*) AS total
+                    FROM orcamentos o
+                    WHERE o.empresa_id = ?
+                      AND LOWER(TRIM(COALESCE(o.status, ''))) IN ({placeholders})
+                      AND NOT EXISTS (
+                          SELECT 1
+                          FROM vendas v
+                          WHERE v.empresa_id = o.empresa_id
+                            AND v.origem_orcamento_id = o.id
+                      )
+                    GROUP BY LOWER(TRIM(COALESCE(o.status, '')))
+                    """,
+                    [empresa_logada_id(), *sorted(codigos_removidos)],
+                ).fetchall()
+            if rows_uso:
+                mapa_nomes = {
+                    str(item.get("codigo") or ""): str(item.get("nome") or "")
+                    for item in configuracao_anterior.get("itens", [])
+                }
+                detalhes = ", ".join(
+                    f'{mapa_nomes.get(str(row["status"]), str(row["status"]))}: {int(row["total"] or 0)}'
+                    for row in rows_uso
+                )
+                return (
+                    "Antes de excluir um status em uso, altere os orçamentos que ainda estão nele. "
+                    f"Em uso agora: {detalhes}."
+                )
+
+        valores["situacoes"] = "\n".join(item["nome"] for item in itens)
+        valores["situacoes_config_json"] = json.dumps(
+            itens,
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
+        valores["situacao_finalizadora"] = finalizador
+        return ""
+
     if codigo != "vitrine":
         return ""
+
     slug = normalizar_slug_vitrine(valores.get("slug"))
     if not slug:
         return ""
@@ -20784,10 +21083,25 @@ def mensagem_bloqueio_registro_final(
     modulo: str,
     status: Any,
     acao: str = "alterar",
+    registro_id: int | None = None,
 ) -> str:
     configuracao = REGISTROS_FINAIS_BLOQUEIO.get(str(modulo or "").strip())
     if not configuracao:
         return ""
+
+    if str(modulo or "").strip() == "orcamentos":
+        venda_gerada = (
+            buscar_venda_por_orcamento_id(int(registro_id))
+            if registro_id is not None
+            else None
+        )
+        if venda_gerada is None:
+            return ""
+        return (
+            f"Não é possível {acao} {configuracao['entidade']} porque "
+            "ele já foi finalizado e possui Venda gerada."
+        )
+
     status_normalizado = _texto_comparacao_configuracao(status)
     motivo = configuracao["motivos"].get(status_normalizado)
     if not motivo:
@@ -21164,6 +21478,7 @@ def validar_bloqueio_registro_final_requisicao() -> Response | None:
         modulo,
         registro.get("status"),
         acao,
+        int(registro_id),
     )
     if not mensagem:
         return None
@@ -24461,6 +24776,28 @@ def configuracoes(grupo: str | None = None) -> str:
         request.args.get("modulo"),
         grupo or request.args.get("grupo"),
     )
+
+    if (
+        aba == "regras_modulos"
+        and contexto_regras["codigo_modulo_configuracao"] == "orcamentos"
+    ):
+        return render_template(
+            "configuracoes_orcamentos.html",
+            aba=aba,
+            empresa=contexto["empresa"],
+            grupo_configuracao=contexto_regras["grupo_configuracao"],
+            modulo_configuracao=contexto_regras["modulo_configuracao"],
+            codigo_modulo_configuracao=contexto_regras["codigo_modulo_configuracao"],
+            configuracoes_modulo=contexto_regras["configuracoes_modulo"],
+            metadados_configuracao=contexto_regras["metadados_configuracao"],
+            secoes_configuracao=contexto_regras["secoes_configuracao"],
+            total_configuracoes=contexto_regras["total_configuracoes"],
+            status_orcamentos=listar_status_orcamento_configurados(),
+            status_cores=ORCAMENTO_STATUS_CORES,
+            erro=request.args.get("erro", ""),
+            sucesso=request.args.get("sucesso", ""),
+        )
+
     vitrine_configuracao = (
         buscar_vitrine_configuracao()
         if contexto_regras["codigo_modulo_configuracao"] == "vitrine"
@@ -37189,8 +37526,9 @@ def gerador_orcamentos() -> str | Response:
         gerador_dados={},
         modo_revisao=False,
         orcamento=None,
-        orcamento_status_atual="aberto",
-        orcamento_status_opcoes=opcoes_transicao_status_orcamento("aberto"),
+        orcamento_status_atual=status_inicial_orcamento(),
+        orcamento_status_opcoes=opcoes_transicao_status_orcamento(status_inicial_orcamento()),
+        orcamento_status_dados=_dados_status_orcamento(status_inicial_orcamento()),
         orcamento_status_final=False,
         form_action=url_for("gerador_orcamentos"),
     )
@@ -37204,7 +37542,7 @@ def revisar_gerador_orcamento(orcamento_id: int) -> str | Response:
         return redirect(url_for("editar_orcamento", orcamento_id=orcamento_id, erro="Este orçamento não possui dados salvos do Gerador."))
 
     if request.method == "POST":
-        if status_final_orcamento(orcamento.get("status")):
+        if buscar_venda_por_orcamento_id(orcamento_id) is not None:
             return redirect(
                 url_for(
                     "revisar_gerador_orcamento",
@@ -37238,9 +37576,10 @@ def revisar_gerador_orcamento(orcamento_id: int) -> str | Response:
         gerador_dados=dados_gerador,
         modo_revisao=True,
         orcamento=orcamento,
-        orcamento_status_atual=normalizar_status_orcamento(orcamento.get("status"), "aberto"),
+        orcamento_status_atual=codigo_status_orcamento_existente(orcamento.get("status")),
         orcamento_status_opcoes=opcoes_transicao_status_orcamento(orcamento.get("status")),
-        orcamento_status_final=status_final_orcamento(orcamento.get("status")),
+        orcamento_status_dados=_dados_status_orcamento(orcamento.get("status")),
+        orcamento_status_final=buscar_venda_por_orcamento_id(orcamento_id) is not None,
         form_action=url_for("revisar_gerador_orcamento", orcamento_id=orcamento_id),
     )
 
@@ -37285,6 +37624,8 @@ def orcamentos() -> str:
         filtros_url=contexto_orcamentos["filtros_url"],
         filtros_ativos=contexto_orcamentos["filtros_ativos"],
         centros_custo=listar_centros_custo(),
+        orcamento_status_opcoes=listar_status_orcamento_configurados(),
+        orcamento_status_inicial=status_inicial_orcamento(),
     )
 
 
@@ -37332,12 +37673,120 @@ def exportar_orcamentos_csv() -> Response:
 
 @app.post("/orcamentos/<int:orcamento_id>/status")
 def atualizar_status_orcamento(orcamento_id: int) -> Response:
-    novo_status = request.form.get("status")
-    sucesso, mensagem, resultado = atualizar_status_orcamento_db(orcamento_id, novo_status)
-    if not sucesso or resultado is None:
-        return jsonify({"ok": False, "erro": mensagem}), 409
+    orcamento = buscar_orcamento_por_id(orcamento_id)
+    if orcamento is None:
+        return jsonify({"ok": False, "erro": "Orçamento não encontrado."}), 404
 
-    status_anterior = str(resultado.get("status_anterior") or "aberto")
+    venda_existente = buscar_venda_por_orcamento_id(orcamento_id)
+    if venda_existente is not None:
+        return jsonify(
+            {
+                "ok": False,
+                "erro": (
+                    "Este orçamento já foi finalizado e possui a Venda "
+                    f"{venda_existente.get('numero') or ('#' + str(venda_existente.get('id')))}."
+                ),
+            }
+        ), 409
+
+    novo_status = normalizar_status_orcamento(request.form.get("status"), "")
+    if not novo_status:
+        return jsonify(
+            {"ok": False, "erro": "O status selecionado não existe mais nas Configurações."}
+        ), 409
+
+    status_anterior = codigo_status_orcamento_existente(orcamento.get("status"))
+    eh_finalizador = status_final_orcamento(novo_status)
+    venda_id: int | None = None
+    venda_criada = False
+    aviso_integracao = ""
+
+    if eh_finalizador:
+        if request.form.get("confirmar_finalizacao") != "sim":
+            return jsonify(
+                {
+                    "ok": False,
+                    "erro": (
+                        f'Confirme a finalização em "{nome_status_orcamento(novo_status)}". '
+                        "Essa ação gera a Venda e bloqueia a composição do orçamento."
+                    ),
+                    "exige_confirmacao": True,
+                }
+            ), 409
+
+        if not configuracao_bool("orcamentos", "converter_venda", True):
+            return jsonify(
+                {
+                    "ok": False,
+                    "erro": (
+                        "A conversão de orçamento em Venda está desativada nas Configurações "
+                        "de Orçamentos."
+                    ),
+                }
+            ), 409
+
+        itens_orcamento = listar_orcamento_itens(orcamento_id)
+        if not itens_orcamento or _converter_valor_brl(orcamento.get("valor_total")) <= 0:
+            return jsonify(
+                {
+                    "ok": False,
+                    "erro": "O orçamento precisa ter itens e valor total maior que zero para gerar a Venda.",
+                }
+            ), 409
+
+        try:
+            validar_estoque_para_venda_db(itens_orcamento)
+        except ValueError as exc:
+            return jsonify({"ok": False, "erro": str(exc)}), 409
+
+        venda_id, venda_criada = gerar_venda_por_orcamento_db(orcamento_id)
+        if venda_id is None:
+            return jsonify(
+                {
+                    "ok": False,
+                    "erro": "Não foi possível gerar a Venda. Confira os itens e o valor do orçamento.",
+                }
+            ), 409
+
+        # A existência da Venda é o marco permanente de finalização. Atualizamos o
+        # status imediatamente para que uma falha posterior de integração nunca
+        # deixe uma Venda criada com o orçamento ainda aparentando estar aberto.
+        sucesso, mensagem, resultado = atualizar_status_orcamento_db(orcamento_id, novo_status)
+        if not sucesso or resultado is None:
+            return jsonify(
+                {
+                    "ok": False,
+                    "erro": (
+                        f"A Venda #{venda_id} foi criada, mas não foi possível registrar o status "
+                        f"finalizador: {mensagem}"
+                    ),
+                    "venda_id": venda_id,
+                }
+            ), 409
+
+        venda = buscar_venda_por_id(venda_id)
+        if venda_criada and venda is not None:
+            try:
+                itens_venda = listar_venda_itens(venda_id)
+                baixar_estoque_por_venda_db(venda_id, venda, itens_venda)
+                gerar_conta_receber_por_venda_db(venda_id, venda)
+            except (ValueError, sqlite3.Error) as exc:
+                aviso_integracao = (
+                    f"A Venda {venda.get('numero') or venda_id} foi gerada e o orçamento foi "
+                    f"finalizado, mas uma integração precisa ser revisada: {exc}"
+                )
+
+            registrar_atividade_usuario(
+                "criacao",
+                "orcamentos",
+                f"Gerou venda #{venda_id} ao finalizar o orçamento #{orcamento_id}",
+                request.path,
+            )
+    else:
+        sucesso, mensagem, resultado = atualizar_status_orcamento_db(orcamento_id, novo_status)
+        if not sucesso or resultado is None:
+            return jsonify({"ok": False, "erro": mensagem}), 409
+
     status_novo = str(resultado.get("status_novo") or status_anterior)
     if status_novo != status_anterior:
         numero = str(resultado.get("numero") or orcamento_id)
@@ -37347,17 +37796,33 @@ def atualizar_status_orcamento(orcamento_id: int) -> Response:
             (
                 f"Alterou status do orçamento {numero}: "
                 f"{nome_status_orcamento(status_anterior)} → {nome_status_orcamento(status_novo)}"
+                + (" e finalizou com geração de Venda." if eh_finalizador else ".")
             ),
             request.path,
         )
 
+    dados_status = _dados_status_orcamento(status_novo)
+    venda = buscar_venda_por_id(venda_id) if venda_id else None
+    mensagem_final = mensagem
+    if eh_finalizador and venda is not None:
+        mensagem_final = f"Orçamento finalizado e Venda {venda.get('numero')} gerada com sucesso."
+    if aviso_integracao:
+        mensagem_final = aviso_integracao
+
     return jsonify(
         {
             "ok": True,
-            "mensagem": mensagem,
+            "mensagem": mensagem_final,
+            "aviso": aviso_integracao,
             "status": status_novo,
-            "status_nome": nome_status_orcamento(status_novo),
-            "final": status_final_orcamento(status_novo),
+            "status_nome": dados_status["nome"],
+            "final": eh_finalizador,
+            "cor": dados_status["cor"],
+            "fundo": dados_status["fundo"],
+            "texto": dados_status["texto"],
+            "borda": dados_status["borda"],
+            "venda_id": venda_id,
+            "venda_criada": venda_criada,
         }
     )
 
@@ -37448,44 +37913,28 @@ def ver_orcamento(orcamento_id: int) -> str | Response:
 
 @app.get("/orcamentos/<int:orcamento_id>/gerar/venda")
 def gerar_venda_por_orcamento(orcamento_id: int) -> Response:
-    venda_id, venda_criada = gerar_venda_por_orcamento_db(orcamento_id)
-
-    if venda_id is None:
+    venda_existente = buscar_venda_por_orcamento_id(orcamento_id)
+    if venda_existente is not None:
         return redirect(
             url_for(
-                "ver_orcamento",
-                orcamento_id=orcamento_id,
-                erro="Não foi possível gerar a venda. Confira os itens e o valor do orçamento.",
+                "vendas",
+                aviso=(
+                    "Este orçamento já possui a Venda "
+                    f"{venda_existente.get('numero') or ('#' + str(venda_existente.get('id')))}."
+                ),
             )
         )
 
-    if venda_criada:
-        venda = buscar_venda_por_id(venda_id)
-        itens_venda = listar_venda_itens(venda_id)
-
-        if venda is not None:
-            baixar_estoque_por_venda_db(venda_id, venda, itens_venda)
-            gerar_conta_receber_por_venda_db(venda_id, venda)
-
-        registrar_atividade_usuario(
-            "criacao",
+    finalizador = configuracao_status_orcamentos()["finalizador"]
+    return redirect(
+        url_for(
             "orcamentos",
-            f"Gerou venda #{venda_id} pelo orçamento #{orcamento_id}",
-            request.path,
-        )
-
-    venda = buscar_venda_por_id(venda_id)
-    mensagem = (
-        "Venda já gerada anteriormente para este orçamento."
-        if not venda_criada
-        else (
-            f"Venda {venda.get('numero')} gerada pelo orçamento."
-            if venda is not None
-            else "Venda gerada pelo orçamento."
+            erro=(
+                "A Venda agora é gerada somente ao selecionar o status finalizador "
+                f'"{nome_status_orcamento(finalizador)}" e confirmar a finalização.'
+            ),
         )
     )
-    parametro = "aviso" if not venda_criada else "sucesso"
-    return redirect(url_for("vendas", **{parametro: mensagem}))
 
 
 @app.get("/orcamentos/<int:orcamento_id>/gerar/os")
@@ -37585,15 +38034,12 @@ def editar_orcamento(orcamento_id: int) -> str | Response:
     if orcamento is None:
         return redirect(url_for("orcamentos"))
 
-    if status_final_orcamento(orcamento.get("status")):
+    if buscar_venda_por_orcamento_id(orcamento_id) is not None:
         return redirect(
             url_for(
                 "ver_orcamento",
                 orcamento_id=orcamento_id,
-                aviso=(
-                    f"O orçamento está {nome_status_orcamento(orcamento.get('status')).lower()} "
-                    "e sua composição está protegida."
-                ),
+                aviso="Este orçamento já foi finalizado, possui Venda gerada e sua composição está protegida.",
             )
         )
 
@@ -37630,13 +38076,13 @@ def atualizar_orcamento(orcamento_id: int) -> Response:
     if orcamento_atual is None:
         return redirect(url_for("orcamentos"))
 
-    if status_final_orcamento(orcamento_atual.get("status")):
+    if buscar_venda_por_orcamento_id(orcamento_id) is not None:
         return redirect(
             url_for(
                 "orcamentos",
                 erro=(
-                    f"O orçamento {orcamento_atual.get('numero') or orcamento_id} está "
-                    f"{nome_status_orcamento(orcamento_atual.get('status')).lower()} e não pode ser alterado."
+                    f"O orçamento {orcamento_atual.get('numero') or orcamento_id} já foi finalizado, "
+                    "possui Venda gerada e não pode ser alterado."
                 ),
             )
         )
@@ -37653,6 +38099,10 @@ def atualizar_orcamento(orcamento_id: int) -> Response:
     orcamento = montar_orcamento_formulario(numero_padrao=str(orcamento_atual["numero"] or ""))
     orcamento["numero"] = str(orcamento_atual["numero"] or "")
     orcamento["origem"] = str(orcamento_atual.get("origem") or "manual")
+    # O status é gerenciado exclusivamente pela Lista/Revisão do Gerador.
+    # O editor manual preserva o status atual para não contornar a confirmação
+    # do status finalizador nem depender de opções antigas do template.
+    orcamento["status"] = codigo_status_orcamento_existente(orcamento_atual.get("status"))
     dados_gerador_atual = buscar_orcamento_gerador_dados(orcamento_id)
     observacoes_anteriores = normalizar_texto_multilinha(
         orcamento_atual.get("observacoes")

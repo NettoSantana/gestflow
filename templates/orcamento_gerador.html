@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_gerador.html
-Último recode: 2026-08-20 18:50 (America/Bahia)
-Motivo: Exibir e permitir alterar o status comercial do mesmo orçamento dentro da Revisão do Gerador, respeitando estados finais.
+Último recode: 2026-08-20 19:18 (America/Bahia)
+Motivo: Consumir os status configuráveis do Orçamento na Revisão do Gerador e finalizar com geração de Venda apenas pelo status finalizador.
 -->
 
 <!DOCTYPE html>
@@ -1197,13 +1197,10 @@ Motivo: Exibir e permitir alterar o status comercial do mesmo orçamento dentro 
 
         .gerador-orcamento-status-select {
             font-weight: 900;
+            background: var(--gerador-status-bg, #e2e8f0);
+            color: var(--gerador-status-text, #334155);
+            border-color: var(--gerador-status-border, #cbd5e1);
         }
-
-        .gerador-orcamento-status-select.status-aberto { background:#f1f5f9; color:#334155; }
-        .gerador-orcamento-status-select.status-enviado { background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; }
-        .gerador-orcamento-status-select.status-aprovado { background:#f0fdf4; color:#166534; border-color:#bbf7d0; }
-        .gerador-orcamento-status-select.status-reprovado { background:#fef2f2; color:#991b1b; border-color:#fecaca; }
-        .gerador-orcamento-status-select.status-cancelado { background:#f8fafc; color:#64748b; }
 
         .gerador-orcamento-status-select:disabled {
             opacity: 1;
@@ -1274,7 +1271,7 @@ Motivo: Exibir e permitir alterar o status comercial do mesmo orçamento dentro 
         {% endif %}
         {% if revisao and orcamento_status_final %}
             <div class="gerador-status-final-note">
-                Este orçamento está {{ orcamento_status_atual|replace('_', ' ')|title }}. O status é final e a composição do Gerador está protegida contra novas alterações.
+                Este orçamento já foi finalizado e possui Venda gerada. A composição do Gerador está protegida contra novas alterações.
             </div>
         {% endif %}
 
@@ -1351,21 +1348,29 @@ Motivo: Exibir e permitir alterar o status comercial do mesmo orçamento dentro 
                                     <label for="gerador_orcamento_status">Status do orçamento</label>
                                     <select
                                         id="gerador_orcamento_status"
-                                        class="form-control gerador-orcamento-status-select status-{{ orcamento_status_atual }}"
+                                        class="form-control gerador-orcamento-status-select"
+                                        style="--gerador-status-bg: {{ orcamento_status_dados.fundo }}; --gerador-status-text: {{ orcamento_status_dados.texto }}; --gerador-status-border: {{ orcamento_status_dados.borda }};"
                                         data-gerador-status-select
                                         data-status-url="{{ url_for('atualizar_status_orcamento', orcamento_id=orcamento.id) }}"
                                         data-status-atual="{{ orcamento_status_atual }}"
-                                        {% if orcamento_status_final %}disabled title="Status final. A composição do Gerador está protegida."{% endif %}
+                                        {% if orcamento_status_final %}disabled title="Orçamento finalizado. A Venda já foi gerada e a composição está protegida."{% endif %}
                                     >
                                         {% for opcao in orcamento_status_opcoes %}
-                                            <option value="{{ opcao.codigo }}" {% if opcao.codigo == orcamento_status_atual %}selected{% endif %}>{{ opcao.nome }}</option>
+                                            <option
+                                                value="{{ opcao.codigo }}"
+                                                data-finaliza="{{ 'sim' if opcao.final else 'nao' }}"
+                                                data-fundo="{{ opcao.fundo }}"
+                                                data-texto="{{ opcao.texto }}"
+                                                data-borda="{{ opcao.borda }}"
+                                                {% if opcao.codigo == orcamento_status_atual %}selected{% endif %}
+                                            >{{ opcao.nome }}{% if opcao.final %} · Finaliza e gera Venda{% endif %}</option>
                                         {% endfor %}
                                     </select>
                                     <small class="field-hint">
                                         {% if orcamento_status_final %}
-                                            Status final. Para preservar o documento aprovado/reprovado/cancelado, a composição não pode mais ser alterada.
+                                            Orçamento finalizado. A Venda já foi gerada e a composição permanece somente para consulta.
                                         {% else %}
-                                            Este é o mesmo status exibido na Lista de Orçamentos.
+                                            Este é o mesmo status da Lista de Orçamentos. Somente a opção marcada como finalizadora gera a Venda.
                                         {% endif %}
                                     </small>
                                 </div>
@@ -1543,7 +1548,7 @@ Motivo: Exibir e permitir alterar o status comercial do mesmo orçamento dentro 
                         <div class="gerador-indicador"><span>Margem real depois dos impostos</span><strong id="res-margem">0,00%</strong></div>
 
                         <div class="gerador-final-actions">
-                            <button type="submit" class="btn-primary-green{% if revisao and orcamento_status_final %} gerador-submit-finalizado{% endif %}" {% if revisao and orcamento_status_final %}disabled title="Orçamento com status final."{% endif %}>{{ 'Orçamento finalizado' if revisao and orcamento_status_final else ('Atualizar orçamento' if revisao else 'Gerar orçamento') }}</button>
+                            <button type="submit" class="btn-primary-green{% if revisao and orcamento_status_final %} gerador-submit-finalizado{% endif %}" {% if revisao and orcamento_status_final %}disabled title="Orçamento finalizado e com Venda gerada."{% endif %}>{{ 'Orçamento finalizado' if revisao and orcamento_status_final else ('Atualizar orçamento' if revisao else 'Gerar orçamento') }}</button>
                             {% if revisao and orcamento %}<a href="/orcamentos/{{ orcamento.id }}/gerador/historico" class="btn-light">Histórico</a>{% else %}<button type="button" class="btn-light" onclick="window.location.href='/orcamentos'">Cancelar</button>{% endif %}
                         </div>
                     </div>
@@ -3068,13 +3073,19 @@ async function configurarStatusOrcamentoGerador() {
     if (!campo || campo.disabled) return;
 
     campo.addEventListener('change', async function() {
-        const statusAnterior = campo.dataset.statusAtual || 'aberto';
+        const statusAnterior = campo.dataset.statusAtual || '';
         const statusNovo = campo.value;
-        const finais = new Set(['aprovado', 'reprovado', 'cancelado']);
+        const opcao = campo.options[campo.selectedIndex] || null;
+        const finaliza = Boolean(opcao && opcao.dataset.finaliza === 'sim');
+        const nome = opcao ? String(opcao.textContent || '').replace('· Finaliza e gera Venda', '').trim() : statusNovo;
 
-        if (finais.has(statusNovo)) {
-            const nome = campo.options[campo.selectedIndex] ? campo.options[campo.selectedIndex].textContent : statusNovo;
-            if (!window.confirm('Alterar este orçamento para "' + nome + '"? Esse status é final e bloqueará alterações na composição.')) {
+        if (finaliza) {
+            const confirmou = window.confirm(
+                'Finalizar este orçamento como "' + nome + '"?\n\n' +
+                'Essa ação irá gerar a Venda e bloquear a composição do orçamento. ' +
+                'Depois de finalizado, o orçamento não poderá voltar para outro status.'
+            );
+            if (!confirmou) {
                 campo.value = statusAnterior;
                 return;
             }
@@ -3084,6 +3095,8 @@ async function configurarStatusOrcamentoGerador() {
         try {
             const dados = new URLSearchParams();
             dados.set('status', statusNovo);
+            if (finaliza) dados.set('confirmar_finalizacao', 'sim');
+
             const resposta = await fetch(campo.dataset.statusUrl, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'},
@@ -3099,6 +3112,14 @@ async function configurarStatusOrcamentoGerador() {
             campo.disabled = false;
             window.alert(erro.message || 'Não foi possível alterar o status.');
         }
+    });
+
+    campo.addEventListener('input', function() {
+        const opcao = campo.options[campo.selectedIndex] || null;
+        if (!opcao) return;
+        campo.style.setProperty('--gerador-status-bg', opcao.dataset.fundo || '#e2e8f0');
+        campo.style.setProperty('--gerador-status-text', opcao.dataset.texto || '#334155');
+        campo.style.setProperty('--gerador-status-border', opcao.dataset.borda || '#cbd5e1');
     });
 }
 
