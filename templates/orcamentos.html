@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamentos.html
-Último recode: 2026-08-20 18:50 (America/Bahia)
-Motivo: Tornar o status do orçamento clicável na listagem, com transições controladas e estados finais protegidos.
+Último recode: 2026-08-20 19:04 (America/Bahia)
+Motivo: Redistribuir as larguras da lista de orçamentos para manter Cliente legível e impedir quebra do Valor total.
 -->
 
 <!DOCTYPE html>
@@ -619,7 +619,34 @@ Motivo: Tornar o status do orçamento clicável na listagem, com transições co
         .budget-advanced-actions { display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; }
         .budget-filter-active { display:inline-flex; align-items:center; min-height:24px; padding:0 9px; border-radius:999px; background:#dbeafe; color:#1d4ed8; font-size:11px; font-weight:900; }
         .budget-list-table [data-column].is-column-hidden { display:none !important; }
-        .budget-list-table td[data-column="cliente"] { min-width:220px; }
+        .budget-list-table th[data-column="cliente"],
+        .budget-list-table td[data-column="cliente"] {
+            width: 210px;
+            min-width: 170px;
+            max-width: 230px;
+            white-space: normal;
+            overflow-wrap: break-word;
+            line-height: 1.28;
+        }
+        .budget-list-table th[data-column="status"],
+        .budget-list-table td[data-column="status"] {
+            width: 145px;
+            min-width: 145px;
+        }
+        .budget-list-table th[data-column="data"],
+        .budget-list-table td[data-column="data"] {
+            width: 92px;
+            min-width: 92px;
+            white-space: nowrap;
+        }
+        .budget-list-table th[data-column="valor_total"],
+        .budget-list-table td[data-column="valor_total"] {
+            width: 112px;
+            min-width: 112px;
+            white-space: nowrap;
+            overflow-wrap: normal;
+            word-break: normal;
+        }
         .budget-list-table td[data-column="responsavel"] { min-width:170px; }
         .budget-list-table td[data-column="centro_custo"] { min-width:160px; }
         .budget-list-table td[data-column="acoes"] { min-width:210px; }
