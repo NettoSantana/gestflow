@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamentos.html
-Último recode: 2026-08-20 19:04 (America/Bahia)
-Motivo: Redistribuir as larguras da lista de orçamentos para manter Cliente legível e impedir quebra do Valor total.
+Último recode: 2026-08-20 19:18 (America/Bahia)
+Motivo: Consumir os status configuráveis dos Orçamentos, aplicar cores predefinidas e finalizar com geração de Venda apenas no status finalizador.
 -->
 
 <!DOCTYPE html>
@@ -675,11 +675,11 @@ Motivo: Redistribuir as larguras da lista de orçamentos para manter Cliente leg
             box-shadow: 0 0 0 3px rgba(15, 98, 254, 0.12);
         }
 
-        .budget-status-select.status-aberto { background:#e2e8f0; color:#334155; }
-        .budget-status-select.status-enviado { background:#dbeafe; color:#1d4ed8; }
-        .budget-status-select.status-aprovado { background:#dcfce7; color:#166534; }
-        .budget-status-select.status-reprovado { background:#fee2e2; color:#991b1b; }
-        .budget-status-select.status-cancelado { background:#f1f5f9; color:#64748b; }
+        .budget-status-select {
+            background: var(--budget-status-bg, #e2e8f0);
+            color: var(--budget-status-text, #334155);
+            border-color: var(--budget-status-border, #cbd5e1);
+        }
 
         .budget-status-select:disabled {
             opacity: 1;
@@ -735,18 +735,18 @@ Motivo: Redistribuir as larguras da lista de orçamentos para manter Cliente leg
             <div class="card stat-card">
                 <div class="card-icon">⌁</div>
                 <div class="card-info">
-                    <p>{{ resumo_orcamentos.abertos|default(0, true) }}</p>
-                    <h3>Em aberto</h3>
-                    <span>{% if resumo_orcamentos.abertos|default(0, true) == 1 %}1 orçamento aberto{% elif resumo_orcamentos.abertos|default(0, true) > 1 %}{{ resumo_orcamentos.abertos }} orçamentos abertos{% else %}Nenhum orçamento aberto{% endif %}</span>
+                    <p>{{ resumo_orcamentos.em_acompanhamento|default(0, true) }}</p>
+                    <h3>Não finalizados</h3>
+                    <span>{% if resumo_orcamentos.em_acompanhamento|default(0, true) == 1 %}1 orçamento ainda não finalizado{% elif resumo_orcamentos.em_acompanhamento|default(0, true) > 1 %}{{ resumo_orcamentos.em_acompanhamento }} orçamentos ainda não finalizados{% else %}Nenhum orçamento pendente de finalização{% endif %}</span>
                 </div>
             </div>
 
             <div class="card stat-card">
                 <div class="card-icon">✓</div>
                 <div class="card-info">
-                    <p>{{ resumo_orcamentos.aprovados|default(0, true) }}</p>
-                    <h3>Aprovados</h3>
-                    <span>{% if resumo_orcamentos.aprovados|default(0, true) == 1 %}1 orçamento aprovado{% elif resumo_orcamentos.aprovados|default(0, true) > 1 %}{{ resumo_orcamentos.aprovados }} orçamentos aprovados{% else %}Nenhum orçamento aprovado{% endif %}</span>
+                    <p>{{ resumo_orcamentos.finalizados|default(0, true) }}</p>
+                    <h3>Finalizados</h3>
+                    <span>{{ resumo_orcamentos.finalizador_nome|default('Finalizado', true) }} é o status que gera a Venda.</span>
                 </div>
             </div>
         </section>
@@ -817,14 +817,15 @@ Motivo: Redistribuir as larguras da lista de orçamentos para manter Cliente leg
                     </div>
 
                     <div class="form-group">
-                        <label for="orcamento_status">Status</label>
+                        <label for="orcamento_status">Status inicial</label>
                         <select id="orcamento_status" name="orcamento_status" class="form-control">
-                            <option value="aberto">Aberto</option>
-                            <option value="enviado">Enviado</option>
-                            <option value="aprovado">Aprovado</option>
-                            <option value="reprovado">Reprovado</option>
-                            <option value="cancelado">Cancelado</option>
+                            {% for opcao in orcamento_status_opcoes|default([]) %}
+                                {% if not opcao.final %}
+                                    <option value="{{ opcao.codigo }}" {% if opcao.codigo == orcamento_status_inicial %}selected{% endif %}>{{ opcao.nome }}</option>
+                                {% endif %}
+                            {% endfor %}
                         </select>
+                        <small class="budget-field-hint">O status finalizador só pode ser aplicado depois de salvar, pois gera a Venda e exige confirmação.</small>
                     </div>
 
                     <div class="form-group">
@@ -1149,7 +1150,7 @@ Motivo: Redistribuir as larguras da lista de orçamentos para manter Cliente leg
                         <div class="form-group"><label for="filtro_numero">Número</label><input id="filtro_numero" name="numero" value="{{ filtros.numero|default('') }}" class="form-control" placeholder="Ex: ORC-2026-0051"></div>
                         <div class="form-group"><label for="filtro_cliente">Cliente</label><input id="filtro_cliente" name="cliente" value="{{ filtros.cliente|default('') }}" class="form-control" placeholder="Nome do cliente"></div>
                         <div class="form-group"><label for="filtro_responsavel">Responsável</label><input id="filtro_responsavel" name="responsavel" value="{{ filtros.responsavel|default('') }}" class="form-control" placeholder="Nome do responsável"></div>
-                        <div class="form-group"><label for="filtro_status">Status</label><select id="filtro_status" name="status" class="form-control"><option value="">Todos</option>{% for valor, nome in [('aberto','Aberto'),('enviado','Enviado'),('aprovado','Aprovado'),('reprovado','Reprovado'),('cancelado','Cancelado')] %}<option value="{{ valor }}"{% if filtros.status == valor %} selected{% endif %}>{{ nome }}</option>{% endfor %}</select></div>
+                        <div class="form-group"><label for="filtro_status">Status</label><select id="filtro_status" name="status" class="form-control"><option value="">Todos</option>{% for opcao in orcamento_status_opcoes|default([]) %}<option value="{{ opcao.codigo }}"{% if filtros.status == opcao.codigo %} selected{% endif %}>{{ opcao.nome }}</option>{% endfor %}</select></div>
                         <div class="form-group"><label for="filtro_data_de">Data inicial</label><input id="filtro_data_de" name="data_de" type="date" value="{{ filtros.data_de|default('') }}" class="form-control"></div>
                         <div class="form-group"><label for="filtro_data_ate">Data final</label><input id="filtro_data_ate" name="data_ate" type="date" value="{{ filtros.data_ate|default('') }}" class="form-control"></div>
                         <div class="form-group"><label for="filtro_prazo">Prazo de entrega</label><input id="filtro_prazo" name="prazo_entrega" value="{{ filtros.prazo_entrega|default('') }}" class="form-control" placeholder="Ex: 10 dias"></div>
@@ -1196,21 +1197,29 @@ Motivo: Redistribuir as larguras da lista de orçamentos para manter Cliente leg
                             <td data-column="cliente">{{ orcamento.cliente }}</td><td data-column="responsavel">{{ orcamento.responsavel or '-' }}</td>
                             <td data-column="status">
                                 <select
-                                    class="budget-status-select status-{{ orcamento.status_codigo }}"
+                                    class="budget-status-select"
+                                    style="--budget-status-bg: {{ orcamento.status_fundo }}; --budget-status-text: {{ orcamento.status_texto }}; --budget-status-border: {{ orcamento.status_borda }};"
                                     data-budget-status-select
                                     data-status-url="{{ url_for('atualizar_status_orcamento', orcamento_id=orcamento.id) }}"
                                     data-status-atual="{{ orcamento.status_codigo }}"
                                     aria-label="Alterar status do orçamento {{ orcamento.numero }}"
-                                    {% if orcamento_status_final %}disabled title="Status final. A composição deste orçamento está protegida."{% endif %}
+                                    {% if orcamento_status_final %}disabled title="Orçamento finalizado. A Venda já foi gerada e a composição está protegida."{% endif %}
                                 >
                                     {% for opcao in orcamento.status_opcoes %}
-                                        <option value="{{ opcao.codigo }}" {% if opcao.codigo == orcamento.status_codigo %}selected{% endif %}>{{ opcao.nome }}</option>
+                                        <option
+                                            value="{{ opcao.codigo }}"
+                                            data-finaliza="{{ 'sim' if opcao.final else 'nao' }}"
+                                            data-fundo="{{ opcao.fundo }}"
+                                            data-texto="{{ opcao.texto }}"
+                                            data-borda="{{ opcao.borda }}"
+                                            {% if opcao.codigo == orcamento.status_codigo %}selected{% endif %}
+                                        >{{ opcao.nome }}{% if opcao.final %} · Finaliza e gera Venda{% endif %}</option>
                                     {% endfor %}
                                 </select>
                             </td><td data-column="data">{{ orcamento.data }}</td>
                             <td data-column="prazo_entrega">{{ orcamento.prazo_entrega or '-' }}</td><td data-column="validade">{{ orcamento.validade or '-' }}</td><td data-column="tipo">{{ orcamento.tipo or '-' }}</td>
                             <td data-column="centro_custo">{{ orcamento.centro_custo or '-' }}</td><td data-column="origem">{{ 'Gerador' if orcamento.origem == 'gerador' else 'Manual' }}</td><td data-column="modo_apresentacao">{{ orcamento.modo_apresentacao|default('agrupado', true)|replace('_',' ') }}</td><td data-column="valor_total">{{ orcamento.valor_total }}</td>
-                            <td data-column="acoes"><div class="action-buttons"><a href="/orcamentos/{{ orcamento.id }}" title="Ver orçamento" class="action-button view">🔍</a>{% if not orcamento_status_final %}<a href="/orcamentos/{{ orcamento.id }}/editar" title="Editar orçamento" class="action-button edit">✎</a>{% if orcamento.origem == 'gerador' %}<a href="/orcamentos/{{ orcamento.id }}/gerador/revisao" title="Editar dados do Gerador" class="action-button generator">⚙</a>{% endif %}<form action="/orcamentos/{{ orcamento.id }}/excluir" method="post" onsubmit="return confirm('Tem certeza que deseja excluir este orçamento?');" class="action-form"><button type="submit" title="Excluir orçamento" class="action-button delete">×</button></form>{% endif %}<div class="budget-action-menu"><button type="button" class="gf-action-dialog-trigger" title="Mais ações do orçamento" data-gf-action-dialog="orcamento-acoes-{{ orcamento.id }}">⌄</button><dialog class="gf-action-dialog" id="orcamento-acoes-{{ orcamento.id }}"><div class="gf-action-dialog-card"><div class="gf-action-dialog-header"><div><h3>Ações do orçamento</h3><p>{{ orcamento.numero or ('Orçamento ' ~ orcamento.id) }}</p></div><button type="button" class="gf-action-dialog-close" data-gf-action-dialog-close>×</button></div><div class="gf-action-dialog-actions"><button type="button" data-gf-print-url="/orcamentos/{{ orcamento.id }}/imprimir/a4">🖨 Imprimir A4</button><button type="button" data-gf-print-url="/orcamentos/{{ orcamento.id }}/imprimir/cupom">🧾 Imprimir Cupom</button><a href="/whatsapp/pdf/orcamento/{{ orcamento.id }}">📲 Enviar PDF por WhatsApp</a><a href="/orcamentos/{{ orcamento.id }}/gerar/copia">↻ Gerar cópia</a>{% if orcamento.venda_gerada_id %}<a href="/vendas/{{ orcamento.venda_gerada_id }}">✓ Abrir venda gerada</a>{% else %}<a href="/orcamentos/{{ orcamento.id }}/gerar/venda">🛒 Gerar venda</a>{% endif %}<a href="/orcamentos/{{ orcamento.id }}?gerar=os">🛠 Gerar OS</a></div></div></dialog></div></div></td>
+                            <td data-column="acoes"><div class="action-buttons"><a href="/orcamentos/{{ orcamento.id }}" title="Ver orçamento" class="action-button view">🔍</a>{% if not orcamento_status_final %}<a href="/orcamentos/{{ orcamento.id }}/editar" title="Editar orçamento" class="action-button edit">✎</a>{% if orcamento.origem == 'gerador' %}<a href="/orcamentos/{{ orcamento.id }}/gerador/revisao" title="Editar dados do Gerador" class="action-button generator">⚙</a>{% endif %}<form action="/orcamentos/{{ orcamento.id }}/excluir" method="post" onsubmit="return confirm('Tem certeza que deseja excluir este orçamento?');" class="action-form"><button type="submit" title="Excluir orçamento" class="action-button delete">×</button></form>{% endif %}<div class="budget-action-menu"><button type="button" class="gf-action-dialog-trigger" title="Mais ações do orçamento" data-gf-action-dialog="orcamento-acoes-{{ orcamento.id }}">⌄</button><dialog class="gf-action-dialog" id="orcamento-acoes-{{ orcamento.id }}"><div class="gf-action-dialog-card"><div class="gf-action-dialog-header"><div><h3>Ações do orçamento</h3><p>{{ orcamento.numero or ('Orçamento ' ~ orcamento.id) }}</p></div><button type="button" class="gf-action-dialog-close" data-gf-action-dialog-close>×</button></div><div class="gf-action-dialog-actions"><button type="button" data-gf-print-url="/orcamentos/{{ orcamento.id }}/imprimir/a4">🖨 Imprimir A4</button><button type="button" data-gf-print-url="/orcamentos/{{ orcamento.id }}/imprimir/cupom">🧾 Imprimir Cupom</button><a href="/whatsapp/pdf/orcamento/{{ orcamento.id }}">📲 Enviar PDF por WhatsApp</a><a href="/orcamentos/{{ orcamento.id }}/gerar/copia">↻ Gerar cópia</a>{% if orcamento.venda_gerada_id %}<a href="/vendas/{{ orcamento.venda_gerada_id }}">✓ Abrir venda gerada</a>{% else %}<span class="gf-action-dialog-disabled">🛒 A Venda será gerada ao finalizar</span>{% endif %}<a href="/orcamentos/{{ orcamento.id }}?gerar=os">🛠 Gerar OS</a></div></div></dialog></div></div></td>
                         </tr>{% endfor %}{% else %}<tr><td colspan="14" class="empty-table empty-table-box"><div class="empty-table-content"><div class="empty-table-icon">▣</div><strong>Nenhum orçamento encontrado.</strong><span>Revise os filtros ou cadastre um novo orçamento.</span></div></td></tr>{% endif %}
                     </tbody>
                 </table>
@@ -1234,13 +1243,19 @@ Motivo: Redistribuir as larguras da lista de orçamentos para manter Cliente leg
 
                 document.querySelectorAll('[data-budget-status-select]').forEach(function(campo) {
                     campo.addEventListener('change', async function() {
-                        const statusAnterior = campo.dataset.statusAtual || 'aberto';
+                        const statusAnterior = campo.dataset.statusAtual || '';
                         const statusNovo = campo.value;
-                        const finais = new Set(['aprovado', 'reprovado', 'cancelado']);
+                        const opcao = campo.options[campo.selectedIndex] || null;
+                        const finaliza = Boolean(opcao && opcao.dataset.finaliza === 'sim');
+                        const nome = opcao ? String(opcao.textContent || '').replace('· Finaliza e gera Venda', '').trim() : statusNovo;
 
-                        if (finais.has(statusNovo)) {
-                            const nome = campo.options[campo.selectedIndex] ? campo.options[campo.selectedIndex].textContent : statusNovo;
-                            if (!window.confirm('Alterar este orçamento para "' + nome + '"? Esse status é final e bloqueará alterações na composição.')) {
+                        if (finaliza) {
+                            const confirmou = window.confirm(
+                                'Finalizar este orçamento como "' + nome + '"?\n\n' +
+                                'Essa ação irá gerar a Venda e bloquear a composição do orçamento. ' +
+                                'Depois de finalizado, o orçamento não poderá voltar para outro status.'
+                            );
+                            if (!confirmou) {
                                 campo.value = statusAnterior;
                                 return;
                             }
@@ -1250,6 +1265,8 @@ Motivo: Redistribuir as larguras da lista de orçamentos para manter Cliente leg
                         try {
                             const dados = new URLSearchParams();
                             dados.set('status', statusNovo);
+                            if (finaliza) dados.set('confirmar_finalizacao', 'sim');
+
                             const resposta = await fetch(campo.dataset.statusUrl, {
                                 method: 'POST',
                                 headers: {'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'},
@@ -1265,6 +1282,14 @@ Motivo: Redistribuir as larguras da lista de orçamentos para manter Cliente leg
                             campo.disabled = false;
                             window.alert(erro.message || 'Não foi possível alterar o status.');
                         }
+                    });
+
+                    campo.addEventListener('input', function () {
+                        const opcao = campo.options[campo.selectedIndex] || null;
+                        if (!opcao) return;
+                        campo.style.setProperty('--budget-status-bg', opcao.dataset.fundo || '#e2e8f0');
+                        campo.style.setProperty('--budget-status-text', opcao.dataset.texto || '#334155');
+                        campo.style.setProperty('--budget-status-border', opcao.dataset.borda || '#cbd5e1');
                     });
                 });
             })();
