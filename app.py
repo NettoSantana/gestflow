@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-18 19:57 (America/Bahia)
-# Motivo: Padronizar cores da Vitrine com catálogo visual, cadastro de nova cor e persistência de nome + tom sem quebrar carrinho e pedidos.
+# Último recode: 2026-08-20 18:18 (America/Bahia)
+# Motivo: Programar retorno automático de produtos indisponíveis na Vitrine, com data de disponibilidade e proteção de estoque para itens integrados.
 
 from __future__ import annotations
 
@@ -4739,6 +4739,7 @@ def iniciar_banco() -> None:
                 imagem_path TEXT,
                 destaque TEXT NOT NULL DEFAULT 'nao',
                 status TEXT NOT NULL DEFAULT 'publicado',
+                disponivel_em TEXT,
                 acessos INTEGER NOT NULL DEFAULT 0,
                 carrinhos INTEGER NOT NULL DEFAULT 0,
                 pedidos INTEGER NOT NULL DEFAULT 0,
@@ -4757,6 +4758,7 @@ def iniciar_banco() -> None:
         migracoes_vitrine_produtos = {
             "variacoes_cores": "TEXT",
             "variacoes_tamanhos": "TEXT",
+            "disponivel_em": "TEXT",
         }
         for coluna, tipo_coluna in migracoes_vitrine_produtos.items():
             if coluna not in colunas_vitrine_produtos:
@@ -26589,10 +26591,131 @@ def vitrine_servicos_integrados(empresa_id: int) -> bool:
     return configuracao_bool("vitrine", "integrar_servicos_gestflow", True, empresa_id)
 
 
+def _hoje_vitrine_empresa(empresa_id: int) -> date:
+    timezone_nome = TIMEZONE_PADRAO_GESTFLOW
+    try:
+        with conectar_db() as conn:
+            row = conn.execute(
+                "SELECT timezone FROM empresas WHERE id = ? LIMIT 1",
+                (empresa_id,),
+            ).fetchone()
+        if row is not None:
+            timezone_nome = normalizar_timezone_empresa(row["timezone"])
+    except sqlite3.Error:
+        timezone_nome = TIMEZONE_PADRAO_GESTFLOW
+
+    try:
+        return datetime.now(ZoneInfo(timezone_nome)).date()
+    except Exception:
+        return datetime.now(ZoneInfo(TIMEZONE_PADRAO_GESTFLOW)).date()
+
+
+def _data_retorno_vitrine_formulario(
+    empresa_id: int,
+    status: Any,
+    programar_retorno: Any,
+    valor_data: Any,
+) -> str:
+    status_normalizado = _status_produto_vitrine_formulario(status)
+    programado = str(programar_retorno or "").strip().lower() == "sim"
+    if status_normalizado != "indisponivel" or not programado:
+        return ""
+
+    texto = str(valor_data or "").strip()
+    if not texto:
+        raise ValueError("Informe a data em que o produto voltará a ficar disponível.")
+
+    try:
+        data_retorno = datetime.strptime(texto, "%Y-%m-%d").date()
+    except ValueError as exc:
+        raise ValueError("Informe uma data válida para o retorno do produto.") from exc
+
+    return data_retorno.isoformat()
+
+
+def _formatar_data_retorno_vitrine(valor: Any) -> str:
+    texto = str(valor or "").strip()
+    if not texto:
+        return ""
+    try:
+        return datetime.strptime(texto[:10], "%Y-%m-%d").strftime("%d/%m/%Y")
+    except ValueError:
+        return ""
+
+
+def processar_retornos_programados_vitrine(empresa_id: int) -> int:
+    hoje = _hoje_vitrine_empresa(empresa_id)
+    integrado = vitrine_produtos_integrados(empresa_id)
+    controlar_estoque = configuracao_bool("vitrine", "controlar_estoque", True, empresa_id)
+    atualizados = 0
+
+    with conectar_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                vp.id,
+                vp.produto_id,
+                vp.disponivel_em,
+                p.estoque_atual AS produto_estoque_atual,
+                p.status AS produto_status
+            FROM vitrine_produtos vp
+            LEFT JOIN produtos p
+              ON p.id = vp.produto_id
+             AND p.empresa_id = vp.empresa_id
+            WHERE vp.empresa_id = ?
+              AND LOWER(COALESCE(vp.status, 'publicado')) = 'indisponivel'
+              AND TRIM(COALESCE(vp.disponivel_em, '')) <> ''
+            """,
+            (empresa_id,),
+        ).fetchall()
+
+        for row in rows:
+            try:
+                data_retorno = datetime.strptime(
+                    str(row["disponivel_em"] or "")[:10],
+                    "%Y-%m-%d",
+                ).date()
+            except ValueError:
+                continue
+
+            if data_retorno > hoje:
+                continue
+
+            produto_id = int(row["produto_id"] or 0)
+            if integrado and produto_id > 0:
+                if str(row["produto_status"] or "").strip().lower() != "ativo":
+                    continue
+                if controlar_estoque and _converter_valor_brl(row["produto_estoque_atual"]) <= 0:
+                    continue
+
+            cursor = conn.execute(
+                """
+                UPDATE vitrine_produtos
+                SET status='publicado', disponivel_em=NULL, atualizado_em=?
+                WHERE id=? AND empresa_id=?
+                  AND LOWER(COALESCE(status, 'publicado'))='indisponivel'
+                """,
+                (
+                    datetime.now().isoformat(timespec="seconds"),
+                    int(row["id"]),
+                    empresa_id,
+                ),
+            )
+            if int(cursor.rowcount or 0) == 1:
+                atualizados += 1
+
+        if atualizados:
+            conn.commit()
+
+    return atualizados
+
+
 def listar_produtos_vitrine_empresa(empresa_id: int) -> list[dict[str, Any]]:
     integrado = vitrine_produtos_integrados(empresa_id)
     controlar_estoque = configuracao_bool("vitrine", "controlar_estoque", True, empresa_id)
     permitir_sem_estoque = configuracao_bool("vendas", "permitir_sem_estoque", False, empresa_id)
+    processar_retornos_programados_vitrine(empresa_id)
+    hoje_vitrine = _hoje_vitrine_empresa(empresa_id)
 
     with conectar_db() as conn:
         rows = conn.execute(
@@ -26638,7 +26761,18 @@ def listar_produtos_vitrine_empresa(empresa_id: int) -> list[dict[str, Any]]:
                 item["galeria_item_id"] = -int(item.get("id"))
 
         saldo_positivo = _converter_valor_brl(item.get("estoque_atual")) > 0
+        disponivel_em = str(item.get("disponivel_em") or "").strip()
+        data_retorno = None
+        if disponivel_em:
+            try:
+                data_retorno = datetime.strptime(disponivel_em[:10], "%Y-%m-%d").date()
+            except ValueError:
+                data_retorno = None
         item["integrado"] = integrado
+        item["disponivel_em"] = disponivel_em
+        item["disponivel_em_exibicao"] = _formatar_data_retorno_vitrine(disponivel_em)
+        item["retorno_programado"] = bool(disponivel_em)
+        item["retorno_vencido"] = bool(data_retorno and data_retorno <= hoje_vitrine)
         item["disponivel_compra"] = (
             status_vitrine != "indisponivel"
             and (
@@ -26655,6 +26789,8 @@ def listar_produtos_vitrine_empresa(empresa_id: int) -> list[dict[str, Any]]:
 
 def listar_produtos_vitrine_admin(empresa_id: int) -> list[dict[str, Any]]:
     integrado = vitrine_produtos_integrados(empresa_id)
+    processar_retornos_programados_vitrine(empresa_id)
+    hoje_vitrine = _hoje_vitrine_empresa(empresa_id)
 
     with conectar_db() as conn:
         if integrado:
@@ -26680,6 +26816,7 @@ def listar_produtos_vitrine_admin(empresa_id: int) -> list[dict[str, Any]]:
                     vp.imagem_path AS vitrine_imagem_path,
                     vp.destaque AS vitrine_destaque,
                     vp.status AS vitrine_status,
+                    vp.disponivel_em AS vitrine_disponivel_em,
                     COALESCE(vp.acessos, 0) AS acessos,
                     COALESCE(vp.carrinhos, 0) AS carrinhos,
                     COALESCE(vp.pedidos, 0) AS pedidos
@@ -26716,6 +26853,7 @@ def listar_produtos_vitrine_admin(empresa_id: int) -> list[dict[str, Any]]:
                     vp.imagem_path AS vitrine_imagem_path,
                     vp.destaque AS vitrine_destaque,
                     vp.status AS vitrine_status,
+                    vp.disponivel_em AS vitrine_disponivel_em,
                     COALESCE(vp.acessos, 0) AS acessos,
                     COALESCE(vp.carrinhos, 0) AS carrinhos,
                     COALESCE(vp.pedidos, 0) AS pedidos
@@ -26749,6 +26887,13 @@ def listar_produtos_vitrine_admin(empresa_id: int) -> list[dict[str, Any]]:
         produto_id_real = int(item.get("produto_id") or 0)
         vitrine_id = int(item.get("vitrine_id") or 0)
         produto_independente = not integrado and produto_id_real <= 0 and vitrine_id > 0
+        disponivel_em = str(item.get("vitrine_disponivel_em") or "").strip()
+        data_retorno = None
+        if disponivel_em:
+            try:
+                data_retorno = datetime.strptime(disponivel_em[:10], "%Y-%m-%d").date()
+            except ValueError:
+                data_retorno = None
 
         produtos.append(
             {
@@ -26772,6 +26917,10 @@ def listar_produtos_vitrine_admin(empresa_id: int) -> list[dict[str, Any]]:
                 "publicado": status == "publicado",
                 "visivel": status in {"publicado", "indisponivel"},
                 "indisponivel": status == "indisponivel",
+                "disponivel_em": disponivel_em,
+                "disponivel_em_exibicao": _formatar_data_retorno_vitrine(disponivel_em),
+                "retorno_programado": bool(disponivel_em),
+                "retorno_vencido": bool(data_retorno and data_retorno <= hoje_vitrine),
                 "integrado": integrado,
                 "acessos": int(item.get("acessos") or 0),
                 "carrinhos": int(item.get("carrinhos") or 0),
@@ -26920,6 +27069,11 @@ def salvar_produto_vitrine_publicacao_db(produto_id: int, dados: dict[str, Any])
             categoria = str(dados.get("categoria") or produto.get("categoria") or "Produtos").strip()
             preco = str(dados.get("preco") or produto.get("preco_venda") or "0,00").strip()
 
+        disponivel_em = (
+            str(dados.get("disponivel_em") or "").strip()
+            if status_normalizado == "indisponivel"
+            else ""
+        )
         valores = (
             nome,
             descricao,
@@ -26928,6 +27082,7 @@ def salvar_produto_vitrine_publicacao_db(produto_id: int, dados: dict[str, Any])
             imagem_path,
             str(dados.get("destaque") or "nao").strip() or "nao",
             status_normalizado,
+            disponivel_em,
             atualizado_em,
         )
 
@@ -26944,8 +27099,9 @@ def salvar_produto_vitrine_publicacao_db(produto_id: int, dados: dict[str, Any])
                     imagem_path,
                     destaque,
                     status,
+                    disponivel_em,
                     atualizado_em
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (empresa_id, produto_id, *valores),
             )
@@ -26961,6 +27117,7 @@ def salvar_produto_vitrine_publicacao_db(produto_id: int, dados: dict[str, Any])
                     imagem_path = ?,
                     destaque = ?,
                     status = ?,
+                    disponivel_em = ?,
                     atualizado_em = ?
                 WHERE empresa_id = ?
                   AND produto_id = ?
@@ -26974,12 +27131,13 @@ def salvar_produto_vitrine_publicacao_db(produto_id: int, dados: dict[str, Any])
         remover_arquivo_imagem_vitrine(imagem_anterior)
 
 
-def alterar_status_produto_vitrine_db(produto_id: int, status: str) -> None:
+def alterar_status_produto_vitrine_db(produto_id: int, status: str, disponivel_em: str = "") -> None:
     empresa_id = empresa_logada_id()
     status_normalizado = str(status or "publicado").strip().lower()
 
     if status_normalizado not in {"publicado", "rascunho", "oculto", "indisponivel"}:
         status_normalizado = "publicado"
+    data_retorno = str(disponivel_em or "").strip() if status_normalizado == "indisponivel" else ""
 
     produto = buscar_produto_vitrine_admin(produto_id)
     if produto is None:
@@ -27010,8 +27168,9 @@ def alterar_status_produto_vitrine_db(produto_id: int, status: str) -> None:
                     imagem_path,
                     destaque,
                     status,
+                    disponivel_em,
                     atualizado_em
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     empresa_id,
@@ -27023,6 +27182,7 @@ def alterar_status_produto_vitrine_db(produto_id: int, status: str) -> None:
                     "",
                     "nao",
                     status_normalizado,
+                    data_retorno,
                     agora_empresa().isoformat(timespec="seconds"),
                 ),
             )
@@ -27030,12 +27190,13 @@ def alterar_status_produto_vitrine_db(produto_id: int, status: str) -> None:
             conn.execute(
                 """
                 UPDATE vitrine_produtos
-                SET status = ?, atualizado_em = ?
+                SET status = ?, disponivel_em = ?, atualizado_em = ?
                 WHERE empresa_id = ?
                   AND produto_id = ?
                 """,
                 (
                     status_normalizado,
+                    data_retorno,
                     agora_empresa().isoformat(timespec="seconds"),
                     empresa_id,
                     produto_id,
@@ -29044,6 +29205,14 @@ def renderizar_vitrine_publica_html(
             cores_detalhadas_produto = _lista_cores_vitrine_detalhada(produto.get("variacoes_cores")) if not bool(produto.get("integrado")) else []
             cores_produto = [str(cor.get("nome") or "") for cor in cores_detalhadas_produto if str(cor.get("nome") or "").strip()]
             tamanhos_produto = _lista_variacoes_vitrine(produto.get("variacoes_tamanhos")) if not bool(produto.get("integrado")) else []
+            retorno_data = str(produto.get("disponivel_em_exibicao") or "").strip()
+            retorno_label = ""
+            if not disponivel and retorno_data:
+                retorno_label = (
+                    "Aguardando reposição de estoque"
+                    if bool(produto.get("retorno_vencido")) and bool(produto.get("integrado"))
+                    else f"Disponível novamente em {retorno_data}"
+                )
             itens_publicos.append(
                 {
                     "tipo": "produto",
@@ -29055,6 +29224,7 @@ def renderizar_vitrine_publica_html(
                     "preco": preco_formatado,
                     "preco_label": f"R$ {preco_formatado}" if exibir_preco else "Consulte o valor",
                     "disponivel": disponivel,
+                    "retorno_label": retorno_label,
                     "destaque": str(produto.get("destaque") or "nao").strip().lower() == "sim",
                     "midias": midias,
                     "cores": cores_produto,
@@ -29166,6 +29336,7 @@ def renderizar_vitrine_publica_html(
             "precoLabel": item["preco_label"],
             "precoNumero": item["preco_numero"],
             "disponivel": item["disponivel"],
+            "retornoLabel": item.get("retorno_label") or "",
             "destaque": item["destaque"],
             "midias": item["midias"],
             "cores": item.get("cores") or [],
@@ -29209,6 +29380,9 @@ def renderizar_vitrine_publica_html(
         meta = ""
         if tipo == "servico":
             meta = f'<small class="card-duration">{html.escape(item["duracao"])}</small>'
+        retorno_html = ""
+        if tipo == "produto" and not item["disponivel"] and item.get("retorno_label"):
+            retorno_html = f'<small class="card-return">{html.escape(str(item.get("retorno_label") or ""))}</small>'
 
         variacoes_resumo = ""
         if cores:
@@ -29262,7 +29436,7 @@ def renderizar_vitrine_publica_html(
         return f'''<article class="{classe}" id="{tipo}-{item_id}" data-tipo="{tipo}" data-categoria="{categoria_item}" data-nome="{html.escape(item["nome"].lower(), quote=True)}" data-preco="{item["preco_numero"]}" data-disponivel="{1 if item["disponivel"] else 0}" data-item="{dados_item}"{catalog_attr}>
 <button class="card-media" type="button" onclick="abrirDetalheCard(this.closest('.store-card'))" aria-label="Ver {nome}">{_midia_card_html(item)}{badge}{_setas_midia_card_html(item)}</button>
 <div class="card-body">
-<div class="card-copy"><small>{categoria_item}</small><h3>{nome}</h3>{meta}<strong>{html.escape(item["preco_label"])}</strong>{variacoes_resumo}</div>
+<div class="card-copy"><small>{categoria_item}</small><h3>{nome}</h3>{meta}<strong>{html.escape(item["preco_label"])}</strong>{retorno_html}{variacoes_resumo}</div>
 {compra_rapida}
 <div class="card-actions">{acao}<button type="button" class="card-peek" onclick="event.stopPropagation();abrirDetalheCard(this.closest('.store-card'))">Ver</button></div>
 </div></article>'''
@@ -29427,6 +29601,7 @@ body.catalogo-formato-quadrado .card-media{aspect-ratio:1/1}body.catalogo-format
 .footer{background:#e8e8e8;border-top:1px solid #ddd}.footer-main{width:min(1240px,calc(100% - 28px));margin:auto;padding:44px 0;display:grid;grid-template-columns:1fr 1fr 1fr;gap:30px}.footer-main h3{margin:0 0 16px;font-size:15px}.footer-main a,.footer-main span{display:block;margin-top:9px;color:#333;text-decoration:none;font-size:12px}.footer-social-row{display:flex!important;gap:9px}.footer-social-row a{width:38px;height:38px;display:grid;place-items:center;margin:0;border-radius:50%;background:#111;color:#fff}.footer-bottom{background:#111;color:#fff}.footer-bottom-inner{width:min(1240px,calc(100% - 28px));min-height:48px;margin:auto;display:flex;align-items:center;justify-content:space-between;gap:20px;font-size:10px}.footer-bottom a{color:#fff}
 .detail-layer{position:fixed;inset:0;z-index:70;background:#fff;overflow:auto;transform:translateY(105%);transition:transform .28s ease}.detail-layer.open{transform:none}.detail-top{position:sticky;top:0;z-index:3;height:62px;display:flex;align-items:center;justify-content:space-between;padding:0 max(16px,calc((100vw - 1180px)/2));border-bottom:1px solid #ddd;background:rgba(255,255,255,.96);backdrop-filter:blur(10px)}.detail-top strong{font-size:13px}.detail-top button{width:38px;height:38px;border:1px solid #ccc;border-radius:50%;background:#fff;font-size:22px;cursor:pointer}.detail-shell{width:min(1180px,calc(100% - 28px));margin:auto;padding:28px 0 70px}.detail-main{display:grid;grid-template-columns:70px minmax(0,1.15fr) minmax(320px,.85fr);gap:18px;align-items:start}.detail-thumbs{display:grid;gap:8px}.detail-thumb{width:68px;aspect-ratio:1/1;border:1px solid #ddd;border-radius:9px;background:#f6f6f6;overflow:hidden;padding:0;cursor:pointer}.detail-thumb.active{border:2px solid #111}.detail-thumb img,.detail-thumb video{width:100%;height:100%;object-fit:cover}.detail-media{min-height:600px;display:grid;place-items:center;border-radius:12px;background:#f1f1f1;overflow:hidden}.detail-media img,.detail-media video{width:100%;height:100%;max-height:720px;object-fit:contain}.detail-info{position:sticky;top:90px;padding:8px 0 0 20px}.detail-breadcrumb{color:#888;font-size:10px}.detail-info h1{margin:14px 0 12px;font-size:34px;line-height:1.05}.detail-price{font-size:26px;font-weight:950}.detail-duration{display:block;margin-top:8px;color:#666;font-size:12px}.detail-description{margin:18px 0 0;color:#555;line-height:1.7}.detail-variants{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:20px 0 0}.detail-variants:empty{display:none}.detail-variants label{display:grid;gap:6px;color:#555;font-size:10px;font-weight:850}.detail-variants select{height:42px;border:1px solid #bbb;border-radius:8px;padding:0 10px;background:#fff}.detail-qty{display:grid;grid-template-columns:42px 62px 42px;gap:6px;margin:16px 0 12px}.detail-qty button,.detail-qty input{height:42px;border:1px solid #bbb;border-radius:8px;background:#fff;text-align:center}.detail-qty button{font-size:20px;cursor:pointer}.detail-actions{display:grid;grid-template-columns:1fr;gap:8px;margin-top:14px}.detail-primary,.detail-secondary{min-height:46px;display:flex;align-items:center;justify-content:center;border-radius:999px;text-decoration:none;font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.08em;cursor:pointer}.detail-primary{border:1px solid #111;background:#111;color:#fff}.detail-secondary{border:1px solid #111;background:#fff;color:#111}.detail-extra{margin-top:24px;padding-top:20px;border-top:1px solid #ddd}.detail-extra article{display:flex;gap:10px;margin-top:12px}.detail-extra strong,.detail-extra small{display:block}.detail-extra strong{font-size:11px}.detail-extra small{margin-top:3px;color:#777;font-size:10px;line-height:1.4}.detail-long-copy{max-width:840px;margin:46px 0 0 88px}.detail-long-copy h2{font-size:22px}.detail-long-copy p{color:#444;line-height:1.8;white-space:pre-line}
 .cart-toast{position:fixed;right:20px;top:176px;z-index:82;max-width:min(360px,calc(100vw - 32px));padding:12px 15px;border:1px solid #bbf7d0;border-radius:10px;background:#f0fdf4;color:#166534;box-shadow:0 14px 32px rgba(0,0,0,.12);font-size:11px;font-weight:850}.drawer-backdrop{position:fixed;inset:0;z-index:78;background:rgba(0,0,0,.38)}.cart-drawer{position:fixed;right:0;top:0;bottom:0;z-index:79;width:min(470px,100vw);padding:22px;background:#fff;box-shadow:-18px 0 42px rgba(0,0,0,.16);overflow:auto;transform:translateX(105%);transition:transform .24s ease}.cart-drawer.open{transform:none}.cart-head{display:flex;justify-content:space-between;align-items:center;padding-bottom:16px;border-bottom:1px solid #ddd}.cart-head small{color:#777}.cart-head h2{margin:3px 0 0}.cart-head button{width:38px;height:38px;border:1px solid #ccc;border-radius:50%;background:#fff;font-size:22px;cursor:pointer}.cart-items{display:grid;gap:12px;padding:18px 0}.cart-empty{padding:26px 10px;text-align:center;color:#777}.cart-item{display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:10px;align-items:center;padding-bottom:12px;border-bottom:1px solid #eee}.cart-item-media{width:64px;height:78px;border-radius:8px;background:#f2f2f2;overflow:hidden}.cart-item-media img{width:100%;height:100%;object-fit:cover}.cart-item strong,.cart-item small{display:block}.cart-item strong{font-size:12px}.cart-item small{margin-top:4px;color:#777;font-size:10px}.cart-item-controls{display:grid;justify-items:end;gap:7px}.cart-qty{display:grid;grid-template-columns:28px 28px 28px;align-items:center}.cart-qty button{width:28px;height:28px;border:1px solid #ccc;background:#fff;cursor:pointer}.cart-qty b{text-align:center;font-size:11px}.cart-remove{border:0;background:transparent;color:var(--danger);font-size:9px;font-weight:850;cursor:pointer}.cart-summary{display:flex;justify-content:space-between;padding:15px 0;border-top:1px solid #ddd;border-bottom:1px solid #ddd}.cart-summary strong{font-size:19px}.checkout-form{display:grid;gap:11px;padding-top:18px}.checkout-form h3{margin:0 0 4px}.checkout-form label{display:grid;gap:5px;color:#555;font-size:10px;font-weight:800}.checkout-form input,.checkout-form select,.checkout-form textarea{width:100%;min-height:42px;border:1px solid #bbb;border-radius:8px;padding:9px 10px;background:#fff}.checkout-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.checkout-submit{min-height:46px;border:0;border-radius:999px;background:#111;color:#fff;font-size:11px;font-weight:950;text-transform:uppercase;cursor:pointer}.checkout-submit:disabled{opacity:.4;cursor:not-allowed}.checkout-note{color:#777;text-align:center;font-size:9px}
+.card-return{display:block;margin-top:5px;font-size:10px;font-weight:700;color:#9a3412}.detail-return{display:block;margin:4px 0 10px;font-size:13px;font-weight:700;color:#9a3412}
 @media(max-width:1050px){.header-main{grid-template-columns:1fr auto 1fr}.hero-inner{grid-template-columns:1fr 1fr}.hero-copy{padding:42px 34px}.benefits-inner{grid-template-columns:repeat(2,1fr)}.benefits article:nth-child(2){border-right:0}.collections-grid{grid-template-columns:repeat(4,1fr)}.featured-grid,.catalog-grid{grid-template-columns:repeat(3,1fr)}.detail-main{grid-template-columns:60px minmax(0,1fr) 320px}.detail-media{min-height:520px}}
 @media(max-width:820px){.top-strip{display:none}.header-main{height:auto;min-height:116px;grid-template-columns:auto 1fr auto;grid-template-rows:60px 48px;gap:0 10px}.header-search{display:block;grid-column:1/-1;grid-row:2;max-width:none;width:100%}.header-search input{height:40px}.header-search-tools{top:46px;width:100%}.brand-center{grid-column:1/3;grid-row:1;justify-self:start;display:flex;gap:9px}.brand-logo{width:52px;height:38px}.brand-name-mobile{display:block;font-size:13px}.quick-actions{grid-column:3;grid-row:1;gap:10px}.quick-action small{display:none}.quick-action{min-width:40px}.header-nav{overflow:visible}.header-nav-inner{justify-content:flex-start;width:max-content;min-width:100%;padding:0 14px;gap:26px}.nav-dropdown-menu{left:0;transform:none;min-width:210px}.hero-inner{grid-template-columns:1fr;min-height:0}.hero-copy{order:1;padding:34px 0 18px;text-align:center;align-items:center}.hero-copy h1{font-size:46px}.hero-visual{order:2;min-height:0;padding:8px 0 32px}.hero-brand-static{min-height:250px}.benefits-inner{width:100%;grid-template-columns:1fr 1fr}.benefits article{padding:14px}.collections-grid{grid-template-columns:repeat(2,1fr)}.featured-grid{grid-template-columns:repeat(2,1fr)}.catalog-sidebar.open{grid-template-columns:1fr}.filter-block+.filter-block{padding:18px 0 0;border-left:0;border-top:1px solid #ddd}.catalog-toolbar{flex-wrap:wrap}.catalog-grid{grid-template-columns:repeat(2,1fr)}body.catalogo-formato-horizontal .catalog-grid{grid-template-columns:1fr}.about-section,.contact-grid{grid-template-columns:1fr;gap:26px}.detail-main{grid-template-columns:1fr}.detail-thumbs{order:2;display:flex;overflow:auto}.detail-thumb{flex:0 0 64px}.detail-media{order:1;min-height:420px}.detail-info{order:3;position:static;padding:10px 0}.detail-long-copy{margin:30px 0 0}.footer-main{grid-template-columns:1fr 1fr}.footer-bottom-inner{flex-direction:column;justify-content:center;padding:10px 0;text-align:center}}
 @media(max-width:540px){.quick-actions{gap:2px}.hero-copy h1{font-size:38px}.hero-copy p{font-size:14px}.hero-brand-static{grid-template-columns:1fr;justify-items:center;text-align:center;padding:22px}.hero-brand-frame{width:150px;height:150px}.hero-brand-static-copy{justify-items:center}.hero-brand-points{justify-content:center}.benefits-inner{grid-template-columns:1fr}.benefits article{border-right:0;border-bottom:1px solid #ddd}.benefits article:last-child{border-bottom:0}.section{padding:46px 0}.section-heading{align-items:flex-start;flex-direction:column}.section-heading h2{font-size:27px}.collections-grid,.featured-grid,.catalog-grid{grid-template-columns:1fr 1fr;gap:10px}.card-body{padding:9px}.card-copy h3{font-size:11px}.card-copy strong{font-size:14px}.card-actions{grid-template-columns:1fr}.card-peek{display:none}.contact-cards{grid-template-columns:1fr}.footer-main{grid-template-columns:1fr}.footer-bottom-inner{font-size:9px}.detail-shell{width:min(100% - 20px,1180px)}.detail-media{min-height:360px}.detail-variants{grid-template-columns:1fr}.checkout-grid{grid-template-columns:1fr}.cart-drawer{padding:16px}.cart-toast{right:12px;top:166px}}
@@ -29505,7 +29680,7 @@ __MENSAGEM__
 </footer>
 <div class="detail-layer" id="detailLayer" aria-hidden="true">
   <div class="detail-top"><strong id="detailTopName">Detalhes</strong><button type="button" onclick="fecharDetalhe()" aria-label="Fechar">×</button></div>
-  <div class="detail-shell"><div class="detail-main"><div class="detail-thumbs" id="detailThumbs"></div><div class="detail-media" id="detailMedia"></div><div class="detail-info"><span class="detail-breadcrumb" id="detailBreadcrumb"></span><h1 id="detailName"></h1><strong class="detail-price" id="detailPrice"></strong><span class="detail-duration" id="detailDuration"></span><p class="detail-description" id="detailDescription"></p><div class="detail-variants" id="detailVariants"></div><div class="detail-qty" id="detailQty" hidden><button type="button" onclick="ajustarQtdDetalhe(-1)">−</button><input id="detailQtyInput" type="number" value="1" min="1"><button type="button" onclick="ajustarQtdDetalhe(1)">+</button></div><div class="detail-actions" id="detailActions"></div><div class="detail-extra"><article><span>✓</span><div><strong>Atendimento direto</strong><small>Confirme detalhes e disponibilidade com a empresa.</small></div></article><article><span>↗</span><div><strong>Entrega ou agendamento</strong><small>As opções disponíveis são definidas pela própria empresa.</small></div></article></div></div></div><div class="detail-long-copy"><h2>Descrição</h2><p id="detailLongDescription"></p></div></div>
+  <div class="detail-shell"><div class="detail-main"><div class="detail-thumbs" id="detailThumbs"></div><div class="detail-media" id="detailMedia"></div><div class="detail-info"><span class="detail-breadcrumb" id="detailBreadcrumb"></span><h1 id="detailName"></h1><strong class="detail-price" id="detailPrice"></strong><span class="detail-duration" id="detailDuration"></span><span class="detail-return" id="detailReturn"></span><p class="detail-description" id="detailDescription"></p><div class="detail-variants" id="detailVariants"></div><div class="detail-qty" id="detailQty" hidden><button type="button" onclick="ajustarQtdDetalhe(-1)">−</button><input id="detailQtyInput" type="number" value="1" min="1"><button type="button" onclick="ajustarQtdDetalhe(1)">+</button></div><div class="detail-actions" id="detailActions"></div><div class="detail-extra"><article><span>✓</span><div><strong>Atendimento direto</strong><small>Confirme detalhes e disponibilidade com a empresa.</small></div></article><article><span>↗</span><div><strong>Entrega ou agendamento</strong><small>As opções disponíveis são definidas pela própria empresa.</small></div></article></div></div></div><div class="detail-long-copy"><h2>Descrição</h2><p id="detailLongDescription"></p></div></div>
 </div>
 __CARRINHO__
 <script>
@@ -29535,7 +29710,7 @@ function alternarFiltros(){const painel=document.getElementById('catalogSidebar'
 function fecharFiltros(){const painel=document.getElementById('catalogSidebar');const botao=document.getElementById('filterToggle');painel?.classList.remove('open');botao?.setAttribute('aria-expanded','false')}
 function filtrarCatalogo(reiniciar=false){if(reiniciar)paginaAtual=1;const busca=(document.getElementById('headerSearch')?.value||'').trim().toLowerCase();const soDisponiveis=Boolean(document.getElementById('onlyAvailable')?.checked);const sort=document.getElementById('catalogSort')?.value||'relevancia';const cards=[...document.querySelectorAll('[data-catalog-item="1"]')];let filtrados=cards.filter(card=>{const tipo=card.dataset.tipo||'';const categoria=card.dataset.categoria||'';const nome=card.dataset.nome||'';const okTipo=tipoAtivo==='todos'||tipo===tipoAtivo;const okCategoria=!categoriaAtiva||categoria===categoriaAtiva;const okBusca=!busca||nome.includes(busca)||categoria.toLowerCase().includes(busca);const okDisp=!soDisponiveis||card.dataset.disponivel==='1';return okTipo&&okCategoria&&okBusca&&okDisp});if(sort==='nome')filtrados.sort((a,b)=>(a.dataset.nome||'').localeCompare(b.dataset.nome||''));if(sort==='menor-preco')filtrados.sort((a,b)=>Number(a.dataset.preco||0)-Number(b.dataset.preco||0));if(sort==='maior-preco')filtrados.sort((a,b)=>Number(b.dataset.preco||0)-Number(a.dataset.preco||0));cards.forEach(card=>card.hidden=true);const paginas=Math.max(1,Math.ceil(filtrados.length/itensPorPagina));paginaAtual=Math.min(paginaAtual,paginas);const inicio=(paginaAtual-1)*itensPorPagina;filtrados.slice(inicio,inicio+itensPorPagina).forEach(card=>card.hidden=false);const contador=document.getElementById('catalogCount');if(contador)contador.textContent=`${filtrados.length} item(ns) encontrado(s)`;renderPaginacao(paginas)}
 function renderPaginacao(total){const nav=document.getElementById('catalogPagination');if(!nav)return;nav.innerHTML='';if(total<=1)return;for(let p=1;p<=total;p++){const b=document.createElement('button');b.type='button';b.textContent=String(p);b.classList.toggle('active',p===paginaAtual);b.addEventListener('click',()=>{paginaAtual=p;filtrarCatalogo(false);document.getElementById('catalogGrid')?.scrollIntoView({behavior:'smooth',block:'start'})});nav.appendChild(b)}}
-function abrirDetalheCard(card){const item=lerItem(card);if(!item?.id)return;detalheAtual=item;detalheMidiaIndice=0;document.getElementById('detailTopName').textContent=item.nome||'Detalhes';document.getElementById('detailBreadcrumb').textContent=`Início > ${item.categoria||''} > ${item.nome||''}`;document.getElementById('detailName').textContent=item.nome||'';document.getElementById('detailPrice').textContent=item.precoLabel||'';document.getElementById('detailDuration').textContent=item.tipo==='servico'?(item.duracao||''):'';document.getElementById('detailDescription').textContent=item.descricao||'Consulte a empresa para mais informações.';document.getElementById('detailLongDescription').textContent=item.descricao||'Consulte a empresa para mais informações sobre este item.';const qty=document.getElementById('detailQty');qty.hidden=!(item.tipo==='produto'&&item.disponivel&&__PERMITIR_PEDIDO_JS__);const input=document.getElementById('detailQtyInput');input.value='1';input.max=String(Math.max(1,Number(item.max)||999));montarThumbsDetalhe();montarMidiaDetalhe();montarVariacoesDetalhe();montarAcoesDetalhe();document.getElementById('detailLayer').classList.add('open');document.getElementById('detailLayer').setAttribute('aria-hidden','false');document.body.style.overflow='hidden';history.replaceState({},'',`#${item.tipo}-${item.id}`);registrarItem(item.tipo,item.id)}
+function abrirDetalheCard(card){const item=lerItem(card);if(!item?.id)return;detalheAtual=item;detalheMidiaIndice=0;document.getElementById('detailTopName').textContent=item.nome||'Detalhes';document.getElementById('detailBreadcrumb').textContent=`Início > ${item.categoria||''} > ${item.nome||''}`;document.getElementById('detailName').textContent=item.nome||'';document.getElementById('detailPrice').textContent=item.precoLabel||'';document.getElementById('detailDuration').textContent=item.tipo==='servico'?(item.duracao||''):'';document.getElementById('detailReturn').textContent=item.retornoLabel||'';document.getElementById('detailDescription').textContent=item.descricao||'Consulte a empresa para mais informações.';document.getElementById('detailLongDescription').textContent=item.descricao||'Consulte a empresa para mais informações sobre este item.';const qty=document.getElementById('detailQty');qty.hidden=!(item.tipo==='produto'&&item.disponivel&&__PERMITIR_PEDIDO_JS__);const input=document.getElementById('detailQtyInput');input.value='1';input.max=String(Math.max(1,Number(item.max)||999));montarThumbsDetalhe();montarMidiaDetalhe();montarVariacoesDetalhe();montarAcoesDetalhe();document.getElementById('detailLayer').classList.add('open');document.getElementById('detailLayer').setAttribute('aria-hidden','false');document.body.style.overflow='hidden';history.replaceState({},'',`#${item.tipo}-${item.id}`);registrarItem(item.tipo,item.id)}
 function montarThumbsDetalhe(){const box=document.getElementById('detailThumbs');box.innerHTML='';const midias=Array.isArray(detalheAtual?.midias)?detalheAtual.midias:[];if(!midias.length)return;midias.forEach((midia,idx)=>{const b=document.createElement('button');b.type='button';b.className='detail-thumb'+(idx===detalheMidiaIndice?' active':'');if(midia.tipo==='video'){const v=document.createElement('video');v.muted=true;v.src=caminhoMidia(midia);b.appendChild(v)}else{const img=document.createElement('img');img.src=caminhoMidia(midia);img.alt=detalheAtual?.nome||'Imagem';b.appendChild(img)}b.addEventListener('click',()=>{detalheMidiaIndice=idx;montarThumbsDetalhe();montarMidiaDetalhe()});box.appendChild(b)})}
 function montarMidiaDetalhe(){const box=document.getElementById('detailMedia');box.innerHTML='';const midias=Array.isArray(detalheAtual?.midias)?detalheAtual.midias:[];const midia=midias[detalheMidiaIndice];if(!midia){box.innerHTML='<span class="media-placeholder">Sem imagem</span>';return}if(midia.tipo==='video'){const v=document.createElement('video');v.controls=true;v.playsInline=true;v.src=caminhoMidia(midia);box.appendChild(v)}else{const img=document.createElement('img');img.src=caminhoMidia(midia);img.alt=detalheAtual?.nome||'Imagem';box.appendChild(img)}}
 function montarVariacoesDetalhe(){const box=document.getElementById('detailVariants');if(!box)return;box.innerHTML='';const item=detalheAtual;if(!item||item.tipo!=='produto')return;const criar=(rotulo,valores,atributo)=>{if(!Array.isArray(valores)||!valores.length)return;const label=document.createElement('label');const span=document.createElement('span');span.textContent=rotulo;const select=document.createElement('select');select.dataset[atributo]='1';const inicial=document.createElement('option');inicial.value='';inicial.textContent='Selecione';select.appendChild(inicial);valores.forEach(valor=>{const op=document.createElement('option');op.value=valor;op.textContent=valor;select.appendChild(op)});label.append(span,select);box.appendChild(label)};criar('Cor',item.cores,'detailCor');criar('Tamanho',item.tamanhos,'detailTamanho')}
@@ -30690,6 +30865,17 @@ def vitrine_produto_independente_salvar() -> Response:
     if erro_galeria:
         return redirect(url_for("vitrine", erro=erro_galeria, _anchor="produtos-vitrine"))
 
+    status_produto = _status_produto_vitrine_formulario(request.form.get("status"))
+    try:
+        disponivel_em = _data_retorno_vitrine_formulario(
+            empresa_id,
+            status_produto,
+            request.form.get("programar_retorno"),
+            request.form.get("disponivel_em"),
+        )
+    except ValueError as exc:
+        return redirect(url_for("vitrine", erro=str(exc), _anchor="produtos-vitrine"))
+
     dados = (
         nome,
         str(request.form.get("descricao") or "").strip(),
@@ -30701,7 +30887,8 @@ def vitrine_produto_independente_salvar() -> Response:
         ),
         _normalizar_variacoes_vitrine_formulario(request.form.get("variacoes_tamanhos")),
         "sim" if request.form.get("destaque") == "sim" else "nao",
-        _status_produto_vitrine_formulario(request.form.get("status")),
+        status_produto,
+        disponivel_em,
         agora_empresa().isoformat(timespec="seconds"),
     )
 
@@ -30711,7 +30898,7 @@ def vitrine_produto_independente_salvar() -> Response:
                 """
                 UPDATE vitrine_produtos
                 SET nome=?, descricao=?, categoria=?, preco=?, variacoes_cores=?, variacoes_tamanhos=?,
-                    destaque=?, status=?, atualizado_em=?
+                    destaque=?, status=?, disponivel_em=?, atualizado_em=?
                 WHERE id=? AND empresa_id=? AND produto_id IS NULL
                 """,
                 (*dados, vitrine_id, empresa_id),
@@ -30721,8 +30908,8 @@ def vitrine_produto_independente_salvar() -> Response:
                 """
                 INSERT INTO vitrine_produtos (
                     empresa_id, produto_id, nome, descricao, categoria, preco,
-                    variacoes_cores, variacoes_tamanhos, imagem_path, destaque, status, atualizado_em
-                ) VALUES (?, NULL, ?, ?, ?, ?, ?, ?, '', ?, ?, ?)
+                    variacoes_cores, variacoes_tamanhos, imagem_path, destaque, status, disponivel_em, atualizado_em
+                ) VALUES (?, NULL, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?)
                 """,
                 (empresa_id, *dados),
             )
@@ -30766,14 +30953,24 @@ def vitrine_produto_independente_status() -> Response:
 
     vitrine_id = int(vitrine_id_texto)
     status = _status_produto_vitrine_formulario(request.form.get("status"))
+    try:
+        disponivel_em = _data_retorno_vitrine_formulario(
+            empresa_id,
+            status,
+            request.form.get("programar_retorno"),
+            request.form.get("disponivel_em"),
+        )
+    except ValueError as exc:
+        return redirect(url_for("vitrine", erro=str(exc), _anchor="produtos-vitrine"))
+
     with conectar_db() as conn:
         cursor = conn.execute(
             """
             UPDATE vitrine_produtos
-            SET status=?, atualizado_em=?
+            SET status=?, disponivel_em=?, atualizado_em=?
             WHERE id=? AND empresa_id=? AND produto_id IS NULL
             """,
-            (status, agora_empresa().isoformat(timespec="seconds"), vitrine_id, empresa_id),
+            (status, disponivel_em, agora_empresa().isoformat(timespec="seconds"), vitrine_id, empresa_id),
         )
         conn.commit()
 
@@ -30850,6 +31047,17 @@ def vitrine_produto_publicar() -> Response:
     if produto is None:
         return redirect(url_for("vitrine", erro="Produto não encontrado nesta empresa."))
 
+    status_produto = _status_produto_vitrine_formulario(request.form.get("status"))
+    try:
+        disponivel_em = _data_retorno_vitrine_formulario(
+            empresa_logada_id(),
+            status_produto,
+            request.form.get("programar_retorno"),
+            request.form.get("disponivel_em"),
+        )
+    except ValueError as exc:
+        return redirect(url_for("vitrine", erro=str(exc), _anchor="produtos-vitrine"))
+
     dados = {
         "nome": request.form.get("nome") or produto.get("nome") or "",
         "descricao": request.form.get("descricao") or produto.get("observacoes") or "",
@@ -30858,7 +31066,8 @@ def vitrine_produto_publicar() -> Response:
         "imagem_path": imagem_path,
         "remover_imagem": "sim" if request.form.get("remover_imagem") == "sim" else "nao",
         "destaque": "sim" if request.form.get("destaque") == "sim" else "nao",
-        "status": request.form.get("status") or "publicado",
+        "status": status_produto,
+        "disponivel_em": disponivel_em,
     }
     salvar_produto_vitrine_publicacao_db(produto_id, dados)
     salvar_galeria_vitrine_upload("produto", produto_id, "fotos_produto")
@@ -30881,7 +31090,18 @@ def vitrine_produto_status() -> Response:
     if not produto_id_texto.isdigit():
         return redirect(url_for("vitrine", erro="Produto inválido para alterar status."))
 
-    alterar_status_produto_vitrine_db(int(produto_id_texto), status)
+    empresa_id = empresa_logada_id()
+    try:
+        disponivel_em = _data_retorno_vitrine_formulario(
+            empresa_id,
+            status,
+            request.form.get("programar_retorno"),
+            request.form.get("disponivel_em"),
+        )
+    except ValueError as exc:
+        return redirect(url_for("vitrine", erro=str(exc), _anchor="produtos-vitrine"))
+
+    alterar_status_produto_vitrine_db(int(produto_id_texto), status, disponivel_em)
 
     mensagem = {
         "publicado": "Produto disponível e publicado na vitrine.",
