@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vitrine.html
-Último recode: 2026-08-19 03:46 (America/Bahia)
-Motivo: Compactar as variações da Vitrine, exibindo somente cores e tamanhos selecionados e abrindo os catálogos apenas sob demanda.
+Último recode: 2026-08-20 18:18 (America/Bahia)
+Motivo: Adicionar programação de retorno para produtos indisponíveis, com data, indicação visual e ação para disponibilizar imediatamente.
 #}
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -705,12 +705,22 @@ Motivo: Compactar as variações da Vitrine, exibindo somente cores e tamanhos s
                                 <input type="checkbox" name="destaque" value="sim">
                                 Destaque
                             </label>
-                            <select name="status">
-                                <option value="publicado" selected>Disponível</option>
-                                <option value="indisponivel">Indisponível</option>
-                                <option value="oculto">Oculto</option>
-                                <option value="rascunho">Rascunho</option>
-                            </select>
+                            <div class="vitrine-availability-editor" data-vitrine-availability>
+                                <select name="status" data-vitrine-status>
+                                    <option value="publicado" selected>Disponível</option>
+                                    <option value="indisponivel">Indisponível</option>
+                                    <option value="oculto">Oculto</option>
+                                    <option value="rascunho">Rascunho</option>
+                                </select>
+                                <label class="vitrine-return-toggle" data-vitrine-return-toggle hidden>
+                                    <input type="checkbox" name="programar_retorno" value="sim" data-vitrine-return-check>
+                                    Programar retorno
+                                </label>
+                                <label class="vitrine-return-date" data-vitrine-return-date hidden>
+                                    <span>Disponível novamente em</span>
+                                    <input type="date" name="disponivel_em" value="" data-vitrine-return-input>
+                                </label>
+                            </div>
                             <button class="btn btn-secondary" type="button" onclick="alternarNovoProdutoVitrine(false)">Cancelar</button>
                             <button class="btn btn-primary" type="submit">Salvar produto</button>
                         </div>
@@ -756,26 +766,40 @@ Motivo: Compactar as variações da Vitrine, exibindo somente cores e tamanhos s
                                             </small>
                                         </div>
                                     </div>
-                                    {% if produto.get('status') == 'publicado' %}
-                                        <span class="status-pill">Disponível</span>
-                                    {% elif produto.get('status') == 'indisponivel' %}
-                                        <span class="status-pill status-indisponivel">Indisponível</span>
-                                    {% elif produto.get('status') == 'oculto' %}
-                                        <span class="status-pill status-rascunho">Oculto</span>
-                                    {% elif produto.get('status') == 'rascunho' %}
-                                        <span class="status-pill status-rascunho">Rascunho</span>
-                                    {% else %}
-                                        <span class="status-pill status-neutral">Fora da vitrine</span>
-                                    {% endif %}
+                                    <div class="vitrine-status-summary">
+                                        {% if produto.get('status') == 'publicado' %}
+                                            <span class="status-pill">Disponível</span>
+                                        {% elif produto.get('status') == 'indisponivel' %}
+                                            <span class="status-pill status-indisponivel">Indisponível</span>
+                                            {% if produto.get('retorno_programado') %}
+                                                <small class="vitrine-return-summary">
+                                                    {% if produto.get('retorno_vencido') and produto.get('integrado') %}
+                                                        Aguardando estoque desde {{ produto.get('disponivel_em_exibicao') }}
+                                                    {% else %}
+                                                        Retorna em {{ produto.get('disponivel_em_exibicao') }}
+                                                    {% endif %}
+                                                </small>
+                                            {% endif %}
+                                        {% elif produto.get('status') == 'oculto' %}
+                                            <span class="status-pill status-rascunho">Oculto</span>
+                                        {% elif produto.get('status') == 'rascunho' %}
+                                            <span class="status-pill status-rascunho">Rascunho</span>
+                                        {% else %}
+                                            <span class="status-pill status-neutral">Fora da vitrine</span>
+                                        {% endif %}
+                                    </div>
                                 </div>
 
-                                <div class="catalog-quick-actions">
+                                <div class="catalog-quick-actions catalog-product-actions">
                                     <button class="btn btn-secondary btn-small" type="button" data-editor-fechado="Editar" data-editor-aberto="Fechar edição" aria-expanded="false" onclick="alternarEditorVitrine(this)">Editar</button>
 
                                     {% if produto.get('status') == 'publicado' %}
                                         <button class="btn btn-secondary btn-small" type="button" onclick="alterarStatusProdutoVitrine(this, 'indisponivel')">Marcar indisponível</button>
                                     {% elif produto.get('status') == 'indisponivel' %}
-                                        <button class="btn btn-primary btn-small" type="button" onclick="alterarStatusProdutoVitrine(this, 'publicado')">Disponibilizar</button>
+                                        <button class="btn btn-secondary btn-small" type="button" onclick="abrirProgramacaoRetornoVitrine(this)">
+                                            {{ 'Alterar data' if produto.get('retorno_programado') else 'Programar retorno' }}
+                                        </button>
+                                        <button class="btn btn-primary btn-small" type="button" onclick="alterarStatusProdutoVitrine(this, 'publicado')">Disponibilizar agora</button>
                                     {% else %}
                                         <button class="btn btn-primary btn-small" type="button" onclick="alterarStatusProdutoVitrine(this, 'publicado')">Publicar</button>
                                     {% endif %}
@@ -941,12 +965,22 @@ Motivo: Compactar as variações da Vitrine, exibindo somente cores e tamanhos s
                                             <input type="checkbox" name="destaque" value="sim" {% if produto.get('destaque') == 'sim' %}checked{% endif %}>
                                             Destaque
                                         </label>
-                                        <select name="status">
-                                            <option value="publicado" {% if produto.get('status') == 'publicado' %}selected{% endif %}>Disponível</option>
-                                            <option value="indisponivel" {% if produto.get('status') == 'indisponivel' %}selected{% endif %}>Indisponível</option>
-                                            <option value="oculto" {% if produto.get('status') == 'oculto' %}selected{% endif %}>Oculto</option>
-                                            <option value="rascunho" {% if produto.get('status') == 'rascunho' %}selected{% endif %}>Rascunho</option>
-                                        </select>
+                                        <div class="vitrine-availability-editor" data-vitrine-availability>
+                                            <select name="status" data-vitrine-status>
+                                                <option value="publicado" {% if produto.get('status') == 'publicado' %}selected{% endif %}>Disponível</option>
+                                                <option value="indisponivel" {% if produto.get('status') == 'indisponivel' %}selected{% endif %}>Indisponível</option>
+                                                <option value="oculto" {% if produto.get('status') == 'oculto' %}selected{% endif %}>Oculto</option>
+                                                <option value="rascunho" {% if produto.get('status') == 'rascunho' %}selected{% endif %}>Rascunho</option>
+                                            </select>
+                                            <label class="vitrine-return-toggle" data-vitrine-return-toggle {% if produto.get('status') != 'indisponivel' %}hidden{% endif %}>
+                                                <input type="checkbox" name="programar_retorno" value="sim" data-vitrine-return-check {% if produto.get('retorno_programado') %}checked{% endif %}>
+                                                Programar retorno
+                                            </label>
+                                            <label class="vitrine-return-date" data-vitrine-return-date {% if not produto.get('retorno_programado') %}hidden{% endif %}>
+                                                <span>Disponível novamente em</span>
+                                                <input type="date" name="disponivel_em" value="{{ produto.get('disponivel_em') or '' }}" data-vitrine-return-input>
+                                            </label>
+                                        </div>
                                         <button class="btn btn-primary" type="submit">Salvar</button>
                                     </div>
                                 </div>
@@ -1284,6 +1318,90 @@ Motivo: Compactar as variações da Vitrine, exibindo somente cores e tamanhos s
                     ? "{{ url_for('vitrine_produto_independente_status') }}"
                     : "{{ url_for('vitrine_produto_status') }}";
                 formulario.submit();
+            }
+
+            function abrirProgramacaoRetornoVitrine(botao) {
+                const card = botao.closest(".catalog-simple-card");
+                if (!card) return;
+                const editor = card.querySelector("[data-vitrine-editor]");
+                const botaoEditar = card.querySelector('.catalog-quick-actions button[onclick*="alternarEditorVitrine"]');
+                if (editor) editor.hidden = false;
+                if (botaoEditar) atualizarBotaoEditorVitrine(botaoEditar, true);
+
+                const disponibilidade = card.querySelector("[data-vitrine-availability]");
+                const status = disponibilidade ? disponibilidade.querySelector("[data-vitrine-status]") : null;
+                const check = disponibilidade ? disponibilidade.querySelector("[data-vitrine-return-check]") : null;
+                const data = disponibilidade ? disponibilidade.querySelector("[data-vitrine-return-input]") : null;
+                if (status) {
+                    status.value = "indisponivel";
+                    status.dispatchEvent(new Event("change"));
+                }
+                if (check) {
+                    check.checked = true;
+                    check.dispatchEvent(new Event("change"));
+                }
+                window.setTimeout(function () {
+                    if (data) data.focus();
+                    disponibilidade?.scrollIntoView({ behavior: "smooth", block: "center" });
+                }, 100);
+            }
+
+            function configurarDisponibilidadeProgramadaVitrine() {
+                const hoje = new Date();
+                hoje.setHours(0, 0, 0, 0);
+                const amanha = new Date(hoje);
+                amanha.setDate(amanha.getDate() + 1);
+                const dataMinima = [
+                    amanha.getFullYear(),
+                    String(amanha.getMonth() + 1).padStart(2, "0"),
+                    String(amanha.getDate()).padStart(2, "0")
+                ].join("-");
+
+                document.querySelectorAll("[data-vitrine-availability]").forEach(function (editor) {
+                    const status = editor.querySelector("[data-vitrine-status]");
+                    const toggle = editor.querySelector("[data-vitrine-return-toggle]");
+                    const check = editor.querySelector("[data-vitrine-return-check]");
+                    const dataBox = editor.querySelector("[data-vitrine-return-date]");
+                    const data = editor.querySelector("[data-vitrine-return-input]");
+                    if (!status || !toggle || !check || !dataBox || !data) return;
+
+                    const dataInicial = data.value || "";
+                    data.min = dataInicial && dataInicial < dataMinima ? dataInicial : dataMinima;
+
+                    function atualizar() {
+                        const indisponivel = status.value === "indisponivel";
+                        toggle.hidden = !indisponivel;
+                        if (!indisponivel) {
+                            dataBox.hidden = true;
+                            data.required = false;
+                            return;
+                        }
+                        dataBox.hidden = !check.checked;
+                        data.required = check.checked;
+                    }
+
+                    status.addEventListener("change", atualizar);
+                    check.addEventListener("change", atualizar);
+                    atualizar();
+
+                    const formulario = editor.closest("form");
+                    if (formulario) {
+                        formulario.addEventListener("submit", function (event) {
+                            if (status.value !== "indisponivel" || !check.checked) return;
+                            if (!data.value) {
+                                event.preventDefault();
+                                alert("Informe a data em que o produto voltará a ficar disponível.");
+                                data.focus();
+                                return;
+                            }
+                            if (data.value < dataMinima && data.value !== dataInicial) {
+                                event.preventDefault();
+                                alert("A data de retorno precisa ser posterior ao dia de hoje.");
+                                data.focus();
+                            }
+                        });
+                    }
+                });
             }
 
             function alterarStatusServicoVitrine(botao, status) {
@@ -2070,6 +2188,7 @@ Motivo: Compactar as variações da Vitrine, exibindo somente cores e tamanhos s
             }
 
             configurarIdentidadeVisualVitrine();
+            configurarDisponibilidadeProgramadaVitrine();
             configurarCoresVitrine();
             configurarTamanhosVitrine();
             configurarCamposMoedaVitrine();
@@ -2995,10 +3114,80 @@ Motivo: Compactar as variações da Vitrine, exibindo somente cores e tamanhos s
             font-size: 12px;
         }
 
+        .vitrine-status-summary {
+            display: grid;
+            justify-items: end;
+            gap: 5px;
+            text-align: right;
+        }
+
+        .vitrine-return-summary {
+            color: #9a3412;
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        .vitrine-availability-editor {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            flex-wrap: wrap;
+        }
+
+        .vitrine-availability-editor > select {
+            min-width: 150px;
+        }
+
+        .vitrine-return-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            min-height: 38px;
+            padding: 7px 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            background: #fff;
+            color: #374151;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .vitrine-return-toggle[hidden],
+        .vitrine-return-date[hidden] {
+            display: none;
+        }
+
+        .vitrine-return-date {
+            display: grid;
+            gap: 4px;
+            min-width: 190px;
+        }
+
+        .vitrine-return-date span {
+            color: #6b7280;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+        }
+
+        .vitrine-return-date input {
+            min-height: 38px;
+            padding: 7px 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            background: #fff;
+            color: #111827;
+        }
+
         .catalog-quick-actions {
             display: grid;
             grid-template-columns: repeat(4, minmax(0, 1fr));
             gap: 8px;
+        }
+
+        .catalog-product-actions {
+            grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
         }
 
         .catalog-quick-actions .btn {
