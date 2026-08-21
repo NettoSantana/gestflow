@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\compra_editar.html
-Último recode: 2026-07-16 17:13 (America/Bahia)
-Motivo: Criar edição da compra com recálculo automático do estoque.
+Último recode: 2026-08-20 21:09 (America/Bahia)
+Motivo: Manter edição apenas para Compras não finalizadas e exibir o status configurável atual sem movimentar estoque.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -18,6 +18,23 @@ Motivo: Criar edição da compra com recálculo automático do estoque.
         .compra-form-grid input,.compra-form-grid select,.compra-form-grid textarea { width:100%; min-width:0; padding:11px 12px; border:1px solid #dbe3ef; border-radius:10px; font:inherit; }
         .compra-form-grid textarea { min-height:110px; resize:vertical; }
         @media(max-width:720px){.compra-form-grid{grid-template-columns:1fr;}}
+
+        .gf-status-select {
+            min-width: 132px;
+            max-width: 190px;
+            height: 34px;
+            padding: 0 30px 0 10px;
+            border: 1px solid var(--status-border, #cbd5e1);
+            border-radius: 999px;
+            background-color: var(--status-bg, #f1f5f9);
+            color: var(--status-text, #334155);
+            font: inherit;
+            font-size: 12px;
+            font-weight: 850;
+            cursor: pointer;
+        }
+        .gf-status-select:disabled { cursor: default; opacity: .82; }
+
     </style>
 </head>
 <body>
@@ -33,7 +50,7 @@ Motivo: Criar edição da compra com recálculo automático do estoque.
                 <div>
                     <span class="page-kicker">Estoque</span>
                     <h3 class="page-title">Editar compra #{{ compra.id }}</h3>
-                    <p class="page-subtitle">Ao salvar, a diferença será aplicada automaticamente ao saldo do estoque.</p>
+                    <p class="page-subtitle">A edição não movimenta o estoque. A entrada e o financeiro só ocorrem ao escolher o status finalizador.</p>
                 </div>
                 <a href="/estoque/compras/{{ compra.id }}" class="btn-light">Cancelar edição</a>
             </div>
@@ -50,6 +67,15 @@ Motivo: Criar edição da compra com recálculo automático do estoque.
                                 <option value="{{ produto.id }}" {% if produto.id|string == compra.produto_id|string %}selected{% endif %}>{{ produto.nome }}{% if produto.codigo %} - {{ produto.codigo }}{% endif %}</option>
                             {% endfor %}
                         </select>
+                    </label>
+
+                    <label>
+                        Status
+                        <select class="gf-status-select" data-status-operacional data-status-url="/estoque/compras/{{ compra.id }}/status" data-current="{{ compra.status }}" data-final-message="Receber/finalizar esta Compra? Após confirmar, o GestFlow efetivará o estoque e o financeiro conforme as configurações." style="--status-bg:{{ compra.status_fundo }};--status-text:{{ compra.status_texto_cor }};--status-border:{{ compra.status_borda }};">
+                            {% for status in compra_status_opcoes|default([]) %}
+                                <option value="{{ status.codigo }}" data-final="{{ 1 if status.final else 0 }}" data-bg="{{ status.fundo }}" data-text="{{ status.texto }}" data-border="{{ status.borda }}" {% if compra.status == status.codigo %}selected{% endif %}>{{ status.nome }}</option>
+                            {% endfor %}</select>
+                        <small style="font-weight:600;color:#64748b;">A situação é salva imediatamente; o finalizador exige confirmação.</small>
                     </label>
 
                     <label>
@@ -100,5 +126,60 @@ Motivo: Criar edição da compra com recálculo automático do estoque.
             </section>
         </form>
     </main>
+
+<script>
+(function gestflowStatusOperacional() {
+    function aplicarCor(select) {
+        const opcao = select.options[select.selectedIndex];
+        if (!opcao) return;
+        select.style.setProperty('--status-bg', opcao.dataset.bg || '#f1f5f9');
+        select.style.setProperty('--status-text', opcao.dataset.text || '#334155');
+        select.style.setProperty('--status-border', opcao.dataset.border || '#cbd5e1');
+    }
+
+    async function alterarStatus(select) {
+        const anterior = select.dataset.current || '';
+        const opcao = select.options[select.selectedIndex];
+        if (!opcao || select.value === anterior) { aplicarCor(select); return; }
+        const finalizador = opcao.dataset.final === '1';
+        if (finalizador) {
+            const mensagem = select.dataset.finalMessage || 'Confirmar a finalização deste registro?';
+            if (!window.confirm(mensagem)) {
+                select.value = anterior;
+                aplicarCor(select);
+                return;
+            }
+        }
+        select.disabled = true;
+        const dados = new URLSearchParams();
+        dados.append('status', select.value);
+        if (finalizador) dados.append('confirmar_finalizacao', 'sim');
+        try {
+            const resposta = await fetch(select.dataset.statusUrl, {
+                method: 'POST',
+                headers: {'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},
+                body: dados.toString()
+            });
+            const payload = await resposta.json();
+            if (!resposta.ok || !payload.ok) throw new Error(payload.erro || 'Não foi possível alterar o status.');
+            select.dataset.current = payload.status || select.value;
+            aplicarCor(select);
+            if (payload.mensagem) window.alert(payload.mensagem);
+            window.location.reload();
+        } catch (erro) {
+            select.value = anterior;
+            aplicarCor(select);
+            select.disabled = false;
+            window.alert(erro.message || 'Não foi possível alterar o status.');
+        }
+    }
+
+    document.querySelectorAll('[data-status-operacional]').forEach(function(select) {
+        aplicarCor(select);
+        select.addEventListener('change', function() { alterarStatus(select); });
+    });
+})();
+</script>
+
 </body>
 </html>

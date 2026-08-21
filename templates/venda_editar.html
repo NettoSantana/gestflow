@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\venda_editar.html
-Último recode: 2026-07-22 12:02 (America/Bahia)
-Motivo: Proteger o número da venda, ampliar observações e impedir atualização acidental pela tecla Enter.
+Último recode: 2026-08-20 21:09 (America/Bahia)
+Motivo: Usar status configuráveis na edição da Venda e centralizar a concretização no seletor com confirmação.
 -->
 
 <!DOCTYPE html>
@@ -116,6 +116,23 @@ Motivo: Proteger o número da venda, ampliar observações e impedir atualizaç�
             border-color: #dc2626 !important;
             box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.12);
         }
+
+
+        .gf-status-select {
+            min-width: 132px;
+            max-width: 190px;
+            height: 34px;
+            padding: 0 30px 0 10px;
+            border: 1px solid var(--status-border, #cbd5e1);
+            border-radius: 999px;
+            background-color: var(--status-bg, #f1f5f9);
+            color: var(--status-text, #334155);
+            font: inherit;
+            font-size: 12px;
+            font-weight: 850;
+            cursor: pointer;
+        }
+        .gf-status-select:disabled { cursor: default; opacity: .82; }
 
     </style>
 
@@ -417,7 +434,10 @@ Motivo: Proteger o número da venda, ampliar observações e impedir atualizaç�
                     <div class="form-group"><label for="venda_canal_venda">Canal de venda</label><input id="venda_canal_venda" name="venda_canal_venda" type="text" value="{{ venda.canal_venda or '' }}" class="form-control" required></div>
                     <div class="form-group"><label for="venda_centro_custo_id">Centro de custo</label><select id="venda_centro_custo_id" name="venda_centro_custo_id" class="form-control"><option value="">Sem centro de custo</option>{% for centro in centros_custo %}<option value="{{ centro.id }}" {% if venda.centro_custo_id == centro.id %}selected{% endif %}>{{ centro.nome }}</option>{% endfor %}</select></div><div class="form-group"><label for="venda_atividade_financeira_id">Atividade / Projeto</label><select id="venda_atividade_financeira_id" name="venda_atividade_financeira_id" class="form-control"><option value="">Sem atividade</option>{% for atividade in atividades_financeiras %}<option value="{{ atividade.id }}" {% if venda.atividade_financeira_id == atividade.id %}selected{% endif %}>{{ atividade.nome }}</option>{% endfor %}</select></div><input type="hidden" name="venda_centro_custo" value="{{ venda.centro_custo or '' }}">
                     <div class="form-group"><label for="venda_tipo">Tipo</label><select id="venda_tipo" name="venda_tipo" class="form-control"><option value="misto"{% if venda.tipo == "misto" %} selected{% endif %}>Misto</option><option value="produto"{% if venda.tipo == "produto" %} selected{% endif %}>Produto</option><option value="servico"{% if venda.tipo == "servico" %} selected{% endif %}>Serviço</option></select></div>
-                    <div class="form-group"><label for="venda_status">Situação</label><select id="venda_status" name="venda_status" class="form-control"><option value="aberta"{% if venda.status == "aberta" %} selected{% endif %}>Aberta</option><option value="concretizada"{% if venda.status == "concretizada" %} selected{% endif %}>Concretizada</option><option value="cancelada"{% if venda.status == "cancelada" %} selected{% endif %}>Cancelada</option></select></div>
+                    <div class="form-group"><label for="venda_status">Situação</label><select id="venda_status" name="venda_status" class="gf-status-select" data-status-operacional data-status-url="/vendas/{{ venda.id }}/status" data-current="{{ venda.status }}" data-final-message="Concretizar esta Venda? Após confirmar, o GestFlow executará estoque e financeiro conforme as configurações e bloqueará alterações." style="--status-bg:{{ venda.status_fundo }};--status-text:{{ venda.status_texto_cor }};--status-border:{{ venda.status_borda }};">
+                        {% for status in venda_status_opcoes|default([]) %}
+                                <option value="{{ status.codigo }}" data-final="{{ 1 if status.final else 0 }}" data-bg="{{ status.fundo }}" data-text="{{ status.texto }}" data-border="{{ status.borda }}" {% if venda.status == status.codigo %}selected{% endif %}>{{ status.nome }}</option>
+                            {% endfor %}</select><small style="display:block;margin-top:5px;color:#64748b;">A situação é salva imediatamente. O status finalizador exige confirmação.</small></div>
                 </div>
             </section>
 
@@ -1511,6 +1531,61 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     });
 });
+</script>
+
+
+<script>
+(function gestflowStatusOperacional() {
+    function aplicarCor(select) {
+        const opcao = select.options[select.selectedIndex];
+        if (!opcao) return;
+        select.style.setProperty('--status-bg', opcao.dataset.bg || '#f1f5f9');
+        select.style.setProperty('--status-text', opcao.dataset.text || '#334155');
+        select.style.setProperty('--status-border', opcao.dataset.border || '#cbd5e1');
+    }
+
+    async function alterarStatus(select) {
+        const anterior = select.dataset.current || '';
+        const opcao = select.options[select.selectedIndex];
+        if (!opcao || select.value === anterior) { aplicarCor(select); return; }
+        const finalizador = opcao.dataset.final === '1';
+        if (finalizador) {
+            const mensagem = select.dataset.finalMessage || 'Confirmar a finalização deste registro?';
+            if (!window.confirm(mensagem)) {
+                select.value = anterior;
+                aplicarCor(select);
+                return;
+            }
+        }
+        select.disabled = true;
+        const dados = new URLSearchParams();
+        dados.append('status', select.value);
+        if (finalizador) dados.append('confirmar_finalizacao', 'sim');
+        try {
+            const resposta = await fetch(select.dataset.statusUrl, {
+                method: 'POST',
+                headers: {'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},
+                body: dados.toString()
+            });
+            const payload = await resposta.json();
+            if (!resposta.ok || !payload.ok) throw new Error(payload.erro || 'Não foi possível alterar o status.');
+            select.dataset.current = payload.status || select.value;
+            aplicarCor(select);
+            if (payload.mensagem) window.alert(payload.mensagem);
+            window.location.reload();
+        } catch (erro) {
+            select.value = anterior;
+            aplicarCor(select);
+            select.disabled = false;
+            window.alert(erro.message || 'Não foi possível alterar o status.');
+        }
+    }
+
+    document.querySelectorAll('[data-status-operacional]').forEach(function(select) {
+        aplicarCor(select);
+        select.addEventListener('change', function() { alterarStatus(select); });
+    });
+})();
 </script>
 
 </body>

@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\venda_detalhe.html
-Último recode: 2026-07-30 19:29 (America/Bahia)
-Motivo: Ocultar a edição no detalhe de vendas concretizadas, finalizadas ou canceladas.
+Último recode: 2026-08-20 21:09 (America/Bahia)
+Motivo: Exibir o status configurável da Venda e proteger ações somente após a finalização real.
 -->
 
 <!DOCTYPE html>
@@ -418,7 +418,7 @@ Motivo: Ocultar a edição no detalhe de vendas concretizadas, finalizadas ou ca
                     <p class="page-subtitle">Cliente: {{ venda.cliente or '-' }}</p>
                 </div>
 
-                <span class="status-pill {{ venda.status }}">{{ venda.status or '-' }}</span>
+                <span class="status-pill" style="background: {{ venda.status_fundo|default('#f1f5f9') }}; color: {{ venda.status_texto_cor|default('#334155') }}; border-color: {{ venda.status_borda|default('#cbd5e1') }};">{{ venda.status_nome|default(venda.status, true) or '-' }}</span>
             </div>
 
             <div class="panel-summary">
@@ -428,7 +428,7 @@ Motivo: Ocultar a edição no detalhe de vendas concretizadas, finalizadas ou ca
                 <div><span>Data</span><strong>{{ venda.data or '-' }}</strong></div>
                 <div><span>Prazo de entrega</span><strong>{{ venda.prazo_entrega or '-' }}</strong></div>
                 <div><span>Tipo</span><strong>{{ venda.tipo or '-' }}</strong></div>
-                <div><span>Situação</span><strong>{{ venda.status or '-' }}</strong></div>
+                <div><span>Situação</span><strong>{{ venda.status_nome|default(venda.status, true) or '-' }}</strong></div>
                 <div><span>Canal de venda</span><strong>{{ venda.canal_venda or '-' }}</strong></div>
                 <div><span>Centro de custo</span><strong>{{ venda.centro_custo or '-' }}</strong></div>
                 <div><span>Atividade / Projeto</span><strong>{{ atividade.nome if atividade else '-' }}</strong></div>
@@ -448,7 +448,7 @@ Motivo: Ocultar a edição no detalhe de vendas concretizadas, finalizadas ou ca
                 </div>
 
                 <div class="sale-action-row">
-                    {% set venda_status_final = (venda.status|default('', true)|lower|trim) in ['concretizada', 'finalizada', 'finalizado', 'cancelada', 'cancelado'] %}
+                    {% set venda_status_final = venda.status_finalizado|default(false) %}
                     {% if not venda_status_final %}
                         <a href="/vendas/{{ venda.id }}/editar" class="btn-primary-green" style="text-decoration:none;">Editar Venda</a>
                     {% endif %}

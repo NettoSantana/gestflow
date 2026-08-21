@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordem_servico_detalhe.html
-Último recode: 2026-07-30 19:29 (America/Bahia)
-Motivo: Ocultar ações de alteração no detalhe de ordens de serviço em situação final.
+Último recode: 2026-08-20 21:09 (America/Bahia)
+Motivo: Exibir status configurável da OS e proteger ações somente quando a finalização real estiver registrada.
 -->
 
 <!DOCTYPE html>
@@ -19,7 +19,7 @@ Motivo: Ocultar ações de alteração no detalhe de ordens de serviço em situa
         {% set page_title = 'Detalhes da OS' %}
         {% include "partials/topbar.html" %}
         {% set os = ordem_servico %}
-        {% set os_status_final = (os.status|default('', true)|lower|trim) in ['concluida', 'concluída', 'concluido', 'concluído', 'finalizada', 'finalizado', 'cancelada', 'cancelado'] %}
+        {% set os_status_final = os.status_finalizado|default(false) %}
         {% set cliente_url = os_publico_links.cliente_url if os_publico_links else '' %}
         {% set campo_url = os_publico_links.campo_url if os_publico_links else '' %}
 
@@ -29,8 +29,8 @@ Motivo: Ocultar ações de alteração no detalhe de ordens de serviço em situa
                     <span class="page-kicker">Ordens de Serviço</span>
                     <div class="os-detail-title-line">
                         <h2>OS {{ os.numero or os.id }}</h2>
-                        <span class="os-detail-status status-{{ (os.status or 'aberta')|lower|replace(' ', '-') }}">
-                            {{ os.status or 'aberta' }}
+                        <span class="os-detail-status" style="background: {{ os.status_fundo|default('#f1f5f9') }}; color: {{ os.status_texto_cor|default('#334155') }}; border-color: {{ os.status_borda|default('#cbd5e1') }};">
+                            {{ os.status_nome|default(os.status, true) or '-' }}
                         </span>
                     </div>
                     <p class="page-subtitle">
@@ -42,9 +42,7 @@ Motivo: Ocultar ações de alteração no detalhe de ordens de serviço em situa
                     <a href="/ordens-servico" class="btn-light">Voltar</a>
                     {% if not os_status_final %}
                         <a href="/ordens-servico/{{ os.id }}/links" class="btn-primary-green">Gerar links</a>
-                        {% if os.status == 'andamento' %}
-                            <a href="/ordens-servico/{{ os.id }}/gerar/acompanhamento" class="btn-primary-green">Link diário</a>
-                        {% endif %}
+                        <a href="/ordens-servico/{{ os.id }}/gerar/acompanhamento" class="btn-primary-green">Link diário</a>
                         <a href="/ordens-servico/{{ os.id }}/editar" class="btn-dark">Editar OS</a>
                     {% endif %}
                     <a href="/ordens-servico/{{ os.id }}/imprimir/a4" target="_blank" rel="noopener" class="btn-primary-green">Imprimir</a>
@@ -59,7 +57,7 @@ Motivo: Ocultar ações de alteração no detalhe de ordens de serviço em situa
                 </div>
                 <div class="os-detail-summary-card">
                     <span>Situação</span>
-                    <strong>{{ os.status or '-' }}</strong>
+                    <strong>{{ os.status_nome|default(os.status, true) or '-' }}</strong>
                     <small>Prioridade: {{ os.prioridade or '-' }}</small>
                 </div>
                 <div class="os-detail-summary-card">
@@ -515,10 +513,10 @@ Motivo: Ocultar ações de alteração no detalhe de ordens de serviço em situa
                             <p>Registro operacional de atividades, equipe, materiais e serviços do dia.</p>
                         </div>
                     </div>
-                    {% if os.status == 'andamento' %}
+                    {% if not os_status_final %}
                         <a href="/ordens-servico/{{ os.id }}/gerar/acompanhamento" class="btn-primary-green">Gerar link diário</a>
                     {% else %}
-                        <span class="os-detail-unavailable">Disponível somente em andamento</span>
+                        <span class="os-detail-unavailable">OS finalizada</span>
                     {% endif %}
                 </div>
 

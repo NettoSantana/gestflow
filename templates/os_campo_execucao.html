@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\os_campo_execucao.html
-Último recode: 2026-07-23 00:18 (America/Bahia)
-Motivo: Aplicar exigências configuradas de fotos, equipamentos e evidências na execução em campo.
+Último recode: 2026-08-20 21:09 (America/Bahia)
+Motivo: Remover a lista fixa de status do acesso de campo para que o status seja controlado apenas pela regra configurável central.
 -->
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -44,13 +44,8 @@ Motivo: Aplicar exigências configuradas de fotos, equipamentos e evidências na
             <div class="form-grid">
                 <div class="form-group">
                     <label>Status da OS</label>
-                    <select name="os_status" class="form-control">
-                        <option value="aberta" {% if os.status=='aberta' %}selected{% endif %}>Aberta</option>
-                        <option value="andamento" {% if os.status=='andamento' %}selected{% endif %}>Em andamento</option>
-                        <option value="aguardando" {% if os.status=='aguardando' %}selected{% endif %}>Aguardando</option>
-                        <option value="finalizada" {% if os.status=='finalizada' %}selected{% endif %}>Finalizada</option>
-                        <option value="cancelada" {% if os.status=='cancelada' %}selected{% endif %}>Cancelada</option>
-                    </select>
+                    <input class="form-control" value="{{ os.status_nome|default(os.status, true) or '-' }}" readonly aria-readonly="true">
+                    <small>O status é gerenciado pela OS principal conforme as Configurações do módulo.</small>
                 </div>
                 <div class="form-group"><label>Diagnóstico / solução</label><textarea name="os_diagnostico" class="form-control textarea-control">{{ os.diagnostico or '' }}</textarea></div>
                 <div class="form-group"><label>Etapas / atividades executadas</label><textarea name="os_servico_executado" class="form-control textarea-control">{{ os.servico_executado or '' }}</textarea></div>
