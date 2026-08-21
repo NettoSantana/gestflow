@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordens_servico_painel.html
-Último recode: 2026-07-02 23:41 (America/Bahia)
-Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
+Último recode: 2026-08-20 21:09 (America/Bahia)
+Motivo: Tornar o painel de OS compatível com status configuráveis, sem atribuir significado operacional aos nomes.
 -->
 
 <!DOCTYPE html>
@@ -435,7 +435,6 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
 
 {% set prazo = painel.prazo %}
         {% set prioridade = painel.prioridade %}
-        {% set status = painel.status %}
         {% set faturamento = painel.faturamento %}
 
         <section class="panel page-section">
@@ -463,9 +462,8 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
         <section class="panel page-section">
             <div class="panel-header page-header"><div><h3>Faturamento</h3><p class="page-subtitle">Resumo financeiro das ordens cadastradas.</p></div></div>
             <div class="os-money-grid">
-                <div class="os-panel-card"><h4>Em aberto</h4><strong>R$ {{ "%.2f"|format(faturamento.abertas)|replace(".", ",") }}</strong><span>OS abertas e aguardando</span></div>
-                <div class="os-panel-card"><h4>Em andamento</h4><strong>R$ {{ "%.2f"|format(faturamento.andamento)|replace(".", ",") }}</strong><span>OS em execução</span></div>
-                <div class="os-panel-card os-panel-card-success"><h4>Finalizadas</h4><strong>R$ {{ "%.2f"|format(faturamento.finalizadas)|replace(".", ",") }}</strong><span>OS concluídas</span></div>
+                <div class="os-panel-card"><h4>Não finalizadas</h4><strong>R$ {{ "%.2f"|format(faturamento.nao_finalizadas)|replace(".", ",") }}</strong><span>Todos os status visuais em aberto</span></div>
+                <div class="os-panel-card os-panel-card-success"><h4>Finalizadas</h4><strong>R$ {{ "%.2f"|format(faturamento.finalizadas)|replace(".", ",") }}</strong><span>OS concluídas pelo status finalizador</span></div>
                 <div class="os-panel-card"><h4>Total geral</h4><strong>R$ {{ "%.2f"|format(faturamento.geral)|replace(".", ",") }}</strong><span>Total cadastrado</span></div>
             </div>
         </section>
@@ -486,11 +484,13 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
             <div class="panel table-panel">
                 <div class="panel-header page-header"><div><h3>Situação</h3><p class="page-subtitle">Status das ordens de serviço.</p></div></div>
                 <div class="os-status-grid">
-                    <div class="os-panel-card"><h4>Abertas</h4><strong>{{ status.aberta }}</strong><span>Aguardando execução</span></div>
-                    <div class="os-panel-card"><h4>Em andamento</h4><strong>{{ status.andamento }}</strong><span>Em execução</span></div>
-                    <div class="os-panel-card"><h4>Aguardando</h4><strong>{{ status.aguardando }}</strong><span>Aguardando peça ou retorno</span></div>
-                    <div class="os-panel-card os-panel-card-success"><h4>Finalizadas</h4><strong>{{ status.finalizada }}</strong><span>Concluídas</span></div>
-                    <div class="os-panel-card"><h4>Canceladas</h4><strong>{{ status.cancelada }}</strong><span>Canceladas</span></div>
+                    {% for item in painel.status_itens %}
+                        <div class="os-panel-card" style="border-color: {{ item.borda }}; background: {{ item.fundo }}; color: {{ item.texto }};">
+                            <h4 style="color: {{ item.texto }};">{{ item.nome }}</h4>
+                            <strong style="color: {{ item.texto }};">{{ item.quantidade }}</strong>
+                            <span style="color: {{ item.texto }};">{{ 'Status finalizador' if item.final else 'Status visual' }}</span>
+                        </div>
+                    {% endfor %}
                 </div>
             </div>
         </section>
@@ -532,7 +532,7 @@ Motivo: Padronizar tela auxiliar no padrão visual de Orçamentos.
                                         <td>{{ os.numero }}</td>
                                         <td>{{ os.cliente }}</td>
                                         <td>{{ os.tecnico or '-' }}</td>
-                                        <td><span class="status-pill {{ os.status }}">{{ os.status }}</span></td>
+                                        <td><span class="status-pill" style="background: {{ os.status_fundo }}; color: {{ os.status_texto_cor }}; border-color: {{ os.status_borda }};">{{ os.status_nome }}</span></td>
                                         <td>{{ os.prioridade }}</td>
                                         <td>{{ os.data_previsao or '-' }}</td>
                                         <td><a href="/ordens-servico/{{ os.id }}" class="action-button view">🔍</a></td>

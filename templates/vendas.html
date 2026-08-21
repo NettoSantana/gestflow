@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vendas.html
-Último recode: 2026-08-02 13:47 (America/Bahia)
-Motivo: Adicionar filtros avançados sem alterar os botões de ações e padronizar os novos controles em preto.
+Último recode: 2026-08-20 21:09 (America/Bahia)
+Motivo: Padronizar status configuráveis de Vendas, com cores predefinidas e um único status que concretiza a Venda.
 -->
 
 <!DOCTYPE html>
@@ -373,6 +373,23 @@ Motivo: Adicionar filtros avançados sem alterar os botões de ações e padroni
         .venda-origem-vitrine span{font-size:13px;font-weight:700}
         @media(max-width:720px){.pagamento-venda-grid{grid-template-columns:1fr}}
 
+
+        .gf-status-select {
+            min-width: 132px;
+            max-width: 190px;
+            height: 34px;
+            padding: 0 30px 0 10px;
+            border: 1px solid var(--status-border, #cbd5e1);
+            border-radius: 999px;
+            background-color: var(--status-bg, #f1f5f9);
+            color: var(--status-text, #334155);
+            font: inherit;
+            font-size: 12px;
+            font-weight: 850;
+            cursor: pointer;
+        }
+        .gf-status-select:disabled { cursor: default; opacity: .82; }
+
     </style>
 </head>
 <body>
@@ -393,18 +410,7 @@ Motivo: Adicionar filtros avançados sem alterar os botões de ações e padroni
         {% set direcao = direcao|default('desc', true) %}
         {% set por_pagina = por_pagina|default(20, true) %}
         {% set listagem_endpoint = listagem_endpoint|default('vendas', true) %}
-        {% set resumo = namespace(abertas=0, concretizadas=0, canceladas=0) %}
-        {% for venda in vendas_lista %}
-            {% if venda.status == "aberta" %}
-                {% set resumo.abertas = resumo.abertas + 1 %}
-            {% endif %}
-            {% if venda.status == "concretizada" %}
-                {% set resumo.concretizadas = resumo.concretizadas + 1 %}
-            {% endif %}
-            {% if venda.status == "cancelada" %}
-                {% set resumo.canceladas = resumo.canceladas + 1 %}
-            {% endif %}
-        {% endfor %}
+        {% set resumo = resumo_geral|default({}, true) %}
 
         <section class="panel page-section">
             <div class="panel-header page-header">
@@ -425,27 +431,27 @@ Motivo: Adicionar filtros avançados sem alterar os botões de ações e padroni
             <div class="card stat-card">
                 <div class="card-icon">▤</div>
                 <div class="card-info">
-                    <p>{{ vendas_lista|length }}</p>
+                    <p>{{ resumo.total|default(0) }}</p>
                     <h3>Total de vendas</h3>
-                    <span>{% if vendas_lista|length == 1 %}1 venda cadastrada{% elif vendas_lista|length > 1 %}{{ vendas_lista|length }} vendas cadastradas{% else %}Nenhuma venda cadastrada{% endif %}</span>
+                    <span>{{ resumo.total|default(0) }} no histórico</span>
                 </div>
             </div>
 
             <div class="card stat-card">
                 <div class="card-icon">⌁</div>
                 <div class="card-info">
-                    <p>{{ resumo.abertas }}</p>
-                    <h3>Em aberto</h3>
-                    <span>{% if resumo.abertas == 1 %}1 venda aberta{% elif resumo.abertas > 1 %}{{ resumo.abertas }} vendas abertas{% else %}Nenhuma venda aberta{% endif %}</span>
+                    <p>{{ resumo.abertas|default(0) }}</p>
+                    <h3>Não finalizadas</h3>
+                    <span>Fluxo comercial em aberto</span>
                 </div>
             </div>
 
             <div class="card stat-card">
                 <div class="card-icon">✓</div>
                 <div class="card-info">
-                    <p>{{ resumo.concretizadas }}</p>
-                    <h3>Concretizadas</h3>
-                    <span>{% if resumo.concretizadas == 1 %}1 venda concretizada{% elif resumo.concretizadas > 1 %}{{ resumo.concretizadas }} vendas concretizadas{% else %}Nenhuma venda concretizada{% endif %}</span>
+                    <p>{{ resumo.finalizadas|default(0) }}</p>
+                    <h3>Finalizadas</h3>
+                    <span>Concretizadas pelo status finalizador</span>
                 </div>
             </div>
         </section>
@@ -542,10 +548,9 @@ Motivo: Adicionar filtros avançados sem alterar os botões de ações e padroni
                     <div class="form-group">
                         <label for="venda_status">Situação</label>
                         <select id="venda_status" name="venda_status" class="form-control">
-                            <option value="aberta" {% if (venda_preparada.get('status') or 'aberta') == 'aberta' %}selected{% endif %}>Aberta</option>
-                            <option value="concretizada" {% if venda_preparada.get('status') in ['concretizada', 'finalizada'] %}selected{% endif %}>Concretizada</option>
-                            <option value="cancelada" {% if venda_preparada.get('status') == 'cancelada' %}selected{% endif %}>Cancelada</option>
-                        </select>
+                            {% for status in venda_status_opcoes|default([]) %}{% if not status.final %}
+                                <option value="{{ status.codigo }}" data-final="{{ 1 if status.final else 0 }}" data-bg="{{ status.fundo }}" data-text="{{ status.texto }}" data-border="{{ status.borda }}" {% if venda_preparada.get('status')|default(venda_status_inicial, true) == status.codigo %}selected{% endif %}>{{ status.nome }}</option>
+                            {% endif %}{% endfor %}</select>
                     </div>
                 </div>
             </section>
@@ -788,17 +793,21 @@ Motivo: Adicionar filtros avançados sem alterar os botões de ações e padroni
                                     <td>{{ venda.numero }}</td>
                                     <td>{{ venda.cliente }}</td>
                                     <td>{{ venda.tipo }}</td>
-                                    <td><span class="status-pill {{ venda.status }}">{{ venda.status }}</span></td>
+                                    <td>
+                                        <select class="gf-status-select" data-status-operacional data-status-url="/vendas/{{ venda.id }}/status" data-current="{{ venda.status }}" data-final-message="Concretizar esta Venda? Após confirmar, o GestFlow executará estoque e financeiro conforme as configurações e bloqueará alterações." style="--status-bg:{{ venda.status_fundo }};--status-text:{{ venda.status_texto_cor }};--status-border:{{ venda.status_borda }};" {% if venda.status_finalizado %}disabled{% endif %}>
+                                            {% for status in venda_status_opcoes|default([]) %}<option value="{{ status.codigo }}" data-final="{{ 1 if status.final else 0 }}" data-bg="{{ status.fundo }}" data-text="{{ status.texto }}" data-border="{{ status.borda }}" {% if venda.status == status.codigo %}selected{% endif %}>{{ status.nome }}</option>{% endfor %}
+                                        </select>
+                                    </td>
                                     <td>{{ venda.data }}</td>
                                     <td>{{ venda.valor_total }}</td>
                                     <td>
                                         <div class="action-buttons">
                                             <a href="/vendas/{{ venda.id }}" title="Ver venda" aria-label="Ver venda" class="action-button view" style="text-decoration:none;">🔍</a>
-                                            {% if venda.status|string|lower not in ['concretizada', 'finalizada', 'cancelada'] %}
+                                            {% if not venda.status_finalizado %}
                                             <a href="/vendas/{{ venda.id }}/editar" title="Editar venda" aria-label="Editar venda" class="action-button edit" style="text-decoration:none;">✎</a>
                                             {% endif %}
                                             <a href="/whatsapp/pdf/venda/{{ venda.id }}" title="Enviar PDF pelo WhatsApp" aria-label="Enviar PDF pelo WhatsApp" class="action-button" style="background:#128c7e;color:#fff;text-decoration:none;">📲</a>
-                                            {% if venda.status|string|lower not in ['concretizada', 'finalizada', 'cancelada'] %}
+                                            {% if not venda.status_finalizado %}
                                             <form action="/vendas/{{ venda.id }}/excluir" method="post" style="display:inline;" onsubmit="return confirm('Excluir esta venda?');">
                                                 <button type="submit" title="Excluir venda" aria-label="Excluir venda" class="action-button delete">×</button>
                                             </form>
@@ -2027,6 +2036,61 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     });
 });
+</script>
+
+
+<script>
+(function gestflowStatusOperacional() {
+    function aplicarCor(select) {
+        const opcao = select.options[select.selectedIndex];
+        if (!opcao) return;
+        select.style.setProperty('--status-bg', opcao.dataset.bg || '#f1f5f9');
+        select.style.setProperty('--status-text', opcao.dataset.text || '#334155');
+        select.style.setProperty('--status-border', opcao.dataset.border || '#cbd5e1');
+    }
+
+    async function alterarStatus(select) {
+        const anterior = select.dataset.current || '';
+        const opcao = select.options[select.selectedIndex];
+        if (!opcao || select.value === anterior) { aplicarCor(select); return; }
+        const finalizador = opcao.dataset.final === '1';
+        if (finalizador) {
+            const mensagem = select.dataset.finalMessage || 'Confirmar a finalização deste registro?';
+            if (!window.confirm(mensagem)) {
+                select.value = anterior;
+                aplicarCor(select);
+                return;
+            }
+        }
+        select.disabled = true;
+        const dados = new URLSearchParams();
+        dados.append('status', select.value);
+        if (finalizador) dados.append('confirmar_finalizacao', 'sim');
+        try {
+            const resposta = await fetch(select.dataset.statusUrl, {
+                method: 'POST',
+                headers: {'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},
+                body: dados.toString()
+            });
+            const payload = await resposta.json();
+            if (!resposta.ok || !payload.ok) throw new Error(payload.erro || 'Não foi possível alterar o status.');
+            select.dataset.current = payload.status || select.value;
+            aplicarCor(select);
+            if (payload.mensagem) window.alert(payload.mensagem);
+            window.location.reload();
+        } catch (erro) {
+            select.value = anterior;
+            aplicarCor(select);
+            select.disabled = false;
+            window.alert(erro.message || 'Não foi possível alterar o status.');
+        }
+    }
+
+    document.querySelectorAll('[data-status-operacional]').forEach(function(select) {
+        aplicarCor(select);
+        select.addEventListener('change', function() { alterarStatus(select); });
+    });
+})();
 </script>
 
     {% include "partials/lista_avancada.html" %}
