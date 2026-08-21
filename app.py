@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-20 21:09 (America/Bahia)
-# Motivo: Padronizar status configuráveis em Vendas, Ordens de Serviço e Compras, removendo regras por nome e reforçando finalização única e atômica.
+# Último recode: 2026-08-20 21:40 (America/Bahia)
+# Motivo: Reparar erro 500 removendo dependência indevida de finalizado_em na tabela orcamentos; a finalização permanece determinada pela Venda vinculada.
 
 from __future__ import annotations
 
@@ -10904,7 +10904,6 @@ def salvar_orcamento_db(
                 introducao,
                 tipo,
                 status,
-                finalizado_em,
                 total_produtos,
                 total_servicos,
                 desconto_valor,
@@ -11014,7 +11013,6 @@ def listar_orcamentos() -> list[dict[str, Any]]:
                 introducao,
                 tipo,
                 status,
-                finalizado_em,
                 total_produtos,
                 total_servicos,
                 desconto_valor,
@@ -12012,7 +12010,6 @@ def buscar_orcamento_por_id(orcamento_id: int) -> dict[str, Any] | None:
                 introducao,
                 tipo,
                 status,
-                finalizado_em,
                 total_produtos,
                 total_servicos,
                 desconto_valor,
