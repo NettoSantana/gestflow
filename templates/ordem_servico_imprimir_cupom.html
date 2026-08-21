@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordem_servico_imprimir_cupom.html
-Último recode: 2026-08-20 21:09 (America/Bahia)
-Motivo: Exibir nos documentos impressos o nome do status configurável do módulo.
+Último recode: 2026-07-23 00:18 (America/Bahia)
+Motivo: Aplicar termos, assinatura e rodapé configurados por empresa no cupom.
 -->
 
 <!DOCTYPE html>
@@ -59,7 +59,7 @@ Motivo: Exibir nos documentos impressos o nome do status configurável do módul
         <div class="row"><span class="label">Cliente</span><span class="value">{{ cliente_nome or '-' }}</span></div>
         <div class="row"><span class="label">CNPJ/CPF</span><span class="value">{{ cliente_doc }}</span></div>
         <div class="row"><span class="label">Telefone</span><span class="value">{{ cliente_tel }}</span></div>
-        <div class="row"><span class="label">Status</span><span class="value">{{ os.status_nome|default(os.status, true) or '-' }}</span></div>
+        <div class="row"><span class="label">Status</span><span class="value">{{ os.status or '-' }}</span></div>
         <div class="row"><span class="label">Entrada</span><span class="value">{{ os.data_abertura or '-' }} {{ os.hora_entrada or '' }}</span></div>
         <div class="row"><span class="label">Técnico</span><span class="value">{{ os.tecnico or '-' }}</span></div>
         <div class="line"></div>

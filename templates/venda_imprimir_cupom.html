@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\venda_imprimir_cupom.html
-Último recode: 2026-08-20 21:09 (America/Bahia)
-Motivo: Exibir nos documentos impressos o nome do status configurável do módulo.
+Último recode: 2026-07-23 00:18 (America/Bahia)
+Motivo: Aplicar rodapé e política comercial configurados por empresa no cupom.
 -->
 
 <!DOCTYPE html>
@@ -149,7 +149,7 @@ Motivo: Exibir nos documentos impressos o nome do status configurável do módul
             <div class="row"><span class="label">CPF/CNPJ</span><span class="value">{{ cliente.documento if cliente and cliente.documento else '-' }}</span></div>
             <div class="row"><span class="label">Telefone</span><span class="value">{{ cliente.telefone if cliente and cliente.telefone else '-' }}</span></div>
             <div class="row"><span class="label">Data</span><span class="value">{{ venda.data or '-' }}</span></div>
-            <div class="row"><span class="label">Situação</span><span class="value">{{ venda.status_nome|default(venda.status, true) or '-' }}</span></div>
+            <div class="row"><span class="label">Situação</span><span class="value">{{ venda.status or '-' }}</span></div>
             <div class="row"><span class="label">Condição</span><span class="value">{{ venda.condicao_pagamento or 'avista' }}</span></div>
             <div class="row"><span class="label">Meio</span><span class="value">{{ venda.meio_pagamento or venda.forma_pagamento or '-' }}</span></div>
         </section>

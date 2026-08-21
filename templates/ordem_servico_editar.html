@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordem_servico_editar.html
-Último recode: 2026-08-20 21:09 (America/Bahia)
-Motivo: Usar status configuráveis na edição da OS e centralizar a finalização no seletor com confirmação.
+Último recode: 2026-07-22 12:02 (America/Bahia)
+Motivo: Proteger o número da OS, ampliar observações e impedir atualização acidental pela tecla Enter.
 -->
 
 <!DOCTYPE html>
@@ -486,23 +486,6 @@ Motivo: Usar status configuráveis na edição da OS e centralizar a finalizaç�
                 min-width: 920px;
             }
         }
-
-
-        .gf-status-select {
-            min-width: 132px;
-            max-width: 190px;
-            height: 34px;
-            padding: 0 30px 0 10px;
-            border: 1px solid var(--status-border, #cbd5e1);
-            border-radius: 999px;
-            background-color: var(--status-bg, #f1f5f9);
-            color: var(--status-text, #334155);
-            font: inherit;
-            font-size: 12px;
-            font-weight: 850;
-            cursor: pointer;
-        }
-        .gf-status-select:disabled { cursor: default; opacity: .82; }
 
     </style>
 
@@ -1046,10 +1029,7 @@ Motivo: Usar status configuráveis na edição da OS e centralizar a finalizaç�
                             <option value="__novo_cliente__" class="quick-new-option">+ Adicionar novo cliente</option>
                         </select>
                     </div>
-                        <div class="form-group"><label for="os_status">Situação</label><select id="os_status" name="os_status" class="gf-status-select" data-status-operacional data-status-url="/ordens-servico/{{ os.id }}/status" data-current="{{ os.status }}" data-final-message="Concluir esta Ordem de Serviço? Após confirmar, a OS será bloqueada e as integrações finais configuradas serão executadas." style="--status-bg:{{ os.status_fundo }};--status-text:{{ os.status_texto_cor }};--status-border:{{ os.status_borda }};" required>
-                            {% for status in os_status_opcoes|default([]) %}
-                                <option value="{{ status.codigo }}" data-final="{{ 1 if status.final else 0 }}" data-bg="{{ status.fundo }}" data-text="{{ status.texto }}" data-border="{{ status.borda }}" {% if os.status == status.codigo %}selected{% endif %}>{{ status.nome }}</option>
-                            {% endfor %}</select><small style="display:block;margin-top:5px;color:#64748b;">A situação é salva imediatamente. O status finalizador exige confirmação.</small></div>
+                        <div class="form-group"><label for="os_status">Situação</label><select id="os_status" name="os_status" class="form-control" required><option value="aberta" {% if os.status == 'aberta' %}selected{% endif %}>Em aberto</option><option value="andamento" {% if os.status == 'andamento' %}selected{% endif %}>Em andamento</option><option value="aguardando" {% if os.status == 'aguardando' %}selected{% endif %}>Aguardando</option><option value="finalizada" {% if os.status == 'finalizada' %}selected{% endif %}>Finalizada</option><option value="cancelada" {% if os.status == 'cancelada' %}selected{% endif %}>Cancelada</option></select></div>
                         <div class="form-group"><label for="os_data_abertura">Entrada</label><input id="os_data_abertura" name="os_data_abertura" type="date" value="{{ os.data_abertura or '' }}" class="form-control" required></div>
                         <div class="form-group"><label for="os_hora_entrada">Hora de entrada</label><input id="os_hora_entrada" name="os_hora_entrada" type="time" value="{{ os.hora_entrada or '' }}" class="form-control"></div>
                         <div class="form-group"><label for="os_data_saida">Saída</label><input id="os_data_saida" name="os_data_saida" type="date" value="{{ os.data_saida or '' }}" class="form-control"></div>
@@ -3278,61 +3258,6 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     });
 });
-</script>
-
-
-<script>
-(function gestflowStatusOperacional() {
-    function aplicarCor(select) {
-        const opcao = select.options[select.selectedIndex];
-        if (!opcao) return;
-        select.style.setProperty('--status-bg', opcao.dataset.bg || '#f1f5f9');
-        select.style.setProperty('--status-text', opcao.dataset.text || '#334155');
-        select.style.setProperty('--status-border', opcao.dataset.border || '#cbd5e1');
-    }
-
-    async function alterarStatus(select) {
-        const anterior = select.dataset.current || '';
-        const opcao = select.options[select.selectedIndex];
-        if (!opcao || select.value === anterior) { aplicarCor(select); return; }
-        const finalizador = opcao.dataset.final === '1';
-        if (finalizador) {
-            const mensagem = select.dataset.finalMessage || 'Confirmar a finalização deste registro?';
-            if (!window.confirm(mensagem)) {
-                select.value = anterior;
-                aplicarCor(select);
-                return;
-            }
-        }
-        select.disabled = true;
-        const dados = new URLSearchParams();
-        dados.append('status', select.value);
-        if (finalizador) dados.append('confirmar_finalizacao', 'sim');
-        try {
-            const resposta = await fetch(select.dataset.statusUrl, {
-                method: 'POST',
-                headers: {'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},
-                body: dados.toString()
-            });
-            const payload = await resposta.json();
-            if (!resposta.ok || !payload.ok) throw new Error(payload.erro || 'Não foi possível alterar o status.');
-            select.dataset.current = payload.status || select.value;
-            aplicarCor(select);
-            if (payload.mensagem) window.alert(payload.mensagem);
-            window.location.reload();
-        } catch (erro) {
-            select.value = anterior;
-            aplicarCor(select);
-            select.disabled = false;
-            window.alert(erro.message || 'Não foi possível alterar o status.');
-        }
-    }
-
-    document.querySelectorAll('[data-status-operacional]').forEach(function(select) {
-        aplicarCor(select);
-        select.addEventListener('change', function() { alterarStatus(select); });
-    });
-})();
 </script>
 
 </body>

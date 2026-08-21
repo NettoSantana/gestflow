@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-20 21:09 (America/Bahia)
-# Motivo: Padronizar status configuráveis em Vendas, Ordens de Serviço e Compras, removendo regras por nome e reforçando finalização única e atômica.
+# Último recode: 2026-08-20 20:09 (America/Bahia)
+# Motivo: Corrigir o filtro da lista de Orçamentos para que status vazio signifique Todos, sem ocultar orçamentos após mudança de status.
 
 from __future__ import annotations
 
@@ -512,9 +512,7 @@ CONFIGURACOES_MODULOS_DEFINICOES = [
         "campos": [
             _campo_configuracao_modulo("prefixo_numero", "Prefixo da numeração", "texto", "VEN", secao="Numeração"),
             _campo_configuracao_modulo("tipos_venda", "Tipos de venda", "lista", "Produtos\nServiços\nMista", secao="Fluxo"),
-            _campo_configuracao_modulo("situacoes", "Situações", "lista", "Aberta\nEm andamento\nCancelada\nConcretizada", secao="Fluxo"),
-            _campo_configuracao_modulo("situacoes_config_json", "Configuração visual dos status", "texto_longo", "", secao="Fluxo", ajuda="Gerenciado pela tela visual de status de Vendas."),
-            _campo_configuracao_modulo("situacao_finalizadora", "Status finalizador", "texto", "concretizada", secao="Fluxo", ajuda="Somente um status pode concretizar a Venda."),
+            _campo_configuracao_modulo("situacoes", "Situações", "lista", "Aberta\nConcretizada\nCancelada", secao="Fluxo"),
             _campo_configuracao_modulo("vendedor_padrao", "Vendedor padrão", "texto", "", secao="Padrões"),
             _campo_configuracao_modulo("tabela_preco_padrao", "Tabela de preço padrão", "texto", "Padrão", secao="Valores"),
             _campo_configuracao_modulo("desconto_maximo_percentual", "Desconto máximo (%)", "numero", 100, secao="Valores", minimo=0, maximo=100),
@@ -567,9 +565,7 @@ CONFIGURACOES_MODULOS_DEFINICOES = [
         "descricao": "Fluxo técnico, equipamentos, checklists, evidências, materiais e documentos.",
         "campos": [
             _campo_configuracao_modulo("prefixo_numero", "Prefixo da numeração", "texto", "OS", secao="Numeração"),
-            _campo_configuracao_modulo("situacoes", "Situações", "lista", "Aberta\nEm andamento\nAguardando\nCancelada\nConcluída", secao="Fluxo"),
-            _campo_configuracao_modulo("situacoes_config_json", "Configuração visual dos status", "texto_longo", "", secao="Fluxo", ajuda="Gerenciado pela tela visual de status das Ordens de Serviço."),
-            _campo_configuracao_modulo("situacao_finalizadora", "Status finalizador", "texto", "finalizada", secao="Fluxo", ajuda="Somente um status pode concluir a OS e executar as integrações finais."),
+            _campo_configuracao_modulo("situacoes", "Situações", "lista", "Aberta\nEm andamento\nAguardando\nConcluída\nCancelada", secao="Fluxo"),
             _campo_configuracao_modulo("prioridades", "Prioridades", "lista", "Baixa\nNormal\nAlta\nUrgente", secao="Fluxo"),
             _campo_configuracao_modulo("tipos_os", "Tipos de OS", "lista", "Corretiva\nPreventiva\nInstalação\nInspeção\nGarantia", secao="Classificações"),
             _campo_configuracao_modulo("tipos_atendimento", "Tipos de atendimento", "lista", "Interno\nExterno\nRemoto", secao="Classificações"),
@@ -640,9 +636,7 @@ CONFIGURACOES_MODULOS_DEFINICOES = [
         "descricao": "Pedidos, aprovações, recebimentos, custos, estoque e financeiro.",
         "campos": [
             _campo_configuracao_modulo("prefixo_numero", "Prefixo da numeração", "texto", "COMP", secao="Numeração"),
-            _campo_configuracao_modulo("situacoes", "Situações", "lista", "Rascunho\nPedido\nRecebida parcialmente\nCancelada\nRecebida", secao="Fluxo"),
-            _campo_configuracao_modulo("situacoes_config_json", "Configuração visual dos status", "texto_longo", "", secao="Fluxo", ajuda="Gerenciado pela tela visual de status de Compras."),
-            _campo_configuracao_modulo("situacao_finalizadora", "Status finalizador", "texto", "recebida", secao="Fluxo", ajuda="Somente um status pode receber a Compra e efetivar estoque/financeiro."),
+            _campo_configuracao_modulo("situacoes", "Situações", "lista", "Rascunho\nPedido\nRecebida parcialmente\nRecebida\nCancelada", secao="Fluxo"),
             _campo_configuracao_modulo("tipos_compra", "Tipos de compra", "lista", "Mercadoria\nUso e consumo\nAtivo\nServiço", secao="Classificações"),
             _campo_configuracao_modulo("comprador_padrao", "Comprador responsável", "texto", "", secao="Responsáveis"),
             _campo_configuracao_modulo("fornecedor_padrao_produto", "Usar fornecedor padrão do produto", "booleano", True, secao="Fornecedores"),
@@ -1341,228 +1335,6 @@ def opcoes_transicao_status_orcamento(valor_atual: Any) -> list[dict[str, Any]]:
     if not any(item["codigo"] == atual["codigo"] for item in opcoes):
         return [atual, *opcoes]
     return opcoes
-
-STATUS_OPERACIONAL_MODULOS = {
-    "vendas": {
-        "nome": "Vendas",
-        "singular": "Venda",
-        "finalizador_padrao": "concretizada",
-        "acao_finalizador": "Concretiza a Venda",
-        "descricao_finalizador": "Concretiza a Venda, baixa o estoque e gera o financeiro conforme as configurações.",
-        "voltar_endpoint": "vendas",
-        "tabela": "vendas",
-        "padrao": [
-            {"codigo": "aberta", "nome": "Aberta", "cor": "cinza"},
-            {"codigo": "andamento", "nome": "Em andamento", "cor": "azul"},
-            {"codigo": "cancelada", "nome": "Cancelada", "cor": "vermelho"},
-            {"codigo": "concretizada", "nome": "Concretizada", "cor": "verde"},
-        ],
-        "aliases": {"finalizada": "concretizada", "finalizado": "concretizada"},
-    },
-    "ordens_servico": {
-        "nome": "Ordens de Serviço",
-        "singular": "Ordem de Serviço",
-        "finalizador_padrao": "finalizada",
-        "acao_finalizador": "Conclui a OS",
-        "descricao_finalizador": "Conclui a Ordem de Serviço e executa as integrações finais configuradas.",
-        "voltar_endpoint": "ordens_servico",
-        "tabela": "ordens_servico",
-        "padrao": [
-            {"codigo": "aberta", "nome": "Aberta", "cor": "cinza"},
-            {"codigo": "andamento", "nome": "Em andamento", "cor": "azul"},
-            {"codigo": "aguardando", "nome": "Aguardando", "cor": "amarelo"},
-            {"codigo": "cancelada", "nome": "Cancelada", "cor": "vermelho"},
-            {"codigo": "finalizada", "nome": "Concluída", "cor": "verde"},
-        ],
-        "aliases": {
-            "em_andamento": "andamento", "concluida": "finalizada", "concluido": "finalizada",
-            "finalizado": "finalizada", "cancelado": "cancelada",
-        },
-    },
-    "compras": {
-        "nome": "Compras",
-        "singular": "Compra",
-        "finalizador_padrao": "recebida",
-        "acao_finalizador": "Recebe a Compra",
-        "descricao_finalizador": "Recebe a Compra e efetiva a entrada de estoque e o financeiro conforme as configurações.",
-        "voltar_endpoint": "estoque",
-        "voltar_kwargs": {"aba": "compras"},
-        "tabela": "estoque_movimentacoes",
-        "padrao": [
-            {"codigo": "rascunho", "nome": "Rascunho", "cor": "cinza"},
-            {"codigo": "pedido", "nome": "Pedido", "cor": "azul"},
-            {"codigo": "recebida_parcialmente", "nome": "Recebida parcialmente", "cor": "amarelo"},
-            {"codigo": "cancelada", "nome": "Cancelada", "cor": "vermelho"},
-            {"codigo": "recebida", "nome": "Recebida", "cor": "verde"},
-        ],
-        "aliases": {"recebido": "recebida", "cancelado": "cancelada"},
-    },
-}
-
-
-def _codigo_status_operacional(modulo: str, valor: Any) -> str:
-    codigo = _codigo_status_orcamento(valor)
-    definicao = STATUS_OPERACIONAL_MODULOS.get(str(modulo or "").strip(), {})
-    aliases = definicao.get("aliases") or {}
-    return str(aliases.get(codigo, codigo))[:48]
-
-
-def _normalizar_lista_status_operacional(modulo: str, itens: Any) -> list[dict[str, str]]:
-    if not isinstance(itens, list):
-        return []
-    resultado: list[dict[str, str]] = []
-    codigos_usados: set[str] = set()
-    nomes_usados: set[str] = set()
-    for indice, item in enumerate(itens):
-        if not isinstance(item, dict):
-            continue
-        nome = re.sub(r"\s+", " ", str(item.get("nome") or "").strip())[:40]
-        if not nome:
-            continue
-        codigo = _codigo_status_operacional(modulo, item.get("codigo") or nome) or f"status_{indice + 1}"
-        base = codigo
-        sufixo = 2
-        while codigo in codigos_usados:
-            codigo = f"{base}_{sufixo}"[:48]
-            sufixo += 1
-        chave_nome = _codigo_status_orcamento(nome)
-        if chave_nome in nomes_usados:
-            continue
-        cor = str(item.get("cor") or "cinza").strip().lower()
-        if cor not in ORCAMENTO_STATUS_CORES_POR_CODIGO:
-            cor = "cinza"
-        codigos_usados.add(codigo)
-        nomes_usados.add(chave_nome)
-        resultado.append({"codigo": codigo, "nome": nome, "cor": cor})
-    return resultado
-
-
-def configuracao_status_operacional(modulo: str, empresa_id: int | None = None) -> dict[str, Any]:
-    modulo = str(modulo or "").strip()
-    definicao = STATUS_OPERACIONAL_MODULOS.get(modulo)
-    if definicao is None:
-        return {"itens": [], "finalizador": ""}
-    try:
-        valores = buscar_configuracoes_modulo(modulo, empresa_id)
-    except NameError:
-        valores = {}
-    itens: list[dict[str, str]] = []
-    bruto_json = str(valores.get("situacoes_config_json") or "").strip()
-    if bruto_json:
-        try:
-            itens = _normalizar_lista_status_operacional(modulo, json.loads(bruto_json))
-        except (TypeError, ValueError, json.JSONDecodeError):
-            itens = []
-    if not itens:
-        situacoes = valores.get("situacoes", "")
-        if isinstance(situacoes, list):
-            nomes = [str(item).strip() for item in situacoes if str(item).strip()]
-        else:
-            nomes = [linha.strip() for linha in str(situacoes or "").splitlines() if linha.strip()]
-        padroes = {str(item["codigo"]): item for item in definicao["padrao"]}
-        montados = []
-        for nome in nomes:
-            codigo = _codigo_status_operacional(modulo, nome)
-            padrao = padroes.get(codigo, {})
-            montados.append({"codigo": codigo, "nome": nome, "cor": padrao.get("cor", "cinza")})
-        itens = _normalizar_lista_status_operacional(modulo, montados)
-    if not itens:
-        itens = [dict(item) for item in definicao["padrao"]]
-    finalizador = _codigo_status_operacional(
-        modulo, valores.get("situacao_finalizadora") or definicao["finalizador_padrao"]
-    )
-    codigos = {item["codigo"] for item in itens}
-    if finalizador not in codigos:
-        padrao_final = next(
-            (dict(item) for item in definicao["padrao"] if item["codigo"] == definicao["finalizador_padrao"]),
-            {"codigo": definicao["finalizador_padrao"], "nome": "Finalizado", "cor": "verde"},
-        )
-        if padrao_final["codigo"] not in codigos:
-            itens.append(padrao_final)
-        finalizador = str(definicao["finalizador_padrao"])
-    resultado: list[dict[str, Any]] = []
-    for item in itens:
-        cor = _status_cor_orcamento(item.get("cor"))
-        resultado.append({
-            **item,
-            "final": item["codigo"] == finalizador,
-            "cor_nome": cor["nome"], "fundo": cor["fundo"], "texto": cor["texto"], "borda": cor["borda"],
-        })
-    return {"itens": resultado, "finalizador": finalizador}
-
-
-def listar_status_operacional_configurados(modulo: str, empresa_id: int | None = None) -> list[dict[str, Any]]:
-    return [dict(item) for item in configuracao_status_operacional(modulo, empresa_id)["itens"]]
-
-
-def status_inicial_operacional(modulo: str, empresa_id: int | None = None) -> str:
-    itens = listar_status_operacional_configurados(modulo, empresa_id)
-    for item in itens:
-        if not item.get("final"):
-            return str(item["codigo"])
-    return str(itens[0]["codigo"]) if itens else ""
-
-
-def normalizar_status_operacional(modulo: str, valor: Any, padrao: str | None = None) -> str:
-    configurados = {item["codigo"] for item in listar_status_operacional_configurados(modulo)}
-    valor_texto = str(valor or "").strip()
-    if not valor_texto:
-        if padrao == "":
-            return ""
-        candidato = _codigo_status_operacional(modulo, padrao or status_inicial_operacional(modulo))
-        return candidato if candidato in configurados else status_inicial_operacional(modulo)
-    codigo = _codigo_status_operacional(modulo, valor_texto)
-    if codigo in configurados:
-        return codigo
-    if padrao == "":
-        return ""
-    candidato = _codigo_status_operacional(modulo, padrao or status_inicial_operacional(modulo))
-    return candidato if candidato in configurados else status_inicial_operacional(modulo)
-
-
-def _dados_status_operacional(modulo: str, valor: Any) -> dict[str, Any]:
-    codigo = _codigo_status_operacional(modulo, valor) or status_inicial_operacional(modulo)
-    for item in listar_status_operacional_configurados(modulo):
-        if item["codigo"] == codigo:
-            return dict(item)
-    cor = _status_cor_orcamento("cinza")
-    return {
-        "codigo": codigo, "nome": str(valor or codigo.replace("_", " ").title()), "cor": "cinza",
-        "cor_nome": cor["nome"], "fundo": cor["fundo"], "texto": cor["texto"], "borda": cor["borda"],
-        "final": False, "legado": True,
-    }
-
-
-def nome_status_operacional(modulo: str, valor: Any) -> str:
-    return str(_dados_status_operacional(modulo, valor).get("nome") or "Status")
-
-
-def status_final_operacional(modulo: str, valor: Any) -> bool:
-    return bool(_dados_status_operacional(modulo, valor).get("final"))
-
-
-def status_opcoes_operacional(modulo: str, valor_atual: Any = "") -> list[dict[str, Any]]:
-    opcoes = listar_status_operacional_configurados(modulo)
-    atual = _dados_status_operacional(modulo, valor_atual) if str(valor_atual or "").strip() else None
-    if atual and not any(item["codigo"] == atual["codigo"] for item in opcoes):
-        return [atual, *opcoes]
-    return opcoes
-
-
-def enriquecer_status_operacional(modulo: str, registro: dict[str, Any]) -> dict[str, Any]:
-    item = dict(registro)
-    dados = _dados_status_operacional(modulo, item.get("status"))
-    item["status"] = dados["codigo"]
-    item["status_nome"] = dados["nome"]
-    item["status_cor"] = dados["cor"]
-    item["status_fundo"] = dados["fundo"]
-    item["status_texto"] = dados["texto"]
-    item["status_texto_cor"] = dados["texto"]
-    item["status_borda"] = dados["borda"]
-    item["status_finalizador"] = bool(dados.get("final"))
-    item["status_finalizado"] = bool(str(item.get("finalizado_em") or "").strip())
-    item["status_opcoes"] = status_opcoes_operacional(modulo, item.get("status"))
-    return item
 
 GESTFLOW_SEGMENTOS = [
     {"codigo": "mercadinho", "nome": "Mercadinho / Mercearia", "grupo": "Comércio / Varejo", "perfil": "comercio"},
@@ -3680,7 +3452,7 @@ def sincronizar_notificacoes_usuario_atual() -> None:
                 WHERE empresa_id = ?
                   AND COALESCE(data_previsao, '') <> ''
                   AND data_previsao <= ?
-                  AND finalizado_em IS NULL
+                  AND status NOT IN ('finalizada', 'cancelada')
                 ORDER BY data_previsao ASC, id DESC
                 LIMIT 100
                 """,
@@ -4632,7 +4404,6 @@ def iniciar_banco() -> None:
                 centro_custo TEXT,
                 tipo TEXT NOT NULL DEFAULT 'misto',
                 status TEXT NOT NULL DEFAULT 'aberta',
-                finalizado_em TEXT,
                 total_produtos TEXT,
                 total_servicos TEXT,
                 desconto_valor TEXT,
@@ -4725,7 +4496,6 @@ def iniciar_banco() -> None:
                 origem_orcamento_id INTEGER,
                 tipo TEXT NOT NULL DEFAULT 'misto',
                 status TEXT NOT NULL DEFAULT 'aberta',
-                finalizado_em TEXT,
                 prioridade TEXT NOT NULL DEFAULT 'normal',
                 total_produtos TEXT,
                 total_servicos TEXT,
@@ -4878,8 +4648,6 @@ def iniciar_banco() -> None:
                 documento TEXT,
                 responsavel TEXT,
                 observacoes TEXT,
-                status TEXT,
-                finalizado_em TEXT,
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (produto_id) REFERENCES produtos (id)
             )
@@ -6433,7 +6201,6 @@ def iniciar_banco() -> None:
             "origem_orcamento_id": "INTEGER",
             "origem_vitrine_pedido_id": "INTEGER",
             "origem_vitrine_agendamento_id": "INTEGER",
-            "finalizado_em": "TEXT",
         }
         for coluna, tipo_coluna in colunas_vendas_pagamento.items():
             if coluna not in colunas_vendas_pagamento_existentes:
@@ -6453,14 +6220,6 @@ def iniciar_banco() -> None:
             """
         )
 
-        conn.execute(
-            """
-            UPDATE vendas
-            SET finalizado_em = COALESCE(finalizado_em, criado_em, CURRENT_TIMESTAMP)
-            WHERE finalizado_em IS NULL
-              AND LOWER(TRIM(COALESCE(status, ''))) IN ('concretizada', 'finalizada', 'finalizado')
-            """
-        )
         conn.execute(
             """
             UPDATE vendas
@@ -6686,7 +6445,6 @@ def iniciar_banco() -> None:
             "desconto_valor": "TEXT",
             "exibir_valor_impressao": "TEXT",
             "origem_orcamento_id": "INTEGER",
-            "finalizado_em": "TEXT",
         }
         colunas_existentes = {
             str(row["name"])
@@ -6696,33 +6454,6 @@ def iniciar_banco() -> None:
         for coluna, tipo_coluna in colunas_ordens_servico.items():
             if coluna not in colunas_existentes:
                 conn.execute(f"ALTER TABLE ordens_servico ADD COLUMN {coluna} {tipo_coluna}")
-
-        conn.execute(
-            """
-            UPDATE ordens_servico
-            SET finalizado_em = COALESCE(finalizado_em, criado_em, CURRENT_TIMESTAMP)
-            WHERE finalizado_em IS NULL
-              AND LOWER(TRIM(COALESCE(status, ''))) IN ('concluida', 'concluído', 'concluido', 'finalizada', 'finalizado')
-            """
-        )
-
-        colunas_estoque_movimentacoes = {
-            str(row["name"])
-            for row in conn.execute("PRAGMA table_info(estoque_movimentacoes)").fetchall()
-        }
-        if "status" not in colunas_estoque_movimentacoes:
-            conn.execute("ALTER TABLE estoque_movimentacoes ADD COLUMN status TEXT")
-        if "finalizado_em" not in colunas_estoque_movimentacoes:
-            conn.execute("ALTER TABLE estoque_movimentacoes ADD COLUMN finalizado_em TEXT")
-        conn.execute(
-            """
-            UPDATE estoque_movimentacoes
-            SET status = COALESCE(NULLIF(TRIM(status), ''), 'recebida'),
-                finalizado_em = COALESCE(finalizado_em, criado_em, CURRENT_TIMESTAMP)
-            WHERE motivo LIKE 'Compra de produto%'
-              AND (status IS NULL OR TRIM(status) = '')
-            """
-        )
 
         colunas_fotos_equipamento = {
             str(row["name"])
@@ -9456,8 +9187,6 @@ def listar_estoque_movimentacoes(limite: int = 100, produto_id: int | None = Non
             documento,
             responsavel,
             observacoes,
-            status,
-            finalizado_em,
             criado_em
         FROM estoque_movimentacoes
         WHERE empresa_id = ?
@@ -9494,10 +9223,8 @@ def salvar_estoque_movimentacao_db(movimentacao: dict[str, str]) -> int:
                 motivo,
                 documento,
                 responsavel,
-                observacoes,
-                status,
-                finalizado_em
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                observacoes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id,
@@ -9511,8 +9238,6 @@ def salvar_estoque_movimentacao_db(movimentacao: dict[str, str]) -> int:
                 movimentacao["documento"],
                 movimentacao["responsavel"],
                 movimentacao["observacoes"],
-                str(movimentacao.get("status") or "").strip() or None,
-                str(movimentacao.get("finalizado_em") or "").strip() or None,
             ),
         )
 
@@ -9572,7 +9297,6 @@ def normalizar_compra_estoque(registro: dict[str, Any]) -> dict[str, Any]:
     compra["observacoes_compra"] = observacoes
     compra["valor_total_compra"] = _formatar_moeda_brl(quantidade * custo_unitario)
     compra["criado_em_exibicao"] = formatar_data_hora_br(compra.get("criado_em"))
-    compra = enriquecer_status_operacional("compras", compra)
     return compra
 
 
@@ -9595,8 +9319,6 @@ def listar_compras_estoque(limite: int = 200) -> list[dict[str, Any]]:
                 documento,
                 responsavel,
                 observacoes,
-                status,
-                finalizado_em,
                 criado_em
             FROM estoque_movimentacoes
             WHERE empresa_id = ?
@@ -9630,8 +9352,6 @@ def buscar_compra_estoque_por_id(compra_id: int) -> dict[str, Any] | None:
                 documento,
                 responsavel,
                 observacoes,
-                status,
-                finalizado_em,
                 criado_em
             FROM estoque_movimentacoes
             WHERE id = ?
@@ -9655,7 +9375,6 @@ def montar_compra_estoque_formulario() -> dict[str, str]:
         "documento": str(request.form.get("compra_documento") or "").strip(),
         "responsavel": str(request.form.get("compra_responsavel") or "").strip(),
         "observacoes": str(request.form.get("compra_observacoes") or "").strip(),
-        "status": normalizar_status_operacional("compras", request.form.get("compra_status"), status_inicial_operacional("compras")),
     }
 
 
@@ -10033,7 +9752,9 @@ def baixar_estoque_por_venda_db(venda_id: int, venda: dict[str, str], itens: lis
         return
     if "vendas" not in {_texto_comparacao_configuracao(item) for item in lista_configuracao_modulo("estoque", "integracoes")}:
         return
-    if not str(venda.get("finalizado_em") or "").strip() and not status_final_operacional("vendas", venda.get("status")):
+    status_venda = str(venda.get("status") or "").strip()
+
+    if status_venda == "cancelada":
         return
 
     numero_venda = str(venda.get("numero") or venda_id).strip() or str(venda_id)
@@ -10904,7 +10625,6 @@ def salvar_orcamento_db(
                 introducao,
                 tipo,
                 status,
-                finalizado_em,
                 total_produtos,
                 total_servicos,
                 desconto_valor,
@@ -11014,7 +10734,6 @@ def listar_orcamentos() -> list[dict[str, Any]]:
                 introducao,
                 tipo,
                 status,
-                finalizado_em,
                 total_produtos,
                 total_servicos,
                 desconto_valor,
@@ -11449,7 +11168,6 @@ def listar_vendas_paginado(
                 atividade_financeira_id,
                 tipo,
                 status,
-                finalizado_em,
                 total_produtos,
                 total_servicos,
                 desconto_valor,
@@ -11468,15 +11186,17 @@ def listar_vendas_paginado(
             [*parametros, por_pagina, offset],
         ).fetchall()
 
-    return [enriquecer_status_operacional("vendas", dict(row)) for row in rows], int(total or 0)
+    return [dict(row) for row in rows], int(total or 0)
 
 
 def resumir_vendas_cadastradas() -> dict[str, int]:
     empresa_id = empresa_logada_id()
+
     with conectar_db() as conn:
         total = conn.execute("SELECT COUNT(*) AS total FROM vendas WHERE empresa_id = ? AND LOWER(TRIM(COALESCE(status, ''))) <> 'excluida'", (empresa_id,)).fetchone()["total"]
-        abertas = conn.execute("SELECT COUNT(*) AS total FROM vendas WHERE empresa_id = ? AND finalizado_em IS NULL AND LOWER(TRIM(COALESCE(status, ''))) <> 'excluida'", (empresa_id,)).fetchone()["total"]
-        finalizadas = conn.execute("SELECT COUNT(*) AS total FROM vendas WHERE empresa_id = ? AND finalizado_em IS NOT NULL AND LOWER(TRIM(COALESCE(status, ''))) <> 'excluida'", (empresa_id,)).fetchone()["total"]
+        abertas = conn.execute("SELECT COUNT(*) AS total FROM vendas WHERE empresa_id = ? AND status = ? AND LOWER(TRIM(COALESCE(status, ''))) <> 'excluida'", (empresa_id, "aberta")).fetchone()["total"]
+        finalizadas = conn.execute("SELECT COUNT(*) AS total FROM vendas WHERE empresa_id = ? AND status = ? AND LOWER(TRIM(COALESCE(status, ''))) <> 'excluida'", (empresa_id, "concretizada")).fetchone()["total"]
+
     return {"total": int(total or 0), "abertas": int(abertas or 0), "finalizadas": int(finalizadas or 0)}
 
 
@@ -11517,7 +11237,7 @@ ORDENS_SERVICO_ORDENACAO = {
 def montar_filtros_ordens_servico(busca: Any) -> tuple[str, list[Any]]:
     empresa_id = empresa_logada_id()
     termo = str(busca or "").strip()
-    where = "WHERE empresa_id = ? AND LOWER(TRIM(COALESCE(status, ''))) <> 'excluida'"
+    where = "WHERE empresa_id = ?"
     parametros: list[Any] = [empresa_id]
 
     if termo:
@@ -11595,7 +11315,6 @@ def listar_ordens_servico_paginado(
                 origem_orcamento_id,
                 tipo,
                 status,
-                finalizado_em,
                 prioridade,
                 total_produtos,
                 total_servicos,
@@ -11620,16 +11339,18 @@ def listar_ordens_servico_paginado(
             [*parametros, por_pagina, offset],
         ).fetchall()
 
-    return [enriquecer_status_operacional("ordens_servico", dict(row)) for row in rows], int(total or 0)
+    return [dict(row) for row in rows], int(total or 0)
 
 
 def resumir_ordens_servico_cadastradas() -> dict[str, int]:
     empresa_id = empresa_logada_id()
+
     with conectar_db() as conn:
-        total = conn.execute("SELECT COUNT(*) AS total FROM ordens_servico WHERE empresa_id = ? AND LOWER(TRIM(COALESCE(status, ''))) <> 'excluida'", (empresa_id,)).fetchone()["total"]
-        abertas = conn.execute("SELECT COUNT(*) AS total FROM ordens_servico WHERE empresa_id = ? AND LOWER(TRIM(COALESCE(status, ''))) <> 'excluida' AND finalizado_em IS NULL", (empresa_id,)).fetchone()["total"]
-        finalizadas = conn.execute("SELECT COUNT(*) AS total FROM ordens_servico WHERE empresa_id = ? AND LOWER(TRIM(COALESCE(status, ''))) <> 'excluida' AND finalizado_em IS NOT NULL", (empresa_id,)).fetchone()["total"]
-    return {"total": int(total or 0), "abertas": int(abertas or 0), "finalizadas": int(finalizadas or 0)}
+        total = conn.execute("SELECT COUNT(*) AS total FROM ordens_servico WHERE empresa_id = ?", (empresa_id,)).fetchone()["total"]
+        abertas = conn.execute("SELECT COUNT(*) AS total FROM ordens_servico WHERE empresa_id = ? AND status = ?", (empresa_id, "aberta")).fetchone()["total"]
+        andamento = conn.execute("SELECT COUNT(*) AS total FROM ordens_servico WHERE empresa_id = ? AND status = ?", (empresa_id, "andamento")).fetchone()["total"]
+
+    return {"total": int(total or 0), "abertas": int(abertas or 0), "andamento": int(andamento or 0)}
 
 
 def montar_contexto_ordens_servico_paginado() -> dict[str, Any]:
@@ -12012,7 +11733,6 @@ def buscar_orcamento_por_id(orcamento_id: int) -> dict[str, Any] | None:
                 introducao,
                 tipo,
                 status,
-                finalizado_em,
                 total_produtos,
                 total_servicos,
                 desconto_valor,
@@ -13647,7 +13367,7 @@ def validar_venda_para_salvar(venda: dict[str, str], itens: list[dict[str, str]]
         return "O valor total da venda precisa ser maior que zero."
 
     permite_negativo = configuracao_bool("vendas", "permitir_sem_estoque", False) or configuracao_bool("estoque", "permitir_negativo", False)
-    if status_final_operacional("vendas", venda.get("status")) and configuracao_bool("vendas", "baixar_estoque", True) and not permite_negativo:
+    if configuracao_bool("vendas", "baixar_estoque", True) and not permite_negativo:
         for item in itens:
             if str(item.get("tipo_item") or "").strip() != "produto":
                 continue
@@ -14969,7 +14689,8 @@ def proximo_numero_venda(data_venda: Any = None) -> str:
 
 
 def normalizar_status_venda(valor: Any) -> str:
-    return normalizar_status_operacional("vendas", valor, status_inicial_operacional("vendas"))
+    status = str(valor or "").strip().lower()
+    return "concretizada" if status in {"finalizada", "finalizado"} else (status or "aberta")
 
 
 def salvar_venda_db(venda: dict[str, str], itens: list[dict[str, str]]) -> int:
@@ -15004,7 +14725,6 @@ def salvar_venda_db(venda: dict[str, str], itens: list[dict[str, str]]) -> int:
                 atividade_financeira_id,
                 tipo,
                 status,
-                finalizado_em,
                 total_produtos,
                 total_servicos,
                 desconto_valor,
@@ -15021,7 +14741,7 @@ def salvar_venda_db(venda: dict[str, str], itens: list[dict[str, str]]) -> int:
                 intervalo_parcelas,
                 observacoes,
                 observacoes_internas
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id,
@@ -15039,7 +14759,6 @@ def salvar_venda_db(venda: dict[str, str], itens: list[dict[str, str]]) -> int:
                 venda.get("atividade_financeira_id") or None,
                 venda["tipo"],
                 venda["status"],
-                agora_empresa().isoformat(timespec="seconds") if status_final_operacional("vendas", venda["status"]) else None,
                 venda["total_produtos"],
                 venda["total_servicos"],
                 venda["desconto_valor"],
@@ -15167,7 +14886,7 @@ def gerar_venda_por_orcamento_db(orcamento_id: int) -> tuple[int | None, bool]:
         "centro_custo_id": orcamento.get("centro_custo_id") or "",
         "atividade_financeira_id": orcamento.get("atividade_financeira_id") or garantir_atividade_orcamento(orcamento_id) or "",
         "tipo": str(orcamento.get("tipo") or "misto"),
-        "status": configuracao_status_operacional("vendas")["finalizador"],
+        "status": "aberta",
         "total_produtos": str(orcamento.get("total_produtos") or "0,00"),
         "total_servicos": str(orcamento.get("total_servicos") or "0,00"),
         "desconto_valor": str(orcamento.get("desconto_valor") or "0,00"),
@@ -15231,7 +14950,7 @@ def copiar_venda_db(venda_id: int) -> int | None:
         "canal_venda": str(venda_original.get("canal_venda") or ""),
         "centro_custo": str(venda_original.get("centro_custo") or ""),
         "tipo": str(venda_original.get("tipo") or "misto"),
-        "status": status_inicial_operacional("vendas"),
+        "status": "aberta",
         "total_produtos": str(venda_original.get("total_produtos") or "0,00"),
         "total_servicos": str(venda_original.get("total_servicos") or "0,00"),
         "desconto_valor": str(venda_original.get("desconto_valor") or "0,00"),
@@ -15285,7 +15004,6 @@ def listar_vendas() -> list[dict[str, Any]]:
                 centro_custo,
                 tipo,
                 status,
-                finalizado_em,
                 total_produtos,
                 total_servicos,
                 desconto_valor,
@@ -15311,7 +15029,7 @@ def listar_vendas() -> list[dict[str, Any]]:
             (empresa_id,),
         ).fetchall()
 
-    return [enriquecer_status_operacional("vendas", dict(row)) for row in rows]
+    return [dict(row) for row in rows]
 
 def buscar_venda_por_id(venda_id: int) -> dict[str, Any] | None:
     empresa_id = empresa_logada_id()
@@ -15334,7 +15052,6 @@ def buscar_venda_por_id(venda_id: int) -> dict[str, Any] | None:
                 origem_orcamento_id,
                 tipo,
                 status,
-                finalizado_em,
                 total_produtos,
                 total_servicos,
                 desconto_valor,
@@ -15363,7 +15080,7 @@ def buscar_venda_por_id(venda_id: int) -> dict[str, Any] | None:
     if row is None:
         return None
 
-    return enriquecer_status_operacional("vendas", dict(row))
+    return dict(row)
 
 def listar_venda_itens(venda_id: int) -> list[dict[str, Any]]:
     empresa_id = empresa_logada_id()
@@ -15544,7 +15261,7 @@ def montar_venda_formulario(numero_padrao: str = "") -> dict[str, str]:
         "centro_custo_id": (request.form.get("venda_centro_custo_id") or "").strip(),
         "atividade_financeira_id": (request.form.get("venda_atividade_financeira_id") or "").strip(),
         "tipo": (request.form.get("venda_tipo") or "misto").strip() or "misto",
-        "status": normalizar_status_operacional("vendas", request.form.get("venda_status"), status_inicial_operacional("vendas")),
+        "status": normalizar_status_venda(request.form.get("venda_status") or "aberta"),
         "total_produtos": (request.form.get("venda_total_produtos") or "0,00").strip(),
         "total_servicos": (request.form.get("venda_total_servicos") or "0,00").strip(),
         "desconto_valor": (request.form.get("venda_desconto_valor") or "0,00").strip(),
@@ -15743,7 +15460,6 @@ def salvar_ordem_servico_db(ordem_servico: dict[str, str], itens: list[dict[str,
                 origem_orcamento_id,
                 tipo,
                 status,
-                finalizado_em,
                 prioridade,
                 total_produtos,
                 total_servicos,
@@ -15758,7 +15474,7 @@ def salvar_ordem_servico_db(ordem_servico: dict[str, str], itens: list[dict[str,
                 servico_executado,
                 observacoes,
                 observacoes_internas
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 empresa_id,
@@ -15792,7 +15508,6 @@ def salvar_ordem_servico_db(ordem_servico: dict[str, str], itens: list[dict[str,
                 ordem_servico.get("origem_orcamento_id", ""),
                 ordem_servico["tipo"],
                 ordem_servico["status"],
-                None,
                 ordem_servico["prioridade"],
                 ordem_servico["total_produtos"],
                 ordem_servico["total_servicos"],
@@ -16057,7 +15772,6 @@ def listar_ordens_servico() -> list[dict[str, Any]]:
                 origem_orcamento_id,
                 tipo,
                 status,
-                finalizado_em,
                 prioridade,
                 total_produtos,
                 total_servicos,
@@ -16075,13 +15789,12 @@ def listar_ordens_servico() -> list[dict[str, Any]]:
                 criado_em
             FROM ordens_servico
             WHERE empresa_id = ?
-              AND LOWER(TRIM(COALESCE(status, ''))) <> 'excluida'
             ORDER BY id DESC
             """,
             (empresa_id,),
         ).fetchall()
 
-    return [enriquecer_status_operacional("ordens_servico", dict(row)) for row in rows]
+    return [dict(row) for row in rows]
 
 def buscar_ordem_servico_por_id(ordem_servico_id: int) -> dict[str, Any] | None:
     empresa_id = empresa_logada_id()
@@ -16123,7 +15836,6 @@ def buscar_ordem_servico_por_id(ordem_servico_id: int) -> dict[str, Any] | None:
                 origem_orcamento_id,
                 tipo,
                 status,
-                finalizado_em,
                 prioridade,
                 total_produtos,
                 total_servicos,
@@ -16156,7 +15868,7 @@ def buscar_ordem_servico_por_id(ordem_servico_id: int) -> dict[str, Any] | None:
     if row is None:
         return None
 
-    return enriquecer_status_operacional("ordens_servico", dict(row))
+    return dict(row)
 
 def listar_ordem_servico_itens(ordem_servico_id: int) -> list[dict[str, Any]]:
     empresa_id = empresa_logada_id()
@@ -17221,8 +16933,8 @@ def registrar_acrescimos_tecnico_os(
     if acompanhamento_os_esta_expirado(acompanhamento):
         return False, "Este link técnico expirou. Solicite um novo link."
 
-    if str(acompanhamento.get("os_finalizado_em") or "").strip():
-        return False, "A Ordem de Serviço já foi finalizada e não permite novos acréscimos."
+    if str(acompanhamento.get("os_status") or "").strip().lower() != "andamento":
+        return False, "A Ordem de Serviço não está em andamento."
 
     if str(acompanhamento.get("status_dia") or "").strip().lower() != "aberto":
         return False, "Este registro já foi encerrado e não pode ser alterado pelo técnico."
@@ -17570,8 +17282,9 @@ def gerar_acompanhamento_diario_os(ordem_servico_id: int) -> tuple[bool, str, di
     if ordem_servico is None:
         return False, "OS não encontrada.", None
 
-    if str(ordem_servico.get("finalizado_em") or "").strip():
-        return False, "A OS já foi finalizada e não pode gerar novo acompanhamento.", None
+    status_os = str(ordem_servico.get("status") or "").strip().lower()
+    if status_os != "andamento":
+        return False, "O link de acompanhamento só pode ser gerado quando a OS estiver em andamento.", None
 
     empresa_id = empresa_logada_id()
     hoje = hoje_empresa().isoformat()
@@ -17672,7 +17385,6 @@ def buscar_acompanhamento_os_por_token(token: Any) -> dict[str, Any] | None:
                 ordens_servico.local_servico AS os_local_servico,
                 ordens_servico.equipamento AS os_equipamento,
                 ordens_servico.status AS os_status,
-                ordens_servico.finalizado_em AS os_finalizado_em,
                 ordens_servico.relato_cliente AS os_relato_cliente,
                 ordens_servico.diagnostico AS os_diagnostico,
                 ordens_servico.servico_executado AS os_servico_executado
@@ -17742,7 +17454,7 @@ def atualizar_acompanhamento_os_publico(token: Any, dados: dict[str, str], final
     if acompanhamento_os_esta_expirado(acompanhamento):
         return False
 
-    if str(acompanhamento.get("os_finalizado_em") or "").strip():
+    if str(acompanhamento.get("os_status") or "").strip().lower() != "andamento":
         return False
 
     if str(acompanhamento.get("status_dia") or "").strip().lower() != "aberto":
@@ -18486,6 +18198,11 @@ def sincronizar_titulos_financeiros_venda_db(
     pagos = [titulo for titulo in titulos if titulo.get("status") == "pago"]
     abertos = [titulo for titulo in titulos if titulo.get("status") == "aberto"]
 
+    if str(venda.get("status") or "").strip() == "cancelada":
+        for titulo in abertos:
+            cancelar_financeiro_titulo_db(int(titulo["id"]))
+        return
+
     if not titulos:
         for parcela in montar_parcelas_venda(venda):
             salvar_financeiro_titulo_db(
@@ -18604,7 +18321,7 @@ def gerar_conta_receber_por_venda_db(
         sincronizar_titulos_financeiros_venda_db(venda_id, venda, venda_anterior=venda_anterior)
         return
 
-    if not str(venda.get("finalizado_em") or "").strip() and not status_final_operacional("vendas", venda.get("status")):
+    if str(venda.get("status") or "").strip() == "cancelada":
         return
 
     if listar_pagamentos_venda(venda_id, incluir_cancelados=False):
@@ -18825,15 +18542,17 @@ def montar_painel_ordens_servico() -> dict[str, Any]:
         "normal": 0,
     }
 
-    status_itens = []
-    status_por_codigo: dict[str, dict[str, Any]] = {}
-    for configurado in listar_status_operacional_configurados("ordens_servico"):
-        item_status = {**configurado, "quantidade": 0}
-        status_itens.append(item_status)
-        status_por_codigo[str(configurado.get("codigo") or "")] = item_status
+    status = {
+        "aberta": 0,
+        "andamento": 0,
+        "aguardando": 0,
+        "finalizada": 0,
+        "cancelada": 0,
+    }
 
     faturamento = {
-        "nao_finalizadas": 0.0,
+        "abertas": 0.0,
+        "andamento": 0.0,
         "finalizadas": 0.0,
         "geral": 0.0,
     }
@@ -18843,15 +18562,14 @@ def montar_painel_ordens_servico() -> dict[str, Any]:
 
     for ordem in ordens:
         data_previsao = _converter_data_iso(ordem.get("data_previsao"))
-        status_os = str(ordem.get("status") or status_inicial_operacional("ordens_servico")).strip() or status_inicial_operacional("ordens_servico")
-        status_finalizado = bool(str(ordem.get("finalizado_em") or "").strip())
+        status_os = str(ordem.get("status") or "aberta").strip() or "aberta"
         prioridade_os = str(ordem.get("prioridade") or "normal").strip() or "normal"
         tecnico = str(ordem.get("tecnico") or "Sem técnico").strip() or "Sem técnico"
         valor = _converter_valor_brl(ordem.get("valor_total"))
 
         if data_previsao is None:
             prazo["sem_prazo"] += 1
-        elif data_previsao < hoje and not status_finalizado:
+        elif data_previsao < hoje and status_os not in {"finalizada", "cancelada"}:
             prazo["vencidas"] += 1
         elif data_previsao == hoje:
             prazo["hoje"] += 1
@@ -18865,21 +18583,19 @@ def montar_painel_ordens_servico() -> dict[str, Any]:
         else:
             prioridade["normal"] += 1
 
-        codigo_status = _codigo_status_operacional("ordens_servico", status_os) or status_os
-        item_status = status_por_codigo.get(codigo_status)
-        if item_status is None:
-            dados_legado = _dados_status_operacional("ordens_servico", status_os)
-            item_status = {**dados_legado, "quantidade": 0}
-            status_itens.append(item_status)
-            status_por_codigo[codigo_status] = item_status
-        item_status["quantidade"] += 1
+        if status_os in status:
+            status[status_os] += 1
+        else:
+            status["aberta"] += 1
 
         faturamento["geral"] += valor
 
-        if status_finalizado:
+        if status_os == "finalizada":
             faturamento["finalizadas"] += valor
-        else:
-            faturamento["nao_finalizadas"] += valor
+        elif status_os == "andamento":
+            faturamento["andamento"] += valor
+        elif status_os != "cancelada":
+            faturamento["abertas"] += valor
 
         if tecnico not in por_tecnico:
             por_tecnico[tecnico] = {
@@ -18893,9 +18609,9 @@ def montar_painel_ordens_servico() -> dict[str, Any]:
         por_tecnico[tecnico]["quantidade"] += 1
         por_tecnico[tecnico]["valor_total"] += valor
 
-        if status_finalizado:
+        if status_os == "finalizada":
             por_tecnico[tecnico]["finalizadas"] += 1
-        else:
+        elif status_os != "cancelada":
             por_tecnico[tecnico]["abertas"] += 1
 
         ordem_com_data = dict(ordem)
@@ -18920,7 +18636,7 @@ def montar_painel_ordens_servico() -> dict[str, Any]:
         "ordens": ordens,
         "prazo": prazo,
         "prioridade": prioridade,
-        "status_itens": status_itens,
+        "status": status,
         "faturamento": faturamento,
         "por_tecnico": painel_tecnicos,
         "proximas_ordens": proximas_ordens[:10],
@@ -18929,7 +18645,7 @@ def montar_painel_ordens_servico() -> dict[str, Any]:
 
 def excluir_ordem_servico_db(ordem_servico_id: int) -> None:
     empresa_id = empresa_logada_id()
-    if aplicar_exclusao_logica_configurada("ordens_servico", ordem_servico_id, "excluida"):
+    if aplicar_exclusao_logica_configurada("ordens_servico", ordem_servico_id, "cancelada"):
         return
 
     with conectar_db() as conn:
@@ -19200,7 +18916,7 @@ def montar_ordem_servico_formulario(numero_padrao: str = "") -> dict[str, str]:
         "origem_venda_id": (request.form.get("os_origem_venda_id") or "").strip(),
         "origem_orcamento_id": (request.form.get("os_origem_orcamento_id") or "").strip(),
         "tipo": (request.form.get("os_tipo") or "misto").strip() or "misto",
-        "status": normalizar_status_operacional("ordens_servico", request.form.get("os_status"), status_inicial_operacional("ordens_servico")),
+        "status": (request.form.get("os_status") or "aberta").strip() or "aberta",
         "prioridade": (request.form.get("os_prioridade") or "normal").strip() or "normal",
         "total_produtos": (request.form.get("os_total_produtos") or "0,00").strip(),
         "total_servicos": (request.form.get("os_total_servicos") or "0,00").strip(),
@@ -19294,7 +19010,7 @@ def gerar_ordem_servico_por_venda_db(venda_id: int) -> int | None:
         "origem_venda_id": str(venda_id),
         "origem_orcamento_id": str(venda.get("origem_orcamento_id") or ""),
         "tipo": str(venda.get("tipo") or "misto"),
-        "status": status_inicial_operacional("ordens_servico"),
+        "status": "aberta",
         "prioridade": "normal",
         "total_produtos": str(venda.get("total_produtos") or "0,00"),
         "total_servicos": str(venda.get("total_servicos") or "0,00"),
@@ -19415,7 +19131,7 @@ def gerar_ordem_servico_por_orcamento_db(orcamento_id: int) -> int | None:
         "origem_venda_id": "",
         "origem_orcamento_id": str(orcamento_id),
         "tipo": str(orcamento.get("tipo") or "misto"),
-        "status": status_inicial_operacional("ordens_servico"),
+        "status": "aberta",
         "prioridade": "normal",
         "total_produtos": str(orcamento.get("total_produtos") or "0,00"),
         "total_servicos": str(orcamento.get("total_servicos") or "0,00"),
@@ -19492,7 +19208,7 @@ def copiar_ordem_servico_db(ordem_servico_id: int) -> int | None:
         "origem_venda_id": str(ordem_servico_original.get("origem_venda_id") or ""),
         "origem_orcamento_id": str(ordem_servico_original.get("origem_orcamento_id") or ""),
         "tipo": str(ordem_servico_original.get("tipo") or "misto"),
-        "status": status_inicial_operacional("ordens_servico"),
+        "status": "aberta",
         "prioridade": str(ordem_servico_original.get("prioridade") or "normal"),
         "total_produtos": str(ordem_servico_original.get("total_produtos") or "0,00"),
         "total_servicos": str(ordem_servico_original.get("total_servicos") or "0,00"),
@@ -19552,7 +19268,8 @@ def montar_dashboard() -> dict[str, Any]:
         )
 
     for venda in vendas_lista:
-        if not str(venda.get("finalizado_em") or "").strip():
+        status_venda = str(venda.get("status") or "").strip().lower()
+        if status_venda in {"cancelada", "excluida"}:
             continue
 
         data_venda = _converter_data_iso(venda.get("data"))
@@ -19585,7 +19302,7 @@ def montar_dashboard() -> dict[str, Any]:
     os_abertas = [
         ordem
         for ordem in ordens_lista
-        if not str(ordem.get("finalizado_em") or "").strip()
+        if str(ordem.get("status") or "").strip() in {"aberta", "andamento", "aguardando"}
     ]
     total_os_abertas = sum(_converter_valor_brl(ordem.get("valor_total")) for ordem in os_abertas)
 
@@ -20486,71 +20203,6 @@ def validar_configuracoes_modulo_operacional(
         valores["situacao_finalizadora"] = finalizador
         return ""
 
-    if codigo in STATUS_OPERACIONAL_MODULOS:
-        definicao_status = STATUS_OPERACIONAL_MODULOS[codigo]
-        bruto_json = str(valores.get("situacoes_config_json") or "").strip()
-        if not bruto_json:
-            return f"Cadastre pelo menos dois status para {definicao_status['nome']}."
-        try:
-            itens_brutos = json.loads(bruto_json)
-        except (TypeError, ValueError, json.JSONDecodeError):
-            return f"A configuração dos status de {definicao_status['nome']} está inválida."
-        if not isinstance(itens_brutos, list):
-            return f"A configuração dos status de {definicao_status['nome']} está inválida."
-        nomes_validos = [re.sub(r"\s+", " ", str(item.get("nome") or "").strip()) for item in itens_brutos if isinstance(item, dict) and str(item.get("nome") or "").strip()]
-        if len(nomes_validos) < 2:
-            return f"Mantenha pelo menos dois status para {definicao_status['nome']}."
-        chaves_nomes = [_codigo_status_orcamento(nome) for nome in nomes_validos]
-        if len(set(chaves_nomes)) != len(chaves_nomes):
-            return f"Não é permitido cadastrar dois status com o mesmo nome em {definicao_status['nome']}."
-        for item in itens_brutos:
-            if not isinstance(item, dict):
-                return f"A configuração dos status de {definicao_status['nome']} está inválida."
-            if str(item.get("cor") or "").strip().lower() not in ORCAMENTO_STATUS_CORES_POR_CODIGO:
-                return f"Escolha somente uma das cores predefinidas para {definicao_status['nome']}."
-        itens = _normalizar_lista_status_operacional(codigo, itens_brutos)
-        if len(itens) != len(nomes_validos):
-            return f"Revise os nomes dos status de {definicao_status['nome']} antes de salvar."
-        finalizador = _codigo_status_operacional(codigo, valores.get("situacao_finalizadora"))
-        codigos = {item["codigo"] for item in itens}
-        if not finalizador or finalizador not in codigos:
-            return f"Escolha exatamente um status finalizador para {definicao_status['nome']}."
-
-        configuracao_anterior = configuracao_status_operacional(codigo)
-        codigos_novos = set(codigos)
-        codigos_removidos = {
-            str(item.get("codigo") or "") for item in configuracao_anterior.get("itens", [])
-            if str(item.get("codigo") or "") and str(item.get("codigo") or "") not in codigos_novos
-        }
-        tabela = str(definicao_status["tabela"])
-        filtro_extra = ""
-        if codigo == "compras":
-            filtro_extra = " AND motivo LIKE 'Compra de produto%'"
-        if codigos_removidos:
-            placeholders = ",".join("?" for _ in codigos_removidos)
-            with conectar_db() as conn:
-                rows_uso = conn.execute(
-                    f"SELECT LOWER(TRIM(COALESCE(status,''))) AS status, COUNT(*) AS total FROM {tabela} WHERE empresa_id = ? AND finalizado_em IS NULL{filtro_extra} AND LOWER(TRIM(COALESCE(status,''))) IN ({placeholders}) GROUP BY LOWER(TRIM(COALESCE(status,'')))",
-                    [empresa_logada_id(), *sorted(codigos_removidos)],
-                ).fetchall()
-            if rows_uso:
-                return "Antes de excluir um status em uso, altere os registros que ainda estão nele."
-
-        finalizador_anterior = str(configuracao_anterior.get("finalizador") or "")
-        if finalizador != finalizador_anterior:
-            with conectar_db() as conn:
-                em_uso = conn.execute(
-                    f"SELECT COUNT(*) AS total FROM {tabela} WHERE empresa_id = ? AND finalizado_em IS NULL{filtro_extra} AND LOWER(TRIM(COALESCE(status,''))) = ?",
-                    (empresa_logada_id(), finalizador),
-                ).fetchone()
-            if int((em_uso["total"] if em_uso else 0) or 0):
-                return "O novo status finalizador já está em uso por registros ainda não finalizados. Altere esses registros para outro status antes de salvar."
-
-        valores["situacoes"] = "\n".join(item["nome"] for item in itens)
-        valores["situacoes_config_json"] = json.dumps(itens, ensure_ascii=False, separators=(",", ":"))
-        valores["situacao_finalizadora"] = finalizador
-        return ""
-
     if codigo != "vitrine":
         return ""
 
@@ -21407,7 +21059,10 @@ REGISTROS_FINAIS_BLOQUEIO = {
     "vendas": {
         "entidade": "esta venda",
         "destino": "vendas",
-        "motivos": {},
+        "motivos": {
+            "concretizada": "ela já está concretizada",
+            "cancelada": "ela está cancelada",
+        },
     },
     "orcamentos": {
         "entidade": "este orçamento",
@@ -21426,12 +21081,14 @@ REGISTROS_FINAIS_BLOQUEIO = {
     "ordens_servico": {
         "entidade": "esta ordem de serviço",
         "destino": "ordens_servico",
-        "motivos": {},
-    },
-    "compras": {
-        "entidade": "esta compra",
-        "destino": "estoque",
-        "motivos": {},
+        "motivos": {
+            "concluida": "ela já está concluída",
+            "concluido": "ela já está concluída",
+            "finalizada": "ela já está finalizada",
+            "finalizado": "ela já está finalizada",
+            "cancelada": "ela está cancelada",
+            "cancelado": "ela está cancelada",
+        },
     },
 }
 
@@ -21458,18 +21115,6 @@ def mensagem_bloqueio_registro_final(
             f"Não é possível {acao} {configuracao['entidade']} porque "
             "ele já foi finalizado e possui Venda gerada."
         )
-
-    modulo_normalizado = str(modulo or "").strip()
-    if modulo_normalizado in STATUS_OPERACIONAL_MODULOS and registro_id is not None:
-        if modulo_normalizado == "vendas":
-            registro = buscar_venda_por_id(int(registro_id))
-        elif modulo_normalizado == "ordens_servico":
-            registro = buscar_ordem_servico_por_id(int(registro_id))
-        else:
-            registro = buscar_compra_estoque_por_id(int(registro_id))
-        if registro is not None and str(registro.get("finalizado_em") or "").strip():
-            return f"Não é possível {acao} {configuracao['entidade']} porque ela já foi finalizada pelo status finalizador do módulo."
-        return ""
 
     status_normalizado = _texto_comparacao_configuracao(status)
     motivo = configuracao["motivos"].get(status_normalizado)
@@ -21569,7 +21214,9 @@ def liberar_operacao_configurada(
 
 def executar_integracoes_ordem_servico_configuradas(ordem_servico_id: int) -> list[str]:
     ordem = buscar_ordem_servico_por_id(ordem_servico_id)
-    if ordem is None or not str(ordem.get("finalizado_em") or "").strip():
+    if ordem is None or str(ordem.get("status") or "").strip().lower() not in {
+        "concluida", "concluído", "concluido", "finalizada", "finalizado",
+    }:
         return []
     resultados: list[str] = []
     if configuracao_bool("ordens_servico", "gerar_financeiro", False) and reservar_operacao_configurada(
@@ -21770,7 +21417,7 @@ def validar_regras_configuradas_requisicao(modulo: str) -> str:
         serie = str(request.form.get("os_serie") or "").strip()
         if configuracao_bool("ordens_servico", "exigir_numero_serie", False) and not serie:
             return "Informe o número de série obrigatório do equipamento."
-        if status and status_final_operacional("ordens_servico", status):
+        if status in {"concluida", "concluído", "concluido"}:
             if configuracao_bool("ordens_servico", "exigir_responsavel_encerramento", True) and not str(request.form.get("os_responsavel") or "").strip():
                 return "Informe o responsável pelo encerramento da OS."
 
@@ -21811,16 +21458,12 @@ REGISTROS_FINAIS_ENDPOINTS = {
     "excluir_foto_ordem_servico_edicao": ("ordens_servico", "ordem_servico_id", "alterar"),
     "atualizar_ordem_servico": ("ordens_servico", "ordem_servico_id", "alterar"),
     "excluir_ordem_servico": ("ordens_servico", "ordem_servico_id", "excluir"),
-    "editar_compra_estoque": ("compras", "compra_id", "alterar"),
-    "atualizar_compra_estoque": ("compras", "compra_id", "alterar"),
-    "excluir_compra_estoque": ("compras", "compra_id", "excluir"),
 }
 
 REGISTROS_FINAIS_BUSCAS = {
     "vendas": buscar_venda_por_id,
     "orcamentos": buscar_orcamento_por_id,
     "ordens_servico": buscar_ordem_servico_por_id,
-    "compras": buscar_compra_estoque_por_id,
 }
 
 REGISTROS_FINAIS_ENDPOINTS_JSON = {
@@ -21860,8 +21503,6 @@ def validar_bloqueio_registro_final_requisicao() -> Response | None:
         return resposta
 
     destino = REGISTROS_FINAIS_BLOQUEIO[modulo]["destino"]
-    if modulo == "compras":
-        return redirect(f"/estoque/compras?{urllib.parse.urlencode({'erro': mensagem})}")
     return redirect(url_for(destino, erro=mensagem))
 
 
@@ -24215,7 +23856,7 @@ def gerar_venda_por_agendamento_db(agendamento_id: int) -> int | None:
         "canal_venda": "Agendamento",
         "centro_custo": "Serviço agendado",
         "tipo": "servico",
-        "status": configuracao_status_operacional("vendas")["finalizador"],
+        "status": "concretizada",
         "total_produtos": "0,00",
         "total_servicos": valor,
         "desconto_valor": "0,00",
@@ -24243,9 +23884,6 @@ def gerar_venda_por_agendamento_db(agendamento_id: int) -> int | None:
         "subtotal": valor,
     }]
     venda_id = salvar_venda_db(venda, itens)
-    if status_final_operacional("vendas", venda.get("status")):
-        baixar_estoque_por_venda_db(venda_id, venda, itens)
-        gerar_conta_receber_por_venda_db(venda_id, venda)
     with conectar_db() as conn:
         conn.execute(
             "UPDATE agendamentos SET venda_id = ?, status = 'concluido', atualizado_em = ? WHERE id = ? AND empresa_id = ?",
@@ -25172,28 +24810,6 @@ def configuracoes(grupo: str | None = None) -> str:
             status_cores=ORCAMENTO_STATUS_CORES,
             erro=request.args.get("erro", ""),
             sucesso=request.args.get("sucesso", ""),
-        )
-
-    codigo_status_modulo = str(contexto_regras["codigo_modulo_configuracao"] or "")
-    if aba == "regras_modulos" and codigo_status_modulo in STATUS_OPERACIONAL_MODULOS:
-        definicao_status = dict(STATUS_OPERACIONAL_MODULOS[codigo_status_modulo])
-        voltar_kwargs = dict(definicao_status.get("voltar_kwargs") or {})
-        voltar_url = url_for(definicao_status["voltar_endpoint"], **voltar_kwargs)
-        return render_template(
-            "configuracoes_status_modulo.html",
-            aba=aba, empresa=contexto["empresa"],
-            grupo_configuracao=contexto_regras["grupo_configuracao"],
-            modulo_configuracao=contexto_regras["modulo_configuracao"],
-            codigo_modulo_configuracao=codigo_status_modulo,
-            configuracoes_modulo=contexto_regras["configuracoes_modulo"],
-            metadados_configuracao=contexto_regras["metadados_configuracao"],
-            secoes_configuracao=contexto_regras["secoes_configuracao"],
-            total_configuracoes=contexto_regras["total_configuracoes"],
-            status_itens=listar_status_operacional_configurados(codigo_status_modulo),
-            status_cores=ORCAMENTO_STATUS_CORES,
-            status_definicao=definicao_status,
-            status_voltar_url=voltar_url,
-            erro=request.args.get("erro", ""), sucesso=request.args.get("sucesso", ""),
         )
 
     vitrine_configuracao = (
@@ -29123,7 +28739,7 @@ def montar_venda_pedido_vitrine(
         "centro_custo_id": "",
         "atividade_financeira_id": "",
         "tipo": "produto",
-        "status": configuracao_status_operacional("vendas")["finalizador"],
+        "status": "concretizada",
         "total_produtos": total_formatado,
         "total_servicos": "0,00",
         "desconto_valor": "0,00",
@@ -29337,7 +28953,7 @@ def montar_preparo_venda_pedido_vitrine(
     venda, itens = montar_venda_pedido_vitrine(pedido)
     venda.update(
         {
-            "status": configuracao_status_operacional("vendas")["finalizador"],
+            "status": "concretizada",
             "forma_pagamento": "",
             "condicao_pagamento": "avista",
             "meio_pagamento": "",
@@ -29376,7 +28992,7 @@ def montar_preparo_venda_agendamento_vitrine(
         "centro_custo_id": "",
         "atividade_financeira_id": "",
         "tipo": "servico",
-        "status": configuracao_status_operacional("vendas")["finalizador"],
+        "status": "concretizada",
         "total_produtos": "0,00",
         "total_servicos": valor,
         "desconto_valor": "0,00",
@@ -35295,8 +34911,6 @@ def estoque() -> str:
         por_pagina_movimentacoes=contexto_estoque["por_pagina_movimentacoes"],
         ordenar_movimentacoes=contexto_estoque["ordenar_movimentacoes"],
         direcao_movimentacoes=contexto_estoque["direcao_movimentacoes"],
-        compra_status_opcoes=listar_status_operacional_configurados("compras"),
-        compra_status_inicial=status_inicial_operacional("compras"),
     )
 
 
@@ -35374,127 +34988,77 @@ def movimentar_estoque() -> Response:
 def comprar_produto_estoque() -> Response:
     compra = montar_compra_estoque_formulario()
     erro_validacao = validar_compra_estoque_formulario(compra)
+
     if erro_validacao:
         return redirect(f"/estoque/compras?erro={urllib.parse.quote(erro_validacao)}")
+
     produto_id = int(compra["produto_id"])
     produto = buscar_produto_por_id(produto_id)
+
     if produto is None:
         return redirect("/estoque/compras?erro=Produto%20não%20encontrado.")
+
     quantidade = _converter_valor_brl(compra["quantidade"])
-    saldo_atual = _converter_valor_brl(produto.get("estoque_atual"))
-    motivo = "Compra de produto" + (f" - {compra['fornecedor']}" if compra["fornecedor"] else "")
-    status_compra = normalizar_status_operacional(
-        "compras", compra.get("status"), status_inicial_operacional("compras")
-    )
-    if status_final_operacional("compras", status_compra):
-        status_compra = status_inicial_operacional("compras")
+    saldo_anterior_numero = _converter_valor_brl(produto.get("estoque_atual"))
+    entrada_automatica = configuracao_bool("compras", "entrar_estoque", True)
+    saldo_atual_numero = saldo_anterior_numero + quantidade if entrada_automatica else saldo_anterior_numero
+    motivo = "Compra de produto"
+
+    if compra["fornecedor"]:
+        motivo += f" - {compra['fornecedor']}"
+
     movimentacao = {
-        "produto_id": str(produto_id), "produto_nome": str(produto.get("nome") or ""),
-        "tipo": "compra", "quantidade": _formatar_numero_estoque(quantidade),
-        "saldo_anterior": _formatar_numero_estoque(saldo_atual), "saldo_atual": _formatar_numero_estoque(saldo_atual),
-        "motivo": motivo, "documento": compra["documento"], "responsavel": compra["responsavel"],
+        "produto_id": str(produto_id),
+        "produto_nome": str(produto.get("nome") or ""),
+        "tipo": "entrada" if entrada_automatica else "compra",
+        "quantidade": _formatar_numero_estoque(quantidade),
+        "saldo_anterior": _formatar_numero_estoque(saldo_anterior_numero),
+        "saldo_atual": _formatar_numero_estoque(saldo_atual_numero),
+        "motivo": motivo,
+        "documento": compra["documento"],
+        "responsavel": compra["responsavel"],
         "observacoes": f"Valor de custo: {compra['valor_custo']}\n{compra['observacoes']}".strip(),
-        "status": status_compra, "finalizado_em": "",
     }
+
     compra_id = salvar_estoque_movimentacao_db(movimentacao)
-    registrar_atividade_usuario("criacao", "estoque", f"Registrou compra de {produto.get('nome') or produto_id} em {nome_status_operacional('compras', movimentacao['status'])}", request.path, registro_id=compra_id)
-    return redirect(f"/estoque/compras?sucesso={urllib.parse.quote('Compra cadastrada. Finalize o status para efetivar estoque e financeiro.')}")
 
-
-@app.post("/estoque/compras/<int:compra_id>/status")
-def atualizar_status_compra_estoque(compra_id: int) -> Response:
-    compra = buscar_compra_estoque_por_id(compra_id)
-    if compra is None:
-        return jsonify({"ok": False, "erro": "Compra não encontrada."}), 404
-    if str(compra.get("finalizado_em") or "").strip():
-        return jsonify({"ok": False, "erro": "Esta compra já foi finalizada e não pode trocar de status."}), 409
-    novo_status = normalizar_status_operacional("compras", request.form.get("status"), "")
-    if not novo_status:
-        return jsonify({"ok": False, "erro": "O status selecionado não existe mais nas Configurações."}), 409
-    anterior = _codigo_status_operacional("compras", compra.get("status")) or status_inicial_operacional("compras")
-    finalizador = status_final_operacional("compras", novo_status)
-    if finalizador and request.form.get("confirmar_finalizacao") != "sim":
-        return jsonify({"ok": False, "erro": "Confirme o recebimento da Compra. Essa ação pode movimentar estoque e gerar Contas a Pagar.", "exige_confirmacao": True}), 409
-
-    agora = agora_empresa().isoformat(timespec="seconds")
-    aviso = ""
-    if finalizador:
-        quantidade = _converter_valor_brl(compra.get("quantidade"))
-        entrar_estoque = configuracao_bool("compras", "entrar_estoque", True)
-        produto_id = int(compra.get("produto_id") or 0)
-        with conectar_db() as conn:
-            conn.execute("BEGIN IMMEDIATE")
-            compra_atual = conn.execute(
-                "SELECT finalizado_em FROM estoque_movimentacoes WHERE id = ? AND empresa_id = ? AND motivo LIKE 'Compra de produto%' LIMIT 1",
-                (compra_id, empresa_logada_id()),
-            ).fetchone()
-            if compra_atual is None:
-                conn.rollback()
-                return jsonify({"ok": False, "erro": "Compra não encontrada."}), 404
-            if str(compra_atual["finalizado_em"] or "").strip():
-                conn.rollback()
-                return jsonify({"ok": False, "erro": "Esta compra já foi finalizada por outra operação."}), 409
-            produto_row = conn.execute(
-                "SELECT id, nome, estoque_atual FROM produtos WHERE id = ? AND empresa_id = ? LIMIT 1",
-                (produto_id, empresa_logada_id()),
-            ).fetchone()
-            if produto_row is None:
-                conn.rollback()
-                return jsonify({"ok": False, "erro": "Produto da compra não foi encontrado."}), 409
-            produto = dict(produto_row)
-            saldo_anterior = _converter_valor_brl(produto.get("estoque_atual"))
-            saldo_atual = saldo_anterior + quantidade if entrar_estoque else saldo_anterior
-            if entrar_estoque:
-                conn.execute(
-                    "UPDATE produtos SET estoque_atual = ? WHERE id = ? AND empresa_id = ?",
-                    (_formatar_numero_estoque(saldo_atual), produto_id, empresa_logada_id()),
-                )
-            cursor = conn.execute(
-                "UPDATE estoque_movimentacoes SET tipo = ?, saldo_anterior = ?, saldo_atual = ?, status = ?, finalizado_em = ? WHERE id = ? AND empresa_id = ? AND motivo LIKE 'Compra de produto%' AND TRIM(COALESCE(finalizado_em, '')) = ''",
-                (
-                    "entrada" if entrar_estoque else "compra",
-                    _formatar_numero_estoque(saldo_anterior),
-                    _formatar_numero_estoque(saldo_atual),
-                    novo_status, agora, compra_id, empresa_logada_id(),
-                ),
+    integracoes_financeiras = {
+        _texto_comparacao_configuracao(item)
+        for item in lista_configuracao_modulo("financeiro", "integracoes")
+    }
+    if configuracao_bool("compras", "gerar_contas_pagar", True) and (
+        not integracoes_financeiras or "compras" in integracoes_financeiras
+    ):
+        valor_total = _converter_valor_brl(compra["valor_custo"]) * quantidade
+        if valor_total > 0:
+            salvar_financeiro_titulo_db(
+                {
+                    "tipo": "pagar",
+                    "descricao": f"Compra de {produto.get('nome') or produto_id}",
+                    "pessoa": compra["fornecedor"],
+                    "categoria": "Materiais",
+                    "centro_custo_id": None,
+                    "atividade_financeira_id": None,
+                    "origem": "compra",
+                    "origem_id": str(compra_id),
+                    "documento": compra["documento"],
+                    "data_emissao": hoje_empresa().isoformat(),
+                    "data_vencimento": hoje_empresa().isoformat(),
+                    "data_pagamento": "",
+                    "valor": _formatar_moeda_brl(valor_total),
+                    "forma_pagamento": "",
+                    "status": "aberto",
+                    "observacoes": "Gerado automaticamente pela configuração de Compras.",
+                }
             )
-            if cursor.rowcount != 1:
-                conn.rollback()
-                return jsonify({"ok": False, "erro": "Esta compra já foi finalizada por outra operação."}), 409
-            conn.commit()
-        if configuracao_bool("compras", "gerar_contas_pagar", True) and reservar_operacao_configurada("compras", "compra", compra_id, "conta_pagar"):
-            try:
-                valor_total = _converter_valor_brl(compra.get("valor_custo")) * quantidade
-                if valor_total > 0:
-                    titulo_id = salvar_financeiro_titulo_db({
-                        "tipo": "pagar", "descricao": f"Compra de {produto.get('nome') or produto.get('id')}",
-                        "pessoa": str(compra.get("fornecedor") or ""), "categoria": "Materiais", "centro_custo_id": None,
-                        "atividade_financeira_id": None, "origem": "compra", "origem_id": str(compra_id), "documento": str(compra.get("documento") or ""),
-                        "data_emissao": hoje_empresa().isoformat(), "data_vencimento": hoje_empresa().isoformat(), "data_pagamento": "",
-                        "valor": _formatar_moeda_brl(valor_total), "forma_pagamento": "", "status": "aberto",
-                        "observacoes": "Gerado automaticamente ao receber/finalizar a Compra.",
-                    })
-                    finalizar_operacao_configurada("compras", "compra", compra_id, "conta_pagar", "", {"titulo_id": titulo_id})
-                else:
-                    finalizar_operacao_configurada("compras", "compra", compra_id, "conta_pagar", "", {"ignorado": "valor zero"})
-            except (sqlite3.Error, ValueError, TypeError) as exc:
-                aviso = f"Compra recebida, mas o financeiro precisa ser revisado: {exc}"
-        mensagem = "Compra recebida/finalizada com sucesso."
-    else:
-        with conectar_db() as conn:
-            cursor = conn.execute(
-                "UPDATE estoque_movimentacoes SET status = ? WHERE id = ? AND empresa_id = ? AND motivo LIKE 'Compra de produto%' AND TRIM(COALESCE(finalizado_em, '')) = ''",
-                (novo_status, compra_id, empresa_logada_id()),
-            )
-            if cursor.rowcount != 1:
-                conn.rollback()
-                return jsonify({"ok": False, "erro": "Esta compra já foi finalizada por outra operação."}), 409
-            conn.commit()
-        mensagem = "Status da compra atualizado."
-
-    registrar_atividade_usuario("status", "estoque", f"Alterou status da compra #{compra_id}: {nome_status_operacional('compras', anterior)} → {nome_status_operacional('compras', novo_status)}" + (" e finalizou o recebimento." if finalizador else "."), request.path, registro_id=compra_id)
-    dados = _dados_status_operacional("compras", novo_status)
-    return jsonify({"ok": True, "mensagem": aviso or mensagem, "aviso": aviso, "status": novo_status, "status_nome": dados["nome"], "final": finalizador, "fundo": dados["fundo"], "texto": dados["texto"], "borda": dados["borda"]})
+    registrar_atividade_usuario(
+        "criacao",
+        "estoque",
+        f"Registrou compra de {produto.get('nome') or produto_id}",
+        request.path,
+    )
+    mensagem_compra = "Compra registrada e estoque atualizado." if entrada_automatica else "Compra registrada sem entrada automática no estoque."
+    return redirect(f"/estoque/compras?sucesso={urllib.parse.quote(mensagem_compra)}")
 
 
 @app.get("/estoque/compras/<int:compra_id>")
@@ -35504,7 +35068,7 @@ def ver_compra_estoque(compra_id: int) -> str | Response:
     if compra is None:
         return redirect("/estoque/compras?erro=Compra%20não%20encontrada.")
 
-    return render_template("compra_detalhe.html", compra=compra, compra_status_opcoes=status_opcoes_operacional("compras", compra.get("status")))
+    return render_template("compra_detalhe.html", compra=compra)
 
 
 @app.get("/estoque/compras/<int:compra_id>/editar")
@@ -35520,7 +35084,6 @@ def editar_compra_estoque(compra_id: int) -> str | Response:
         produtos=listar_produtos(),
         fornecedores=listar_fornecedores(),
         funcionarios=listar_funcionarios(),
-        compra_status_opcoes=status_opcoes_operacional("compras", compra.get("status")),
     )
 
 
@@ -35562,7 +35125,7 @@ def atualizar_compra_estoque(compra_id: int) -> Response:
         url_for(
             "ver_compra_estoque",
             compra_id=compra_id,
-            sucesso="Compra atualizada com sucesso.",
+            sucesso="Compra atualizada e saldo de estoque recalculado.",
         )
     )
 
@@ -35583,7 +35146,7 @@ def excluir_compra_estoque(compra_id: int) -> Response:
         f"Excluiu compra de estoque #{compra_id}",
         request.path,
     )
-    return redirect("/estoque/compras?sucesso=Compra%20excluída%20com%20sucesso.")
+    return redirect("/estoque/compras?sucesso=Compra%20excluída%20e%20estoque%20revertido.")
 
 
 
@@ -36081,16 +35644,12 @@ def ordens_servico() -> str:
         servicos=servicos_lista,
         equipamentos_cadastrados=equipamentos_cadastrados,
         proximo_numero=proximo_numero,
-        os_status_opcoes=listar_status_operacional_configurados("ordens_servico"),
-        os_status_inicial=status_inicial_operacional("ordens_servico"),
     )
 
 
 @app.post("/ordens-servico")
 def salvar_ordem_servico() -> Response:
     ordem_servico = montar_ordem_servico_formulario(numero_padrao=proximo_numero_ordem_servico())
-    if status_final_operacional("ordens_servico", ordem_servico.get("status")):
-        ordem_servico["status"] = status_inicial_operacional("ordens_servico")
     itens = montar_ordem_servico_itens_formulario()
     erro_validacao = validar_ordem_servico_para_salvar(ordem_servico, itens)
 
@@ -36103,45 +35662,14 @@ def salvar_ordem_servico() -> Response:
     except ValueError as exc:
         return redirect(url_for("editar_ordem_servico", ordem_servico_id=nova_ordem_servico_id, erro=str(exc)))
     registrar_atividade_usuario("criacao", "ordens_servico", f"Criou OS {ordem_servico.get('numero') or nova_ordem_servico_id}", request.path)
+    integracoes = executar_integracoes_ordem_servico_configuradas(nova_ordem_servico_id)
+
     return redirect(
         url_for(
             "ordens_servico",
-            sucesso=f"OS {ordem_servico.get('numero')} criada com sucesso.",
+            sucesso=f"OS {ordem_servico.get('numero')} criada com sucesso." + (" Gerado: " + ", ".join(integracoes) + "." if integracoes else ""),
         )
     )
-
-
-@app.post("/ordens-servico/<int:ordem_servico_id>/status")
-def atualizar_status_ordem_servico(ordem_servico_id: int) -> Response:
-    ordem = buscar_ordem_servico_por_id(ordem_servico_id)
-    if ordem is None:
-        return jsonify({"ok": False, "erro": "Ordem de Serviço não encontrada."}), 404
-    if str(ordem.get("finalizado_em") or "").strip():
-        return jsonify({"ok": False, "erro": "Esta Ordem de Serviço já foi finalizada."}), 409
-    novo_status = normalizar_status_operacional("ordens_servico", request.form.get("status"), "")
-    if not novo_status:
-        return jsonify({"ok": False, "erro": "O status selecionado não existe mais nas Configurações."}), 409
-    anterior = _codigo_status_operacional("ordens_servico", ordem.get("status")) or status_inicial_operacional("ordens_servico")
-    finalizador = status_final_operacional("ordens_servico", novo_status)
-    if finalizador and request.form.get("confirmar_finalizacao") != "sim":
-        return jsonify({"ok": False, "erro": "Confirme a conclusão da OS. Essa ação bloqueia alterações e executa as integrações finais configuradas.", "exige_confirmacao": True}), 409
-    if finalizador and configuracao_bool("ordens_servico", "exigir_responsavel_encerramento", True) and not str(ordem.get("responsavel") or "").strip():
-        return jsonify({"ok": False, "erro": "Informe o responsável da OS antes de concluí-la."}), 409
-    agora = agora_empresa().isoformat(timespec="seconds")
-    with conectar_db() as conn:
-        cursor = conn.execute(
-            "UPDATE ordens_servico SET status = ?, finalizado_em = CASE WHEN ? THEN ? ELSE finalizado_em END WHERE id = ? AND empresa_id = ? AND TRIM(COALESCE(finalizado_em, '')) = ''",
-            (novo_status, 1 if finalizador else 0, agora, ordem_servico_id, empresa_logada_id()),
-        )
-        if cursor.rowcount != 1:
-            conn.rollback()
-            return jsonify({"ok": False, "erro": "Esta Ordem de Serviço já foi finalizada por outra operação."}), 409
-        conn.commit()
-    integracoes = executar_integracoes_ordem_servico_configuradas(ordem_servico_id) if finalizador else []
-    registrar_atividade_usuario("status", "ordens_servico", f"Alterou status da OS {ordem.get('numero') or ordem_servico_id}: {nome_status_operacional('ordens_servico', anterior)} → {nome_status_operacional('ordens_servico', novo_status)}" + (" e concluiu a OS." if finalizador else "."), request.path, registro_id=ordem_servico_id)
-    dados = _dados_status_operacional("ordens_servico", novo_status)
-    mensagem = "OS concluída com sucesso." + (" Gerado: " + ", ".join(integracoes) + "." if integracoes else "") if finalizador else "Status da OS atualizado."
-    return jsonify({"ok": True, "mensagem": mensagem, "status": novo_status, "status_nome": dados["nome"], "final": finalizador, "fundo": dados["fundo"], "texto": dados["texto"], "borda": dados["borda"]})
 
 
 @app.get("/ordens-servico/<int:ordem_servico_id>")
@@ -36457,9 +35985,9 @@ def acompanhamento_os_publico(token: str) -> str | Response:
         if acompanhamento_os_esta_expirado(acompanhamento):
             bloqueado = True
             erro = "Este link técnico expirou. Solicite um novo link."
-        elif str(ordem_servico.get("finalizado_em") or "").strip():
+        elif str(ordem_servico.get("status") or "").strip().lower() != "andamento":
             bloqueado = True
-            erro = "Esta Ordem de Serviço já foi finalizada. O técnico não pode acrescentar novas informações."
+            erro = "Esta Ordem de Serviço não está em andamento. O técnico não pode acrescentar informações."
         elif str(acompanhamento.get("status_dia") or "").strip().lower() != "aberto":
             bloqueado = True
             mensagem = "Este registro já foi encerrado. O conteúdo está disponível somente para consulta."
@@ -36688,7 +36216,6 @@ def editar_ordem_servico(ordem_servico_id: int) -> str | Response:
         acompanhamento_erro=(request.args.get("acompanhamento_erro") or "").strip(),
         centros_custo=listar_centros_custo(),
         atividades_financeiras=listar_atividades_financeiras(),
-        os_status_opcoes=status_opcoes_operacional("ordens_servico", ordem_servico.get("status")),
     )
 
 
@@ -36896,7 +36423,6 @@ def atualizar_ordem_servico(ordem_servico_id: int) -> Response:
 
     ordem_servico = montar_ordem_servico_formulario(numero_padrao=str(ordem_servico_atual["numero"] or ""))
     ordem_servico["numero"] = str(ordem_servico_atual["numero"] or "")
-    ordem_servico["status"] = str(ordem_servico_atual.get("status") or status_inicial_operacional("ordens_servico"))
 
     # Na edição, alguns navegadores móveis podem não enviar o valor do <select>
     # mesmo quando o cliente aparece selecionado. Como cliente é obrigatório,
@@ -36921,10 +36447,12 @@ def atualizar_ordem_servico(ordem_servico_id: int) -> Response:
     except ValueError as exc:
         return redirect(url_for("editar_ordem_servico", ordem_servico_id=ordem_servico_id, erro=str(exc)))
 
+    integracoes = executar_integracoes_ordem_servico_configuradas(ordem_servico_id)
+
     return redirect(
         url_for(
             "ordens_servico",
-            sucesso=f"OS {ordem_servico.get('numero')} atualizada com sucesso.",
+            sucesso=f"OS {ordem_servico.get('numero')} atualizada com sucesso." + (" Gerado: " + ", ".join(integracoes) + "." if integracoes else ""),
         )
     )
 
@@ -37421,7 +36949,7 @@ def venda_balcao_finalizar() -> Response:
         "canal_venda": "Balcão / PDV",
         "centro_custo": "Balcão",
         "tipo": "produto",
-        "status": configuracao_status_operacional("vendas")["finalizador"],
+        "status": "concretizada",
         "total_produtos": resumo["subtotal_produtos_formatado"],
         "total_servicos": "0,00",
         "desconto_valor": _formatar_moeda_brl(_converter_valor_brl(desconto_valor)),
@@ -37545,8 +37073,6 @@ def vendas() -> str | Response:
         itens_iniciais=itens_preparados,
         origem_vitrine_tipo=origem_tipo,
         origem_vitrine_id=origem_id,
-        venda_status_opcoes=listar_status_operacional_configurados("vendas"),
-        venda_status_inicial=status_inicial_operacional("vendas"),
     )
 
 
@@ -37575,8 +37101,6 @@ def vendas_devolucoes() -> str:
         servicos=servicos_lista,
         proximo_numero=proximo_numero,
         modo_devolucoes=True,
-        venda_status_opcoes=listar_status_operacional_configurados("vendas"),
-        venda_status_inicial=status_inicial_operacional("vendas"),
     )
 
 
@@ -37602,9 +37126,7 @@ def salvar_venda() -> Response:
         return redirect(url_for("vendas", erro=erro_origem))
 
     if origem_tipo:
-        venda["status"] = configuracao_status_operacional("vendas")["finalizador"]
-    elif status_final_operacional("vendas", venda.get("status")):
-        venda["status"] = status_inicial_operacional("vendas")
+        venda["status"] = "concretizada"
 
     erro_validacao = validar_venda_para_salvar(venda, itens)
 
@@ -37699,9 +37221,8 @@ def salvar_venda() -> Response:
             erro=mensagem_erro,
         )
 
-    if status_final_operacional("vendas", venda.get("status")):
-        baixar_estoque_por_venda_db(venda_id, venda, itens)
-        gerar_conta_receber_por_venda_db(venda_id, venda)
+    baixar_estoque_por_venda_db(venda_id, venda, itens)
+    gerar_conta_receber_por_venda_db(venda_id, venda)
     registrar_atividade_usuario(
         "criacao",
         "vendas",
@@ -37754,50 +37275,6 @@ def salvar_venda() -> Response:
     )
 
 
-@app.post("/vendas/<int:venda_id>/status")
-def atualizar_status_venda(venda_id: int) -> Response:
-    venda = buscar_venda_por_id(venda_id)
-    if venda is None:
-        return jsonify({"ok": False, "erro": "Venda não encontrada."}), 404
-    if str(venda.get("finalizado_em") or "").strip():
-        return jsonify({"ok": False, "erro": "Esta Venda já foi concretizada/finalizada."}), 409
-    novo_status = normalizar_status_operacional("vendas", request.form.get("status"), "")
-    if not novo_status:
-        return jsonify({"ok": False, "erro": "O status selecionado não existe mais nas Configurações."}), 409
-    anterior = _codigo_status_operacional("vendas", venda.get("status")) or status_inicial_operacional("vendas")
-    finalizador = status_final_operacional("vendas", novo_status)
-    if finalizador and request.form.get("confirmar_finalizacao") != "sim":
-        return jsonify({"ok": False, "erro": "Confirme a concretização da Venda. Essa ação baixa o estoque, gera o financeiro e bloqueia alterações.", "exige_confirmacao": True}), 409
-    itens = listar_venda_itens(venda_id)
-    if finalizador:
-        try:
-            validar_estoque_para_venda_db(itens)
-        except ValueError as exc:
-            return jsonify({"ok": False, "erro": str(exc)}), 409
-    agora = agora_empresa().isoformat(timespec="seconds")
-    with conectar_db() as conn:
-        cursor = conn.execute(
-            "UPDATE vendas SET status = ?, finalizado_em = CASE WHEN ? THEN ? ELSE finalizado_em END WHERE id = ? AND empresa_id = ? AND TRIM(COALESCE(finalizado_em, '')) = ''",
-            (novo_status, 1 if finalizador else 0, agora, venda_id, empresa_logada_id()),
-        )
-        if cursor.rowcount != 1:
-            conn.rollback()
-            return jsonify({"ok": False, "erro": "Esta Venda já foi finalizada por outra operação."}), 409
-        conn.commit()
-    aviso = ""
-    if finalizador:
-        venda_final = buscar_venda_por_id(venda_id) or venda
-        try:
-            baixar_estoque_por_venda_db(venda_id, venda_final, itens)
-            gerar_conta_receber_por_venda_db(venda_id, venda_final)
-        except (ValueError, sqlite3.Error) as exc:
-            aviso = f"Venda concretizada, mas uma integração precisa ser revisada: {exc}"
-    registrar_atividade_usuario("status", "vendas", f"Alterou status da Venda {venda.get('numero') or venda_id}: {nome_status_operacional('vendas', anterior)} → {nome_status_operacional('vendas', novo_status)}" + (" e concretizou a Venda." if finalizador else "."), request.path, registro_id=venda_id)
-    dados = _dados_status_operacional("vendas", novo_status)
-    mensagem = aviso or ("Venda concretizada com sucesso." if finalizador else "Status da Venda atualizado.")
-    return jsonify({"ok": True, "mensagem": mensagem, "aviso": aviso, "status": novo_status, "status_nome": dados["nome"], "final": finalizador, "fundo": dados["fundo"], "texto": dados["texto"], "borda": dados["borda"]})
-
-
 @app.get("/vendas/<int:venda_id>")
 def ver_venda(venda_id: int) -> str | Response:
     venda = buscar_venda_por_id(venda_id)
@@ -37836,8 +37313,6 @@ def devolucao_venda(venda_id: int) -> str | Response:
         modo_devolucoes=True,
         devolucao_venda=venda,
         devolucao_itens=itens_produtos,
-        venda_status_opcoes=listar_status_operacional_configurados("vendas"),
-        venda_status_inicial=status_inicial_operacional("vendas"),
     )
 
 
@@ -37966,7 +37441,6 @@ def editar_venda(venda_id: int) -> str | Response:
         resumo_financeiro=resumir_financeiro_venda(venda_id),
         centros_custo=listar_centros_custo(),
         atividades_financeiras=listar_atividades_financeiras(),
-        venda_status_opcoes=status_opcoes_operacional("vendas", venda.get("status")),
     )
 
 
@@ -37979,18 +37453,36 @@ def atualizar_venda(venda_id: int) -> Response:
 
     venda = montar_venda_formulario(numero_padrao=str(venda_atual["numero"] or ""))
     venda["numero"] = str(venda_atual["numero"] or "")
-    venda["status"] = str(venda_atual.get("status") or status_inicial_operacional("vendas"))
     itens = montar_venda_itens_formulario()
     erro_validacao = validar_venda_para_salvar(venda, itens)
 
     if erro_validacao:
         return redirect(url_for("editar_venda", venda_id=venda_id, erro=erro_validacao))
 
+    erro_financeiro = validar_recalculo_financeiro_venda(venda_id, venda)
+    if erro_financeiro:
+        return redirect(url_for("editar_venda", venda_id=venda_id, erro=erro_financeiro))
+
     atualizar_venda_db(venda_id, venda, itens)
-    registrar_atividade_usuario(
-        "edicao", "vendas", f"Atualizou venda {venda.get('numero') or venda_id}", request.path, registro_id=venda_id
+    gerar_conta_receber_por_venda_db(
+        venda_id,
+        venda,
+        recriar=True,
+        venda_anterior=venda_atual,
     )
-    return redirect(url_for("vendas", sucesso=f"Venda {venda.get('numero')} atualizada."))
+
+    registrar_atividade_usuario(
+        "edicao",
+        "vendas",
+        f"Atualizou venda {venda.get('numero') or venda_id} e sincronizou parcelas abertas",
+        request.path,
+    )
+    return redirect(
+        url_for(
+            "vendas",
+            sucesso=f"Venda {venda.get('numero')} e parcelas abertas atualizadas.",
+        )
+    )
 
 
 @app.post("/vendas/<int:venda_id>/excluir")
