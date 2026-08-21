@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordens_servico.html
-Último recode: 2026-08-20 21:09 (America/Bahia)
-Motivo: Padronizar status configuráveis da OS, com cores predefinidas e um único status finalizador com confirmação.
+Último recode: 2026-08-06 20:25 (America/Bahia)
+Motivo: Restaurar o layout normal da sidebar e usar a correção centralizada no menu lateral.
 -->
 
 <!DOCTYPE html>
@@ -955,23 +955,6 @@ Motivo: Padronizar status configuráveis da OS, com cores predefinidas e um úni
             }
         }
 
-
-        .gf-status-select {
-            min-width: 132px;
-            max-width: 190px;
-            height: 34px;
-            padding: 0 30px 0 10px;
-            border: 1px solid var(--status-border, #cbd5e1);
-            border-radius: 999px;
-            background-color: var(--status-bg, #f1f5f9);
-            color: var(--status-text, #334155);
-            font: inherit;
-            font-size: 12px;
-            font-weight: 850;
-            cursor: pointer;
-        }
-        .gf-status-select:disabled { cursor: default; opacity: .82; }
-
     </style>
 </head>
 <body>
@@ -987,7 +970,12 @@ Motivo: Padronizar status configuráveis da OS, com cores predefinidas e um úni
         {% set ordenar = ordenar|default('id', true) %}
         {% set direcao = direcao|default('desc', true) %}
         {% set por_pagina = por_pagina|default(20, true) %}
-        {% set resumo = resumo_geral|default({}, true) %}
+        {% set resumo = namespace(abertas=0, andamento=0, finalizadas=0) %}
+        {% for os in ordens_lista %}
+            {% if os.status == "aberta" %}{% set resumo.abertas = resumo.abertas + 1 %}{% endif %}
+            {% if os.status == "andamento" %}{% set resumo.andamento = resumo.andamento + 1 %}{% endif %}
+            {% if os.status == "finalizada" %}{% set resumo.finalizadas = resumo.finalizadas + 1 %}{% endif %}
+        {% endfor %}
 
         <section class="panel page-section gf-page-hero">
             <div class="panel-header page-header gf-page-header">
@@ -1001,9 +989,9 @@ Motivo: Padronizar status configuráveis da OS, com cores predefinidas e um úni
         </section>
 
         <section class="cards page-section gf-stat-grid os-stat-grid">
-            <div class="card card-blue"><div class="card-icon">▣</div><div class="card-info"><h3>Total de OS</h3><p>{{ resumo.total|default(0) }}</p><span>{{ resumo.total|default(0) }} no histórico</span></div></div>
-            <div class="card card-warning"><div class="card-icon">⌁</div><div class="card-info"><h3>Não finalizadas</h3><p>{{ resumo.abertas|default(0) }}</p><span>Fluxo operacional em aberto</span></div></div>
-            <div class="card card-success"><div class="card-icon">✓</div><div class="card-info"><h3>Finalizadas</h3><p>{{ resumo.finalizadas|default(0) }}</p><span>Concluídas pelo status finalizador</span></div></div>
+            <div class="card card-blue"><div class="card-icon">▣</div><div class="card-info"><h3>Total de OS</h3><p>{{ ordens_lista|length }}</p><span>{% if ordens_lista|length == 1 %}1 OS cadastrada{% elif ordens_lista|length > 1 %}{{ ordens_lista|length }} OS cadastradas{% else %}Nenhuma OS cadastrada{% endif %}</span></div></div>
+            <div class="card card-warning"><div class="card-icon">⌁</div><div class="card-info"><h3>Abertas</h3><p>{{ resumo.abertas }}</p><span>{% if resumo.abertas == 1 %}1 OS aberta{% elif resumo.abertas > 1 %}{{ resumo.abertas }} OS abertas{% else %}Nenhuma OS aberta{% endif %}</span></div></div>
+            <div class="card card-success"><div class="card-icon">✓</div><div class="card-info"><h3>Finalizadas</h3><p>{{ resumo.finalizadas }}</p><span>{% if resumo.finalizadas == 1 %}1 OS finalizada{% elif resumo.finalizadas > 1 %}{{ resumo.finalizadas }} OS finalizadas{% else %}Nenhuma OS finalizada{% endif %}</span></div></div>
         </section>
 
 
@@ -1030,10 +1018,7 @@ Motivo: Padronizar status configuráveis da OS, com cores predefinidas e um úni
                             <option value="__novo_cliente__" class="quick-new-option">+ Adicionar novo cliente</option>
                         </select>
                     </div>
-                        <div class="form-group"><label for="os_status">Situação</label><select id="os_status" name="os_status" class="form-control" required>
-                            {% for status in os_status_opcoes|default([]) %}{% if not status.final %}
-                                <option value="{{ status.codigo }}" data-final="{{ 1 if status.final else 0 }}" data-bg="{{ status.fundo }}" data-text="{{ status.texto }}" data-border="{{ status.borda }}" {% if os_status_inicial == status.codigo %}selected{% endif %}>{{ status.nome }}</option>
-                            {% endif %}{% endfor %}</select></div>
+                        <div class="form-group"><label for="os_status">Situação</label><select id="os_status" name="os_status" class="form-control" required><option value="aberta">Em aberto</option><option value="andamento">Em andamento</option><option value="aguardando">Aguardando</option><option value="finalizada">Finalizada</option><option value="cancelada">Cancelada</option></select></div>
                         <div class="form-group"><label for="os_data_abertura">Entrada</label><input id="os_data_abertura" name="os_data_abertura" type="date" class="form-control" required></div>
                         <div class="form-group"><label for="os_hora_entrada">Hora de entrada</label><input id="os_hora_entrada" name="os_hora_entrada" type="time" class="form-control"></div>
                         <div class="form-group"><label for="os_data_saida">Saída</label><input id="os_data_saida" name="os_data_saida" type="date" class="form-control"></div>
@@ -1284,13 +1269,9 @@ Motivo: Padronizar status configuráveis da OS, com cores predefinidas e um úni
                     <tbody>
                         {% if ordens_lista %}
                             {% for os in ordens_lista %}
-                                {% set os_status_final = os.status_finalizado|default(false) %}
+                                {% set os_status_final = (os.status|default('', true)|lower|trim) in ['concluida', 'concluída', 'concluido', 'concluído', 'finalizada', 'finalizado', 'cancelada', 'cancelado'] %}
                                 <tr>
-                                    <td>{{ os.id }}</td><td>{{ os.numero }}</td><td>{{ os.cliente }}</td><td>{{ os.equipamento }}</td><td>
-                                        <select class="gf-status-select" data-status-operacional data-status-url="/ordens-servico/{{ os.id }}/status" data-current="{{ os.status }}" data-final-message="Concluir esta Ordem de Serviço? Após confirmar, a OS será bloqueada e as integrações finais configuradas serão executadas." style="--status-bg:{{ os.status_fundo }};--status-text:{{ os.status_texto_cor }};--status-border:{{ os.status_borda }};" {% if os_status_final %}disabled{% endif %}>
-                                            {% for status in os_status_opcoes|default([]) %}<option value="{{ status.codigo }}" data-final="{{ 1 if status.final else 0 }}" data-bg="{{ status.fundo }}" data-text="{{ status.texto }}" data-border="{{ status.borda }}" {% if os.status == status.codigo %}selected{% endif %}>{{ status.nome }}</option>{% endfor %}
-                                        </select>
-                                    </td><td>{{ os.prioridade }}</td><td>{{ os.data_abertura }}</td><td>{{ os.valor_total }}</td>
+                                    <td>{{ os.id }}</td><td>{{ os.numero }}</td><td>{{ os.cliente }}</td><td>{{ os.equipamento }}</td><td><span class="status-pill {{ os.status }}">{{ os.status }}</span></td><td>{{ os.prioridade }}</td><td>{{ os.data_abertura }}</td><td>{{ os.valor_total }}</td>
                                     <td>
                                         <div class="action-buttons os-action-wrap">
                                             <a href="/ordens-servico/{{ os.id }}" title="Ver OS" aria-label="Ver OS" class="action-button view">🔍</a>
@@ -2809,61 +2790,6 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     });
 });
-</script>
-
-
-<script>
-(function gestflowStatusOperacional() {
-    function aplicarCor(select) {
-        const opcao = select.options[select.selectedIndex];
-        if (!opcao) return;
-        select.style.setProperty('--status-bg', opcao.dataset.bg || '#f1f5f9');
-        select.style.setProperty('--status-text', opcao.dataset.text || '#334155');
-        select.style.setProperty('--status-border', opcao.dataset.border || '#cbd5e1');
-    }
-
-    async function alterarStatus(select) {
-        const anterior = select.dataset.current || '';
-        const opcao = select.options[select.selectedIndex];
-        if (!opcao || select.value === anterior) { aplicarCor(select); return; }
-        const finalizador = opcao.dataset.final === '1';
-        if (finalizador) {
-            const mensagem = select.dataset.finalMessage || 'Confirmar a finalização deste registro?';
-            if (!window.confirm(mensagem)) {
-                select.value = anterior;
-                aplicarCor(select);
-                return;
-            }
-        }
-        select.disabled = true;
-        const dados = new URLSearchParams();
-        dados.append('status', select.value);
-        if (finalizador) dados.append('confirmar_finalizacao', 'sim');
-        try {
-            const resposta = await fetch(select.dataset.statusUrl, {
-                method: 'POST',
-                headers: {'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},
-                body: dados.toString()
-            });
-            const payload = await resposta.json();
-            if (!resposta.ok || !payload.ok) throw new Error(payload.erro || 'Não foi possível alterar o status.');
-            select.dataset.current = payload.status || select.value;
-            aplicarCor(select);
-            if (payload.mensagem) window.alert(payload.mensagem);
-            window.location.reload();
-        } catch (erro) {
-            select.value = anterior;
-            aplicarCor(select);
-            select.disabled = false;
-            window.alert(erro.message || 'Não foi possível alterar o status.');
-        }
-    }
-
-    document.querySelectorAll('[data-status-operacional]').forEach(function(select) {
-        aplicarCor(select);
-        select.addEventListener('change', function() { alterarStatus(select); });
-    });
-})();
 </script>
 
     {% include "partials/lista_avancada.html" %}

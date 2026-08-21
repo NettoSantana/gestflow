@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\estoque.html
-Último recode: 2026-08-20 21:09 (America/Bahia)
-Motivo: Adicionar status configuráveis às Compras e efetivar estoque/financeiro somente pelo status finalizador.
+Último recode: 2026-08-02 13:47 (America/Bahia)
+Motivo: Adicionar filtros avançados sem alterar os botões de ações e padronizar os novos controles em preto.
 -->
 
 <!DOCTYPE html>
@@ -653,23 +653,6 @@ Motivo: Adicionar status configuráveis às Compras e efetivar estoque/financeir
             }
         }
 
-
-        .gf-status-select {
-            min-width: 132px;
-            max-width: 190px;
-            height: 34px;
-            padding: 0 30px 0 10px;
-            border: 1px solid var(--status-border, #cbd5e1);
-            border-radius: 999px;
-            background-color: var(--status-bg, #f1f5f9);
-            color: var(--status-text, #334155);
-            font: inherit;
-            font-size: 12px;
-            font-weight: 850;
-            cursor: pointer;
-        }
-        .gf-status-select:disabled { cursor: default; opacity: .82; }
-
     </style>
 </head>
 <body>
@@ -1012,9 +995,9 @@ Motivo: Adicionar status configuráveis às Compras e efetivar estoque/financeir
                 <div class="panel-header page-header">
                     <div>
                         <h3>Nova compra de produto</h3>
-                        <p class="page-subtitle">Registre a compra no fluxo. Estoque e financeiro só são efetivados no status finalizador.</p>
+                        <p class="page-subtitle">Registre a compra e dê entrada automática no estoque.</p>
                     </div>
-                    <span class="badge-info">Fluxo de compra</span>
+                    <span class="badge-info">Entrada de estoque</span>
                 </div>
 
                 <form id="form-comprar-estoque" class="estoque-form" action="/estoque/comprar" method="post">
@@ -1054,13 +1037,6 @@ Motivo: Adicionar status configuráveis às Compras e efetivar estoque/financeir
                         </label>
 
                         <label>
-                            Status inicial
-                            <select name="compra_status" required>
-                                {% for status in compra_status_opcoes|default([]) %}{% if not status.final %}<option value="{{ status.codigo }}" {% if compra_status_inicial == status.codigo %}selected{% endif %}>{{ status.nome }}</option>{% endif %}{% endfor %}
-                            </select>
-                        </label>
-
-                        <label>
                             Quantidade
                             <input type="text" name="compra_quantidade" placeholder="Ex: 10" required>
                         </label>
@@ -1083,7 +1059,7 @@ Motivo: Adicionar status configuráveis às Compras e efetivar estoque/financeir
 
                     <div class="form-actions">
                         <button type="reset" class="btn-light">Limpar</button>
-                        <button type="submit" class="btn-primary-green">Salvar compra</button>
+                        <button type="submit" class="btn-primary-green">Salvar compra e dar entrada</button>
                     </div>
                 </form>
             </section>
@@ -1092,7 +1068,7 @@ Motivo: Adicionar status configuráveis às Compras e efetivar estoque/financeir
                 <div class="panel-header page-header">
                     <div>
                         <h3>Compras registradas</h3>
-                        <p class="page-subtitle">Acompanhe o status das compras. A entrada no estoque e o financeiro só são efetivados no status finalizador.</p>
+                        <p class="page-subtitle">Visualize, edite ou exclua as entradas geradas por compra.</p>
                     </div>
                 </div>
 
@@ -1108,7 +1084,6 @@ Motivo: Adicionar status configuráveis às Compras e efetivar estoque/financeir
                                 <th>Total</th>
                                 <th>Documento</th>
                                 <th>Responsável</th>
-                                <th>Status</th>
                                 <th>Data</th>
                                 <th>Ações</th>
                             </tr>
@@ -1125,27 +1100,22 @@ Motivo: Adicionar status configuráveis às Compras e efetivar estoque/financeir
                                         <td>R$ {{ compra.valor_total_compra or '0,00' }}</td>
                                         <td>{{ compra.documento or '-' }}</td>
                                         <td>{{ compra.responsavel or '-' }}</td>
-                                        <td>
-                                            <select class="gf-status-select" data-status-operacional data-status-url="/estoque/compras/{{ compra.id }}/status" data-current="{{ compra.status }}" data-final-message="Receber/finalizar esta Compra? Após confirmar, o GestFlow efetivará o estoque e o financeiro conforme as configurações." style="--status-bg:{{ compra.status_fundo }};--status-text:{{ compra.status_texto_cor }};--status-border:{{ compra.status_borda }};" {% if compra.status_finalizado %}disabled{% endif %}>
-                                                {% for status in compra_status_opcoes|default([]) %}<option value="{{ status.codigo }}" data-final="{{ 1 if status.final else 0 }}" data-bg="{{ status.fundo }}" data-text="{{ status.texto }}" data-border="{{ status.borda }}" {% if compra.status == status.codigo %}selected{% endif %}>{{ status.nome }}</option>{% endfor %}
-                                            </select>
-                                        </td>
                                         <td>{{ compra.criado_em_exibicao or compra.criado_em or '-' }}</td>
                                         <td>
                                             <div class="action-buttons">
                                                 <a href="/estoque/compras/{{ compra.id }}" title="Ver compra" aria-label="Ver compra" class="action-button view">🔍</a>
-                                                {% if not compra.status_finalizado %}<a href="/estoque/compras/{{ compra.id }}/editar" title="Editar compra" aria-label="Editar compra" class="action-button edit">✎</a>{% endif %}
+                                                <a href="/estoque/compras/{{ compra.id }}/editar" title="Editar compra" aria-label="Editar compra" class="action-button edit">✎</a>
                                                 <a href="/whatsapp/pdf/compra/{{ compra.id }}" title="Enviar PDF pelo WhatsApp" aria-label="Enviar PDF pelo WhatsApp" class="action-button" style="background:#128c7e;color:#fff;text-decoration:none;">📲</a>
-                                                {% if not compra.status_finalizado %}<form action="/estoque/compras/{{ compra.id }}/excluir" method="post" class="action-form" onsubmit="return confirm('Excluir esta compra ainda não finalizada?');">
+                                                <form action="/estoque/compras/{{ compra.id }}/excluir" method="post" class="action-form" onsubmit="return confirm('Excluir esta compra? A quantidade será retirada do estoque.');">
                                                     <button type="submit" title="Excluir compra" aria-label="Excluir compra" class="action-button delete">×</button>
-                                                </form>{% endif %}
+                                                </form>
                                             </div>
                                         </td>
                                     </tr>
                                 {% endfor %}
                             {% else %}
                                 <tr>
-                                    <td colspan="11" class="empty-table">Nenhuma compra registrada.</td>
+                                    <td colspan="10" class="empty-table">Nenhuma compra registrada.</td>
                                 </tr>
                             {% endif %}
                         </tbody>
@@ -2080,61 +2050,6 @@ Motivo: Adicionar status configuráveis às Compras e efetivar estoque/financeir
         if ((alvo.matches('select[name="estoque_produto_id"]') || alvo.matches('select[name="compra_produto_id"]')) && alvo.value === "__novo_produto__") {
             window.abrirModalItemRapidoGeral("produto", alvo, null);
         }
-    });
-})();
-</script>
-
-
-<script>
-(function gestflowStatusOperacional() {
-    function aplicarCor(select) {
-        const opcao = select.options[select.selectedIndex];
-        if (!opcao) return;
-        select.style.setProperty('--status-bg', opcao.dataset.bg || '#f1f5f9');
-        select.style.setProperty('--status-text', opcao.dataset.text || '#334155');
-        select.style.setProperty('--status-border', opcao.dataset.border || '#cbd5e1');
-    }
-
-    async function alterarStatus(select) {
-        const anterior = select.dataset.current || '';
-        const opcao = select.options[select.selectedIndex];
-        if (!opcao || select.value === anterior) { aplicarCor(select); return; }
-        const finalizador = opcao.dataset.final === '1';
-        if (finalizador) {
-            const mensagem = select.dataset.finalMessage || 'Confirmar a finalização deste registro?';
-            if (!window.confirm(mensagem)) {
-                select.value = anterior;
-                aplicarCor(select);
-                return;
-            }
-        }
-        select.disabled = true;
-        const dados = new URLSearchParams();
-        dados.append('status', select.value);
-        if (finalizador) dados.append('confirmar_finalizacao', 'sim');
-        try {
-            const resposta = await fetch(select.dataset.statusUrl, {
-                method: 'POST',
-                headers: {'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},
-                body: dados.toString()
-            });
-            const payload = await resposta.json();
-            if (!resposta.ok || !payload.ok) throw new Error(payload.erro || 'Não foi possível alterar o status.');
-            select.dataset.current = payload.status || select.value;
-            aplicarCor(select);
-            if (payload.mensagem) window.alert(payload.mensagem);
-            window.location.reload();
-        } catch (erro) {
-            select.value = anterior;
-            aplicarCor(select);
-            select.disabled = false;
-            window.alert(erro.message || 'Não foi possível alterar o status.');
-        }
-    }
-
-    document.querySelectorAll('[data-status-operacional]').forEach(function(select) {
-        aplicarCor(select);
-        select.addEventListener('change', function() { alterarStatus(select); });
     });
 })();
 </script>
