@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\ordens_servico.html
-Último recode: 2026-08-20 21:09 (America/Bahia)
-Motivo: Padronizar status configuráveis da OS, com cores predefinidas e um único status finalizador com confirmação.
+Último recode: 2026-08-21 05:39 (America/Bahia)
+Motivo: Reorganizar a listagem de Ordens de Serviço para equilibrar Cliente, Equipamento, Situação e Ações e alinhar a barra de busca/ferramentas.
 -->
 
 <!DOCTYPE html>
@@ -972,6 +972,184 @@ Motivo: Padronizar status configuráveis da OS, com cores predefinidas e um úni
         }
         .gf-status-select:disabled { cursor: default; opacity: .82; }
 
+        /* LISTAGEM DE OS - DISTRIBUICAO COMPACTA E RESPONSIVA */
+        .os-list-toolbar {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 12px 16px;
+            flex-wrap: wrap;
+            margin-bottom: 14px;
+        }
+
+        .os-list-toolbar .client-actions {
+            flex: 1 1 520px;
+            min-width: 0;
+            margin: 0;
+        }
+
+        .os-list-toolbar .ordens-search-form {
+            display: grid;
+            grid-template-columns: minmax(260px, 1fr) 130px auto auto;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .os-list-toolbar .ordens-search-form .client-search {
+            width: 100%;
+            min-width: 0;
+        }
+
+        .os-list-toolbar .ordens-search-form .per-page-select {
+            width: 130px;
+            max-width: 130px;
+        }
+
+        .os-list-tools-slot {
+            flex: 0 1 auto;
+            min-width: 0;
+        }
+
+        .os-list-tools-slot .gf-list-tools {
+            margin: 0;
+            justify-content: flex-end;
+        }
+
+        .os-list-tools-slot .gf-list-result {
+            white-space: nowrap;
+        }
+
+        .ordens-lista-shell {
+            width: 100%;
+            max-width: 100%;
+            overflow-x: auto !important;
+        }
+
+        .ordens-lista-table {
+            width: 100% !important;
+            min-width: 0 !important;
+            table-layout: fixed;
+        }
+
+        .ordens-lista-table th,
+        .ordens-lista-table td {
+            box-sizing: border-box;
+            vertical-align: middle;
+        }
+
+        .ordens-lista-table thead th {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .ordens-lista-table th:nth-child(1),
+        .ordens-lista-table td:nth-child(1) { width: 4%; }
+        .ordens-lista-table th:nth-child(2),
+        .ordens-lista-table td:nth-child(2) { width: 6%; }
+        .ordens-lista-table th:nth-child(3),
+        .ordens-lista-table td:nth-child(3) { width: 14%; }
+        .ordens-lista-table th:nth-child(4),
+        .ordens-lista-table td:nth-child(4) { width: 24%; }
+        .ordens-lista-table th:nth-child(5),
+        .ordens-lista-table td:nth-child(5) { width: 13%; }
+        .ordens-lista-table th:nth-child(6),
+        .ordens-lista-table td:nth-child(6) { width: 8%; }
+        .ordens-lista-table th:nth-child(7),
+        .ordens-lista-table td:nth-child(7) { width: 8%; }
+        .ordens-lista-table th:nth-child(8),
+        .ordens-lista-table td:nth-child(8) { width: 9%; }
+        .ordens-lista-table th:nth-child(9),
+        .ordens-lista-table td:nth-child(9) { width: 14%; }
+
+        .os-list-client,
+        .os-list-equipment {
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            line-height: 1.28;
+        }
+
+        .os-list-client {
+            -webkit-line-clamp: 2;
+            font-weight: 800;
+        }
+
+        .os-list-equipment {
+            -webkit-line-clamp: 2;
+            color: #1e293b;
+        }
+
+        .ordens-lista-table .gf-status-select {
+            width: 100%;
+            min-width: 0;
+            max-width: 100%;
+        }
+
+        .os-list-priority,
+        .os-list-date,
+        .os-list-value,
+        .os-list-number {
+            white-space: nowrap;
+        }
+
+        .os-list-value {
+            font-weight: 800;
+        }
+
+        .ordens-lista-table .os-action-wrap {
+            display: flex;
+            align-items: center;
+            flex-wrap: nowrap;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .ordens-lista-table .action-button,
+        .ordens-lista-table .gf-action-dialog-trigger {
+            width: 32px;
+            height: 32px;
+            min-width: 32px;
+        }
+
+        @media (max-width: 1180px) {
+            .os-list-toolbar {
+                align-items: stretch;
+            }
+
+            .os-list-toolbar .client-actions,
+            .os-list-tools-slot {
+                flex: 1 1 100%;
+            }
+
+            .os-list-tools-slot .gf-list-tools {
+                justify-content: flex-end;
+            }
+
+            .ordens-lista-table {
+                min-width: 980px !important;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .os-list-toolbar .ordens-search-form {
+                grid-template-columns: minmax(0, 1fr) 120px;
+            }
+
+            .os-list-toolbar .ordens-search-form .btn-dark,
+            .os-list-toolbar .ordens-search-form .clear-search-link {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .os-list-tools-slot .gf-list-tools {
+                justify-content: stretch;
+            }
+        }
+
     </style>
 </head>
 <body>
@@ -1247,9 +1425,15 @@ Motivo: Padronizar status configuráveis da OS, com cores predefinidas e um úni
         </form>
 
         <section class="panel table-panel gf-list-panel">
-            <div class="panel-header page-header"><div><h3>Lista de OS</h3><p class="page-subtitle">Acompanhe as ordens de serviço cadastradas.</p></div><div class="client-toolbar"><button type="button" class="btn-light">Exportar</button><button type="button" class="btn-light">Filtros</button></div></div>
-            <div class="client-actions">
-                <form action="/ordens-servico" method="get" class="ordens-search-form">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Lista de OS</h3>
+                    <p class="page-subtitle">Acompanhe as ordens de serviço cadastradas.</p>
+                </div>
+            </div>
+            <div class="os-list-toolbar">
+                <div class="client-actions">
+                    <form action="/ordens-servico" method="get" class="ordens-search-form">
                     <input type="text" name="busca" value="{{ busca }}" placeholder="Buscar por número, cliente, situação ou responsável" class="client-search">
                     <input type="hidden" name="ordenar" value="{{ ordenar }}">
                     <input type="hidden" name="direcao" value="{{ direcao }}">
@@ -1266,7 +1450,9 @@ Motivo: Padronizar status configuráveis da OS, com cores predefinidas e um úni
                     {% if busca %}
                         <a href="{{ url_for('ordens_servico', por_pagina=por_pagina, ordenar=ordenar, direcao=direcao) }}" class="clear-search-link">Limpar</a>
                     {% endif %}
-                </form>
+                    </form>
+                </div>
+                <div class="os-list-tools-slot" aria-label="Ferramentas da lista"></div>
             </div>
             <div class="table-shell gf-table-shell os-table-actions-shell ordens-lista-shell">
                 <table class="client-table gf-table ordens-lista-table">
@@ -1286,11 +1472,18 @@ Motivo: Padronizar status configuráveis da OS, com cores predefinidas e um úni
                             {% for os in ordens_lista %}
                                 {% set os_status_final = os.status_finalizado|default(false) %}
                                 <tr>
-                                    <td>{{ os.id }}</td><td>{{ os.numero }}</td><td>{{ os.cliente }}</td><td>{{ os.equipamento }}</td><td>
+                                    <td>{{ os.id }}</td>
+                                    <td class="os-list-number">{{ os.numero }}</td>
+                                    <td><span class="os-list-client" title="{{ os.cliente|e }}">{{ os.cliente }}</span></td>
+                                    <td><span class="os-list-equipment" title="{{ os.equipamento|e }}">{{ os.equipamento }}</span></td>
+                                    <td>
                                         <select class="gf-status-select" data-status-operacional data-status-url="/ordens-servico/{{ os.id }}/status" data-current="{{ os.status }}" data-final-message="Concluir esta Ordem de Serviço? Após confirmar, a OS será bloqueada e as integrações finais configuradas serão executadas." style="--status-bg:{{ os.status_fundo }};--status-text:{{ os.status_texto_cor }};--status-border:{{ os.status_borda }};" {% if os_status_final %}disabled{% endif %}>
                                             {% for status in os_status_opcoes|default([]) %}<option value="{{ status.codigo }}" data-final="{{ 1 if status.final else 0 }}" data-bg="{{ status.fundo }}" data-text="{{ status.texto }}" data-border="{{ status.borda }}" {% if os.status == status.codigo %}selected{% endif %}>{{ status.nome }}</option>{% endfor %}
                                         </select>
-                                    </td><td>{{ os.prioridade }}</td><td>{{ os.data_abertura }}</td><td>{{ os.valor_total }}</td>
+                                    </td>
+                                    <td class="os-list-priority">{{ os.prioridade }}</td>
+                                    <td class="os-list-date">{{ os.data_abertura }}</td>
+                                    <td class="os-list-value">{{ os.valor_total }}</td>
                                     <td>
                                         <div class="action-buttons os-action-wrap">
                                             <a href="/ordens-servico/{{ os.id }}" title="Ver OS" aria-label="Ver OS" class="action-button view">🔍</a>
@@ -2867,6 +3060,17 @@ document.addEventListener("DOMContentLoaded", function() {
 </script>
 
     {% include "partials/lista_avancada.html" %}
+
+<script>
+(function organizarFerramentasListaOS() {
+    const painel = document.querySelector('.gf-list-panel');
+    const slot = painel ? painel.querySelector('.os-list-tools-slot') : null;
+    const ferramentas = painel ? painel.querySelector('.gf-list-tools') : null;
+    if (slot && ferramentas) {
+        slot.appendChild(ferramentas);
+    }
+})();
+</script>
 
 </body>
 </html>
