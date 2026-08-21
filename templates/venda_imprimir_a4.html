@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\venda_imprimir_a4.html
-Último recode: 2026-07-23 00:18 (America/Bahia)
-Motivo: Aplicar cabeçalho, rodapé e política comercial configurados por empresa.
+Último recode: 2026-08-20 21:09 (America/Bahia)
+Motivo: Exibir nos documentos impressos o nome do status configurável do módulo.
 -->
 
 <!DOCTYPE html>
@@ -261,7 +261,7 @@ Motivo: Aplicar cabeçalho, rodapé e política comercial configurados por empre
 
             <div class="doc-info">
                 <h2>VENDA {{ venda.numero or venda.id }}</h2>
-                <p>Situação: {{ venda.status or '-' }}</p>
+                <p>Situação: {{ venda.status_nome|default(venda.status, true) or '-' }}</p>
                 <p>Data: {{ venda.data or '-' }}</p>
             </div>
         </header>
