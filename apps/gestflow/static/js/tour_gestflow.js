@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\static\js\tour_gestflow.js
-Último recode: 2026-08-22 11:56 (America/Bahia)
-Motivo: Transformar o tutorial inicial em roteiro guiado pelas missões e módulos realmente ativos para a empresa.
+Último recode: 2026-08-22 12:37 (America/Bahia)
+Motivo: Simplificar o tutorial inicial para mostrar somente o próximo passo útil e levar o usuário diretamente à primeira missão, sem apresentar o sistema inteiro de uma vez.
 */
 
 (function () {
@@ -9,66 +9,36 @@ Motivo: Transformar o tutorial inicial em roteiro guiado pelas missões e módul
     if (!deveIniciar) return;
 
     const missoes = Array.isArray(window.GESTFLOW_TOUR_PASSOS) ? window.GESTFLOW_TOUR_PASSOS : [];
-    const passosBase = [
-        {
-            titulo: 'Seu GestFlow foi configurado',
-            texto: 'O menu agora mostra o núcleo da gestão e os módulos que fazem sentido para a sua operação.',
-            seletor: '.sidebar'
-        }
-    ];
+    const proximaMissao = missoes.find(function (missao) {
+        return missao && !missao.concluido && missao.seletor && document.querySelector(missao.seletor);
+    });
 
+    const passos = [];
     if (document.querySelector('#primeiros-passos')) {
-        passosBase.push({
-            titulo: 'Primeiros passos',
-            texto: 'Este roteiro acompanha o que você já configurou. Cada missão é concluída automaticamente conforme você usa o sistema.',
-            seletor: '#primeiros-passos'
-        });
-    } else if (document.querySelector('.cards-primary')) {
-        passosBase.push({
-            titulo: 'Dashboard',
-            texto: 'Aqui você acompanha os principais números da empresa e os atalhos para a operação diária.',
-            seletor: '.cards-primary'
+        passos.push({
+            titulo: 'Vamos fazer juntos?',
+            texto: 'Você não precisa aprender o GestFlow inteiro agora. Vamos começar por uma tarefa simples e, quando terminar, mostramos a próxima.',
+            seletor: '#primeiros-passos',
+            botao: proximaMissao ? 'Mostrar meu primeiro passo' : 'Entendi'
         });
     }
 
-    missoes.slice(0, 6).forEach(function (missao) {
-        if (!missao || !missao.seletor) return;
-        passosBase.push({
-            titulo: missao.titulo || 'Próximo passo',
-            texto: missao.descricao || 'Use este módulo para avançar na configuração e operação da empresa.',
-            seletor: missao.seletor
-        });
-    });
-
-    if (document.querySelector('a[href="/indflow"]')) {
-        passosBase.push({
-            titulo: 'IndFlow',
-            texto: 'Para a operação industrial, o IndFlow concentra produção, paradas, histórico e indicadores de chão de fábrica.',
-            seletor: 'a[href="/indflow"]'
-        });
-    } else if (document.querySelector('a[href="/vitrine"]')) {
-        passosBase.push({
-            titulo: 'Vitrine Online',
-            texto: 'Se este módulo estiver ativo, você pode publicar produtos ou serviços e receber pedidos e agendamentos pelo link da empresa.',
-            seletor: 'a[href="/vitrine"]'
+    if (proximaMissao) {
+        let texto = proximaMissao.descricao || 'Comece por aqui. O GestFlow vai guiando os próximos passos conforme você usa o sistema.';
+        if (proximaMissao.codigo === 'indflow') {
+            texto = 'Esta é sua área de produção. Ela se chama IndFlow e concentra produção, paradas e indicadores das máquinas. Você pode conhecer essa área agora.';
+        }
+        passos.push({
+            titulo: proximaMissao.titulo || 'Seu próximo passo',
+            texto: texto,
+            seletor: proximaMissao.seletor,
+            botao: 'Fazer agora',
+            acaoUrl: proximaMissao.url || ''
         });
     }
-
-    if (document.querySelector('a[href="/configuracoes"]')) {
-        passosBase.push({
-            titulo: 'Configurações e módulos',
-            texto: 'Você pode refazer a anamnese ou ajustar módulos operacionais e especializados quando a rotina da empresa mudar.',
-            seletor: 'a[href="/configuracoes"]'
-        });
-    }
-
-    const passos = passosBase.filter(function (passo, indice, lista) {
-        if (!document.querySelector(passo.seletor)) return false;
-        return lista.findIndex(function (item) { return item.seletor === passo.seletor; }) === indice;
-    });
 
     if (!passos.length) {
-        finalizarTourSemInterface();
+        concluirTour();
         return;
     }
 
@@ -108,8 +78,8 @@ Motivo: Transformar o tutorial inicial em roteiro guiado pelas missões e módul
             }
 
             const margem = 8;
-            const larguraBalao = Math.min(330, window.innerWidth - 28);
-            const alturaBalao = 190;
+            const larguraBalao = Math.min(340, window.innerWidth - 28);
+            const alturaBalao = 185;
             destaque.style.top = Math.max(rect.top - margem, 8) + 'px';
             destaque.style.left = Math.max(rect.left - margem, 8) + 'px';
             destaque.style.width = Math.min(rect.width + margem * 2, window.innerWidth - 16) + 'px';
@@ -130,12 +100,18 @@ Motivo: Transformar o tutorial inicial em roteiro guiado pelas missões e módul
                 <p>${passo.texto}</p>
                 <div class="gestflow-tour-progress">${indiceAtual + 1} de ${passos.length}</div>
                 <div class="gestflow-tour-actions">
-                    <button type="button" class="gestflow-tour-cancel">Encerrar</button>
-                    <button type="button" class="gestflow-tour-next">${indiceAtual === passos.length - 1 ? 'Começar a usar' : 'Próximo'}</button>
+                    <button type="button" class="gestflow-tour-cancel">Agora não</button>
+                    <button type="button" class="gestflow-tour-next">${passo.botao || 'Continuar'}</button>
                 </div>
             `;
             balao.querySelector('.gestflow-tour-cancel').addEventListener('click', finalizarTour);
-            balao.querySelector('.gestflow-tour-next').addEventListener('click', avancarTour);
+            balao.querySelector('.gestflow-tour-next').addEventListener('click', function () {
+                if (passo.acaoUrl) {
+                    finalizarTour(passo.acaoUrl);
+                    return;
+                }
+                avancarTour();
+            });
         }, 120);
     }
 
@@ -148,16 +124,17 @@ Motivo: Transformar o tutorial inicial em roteiro guiado pelas missões e módul
         posicionarPasso();
     }
 
-    function finalizarTourSemInterface() {
-        fetch('/tour/concluir', {method: 'POST'}).catch(function () {});
+    function concluirTour() {
+        fetch('/tour/concluir', {method: 'POST', keepalive: true}).catch(function () {});
     }
 
-    function finalizarTour() {
-        finalizarTourSemInterface();
+    function finalizarTour(destino) {
+        concluirTour();
         document.body.classList.remove('gestflow-tour-active');
         overlay.remove();
         destaque.remove();
         balao.remove();
+        if (destino) window.location.href = destino;
     }
 
     document.addEventListener('keydown', function (event) {

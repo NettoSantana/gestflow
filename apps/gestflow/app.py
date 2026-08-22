@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\app.py
-# Último recode: 2026-08-22 12:18 (America/Bahia)
-# Motivo: Adicionar teste exclusivo da DEV para refazer a experiência inicial completa, incluindo anamnese e tutorial, sem apagar dados operacionais.
+# Último recode: 2026-08-22 12:37 (America/Bahia)
+# Motivo: Simplificar a primeira experiência do GestFlow: anamnese intuitiva em linguagem de negócio e onboarding por missões, preservando o reset exclusivo da DEV.
 
 from __future__ import annotations
 
@@ -1721,111 +1721,61 @@ def obter_segmento_onboarding(codigo: Any) -> dict[str, str]:
 
 
 def sugerir_modulos_por_anamnese(dados: dict[str, Any]) -> dict[str, bool]:
-    segmento = obter_segmento_onboarding(dados.get("segmento"))
-    perfil = str(dados.get("perfil") or segmento.get("perfil") or "completo").strip()
-    nivel = str(dados.get("nivel") or "intermediario").strip()
-    uso_principal = str(dados.get("uso_principal") or "").strip()
-    operacao = {str(item or "").strip() for item in dados.get("operacao", []) if str(item or "").strip()}
-    comercial = {str(item or "").strip() for item in dados.get("comercial", []) if str(item or "").strip()}
-    execucao = {str(item or "").strip() for item in dados.get("execucao", []) if str(item or "").strip()}
-    estoque = {str(item or "").strip() for item in dados.get("estoque", []) if str(item or "").strip()}
-    cadastros = {str(item or "").strip() for item in dados.get("cadastros", []) if str(item or "").strip()}
-    especializados = {str(item or "").strip() for item in dados.get("especializados", []) if str(item or "").strip()}
+    tipo_empresa = str(dados.get("tipo_empresa") or dados.get("uso_principal") or "").strip()
+    fluxos = {str(item or "").strip() for item in dados.get("fluxo", []) if str(item or "").strip()}
+    controles = {str(item or "").strip() for item in dados.get("controles", []) if str(item or "").strip()}
 
-    if nivel == "completo":
-        ativos = set(GESTFLOW_MODULOS_CODIGOS)
-    else:
-        ativos = set(GESTFLOW_MODULOS_NUCLEO)
-        perfil_base = set(GESTFLOW_PERFIS_MODULOS.get(perfil, set()))
-        perfil_base.difference_update(GESTFLOW_MODULOS_ESPECIALIZADOS)
-        if nivel == "intermediario":
-            ativos.update(perfil_base)
+    ativos = set(GESTFLOW_MODULOS_NUCLEO)
 
-    if uso_principal in {"produtos", "ambos", "industrial"}:
+    if tipo_empresa == "produtos":
         ativos.add("produtos")
-    if uso_principal in {"servicos", "ambos", "industrial"}:
+    elif tipo_empresa == "servicos":
         ativos.add("servicos")
-    if uso_principal == "industrial":
-        ativos.update({"produtos", "estoque", "indflow"})
+    elif tipo_empresa == "ambos":
+        ativos.update({"produtos", "servicos"})
+    elif tipo_empresa == "industrial":
+        ativos.update({"produtos", "indflow"})
 
-    if "produtos" in operacao:
-        ativos.add("produtos")
-    if "servicos" in operacao:
-        ativos.add("servicos")
-    if "compras" in operacao:
-        ativos.update({"fornecedores", "produtos", "estoque"})
-    if "estoque" in operacao or "estoque_simples" in estoque or "estoque_completo" in estoque:
-        ativos.update({"produtos", "estoque"})
-    if "ordem_servico" in operacao or "os_simples" in execucao or "os_completa" in execucao:
-        ativos.update({"servicos", "ordens_servico"})
-    if "equipe_externa" in operacao or "campo" in execucao or "fotos" in execucao or "acompanhamento" in execucao:
-        ativos.update({"funcionarios", "servicos", "ordens_servico", "painel_os"})
-    if "contratos" in operacao or "projetos_obras" in operacao:
-        ativos.update({"fornecedores", "funcionarios", "produtos", "servicos", "contratos", "gerador_orcamentos", "ordens_servico", "gestao_atividades"})
-    if "agendamentos" in operacao:
+    if "venda_direta" in fluxos:
+        ativos.update({"produtos", "pdv"})
+    if "agendamento" in fluxos:
         ativos.update({"servicos", "agendamentos"})
-    if "registro_ponto" in operacao:
-        ativos.update({"funcionarios", "registro_ponto"})
-    if "atividades" in operacao:
-        ativos.add("gestao_atividades")
-
-    if "gerador" in comercial:
-        ativos.update({"gerador_orcamentos", "produtos", "servicos", "funcionarios"})
-    if "pdv" in comercial or "balcao" in operacao:
-        ativos.update({"produtos", "pdv", "devolucoes"})
-    if "vitrine" in comercial or "whatsapp" in comercial:
+    if "servico_direto" in fluxos:
+        ativos.update({"servicos", "ordens_servico"})
+    if "recorrente" in fluxos:
+        ativos.update({"servicos", "contratos"})
+    if "online" in fluxos:
         ativos.add("vitrine")
+    if fluxos.intersection({"producao", "paradas", "producao_paradas"}):
+        ativos.add("indflow")
 
-    mapa_cadastros = {
-        "clientes": "clientes",
-        "fornecedores": "fornecedores",
-        "funcionarios": "funcionarios",
-        "equipamentos": "equipamentos",
-        "produtos": "produtos",
-        "servicos": "servicos",
-    }
-    for item in cadastros:
-        if item in mapa_cadastros:
-            ativos.add(mapa_cadastros[item])
-
-    mapa_especializados = {
-        "equipamentos": "equipamentos",
-        "vitrine": "vitrine",
-        "emprestimos": "emprestimos",
-        "indflow": "indflow",
-    }
-    for item in especializados:
-        if item in mapa_especializados:
-            ativos.add(mapa_especializados[item])
-
-    if nivel == "simples":
-        permitidos_simples = set(GESTFLOW_MODULOS_NUCLEO)
-        permitidos_simples.update({"produtos", "servicos"})
-        permitidos_simples.update({codigo for codigo in ativos if codigo in {"estoque", "pdv", "ordens_servico", "agendamentos", "vitrine", "indflow"}})
-        ativos = permitidos_simples
+    if "produtos_materiais" in controles:
+        ativos.update({"produtos", "estoque"})
+    if "compras_fornecedores" in controles:
+        ativos.update({"fornecedores", "produtos", "estoque"})
+    if "funcionarios" in controles:
+        ativos.add("funcionarios")
+    if "horarios_agendamentos" in controles:
+        ativos.update({"servicos", "agendamentos"})
+    if "servicos_andamento" in controles:
+        ativos.update({"servicos", "ordens_servico"})
+    if "vendas_online" in controles:
+        ativos.add("vitrine")
 
     if "pdv" in ativos:
         ativos.update({"produtos", "vendas"})
-    if "devolucoes" in ativos:
-        ativos.add("vendas")
     if "vitrine" in ativos:
         ativos.update({"clientes", "vendas"})
         if "produtos" not in ativos and "servicos" not in ativos:
             ativos.add("produtos")
-    if "gerador_orcamentos" in ativos:
-        ativos.update({"orcamentos", "produtos", "servicos"})
-    if "contratos" in ativos:
-        ativos.add("clientes")
-    if "painel_os" in ativos:
-        ativos.add("ordens_servico")
     if "estoque" in ativos:
         ativos.add("produtos")
     if "agendamentos" in ativos:
         ativos.update({"clientes", "servicos"})
     if "ordens_servico" in ativos:
         ativos.update({"clientes", "servicos"})
-    if "registro_ponto" in ativos:
-        ativos.add("funcionarios")
+    if "contratos" in ativos:
+        ativos.update({"clientes", "servicos"})
     if "indflow" in ativos:
         ativos.add("produtos")
 
@@ -1834,40 +1784,61 @@ def sugerir_modulos_por_anamnese(dados: dict[str, Any]) -> dict[str, bool]:
 
 
 def montar_onboarding_formulario() -> dict[str, Any]:
-    segmento = (request.form.get("segmento") or request.form.get("ramo") or "").strip() or "outro"
-    segmento_info = obter_segmento_onboarding(segmento)
-    nivel = (request.form.get("nivel") or "intermediario").strip()
+    tipo_empresa = (request.form.get("tipo_empresa") or "").strip()
+    if tipo_empresa not in {"produtos", "servicos", "ambos", "industrial"}:
+        tipo_empresa = "ambos"
 
-    if nivel not in GESTFLOW_NIVEIS_ONBOARDING:
-        nivel = "intermediario"
-
-    dados = {
-        "segmento": segmento,
-        "segmento_nome": segmento_info["nome"],
-        "perfil": segmento_info["perfil"],
-        "nivel": nivel,
-        "uso_principal": (request.form.get("uso_principal") or "").strip(),
-        "operacao": [item.strip() for item in request.form.getlist("operacao") if item.strip()],
-        "comercial": [item.strip() for item in request.form.getlist("comercial") if item.strip()],
-        "execucao": [item.strip() for item in request.form.getlist("execucao") if item.strip()],
-        "estoque": [item.strip() for item in request.form.getlist("estoque") if item.strip()],
-        "financeiro": [item.strip() for item in request.form.getlist("financeiro") if item.strip()],
-        "cadastros": [item.strip() for item in request.form.getlist("cadastros") if item.strip()],
-        "especializados": [item.strip() for item in request.form.getlist("especializados") if item.strip()],
-        "objetivos": [item.strip() for item in request.form.getlist("objetivos") if item.strip()],
-        "ferramenta_atual": (request.form.get("ferramenta_atual") or "").strip(),
-        "canal_contato": (request.form.get("canal_contato") or "").strip(),
-        "usar_configuracao_completa": (request.form.get("usar_configuracao_completa") or "").strip() == "sim",
+    mapa_tipo = {
+        "produtos": {
+            "segmento": "loja_variedades",
+            "segmento_nome": "Venda de produtos",
+            "perfil": "comercio",
+            "uso_principal": "produtos",
+        },
+        "servicos": {
+            "segmento": "prestador_servico",
+            "segmento_nome": "Prestação de serviços",
+            "perfil": "servicos",
+            "uso_principal": "servicos",
+        },
+        "ambos": {
+            "segmento": "prestador_servico",
+            "segmento_nome": "Produtos e serviços",
+            "perfil": "servicos",
+            "uso_principal": "ambos",
+        },
+        "industrial": {
+            "segmento": "manutencao_industrial",
+            "segmento_nome": "Produção / Indústria",
+            "perfil": "industrial",
+            "uso_principal": "industrial",
+        },
     }
 
-    if dados["usar_configuracao_completa"]:
-        dados["perfil"] = "completo"
-        dados["nivel"] = "completo"
-        dados["modulos"] = dict(GESTFLOW_MODULOS_PADRAO)
-    else:
-        dados["modulos"] = sugerir_modulos_por_anamnese(dados)
-
+    base = mapa_tipo[tipo_empresa]
+    fluxo = [item.strip() for item in request.form.getlist("fluxo") if item.strip()]
+    controles = [item.strip() for item in request.form.getlist("controle") if item.strip()]
+    dados = {
+        **base,
+        "tipo_empresa": tipo_empresa,
+        "nivel": "simples",
+        "fluxo": fluxo,
+        "controles": controles,
+        "operacao": list(fluxo),
+        "comercial": [item for item in fluxo if item in {"orcamento", "venda_direta", "online"}],
+        "execucao": [item for item in fluxo if item in {"agendamento", "servico_direto", "recorrente"}],
+        "estoque": [item for item in controles if item in {"produtos_materiais", "compras_fornecedores"}],
+        "financeiro": [],
+        "cadastros": [],
+        "especializados": ["indflow"] if tipo_empresa == "industrial" else [],
+        "objetivos": list(controles),
+        "ferramenta_atual": "",
+        "canal_contato": "",
+        "usar_configuracao_completa": False,
+    }
+    dados["modulos"] = sugerir_modulos_por_anamnese(dados)
     return dados
+
 
 def empresa_precisa_onboarding() -> bool:
     if not session.get("usuario_id"):
@@ -25490,6 +25461,11 @@ def refazer_anamnese_modulos() -> Response:
         )
         conn.commit()
 
+    session.pop("onboarding_indflow_visitado", None)
+    session["onboarding_teste_baseline"] = {
+        tabela: _contar_registros_primeiros_passos(tabela)
+        for tabela in ("clientes", "produtos", "servicos", "orcamentos", "vendas", "ordens_servico", "agendamentos", "financeiro_titulos")
+    }
     registrar_atividade_usuario(
         "edicao",
         "configuracoes",
@@ -25798,24 +25774,22 @@ def empresa_precisa_tour() -> bool:
 
 def salvar_onboarding_empresa_db(dados: dict[str, Any]) -> None:
     modulos = dict(dados.get("modulos") or GESTFLOW_MODULOS_PADRAO)
-    objetivos_texto = ", ".join(dados.get("objetivos") or [])
+    objetivos_texto = ", ".join(dados.get("controles") or dados.get("objetivos") or [])
     respostas_json = json.dumps(
         {
+            "tipo_empresa": dados.get("tipo_empresa", ""),
             "segmento": dados.get("segmento"),
             "segmento_nome": dados.get("segmento_nome"),
             "perfil": dados.get("perfil"),
             "nivel": dados.get("nivel"),
             "uso_principal": dados.get("uso_principal", ""),
+            "fluxo": dados.get("fluxo", []),
+            "controles": dados.get("controles", []),
             "operacao": dados.get("operacao", []),
             "comercial": dados.get("comercial", []),
             "execucao": dados.get("execucao", []),
             "estoque": dados.get("estoque", []),
-            "financeiro": dados.get("financeiro", []),
-            "cadastros": dados.get("cadastros", []),
-            "especializados": dados.get("especializados", []),
             "objetivos": dados.get("objetivos", []),
-            "ferramenta_atual": dados.get("ferramenta_atual", ""),
-            "canal_contato": dados.get("canal_contato", ""),
         },
         ensure_ascii=False,
     )
@@ -25832,8 +25806,8 @@ def salvar_onboarding_empresa_db(dados: dict[str, Any]) -> None:
                 onboarding_nivel = ?,
                 onboarding_objetivos = ?,
                 onboarding_operacao = ?,
-                onboarding_ferramenta_atual = ?,
-                onboarding_canal_contato = ?,
+                onboarding_ferramenta_atual = '',
+                onboarding_canal_contato = '',
                 onboarding_respostas = ?,
                 onboarding_perfil_sugerido = ?,
                 onboarding_modulos_atualizado_em = ?,
@@ -25843,11 +25817,9 @@ def salvar_onboarding_empresa_db(dados: dict[str, Any]) -> None:
             (
                 dados.get("segmento_nome", ""),
                 dados.get("segmento", ""),
-                dados.get("nivel", ""),
+                dados.get("nivel", "simples"),
                 objetivos_texto,
-                ", ".join(dados.get("operacao") or []),
-                dados.get("ferramenta_atual", ""),
-                dados.get("canal_contato", ""),
+                ", ".join(dados.get("fluxo") or []),
                 respostas_json,
                 dados.get("perfil", ""),
                 agora_empresa().isoformat(timespec="seconds"),
@@ -25856,6 +25828,7 @@ def salvar_onboarding_empresa_db(dados: dict[str, Any]) -> None:
             ),
         )
         conn.commit()
+
 
 def _contar_registros_primeiros_passos(tabela: str) -> int:
     tabelas_permitidas = {
@@ -25899,115 +25872,136 @@ def montar_primeiros_passos() -> dict[str, Any]:
     modulos = buscar_modulos_empresa()
     empresa = buscar_onboarding_empresa()
     respostas = _respostas_onboarding_empresa(empresa)
-    uso_principal = str(respostas.get("uso_principal") or "").strip()
+    tipo_empresa = str(respostas.get("tipo_empresa") or respostas.get("uso_principal") or "").strip()
+    fluxos = {str(item or "").strip() for item in respostas.get("fluxo", []) if str(item or "").strip()}
 
-    contagens = {
+    tabelas_primeiros_passos = ("clientes", "produtos", "servicos", "orcamentos", "vendas", "ordens_servico", "agendamentos", "financeiro_titulos")
+    contagens_atuais = {
         tabela: _contar_registros_primeiros_passos(tabela)
-        for tabela in ("clientes", "produtos", "servicos", "orcamentos", "vendas", "ordens_servico", "agendamentos", "financeiro_titulos")
+        for tabela in tabelas_primeiros_passos
     }
-
-    itens: list[dict[str, Any]] = [
-        {
-            "codigo": "cliente",
-            "titulo": "Cadastre seu primeiro cliente",
-            "descricao": "O cliente conecta orçamento, venda, OS e financeiro.",
-            "url": "/clientes",
-            "seletor": 'a[href="/clientes"]',
-            "concluido": contagens["clientes"] > 0,
+    baseline_teste = session.get("onboarding_teste_baseline") if ambiente_reset_base_dev_liberado() else None
+    if isinstance(baseline_teste, dict):
+        contagens = {
+            tabela: max(0, contagens_atuais[tabela] - int(baseline_teste.get(tabela, 0) or 0))
+            for tabela in tabelas_primeiros_passos
         }
-    ]
+    else:
+        contagens = contagens_atuais
+
+    itens: list[dict[str, Any]] = []
+
+    if tipo_empresa == "industrial" and modulos.get("indflow"):
+        itens.append({
+            "codigo": "indflow",
+            "titulo": "Conheça sua área de produção",
+            "descricao": "É aqui que você acompanha produção, paradas e indicadores das máquinas.",
+            "url": "/indflow",
+            "seletor": 'a[href="/indflow"]',
+            "concluido": bool(session.get("onboarding_indflow_visitado")),
+        })
+
+    itens.append({
+        "codigo": "cliente",
+        "titulo": "Cadastre seu primeiro cliente",
+        "descricao": "Vamos começar por uma pessoa ou empresa que compra de você.",
+        "url": "/clientes",
+        "seletor": 'a[href="/clientes"]',
+        "concluido": contagens["clientes"] > 0,
+    })
 
     produtos_ativos = bool(modulos.get("produtos"))
     servicos_ativos = bool(modulos.get("servicos"))
-    if produtos_ativos and servicos_ativos:
-        preferir_servico = uso_principal == "servicos"
+    if produtos_ativos and servicos_ativos and tipo_empresa != "industrial":
         itens.append({
             "codigo": "catalogo",
-            "titulo": "Cadastre um produto ou serviço",
-            "descricao": "Monte o catálogo que será usado nas operações comerciais.",
-            "url": "/servicos" if preferir_servico else "/produtos",
-            "seletor": 'a[href="/servicos"]' if preferir_servico else 'a[href="/produtos"]',
+            "titulo": "Cadastre o que você vende",
+            "descricao": "Pode ser um produto ou um serviço. Escolha um para começar.",
+            "url": "/servicos" if tipo_empresa == "servicos" else "/produtos",
+            "seletor": 'a[href="/servicos"]' if tipo_empresa == "servicos" else 'a[href="/produtos"]',
             "concluido": contagens["produtos"] > 0 or contagens["servicos"] > 0,
-        })
-    elif produtos_ativos:
-        itens.append({
-            "codigo": "produto",
-            "titulo": "Cadastre seu primeiro produto",
-            "descricao": "Prepare seus itens para orçamento, venda e estoque.",
-            "url": "/produtos",
-            "seletor": 'a[href="/produtos"]',
-            "concluido": contagens["produtos"] > 0,
         })
     elif servicos_ativos:
         itens.append({
             "codigo": "servico",
             "titulo": "Cadastre seu primeiro serviço",
-            "descricao": "Defina o que sua empresa presta antes de orçar ou agendar.",
+            "descricao": "Exemplo: manutenção, instalação, consulta ou atendimento.",
             "url": "/servicos",
             "seletor": 'a[href="/servicos"]',
             "concluido": contagens["servicos"] > 0,
         })
+    elif produtos_ativos:
+        itens.append({
+            "codigo": "produto",
+            "titulo": "Cadastre seu primeiro produto",
+            "descricao": "Exemplo: peça, roupa, equipamento ou qualquer item que você venda.",
+            "url": "/produtos",
+            "seletor": 'a[href="/produtos"]',
+            "concluido": contagens["produtos"] > 0,
+        })
 
-    if modulos.get("orcamentos"):
+    venda_direta_sem_orcamento = tipo_empresa == "produtos" and "venda_direta" in fluxos and "orcamento" not in fluxos
+    if venda_direta_sem_orcamento and modulos.get("vendas"):
+        itens.append({
+            "codigo": "venda",
+            "titulo": "Registre sua primeira venda",
+            "descricao": "Faça uma venda simples usando o cliente e o produto que acabou de cadastrar.",
+            "url": "/vendas",
+            "seletor": 'a[href="/vendas"]',
+            "concluido": contagens["vendas"] > 0,
+        })
+    elif modulos.get("orcamentos"):
         itens.append({
             "codigo": "orcamento",
-            "titulo": "Crie seu primeiro orçamento",
-            "descricao": "Monte uma proposta e acompanhe o avanço comercial.",
+            "titulo": "Faça seu primeiro orçamento",
+            "descricao": "Escolha o cliente e o que você vende. O GestFlow organiza a proposta para você.",
             "url": "/orcamentos",
             "seletor": 'a[href="/orcamentos"]',
             "concluido": contagens["orcamentos"] > 0,
         })
 
-    if modulos.get("ordens_servico"):
+    if modulos.get("ordens_servico") and ("servico_direto" in fluxos or tipo_empresa in {"servicos", "ambos"}):
         itens.append({
             "codigo": "os",
-            "titulo": "Abra sua primeira Ordem de Serviço",
-            "descricao": "Leve a execução do serviço para o fluxo operacional.",
+            "titulo": "Acompanhe um serviço em andamento",
+            "descricao": "Use a Ordem de Serviço para organizar o que precisa ser executado.",
             "url": "/ordens-servico",
             "seletor": 'a[href="/ordens-servico"]',
             "concluido": contagens["ordens_servico"] > 0,
         })
-
-    if modulos.get("agendamentos"):
+    elif modulos.get("agendamentos") and "agendamento" in fluxos:
         itens.append({
             "codigo": "agendamento",
             "titulo": "Faça seu primeiro agendamento",
-            "descricao": "Organize cliente, serviço, profissional, data e horário.",
+            "descricao": "Organize cliente, serviço, data e horário em um só lugar.",
             "url": "/agendamentos",
             "seletor": 'a[href="/agendamentos"]',
             "concluido": contagens["agendamentos"] > 0,
-        })
-
-    if modulos.get("vendas"):
-        itens.append({
-            "codigo": "venda",
-            "titulo": "Registre sua primeira venda",
-            "descricao": "Conclua o fluxo comercial e alimente o financeiro.",
-            "url": "/vendas",
-            "seletor": 'a[href="/vendas"]',
-            "concluido": contagens["vendas"] > 0,
         })
 
     if modulos.get("financeiro"):
         itens.append({
             "codigo": "financeiro",
             "titulo": "Conheça o Financeiro",
-            "descricao": "Acompanhe contas a receber, a pagar e fluxo de caixa.",
+            "descricao": "É aqui que você acompanha o que tem para receber e pagar.",
             "url": "/financeiro/fluxo-caixa",
             "seletor": 'a[href="/financeiro/fluxo-caixa"]',
             "concluido": contagens["financeiro_titulos"] > 0,
         })
 
+    itens = itens[:5]
     total = len(itens)
     concluidos = sum(1 for item in itens if item["concluido"])
     percentual = int(round((concluidos / total) * 100)) if total else 100
+    proximo = next((item for item in itens if not item["concluido"]), None)
     return {
         "itens": itens,
         "total": total,
         "concluidos": concluidos,
         "percentual": percentual,
         "concluido": total == concluidos,
-        "uso_principal": uso_principal,
+        "proximo": proximo,
+        "tipo_empresa": tipo_empresa,
         "segmento": respostas.get("segmento_nome") or empresa.get("onboarding_ramo") or "",
     }
 
@@ -26700,6 +26694,7 @@ def abrir_indflow() -> Response:
             status=503,
         )
 
+    session["onboarding_indflow_visitado"] = True
     response = redirect(destino)
     response.headers["Cache-Control"] = "no-store"
     response.headers["Referrer-Policy"] = "no-referrer"
