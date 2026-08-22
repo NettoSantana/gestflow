@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\configuracoes.html
-Último recode: 2026-08-22 15:19 (America/Bahia)
-Motivo: Tornar a escolha do formato da Vitrine didática para clientes leigos, perguntando o que vendem e mostrando claramente como a página será organizada.
+Último recode: 2026-08-22 17:26 (America/Bahia)
+Motivo: Unificar o salvamento das configurações da Vitrine em um único botão didático, preservando os dois fluxos de gravação existentes.
 #}
 
 <!DOCTYPE html>
@@ -310,6 +310,7 @@ Motivo: Tornar a escolha do formato da Vitrine didática para clientes leigos, p
                             </div>
 
                             <form
+                                id="vitrine-config-publica-form"
                                 class="vitrine-config-publica-form"
                                 action="{{ url_for('salvar_configuracao_publica_vitrine') }}"
                                 method="post"
@@ -553,13 +554,6 @@ Motivo: Tornar a escolha do formato da Vitrine didática para clientes leigos, p
                                     </div>
                                 </details>
 
-                                <div class="vitrine-config-publica-save">
-                                    <div>
-                                        <strong>Configuração pública da empresa</strong>
-                                        <small>Essas alterações mudam a aparência da loja; produtos e atendimentos não são alterados.</small>
-                                    </div>
-                                    <button type="submit" class="btn-primary-green">Salvar apresentação da Vitrine</button>
-                                </div>
                             </form>
                         </section>
 
@@ -567,6 +561,56 @@ Motivo: Tornar a escolha do formato da Vitrine didática para clientes leigos, p
                             document.addEventListener('DOMContentLoaded', function () {
                                 const raiz = document.querySelector('[data-vitrine-config-publica]');
                                 if (!raiz) return;
+
+                                const formularioPublico = document.getElementById('vitrine-config-publica-form');
+                                const formularioRegras = document.getElementById('module-config-form');
+                                const botaoSalvarTudo = document.querySelector('[data-vitrine-save-all]');
+                                let salvandoTudo = false;
+
+                                async function salvarTudoVitrine(evento) {
+                                    if (evento) evento.preventDefault();
+                                    if (salvandoTudo || !formularioPublico || !formularioRegras) return;
+
+                                    if (!formularioPublico.reportValidity() || !formularioRegras.reportValidity()) return;
+
+                                    salvandoTudo = true;
+                                    const textoOriginal = botaoSalvarTudo ? botaoSalvarTudo.textContent : 'Salvar alterações';
+                                    if (botaoSalvarTudo) {
+                                        botaoSalvarTudo.disabled = true;
+                                        botaoSalvarTudo.textContent = 'Salvando...';
+                                    }
+
+                                    try {
+                                        const resposta = await fetch(formularioPublico.action, {
+                                            method: 'POST',
+                                            body: new FormData(formularioPublico),
+                                            credentials: 'same-origin'
+                                        });
+
+                                        if (!resposta.ok) {
+                                            throw new Error('Não foi possível salvar a apresentação da Vitrine.');
+                                        }
+
+                                        const urlResposta = new URL(resposta.url, window.location.origin);
+                                        const erroPublico = urlResposta.searchParams.get('erro');
+                                        if (erroPublico) {
+                                            throw new Error(erroPublico);
+                                        }
+
+                                        HTMLFormElement.prototype.submit.call(formularioRegras);
+                                    } catch (erro) {
+                                        salvandoTudo = false;
+                                        if (botaoSalvarTudo) {
+                                            botaoSalvarTudo.disabled = false;
+                                            botaoSalvarTudo.textContent = textoOriginal;
+                                        }
+                                        window.alert(erro && erro.message ? erro.message : 'Não foi possível salvar as alterações da Vitrine.');
+                                    }
+                                }
+
+                                if (botaoSalvarTudo) botaoSalvarTudo.addEventListener('click', salvarTudoVitrine);
+                                if (formularioPublico) formularioPublico.addEventListener('submit', salvarTudoVitrine);
+                                if (formularioRegras) formularioRegras.addEventListener('submit', salvarTudoVitrine);
 
                                 const paineis = raiz.querySelectorAll('[data-vitrine-identidade-painel]');
                                 function atualizarIdentidade() {
@@ -884,10 +928,19 @@ Motivo: Tornar a escolha do formato da Vitrine didática para clientes leigos, p
 
                                 <div class="module-config-actions">
                                     <div>
-                                        <strong>Configuração da empresa</strong>
-                                        <small>As regras são aplicadas aos próximos cadastros e ações; dados já lançados são preservados.</small>
+                                        {% if codigo_modulo_configuracao == 'vitrine' %}
+                                            <strong>Salvar alterações da Vitrine</strong>
+                                            <small>Salva de uma vez a apresentação, a aparência e as regras configuradas nesta tela.</small>
+                                        {% else %}
+                                            <strong>Configuração da empresa</strong>
+                                            <small>As regras são aplicadas aos próximos cadastros e ações; dados já lançados são preservados.</small>
+                                        {% endif %}
                                     </div>
-                                    <button type="submit" class="btn-primary-green">Salvar {{ modulo_configuracao.nome }}</button>
+                                    {% if codigo_modulo_configuracao == 'vitrine' %}
+                                        <button type="button" class="btn-primary-green" data-vitrine-save-all>Salvar alterações</button>
+                                    {% else %}
+                                        <button type="submit" class="btn-primary-green">Salvar {{ modulo_configuracao.nome }}</button>
+                                    {% endif %}
                                 </div>
                             </form>
 
