@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\configuracoes.html
-Último recode: 2026-08-12 23:35 (America/Bahia)
-Motivo: Concentrar identidade, publicação e apresentação pública da Vitrine em Configurações, separando essas opções da operação diária.
+Último recode: 2026-08-22 12:36 (America/Bahia)
+Motivo: Adicionar configuração simples para ativar e preencher a apresentação profissional resumida da Vitrine de Serviços.
 -->
 
 <!DOCTYPE html>
@@ -336,7 +336,7 @@ Motivo: Concentrar identidade, publicação e apresentação pública da Vitrine
                                         </div>
                                         <div class="module-config-field">
                                             <label for="vitrine_categoria">Categoria principal</label>
-                                            <select id="vitrine_categoria" name="categoria" class="form-control">
+                                            <select id="vitrine_categoria" name="categoria" class="form-control" data-vitrine-categoria>
                                                 <option value="">Selecionar categoria</option>
                                                 <option value="perfumaria" {% if vitrine_cfg.get('categoria') == 'perfumaria' %}selected{% endif %}>Perfumaria e cosméticos</option>
                                                 <option value="moda" {% if vitrine_cfg.get('categoria') == 'moda' %}selected{% endif %}>Moda e roupas</option>
@@ -353,6 +353,61 @@ Motivo: Concentrar identidade, publicação e apresentação pública da Vitrine
                                                 <option value="horizontal" {% if vitrine_cfg.get('catalogo_formato') == 'horizontal' %}selected{% endif %}>Horizontal</option>
                                             </select>
                                             <small class="module-config-help">O formato muda o card sem cortar a mídia original.</small>
+                                        </div>
+                                    </div>
+                                </details>
+
+                                <details class="vitrine-config-section" data-vitrine-apresentacao-section {% if (vitrine_cfg.get('categoria') or '') != 'servicos' %}hidden{% endif %} open>
+                                    <summary><span>Apresentação profissional</span><small>Opcional · ideal para quem vende serviços</small></summary>
+                                    <input type="hidden" name="apresentacao_profissional_presente" value="1">
+                                    <div class="vitrine-professional-config">
+                                        <label class="vitrine-professional-toggle">
+                                            <span>
+                                                <strong>Mostrar apresentação profissional na vitrine</strong>
+                                                <small>Exibe foto, nome, especialidade e destaques antes dos serviços. Se desligar, o cliente vai direto aos itens publicados.</small>
+                                            </span>
+                                            <span class="vitrine-switch">
+                                                <input type="checkbox" name="mostrar_apresentacao_profissional" value="sim" data-vitrine-profissional-toggle {% if (vitrine_cfg.get('mostrar_apresentacao_profissional') or 'nao') == 'sim' %}checked{% endif %}>
+                                                <span class="vitrine-switch-track" aria-hidden="true"></span>
+                                            </span>
+                                        </label>
+
+                                        <div class="vitrine-config-grid vitrine-professional-fields" data-vitrine-profissional-fields {% if (vitrine_cfg.get('mostrar_apresentacao_profissional') or 'nao') != 'sim' %}hidden{% endif %}>
+                                            <div class="module-config-field">
+                                                <label for="vitrine_profissional_foto">Foto profissional</label>
+                                                <input id="vitrine_profissional_foto" name="profissional_foto" type="file" accept="image/png,image/jpeg,image/webp" class="form-control">
+                                                {% if vitrine_cfg.get('profissional_foto_path') %}
+                                                    <div class="vitrine-professional-photo-current">
+                                                        <img src="{{ url_for('servir_upload_vitrine_publico', caminho=vitrine_cfg.get('profissional_foto_path')) }}" alt="Foto profissional atual">
+                                                        <label class="vitrine-config-check"><input type="checkbox" name="remover_profissional_foto" value="sim"> Remover foto ao salvar</label>
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                            <div class="module-config-field">
+                                                <label for="vitrine_profissional_nome">Nome do profissional</label>
+                                                <input id="vitrine_profissional_nome" name="profissional_nome" type="text" maxlength="90" value="{{ vitrine_cfg.get('profissional_nome') or '' }}" class="form-control" placeholder="Ex.: Ana Souza">
+                                            </div>
+                                            <div class="module-config-field">
+                                                <label for="vitrine_profissional_especialidade">Especialidade</label>
+                                                <input id="vitrine_profissional_especialidade" name="profissional_especialidade" type="text" maxlength="120" value="{{ vitrine_cfg.get('profissional_especialidade') or '' }}" class="form-control" placeholder="Ex.: Estética facial e corporal">
+                                            </div>
+                                            <div class="module-config-field">
+                                                <label for="vitrine_profissional_experiencia">Tempo de experiência</label>
+                                                <input id="vitrine_profissional_experiencia" name="profissional_experiencia" type="text" maxlength="40" value="{{ vitrine_cfg.get('profissional_experiencia') or '' }}" class="form-control" placeholder="Ex.: 8 anos">
+                                            </div>
+                                            <div class="module-config-field">
+                                                <label for="vitrine_profissional_clientes">Atendimentos realizados</label>
+                                                <input id="vitrine_profissional_clientes" name="profissional_clientes" type="text" maxlength="40" value="{{ vitrine_cfg.get('profissional_clientes') or '' }}" class="form-control" placeholder="Ex.: +500">
+                                            </div>
+                                            <div class="module-config-field">
+                                                <label for="vitrine_profissional_destaque">Destaque profissional</label>
+                                                <input id="vitrine_profissional_destaque" name="profissional_destaque" type="text" maxlength="120" value="{{ vitrine_cfg.get('profissional_destaque') or '' }}" class="form-control" placeholder="Ex.: Especialista em harmonização facial">
+                                            </div>
+                                            <div class="module-config-field wide">
+                                                <label for="vitrine_profissional_frase">Frase de apresentação</label>
+                                                <textarea id="vitrine_profissional_frase" name="profissional_frase" class="form-control module-config-textarea" rows="2" maxlength="220" placeholder="Ex.: Atendimento personalizado para realçar sua beleza com segurança e cuidado.">{{ vitrine_cfg.get('profissional_frase') or '' }}</textarea>
+                                                <small class="module-config-help">Mantenha curto. Não é necessário criar uma seção “Sobre mim”.</small>
+                                            </div>
                                         </div>
                                     </div>
                                 </details>
@@ -458,6 +513,23 @@ Motivo: Concentrar identidade, publicação e apresentação pública da Vitrine
                                     campo.addEventListener('change', atualizarIdentidade);
                                 });
                                 atualizarIdentidade();
+
+                                const categoria = raiz.querySelector('[data-vitrine-categoria]');
+                                const secaoProfissional = raiz.querySelector('[data-vitrine-apresentacao-section]');
+                                const toggleProfissional = raiz.querySelector('[data-vitrine-profissional-toggle]');
+                                const camposProfissional = raiz.querySelector('[data-vitrine-profissional-fields]');
+
+                                function atualizarApresentacaoProfissional() {
+                                    const categoriaServicos = !categoria || categoria.value === 'servicos';
+                                    if (secaoProfissional) secaoProfissional.hidden = !categoriaServicos;
+                                    if (camposProfissional) {
+                                        camposProfissional.hidden = !categoriaServicos || !toggleProfissional || !toggleProfissional.checked;
+                                    }
+                                }
+
+                                if (categoria) categoria.addEventListener('change', atualizarApresentacaoProfissional);
+                                if (toggleProfissional) toggleProfissional.addEventListener('change', atualizarApresentacaoProfissional);
+                                atualizarApresentacaoProfissional();
 
                                 const preview = raiz.querySelector('[data-vitrine-logo-preview]');
                                 const frame = raiz.querySelector('.vitrine-logo-config-frame');
@@ -1996,6 +2068,110 @@ Motivo: Concentrar identidade, publicação e apresentação pública da Vitrine
                 font-weight: 800;
             }
 
+            .vitrine-professional-config {
+                padding: 16px;
+            }
+
+            .vitrine-professional-toggle {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 18px;
+                padding: 14px 16px;
+                border: 1px solid #dbe4f0;
+                border-radius: 12px;
+                background: #f8fafc;
+                cursor: pointer;
+            }
+
+            .vitrine-professional-toggle strong,
+            .vitrine-professional-toggle small {
+                display: block;
+            }
+
+            .vitrine-professional-toggle strong {
+                color: #0f172a;
+                font-size: 12px;
+            }
+
+            .vitrine-professional-toggle small {
+                max-width: 640px;
+                margin-top: 4px;
+                color: #64748b;
+                font-size: 10px;
+                font-weight: 700;
+                line-height: 1.45;
+            }
+
+            .vitrine-switch {
+                position: relative;
+                width: 46px;
+                height: 26px;
+                flex: 0 0 46px;
+            }
+
+            .vitrine-switch input {
+                position: absolute;
+                inset: 0;
+                z-index: 2;
+                margin: 0;
+                opacity: 0;
+                cursor: pointer;
+            }
+
+            .vitrine-switch-track {
+                position: absolute;
+                inset: 0;
+                border-radius: 999px;
+                background: #cbd5e1;
+                transition: .18s ease;
+            }
+
+            .vitrine-switch-track::after {
+                content: "";
+                position: absolute;
+                top: 3px;
+                left: 3px;
+                width: 20px;
+                height: 20px;
+                border-radius: 50%;
+                background: #ffffff;
+                box-shadow: 0 1px 4px rgba(15, 23, 42, .2);
+                transition: .18s ease;
+            }
+
+            .vitrine-switch input:checked + .vitrine-switch-track {
+                background: #16a34a;
+            }
+
+            .vitrine-switch input:checked + .vitrine-switch-track::after {
+                transform: translateX(20px);
+            }
+
+            .vitrine-professional-fields {
+                margin: 14px -16px -16px;
+                border-top: 1px solid #e2e8f0;
+            }
+
+            .vitrine-professional-photo-current {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                margin-top: 8px;
+            }
+
+            .vitrine-professional-photo-current img {
+                width: 58px;
+                height: 58px;
+                object-fit: cover;
+                border: 1px solid #dbe4f0;
+                border-radius: 12px;
+            }
+
+            .vitrine-professional-photo-current .vitrine-config-check {
+                margin-top: 0;
+            }
+
             .vitrine-color-input {
                 min-height: 44px !important;
                 padding: 4px !important;
@@ -2038,6 +2214,10 @@ Motivo: Concentrar identidade, publicação e apresentação pública da Vitrine
 
                 .vitrine-logo-config-preview {
                     min-height: 220px;
+                }
+
+                .vitrine-professional-toggle {
+                    align-items: flex-start;
                 }
             }
         </style>
