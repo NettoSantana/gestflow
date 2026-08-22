@@ -1,0 +1,87 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\atividades_financeiras.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Atividades financeiras | GestFlow</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+<div class="app-layout">
+    {% include 'partials/sidebar.html' %}
+    <div class="main-area">
+        {% include 'partials/topbar.html' %}
+        <main class="content atividades-financeiras-page">
+            <div class="page-header atividades-financeiras-header">
+                <div>
+                    <h1>Atividades / Projetos</h1>
+                    <p>Cada orçamento pode ser acompanhado como uma atividade financeira.</p>
+                </div>
+            </div>
+
+            <section class="atividades-financeiras-lista" aria-label="Lista de atividades financeiras">
+                {% for atividade in atividades %}
+                <article class="atividade-financeira-card">
+                    <div class="atividade-financeira-topo">
+                        <div class="atividade-financeira-identificacao">
+                            <div class="atividade-financeira-icone" aria-hidden="true">▣</div>
+                            <div>
+                                <h2>{{ atividade.nome }}</h2>
+                                <p>{{ atividade.cliente or 'Cliente não informado' }}</p>
+                            </div>
+                        </div>
+
+                        <div class="atividade-financeira-meta">
+                            <span class="atividade-origem">{{ atividade.origem|replace("_", " ")|title }}</span>
+                            <span class="status-pill {{ atividade.status }}">{{ atividade.status }}</span>
+                        </div>
+                    </div>
+
+                    <div class="atividade-financeira-centro">
+                        <span>Centro de custo</span>
+                        <strong>{{ atividade.centro_custo_nome or '-' }}</strong>
+                    </div>
+
+                    <div class="atividade-financeira-valores">
+                        <div class="atividade-financeira-valor is-previsto">
+                            <span>Previsto</span>
+                            <strong>R$ {{ atividade.resumo.previsto_formatado }}</strong>
+                        </div>
+                        <div class="atividade-financeira-valor is-recebido">
+                            <span>Recebido</span>
+                            <strong>R$ {{ atividade.resumo.recebido_formatado }}</strong>
+                        </div>
+                        <div class="atividade-financeira-valor is-custos">
+                            <span>Custos</span>
+                            <strong>R$ {{ atividade.resumo.custos_formatado }}</strong>
+                        </div>
+                        <div class="atividade-financeira-valor is-resultado">
+                            <span>Resultado</span>
+                            <strong>R$ {{ atividade.resumo.resultado_formatado }}</strong>
+                        </div>
+                        <a class="atividade-financeira-ver"
+                           href="/financeiro/atividades/{{ atividade.id }}"
+                           aria-label="Ver detalhes de {{ atividade.nome }}">
+                            <span>Ver</span><strong aria-hidden="true">›</strong>
+                        </a>
+                    </div>
+                </article>
+                {% else %}
+                <div class="atividades-financeiras-vazio">
+                    <div aria-hidden="true">▣</div>
+                    <strong>Nenhuma atividade financeira encontrada</strong>
+                    <p>As atividades serão criadas automaticamente a partir dos orçamentos.</p>
+                </div>
+                {% endfor %}
+            </section>
+        </main>
+    </div>
+</div>
+</body>
+</html>

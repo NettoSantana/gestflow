@@ -1,0 +1,1604 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\orcamento_editar.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Editar Orçamento</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+<style>
+
+        .quick-modal-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 10000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: rgba(15, 23, 42, 0.45);
+        }
+
+        .quick-modal-backdrop.open {
+            display: flex;
+        }
+
+        .quick-modal {
+            width: min(460px, 100%);
+            background: #ffffff;
+            border-radius: 18px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+            padding: 18px;
+        }
+
+        .quick-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .quick-modal-header h3 {
+            margin: 0;
+            font-size: 18px;
+            color: #0f172a;
+        }
+
+        .quick-modal-header p {
+            margin: 4px 0 0;
+            color: #64748b;
+            font-size: 13px;
+        }
+
+        .quick-modal-close {
+            width: 34px;
+            height: 34px;
+            border: 0;
+            border-radius: 10px;
+            background: #f1f5f9;
+            color: #0f172a;
+            cursor: pointer;
+            font-weight: 800;
+        }
+
+        .quick-modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 14px;
+        }
+
+        .quick-modal-error {
+            display: none;
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 10px;
+            background: #fef2f2;
+            color: #991b1b;
+            font-weight: 700;
+            font-size: 13px;
+        }
+
+        .quick-modal-error.show {
+            display: block;
+        }
+
+        .quick-new-option {
+            font-weight: 800;
+            color: #16a34a;
+        }
+
+
+        .gestflow-form-error {
+            display: none;
+            margin: 12px 0;
+            padding: 12px 14px;
+            border-radius: 10px;
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+            font-weight: 700;
+            font-size: 13px;
+        }
+
+        .gestflow-form-error.show {
+            display: block;
+        }
+
+        .gestflow-campo-invalido {
+            border-color: #dc2626 !important;
+            box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.12);
+        }
+
+    </style>
+
+    <style>
+        /* PADRAO VISUAL ORCAMENTOS - TELAS AUXILIARES */
+        .content {
+            padding-bottom: 220px;
+        }
+
+        .content > .panel.page-section:first-of-type {
+            margin-top: 0;
+        }
+
+        .panel,
+        .page-section,
+        .table-panel {
+            border-radius: 16px;
+        }
+
+        .panel-header.page-header,
+        .page-header {
+            gap: 14px;
+        }
+
+        .page-title {
+            letter-spacing: -0.02em;
+        }
+
+        .page-subtitle {
+            max-width: 760px;
+        }
+
+        .client-toolbar,
+        .form-actions,
+        .client-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn-primary-green,
+        .btn-dark,
+        .btn-light,
+        .action-button {
+            border-radius: 10px;
+            text-decoration: none;
+        }
+
+        .form-control,
+        input,
+        select,
+        textarea {
+            border-radius: 10px;
+            max-width: 100%;
+        }
+
+        .client-form {
+            width: 100%;
+        }
+
+        .form-grid {
+            align-items: start;
+        }
+
+        .panel-summary {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .panel-summary > div {
+            min-height: 74px;
+            border: 1px solid #e5eaf2;
+            border-radius: 14px;
+            background: #ffffff;
+            padding: 14px;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+        }
+
+        .panel-summary span {
+            display: block;
+            margin-bottom: 6px;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+
+        .panel-summary strong {
+            color: #0f172a;
+            font-size: 14px;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+
+        .table-shell {
+            border: 0 !important;
+            border-radius: 16px;
+            overflow-x: auto;
+            background: #ffffff;
+        }
+
+        .content table,
+        .content .client-table {
+            width: 100%;
+            border-collapse: separate !important;
+            border-spacing: 0 10px !important;
+            min-width: 760px;
+        }
+
+        .content table thead th,
+        .content .client-table thead th {
+            border-bottom: 0 !important;
+            background: transparent;
+            padding: 10px 12px;
+            color: #334155;
+            font-size: 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .content table tbody tr,
+        .content .client-table tbody tr {
+            background: #ffffff;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+            border-radius: 14px;
+        }
+
+        .content table tbody td,
+        .content .client-table tbody td {
+            border-bottom: 0 !important;
+            padding: 14px 12px !important;
+            color: #334155;
+            vertical-align: middle;
+        }
+
+        .content table tbody td:first-child,
+        .content .client-table tbody td:first-child {
+            border-top-left-radius: 14px;
+            border-bottom-left-radius: 14px;
+        }
+
+        .content table tbody td:last-child,
+        .content .client-table tbody td:last-child {
+            border-top-right-radius: 14px;
+            border-bottom-right-radius: 14px;
+        }
+
+        .empty-table,
+        .empty-table-box {
+            border-radius: 14px;
+        }
+
+        .status-pill,
+        .badge-info {
+            border-radius: 999px;
+            white-space: nowrap;
+        }
+
+        .quick-modal,
+        .modal,
+        .dialog {
+            border-radius: 18px;
+        }
+
+        .config-grid,
+        .portal-grid,
+        .planos-grid,
+        .cards,
+        .cards-secondary {
+            gap: 16px;
+        }
+
+        .config-card,
+        .portal-card,
+        .plan-card,
+        .card,
+        .stat-card {
+            border-radius: 16px;
+        }
+
+        .auth-card,
+        .login-card,
+        .onboarding-card,
+        .portal-card,
+        .plan-card {
+            box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+        }
+
+        @media (max-width: 1100px) {
+            .panel-summary {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .content table,
+            .content .client-table {
+                min-width: 720px;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .panel-summary {
+                grid-template-columns: 1fr;
+            }
+
+            .client-toolbar,
+            .form-actions,
+            .client-actions {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .client-toolbar .btn-primary-green,
+            .client-toolbar .btn-dark,
+            .client-toolbar .btn-light,
+            .form-actions .btn-primary-green,
+            .form-actions .btn-dark,
+            .form-actions .btn-light {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .content table,
+            .content .client-table {
+                min-width: 680px;
+            }
+        }
+    
+        .budget-tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px; padding:8px; border:1px solid #dbe4f0; border-radius:14px; background:#fff; }
+        .budget-tab { min-height:38px; display:inline-flex; align-items:center; justify-content:center; padding:0 14px; border-radius:10px; color:#475569; font-size:12px; font-weight:900; text-decoration:none; }
+        .budget-tab:hover { background:#f1f5f9; color:#0f172a; }
+        .budget-tab.active { background:#0f62fe; color:#fff; }
+        .presentation-table { min-width:900px !important; }
+        .presentation-note { margin:12px 0; padding:12px 14px; border:1px solid #bfdbfe; border-radius:12px; background:#eff6ff; color:#1e40af; font-size:12px; font-weight:800; line-height:1.45; }
+        .presentation-total { display:flex; align-items:center; justify-content:flex-end; gap:12px; margin-top:12px; font-size:13px; font-weight:900; }
+        .presentation-total strong { color:#15803d; font-size:18px; }
+        .origin-badge { display:inline-flex; align-items:center; min-height:28px; padding:0 10px; border-radius:999px; font-size:11px; font-weight:900; text-transform:uppercase; }
+        .origin-badge.gerador { background:#dbeafe; color:#1d4ed8; }
+        .origin-badge.manual { background:#e2e8f0; color:#475569; }
+        .generator-summary-box { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-top:14px; }
+        .generator-summary-box div { padding:12px; border:1px solid #e2e8f0; border-radius:12px; background:#f8fafc; }
+        .generator-summary-box span { display:block; color:#64748b; font-size:10px; font-weight:900; text-transform:uppercase; }
+        .generator-summary-box strong { display:block; margin-top:5px; color:#0f172a; }
+        @media(max-width:900px){.generator-summary-box{grid-template-columns:repeat(2,minmax(0,1fr))}}
+        @media(max-width:720px){.budget-tabs{flex-direction:column}.budget-tab{width:100%}.generator-summary-box{grid-template-columns:1fr}}
+        .budget-long-field { grid-column: 1 / -1; }
+        .budget-long-text { min-height: 180px !important; height: auto !important; padding: 12px 14px !important; line-height: 1.55; resize: vertical; white-space: pre-wrap; }
+        .budget-field-hint { color:#64748b; font-size:11px; line-height:1.4; }
+        .budget-auto-number { background:#f1f5f9 !important; color:#475569 !important; cursor:not-allowed; font-weight:800; }
+        .budget-final-value { border-color:#86efac !important; background:#f0fdf4 !important; color:#166534 !important; font-size:17px !important; font-weight:900 !important; }
+        .budget-final-hint { display:block; margin-top:6px; color:#166534; font-size:11px; font-weight:800; line-height:1.4; }
+        .budget-value-changed { display:none; margin-top:10px; padding:10px 12px; border:1px solid #bfdbfe; border-radius:10px; background:#eff6ff; color:#1d4ed8; font-size:12px; font-weight:800; }
+        .budget-value-changed.show { display:block; }
+</style>
+
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+
+<main class="content">
+        {% set page_title = 'Editar Orçamento' %}
+        {% include "partials/topbar.html" %}
+        {% set origem = orcamento.origem|default('manual', true) %}
+
+        <nav class="budget-tabs" aria-label="Abas do orçamento">
+            <a class="budget-tab active" href="#aba-orcamento">Orçamento</a>
+            <a class="budget-tab" href="#aba-apresentacao">Apresentação ao cliente</a>
+            {% if dados_gerador %}<a class="budget-tab" href="/orcamentos/{{ orcamento.id }}/gerador/revisao">Dados do Gerador</a>{% endif %}
+            <a class="budget-tab" href="#aba-escopo">Escopo e observações</a>
+            {% if dados_gerador %}<a class="budget-tab" href="/orcamentos/{{ orcamento.id }}/gerador/historico">Histórico</a>{% endif %}
+        </nav>
+
+<section id="aba-orcamento" class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Orçamentos</span>
+                    <h3 class="page-title">Editar orçamento</h3>
+                    <p class="page-subtitle">Atualize os dados gerais, produtos, serviços, descontos e totais do orçamento.</p>
+                </div>
+
+                <a href="/orcamentos/{{ orcamento.id }}" class="btn-dark">Cancelar edição</a>
+            </div>
+        </section>
+
+        <form id="form-editar-orcamento" action="/orcamentos/{{ orcamento.id }}/editar" method="post" class="client-form">
+            <input id="orcamento_versao" name="orcamento_versao" type="hidden" value="{{ orcamento.versao or 1 }}">
+            <input id="orcamento_valor_final_editado" name="orcamento_valor_final_editado" type="hidden" value="{{ orcamento.valor_total or '0,00' }}">
+            <input id="orcamento_valor_final_manual" name="orcamento_valor_final_manual" type="hidden" value="nao">
+            <section class="panel page-section">
+                <div class="panel-header page-header">
+                    <div>
+                        <h3>Orçamento {{ orcamento.numero or orcamento.id }}</h3>
+                        <p class="page-subtitle">Cliente: {{ orcamento.cliente or '-' }}</p>
+                    </div>
+
+                    <div class="client-toolbar"><span class="origin-badge {{ origem }}">{{ 'Gerador' if origem == 'gerador' else 'Manual' }}</span><span class="badge-info">Modo edição</span></div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="orcamento_numero">Número do orçamento</label>
+                        <input id="orcamento_numero" name="orcamento_numero" type="text" value="{{ orcamento.numero or '' }}" class="form-control budget-auto-number" readonly aria-readonly="true" title="Número protegido e gerado automaticamente pelo sistema">
+                        <small class="budget-field-hint">Gerado automaticamente e protegido contra edição.</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="orcamento_cliente">Cliente</label>
+                        <select id="orcamento_cliente" name="orcamento_cliente" class="form-control quick-cliente-select" required>
+                            <option value="">Selecione</option>
+                            {% for cliente in clientes|default([]) %}
+                                <option value="{{ cliente.nome }}" {% if orcamento.cliente == cliente.nome %}selected{% endif %}>{{ cliente.nome }}</option>
+                            {% endfor %}
+                            <option value="__novo_cliente__" class="quick-new-option">+ Adicionar novo cliente</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="orcamento_responsavel">Responsável</label>
+                        <select id="orcamento_responsavel" name="orcamento_responsavel" class="form-control quick-responsavel-select" required>
+                            <option value="">Selecione</option>
+                            {% for funcionario in funcionarios|default([]) %}
+                                <option value="{{ funcionario.nome }}" {% if orcamento.responsavel == funcionario.nome %}selected{% endif %}>{{ funcionario.nome }}</option>
+                            {% endfor %}
+                            <option value="__novo_responsavel__" class="quick-new-option">+ Adicionar novo responsável</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="orcamento_data">Data</label>
+                        <input id="orcamento_data" name="orcamento_data" type="date" value="{{ orcamento.data or '' }}" class="form-control" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="orcamento_prazo_entrega">Prazo de entrega</label>
+                        <input id="orcamento_prazo_entrega" name="orcamento_prazo_entrega" type="text" value="{{ orcamento.prazo_entrega or '' }}" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="orcamento_validade">Validade</label>
+                        <input id="orcamento_validade" name="orcamento_validade" type="text" value="{{ orcamento.validade or '' }}" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="orcamento_tipo">Tipo</label>
+                        <select id="orcamento_tipo" name="orcamento_tipo" class="form-control">
+                            <option value="misto" {% if orcamento.tipo == "misto" %}selected{% endif %}>Misto</option>
+                            <option value="produto" {% if orcamento.tipo == "produto" %}selected{% endif %}>Produto</option>
+                            <option value="servico" {% if orcamento.tipo == "servico" %}selected{% endif %}>Serviço</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="orcamento_status">Status</label>
+                        <select id="orcamento_status" name="orcamento_status" class="form-control">
+                            <option value="aberto" {% if orcamento.status == "aberto" %}selected{% endif %}>Aberto</option>
+                            <option value="aprovado" {% if orcamento.status == "aprovado" %}selected{% endif %}>Aprovado</option>
+                            <option value="recusado" {% if orcamento.status == "recusado" %}selected{% endif %}>Recusado</option>
+                            <option value="cancelado" {% if orcamento.status == "cancelado" %}selected{% endif %}>Cancelado</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="orcamento_canal_venda">Canal de venda</label>
+                        <input id="orcamento_canal_venda" name="orcamento_canal_venda" type="text" value="{{ orcamento.canal_venda or '' }}" class="form-control" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="orcamento_centro_custo_id">Centro de custo</label><select id="orcamento_centro_custo_id" name="orcamento_centro_custo_id" class="form-control"><option value="">Sem centro de custo</option>{% for centro in centros_custo %}<option value="{{ centro.id }}" {% if orcamento.centro_custo_id|string == centro.id|string %}selected{% endif %}>{{ centro.codigo ~ ' - ' if centro.codigo else '' }}{{ centro.nome }}</option>{% endfor %}</select><input type="hidden" name="orcamento_centro_custo" value="{{ orcamento.centro_custo or '' }}">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="orcamento_introducao">Introdução</label>
+                    <input id="orcamento_introducao" name="orcamento_introducao" type="text" value="{{ orcamento.introducao or '' }}" class="form-control">
+                </div>
+            </section>
+                <section id="aba-apresentacao" class="panel page-section">
+                    <div class="panel-header page-header">
+                        <div>
+                            <h3>Apresentação ao cliente</h3>
+                            <p class="page-subtitle">Defina o que será impresso. A composição interna de produtos e serviços continuará salva separadamente.</p>
+                        </div>
+                        <button type="button" class="btn-primary-green" onclick="adicionarItemApresentacao()">+ Linha comercial</button>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="orcamento_modo_apresentacao">Forma de apresentação</label>
+                            <select id="orcamento_modo_apresentacao" name="orcamento_modo_apresentacao" class="form-control" onchange="atualizarModoApresentacao()">
+                                {% for modo in modos_apresentacao|default([]) %}
+                                    <option value="{{ modo.codigo }}" {% if orcamento.modo_apresentacao|default('agrupado', true) == modo.codigo %}selected{% endif %}>{{ modo.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="orcamento_descricao_comercial">Descrição comercial principal</label>
+                            <textarea id="orcamento_descricao_comercial" name="orcamento_descricao_comercial" class="form-control" style="min-height:96px; padding-top:12px; resize:vertical;">{{ orcamento.descricao_comercial or '' }}</textarea>
+                        </div>
+                    </div>
+
+                    <div class="presentation-note">Agrupado mostra linhas comerciais resumidas. Valor global mostra apenas uma linha. Detalhado exibe os produtos e serviços da composição interna.</div>
+
+                    <div id="presentation-lines-area" class="table-shell">
+                        <table class="client-table presentation-table">
+                            <thead><tr><th>Descrição comercial</th><th>Detalhes</th><th>Qtd.</th><th>Valor unit.</th><th>Subtotal</th><th>Ação</th></tr></thead>
+                            <tbody id="apresentacao-tbody"></tbody>
+                        </table>
+                    </div>
+                    <div class="presentation-total"><span>Total da apresentação:</span><strong id="apresentacao-total">R$ 0,00</strong></div>
+
+                    {% if dados_gerador %}
+                        <div class="generator-summary-box">
+                            <div><span>Custo total interno</span><strong id="gerador-custo-total" data-custo="{{ dados_gerador.custo_total|default('0') }}" data-imposto-percentual="{{ dados_gerador.imposto_percentual|default('0') }}" data-administrativo="{{ dados_gerador.administrativo_valor|default('0') }}" data-reserva="{{ dados_gerador.reserva_valor|default('0') }}">R$ {{ dados_gerador.custo_total|default('0') }}</strong></div>
+                            <div><span>Valor final atual</span><strong id="gerador-valor-escolhido">R$ {{ dados_gerador.valor_escolhido|default('0') }}</strong></div>
+                            <div><span>Lucro líquido estimado</span><strong id="gerador-lucro-estimado">R$ {{ dados_gerador.lucro_liquido_estimado|default(dados_gerador.lucro_estimado|default('0')) }}</strong></div>
+                            <div><span>Margem líquida estimada</span><strong id="gerador-margem-estimada">{{ dados_gerador.margem_liquida_estimada|default(dados_gerador.margem_estimado|default('0')) }}%</strong></div>
+                        </div>
+                        <div class="form-actions"><a href="/orcamentos/{{ orcamento.id }}/gerador/revisao" class="btn-dark">Editar dados completos do Gerador</a></div>
+                    {% endif %}
+                </section>
+
+                <section class="panel page-section">
+                    <div class="panel-header page-header">
+                        <div>
+                            <h3>Serviços</h3>
+                            <p class="page-subtitle">Adicione serviços ao orçamento. Use o botão para inserir novas linhas.</p>
+                        </div>
+                    </div>
+
+                    <div class="client-actions">
+                        <button type="button" class="btn-primary-green" onclick="adicionarItem('servico')">+ Adicionar serviço</button>
+                    </div>
+
+                    <div class="table-shell">
+                        <table class="client-table">
+                            <thead>
+                                <tr>
+                                    <th>Serviço</th>
+                                    <th>Descrição do serviço</th>
+                                    <th>Quant.</th>
+                                    <th>Valor</th>
+                                    <th>Desconto</th>
+                                    <th>Subtotal</th>
+                                    <th>Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody id="servico-tbody"></tbody>
+                        </table>
+                    </div>
+                </section>
+                <section class="panel page-section">
+                    <div class="panel-header page-header">
+                        <div>
+                            <h3>Produtos</h3>
+                            <p class="page-subtitle">Adicione produtos ao orçamento. Use o botão para inserir novas linhas.</p>
+                        </div>
+                    </div>
+
+                    <div class="client-actions">
+                        <button type="button" class="btn-primary-green" onclick="adicionarItem('produto')">+ Adicionar produto</button>
+                    </div>
+
+                    <div class="table-shell">
+                        <table class="client-table">
+                            <thead>
+                                <tr>
+                                    <th>Produto</th>
+                                    <th>Detalhes</th>
+                                    <th>Quant.</th>
+                                    <th>Valor</th>
+                                    <th>Desconto</th>
+                                    <th>Subtotal</th>
+                                    <th>Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody id="produto-tbody"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+            <section id="aba-escopo" class="panel page-section">
+                <div class="panel-header page-header">
+                    <div>
+                        <h3>Total, escopo e observações</h3>
+                        <p class="page-subtitle">Atualize os totais do orçamento.</p>
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group"><label for="orcamento_total_produtos">Total produtos</label><input id="orcamento_total_produtos" name="orcamento_total_produtos" type="text" value="{{ orcamento.total_produtos or '' }}" class="form-control" readonly></div>
+                    <div class="form-group"><label for="orcamento_total_servicos">Total serviços</label><input id="orcamento_total_servicos" name="orcamento_total_servicos" type="text" value="{{ orcamento.total_servicos or '' }}" class="form-control" readonly></div>
+                    <div class="form-group"><label for="orcamento_desconto_valor">Desconto R$</label><input id="orcamento_desconto_valor" name="orcamento_desconto_valor" type="text" value="{{ orcamento.desconto_valor or '' }}" class="form-control"></div>
+                    <div class="form-group"><label for="orcamento_desconto_percentual">Desconto %</label><input id="orcamento_desconto_percentual" name="orcamento_desconto_percentual" type="text" value="{{ orcamento.desconto_percentual or '' }}" class="form-control"></div>
+                    <div class="form-group">
+                        <label for="orcamento_valor_total">Valor final de venda</label>
+                        <input id="orcamento_valor_total" name="orcamento_valor_total" type="text" value="{{ orcamento.valor_total or '' }}" data-valor-original="{{ orcamento.valor_total or '0,00' }}" class="form-control budget-final-value">
+                        <small class="budget-final-hint">O valor digitado aqui prevalece. Ao salvar, apresentação, itens internos, lucro e margem serão atualizados.</small>
+                        <div id="budget-value-changed" class="budget-value-changed"></div>
+                    </div>
+                    <div class="form-group"><label for="orcamento_forma_pagamento">Forma de pagamento</label><input id="orcamento_forma_pagamento" name="orcamento_forma_pagamento" type="text" value="{{ orcamento.forma_pagamento or '' }}" class="form-control"></div>
+                    <div class="form-group budget-long-field">
+                        <label for="orcamento_observacoes">Escopo e observações para o cliente</label>
+                        <textarea id="orcamento_observacoes" name="orcamento_observacoes" rows="8" class="form-control budget-long-text">{{ orcamento.observacoes or '' }}</textarea>
+                        <small class="budget-field-hint">Use uma linha em branco entre os parágrafos. Nas seções de serviços e materiais, inicie cada item com “-”.</small>
+                    </div>
+                    <div class="form-group budget-long-field">
+                        <label for="orcamento_observacoes_internas">Observações internas</label>
+                        <textarea id="orcamento_observacoes_internas" name="orcamento_observacoes_internas" rows="7" class="form-control budget-long-text">{{ orcamento.observacoes_internas or '' }}</textarea>
+                        <small class="budget-field-hint">Uso interno; não aparece na proposta do cliente.</small>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <a href="/orcamentos/{{ orcamento.id }}" class="btn-light">Cancelar</a>
+                    <button type="submit" class="btn-primary-green">Salvar Alterações</button>
+                </div>
+            </section>
+        </form>
+
+
+        <div id="quick-item-modal" class="quick-modal-backdrop" aria-hidden="true">
+            <div class="quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-item-title">
+                <div class="quick-modal-header">
+                    <div>
+                        <h3 id="quick-item-title">Novo item</h3>
+                        <p id="quick-item-subtitle">Cadastro rápido sem sair do orçamento.</p>
+                    </div>
+                    <button type="button" class="quick-modal-close" onclick="fecharModalItemRapido()">×</button>
+                </div>
+
+                <input id="quick-item-tipo" type="hidden" value="servico">
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="quick-item-nome">Nome *</label>
+                        <input id="quick-item-nome" type="text" class="form-control" placeholder="Ex: ART, deslocamento, instalação">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-item-valor">Valor de venda *</label>
+                        <input id="quick-item-valor" type="text" class="form-control" placeholder="0,00">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-item-categoria">Categoria</label>
+                        <input id="quick-item-categoria" type="text" class="form-control" placeholder="Ex: Serviço técnico">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-item-observacoes">Descrição / observação</label>
+                        <input id="quick-item-observacoes" type="text" class="form-control" placeholder="Resumo do item">
+                    </div>
+                </div>
+
+                <div id="quick-item-error" class="quick-modal-error"></div>
+
+                <div class="quick-modal-actions">
+                    <button type="button" class="btn-light" onclick="fecharModalItemRapido()">Cancelar</button>
+                    <button type="button" class="btn-primary-green" onclick="salvarItemRapido()">Salvar item</button>
+                </div>
+            </div>
+        </div>
+
+
+
+
+        <div id="quick-cliente-modal" class="quick-modal-backdrop" aria-hidden="true">
+            <div class="quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-cliente-title">
+                <div class="quick-modal-header">
+                    <div>
+                        <h3 id="quick-cliente-title">Novo cliente</h3>
+                        <p>Cadastro rápido sem sair da tela atual.</p>
+                    </div>
+                    <button type="button" class="quick-modal-close" onclick="fecharModalClienteRapidoGeral()">×</button>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="quick-cliente-nome">Nome *</label>
+                        <input id="quick-cliente-nome" type="text" class="form-control" placeholder="Ex: Cliente ABC">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-cliente-documento">CPF / CNPJ</label>
+                        <input id="quick-cliente-documento" type="text" class="form-control" placeholder="Documento do cliente">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-cliente-telefone">Telefone</label>
+                        <input id="quick-cliente-telefone" type="text" class="form-control" placeholder="WhatsApp ou telefone">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-cliente-email">E-mail</label>
+                        <input id="quick-cliente-email" type="text" class="form-control" placeholder="email@cliente.com">
+                    </div>
+                </div>
+
+                <div id="quick-cliente-error" class="quick-modal-error"></div>
+
+                <div class="quick-modal-actions">
+                    <button type="button" class="btn-light" onclick="fecharModalClienteRapidoGeral()">Cancelar</button>
+                    <button type="button" class="btn-primary-green" onclick="salvarClienteRapidoGeral()">Salvar cliente</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="quick-responsavel-modal" class="quick-modal-backdrop" aria-hidden="true">
+            <div class="quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-responsavel-title">
+                <div class="quick-modal-header">
+                    <div>
+                        <h3 id="quick-responsavel-title">Novo responsável</h3>
+                        <p>Cadastro rápido de funcionário sem sair da tela atual.</p>
+                    </div>
+                    <button type="button" class="quick-modal-close" onclick="fecharModalResponsavelRapidoGeral()">×</button>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="quick-responsavel-nome">Nome *</label>
+                        <input id="quick-responsavel-nome" type="text" class="form-control" placeholder="Ex: Vendedor ou técnico">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-responsavel-cargo">Cargo</label>
+                        <input id="quick-responsavel-cargo" type="text" class="form-control" placeholder="Ex: Vendedor, técnico">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-responsavel-telefone">Telefone</label>
+                        <input id="quick-responsavel-telefone" type="text" class="form-control" placeholder="WhatsApp ou telefone">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-responsavel-email">E-mail</label>
+                        <input id="quick-responsavel-email" type="text" class="form-control" placeholder="email@empresa.com">
+                    </div>
+                </div>
+
+                <div id="quick-responsavel-error" class="quick-modal-error"></div>
+
+                <div class="quick-modal-actions">
+                    <button type="button" class="btn-light" onclick="fecharModalResponsavelRapidoGeral()">Cancelar</button>
+                    <button type="button" class="btn-primary-green" onclick="salvarResponsavelRapidoGeral()">Salvar responsável</button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            window.opcoesProdutos = [
+                {% for produto in produtos|default([]) %}
+                    { nome: "{{ produto.nome }}", valor: "{{ produto.preco_venda or '' }}" }{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ];
+
+            window.opcoesServicos = [
+                {% for servico in servicos|default([]) %}
+                    { nome: "{{ servico.nome }}", valor: "{{ servico.valor_venda or '' }}" }{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ];
+
+            window.itensApresentacaoIniciais = {{ itens_apresentacao|default([])|tojson }};
+
+            window.itensIniciais = [
+                {% for item in itens|default([]) %}
+                    {
+                        tipo_item: "{{ item.tipo_item or '' }}",
+                        descricao: "{{ item.descricao or '' }}",
+                        detalhes: "{{ item.detalhes or '' }}",
+                        quantidade: "{{ item.quantidade or '' }}",
+                        valor_unitario: "{{ item.valor_unitario or '' }}",
+                        desconto: "{{ item.desconto or '' }}",
+                        subtotal: "{{ item.subtotal or '' }}"
+                    }{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ];
+        </script>
+        <script>
+            function normalizarNumero(valor) {
+                let texto = String(valor || "").trim();
+
+                if (!texto) {
+                    return 0;
+                }
+
+                texto = texto.replace("R$", "").replace(/\s/g, "");
+
+                if (texto.includes(",")) {
+                    texto = texto.replace(/\./g, "").replace(",", ".");
+                }
+
+                const numero = Number.parseFloat(texto);
+                return Number.isFinite(numero) ? numero : 0;
+            }
+
+            function formatarMoeda(valor) {
+                const numero = Number.isFinite(valor) ? valor : 0;
+                return numero.toLocaleString("pt-BR", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+            }
+
+            function atualizarResumoValorFinal(valor) {
+                const custoEl = document.getElementById("gerador-custo-total");
+                const valorEl = document.getElementById("gerador-valor-escolhido");
+                const lucroEl = document.getElementById("gerador-lucro-estimado");
+                const margemEl = document.getElementById("gerador-margem-estimada");
+                const custo = normalizarNumero(custoEl ? custoEl.dataset.custo : "0");
+                const impostoPercentual = normalizarNumero(custoEl ? custoEl.dataset.impostoPercentual : "0");
+                const administrativo = normalizarNumero(custoEl ? custoEl.dataset.administrativo : "0");
+                const reserva = normalizarNumero(custoEl ? custoEl.dataset.reserva : "0");
+                const lucroBruto = valor - custo;
+                const impostos = valor * impostoPercentual / 100;
+                const lucro = lucroBruto - impostos - administrativo - reserva;
+                const margem = valor > 0 ? (lucro / valor) * 100 : 0;
+
+                if (valorEl) valorEl.textContent = "R$ " + formatarMoeda(valor);
+                if (lucroEl) lucroEl.textContent = "R$ " + formatarMoeda(lucro);
+                if (margemEl) margemEl.textContent = formatarMoeda(margem) + "%";
+            }
+
+            function definirValorFinalManual(valor, origem, formatarCampo) {
+                const valorNumero = Math.max(normalizarNumero(valor), 0);
+                const valorInput = document.getElementById("orcamento_valor_total");
+                const valorFinalEditadoInput = document.getElementById("orcamento_valor_final_editado");
+                const valorFinalManualInput = document.getElementById("orcamento_valor_final_manual");
+                const aviso = document.getElementById("budget-value-changed");
+
+                if (valorInput && formatarCampo !== false) valorInput.value = formatarMoeda(valorNumero);
+                if (valorFinalEditadoInput) valorFinalEditadoInput.value = formatarMoeda(valorNumero);
+                if (valorFinalManualInput) valorFinalManualInput.value = "sim";
+
+                atualizarResumoValorFinal(valorNumero);
+
+                if (aviso) {
+                    const original = normalizarNumero(valorInput ? valorInput.dataset.valorOriginal : "0");
+                    const diferenca = valorNumero - original;
+                    aviso.textContent =
+                        "Novo valor vigente: R$ " + formatarMoeda(valorNumero)
+                        + " | Valor anterior: R$ " + formatarMoeda(original)
+                        + " | Diferença: " + (diferenca >= 0 ? "+" : "-") + "R$ "
+                        + formatarMoeda(Math.abs(diferenca))
+                        + (origem ? " | Alterado pela " + origem + "." : ".");
+                    aviso.classList.add("show");
+                }
+            }
+
+            function buscarOpcaoPorNome(tipo, nome) {
+                const opcoes = tipo === "produto" ? window.opcoesProdutos : window.opcoesServicos;
+                const nomeNormalizado = String(nome || "").trim().toLowerCase();
+
+                return (opcoes || []).find(function(item) {
+                    return String(item.nome || "").trim().toLowerCase() === nomeNormalizado;
+                });
+            }
+
+            function recalcularLinha(linha) {
+                if (!linha) {
+                    return;
+                }
+
+                const quantidadeInput = linha.querySelector(".item-quantidade");
+                const valorInput = linha.querySelector(".item-valor");
+                const descontoInput = linha.querySelector(".item-desconto");
+                const subtotalInput = linha.querySelector(".item-subtotal");
+
+                const quantidade = normalizarNumero(quantidadeInput ? quantidadeInput.value : "0");
+                const valor = normalizarNumero(valorInput ? valorInput.value : "0");
+                const desconto = normalizarNumero(descontoInput ? descontoInput.value : "0");
+                const subtotal = Math.max((quantidade * valor) - desconto, 0);
+
+                if (subtotalInput) {
+                    subtotalInput.value = formatarMoeda(subtotal);
+                }
+
+                recalcularTotaisOrcamento();
+            }
+
+            function recalcularTotaisOrcamento() {
+                let totalProdutos = 0;
+                let totalServicos = 0;
+
+                document.querySelectorAll("#produto-tbody tr").forEach(function(linha) {
+                    const subtotalInput = linha.querySelector(".item-subtotal");
+                    totalProdutos += normalizarNumero(subtotalInput ? subtotalInput.value : "0");
+                });
+
+                document.querySelectorAll("#servico-tbody tr").forEach(function(linha) {
+                    const subtotalInput = linha.querySelector(".item-subtotal");
+                    totalServicos += normalizarNumero(subtotalInput ? subtotalInput.value : "0");
+                });
+
+                const descontoValorInput = document.getElementById("orcamento_desconto_valor");
+                const descontoPercentualInput = document.getElementById("orcamento_desconto_percentual");
+                const totalProdutosInput = document.getElementById("orcamento_total_produtos");
+                const totalServicosInput = document.getElementById("orcamento_total_servicos");
+                const valorTotalInput = document.getElementById("orcamento_valor_total");
+
+                const subtotalGeral = totalProdutos + totalServicos;
+                const descontoValor = normalizarNumero(descontoValorInput ? descontoValorInput.value : "0");
+                const descontoPercentual = normalizarNumero(descontoPercentualInput ? descontoPercentualInput.value : "0");
+                const descontoPercentualValor = subtotalGeral * (descontoPercentual / 100);
+                const valorTotal = Math.max(subtotalGeral - descontoValor - descontoPercentualValor, 0);
+
+                if (totalProdutosInput) {
+                    totalProdutosInput.value = formatarMoeda(totalProdutos);
+                }
+
+                if (totalServicosInput) {
+                    totalServicosInput.value = formatarMoeda(totalServicos);
+                }
+
+                const valorFinalManualInput = document.getElementById("orcamento_valor_final_manual");
+                const valorFinalEditadoInput = document.getElementById("orcamento_valor_final_editado");
+                const valorFinalManual = valorFinalManualInput && valorFinalManualInput.value === "sim";
+
+                if (valorTotalInput && !valorFinalManual) {
+                    valorTotalInput.value = formatarMoeda(valorTotal);
+                }
+
+                if (valorFinalEditadoInput && !valorFinalManual) {
+                    valorFinalEditadoInput.value = formatarMoeda(valorTotal);
+                }
+
+                if (!valorFinalManual) {
+                    atualizarResumoValorFinal(valorTotal);
+                }
+            }
+
+            function atualizarValorSelecionado(linha, tipo) {
+                const select = linha.querySelector(".item-descricao");
+                const valorInput = linha.querySelector(".item-valor");
+                const quantidadeInput = linha.querySelector(".item-quantidade");
+                const opcao = buscarOpcaoPorNome(tipo, select ? select.value : "");
+
+                if (opcao && valorInput) {
+                    valorInput.value = opcao.valor || "0,00";
+                }
+
+                if (quantidadeInput && !String(quantidadeInput.value || "").trim()) {
+                    quantidadeInput.value = "1";
+                }
+
+                recalcularLinha(linha);
+            }
+
+            function prepararEventosLinha(linha, tipo) {
+                const select = linha.querySelector(".item-descricao");
+                const quantidadeInput = linha.querySelector(".item-quantidade");
+                const valorInput = linha.querySelector(".item-valor");
+                const descontoInput = linha.querySelector(".item-desconto");
+
+                if (select) {
+                    select.addEventListener("change", function() {
+                        if (select.value === "__novo__") {
+                            abrirModalItemRapido(tipo, select, linha);
+                            return;
+                        }
+
+                        atualizarValorSelecionado(linha, tipo);
+                    });
+                }
+
+                [quantidadeInput, valorInput, descontoInput].forEach(function(input) {
+                    if (!input) {
+                        return;
+                    }
+
+                    input.addEventListener("input", function() {
+                        recalcularLinha(linha);
+                    });
+
+                    input.addEventListener("blur", function() {
+                        input.value = formatarMoeda(normalizarNumero(input.value));
+                        recalcularLinha(linha);
+                    });
+                });
+            }
+
+            function criarLinha(tipo, dados) {
+                const linha = document.createElement("tr");
+                const tipoLabel = tipo === "produto" ? "Produto" : "Serviço";
+                const opcoes = tipo === "produto" ? window.opcoesProdutos : window.opcoesServicos;
+
+                let selectOptions = '<option value="">Selecione</option>';
+                opcoes.forEach(function(item) {
+                    const selected = dados.descricao === item.nome ? " selected" : "";
+                    selectOptions += '<option value="' + item.nome + '" data-valor="' + (item.valor || '') + '"' + selected + '>' + item.nome + '</option>';
+                });
+                selectOptions += '<option value="__novo__" class="quick-new-option">+ Adicionar novo ' + tipoLabel.toLowerCase() + '</option>';
+
+                linha.innerHTML = `
+                    <td>
+                        <input type="hidden" name="item_tipo" value="${tipo}">
+                        <select name="item_descricao" class="form-control item-descricao" data-tipo="${tipo}">
+                            ${selectOptions}
+                        </select>
+                    </td>
+                    <td><input name="item_detalhes" type="text" value="${dados.detalhes || ""}" placeholder="${tipo === 'servico' ? 'Descrição do serviço' : 'Detalhes'}" class="form-control"></td>
+                    <td><input name="item_quantidade" type="text" value="${dados.quantidade || "1"}" placeholder="1" class="form-control item-quantidade"></td>
+                    <td><input name="item_valor_unitario" type="text" value="${dados.valor_unitario || ""}" placeholder="0,00" class="form-control item-valor"></td>
+                    <td><input name="item_desconto" type="text" value="${dados.desconto || "0,00"}" placeholder="0,00" class="form-control item-desconto"></td>
+                    <td><input name="item_subtotal" type="text" value="${dados.subtotal || ""}" placeholder="0,00" class="form-control item-subtotal" readonly></td>
+                    <td>
+                        <button type="button" class="action-button delete" title="Remover ${tipoLabel}" aria-label="Remover ${tipoLabel}" onclick="removerLinha(this)">×</button>
+                    </td>
+                `;
+
+                prepararEventosLinha(linha, tipo);
+                return linha;
+            }
+
+            function adicionarItem(tipo) {
+                const corpo = document.getElementById(tipo + "-tbody");
+                const linha = criarLinha(tipo, {});
+                corpo.appendChild(linha);
+                recalcularLinha(linha);
+            }
+
+            function removerLinha(botao) {
+                const linha = botao.closest("tr");
+                const corpo = linha.closest("tbody");
+                linha.remove();
+
+                if (corpo.children.length === 0) {
+                    const tipo = corpo.id.replace("-tbody", "");
+                    adicionarItem(tipo);
+                }
+
+                recalcularTotaisOrcamento();
+            }
+
+            function carregarItensIniciais() {
+                const itensIniciais = window.itensIniciais || [];
+
+                if (itensIniciais.length === 0) {
+                    adicionarItem("produto");
+                    adicionarItem("servico");
+                    recalcularTotaisOrcamento();
+                    return;
+                }
+
+                itensIniciais.forEach(function(item) {
+                    const tipo = item.tipo_item === "servico" ? "servico" : "produto";
+                    const corpo = document.getElementById(tipo + "-tbody");
+                    const linha = criarLinha(tipo, item);
+                    corpo.appendChild(linha);
+                    recalcularLinha(linha);
+                });
+
+                if (document.getElementById("produto-tbody").children.length === 0) {
+                    adicionarItem("produto");
+                }
+
+                if (document.getElementById("servico-tbody").children.length === 0) {
+                    adicionarItem("servico");
+                }
+
+                recalcularTotaisOrcamento();
+            }
+
+
+            window.selectItemRapidoAtual = null;
+            window.linhaItemRapidoAtual = null;
+
+            function abrirModalItemRapido(tipo, select, linha) {
+                window.selectItemRapidoAtual = select || null;
+                window.linhaItemRapidoAtual = linha || null;
+
+                const modal = document.getElementById("quick-item-modal");
+                const tipoInput = document.getElementById("quick-item-tipo");
+                const titulo = document.getElementById("quick-item-title");
+                const subtitulo = document.getElementById("quick-item-subtitle");
+                const nomeInput = document.getElementById("quick-item-nome");
+                const valorInput = document.getElementById("quick-item-valor");
+                const categoriaInput = document.getElementById("quick-item-categoria");
+                const observacoesInput = document.getElementById("quick-item-observacoes");
+                const erroBox = document.getElementById("quick-item-error");
+
+                tipoInput.value = tipo;
+                titulo.textContent = tipo === "produto" ? "Novo produto" : "Novo serviço";
+                subtitulo.textContent = tipo === "produto"
+                    ? "Cadastre um produto rápido e use no orçamento agora."
+                    : "Cadastre um serviço rápido e use no orçamento agora.";
+
+                nomeInput.value = "";
+                valorInput.value = "";
+                categoriaInput.value = "";
+                observacoesInput.value = "";
+
+                erroBox.textContent = "";
+                erroBox.classList.remove("show");
+
+                if (modal) {
+                    modal.classList.add("open");
+                    modal.setAttribute("aria-hidden", "false");
+                    setTimeout(function() {
+                        nomeInput.focus();
+                    }, 50);
+                }
+
+                if (select) {
+                    select.value = "";
+                }
+            }
+
+            function fecharModalItemRapido() {
+                const modal = document.getElementById("quick-item-modal");
+
+                if (modal) {
+                    modal.classList.remove("open");
+                    modal.setAttribute("aria-hidden", "true");
+                }
+
+                window.selectItemRapidoAtual = null;
+                window.linhaItemRapidoAtual = null;
+            }
+
+            function adicionarOpcaoRapidaEmSelects(tipo, item) {
+                const seletor = 'select.item-descricao[data-tipo="' + tipo + '"]';
+
+                document.querySelectorAll(seletor).forEach(function(select) {
+                    const option = document.createElement("option");
+                    option.value = item.nome;
+                    option.textContent = item.nome;
+                    option.dataset.valor = item.valor || "";
+
+                    const novaOpcao = Array.from(select.options).find(function(opcao) {
+                        return opcao.value === "__novo__";
+                    });
+
+                    if (novaOpcao) {
+                        select.insertBefore(option, novaOpcao);
+                    } else {
+                        select.appendChild(option);
+                    }
+                });
+            }
+
+            function salvarItemRapido() {
+                const tipo = document.getElementById("quick-item-tipo").value || "servico";
+                const nome = document.getElementById("quick-item-nome").value.trim();
+                const valor = document.getElementById("quick-item-valor").value.trim();
+                const categoria = document.getElementById("quick-item-categoria").value.trim();
+                const observacoes = document.getElementById("quick-item-observacoes").value.trim();
+                const erroBox = document.getElementById("quick-item-error");
+
+                if (!nome) {
+                    erroBox.textContent = "Informe o nome do item.";
+                    erroBox.classList.add("show");
+                    return;
+                }
+
+                const endpoint = tipo === "produto" ? "/produtos/rapido" : "/servicos/rapido";
+                const dados = new URLSearchParams();
+                dados.append("nome", nome);
+                dados.append("valor_venda", valor);
+                dados.append("categoria", categoria);
+                dados.append("observacoes", observacoes);
+
+                fetch(endpoint, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"
+                    },
+                    body: dados.toString()
+                })
+                    .then(function(resposta) {
+                        return resposta.json().then(function(payload) {
+                            if (!resposta.ok || !payload.ok) {
+                                throw new Error(payload.erro || "Não foi possível salvar o item.");
+                            }
+
+                            return payload.item;
+                        });
+                    })
+                    .then(function(item) {
+                        if (tipo === "produto") {
+                            window.opcoesProdutos.push({ nome: item.nome, valor: item.valor || "" });
+                        } else {
+                            window.opcoesServicos.push({ nome: item.nome, valor: item.valor || "" });
+                        }
+
+                        adicionarOpcaoRapidaEmSelects(tipo, item);
+
+                        const select = window.selectItemRapidoAtual;
+                        const linha = window.linhaItemRapidoAtual;
+
+                        if (select) {
+                            select.value = item.nome;
+                        }
+
+                        if (linha) {
+                            const valorInput = linha.querySelector(".item-valor");
+                            const detalhesInput = linha.querySelector('input[name="item_detalhes"]');
+
+                            if (valorInput) {
+                                valorInput.value = formatarMoeda(normalizarNumero(item.valor || "0,00"));
+                            }
+
+                            if (detalhesInput && item.observacoes) {
+                                detalhesInput.value = item.observacoes;
+                            }
+
+                            recalcularLinha(linha);
+                        }
+
+                        fecharModalItemRapido();
+                    })
+                    .catch(function(erro) {
+                        erroBox.textContent = erro.message || "Erro ao salvar item.";
+                        erroBox.classList.add("show");
+                    });
+            }
+
+
+            document.addEventListener("DOMContentLoaded", function() {
+                carregarItensIniciais();
+
+                ["orcamento_desconto_valor", "orcamento_desconto_percentual"].forEach(function(id) {
+                    const input = document.getElementById(id);
+
+                    if (!input) {
+                        return;
+                    }
+
+                    input.addEventListener("input", recalcularTotaisOrcamento);
+                    input.addEventListener("blur", function() {
+                        input.value = formatarMoeda(normalizarNumero(input.value));
+                        recalcularTotaisOrcamento();
+                    });
+                });
+
+                const valorFinalInput = document.getElementById("orcamento_valor_total");
+                if (valorFinalInput) {
+                    valorFinalInput.addEventListener("input", function() {
+                        valorFinalInput.dataset.editado = "sim";
+                        definirValorFinalManual(valorFinalInput.value, "edição do valor final", false);
+                    });
+                    valorFinalInput.addEventListener("blur", function() {
+                        if (valorFinalInput.dataset.editado !== "sim") return;
+                        const valor = normalizarNumero(valorFinalInput.value);
+                        definirValorFinalManual(valor, "edição do valor final", true);
+                        sincronizarApresentacaoComValorFinal(valor);
+                    });
+                }
+            });
+        </script>
+
+    </main>
+
+
+        <script>
+            function gestflowValorNumero(valor) {
+                let texto = String(valor || "").trim();
+
+                if (!texto) {
+                    return 0;
+                }
+
+                texto = texto.replace("R$", "").replace(/\s/g, "");
+
+                if (texto.includes(",")) {
+                    texto = texto.replace(/\./g, "").replace(",", ".");
+                }
+
+                const numero = Number.parseFloat(texto);
+                return Number.isFinite(numero) ? numero : 0;
+            }
+
+            function gestflowLimparErrosFormulario(formulario) {
+                formulario.querySelectorAll(".gestflow-campo-invalido").forEach(function(campo) {
+                    campo.classList.remove("gestflow-campo-invalido");
+                });
+
+                const erroBox = formulario.querySelector("[data-form-error]");
+
+                if (erroBox) {
+                    erroBox.textContent = "";
+                    erroBox.classList.remove("show");
+                }
+            }
+
+            function gestflowExibirErroFormulario(formulario, mensagem, campo) {
+                const erroBox = formulario.querySelector("[data-form-error]");
+
+                if (erroBox) {
+                    erroBox.textContent = mensagem;
+                    erroBox.classList.add("show");
+                    erroBox.scrollIntoView({ behavior: "smooth", block: "center" });
+                } else {
+                    alert(mensagem);
+                }
+
+                if (campo) {
+                    campo.classList.add("gestflow-campo-invalido");
+                    campo.focus();
+                }
+            }
+
+            function gestflowCampoObrigatorio(formulario, seletor, mensagem) {
+                const campo = formulario.querySelector(seletor);
+
+                if (!campo) {
+                    return "";
+                }
+
+                const valor = String(campo.value || "").trim();
+
+                if (!valor || valor.startsWith("__novo")) {
+                    gestflowExibirErroFormulario(formulario, mensagem, campo);
+                    return mensagem;
+                }
+
+                return "";
+            }
+
+            function gestflowExisteItemValido(formulario, exigirValor) {
+                const linhas = formulario.querySelectorAll("tbody tr");
+
+                for (const linha of linhas) {
+                    const descricao = linha.querySelector('[name="item_descricao"]');
+                    const quantidade = linha.querySelector('[name="item_quantidade"]');
+                    const valor = linha.querySelector('[name="item_valor_unitario"]');
+
+                    if (!descricao) {
+                        continue;
+                    }
+
+                    const descricaoValor = String(descricao.value || "").trim();
+
+                    if (!descricaoValor || descricaoValor.startsWith("__novo")) {
+                        continue;
+                    }
+
+                    const quantidadeNumero = gestflowValorNumero(quantidade ? quantidade.value : "");
+                    const valorNumero = gestflowValorNumero(valor ? valor.value : "");
+
+                    if (quantidadeNumero > 0 && (!exigirValor || valorNumero > 0)) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            function gestflowTravarFormularioDocumento(configuracao) {
+                const formulario = document.getElementById(configuracao.formId);
+
+                if (!formulario) {
+                    return;
+                }
+
+                formulario.addEventListener("submit", function(evento) {
+                    gestflowLimparErrosFormulario(formulario);
+
+                    for (const campo of configuracao.camposObrigatorios) {
+                        const erro = gestflowCampoObrigatorio(formulario, campo.seletor, campo.mensagem);
+
+                        if (erro) {
+                            evento.preventDefault();
+                            return;
+                        }
+                    }
+
+                    if (configuracao.exigirItem && !gestflowExisteItemValido(formulario, configuracao.exigirValorItem !== false)) {
+                        evento.preventDefault();
+                        gestflowExibirErroFormulario(formulario, configuracao.mensagemItem || "Adicione pelo menos um item válido com quantidade e valor.");
+                        return;
+                    }
+
+                    if (configuracao.exigirItemOuRelato && !gestflowExisteItemValido(formulario, false)) {
+                        const relato = formulario.querySelector('[name="os_relato_cliente"]');
+                        const diagnostico = formulario.querySelector('[name="os_diagnostico"]');
+                        const executado = formulario.querySelector('[name="os_servico_executado"]');
+                        const temRelato = [relato, diagnostico, executado].some(function(campo) {
+                            return campo && String(campo.value || "").trim();
+                        });
+
+                        if (!temRelato) {
+                            evento.preventDefault();
+                            gestflowExibirErroFormulario(formulario, "Informe ao menos um item, relato do cliente, diagnóstico ou serviço executado.");
+                            return;
+                        }
+                    }
+
+                    if (configuracao.totalSeletor) {
+                        const total = formulario.querySelector(configuracao.totalSeletor);
+
+                        if (total && gestflowValorNumero(total.value) <= 0) {
+                            evento.preventDefault();
+                            gestflowExibirErroFormulario(formulario, configuracao.mensagemTotal || "O valor total precisa ser maior que zero.", total);
+                        }
+                    }
+                });
+            }
+        </script>
+
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function() {
+                const formulario = document.getElementById("form-editar-orcamento");
+
+                if (formulario) {
+                    formulario.addEventListener("keydown", function(evento) {
+                        if (evento.key !== "Enter" || evento.isComposing || evento.target instanceof HTMLTextAreaElement) {
+                            return;
+                        }
+
+                        evento.preventDefault();
+                    });
+                }
+
+                gestflowTravarFormularioDocumento({
+                    formId: "form-editar-orcamento",
+                    camposObrigatorios: [
+                        { seletor: '[name="orcamento_cliente"]', mensagem: "Selecione um cliente para salvar o orçamento." },
+                        { seletor: '[name="orcamento_responsavel"]', mensagem: "Selecione um responsável para salvar o orçamento." },
+                        { seletor: '[name="orcamento_data"]', mensagem: "Informe a data do orçamento." },
+                        { seletor: '[name="orcamento_canal_venda"]', mensagem: "Informe o canal de venda do orçamento." }
+                    ],
+                    exigirItem: true,
+                    exigirValorItem: true,
+                    totalSeletor: '[name="orcamento_valor_total"]',
+                    mensagemItem: "Adicione pelo menos um produto ou serviço com quantidade e valor unitário maiores que zero.",
+                    mensagemTotal: "O valor total do orçamento precisa ser maior que zero."
+                });
+            });
+        </script>
+
+
+        <script>
+            function criarLinhaApresentacao(dados) {
+                const tr = document.createElement('tr');
+                const item = dados || {};
+                tr.innerHTML = `
+                    <td><input name="apresentacao_descricao" type="text" class="form-control apresentacao-descricao" value="${textoSeguroApresentacao(item.descricao || '')}" placeholder="Ex: Adequação NR-12 conforme escopo"></td>
+                    <td><input name="apresentacao_detalhes" type="text" class="form-control" value="${textoSeguroApresentacao(item.detalhes || '')}" placeholder="Descrição opcional"></td>
+                    <td><input name="apresentacao_quantidade" type="text" class="form-control apresentacao-quantidade" value="${textoSeguroApresentacao(item.quantidade || '1')}"></td>
+                    <td><input name="apresentacao_valor_unitario" type="text" class="form-control apresentacao-valor" value="${textoSeguroApresentacao(item.valor_unitario || item.subtotal || '')}"></td>
+                    <td><input name="apresentacao_subtotal" type="text" class="form-control apresentacao-subtotal" value="${textoSeguroApresentacao(item.subtotal || '')}" readonly></td>
+                    <td><button type="button" class="action-button delete" onclick="removerItemApresentacao(this)">×</button></td>
+                `;
+                tr.querySelectorAll('.apresentacao-quantidade, .apresentacao-valor').forEach(function(input) {
+                    input.addEventListener('input', function() { recalcularLinhaApresentacao(tr, true); });
+                    input.addEventListener('blur', function() { input.value = formatarMoeda(normalizarNumero(input.value)); recalcularLinhaApresentacao(tr, true); });
+                });
+                return tr;
+            }
+
+            function textoSeguroApresentacao(valor) {
+                return String(valor || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            }
+
+            function adicionarItemApresentacao(dados, sincronizarValorFinal) {
+                const body = document.getElementById('apresentacao-tbody');
+                if (!body) return;
+                const tr = criarLinhaApresentacao(dados || {});
+                body.appendChild(tr);
+                recalcularLinhaApresentacao(tr, Boolean(sincronizarValorFinal));
+            }
+
+            function removerItemApresentacao(botao) {
+                botao.closest('tr')?.remove();
+                const body = document.getElementById('apresentacao-tbody');
+                if (body && !body.children.length && document.getElementById('orcamento_modo_apresentacao')?.value !== 'detalhado') adicionarItemApresentacao();
+                recalcularTotalApresentacao(true);
+            }
+
+            function recalcularLinhaApresentacao(tr, sincronizarValorFinal) {
+                const qtd = normalizarNumero(tr.querySelector('.apresentacao-quantidade')?.value) || 1;
+                const valor = normalizarNumero(tr.querySelector('.apresentacao-valor')?.value);
+                const subtotal = qtd * valor;
+                const campo = tr.querySelector('.apresentacao-subtotal');
+                if (campo) campo.value = formatarMoeda(subtotal);
+                recalcularTotalApresentacao(Boolean(sincronizarValorFinal));
+            }
+
+            function recalcularTotalApresentacao(sincronizarValorFinal) {
+                let total = 0;
+                document.querySelectorAll('.apresentacao-subtotal').forEach(function(input) { total += normalizarNumero(input.value); });
+                const el = document.getElementById('apresentacao-total');
+                if (el) el.textContent = 'R$ ' + formatarMoeda(total);
+                if (sincronizarValorFinal && total > 0) {
+                    definirValorFinalManual(total, "apresentação comercial");
+                }
+                return total;
+            }
+
+            function sincronizarApresentacaoComValorFinal(valorFinal) {
+                const modo = document.getElementById('orcamento_modo_apresentacao')?.value || 'agrupado';
+                const body = document.getElementById('apresentacao-tbody');
+                const valor = Math.max(normalizarNumero(valorFinal), 0);
+                if (modo === 'detalhado' || !body || valor <= 0) return;
+
+                if (!body.children.length) {
+                    const descricao = document.getElementById('orcamento_descricao_comercial')?.value || 'Fornecimento e execução conforme escopo técnico';
+                    adicionarItemApresentacao({ descricao, quantidade: '1', valor_unitario: formatarMoeda(valor), subtotal: formatarMoeda(valor) }, false);
+                }
+
+                if (modo === 'global') {
+                    while (body.children.length > 1) body.lastElementChild.remove();
+                }
+
+                const linhas = Array.from(body.children);
+                const bases = linhas.map(function(linha) {
+                    return normalizarNumero(linha.querySelector('.apresentacao-subtotal')?.value);
+                });
+                const somaBases = bases.reduce(function(total, base) { return total + Math.max(base, 0); }, 0);
+                let acumulado = 0;
+
+                linhas.forEach(function(linha, indice) {
+                    let valorLinha;
+                    if (indice === linhas.length - 1) {
+                        valorLinha = Math.max(valor - acumulado, 0);
+                    } else if (somaBases > 0) {
+                        valorLinha = Math.round((valor * (Math.max(bases[indice], 0) / somaBases)) * 100) / 100;
+                        acumulado += valorLinha;
+                    } else {
+                        valorLinha = Math.round((valor / linhas.length) * 100) / 100;
+                        acumulado += valorLinha;
+                    }
+
+                    linha.querySelector('.apresentacao-quantidade').value = '1';
+                    linha.querySelector('.apresentacao-valor').value = formatarMoeda(valorLinha);
+                    linha.querySelector('.apresentacao-subtotal').value = formatarMoeda(valorLinha);
+                });
+
+                recalcularTotalApresentacao(false);
+            }
+
+            function atualizarModoApresentacao() {
+                const modo = document.getElementById('orcamento_modo_apresentacao')?.value || 'agrupado';
+                const area = document.getElementById('presentation-lines-area');
+                const total = document.querySelector('.presentation-total');
+                const botao = document.querySelector('#aba-apresentacao .btn-primary-green');
+                const desativado = modo === 'detalhado';
+                if (area) area.style.display = desativado ? 'none' : '';
+                if (total) total.style.display = desativado ? 'none' : '';
+                if (botao) botao.style.display = desativado ? 'none' : '';
+                const body = document.getElementById('apresentacao-tbody');
+                if (!desativado && body && !body.children.length) {
+                    const descricao = document.getElementById('orcamento_descricao_comercial')?.value || 'Fornecimento e execução conforme escopo técnico';
+                    adicionarItemApresentacao({ descricao, quantidade: '1', valor_unitario: document.getElementById('orcamento_valor_total')?.value || '0,00' }, false);
+                }
+                if (modo === 'global' && body && body.children.length > 1) {
+                    while (body.children.length > 1) body.lastElementChild.remove();
+                    const primeira = body.firstElementChild;
+                    if (primeira) {
+                        primeira.querySelector('.apresentacao-quantidade').value = '1';
+                        primeira.querySelector('.apresentacao-valor').value = document.getElementById('orcamento_valor_total')?.value || '0,00';
+                        recalcularLinhaApresentacao(primeira, false);
+                    }
+                }
+            }
+
+            window.addEventListener('DOMContentLoaded', function() {
+                const iniciais = Array.isArray(window.itensApresentacaoIniciais) ? window.itensApresentacaoIniciais : [];
+                iniciais.forEach(function(item) { adicionarItemApresentacao(item, false); });
+                atualizarModoApresentacao();
+                document.getElementById('orcamento_descricao_comercial')?.addEventListener('input', function() {
+                    const primeiro = document.querySelector('.apresentacao-descricao');
+                    if (primeiro && !primeiro.dataset.editado) primeiro.value = this.value;
+                });
+                document.querySelectorAll('.apresentacao-descricao').forEach(function(input) { input.addEventListener('input', function(){ input.dataset.editado='sim'; }); });
+
+                document.querySelector('form.client-form')?.addEventListener('submit', function() {
+                    const modo = document.getElementById('orcamento_modo_apresentacao')?.value || 'agrupado';
+                    const valorFinal = normalizarNumero(document.getElementById('orcamento_valor_total')?.value);
+
+                    if (modo !== 'detalhado') {
+                        sincronizarApresentacaoComValorFinal(valorFinal);
+                    }
+
+                    const campoFinal = document.getElementById('orcamento_valor_final_editado');
+                    if (campoFinal) campoFinal.value = formatarMoeda(valorFinal);
+                });
+            });
+        </script>
+
+</body>
+</html>

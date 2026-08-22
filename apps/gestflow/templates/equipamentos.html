@@ -1,0 +1,118 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\equipamentos.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Equipamentos</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+    <main class="content equipamentos-page">
+        {% set page_title = 'Equipamentos' %}
+        {% include "partials/topbar.html" %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Cadastros</span>
+                    <h3 class="page-title">Equipamentos</h3>
+                    <p class="page-subtitle">Cadastre equipamentos por cliente, gere QR Code e acompanhe o histórico de manutenções.</p>
+                </div>
+                <a href="#novo-equipamento" class="btn-primary-green">+ Novo equipamento</a>
+            </div>
+        </section>
+
+        {% if erro %}<section class="panel page-section"><div class="gestflow-form-error show">{{ erro }}</div></section>{% endif %}
+
+        <section class="cards cards-secondary page-section">
+            <div class="card stat-card"><div class="card-icon">▣</div><div class="card-info"><p>{{ equipamentos|length }}</p><h3>Total</h3><span>Equipamentos cadastrados</span></div></div>
+            <div class="card stat-card"><div class="card-icon">QR</div><div class="card-info"><p>{{ equipamentos|selectattr('token_qrcode')|list|length }}</p><h3>Com QR</h3><span>Prontos para etiqueta</span></div></div>
+            <div class="card stat-card"><div class="card-icon">✓</div><div class="card-info"><p>{{ equipamentos|selectattr('status', 'equalto', 'ativo')|list|length }}</p><h3>Ativos</h3><span>Disponíveis para OS</span></div></div>
+        </section>
+
+        <section id="novo-equipamento" class="panel page-section">
+            <div class="panel-header page-header"><div><h3>Novo equipamento</h3><p class="page-subtitle">O QR Code é criado automaticamente ao salvar.</p></div></div>
+            <form method="post" class="client-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Cliente</label>
+                        <select name="cliente_nome" class="form-control">
+                            <option value="">Sem cliente definido</option>
+                            {% for cliente in clientes|default([]) %}<option value="{{ cliente.nome }}">{{ cliente.nome }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Nome do equipamento</label><input name="nome" class="form-control" required placeholder="Ex.: Portão principal"></div>
+                    <div class="form-group"><label>Marca</label><input name="marca" class="form-control"></div>
+                    <div class="form-group"><label>Modelo</label><input name="modelo" class="form-control"></div>
+                    <div class="form-group"><label>Série / número</label><input name="serie" class="form-control"></div>
+                    <div class="form-group"><label>TAG / patrimônio</label><input name="tag" class="form-control"></div>
+                    <div class="form-group"><label>Local de instalação</label><input name="local_instalacao" class="form-control" placeholder="Ex.: Portaria 02"></div>
+                    <div class="form-group"><label>Status</label><select name="status" class="form-control"><option value="ativo">Ativo</option><option value="manutencao">Em manutenção</option><option value="inativo">Inativo</option><option value="baixado">Baixado</option></select></div>
+                    <div class="form-group form-span-2"><label>Observações</label><textarea name="observacoes" class="form-control textarea-control"></textarea></div>
+                </div>
+                <div class="form-actions"><button class="btn-primary-green" type="submit">Salvar equipamento</button></div>
+            </form>
+        </section>
+
+        <section class="panel table-panel page-section">
+            <div class="panel-header page-header"><div><h3>Lista de equipamentos</h3><p class="page-subtitle">Busque por cliente, nome, marca, modelo, série ou TAG.</p></div></div>
+            <form method="get" class="client-toolbar" style="margin-bottom:14px;">
+                <input name="busca" class="form-control client-search" placeholder="Buscar equipamento" value="{{ busca or '' }}">
+                <select name="status" class="form-control" style="max-width:180px;"><option value="" {% if not status %}selected{% endif %}>Todos</option><option value="ativo" {% if status=='ativo' %}selected{% endif %}>Ativos</option><option value="manutencao" {% if status=='manutencao' %}selected{% endif %}>Em manutenção</option><option value="inativo" {% if status=='inativo' %}selected{% endif %}>Inativos</option><option value="baixado" {% if status=='baixado' %}selected{% endif %}>Baixados</option></select>
+                <button type="submit" class="btn-dark">Filtrar</button>
+                <a href="/equipamentos" class="btn-light">Limpar</a>
+            </form>
+            <div class="table-shell">
+                <table class="client-table">
+                    <thead><tr><th>Cliente</th><th>Equipamento</th><th>Marca / Modelo</th><th>Série / TAG</th><th>Status</th><th>QR Code</th><th>Ações</th></tr></thead>
+                    <tbody>
+                    {% if equipamentos %}
+                        {% for equipamento in equipamentos %}
+                        <tr>
+                            <td>{{ equipamento.cliente_nome or '-' }}</td>
+                            <td><strong>{{ equipamento.nome }}</strong><br><small>{{ equipamento.local_instalacao or '' }}</small></td>
+                            <td>{{ equipamento.marca or '-' }}{% if equipamento.modelo %} / {{ equipamento.modelo }}{% endif %}</td>
+                            <td>{{ equipamento.serie or '-' }}{% if equipamento.tag %}<br><small>{{ equipamento.tag }}</small>{% endif %}</td>
+                            <td><span class="status-pill {{ equipamento.status or 'ativo' }}">{{ equipamento.status or 'ativo' }}</span></td>
+                            <td>{% if equipamento.token_qrcode %}<img src="/os/equipamento/{{ equipamento.token_qrcode }}/qrcode.svg" alt="QR" class="equipamento-mini-qr">{% else %}-{% endif %}</td>
+                            <td>
+                                <div class="action-buttons">
+                                    <a href="/equipamentos/{{ equipamento.id }}" title="Ver equipamento" aria-label="Ver equipamento" class="action-button view">🔍</a>
+                                    <a href="/equipamentos/{{ equipamento.id }}/editar" title="Editar equipamento" aria-label="Editar equipamento" class="action-button edit">✎</a>
+                                    <form action="/equipamentos/{{ equipamento.id }}/excluir" method="post" onsubmit="return confirm('Tem certeza que deseja excluir este equipamento? Ele será baixado da lista principal e o histórico será preservado.');" class="action-form">
+                                        <button type="submit" title="Excluir equipamento" aria-label="Excluir equipamento" class="action-button delete">×</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="7" class="empty-table empty-table-box">
+                                <div class="empty-table-content">
+                                    <div class="empty-table-icon">▣</div>
+                                    <strong>Nenhum equipamento cadastrado.</strong>
+                                    <span>Use o botão Novo equipamento para iniciar o cadastro.</span>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+    {% include "partials/assistente_ia_widget.html" %}
+
+    {% include "partials/lista_avancada.html" %}
+
+</body>
+</html>
+

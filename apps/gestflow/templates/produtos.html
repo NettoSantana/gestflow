@@ -1,0 +1,704 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\produtos.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Produtos</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .logout-button {
+            height: 36px;
+            padding: 0 14px;
+            border: 1px solid #d7e1ef;
+            border-radius: 10px;
+            background: #ffffff;
+            color: #dc2626;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 900;
+            text-decoration: none;
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .logout-button:hover {
+            background: #fff1f2;
+            border-color: #fecdd3;
+        }
+
+        .form-alert-error {
+            margin: 0 0 18px;
+            padding: 12px 14px;
+            border: 1px solid #fecaca;
+            border-radius: 12px;
+            background: #fef2f2;
+            color: #991b1b;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+
+        .alert-success,
+        .form-alert-success {
+            margin: 0 0 18px;
+            padding: 12px 14px;
+            border: 1px solid #bbf7d0;
+            border-radius: 12px;
+            background: #f0fdf4;
+            color: #166534;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .more-actions-wrap {
+            position: relative;
+            display: inline-flex;
+        }
+
+        .more-actions-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            z-index: 20;
+            min-width: 230px;
+            padding: 8px;
+            border: 1px solid #dbe4f0;
+            border-radius: 12px;
+            background: #ffffff;
+            box-shadow: 0 18px 36px rgba(15, 23, 42, 0.16);
+            display: none;
+        }
+
+        .more-actions-menu.open {
+            display: block;
+        }
+
+        .more-actions-menu a,
+        .more-actions-menu button {
+            width: 100%;
+            min-height: 36px;
+            border: 0;
+            border-radius: 9px;
+            background: transparent;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            font-size: 13px;
+            font-weight: 800;
+            text-align: left;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .more-actions-menu a:hover,
+        .more-actions-menu button:hover {
+            background: #f1f5f9;
+        }
+
+        .sortable-link {
+            color: #1e293b;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            text-decoration: none;
+            font-weight: 900;
+        }
+
+        .sortable-link:hover {
+            color: #0f62fe;
+        }
+
+        .sort-indicator {
+            color: #0f62fe;
+            font-size: 11px;
+            font-weight: 900;
+        }
+
+        .pagination-bar {
+            margin-top: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            font-size: 13px;
+            color: #475569;
+            font-weight: 800;
+        }
+
+        .pagination-links {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .pagination-links a,
+        .pagination-links span {
+            min-width: 34px;
+            height: 34px;
+            padding: 0 10px;
+            border: 1px solid #dbe4f0;
+            border-radius: 9px;
+            background: #ffffff;
+            color: #0f172a;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 900;
+            text-decoration: none;
+        }
+
+        .pagination-links a:hover {
+            background: #eff6ff;
+            border-color: #bfdbfe;
+            color: #0f62fe;
+        }
+
+        .pagination-links .current-page {
+            background: #0f62fe;
+            border-color: #0f62fe;
+            color: #ffffff;
+        }
+
+        .pagination-links .disabled-page {
+            color: #94a3b8;
+            background: #f8fafc;
+            cursor: not-allowed;
+        }
+
+        .client-search-form {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .client-search-form .client-search {
+            flex: 1 1 320px;
+        }
+
+        .per-page-select {
+            max-width: 130px;
+        }
+
+        .clear-search-link {
+            min-height: 38px;
+            padding: 0 12px;
+            border: 1px solid #dbe4f0;
+            border-radius: 10px;
+            background: #ffffff;
+            color: #64748b;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 900;
+            text-decoration: none;
+        }
+
+        .clear-search-link:hover {
+            background: #f8fafc;
+            color: #0f172a;
+        }
+
+    
+        .product-cost-note {
+            margin-top: 6px;
+            color: #64748b;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1.4;
+        }
+
+        .cmv-cell {
+            min-width: 126px;
+        }
+
+        .cmv-cell strong {
+            display: block;
+            color: #0f172a;
+            font-size: 13px;
+            white-space: nowrap;
+        }
+
+        .cmv-origin {
+            display: inline-flex;
+            align-items: center;
+            min-height: 22px;
+            margin-top: 5px;
+            padding: 0 8px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 900;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .cmv-origin.composicao {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .cmv-origin.manual {
+            background: #e2e8f0;
+            color: #475569;
+        }
+
+        .action-button.production {
+            background: #16a34a;
+            color: #ffffff;
+        }
+
+        .action-button.production:hover {
+            background: #15803d;
+        }
+
+        .product-name-wrap {
+            min-width: 170px;
+        }
+
+        .product-name-wrap strong {
+            display: block;
+            color: #0f172a;
+        }
+
+        .product-name-wrap small {
+            display: block;
+            margin-top: 4px;
+            color: #64748b;
+            font-size: 10px;
+            font-weight: 800;
+        }
+
+    </style>
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+
+<main class="content">
+        {% set page_title = 'Produtos' %}
+        {% include "partials/topbar.html" %}
+
+        {% if request.args.get('erro') %}
+            <div class="form-alert-error">{{ request.args.get('erro') }}</div>
+        {% endif %}
+
+        {% if request.args.get('sucesso') %}
+            <div class="form-alert-success">{{ request.args.get('sucesso') }}</div>
+        {% endif %}
+
+{% set produtos_lista = produtos|default([]) %}
+        {% set resumo_geral = resumo_produtos|default({}, true) %}
+        {% set paginacao = paginacao|default({}, true) %}
+        {% set busca = busca|default('', true) %}
+        {% set ordenar = ordenar|default('id', true) %}
+        {% set direcao = direcao|default('desc', true) %}
+        {% set por_pagina = por_pagina|default(20, true) %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Cadastros</span>
+                    <h3 class="page-title">Produtos</h3>
+                    <p class="page-subtitle">Controle produtos, estoque, ficha técnica, CMV calculado, produção, preço de venda e status de cadastro do GESTFLOW.</p>
+                </div>
+
+                <a href="#form-novo-produto" class="btn-primary-green">+ Novo Produto</a>
+            </div>
+        </section>
+
+        <section class="cards cards-secondary page-section">
+            <div class="card stat-card">
+                <div class="card-icon">☷</div>
+                <div class="card-info">
+                    <p>{{ resumo_geral.total|default(0, true) }}</p>
+                    <h3>Total de produtos</h3>
+                    <span>{% if produtos_lista|length == 1 %}1 produto cadastrado{% elif produtos_lista|length > 1 %}{{ resumo_geral.total|default(0, true) }} produtos cadastrados{% else %}Nenhum produto cadastrado{% endif %}</span>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="card-icon">✓</div>
+                <div class="card-info">
+                    <p>{{ resumo_geral.ativos|default(0, true) }}</p>
+                    <h3>Produtos ativos</h3>
+                    <span>{% if resumo_geral.ativos == 1 %}1 produto ativo{% elif resumo_geral.ativos > 1 %}{{ resumo_geral.ativos|default(0, true) }} produtos ativos{% else %}Aguardando cadastro{% endif %}</span>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="card-icon">!</div>
+                <div class="card-info">
+                    <p>{{ resumo_geral.pendentes|default(0, true) }}</p>
+                    <h3>Pendências</h3>
+                    <span>{% if resumo_geral.pendentes == 1 %}1 cadastro pendente{% elif resumo_geral.pendentes > 1 %}{{ resumo_geral.pendentes|default(0, true) }} cadastros pendentes{% else %}Nenhuma pendência{% endif %}</span>
+                </div>
+            </div>
+        </section>
+
+        <section id="form-novo-produto" class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Novo produto</h3>
+                    <p class="page-subtitle">Preencha os dados principais para preparar o cadastro do produto.</p>
+                </div>
+
+                <span class="badge-info">Cadastro inicial</span>
+            </div>
+
+            <form action="/produtos" method="post" class="client-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="produto_nome">Nome do produto *</label>
+                        <input id="produto_nome" name="produto_nome" type="text" placeholder="Ex: Cabo flexível 2,5mm" class="form-control" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="produto_codigo">Código interno</label>
+                        <input id="produto_codigo" name="produto_codigo" type="text" placeholder="Ex: PROD-001" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="produto_categoria">Categoria</label>
+                        <select id="produto_categoria" name="produto_categoria" class="form-control">
+                            <option value="">Selecione</option>
+                            <option value="Material elétrico">Material elétrico</option>
+                            <option value="Material mecânico">Material mecânico</option>
+                            <option value="Ferramentas">Ferramentas</option>
+                            <option value="EPI">EPI</option>
+                            <option value="Consumíveis">Consumíveis</option>
+                            <option value="Serviços aplicados">Serviços aplicados</option>
+                            <option value="Outros">Outros</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="produto_unidade">Unidade *</label>
+                        <select id="produto_unidade" name="produto_unidade" class="form-control" required>
+                            <option value="">Selecione</option>
+                            <option value="Unidade">Unidade</option>
+                            <option value="Peça">Peça</option>
+                            <option value="Metro">Metro</option>
+                            <option value="Kg">Kg</option>
+                            <option value="Litro">Litro</option>
+                            <option value="Caixa">Caixa</option>
+                            <option value="Pacote">Pacote</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="produto_estoque_atual">Estoque atual</label>
+                        <input id="produto_estoque_atual" name="produto_estoque_atual" type="text" value="0" placeholder="Ex: 10" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="produto_estoque_minimo">Estoque mínimo</label>
+                        <input id="produto_estoque_minimo" name="produto_estoque_minimo" type="text" placeholder="Ex: 3" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="produto_preco_custo">Custo manual</label>
+                        <input id="produto_preco_custo" name="produto_preco_custo" type="text" placeholder="Ex: 25,00" class="form-control">
+                        <div class="product-cost-note">Usado até que uma ficha técnica seja cadastrada para o produto.</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="produto_preco_venda">Preço de venda</label>
+                        <input id="produto_preco_venda" name="produto_preco_venda" type="text" placeholder="Ex: 39,90" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="produto_status">Status *</label>
+                        <select id="produto_status" name="produto_status" class="form-control" required>
+                            <option value="ativo">Ativo</option>
+                            <option value="inativo">Inativo</option>
+                            <option value="pendente">Pendente</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="produto_observacoes">Observações</label>
+                        <input id="produto_observacoes" name="produto_observacoes" type="text" placeholder="Ex: Fornecedor, aplicação ou observação" class="form-control">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="reset" class="btn-light">Cancelar</button>
+                    <button type="submit" class="btn-primary-green">Salvar Produto</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="panel table-panel">
+
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Lista de produtos</h3>
+                    <p class="page-subtitle">Pesquise, visualize e mantenha os produtos cadastrados.</p>
+                </div>
+
+                <div class="client-toolbar">
+                    <div class="more-actions-wrap">
+                        <button type="button" class="btn-light" onclick="alternarMenuProdutos()">⚙ Mais ações</button>
+                        <div id="produtos-more-actions" class="more-actions-menu">
+                            <button type="button" onclick="abrirImportacaoProdutos()">⬆ Importar de uma planilha</button>
+                            <a href="/produtos/modelo">⬇ Baixar modelo</a>
+                            <a href="/produtos/exportar">⬇ Exportar produtos</a>
+                        </div>
+                    </div>
+                </div>
+
+                <form id="form-importar-produtos" action="/produtos/importar" method="post" enctype="multipart/form-data" style="display:none;">
+                    <input id="arquivo-produtos" name="arquivo_produtos" type="file" accept=".xlsx,.csv" onchange="enviarImportacaoProdutos()">
+                </form>
+            </div>
+
+            <div class="client-actions">
+                <form action="/produtos" method="get" class="client-search-form">
+                    <input type="text" name="busca" value="{{ busca }}" placeholder="Buscar por nome, código, categoria, unidade ou status" class="client-search">
+                    <input type="hidden" name="ordenar" value="{{ ordenar }}">
+                    <input type="hidden" name="direcao" value="{{ direcao }}">
+
+                    <select name="por_pagina" class="form-control per-page-select" onchange="this.form.submit()">
+                        <option value="10" {% if por_pagina == 10 %}selected{% endif %}>10 por página</option>
+                        <option value="20" {% if por_pagina == 20 %}selected{% endif %}>20 por página</option>
+                        <option value="50" {% if por_pagina == 50 %}selected{% endif %}>50 por página</option>
+                        <option value="100" {% if por_pagina == 100 %}selected{% endif %}>100 por página</option>
+                    </select>
+
+                    <button type="submit" class="btn-dark">Buscar</button>
+
+                    {% if busca %}
+                        <a href="{{ url_for('produtos', por_pagina=por_pagina, ordenar=ordenar, direcao=direcao) }}" class="clear-search-link">Limpar</a>
+                    {% endif %}
+                </form>
+            </div>
+
+            <div class="table-shell">
+                <table class="client-table">
+                    <thead>
+                        <tr>
+                            <th>
+                                <a href="{{ url_for('produtos', pagina=1, por_pagina=por_pagina, ordenar='id', direcao='desc' if ordenar == 'id' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    ID
+                                    {% if ordenar == 'id' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('produtos', pagina=1, por_pagina=por_pagina, ordenar='nome', direcao='desc' if ordenar == 'nome' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    Produto
+                                    {% if ordenar == 'nome' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('produtos', pagina=1, por_pagina=por_pagina, ordenar='codigo', direcao='desc' if ordenar == 'codigo' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    Código interno
+                                    {% if ordenar == 'codigo' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('produtos', pagina=1, por_pagina=por_pagina, ordenar='categoria', direcao='desc' if ordenar == 'categoria' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    Categoria
+                                    {% if ordenar == 'categoria' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('produtos', pagina=1, por_pagina=por_pagina, ordenar='unidade', direcao='desc' if ordenar == 'unidade' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    Unidade
+                                    {% if ordenar == 'unidade' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('produtos', pagina=1, por_pagina=por_pagina, ordenar='estoque_atual', direcao='desc' if ordenar == 'estoque_atual' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    Estoque
+                                    {% if ordenar == 'estoque_atual' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>CMV / custo</th>
+                            <th>
+                                <a href="{{ url_for('produtos', pagina=1, por_pagina=por_pagina, ordenar='preco_venda', direcao='desc' if ordenar == 'preco_venda' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    Preço venda
+                                    {% if ordenar == 'preco_venda' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('produtos', pagina=1, por_pagina=por_pagina, ordenar='status', direcao='desc' if ordenar == 'status' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    Status
+                                    {% if ordenar == 'status' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if produtos_lista %}
+                            {% for produto in produtos_lista %}
+                                <tr>
+                                    <td>{{ produto.id }}</td>
+                                    <td>
+                                        <div class="product-name-wrap">
+                                            <strong>{{ produto.nome }}</strong>
+                                            {% if produto.possui_composicao == 'sim' %}
+                                                <small>Ficha técnica ativa</small>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>{{ produto.codigo }}</td>
+                                    <td>{{ produto.categoria }}</td>
+                                    <td>{{ produto.unidade }}</td>
+                                    <td>{{ produto.estoque_atual }}</td>
+                                    <td class="cmv-cell">
+                                        <strong>R$ {{ produto.preco_custo or '0,00' }}</strong>
+                                        {% if produto.possui_composicao == 'sim' %}
+                                            <span class="cmv-origin composicao">Composição</span>
+                                        {% else %}
+                                            <span class="cmv-origin manual">Manual</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ produto.preco_venda }}</td>
+                                    <td>
+                                        <span class="status-pill {{ produto.status }}">
+                                            {{ produto.status }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <a href="/produtos/{{ produto.id }}" title="Ver produto" aria-label="Ver produto" class="action-button view">🔍</a>
+                                            <a href="/produtos/{{ produto.id }}/editar" title="Editar produto e ficha técnica" aria-label="Editar produto" class="action-button edit">✎</a>
+                                            {% if produto.possui_composicao == 'sim' %}
+                                                <a href="/produtos/{{ produto.id }}/producao" title="Produzir produto" aria-label="Produzir produto" class="action-button production">⚙</a>
+                                            {% endif %}
+                                            <form action="/produtos/{{ produto.id }}/excluir" method="post" onsubmit="return confirm('Tem certeza que deseja excluir este produto?');" class="action-form">
+                                                <button type="submit" title="Excluir produto" aria-label="Excluir produto" class="action-button delete">×</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="10" class="empty-table empty-table-box">
+                                    <div class="empty-table-content">
+                                        <div class="empty-table-icon">☷</div>
+                                        <strong>Nenhum produto cadastrado.</strong>
+                                        <span>Use o botão Novo Produto para iniciar o cadastro.</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pagination-bar">
+                <div>
+                    {% if paginacao.total|default(0, true) > 0 %}
+                        Mostrando {{ paginacao.inicio }} a {{ paginacao.fim }} de um total de {{ paginacao.total }}
+                    {% else %}
+                        Nenhum produto encontrado
+                    {% endif %}
+                </div>
+
+                {% if paginacao.total_paginas|default(1, true) > 1 %}
+                    <div class="pagination-links">
+                        {% if paginacao.tem_anterior %}
+                            <a href="{{ url_for('produtos', pagina=paginacao.anterior, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">‹</a>
+                        {% else %}
+                            <span class="disabled-page">‹</span>
+                        {% endif %}
+
+                        {% if 1 not in paginacao.paginas %}
+                            <a href="{{ url_for('produtos', pagina=1, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">1</a>
+                            {% if paginacao.paginas[0] > 2 %}
+                                <span class="disabled-page">...</span>
+                            {% endif %}
+                        {% endif %}
+
+                        {% for numero_pagina in paginacao.paginas %}
+                            {% if numero_pagina == paginacao.pagina %}
+                                <span class="current-page">{{ numero_pagina }}</span>
+                            {% else %}
+                                <a href="{{ url_for('produtos', pagina=numero_pagina, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">{{ numero_pagina }}</a>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if paginacao.total_paginas not in paginacao.paginas %}
+                            {% if paginacao.paginas[-1] < paginacao.total_paginas - 1 %}
+                                <span class="disabled-page">...</span>
+                            {% endif %}
+                            <a href="{{ url_for('produtos', pagina=paginacao.total_paginas, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">{{ paginacao.total_paginas }}</a>
+                        {% endif %}
+
+                        {% if paginacao.tem_proxima %}
+                            <a href="{{ url_for('produtos', pagina=paginacao.proxima, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">›</a>
+                        {% else %}
+                            <span class="disabled-page">›</span>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+
+
+        </section>
+
+    </main>
+
+    <script>
+        function alternarMenuProdutos() {
+            const menu = document.getElementById("produtos-more-actions");
+
+            if (!menu) {
+                return;
+            }
+
+            menu.classList.toggle("open");
+        }
+
+        function abrirImportacaoProdutos() {
+            const input = document.getElementById("arquivo-produtos");
+            const menu = document.getElementById("produtos-more-actions");
+
+            if (menu) {
+                menu.classList.remove("open");
+            }
+
+            if (input) {
+                input.click();
+            }
+        }
+
+        function enviarImportacaoProdutos() {
+            const form = document.getElementById("form-importar-produtos");
+            const input = document.getElementById("arquivo-produtos");
+
+            if (form && input && input.files.length > 0) {
+                form.submit();
+            }
+        }
+
+        document.addEventListener("click", function(event) {
+            const menu = document.getElementById("produtos-more-actions");
+            const wrapper = document.querySelector(".more-actions-wrap");
+
+            if (menu && wrapper && !wrapper.contains(event.target)) {
+                menu.classList.remove("open");
+            }
+        });
+    </script>
+
+    {% include "partials/lista_avancada.html" %}
+
+</body>
+</html>

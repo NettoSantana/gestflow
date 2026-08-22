@@ -1,0 +1,67 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\emprestimo_parcelas.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Parcelas de Empréstimos</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+    <main class="content loans-page gf-module-page">
+        {% set page_title = 'Parcelas de Empréstimos' %}
+        {% include "partials/topbar.html" %}
+        <nav class="loan-tabs gf-tabs" aria-label="Navegação do módulo Empréstimos">
+            <a class="loan-tab" href="/emprestimos/visao-geral">Visão Geral</a>
+            <a class="loan-tab" href="/emprestimos/todos">Todos os Empréstimos</a>
+            <a class="loan-tab active" href="/emprestimos/parcelas">Parcelas</a>
+            <a class="loan-tab" href="/emprestimos/renegociacoes">Renegociações</a>
+        </nav>
+        {% if sucesso %}<div class="loan-alert success" role="status">{{ sucesso }}</div>{% endif %}
+        {% if erro %}<div class="loan-alert error" role="alert">{{ erro }}</div>{% endif %}
+
+        <section class="panel page-section gf-page-hero">
+            <div class="panel-header page-header gf-page-header">
+                <div><span class="page-kicker">Gestão financeira</span><h3 class="page-title">Parcelas</h3><p class="page-subtitle">Acompanhe vencimentos, atrasos, pagamentos e recebimentos.</p></div>
+            </div>
+        </section>
+        <form class="loan-filters gf-filter-panel" method="get" action="/emprestimos/parcelas">
+            <label><span>Situação</span><select name="status"><option value="">Todas</option>{% for item in status_parcelas %}<option value="{{ item.codigo }}" {% if filtro_status == item.codigo %}selected{% endif %}>{{ item.nome }}</option>{% endfor %}</select></label>
+            <label><span>Data inicial</span><input type="date" name="data_inicio" value="{{ data_inicio }}"></label>
+            <label><span>Data final</span><input type="date" name="data_fim" value="{{ data_fim }}"></label>
+            <div class="loan-filter-actions gf-filter-actions"><button class="btn-primary-green" type="submit">Filtrar</button><a class="btn-light" href="/emprestimos/parcelas">Limpar</a></div>
+        </form>
+        <section class="loan-panel gf-list-panel">
+            <div class="loan-table-wrap gf-table-shell">
+                <table class="loan-table gf-table">
+                    <thead><tr><th>Vencimento</th><th>Contrato</th><th>Parte</th><th>Tipo</th><th>Parcela</th><th>Previsto</th><th>Pago</th><th>Saldo</th><th>Status</th><th>Baixa</th></tr></thead>
+                    <tbody>
+                    {% for item in parcelas %}
+                    <tr>
+                        <td>{{ item.vencimento[8:10] }}/{{ item.vencimento[5:7] }}/{{ item.vencimento[0:4] }}</td>
+                        <td><a href="/emprestimos/{{ item.emprestimo_id }}">{{ item.emprestimo_numero }}</a></td>
+                        <td>{{ item.parte_nome }}</td>
+                        <td>{{ 'Pagar' if item.emprestimo_tipo == 'recebido' else 'Receber' }}</td>
+                        <td>{{ item.numero_parcela }}</td>
+                        <td>R$ {{ item.valor_previsto }}</td>
+                        <td>R$ {{ item.valor_pago }}</td>
+                        <td>R$ {{ item.saldo_parcela }}</td>
+                        <td><span class="loan-status {{ item.status }}">{{ item.status|title }}</span></td>
+                        <td>{% if item.status not in ['paga','cancelada'] %}<form class="loan-inline-payment" method="post" action="/emprestimos/parcelas/{{ item.id }}/baixar"><input name="valor_pago" value="{{ item.saldo_parcela }}"><input type="date" name="data_pagamento"><button class="loan-link-button primary" type="submit">Baixar</button></form>{% else %}-{% endif %}</td>
+                    </tr>
+                    {% else %}<tr><td colspan="10" class="loan-empty">Nenhuma parcela encontrada.</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    </main>
+    {% include "partials/lista_avancada.html" %}
+</body>
+</html>

@@ -1,0 +1,1349 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\financeiro.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Financeiro</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .financeiro-tabs {
+            display: flex;
+            gap: 10px;
+            margin: 18px 0;
+            flex-wrap: wrap;
+        }
+
+        .financeiro-tabs a,
+        .financeiro-action,
+        .financeiro-button {
+            border: 0;
+            border-radius: 8px;
+            background: #19a463;
+            color: #fff;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 700;
+            padding: 10px 14px;
+            text-decoration: none;
+        }
+
+        .financeiro-tabs a.secondary {
+            background: #eef2f7;
+            color: #334155;
+        }
+
+        .financeiro-form-grid {
+            display: grid;
+            gap: 14px;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+
+        .financeiro-field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .financeiro-field.full {
+            grid-column: 1 / -1;
+        }
+
+        .financeiro-field label {
+            color: #475569;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .financeiro-field input,
+        .financeiro-field select,
+        .financeiro-field textarea {
+            border: 1px solid #d8dee9;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 14px;
+            padding: 10px;
+            width: 100%;
+        }
+
+        .financeiro-field textarea {
+            min-height: 76px;
+            resize: vertical;
+        }
+
+        .financeiro-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-top: 16px;
+        }
+
+        .financeiro-action.cancelar {
+            background: #64748b;
+        }
+
+        .financeiro-action-buttons {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .financeiro-action-buttons form {
+            margin: 0;
+            display: inline-flex;
+        }
+
+        .financeiro-icon-button {
+            width: 34px;
+            height: 32px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: 0;
+            border-radius: 9px;
+            color: #ffffff;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 900;
+            text-decoration: none;
+            line-height: 1;
+        }
+
+        .financeiro-icon-button.view {
+            background: #0ea5e9;
+        }
+
+        .financeiro-icon-button.edit {
+            background: #f59e0b;
+        }
+
+        .financeiro-icon-button.sale {
+            background: #7c3aed;
+        }
+
+        .financeiro-icon-button.baixar {
+            background: #16a34a;
+        }
+
+        .financeiro-icon-button.cancelar {
+            background: #64748b;
+        }
+
+        .financeiro-icon-button.delete {
+            background: #ef4444;
+            font-size: 16px;
+        }
+
+        .financeiro-origin-badge {
+            display: inline-flex;
+            align-items: center;
+            min-height: 22px;
+            margin-top: 4px;
+            padding: 0 8px;
+            border-radius: 999px;
+            background: #e2e8f0;
+            color: #475569;
+            font-size: 10px;
+            font-weight: 900;
+            white-space: nowrap;
+        }
+
+        .financeiro-origin-badge.venda {
+            background: #ede9fe;
+            color: #6d28d9;
+        }
+
+        .status-pill.vencido {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .status-pill.cancelado {
+            background: #e2e8f0;
+            color: #475569;
+        }
+
+        @media (max-width: 1100px) {
+            .financeiro-form-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 700px) {
+            .financeiro-form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .logout-button {
+            height: 36px;
+            padding: 0 14px;
+            border: 1px solid #d7e1ef;
+            border-radius: 10px;
+            background: #ffffff;
+            color: #dc2626;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 900;
+            text-decoration: none;
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .logout-button:hover {
+            background: #fff1f2;
+            border-color: #fecdd3;
+        }
+
+
+        .list-toolbar-paginada {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin: 14px 0 16px;
+        }
+
+        .list-search-form {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .list-search-form input,
+        .list-search-form select {
+            height: 38px;
+            border: 1px solid #d8dee9;
+            border-radius: 10px;
+            padding: 0 12px;
+            font-family: inherit;
+            font-size: 13px;
+        }
+
+        .clear-search-link {
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 800;
+            text-decoration: none;
+        }
+
+        .sortable-link {
+            color: inherit;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            text-decoration: none;
+        }
+
+        .sortable-link:hover {
+            color: #0f62fe;
+        }
+
+        .sort-indicator {
+            color: #0f62fe;
+            font-weight: 900;
+        }
+
+        .pagination-bar {
+            margin-top: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            font-size: 13px;
+            color: #475569;
+            font-weight: 800;
+        }
+
+        .pagination-links {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .pagination-links a,
+        .pagination-links span {
+            min-width: 34px;
+            height: 34px;
+            padding: 0 10px;
+            border: 1px solid #dbe4f0;
+            border-radius: 9px;
+            background: #ffffff;
+            color: #0f172a;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 900;
+            text-decoration: none;
+        }
+
+        .pagination-links a:hover {
+            background: #eff6ff;
+            border-color: #bfdbfe;
+            color: #0f62fe;
+        }
+
+        .pagination-links .current-page {
+            background: #0f62fe;
+            border-color: #0f62fe;
+            color: #ffffff;
+        }
+
+        .pagination-links .disabled-page {
+            color: #94a3b8;
+            background: #f8fafc;
+            cursor: not-allowed;
+        }
+
+
+        .quick-modal-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: rgba(15, 23, 42, 0.45);
+        }
+
+        .quick-modal-backdrop.open {
+            display: flex;
+        }
+
+        .quick-modal {
+            width: min(620px, 100%);
+            border-radius: 18px;
+            background: #ffffff;
+            box-shadow: 0 24px 80px rgba(15, 23, 42, 0.28);
+            padding: 22px;
+        }
+
+        .quick-modal-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 14px;
+            margin-bottom: 16px;
+        }
+
+        .quick-modal-header h3 {
+            margin: 0;
+            color: #0f172a;
+            font-size: 19px;
+            font-weight: 900;
+        }
+
+        .quick-modal-header p {
+            margin: 4px 0 0;
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .quick-modal-close {
+            width: 34px;
+            height: 34px;
+            border: 0;
+            border-radius: 50%;
+            background: #f1f5f9;
+            color: #0f172a;
+            cursor: pointer;
+            font-size: 22px;
+            line-height: 1;
+        }
+
+        .quick-modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 14px;
+        }
+
+        .quick-modal-error {
+            display: none;
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 10px;
+            background: #fef2f2;
+            color: #991b1b;
+            font-weight: 700;
+            font-size: 13px;
+        }
+
+        .quick-modal-error.show {
+            display: block;
+        }
+
+        .quick-new-option {
+            font-weight: 800;
+            color: #16a34a;
+        }
+
+        .form-grid {
+            display: grid;
+            gap: 14px;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .form-group {
+            display: grid;
+            gap: 6px;
+        }
+
+        .form-group label {
+            color: #475569;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            border: 1px solid #d8dee9;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 14px;
+            padding: 10px;
+            width: 100%;
+        }
+
+
+        /* PADRAO VISUAL ORCAMENTOS - FINANCEIRO */
+        .financeiro-page {
+            padding-bottom: 280px;
+        }
+
+        .financeiro-page .table-panel {
+            margin-bottom: 180px;
+        }
+
+        .financeiro-tabs {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 0 0 18px;
+        }
+
+        .financeiro-tabs a {
+            min-height: 38px;
+            padding: 0 14px;
+            border-radius: 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            font-weight: 900;
+        }
+
+        .financeiro-page .table-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            align-items: start;
+        }
+
+        .financeiro-page .table-grid > .table-panel {
+            min-width: 0;
+            max-width: 100%;
+            overflow: hidden;
+        }
+
+        .financeiro-lista-shell {
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            border: 0 !important;
+            border-radius: 16px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            background: #ffffff;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .financeiro-lista-table {
+            width: 100% !important;
+            min-width: 720px !important;
+            max-width: none !important;
+            border-collapse: separate !important;
+            border-spacing: 0 10px !important;
+        }
+
+        .financeiro-lista-table th:last-child,
+        .financeiro-lista-table td:last-child {
+            min-width: 220px;
+            white-space: nowrap;
+        }
+
+        .financeiro-lista-table td:first-child,
+        .financeiro-lista-table td:nth-child(2) {
+            max-width: 230px;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        @media (max-width: 1500px) {
+            .financeiro-page .table-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .financeiro-lista-table thead th {
+            border-bottom: 0 !important;
+            background: transparent;
+            padding-bottom: 10px;
+        }
+
+        .financeiro-lista-table tbody tr {
+            background: #ffffff;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+            border-radius: 14px;
+        }
+
+        .financeiro-lista-table tbody td {
+            border-bottom: 0 !important;
+            padding-top: 14px !important;
+            padding-bottom: 14px !important;
+        }
+
+        .financeiro-lista-table tbody td:first-child {
+            border-top-left-radius: 14px;
+            border-bottom-left-radius: 14px;
+        }
+
+        .financeiro-lista-table tbody td:last-child {
+            border-top-right-radius: 14px;
+            border-bottom-right-radius: 14px;
+        }
+
+        .financeiro-page input,
+        .financeiro-page select,
+        .financeiro-page textarea {
+            min-width: 0;
+            border-radius: 10px;
+        }
+
+        .financeiro-page .list-search-form {
+            width: 100%;
+        }
+
+    </style>
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+
+<main class="content financeiro-page gf-module-page">
+        {% set page_title = 'Financeiro' %}
+        {% include "partials/topbar.html" %}
+        {% if request.args.get('sucesso') %}<div class="form-alert-success">{{ request.args.get('sucesso') }}</div>{% endif %}
+        {% if request.args.get('erro') %}<div class="gestflow-form-error show">{{ request.args.get('erro') }}</div>{% endif %}
+        {% set paginacao = paginacao|default({}, true) %}
+        {% set busca = busca|default('', true) %}
+        {% set ordenar = ordenar|default('data_vencimento', true) %}
+        {% set direcao = direcao|default('asc', true) %}
+        {% set por_pagina = por_pagina|default(20, true) %}
+        {% set financeiro_endpoint = 'financeiro' %}
+        {% if aba == 'receber' %}{% set financeiro_endpoint = 'financeiro' %}{% elif aba == 'pagar' %}{% set financeiro_endpoint = 'financeiro' %}{% endif %}
+
+        {% macro acoes_titulo(titulo) -%}
+            <div class="financeiro-action-buttons">
+                <a
+                    href="/financeiro/titulos/{{ titulo.id }}"
+                    class="financeiro-icon-button view"
+                    title="Ver título"
+                    aria-label="Ver título"
+                >🔍</a>
+
+                <a
+                    href="/whatsapp/pdf/financeiro/{{ titulo.id }}"
+                    class="financeiro-icon-button"
+                    style="background:#128c7e;color:#fff;text-decoration:none;"
+                    title="Enviar PDF pelo WhatsApp"
+                    aria-label="Enviar PDF pelo WhatsApp"
+                >📲</a>
+
+                {% if titulo.pode_editar %}
+                    <a
+                        href="/financeiro/titulos/{{ titulo.id }}/editar"
+                        class="financeiro-icon-button edit"
+                        title="Editar título"
+                        aria-label="Editar título"
+                    >✎</a>
+                {% endif %}
+
+                {% if titulo.venda_id %}
+                    <a
+                        href="/vendas/{{ titulo.venda_id }}"
+                        class="financeiro-icon-button sale"
+                        title="Abrir venda de origem"
+                        aria-label="Abrir venda de origem"
+                    >↗</a>
+                {% endif %}
+
+                {% if titulo.status_exibicao in ['aberto', 'vencido'] %}
+                    <form action="/financeiro/titulos/{{ titulo.id }}/baixar" method="post">
+                        <button
+                            class="financeiro-icon-button baixar"
+                            type="submit"
+                            title="Baixar título"
+                            aria-label="Baixar título"
+                            onclick="return confirm('Confirmar a baixa deste título?');"
+                        >✓</button>
+                    </form>
+                    <form action="/financeiro/titulos/{{ titulo.id }}/cancelar" method="post">
+                        <button
+                            class="financeiro-icon-button cancelar"
+                            type="submit"
+                            title="Cancelar título"
+                            aria-label="Cancelar título"
+                            onclick="return confirm('Confirmar o cancelamento deste título?');"
+                        >⊘</button>
+                    </form>
+                {% endif %}
+
+                {% if titulo.pode_excluir %}
+                    <form action="/financeiro/titulos/{{ titulo.id }}/excluir" method="post">
+                        <button
+                            class="financeiro-icon-button delete"
+                            type="submit"
+                            title="Excluir título manual"
+                            aria-label="Excluir título manual"
+                            onclick="return confirm('Excluir definitivamente este título manual?');"
+                        >×</button>
+                    </form>
+                {% endif %}
+            </div>
+        {%- endmacro %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Financeiro</span>
+                    <h3 class="page-title">Financeiro</h3>
+                    <p class="page-subtitle">Acompanhe contas a receber, contas a pagar e fluxo de caixa no padrão visual do GestFlow.</p>
+                </div>
+            </div>
+        </section>
+
+<nav class="financeiro-tabs gf-tabs" aria-label="Navegação financeira">
+            <a class="{% if aba != 'receber' %}secondary{% endif %}" href="/financeiro/receber">Contas a receber</a>
+            <a class="{% if aba != 'pagar' %}secondary{% endif %}" href="/financeiro/pagar">Contas a pagar</a>
+            <a class="{% if aba != 'fluxo-caixa' %}secondary{% endif %}" href="/financeiro/fluxo-caixa">Fluxo de caixa</a>
+        </nav>
+
+        <section class="cards cards-primary page-section gf-stat-grid">
+            <div class="card card-success">
+                <div class="card-icon">R$</div>
+                <div class="card-info">
+                    <h3>A receber em aberto</h3>
+                    <p>R$ {{ "%.2f"|format(painel.a_receber_aberto)|replace(".", ",") }}</p>
+                    <span>{{ painel.recebimentos|length }} títulos</span>
+                </div>
+            </div>
+
+            <div class="card card-danger">
+                <div class="card-icon">R$</div>
+                <div class="card-info">
+                    <h3>A pagar em aberto</h3>
+                    <p>R$ {{ "%.2f"|format(painel.a_pagar_aberto)|replace(".", ",") }}</p>
+                    <span>{{ painel.pagamentos|length }} títulos</span>
+                </div>
+            </div>
+
+            <div class="card card-blue">
+                <div class="card-icon">▣</div>
+                <div class="card-info">
+                    <h3>Recebido no mês</h3>
+                    <p>R$ {{ "%.2f"|format(painel.recebido_mes)|replace(".", ",") }}</p>
+                    <span>Entradas baixadas</span>
+                </div>
+            </div>
+
+            <div class="card card-warning">
+                <div class="card-icon">▤</div>
+                <div class="card-info">
+                    <h3>Saldo previsto</h3>
+                    <p>R$ {{ "%.2f"|format(painel.saldo_previsto)|replace(".", ",") }}</p>
+                    <span>Receber menos pagar</span>
+                </div>
+            </div>
+        </section>
+
+        {% if aba in ['receber', 'pagar'] %}
+            <section class="panel page-section gf-form-panel">
+                <div class="panel-header page-header"><div><h3>{% if aba == 'receber' %}Lançar recebimento manual{% else %}Lançar conta a pagar{% endif %}</h3><p class="page-subtitle">Cadastre somente lançamentos que não vieram automaticamente de vendas, compras ou outros módulos.</p></div></div>
+
+                <form action="/financeiro/titulos" method="post">
+                    <input type="hidden" name="financeiro_tipo" value="{% if aba == 'receber' %}receber{% else %}pagar{% endif %}">
+
+                    <div class="financeiro-form-grid">
+                        <div class="financeiro-field">
+                            <label>{% if aba == 'receber' %}Cliente{% else %}Fornecedor{% endif %}</label>
+                            {% if aba == 'receber' %}
+                                <select name="financeiro_pessoa" class="quick-cliente-select">
+                                    <option value="">Selecione um cliente</option>
+                                    {% for cliente in clientes|default([]) %}
+                                        <option value="{{ cliente.nome }}">{{ cliente.nome }}</option>
+                                    {% endfor %}
+                                    <option value="__novo_cliente__" class="quick-new-option">+ Adicionar novo cliente</option>
+                                </select>
+                            {% else %}
+                                <select name="financeiro_pessoa" class="quick-fornecedor-select">
+                                    <option value="">Selecione um fornecedor</option>
+                                    {% for fornecedor in fornecedores|default([]) %}
+                                        <option value="{{ fornecedor.nome }}">{{ fornecedor.nome }}</option>
+                                    {% endfor %}
+                                    <option value="__novo_fornecedor__" class="quick-new-option">+ Adicionar novo fornecedor</option>
+                                </select>
+                            {% endif %}
+                        </div>
+
+                        <div class="financeiro-field">
+                            <label>Descrição</label>
+                            <input type="text" name="financeiro_descricao" required placeholder="Descrição do título">
+                        </div>
+
+                        <div class="financeiro-field">
+                            <label>Categoria</label>
+                            <select name="financeiro_categoria">
+                                {% for categoria in categorias_financeiro %}
+                                    <option value="{{ categoria }}">{{ categoria }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="financeiro-field">
+                            <label>Documento</label>
+                            <input type="text" name="financeiro_documento" placeholder="NF, recibo ou referência">
+                        </div>
+
+                        <div class="financeiro-field">
+                            <label>Data de emissão</label>
+                            <input type="date" name="financeiro_data_emissao" value="{{ data_hoje_iso }}">
+                        </div>
+
+                        <div class="financeiro-field">
+                            <label>Data de vencimento</label>
+                            <input type="date" name="financeiro_data_vencimento" value="{{ data_hoje_iso }}">
+                        </div>
+
+                        <div class="financeiro-field">
+                            <label>Valor</label>
+                            <input type="text" name="financeiro_valor" required placeholder="0,00">
+                        </div>
+
+                        <div class="financeiro-field">
+                            <label>Forma de pagamento</label>
+                            <input type="text" name="financeiro_forma_pagamento" placeholder="Pix, dinheiro, cartão...">
+                        </div>
+
+                        <div class="financeiro-field">
+                            <label>Centro de custo</label>
+                            <select name="financeiro_centro_custo_id" id="financeiro-centro-custo">
+                                <option value="">Sem centro de custo</option>
+                                {% for centro in centros_custo|default([]) %}<option value="{{ centro.id }}">{{ centro.codigo ~ ' - ' if centro.codigo else '' }}{{ centro.nome }}</option>{% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="financeiro-field">
+                            <label>Atividade / Projeto</label>
+                            <select name="financeiro_atividade_financeira_id" id="financeiro-atividade-financeira">
+                                <option value="">Sem atividade</option>
+                                {% for atividade in atividades_financeiras|default([]) %}<option value="{{ atividade.id }}" data-centro-custo-id="{{ atividade.centro_custo_id or '' }}">{{ atividade.nome }}</option>{% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="financeiro-field">
+                            <label>Status</label>
+                            <select name="financeiro_status">
+                                <option value="aberto">Aberto</option>
+                                <option value="pago">Pago</option>
+                                <option value="cancelado">Cancelado</option>
+                            </select>
+                        </div>
+
+                        <div class="financeiro-field full">
+                            <label>Observações</label>
+                            <textarea name="financeiro_observacoes" placeholder="Observações internas"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="financeiro-actions">
+                        <button class="btn-primary-green" type="submit">Salvar título</button>
+                    </div>
+                </form>
+            </section>
+        {% endif %}
+
+        {% if aba in ['receber', 'pagar'] %}
+            <div class="list-toolbar-paginada gf-search-toolbar">
+                <form method="get" action="{{ '/financeiro/pagar' if aba == 'pagar' else '/financeiro/receber' }}" class="list-search-form">
+                    <input type="text" name="busca" value="{{ busca }}" placeholder="Buscar por documento, pessoa, descrição, categoria ou status">
+                    <select name="por_pagina" onchange="this.form.submit()">
+                        {% for quantidade in [10, 20, 50, 100] %}<option value="{{ quantidade }}" {% if por_pagina == quantidade %}selected{% endif %}>{{ quantidade }} por página</option>{% endfor %}
+                    </select>
+                    <input type="hidden" name="ordenar" value="{{ ordenar }}">
+                    <input type="hidden" name="direcao" value="{{ direcao }}">
+                    <button type="submit" class="btn-dark">Buscar</button>
+                    {% if busca %}<a href="{{ '/financeiro/pagar' if aba == 'pagar' else '/financeiro/receber' }}" class="clear-search-link">Limpar</a>{% endif %}
+                </form>
+            </div>
+        {% endif %}
+
+        <section class="table-grid">
+            {% if aba in ['receber', 'fluxo-caixa'] %}
+                <div class="panel table-panel">
+                    <h3>Recebimentos</h3>
+                    <div class="financeiro-lista-shell">
+                    <table class="client-table financeiro-lista-table">
+                        <thead>
+                            <tr>
+                                <th><a href="{{ ('/financeiro/pagar' if aba == 'pagar' else '/financeiro/receber') ~ '?pagina=1&por_pagina=' ~ por_pagina ~ '&ordenar=documento&direcao=' ~ ('desc' if ordenar == 'documento' and direcao == 'asc' else 'asc') ~ '&busca=' ~ busca }}" class="sortable-link">Documento {% if ordenar == 'documento' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                                <th><a href="{{ ('/financeiro/pagar' if aba == 'pagar' else '/financeiro/receber') ~ '?pagina=1&por_pagina=' ~ por_pagina ~ '&ordenar=pessoa&direcao=' ~ ('desc' if ordenar == 'pessoa' and direcao == 'asc' else 'asc') ~ '&busca=' ~ busca }}" class="sortable-link">Pessoa {% if ordenar == 'pessoa' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                                <th><a href="{{ ('/financeiro/pagar' if aba == 'pagar' else '/financeiro/receber') ~ '?pagina=1&por_pagina=' ~ por_pagina ~ '&ordenar=data_vencimento&direcao=' ~ ('desc' if ordenar == 'data_vencimento' and direcao == 'asc' else 'asc') ~ '&busca=' ~ busca }}" class="sortable-link">Vencimento {% if ordenar == 'data_vencimento' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                                <th><a href="{{ ('/financeiro/pagar' if aba == 'pagar' else '/financeiro/receber') ~ '?pagina=1&por_pagina=' ~ por_pagina ~ '&ordenar=valor&direcao=' ~ ('desc' if ordenar == 'valor' and direcao == 'asc' else 'asc') ~ '&busca=' ~ busca }}" class="sortable-link">Valor {% if ordenar == 'valor' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                                <th><a href="{{ ('/financeiro/pagar' if aba == 'pagar' else '/financeiro/receber') ~ '?pagina=1&por_pagina=' ~ por_pagina ~ '&ordenar=status&direcao=' ~ ('desc' if ordenar == 'status' and direcao == 'asc' else 'asc') ~ '&busca=' ~ busca }}" class="sortable-link">Status {% if ordenar == 'status' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if painel.recebimentos %}
+                                {% for titulo in painel.recebimentos %}
+                                    <tr>
+                                        <td>
+                                            {{ titulo.documento or titulo.descricao }}
+                                            <span class="financeiro-origin-badge{% if titulo.venda_id %} venda{% endif %}">{{ titulo.origem_rotulo }}</span>
+                                        </td>
+                                        <td>{{ titulo.pessoa or '-' }}</td>
+                                        <td>{{ titulo.data_vencimento or '-' }}</td>
+                                        <td>R$ {{ titulo.valor or '0,00' }}</td>
+                                        <td><span class="status-pill {{ titulo.status_exibicao }}">{{ titulo.status_exibicao }}</span></td>
+                                        <td>{{ acoes_titulo(titulo) }}</td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr><td colspan="6" class="empty-table">Nenhuma conta a receber cadastrada.</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                    </div>
+                    {% if aba in ['receber', 'pagar'] %}
+                        <div class="pagination-bar">
+                            <div>{% if paginacao.total|default(0, true) > 0 %}Mostrando {{ paginacao.inicio }} a {{ paginacao.fim }} de {{ paginacao.total }}{% else %}Nenhum título encontrado{% endif %}</div>
+                            {% if paginacao.total_paginas|default(1, true) > 1 %}<div class="pagination-links">{% set base_financeiro = '/financeiro/pagar' if aba == 'pagar' else '/financeiro/receber' %}{% if paginacao.tem_anterior %}<a href="{{ base_financeiro }}?pagina={{ paginacao.anterior }}&por_pagina={{ por_pagina }}&ordenar={{ ordenar }}&direcao={{ direcao }}&busca={{ busca }}">‹</a>{% else %}<span class="disabled-page">‹</span>{% endif %}{% for numero_pagina in paginacao.paginas %}{% if numero_pagina == paginacao.pagina %}<span class="current-page">{{ numero_pagina }}</span>{% else %}<a href="{{ base_financeiro }}?pagina={{ numero_pagina }}&por_pagina={{ por_pagina }}&ordenar={{ ordenar }}&direcao={{ direcao }}&busca={{ busca }}">{{ numero_pagina }}</a>{% endif %}{% endfor %}{% if paginacao.tem_proxima %}<a href="{{ base_financeiro }}?pagina={{ paginacao.proxima }}&por_pagina={{ por_pagina }}&ordenar={{ ordenar }}&direcao={{ direcao }}&busca={{ busca }}">›</a>{% else %}<span class="disabled-page">›</span>{% endif %}</div>{% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            {% endif %}
+
+            {% if aba in ['pagar', 'fluxo-caixa'] %}
+                <div class="panel table-panel">
+                    <h3>Pagamentos</h3>
+                    <div class="financeiro-lista-shell">
+                    <table class="client-table financeiro-lista-table">
+                        <thead>
+                            <tr>
+                                <th><a href="{{ ('/financeiro/pagar' if aba == 'pagar' else '/financeiro/receber') ~ '?pagina=1&por_pagina=' ~ por_pagina ~ '&ordenar=documento&direcao=' ~ ('desc' if ordenar == 'documento' and direcao == 'asc' else 'asc') ~ '&busca=' ~ busca }}" class="sortable-link">Documento {% if ordenar == 'documento' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                                <th><a href="{{ ('/financeiro/pagar' if aba == 'pagar' else '/financeiro/receber') ~ '?pagina=1&por_pagina=' ~ por_pagina ~ '&ordenar=pessoa&direcao=' ~ ('desc' if ordenar == 'pessoa' and direcao == 'asc' else 'asc') ~ '&busca=' ~ busca }}" class="sortable-link">Pessoa {% if ordenar == 'pessoa' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                                <th><a href="{{ ('/financeiro/pagar' if aba == 'pagar' else '/financeiro/receber') ~ '?pagina=1&por_pagina=' ~ por_pagina ~ '&ordenar=data_vencimento&direcao=' ~ ('desc' if ordenar == 'data_vencimento' and direcao == 'asc' else 'asc') ~ '&busca=' ~ busca }}" class="sortable-link">Vencimento {% if ordenar == 'data_vencimento' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                                <th><a href="{{ ('/financeiro/pagar' if aba == 'pagar' else '/financeiro/receber') ~ '?pagina=1&por_pagina=' ~ por_pagina ~ '&ordenar=valor&direcao=' ~ ('desc' if ordenar == 'valor' and direcao == 'asc' else 'asc') ~ '&busca=' ~ busca }}" class="sortable-link">Valor {% if ordenar == 'valor' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                                <th><a href="{{ ('/financeiro/pagar' if aba == 'pagar' else '/financeiro/receber') ~ '?pagina=1&por_pagina=' ~ por_pagina ~ '&ordenar=status&direcao=' ~ ('desc' if ordenar == 'status' and direcao == 'asc' else 'asc') ~ '&busca=' ~ busca }}" class="sortable-link">Status {% if ordenar == 'status' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if painel.pagamentos %}
+                                {% for titulo in painel.pagamentos %}
+                                    <tr>
+                                        <td>
+                                            {{ titulo.documento or titulo.descricao }}
+                                            <span class="financeiro-origin-badge{% if titulo.venda_id %} venda{% endif %}">{{ titulo.origem_rotulo }}</span>
+                                        </td>
+                                        <td>{{ titulo.pessoa or '-' }}</td>
+                                        <td>{{ titulo.data_vencimento or '-' }}</td>
+                                        <td>R$ {{ titulo.valor or '0,00' }}</td>
+                                        <td><span class="status-pill {{ titulo.status_exibicao }}">{{ titulo.status_exibicao }}</span></td>
+                                        <td>{{ acoes_titulo(titulo) }}</td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr><td colspan="6" class="empty-table">Nenhuma conta a pagar cadastrada.</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                    </div>
+                    {% if aba in ['receber', 'pagar'] %}
+                        <div class="pagination-bar">
+                            <div>{% if paginacao.total|default(0, true) > 0 %}Mostrando {{ paginacao.inicio }} a {{ paginacao.fim }} de {{ paginacao.total }}{% else %}Nenhum título encontrado{% endif %}</div>
+                            {% if paginacao.total_paginas|default(1, true) > 1 %}<div class="pagination-links">{% set base_financeiro = '/financeiro/pagar' if aba == 'pagar' else '/financeiro/receber' %}{% if paginacao.tem_anterior %}<a href="{{ base_financeiro }}?pagina={{ paginacao.anterior }}&por_pagina={{ por_pagina }}&ordenar={{ ordenar }}&direcao={{ direcao }}&busca={{ busca }}">‹</a>{% else %}<span class="disabled-page">‹</span>{% endif %}{% for numero_pagina in paginacao.paginas %}{% if numero_pagina == paginacao.pagina %}<span class="current-page">{{ numero_pagina }}</span>{% else %}<a href="{{ base_financeiro }}?pagina={{ numero_pagina }}&por_pagina={{ por_pagina }}&ordenar={{ ordenar }}&direcao={{ direcao }}&busca={{ busca }}">{{ numero_pagina }}</a>{% endif %}{% endfor %}{% if paginacao.tem_proxima %}<a href="{{ base_financeiro }}?pagina={{ paginacao.proxima }}&por_pagina={{ por_pagina }}&ordenar={{ ordenar }}&direcao={{ direcao }}&busca={{ busca }}">›</a>{% else %}<span class="disabled-page">›</span>{% endif %}</div>{% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </section>
+
+
+
+        <div id="quick-cliente-modal" class="quick-modal-backdrop" aria-hidden="true">
+            <div class="quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-cliente-title">
+                <div class="quick-modal-header">
+                    <div>
+                        <h3 id="quick-cliente-title">Novo cliente</h3>
+                        <p>Cadastro rápido sem sair da tela.</p>
+                    </div>
+                    <button type="button" class="quick-modal-close" onclick="fecharModalClienteRapidoGeral()">×</button>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="quick-cliente-nome">Nome *</label>
+                        <input id="quick-cliente-nome" type="text" class="form-control" placeholder="Ex: Cliente ABC">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-cliente-documento">CPF / CNPJ</label>
+                        <input id="quick-cliente-documento" type="text" class="form-control" placeholder="Documento do cliente">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-cliente-telefone">Telefone</label>
+                        <input id="quick-cliente-telefone" type="text" class="form-control" placeholder="WhatsApp ou telefone">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-cliente-email">E-mail</label>
+                        <input id="quick-cliente-email" type="text" class="form-control" placeholder="email@cliente.com">
+                    </div>
+                </div>
+
+                <div id="quick-cliente-error" class="quick-modal-error"></div>
+
+                <div class="quick-modal-actions">
+                    <button type="button" class="btn-light" onclick="fecharModalClienteRapidoGeral()">Cancelar</button>
+                    <button type="button" class="btn-primary-green" onclick="salvarClienteRapidoGeral()">Salvar cliente</button>
+                </div>
+            </div>
+        </div>
+
+
+
+        <div id="quick-fornecedor-modal" class="quick-modal-backdrop" aria-hidden="true">
+            <div class="quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-fornecedor-title">
+                <div class="quick-modal-header">
+                    <div>
+                        <h3 id="quick-fornecedor-title">Novo fornecedor</h3>
+                        <p>Cadastro rápido sem sair da tela.</p>
+                    </div>
+                    <button type="button" class="quick-modal-close" onclick="fecharModalFornecedorRapidoGeral()">×</button>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="quick-fornecedor-nome">Nome *</label>
+                        <input id="quick-fornecedor-nome" type="text" class="form-control" placeholder="Ex: Fornecedor ABC">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-fornecedor-documento">CPF / CNPJ</label>
+                        <input id="quick-fornecedor-documento" type="text" class="form-control" placeholder="Documento do fornecedor">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-fornecedor-telefone">Telefone</label>
+                        <input id="quick-fornecedor-telefone" type="text" class="form-control" placeholder="WhatsApp ou telefone">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-fornecedor-email">E-mail</label>
+                        <input id="quick-fornecedor-email" type="text" class="form-control" placeholder="email@fornecedor.com">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-fornecedor-categoria">Categoria *</label>
+                        <select id="quick-fornecedor-categoria" class="form-control" required>
+                            <option value="">Selecione a categoria</option>
+                            <option value="Material elétrico">Material elétrico</option>
+                            <option value="Material mecânico">Material mecânico</option>
+                            <option value="Serviços">Serviços</option>
+                            <option value="Transporte">Transporte</option>
+                            <option value="Ferramentas">Ferramentas</option>
+                            <option value="EPI">EPI</option>
+                            <option value="Outros">Outros</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="quick-fornecedor-error" class="quick-modal-error"></div>
+
+                <div class="quick-modal-actions">
+                    <button type="button" class="btn-light" onclick="fecharModalFornecedorRapidoGeral()">Cancelar</button>
+                    <button type="button" class="btn-primary-green" onclick="salvarFornecedorRapidoGeral()">Salvar fornecedor</button>
+                </div>
+            </div>
+        </div>
+
+</main>
+
+
+
+<script>
+(function() {
+    "use strict";
+
+    let gestflowClienteSelectAtual = null;
+    let gestflowResponsavelSelectAtual = null;
+    let gestflowFornecedorSelectAtual = null;
+
+    function configurarFiltroCentroAtividade() {
+        const centroSelect = document.querySelector('[name="financeiro_centro_custo_id"]');
+        const atividadeSelect = document.querySelector('[name="financeiro_atividade_financeira_id"]');
+
+        if (!centroSelect || !atividadeSelect) {
+            return;
+        }
+
+        function aplicarFiltroAtividades() {
+            const centroId = String(centroSelect.value || "").trim();
+            const atividadeSelecionada = String(atividadeSelect.value || "").trim();
+            let selecaoCompativel = !atividadeSelecionada;
+
+            Array.from(atividadeSelect.options).forEach(function(opcao, indice) {
+                if (indice === 0 || !opcao.value) {
+                    opcao.hidden = false;
+                    opcao.disabled = false;
+                    return;
+                }
+
+                const centroAtividade = String(opcao.dataset.centroCustoId || "").trim();
+                const compativel = !centroId || centroAtividade === centroId;
+
+                opcao.hidden = !compativel;
+                opcao.disabled = !compativel;
+
+                if (opcao.value === atividadeSelecionada && compativel) {
+                    selecaoCompativel = true;
+                }
+            });
+
+            if (!selecaoCompativel) {
+                atividadeSelect.value = "";
+                atividadeSelect.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+        }
+
+        centroSelect.addEventListener("change", aplicarFiltroAtividades);
+
+        atividadeSelect.addEventListener("change", function() {
+            const opcaoSelecionada = atividadeSelect.options[atividadeSelect.selectedIndex];
+
+            if (!opcaoSelecionada || !opcaoSelecionada.value) {
+                return;
+            }
+
+            const centroAtividade = String(opcaoSelecionada.dataset.centroCustoId || "").trim();
+
+            if (centroAtividade && centroSelect.value !== centroAtividade) {
+                const atividadeId = opcaoSelecionada.value;
+                centroSelect.value = centroAtividade;
+                aplicarFiltroAtividades();
+                atividadeSelect.value = atividadeId;
+            }
+        });
+
+        aplicarFiltroAtividades();
+    }
+
+    function abrirModalPorId(id) {
+        const modal = document.getElementById(id);
+        if (!modal) {
+            return;
+        }
+        modal.classList.add("open");
+        modal.setAttribute("aria-hidden", "false");
+        const primeiroCampo = modal.querySelector("input, select, textarea");
+        if (primeiroCampo) {
+            setTimeout(function() { primeiroCampo.focus(); }, 80);
+        }
+    }
+
+    function fecharModalPorId(id) {
+        const modal = document.getElementById(id);
+        if (!modal) {
+            return;
+        }
+        modal.classList.remove("open");
+        modal.setAttribute("aria-hidden", "true");
+    }
+
+    function limparErro(id) {
+        const erroBox = document.getElementById(id);
+        if (erroBox) {
+            erroBox.textContent = "";
+            erroBox.classList.remove("show");
+        }
+    }
+
+    function mostrarErro(id, mensagem) {
+        const erroBox = document.getElementById(id);
+        if (erroBox) {
+            erroBox.textContent = mensagem;
+            erroBox.classList.add("show");
+        } else {
+            alert(mensagem);
+        }
+    }
+
+    function adicionarOpcaoSelecionada(selects, valor, texto, selectAtual) {
+        document.querySelectorAll(selects).forEach(function(select) {
+            let opcaoExistente = Array.from(select.options).find(function(opcao) {
+                return opcao.value === valor;
+            });
+
+            if (!opcaoExistente) {
+                opcaoExistente = document.createElement("option");
+                opcaoExistente.value = valor;
+                opcaoExistente.textContent = texto;
+                const primeiraOpcaoNova = Array.from(select.options).find(function(opcao) {
+                    return String(opcao.value || "").startsWith("__novo");
+                });
+                if (primeiraOpcaoNova) {
+                    select.insertBefore(opcaoExistente, primeiraOpcaoNova);
+                } else {
+                    select.appendChild(opcaoExistente);
+                }
+            }
+
+            if (select === selectAtual) {
+                select.value = valor;
+                select.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+        });
+    }
+
+    window.abrirModalClienteRapidoGeral = function(selectOrigem) {
+        gestflowClienteSelectAtual = selectOrigem || gestflowClienteSelectAtual || document.querySelector(".quick-cliente-select");
+        limparErro("quick-cliente-error");
+        ["quick-cliente-nome", "quick-cliente-documento", "quick-cliente-telefone", "quick-cliente-email"].forEach(function(id) {
+            const campo = document.getElementById(id);
+            if (campo) { campo.value = ""; }
+        });
+        abrirModalPorId("quick-cliente-modal");
+    };
+
+    window.fecharModalClienteRapidoGeral = function() {
+        fecharModalPorId("quick-cliente-modal");
+        if (gestflowClienteSelectAtual && String(gestflowClienteSelectAtual.value || "").startsWith("__novo")) {
+            gestflowClienteSelectAtual.value = "";
+        }
+    };
+
+    window.abrirModalResponsavelRapidoGeral = function(selectOrigem) {
+        gestflowResponsavelSelectAtual = selectOrigem || gestflowResponsavelSelectAtual || document.querySelector(".quick-responsavel-select");
+        limparErro("quick-responsavel-error");
+        ["quick-responsavel-nome", "quick-responsavel-cargo", "quick-responsavel-telefone", "quick-responsavel-email"].forEach(function(id) {
+            const campo = document.getElementById(id);
+            if (campo) { campo.value = ""; }
+        });
+        abrirModalPorId("quick-responsavel-modal");
+    };
+
+    window.fecharModalResponsavelRapidoGeral = function() {
+        fecharModalPorId("quick-responsavel-modal");
+        if (gestflowResponsavelSelectAtual && String(gestflowResponsavelSelectAtual.value || "").startsWith("__novo")) {
+            gestflowResponsavelSelectAtual.value = "";
+        }
+    };
+
+    window.abrirModalFornecedorRapidoGeral = function(selectOrigem) {
+        gestflowFornecedorSelectAtual = selectOrigem || gestflowFornecedorSelectAtual || document.querySelector(".quick-fornecedor-select");
+        limparErro("quick-fornecedor-error");
+        ["quick-fornecedor-nome", "quick-fornecedor-documento", "quick-fornecedor-telefone", "quick-fornecedor-email", "quick-fornecedor-categoria"].forEach(function(id) {
+            const campo = document.getElementById(id);
+            if (campo) { campo.value = ""; }
+        });
+        abrirModalPorId("quick-fornecedor-modal");
+    };
+
+    window.fecharModalFornecedorRapidoGeral = function() {
+        fecharModalPorId("quick-fornecedor-modal");
+        if (gestflowFornecedorSelectAtual && String(gestflowFornecedorSelectAtual.value || "").startsWith("__novo")) {
+            gestflowFornecedorSelectAtual.value = "";
+        }
+    };
+
+    window.salvarClienteRapidoGeral = function() {
+        const nome = (document.getElementById("quick-cliente-nome")?.value || "").trim();
+        const documento = (document.getElementById("quick-cliente-documento")?.value || "").trim();
+        const telefone = (document.getElementById("quick-cliente-telefone")?.value || "").trim();
+        const email = (document.getElementById("quick-cliente-email")?.value || "").trim();
+
+        if (!nome) {
+            mostrarErro("quick-cliente-error", "Informe o nome do cliente.");
+            return;
+        }
+
+        const dados = new URLSearchParams();
+        dados.append("nome", nome);
+        dados.append("documento", documento);
+        dados.append("telefone", telefone);
+        dados.append("email", email);
+
+        fetch("/clientes/rapido", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+            body: dados.toString()
+        })
+            .then(function(resposta) {
+                return resposta.json().then(function(payload) {
+                    if (!resposta.ok || !payload.ok) {
+                        throw new Error(payload.erro || "Não foi possível salvar o cliente.");
+                    }
+                    return payload.cliente || payload.item;
+                });
+            })
+            .then(function(cliente) {
+                adicionarOpcaoSelecionada(".quick-cliente-select", cliente.nome, cliente.nome, gestflowClienteSelectAtual);
+                fecharModalPorId("quick-cliente-modal");
+            })
+            .catch(function(erro) {
+                mostrarErro("quick-cliente-error", erro.message || "Não foi possível salvar o cliente.");
+            });
+    };
+
+    window.salvarResponsavelRapidoGeral = function() {
+        const nome = (document.getElementById("quick-responsavel-nome")?.value || "").trim();
+        const cargo = (document.getElementById("quick-responsavel-cargo")?.value || "").trim();
+        const telefone = (document.getElementById("quick-responsavel-telefone")?.value || "").trim();
+        const email = (document.getElementById("quick-responsavel-email")?.value || "").trim();
+
+        if (!nome) {
+            mostrarErro("quick-responsavel-error", "Informe o nome do responsável.");
+            return;
+        }
+
+        const dados = new URLSearchParams();
+        dados.append("nome", nome);
+        dados.append("cargo", cargo);
+        dados.append("telefone", telefone);
+        dados.append("email", email);
+
+        fetch("/funcionarios/rapido", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+            body: dados.toString()
+        })
+            .then(function(resposta) {
+                return resposta.json().then(function(payload) {
+                    if (!resposta.ok || !payload.ok) {
+                        throw new Error(payload.erro || "Não foi possível salvar o responsável.");
+                    }
+                    return payload.funcionario || payload.item;
+                });
+            })
+            .then(function(funcionario) {
+                adicionarOpcaoSelecionada(".quick-responsavel-select", funcionario.nome, funcionario.nome, gestflowResponsavelSelectAtual);
+                fecharModalPorId("quick-responsavel-modal");
+            })
+            .catch(function(erro) {
+                mostrarErro("quick-responsavel-error", erro.message || "Não foi possível salvar o responsável.");
+            });
+    };
+
+    window.salvarFornecedorRapidoGeral = function() {
+        const nome = (document.getElementById("quick-fornecedor-nome")?.value || "").trim();
+        const documento = (document.getElementById("quick-fornecedor-documento")?.value || "").trim();
+        const telefone = (document.getElementById("quick-fornecedor-telefone")?.value || "").trim();
+        const email = (document.getElementById("quick-fornecedor-email")?.value || "").trim();
+        const categoria = (document.getElementById("quick-fornecedor-categoria")?.value || "").trim();
+
+        if (!nome) {
+            mostrarErro("quick-fornecedor-error", "Informe o nome do fornecedor.");
+            return;
+        }
+
+        if (!categoria) {
+            mostrarErro("quick-fornecedor-error", "Selecione a categoria do fornecedor.");
+            document.getElementById("quick-fornecedor-categoria")?.focus();
+            return;
+        }
+
+        const dados = new URLSearchParams();
+        dados.append("nome", nome);
+        dados.append("documento", documento);
+        dados.append("telefone", telefone);
+        dados.append("email", email);
+        dados.append("categoria", categoria);
+
+        fetch("/fornecedores/rapido", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+            body: dados.toString()
+        })
+            .then(function(resposta) {
+                return resposta.json().then(function(payload) {
+                    if (!resposta.ok || !payload.ok) {
+                        throw new Error(payload.erro || "Não foi possível salvar o fornecedor.");
+                    }
+                    return payload.fornecedor || payload.item;
+                });
+            })
+            .then(function(fornecedor) {
+                adicionarOpcaoSelecionada(".quick-fornecedor-select", fornecedor.nome, fornecedor.nome, gestflowFornecedorSelectAtual);
+                fecharModalPorId("quick-fornecedor-modal");
+            })
+            .catch(function(erro) {
+                mostrarErro("quick-fornecedor-error", erro.message || "Não foi possível salvar o fornecedor.");
+            });
+    };
+
+    window.abrirModalClienteRapido = window.abrirModalClienteRapidoGeral;
+    window.fecharModalClienteRapido = window.fecharModalClienteRapidoGeral;
+    window.salvarClienteRapido = window.salvarClienteRapidoGeral;
+    window.abrirModalResponsavelRapido = window.abrirModalResponsavelRapidoGeral;
+    window.fecharModalResponsavelRapido = window.fecharModalResponsavelRapidoGeral;
+    window.salvarResponsavelRapido = window.salvarResponsavelRapidoGeral;
+    window.abrirModalFornecedorRapido = window.abrirModalFornecedorRapidoGeral;
+    window.fecharModalFornecedorRapido = window.fecharModalFornecedorRapidoGeral;
+    window.salvarFornecedorRapido = window.salvarFornecedorRapidoGeral;
+
+    configurarFiltroCentroAtividade();
+
+    document.addEventListener("change", function(evento) {
+        const alvo = evento.target;
+
+        if (!alvo || !alvo.matches) {
+            return;
+        }
+
+        if (alvo.matches(".quick-cliente-select") && alvo.value === "__novo_cliente__") {
+            window.abrirModalClienteRapidoGeral(alvo);
+            return;
+        }
+
+        if (alvo.matches(".quick-responsavel-select") && alvo.value === "__novo_responsavel__") {
+            window.abrirModalResponsavelRapidoGeral(alvo);
+            return;
+        }
+
+        if (alvo.matches(".quick-fornecedor-select") && alvo.value === "__novo_fornecedor__") {
+            window.abrirModalFornecedorRapidoGeral(alvo);
+        }
+    });
+})();
+</script>
+
+    {% include "partials/lista_avancada.html" %}
+
+</body>
+</html>

@@ -1,0 +1,58 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\teste\templates\teste_home.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+{% extends "base.html" %}
+{% block title %}Dados de Teste — IndFlow{% endblock %}
+{% block content %}
+<style>
+.test-banner{background:#fff7ed;border:1px solid #fdba74;border-radius:14px;padding:14px 16px;color:#9a3412;margin-bottom:14px}.test-banner strong{display:block;font-size:14px;margin-bottom:4px}.test-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.test-card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px}.test-card h2{margin:0 0 7px;font-size:16px}.test-card p{margin:0 0 14px;color:#64748b;font-size:12px;line-height:1.5}.status-pill{display:inline-flex;align-items:center;gap:7px;border-radius:999px;padding:6px 10px;font-size:10px;font-weight:900;text-transform:uppercase}.status-pill.on{background:#dcfce7;color:#166534}.status-pill.off{background:#fee2e2;color:#991b1b}.test-actions{display:flex;gap:9px;flex-wrap:wrap;margin:14px 0}.test-links{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:14px}.test-link{display:block;padding:14px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;text-decoration:none;color:#0f172a;font-weight:800}.test-link small{display:block;margin-top:5px;color:#64748b;font-weight:600;line-height:1.35}.test-link:hover{border-color:#93c5fd;background:#eff6ff}@media(max-width:1000px){.test-grid,.test-links{grid-template-columns:1fr 1fr}}@media(max-width:650px){.test-grid,.test-links{grid-template-columns:1fr}}
+</style>
+
+<div class="page-header">
+  <div class="page-heading">
+    <div class="page-eyebrow">Ambiente isolado</div>
+    <h1 class="page-title">Dados de Teste</h1>
+    <p class="page-description">Gere a máquina TESTE01 para validar Histórico, barras RUN/STOP, classificação de paradas e indicadores sem alterar o ESP ou a CORPO01.</p>
+  </div>
+  <div class="page-actions"><a class="btn btn-secondary" href="/admin/">Administração</a></div>
+</div>
+
+<div class="test-banner">
+  <strong>Não usa telemetria real</strong>
+  TESTE01 é sintética. Nenhum pulso, RUN/STOP ou produção da máquina real é criado, alterado ou apagado. Indicadores gerais continuam ignorando dados de teste, salvo quando você abre explicitamente o modo “com teste”.
+</div>
+
+<section class="section-shell">
+  <div class="section-shell-header">
+    <div><h2>Cenário TESTE01</h2><p>Período preparado: {{ inicio|replace('-', '/') }} até {{ fim|replace('-', '/') }}. Data recomendada para validação: {{ data_teste|replace('-', '/') }}.</p></div>
+    <span id="statusPill" class="status-pill {{ 'on' if ativo else 'off' }}">{{ 'Ativo' if ativo else 'Inativo' }}</span>
+  </div>
+  <div class="test-actions">
+    <button id="btnCreate" class="btn btn-primary" type="button">{{ 'Recriar TESTE01' if ativo else 'Criar TESTE01' }}</button>
+    <button id="btnRemove" class="btn btn-secondary" type="button" {% if not ativo %}disabled{% endif %}>Remover dados de teste</button>
+    <span id="message" class="page-description"></span>
+  </div>
+</section>
+
+<div class="test-grid" style="margin-top:14px">
+  <div class="test-card"><h2>Turno simulado</h2><p>06:00–14:00, com pausa programada 12:00–13:00. As faixas cinzas continuam fora do cálculo de parada.</p></div>
+  <div class="test-card"><h2>Paradas</h2><p>Quatro ocorrências por dia. Três já classificadas com códigos 103, 112 e 116; uma permanece sem classificação para você testar o fluxo.</p></div>
+  <div class="test-card"><h2>Produção</h2><p>Meta 7.000 peças/dia, produção sintética 6.100 peças/dia e refugo simulado. Dados suficientes para testar OEE e Pareto.</p></div>
+</div>
+
+<div class="test-links" id="testLinks" style="{% if not ativo %}opacity:.45;pointer-events:none{% endif %}">
+  <a class="test-link" href="/producao/historico?machine_id={{ machine_id }}&date={{ data_teste }}"><strong>Histórico TESTE01</strong><small>Veja as barras RUN/STOP e clique nos segmentos vermelhos.</small></a>
+  <a class="test-link" href="/paradas/?machine_id={{ machine_id }}&date={{ data_teste }}&teste=1"><strong>Paradas TESTE01</strong><small>Classifique a ocorrência ainda sem motivo.</small></a>
+  <a class="test-link" href="/indicadores/maquina/{{ machine_id }}"><strong>Indicadores TESTE01</strong><small>OEE, disponibilidade, MTTR, MTBF e Pareto.</small></a>
+  <a class="test-link" href="/indicadores/?teste=1&inicio={{ inicio }}&fim={{ fim }}"><strong>Indicadores gerais + teste</strong><small>Somente esta abertura inclui TESTE01 na consolidação.</small></a>
+</div>
+
+<script>
+const btnCreate=document.getElementById('btnCreate');const btnRemove=document.getElementById('btnRemove');const msg=document.getElementById('message');
+async function post(url){msg.textContent='Processando...';const r=await fetch(url,{method:'POST'});const j=await r.json();if(!r.ok||!j.ok)throw new Error(j.error||'Falha');msg.textContent=j.data?.mensagem||'Concluído.';setTimeout(()=>location.reload(),700)}
+btnCreate.onclick=()=>post('/teste/api/ativar').catch(e=>msg.textContent=e.message);btnRemove.onclick=()=>{if(!confirm('Remover somente os dados sintéticos da TESTE01?'))return;post('/teste/api/remover').catch(e=>msg.textContent=e.message)};
+</script>
+{% endblock %}

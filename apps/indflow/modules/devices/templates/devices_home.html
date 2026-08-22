@@ -1,0 +1,79 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\devices\templates\devices_home.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+{% extends "base.html" %}
+{% block title %}Devices — IndFlow{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-heading">
+    <div class="page-eyebrow">Infraestrutura técnica</div>
+    <h1 class="page-title">Devices</h1>
+    <p class="page-description">Gerencie ESPs/PLCs e o vínculo técnico com a identificação operacional da máquina. O equipamento mestre continua cadastrado no GestFlow.</p>
+  </div>
+  <div class="page-actions">
+    <form method="post" action="/devices/cleanup-invalid" style="margin:0;">
+      <button class="btn btn-secondary" type="submit" title="Remove registros que não são MAC válido">Limpar inválidos</button>
+    </form>
+    <a href="/" class="btn btn-primary">Painel Industrial</a>
+  </div>
+</div>
+
+<div class="section-shell" style="margin-bottom:14px;">
+  <div class="section-shell-header">
+    <div><h2>Devices detectados</h2><p>MAC, comunicação, vínculo e alias técnico por cliente.</p></div>
+  </div>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>Device / MAC</th><th>Alias</th><th>Máquina vinculada</th><th>Último contato</th><th>Status</th><th>Ações</th></tr></thead>
+      <tbody>
+      {% if devices and devices|length > 0 %}
+        {% for d in devices %}
+        <tr>
+          <td style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap;">
+            {{ d.device_id }}
+            {% if d.is_valid_mac is defined and not d.is_valid_mac %}<span class="badge badge-warning" style="margin-left:6px;">Inválido</span>{% endif %}
+          </td>
+          <td>
+            {% if d.is_valid_mac is defined and d.is_valid_mac %}
+            <form method="post" action="/devices/alias" style="display:flex;gap:6px;align-items:center;min-width:210px;">
+              <input type="hidden" name="device_id" value="{{ d.device_id }}">
+              <input name="alias" class="input" placeholder="Ex: ESP Linha 1" value="{{ d.alias if d.alias else '' }}" style="margin:0;min-width:130px;">
+              <button class="btn btn-secondary" type="submit">Salvar</button>
+            </form>
+            {% else %}—{% endif %}
+          </td>
+          <td><strong>{{ d.machine_id if d.machine_id else "—" }}</strong></td>
+          <td>{{ d.last_seen if d.last_seen else "—" }}</td>
+          <td>{% if d.machine_id %}<span class="badge badge-success">Vinculado</span>{% else %}<span class="badge badge-danger">Não vinculado</span>{% endif %}</td>
+          <td>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              {% if d.is_valid_mac is defined and d.is_valid_mac %}
+              <form method="post" action="/devices/unlink" style="margin:0;"><input type="hidden" name="device_id" value="{{ d.device_id }}"><button class="btn btn-secondary" type="submit">Desvincular</button></form>
+              {% endif %}
+              <form method="post" action="/devices/delete" style="margin:0;"><input type="hidden" name="device_id" value="{{ d.device_id }}"><button class="btn btn-secondary" type="submit">Excluir</button></form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr><td colspan="6"><div class="empty-state"><strong>Nenhum device detectado.</strong>Assim que um ESP/PLC autorizado enviar dados, ele aparecerá aqui.</div></td></tr>
+      {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="section-shell">
+  <div class="section-shell-header"><div><h2>Vincular device</h2><p>Associe o MAC técnico à identificação operacional da máquina monitorada.</p></div></div>
+  <form method="post" action="/devices/link" style="display:grid;grid-template-columns:minmax(220px,1fr) minmax(220px,1fr) auto;gap:10px;align-items:end;">
+    <div><label>MAC (device_id)</label><input name="device_id" class="input" placeholder="Ex: A4CF12B3D91E" style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;" required></div>
+    <div><label>Máquina (machine_id)</label><input name="machine_id" class="input" placeholder="Ex: maquina01" required></div>
+    <button class="btn btn-primary" type="submit">Salvar vínculo</button>
+  </form>
+  <div class="page-note" style="margin-top:12px;">Este vínculo é técnico. Na próxima etapa de integração com o GestFlow, a identificação operacional será associada ao equipamento mestre do GestFlow sem duplicar cadastro.</div>
+</div>
+{% endblock %}

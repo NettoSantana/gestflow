@@ -1,0 +1,30 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\equipamento_editar.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>GESTFLOW - Editar Equipamento</title><link rel="stylesheet" href="/static/css/dashboard.css"></head>
+<body>
+{% include "partials/sidebar.html" %}
+<main class="content equipamentos-page">
+    {% set page_title = 'Editar Equipamento' %}
+    {% include "partials/topbar.html" %}
+    <section class="panel page-section"><div class="panel-header page-header"><div><span class="page-kicker">Equipamentos</span><h3 class="page-title">Editar {{ equipamento.nome }}</h3><p class="page-subtitle">Atualize os dados cadastrais. O QR Code permanece o mesmo.</p></div><a href="/equipamentos/{{ equipamento.id }}" class="btn-dark">Cancelar</a></div></section>
+    {% if erro %}<section class="panel page-section"><div class="gestflow-form-error show">{{ erro }}</div></section>{% endif %}
+    <section class="panel page-section"><form method="post" class="client-form"><div class="form-grid">
+        <div class="form-group"><label>Cliente</label><select name="cliente_nome" class="form-control"><option value="">Sem cliente definido</option>{% for cliente in clientes|default([]) %}<option value="{{ cliente.nome }}" {% if cliente.nome == equipamento.cliente_nome %}selected{% endif %}>{{ cliente.nome }}</option>{% endfor %}</select></div>
+        <div class="form-group"><label>Nome do equipamento</label><input name="nome" class="form-control" required value="{{ equipamento.nome or '' }}"></div>
+        <div class="form-group"><label>Marca</label><input name="marca" class="form-control" value="{{ equipamento.marca or '' }}"></div>
+        <div class="form-group"><label>Modelo</label><input name="modelo" class="form-control" value="{{ equipamento.modelo or '' }}"></div>
+        <div class="form-group"><label>Série / número</label><input name="serie" class="form-control" value="{{ equipamento.serie or '' }}"></div>
+        <div class="form-group"><label>TAG / patrimônio</label><input name="tag" class="form-control" value="{{ equipamento.tag or '' }}"></div>
+        <div class="form-group"><label>Local de instalação</label><input name="local_instalacao" class="form-control" value="{{ equipamento.local_instalacao or '' }}"></div>
+        <div class="form-group"><label>Status</label><select name="status" class="form-control"><option value="ativo" {% if equipamento.status=='ativo' %}selected{% endif %}>Ativo</option><option value="manutencao" {% if equipamento.status=='manutencao' %}selected{% endif %}>Em manutenção</option><option value="inativo" {% if equipamento.status=='inativo' %}selected{% endif %}>Inativo</option><option value="baixado" {% if equipamento.status=='baixado' %}selected{% endif %}>Baixado</option></select></div>
+        <div class="form-group form-span-2"><label>Observações</label><textarea name="observacoes" class="form-control textarea-control">{{ equipamento.observacoes or '' }}</textarea></div>
+    </div><div class="form-actions"><button class="btn-primary-green" type="submit">Salvar alterações</button></div></form></section>
+</main>
+{% include "partials/assistente_ia_widget.html" %}
+</body></html>

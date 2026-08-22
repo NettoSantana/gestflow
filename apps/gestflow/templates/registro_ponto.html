@@ -1,0 +1,438 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\registro_ponto.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GestFlow - Gerenciamento de Ponto</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .ponto-alert{margin:0 0 14px;padding:12px 14px;border-radius:12px;font-weight:900;font-size:13px}
+        .ponto-alert.error{background:#fef2f2;border:1px solid #fecaca;color:#991b1b}
+        .ponto-alert.success{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534}
+        .ponto-atalhos{display:flex;gap:10px;flex-wrap:wrap}
+        .ponto-chip{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:0 12px;border-radius:999px;border:1px solid #dbeafe;background:#eff6ff;color:#1d4ed8;font-size:12px;font-weight:900;text-decoration:none}
+        .ponto-chip.admin{border-color:#bbf7d0;background:#f0fdf4;color:#166534}
+        .ponto-page-content{overflow-x:hidden}.ponto-layout{width:100%;max-width:100%;display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:start;overflow:visible}.ponto-layout>*{min-width:0;max-width:100%}
+        .ponto-funcionario{min-width:0;max-width:100%;overflow:hidden}
+        .ponto-topo-funcionario{margin:-18px -18px 16px;padding:20px 18px;background:linear-gradient(135deg,#071a2b,#0f62fe);color:#fff}
+        .ponto-topo-funcionario h3{margin:0 0 6px;color:#fff;font-size:18px;text-transform:none}
+        .ponto-topo-funcionario p{margin:0;color:rgba(255,255,255,.84);font-size:13px;font-weight:800}
+        .ponto-identificacao{display:grid;gap:8px;margin-bottom:12px}
+        .ponto-identificacao label{color:#334155;font-size:12px;font-weight:900;text-transform:uppercase}
+        .ponto-selecionado{display:flex;align-items:center;gap:10px;margin:12px 0;padding:12px;border:1px solid #e5eaf2;border-radius:14px;background:#f8fafc}
+        .ponto-avatar{flex:0 0 42px;width:42px;height:42px;display:inline-flex;align-items:center;justify-content:center;border-radius:14px;background:#dbeafe;color:#1d4ed8;font-size:18px;font-weight:900}
+        .ponto-selecionado span{display:block;color:#64748b;font-size:12px;font-weight:900}
+        .ponto-selecionado strong{display:block;margin-top:2px;color:#0f172a;font-size:15px;font-weight:900}
+        .clock-box{position:relative;text-align:center;border:1px solid #e5eaf2;border-radius:22px;background:linear-gradient(180deg,#fff,#f8fafc);padding:22px;margin:14px 0;overflow:hidden}
+        .clock-box:after{content:"";position:absolute;right:-40px;bottom:-70px;width:150px;height:150px;border-radius:999px;background:rgba(15,98,254,.08)}
+        .clock-time{position:relative;z-index:1;font-size:50px;line-height:1;font-weight:900;color:#0f172a;letter-spacing:-1px}
+        .clock-date{position:relative;z-index:1;margin-top:8px;color:#64748b;font-size:13px;font-weight:900}
+        .ponto-proximo{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:12px 0;padding:12px;border-radius:14px;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;font-size:13px;font-weight:900}
+        .ponto-proximo.alerta{background:#fff7ed;border-color:#fed7aa;color:#9a3412}
+        .ponto-buttons{display:grid;grid-template-columns:1fr;gap:10px;margin-top:14px}
+        .ponto-btn{width:100%;min-height:64px;display:flex;align-items:center;gap:12px;padding:12px 14px;border:0;border-radius:16px;color:#fff;background:linear-gradient(135deg,#0f62fe,#0b4fd1);box-shadow:0 10px 18px rgba(15,23,42,.14);font-weight:900;cursor:pointer;text-align:left}
+        .ponto-btn.entrada{background:linear-gradient(135deg,#16a34a,#15803d)}
+        .ponto-btn.saida{background:linear-gradient(135deg,#334155,#0f172a)}
+        .ponto-btn[disabled]{cursor:not-allowed;opacity:.42;box-shadow:none;filter:grayscale(.3)}
+        .ponto-icone{flex:0 0 38px;width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;border-radius:13px;background:rgba(255,255,255,.18);font-size:18px}
+        .ponto-texto strong{display:block;font-size:15px;line-height:1.1}
+        .ponto-texto span{display:block;margin-top:4px;color:rgba(255,255,255,.8);font-size:12px;font-weight:800}
+        .ponto-status-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:14px}
+        .ponto-status-item{border:1px solid #e5eaf2;border-radius:14px;background:#fff;padding:12px}
+        .ponto-status-item span{display:block;color:#64748b;font-size:11px;font-weight:900;text-transform:uppercase}
+        .ponto-status-item strong{display:block;margin-top:5px;font-size:20px;color:#0f172a}
+        .ponto-admin{min-width:0;max-width:100%;display:grid;gap:16px}.ponto-admin .panel{min-width:0;max-width:100%;overflow:hidden}.ponto-admin .table-shell{width:100%;max-width:100%;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}.ponto-table-desktop .client-table{width:100%;min-width:720px}
+        .ponto-admin-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:14px}
+        .ponto-admin-head h3{margin-bottom:5px}
+        .ponto-filters{width:100%;display:grid;grid-template-columns:minmax(0,1.35fr) repeat(2,minmax(118px,.65fr)) minmax(92px,auto);gap:10px;align-items:end;margin-bottom:14px}.ponto-filters>*{min-width:0}
+        .ponto-pill{display:inline-flex;align-items:center;justify-content:center;min-height:28px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:900;text-transform:capitalize;white-space:nowrap}
+        .status-completo{background:#dcfce7;color:#166534}.status-incompleto{background:#fef3c7;color:#92400e}.status-ajustado{background:#eff6ff;color:#1d4ed8}.status-faltou{background:#fee2e2;color:#991b1b}
+        .ponto-mobile-lista{display:none}.ponto-mobile-card{border:1px solid #e5eaf2;border-radius:16px;background:#fff;padding:14px}.ponto-mobile-card+.ponto-mobile-card{margin-top:10px}
+        .ponto-mobile-top{display:flex;justify-content:space-between;gap:10px;margin-bottom:12px}.ponto-mobile-top strong{display:block;color:#0f172a;font-size:14px}.ponto-mobile-top span{display:block;margin-top:3px;color:#64748b;font-size:12px;font-weight:800}
+        .ponto-mobile-times{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.ponto-mobile-times div{padding:9px;border-radius:12px;background:#f8fafc}.ponto-mobile-times span{display:block;color:#64748b;font-size:10px;font-weight:900;text-transform:uppercase}.ponto-mobile-times strong{display:block;margin-top:3px;color:#0f172a;font-size:14px}
+        .ponto-localizacoes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+        .ponto-localizacao-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px;border:1px solid #dbeafe;border-radius:12px;background:#eff6ff}
+        .ponto-localizacao-item.sem-gps{border-color:#e5e7eb;background:#f8fafc}
+        .ponto-localizacao-info{min-width:0}
+        .ponto-localizacao-info span{display:block;color:#1d4ed8;font-size:10px;font-weight:900;text-transform:uppercase}
+        .ponto-localizacao-item.sem-gps .ponto-localizacao-info span{color:#64748b}
+        .ponto-localizacao-info strong{display:block;margin-top:3px;color:#0f172a;font-size:12px}
+        .ponto-mapa-link{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;min-height:32px;padding:0 10px;border-radius:999px;background:#fff;border:1px solid #bfdbfe;color:#1d4ed8;font-size:11px;font-weight:900;text-decoration:none}
+        .ponto-localizacao-toggle{display:inline-flex;align-items:center;justify-content:center;min-height:32px;padding:0 11px;border:1px solid #bfdbfe;border-radius:999px;background:#eff6ff;color:#1d4ed8;font-size:11px;font-weight:900;cursor:pointer}
+        .ponto-localizacao-toggle.sem-gps{border-color:#e5e7eb;background:#f8fafc;color:#64748b}
+        .ponto-detalhe-row{display:none}
+        .ponto-detalhe-row.aberto{display:table-row}
+        .ponto-detalhe-cell{padding:14px!important;background:#f8fafc}
+        .ponto-mobile-detalhe{display:none;margin-top:10px}
+        .ponto-mobile-detalhe.aberto{display:block}
+        .ponto-ajuste{border-top:1px solid #e5eaf2;padding-top:16px}
+        .ponto-acoes{display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:145px}.ponto-acao-btn{display:inline-flex;align-items:center;justify-content:center;min-height:32px;padding:0 10px;border:1px solid #dbeafe;border-radius:999px;background:#eff6ff;color:#1d4ed8;font-size:11px;font-weight:900;cursor:pointer;text-decoration:none}.ponto-acao-btn.excluir{border-color:#fecaca;background:#fef2f2;color:#991b1b}.ponto-exportar{white-space:nowrap}.ponto-modal{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(15,23,42,.66)}.ponto-modal.aberto{display:flex}.ponto-modal-card{width:min(620px,100%);max-height:calc(100vh - 36px);overflow-y:auto;border-radius:20px;background:#fff;box-shadow:0 24px 70px rgba(15,23,42,.34)}.ponto-modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:18px;border-bottom:1px solid #e5eaf2}.ponto-modal-head h3{margin:0 0 4px}.ponto-modal-head p{margin:0;color:#64748b;font-size:12px;font-weight:800}.ponto-modal-fechar{width:36px;height:36px;border:0;border-radius:999px;background:#f1f5f9;color:#0f172a;font-size:20px;font-weight:900;cursor:pointer}.ponto-modal-body{padding:18px}.ponto-modal-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+
+        .ponto-links-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-top:12px}
+        .ponto-link-card{border:1px solid #e5eaf2;border-radius:16px;background:#fff;padding:14px;display:grid;gap:9px}
+        .ponto-link-card strong{color:#0f172a;font-size:14px}
+        .ponto-link-card span{color:#64748b;font-size:12px;font-weight:800}
+        .ponto-link-actions{display:flex;gap:8px;flex-wrap:wrap}
+        .ponto-link-input{width:100%;min-width:0;max-width:100%;min-height:38px;border:1px solid #e5eaf2;border-radius:10px;background:#f8fafc;color:#334155;font-size:12px;font-weight:800;padding:0 10px;overflow:hidden;text-overflow:ellipsis}
+        .ponto-link-selecionado{margin:12px 0 14px;background:#f8fafc}
+        .ponto-link-vazio{border-style:dashed;color:#64748b;font-size:13px;font-weight:800}
+        .ponto-copy-btn{border:0;cursor:pointer}
+        .ponto-link-filtro{display:grid;grid-template-columns:minmax(260px,1fr) auto;gap:10px;align-items:end}
+        .ponto-link-filtro>*{min-width:0}
+        .ponto-link-resultado{margin-top:14px}
+        .ponto-link-identidade{display:flex;align-items:center;gap:12px}
+        .ponto-link-identidade .ponto-avatar{flex:0 0 44px}
+        .ponto-link-identidade-info{min-width:0}
+        .ponto-link-identidade-info strong{display:block;color:#0f172a;font-size:15px}
+        .ponto-link-identidade-info span{display:block;margin-top:4px;color:#64748b;font-size:12px;font-weight:800}
+        @media(max-width:1320px){.ponto-layout{grid-template-columns:1fr}.ponto-table-desktop .client-table{min-width:680px}}
+        @media(max-width:1180px){.ponto-layout{grid-template-columns:1fr}}
+        @media(max-width:760px){.ponto-page-content{overflow-x:hidden}.ponto-layout{gap:12px}.ponto-atalhos{width:100%}.ponto-chip{flex:1 1 auto}.clock-time{font-size:44px}.ponto-filters,.ponto-link-filtro{grid-template-columns:1fr}.ponto-filters button,.ponto-link-filtro button{width:100%;min-height:44px}.ponto-admin-head{flex-direction:column}.ponto-table-desktop{display:none}.ponto-mobile-lista{display:block}.ponto-btn{min-height:68px}.ponto-modal-grid{grid-template-columns:1fr}.ponto-acoes{width:100%}.ponto-acao-btn{flex:1}}
+        @media(max-width:460px){.ponto-status-grid,.ponto-mobile-times{grid-template-columns:1fr}.ponto-topo-funcionario{margin-left:-14px;margin-right:-14px}}
+    </style>
+</head>
+<body>
+{% include "partials/sidebar.html" %}
+<main class="content ponto-page-content">
+    {% set page_title = 'Gerenciamento de Ponto' %}
+    {% include "partials/topbar.html" %}
+
+    {% set exigir_intervalo = exigir_intervalo_ponto|default(true) %}
+
+    <section class="panel page-section">
+        <div class="panel-header page-header">
+            <div>
+                <span class="page-kicker">Equipe</span>
+                <h3 class="page-title">Gerenciamento de Ponto</h3>
+                <p class="page-subtitle">Consulte o espelho, exporte registros e faça ajustes administrativos das marcações.</p>
+            </div>
+        </div>
+    </section>
+
+    {% if erro %}<div class="ponto-alert error">{{ erro }}</div>{% endif %}
+    {% if sucesso %}<div class="ponto-alert success">{{ sucesso }}</div>{% endif %}
+
+
+    <section class="ponto-layout">
+        <div class="ponto-admin" id="espelho-ponto">
+            <div class="panel">
+                <div class="ponto-admin-head">
+                    <div>
+                        <h3>Link individual de ponto</h3>
+                        <p class="page-subtitle">Selecione o funcionário para abrir ou copiar o link usado por ele para registrar o ponto.</p>
+                    </div>
+                    <span class="ponto-chip">Acesso do funcionário</span>
+                </div>
+
+                <form method="get" action="/registro-ponto" class="ponto-link-filtro">
+                    <div class="form-group">
+                        <label for="ponto-link-funcionario">Funcionário</label>
+                        <select class="form-control" id="ponto-link-funcionario" name="funcionario_id" onchange="this.form.submit()">
+                            <option value="">Selecione o funcionário</option>
+                            {% for funcionario in funcionarios %}
+                            <option value="{{ funcionario.id }}" {% if funcionario_id|string == funcionario.id|string %}selected{% endif %}>{{ funcionario.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <input type="hidden" name="data_inicio" value="{{ data_inicio }}">
+                    <input type="hidden" name="data_fim" value="{{ data_fim }}">
+                    <button class="btn-dark" type="submit">Exibir link</button>
+                </form>
+
+                {% set ponto_link = namespace(funcionario=none) %}
+                {% for funcionario in funcionarios %}
+                    {% if funcionario_id|string == funcionario.id|string %}
+                        {% set ponto_link.funcionario = funcionario %}
+                    {% endif %}
+                {% endfor %}
+
+                {% if ponto_link.funcionario %}
+                    {% set token_ponto = ponto_link.funcionario.token_ponto or ponto_link.funcionario.token_ponto_publico or '' %}
+                    <div class="ponto-link-card ponto-link-resultado">
+                        <div class="ponto-link-identidade">
+                            <div class="ponto-avatar">👤</div>
+                            <div class="ponto-link-identidade-info">
+                                <strong>{{ ponto_link.funcionario.nome }}</strong>
+                                <span>Celular cadastrado: {{ ponto_link.funcionario.telefone or 'sem celular cadastrado' }}</span>
+                            </div>
+                        </div>
+
+                        {% if token_ponto %}
+                            <input class="ponto-link-input" id="link-ponto-funcionario" value="{{ request.url_root.rstrip('/') }}/ponto/{{ token_ponto }}" readonly onclick="this.select()">
+                            <div class="ponto-link-actions">
+                                <a class="ponto-chip admin" href="{{ request.url_root.rstrip('/') }}/ponto/{{ token_ponto }}" target="_blank" rel="noopener">Abrir link</a>
+                                <button class="ponto-chip ponto-copy-btn" type="button" data-copy-target="link-ponto-funcionario">Copiar link</button>
+                            </div>
+                        {% else %}
+                            <div class="ponto-link-vazio">Este funcionário ainda não possui token de ponto.</div>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <div class="ponto-link-card ponto-link-resultado ponto-link-vazio">
+                        Selecione um funcionário para exibir o link individual de ponto.
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="panel">
+                <div class="ponto-admin-head">
+                    <div>
+                        <h3>Espelho de ponto</h3>
+                        <p class="page-subtitle">Consulte o período, confira totais e veja registros incompletos ou ajustados.</p>
+                    </div>
+                    <span class="ponto-chip admin">Administração</span>
+                </div>
+
+                <form method="get" action="/registro-ponto" class="ponto-filters">
+                    <div class="form-group">
+                        <label>Funcionário</label>
+                        <select class="form-control" name="funcionario_id">
+                            <option value="">Todos</option>
+                            {% for funcionario in funcionarios %}
+                            <option value="{{ funcionario.id }}" {% if funcionario_id|string == funcionario.id|string %}selected{% endif %}>{{ funcionario.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group"><label>De</label><input class="form-control" type="date" name="data_inicio" value="{{ data_inicio }}"></div>
+                    <div class="form-group"><label>Até</label><input class="form-control" type="date" name="data_fim" value="{{ data_fim }}"></div>
+                    <button class="btn-dark" type="submit">Filtrar</button>
+                    <a class="btn-primary-green ponto-exportar" href="/registro-ponto/exportar?funcionario_id={{ funcionario_id }}&data_inicio={{ data_inicio }}&data_fim={{ data_fim }}">Exportar planilha</a>
+                </form>
+
+                <div class="table-shell ponto-table-desktop">
+                    <table class="client-table">
+                        <thead>
+                            <tr><th>Data</th><th>Funcionário</th><th>Entrada</th><th>Intervalo</th><th>Retorno</th><th>Saída</th><th>Localização</th><th>Total</th><th>Status</th><th>Ajuste</th><th>Ações</th></tr>
+                        </thead>
+                        <tbody>
+                        {% if registros %}
+                            {% for item in registros %}
+                            <tr>
+                                <td>{{ item.data_ponto }}</td>
+                                <td>{{ item.funcionario_nome }}</td>
+                                <td>{{ item.entrada or '-' }}</td>
+                                <td>{{ item.saida_intervalo or '-' }}</td>
+                                <td>{{ item.retorno_intervalo or '-' }}</td>
+                                <td>{{ item.saida or '-' }}</td>
+                                <td>
+                                    {% set tem_gps = (item.entrada_latitude and item.entrada_longitude) or (item.saida_intervalo_latitude and item.saida_intervalo_longitude) or (item.retorno_intervalo_latitude and item.retorno_intervalo_longitude) or (item.saida_latitude and item.saida_longitude) %}
+                                    <button class="ponto-localizacao-toggle {% if not tem_gps %}sem-gps{% endif %}" type="button" data-localizacao-target="gps-{{ item.id }}">
+                                        {% if tem_gps %}Ver localização{% else %}Sem GPS{% endif %}
+                                    </button>
+                                </td>
+                                <td>{{ item.total_trabalhado or '-' }}</td>
+                                <td><span class="ponto-pill status-{{ item.status }}">{{ item.status }}</span></td>
+                                <td>{{ item.ajustado_por or '-' }}</td>
+                                <td><div class="ponto-acoes"><button class="ponto-acao-btn" type="button" data-editar-ponto data-id="{{ item.id }}" data-funcionario="{{ item.funcionario_nome|e }}" data-data="{{ item.data_ponto }}" data-entrada="{{ item.entrada or '' }}" data-saida-intervalo="{{ item.saida_intervalo or '' }}" data-retorno-intervalo="{{ item.retorno_intervalo or '' }}" data-saida="{{ item.saida or '' }}">Editar</button><form method="post" action="/registro-ponto/{{ item.id }}/excluir" onsubmit="return confirm('Excluir somente esta marcação? Esta ação não poderá ser desfeita.');"><input type="hidden" name="funcionario_id" value="{{ funcionario_id }}"><input type="hidden" name="data_inicio" value="{{ data_inicio }}"><input type="hidden" name="data_fim" value="{{ data_fim }}"><button class="ponto-acao-btn excluir" type="submit">Excluir</button></form></div></td>
+                            </tr>
+                            <tr class="ponto-detalhe-row" id="gps-{{ item.id }}">
+                                <td colspan="11" class="ponto-detalhe-cell">
+                                    <div class="ponto-localizacoes">
+                                        <div class="ponto-localizacao-item {% if not item.entrada_latitude or not item.entrada_longitude %}sem-gps{% endif %}">
+                                            <div class="ponto-localizacao-info">
+                                                <span>Entrada · {{ item.entrada or '-' }}</span>
+                                                <strong>{% if item.entrada_latitude and item.entrada_longitude %}Precisão aproximada: {{ item.entrada_precisao or '-' }} m{% else %}Localização não registrada{% endif %}</strong>
+                                            </div>
+                                            {% if item.entrada_latitude and item.entrada_longitude %}
+                                            <a class="ponto-mapa-link" href="https://www.google.com/maps?q={{ item.entrada_latitude }},{{ item.entrada_longitude }}" target="_blank" rel="noopener">Ver mapa</a>
+                                            {% endif %}
+                                        </div>
+
+                                        <div class="ponto-localizacao-item {% if not item.saida_intervalo_latitude or not item.saida_intervalo_longitude %}sem-gps{% endif %}">
+                                            <div class="ponto-localizacao-info">
+                                                <span>Intervalo · {{ item.saida_intervalo or '-' }}</span>
+                                                <strong>{% if item.saida_intervalo_latitude and item.saida_intervalo_longitude %}Precisão aproximada: {{ item.saida_intervalo_precisao or '-' }} m{% else %}Localização não registrada{% endif %}</strong>
+                                            </div>
+                                            {% if item.saida_intervalo_latitude and item.saida_intervalo_longitude %}
+                                            <a class="ponto-mapa-link" href="https://www.google.com/maps?q={{ item.saida_intervalo_latitude }},{{ item.saida_intervalo_longitude }}" target="_blank" rel="noopener">Ver mapa</a>
+                                            {% endif %}
+                                        </div>
+
+                                        <div class="ponto-localizacao-item {% if not item.retorno_intervalo_latitude or not item.retorno_intervalo_longitude %}sem-gps{% endif %}">
+                                            <div class="ponto-localizacao-info">
+                                                <span>Retorno · {{ item.retorno_intervalo or '-' }}</span>
+                                                <strong>{% if item.retorno_intervalo_latitude and item.retorno_intervalo_longitude %}Precisão aproximada: {{ item.retorno_intervalo_precisao or '-' }} m{% else %}Localização não registrada{% endif %}</strong>
+                                            </div>
+                                            {% if item.retorno_intervalo_latitude and item.retorno_intervalo_longitude %}
+                                            <a class="ponto-mapa-link" href="https://www.google.com/maps?q={{ item.retorno_intervalo_latitude }},{{ item.retorno_intervalo_longitude }}" target="_blank" rel="noopener">Ver mapa</a>
+                                            {% endif %}
+                                        </div>
+
+                                        <div class="ponto-localizacao-item {% if not item.saida_latitude or not item.saida_longitude %}sem-gps{% endif %}">
+                                            <div class="ponto-localizacao-info">
+                                                <span>Saída · {{ item.saida or '-' }}</span>
+                                                <strong>{% if item.saida_latitude and item.saida_longitude %}Precisão aproximada: {{ item.saida_precisao or '-' }} m{% else %}Localização não registrada{% endif %}</strong>
+                                            </div>
+                                            {% if item.saida_latitude and item.saida_longitude %}
+                                            <a class="ponto-mapa-link" href="https://www.google.com/maps?q={{ item.saida_latitude }},{{ item.saida_longitude }}" target="_blank" rel="noopener">Ver mapa</a>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr><td colspan="11" class="empty-table">Nenhum registro encontrado.</td></tr>
+                        {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="ponto-mobile-lista">
+                    {% if registros %}
+                        {% for item in registros %}
+                        <div class="ponto-mobile-card">
+                            <div class="ponto-mobile-top">
+                                <div><strong>{{ item.funcionario_nome }}</strong><span>{{ item.data_ponto }}</span></div>
+                                <span class="ponto-pill status-{{ item.status }}">{{ item.status }}</span>
+                            </div>
+                            <div class="ponto-mobile-times">
+                                <div><span>Entrada</span><strong>{{ item.entrada or '-' }}</strong></div>
+                                <div><span>Intervalo</span><strong>{{ item.saida_intervalo or '-' }}</strong></div>
+                                <div><span>Retorno</span><strong>{{ item.retorno_intervalo or '-' }}</strong></div>
+                                <div><span>Saída</span><strong>{{ item.saida or '-' }}</strong></div>
+                                <div><span>Total</span><strong>{{ item.total_trabalhado or '-' }}</strong></div>
+                                <div><span>Ajuste</span><strong>{{ item.ajustado_por or '-' }}</strong></div>
+                            </div>
+
+                            <div class="ponto-acoes" style="margin-top:10px;"><button class="ponto-acao-btn" type="button" data-editar-ponto data-id="{{ item.id }}" data-funcionario="{{ item.funcionario_nome|e }}" data-data="{{ item.data_ponto }}" data-entrada="{{ item.entrada or '' }}" data-saida-intervalo="{{ item.saida_intervalo or '' }}" data-retorno-intervalo="{{ item.retorno_intervalo or '' }}" data-saida="{{ item.saida or '' }}">Editar</button><form method="post" action="/registro-ponto/{{ item.id }}/excluir" onsubmit="return confirm('Excluir somente esta marcação? Esta ação não poderá ser desfeita.');"><input type="hidden" name="funcionario_id" value="{{ funcionario_id }}"><input type="hidden" name="data_inicio" value="{{ data_inicio }}"><input type="hidden" name="data_fim" value="{{ data_fim }}"><button class="ponto-acao-btn excluir" type="submit">Excluir</button></form></div>
+
+                            {% set tem_gps_mobile = (item.entrada_latitude and item.entrada_longitude) or (item.saida_intervalo_latitude and item.saida_intervalo_longitude) or (item.retorno_intervalo_latitude and item.retorno_intervalo_longitude) or (item.saida_latitude and item.saida_longitude) %}
+                            <button class="ponto-localizacao-toggle {% if not tem_gps_mobile %}sem-gps{% endif %}" type="button" data-localizacao-target="gps-mobile-{{ item.id }}" style="margin-top:10px;">
+                                {% if tem_gps_mobile %}Ver localização{% else %}Sem GPS{% endif %}
+                            </button>
+
+                            <div class="ponto-mobile-detalhe" id="gps-mobile-{{ item.id }}">
+                                <div class="ponto-localizacoes">
+                                    <div class="ponto-localizacao-item {% if not item.entrada_latitude or not item.entrada_longitude %}sem-gps{% endif %}">
+                                        <div class="ponto-localizacao-info">
+                                            <span>Entrada · {{ item.entrada or '-' }}</span>
+                                            <strong>{% if item.entrada_latitude and item.entrada_longitude %}Precisão aproximada: {{ item.entrada_precisao or '-' }} m{% else %}Localização não registrada{% endif %}</strong>
+                                        </div>
+                                        {% if item.entrada_latitude and item.entrada_longitude %}
+                                        <a class="ponto-mapa-link" href="https://www.google.com/maps?q={{ item.entrada_latitude }},{{ item.entrada_longitude }}" target="_blank" rel="noopener">Ver mapa</a>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="ponto-localizacao-item {% if not item.saida_intervalo_latitude or not item.saida_intervalo_longitude %}sem-gps{% endif %}">
+                                        <div class="ponto-localizacao-info">
+                                            <span>Intervalo · {{ item.saida_intervalo or '-' }}</span>
+                                            <strong>{% if item.saida_intervalo_latitude and item.saida_intervalo_longitude %}Precisão aproximada: {{ item.saida_intervalo_precisao or '-' }} m{% else %}Localização não registrada{% endif %}</strong>
+                                        </div>
+                                        {% if item.saida_intervalo_latitude and item.saida_intervalo_longitude %}
+                                        <a class="ponto-mapa-link" href="https://www.google.com/maps?q={{ item.saida_intervalo_latitude }},{{ item.saida_intervalo_longitude }}" target="_blank" rel="noopener">Ver mapa</a>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="ponto-localizacao-item {% if not item.retorno_intervalo_latitude or not item.retorno_intervalo_longitude %}sem-gps{% endif %}">
+                                        <div class="ponto-localizacao-info">
+                                            <span>Retorno · {{ item.retorno_intervalo or '-' }}</span>
+                                            <strong>{% if item.retorno_intervalo_latitude and item.retorno_intervalo_longitude %}Precisão aproximada: {{ item.retorno_intervalo_precisao or '-' }} m{% else %}Localização não registrada{% endif %}</strong>
+                                        </div>
+                                        {% if item.retorno_intervalo_latitude and item.retorno_intervalo_longitude %}
+                                        <a class="ponto-mapa-link" href="https://www.google.com/maps?q={{ item.retorno_intervalo_latitude }},{{ item.retorno_intervalo_longitude }}" target="_blank" rel="noopener">Ver mapa</a>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="ponto-localizacao-item {% if not item.saida_latitude or not item.saida_longitude %}sem-gps{% endif %}">
+                                        <div class="ponto-localizacao-info">
+                                            <span>Saída · {{ item.saida or '-' }}</span>
+                                            <strong>{% if item.saida_latitude and item.saida_longitude %}Precisão aproximada: {{ item.saida_precisao or '-' }} m{% else %}Localização não registrada{% endif %}</strong>
+                                        </div>
+                                        {% if item.saida_latitude and item.saida_longitude %}
+                                        <a class="ponto-mapa-link" href="https://www.google.com/maps?q={{ item.saida_latitude }},{{ item.saida_longitude }}" target="_blank" rel="noopener">Ver mapa</a>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="empty-table">Nenhum registro encontrado.</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="panel ponto-ajuste">
+                <div class="ponto-admin-head">
+                    <div>
+                        <h3>Ajuste manual</h3>
+                        <p class="page-subtitle">Use apenas para corrigir esquecimento de marcação. A justificativa fica registrada no espelho.</p>
+                    </div>
+                    <span class="ponto-chip">Com justificativa</span>
+                </div>
+
+                <form method="post" action="/registro-ponto/ajustar" class="client-form">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Funcionário</label>
+                            <select class="form-control" name="ajuste_funcionario_id" required>
+                                <option value="">Selecione</option>
+                                {% for funcionario in funcionarios %}
+                                <option value="{{ funcionario.id }}" {% if funcionario_id|string == funcionario.id|string %}selected{% endif %}>{{ funcionario.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group"><label>Data</label><input class="form-control" type="date" name="ajuste_data_ponto" value="{{ data_inicio }}" required></div>
+                        <div class="form-group"><label>Entrada</label><input class="form-control" type="time" name="ajuste_entrada"></div>
+                        {% if exigir_intervalo %}
+                        <div class="form-group"><label>Saída intervalo</label><input class="form-control" type="time" name="ajuste_saida_intervalo"></div>
+                        <div class="form-group"><label>Retorno intervalo</label><input class="form-control" type="time" name="ajuste_retorno_intervalo"></div>
+                        {% endif %}
+                        <div class="form-group"><label>Saída</label><input class="form-control" type="time" name="ajuste_saida"></div>
+                    </div>
+
+                    <div class="form-group" style="margin-top:14px;">
+                        <label>Justificativa do ajuste</label>
+                        <textarea class="form-control" name="ajuste_observacoes" required style="height:86px;padding-top:12px;" placeholder="Ex: funcionário esqueceu de registrar o retorno do intervalo."></textarea>
+                    </div>
+
+                    <div class="form-actions">
+                        <button class="btn-primary-green" type="submit">Salvar ajuste</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </section>
+</main>
+
+<div class="ponto-modal" id="ponto-modal-editar" aria-hidden="true"><div class="ponto-modal-card"><div class="ponto-modal-head"><div><h3>Editar marcação</h3><p id="ponto-modal-resumo">Ajuste somente esta jornada. A justificativa será registrada.</p></div><button class="ponto-modal-fechar" type="button" data-fechar-modal aria-label="Fechar">×</button></div><form method="post" id="ponto-form-editar"><div class="ponto-modal-body"><input type="hidden" name="funcionario_id" value="{{ funcionario_id }}"><input type="hidden" name="data_inicio" value="{{ data_inicio }}"><input type="hidden" name="data_fim" value="{{ data_fim }}"><div class="ponto-modal-grid"><div class="form-group"><label>Entrada</label><input class="form-control" type="time" name="editar_entrada" id="editar-entrada"></div><div class="form-group"><label>Saída intervalo</label><input class="form-control" type="time" name="editar_saida_intervalo" id="editar-saida-intervalo"></div><div class="form-group"><label>Retorno intervalo</label><input class="form-control" type="time" name="editar_retorno_intervalo" id="editar-retorno-intervalo"></div><div class="form-group"><label>Saída</label><input class="form-control" type="time" name="editar_saida" id="editar-saida"></div></div><div class="form-group" style="margin-top:14px;"><label>Justificativa da edição</label><textarea class="form-control" name="editar_justificativa" required style="height:90px;padding-top:12px;" placeholder="Explique por que esta marcação está sendo alterada."></textarea></div><div class="form-actions"><button class="btn-primary-green" type="submit">Salvar alteração</button><button class="btn-dark" type="button" data-fechar-modal>Cancelar</button></div></div></form></div></div>
+
+<script>
+(function(){
+    document.querySelectorAll('[data-copy-target]').forEach(function(botao){
+        botao.addEventListener('click', function(){
+            var alvo = document.getElementById(botao.getAttribute('data-copy-target'));
+            if(!alvo){return;}
+            alvo.select();
+            if(navigator.clipboard && navigator.clipboard.writeText){
+                navigator.clipboard.writeText(alvo.value);
+            }else{
+                document.execCommand('copy');
+            }
+            botao.textContent = 'Copiado';
+            setTimeout(function(){botao.textContent = 'Copiar link';}, 1600);
+        });
+    });
+
+    document.querySelectorAll('[data-localizacao-target]').forEach(function(botao){
+        botao.addEventListener('click', function(){
+            var alvo = document.getElementById(botao.getAttribute('data-localizacao-target'));
+            if(!alvo){return;}
+            var aberto = alvo.classList.toggle('aberto');
+            botao.textContent = aberto ? 'Ocultar localização' : 'Ver localização';
+        });
+    });
+
+    var modalEditar=document.getElementById('ponto-modal-editar');var formEditar=document.getElementById('ponto-form-editar');var resumoEditar=document.getElementById('ponto-modal-resumo');function fecharModalEditar(){if(!modalEditar){return;}modalEditar.classList.remove('aberto');modalEditar.setAttribute('aria-hidden','true');}document.querySelectorAll('[data-editar-ponto]').forEach(function(botao){botao.addEventListener('click',function(){if(!modalEditar||!formEditar){return;}formEditar.action='/registro-ponto/'+botao.dataset.id+'/editar';document.getElementById('editar-entrada').value=botao.dataset.entrada||'';document.getElementById('editar-saida-intervalo').value=botao.dataset.saidaIntervalo||'';document.getElementById('editar-retorno-intervalo').value=botao.dataset.retornoIntervalo||'';document.getElementById('editar-saida').value=botao.dataset.saida||'';if(resumoEditar){resumoEditar.textContent=(botao.dataset.funcionario||'Funcionário')+' · '+(botao.dataset.data||'');}modalEditar.classList.add('aberto');modalEditar.setAttribute('aria-hidden','false');});});document.querySelectorAll('[data-fechar-modal]').forEach(function(botao){botao.addEventListener('click',fecharModalEditar);});if(modalEditar){modalEditar.addEventListener('click',function(evento){if(evento.target===modalEditar){fecharModalEditar();}});}
+
+}());
+</script>
+</body>
+</html>

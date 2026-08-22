@@ -1,0 +1,347 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\orcamento_imprimir_cupom.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Cupom Orçamento - {{ orcamento.numero or orcamento.id }}</title>
+
+    <style>
+        @page {
+            size: 80mm auto;
+            margin: 5mm;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: #e5e7eb;
+            color: #111827;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 12px;
+        }
+
+        .print-actions {
+            max-width: 320px;
+            margin: 14px auto;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .print-button {
+            border: 0;
+            border-radius: 6px;
+            padding: 8px 10px;
+            cursor: pointer;
+            font-weight: 700;
+            color: #ffffff;
+            background: #16a34a;
+            font-size: 12px;
+        }
+
+        .back-button {
+            color: #111827;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            text-decoration: none;
+        }
+
+        .cupom {
+            width: 302px;
+            margin: 0 auto 20px auto;
+            background: #ffffff;
+            padding: 10px;
+        }
+
+        .center {
+            text-align: center;
+        }
+
+        .empresa {
+            font-weight: 800;
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+
+        .linha {
+            border-top: 1px dashed #111827;
+            margin: 8px 0;
+        }
+
+        .dados p {
+            margin: 3px 0;
+            line-height: 1.25;
+        }
+
+        .titulo {
+            font-weight: 800;
+            margin-top: 8px;
+            text-transform: uppercase;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+
+        th,
+        td {
+            padding: 4px 2px;
+            border-bottom: 1px solid #e5e7eb;
+            vertical-align: top;
+        }
+
+        th {
+            text-align: left;
+            font-weight: 800;
+        }
+
+        .num {
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .obs {
+            white-space: pre-wrap;
+            line-height: 1.35;
+            word-break: break-word;
+        }
+
+        .scope-cupom {
+            display: grid;
+            gap: 8px;
+        }
+
+        .scope-cupom-section {
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+
+        .scope-cupom-title {
+            margin: 0 0 4px;
+            padding-bottom: 3px;
+            border-bottom: 1px solid #d1d5db;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .scope-cupom p {
+            margin: 0 0 4px;
+            line-height: 1.35;
+            text-align: left;
+        }
+
+        .scope-cupom ul {
+            margin: 0;
+            padding-left: 16px;
+        }
+
+        .scope-cupom li {
+            margin-bottom: 3px;
+            line-height: 1.3;
+        }
+
+        .assinatura {
+            margin-top: 25px;
+            text-align: center;
+        }
+
+        .assinatura-line {
+            border-top: 1px solid #111827;
+            margin-bottom: 5px;
+        }
+
+        .aviso {
+            margin-top: 12px;
+            text-align: center;
+            font-weight: 700;
+        }
+
+        .footer {
+            margin-top: 12px;
+            text-align: center;
+            font-size: 11px;
+        }
+
+        @media print {
+            body {
+                background: #ffffff;
+            }
+
+            .print-actions {
+                display: none;
+            }
+
+            .cupom {
+                width: auto;
+                margin: 0;
+                padding: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    {% set _cfg = gestflow_configuracoes_runtime.get('valores', {}) %}
+    {% set _cfg_gerais = _cfg.get('gerais', {}) %}
+    {% set _cfg_orcamentos = _cfg.get('orcamentos', {}) %}
+
+    <div class="print-actions">
+        <a class="print-button back-button" href="/orcamentos/{{ orcamento.id }}">Voltar</a>
+        <button class="print-button" onclick="window.print()">Imprimir Cupom</button>
+    </div>
+
+    <main class="cupom">
+        <div class="center empresa">{{ empresa.nome_fantasia or empresa.razao_social or 'GESTFLOW' }}</div>
+        <div class="center">
+            {% if empresa.documento %}CNPJ/CPF: {{ empresa.documento }}<br>{% endif %}
+            {% if empresa.telefone %}Tel: {{ empresa.telefone }}<br>{% endif %}
+            {% if empresa.email %}{{ empresa.email }}<br>{% endif %}
+            {% if loja and loja.cidade %}{{ loja.cidade }}<br>{% endif %}
+        </div>
+        <div class="center">Orçamento Nº {{ orcamento.numero or orcamento.id }}</div>
+        <div class="center">Vendedor: {{ orcamento.responsavel or 'Administrador' }}</div>
+
+        <div class="linha"></div>
+
+        <div class="dados">
+            <p><strong>Data:</strong> {{ orcamento.data or '-' }}</p>
+            <p><strong>Entrega:</strong> {{ orcamento.prazo_entrega or '-' }}</p>
+            <p><strong>Cliente:</strong> {{ orcamento.cliente or '-' }}</p>
+            <p><strong>Validade:</strong> {{ orcamento.validade or '-' }}</p>
+            <p><strong>Pagamento:</strong> {{ orcamento.forma_pagamento or '-' }}</p>
+        </div>
+
+        {% set modo_apresentacao = orcamento.modo_apresentacao|default('agrupado', true) %}
+        {% if modo_apresentacao == 'detalhado' %}
+        {% if itens_servicos %}
+            <div class="linha"></div>
+            <div class="titulo">Detalhes do serviço</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nome</th>
+                        <th class="num">Qtd</th>
+                        <th class="num">Vl.Unt.</th>
+                        <th class="num">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in itens_servicos %}
+                        <tr>
+                            <td>
+                                {{ item.descricao or '-' }}
+                                {% if item.detalhes %}
+                                    <br><em>({{ item.detalhes }})</em>
+                                {% endif %}
+                            </td>
+                            <td class="num">{{ item.quantidade or '-' }}</td>
+                            <td class="num">{{ item.valor_unitario or '0,00' }}</td>
+                            <td class="num">{{ item.subtotal or '0,00' }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+
+        {% if itens_produtos %}
+            <div class="linha"></div>
+            <div class="titulo">Detalhes do produto</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nome</th>
+                        <th class="num">Qtd</th>
+                        <th class="num">Vl.Unt.</th>
+                        <th class="num">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in itens_produtos %}
+                        <tr>
+                            <td>{{ item.descricao or '-' }}</td>
+                            <td class="num">{{ item.quantidade or '-' }}</td>
+                            <td class="num">{{ item.valor_unitario or '0,00' }}</td>
+                            <td class="num">{{ item.subtotal or '0,00' }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+
+        {% else %}
+            <div class="linha"></div>
+            <div class="titulo">Proposta comercial</div>
+            <table>
+                <thead><tr><th>Descrição</th><th class="num">Qtd</th><th class="num">Total</th></tr></thead>
+                <tbody>
+                    {% for item in itens_apresentacao|default([]) %}
+                        <tr>
+                            <td>{{ item.descricao or '-' }}{% if item.detalhes %}<br><em>({{ item.detalhes }})</em>{% endif %}</td>
+                            <td class="num">{{ item.quantidade or '1' }}</td>
+                            <td class="num">{{ item.subtotal or '0,00' }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+
+        <div class="linha"></div>
+
+        <div class="dados">
+            {% if modo_apresentacao == 'detalhado' %}
+                <p><strong>Serviços:</strong> {{ orcamento.total_servicos or '0,00' }}</p>
+                <p><strong>Produtos:</strong> {{ orcamento.total_produtos or '0,00' }}</p>
+            {% endif %}
+            <p><strong>Desconto:</strong> {{ orcamento.desconto_valor or '0,00' }}</p>
+            <p><strong>Total do orçamento:</strong> {{ orcamento.valor_total or '0,00' }}</p>
+        </div>
+
+        <div class="linha"></div>
+
+        <div class="titulo">Escopo e observações</div>
+        {% if escopo_formatado.secoes or escopo_formatado.texto_livre or escopo_formatado.observacoes_adicionais %}
+            <div class="scope-cupom">
+                {% for paragrafo in escopo_formatado.texto_livre %}<p>{{ paragrafo }}</p>{% endfor %}
+
+                {% for secao in escopo_formatado.secoes %}
+                    <section class="scope-cupom-section">
+                        <h3 class="scope-cupom-title">{{ secao.numero }} {{ secao.titulo }}</h3>
+                        {% for paragrafo in secao.paragrafos %}<p>{{ paragrafo }}</p>{% endfor %}
+                        {% if secao.itens %}<ul>{% for item in secao.itens %}<li>{{ item }}</li>{% endfor %}</ul>{% endif %}
+                    </section>
+                {% endfor %}
+
+                {% if escopo_formatado.observacoes_adicionais %}
+                    <section class="scope-cupom-section">
+                        <h3 class="scope-cupom-title">Observações adicionais</h3>
+                        {% for paragrafo in escopo_formatado.observacoes_adicionais %}<p>{{ paragrafo }}</p>{% endfor %}
+                    </section>
+                {% endif %}
+            </div>
+        {% else %}
+            <div class="obs">-</div>
+        {% endif %}
+
+        <div class="aviso">*** Este cupom não é documento fiscal ***</div>
+
+        <div class="assinatura">
+            <div class="assinatura-line"></div>
+            Assinatura do cliente
+        </div>
+
+        <div class="footer">{{ empresa.nome_fantasia or 'GESTFLOW' }}</div>
+    </main>
+
+    {% if _cfg_orcamentos.get('rodape') or _cfg_gerais.get('rodape_documentos') %}<p class="center">{{ _cfg_orcamentos.get('rodape') or _cfg_gerais.get('rodape_documentos') }}</p>{% endif %}
+</body>
+</html>

@@ -1,0 +1,116 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\emprestimo_formulario.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Novo Empréstimo</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+    <main class="content loans-page gf-module-page">
+        {% set page_title = 'Novo Empréstimo' %}
+        {% include "partials/topbar.html" %}
+        <nav class="loan-tabs gf-tabs" aria-label="Navegação do módulo Empréstimos">
+            <a class="loan-tab" href="/emprestimos/visao-geral">Visão Geral</a>
+            <a class="loan-tab" href="/emprestimos/todos">Todos os Empréstimos</a>
+            <a class="loan-tab" href="/emprestimos/parcelas">Parcelas</a>
+            <a class="loan-tab" href="/emprestimos/renegociacoes">Renegociações</a>
+        </nav>
+
+        {% if sucesso %}<div class="loan-alert success" role="status">{{ sucesso }}</div>{% endif %}
+        {% if erro %}<div class="loan-alert error" role="alert">{{ erro }}</div>{% endif %}
+
+        <section class="panel page-section gf-page-hero">
+            <div class="panel-header page-header gf-page-header">
+                <div>
+                    <span class="page-kicker">Gestão financeira</span>
+                    <h3 class="page-title">Novo Empréstimo</h3>
+                    <p class="page-subtitle">Cadastre um contrato parcelado ou rotativo com juros periódicos.</p>
+                </div>
+                <div class="gf-module-actions"><a class="btn-light" href="/emprestimos/todos">Voltar</a></div>
+            </div>
+        </section>
+
+        <form class="loan-form" method="post" action="/emprestimos/novo" id="loan-form">
+            <section class="loan-form-section">
+                <div class="loan-section-title"><h2>Dados gerais</h2><p>Identificação, modalidade e partes envolvidas.</p></div>
+                <div class="loan-form-grid">
+                    <label><span>Tipo *</span><select name="tipo" required>{% for item in tipos %}<option value="{{ item.codigo }}" {% if formulario.get('tipo') == item.codigo %}selected{% endif %}>{{ item.nome }}</option>{% endfor %}</select></label>
+                    <label><span>Modalidade *</span><select name="modalidade" id="modalidade" required>{% for item in modalidades %}<option value="{{ item.codigo }}" {% if formulario.get('modalidade') == item.codigo %}selected{% endif %}>{{ item.nome }}</option>{% endfor %}</select></label>
+                    <label class="span-2"><span>Título *</span><input name="titulo" value="{{ formulario.get('titulo','') }}" required placeholder="Ex.: Empréstimo para capital de giro"></label>
+                    <label><span>Tipo da parte</span><select name="parte_tipo"><option value="banco">Banco</option><option value="cliente">Cliente</option><option value="funcionario">Funcionário</option><option value="socio">Sócio</option><option value="fornecedor">Fornecedor</option><option value="outro" selected>Outro</option></select></label>
+                    <label class="span-2"><span>Credor ou devedor *</span><input name="parte_nome" value="{{ formulario.get('parte_nome','') }}" required></label>
+                    <label><span>CPF / CNPJ</span><input name="parte_documento" value="{{ formulario.get('parte_documento','') }}"></label>
+                    <label><span>E-mail</span><input type="email" name="parte_email" value="{{ formulario.get('parte_email','') }}"></label>
+                    <label><span>Telefone</span><input name="parte_telefone" value="{{ formulario.get('parte_telefone','') }}"></label>
+                    <label><span>Banco / instituição</span><input name="banco" value="{{ formulario.get('banco','') }}"></label>
+                </div>
+            </section>
+
+            <section class="loan-form-section">
+                <div class="loan-section-title"><h2>Valores e cobrança</h2><p>No rotativo, o título mensal representa os juros e o principal é renovado até amortização ou quitação.</p></div>
+                <div class="loan-form-grid">
+                    <label><span>Valor principal *</span><input name="valor_principal" inputmode="decimal" value="{{ formulario.get('valor_principal','') }}" required placeholder="0,00"></label>
+                    <label><span>Taxa de juros por período (%)</span><input name="taxa_juros_percentual" inputmode="decimal" value="{{ formulario.get('taxa_juros_percentual','0') }}"></label>
+                    <label class="parcelado-field"><span>Tipo de juros</span><select name="tipo_juros"><option value="simples">Simples</option><option value="compostos">Compostos</option></select></label>
+                    <label><span>Tarifas</span><input name="tarifas" inputmode="decimal" value="{{ formulario.get('tarifas','0,00') }}"></label>
+                    <label><span>IOF</span><input name="iof" inputmode="decimal" value="{{ formulario.get('iof','0,00') }}"></label>
+                    <label><span>Multa por atraso (%)</span><input name="multa_percentual" inputmode="decimal" value="{{ formulario.get('multa_percentual','2') }}"></label>
+                    <label><span>Juros de atraso ao mês (%)</span><input name="juros_atraso_mes_percentual" inputmode="decimal" value="{{ formulario.get('juros_atraso_mes_percentual','1') }}"></label>
+                    <label class="parcelado-field"><span>Quantidade de parcelas *</span><input type="number" min="1" name="quantidade_parcelas" id="quantidade_parcelas" value="{{ formulario.get('quantidade_parcelas','1') }}"></label>
+                    <label class="parcelado-field"><span>Sistema de amortização</span><select name="sistema_amortizacao">{% for item in sistemas_amortizacao %}<option value="{{ item.codigo }}" {% if formulario.get('sistema_amortizacao') == item.codigo %}selected{% endif %}>{{ item.nome }}</option>{% endfor %}</select></label>
+                    <label><span>Intervalo entre vencimentos (dias)</span><input type="number" min="1" name="intervalo_dias" value="{{ formulario.get('intervalo_dias','30') }}"></label>
+                    <label><span>Data do contrato</span><input type="date" name="data_contrato" value="{{ formulario.get('data_contrato','') }}"></label>
+                    <label><span>Data da liberação</span><input type="date" name="data_liberacao" value="{{ formulario.get('data_liberacao','') }}"></label>
+                    <label><span>Primeiro vencimento *</span><input type="date" name="primeira_parcela" value="{{ formulario.get('primeira_parcela','') }}" required></label>
+                    <label class="loan-checkbox span-3 rotativo-field"><input type="checkbox" name="permitir_amortizacao" {% if formulario.get('permitir_amortizacao', true) %}checked{% endif %}><span>Permitir pagamento dos juros com amortização parcial do principal</span></label>
+                </div>
+            </section>
+
+            <section class="loan-form-section">
+                <div class="loan-section-title"><h2>Financeiro e garantias</h2><p>Dados complementares do contrato.</p></div>
+                <div class="loan-form-grid">
+                    <label><span>Conta financeira</span><input name="conta_financeira" value="{{ formulario.get('conta_financeira','') }}"></label>
+                    <label><span>Centro de custo</span><input name="centro_custo" value="{{ formulario.get('centro_custo','') }}"></label>
+                    <label><span>Forma de pagamento</span><input name="forma_pagamento" value="{{ formulario.get('forma_pagamento','') }}"></label>
+                    <label class="span-2"><span>Garantia</span><textarea name="garantia" rows="3">{{ formulario.get('garantia','') }}</textarea></label>
+                    <label><span>Fiador</span><input name="fiador" value="{{ formulario.get('fiador','') }}"></label>
+                    <label class="span-3"><span>Observações</span><textarea name="observacoes" rows="4">{{ formulario.get('observacoes','') }}</textarea></label>
+                    <label class="loan-checkbox span-3"><input type="checkbox" name="gerar_financeiro" {% if formulario.get('gerar_financeiro', true) %}checked{% endif %}><span>Gerar automaticamente contas a pagar ou receber</span></label>
+                </div>
+            </section>
+
+            <div class="loan-form-actions"><a class="btn-light" href="/emprestimos/todos">Cancelar</a><button class="btn-primary-green" type="submit">Salvar empréstimo</button></div>
+        </form>
+    </main>
+
+    <script>
+        (function () {
+            const modalidade = document.getElementById('modalidade');
+            const quantidade = document.getElementById('quantidade_parcelas');
+            const atualizar = () => {
+                const rotativo = modalidade.value === 'rotativo';
+                document.querySelectorAll('.rotativo-field').forEach((item) => {
+                    item.style.display = rotativo ? '' : 'none';
+                });
+                document.querySelectorAll('.parcelado-field').forEach((item) => {
+                    item.style.display = rotativo ? 'none' : '';
+                });
+                if (quantidade) {
+                    quantidade.required = !rotativo;
+                    if (rotativo) quantidade.value = '1';
+                }
+            };
+            modalidade.addEventListener('change', atualizar);
+            atualizar();
+        }());
+    </script>
+</body>
+</html>

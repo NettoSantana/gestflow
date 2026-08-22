@@ -1,0 +1,7 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\esqueci_senha.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/static/css/dashboard.css"><title>Recuperar senha</title></head><body class="password-body"><main class="password-card"><img src="/static/img/gestflow-logo.png" alt="GestFlow"><h1>Recuperar senha</h1><p>Informe o e-mail cadastrado. O link terá validade de 30 minutos.</p>{% if mensagem %}<div class="form-alert-success">{{ mensagem }}</div>{% endif %}{% if erro %}<div class="form-alert-error">{{ erro }}</div>{% endif %}<form method="post"><label>E-mail<input class="form-control" type="email" name="email" value="{{ email or '' }}" required></label><button class="btn-primary-green">Enviar link</button></form><a href="/login">Voltar ao login</a></main></body></html>

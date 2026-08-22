@@ -1,0 +1,827 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\clientes.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Clientes</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .logout-button {
+            height: 36px;
+            padding: 0 14px;
+            border: 1px solid #d7e1ef;
+            border-radius: 10px;
+            background: #ffffff;
+            color: #dc2626;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 900;
+            text-decoration: none;
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .logout-button:hover {
+            background: #fff1f2;
+            border-color: #fecdd3;
+        }
+
+        .alert-error,
+        .alert-success {
+            padding: 12px 14px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .alert-error {
+            border: 1px solid #fecaca;
+            background: #fef2f2;
+            color: #b91c1c;
+        }
+
+        .alert-success {
+            border: 1px solid #bbf7d0;
+            background: #f0fdf4;
+            color: #166534;
+        }
+
+        .more-actions-wrap {
+            position: relative;
+            display: inline-flex;
+        }
+
+        .more-actions-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            z-index: 20;
+            min-width: 230px;
+            padding: 8px;
+            border: 1px solid #dbe4f0;
+            border-radius: 12px;
+            background: #ffffff;
+            box-shadow: 0 18px 36px rgba(15, 23, 42, 0.16);
+            display: none;
+        }
+
+        .more-actions-menu.open {
+            display: block;
+        }
+
+        .more-actions-menu a,
+        .more-actions-menu button {
+            width: 100%;
+            min-height: 36px;
+            border: 0;
+            border-radius: 9px;
+            background: transparent;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            font-size: 13px;
+            font-weight: 800;
+            text-align: left;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .more-actions-menu a:hover,
+        .more-actions-menu button:hover {
+            background: #f1f5f9;
+        }
+
+        .sortable-link {
+            color: #1e293b;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            text-decoration: none;
+            font-weight: 900;
+        }
+
+        .sortable-link:hover {
+            color: #0f62fe;
+        }
+
+        .sort-indicator {
+            color: #0f62fe;
+            font-size: 11px;
+            font-weight: 900;
+        }
+
+        .pagination-bar {
+            margin-top: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            font-size: 13px;
+            color: #475569;
+            font-weight: 800;
+        }
+
+        .pagination-links {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .pagination-links a,
+        .pagination-links span {
+            min-width: 34px;
+            height: 34px;
+            padding: 0 10px;
+            border: 1px solid #dbe4f0;
+            border-radius: 9px;
+            background: #ffffff;
+            color: #0f172a;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 900;
+            text-decoration: none;
+        }
+
+        .pagination-links a:hover {
+            background: #eff6ff;
+            border-color: #bfdbfe;
+            color: #0f62fe;
+        }
+
+        .pagination-links .current-page {
+            background: #0f62fe;
+            border-color: #0f62fe;
+            color: #ffffff;
+        }
+
+        .pagination-links .disabled-page {
+            color: #94a3b8;
+            background: #f8fafc;
+            cursor: not-allowed;
+        }
+
+        .client-search-form {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .client-search-form .client-search {
+            flex: 1 1 320px;
+        }
+
+        .per-page-select {
+            max-width: 130px;
+        }
+
+        .clear-search-link {
+            min-height: 38px;
+            padding: 0 12px;
+            border: 1px solid #dbe4f0;
+            border-radius: 10px;
+            background: #ffffff;
+            color: #64748b;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 900;
+            text-decoration: none;
+        }
+
+        .clear-search-link:hover {
+            background: #f8fafc;
+            color: #0f172a;
+        }
+
+
+    
+        .cnpj-lookup-row {
+            display: flex;
+            align-items: stretch;
+            gap: 8px;
+        }
+
+        .cnpj-lookup-row .form-control {
+            min-width: 0;
+            flex: 1 1 auto;
+        }
+
+        .btn-cnpj-lookup {
+            min-width: 118px;
+            min-height: 42px;
+            padding: 0 14px;
+            border: 1px solid #bfdbfe;
+            border-radius: 10px;
+            background: #eff6ff;
+            color: #1d4ed8;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 900;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
+        }
+
+        .btn-cnpj-lookup:hover:not(:disabled) {
+            background: #dbeafe;
+            border-color: #93c5fd;
+        }
+
+        .btn-cnpj-lookup:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .cnpj-lookup-status {
+            display: none;
+            margin-top: 7px;
+            padding: 9px 11px;
+            border-radius: 9px;
+            font-size: 11px;
+            font-weight: 800;
+            line-height: 1.4;
+        }
+
+        .cnpj-lookup-status.show {
+            display: block;
+        }
+
+        .cnpj-lookup-status.loading {
+            border: 1px solid #bfdbfe;
+            background: #eff6ff;
+            color: #1d4ed8;
+        }
+
+        .cnpj-lookup-status.success {
+            border: 1px solid #bbf7d0;
+            background: #f0fdf4;
+            color: #166534;
+        }
+
+        .cnpj-lookup-status.warning {
+            border: 1px solid #fde68a;
+            background: #fffbeb;
+            color: #92400e;
+        }
+
+        .cnpj-lookup-status.error {
+            border: 1px solid #fecaca;
+            background: #fef2f2;
+            color: #991b1b;
+        }
+
+        @media (max-width: 620px) {
+            .cnpj-lookup-row {
+                flex-direction: column;
+            }
+
+            .btn-cnpj-lookup {
+                width: 100%;
+            }
+        }
+
+    </style>
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+
+<main class="content">
+        {% set page_title = 'Clientes' %}
+        {% include "partials/topbar.html" %}
+
+        {% if request.args.get("erro") %}
+            <section class="panel page-section">
+                <div class="alert-error">{{ request.args.get("erro") }}</div>
+            </section>
+        {% endif %}
+
+        {% if request.args.get("sucesso") %}
+            <section class="panel page-section">
+                <div class="alert-success">{{ request.args.get("sucesso") }}</div>
+            </section>
+        {% endif %}
+
+
+{% set clientes_lista = clientes|default([]) %}
+        {% set resumo_geral = resumo_clientes|default({}, true) %}
+        {% set paginacao = paginacao|default({}, true) %}
+        {% set busca = busca|default('', true) %}
+        {% set ordenar = ordenar|default('id', true) %}
+        {% set direcao = direcao|default('desc', true) %}
+        {% set por_pagina = por_pagina|default(20, true) %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Cadastros</span>
+                    <h3 class="page-title">Clientes</h3>
+                    <p class="page-subtitle">Controle os dados dos clientes, documentos, contatos e status de cadastro do GESTFLOW.</p>
+                </div>
+
+                <a href="#form-novo-cliente" class="btn-primary-green">+ Novo Cliente</a>
+            </div>
+        </section>
+
+        <section class="cards cards-secondary page-section">
+            <div class="card stat-card">
+                <div class="card-icon">☷</div>
+                <div class="card-info">
+                    <p>{{ resumo_geral.total|default(0, true) }}</p>
+                    <h3>Total de clientes</h3>
+                    <span>{% if resumo_geral.total|default(0, true) == 1 %}1 cliente cadastrado{% elif resumo_geral.total|default(0, true) > 1 %}{{ resumo_geral.total }} clientes cadastrados{% else %}Nenhum cliente cadastrado{% endif %}</span>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="card-icon">✓</div>
+                <div class="card-info">
+                    <p>{{ resumo_geral.ativos|default(0, true) }}</p>
+                    <h3>Clientes ativos</h3>
+                    <span>{% if resumo_geral.ativos|default(0, true) == 1 %}1 cliente ativo{% elif resumo_geral.ativos|default(0, true) > 1 %}{{ resumo_geral.ativos }} clientes ativos{% else %}Aguardando cadastro{% endif %}</span>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="card-icon">!</div>
+                <div class="card-info">
+                    <p>{{ resumo_geral.pendentes|default(0, true) }}</p>
+                    <h3>Pendências</h3>
+                    <span>{% if resumo_geral.pendentes|default(0, true) == 1 %}1 cadastro pendente{% elif resumo_geral.pendentes|default(0, true) > 1 %}{{ resumo_geral.pendentes }} cadastros pendentes{% else %}Nenhuma pendência{% endif %}</span>
+                </div>
+            </div>
+        </section>
+
+        <section id="form-novo-cliente" class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Novo cliente</h3>
+                    <p class="page-subtitle">Preencha os dados principais para preparar o cadastro do cliente.</p>
+                </div>
+
+                <span class="badge-info">Cadastro inicial</span>
+            </div>
+
+            <form action="/clientes" method="post" class="client-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="cliente_nome">Nome / Razão Social *</label>
+                        <input id="cliente_nome" name="cliente_nome" type="text" placeholder="Ex: LR Manutenção Ltda" class="form-control" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cliente_documento">CPF/CNPJ</label>
+                        <div class="cnpj-lookup-row">
+                            <input id="cliente_documento" name="cliente_documento" type="text" placeholder="Ex: 00.000.000/0000-00" class="form-control" maxlength="18" autocomplete="off">
+                            <button id="btn_consultar_cnpj" type="button" class="btn-cnpj-lookup">Buscar CNPJ</button>
+                        </div>
+                        <div id="cliente_cnpj_status" class="cnpj-lookup-status" role="status" aria-live="polite"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cliente_telefone">Telefone</label>
+                        <input id="cliente_telefone" name="cliente_telefone" type="text" placeholder="Ex: (71) 99999-9999" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cliente_cidade">Cidade</label>
+                        <input id="cliente_cidade" name="cliente_cidade" type="text" placeholder="Ex: Salvador" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cliente_status">Status *</label>
+                        <select id="cliente_status" name="cliente_status" class="form-control" required>
+                            <option value="ativo">Ativo</option>
+                            <option value="inativo">Inativo</option>
+                            <option value="pendente">Pendente</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cliente_email">E-mail</label>
+                        <input id="cliente_email" name="cliente_email" type="email" placeholder="Ex: contato@empresa.com.br" class="form-control">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="reset" class="btn-light">Cancelar</button>
+                    <button type="submit" class="btn-primary-green">Salvar Cliente</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="panel table-panel">
+
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Lista de clientes</h3>
+                    <p class="page-subtitle">Pesquise, visualize e mantenha os clientes cadastrados.</p>
+                </div>
+
+                <div class="client-toolbar">
+                    <div class="more-actions-wrap">
+                        <button type="button" class="btn-light" onclick="alternarMenuClientes()">⚙ Mais ações</button>
+                        <div id="clientes-more-actions" class="more-actions-menu">
+                            <button type="button" onclick="abrirImportacaoClientes()">⬆ Importar de uma planilha</button>
+                            <a href="/clientes/modelo">⬇ Baixar modelo</a>
+                            <a href="/clientes/exportar">⬇ Exportar clientes</a>
+                        </div>
+                    </div>
+                </div>
+
+                <form id="form-importar-clientes" action="/clientes/importar" method="post" enctype="multipart/form-data" style="display:none;">
+                    <input id="arquivo-clientes" name="arquivo_clientes" type="file" accept=".xlsx,.csv" onchange="enviarImportacaoClientes()">
+                </form>
+            </div>
+
+            <div class="client-actions">
+                <form action="/clientes" method="get" class="client-search-form">
+                    <input type="text" name="busca" value="{{ busca }}" placeholder="Buscar por nome, CPF/CNPJ, telefone, cidade ou e-mail" class="client-search">
+                    <input type="hidden" name="ordenar" value="{{ ordenar }}">
+                    <input type="hidden" name="direcao" value="{{ direcao }}">
+
+                    <select name="por_pagina" class="form-control per-page-select" onchange="this.form.submit()">
+                        <option value="10" {% if por_pagina == 10 %}selected{% endif %}>10 por página</option>
+                        <option value="20" {% if por_pagina == 20 %}selected{% endif %}>20 por página</option>
+                        <option value="50" {% if por_pagina == 50 %}selected{% endif %}>50 por página</option>
+                        <option value="100" {% if por_pagina == 100 %}selected{% endif %}>100 por página</option>
+                    </select>
+
+                    <button type="submit" class="btn-dark">Buscar</button>
+
+                    {% if busca %}
+                        <a href="{{ url_for('clientes', por_pagina=por_pagina, ordenar=ordenar, direcao=direcao) }}" class="clear-search-link">Limpar</a>
+                    {% endif %}
+                </form>
+            </div>
+
+            <div class="table-shell">
+                <table class="client-table">
+                    <thead>
+                        <tr>
+                            <th>
+                                <a href="{{ url_for('clientes', pagina=1, por_pagina=por_pagina, ordenar='id', direcao='desc' if ordenar == 'id' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    Código
+                                    {% if ordenar == 'id' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('clientes', pagina=1, por_pagina=por_pagina, ordenar='nome', direcao='desc' if ordenar == 'nome' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    Nome / Razão Social
+                                    {% if ordenar == 'nome' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('clientes', pagina=1, por_pagina=por_pagina, ordenar='documento', direcao='desc' if ordenar == 'documento' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    CPF/CNPJ
+                                    {% if ordenar == 'documento' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('clientes', pagina=1, por_pagina=por_pagina, ordenar='telefone', direcao='desc' if ordenar == 'telefone' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    Telefone
+                                    {% if ordenar == 'telefone' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('clientes', pagina=1, por_pagina=por_pagina, ordenar='cidade', direcao='desc' if ordenar == 'cidade' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    Cidade
+                                    {% if ordenar == 'cidade' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('clientes', pagina=1, por_pagina=por_pagina, ordenar='status', direcao='desc' if ordenar == 'status' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    Status
+                                    {% if ordenar == 'status' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if clientes_lista %}
+                            {% for cliente in clientes_lista %}
+                                <tr>
+                                    <td>{{ cliente.id }}</td>
+                                    <td>{{ cliente.nome }}</td>
+                                    <td>{{ cliente.documento }}</td>
+                                    <td>{{ cliente.telefone }}</td>
+                                    <td>{{ cliente.cidade }}</td>
+                                    <td>
+                                        <span class="status-pill {{ cliente.status }}">
+                                            {{ cliente.status }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <a href="/clientes/{{ cliente.id }}" title="Ver cliente" aria-label="Ver cliente" class="action-button view">🔍</a>
+                                            <a href="/clientes/{{ cliente.id }}/editar" title="Editar cliente" aria-label="Editar cliente" class="action-button edit">✎</a>
+                                            <form action="/clientes/{{ cliente.id }}/excluir" method="post" onsubmit="return confirm('Tem certeza que deseja excluir este cliente?');" class="action-form">
+                                                <button type="submit" title="Excluir cliente" aria-label="Excluir cliente" class="action-button delete">×</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="empty-table empty-table-box">
+                                    <div class="empty-table-content">
+                                        <div class="empty-table-icon">☷</div>
+                                        <strong>Nenhum cliente cadastrado.</strong>
+                                        <span>Use o botão Novo Cliente para iniciar o cadastro.</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pagination-bar">
+                <div>
+                    {% if paginacao.total|default(0, true) > 0 %}
+                        Mostrando {{ paginacao.inicio }} a {{ paginacao.fim }} de um total de {{ paginacao.total }}
+                    {% else %}
+                        Nenhum cliente encontrado
+                    {% endif %}
+                </div>
+
+                {% if paginacao.total_paginas|default(1, true) > 1 %}
+                    <div class="pagination-links">
+                        {% if paginacao.tem_anterior %}
+                            <a href="{{ url_for('clientes', pagina=paginacao.anterior, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">‹</a>
+                        {% else %}
+                            <span class="disabled-page">‹</span>
+                        {% endif %}
+
+                        {% if 1 not in paginacao.paginas %}
+                            <a href="{{ url_for('clientes', pagina=1, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">1</a>
+                            {% if paginacao.paginas[0] > 2 %}
+                                <span class="disabled-page">...</span>
+                            {% endif %}
+                        {% endif %}
+
+                        {% for numero_pagina in paginacao.paginas %}
+                            {% if numero_pagina == paginacao.pagina %}
+                                <span class="current-page">{{ numero_pagina }}</span>
+                            {% else %}
+                                <a href="{{ url_for('clientes', pagina=numero_pagina, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">{{ numero_pagina }}</a>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if paginacao.total_paginas not in paginacao.paginas %}
+                            {% if paginacao.paginas[-1] < paginacao.total_paginas - 1 %}
+                                <span class="disabled-page">...</span>
+                            {% endif %}
+                            <a href="{{ url_for('clientes', pagina=paginacao.total_paginas, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">{{ paginacao.total_paginas }}</a>
+                        {% endif %}
+
+                        {% if paginacao.tem_proxima %}
+                            <a href="{{ url_for('clientes', pagina=paginacao.proxima, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">›</a>
+                        {% else %}
+                            <span class="disabled-page">›</span>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+
+        </section>
+
+    </main>
+
+    <script>
+
+        function normalizarCnpjConsulta(valor) {
+            return String(valor || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+        }
+
+        function formatarCnpjNumerico(valor) {
+            const cnpj = normalizarCnpjConsulta(valor);
+
+            if (!/^\d{14}$/.test(cnpj)) {
+                return cnpj;
+            }
+
+            return `${cnpj.slice(0, 2)}.${cnpj.slice(2, 5)}.${cnpj.slice(5, 8)}/${cnpj.slice(8, 12)}-${cnpj.slice(12)}`;
+        }
+
+        function mostrarStatusCnpj(tipo, mensagem) {
+            const status = document.getElementById("cliente_cnpj_status");
+
+            if (!status) {
+                return;
+            }
+
+            status.className = `cnpj-lookup-status show ${tipo}`;
+            status.textContent = mensagem;
+        }
+
+        function limparStatusCnpj() {
+            const status = document.getElementById("cliente_cnpj_status");
+
+            if (!status) {
+                return;
+            }
+
+            status.className = "cnpj-lookup-status";
+            status.textContent = "";
+        }
+
+        function preencherCampoCnpj(id, valor) {
+            const campo = document.getElementById(id);
+            const texto = String(valor || "").trim();
+
+            if (campo && texto) {
+                campo.value = texto;
+                campo.dispatchEvent(new Event("input", { bubbles: true }));
+                campo.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+        }
+
+        async function consultarCnpjCliente(forcarConsulta = true) {
+            const documento = document.getElementById("cliente_documento");
+            const botao = document.getElementById("btn_consultar_cnpj");
+
+            if (!documento || !botao) {
+                return;
+            }
+
+            const cnpj = normalizarCnpjConsulta(documento.value);
+
+            if (cnpj.length !== 14) {
+                if (forcarConsulta) {
+                    mostrarStatusCnpj("error", "Informe um CNPJ com 14 caracteres para realizar a busca.");
+                }
+                return;
+            }
+
+            botao.disabled = true;
+            botao.textContent = "Consultando...";
+            mostrarStatusCnpj("loading", "Buscando dados públicos do CNPJ...");
+
+            try {
+                const parametros = new URLSearchParams({ cnpj });
+                const clienteId = documento.dataset.clienteId || "";
+
+                if (clienteId) {
+                    parametros.set("cliente_id", clienteId);
+                }
+
+                const resposta = await fetch(`/api/clientes/consultar-cnpj?${parametros.toString()}`, {
+                    method: "GET",
+                    credentials: "same-origin",
+                    cache: "no-store",
+                    headers: { "Accept": "application/json" }
+                });
+
+                let retorno = null;
+
+                try {
+                    retorno = await resposta.json();
+                } catch (erroJson) {
+                    retorno = null;
+                }
+
+                if (!resposta.ok || !retorno || !retorno.ok) {
+                    throw new Error(retorno?.erro || "Não foi possível consultar o CNPJ.");
+                }
+
+                const dados = retorno.dados || {};
+                documento.value = dados.cnpj_formatado || formatarCnpjNumerico(cnpj);
+                documento.dataset.ultimoCnpjConsultado = cnpj;
+
+                preencherCampoCnpj("cliente_nome", dados.razao_social || dados.nome_fantasia);
+                preencherCampoCnpj("cliente_telefone", dados.telefone);
+                preencherCampoCnpj("cliente_cidade", dados.cidade);
+                preencherCampoCnpj("cliente_email", dados.email);
+
+                const situacao = dados.situacao_cadastral
+                    ? ` Situação cadastral: ${dados.situacao_cadastral}.`
+                    : "";
+
+                if (retorno.cliente_existente) {
+                    mostrarStatusCnpj(
+                        "warning",
+                        `Dados encontrados, mas este CNPJ já está cadastrado para ${retorno.cliente_existente.nome}.${situacao}`
+                    );
+                } else {
+                    mostrarStatusCnpj(
+                        "success",
+                        `Dados encontrados e preenchidos automaticamente.${situacao}`
+                    );
+                }
+            } catch (erro) {
+                mostrarStatusCnpj(
+                    "error",
+                    erro?.message || "Falha ao consultar o CNPJ. Preencha os dados manualmente."
+                );
+            } finally {
+                botao.disabled = false;
+                botao.textContent = "Buscar CNPJ";
+            }
+        }
+
+        function configurarConsultaCnpj() {
+            const documento = document.getElementById("cliente_documento");
+            const botao = document.getElementById("btn_consultar_cnpj");
+
+            if (!documento || !botao) {
+                return;
+            }
+
+            botao.addEventListener("click", function() {
+                consultarCnpjCliente(true);
+            });
+
+            documento.addEventListener("input", function() {
+                const cnpj = normalizarCnpjConsulta(documento.value);
+                botao.disabled = cnpj.length !== 14;
+
+                if (cnpj !== documento.dataset.ultimoCnpjConsultado) {
+                    limparStatusCnpj();
+                }
+            });
+
+            documento.addEventListener("blur", function() {
+                const cnpj = normalizarCnpjConsulta(documento.value);
+
+                if (
+                    cnpj.length === 14
+                    && cnpj !== documento.dataset.ultimoCnpjConsultado
+                ) {
+                    consultarCnpjCliente(false);
+                }
+            });
+
+            botao.disabled = normalizarCnpjConsulta(documento.value).length !== 14;
+        }
+
+        function alternarMenuClientes() {
+            const menu = document.getElementById("clientes-more-actions");
+
+            if (!menu) {
+                return;
+            }
+
+            menu.classList.toggle("open");
+        }
+
+        function abrirImportacaoClientes() {
+            const input = document.getElementById("arquivo-clientes");
+            const menu = document.getElementById("clientes-more-actions");
+
+            if (menu) {
+                menu.classList.remove("open");
+            }
+
+            if (input) {
+                input.click();
+            }
+        }
+
+        function enviarImportacaoClientes() {
+            const form = document.getElementById("form-importar-clientes");
+            const input = document.getElementById("arquivo-clientes");
+
+            if (form && input && input.files.length > 0) {
+                form.submit();
+            }
+        }
+
+        document.addEventListener("click", function(event) {
+            const menu = document.getElementById("clientes-more-actions");
+            const wrapper = document.querySelector(".more-actions-wrap");
+
+            if (menu && wrapper && !wrapper.contains(event.target)) {
+                menu.classList.remove("open");
+            }
+        });
+
+        document.addEventListener("DOMContentLoaded", function() {
+            configurarConsultaCnpj();
+        });
+    </script>
+
+    {% include "partials/lista_avancada.html" %}
+
+</body>
+</html>
+   

@@ -1,0 +1,89 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\clientes\templates\clientes_list.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+{% extends "base.html" %}
+{% block title %}Clientes — IndFlow{% endblock %}
+
+{% block content %}
+<style>
+  .wrap{max-width:1100px;margin:0 auto;padding:24px;}
+  .card{background:#ffffff;border:1px solid #e5e7eb;border-radius:14px;padding:16px;margin-bottom:16px;}
+  .muted{color:#64748b;font-size:14px;}
+  .top-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+  .btn-primary{padding:10px 14px;border-radius:10px;background:#2563eb;color:#ffffff;text-decoration:none;font-weight:600;}
+  table{width:100%;border-collapse:collapse;margin-top:10px;}
+  th,td{padding:10px;border-bottom:1px solid #e5e7eb;text-align:left;font-size:14px;vertical-align:middle;}
+  th{background:#f1f5f9;}
+  .pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;}
+  .on{background:#dcfce7;color:#166534;}
+  .off{background:#fee2e2;color:#991b1b;}
+
+  .actions{white-space:nowrap;}
+  .btn-icon{display:inline-flex;align-items:center;justify-content:center;width:30px;height:28px;border:0;border-radius:6px;color:#ffffff;font-weight:800;font-size:12px;cursor:pointer;text-decoration:none;margin-right:6px;}
+  .btn-view{background:#0ea5e9;}
+  .btn-edit{background:#f59e0b;}
+  .btn-del{background:#ef4444;}
+  .btn-icon:last-child{margin-right:0;}
+  .actions form{display:inline;}
+</style>
+
+<div class="wrap">
+
+  <div class="card">
+    <div class="top-bar">
+      <div>
+        <h1 style="margin:0;">Clientes</h1>
+        <div class="muted">Gerencie seus clientes (multi-tenant).</div>
+      </div>
+      <a href="{{ url_for('clientes.novo_cliente') }}" class="btn-primary">+ Adicionar</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Status</th>
+          <th>Criado em (UTC)</th>
+          <th style="width:220px;">Acoes</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td>
+            <b>{{ r["nome"] }}</b>
+            <div class="muted">{{ r["id"] }}</div>
+          </td>
+          <td>
+            {% if (r["status"] or "") == "active" %}
+              <span class="pill on">ATIVO</span>
+            {% else %}
+              <span class="pill off">INATIVO</span>
+            {% endif %}
+          </td>
+          <td class="muted">{{ r["created_at"] }}</td>
+          <td class="actions">
+            <a class="btn-icon btn-view" href="/clientes/{{ r['id'] }}" title="Visualizar">V</a>
+            <a class="btn-icon btn-edit" href="/clientes/{{ r['id'] }}/editar" title="Editar">E</a>
+            <form method="post" action="{{ url_for('clientes.delete_cliente', cid=r['id']) }}" onsubmit="return confirm('Excluir este cliente definitivamente?');">
+              <button type="submit" class="btn-icon btn-del" title="Excluir">X</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+        {% if not rows %}
+          <tr>
+            <td colspan="4" class="muted">Nenhum cliente cadastrado ainda.</td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+</div>
+{% endblock %}

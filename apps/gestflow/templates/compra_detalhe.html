@@ -1,0 +1,154 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\compra_detalhe.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Compra de estoque</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .compra-page { padding-bottom: 180px; }
+        .compra-summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
+        .compra-summary > div { min-width:0; padding:14px; border:1px solid #e5eaf2; border-radius:14px; background:#f8fafc; }
+        .compra-summary span { display:block; margin-bottom:6px; color:#64748b; font-size:12px; font-weight:900; text-transform:uppercase; }
+        .compra-summary strong { color:#0f172a; overflow-wrap:anywhere; }
+        .compra-observacoes { white-space:pre-wrap; line-height:1.6; color:#334155; }
+        @media(max-width:900px){.compra-summary{grid-template-columns:repeat(2,minmax(0,1fr));}}
+        @media(max-width:620px){.compra-summary{grid-template-columns:1fr;}}
+
+        .gf-status-select {
+            min-width: 132px;
+            max-width: 190px;
+            height: 34px;
+            padding: 0 30px 0 10px;
+            border: 1px solid var(--status-border, #cbd5e1);
+            border-radius: 999px;
+            background-color: var(--status-bg, #f1f5f9);
+            color: var(--status-text, #334155);
+            font: inherit;
+            font-size: 12px;
+            font-weight: 850;
+            cursor: pointer;
+        }
+        .gf-status-select:disabled { cursor: default; opacity: .82; }
+
+    </style>
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+    <main class="content compra-page">
+        {% set page_title = 'Compra de estoque' %}
+        {% include "partials/topbar.html" %}
+
+        {% if request.args.get('sucesso') %}<div class="form-alert-success">{{ request.args.get('sucesso') }}</div>{% endif %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Estoque</span>
+                    <h3 class="page-title">Compra #{{ compra.id }}</h3>
+                    <p class="page-subtitle">Detalhes da compra e do seu fluxo de recebimento.</p>
+                </div>
+                <div class="client-toolbar">
+                    <a href="/estoque/compras" class="btn-light">Voltar</a>
+                    {% if not compra.status_finalizado %}<a href="/estoque/compras/{{ compra.id }}/editar" class="btn-primary-green">Editar compra</a>{% endif %}
+                </div>
+            </div>
+        </section>
+
+        <section class="panel page-section">
+            <div class="compra-summary">
+                <div><span>Produto</span><strong>{{ compra.produto_nome or '-' }}</strong></div>
+                <div><span>Fornecedor</span><strong>{{ compra.fornecedor or '-' }}</strong></div>
+                <div><span>Quantidade</span><strong>{{ compra.quantidade or '0' }}</strong></div>
+                <div><span>Custo unitário</span><strong>R$ {{ compra.valor_custo or '0,00' }}</strong></div>
+                <div><span>Valor total</span><strong>R$ {{ compra.valor_total_compra or '0,00' }}</strong></div>
+                <div><span>Documento</span><strong>{{ compra.documento or '-' }}</strong></div>
+                <div><span>Responsável</span><strong>{{ compra.responsavel or '-' }}</strong></div>
+                <div><span>Status</span><select class="gf-status-select" data-status-operacional data-status-url="/estoque/compras/{{ compra.id }}/status" data-current="{{ compra.status }}" data-final-message="Receber/finalizar esta Compra? Após confirmar, o GestFlow efetivará o estoque e o financeiro conforme as configurações." style="--status-bg:{{ compra.status_fundo }};--status-text:{{ compra.status_texto_cor }};--status-border:{{ compra.status_borda }};" {% if compra.status_finalizado %}disabled{% endif %}>{% for status in compra_status_opcoes|default([]) %}<option value="{{ status.codigo }}" data-final="{{ 1 if status.final else 0 }}" data-bg="{{ status.fundo }}" data-text="{{ status.texto }}" data-border="{{ status.borda }}" {% if compra.status == status.codigo %}selected{% endif %}>{{ status.nome }}</option>{% endfor %}</select></div>
+                <div><span>Saldo anterior</span><strong>{{ compra.saldo_anterior or '0' }}</strong></div>
+                <div><span>Saldo após compra</span><strong>{{ compra.saldo_atual or '0' }}</strong></div>
+                <div><span>Cadastro</span><strong>{{ compra.criado_em_exibicao or compra.criado_em or '-' }}</strong></div>
+            </div>
+        </section>
+
+        <section class="panel page-section">
+            <div class="panel-header page-header"><div><h3>Observações</h3></div></div>
+            <p class="compra-observacoes">{{ compra.observacoes_compra or '-' }}</p>
+        </section>
+
+        {% if not compra.status_finalizado %}<section class="panel page-section">
+            <div class="form-actions">
+                <form action="/estoque/compras/{{ compra.id }}/excluir" method="post" onsubmit="return confirm('Excluir esta compra ainda não finalizada?');">
+                    <button type="submit" class="action-button delete" style="width:auto;padding:0 16px;">Excluir compra</button>
+                </form>
+            </div>
+        </section>{% endif %}
+
+{% set whatsapp_modulo = 'compra' %}
+{% set whatsapp_registro_id = compra.id %}
+{% set whatsapp_telefone = '' %}
+{% include 'partials/whatsapp_envio_modulo.html' %}
+</main>
+
+<script>
+(function gestflowStatusOperacional() {
+    function aplicarCor(select) {
+        const opcao = select.options[select.selectedIndex];
+        if (!opcao) return;
+        select.style.setProperty('--status-bg', opcao.dataset.bg || '#f1f5f9');
+        select.style.setProperty('--status-text', opcao.dataset.text || '#334155');
+        select.style.setProperty('--status-border', opcao.dataset.border || '#cbd5e1');
+    }
+
+    async function alterarStatus(select) {
+        const anterior = select.dataset.current || '';
+        const opcao = select.options[select.selectedIndex];
+        if (!opcao || select.value === anterior) { aplicarCor(select); return; }
+        const finalizador = opcao.dataset.final === '1';
+        if (finalizador) {
+            const mensagem = select.dataset.finalMessage || 'Confirmar a finalização deste registro?';
+            if (!window.confirm(mensagem)) {
+                select.value = anterior;
+                aplicarCor(select);
+                return;
+            }
+        }
+        select.disabled = true;
+        const dados = new URLSearchParams();
+        dados.append('status', select.value);
+        if (finalizador) dados.append('confirmar_finalizacao', 'sim');
+        try {
+            const resposta = await fetch(select.dataset.statusUrl, {
+                method: 'POST',
+                headers: {'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},
+                body: dados.toString()
+            });
+            const payload = await resposta.json();
+            if (!resposta.ok || !payload.ok) throw new Error(payload.erro || 'Não foi possível alterar o status.');
+            select.dataset.current = payload.status || select.value;
+            aplicarCor(select);
+            if (payload.mensagem) window.alert(payload.mensagem);
+            window.location.reload();
+        } catch (erro) {
+            select.value = anterior;
+            aplicarCor(select);
+            select.disabled = false;
+            window.alert(erro.message || 'Não foi possível alterar o status.');
+        }
+    }
+
+    document.querySelectorAll('[data-status-operacional]').forEach(function(select) {
+        aplicarCor(select);
+        select.addEventListener('change', function() { alterarStatus(select); });
+    });
+})();
+</script>
+
+</body>
+</html>

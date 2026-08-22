@@ -1,0 +1,2145 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\estoque.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Estoque</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+
+    <style>
+        html,
+        body {
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+
+        body {
+            min-width: 0;
+        }
+
+        .estoque-page {
+            width: auto;
+            max-width: 100%;
+            min-width: 0;
+            overflow-x: hidden;
+        }
+
+        .estoque-page *,
+        .estoque-page *::before,
+        .estoque-page *::after {
+            box-sizing: border-box;
+        }
+
+        .estoque-page .topbar,
+        .estoque-page .panel,
+        .estoque-page .page-section,
+        .estoque-page .table-panel,
+        .estoque-page .panel-header,
+        .estoque-page .page-header {
+            max-width: 100%;
+            min-width: 0;
+        }
+
+        .estoque-page .page-header {
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .estoque-page .page-header > div {
+            min-width: 0;
+        }
+
+        .estoque-page .page-title,
+        .estoque-page .page-subtitle {
+            overflow-wrap: anywhere;
+        }
+
+
+        .estoque-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .estoque-toolbar-left,
+        .estoque-toolbar-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .estoque-search {
+            min-width: 280px;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        .estoque-action-dark {
+            border: 0;
+            background: #071826;
+            color: #ffffff;
+            font-weight: 700;
+            border-radius: 8px;
+            padding: 10px 14px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .estoque-page .btn-light,
+        .estoque-page .btn-primary-green {
+            white-space: nowrap;
+        }
+
+        .estoque-card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 14px;
+            margin-bottom: 18px;
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+        }
+
+        .estoque-card {
+            background: #ffffff;
+            border: 1px solid #dbe3ef;
+            border-radius: 14px;
+            padding: 16px;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .estoque-card h4 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            color: #334155;
+        }
+
+        .estoque-card strong {
+            display: block;
+            font-size: 28px;
+            color: #0f172a;
+            margin-bottom: 6px;
+        }
+
+        .estoque-card span {
+            display: block;
+            color: #64748b;
+            font-size: 13px;
+        }
+
+        .estoque-card-warning {
+            border-color: #facc15;
+            background: #fefce8;
+        }
+
+        .estoque-card-danger {
+            border-color: #fecaca;
+            background: #fff1f2;
+        }
+
+        .estoque-card-success {
+            border-color: #bbf7d0;
+            background: #f0fdf4;
+        }
+
+        .estoque-tabs {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+            max-width: 100%;
+            min-width: 0;
+        }
+
+        .estoque-tab {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            color: #334155;
+            background: #ffffff;
+            border: 1px solid #dbe3ef;
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .estoque-tab.active {
+            background: #0f172a;
+            border-color: #0f172a;
+            color: #ffffff;
+        }
+
+        .estoque-two-columns {
+            display: grid;
+            grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+            gap: 18px;
+            align-items: start;
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+        }
+
+        .estoque-two-columns > * {
+            min-width: 0;
+            max-width: 100%;
+        }
+
+        .estoque-form {
+            display: grid;
+            gap: 14px;
+        }
+
+        .estoque-form label {
+            display: grid;
+            gap: 6px;
+            font-size: 13px;
+            color: #475569;
+            font-weight: 700;
+        }
+
+        .estoque-form input,
+        .estoque-form select,
+        .estoque-form textarea {
+            width: 100%;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 14px;
+            color: #0f172a;
+            background: #ffffff;
+            box-sizing: border-box;
+        }
+
+        .estoque-form textarea {
+            min-height: 82px;
+            resize: vertical;
+        }
+
+        .estoque-form-row {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .estoque-table-wrap {
+            display: block;
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .estoque-table-wrap table {
+            width: 100%;
+            min-width: 760px;
+        }
+
+        .estoque-table-wrap-produtos table {
+            min-width: 900px;
+        }
+
+        .tipo-pill {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 999px;
+            padding: 5px 10px;
+            font-size: 12px;
+            font-weight: 700;
+            background: #e2e8f0;
+            color: #334155;
+            white-space: nowrap;
+        }
+
+        .tipo-pill.entrada {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .tipo-pill.saida {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .tipo-pill.ajuste {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .estoque-mini-info {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            color: #64748b;
+            font-size: 13px;
+            margin-top: 6px;
+        }
+
+        .estoque-mini-info strong {
+            color: #0f172a;
+        }
+
+        @media (max-width: 1400px) {
+            .estoque-card-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .estoque-two-columns {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 1200px) {
+            .estoque-card-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .estoque-two-columns {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .estoque-card-grid,
+            .estoque-form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .estoque-search {
+                min-width: 100%;
+            }
+        }
+
+        .logout-button {
+            height: 36px;
+            padding: 0 14px;
+            border: 1px solid #d7e1ef;
+            border-radius: 10px;
+            background: #ffffff;
+            color: #dc2626;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 900;
+            text-decoration: none;
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .logout-button:hover {
+            background: #fff1f2;
+            border-color: #fecdd3;
+        }
+
+
+        .quick-modal-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 10000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: rgba(15, 23, 42, 0.45);
+        }
+
+        .quick-modal-backdrop.open {
+            display: flex;
+        }
+
+        .quick-modal {
+            width: min(460px, 100%);
+            background: #ffffff;
+            border-radius: 18px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+            padding: 18px;
+        }
+
+        .quick-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .quick-modal-header h3 {
+            margin: 0;
+            font-size: 18px;
+            color: #0f172a;
+        }
+
+        .quick-modal-header p {
+            margin: 4px 0 0;
+            color: #64748b;
+            font-size: 13px;
+        }
+
+        .quick-modal-close {
+            width: 34px;
+            height: 34px;
+            border: 0;
+            border-radius: 10px;
+            background: #f1f5f9;
+            color: #0f172a;
+            cursor: pointer;
+            font-weight: 800;
+        }
+
+        .quick-modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 14px;
+        }
+
+        .quick-modal-error {
+            display: none;
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 10px;
+            background: #fef2f2;
+            color: #991b1b;
+            font-weight: 700;
+            font-size: 13px;
+        }
+
+        .quick-modal-error.show {
+            display: block;
+        }
+
+        .quick-new-option {
+            font-weight: 800;
+            color: #16a34a;
+        }
+
+
+        .gestflow-form-error {
+            display: none;
+            margin: 12px 0;
+            padding: 12px 14px;
+            border-radius: 10px;
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+            font-weight: 700;
+            font-size: 13px;
+        }
+
+        .gestflow-form-error.show {
+            display: block;
+        }
+
+        .gestflow-campo-invalido {
+            border-color: #dc2626 !important;
+            box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.12);
+        }
+
+
+        .list-toolbar-paginada {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin: 14px 0 16px;
+        }
+
+        .list-search-form {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .list-search-form input,
+        .list-search-form select {
+            height: 38px;
+            border: 1px solid #d8dee9;
+            border-radius: 10px;
+            padding: 0 12px;
+            font-family: inherit;
+            font-size: 13px;
+        }
+
+        .clear-search-link {
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 800;
+            text-decoration: none;
+        }
+
+        .sortable-link {
+            color: inherit;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            text-decoration: none;
+        }
+
+        .sortable-link:hover {
+            color: #0f62fe;
+        }
+
+        .sort-indicator {
+            color: #0f62fe;
+            font-weight: 900;
+        }
+
+        .pagination-bar {
+            margin-top: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            font-size: 13px;
+            color: #475569;
+            font-weight: 800;
+        }
+
+        .pagination-links {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .pagination-links a,
+        .pagination-links span {
+            min-width: 34px;
+            height: 34px;
+            padding: 0 10px;
+            border: 1px solid #dbe4f0;
+            border-radius: 9px;
+            background: #ffffff;
+            color: #0f172a;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 900;
+            text-decoration: none;
+        }
+
+        .pagination-links a:hover {
+            background: #eff6ff;
+            border-color: #bfdbfe;
+            color: #0f62fe;
+        }
+
+        .pagination-links .current-page {
+            background: #0f62fe;
+            border-color: #0f62fe;
+            color: #ffffff;
+        }
+
+        .pagination-links .disabled-page {
+            color: #94a3b8;
+            background: #f8fafc;
+            cursor: not-allowed;
+        }
+
+
+        /* PADRAO VISUAL ORCAMENTOS - ESTOQUE */
+        .estoque-page {
+            padding-bottom: 280px;
+        }
+
+        .estoque-page .table-panel {
+            margin-bottom: 180px;
+        }
+
+        .estoque-lista-shell {
+            border: 0 !important;
+            border-radius: 16px;
+            overflow-x: auto;
+            background: #ffffff;
+        }
+
+        .estoque-lista-table {
+            width: 100% !important;
+            min-width: 100% !important;
+            border-collapse: separate !important;
+            border-spacing: 0 10px !important;
+        }
+
+        .estoque-lista-table thead th {
+            border-bottom: 0 !important;
+            background: transparent;
+            padding-bottom: 10px;
+        }
+
+        .estoque-lista-table tbody tr {
+            background: #ffffff;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+            border-radius: 14px;
+        }
+
+        .estoque-lista-table tbody td {
+            border-bottom: 0 !important;
+            padding-top: 14px !important;
+            padding-bottom: 14px !important;
+        }
+
+        .estoque-lista-table tbody td:first-child {
+            border-top-left-radius: 14px;
+            border-bottom-left-radius: 14px;
+        }
+
+        .estoque-lista-table tbody td:last-child {
+            border-top-right-radius: 14px;
+            border-bottom-right-radius: 14px;
+        }
+
+        .estoque-page input,
+        .estoque-page select,
+        .estoque-page textarea {
+            min-width: 0;
+            border-radius: 10px;
+        }
+
+        .estoque-compra-form-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .estoque-compra-form-grid .full {
+            grid-column: 1 / -1;
+        }
+
+        .estoque-compras-table {
+            min-width: 920px !important;
+        }
+
+        .estoque-compras-table td:last-child {
+            min-width: 132px;
+        }
+
+        @media (max-width: 1100px) {
+            .estoque-compra-form-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 720px) {
+            .estoque-compra-form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+
+        .gf-status-select {
+            min-width: 132px;
+            max-width: 190px;
+            height: 34px;
+            padding: 0 30px 0 10px;
+            border: 1px solid var(--status-border, #cbd5e1);
+            border-radius: 999px;
+            background-color: var(--status-bg, #f1f5f9);
+            color: var(--status-text, #334155);
+            font: inherit;
+            font-size: 12px;
+            font-weight: 850;
+            cursor: pointer;
+        }
+        .gf-status-select:disabled { cursor: default; opacity: .82; }
+
+    </style>
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+
+    <main class="content estoque-page gf-module-page">
+        {% set page_title = 'Estoque' %}
+        {% include "partials/topbar.html" %}
+
+        {% set painel_estoque = painel|default({}) %}
+        {% set produtos_lista = produtos|default([]) %}
+        {% set produtos_lista_tabela = produtos_paginados|default(produtos_lista, true) %}
+        {% set movimentacoes_lista = movimentacoes|default([]) %}
+        {% set compras_lista = compras|default([]) %}
+        {% set paginacao_produtos = paginacao_produtos|default({}, true) %}
+        {% set busca_produtos = busca_produtos|default('', true) %}
+        {% set ordenar_produtos = ordenar_produtos|default('id', true) %}
+        {% set direcao_produtos = direcao_produtos|default('desc', true) %}
+        {% set por_pagina_produtos = por_pagina_produtos|default(20, true) %}
+        {% set paginacao_movimentacoes = paginacao_movimentacoes|default({}, true) %}
+        {% set busca_movimentacoes = busca_movimentacoes|default('', true) %}
+        {% set ordenar_movimentacoes = ordenar_movimentacoes|default('id', true) %}
+        {% set direcao_movimentacoes = direcao_movimentacoes|default('desc', true) %}
+        {% set por_pagina_movimentacoes = por_pagina_movimentacoes|default(20, true) %}
+        {% set fornecedores_lista = fornecedores|default([]) %}
+        {% set aba_atual = aba|default('movimentacoes') %}
+
+        <section class="panel page-section gf-page-hero">
+            <div class="panel-header page-header gf-page-header">
+                <div>
+                    <span class="page-kicker">Estoque</span>
+                    {% if aba_atual == 'compras' %}
+                        <h3 class="page-title">Compras de produtos</h3>
+                        <p class="page-subtitle">Registre compra simples e aumente o estoque do produto.</p>
+                    {% elif aba_atual == 'ajustes' %}
+                        <h3 class="page-title">Ajustes de estoque</h3>
+                        <p class="page-subtitle">Atualização manual para conferência, perda, correção ou inventário.</p>
+                    {% else %}
+                        <h3 class="page-title">Produtos</h3>
+                        <p class="page-subtitle">Lista de produtos com saldo, valor, estoque e histórico de movimentações.</p>
+                    {% endif %}
+                </div>
+                <div class="estoque-toolbar-left">
+                    <a href="/produtos" class="btn-light">Gerenciar produtos</a>
+                    <a href="/estoque/ajustes" class="btn-primary-green">+ Adicionar</a>
+                </div>
+            </div>
+        </section>
+
+        <section class="cards cards-secondary page-section gf-stat-grid">
+            <div class="card stat-card">
+                <div class="card-icon">▧</div>
+                <div class="card-info">
+                    <p>{{ produtos_lista|length }}</p>
+                    <h3>Produtos</h3>
+                    <span>Itens cadastrados no estoque</span>
+                </div>
+            </div>
+            <div class="card stat-card">
+                <div class="card-icon">⌁</div>
+                <div class="card-info">
+                    <p>{{ movimentacoes_lista|length }}</p>
+                    <h3>Movimentações</h3>
+                    <span>Entradas, saídas e ajustes</span>
+                </div>
+            </div>
+            <div class="card stat-card">
+                <div class="card-icon">✓</div>
+                <div class="card-info">
+                    <p>{{ fornecedores_lista|length }}</p>
+                    <h3>Fornecedores</h3>
+                    <span>Base de fornecedores vinculados</span>
+                </div>
+            </div>
+        </section>
+
+
+        <section class="estoque-card-grid">
+            <div class="estoque-card">
+                <h4>Produtos cadastrados</h4>
+                <strong>{{ painel_estoque.total_produtos|default(0) }}</strong>
+                <span>Total de produtos no sistema</span>
+            </div>
+
+            <div class="estoque-card estoque-card-success">
+                <h4>Com estoque</h4>
+                <strong>{{ painel_estoque.produtos_com_estoque|default(0) }}</strong>
+                <span>Produtos com saldo maior que zero</span>
+            </div>
+
+            <div class="estoque-card estoque-card-warning">
+                <h4>Estoque baixo</h4>
+                <strong>{{ painel_estoque.produtos_baixo|default(0) }}</strong>
+                <span>Produtos abaixo do mínimo</span>
+            </div>
+
+            <div class="estoque-card estoque-card-danger">
+                <h4>Zerados</h4>
+                <strong>{{ painel_estoque.produtos_zerados|default(0) }}</strong>
+                <span>Produtos sem saldo</span>
+            </div>
+        </section>
+
+        <div class="estoque-tabs">
+            <a href="/estoque/movimentacoes" class="estoque-tab {% if aba_atual == 'movimentacoes' %}active{% endif %}">Movimentações</a>
+            <a href="/estoque/ajustes" class="estoque-tab {% if aba_atual == 'ajustes' %}active{% endif %}">Ajustes</a>
+            <a href="/estoque/compras" class="estoque-tab {% if aba_atual == 'compras' %}active{% endif %}">Compras</a>
+        </div>
+
+        {% if aba_atual == 'movimentacoes' %}
+            <section class="panel table-panel">
+                <div class="estoque-toolbar">
+                    <div class="estoque-toolbar-left">
+                        <a href="/estoque/ajustes" class="btn-primary-green">+ Adicionar</a>
+                        <a href="/estoque/compras" class="estoque-action-dark">Compras</a>
+                    </div>
+                    <div class="estoque-toolbar-right">
+                        <input class="estoque-search" type="text" id="busca-produto-estoque" placeholder="Buscar produto, código ou categoria">
+                        <button class="estoque-action-dark" type="button" onclick="filtrarProdutosEstoque()">🔍 Buscar</button>
+                    </div>
+                </div>
+
+                <div class="estoque-table-wrap estoque-table-wrap-produtos">
+                    <table class="client-table" id="tabela-produtos-estoque">
+                        <thead>
+                            <tr>
+                                <th><a href="{{ url_for('estoque', pagina=1, por_pagina=por_pagina_produtos, ordenar='codigo', direcao='desc' if ordenar_produtos == 'codigo' and direcao_produtos == 'asc' else 'asc', busca=busca_produtos) }}" class="sortable-link">Código {% if ordenar_produtos == 'codigo' %}<span class="sort-indicator">{{ '↑' if direcao_produtos == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                                <th><a href="{{ url_for('estoque', pagina=1, por_pagina=por_pagina_produtos, ordenar='nome', direcao='desc' if ordenar_produtos == 'nome' and direcao_produtos == 'asc' else 'asc', busca=busca_produtos) }}" class="sortable-link">Nome {% if ordenar_produtos == 'nome' %}<span class="sort-indicator">{{ '↑' if direcao_produtos == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                                <th><a href="{{ url_for('estoque', pagina=1, por_pagina=por_pagina_produtos, ordenar='preco_venda', direcao='desc' if ordenar_produtos == 'preco_venda' and direcao_produtos == 'asc' else 'asc', busca=busca_produtos) }}" class="sortable-link">Valor {% if ordenar_produtos == 'preco_venda' %}<span class="sort-indicator">{{ '↑' if direcao_produtos == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                                <th><a href="{{ url_for('estoque', pagina=1, por_pagina=por_pagina_produtos, ordenar='estoque_atual', direcao='desc' if ordenar_produtos == 'estoque_atual' and direcao_produtos == 'asc' else 'asc', busca=busca_produtos) }}" class="sortable-link">Estoque {% if ordenar_produtos == 'estoque_atual' %}<span class="sort-indicator">{{ '↑' if direcao_produtos == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                                <th>Mínimo</th>
+                                <th><a href="{{ url_for('estoque', pagina=1, por_pagina=por_pagina_produtos, ordenar='categoria', direcao='desc' if ordenar_produtos == 'categoria' and direcao_produtos == 'asc' else 'asc', busca=busca_produtos) }}" class="sortable-link">Categoria {% if ordenar_produtos == 'categoria' %}<span class="sort-indicator">{{ '↑' if direcao_produtos == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if produtos_lista %}
+                                {% for produto in produtos_lista_tabela %}
+                                    <tr>
+                                        <td>{{ produto.codigo or '-' }}</td>
+                                        <td>{{ produto.nome }}</td>
+                                        <td>{{ produto.preco_venda or '0,00' }}</td>
+                                        <td>{{ produto.estoque_atual or '0' }}</td>
+                                        <td>{{ produto.estoque_minimo or '0' }}</td>
+                                        <td>{{ produto.categoria or '-' }}</td>
+                                        <td>
+                                            <a href="/estoque/movimentacoes?produto_id={{ produto.id }}#historico" class="estoque-action-dark">⇄ Movimentações</a>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="7" class="empty-table">Nenhum produto cadastrado.</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                    <div class="pagination-bar">
+                        <div>{% if paginacao_produtos.total|default(0, true) > 0 %}Mostrando {{ paginacao_produtos.inicio }} a {{ paginacao_produtos.fim }} de {{ paginacao_produtos.total }}{% else %}Nenhum produto encontrado{% endif %}</div>
+                        {% if paginacao_produtos.total_paginas|default(1, true) > 1 %}<div class="pagination-links">{% if paginacao_produtos.tem_anterior %}<a href="{{ url_for('estoque', pagina=paginacao_produtos.anterior, por_pagina=por_pagina_produtos, ordenar=ordenar_produtos, direcao=direcao_produtos, busca=busca_produtos) }}">‹</a>{% else %}<span class="disabled-page">‹</span>{% endif %}{% for numero_pagina in paginacao_produtos.paginas %}{% if numero_pagina == paginacao_produtos.pagina %}<span class="current-page">{{ numero_pagina }}</span>{% else %}<a href="{{ url_for('estoque', pagina=numero_pagina, por_pagina=por_pagina_produtos, ordenar=ordenar_produtos, direcao=direcao_produtos, busca=busca_produtos) }}">{{ numero_pagina }}</a>{% endif %}{% endfor %}{% if paginacao_produtos.tem_proxima %}<a href="{{ url_for('estoque', pagina=paginacao_produtos.proxima, por_pagina=por_pagina_produtos, ordenar=ordenar_produtos, direcao=direcao_produtos, busca=busca_produtos) }}">›</a>{% else %}<span class="disabled-page">›</span>{% endif %}</div>{% endif %}
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel table-panel" id="historico" style="margin-top: 18px;">
+                <div class="panel-header page-header">
+                    <div>
+                        <h3>Histórico de movimentações</h3>
+                        {% if produto_selecionado %}
+                            <p class="page-subtitle">Movimentações do produto: <strong>{{ produto_selecionado.nome }}</strong>.</p>
+                            <div class="estoque-mini-info">
+                                <span>Código: <strong>{{ produto_selecionado.codigo or '-' }}</strong></span>
+                                <span>Saldo: <strong>{{ produto_selecionado.estoque_atual or '0' }}</strong></span>
+                                <span>Mínimo: <strong>{{ produto_selecionado.estoque_minimo or '0' }}</strong></span>
+                            </div>
+                        {% else %}
+                            <p class="page-subtitle">Últimas entradas, saídas e ajustes realizados.</p>
+                        {% endif %}
+                    </div>
+                    {% if produto_selecionado %}
+                        <a href="/estoque/movimentacoes#historico" class="btn-light">Ver todos</a>
+                    {% endif %}
+                </div>
+
+                <div class="estoque-table-wrap">
+                    <table class="client-table">
+                        <thead>
+                            <tr>
+                                <th><a href="{{ url_for('estoque', pagina=1, por_pagina=por_pagina_movimentacoes, ordenar='id', direcao='desc' if ordenar_movimentacoes == 'id' and direcao_movimentacoes == 'asc' else 'asc', busca=busca_movimentacoes) }}" class="sortable-link">ID {% if ordenar_movimentacoes == 'id' %}<span class="sort-indicator">{{ '↑' if direcao_movimentacoes == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                                <th><a href="{{ url_for('estoque', pagina=1, por_pagina=por_pagina_movimentacoes, ordenar='produto_nome', direcao='desc' if ordenar_movimentacoes == 'produto_nome' and direcao_movimentacoes == 'asc' else 'asc', busca=busca_movimentacoes) }}" class="sortable-link">Produto {% if ordenar_movimentacoes == 'produto_nome' %}<span class="sort-indicator">{{ '↑' if direcao_movimentacoes == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                                <th><a href="{{ url_for('estoque', pagina=1, por_pagina=por_pagina_movimentacoes, ordenar='tipo', direcao='desc' if ordenar_movimentacoes == 'tipo' and direcao_movimentacoes == 'asc' else 'asc', busca=busca_movimentacoes) }}" class="sortable-link">Tipo {% if ordenar_movimentacoes == 'tipo' %}<span class="sort-indicator">{{ '↑' if direcao_movimentacoes == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                                <th><a href="{{ url_for('estoque', pagina=1, por_pagina=por_pagina_movimentacoes, ordenar='quantidade', direcao='desc' if ordenar_movimentacoes == 'quantidade' and direcao_movimentacoes == 'asc' else 'asc', busca=busca_movimentacoes) }}" class="sortable-link">Quantidade {% if ordenar_movimentacoes == 'quantidade' %}<span class="sort-indicator">{{ '↑' if direcao_movimentacoes == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                                <th>Saldo anterior</th>
+                                <th>Saldo atual</th>
+                                <th><a href="{{ url_for('estoque', pagina=1, por_pagina=por_pagina_movimentacoes, ordenar='motivo', direcao='desc' if ordenar_movimentacoes == 'motivo' and direcao_movimentacoes == 'asc' else 'asc', busca=busca_movimentacoes) }}" class="sortable-link">Motivo {% if ordenar_movimentacoes == 'motivo' %}<span class="sort-indicator">{{ '↑' if direcao_movimentacoes == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                                <th><a href="{{ url_for('estoque', pagina=1, por_pagina=por_pagina_movimentacoes, ordenar='responsavel', direcao='desc' if ordenar_movimentacoes == 'responsavel' and direcao_movimentacoes == 'asc' else 'asc', busca=busca_movimentacoes) }}" class="sortable-link">Responsável {% if ordenar_movimentacoes == 'responsavel' %}<span class="sort-indicator">{{ '↑' if direcao_movimentacoes == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                                <th><a href="{{ url_for('estoque', pagina=1, por_pagina=por_pagina_movimentacoes, ordenar='criado_em', direcao='desc' if ordenar_movimentacoes == 'criado_em' and direcao_movimentacoes == 'asc' else 'asc', busca=busca_movimentacoes) }}" class="sortable-link">Data {% if ordenar_movimentacoes == 'criado_em' %}<span class="sort-indicator">{{ '↑' if direcao_movimentacoes == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if movimentacoes_lista %}
+                                {% for mov in movimentacoes_lista %}
+                                    <tr>
+                                        <td>{{ mov.id }}</td>
+                                        <td>{{ mov.produto_nome or '-' }}</td>
+                                        <td><span class="tipo-pill {{ mov.tipo }}">{{ mov.tipo }}</span></td>
+                                        <td>{{ mov.quantidade or '0' }}</td>
+                                        <td>{{ mov.saldo_anterior or '0' }}</td>
+                                        <td>{{ mov.saldo_atual or '0' }}</td>
+                                        <td>{{ mov.motivo or '-' }}</td>
+                                        <td>{{ mov.responsavel or '-' }}</td>
+                                        <td>{{ mov.criado_em or '-' }}</td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="9" class="empty-table">Nenhuma movimentação de estoque registrada.</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        {% elif aba_atual == 'ajustes' %}
+            <section class="estoque-two-columns">
+                <div class="panel table-panel">
+                    <div class="panel-header page-header">
+                        <div>
+                            <h3>Novo ajuste</h3>
+                            <p class="page-subtitle">Entrada, saída ou ajuste manual do saldo.</p>
+                        </div>
+                    </div>
+
+                    <form id="form-movimentar-estoque" class="estoque-form" action="/estoque/movimentar" method="post">
+                        <div class="gestflow-form-error{% if request.args.get('erro') and aba_atual != 'compras' %} show{% endif %}" data-form-error>{% if request.args.get('erro') and aba_atual != 'compras' %}{{ request.args.get('erro') }}{% endif %}</div>
+                        <label>
+                            Produto
+                            <select name="estoque_produto_id" class="quick-produto-select" required>
+                                <option value="">Selecione um produto</option>
+                                {% for produto in produtos_lista %}
+                                    <option value="{{ produto.id }}">{{ produto.nome }}{% if produto.codigo %} - {{ produto.codigo }}{% endif %}</option>
+                                {% endfor %}
+                                <option value="__novo_produto__" class="quick-new-option">+ Adicionar novo produto</option>
+                            </select>
+                        </label>
+
+                        <div class="estoque-form-row">
+                            <label>
+                                Tipo
+                                <select name="estoque_tipo" required>
+                                    <option value="entrada">Entrada</option>
+                                    <option value="saida">Saída</option>
+                                    <option value="ajuste">Ajuste manual</option>
+                                </select>
+                            </label>
+
+                            <label>
+                                Quantidade / saldo
+                                <input type="text" name="estoque_quantidade" placeholder="Ex: 10" required>
+                            </label>
+                        </div>
+
+                        <label>
+                            Motivo
+                            <input type="text" name="estoque_motivo" placeholder="Ex: perda, conferência, inventário, correção" required>
+                        </label>
+
+                        <div class="estoque-form-row">
+                            <label>
+                                Documento
+                                <input type="text" name="estoque_documento" placeholder="NF, pedido, OS ou venda">
+                            </label>
+
+                            <label>
+                                Responsável
+                                <select name="estoque_responsavel" class="form-control quick-responsavel-select" required>
+                                            <option value="">Selecione</option>
+                                            {% for funcionario in funcionarios|default([]) %}
+                                                <option value="{{ funcionario.nome }}">{{ funcionario.nome }}</option>
+                                            {% endfor %}
+                                            <option value="__novo_responsavel__" class="quick-new-option">+ Adicionar novo responsável</option>
+                                        </select>
+                            </label>
+                        </div>
+
+                        <label>
+                            Observações
+                            <textarea name="estoque_observacoes" placeholder="Informações internas da movimentação"></textarea>
+                        </label>
+
+                        <button type="submit" class="btn-primary-green">Salvar ajuste</button>
+                    </form>
+                </div>
+
+                <div class="panel table-panel">
+                    <div class="panel-header page-header">
+                        <div>
+                            <h3>Últimos ajustes e movimentações</h3>
+                            <p class="page-subtitle">Histórico rápido para conferência.</p>
+                        </div>
+                    </div>
+
+                    <div class="estoque-table-wrap">
+                        <table class="client-table">
+                            <thead>
+                                <tr>
+                                    <th>Produto</th>
+                                    <th>Tipo</th>
+                                    <th>Qtd.</th>
+                                    <th>Saldo atual</th>
+                                    <th>Motivo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if movimentacoes_lista %}
+                                    {% for mov in movimentacoes_lista[:10] %}
+                                        <tr>
+                                            <td>{{ mov.produto_nome or '-' }}</td>
+                                            <td><span class="tipo-pill {{ mov.tipo }}">{{ mov.tipo }}</span></td>
+                                            <td>{{ mov.quantidade or '0' }}</td>
+                                            <td>{{ mov.saldo_atual or '0' }}</td>
+                                            <td>{{ mov.motivo or '-' }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="5" class="empty-table">Nenhum ajuste registrado.</td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        {% else %}
+            {% if request.args.get('sucesso') %}<div class="form-alert-success">{{ request.args.get('sucesso') }}</div>{% endif %}
+            {% if request.args.get('erro') %}<div class="form-alert-error">{{ request.args.get('erro') }}</div>{% endif %}
+
+            <section class="panel page-section">
+                <div class="panel-header page-header">
+                    <div>
+                        <h3>Nova compra de produto</h3>
+                        <p class="page-subtitle">Registre a compra no fluxo. Estoque e financeiro só são efetivados no status finalizador.</p>
+                    </div>
+                    <span class="badge-info">Fluxo de compra</span>
+                </div>
+
+                <form id="form-comprar-estoque" class="estoque-form" action="/estoque/comprar" method="post">
+                    <div class="gestflow-form-error" data-form-error></div>
+                    <div class="estoque-compra-form-grid">
+                        <label>
+                            Produto
+                            <select name="compra_produto_id" class="quick-produto-select" required>
+                                <option value="">Selecione um produto</option>
+                                {% for produto in produtos_lista %}
+                                    <option value="{{ produto.id }}">{{ produto.nome }}{% if produto.codigo %} - {{ produto.codigo }}{% endif %}</option>
+                                {% endfor %}
+                                <option value="__novo_produto__" class="quick-new-option">+ Adicionar novo produto</option>
+                            </select>
+                        </label>
+
+                        <label>
+                            Fornecedor
+                            <select name="compra_fornecedor" class="quick-fornecedor-select">
+                                <option value="">Selecione ou deixe em branco</option>
+                                {% for fornecedor in fornecedores_lista %}
+                                    <option value="{{ fornecedor.nome }}">{{ fornecedor.nome }}</option>
+                                {% endfor %}
+                                <option value="__novo_fornecedor__" class="quick-new-option">+ Adicionar novo fornecedor</option>
+                            </select>
+                        </label>
+
+                        <label>
+                            Responsável
+                            <select name="compra_responsavel" class="form-control quick-responsavel-select" required>
+                                <option value="">Selecione</option>
+                                {% for funcionario in funcionarios|default([]) %}
+                                    <option value="{{ funcionario.nome }}">{{ funcionario.nome }}</option>
+                                {% endfor %}
+                                <option value="__novo_responsavel__" class="quick-new-option">+ Adicionar novo responsável</option>
+                            </select>
+                        </label>
+
+                        <label>
+                            Status inicial
+                            <select name="compra_status" required>
+                                {% for status in compra_status_opcoes|default([]) %}{% if not status.final %}<option value="{{ status.codigo }}" {% if compra_status_inicial == status.codigo %}selected{% endif %}>{{ status.nome }}</option>{% endif %}{% endfor %}
+                            </select>
+                        </label>
+
+                        <label>
+                            Quantidade
+                            <input type="text" name="compra_quantidade" placeholder="Ex: 10" required>
+                        </label>
+
+                        <label>
+                            Valor de custo unitário
+                            <input type="text" name="compra_valor_custo" placeholder="Ex: 100,00">
+                        </label>
+
+                        <label>
+                            Documento
+                            <input type="text" name="compra_documento" placeholder="NF, pedido ou recibo">
+                        </label>
+
+                        <label class="full">
+                            Observações
+                            <textarea name="compra_observacoes" placeholder="Condição de compra, prazo, fornecedor alternativo etc."></textarea>
+                        </label>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="reset" class="btn-light">Limpar</button>
+                        <button type="submit" class="btn-primary-green">Salvar compra</button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="panel table-panel">
+                <div class="panel-header page-header">
+                    <div>
+                        <h3>Compras registradas</h3>
+                        <p class="page-subtitle">Acompanhe o status das compras. A entrada no estoque e o financeiro só são efetivados no status finalizador.</p>
+                    </div>
+                </div>
+
+                <div class="estoque-table-wrap estoque-lista-shell">
+                    <table class="client-table estoque-lista-table estoque-compras-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Produto</th>
+                                <th>Fornecedor</th>
+                                <th>Quantidade</th>
+                                <th>Custo unit.</th>
+                                <th>Total</th>
+                                <th>Documento</th>
+                                <th>Responsável</th>
+                                <th>Status</th>
+                                <th>Data</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if compras_lista %}
+                                {% for compra in compras_lista %}
+                                    <tr>
+                                        <td>{{ compra.id }}</td>
+                                        <td>{{ compra.produto_nome or '-' }}</td>
+                                        <td>{{ compra.fornecedor or '-' }}</td>
+                                        <td>{{ compra.quantidade or '0' }}</td>
+                                        <td>R$ {{ compra.valor_custo or '0,00' }}</td>
+                                        <td>R$ {{ compra.valor_total_compra or '0,00' }}</td>
+                                        <td>{{ compra.documento or '-' }}</td>
+                                        <td>{{ compra.responsavel or '-' }}</td>
+                                        <td>
+                                            <select class="gf-status-select" data-status-operacional data-status-url="/estoque/compras/{{ compra.id }}/status" data-current="{{ compra.status }}" data-final-message="Receber/finalizar esta Compra? Após confirmar, o GestFlow efetivará o estoque e o financeiro conforme as configurações." style="--status-bg:{{ compra.status_fundo }};--status-text:{{ compra.status_texto_cor }};--status-border:{{ compra.status_borda }};" {% if compra.status_finalizado %}disabled{% endif %}>
+                                                {% for status in compra_status_opcoes|default([]) %}<option value="{{ status.codigo }}" data-final="{{ 1 if status.final else 0 }}" data-bg="{{ status.fundo }}" data-text="{{ status.texto }}" data-border="{{ status.borda }}" {% if compra.status == status.codigo %}selected{% endif %}>{{ status.nome }}</option>{% endfor %}
+                                            </select>
+                                        </td>
+                                        <td>{{ compra.criado_em_exibicao or compra.criado_em or '-' }}</td>
+                                        <td>
+                                            <div class="action-buttons">
+                                                <a href="/estoque/compras/{{ compra.id }}" title="Ver compra" aria-label="Ver compra" class="action-button view">🔍</a>
+                                                {% if not compra.status_finalizado %}<a href="/estoque/compras/{{ compra.id }}/editar" title="Editar compra" aria-label="Editar compra" class="action-button edit">✎</a>{% endif %}
+                                                <a href="/whatsapp/pdf/compra/{{ compra.id }}" title="Enviar PDF pelo WhatsApp" aria-label="Enviar PDF pelo WhatsApp" class="action-button" style="background:#128c7e;color:#fff;text-decoration:none;">📲</a>
+                                                {% if not compra.status_finalizado %}<form action="/estoque/compras/{{ compra.id }}/excluir" method="post" class="action-form" onsubmit="return confirm('Excluir esta compra ainda não finalizada?');">
+                                                    <button type="submit" title="Excluir compra" aria-label="Excluir compra" class="action-button delete">×</button>
+                                                </form>{% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="11" class="empty-table">Nenhuma compra registrada.</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        {% endif %}
+
+
+        <div id="quick-cliente-modal" class="quick-modal-backdrop" aria-hidden="true">
+            <div class="quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-cliente-title">
+                <div class="quick-modal-header">
+                    <div>
+                        <h3 id="quick-cliente-title">Novo cliente</h3>
+                        <p>Cadastro rápido sem sair da tela atual.</p>
+                    </div>
+                    <button type="button" class="quick-modal-close" onclick="fecharModalClienteRapidoGeral()">×</button>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="quick-cliente-nome">Nome *</label>
+                        <input id="quick-cliente-nome" type="text" class="form-control" placeholder="Ex: Cliente ABC">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-cliente-documento">CPF / CNPJ</label>
+                        <input id="quick-cliente-documento" type="text" class="form-control" placeholder="Documento do cliente">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-cliente-telefone">Telefone</label>
+                        <input id="quick-cliente-telefone" type="text" class="form-control" placeholder="WhatsApp ou telefone">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-cliente-email">E-mail</label>
+                        <input id="quick-cliente-email" type="text" class="form-control" placeholder="email@cliente.com">
+                    </div>
+                </div>
+
+                <div id="quick-cliente-error" class="quick-modal-error"></div>
+
+                <div class="quick-modal-actions">
+                    <button type="button" class="btn-light" onclick="fecharModalClienteRapidoGeral()">Cancelar</button>
+                    <button type="button" class="btn-primary-green" onclick="salvarClienteRapidoGeral()">Salvar cliente</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="quick-responsavel-modal" class="quick-modal-backdrop" aria-hidden="true">
+            <div class="quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-responsavel-title">
+                <div class="quick-modal-header">
+                    <div>
+                        <h3 id="quick-responsavel-title">Novo responsável</h3>
+                        <p>Cadastro rápido de funcionário sem sair da tela atual.</p>
+                    </div>
+                    <button type="button" class="quick-modal-close" onclick="fecharModalResponsavelRapidoGeral()">×</button>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="quick-responsavel-nome">Nome *</label>
+                        <input id="quick-responsavel-nome" type="text" class="form-control" placeholder="Ex: Vendedor ou técnico">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-responsavel-cargo">Cargo</label>
+                        <input id="quick-responsavel-cargo" type="text" class="form-control" placeholder="Ex: Vendedor, técnico">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-responsavel-telefone">Telefone</label>
+                        <input id="quick-responsavel-telefone" type="text" class="form-control" placeholder="WhatsApp ou telefone">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-responsavel-email">E-mail</label>
+                        <input id="quick-responsavel-email" type="text" class="form-control" placeholder="email@empresa.com">
+                    </div>
+                </div>
+
+                <div id="quick-responsavel-error" class="quick-modal-error"></div>
+
+                <div class="quick-modal-actions">
+                    <button type="button" class="btn-light" onclick="fecharModalResponsavelRapidoGeral()">Cancelar</button>
+                    <button type="button" class="btn-primary-green" onclick="salvarResponsavelRapidoGeral()">Salvar responsável</button>
+                </div>
+            </div>
+        </div>
+
+
+
+        <div id="quick-fornecedor-modal" class="quick-modal-backdrop" aria-hidden="true">
+            <div class="quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-fornecedor-title">
+                <div class="quick-modal-header">
+                    <div>
+                        <h3 id="quick-fornecedor-title">Novo fornecedor</h3>
+                        <p>Cadastro rápido sem sair da tela.</p>
+                    </div>
+                    <button type="button" class="quick-modal-close" onclick="fecharModalFornecedorRapidoGeral()">×</button>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="quick-fornecedor-nome">Nome *</label>
+                        <input id="quick-fornecedor-nome" type="text" class="form-control" placeholder="Ex: Fornecedor ABC">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-fornecedor-documento">CPF / CNPJ</label>
+                        <input id="quick-fornecedor-documento" type="text" class="form-control" placeholder="Documento do fornecedor">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-fornecedor-telefone">Telefone</label>
+                        <input id="quick-fornecedor-telefone" type="text" class="form-control" placeholder="WhatsApp ou telefone">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-fornecedor-email">E-mail</label>
+                        <input id="quick-fornecedor-email" type="text" class="form-control" placeholder="email@fornecedor.com">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-fornecedor-categoria">Categoria *</label>
+                        <select id="quick-fornecedor-categoria" class="form-control" required>
+                            <option value="">Selecione a categoria</option>
+                            <option value="Material elétrico">Material elétrico</option>
+                            <option value="Material mecânico">Material mecânico</option>
+                            <option value="Serviços">Serviços</option>
+                            <option value="Transporte">Transporte</option>
+                            <option value="Ferramentas">Ferramentas</option>
+                            <option value="EPI">EPI</option>
+                            <option value="Outros">Outros</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="quick-fornecedor-error" class="quick-modal-error"></div>
+
+                <div class="quick-modal-actions">
+                    <button type="button" class="btn-light" onclick="fecharModalFornecedorRapidoGeral()">Cancelar</button>
+                    <button type="button" class="btn-primary-green" onclick="salvarFornecedorRapidoGeral()">Salvar fornecedor</button>
+                </div>
+            </div>
+        </div>
+
+
+
+        <div id="quick-item-modal" class="quick-modal-backdrop" aria-hidden="true">
+            <div class="quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-item-title">
+                <div class="quick-modal-header">
+                    <div>
+                        <h3 id="quick-item-title">Novo item</h3>
+                        <p id="quick-item-subtitle">Cadastro rápido sem sair da tela.</p>
+                    </div>
+                    <button type="button" class="quick-modal-close" onclick="fecharModalItemRapidoGeral()">×</button>
+                </div>
+
+                <input id="quick-item-tipo" type="hidden" value="produto">
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="quick-item-nome">Nome *</label>
+                        <input id="quick-item-nome" type="text" class="form-control" placeholder="Ex: material, produto ou serviço">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-item-valor">Valor de venda</label>
+                        <input id="quick-item-valor" type="text" class="form-control" placeholder="0,00">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-item-categoria">Categoria</label>
+                        <input id="quick-item-categoria" type="text" class="form-control" placeholder="Ex: Serviço técnico">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-item-unidade">Unidade</label>
+                        <input id="quick-item-unidade" type="text" class="form-control" placeholder="un">
+                    </div>
+
+                    <div class="form-group form-span-2">
+                        <label for="quick-item-observacoes">Descrição / observação</label>
+                        <input id="quick-item-observacoes" type="text" class="form-control" placeholder="Resumo do item">
+                    </div>
+                </div>
+
+                <div id="quick-item-error" class="quick-modal-error"></div>
+
+                <div class="quick-modal-actions">
+                    <button type="button" class="btn-light" onclick="fecharModalItemRapidoGeral()">Cancelar</button>
+                    <button type="button" class="btn-primary-green" onclick="salvarItemRapidoGeral()">Salvar item</button>
+                </div>
+            </div>
+        </div>
+
+</main>
+
+    <script>
+        function filtrarProdutosEstoque() {
+            const busca = document.getElementById("busca-produto-estoque");
+            const tabela = document.getElementById("tabela-produtos-estoque");
+
+            if (!busca || !tabela) {
+                return;
+            }
+
+            const termo = busca.value.toLowerCase().trim();
+            const linhas = tabela.querySelectorAll("tbody tr");
+
+            linhas.forEach((linha) => {
+                const texto = linha.innerText.toLowerCase();
+                linha.style.display = texto.includes(termo) ? "" : "none";
+            });
+        }
+
+        const campoBuscaProdutoEstoque = document.getElementById("busca-produto-estoque");
+
+        if (campoBuscaProdutoEstoque) {
+            campoBuscaProdutoEstoque.addEventListener("input", filtrarProdutosEstoque);
+        }
+    </script>
+
+        <script>
+            function gestflowValorNumero(valor) {
+                let texto = String(valor || "").trim();
+
+                if (!texto) {
+                    return 0;
+                }
+
+                texto = texto.replace("R$", "").replace(/\s/g, "");
+
+                if (texto.includes(",")) {
+                    texto = texto.replace(/\./g, "").replace(",", ".");
+                }
+
+                const numero = Number.parseFloat(texto);
+                return Number.isFinite(numero) ? numero : 0;
+            }
+
+            function gestflowLimparErrosFormulario(formulario) {
+                formulario.querySelectorAll(".gestflow-campo-invalido").forEach(function(campo) {
+                    campo.classList.remove("gestflow-campo-invalido");
+                });
+
+                const erroBox = formulario.querySelector("[data-form-error]");
+
+                if (erroBox) {
+                    erroBox.textContent = "";
+                    erroBox.classList.remove("show");
+                }
+            }
+
+            function gestflowExibirErroFormulario(formulario, mensagem, campo) {
+                const erroBox = formulario.querySelector("[data-form-error]");
+
+                if (erroBox) {
+                    erroBox.textContent = mensagem;
+                    erroBox.classList.add("show");
+                    erroBox.scrollIntoView({ behavior: "smooth", block: "center" });
+                } else {
+                    alert(mensagem);
+                }
+
+                if (campo) {
+                    campo.classList.add("gestflow-campo-invalido");
+                    campo.focus();
+                }
+            }
+
+            function gestflowCampoObrigatorio(formulario, seletor, mensagem) {
+                const campo = formulario.querySelector(seletor);
+
+                if (!campo) {
+                    return "";
+                }
+
+                const valor = String(campo.value || "").trim();
+
+                if (!valor || valor.startsWith("__novo")) {
+                    gestflowExibirErroFormulario(formulario, mensagem, campo);
+                    return mensagem;
+                }
+
+                return "";
+            }
+
+            function gestflowExisteItemValido(formulario, exigirValor) {
+                const linhas = formulario.querySelectorAll("tbody tr");
+
+                for (const linha of linhas) {
+                    const descricao = linha.querySelector('[name="item_descricao"]');
+                    const quantidade = linha.querySelector('[name="item_quantidade"]');
+                    const valor = linha.querySelector('[name="item_valor_unitario"]');
+
+                    if (!descricao) {
+                        continue;
+                    }
+
+                    const descricaoValor = String(descricao.value || "").trim();
+
+                    if (!descricaoValor || descricaoValor.startsWith("__novo")) {
+                        continue;
+                    }
+
+                    const quantidadeNumero = gestflowValorNumero(quantidade ? quantidade.value : "");
+                    const valorNumero = gestflowValorNumero(valor ? valor.value : "");
+
+                    if (quantidadeNumero > 0 && (!exigirValor || valorNumero > 0)) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            function gestflowTravarFormularioDocumento(configuracao) {
+                const formulario = document.getElementById(configuracao.formId);
+
+                if (!formulario) {
+                    return;
+                }
+
+                formulario.addEventListener("submit", function(evento) {
+                    gestflowLimparErrosFormulario(formulario);
+
+                    for (const campo of configuracao.camposObrigatorios) {
+                        const erro = gestflowCampoObrigatorio(formulario, campo.seletor, campo.mensagem);
+
+                        if (erro) {
+                            evento.preventDefault();
+                            return;
+                        }
+                    }
+
+                    if (configuracao.exigirItem && !gestflowExisteItemValido(formulario, configuracao.exigirValorItem !== false)) {
+                        evento.preventDefault();
+                        gestflowExibirErroFormulario(formulario, configuracao.mensagemItem || "Adicione pelo menos um item válido com quantidade e valor.");
+                        return;
+                    }
+
+                    if (configuracao.exigirItemOuRelato && !gestflowExisteItemValido(formulario, false)) {
+                        const relato = formulario.querySelector('[name="os_relato_cliente"]');
+                        const diagnostico = formulario.querySelector('[name="os_diagnostico"]');
+                        const executado = formulario.querySelector('[name="os_servico_executado"]');
+                        const temRelato = [relato, diagnostico, executado].some(function(campo) {
+                            return campo && String(campo.value || "").trim();
+                        });
+
+                        if (!temRelato) {
+                            evento.preventDefault();
+                            gestflowExibirErroFormulario(formulario, "Informe ao menos um item, relato do cliente, diagnóstico ou serviço executado.");
+                            return;
+                        }
+                    }
+
+                    if (configuracao.totalSeletor) {
+                        const total = formulario.querySelector(configuracao.totalSeletor);
+
+                        if (total && gestflowValorNumero(total.value) <= 0) {
+                            evento.preventDefault();
+                            gestflowExibirErroFormulario(formulario, configuracao.mensagemTotal || "O valor total precisa ser maior que zero.", total);
+                        }
+                    }
+                });
+            }
+        </script>
+
+
+    <script>
+        function validarFormularioEstoque(formId, configuracao) {
+            const formulario = document.getElementById(formId);
+
+            if (!formulario) {
+                return;
+            }
+
+            formulario.addEventListener("submit", function(evento) {
+                gestflowLimparErrosFormulario(formulario);
+
+                for (const campo of configuracao.camposObrigatorios) {
+                    const erro = gestflowCampoObrigatorio(formulario, campo.seletor, campo.mensagem);
+
+                    if (erro) {
+                        evento.preventDefault();
+                        return;
+                    }
+                }
+
+                const quantidade = formulario.querySelector(configuracao.quantidadeSeletor);
+
+                if (quantidade && gestflowValorNumero(quantidade.value) <= 0) {
+                    evento.preventDefault();
+                    gestflowExibirErroFormulario(formulario, "Informe uma quantidade maior que zero.", quantidade);
+                }
+            });
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            validarFormularioEstoque("form-movimentar-estoque", {
+                quantidadeSeletor: '[name="estoque_quantidade"]',
+                camposObrigatorios: [
+                    { seletor: '[name="estoque_produto_id"]', mensagem: "Selecione um produto para movimentar o estoque." },
+                    { seletor: '[name="estoque_tipo"]', mensagem: "Selecione o tipo da movimentação." },
+                    { seletor: '[name="estoque_motivo"]', mensagem: "Informe o motivo da movimentação." },
+                    { seletor: '[name="estoque_responsavel"]', mensagem: "Selecione o responsável pela movimentação." }
+                ]
+            });
+
+            validarFormularioEstoque("form-comprar-estoque", {
+                quantidadeSeletor: '[name="compra_quantidade"]',
+                camposObrigatorios: [
+                    { seletor: '[name="compra_produto_id"]', mensagem: "Selecione um produto para registrar a compra." },
+                    { seletor: '[name="compra_responsavel"]', mensagem: "Selecione o responsável pela compra." }
+                ]
+            });
+        });
+    </script>
+
+
+
+<script>
+(function() {
+    "use strict";
+
+    let gestflowClienteSelectAtual = null;
+    let gestflowResponsavelSelectAtual = null;
+    let gestflowFornecedorSelectAtual = null;
+
+    function abrirModalPorId(id) {
+        const modal = document.getElementById(id);
+        if (!modal) {
+            return;
+        }
+        modal.classList.add("open");
+        modal.setAttribute("aria-hidden", "false");
+        const primeiroCampo = modal.querySelector("input, select, textarea");
+        if (primeiroCampo) {
+            setTimeout(function() { primeiroCampo.focus(); }, 80);
+        }
+    }
+
+    function fecharModalPorId(id) {
+        const modal = document.getElementById(id);
+        if (!modal) {
+            return;
+        }
+        modal.classList.remove("open");
+        modal.setAttribute("aria-hidden", "true");
+    }
+
+    function limparErro(id) {
+        const erroBox = document.getElementById(id);
+        if (erroBox) {
+            erroBox.textContent = "";
+            erroBox.classList.remove("show");
+        }
+    }
+
+    function mostrarErro(id, mensagem) {
+        const erroBox = document.getElementById(id);
+        if (erroBox) {
+            erroBox.textContent = mensagem;
+            erroBox.classList.add("show");
+        } else {
+            alert(mensagem);
+        }
+    }
+
+    function adicionarOpcaoSelecionada(selects, valor, texto, selectAtual) {
+        document.querySelectorAll(selects).forEach(function(select) {
+            let opcaoExistente = Array.from(select.options).find(function(opcao) {
+                return opcao.value === valor;
+            });
+
+            if (!opcaoExistente) {
+                opcaoExistente = document.createElement("option");
+                opcaoExistente.value = valor;
+                opcaoExistente.textContent = texto;
+                const primeiraOpcaoNova = Array.from(select.options).find(function(opcao) {
+                    return String(opcao.value || "").startsWith("__novo");
+                });
+                if (primeiraOpcaoNova) {
+                    select.insertBefore(opcaoExistente, primeiraOpcaoNova);
+                } else {
+                    select.appendChild(opcaoExistente);
+                }
+            }
+
+            if (select === selectAtual) {
+                select.value = valor;
+                select.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+        });
+    }
+
+    window.abrirModalClienteRapidoGeral = function(selectOrigem) {
+        gestflowClienteSelectAtual = selectOrigem || gestflowClienteSelectAtual || document.querySelector(".quick-cliente-select");
+        limparErro("quick-cliente-error");
+        ["quick-cliente-nome", "quick-cliente-documento", "quick-cliente-telefone", "quick-cliente-email"].forEach(function(id) {
+            const campo = document.getElementById(id);
+            if (campo) { campo.value = ""; }
+        });
+        abrirModalPorId("quick-cliente-modal");
+    };
+
+    window.fecharModalClienteRapidoGeral = function() {
+        fecharModalPorId("quick-cliente-modal");
+        if (gestflowClienteSelectAtual && String(gestflowClienteSelectAtual.value || "").startsWith("__novo")) {
+            gestflowClienteSelectAtual.value = "";
+        }
+    };
+
+    window.abrirModalResponsavelRapidoGeral = function(selectOrigem) {
+        gestflowResponsavelSelectAtual = selectOrigem || gestflowResponsavelSelectAtual || document.querySelector(".quick-responsavel-select");
+        limparErro("quick-responsavel-error");
+        ["quick-responsavel-nome", "quick-responsavel-cargo", "quick-responsavel-telefone", "quick-responsavel-email"].forEach(function(id) {
+            const campo = document.getElementById(id);
+            if (campo) { campo.value = ""; }
+        });
+        abrirModalPorId("quick-responsavel-modal");
+    };
+
+    window.fecharModalResponsavelRapidoGeral = function() {
+        fecharModalPorId("quick-responsavel-modal");
+        if (gestflowResponsavelSelectAtual && String(gestflowResponsavelSelectAtual.value || "").startsWith("__novo")) {
+            gestflowResponsavelSelectAtual.value = "";
+        }
+    };
+
+    window.abrirModalFornecedorRapidoGeral = function(selectOrigem) {
+        gestflowFornecedorSelectAtual = selectOrigem || gestflowFornecedorSelectAtual || document.querySelector(".quick-fornecedor-select");
+        limparErro("quick-fornecedor-error");
+        ["quick-fornecedor-nome", "quick-fornecedor-documento", "quick-fornecedor-telefone", "quick-fornecedor-email", "quick-fornecedor-categoria"].forEach(function(id) {
+            const campo = document.getElementById(id);
+            if (campo) { campo.value = ""; }
+        });
+        abrirModalPorId("quick-fornecedor-modal");
+    };
+
+    window.fecharModalFornecedorRapidoGeral = function() {
+        fecharModalPorId("quick-fornecedor-modal");
+        if (gestflowFornecedorSelectAtual && String(gestflowFornecedorSelectAtual.value || "").startsWith("__novo")) {
+            gestflowFornecedorSelectAtual.value = "";
+        }
+    };
+
+    window.salvarClienteRapidoGeral = function() {
+        const nome = (document.getElementById("quick-cliente-nome")?.value || "").trim();
+        const documento = (document.getElementById("quick-cliente-documento")?.value || "").trim();
+        const telefone = (document.getElementById("quick-cliente-telefone")?.value || "").trim();
+        const email = (document.getElementById("quick-cliente-email")?.value || "").trim();
+
+        if (!nome) {
+            mostrarErro("quick-cliente-error", "Informe o nome do cliente.");
+            return;
+        }
+
+        const dados = new URLSearchParams();
+        dados.append("nome", nome);
+        dados.append("documento", documento);
+        dados.append("telefone", telefone);
+        dados.append("email", email);
+
+        fetch("/clientes/rapido", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+            body: dados.toString()
+        })
+            .then(function(resposta) {
+                return resposta.json().then(function(payload) {
+                    if (!resposta.ok || !payload.ok) {
+                        throw new Error(payload.erro || "Não foi possível salvar o cliente.");
+                    }
+                    return payload.cliente || payload.item;
+                });
+            })
+            .then(function(cliente) {
+                adicionarOpcaoSelecionada(".quick-cliente-select", cliente.nome, cliente.nome, gestflowClienteSelectAtual);
+                fecharModalPorId("quick-cliente-modal");
+            })
+            .catch(function(erro) {
+                mostrarErro("quick-cliente-error", erro.message || "Não foi possível salvar o cliente.");
+            });
+    };
+
+    window.salvarResponsavelRapidoGeral = function() {
+        const nome = (document.getElementById("quick-responsavel-nome")?.value || "").trim();
+        const cargo = (document.getElementById("quick-responsavel-cargo")?.value || "").trim();
+        const telefone = (document.getElementById("quick-responsavel-telefone")?.value || "").trim();
+        const email = (document.getElementById("quick-responsavel-email")?.value || "").trim();
+
+        if (!nome) {
+            mostrarErro("quick-responsavel-error", "Informe o nome do responsável.");
+            return;
+        }
+
+        const dados = new URLSearchParams();
+        dados.append("nome", nome);
+        dados.append("cargo", cargo);
+        dados.append("telefone", telefone);
+        dados.append("email", email);
+
+        fetch("/funcionarios/rapido", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+            body: dados.toString()
+        })
+            .then(function(resposta) {
+                return resposta.json().then(function(payload) {
+                    if (!resposta.ok || !payload.ok) {
+                        throw new Error(payload.erro || "Não foi possível salvar o responsável.");
+                    }
+                    return payload.funcionario || payload.item;
+                });
+            })
+            .then(function(funcionario) {
+                adicionarOpcaoSelecionada(".quick-responsavel-select", funcionario.nome, funcionario.nome, gestflowResponsavelSelectAtual);
+                fecharModalPorId("quick-responsavel-modal");
+            })
+            .catch(function(erro) {
+                mostrarErro("quick-responsavel-error", erro.message || "Não foi possível salvar o responsável.");
+            });
+    };
+
+    window.salvarFornecedorRapidoGeral = function() {
+        const nome = (document.getElementById("quick-fornecedor-nome")?.value || "").trim();
+        const documento = (document.getElementById("quick-fornecedor-documento")?.value || "").trim();
+        const telefone = (document.getElementById("quick-fornecedor-telefone")?.value || "").trim();
+        const email = (document.getElementById("quick-fornecedor-email")?.value || "").trim();
+        const categoria = (document.getElementById("quick-fornecedor-categoria")?.value || "").trim();
+
+        if (!nome) {
+            mostrarErro("quick-fornecedor-error", "Informe o nome do fornecedor.");
+            return;
+        }
+
+        if (!categoria) {
+            mostrarErro("quick-fornecedor-error", "Selecione a categoria do fornecedor.");
+            document.getElementById("quick-fornecedor-categoria")?.focus();
+            return;
+        }
+
+        const dados = new URLSearchParams();
+        dados.append("nome", nome);
+        dados.append("documento", documento);
+        dados.append("telefone", telefone);
+        dados.append("email", email);
+        dados.append("categoria", categoria);
+
+        fetch("/fornecedores/rapido", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+            body: dados.toString()
+        })
+            .then(function(resposta) {
+                return resposta.json().then(function(payload) {
+                    if (!resposta.ok || !payload.ok) {
+                        throw new Error(payload.erro || "Não foi possível salvar o fornecedor.");
+                    }
+                    return payload.fornecedor || payload.item;
+                });
+            })
+            .then(function(fornecedor) {
+                adicionarOpcaoSelecionada(".quick-fornecedor-select", fornecedor.nome, fornecedor.nome, gestflowFornecedorSelectAtual);
+                fecharModalPorId("quick-fornecedor-modal");
+            })
+            .catch(function(erro) {
+                mostrarErro("quick-fornecedor-error", erro.message || "Não foi possível salvar o fornecedor.");
+            });
+    };
+
+    window.abrirModalClienteRapido = window.abrirModalClienteRapidoGeral;
+    window.fecharModalClienteRapido = window.fecharModalClienteRapidoGeral;
+    window.salvarClienteRapido = window.salvarClienteRapidoGeral;
+    window.abrirModalResponsavelRapido = window.abrirModalResponsavelRapidoGeral;
+    window.fecharModalResponsavelRapido = window.fecharModalResponsavelRapidoGeral;
+    window.salvarResponsavelRapido = window.salvarResponsavelRapidoGeral;
+    window.abrirModalFornecedorRapido = window.abrirModalFornecedorRapidoGeral;
+    window.fecharModalFornecedorRapido = window.fecharModalFornecedorRapidoGeral;
+    window.salvarFornecedorRapido = window.salvarFornecedorRapidoGeral;
+
+    document.addEventListener("change", function(evento) {
+        const alvo = evento.target;
+
+        if (!alvo || !alvo.matches) {
+            return;
+        }
+
+        if (alvo.matches(".quick-cliente-select") && alvo.value === "__novo_cliente__") {
+            window.abrirModalClienteRapidoGeral(alvo);
+            return;
+        }
+
+        if (alvo.matches(".quick-responsavel-select") && alvo.value === "__novo_responsavel__") {
+            window.abrirModalResponsavelRapidoGeral(alvo);
+            return;
+        }
+
+        if (alvo.matches(".quick-fornecedor-select") && alvo.value === "__novo_fornecedor__") {
+            window.abrirModalFornecedorRapidoGeral(alvo);
+        }
+    });
+})();
+</script>
+
+
+
+<script>
+(function() {
+    "use strict";
+
+    let gestflowItemSelectAtual = null;
+    let gestflowItemLinhaAtual = null;
+    let gestflowItemTipoAtual = "produto";
+
+    function abrirModalPorId(id) {
+        const modal = document.getElementById(id);
+        if (!modal) {
+            return;
+        }
+        modal.classList.add("open");
+        modal.setAttribute("aria-hidden", "false");
+        const primeiroCampo = modal.querySelector("input:not([type='hidden']), select, textarea");
+        if (primeiroCampo) {
+            setTimeout(function() { primeiroCampo.focus(); }, 80);
+        }
+    }
+
+    function fecharModalPorId(id) {
+        const modal = document.getElementById(id);
+        if (!modal) {
+            return;
+        }
+        modal.classList.remove("open");
+        modal.setAttribute("aria-hidden", "true");
+    }
+
+    function mostrarErro(id, mensagem) {
+        const erroBox = document.getElementById(id);
+        if (erroBox) {
+            erroBox.textContent = mensagem;
+            erroBox.classList.add("show");
+        } else {
+            alert(mensagem);
+        }
+    }
+
+    function limparCamposItemRapido() {
+        ["quick-item-nome", "quick-item-valor", "quick-item-categoria", "quick-item-unidade", "quick-item-observacoes"].forEach(function(id) {
+            const campo = document.getElementById(id);
+            if (campo) { campo.value = ""; }
+        });
+        const erroBox = document.getElementById("quick-item-error");
+        if (erroBox) {
+            erroBox.textContent = "";
+            erroBox.classList.remove("show");
+        }
+    }
+
+    function adicionarItemAosSelects(tipo, item, selectAtual) {
+        const nome = item.nome || "";
+        const id = item.id || nome;
+        const valor = selectAtual && (selectAtual.name === "estoque_produto_id" || selectAtual.name === "compra_produto_id") ? String(id) : nome;
+        const texto = tipo === "produto" && item.codigo ? nome + " - " + item.codigo : nome;
+        const seletor = tipo === "produto" ? 'select.item-descricao, select[name="estoque_produto_id"], select[name="compra_produto_id"]' : 'select.item-descricao';
+
+        if (tipo === "produto" && Array.isArray(window.opcoesProdutos)) {
+            window.opcoesProdutos.push({
+                id: item.id || "",
+                nome: nome,
+                valor: item.valor || item.preco_venda || "",
+                codigo: item.codigo || "",
+                unidade: item.unidade || ""
+            });
+        }
+
+        if (tipo === "servico" && Array.isArray(window.opcoesServicos)) {
+            window.opcoesServicos.push({
+                id: item.id || "",
+                nome: nome,
+                valor: item.valor || item.valor_venda || "",
+                unidade: item.unidade || ""
+            });
+        }
+
+        document.querySelectorAll(seletor).forEach(function(select) {
+            const ehSelectItem = select.classList.contains("item-descricao");
+            const linha = select.closest("tr");
+            const tipoLinha = linha ? (linha.querySelector('[name="item_tipo"]')?.value || "produto") : "produto";
+
+            if (ehSelectItem && tipoLinha !== tipo) {
+                return;
+            }
+
+            let opcaoExistente = Array.from(select.options).find(function(opcao) {
+                return opcao.value === valor || opcao.value === nome;
+            });
+
+            if (!opcaoExistente) {
+                opcaoExistente = document.createElement("option");
+                opcaoExistente.value = ehSelectItem ? nome : valor;
+                opcaoExistente.textContent = texto;
+                opcaoExistente.setAttribute("data-valor", item.valor || item.preco_venda || item.valor_venda || "");
+
+                const primeiraOpcaoNova = Array.from(select.options).find(function(opcao) {
+                    return String(opcao.value || "").startsWith("__novo");
+                });
+
+                if (primeiraOpcaoNova) {
+                    select.insertBefore(opcaoExistente, primeiraOpcaoNova);
+                } else {
+                    select.appendChild(opcaoExistente);
+                }
+            }
+
+            if (select === selectAtual) {
+                select.value = ehSelectItem ? nome : valor;
+                select.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+        });
+
+        if (selectAtual && selectAtual.classList.contains("item-descricao")) {
+            const linha = selectAtual.closest("tr");
+            const valorInput = linha ? linha.querySelector(".item-valor") : null;
+            const quantidadeInput = linha ? linha.querySelector(".item-quantidade") : null;
+
+            if (valorInput && (item.valor || item.preco_venda || item.valor_venda)) {
+                valorInput.value = item.valor || item.preco_venda || item.valor_venda || "";
+                valorInput.dispatchEvent(new Event("input", { bubbles: true }));
+            }
+
+            if (quantidadeInput && !quantidadeInput.value) {
+                quantidadeInput.value = "1";
+            }
+        }
+    }
+
+    window.abrirModalItemRapidoGeral = function(tipo, selectOrigem, linhaOrigem) {
+        gestflowItemTipoAtual = tipo === "servico" ? "servico" : "produto";
+        gestflowItemSelectAtual = selectOrigem || gestflowItemSelectAtual;
+        gestflowItemLinhaAtual = linhaOrigem || (selectOrigem ? selectOrigem.closest("tr") : null);
+
+        limparCamposItemRapido();
+
+        const tipoInput = document.getElementById("quick-item-tipo");
+        const titulo = document.getElementById("quick-item-title");
+        const subtitulo = document.getElementById("quick-item-subtitle");
+        const unidade = document.getElementById("quick-item-unidade");
+
+        if (tipoInput) { tipoInput.value = gestflowItemTipoAtual; }
+        if (titulo) { titulo.textContent = gestflowItemTipoAtual === "produto" ? "Novo produto" : "Novo serviço"; }
+        if (subtitulo) { subtitulo.textContent = "Cadastro rápido sem sair da tela."; }
+        if (unidade) { unidade.value = gestflowItemTipoAtual === "produto" ? "un" : "un"; }
+
+        abrirModalPorId("quick-item-modal");
+    };
+
+    window.fecharModalItemRapidoGeral = function() {
+        fecharModalPorId("quick-item-modal");
+        if (gestflowItemSelectAtual && String(gestflowItemSelectAtual.value || "").startsWith("__novo")) {
+            gestflowItemSelectAtual.value = "";
+        }
+    };
+
+    window.salvarItemRapidoGeral = function() {
+        const tipo = (document.getElementById("quick-item-tipo")?.value || gestflowItemTipoAtual || "produto") === "servico" ? "servico" : "produto";
+        const nome = (document.getElementById("quick-item-nome")?.value || "").trim();
+        const valor = (document.getElementById("quick-item-valor")?.value || "").trim();
+        const categoria = (document.getElementById("quick-item-categoria")?.value || "").trim();
+        const unidade = (document.getElementById("quick-item-unidade")?.value || "un").trim() || "un";
+        const observacoes = (document.getElementById("quick-item-observacoes")?.value || "").trim();
+
+        if (!nome) {
+            mostrarErro("quick-item-error", "Informe o nome do item.");
+            return;
+        }
+
+        const endpoint = tipo === "produto" ? "/produtos/rapido" : "/servicos/rapido";
+        const dados = new URLSearchParams();
+        dados.append("nome", nome);
+        dados.append("valor_venda", valor);
+        dados.append("preco_venda", valor);
+        dados.append("unidade", unidade);
+        dados.append("categoria", categoria);
+        dados.append("observacoes", observacoes);
+
+        fetch(endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+            body: dados.toString()
+        })
+            .then(function(resposta) {
+                return resposta.json().then(function(payload) {
+                    if (!resposta.ok || !payload.ok) {
+                        throw new Error(payload.erro || "Não foi possível salvar o item.");
+                    }
+                    return payload.item || payload.produto || payload.servico;
+                });
+            })
+            .then(function(item) {
+                adicionarItemAosSelects(tipo, item, gestflowItemSelectAtual);
+                fecharModalPorId("quick-item-modal");
+            })
+            .catch(function(erro) {
+                mostrarErro("quick-item-error", erro.message || "Não foi possível salvar o item.");
+            });
+    };
+
+    window.abrirModalItemRapido = window.abrirModalItemRapidoGeral;
+    window.fecharModalItemRapido = window.fecharModalItemRapidoGeral;
+    window.salvarItemRapido = window.salvarItemRapidoGeral;
+
+    document.addEventListener("change", function(evento) {
+        const alvo = evento.target;
+
+        if (!alvo || !alvo.matches) {
+            return;
+        }
+
+        if (alvo.matches("select.item-descricao")) {
+            if (alvo.value === "__novo__" || alvo.value === "__novo_produto__" || alvo.value === "__novo_servico__") {
+                const linha = alvo.closest("tr");
+                const tipoLinha = linha ? (linha.querySelector('[name="item_tipo"]')?.value || "produto") : (alvo.value === "__novo_servico__" ? "servico" : "produto");
+                window.abrirModalItemRapidoGeral(tipoLinha, alvo, linha);
+            }
+        }
+
+        if ((alvo.matches('select[name="estoque_produto_id"]') || alvo.matches('select[name="compra_produto_id"]')) && alvo.value === "__novo_produto__") {
+            window.abrirModalItemRapidoGeral("produto", alvo, null);
+        }
+    });
+})();
+</script>
+
+
+<script>
+(function gestflowStatusOperacional() {
+    function aplicarCor(select) {
+        const opcao = select.options[select.selectedIndex];
+        if (!opcao) return;
+        select.style.setProperty('--status-bg', opcao.dataset.bg || '#f1f5f9');
+        select.style.setProperty('--status-text', opcao.dataset.text || '#334155');
+        select.style.setProperty('--status-border', opcao.dataset.border || '#cbd5e1');
+    }
+
+    async function alterarStatus(select) {
+        const anterior = select.dataset.current || '';
+        const opcao = select.options[select.selectedIndex];
+        if (!opcao || select.value === anterior) { aplicarCor(select); return; }
+        const finalizador = opcao.dataset.final === '1';
+        if (finalizador) {
+            const mensagem = select.dataset.finalMessage || 'Confirmar a finalização deste registro?';
+            if (!window.confirm(mensagem)) {
+                select.value = anterior;
+                aplicarCor(select);
+                return;
+            }
+        }
+        select.disabled = true;
+        const dados = new URLSearchParams();
+        dados.append('status', select.value);
+        if (finalizador) dados.append('confirmar_finalizacao', 'sim');
+        try {
+            const resposta = await fetch(select.dataset.statusUrl, {
+                method: 'POST',
+                headers: {'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},
+                body: dados.toString()
+            });
+            const payload = await resposta.json();
+            if (!resposta.ok || !payload.ok) throw new Error(payload.erro || 'Não foi possível alterar o status.');
+            select.dataset.current = payload.status || select.value;
+            aplicarCor(select);
+            if (payload.mensagem) window.alert(payload.mensagem);
+            window.location.reload();
+        } catch (erro) {
+            select.value = anterior;
+            aplicarCor(select);
+            select.disabled = false;
+            window.alert(erro.message || 'Não foi possível alterar o status.');
+        }
+    }
+
+    document.querySelectorAll('[data-status-operacional]').forEach(function(select) {
+        aplicarCor(select);
+        select.addEventListener('change', function() { alterarStatus(select); });
+    });
+})();
+</script>
+
+    {% include "partials/lista_avancada.html" %}
+
+</body>
+</html>

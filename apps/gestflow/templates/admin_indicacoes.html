@@ -1,0 +1,440 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\admin_indicacoes.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Admin Indicações</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+
+    <style>
+        /* PADRAO VISUAL ORCAMENTOS - TELAS AUXILIARES */
+        .content {
+            padding-bottom: 220px;
+        }
+
+        .content > .panel.page-section:first-of-type {
+            margin-top: 0;
+        }
+
+        .panel,
+        .page-section,
+        .table-panel {
+            border-radius: 16px;
+        }
+
+        .panel-header.page-header,
+        .page-header {
+            gap: 14px;
+        }
+
+        .page-title {
+            letter-spacing: -0.02em;
+        }
+
+        .page-subtitle {
+            max-width: 760px;
+        }
+
+        .client-toolbar,
+        .form-actions,
+        .client-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn-primary-green,
+        .btn-dark,
+        .btn-light,
+        .action-button {
+            border-radius: 10px;
+            text-decoration: none;
+        }
+
+        .form-control,
+        input,
+        select,
+        textarea {
+            border-radius: 10px;
+            max-width: 100%;
+        }
+
+        .client-form {
+            width: 100%;
+        }
+
+        .form-grid {
+            align-items: start;
+        }
+
+        .panel-summary {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .panel-summary > div {
+            min-height: 74px;
+            border: 1px solid #e5eaf2;
+            border-radius: 14px;
+            background: #ffffff;
+            padding: 14px;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+        }
+
+        .panel-summary span {
+            display: block;
+            margin-bottom: 6px;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+
+        .panel-summary strong {
+            color: #0f172a;
+            font-size: 14px;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+
+        .table-shell {
+            border: 0 !important;
+            border-radius: 16px;
+            overflow-x: auto;
+            background: #ffffff;
+        }
+
+        .content table,
+        .content .client-table {
+            width: 100%;
+            border-collapse: separate !important;
+            border-spacing: 0 10px !important;
+            min-width: 760px;
+        }
+
+        .content table thead th,
+        .content .client-table thead th {
+            border-bottom: 0 !important;
+            background: transparent;
+            padding: 10px 12px;
+            color: #334155;
+            font-size: 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .content table tbody tr,
+        .content .client-table tbody tr {
+            background: #ffffff;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+            border-radius: 14px;
+        }
+
+        .content table tbody td,
+        .content .client-table tbody td {
+            border-bottom: 0 !important;
+            padding: 14px 12px !important;
+            color: #334155;
+            vertical-align: middle;
+        }
+
+        .content table tbody td:first-child,
+        .content .client-table tbody td:first-child {
+            border-top-left-radius: 14px;
+            border-bottom-left-radius: 14px;
+        }
+
+        .content table tbody td:last-child,
+        .content .client-table tbody td:last-child {
+            border-top-right-radius: 14px;
+            border-bottom-right-radius: 14px;
+        }
+
+        .empty-table,
+        .empty-table-box {
+            border-radius: 14px;
+        }
+
+        .status-pill,
+        .badge-info {
+            border-radius: 999px;
+            white-space: nowrap;
+        }
+
+        .quick-modal,
+        .modal,
+        .dialog {
+            border-radius: 18px;
+        }
+
+        .config-grid,
+        .portal-grid,
+        .planos-grid,
+        .cards,
+        .cards-secondary {
+            gap: 16px;
+        }
+
+        .config-card,
+        .portal-card,
+        .plan-card,
+        .card,
+        .stat-card {
+            border-radius: 16px;
+        }
+
+        .auth-card,
+        .login-card,
+        .onboarding-card,
+        .portal-card,
+        .plan-card {
+            box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+        }
+
+        @media (max-width: 1100px) {
+            .panel-summary {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .content table,
+            .content .client-table {
+                min-width: 720px;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .panel-summary {
+                grid-template-columns: 1fr;
+            }
+
+            .client-toolbar,
+            .form-actions,
+            .client-actions {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .client-toolbar .btn-primary-green,
+            .client-toolbar .btn-dark,
+            .client-toolbar .btn-light,
+            .form-actions .btn-primary-green,
+            .form-actions .btn-dark,
+            .form-actions .btn-light {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .content table,
+            .content .client-table {
+                min-width: 680px;
+            }
+        }
+    </style>
+
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+
+    <main class="content">
+        {% set page_title = 'Admin Indicações' %}
+        {% include "partials/topbar.html" %}
+
+        {% set contexto = contexto|default({}) %}
+        {% set indicacoes = contexto.indicacoes|default([]) %}
+        {% set comissoes = contexto.comissoes|default([]) %}
+        {% set totais = contexto.totais|default({}) %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Admin GestFlow</span>
+                    <h3 class="page-title">Indicações e repasses</h3>
+                    <p class="page-subtitle">Controle quem indicou, qual empresa entrou pelo link e quais comissões devem ser pagas via Pix.</p>
+                </div>
+                <a href="/admin/empresas" class="btn-light">Voltar para empresas</a>
+            </div>
+
+            {% if erro %}
+                <div class="alert alert-danger">{{ erro }}</div>
+            {% endif %}
+
+            {% if sucesso %}
+                <div class="alert alert-success">{{ sucesso }}</div>
+            {% endif %}
+        </section>
+
+        <section class="cards cards-secondary page-section">
+            <div class="card stat-card">
+                <div class="card-icon">↗</div>
+                <div class="card-info">
+                    <p>{{ totais.indicacoes|default(0) }}</p>
+                    <h3>Indicações</h3>
+                    <span>Empresas cadastradas por link</span>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="card-icon">R$</div>
+                <div class="card-info">
+                    <p>{{ totais.liberado|default('0,00') }}</p>
+                    <h3>Liberado</h3>
+                    <span>A pagar via Pix</span>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="card-icon">✓</div>
+                <div class="card-info">
+                    <p>{{ totais.pago|default('0,00') }}</p>
+                    <h3>Pago</h3>
+                    <span>Comissões repassadas</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel table-panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Empresas indicadas</h3>
+                    <p class="page-subtitle">Quando o cliente indicado pagar, registre o pagamento para gerar a comissão do mês.</p>
+                </div>
+            </div>
+
+            <div class="table-shell">
+                <table class="client-table">
+                    <thead>
+                        <tr>
+                            <th>Indicador</th>
+                            <th>Pix indicador</th>
+                            <th>Indicado</th>
+                            <th>Plano</th>
+                            <th>Status</th>
+                            <th>Competência</th>
+                            <th>Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if indicacoes %}
+                            {% for item in indicacoes %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ item.indicador_nome }}</strong><br>
+                                        <span>{{ item.indicador_email or '-' }}</span>
+                                    </td>
+                                    <td>{{ item.indicador_pix or '-' }}</td>
+                                    <td>
+                                        <strong>{{ item.indicado_nome }}</strong><br>
+                                        <span>{{ item.indicado_email or '-' }}</span>
+                                    </td>
+                                    <td>{{ item.indicado_plano }}</td>
+                                    <td><span class="status-pill {{ item.indicado_status }}">{{ item.indicado_status }}</span></td>
+                                    <td>
+                                        <form action="/admin/indicacoes/{{ item.indicado_id }}/registrar-pagamento" method="post" class="inline-form">
+                                            <input name="competencia" type="month" class="form-control mini-control" value="{{ hoje_competencia|default('') }}">
+                                            <button type="submit" class="btn-primary-green">Registrar pagamento</button>
+                                        </form>
+                                    </td>
+                                    <td>R$ {% if item.indicado_plano == 'Business' %}10,00{% elif item.indicado_plano == 'Pro' %}5,00{% else %}3,00{% endif %}</td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="empty-table">Nenhuma indicação vinculada ainda.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel table-panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Comissões geradas</h3>
+                    <p class="page-subtitle">Marque como paga depois de fazer o Pix para o indicador.</p>
+                </div>
+            </div>
+
+            <div class="table-shell">
+                <table class="client-table">
+                    <thead>
+                        <tr>
+                            <th>Indicador</th>
+                            <th>Pix</th>
+                            <th>Indicado</th>
+                            <th>Plano</th>
+                            <th>Competência</th>
+                            <th>Valor</th>
+                            <th>Status</th>
+                            <th>Repasse</th>
+                            <th>Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if comissoes %}
+                            {% for comissao in comissoes %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ comissao.indicador_nome }}</strong><br>
+                                        <span>{{ comissao.indicador_email or '-' }}</span>
+                                    </td>
+                                    <td>{{ comissao.indicador_pix or '-' }}</td>
+                                    <td>
+                                        <strong>{{ comissao.indicado_nome }}</strong><br>
+                                        <span>{{ comissao.indicado_email or '-' }}</span>
+                                    </td>
+                                    <td>{{ comissao.plano }}</td>
+                                    <td>{{ comissao.competencia }}</td>
+                                    <td>R$ {{ comissao.valor_formatado }}</td>
+                                    <td><span class="status-pill {{ comissao.status }}">{{ comissao.status }}</span></td>
+                                    <td>{{ comissao.data_repasse or '-' }}</td>
+                                    <td>
+                                        <form action="/admin/indicacoes/comissoes/{{ comissao.id }}/status" method="post" class="inline-form">
+                                            <select name="status" class="form-control mini-control">
+                                                <option value="pendente" {% if comissao.status == 'pendente' %}selected{% endif %}>Pendente</option>
+                                                <option value="liberada" {% if comissao.status == 'liberada' %}selected{% endif %}>Liberada</option>
+                                                <option value="paga" {% if comissao.status == 'paga' %}selected{% endif %}>Paga</option>
+                                                <option value="cancelada" {% if comissao.status == 'cancelada' %}selected{% endif %}>Cancelada</option>
+                                            </select>
+                                            <button type="submit" class="btn-light">Salvar</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="9" class="empty-table">Nenhuma comissão gerada ainda.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <style>
+            .inline-form {
+                display: flex;
+                gap: 8px;
+                align-items: center;
+                margin: 0;
+                flex-wrap: wrap;
+            }
+
+            .mini-control {
+                min-width: 130px;
+                height: 38px;
+            }
+        </style>
+    </main>
+</body>
+</html>

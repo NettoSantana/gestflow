@@ -1,0 +1,698 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\servicos.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Serviços</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .logout-button {
+            height: 36px;
+            padding: 0 14px;
+            border: 1px solid #d7e1ef;
+            border-radius: 10px;
+            background: #ffffff;
+            color: #dc2626;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 900;
+            text-decoration: none;
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .logout-button:hover {
+            background: #fff1f2;
+            border-color: #fecdd3;
+        }
+
+        .form-alert-error {
+            margin: 0 0 18px;
+            padding: 12px 14px;
+            border: 1px solid #fecaca;
+            border-radius: 12px;
+            background: #fef2f2;
+            color: #991b1b;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+
+        .alert-success,
+        .form-alert-success {
+            margin: 0 0 18px;
+            padding: 12px 14px;
+            border: 1px solid #bbf7d0;
+            border-radius: 12px;
+            background: #f0fdf4;
+            color: #166534;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .more-actions-wrap {
+            position: relative;
+            display: inline-flex;
+        }
+
+        .more-actions-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            z-index: 20;
+            min-width: 230px;
+            padding: 8px;
+            border: 1px solid #dbe4f0;
+            border-radius: 12px;
+            background: #ffffff;
+            box-shadow: 0 18px 36px rgba(15, 23, 42, 0.16);
+            display: none;
+        }
+
+        .more-actions-menu.open {
+            display: block;
+        }
+
+        .more-actions-menu a,
+        .more-actions-menu button {
+            width: 100%;
+            min-height: 36px;
+            border: 0;
+            border-radius: 9px;
+            background: transparent;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            font-size: 13px;
+            font-weight: 800;
+            text-align: left;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .more-actions-menu a:hover,
+        .more-actions-menu button:hover {
+            background: #f1f5f9;
+        }
+
+        .sortable-link {
+            color: #1e293b;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            text-decoration: none;
+            font-weight: 900;
+        }
+
+        .sortable-link:hover {
+            color: #0f62fe;
+        }
+
+        .sort-indicator {
+            color: #0f62fe;
+            font-size: 11px;
+            font-weight: 900;
+        }
+
+        .pagination-bar {
+            margin-top: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            font-size: 13px;
+            color: #475569;
+            font-weight: 800;
+        }
+
+        .pagination-links {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .pagination-links a,
+        .pagination-links span {
+            min-width: 34px;
+            height: 34px;
+            padding: 0 10px;
+            border: 1px solid #dbe4f0;
+            border-radius: 9px;
+            background: #ffffff;
+            color: #0f172a;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 900;
+            text-decoration: none;
+        }
+
+        .pagination-links a:hover {
+            background: #eff6ff;
+            border-color: #bfdbfe;
+            color: #0f62fe;
+        }
+
+        .pagination-links .current-page {
+            background: #0f62fe;
+            border-color: #0f62fe;
+            color: #ffffff;
+        }
+
+        .pagination-links .disabled-page {
+            color: #94a3b8;
+            background: #f8fafc;
+            cursor: not-allowed;
+        }
+
+        .client-search-form {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .client-search-form .client-search {
+            flex: 1 1 320px;
+        }
+
+        .per-page-select {
+            max-width: 130px;
+        }
+
+        .clear-search-link {
+            min-height: 38px;
+            padding: 0 12px;
+            border: 1px solid #dbe4f0;
+            border-radius: 10px;
+            background: #ffffff;
+            color: #64748b;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 900;
+            text-decoration: none;
+        }
+
+        .clear-search-link:hover {
+            background: #f8fafc;
+            color: #0f172a;
+        }
+
+        .duration-field {
+            display: grid;
+            grid-template-columns: minmax(110px, 1fr) minmax(130px, 1fr);
+            gap: 8px;
+        }
+
+        .question-builder{grid-column:1/-1;display:none;gap:12px;padding:16px;border:1px solid #bfdbfe;border-radius:16px;background:#eff6ff}.question-builder.visible{display:grid}.question-builder-header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.question-list{display:grid;gap:10px}.question-card{display:grid;grid-template-columns:minmax(220px,2fr) minmax(150px,1fr) auto auto;gap:10px;align-items:end;padding:12px;border:1px solid #dbeafe;border-radius:14px;background:#fff}.question-card label{display:grid;gap:6px;font-size:12px;font-weight:900;color:#334155}.question-options{grid-column:1/-1;display:none}.question-card[data-type="opcoes"] .question-options{display:grid}.question-remove{height:40px;border:0;border-radius:10px;background:#fee2e2;color:#991b1b;font-weight:900;cursor:pointer}.question-empty{padding:14px;border:1px dashed #93c5fd;border-radius:12px;color:#1d4ed8;font-weight:800;text-align:center}.contract-help{display:block;margin-top:6px;color:#64748b;font-size:12px;font-weight:700}.value-combine-note{display:none;margin-top:6px;color:#92400e;font-size:12px;font-weight:800}.value-combine-note.visible{display:block}@media(max-width:900px){.question-card{grid-template-columns:1fr}.question-options{grid-column:1}}
+
+        .duration-help {
+            display: block;
+            margin-top: 6px;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        @media (max-width: 640px) {
+            .duration-field { grid-template-columns: 1fr; }
+        }
+
+    </style>
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+
+<main class="content">
+        {% set page_title = 'Serviços' %}
+        {% include "partials/topbar.html" %}
+
+        {% if request.args.get('erro') %}
+            <div class="form-alert-error">{{ request.args.get('erro') }}</div>
+        {% endif %}
+
+        {% if request.args.get('sucesso') %}
+            <div class="form-alert-success">{{ request.args.get('sucesso') }}</div>
+        {% endif %}
+
+{% set servicos_lista = servicos|default([]) %}
+        {% set resumo_geral = resumo_servicos|default({}, true) %}
+        {% set paginacao = paginacao|default({}, true) %}
+        {% set busca = busca|default('', true) %}
+        {% set ordenar = ordenar|default('id', true) %}
+        {% set direcao = direcao|default('desc', true) %}
+        {% set por_pagina = por_pagina|default(20, true) %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Serviços</span>
+                    <h3 class="page-title">Serviços</h3>
+                    <p class="page-subtitle">Controle os serviços, valores e a duração que será usada para reservar horários na agenda e na Vitrine Online.</p>
+                </div>
+
+                <a href="#form-novo-servico" class="btn-primary-green">+ Novo Serviço</a>
+            </div>
+        </section>
+
+        <section class="cards cards-secondary page-section">
+            <div class="card stat-card">
+                <div class="card-icon">⚙</div>
+                <div class="card-info">
+                    <p>{{ resumo_geral.total|default(0, true) }}</p>
+                    <h3>Total de serviços</h3>
+                    <span>{% if servicos_lista|length == 1 %}1 serviço cadastrado{% elif servicos_lista|length > 1 %}{{ resumo_geral.total|default(0, true) }} serviços cadastrados{% else %}Nenhum serviço cadastrado{% endif %}</span>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="card-icon">✓</div>
+                <div class="card-info">
+                    <p>{{ resumo_geral.ativos|default(0, true) }}</p>
+                    <h3>Serviços ativos</h3>
+                    <span>{% if resumo_geral.ativos == 1 %}1 serviço ativo{% elif resumo_geral.ativos > 1 %}{{ resumo_geral.ativos|default(0, true) }} serviços ativos{% else %}Aguardando cadastro{% endif %}</span>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="card-icon">!</div>
+                <div class="card-info">
+                    <p>{{ resumo_geral.pendentes|default(0, true) }}</p>
+                    <h3>Pendências</h3>
+                    <span>{% if resumo_geral.pendentes == 1 %}1 cadastro pendente{% elif resumo_geral.pendentes > 1 %}{{ resumo_geral.pendentes|default(0, true) }} cadastros pendentes{% else %}Nenhuma pendência{% endif %}</span>
+                </div>
+            </div>
+        </section>
+
+        <section id="form-novo-servico" class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Novo serviço</h3>
+                    <p class="page-subtitle">Preencha os dados principais para preparar o cadastro do serviço.</p>
+                </div>
+
+                <span class="badge-info">Cadastro inicial</span>
+            </div>
+
+            <form action="/servicos" method="post" class="client-form" id="formNovoServico" onsubmit="return prepararPerguntasServicoNovo()">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="servico_nome">Nome do serviço *</label>
+                        <input id="servico_nome" name="servico_nome" type="text" placeholder="Ex: Manutenção preventiva" class="form-control" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="servico_codigo">Código interno</label>
+                        <input id="servico_codigo" name="servico_codigo" type="text" placeholder="Ex: SERV-001" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="servico_categoria">Categoria</label>
+                        <select id="servico_categoria" name="servico_categoria" class="form-control">
+                            <option value="">Selecione</option>
+                            <option value="Elétrica">Elétrica</option>
+                            <option value="Mecânica">Mecânica</option>
+                            <option value="Automação">Automação</option>
+                            <option value="Caldeiraria">Caldeiraria</option>
+                            <option value="Solda">Solda</option>
+                            <option value="Inspeção">Inspeção</option>
+                            <option value="Projetos">Projetos</option>
+                            <option value="Outros">Outros</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="servico_unidade">Unidade *</label>
+                        <select id="servico_unidade" name="servico_unidade" class="form-control" required>
+                            <option value="">Selecione</option>
+                            <option value="Serviço">Serviço</option>
+                            <option value="Hora">Hora</option>
+                            <option value="Diária">Diária</option>
+                            <option value="Projeto">Projeto</option>
+                            <option value="Unidade">Unidade</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="servico_custo">Custo</label>
+                        <input id="servico_custo" name="servico_custo" type="text" placeholder="Ex: 150,00" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="servico_tipo_contratacao">Forma de contratação *</label>
+                        <select id="servico_tipo_contratacao" name="servico_tipo_contratacao" class="form-control" required>
+                            <option value="valor_fixo">Valor fixo e agendamento direto</option>
+                            <option value="a_combinar">Valor a combinar e avaliação prévia</option>
+                        </select>
+                        <small class="contract-help">No valor a combinar, o cliente responde às perguntas antes de receber preço e horário.</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="servico_valor_venda">Valor de venda</label>
+                        <input id="servico_valor_venda" name="servico_valor_venda" type="text" placeholder="Ex: 280,00" class="form-control" required>
+                        <small id="valorCombinarNota" class="value-combine-note">O valor será definido depois da avaliação. Este campo pode ficar vazio.</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="servico_tempo_estimado_valor">Duração estimada *</label>
+                        <div class="duration-field">
+                            <input id="servico_tempo_estimado_valor" name="servico_tempo_estimado_valor" type="number" min="0.1" step="0.1" value="1" class="form-control" required>
+                            <select id="servico_tempo_estimado_unidade" name="servico_tempo_estimado_unidade" class="form-control" required>
+                                <option value="minutos">Minutos</option>
+                                <option value="horas" selected>Horas</option>
+                                <option value="dias">Dia inteiro</option>
+                            </select>
+                        </div>
+                        <small class="duration-help">Ex.: corte 30 minutos, unha 2 horas ou faxina 1 dia inteiro.</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="servico_status">Status *</label>
+                        <select id="servico_status" name="servico_status" class="form-control" required>
+                            <option value="ativo">Ativo</option>
+                            <option value="inativo">Inativo</option>
+                            <option value="pendente">Pendente</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="servico_observacoes">Observações</label>
+                        <input id="servico_observacoes" name="servico_observacoes" type="text" placeholder="Ex: Escopo, aplicação ou observação" class="form-control">
+                    </div>
+
+                    <div id="questionBuilderNovo" class="question-builder">
+                        <div class="question-builder-header">
+                            <div><strong>Perguntas para avaliação</strong><small class="contract-help">Defina o que o cliente precisa responder para você calcular o valor.</small></div>
+                            <button type="button" class="btn-dark" onclick="adicionarPerguntaServicoNovo()">+ Adicionar pergunta</button>
+                        </div>
+                        <div id="questionListNovo" class="question-list"></div>
+                        <input type="hidden" id="servico_perguntas_json" name="servico_perguntas_json" value="[]">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="reset" class="btn-light">Cancelar</button>
+                    <button type="submit" class="btn-primary-green">Salvar Serviço</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="panel table-panel">
+
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Lista de serviços</h3>
+                    <p class="page-subtitle">Pesquise, visualize e mantenha os serviços cadastrados.</p>
+                </div>
+
+                <div class="client-toolbar">
+                    <div class="more-actions-wrap">
+                        <button type="button" class="btn-light" onclick="alternarMenuServicos()">⚙ Mais ações</button>
+                        <div id="servicos-more-actions" class="more-actions-menu">
+                            <button type="button" onclick="abrirImportacaoServicos()">⬆ Importar de uma planilha</button>
+                            <a href="/servicos/modelo">⬇ Baixar modelo</a>
+                            <a href="/servicos/exportar">⬇ Exportar serviços</a>
+                        </div>
+                    </div>
+                </div>
+
+                <form id="form-importar-servicos" action="/servicos/importar" method="post" enctype="multipart/form-data" style="display:none;">
+                    <input id="arquivo-servicos" name="arquivo_servicos" type="file" accept=".xlsx,.csv" onchange="enviarImportacaoServicos()">
+                </form>
+            </div>
+
+            <div class="client-actions">
+                <form action="/servicos" method="get" class="client-search-form">
+                    <input type="text" name="busca" value="{{ busca }}" placeholder="Buscar por nome, código, categoria, unidade, duração ou status" class="client-search">
+                    <input type="hidden" name="ordenar" value="{{ ordenar }}">
+                    <input type="hidden" name="direcao" value="{{ direcao }}">
+
+                    <select name="por_pagina" class="form-control per-page-select" onchange="this.form.submit()">
+                        <option value="10" {% if por_pagina == 10 %}selected{% endif %}>10 por página</option>
+                        <option value="20" {% if por_pagina == 20 %}selected{% endif %}>20 por página</option>
+                        <option value="50" {% if por_pagina == 50 %}selected{% endif %}>50 por página</option>
+                        <option value="100" {% if por_pagina == 100 %}selected{% endif %}>100 por página</option>
+                    </select>
+
+                    <button type="submit" class="btn-dark">Buscar</button>
+
+                    {% if busca %}
+                        <a href="{{ url_for('servicos', por_pagina=por_pagina, ordenar=ordenar, direcao=direcao) }}" class="clear-search-link">Limpar</a>
+                    {% endif %}
+                </form>
+            </div>
+
+            <div class="table-shell">
+                <table class="client-table">
+                    <thead>
+                        <tr>
+                            <th>
+                                <a href="{{ url_for('servicos', pagina=1, por_pagina=por_pagina, ordenar='id', direcao='desc' if ordenar == 'id' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    ID
+                                    {% if ordenar == 'id' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('servicos', pagina=1, por_pagina=por_pagina, ordenar='nome', direcao='desc' if ordenar == 'nome' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    Serviço
+                                    {% if ordenar == 'nome' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('servicos', pagina=1, por_pagina=por_pagina, ordenar='codigo', direcao='desc' if ordenar == 'codigo' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    Código interno
+                                    {% if ordenar == 'codigo' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('servicos', pagina=1, por_pagina=por_pagina, ordenar='categoria', direcao='desc' if ordenar == 'categoria' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    Categoria
+                                    {% if ordenar == 'categoria' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('servicos', pagina=1, por_pagina=por_pagina, ordenar='unidade', direcao='desc' if ordenar == 'unidade' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    Unidade
+                                    {% if ordenar == 'unidade' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('servicos', pagina=1, por_pagina=por_pagina, ordenar='custo', direcao='desc' if ordenar == 'custo' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    Custo
+                                    {% if ordenar == 'custo' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('servicos', pagina=1, por_pagina=por_pagina, ordenar='valor_venda', direcao='desc' if ordenar == 'valor_venda' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    Valor venda
+                                    {% if ordenar == 'valor_venda' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>Contratação</th>
+                            <th>Duração</th>
+                            <th>
+                                <a href="{{ url_for('servicos', pagina=1, por_pagina=por_pagina, ordenar='status', direcao='desc' if ordenar == 'status' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    Status
+                                    {% if ordenar == 'status' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if servicos_lista %}
+                            {% for servico in servicos_lista %}
+                                <tr>
+                                    <td>{{ servico.id }}</td>
+                                    <td>{{ servico.nome }}</td>
+                                    <td>{{ servico.codigo }}</td>
+                                    <td>{{ servico.categoria }}</td>
+                                    <td>{{ servico.unidade }}</td>
+                                    <td>{{ servico.custo }}</td>
+                                    <td>{{ 'A combinar' if servico.tipo_contratacao == 'a_combinar' else servico.valor_venda }}</td>
+                                    <td><strong>{{ 'Avaliação prévia' if servico.tipo_contratacao == 'a_combinar' else 'Agendamento direto' }}</strong></td>
+                                    <td><strong>{{ 'Definida após avaliação' if servico.tipo_contratacao == 'a_combinar' else (servico.tempo_estimado or '-') }}</strong></td>
+                                    <td>
+                                        <span class="status-pill {{ servico.status }}">
+                                            {{ servico.status }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <a href="/servicos/{{ servico.id }}" title="Ver serviço" aria-label="Ver serviço" class="action-button view">🔍</a>
+                                            <a href="/servicos/{{ servico.id }}/editar" title="Editar serviço" aria-label="Editar serviço" class="action-button edit">✎</a>
+                                            <form action="/servicos/{{ servico.id }}/excluir" method="post" onsubmit="return confirm('Tem certeza que deseja excluir este serviço?');" class="action-form">
+                                                <button type="submit" title="Excluir serviço" aria-label="Excluir serviço" class="action-button delete">×</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="11" class="empty-table empty-table-box">
+                                    <div class="empty-table-content">
+                                        <div class="empty-table-icon">⚙</div>
+                                        <strong>Nenhum serviço cadastrado.</strong>
+                                        <span>Use o botão Novo Serviço para iniciar o cadastro.</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pagination-bar">
+                <div>
+                    {% if paginacao.total|default(0, true) > 0 %}
+                        Mostrando {{ paginacao.inicio }} a {{ paginacao.fim }} de um total de {{ paginacao.total }}
+                    {% else %}
+                        Nenhum serviço encontrado
+                    {% endif %}
+                </div>
+
+                {% if paginacao.total_paginas|default(1, true) > 1 %}
+                    <div class="pagination-links">
+                        {% if paginacao.tem_anterior %}
+                            <a href="{{ url_for('servicos', pagina=paginacao.anterior, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">‹</a>
+                        {% else %}
+                            <span class="disabled-page">‹</span>
+                        {% endif %}
+
+                        {% if 1 not in paginacao.paginas %}
+                            <a href="{{ url_for('servicos', pagina=1, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">1</a>
+                            {% if paginacao.paginas[0] > 2 %}
+                                <span class="disabled-page">...</span>
+                            {% endif %}
+                        {% endif %}
+
+                        {% for numero_pagina in paginacao.paginas %}
+                            {% if numero_pagina == paginacao.pagina %}
+                                <span class="current-page">{{ numero_pagina }}</span>
+                            {% else %}
+                                <a href="{{ url_for('servicos', pagina=numero_pagina, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">{{ numero_pagina }}</a>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if paginacao.total_paginas not in paginacao.paginas %}
+                            {% if paginacao.paginas[-1] < paginacao.total_paginas - 1 %}
+                                <span class="disabled-page">...</span>
+                            {% endif %}
+                            <a href="{{ url_for('servicos', pagina=paginacao.total_paginas, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">{{ paginacao.total_paginas }}</a>
+                        {% endif %}
+
+                        {% if paginacao.tem_proxima %}
+                            <a href="{{ url_for('servicos', pagina=paginacao.proxima, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">›</a>
+                        {% else %}
+                            <span class="disabled-page">›</span>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+
+
+        </section>
+
+    </main>
+
+    <script>
+
+        const tipoContratacaoNovo = document.getElementById("servico_tipo_contratacao");
+        const valorVendaNovo = document.getElementById("servico_valor_venda");
+        const questionBuilderNovo = document.getElementById("questionBuilderNovo");
+        const questionListNovo = document.getElementById("questionListNovo");
+        const valorCombinarNota = document.getElementById("valorCombinarNota");
+
+        function atualizarTipoContratacaoNovo(){
+            const combinar = tipoContratacaoNovo && tipoContratacaoNovo.value === "a_combinar";
+            if(questionBuilderNovo) questionBuilderNovo.classList.toggle("visible", combinar);
+            if(valorCombinarNota) valorCombinarNota.classList.toggle("visible", combinar);
+            if(valorVendaNovo){ valorVendaNovo.required = !combinar; if(combinar && valorVendaNovo.value === "0,00") valorVendaNovo.value = ""; }
+            if(questionListNovo){ questionListNovo.querySelectorAll('input,select,textarea').forEach(campo=>campo.disabled=!combinar); }
+            renderPerguntasServicoNovo();
+        }
+        function criarPerguntaServicoNovo(item={}){
+            const card=document.createElement("div"); card.className="question-card"; card.dataset.type=item.tipo_resposta||"texto";
+            card.innerHTML=`<label>Pergunta<input type="text" class="form-control q-text" value="${String(item.pergunta||'').replace(/"/g,'&quot;')}" placeholder="Ex: Quantos quartos?" required></label><label>Tipo<select class="form-control q-type"><option value="texto">Texto livre</option><option value="numero">Número</option><option value="sim_nao">Sim ou não</option><option value="opcoes">Escolha entre opções</option><option value="endereco">Endereço</option><option value="foto">Envio de foto</option></select></label><label><span>Obrigatória</span><input type="checkbox" class="q-required" ${item.obrigatoria==='nao'?'':'checked'}></label><button type="button" class="question-remove">Remover</button><label class="question-options">Opções<textarea class="form-control q-options" rows="2" placeholder="Uma opção por linha">${(item.opcoes||[]).join('\n')}</textarea></label>`;
+            card.querySelector('.q-type').value=item.tipo_resposta||'texto';
+            card.querySelector('.q-type').addEventListener('change',e=>{card.dataset.type=e.target.value;});
+            card.querySelector('.question-remove').addEventListener('click',()=>{card.remove();renderPerguntasServicoNovo();});
+            return card;
+        }
+        function adicionarPerguntaServicoNovo(){ questionListNovo.appendChild(criarPerguntaServicoNovo()); renderPerguntasServicoNovo(); }
+        function renderPerguntasServicoNovo(){
+            if(!questionListNovo) return;
+            let empty=questionListNovo.querySelector('.question-empty'); if(empty) empty.remove();
+            if(tipoContratacaoNovo && tipoContratacaoNovo.value==='a_combinar' && !questionListNovo.querySelector('.question-card')){ empty=document.createElement('div'); empty.className='question-empty'; empty.textContent='Adicione as perguntas necessárias para avaliar o serviço.'; questionListNovo.appendChild(empty); }
+        }
+        function prepararPerguntasServicoNovo(){
+            if(!tipoContratacaoNovo || tipoContratacaoNovo.value!=='a_combinar'){ document.getElementById('servico_perguntas_json').value='[]'; return true; }
+            const perguntas=[];
+            questionListNovo.querySelectorAll('.question-card').forEach(card=>{const texto=card.querySelector('.q-text').value.trim();if(!texto)return;perguntas.push({pergunta:texto,tipo_resposta:card.querySelector('.q-type').value,obrigatoria:card.querySelector('.q-required').checked?'sim':'nao',opcoes:card.querySelector('.q-options').value.split(/\n|;|\|/).map(v=>v.trim()).filter(Boolean)});});
+            if(!perguntas.length){alert('Adicione pelo menos uma pergunta para o serviço com valor a combinar.');return false;}
+            document.getElementById('servico_perguntas_json').value=JSON.stringify(perguntas); return true;
+        }
+        if(tipoContratacaoNovo) tipoContratacaoNovo.addEventListener('change',atualizarTipoContratacaoNovo);
+        atualizarTipoContratacaoNovo();
+        function alternarMenuServicos() {
+            const menu = document.getElementById("servicos-more-actions");
+
+            if (!menu) {
+                return;
+            }
+
+            menu.classList.toggle("open");
+        }
+
+        function abrirImportacaoServicos() {
+            const input = document.getElementById("arquivo-servicos");
+            const menu = document.getElementById("servicos-more-actions");
+
+            if (menu) {
+                menu.classList.remove("open");
+            }
+
+            if (input) {
+                input.click();
+            }
+        }
+
+        function enviarImportacaoServicos() {
+            const form = document.getElementById("form-importar-servicos");
+            const input = document.getElementById("arquivo-servicos");
+
+            if (form && input && input.files.length > 0) {
+                form.submit();
+            }
+        }
+
+        document.addEventListener("click", function(event) {
+            const menu = document.getElementById("servicos-more-actions");
+            const wrapper = document.querySelector(".more-actions-wrap");
+
+            if (menu && wrapper && !wrapper.contains(event.target)) {
+                menu.classList.remove("open");
+            }
+        });
+    </script>
+
+    {% include "partials/lista_avancada.html" %}
+
+</body>
+</html>

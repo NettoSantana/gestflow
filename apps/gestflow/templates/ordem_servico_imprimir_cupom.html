@@ -1,0 +1,90 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\ordem_servico_imprimir_cupom.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OS {{ ordem_servico.numero or ordem_servico.id }} - Cupom</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; background: #e5e7eb; font-family: Arial, Helvetica, sans-serif; color: #111827; font-size: 11px; }
+        .cupom { width: 80mm; margin: 10px auto; background: #ffffff; padding: 8mm 5mm; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16); }
+        h1 { margin: 0; text-align: center; font-size: 18px; letter-spacing: 1px; }
+        h2 { margin: 6px 0 8px; text-align: center; font-size: 13px; }
+        .center { text-align: center; }
+        .small { font-size: 10px; line-height: 1.35; }
+        .line { border-top: 1px dashed #111827; margin: 8px 0; }
+        .row { display: flex; justify-content: space-between; gap: 8px; margin: 4px 0; }
+        .label { font-weight: 700; }
+        .value { text-align: right; }
+        .text { white-space: pre-wrap; line-height: 1.35; }
+        table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+        th, td { border-bottom: 1px dashed #cbd5e1; padding: 4px 0; text-align: left; vertical-align: top; }
+        th:last-child, td:last-child { text-align: right; }
+        .total { font-size: 14px; font-weight: 800; }
+        .assinatura { margin-top: 28px; border-top: 1px solid #111827; text-align: center; padding-top: 5px; }
+        .print-actions { position: fixed; right: 20px; bottom: 20px; display: flex; gap: 8px; }
+        .print-actions button, .print-actions a { border: none; border-radius: 8px; padding: 10px 14px; background: #0f172a; color: #fff; cursor: pointer; font-weight: 700; text-decoration: none; }
+        @media print { body { background: #ffffff; } .cupom { margin: 0; box-shadow: none; width: auto; } .print-actions { display: none; } }
+    </style>
+</head>
+<body>
+    {% set _cfg = gestflow_configuracoes_runtime.get('valores', {}) %}
+    {% set _cfg_gerais = _cfg.get('gerais', {}) %}
+    {% set os = ordem_servico %}
+    {% set empresa_nome = empresa.nome_fantasia if empresa and empresa.nome_fantasia else 'GESTFLOW' %}
+    {% set empresa_doc = empresa.documento if empresa and empresa.documento else '-' %}
+    {% set empresa_tel = empresa.telefone if empresa and empresa.telefone else '-' %}
+    {% set empresa_email = empresa.email if empresa and empresa.email else '-' %}
+    {% set loja_cidade = loja.cidade if loja and loja.cidade else '-' %}
+    {% set cliente_nome = cliente.nome if cliente and cliente.nome else os.cliente %}
+    {% set cliente_doc = cliente.documento if cliente and cliente.documento else '-' %}
+    {% set cliente_tel = cliente.telefone if cliente and cliente.telefone else '-' %}
+
+    <div class="cupom">
+        <h1>{{ empresa_nome }}</h1>
+        <div class="center small">
+            CNPJ/CPF: {{ empresa_doc }}<br>
+            Tel: {{ empresa_tel }}<br>
+            {{ empresa_email }}<br>
+            {{ loja_cidade }}
+        </div>
+        <h2>ORDEM DE SERVIÇO {{ os.numero or os.id }}</h2>
+        <div class="line"></div>
+        <div class="row"><span class="label">Cliente</span><span class="value">{{ cliente_nome or '-' }}</span></div>
+        <div class="row"><span class="label">CNPJ/CPF</span><span class="value">{{ cliente_doc }}</span></div>
+        <div class="row"><span class="label">Telefone</span><span class="value">{{ cliente_tel }}</span></div>
+        <div class="row"><span class="label">Status</span><span class="value">{{ os.status_nome|default(os.status, true) or '-' }}</span></div>
+        <div class="row"><span class="label">Entrada</span><span class="value">{{ os.data_abertura or '-' }} {{ os.hora_entrada or '' }}</span></div>
+        <div class="row"><span class="label">Técnico</span><span class="value">{{ os.tecnico or '-' }}</span></div>
+        <div class="line"></div>
+        <div class="label">Equipamento</div><div class="text">{{ os.equipamento or '-' }}</div>
+        <div class="label">Defeito / relato</div><div class="text">{{ os.relato_cliente or '-' }}</div>
+        <div class="label">Diagnóstico</div><div class="text">{{ os.diagnostico or '-' }}</div>
+        <div class="line"></div>
+        <strong>Itens</strong>
+        <table><thead><tr><th>Descrição</th><th>Qtd</th><th>Total</th></tr></thead><tbody>
+            {% if itens %}
+                {% for item in itens %}<tr><td>{{ item.descricao or '-' }}</td><td>{{ item.quantidade or '-' }}</td><td>{{ item.subtotal or '0,00' }}</td></tr>{% endfor %}
+            {% else %}<tr><td colspan="3">Nenhum item vinculado.</td></tr>{% endif %}
+        </tbody></table>
+        {% if os.exibir_valor_impressao != 'nao' %}
+        <div class="line"></div>
+        <div class="row"><span>Peças</span><span>R$ {{ os.total_produtos or '0,00' }}</span></div>
+        <div class="row"><span>Mão de obra</span><span>R$ {{ os.total_servicos or '0,00' }}</span></div>
+        <div class="row"><span>Desconto</span><span>R$ {{ os.desconto_valor or '0,00' }}</span></div>
+        <div class="row total"><span>Total</span><span>R$ {{ os.valor_total or '0,00' }}</span></div>
+        {% endif %}
+        <div class="line"></div>
+        <div class="label">Observações</div><div class="text">{{ os.observacoes or '-' }}</div>
+        <div class="assinatura">Assinatura do cliente</div>
+    </div>
+    <div class="print-actions"><a href="/ordens-servico/{{ os.id }}">Voltar</a><button onclick="window.print()">Imprimir</button></div>
+    {% if _cfg_gerais.get('rodape_documentos') %}<div class="text">{{ _cfg_gerais.get('rodape_documentos') }}</div>{% endif %}
+</body>
+</html>

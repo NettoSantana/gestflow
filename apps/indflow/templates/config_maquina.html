@@ -1,0 +1,727 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\templates\config_maquina.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+{% extends "base.html" %}
+{% block title %}Detalhe Operacional — IndFlow{% endblock %}
+{% block content %}
+<style>
+    .top-row{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+
+    .cards-grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:16px;
+      margin-top:18px;
+    }
+
+    .machine-card{
+      background:#ffffff;
+      border:1px solid #e5e7eb;
+      border-radius:16px;
+      padding:18px;
+      box-shadow:0 6px 18px rgba(15,23,42,0.06);
+    }
+
+    .machine-card-title{
+      font-size:18px;
+      font-weight:900;
+      color:#0f172a;
+      margin:0 0 8px 0;
+    }
+
+    .machine-card-desc{
+      font-size:14px;
+      color:#64748b;
+      margin:0 0 14px 0;
+      line-height:1.35;
+      min-height:38px;
+    }
+
+    .machine-card-actions{
+      display:flex;
+      gap:10px;
+    }
+
+    @media (max-width: 1240px){
+      .cards-grid{
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .modal-backdrop{
+      position:fixed;
+      inset:0;
+      background:rgba(15,23,42,0.35);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:18px;
+      z-index:50;
+    }
+    .modal{
+      width:100%;
+      max-width:640px;
+      background:#fff;
+      border-radius:18px;
+      border:1px solid #e5e7eb;
+      box-shadow:0 18px 40px rgba(0,0,0,0.18);
+      overflow:hidden;
+    }
+    .modal-header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:14px 16px;
+      border-bottom:1px solid #e5e7eb;
+      background:#f8fafc;
+    }
+    .modal-title{
+      font-size:14px;
+      font-weight:900;
+      color:#0f172a;
+    }
+    .modal-close{
+      border:1px solid #e5e7eb;
+      background:#fff;
+      border-radius:10px;
+      width:34px;
+      height:34px;
+      font-size:16px;
+      line-height:32px;
+      text-align:center;
+      cursor:pointer;
+    }
+    .modal-body{
+      padding:16px;
+      max-height:80vh;
+      overflow-y:auto;
+    }
+
+    .help-text{
+      font-size:13px;
+      color:#64748b;
+      margin-top:6px;
+      line-height:1.3;
+    }
+
+    /* ===== FILA DE OP (SLOTS FIXOS) ===== */
+    .op-fila-top{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex:1;
+      min-width:420px;
+      padding:8px 10px;
+      border:1px solid #e5e7eb;
+      border-radius:14px;
+      background:#ffffff;
+      overflow-x:auto;
+    }
+
+    .op-fila-top-label{
+      font-size:12px;
+      font-weight:900;
+      color:#334155;
+      text-transform:uppercase;
+      letter-spacing:0.03em;
+      white-space:nowrap;
+    }
+
+    .op-fila-top-slots{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap:nowrap;
+      white-space:nowrap;
+    }
+
+    .op-chip{
+      flex:0 0 auto;
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding:7px 10px;
+      border:1px solid #e5e7eb;
+      border-radius:12px;
+      background:#f8fafc;
+    }
+
+    .op-chip-pos{
+      font-size:12px;
+      font-weight:900;
+      color:#0f172a;
+      min-width:12px;
+      text-align:center;
+    }
+
+    .op-chip-op{
+      font-size:12px;
+      font-weight:900;
+      color:#0f172a;
+      max-width:160px;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+
+    .op-chip-status{
+      display:inline-block;
+      padding:4px 8px;
+      border-radius:999px;
+      font-size:10px;
+      font-weight:900;
+      color:#fff;
+      text-transform:uppercase;
+      letter-spacing:0.02em;
+      white-space:nowrap;
+    }
+
+    .op-st-ativa{ background:#16a34a; }
+    .op-st-fila{ background:#64748b; }
+    .op-st-encerrada{ background:#0f172a; }
+    .op-st-vazio{ background:#94a3b8; }
+
+    .op-fila-top-actions{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      margin-left:auto;
+      white-space:nowrap;
+    }
+
+    
+
+    /* ===== FILA DE OP DENTRO DO CARD OP (5 SLOTS) ===== */
+    .op-card-fila-wrap{
+      margin-top:10px;
+      margin-bottom:12px;
+    }
+    .op-card-fila-label{
+      font-size:12px;
+      font-weight:900;
+      color:#334155;
+      text-transform:uppercase;
+      letter-spacing:0.03em;
+      margin-bottom:8px;
+    }
+    .op-card-fila-chips{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+    }
+    .op-card-fila-help{
+      font-size:12px;
+      font-weight:700;
+      color:#64748b;
+      margin-top:8px;
+      line-height:1.25;
+    }
+
+    /* Chips maximizados para caber no card sem aumentar tamanho */
+    .op-card-fila-chips{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+    }
+
+    /* 5 chips em 2 linhas: 3 em cima, 2 embaixo (responsivo dentro do card) */
+    .op-chip{
+      flex: 1 1 calc(33.333% - 10px);
+      min-width: 150px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:10px 12px;
+      border-radius:14px;
+    }
+
+    .op-chip-pos{
+      font-size:12px;
+      min-width:12px;
+    }
+
+    .op-chip-op{
+      max-width:120px;
+      font-size:12px;
+    }
+
+    .op-chip-status{
+      padding:4px 10px;
+      font-size:10px;
+      min-width:54px;
+      text-align:center;
+    }
+
+    /* Em telas mais estreitas, cai para 2 por linha */
+    @media (max-width: 1240px){
+      .op-chip{
+        flex: 1 1 calc(50% - 10px);
+      }
+    }
+.op-fila-top-updated{
+      font-size:12px;
+      font-weight:800;
+      color:#64748b;
+    }
+
+  .machine-detail-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px;}
+  .machine-detail-kpi{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:13px;}
+  .machine-detail-kpi span{display:block;color:#64748b;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.05em;}
+  .machine-detail-kpi strong{display:block;margin-top:6px;font-size:20px;font-weight:900;color:#0f172a;}
+  .detail-status{display:inline-flex;margin-top:7px;padding:5px 9px;border-radius:999px;color:#fff;font-size:9px;font-weight:900;}
+  .detail-status.is-running{background:#16a34a} .detail-status.is-stopped{background:#dc2626}
+  .cards-grid{grid-template-columns:repeat(3,minmax(0,1fr));margin-top:0;}
+  .machine-card{min-height:155px;box-shadow:0 5px 18px rgba(15,23,42,.045);}
+  .machine-card-desc{min-height:0;}
+  @media(max-width:1050px){.cards-grid{grid-template-columns:1fr}.machine-detail-kpis{grid-template-columns:repeat(2,minmax(0,1fr));}}
+</style>
+
+<div class="page-header">
+  <div class="page-heading">
+    <div class="page-eyebrow">Detalhe operacional</div>
+    <h1 class="page-title" id="titulo-maquina">MÁQUINA</h1>
+    <p class="page-description">Operação, OP/bobinas, histórico e parâmetros industriais. Dados cadastrais do equipamento permanecem no GestFlow.</p>
+    <div id="op-ativo-info" class="op-ativo-info" style="margin-top:10px;">-</div>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn-secondary" href="/producao/">Produção</a>
+    <a class="btn btn-primary" href="/">Painel Industrial</a>
+  </div>
+</div>
+
+<div class="machine-detail-kpis">
+  <div class="machine-detail-kpi"><span>Status atual</span><div id="detail-status" class="detail-status is-stopped">AGUARDANDO</div></div>
+  <div class="machine-detail-kpi"><span>Produção do turno</span><strong id="detail-prod">0</strong></div>
+  <div class="machine-detail-kpi"><span>Meta do turno</span><strong id="detail-meta">0</strong></div>
+  <div class="machine-detail-kpi"><span>Atingimento / parada</span><strong><span id="detail-pct" style="display:inline;color:#0f172a;font-size:20px;">0%</span> · <span id="detail-stop" style="display:inline;color:#64748b;font-size:13px;">0 min</span></strong></div>
+</div>
+
+<div class="cards-grid">
+  <div class="machine-card">
+    <div class="machine-card-title">OP / Bobinas</div>
+    <p class="machine-card-desc">Abra e gerencie a fila de Ordens de Produção e bobinas da máquina.</p>
+    <div class="machine-card-actions"><a href="#" id="btn-op-manage" class="btn btn-primary">Gerenciar OP</a></div>
+  </div>
+  <div class="machine-card">
+    <div class="machine-card-title">Histórico</div>
+    <p class="machine-card-desc">Consulte produção, eventos, paradas e desempenho por período.</p>
+    <div class="machine-card-actions"><a id="link-historico" href="#" class="btn btn-primary">Abrir histórico</a></div>
+  </div>
+  <div class="machine-card">
+    <div class="machine-card-title">Paradas</div>
+    <p class="machine-card-desc">Classifique as paradas detectadas em tempo real ou depois pelo histórico.</p>
+    <div class="machine-card-actions"><a id="link-paradas" href="#" class="btn btn-primary">Abrir paradas</a></div>
+  </div>
+  <div class="machine-card">
+    <div class="machine-card-title">Indicadores</div>
+    <p class="machine-card-desc">Consulte OEE, disponibilidade, MTTR, MTBF, Pareto e perdas desta máquina.</p>
+    <div class="machine-card-actions"><a id="link-indicadores" href="#" class="btn btn-primary">Abrir indicadores</a></div>
+  </div>
+  <div class="machine-card">
+    <div class="machine-card-title">Configuração Industrial</div>
+    <p class="machine-card-desc">Ajuste turnos, pausas, metas, conversões e parâmetros de monitoramento.</p>
+    <div class="machine-card-actions"><a id="link-config" href="#" class="btn btn-primary">Configurar</a></div>
+  </div>
+</div>
+
+<div class="page-note" style="margin-top:14px;">Chamados, manutenção e cadastro técnico do equipamento não são duplicados aqui; quando necessários, pertencem ao fluxo mestre do GestFlow.</div>
+
+      <div class="modal-backdrop" id="opModalBackdrop" style="display:none;">
+        <div class="modal">
+          <div class="modal-header">
+            <div class="modal-title" id="opModalTitle">Ordem de Producao (OP)</div>
+            <button class="modal-close" id="btnCloseOpModal" type="button" aria-label="Fechar">x</button>
+          </div>
+          <div class="modal-body">
+            <form id="op-form">
+              <label>OS:</label><input type="text" id="op_os" class="input" required>
+              <label class="mt-20">Lote:</label><input type="text" id="op_lote" class="input" required>
+              <label class="mt-20">Operador:</label><input type="text" id="op_operador" class="input" required>
+
+              <label class="mt-20">Bobinas (opcional):</label>
+              <div class="help-text">Adicione uma ou mais bobinas em metros (somente numeros). Se ficar vazio, nenhuma bobina sera registrada.</div>
+              <div id="op_bobinas_list" style="display:flex; flex-direction:column; gap:10px; margin-top:10px;"></div>
+              <button id="btnAddBobina" type="button" class="btn btn-secondary" style="margin-top:10px;">Adicionar bobina</button>
+              <input type="hidden" id="op_bobina" value="">
+              <input type="hidden" id="op_posicao" value="">
+
+              <label class="mt-20">GR / Fio (opcional):</label><input type="text" id="op_gr_fio" class="input">
+              <label class="mt-20">Observacoes (opcional):</label><textarea id="op_obs" class="input" rows="3" style="resize:vertical;"></textarea>
+
+              <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:18px; flex-wrap:wrap;">
+                <button type="button" class="btn btn-secondary" id="btnCancelOp">Cancelar</button>
+<button type="submit" class="btn btn-primary" id="btnSaveOp">Salvar</button>
+              </div>
+            </form>
+            <div class="help-text" style="margin-top:10px;">Inicio da OP e automatico (ao iniciar).</div>
+          </div>
+        </div>
+      </div>
+
+
+
+<script>
+const machine_id = window.location.pathname.split("/").pop();
+
+document.getElementById("titulo-maquina").textContent = machine_id.toUpperCase();
+document.title = machine_id.toUpperCase();
+
+document.getElementById("link-historico").href = `/producao/historico?machine_id=${encodeURIComponent(machine_id)}`;
+document.getElementById("link-paradas").href = `/paradas/?machine_id=${encodeURIComponent(machine_id)}`;
+document.getElementById("link-indicadores").href = `/indicadores/maquina/${encodeURIComponent(machine_id)}`;
+document.getElementById("link-config").href = `/producao/config-form/${encodeURIComponent(machine_id)}`;
+
+async function carregarResumoOperacional(){
+  try{
+    const r = await fetch(`/machine/status?machine_id=${encodeURIComponent(machine_id)}`);
+    if(!r.ok) return;
+    const d = await r.json();
+    const status = String(d.status_ui || (String(d.status || "").toUpperCase() === "AUTO" ? "PRODUZINDO" : "PARADA")).toUpperCase();
+    const prod = Number(d.producao_turno || 0);
+    const meta = Number(d.meta_turno || 0);
+    const pct = Number(d.percentual_turno || 0);
+    const parado = Number.isFinite(Number(d.parado_min)) ? Math.floor(Number(d.parado_min)) : 0;
+    const statusEl = document.getElementById("detail-status");
+    if(statusEl){ statusEl.textContent = status; statusEl.className = `detail-status ${status === "PRODUZINDO" ? "is-running" : "is-stopped"}`; }
+    const set = (id, value) => { const el=document.getElementById(id); if(el) el.textContent=value; };
+    set("detail-prod", prod.toLocaleString("pt-BR"));
+    set("detail-meta", meta.toLocaleString("pt-BR"));
+    set("detail-pct", `${Math.round(pct)}%`);
+    set("detail-stop", `${parado} min`);
+  }catch(e){}
+}
+carregarResumoOperacional();
+setInterval(carregarResumoOperacional, 3000);
+
+let opAtiva = null;
+let opModalMode = "new";
+
+let opFilaByPos = {};
+let opSlotSelecionado = null;
+
+function _createBobinaRow(value){
+  const row = document.createElement("div");
+  row.style.display = "flex";
+  row.style.gap = "10px";
+  row.style.alignItems = "center";
+
+  const inp = document.createElement("input");
+  inp.type = "number";
+  inp.min = "0";
+  inp.step = "1";
+  inp.className = "input";
+  inp.placeholder = "Metros";
+  inp.value = String(value || "");
+  inp.style.flex = "1";
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "btn btn-secondary";
+  btn.textContent = "Remover";
+  btn.addEventListener("click", () => { row.remove(); _syncHiddenBobinaFirst(); });
+
+  row.appendChild(inp);
+  row.appendChild(btn);
+  return row;
+}
+
+function _getBobinasFromUI(){
+  const list = document.getElementById("op_bobinas_list");
+  if(!list) return [];
+  const out = [];
+  const rows = list.querySelectorAll("div");
+  rows.forEach((r) => {
+    const inp = r.querySelector("input");
+    const v = String((inp && inp.value) ? inp.value : "").trim();
+    if(v) out.push(v);
+  });
+  return out;
+}
+
+function _setBobinasToUI(arr){
+  const list = document.getElementById("op_bobinas_list");
+  if(!list) return;
+  list.innerHTML = "";
+  const a = Array.isArray(arr) ? arr : [];
+  if(a.length === 0){
+    list.appendChild(_createBobinaRow(""));
+    return;
+  }
+  a.forEach((v) => { list.appendChild(_createBobinaRow(v)); });
+}
+
+function _syncHiddenBobinaFirst(){
+  const h = document.getElementById("op_bobina");
+  if(!h) return;
+  const bobinas = _getBobinasFromUI();
+  h.value = bobinas.length ? bobinas[0] : "";
+}
+
+function _fillOpFormFromData(d){
+  document.getElementById("op_os").value = String(d.os || "");
+  document.getElementById("op_lote").value = String(d.lote || "");
+  document.getElementById("op_operador").value = String(d.operador || "");
+  document.getElementById("op_gr_fio").value = String(d.gr_fio || "");
+  document.getElementById("op_obs").value = String(d.observacoes || "");
+
+  const bobinas =
+    Array.isArray(d.bobinas) ? d.bobinas :
+    (d.bobina ? [String(d.bobina)] : []);
+  _setBobinasToUI(bobinas);
+  _syncHiddenBobinaFirst();
+}
+
+
+async function _getJson(url){
+  try{
+    const r = await fetch(url);
+    if(!r.ok) return null;
+    return await r.json();
+  }catch(e){
+    return null;
+  }
+}
+
+function _normalizeMachineStatusPayload(payload){
+  if(payload && typeof payload === "object" && payload.machine_status){
+    return { machine: payload.machine_status, op: (payload.op_status || null) };
+  }
+  return { machine: payload, op: null };
+}
+
+
+
+
+function _formatNowHHMM(){
+  try{
+    const d = new Date();
+    const hh = String(d.getHours()).padStart(2,"0");
+    const mm = String(d.getMinutes()).padStart(2,"0");
+    return `${hh}:${mm}`;
+  }catch(e){
+    return "";
+  }
+}
+
+function _normalizeOpFilaPayload(payload){
+  if(!payload) return [];
+  if(Array.isArray(payload)) return payload;
+  if(Array.isArray(payload.fila)) return payload.fila;
+  if(Array.isArray(payload.rows)) return payload.rows;
+  if(Array.isArray(payload.data)) return payload.data;
+  return [];
+}
+
+function _badgeFromStatus(st){
+  const s = String(st || "").toLowerCase();
+  if(s === "ativa") return {cls:"op-st-ativa", label:"ATIVA"};
+  if(s === "fila") return {cls:"op-st-fila", label:"FILA"};
+  if(s === "encerrada") return {cls:"op-st-encerrada", label:"ENCERRADA"};
+  if(s === "vazio" || s === "" || s === "null" || s === "none") return {cls:"op-st-vazio", label:"VAZIO"};
+  return {cls:"op-st-fila", label:String(st || "FILA").toUpperCase()};
+}
+
+function _setHiddenPosicao(pos){
+  const h = document.getElementById("op_posicao");
+  if(h) h.value = pos ? String(pos) : "";
+}
+
+function _firstEmptyPos(){
+  for(let p=1; p<=5; p++){
+    const r = opFilaByPos[p] || null;
+    const op = r ? (r.op || r.op_id || r.op_code || r.op_num || "") : "";
+    const st = r ? String(r.status || "").toLowerCase() : "vazio";
+    if(!op && (st === "vazio" || st === "" || st === "null" || st === "none")){
+      return p;
+    }
+  }
+  for(let p=1; p<=5; p++){
+    const r = opFilaByPos[p] || null;
+    const op = r ? (r.op || r.op_id || r.op_code || r.op_num || "") : "";
+    if(!op) return p;
+  }
+  return null;
+}
+
+function openOpModalNew(pos){
+  opSlotSelecionado = pos || null;
+  _setModalMode("new");
+  document.getElementById("op-form").reset();
+  _setBobinasToUI([]);
+  _syncHiddenBobinaFirst();
+  _setHiddenPosicao(opSlotSelecionado);
+
+  const bd = document.getElementById("opModalBackdrop");
+  if(bd) bd.style.display = "flex";
+}
+
+function abrirOpSlot(pos){
+  const p = Number(pos || 0);
+  if(p < 1 || p > 5){
+    alert("Posicao invalida.");
+    return;
+  }
+
+  // Se slot estiver ocupado, por enquanto nao abrimos edicao via slot (proximo passo)
+  const r = opFilaByPos[p] || null;
+  const op = r ? (r.op || r.op_id || r.op_code || r.op_num || "") : "";
+  if(op){
+    alert("Este slot ja tem OP. Por enquanto, use o box OP ATIVA para editar/encerrar, ou escolha um slot vazio.");
+    return;
+  }
+
+  openOpModalNew(p);
+}
+
+
+function _renderOpFilaTop(rows){
+  const slots = document.getElementById("op-fila-opcard");
+  if(!slots) return;
+
+  opFilaByPos = {};
+  (rows || []).forEach((r) => {
+    const pos = Number(r.posicao || r.pos || 0);
+    if(pos >= 1 && pos <= 5){
+      opFilaByPos[pos] = r;
+    }
+  });
+
+  const out = [];
+  for(let p=1; p<=5; p++){
+    const r = opFilaByPos[p] || null;
+    const op = r ? (r.op || r.op_id || r.op_code || r.op_num || "") : "";
+    const st = r ? (r.status || "") : "vazio";
+    const b = _badgeFromStatus(st);
+    const opTxt = op ? String(op) : "—";
+
+    out.push(
+      `<div class="op-chip" onclick="abrirOpSlot(${p})" style="cursor:pointer" title="POS ${p}">` +
+        `<div class="op-chip-pos">${p}</div>` +
+        `<div class="op-chip-op" title="${opTxt}">${opTxt}</div>` +
+        `<span class="op-chip-status ${b.cls}">${b.label}</span>` +
+      `</div>`
+    );
+  }
+
+  slots.innerHTML = out.join("");
+}
+
+async function carregarOpFila(){
+  try{
+    const payload = await _getJson(`/machine/op/fila?machine_id=${encodeURIComponent(machine_id)}`);
+    const rows = _normalizeOpFilaPayload(payload);
+    _renderOpFilaTop(rows);
+  }catch(err){
+    console.error("Falha ao carregar fila de OP", err);
+  }
+}
+
+function _setModalMode(mode){
+  opModalMode = "new";
+  const t = document.getElementById("opModalTitle");
+  const btnSave = document.getElementById("btnSaveOp");
+  if(t) t.textContent = "Nova Ordem de Producao (OP)";
+  if(btnSave) btnSave.textContent = "Iniciar OP";
+}
+
+function openOpModal(){
+  _setModalMode("new");
+  document.getElementById("op-form").reset();
+  _setBobinasToUI([]);
+  _syncHiddenBobinaFirst();
+  opSlotSelecionado = null;
+  _setHiddenPosicao("");
+
+  const bd = document.getElementById("opModalBackdrop");
+  if(bd) bd.style.display = "flex";
+}
+
+function closeOpModal(){
+  const bd = document.getElementById("opModalBackdrop");
+  if(bd) bd.style.display = "none";
+  opSlotSelecionado = null;
+  _setHiddenPosicao("");
+}
+
+async function _postJson(url,p){
+  const r = await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(p)});
+  let j = null;
+  try{ j = await r.json(); }catch(e){}
+  if(!r.ok){ throw new Error((j && j.error) ? j.error : "Falha na requisicao"); }
+  return j;
+}
+
+function initOpUI(){
+  const btn = document.getElementById("btn-op-manage");
+  if(btn) btn.addEventListener("click", (e) => { if(e) e.preventDefault(); openOpModal(); });
+
+
+  const bd = document.getElementById("opModalBackdrop");
+  const bc = document.getElementById("btnCloseOpModal");
+  const bx = document.getElementById("btnCancelOp");
+  if(bc) bc.addEventListener("click", closeOpModal);
+  if(bx) bx.addEventListener("click", closeOpModal);
+  if(bd) bd.addEventListener("click", (e) => { if(e && e.target === bd) closeOpModal(); });
+
+  const btnAdd = document.getElementById("btnAddBobina");
+  if(btnAdd) btnAdd.addEventListener("click", () => {
+    const list = document.getElementById("op_bobinas_list");
+    if(!list) return;
+    list.appendChild(_createBobinaRow(""));
+    _syncHiddenBobinaFirst();
+  });
+
+  const list = document.getElementById("op_bobinas_list");
+  if(list){
+    list.addEventListener("input", () => { _syncHiddenBobinaFirst(); });
+    list.addEventListener("change", () => { _syncHiddenBobinaFirst(); });
+  }
+
+  const f = document.getElementById("op-form");
+  if(f) f.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const os = String(document.getElementById("op_os").value || "").trim();
+    const lote = String(document.getElementById("op_lote").value || "").trim();
+    const oper = String(document.getElementById("op_operador").value || "").trim();
+    if(!os || !lote || !oper){
+      alert("Preencha OS, Lote e Operador.");
+      return;
+    }
+
+    const payload = {
+      machine_id: machine_id,
+      os: os,
+      lote: lote,
+      operador: oper,
+      bobina: String(document.getElementById("op_bobina").value || "").trim(),
+      gr_fio: String(document.getElementById("op_gr_fio").value || "").trim(),
+      observacoes: String(document.getElementById("op_obs").value || "").trim(),
+      posicao: Number(String(document.getElementById("op_posicao").value || "").trim() || "0")
+    };
+
+    try{
+      const bobinas = _getBobinasFromUI();
+      payload.bobinas = bobinas;
+      payload.bobina = bobinas.length ? bobinas[0] : payload.bobina;
+      await _postJson("/producao/op/iniciar", payload);
+closeOpModal();
+}catch(err){
+      alert(String(err && err.message ? err.message : err));
+    }
+  });
+}
+
+initOpUI();
+</script>
+{% endblock %}

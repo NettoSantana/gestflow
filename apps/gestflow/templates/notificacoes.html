@@ -1,0 +1,120 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\notificacoes.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Notificações</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+
+    <main class="content notifications-page">
+        {% set page_title = 'Notificações' %}
+        {% include "partials/topbar.html" %}
+
+        <section class="panel page-section notifications-hero">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Central de alertas</span>
+                    <h3 class="page-title">Notificações</h3>
+                    <p class="page-subtitle">Acompanhe vencimentos, compromissos, prazos operacionais e níveis de estoque em um único lugar.</p>
+                </div>
+                <div class="notifications-header-actions">
+                    {% if resumo_notificacoes.nao_lidas > 0 %}
+                        <form action="{{ url_for('marcar_todas_notificacoes_lidas') }}" method="post">
+                            <input type="hidden" name="destino" value="{{ url_for('notificacoes', filtro=filtro_notificacoes) }}">
+                            <button type="submit" class="btn-primary-green">Marcar todas como lidas</button>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+
+        {% if sucesso %}<div class="notifications-alert" role="status">{{ sucesso }}</div>{% endif %}
+        {% if erro %}<div class="notifications-alert error" role="alert">{{ erro }}</div>{% endif %}
+
+        <section class="notifications-summary" aria-label="Resumo das notificações">
+            <article class="notifications-summary-card">
+                <span>Total ativo</span>
+                <strong>{{ resumo_notificacoes.total }}</strong>
+            </article>
+            <article class="notifications-summary-card unread">
+                <span>Não lidas</span>
+                <strong>{{ resumo_notificacoes.nao_lidas }}</strong>
+            </article>
+            <article class="notifications-summary-card read">
+                <span>Lidas</span>
+                <strong>{{ resumo_notificacoes.lidas }}</strong>
+            </article>
+            <article class="notifications-summary-card critical">
+                <span>Críticas</span>
+                <strong>{{ resumo_notificacoes.criticas }}</strong>
+            </article>
+        </section>
+
+        <section class="panel page-section">
+            <nav class="notifications-filter-tabs" aria-label="Filtros das notificações">
+                <a href="{{ url_for('notificacoes', filtro='todas') }}" class="{% if filtro_notificacoes == 'todas' %}active{% endif %}">Todas</a>
+                <a href="{{ url_for('notificacoes', filtro='nao_lidas') }}" class="{% if filtro_notificacoes == 'nao_lidas' %}active{% endif %}">Não lidas</a>
+                <a href="{{ url_for('notificacoes', filtro='lidas') }}" class="{% if filtro_notificacoes == 'lidas' %}active{% endif %}">Lidas</a>
+                <a href="{{ url_for('notificacoes', filtro='resolvidas') }}" class="{% if filtro_notificacoes == 'resolvidas' %}active{% endif %}">Histórico resolvido</a>
+            </nav>
+
+            <div class="notifications-list">
+                {% for item in notificacoes_lista %}
+                    <article class="notification-list-item priority-{{ item.prioridade }}{% if item.lida %} is-read{% endif %}{% if not item.ativa %} is-resolved{% endif %}">
+                        <span class="notification-priority-dot" aria-hidden="true"></span>
+                        <div class="notification-list-copy">
+                            <header>
+                                <h3>{{ item.titulo }}</h3>
+                                <span class="notification-category-pill">{{ item.categoria|replace('_', ' ') }}</span>
+                                {% if not item.ativa %}
+                                    <span class="notification-read-pill resolved">Resolvida</span>
+                                {% else %}
+                                    <span class="notification-read-pill {% if not item.lida %}unread{% endif %}">{{ 'Lida' if item.lida else 'Não lida' }}</span>
+                                {% endif %}
+                            </header>
+                            <p>{{ item.mensagem }}</p>
+                            <div class="notification-list-meta">
+                                <span>Criada em {{ item.criado_em_exibicao or '-' }}</span>
+                                {% if item.lida_em_exibicao %}<span>• Lida em {{ item.lida_em_exibicao }}</span>{% endif %}
+                            </div>
+                        </div>
+                        <form action="{{ url_for('marcar_notificacao_lida', notificacao_id=item.id) }}" method="post" class="notification-list-action">
+                            <input type="hidden" name="destino" value="{{ item.url }}">
+                            <button type="submit">{{ 'Abrir registro' if item.lida or not item.ativa else 'Abrir e marcar como lida' }}</button>
+                        </form>
+                    </article>
+                {% else %}
+                    <div class="notifications-empty">
+                        <span>✓</span>
+                        <strong>Nenhuma notificação neste filtro</strong>
+                        <p>Quando houver um novo alerta, ele aparecerá aqui e no sino da barra superior.</p>
+                    </div>
+                {% endfor %}
+            </div>
+
+            {% if paginacao.total_paginas > 1 %}
+                <footer class="notifications-pagination">
+                    <span>Página {{ paginacao.pagina }} de {{ paginacao.total_paginas }} — {{ paginacao.total }} registro(s)</span>
+                    <div class="notifications-pagination-links">
+                        {% if paginacao.tem_anterior %}
+                            <a href="{{ url_for('notificacoes', filtro=filtro_notificacoes, pagina=paginacao.pagina - 1, por_pagina=paginacao.por_pagina) }}">Anterior</a>
+                        {% endif %}
+                        {% if paginacao.tem_proxima %}
+                            <a href="{{ url_for('notificacoes', filtro=filtro_notificacoes, pagina=paginacao.pagina + 1, por_pagina=paginacao.por_pagina) }}">Próxima</a>
+                        {% endif %}
+                    </div>
+                </footer>
+            {% endif %}
+        </section>
+    </main>
+</body>
+</html>

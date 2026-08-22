@@ -1,0 +1,178 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\templates\base.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0f172a">
+  <title>{% block title %}IndFlow — Operação Industrial{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css?v=20260811">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  {% set _path = request.path if request is defined else '' %}
+  {% set _role = (session.get('role') or 'viewer')|lower %}
+  {% set _is_technical = _role in ['admin', 'superadmin'] %}
+  {% set _gestflow_url = gestflow_base_url|default('https://gestflow-web-production.up.railway.app', true) %}
+
+  <div class="industrial-shell">
+    <aside class="industrial-sidebar" id="industrialSidebar">
+      <div class="industrial-brand">
+        <a href="/" class="industrial-brand-link" aria-label="IndFlow - Painel Industrial">
+          <img src="/static/img/logo.png" alt="IndFlow" class="industrial-brand-logo">
+          <div class="industrial-brand-text">
+            <strong>IndFlow</strong>
+            <span>Operação Industrial</span>
+          </div>
+        </a>
+        <button class="sidebar-mobile-close" id="sidebarMobileClose" type="button" aria-label="Fechar menu">×</button>
+      </div>
+
+      <nav class="industrial-nav" aria-label="Navegação principal do IndFlow">
+        <div class="industrial-nav-section">
+          <span class="industrial-nav-label">Operação</span>
+
+          <a class="industrial-nav-item {% if _path == '/' %}active{% endif %}" href="/">
+            <span class="industrial-nav-icon">⌂</span>
+            <span>Painel Industrial</span>
+          </a>
+
+          <a class="industrial-nav-item {% if _path.startswith('/operacao') %}active{% endif %}" href="/operacao/">
+            <span class="industrial-nav-icon">▣</span>
+            <span>Tela Operacional</span>
+          </a>
+
+          <a class="industrial-nav-item {% if _path.startswith('/producao') and not _path.startswith('/producao/historico') %}active{% endif %}" href="/producao/">
+            <span class="industrial-nav-icon">▥</span>
+            <span>Produção</span>
+          </a>
+
+          <a class="industrial-nav-item {% if _path.startswith('/producao/historico') or _path.startswith('/maquina/') and _path.endswith('/historico') %}active{% endif %}" href="/producao/historico">
+            <span class="industrial-nav-icon">◷</span>
+            <span>Histórico</span>
+          </a>
+
+          <a class="industrial-nav-item {% if _path.startswith('/paradas') %}active{% endif %}" href="/paradas/">
+            <span class="industrial-nav-icon">Ⅱ</span>
+            <span>Paradas</span>
+          </a>
+
+          <a class="industrial-nav-item {% if _path.startswith('/indicadores') %}active{% endif %}" href="/indicadores/">
+            <span class="industrial-nav-icon">▤</span>
+            <span>Indicadores</span>
+          </a>
+
+          <a class="industrial-nav-item {% if _path.startswith('/utilidades') %}active{% endif %}" href="/utilidades/">
+            <span class="industrial-nav-icon">⌁</span>
+            <span>Utilidades</span>
+          </a>
+        </div>
+
+        {% if _is_technical %}
+        <div class="industrial-nav-section industrial-nav-section-technical">
+          <span class="industrial-nav-label">Técnico</span>
+
+          <a class="industrial-nav-item {% if _path.startswith('/devices') %}active{% endif %}" href="/devices/">
+            <span class="industrial-nav-icon">⌘</span>
+            <span>Devices</span>
+          </a>
+
+          <a class="industrial-nav-item {% if _path.startswith('/admin') %}active{% endif %}" href="/admin/">
+            <span class="industrial-nav-icon">⚙</span>
+            <span>Administração</span>
+          </a>
+
+          <a class="industrial-nav-item {% if _path.startswith('/teste') %}active{% endif %}" href="/teste/">
+            <span class="industrial-nav-icon">◇</span>
+            <span>Dados de teste</span>
+          </a>
+        </div>
+        {% endif %}
+      </nav>
+
+      <div class="industrial-sidebar-footer">
+        <a class="industrial-nav-item industrial-back-gestflow" href="{{ _gestflow_url }}">
+          <span class="industrial-nav-icon">←</span>
+          <span>Voltar ao GestFlow</span>
+        </a>
+        <a class="industrial-nav-item" href="/admin/logout">
+          <span class="industrial-nav-icon">↪</span>
+          <span>Sair</span>
+        </a>
+        <div class="industrial-version">GestFlow · IndFlow</div>
+      </div>
+    </aside>
+
+    <div class="industrial-sidebar-backdrop" id="industrialSidebarBackdrop" aria-hidden="true"></div>
+
+    <div class="industrial-main">
+      <header class="industrial-topbar">
+        <button class="sidebar-mobile-toggle" id="sidebarMobileToggle" type="button" aria-label="Abrir menu">☰</button>
+        <div class="industrial-topbar-context">
+          <span class="industrial-topbar-kicker">GestFlow</span>
+          <strong>
+            {% if _path == '/' %}Painel Industrial
+            {% elif _path.startswith('/operacao') %}Tela Operacional
+            {% elif _path.startswith('/producao/historico') %}Histórico
+            {% elif _path.startswith('/producao') %}Produção
+            {% elif _path.startswith('/paradas/catalogo') %}Motivos de Parada
+            {% elif _path.startswith('/paradas') %}Paradas
+            {% elif _path.startswith('/indicadores/maquina') %}Indicadores da Máquina
+            {% elif _path.startswith('/indicadores') %}Indicadores Gerais
+            {% elif _path.startswith('/utilidades') %}Utilidades
+            {% elif _path.startswith('/devices') %}Devices
+            {% elif _path.startswith('/teste') %}Dados de Teste
+            {% elif _path.startswith('/admin') %}Administração Técnica
+            {% else %}IndFlow{% endif %}
+          </strong>
+        </div>
+        <div class="industrial-topbar-user">
+          <span class="industrial-live-dot" aria-hidden="true"></span>
+          <div>
+            <strong>{{ session.get('email') or 'Usuário conectado' }}</strong>
+            <span>{{ _role|upper }}</span>
+          </div>
+        </div>
+      </header>
+
+      <main class="industrial-content">
+        <div class="industrial-container">
+          {% block content %}{% endblock %}
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const body = document.body;
+      const toggle = document.getElementById('sidebarMobileToggle');
+      const close = document.getElementById('sidebarMobileClose');
+      const backdrop = document.getElementById('industrialSidebarBackdrop');
+
+      function openSidebar(){ body.classList.add('industrial-sidebar-open'); }
+      function closeSidebar(){ body.classList.remove('industrial-sidebar-open'); }
+
+      if (toggle) toggle.addEventListener('click', openSidebar);
+      if (close) close.addEventListener('click', closeSidebar);
+      if (backdrop) backdrop.addEventListener('click', closeSidebar);
+
+      document.querySelectorAll('.industrial-sidebar a[href]').forEach(function(link){
+        link.addEventListener('click', function(){
+          if (window.innerWidth <= 980) closeSidebar();
+        });
+      });
+
+      document.addEventListener('keydown', function(event){
+        if (event.key === 'Escape') closeSidebar();
+      });
+    })();
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

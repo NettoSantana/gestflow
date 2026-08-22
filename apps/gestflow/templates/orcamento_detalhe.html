@@ -1,0 +1,672 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\orcamento_detalhe.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Detalhes do Orçamento</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+
+    <style>
+        .budget-action-menu,
+        .sale-action-menu {
+            position: relative;
+            display: inline-block;
+        }
+
+        .gf-action-dialog-trigger {
+            width: 34px;
+            height: 34px;
+            border: 0;
+            border-radius: 8px;
+            background: #16a34a;
+            color: #ffffff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-weight: 900;
+            box-shadow: 0 8px 18px rgba(22, 163, 74, 0.20);
+            user-select: none;
+        }
+
+        .gf-action-dialog-trigger:hover,
+        .gf-action-dialog-trigger:focus-visible {
+            background: #15803d;
+            outline: 3px solid rgba(22, 163, 74, 0.20);
+            outline-offset: 2px;
+        }
+
+        .gf-action-dialog {
+            width: min(420px, calc(100vw - 32px));
+            max-height: calc(100vh - 32px);
+            margin: auto;
+            padding: 0;
+            border: 0;
+            border-radius: 18px;
+            background: #ffffff;
+            color: #0f172a;
+            box-shadow: 0 28px 80px rgba(15, 23, 42, 0.30);
+            overflow: hidden;
+        }
+
+        .gf-action-dialog::backdrop {
+            background: rgba(15, 23, 42, 0.58);
+            backdrop-filter: blur(2px);
+        }
+
+        .gf-action-dialog-card {
+            padding: 20px;
+            overflow-y: auto;
+            max-height: calc(100vh - 32px);
+        }
+
+        .gf-action-dialog-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .gf-action-dialog-header h3 {
+            margin: 0;
+            color: #0f172a;
+            font-size: 19px;
+        }
+
+        .gf-action-dialog-header p {
+            margin: 5px 0 0;
+            color: #64748b;
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        .gf-action-dialog-close {
+            flex: 0 0 auto;
+            width: 36px;
+            height: 36px;
+            border: 0;
+            border-radius: 10px;
+            background: #f1f5f9;
+            color: #0f172a;
+            cursor: pointer;
+            font-size: 20px;
+            font-weight: 900;
+        }
+
+        .gf-action-dialog-close:hover {
+            background: #e2e8f0;
+        }
+
+        .gf-action-dialog-actions {
+            display: grid;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .gf-action-dialog-actions a,
+        .gf-action-dialog-actions button,
+        .gf-action-dialog-disabled {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            min-height: 44px;
+            padding: 11px 13px;
+            border: 1px solid #e2e8f0;
+            border-radius: 11px;
+            background: #ffffff;
+            color: #1e293b;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 800;
+            line-height: 1.3;
+        }
+
+        .gf-action-dialog-actions button {
+            appearance: none;
+            font-family: inherit;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .gf-action-dialog-actions a:hover,
+        .gf-action-dialog-actions a:focus-visible,
+        .gf-action-dialog-actions button:hover,
+        .gf-action-dialog-actions button:focus-visible {
+            border-color: #bbf7d0;
+            background: #f0fdf4;
+            color: #166534;
+            outline: none;
+        }
+
+        .gf-action-dialog-disabled {
+            background: #f8fafc;
+            color: #64748b;
+            cursor: default;
+        }
+
+        .budget-action-row,
+        .sale-action-row {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+    </style>
+
+    <style>
+        /* PADRAO VISUAL ORCAMENTOS - TELAS AUXILIARES */
+        .content {
+            padding-bottom: 220px;
+        }
+
+        .content > .panel.page-section:first-of-type {
+            margin-top: 0;
+        }
+
+        .panel,
+        .page-section,
+        .table-panel {
+            border-radius: 16px;
+        }
+
+        .panel-header.page-header,
+        .page-header {
+            gap: 14px;
+        }
+
+        .page-title {
+            letter-spacing: -0.02em;
+        }
+
+        .page-subtitle {
+            max-width: 760px;
+        }
+
+        .client-toolbar,
+        .form-actions,
+        .client-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn-primary-green,
+        .btn-dark,
+        .btn-light,
+        .action-button {
+            border-radius: 10px;
+            text-decoration: none;
+        }
+
+        .form-control,
+        input,
+        select,
+        textarea {
+            border-radius: 10px;
+            max-width: 100%;
+        }
+
+        .client-form {
+            width: 100%;
+        }
+
+        .form-grid {
+            align-items: start;
+        }
+
+        .panel-summary {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .panel-summary > div {
+            min-height: 74px;
+            border: 1px solid #e5eaf2;
+            border-radius: 14px;
+            background: #ffffff;
+            padding: 14px;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+        }
+
+        .panel-summary span {
+            display: block;
+            margin-bottom: 6px;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+
+        .panel-summary strong {
+            color: #0f172a;
+            font-size: 14px;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+
+        .table-shell {
+            border: 0 !important;
+            border-radius: 16px;
+            overflow-x: auto;
+            background: #ffffff;
+        }
+
+        .content table,
+        .content .client-table {
+            width: 100%;
+            border-collapse: separate !important;
+            border-spacing: 0 10px !important;
+            min-width: 760px;
+        }
+
+        .content table thead th,
+        .content .client-table thead th {
+            border-bottom: 0 !important;
+            background: transparent;
+            padding: 10px 12px;
+            color: #334155;
+            font-size: 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .content table tbody tr,
+        .content .client-table tbody tr {
+            background: #ffffff;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+            border-radius: 14px;
+        }
+
+        .content table tbody td,
+        .content .client-table tbody td {
+            border-bottom: 0 !important;
+            padding: 14px 12px !important;
+            color: #334155;
+            vertical-align: middle;
+        }
+
+        .content table tbody td:first-child,
+        .content .client-table tbody td:first-child {
+            border-top-left-radius: 14px;
+            border-bottom-left-radius: 14px;
+        }
+
+        .content table tbody td:last-child,
+        .content .client-table tbody td:last-child {
+            border-top-right-radius: 14px;
+            border-bottom-right-radius: 14px;
+        }
+
+        .empty-table,
+        .empty-table-box {
+            border-radius: 14px;
+        }
+
+        .status-pill,
+        .badge-info {
+            border-radius: 999px;
+            white-space: nowrap;
+        }
+
+        .quick-modal,
+        .modal,
+        .dialog {
+            border-radius: 18px;
+        }
+
+        .config-grid,
+        .portal-grid,
+        .planos-grid,
+        .cards,
+        .cards-secondary {
+            gap: 16px;
+        }
+
+        .config-card,
+        .portal-card,
+        .plan-card,
+        .card,
+        .stat-card {
+            border-radius: 16px;
+        }
+
+        .auth-card,
+        .login-card,
+        .onboarding-card,
+        .portal-card,
+        .plan-card {
+            box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+        }
+
+        @media (max-width: 1100px) {
+            .panel-summary {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .content table,
+            .content .client-table {
+                min-width: 720px;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .panel-summary {
+                grid-template-columns: 1fr;
+            }
+
+            .client-toolbar,
+            .form-actions,
+            .client-actions {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .client-toolbar .btn-primary-green,
+            .client-toolbar .btn-dark,
+            .client-toolbar .btn-light,
+            .form-actions .btn-primary-green,
+            .form-actions .btn-dark,
+            .form-actions .btn-light {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .content table,
+            .content .client-table {
+                min-width: 680px;
+            }
+        }
+
+        .budget-tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px; padding:8px; border:1px solid #dbe4f0; border-radius:14px; background:#fff; }
+        .budget-tab { min-height:38px; display:inline-flex; align-items:center; justify-content:center; padding:0 14px; border-radius:10px; color:#475569; font-size:12px; font-weight:900; text-decoration:none; }
+        .budget-tab:hover { background:#f1f5f9; color:#0f172a; }
+        .budget-tab.active { background:#0f62fe; color:#fff; }
+        .origin-badge, .presentation-badge { display:inline-flex; align-items:center; min-height:28px; padding:0 10px; border-radius:999px; font-size:11px; font-weight:900; text-transform:uppercase; }
+        .origin-badge.gerador { background:#dbeafe; color:#1d4ed8; }
+        .origin-badge.manual { background:#e2e8f0; color:#475569; }
+        .presentation-badge { background:#dcfce7; color:#166534; }
+        .internal-warning { margin-bottom:14px; padding:12px 14px; border:1px solid #fde68a; border-radius:12px; background:#fffbeb; color:#92400e; font-size:12px; font-weight:800; line-height:1.45; }
+        .history-list { display:grid; gap:10px; }
+        .history-item { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; padding:12px; border:1px solid #e2e8f0; border-radius:12px; background:#f8fafc; font-size:12px; }
+        .history-item span { color:#64748b; font-weight:700; }
+        .history-item strong { display:block; margin-top:4px; color:#0f172a; }
+        @media(max-width:720px){.budget-tabs{flex-direction:column}.budget-tab{width:100%}.history-item{grid-template-columns:1fr}}
+        .scope-view { display:grid; gap:16px; }
+        .scope-free-text, .scope-extra-notes { display:grid; gap:10px; }
+        .scope-section-card { border:1px solid #dbe4f0; border-radius:14px; background:#fff; overflow:hidden; break-inside:avoid; }
+        .scope-section-title { display:flex; align-items:center; gap:10px; margin:0; padding:11px 14px; background:#f1f5f9; color:#0f172a; font-size:13px; font-weight:900; }
+        .scope-section-number { min-width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; border-radius:8px; background:#0f62fe; color:#fff; }
+        .scope-section-body { display:grid; gap:10px; padding:14px; }
+        .scope-section-body p, .scope-free-text p, .scope-extra-notes p { margin:0; color:#334155; line-height:1.65; text-align:justify; white-space:pre-wrap; }
+        .scope-section-body ul { margin:0; padding-left:22px; display:grid; gap:8px; }
+        .scope-section-body li { color:#334155; line-height:1.55; }
+        .scope-extra-title { margin:4px 0 0; padding-top:14px; border-top:1px solid #e2e8f0; color:#0f172a; font-size:13px; font-weight:900; text-transform:uppercase; }
+</style>
+
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+
+<main class="content">
+        {% set page_title = 'Orçamento' %}
+        {% include "partials/topbar.html" %}
+        {% set origem = orcamento.origem|default('manual', true) %}
+        {% set modo = orcamento.modo_apresentacao|default('agrupado', true) %}
+        {% set orcamento_status_final = (orcamento.status|default('', true)|lower|trim) in ['aprovado', 'aprovada', 'reprovado', 'reprovada', 'recusado', 'recusada', 'cancelado', 'cancelada'] %}
+
+        {% if request.args.get('sucesso') %}<div class="form-alert-success">{{ request.args.get('sucesso') }}</div>{% endif %}
+        {% if request.args.get('erro') %}<div class="form-alert-error">{{ request.args.get('erro') }}</div>{% endif %}
+
+        <nav class="budget-tabs" aria-label="Abas do orçamento">
+            <a class="budget-tab active" href="/orcamentos/{{ orcamento.id }}">Visão geral</a>
+            {% if not orcamento_status_final %}
+                <a class="budget-tab" href="/orcamentos/{{ orcamento.id }}/editar">Orçamento</a>
+                <a class="budget-tab" href="/orcamentos/{{ orcamento.id }}/editar#aba-apresentacao">Apresentação ao cliente</a>
+                {% if dados_gerador %}<a class="budget-tab" href="/orcamentos/{{ orcamento.id }}/gerador/revisao">Dados do Gerador</a>{% endif %}
+            {% endif %}
+            {% if dados_gerador %}<a class="budget-tab" href="/orcamentos/{{ orcamento.id }}/gerador/historico">Histórico</a>{% endif %}
+        </nav>
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div><span class="page-kicker">Orçamentos</span><h3 class="page-title">Orçamento {{ orcamento.numero or orcamento.id }}</h3><p class="page-subtitle">Cliente: {{ orcamento.cliente or '-' }}</p></div>
+                <div class="client-toolbar"><span class="origin-badge {{ origem }}">{{ 'Gerador' if origem == 'gerador' else 'Manual' }}</span><span class="presentation-badge">{{ modo|replace('_',' ') }}</span><span class="status-pill {{ orcamento.status }}">{{ orcamento.status }}</span></div>
+            </div>
+            <div class="panel-summary">
+                <div><span>Número</span><strong>{{ orcamento.numero or '-' }}</strong></div><div><span>Responsável</span><strong>{{ orcamento.responsavel or '-' }}</strong></div><div><span>Data</span><strong>{{ orcamento.data or '-' }}</strong></div><div><span>Prazo</span><strong>{{ orcamento.prazo_entrega or '-' }}</strong></div><div><span>Validade</span><strong>{{ orcamento.validade or '-' }}</strong></div><div><span>Pagamento</span><strong>{{ orcamento.forma_pagamento or '-' }}</strong></div><div><span>Valor total</span><strong>R$ {{ orcamento.valor_total or '0,00' }}</strong></div><div><span>Modo de apresentação</span><strong>{{ modo|replace('_',' ')|title }}</strong></div><div><span>Origem</span><strong>{{ 'Gerador de Orçamentos' if origem == 'gerador' else 'Orçamento comum' }}</strong></div><div><span>Centro de custo</span><strong>{{ orcamento.centro_custo_nome or orcamento.centro_custo or '-' }}</strong></div><div><span>Atividade / Projeto</span><strong>{{ atividade.nome if atividade else '-' }}</strong></div>
+            </div>
+        </section>
+
+        <section class="panel table-panel">
+            <div class="panel-header page-header">
+                <div><h3>Apresentação ao cliente</h3><p class="page-subtitle">Esta é a composição que será exibida no PDF e no cupom.</p></div>
+                <div class="budget-action-row">{% if not orcamento_status_final %}<a href="/orcamentos/{{ orcamento.id }}/editar#aba-apresentacao" class="btn-primary-green">Editar apresentação</a>{% endif %}<div class="budget-action-menu">
+                        <button
+                            type="button"
+                            class="gf-action-dialog-trigger"
+                            title="Mais ações do orçamento"
+                            aria-label="Mais ações do orçamento"
+                            aria-haspopup="dialog"
+                            data-gf-action-dialog="orcamento-detalhe-acoes-{{ orcamento.id }}"
+                        >⌄</button>
+                        <dialog
+                            class="gf-action-dialog"
+                            id="orcamento-detalhe-acoes-{{ orcamento.id }}"
+                            aria-labelledby="orcamento-detalhe-acoes-titulo-{{ orcamento.id }}"
+                        >
+                            <div class="gf-action-dialog-card">
+                                <div class="gf-action-dialog-header">
+                                    <div>
+                                        <h3 id="orcamento-detalhe-acoes-titulo-{{ orcamento.id }}">Ações do orçamento</h3>
+                                        <p>{{ orcamento.numero or ('Orçamento ' ~ orcamento.id) }}</p>
+                                    </div>
+                                    <button type="button" class="gf-action-dialog-close" data-gf-action-dialog-close aria-label="Fechar">×</button>
+                                </div>
+                                <div class="gf-action-dialog-actions">
+                                    <button type="button" data-gf-print-url="/orcamentos/{{ orcamento.id }}/imprimir/a4" aria-label="Abrir impressão A4 em nova aba">🖨 Imprimir A4</button>
+                                    <button type="button" data-gf-print-url="/orcamentos/{{ orcamento.id }}/imprimir/cupom" aria-label="Abrir impressão Cupom em nova aba">🧾 Imprimir Cupom</button>
+                                    <a href="/orcamentos/{{ orcamento.id }}/gerar/copia">↻ Gerar cópia</a>
+                                    {% if venda_gerada %}
+                                        <a href="/vendas/{{ venda_gerada.id }}">✓ Abrir venda gerada Nº {{ venda_gerada.numero or venda_gerada.id }}</a>
+                                    {% else %}
+                                        <a href="/orcamentos/{{ orcamento.id }}/gerar/venda">🛒 Gerar venda</a>
+                                    {% endif %}
+                                    <a href="/orcamentos/{{ orcamento.id }}?gerar=os">🛠 Gerar OS</a>
+                                </div>
+                            </div>
+                        </dialog>
+                    </div></div>
+            </div>
+            {% if modo == 'detalhado' %}
+                <div class="internal-warning">O modo detalhado exibe todos os produtos e serviços ao cliente.</div>
+                <div class="table-shell"><table class="client-table"><thead><tr><th>Tipo</th><th>Nome</th><th>Descrição</th><th>Qtd.</th><th>Valor unit.</th><th>Subtotal</th></tr></thead><tbody>{% for item in itens %}<tr><td>{{ item.tipo_item }}</td><td>{{ item.descricao }}</td><td>{{ item.detalhes }}</td><td>{{ item.quantidade }}</td><td>{{ item.valor_unitario }}</td><td>{{ item.subtotal }}</td></tr>{% else %}<tr><td colspan="6" class="empty-table">Nenhum item informado.</td></tr>{% endfor %}</tbody></table></div>
+            {% else %}
+                <div class="table-shell"><table class="client-table"><thead><tr><th>Descrição comercial</th><th>Detalhes</th><th>Qtd.</th><th>Valor</th><th>Subtotal</th></tr></thead><tbody>{% for item in itens_apresentacao %}<tr><td><strong>{{ item.descricao }}</strong></td><td>{{ item.detalhes }}</td><td>{{ item.quantidade }}</td><td>{{ item.valor_unitario }}</td><td>{{ item.subtotal }}</td></tr>{% else %}<tr><td colspan="5" class="empty-table">A apresentação será gerada automaticamente ao imprimir.</td></tr>{% endfor %}</tbody></table></div>
+            {% endif %}
+        </section>
+
+        <section class="panel table-panel">
+            <div class="panel-header page-header"><div><h3>Composição interna</h3><p class="page-subtitle">Produtos e serviços usados nos cálculos. Estes itens não aparecem ao cliente nos modos agrupado e global.</p></div>{% if dados_gerador and not orcamento_status_final %}<a href="/orcamentos/{{ orcamento.id }}/gerador/revisao" class="btn-dark">Editar dados do Gerador</a>{% endif %}</div>
+            <div class="internal-warning">Uso interno: custos, quantidades e composição técnica devem ser mantidos aqui para cálculo, estoque, OS e análise de margem.</div>
+            <div class="table-shell"><table class="client-table"><thead><tr><th>Tipo</th><th>Nome</th><th>Descrição</th><th>Qtd.</th><th>Valor unit.</th><th>Desconto</th><th>Subtotal</th></tr></thead><tbody>{% for item in itens %}<tr><td>{{ item.tipo_item }}</td><td>{{ item.descricao }}</td><td>{{ item.detalhes }}</td><td>{{ item.quantidade }}</td><td>{{ item.valor_unitario }}</td><td>{{ item.desconto }}</td><td>{{ item.subtotal }}</td></tr>{% else %}<tr><td colspan="7" class="empty-table">Nenhum item interno informado.</td></tr>{% endfor %}</tbody></table></div>
+        </section>
+
+        <section class="panel page-section">
+            <div class="panel-header page-header"><div><h3>Resumo financeiro</h3><p class="page-subtitle">Totais e informações complementares do orçamento.</p></div></div><div class="gf-financial-kpis"><div><span>Valor previsto</span><strong>R$ {{ resumo_atividade.previsto_formatado }}</strong></div><div><span>Recebido</span><strong>R$ {{ resumo_atividade.recebido_formatado }}</strong></div><div><span>A receber</span><strong>R$ {{ resumo_atividade.a_receber_formatado }}</strong></div><div><span>Custos</span><strong>R$ {{ resumo_atividade.custos_formatado }}</strong></div><div><span>Resultado atual</span><strong>R$ {{ resumo_atividade.resultado_formatado }}</strong></div><div><span>Margem atual</span><strong>{{ resumo_atividade.margem_formatada }}%</strong></div></div>{% if atividade %}<p><a class="btn-light" href="/financeiro/atividades/{{ atividade.id }}">Ver movimentações da atividade</a></p>{% endif %}
+            <div class="panel-summary">
+                <div><span>Total produtos interno</span><strong>{{ orcamento.total_produtos or '0,00' }}</strong></div>
+                <div><span>Total serviços interno</span><strong>{{ orcamento.total_servicos or '0,00' }}</strong></div>
+                <div><span>Desconto</span><strong>{{ orcamento.desconto_valor or '0,00' }}</strong></div>
+                <div><span>Valor total</span><strong>R$ {{ orcamento.valor_total or '0,00' }}</strong></div>
+                <div><span>Descrição comercial</span><strong>{{ orcamento.descricao_comercial or '-' }}</strong></div>
+                <div><span>Descrição editada</span><strong>{{ orcamento.descricao_comercial or orcamento.observacoes or (itens[0].detalhes if itens else '-') }}</strong></div>
+                <div><span>Cadastro</span><strong>{{ orcamento.criado_em or '-' }}</strong></div>
+            </div>
+        </section>
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div><h3>Escopo e observações para o cliente</h3><p class="page-subtitle">Visualização organizada do conteúdo que acompanha a proposta.</p></div>
+                {% if not orcamento_status_final %}<a href="/orcamentos/{{ orcamento.id }}/editar#aba-escopo" class="btn-light">Editar escopo</a>{% endif %}
+            </div>
+            <div class="scope-view">
+                {% for paragrafo in escopo_formatado.texto_livre|default([]) %}
+                    <div class="scope-free-text"><p>{{ paragrafo }}</p></div>
+                {% endfor %}
+
+                {% for secao in escopo_formatado.secoes|default([]) %}
+                    <article class="scope-section-card">
+                        <h4 class="scope-section-title"><span class="scope-section-number">{{ secao.numero }}</span>{{ secao.titulo }}</h4>
+                        <div class="scope-section-body">
+                            {% for paragrafo in secao.paragrafos %}<p>{{ paragrafo }}</p>{% endfor %}
+                            {% if secao.itens %}
+                                <ul>{% for item in secao.itens %}<li>{{ item }}</li>{% endfor %}</ul>
+                            {% endif %}
+                        </div>
+                    </article>
+                {% endfor %}
+
+                {% if escopo_formatado.observacoes_adicionais|default([]) %}
+                    <h4 class="scope-extra-title">Observações adicionais</h4>
+                    <div class="scope-extra-notes">
+                        {% for paragrafo in escopo_formatado.observacoes_adicionais %}<p>{{ paragrafo }}</p>{% endfor %}
+                    </div>
+                {% endif %}
+
+                {% if not escopo_formatado.secoes and not escopo_formatado.texto_livre and not escopo_formatado.observacoes_adicionais %}
+                    <div class="empty-table-box">Nenhum escopo ou observação informado.</div>
+                {% endif %}
+            </div>
+        </section>
+
+
+        <section class="panel page-section">
+            <div class="panel-header page-header"><div><h3>Atividades operacionais</h3><p class="page-subtitle">Ações paralelas e atividades relacionadas a este orçamento.</p></div><a class="btn-primary-green" href="/gestao-atividades/nova?orcamento_id={{ orcamento.id }}&tipo=paralela">+ Criar atividade</a></div>
+            <div class="activity-linked-list">{% for item in atividades_operacionais|default([]) %}<a href="/gestao-atividades/{{ item.id }}" class="activity-linked-item"><div><strong>{{ item.titulo }}</strong><span>{{ item.responsavel_nome or '-' }} · {{ item.data_prazo or 'Sem prazo' }} · {{ item.progresso or 0 }}%</span></div><span class="status-pill {{ item.status_exibicao or item.status }}">{{ (item.status_exibicao or item.status)|replace('_',' ') }}</span></a>{% else %}<div class="empty-table-box">Nenhuma atividade operacional vinculada.</div>{% endfor %}</div>
+        </section>
+
+        <section class="panel page-section">
+            <div class="panel-header page-header"><div><h3>Observações internas</h3><p class="page-subtitle">Conteúdo de uso interno, não exibido ao cliente.</p></div></div>
+            <div class="scope-free-text"><p>{{ orcamento.observacoes_internas or '-' }}</p></div>
+        </section>
+
+        {% if dados_gerador %}
+        <section class="panel page-section"><div class="panel-header page-header"><div><h3>Últimos recálculos</h3><p class="page-subtitle">Histórico das alterações feitas nos dados internos do Gerador.</p></div><a href="/orcamentos/{{ orcamento.id }}/gerador/historico" class="btn-light">Ver histórico completo</a></div><div class="history-list">{% for registro in historico_gerador %}<div class="history-item"><div><span>Data / responsável</span><strong>{{ registro.criado_em }} · {{ registro.responsavel }}</strong></div><div><span>Valor</span><strong>{{ registro.valor_anterior }} → {{ registro.valor_novo }}</strong></div><div><span>Margem líquida</span><strong>{{ registro.margem_anterior }}% → {{ registro.margem_nova }}%</strong></div></div>{% else %}<div class="empty-table-box">Nenhum recálculo registrado.</div>{% endfor %}</div></section>
+        {% endif %}
+
+        <script>
+            (function configurarDialogosAcoesGestFlow() {
+                function fecharDialogo(dialogo) {
+                    if (!dialogo) {
+                        return;
+                    }
+
+                    if (typeof dialogo.close === "function" && dialogo.open) {
+                        dialogo.close();
+                    } else {
+                        dialogo.removeAttribute("open");
+                    }
+                }
+
+                function abrirImpressaoEmNovaAba(botaoImpressao) {
+                    const urlImpressao = botaoImpressao.getAttribute("data-gf-print-url");
+
+                    if (!urlImpressao) {
+                        return;
+                    }
+
+                    console.info("[GestFlow] Abrindo impressão:", urlImpressao);
+
+                    const novaAba = window.open(urlImpressao, "_blank");
+
+                    if (novaAba) {
+                        novaAba.opener = null;
+                    } else {
+                        window.alert("O navegador bloqueou a nova aba. Libere pop-ups para imprimir.");
+                    }
+
+                    fecharDialogo(botaoImpressao.closest("dialog"));
+                }
+
+                document.querySelectorAll("[data-gf-print-url]").forEach(function(botaoImpressao) {
+                    botaoImpressao.addEventListener("click", function(evento) {
+                        evento.preventDefault();
+                        evento.stopPropagation();
+                        evento.stopImmediatePropagation();
+                        abrirImpressaoEmNovaAba(botaoImpressao);
+                    }, true);
+                });
+
+                document.addEventListener("click", function(evento) {
+                    const gatilho = evento.target.closest("[data-gf-action-dialog]");
+
+                    if (gatilho) {
+                        evento.preventDefault();
+                        evento.stopPropagation();
+
+                        const dialogoId = gatilho.getAttribute("data-gf-action-dialog");
+                        const dialogo = dialogoId ? document.getElementById(dialogoId) : null;
+
+                        if (!dialogo) {
+                            return;
+                        }
+
+                        if (typeof dialogo.showModal === "function") {
+                            if (!dialogo.open) {
+                                dialogo.showModal();
+                            }
+                        } else {
+                            dialogo.setAttribute("open", "");
+                        }
+
+                        return;
+                    }
+
+
+                    const fechar = evento.target.closest("[data-gf-action-dialog-close]");
+
+                    if (fechar) {
+                        fecharDialogo(fechar.closest("dialog"));
+                        return;
+                    }
+
+                    const dialogo = evento.target.closest("dialog.gf-action-dialog");
+
+                    if (dialogo && evento.target === dialogo) {
+                        const area = dialogo.getBoundingClientRect();
+                        const dentro = evento.clientX >= area.left
+                            && evento.clientX <= area.right
+                            && evento.clientY >= area.top
+                            && evento.clientY <= area.bottom;
+
+                        if (!dentro) {
+                            fecharDialogo(dialogo);
+                        }
+                    }
+                });
+            })();
+        </script>
+
+
+
+{% set whatsapp_modulo = 'orcamento' %}
+{% set whatsapp_registro_id = orcamento.id %}
+{% set whatsapp_telefone = '' %}
+{% include 'partials/whatsapp_envio_modulo.html' %}
+</main>
+
+</body>
+</html>

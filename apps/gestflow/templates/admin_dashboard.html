@@ -1,0 +1,484 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\admin_dashboard.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Dashboard Admin</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .admin-dashboard-grid {
+            display: grid;
+            grid-template-columns: 1.15fr 0.85fr;
+            gap: 18px;
+            align-items: start;
+        }
+
+        .admin-mini-table td,
+        .admin-mini-table th {
+            vertical-align: top;
+        }
+
+        .admin-muted {
+            color: #64748b;
+            font-size: 12px;
+            display: block;
+            margin-top: 4px;
+        }
+
+        .admin-activity-list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .admin-activity-item {
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 12px;
+            background: #ffffff;
+        }
+
+        .admin-activity-item strong {
+            display: block;
+            color: #0f172a;
+            margin-bottom: 4px;
+        }
+
+        .admin-activity-item span {
+            color: #64748b;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+
+        .admin-module-pill {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 24px;
+            padding: 0 9px;
+            border-radius: 999px;
+            background: #eef6ff;
+            color: #1d4ed8;
+            font-size: 11px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        @media (max-width: 1100px) {
+            .admin-dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+
+    <style>
+        /* PADRAO VISUAL ORCAMENTOS - TELAS AUXILIARES */
+        .content {
+            padding-bottom: 220px;
+        }
+
+        .content > .panel.page-section:first-of-type {
+            margin-top: 0;
+        }
+
+        .panel,
+        .page-section,
+        .table-panel {
+            border-radius: 16px;
+        }
+
+        .panel-header.page-header,
+        .page-header {
+            gap: 14px;
+        }
+
+        .page-title {
+            letter-spacing: -0.02em;
+        }
+
+        .page-subtitle {
+            max-width: 760px;
+        }
+
+        .client-toolbar,
+        .form-actions,
+        .client-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn-primary-green,
+        .btn-dark,
+        .btn-light,
+        .action-button {
+            border-radius: 10px;
+            text-decoration: none;
+        }
+
+        .form-control,
+        input,
+        select,
+        textarea {
+            border-radius: 10px;
+            max-width: 100%;
+        }
+
+        .client-form {
+            width: 100%;
+        }
+
+        .form-grid {
+            align-items: start;
+        }
+
+        .panel-summary {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .panel-summary > div {
+            min-height: 74px;
+            border: 1px solid #e5eaf2;
+            border-radius: 14px;
+            background: #ffffff;
+            padding: 14px;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+        }
+
+        .panel-summary span {
+            display: block;
+            margin-bottom: 6px;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+
+        .panel-summary strong {
+            color: #0f172a;
+            font-size: 14px;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+
+        .table-shell {
+            border: 0 !important;
+            border-radius: 16px;
+            overflow-x: auto;
+            background: #ffffff;
+        }
+
+        .content table,
+        .content .client-table {
+            width: 100%;
+            border-collapse: separate !important;
+            border-spacing: 0 10px !important;
+            min-width: 760px;
+        }
+
+        .content table thead th,
+        .content .client-table thead th {
+            border-bottom: 0 !important;
+            background: transparent;
+            padding: 10px 12px;
+            color: #334155;
+            font-size: 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .content table tbody tr,
+        .content .client-table tbody tr {
+            background: #ffffff;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+            border-radius: 14px;
+        }
+
+        .content table tbody td,
+        .content .client-table tbody td {
+            border-bottom: 0 !important;
+            padding: 14px 12px !important;
+            color: #334155;
+            vertical-align: middle;
+        }
+
+        .content table tbody td:first-child,
+        .content .client-table tbody td:first-child {
+            border-top-left-radius: 14px;
+            border-bottom-left-radius: 14px;
+        }
+
+        .content table tbody td:last-child,
+        .content .client-table tbody td:last-child {
+            border-top-right-radius: 14px;
+            border-bottom-right-radius: 14px;
+        }
+
+        .empty-table,
+        .empty-table-box {
+            border-radius: 14px;
+        }
+
+        .status-pill,
+        .badge-info {
+            border-radius: 999px;
+            white-space: nowrap;
+        }
+
+        .quick-modal,
+        .modal,
+        .dialog {
+            border-radius: 18px;
+        }
+
+        .config-grid,
+        .portal-grid,
+        .planos-grid,
+        .cards,
+        .cards-secondary {
+            gap: 16px;
+        }
+
+        .config-card,
+        .portal-card,
+        .plan-card,
+        .card,
+        .stat-card {
+            border-radius: 16px;
+        }
+
+        .auth-card,
+        .login-card,
+        .onboarding-card,
+        .portal-card,
+        .plan-card {
+            box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+        }
+
+        @media (max-width: 1100px) {
+            .panel-summary {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .content table,
+            .content .client-table {
+                min-width: 720px;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .panel-summary {
+                grid-template-columns: 1fr;
+            }
+
+            .client-toolbar,
+            .form-actions,
+            .client-actions {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .client-toolbar .btn-primary-green,
+            .client-toolbar .btn-dark,
+            .client-toolbar .btn-light,
+            .form-actions .btn-primary-green,
+            .form-actions .btn-dark,
+            .form-actions .btn-light {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .content table,
+            .content .client-table {
+                min-width: 680px;
+            }
+        }
+    </style>
+
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+
+    <main class="content">
+        {% set page_title = 'Dashboard Admin' %}
+        {% include "partials/topbar.html" %}
+
+        {% set painel = admin_dashboard|default({}) %}
+        {% set resumo = painel.resumo|default({}) %}
+        {% set usuarios = painel.usuarios|default([]) %}
+        {% set atividades = painel.atividades|default([]) %}
+        {% set modulos = painel.modulos|default([]) %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Admin GestFlow</span>
+                    <h3 class="page-title">Dashboard Admin</h3>
+                    <p class="page-subtitle">Acompanhe quem entrou, quem testou de verdade e quais módulos estão sendo usados.</p>
+                </div>
+                <div class="client-toolbar">
+                    <a href="/admin/empresas" class="btn-light">Empresas</a>
+                    <a href="/admin/indicacoes" class="btn-primary-green">Indicações</a>
+                </div>
+            </div>
+        </section>
+
+        <section class="cards cards-secondary page-section">
+            <div class="card stat-card">
+                <div class="card-icon">▣</div>
+                <div class="card-info">
+                    <p>{{ resumo.total_empresas|default(0) }}</p>
+                    <h3>Empresas</h3>
+                    <span>{{ resumo.empresas_trial|default(0) }} em trial · {{ resumo.empresas_ativas|default(0) }} ativas</span>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="card-icon">♟</div>
+                <div class="card-info">
+                    <p>{{ resumo.total_usuarios|default(0) }}</p>
+                    <h3>Usuários</h3>
+                    <span>{{ resumo.usuarios_ja_acessaram|default(0) }} já acessaram</span>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="card-icon">⌁</div>
+                <div class="card-info">
+                    <p>{{ resumo.usuarios_nunca_acessaram|default(0) }}</p>
+                    <h3>Nunca acessaram</h3>
+                    <span>Contas criadas sem teste real</span>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="card-icon">✓</div>
+                <div class="card-info">
+                    <p>{{ resumo.usuarios_ativos_7_dias|default(0) }}</p>
+                    <h3>Ativos 7 dias</h3>
+                    <span>{{ resumo.atividades_7_dias|default(0) }} atividades recentes</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="admin-dashboard-grid page-section">
+            <div class="panel table-panel">
+                <div class="panel-header page-header">
+                    <div>
+                        <h3>Uso por usuário</h3>
+                        <p class="page-subtitle">Classificação automática baseada em login e ações realizadas.</p>
+                    </div>
+                </div>
+
+                <div class="table-shell">
+                    <table class="client-table admin-mini-table">
+                        <thead>
+                            <tr>
+                                <th>Usuário</th>
+                                <th>Empresa</th>
+                                <th>Último login</th>
+                                <th>Logins</th>
+                                <th>Ações</th>
+                                <th>Situação</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if usuarios %}
+                                {% for usuario in usuarios %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ usuario.nome }}</strong>
+                                            <span class="admin-muted">{{ usuario.email }}</span>
+                                        </td>
+                                        <td>
+                                            {{ usuario.empresa_nome or '-' }}
+                                            <span class="admin-muted">{{ usuario.empresa_status or '-' }}</span>
+                                        </td>
+                                        <td>{{ usuario.ultimo_login or 'Nunca' }}</td>
+                                        <td>{{ usuario.total_logins|default(0) }}</td>
+                                        <td>{{ usuario.total_acoes|default(0) }}</td>
+                                        <td><span class="status-pill {{ usuario.situacao_classe }}">{{ usuario.situacao_uso }}</span></td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="6" class="empty-table">Nenhum usuário encontrado.</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="panel table-panel">
+                <div class="panel-header page-header">
+                    <div>
+                        <h3>Módulos mais usados</h3>
+                        <p class="page-subtitle">Acessos e ações por módulo.</p>
+                    </div>
+                </div>
+
+                <div class="table-shell">
+                    <table class="client-table admin-mini-table">
+                        <thead>
+                            <tr>
+                                <th>Módulo</th>
+                                <th>Acessos</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if modulos %}
+                                {% for modulo in modulos %}
+                                    <tr>
+                                        <td><span class="admin-module-pill">{{ modulo.modulo }}</span></td>
+                                        <td>{{ modulo.total_acessos|default(0) }}</td>
+                                        <td>{{ modulo.total_acoes|default(0) }}</td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="3" class="empty-table">Nenhuma atividade registrada ainda.</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel table-panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Últimas atividades</h3>
+                    <p class="page-subtitle">Registro recente de login, acessos e ações principais.</p>
+                </div>
+            </div>
+
+            <div class="admin-activity-list">
+                {% if atividades %}
+                    {% for atividade in atividades %}
+                        <div class="admin-activity-item">
+                            <strong>{{ atividade.usuario_nome or 'Usuário' }} · {{ atividade.tipo|capitalize }} · {{ atividade.modulo or '-' }}</strong>
+                            <span>{{ atividade.descricao or '-' }}</span><br>
+                            <span>{{ atividade.empresa_nome or 'Empresa não identificada' }} · {{ atividade.criado_em or '-' }} · {{ atividade.rota or '-' }}</span>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-table">Nenhuma atividade registrada ainda.</div>
+                {% endif %}
+            </div>
+        </section>
+    </main>
+</body>
+</html>

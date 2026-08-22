@@ -1,0 +1,1050 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\ordem_servico_imprimir_a4.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OS {{ ordem_servico.numero or ordem_servico.id }} - A4</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 12mm 12mm 14mm 12mm;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: #e5e7eb;
+            color: #172033;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 9.6pt;
+            line-height: 1.42;
+        }
+
+        .page {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 12px auto;
+            padding: 12mm 12mm 14mm;
+            background: #ffffff;
+            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
+        }
+
+        .header {
+            display: grid;
+            grid-template-columns: 92px minmax(0, 1fr) 170px;
+            gap: 14px;
+            align-items: center;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #0f766e;
+            margin-bottom: 12px;
+        }
+
+        .brand-logo-box {
+            width: 88px;
+            min-height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            color: #0f172a;
+            font-size: 20px;
+            font-weight: 900;
+        }
+
+        .brand-logo-img {
+            width: 88px;
+            max-height: 70px;
+            object-fit: contain;
+            display: block;
+        }
+
+        .company h1 {
+            margin: 0 0 3px;
+            color: #111827;
+            font-size: 18pt;
+            line-height: 1.05;
+        }
+
+        .company-meta {
+            color: #526174;
+            font-size: 8.8pt;
+            line-height: 1.35;
+        }
+
+        .doc-box {
+            text-align: right;
+        }
+
+        .doc-label {
+            color: #64748b;
+            font-size: 8pt;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .doc-number {
+            margin-top: 4px;
+            color: #111827;
+            font-size: 17pt;
+            font-weight: 900;
+            line-height: 1.05;
+        }
+
+        .badge {
+            display: inline-block;
+            margin-top: 7px;
+            padding: 4px 9px;
+            border-radius: 999px;
+            background: #dbeafe;
+            color: #1d4ed8;
+            font-size: 8.5pt;
+            font-weight: 800;
+            text-transform: capitalize;
+        }
+
+        .grid {
+            display: grid;
+            gap: 7px;
+        }
+
+        .grid-4 {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+
+        .grid-3 {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .grid-2 {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .info {
+            min-height: 47px;
+            padding: 8px 9px;
+            border: 1px solid #dce4ee;
+            border-radius: 9px;
+            background: #ffffff;
+        }
+
+        .label {
+            margin-bottom: 2px;
+            color: #64748b;
+            font-size: 7.2pt;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .value {
+            color: #182235;
+            font-size: 9.3pt;
+            font-weight: 700;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+
+        .value-normal {
+            color: #172033;
+            font-size: 9.6pt;
+            font-weight: 400;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+
+        .section {
+            margin-top: 11px;
+            border: 1px solid #dce4ee;
+            border-radius: 11px;
+            overflow: hidden;
+            break-inside: auto;
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 8px 11px;
+            border-bottom: 1px solid #dce4ee;
+            background: #f8fafc;
+            color: #172033;
+            font-size: 10.7pt;
+            font-weight: 900;
+        }
+
+        .section-title small {
+            color: #64748b;
+            font-size: 7.5pt;
+            font-weight: 600;
+        }
+
+        .section-body {
+            padding: 10px 11px;
+        }
+
+        .section-body p {
+            margin: 0 0 7px;
+            white-space: pre-wrap;
+        }
+
+        .section-body p:last-child {
+            margin-bottom: 0;
+        }
+
+        .context .section-title {
+            border-left: 5px solid #3b82f6;
+        }
+
+        .incident .section-title {
+            border-left: 5px solid #dc2626;
+        }
+
+        .diagnosis .section-title {
+            border-left: 5px solid #0f766e;
+        }
+
+        .report .section-title {
+            border-left: 5px solid #111827;
+        }
+
+        .terms .section-title {
+            border-left: 5px solid #7c3aed;
+        }
+
+        .observations .section-title {
+            border-left: 5px solid #d97706;
+        }
+
+        .equipment {
+            background: #f8fafc;
+        }
+
+        .equipment .value {
+            font-size: 10pt;
+        }
+
+        .equipment-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .equipment-cell {
+            min-width: 0;
+        }
+
+        .equipment-cell.span-2 {
+            grid-column: span 2;
+        }
+
+        .equipment-cell.span-4 {
+            grid-column: span 4;
+        }
+
+        .qr-equipamento {
+            display: grid;
+            grid-template-columns: 78px 1fr;
+            gap: 10px;
+            align-items: center;
+            margin-top: 10px;
+            padding: 9px 10px;
+            border: 1px solid #dce4ee;
+            border-radius: 9px;
+            background: #ffffff;
+            break-inside: avoid;
+        }
+
+        .qr-equipamento img {
+            width: 78px;
+            height: 78px;
+            object-fit: contain;
+        }
+
+        .qr-equipamento strong {
+            display: block;
+            margin-bottom: 3px;
+        }
+
+        .qr-equipamento span {
+            display: block;
+            color: #64748b;
+            font-size: 8pt;
+            overflow-wrap: anywhere;
+        }
+
+        .photos {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .photo-card {
+            border: 1px solid #dce4ee;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #ffffff;
+            break-inside: avoid;
+        }
+
+        .photo-card img {
+            width: 100%;
+            height: 175px;
+            object-fit: cover;
+            display: block;
+            background: #f1f5f9;
+        }
+
+        .photo-caption {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 7px 9px;
+        }
+
+        .photo-caption strong {
+            font-size: 8.8pt;
+        }
+
+        .photo-caption span {
+            color: #64748b;
+            font-size: 8pt;
+        }
+
+        .photo-observation {
+            padding: 0 9px 8px;
+            color: #526174;
+            font-size: 8.2pt;
+            white-space: pre-wrap;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            padding: 7px 8px;
+            border: 1px solid #e5e7eb;
+            vertical-align: top;
+        }
+
+        th {
+            background: #f8fafc;
+            color: #334155;
+            font-size: 8.2pt;
+            text-align: left;
+        }
+
+        td {
+            font-size: 8.7pt;
+        }
+
+        .money {
+            white-space: nowrap;
+            text-align: right;
+        }
+
+        .totals {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .total-box {
+            padding: 8px 9px;
+            border: 1px solid #dce4ee;
+            border-radius: 9px;
+            background: #f8fafc;
+        }
+
+        .total-box span {
+            display: block;
+            color: #64748b;
+            font-size: 7.3pt;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .total-box strong {
+            display: block;
+            margin-top: 2px;
+            color: #172033;
+            font-size: 11pt;
+        }
+
+        .total-box.total-geral {
+            background: #ecfdf5;
+            border-color: #a7f3d0;
+        }
+
+        .total-box.total-geral strong {
+            color: #047857;
+            font-size: 12pt;
+        }
+
+        .followup-table tr {
+            break-inside: avoid;
+        }
+
+        .mini-list {
+            margin: 4px 0 0 16px;
+            padding: 0;
+        }
+
+        .mini-list li {
+            margin-bottom: 2px;
+        }
+
+        .signature-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 50px;
+            margin-top: 28px;
+            break-inside: avoid;
+        }
+
+        .signature-line {
+            margin-top: 40px;
+            padding-top: 5px;
+            border-top: 1.5px solid #1f2937;
+            color: #475569;
+            font-size: 8.5pt;
+            text-align: center;
+        }
+
+        .footer-note {
+            margin-top: 12px;
+            padding-top: 6px;
+            border-top: 1px solid #e5e7eb;
+            color: #94a3b8;
+            font-size: 7.3pt;
+            text-align: center;
+            white-space: pre-wrap;
+        }
+
+        .print-actions {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            display: flex;
+            gap: 8px;
+            z-index: 10;
+        }
+
+        .print-actions button,
+        .print-actions a {
+            padding: 10px 14px;
+            border: 0;
+            border-radius: 8px;
+            background: #0f172a;
+            color: #ffffff;
+            cursor: pointer;
+            font-weight: 800;
+            text-decoration: none;
+        }
+
+        .keep {
+            break-inside: avoid;
+        }
+
+        .page-break {
+            break-before: page;
+        }
+
+        @media (max-width: 760px) {
+            body {
+                background: #ffffff;
+            }
+
+            .page {
+                width: 100%;
+                min-height: auto;
+                margin: 0;
+                padding: 16px;
+                box-shadow: none;
+            }
+
+            .header {
+                grid-template-columns: 70px 1fr;
+            }
+
+            .brand-logo-box,
+            .brand-logo-img {
+                width: 66px;
+            }
+
+            .doc-box {
+                grid-column: 1 / -1;
+                text-align: left;
+            }
+
+            .grid-4,
+            .grid-3,
+            .grid-2,
+            .equipment-grid,
+            .photos,
+            .totals,
+            .signature-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .equipment-cell.span-2,
+            .equipment-cell.span-4 {
+                grid-column: span 1;
+            }
+        }
+
+        @media print {
+            body {
+                background: #ffffff;
+            }
+
+            .page {
+                width: auto;
+                min-height: auto;
+                margin: 0;
+                padding: 0;
+                box-shadow: none;
+            }
+
+            .print-actions {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    {% set os = ordem_servico %}
+    {% set _cfg = gestflow_configuracoes_runtime.get('valores', {}) %}
+    {% set _cfg_gerais = _cfg.get('gerais', {}) %}
+    {% set _cfg_os = _cfg.get('ordens_servico', {}) %}
+    {% set _ns = namespace(tem_laudo_equipamento=false, tem_foto=false) %}
+
+    {% for equipamento in equipamentos_os|default([]) %}
+        {% if equipamento.laudo %}
+            {% set _ns.tem_laudo_equipamento = true %}
+        {% endif %}
+        {% set _fotos_equipamento = fotos_por_equipamento.get(equipamento.indice, []) if fotos_por_equipamento else [] %}
+        {% for foto in _fotos_equipamento %}
+            {% if foto.foto_antes_path or foto.foto_depois_path %}
+                {% set _ns.tem_foto = true %}
+            {% endif %}
+        {% endfor %}
+    {% endfor %}
+
+    {% set _total_produtos = (os.total_produtos|string|replace('R$', '')|replace('.', '')|replace(',', '.')|trim)|float %}
+    {% set _total_servicos = (os.total_servicos|string|replace('R$', '')|replace('.', '')|replace(',', '.')|trim)|float %}
+    {% set _frete = (os.frete|string|replace('R$', '')|replace('.', '')|replace(',', '.')|trim)|float %}
+    {% set _outros = (os.outros|string|replace('R$', '')|replace('.', '')|replace(',', '.')|trim)|float %}
+    {% set _desconto = (os.desconto_valor|string|replace('R$', '')|replace('.', '')|replace(',', '.')|trim)|float %}
+    {% set _valor_total = (os.valor_total|string|replace('R$', '')|replace('.', '')|replace(',', '.')|trim)|float %}
+    {% set _tem_totais = _total_produtos != 0 or _total_servicos != 0 or _frete != 0 or _outros != 0 or _desconto != 0 or _valor_total != 0 %}
+
+    <div class="page">
+        <header class="header">
+            <div class="brand-logo-box">
+                {% if empresa and empresa.logo_path %}
+                    <img
+                        src="{{ empresa.logo_path }}"
+                        alt="Logo da empresa"
+                        class="brand-logo-img"
+                        onerror="this.remove(); this.parentElement.textContent='GF';"
+                    >
+                {% else %}
+                    GF
+                {% endif %}
+            </div>
+
+            <div class="company">
+                <h1>{{ empresa.nome_fantasia if empresa and empresa.nome_fantasia else (empresa.razao_social if empresa and empresa.razao_social else 'GESTFLOW') }}</h1>
+                <div class="company-meta">
+                    ORDEM DE SERVIÇO
+                    {% if empresa and empresa.documento %}<br>CNPJ/CPF: {{ empresa.documento }}{% endif %}
+                    {% if empresa and empresa.telefone %}<br>Tel: {{ empresa.telefone }}{% endif %}
+                    {% if empresa and empresa.email %}<br>{{ empresa.email }}{% endif %}
+                    {% if loja and loja.cidade %}<br>{{ loja.cidade }}{% endif %}
+                </div>
+            </div>
+
+            <div class="doc-box">
+                <div class="doc-label">Ordem de Serviço</div>
+                <div class="doc-number">{{ os.numero or os.id }}</div>
+                {% if os.status %}
+                    <span class="badge">{{ os.status_nome|default(os.status, true) }}</span>
+                {% endif %}
+            </div>
+        </header>
+
+        {% if os.cliente or os.responsavel or os.tecnico or os.prioridade or os.data_abertura or os.data_previsao or os.data_saida or os.canal_venda %}
+            <div class="grid grid-4">
+                {% if os.cliente %}
+                    <div class="info">
+                        <div class="label">Cliente</div>
+                        <div class="value">{{ os.cliente }}</div>
+                    </div>
+                {% endif %}
+                {% if os.responsavel %}
+                    <div class="info">
+                        <div class="label">Responsável</div>
+                        <div class="value">{{ os.responsavel }}</div>
+                    </div>
+                {% endif %}
+                {% if os.tecnico %}
+                    <div class="info">
+                        <div class="label">Técnico</div>
+                        <div class="value">{{ os.tecnico }}</div>
+                    </div>
+                {% endif %}
+                {% if os.prioridade %}
+                    <div class="info">
+                        <div class="label">Prioridade</div>
+                        <div class="value">{{ os.prioridade }}</div>
+                    </div>
+                {% endif %}
+                {% if os.data_abertura or os.hora_entrada %}
+                    <div class="info">
+                        <div class="label">Entrada</div>
+                        <div class="value">{{ os.data_abertura or '' }}{% if os.hora_entrada %} {{ os.hora_entrada }}{% endif %}</div>
+                    </div>
+                {% endif %}
+                {% if os.data_previsao %}
+                    <div class="info">
+                        <div class="label">Previsão</div>
+                        <div class="value">{{ os.data_previsao }}</div>
+                    </div>
+                {% endif %}
+                {% if os.data_saida or os.hora_saida %}
+                    <div class="info">
+                        <div class="label">Saída</div>
+                        <div class="value">{{ os.data_saida or '' }}{% if os.hora_saida %} {{ os.hora_saida }}{% endif %}</div>
+                    </div>
+                {% endif %}
+                {% if os.canal_venda %}
+                    <div class="info">
+                        <div class="label">Canal</div>
+                        <div class="value">{{ os.canal_venda }}</div>
+                    </div>
+                {% endif %}
+            </div>
+        {% endif %}
+
+        {% for equipamento in equipamentos_os|default([]) %}
+            {% set fotos_do_equipamento = fotos_por_equipamento.get(equipamento.indice, []) if fotos_por_equipamento else [] %}
+
+            {% if equipamento.equipamento or equipamento.marca or equipamento.modelo or equipamento.serie or equipamento.local_servico or equipamento.qrcode_url %}
+                <section class="section equipment keep">
+                    <div class="section-title">{{ equipamento.titulo or ('Equipamento ' ~ loop.index) }}</div>
+                    <div class="section-body">
+                        <div class="equipment-grid">
+                            {% if equipamento.equipamento %}
+                                <div class="equipment-cell span-2">
+                                    <div class="label">Equipamento</div>
+                                    <div class="value">{{ equipamento.equipamento }}</div>
+                                </div>
+                            {% endif %}
+
+                            {% if equipamento.marca %}
+                                <div class="equipment-cell">
+                                    <div class="label">Marca</div>
+                                    <div class="value">{{ equipamento.marca }}</div>
+                                </div>
+                            {% endif %}
+
+                            {% if equipamento.modelo or equipamento.serie %}
+                                <div class="equipment-cell">
+                                    <div class="label">Modelo / Série</div>
+                                    <div class="value">
+                                        {% if equipamento.modelo %}{{ equipamento.modelo }}{% endif %}
+                                        {% if equipamento.modelo and equipamento.serie %} / {% endif %}
+                                        {% if equipamento.serie %}{{ equipamento.serie }}{% endif %}
+                                    </div>
+                                </div>
+                            {% endif %}
+
+                            {% if equipamento.local_servico %}
+                                <div class="equipment-cell span-2">
+                                    <div class="label">Local do serviço</div>
+                                    <div class="value">{{ equipamento.local_servico }}</div>
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        {% if equipamento.qrcode_url %}
+                            <div class="qr-equipamento">
+                                <img src="{{ equipamento.qrcode_url }}" alt="QR Code do equipamento">
+                                <div>
+                                    <strong>QR Code do equipamento</strong>
+                                    <span>Escaneie para acessar o histórico de manutenções deste equipamento.</span>
+                                    {% if equipamento.historico_url %}<span>{{ equipamento.historico_url }}</span>{% endif %}
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </section>
+            {% endif %}
+
+            {% if equipamento.condicoes %}
+                <section class="section context">
+                    <div class="section-title">
+                        <span>Condições</span>
+                        <small>Contexto técnico observado</small>
+                    </div>
+                    <div class="section-body">
+                        <div class="value-normal">{{ equipamento.condicoes }}</div>
+                    </div>
+                </section>
+            {% endif %}
+
+            {% if equipamento.relato_cliente %}
+                <section class="section incident">
+                    <div class="section-title">
+                        <span>Defeito / Relato</span>
+                        <small>Ocorrência identificada</small>
+                    </div>
+                    <div class="section-body">
+                        <div class="value-normal">{{ equipamento.relato_cliente }}</div>
+                    </div>
+                </section>
+            {% endif %}
+
+            {% if equipamento.diagnostico %}
+                <section class="section diagnosis">
+                    <div class="section-title">
+                        <span>Diagnóstico / Solução</span>
+                        <small>Intervenções realizadas</small>
+                    </div>
+                    <div class="section-body">
+                        <div class="value-normal">{{ equipamento.diagnostico }}</div>
+                    </div>
+                </section>
+            {% endif %}
+
+            {% if equipamento.laudo %}
+                <section class="section report">
+                    <div class="section-title">
+                        <span>Laudo</span>
+                        <small>Conclusão técnica</small>
+                    </div>
+                    <div class="section-body">
+                        <div class="value-normal">{{ equipamento.laudo }}</div>
+                    </div>
+                </section>
+            {% endif %}
+
+            {% set _tem_fotos_deste_equipamento = namespace(valor=false) %}
+            {% for foto in fotos_do_equipamento %}
+                {% if foto.foto_antes_path or foto.foto_depois_path %}
+                    {% set _tem_fotos_deste_equipamento.valor = true %}
+                {% endif %}
+            {% endfor %}
+
+            {% if _tem_fotos_deste_equipamento.valor %}
+                <section class="section">
+                    <div class="section-title">
+                        <span>Registro fotográfico</span>
+                        <small>{{ equipamento.equipamento or equipamento.titulo }}</small>
+                    </div>
+                    <div class="section-body">
+                        <div class="photos">
+                            {% set _foto_numero = namespace(valor=0) %}
+                            {% for foto in fotos_do_equipamento %}
+                                {% if foto.foto_antes_path %}
+                                    {% set _foto_numero.valor = _foto_numero.valor + 1 %}
+                                    <div class="photo-card">
+                                        <img src="{{ foto.foto_antes_path }}" alt="Foto antes">
+                                        <div class="photo-caption">
+                                            <strong>Foto {{ '%02d'|format(_foto_numero.valor) }}</strong>
+                                            <span>Antes</span>
+                                        </div>
+                                        {% if foto.observacoes %}<div class="photo-observation">{{ foto.observacoes }}</div>{% endif %}
+                                    </div>
+                                {% endif %}
+
+                                {% if foto.foto_depois_path %}
+                                    {% set _foto_numero.valor = _foto_numero.valor + 1 %}
+                                    <div class="photo-card">
+                                        <img src="{{ foto.foto_depois_path }}" alt="Foto depois">
+                                        <div class="photo-caption">
+                                            <strong>Foto {{ '%02d'|format(_foto_numero.valor) }}</strong>
+                                            <span>Depois</span>
+                                        </div>
+                                        {% if foto.observacoes %}<div class="photo-observation">{{ foto.observacoes }}</div>{% endif %}
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                </section>
+            {% endif %}
+        {% endfor %}
+
+        {% if itens_produtos %}
+            <section class="section">
+                <div class="section-title">Produtos / Peças</div>
+                <div class="section-body">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Produto</th>
+                                <th>Detalhes</th>
+                                <th>Qtde</th>
+                                <th>Valor</th>
+                                <th>Desc.</th>
+                                <th>Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in itens_produtos %}
+                                <tr>
+                                    <td>{{ item.descricao }}</td>
+                                    <td>{{ item.detalhes or '' }}</td>
+                                    <td>{{ item.quantidade }}</td>
+                                    <td class="money">{{ item.valor_unitario }}</td>
+                                    <td class="money">{{ item.desconto }}</td>
+                                    <td class="money">{{ item.subtotal }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        {% endif %}
+
+        {% if itens_servicos %}
+            <section class="section">
+                <div class="section-title">Serviços / Mão de obra</div>
+                <div class="section-body">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Serviço</th>
+                                <th>Detalhes</th>
+                                <th>Qtde</th>
+                                <th>Valor</th>
+                                <th>Desc.</th>
+                                <th>Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in itens_servicos %}
+                                <tr>
+                                    <td>{{ item.descricao }}</td>
+                                    <td>{{ item.detalhes or '' }}</td>
+                                    <td>{{ item.quantidade }}</td>
+                                    <td class="money">{{ item.valor_unitario }}</td>
+                                    <td class="money">{{ item.desconto }}</td>
+                                    <td class="money">{{ item.subtotal }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        {% endif %}
+
+        {% if os.exibir_valor_impressao != 'nao' and _tem_totais %}
+            <section class="section">
+                <div class="section-title">Totais</div>
+                <div class="section-body">
+                    <div class="totals">
+                        {% if _total_produtos != 0 %}
+                            <div class="total-box">
+                                <span>Peças</span>
+                                <strong>{{ os.total_produtos }}</strong>
+                            </div>
+                        {% endif %}
+                        {% if _total_servicos != 0 %}
+                            <div class="total-box">
+                                <span>Mão de obra</span>
+                                <strong>{{ os.total_servicos }}</strong>
+                            </div>
+                        {% endif %}
+                        {% if _frete != 0 %}
+                            <div class="total-box">
+                                <span>Frete</span>
+                                <strong>{{ os.frete }}</strong>
+                            </div>
+                        {% endif %}
+                        {% if _outros != 0 %}
+                            <div class="total-box">
+                                <span>Outros</span>
+                                <strong>{{ os.outros }}</strong>
+                            </div>
+                        {% endif %}
+                        {% if _desconto != 0 %}
+                            <div class="total-box">
+                                <span>Desconto</span>
+                                <strong>{{ os.desconto_valor }}</strong>
+                            </div>
+                        {% endif %}
+                        {% if _valor_total != 0 %}
+                            <div class="total-box total-geral">
+                                <span>Total</span>
+                                <strong>{{ os.valor_total }}</strong>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </section>
+        {% endif %}
+
+        {% if os.observacoes %}
+            <section class="section observations">
+                <div class="section-title">Observações</div>
+                <div class="section-body">
+                    <div class="value-normal">{{ os.observacoes }}</div>
+                </div>
+            </section>
+        {% endif %}
+
+        {% if os.laudo and not _ns.tem_laudo_equipamento %}
+            <section class="section report">
+                <div class="section-title">
+                    <span>Laudo</span>
+                    <small>Conclusão técnica</small>
+                </div>
+                <div class="section-body">
+                    <div class="value-normal">{{ os.laudo }}</div>
+                </div>
+            </section>
+        {% endif %}
+
+        {% if os.termos %}
+            <section class="section terms">
+                <div class="section-title">
+                    <span>Termos / Garantia</span>
+                    <small>Condições do serviço</small>
+                </div>
+                <div class="section-body">
+                    <div class="value-normal">{{ os.termos }}</div>
+                </div>
+            </section>
+        {% endif %}
+
+        {% if acompanhamentos %}
+            <section class="section">
+                <div class="section-title">Acompanhamento diário</div>
+                <div class="section-body">
+                    <table class="followup-table">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Responsável</th>
+                                <th>Status</th>
+                                <th>Atividades</th>
+                                <th>Equipe / Materiais / Serviços</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for acompanhamento in acompanhamentos %}
+                                <tr>
+                                    <td>{{ acompanhamento.data_acompanhamento or '' }}</td>
+                                    <td>{{ acompanhamento.responsavel or '' }}</td>
+                                    <td>{{ acompanhamento.status_dia or '' }}</td>
+                                    <td>
+                                        {% if acompanhamento.atividades_previstas %}
+                                            <strong>Previstas:</strong>
+                                            <div>{{ acompanhamento.atividades_previstas }}</div>
+                                        {% endif %}
+                                        {% if acompanhamento.atividades_executadas %}
+                                            <div style="margin-top:5px;">
+                                                <strong>Executadas:</strong>
+                                                <div>{{ acompanhamento.atividades_executadas }}</div>
+                                            </div>
+                                        {% endif %}
+                                        {% if acompanhamento.observacoes %}
+                                            <div style="margin-top:5px;">
+                                                <strong>Observações:</strong>
+                                                <div>{{ acompanhamento.observacoes }}</div>
+                                            </div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if acompanhamento.equipe_lista %}
+                                            <strong>Equipe:</strong>
+                                            <ul class="mini-list">
+                                                {% for item in acompanhamento.equipe_lista %}
+                                                    <li>
+                                                        {{ item.nome or '' }}
+                                                        {% if item.cargo %} - {{ item.cargo }}{% endif %}
+                                                        {% if item.horas %} | {{ item.horas }}h{% endif %}
+                                                        {% if item.observacoes %}<br>{{ item.observacoes }}{% endif %}
+                                                    </li>
+                                                {% endfor %}
+                                            </ul>
+                                        {% endif %}
+
+                                        {% if acompanhamento.materiais_lista %}
+                                            <strong>Materiais:</strong>
+                                            <ul class="mini-list">
+                                                {% for item in acompanhamento.materiais_lista %}
+                                                    <li>
+                                                        {{ item.nome or '' }}
+                                                        {% if item.quantidade %} | {{ item.quantidade }}{% endif %}
+                                                        {% if item.unidade %} {{ item.unidade }}{% endif %}
+                                                        {% if item.observacoes %}<br>{{ item.observacoes }}{% endif %}
+                                                    </li>
+                                                {% endfor %}
+                                            </ul>
+                                        {% endif %}
+
+                                        {% if acompanhamento.servicos_lista %}
+                                            <strong>Serviços:</strong>
+                                            <ul class="mini-list">
+                                                {% for item in acompanhamento.servicos_lista %}
+                                                    <li>
+                                                        {{ item.nome or '' }}
+                                                        {% if item.quantidade %} | {{ item.quantidade }}{% endif %}
+                                                        {% if item.observacoes %}<br>{{ item.observacoes }}{% endif %}
+                                                    </li>
+                                                {% endfor %}
+                                            </ul>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        {% endif %}
+
+        <div class="signature-grid">
+            <div>
+                <div class="signature-line">Responsável técnico</div>
+            </div>
+            {% if _cfg_os.get('exigir_assinatura_cliente', true) %}
+                <div>
+                    <div class="signature-line">Cliente / responsável pelo recebimento</div>
+                </div>
+            {% endif %}
+        </div>
+
+        {% if _cfg_gerais.get('rodape_documentos') %}
+            <div class="footer-note">{{ _cfg_gerais.get('rodape_documentos') }}</div>
+        {% endif %}
+    </div>
+
+    <div class="print-actions">
+        <a href="/ordens-servico/{{ os.id }}">Voltar</a>
+        <button type="button" onclick="window.print()">Imprimir</button>
+    </div>
+</body>
+</html>

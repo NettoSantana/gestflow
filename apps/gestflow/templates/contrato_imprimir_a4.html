@@ -1,0 +1,148 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\contrato_imprimir_a4.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ contrato.numero }} - Contrato</title>
+    <link rel="stylesheet" href="/static/css/contratos.css">
+</head>
+<body class="contract-print-body">
+    {% set _cfg = gestflow_configuracoes_runtime.get('valores', {}) %}
+    {% set _cfg_gerais = _cfg.get('gerais', {}) %}
+    {% set _cfg_contratos = _cfg.get('contratos', {}) %}
+    <div class="contract-print-toolbar">
+        <button type="button" onclick="window.print()">Imprimir / salvar PDF</button>
+        <button type="button" class="secondary" onclick="window.close()">Fechar</button>
+    </div>
+
+    <article class="contract-print-sheet">
+        <header class="contract-print-header">
+            <div class="contract-print-brand">
+                <img src="{{ empresa.logo_path or '/static/img/gestflow-logo.png' }}" alt="{{ empresa.nome_fantasia or empresa.razao_social or 'Empresa' }}">
+                <div>
+                    <strong>{{ empresa.nome_fantasia or empresa.razao_social or 'Empresa contratada' }}</strong>
+                    {% if empresa.razao_social and empresa.razao_social != empresa.nome_fantasia %}<span>{{ empresa.razao_social }}</span>{% endif %}
+                    {% if empresa.documento %}<span>CNPJ/CPF: {{ empresa.documento }}</span>{% endif %}
+                    {% if empresa.email or empresa.telefone %}<span>{{ empresa.email or '' }}{% if empresa.email and empresa.telefone %} · {% endif %}{{ empresa.telefone or '' }}</span>{% endif %}
+                    {% if loja.cidade %}<span>{{ loja.cidade }}</span>{% endif %}
+                </div>
+            </div>
+            <div class="contract-print-document-id">
+                <span>CONTRATO</span>
+                <strong>{{ contrato.numero }}</strong>
+                <small>Versão {{ contrato.versao or 1 }}</small>
+            </div>
+        </header>
+
+        <section class="contract-print-title">
+            <span>
+                {% if contrato.tipo == 'recorrente' %}CONTRATO DE SERVIÇOS RECORRENTES{% elif contrato.tipo == 'locacao' %}CONTRATO DE LOCAÇÃO{% else %}CONTRATO DE PRESTAÇÃO DE SERVIÇOS{% endif %}
+            </span>
+            <h1>{{ contrato.titulo }}</h1>
+        </section>
+
+        <section class="contract-print-parties">
+            <div>
+                <span>CONTRATADA</span>
+                <strong>{{ empresa.razao_social or empresa.nome_fantasia or 'Não informado' }}</strong>
+                {% if empresa.documento %}<p>Documento: {{ empresa.documento }}</p>{% endif %}
+                {% if empresa.email %}<p>E-mail: {{ empresa.email }}</p>{% endif %}
+                {% if empresa.telefone %}<p>Telefone: {{ empresa.telefone }}</p>{% endif %}
+            </div>
+            <div>
+                <span>CONTRATANTE</span>
+                <strong>{{ cliente.nome if cliente else contrato.cliente }}</strong>
+                {% if cliente and cliente.documento %}<p>Documento: {{ cliente.documento }}</p>{% endif %}
+                {% if cliente and cliente.email %}<p>E-mail: {{ cliente.email }}</p>{% endif %}
+                {% if cliente and cliente.telefone %}<p>Telefone: {{ cliente.telefone }}</p>{% endif %}
+                {% if cliente and cliente.cidade %}<p>Cidade: {{ cliente.cidade }}</p>{% endif %}
+            </div>
+        </section>
+
+        <section class="contract-print-clause">
+            <h2>1. OBJETO DO CONTRATO</h2>
+            <p>{{ contrato.objeto or 'O presente contrato tem por objeto a execução dos itens e serviços descritos neste documento.' }}</p>
+        </section>
+
+        {% if itens %}
+            <section class="contract-print-clause">
+                <h2>2. ITENS E SERVIÇOS CONTRATADOS</h2>
+                <table class="contract-print-table">
+                    <thead><tr><th>Item</th><th>Descrição</th><th>Qtd.</th><th>Valor unitário</th><th>Subtotal</th></tr></thead>
+                    <tbody>
+                        {% for item in itens %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td><strong>{{ item.descricao }}</strong>{% if item.detalhes %}<small>{{ item.detalhes }}</small>{% endif %}</td>
+                                <td>{{ item.quantidade or '1,00' }}</td>
+                                <td>R$ {{ item.valor_unitario or '0,00' }}</td>
+                                <td>R$ {{ item.subtotal or '0,00' }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </section>
+        {% endif %}
+
+        <section class="contract-print-clause">
+            <h2>{% if itens %}3{% else %}2{% endif %}. VIGÊNCIA</h2>
+            <p>O contrato tem início em <strong>{{ contrato.data_inicio }}</strong>{% if contrato.data_fim %} e término previsto em <strong>{{ contrato.data_fim }}</strong>{% else %}, com prazo indeterminado{% endif %}.</p>
+            {% if contrato.renovacao_automatica == 'sim' %}<p>A renovação será automática, observadas as condições acordadas entre as partes.</p>{% endif %}
+        </section>
+
+        <section class="contract-print-clause">
+            <h2>{% if itens %}4{% else %}3{% endif %}. VALORES E PAGAMENTO</h2>
+            <div class="contract-print-values">
+                <div><span>Valor total</span><strong>R$ {{ contrato.valor_total or '0,00' }}</strong></div>
+                {% if contrato.periodicidade != 'unica' %}
+                    <div><span>Valor recorrente</span><strong>R$ {{ contrato.valor_recorrente or '0,00' }}</strong></div>
+                    <div><span>Periodicidade</span><strong>{% for periodicidade in periodicidades_contrato %}{% if periodicidade.codigo == contrato.periodicidade %}{{ periodicidade.nome }}{% endif %}{% endfor %}</strong></div>
+                    <div><span>Vencimento</span><strong>Dia {{ contrato.dia_vencimento or '-' }}</strong></div>
+                {% endif %}
+            </div>
+            {% if contrato.forma_pagamento %}<p>Forma de pagamento: <strong>{{ contrato.forma_pagamento }}</strong>.</p>{% endif %}
+        </section>
+
+        {% if contrato.observacoes %}
+            <section class="contract-print-clause">
+                <h2>{% if itens %}5{% else %}4{% endif %}. CONDIÇÕES COMPLEMENTARES</h2>
+                <p>{{ contrato.observacoes }}</p>
+            </section>
+        {% endif %}
+
+        {% if _cfg_contratos.get('clausulas') %}
+            <section class="contract-print-clause">
+                <h2>CLÁUSULAS CONFIGURADAS</h2>
+                <p style="white-space:pre-line">{{ _cfg_contratos.get('clausulas') }}</p>
+                {% if _cfg_contratos.get('indice_reajuste') or _cfg_contratos.get('percentual_reajuste') %}
+                    <p>Reajuste a cada {{ _cfg_contratos.get('reajuste_periodicidade_meses', 12) }} mês(es), pelo índice {{ _cfg_contratos.get('indice_reajuste') or 'definido entre as partes' }}{% if _cfg_contratos.get('percentual_reajuste') %}, com percentual fixo de {{ _cfg_contratos.get('percentual_reajuste') }}%{% endif %}.</p>
+                {% endif %}
+                {% if _cfg_contratos.get('multa_cancelamento_percentual') %}<p>Multa de cancelamento: {{ _cfg_contratos.get('multa_cancelamento_percentual') }}%.</p>{% endif %}
+            </section>
+        {% endif %}
+
+        <section class="contract-print-acceptance">
+            <p>As partes declaram estar de acordo com as condições apresentadas neste contrato e o assinam para que produza seus efeitos.</p>
+            <span>{{ loja.cidade or '________________________' }}, ______ de __________________ de __________.</span>
+        </section>
+
+        {% if _cfg_contratos.get('assinatura_obrigatoria', true) %}
+            <section class="contract-print-signatures">
+                <div><span></span><strong>{{ empresa.razao_social or empresa.nome_fantasia or 'CONTRATADA' }}</strong><small>CONTRATADA</small></div>
+                <div><span></span><strong>{{ cliente.nome if cliente else contrato.cliente }}</strong><small>CONTRATANTE</small></div>
+            </section>
+        {% endif %}
+
+        <footer class="contract-print-footer">
+            <span>{{ contrato.numero }} · {{ contrato.titulo }}</span>
+            <span>{{ _cfg_gerais.get('rodape_documentos') or 'Documento emitido pelo GestFlow' }}</span>
+        </footer>
+    </article>
+</body>
+</html>

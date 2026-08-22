@@ -1,0 +1,392 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\venda_imprimir_a4.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>GESTFLOW - Impressão A4 Venda</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 14mm;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            color: #111827;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 12px;
+            background: #ffffff;
+        }
+
+        .print-page {
+            width: 100%;
+        }
+
+        .print-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 20px;
+            padding-bottom: 14px;
+            border-bottom: 2px solid #111827;
+            margin-bottom: 16px;
+        }
+
+        .brand-block {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-mark {
+            width: 64px;
+            height: 52px;
+            border-radius: 12px;
+            background: #0f172a;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 800;
+            overflow: hidden;
+        }        .brand-logo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            background: transparent;
+            padding: 0;
+        }
+
+        .brand-title {
+            margin: 0;
+            font-size: 24px;
+            letter-spacing: 1px;
+        }
+
+        .brand-subtitle {
+            margin: 2px 0 0;
+            color: #475569;
+            font-size: 11px;
+        }
+
+        .doc-info {
+            text-align: right;
+        }
+
+        .doc-info h2 {
+            margin: 0;
+            font-size: 20px;
+        }
+
+        .doc-info p {
+            margin: 4px 0 0;
+            color: #475569;
+        }
+
+        .section {
+            margin-bottom: 16px;
+            page-break-inside: avoid;
+        }
+
+        .section-title {
+            margin: 0 0 8px;
+            padding: 8px 10px;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 13px;
+            text-transform: uppercase;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        .info-box {
+            border: 1px solid #dbe4ef;
+            border-radius: 8px;
+            padding: 8px 10px;
+            min-height: 48px;
+        }
+
+        .info-label {
+            display: block;
+            color: #475569;
+            font-size: 10px;
+            margin-bottom: 4px;
+        }
+
+        .info-value {
+            display: block;
+            font-weight: 700;
+            white-space: pre-wrap;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 8px;
+        }
+
+        th,
+        td {
+            border: 1px solid #cbd5e1;
+            padding: 7px;
+            vertical-align: top;
+        }
+
+        th {
+            background: #f8fafc;
+            text-align: left;
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .total-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .total-box {
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 10px;
+            background: #f8fafc;
+        }
+
+        .total-box strong {
+            display: block;
+            margin-top: 4px;
+            font-size: 15px;
+        }
+
+        .grand-total {
+            background: #0f172a;
+            color: #ffffff;
+            border-color: #0f172a;
+        }
+
+        .obs-box {
+            border: 1px solid #dbe4ef;
+            border-radius: 8px;
+            padding: 10px;
+            min-height: 58px;
+            white-space: pre-wrap;
+        }
+
+        .print-footer {
+            margin-top: 22px;
+            padding-top: 10px;
+            border-top: 1px solid #cbd5e1;
+            display: flex;
+            justify-content: space-between;
+            color: #64748b;
+            font-size: 10px;
+        }
+
+        .screen-actions {
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .screen-actions button,
+        .screen-actions a {
+            border: 0;
+            border-radius: 8px;
+            padding: 10px 14px;
+            background: #0f172a;
+            color: #ffffff;
+            text-decoration: none;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        @media print {
+            .screen-actions {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    {% set _cfg = gestflow_configuracoes_runtime.get('valores', {}) %}
+    {% set _cfg_gerais = _cfg.get('gerais', {}) %}
+    {% set _cfg_vendas = _cfg.get('vendas', {}) %}
+    <div class="screen-actions">
+        <a href="/vendas/{{ venda.id }}">Voltar</a>
+        <button type="button" onclick="window.print()">Imprimir</button>
+    </div>
+
+    <main class="print-page">
+        <header class="print-header">
+            <div class="brand-block">
+                <div class="brand-mark">
+                    {% if empresa.logo_path %}
+                        <img src="{{ empresa.logo_path }}" alt="Logo da empresa" class="brand-logo" onerror="this.remove(); this.parentElement.textContent='GF';">
+                    {% else %}
+                        GF
+                    {% endif %}
+                </div>
+                <div>
+                    <h1 class="brand-title">{{ empresa.nome_fantasia or empresa.razao_social or 'GESTFLOW' }}</h1>
+                    <p class="brand-subtitle">
+                        {% if empresa.documento %}CNPJ/CPF: {{ empresa.documento }}{% endif %}
+                        {% if empresa.telefone %}{% if empresa.documento %} | {% endif %}Tel: {{ empresa.telefone }}{% endif %}
+                        {% if empresa.email %}<br>{{ empresa.email }}{% endif %}
+                        {% if loja and loja.cidade %}<br>{{ loja.cidade }}{% endif %}
+                    </p>
+                </div>
+            </div>
+
+            <div class="doc-info">
+                <h2>VENDA {{ venda.numero or venda.id }}</h2>
+                <p>Situação: {{ venda.status_nome|default(venda.status, true) or '-' }}</p>
+                <p>Data: {{ venda.data or '-' }}</p>
+            </div>
+        </header>
+
+        <section class="section">
+            <h3 class="section-title">Dados gerais</h3>
+            <div class="info-grid">
+                <div class="info-box"><span class="info-label">Cliente</span><span class="info-value">{{ venda.cliente or '-' }}</span></div>
+                <div class="info-box"><span class="info-label">Vendedor / responsável</span><span class="info-value">{{ venda.responsavel or '-' }}</span></div>
+                <div class="info-box"><span class="info-label">Prazo de entrega</span><span class="info-value">{{ venda.prazo_entrega or '-' }}</span></div>
+                <div class="info-box"><span class="info-label">Canal de venda</span><span class="info-value">{{ venda.canal_venda or '-' }}</span></div>
+                <div class="info-box"><span class="info-label">Centro de custo</span><span class="info-value">{{ venda.centro_custo or '-' }}</span></div>
+                <div class="info-box"><span class="info-label">Condição de pagamento</span><span class="info-value">{{ venda.condicao_pagamento or 'avista' }}</span></div>
+                <div class="info-box"><span class="info-label">Meio de pagamento</span><span class="info-value">{{ venda.meio_pagamento or venda.forma_pagamento or '-' }}</span></div>
+            </div>
+        </section>
+
+        {% if itens_produtos %}
+        <section class="section">
+            <h3 class="section-title">Produtos</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Descrição</th>
+                        <th>Detalhes</th>
+                        <th class="text-right">Qtd</th>
+                        <th class="text-right">Valor unit.</th>
+                        <th class="text-right">Desconto</th>
+                        <th class="text-right">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in itens_produtos %}
+                    <tr>
+                        <td>{{ item.descricao or '-' }}</td>
+                        <td>{{ item.detalhes or '-' }}</td>
+                        <td class="text-right">{{ item.quantidade or '-' }}</td>
+                        <td class="text-right">{{ item.valor_unitario or '0,00' }}</td>
+                        <td class="text-right">{{ item.desconto or '0,00' }}</td>
+                        <td class="text-right">{{ item.subtotal or '0,00' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+        {% endif %}
+
+        {% if itens_servicos %}
+        <section class="section">
+            <h3 class="section-title">Serviços</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Descrição</th>
+                        <th>Detalhes</th>
+                        <th class="text-right">Qtd</th>
+                        <th class="text-right">Valor unit.</th>
+                        <th class="text-right">Desconto</th>
+                        <th class="text-right">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in itens_servicos %}
+                    <tr>
+                        <td>{{ item.descricao or '-' }}</td>
+                        <td>{{ item.detalhes or '-' }}</td>
+                        <td class="text-right">{{ item.quantidade or '-' }}</td>
+                        <td class="text-right">{{ item.valor_unitario or '0,00' }}</td>
+                        <td class="text-right">{{ item.desconto or '0,00' }}</td>
+                        <td class="text-right">{{ item.subtotal or '0,00' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+        {% endif %}
+
+        {% if not itens_produtos and not itens_servicos %}
+        <section class="section">
+            <h3 class="section-title">Itens</h3>
+            <div class="obs-box">Nenhum item informado.</div>
+        </section>
+        {% endif %}
+
+        <section class="section">
+            <h3 class="section-title">Totais</h3>
+            <div class="total-grid">
+                <div class="total-box"><span>Total produtos</span><strong>R$ {{ venda.total_produtos or '0,00' }}</strong></div>
+                <div class="total-box"><span>Total serviços</span><strong>R$ {{ venda.total_servicos or '0,00' }}</strong></div>
+                <div class="total-box"><span>Desconto R$</span><strong>R$ {{ venda.desconto_valor or '0,00' }}</strong></div>
+                <div class="total-box"><span>Desconto %</span><strong>{{ venda.desconto_percentual or '0,00' }}%</strong></div>
+                <div class="total-box grand-total"><span>Valor total</span><strong>R$ {{ venda.valor_total or '0,00' }}</strong></div>
+            </div>
+        </section>
+
+
+        {% if pagamentos %}
+        <section class="section">
+            <h3 class="section-title">Plano de pagamento</h3>
+            <table>
+                <thead><tr><th>Parcela</th><th>Vencimento</th><th>Meio</th><th>Status</th><th class="text-right">Valor</th></tr></thead>
+                <tbody>
+                    {% for pagamento in pagamentos %}
+                    <tr>
+                        <td>{{ pagamento.numero or '-' }}</td>
+                        <td>{{ pagamento.vencimento or '-' }}</td>
+                        <td>{{ pagamento.meio or '-' }}</td>
+                        <td>{{ pagamento.status or '-' }}</td>
+                        <td class="text-right">R$ {{ pagamento.valor or '0,00' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+        {% endif %}
+
+        <section class="section">
+            <h3 class="section-title">Observações</h3>
+            <div class="obs-box">{{ venda.observacoes or '-' }}</div>
+        </section>
+
+        <footer class="print-footer">
+            <span>{{ _cfg_gerais.get('rodape_documentos') or empresa.nome_fantasia or empresa.razao_social or 'GESTFLOW' }}</span>
+            <span>Venda {{ venda.numero or venda.id }}</span>
+        </footer>
+    </main>
+</body>
+</html>

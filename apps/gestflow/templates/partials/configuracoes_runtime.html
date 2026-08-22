@@ -1,0 +1,10 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\partials\configuracoes_runtime.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+{% if gestflow_configuracoes_runtime %}
+<script id="gestflow-configuracoes-runtime" type="application/json">{{ gestflow_configuracoes_runtime|tojson }}</script>
+<script src="{{ url_for('static', filename='js/configuracoes_modulos.js') }}" defer></script>
+{% endif %}

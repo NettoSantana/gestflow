@@ -1,0 +1,121 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\producao\templates\producao_home.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+{% extends 'base.html' %}
+{% block title %}Produção — IndFlow{% endblock %}
+
+{% block content %}
+<style>
+  .production-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;}
+  .production-card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px;box-shadow:0 5px 18px rgba(15,23,42,.045);}
+  .production-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding-bottom:12px;border-bottom:1px solid #eef2f7;}
+  .production-name{font-size:16px;font-weight:900;color:#0f172a;}.production-id{margin-top:3px;color:#94a3b8;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;}
+  .production-status{padding:5px 9px;border-radius:999px;color:#fff;font-size:9px;font-weight:900;letter-spacing:.04em}.production-status.running{background:#16a34a}.production-status.stopped{background:#dc2626}
+  .production-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:13px}.production-metric{background:#f8fafc;border:1px solid #eef2f7;border-radius:10px;padding:10px}.production-metric span{display:block;color:#64748b;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.05em}.production-metric strong{display:block;margin-top:6px;color:#0f172a;font-size:18px;font-weight:900;line-height:1}
+  .production-progress{margin-top:13px}.production-progress-head{display:flex;justify-content:space-between;gap:10px;color:#475569;font-size:10px;font-weight:800}.production-progress-track{height:7px;margin-top:7px;background:#e2e8f0;border-radius:999px;overflow:hidden}.production-progress-fill{height:100%;background:#2563eb;border-radius:999px}
+  .production-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid #eef2f7}.production-actions .btn{flex:1}
+  .production-error{color:#b91c1c;font-size:11px;font-weight:800;margin-top:10px}
+  @media(max-width:1100px){.production-grid{grid-template-columns:1fr}.production-metrics{grid-template-columns:repeat(2,minmax(0,1fr));}}
+</style>
+
+<div class="page-header">
+  <div class="page-heading">
+    <div class="page-eyebrow">Operação</div>
+    <h1 class="page-title">Produção</h1>
+    <p class="page-description">Acompanhe o turno por máquina e entre no detalhe operacional para OP/bobinas, histórico e parâmetros industriais.</p>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn-secondary" href="/paradas/">Paradas</a>
+    <a class="btn btn-secondary" href="/indicadores/">Indicadores</a>
+    <a class="btn btn-secondary" href="/producao/historico">Histórico</a>
+    <a class="btn btn-primary" href="/">Painel Industrial</a>
+  </div>
+</div>
+
+<div class="production-grid" id="machines-area"></div>
+
+<div class="page-note" style="margin-top:14px;">
+  O cadastro e os dados administrativos do equipamento ficam no GestFlow. Aqui permanecem somente dados operacionais e industriais.
+</div>
+
+<script>
+  const LS_KEY_PROD = "indflow_machines_v1";
+
+  function monitoredMachines(){
+    try{
+      const raw = localStorage.getItem(LS_KEY_PROD);
+      const arr = raw ? JSON.parse(raw) : null;
+      if(Array.isArray(arr) && arr.length) return arr;
+    }catch(e){}
+    return ["maquina01"];
+  }
+
+  function n(v){ const x = Number(v); return Number.isFinite(x) ? x : 0; }
+  function esc(v){ return String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+  function fmt(v){ return n(v).toLocaleString("pt-BR", {maximumFractionDigits:2}); }
+  function statusUi(data){
+    const ui = String(data.status_ui || "").toUpperCase();
+    if(ui === "PRODUZINDO" || ui === "PARADA") return ui;
+    return String(data.status || "").toUpperCase() === "AUTO" ? "PRODUZINDO" : "PARADA";
+  }
+
+  function card(id, data){
+    const status = statusUi(data);
+    const running = status === "PRODUZINDO";
+    const pct = n(data.percentual_turno);
+    const pctSafe = Math.max(0, Math.min(100, pct));
+    const prod = n(data.producao_turno);
+    const meta = n(data.meta_turno);
+    const hour = n(data.producao_hora_liquida ?? data.producao_hora);
+    const stopped = Number.isFinite(Number(data.parado_min)) ? Math.floor(Number(data.parado_min)) : 0;
+
+    return `
+      <article class="production-card">
+        <div class="production-head">
+          <div><div class="production-name">${esc(String(data.nome || id).toUpperCase())}</div><div class="production-id">${esc(id)}</div></div>
+          <span class="production-status ${running ? 'running' : 'stopped'}">${status}</span>
+        </div>
+        <div class="production-metrics">
+          <div class="production-metric"><span>Produção turno</span><strong>${fmt(prod)}</strong></div>
+          <div class="production-metric"><span>Meta turno</span><strong>${fmt(meta)}</strong></div>
+          <div class="production-metric"><span>Hora atual</span><strong>${fmt(hour)}</strong></div>
+          <div class="production-metric"><span>Parado</span><strong>${stopped} min</strong></div>
+        </div>
+        <div class="production-progress">
+          <div class="production-progress-head"><span>Atingimento do turno</span><strong>${Math.round(pct)}%</strong></div>
+          <div class="production-progress-track"><div class="production-progress-fill" style="width:${pctSafe}%"></div></div>
+        </div>
+        <div class="production-actions">
+          <a class="btn btn-primary" href="/producao/config/${encodeURIComponent(id)}">Detalhe operacional</a>
+          ${running ? '' : `<a class="btn btn-secondary" href="/paradas/?machine_id=${encodeURIComponent(id)}&acao=classificar">Classificar parada</a>`}
+          <a class="btn btn-secondary" href="/indicadores/maquina/${encodeURIComponent(id)}">Indicadores</a>
+          <a class="btn btn-secondary" href="/producao/historico?machine_id=${encodeURIComponent(id)}">Histórico</a>
+        </div>
+      </article>`;
+  }
+
+  async function carregarMaquinas(){
+    const area = document.getElementById("machines-area");
+    const ids = monitoredMachines();
+    const rows = await Promise.all(ids.map(async id => {
+      try{
+        const r = await fetch(`/machine/status?machine_id=${encodeURIComponent(id)}`);
+        if(!r.ok) throw new Error("status");
+        return {id, data: await r.json()};
+      }catch(e){ return {id, data:null}; }
+    }));
+
+    area.innerHTML = rows.map(({id,data}) => data ? card(id,data) : `
+      <article class="production-card">
+        <div class="production-name">${esc(String(id).toUpperCase())}</div>
+        <div class="production-error">Não foi possível carregar o status desta máquina.</div>
+      </article>`).join("");
+  }
+
+  carregarMaquinas();
+  setInterval(carregarMaquinas, 3000);
+</script>
+{% endblock %}
