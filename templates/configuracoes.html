@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\configuracoes.html
-Último recode: 2026-08-22 12:36 (America/Bahia)
-Motivo: Adicionar configuração simples para ativar e preencher a apresentação profissional resumida da Vitrine de Serviços.
+Último recode: 2026-08-22 13:28 (America/Bahia)
+Motivo: Tornar a escolha do tipo de vitrine objetiva, com prévia visual imediata da estrutura priorizada para cada categoria.
 -->
 
 <!DOCTYPE html>
@@ -335,15 +335,16 @@ Motivo: Adicionar configuração simples para ativar e preencher a apresentaçã
                                             <small class="module-config-help">Esse texto aparece em destaque na página pública. Limite de 600 caracteres.</small>
                                         </div>
                                         <div class="module-config-field">
-                                            <label for="vitrine_categoria">Categoria principal</label>
+                                            <label for="vitrine_categoria">Escolha o tipo da sua vitrine</label>
                                             <select id="vitrine_categoria" name="categoria" class="form-control" data-vitrine-categoria>
-                                                <option value="">Selecionar categoria</option>
+                                                <option value="">Selecionar tipo de vitrine</option>
                                                 <option value="perfumaria" {% if vitrine_cfg.get('categoria') == 'perfumaria' %}selected{% endif %}>Perfumaria e cosméticos</option>
                                                 <option value="moda" {% if vitrine_cfg.get('categoria') == 'moda' %}selected{% endif %}>Moda e roupas</option>
                                                 <option value="mercado" {% if vitrine_cfg.get('categoria') == 'mercado' %}selected{% endif %}>Mercado e variedades</option>
                                                 <option value="servicos" {% if vitrine_cfg.get('categoria') == 'servicos' %}selected{% endif %}>Serviços</option>
                                                 <option value="pecas" {% if vitrine_cfg.get('categoria') == 'pecas' %}selected{% endif %}>Peças e oficina</option>
                                             </select>
+                                            <small class="module-config-help">Ao escolher, veja abaixo como o GestFlow organiza a vitrine para esse tipo de negócio.</small>
                                         </div>
                                         <div class="module-config-field">
                                             <label for="vitrine_catalogo_formato">Formato dos cards</label>
@@ -353,6 +354,26 @@ Motivo: Adicionar configuração simples para ativar e preencher a apresentaçã
                                                 <option value="horizontal" {% if vitrine_cfg.get('catalogo_formato') == 'horizontal' %}selected{% endif %}>Horizontal</option>
                                             </select>
                                             <small class="module-config-help">O formato muda o card sem cortar a mídia original.</small>
+                                        </div>
+
+                                        <div class="vitrine-type-preview wide" data-vitrine-tipo-preview>
+                                            <div class="vitrine-type-preview-copy">
+                                                <span class="vitrine-type-preview-kicker">Prévia do tipo escolhido</span>
+                                                <strong data-vitrine-preview-title>Selecione o tipo da sua vitrine</strong>
+                                                <p data-vitrine-preview-description>Você verá aqui o que ganha mais destaque na página pública.</p>
+                                                <div class="vitrine-type-preview-tags" data-vitrine-preview-tags></div>
+                                                <small>Prévia de organização. Logo, cores e formato dos cards continuam configurados normalmente.</small>
+                                            </div>
+                                            <div class="vitrine-type-phone" aria-label="Prévia simplificada da vitrine">
+                                                <div class="vitrine-type-phone-bar"></div>
+                                                <div class="vitrine-type-phone-brand" data-vitrine-preview-brand>Sua vitrine</div>
+                                                <div class="vitrine-type-phone-blocks" data-vitrine-preview-blocks>
+                                                    <span class="placeholder"></span>
+                                                    <span class="placeholder short"></span>
+                                                    <span class="placeholder"></span>
+                                                    <span class="placeholder short"></span>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </details>
@@ -519,6 +540,83 @@ Motivo: Adicionar configuração simples para ativar e preencher a apresentaçã
                                 const toggleProfissional = raiz.querySelector('[data-vitrine-profissional-toggle]');
                                 const camposProfissional = raiz.querySelector('[data-vitrine-profissional-fields]');
 
+                                const previewTipo = raiz.querySelector('[data-vitrine-tipo-preview]');
+                                const previewTitulo = raiz.querySelector('[data-vitrine-preview-title]');
+                                const previewDescricao = raiz.querySelector('[data-vitrine-preview-description]');
+                                const previewTags = raiz.querySelector('[data-vitrine-preview-tags]');
+                                const previewBrand = raiz.querySelector('[data-vitrine-preview-brand]');
+                                const previewBlocks = raiz.querySelector('[data-vitrine-preview-blocks]');
+
+                                const tiposVitrine = {
+                                    perfumaria: {
+                                        titulo: 'Perfumaria e cosméticos',
+                                        descricao: 'A vitrine prioriza marca, destaques e catálogo visual para facilitar a escolha dos produtos.',
+                                        tags: ['Marca', 'Destaques', 'Produtos', 'WhatsApp'],
+                                        blocos: ['Marca e destaque', 'Produtos em destaque', 'Catálogo', 'Contato']
+                                    },
+                                    moda: {
+                                        titulo: 'Moda e roupas',
+                                        descricao: 'A vitrine prioriza coleção, categorias e produtos para o cliente chegar rápido às peças.',
+                                        tags: ['Coleção', 'Categorias', 'Produtos', 'Comprar'],
+                                        blocos: ['Coleção em destaque', 'Categorias', 'Produtos', 'Comprar / WhatsApp']
+                                    },
+                                    mercado: {
+                                        titulo: 'Mercado e variedades',
+                                        descricao: 'A vitrine prioriza ofertas, categorias e produtos para uma compra simples e direta.',
+                                        tags: ['Ofertas', 'Categorias', 'Produtos', 'Pedidos'],
+                                        blocos: ['Oferta ou destaque', 'Categorias', 'Produtos', 'Fazer pedido']
+                                    },
+                                    servicos: {
+                                        titulo: 'Serviços',
+                                        descricao: 'A vitrine prioriza confiança no profissional, autoridade, serviços e agendamento.',
+                                        tags: ['Profissional', 'Autoridade', 'Serviços', 'Agendamento'],
+                                        blocos: ['Profissional / empresa', 'Autoridade', 'Serviços', 'Agendamento']
+                                    },
+                                    pecas: {
+                                        titulo: 'Peças e oficina',
+                                        descricao: 'A vitrine prioriza especialidade da oficina, serviços, peças e pedido de orçamento.',
+                                        tags: ['Oficina', 'Serviços', 'Peças', 'Orçamento'],
+                                        blocos: ['Oficina / especialidade', 'Serviços', 'Peças', 'Orçamento / WhatsApp']
+                                    }
+                                };
+
+                                function atualizarPreviewTipo() {
+                                    if (!categoria || !previewTipo) return;
+                                    const tipo = tiposVitrine[categoria.value];
+
+                                    if (!tipo) {
+                                        if (previewTitulo) previewTitulo.textContent = 'Selecione o tipo da sua vitrine';
+                                        if (previewDescricao) previewDescricao.textContent = 'Você verá aqui o que ganha mais destaque na página pública.';
+                                        if (previewBrand) previewBrand.textContent = 'Sua vitrine';
+                                        if (previewTags) previewTags.innerHTML = '';
+                                        if (previewBlocks) {
+                                            previewBlocks.innerHTML = '<span class="placeholder"></span><span class="placeholder short"></span><span class="placeholder"></span><span class="placeholder short"></span>';
+                                        }
+                                        return;
+                                    }
+
+                                    if (previewTitulo) previewTitulo.textContent = tipo.titulo;
+                                    if (previewDescricao) previewDescricao.textContent = tipo.descricao;
+                                    if (previewBrand) previewBrand.textContent = tipo.titulo;
+                                    if (previewTags) {
+                                        previewTags.innerHTML = '';
+                                        tipo.tags.forEach(function (tag) {
+                                            const item = document.createElement('span');
+                                            item.textContent = tag;
+                                            previewTags.appendChild(item);
+                                        });
+                                    }
+                                    if (previewBlocks) {
+                                        previewBlocks.innerHTML = '';
+                                        tipo.blocos.forEach(function (bloco, indice) {
+                                            const item = document.createElement('div');
+                                            item.className = 'vitrine-type-phone-block' + (indice === 0 ? ' primary' : '');
+                                            item.textContent = bloco;
+                                            previewBlocks.appendChild(item);
+                                        });
+                                    }
+                                }
+
                                 function atualizarApresentacaoProfissional() {
                                     const categoriaServicos = !categoria || categoria.value === 'servicos';
                                     if (secaoProfissional) secaoProfissional.hidden = !categoriaServicos;
@@ -527,9 +625,13 @@ Motivo: Adicionar configuração simples para ativar e preencher a apresentaçã
                                     }
                                 }
 
-                                if (categoria) categoria.addEventListener('change', atualizarApresentacaoProfissional);
+                                if (categoria) {
+                                    categoria.addEventListener('change', atualizarApresentacaoProfissional);
+                                    categoria.addEventListener('change', atualizarPreviewTipo);
+                                }
                                 if (toggleProfissional) toggleProfissional.addEventListener('change', atualizarApresentacaoProfissional);
                                 atualizarApresentacaoProfissional();
+                                atualizarPreviewTipo();
 
                                 const preview = raiz.querySelector('[data-vitrine-logo-preview]');
                                 const frame = raiz.querySelector('.vitrine-logo-config-frame');
@@ -1971,6 +2073,140 @@ Motivo: Adicionar configuração simples para ativar e preencher a apresentaçã
                 grid-column: 1 / -1;
             }
 
+            .vitrine-type-preview {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) 190px;
+                align-items: center;
+                gap: 18px;
+                padding: 16px;
+                border: 1px solid #cbd5e1;
+                border-radius: 14px;
+                background: linear-gradient(135deg, #f8fafc 0%, #eef6ff 100%);
+            }
+
+            .vitrine-type-preview-copy {
+                min-width: 0;
+            }
+
+            .vitrine-type-preview-kicker {
+                display: block;
+                margin-bottom: 5px;
+                color: #2563eb;
+                font-size: 10px;
+                font-weight: 900;
+                text-transform: uppercase;
+                letter-spacing: .04em;
+            }
+
+            .vitrine-type-preview-copy > strong {
+                display: block;
+                color: #0f172a;
+                font-size: 17px;
+                line-height: 1.2;
+            }
+
+            .vitrine-type-preview-copy > p {
+                max-width: 620px;
+                margin: 6px 0 10px;
+                color: #475569;
+                font-size: 11px;
+                font-weight: 700;
+                line-height: 1.5;
+            }
+
+            .vitrine-type-preview-copy > small {
+                display: block;
+                margin-top: 10px;
+                color: #64748b;
+                font-size: 9px;
+                font-weight: 700;
+            }
+
+            .vitrine-type-preview-tags {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px;
+            }
+
+            .vitrine-type-preview-tags span {
+                padding: 5px 8px;
+                border: 1px solid #bfdbfe;
+                border-radius: 999px;
+                background: #ffffff;
+                color: #1e40af;
+                font-size: 9px;
+                font-weight: 900;
+            }
+
+            .vitrine-type-phone {
+                width: 160px;
+                min-height: 238px;
+                justify-self: center;
+                overflow: hidden;
+                padding: 9px;
+                border: 5px solid #0f172a;
+                border-radius: 24px;
+                background: #ffffff;
+                box-shadow: 0 12px 28px rgba(15, 23, 42, .14);
+            }
+
+            .vitrine-type-phone-bar {
+                width: 44px;
+                height: 5px;
+                margin: 0 auto 10px;
+                border-radius: 999px;
+                background: #0f172a;
+            }
+
+            .vitrine-type-phone-brand {
+                padding: 8px;
+                border-radius: 9px;
+                background: #eff6ff;
+                color: #0f172a;
+                font-size: 9px;
+                font-weight: 900;
+                text-align: center;
+            }
+
+            .vitrine-type-phone-blocks {
+                display: flex;
+                flex-direction: column;
+                gap: 7px;
+                margin-top: 8px;
+            }
+
+            .vitrine-type-phone-block {
+                display: grid;
+                min-height: 39px;
+                place-items: center;
+                padding: 6px;
+                border: 1px solid #e2e8f0;
+                border-radius: 9px;
+                background: #f8fafc;
+                color: #475569;
+                font-size: 8px;
+                font-weight: 900;
+                text-align: center;
+            }
+
+            .vitrine-type-phone-block.primary {
+                min-height: 53px;
+                border-color: #bfdbfe;
+                background: #dbeafe;
+                color: #1e3a8a;
+            }
+
+            .vitrine-type-phone-blocks .placeholder {
+                display: block;
+                height: 36px;
+                border-radius: 9px;
+                background: #e2e8f0;
+            }
+
+            .vitrine-type-phone-blocks .placeholder.short {
+                height: 26px;
+            }
+
             .vitrine-identidade-opcoes {
                 display: grid;
                 grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2214,6 +2450,14 @@ Motivo: Adicionar configuração simples para ativar e preencher a apresentaçã
 
                 .vitrine-logo-config-preview {
                     min-height: 220px;
+                }
+
+                .vitrine-type-preview {
+                    grid-template-columns: 1fr;
+                }
+
+                .vitrine-type-phone {
+                    width: 150px;
                 }
 
                 .vitrine-professional-toggle {
