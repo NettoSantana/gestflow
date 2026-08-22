@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\emprestimo_parcelas.html
-Último recode: 2026-08-21 06:43 (America/Bahia)
-Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+Último recode: 2026-08-22 00:35 (America/Bahia)
+Motivo: Vincular explicitamente a tabela principal ao componente padronizado de Busca avançada, Colunas e Mais ações no mesmo padrão de Orçamentos.
 #}
 
 <!DOCTYPE html>
@@ -39,7 +39,7 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
         </form>
         <section class="loan-panel gf-list-panel">
             <div class="loan-table-wrap gf-table-shell">
-                <table class="loan-table gf-table">
+                <table class="loan-table gf-table" data-gf-lista-principal="sim">
                     <thead><tr><th>Vencimento</th><th>Contrato</th><th>Parte</th><th>Tipo</th><th>Parcela</th><th>Previsto</th><th>Pago</th><th>Saldo</th><th>Status</th><th>Baixa</th></tr></thead>
                     <tbody>
                     {% for item in parcelas %}

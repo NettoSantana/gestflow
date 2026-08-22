@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\vendas.html
-Último recode: 2026-08-21 06:43 (America/Bahia)
-Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+Último recode: 2026-08-22 00:35 (America/Bahia)
+Motivo: Vincular a lista principal ao componente padronizado e remover a adaptação local duplicada de Colunas/Mais ações.
 #}
 
 <!DOCTYPE html>
@@ -391,141 +391,6 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
         .gf-status-select:disabled { cursor: default; opacity: .82; }
 
 
-        /* COLUNAS COMPACTAS - MESMO PADRAO VISUAL DE ORCAMENTOS */
-        .gf-compact-dropdown,
-        .gf-compact-more {
-            position: relative;
-            display: inline-flex;
-            align-items: center;
-        }
-
-        .gf-list-tools .gf-columns-popover {
-            position: absolute;
-            z-index: 180;
-            top: calc(100% + 8px);
-            right: 0;
-            width: 230px;
-            min-width: 230px;
-            max-height: min(520px, 70vh);
-            overflow-y: auto;
-            margin: 0;
-            padding: 10px;
-            border: 1px solid #dbe4f0;
-            border-radius: 12px;
-            background: #fff;
-            box-shadow: 0 18px 45px rgba(15, 23, 42, .18);
-        }
-
-        .gf-list-tools .gf-columns-popover .gf-list-panel-header {
-            margin: 0 0 8px;
-            padding: 0 4px 8px;
-            border-bottom: 1px solid #e2e8f0;
-        }
-
-        .gf-list-tools .gf-columns-popover .gf-list-panel-header h4 {
-            margin: 0;
-            color: #475569;
-            font-size: 12px;
-            font-weight: 900;
-            text-transform: uppercase;
-        }
-
-        .gf-list-tools .gf-columns-popover .gf-list-panel-header p {
-            display: none;
-        }
-
-        .gf-list-tools .gf-columns-popover .gf-list-columns {
-            display: block;
-        }
-
-        .gf-list-tools .gf-columns-popover .gf-list-column-option {
-            min-height: 32px;
-            margin: 0;
-            padding: 5px 4px;
-            border: 0;
-            border-radius: 8px;
-            background: transparent;
-            color: #334155;
-            font-size: 13px;
-            font-weight: 800;
-            cursor: pointer;
-        }
-
-        .gf-list-tools .gf-columns-popover .gf-list-column-option:hover {
-            background: #f8fafc;
-        }
-
-        .gf-list-tools .gf-columns-popover .gf-list-column-option input {
-            width: 16px;
-            height: 16px;
-            margin: 0;
-        }
-
-        .gf-list-tools .gf-columns-popover .gf-list-panel-actions {
-            margin: 8px 0 0;
-            padding: 8px 0 0;
-            border-top: 1px solid #e2e8f0;
-        }
-
-        .gf-list-tools .gf-columns-popover .gf-list-panel-actions button,
-        .gf-list-tools .gf-compact-more-menu [data-gf-exportar] {
-            width: 100%;
-            min-height: 36px;
-            padding: 7px 9px;
-            border: 0;
-            border-radius: 8px;
-            background: transparent;
-            color: #1e293b;
-            display: flex;
-            align-items: center;
-            justify-content: flex-start;
-            gap: 8px;
-            font: inherit;
-            font-size: 13px;
-            font-weight: 800;
-            cursor: pointer;
-        }
-
-        .gf-list-tools .gf-columns-popover .gf-list-panel-actions button:hover,
-        .gf-list-tools .gf-compact-more-menu [data-gf-exportar]:hover {
-            background: #f0fdf4;
-            border-color: transparent;
-            color: #166534;
-        }
-
-        .gf-compact-more-menu {
-            position: absolute;
-            z-index: 180;
-            top: calc(100% + 8px);
-            right: 0;
-            width: 190px;
-            min-width: 190px;
-            padding: 8px;
-            border: 1px solid #dbe4f0;
-            border-radius: 12px;
-            background: #fff;
-            box-shadow: 0 18px 45px rgba(15, 23, 42, .18);
-            display: none;
-        }
-
-        .gf-compact-more.is-open .gf-compact-more-menu {
-            display: block;
-        }
-
-        @media (max-width: 720px) {
-            .gf-list-tools .gf-columns-popover {
-                left: 0;
-                right: auto;
-                width: min(280px, calc(100vw - 40px));
-                min-width: 0;
-            }
-
-            .gf-compact-more-menu {
-                left: 0;
-                right: auto;
-            }
-        }
-
     </style>
 </head>
 <body>
@@ -904,7 +769,7 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
             </div>
 
             <div class="table-shell vendas-lista-shell">
-                <table class="client-table vendas-lista-table">
+                <table class="client-table vendas-lista-table" data-gf-lista-principal="sim">
                     <thead>
                         <tr>
                             <th><a href="{{ url_for(listagem_endpoint, pagina=1, por_pagina=por_pagina, ordenar='id', direcao='desc' if ordenar == 'id' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">ID {% if ordenar == 'id' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
@@ -2226,82 +2091,6 @@ document.addEventListener("DOMContentLoaded", function() {
 </script>
 
     {% include "partials/lista_avancada.html" %}
-
-<script>
-(function padronizarColunasVendas() {
-    function iniciar() {
-        const painelLista = document.querySelector('.vendas-page .table-panel');
-        if (!painelLista) return;
-
-        const ferramentas = painelLista.querySelector('.gf-list-tools');
-        const slot = null;
-        const painelColunas = painelLista.querySelector('[data-gf-panel-content="colunas"]');
-        const botaoColunas = ferramentas ? ferramentas.querySelector('[data-gf-panel="colunas"]') : null;
-        const botaoExportar = ferramentas ? ferramentas.querySelector('[data-gf-exportar]') : null;
-        if (!ferramentas || !painelColunas || !botaoColunas) return;
-
-        if (slot && ferramentas.parentElement !== slot) slot.appendChild(ferramentas);
-        if (ferramentas.dataset.gfCompacto === 'sim') return;
-        ferramentas.dataset.gfCompacto = 'sim';
-
-        const botaoBusca = ferramentas.querySelector('[data-gf-panel="filtros"]');
-        if (botaoBusca) botaoBusca.textContent = '⌕ Busca avançada';
-        botaoColunas.textContent = '▤ Colunas';
-
-        const dropdownColunas = document.createElement('div');
-        dropdownColunas.className = 'gf-compact-dropdown';
-        botaoColunas.parentNode.insertBefore(dropdownColunas, botaoColunas);
-        dropdownColunas.appendChild(botaoColunas);
-        painelColunas.classList.add('gf-columns-popover');
-        dropdownColunas.appendChild(painelColunas);
-
-        let maisAcoes = null;
-        if (botaoExportar) {
-            maisAcoes = document.createElement('div');
-            maisAcoes.className = 'gf-compact-more';
-            maisAcoes.innerHTML = '<button type="button" class="gf-compact-more-toggle" aria-expanded="false">⚙ Mais ações</button><div class="gf-compact-more-menu"></div>';
-            ferramentas.appendChild(maisAcoes);
-            botaoExportar.textContent = '⇩ Exportar CSV';
-            maisAcoes.querySelector('.gf-compact-more-menu').appendChild(botaoExportar);
-
-            const toggleMais = maisAcoes.querySelector('.gf-compact-more-toggle');
-            toggleMais.addEventListener('click', function(evento) {
-                evento.stopPropagation();
-                const abrir = !maisAcoes.classList.contains('is-open');
-                maisAcoes.classList.toggle('is-open', abrir);
-                toggleMais.setAttribute('aria-expanded', String(abrir));
-                if (abrir) {
-                    painelColunas.classList.remove('is-open');
-                    botaoColunas.setAttribute('aria-expanded', 'false');
-                }
-            });
-        }
-
-        botaoColunas.addEventListener('click', function() {
-            if (maisAcoes) {
-                maisAcoes.classList.remove('is-open');
-                const toggleMais = maisAcoes.querySelector('.gf-compact-more-toggle');
-                if (toggleMais) toggleMais.setAttribute('aria-expanded', 'false');
-            }
-        });
-
-        document.addEventListener('click', function(evento) {
-            if (!dropdownColunas.contains(evento.target)) {
-                painelColunas.classList.remove('is-open');
-                botaoColunas.setAttribute('aria-expanded', 'false');
-            }
-            if (maisAcoes && !maisAcoes.contains(evento.target)) {
-                maisAcoes.classList.remove('is-open');
-                const toggleMais = maisAcoes.querySelector('.gf-compact-more-toggle');
-                if (toggleMais) toggleMais.setAttribute('aria-expanded', 'false');
-            }
-        });
-    }
-
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar);
-    else iniciar();
-})();
-</script>
 
 </body>
 </html>

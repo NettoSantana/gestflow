@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\emprestimos.html
-Último recode: 2026-08-21 06:43 (America/Bahia)
-Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+Último recode: 2026-08-22 00:35 (America/Bahia)
+Motivo: Vincular explicitamente a tabela principal ao componente padronizado de Busca avançada, Colunas e Mais ações no mesmo padrão de Orçamentos.
 #}
 
 <!DOCTYPE html>
@@ -55,7 +55,7 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
 
         <section class="loan-panel panel page-section gf-list-panel">
             <div class="loan-table-wrap gf-table-shell">
-                <table class="loan-table gf-table">
+                <table class="loan-table gf-table" data-gf-lista-principal="sim">
                     <thead><tr><th>Número</th><th>Título</th><th>Credor / devedor</th><th>Tipo</th><th>Valor principal</th><th>Saldo atual</th><th>Parcelas</th><th>Status</th><th>Ações</th></tr></thead>
                     <tbody>
                     {% for item in emprestimos %}
