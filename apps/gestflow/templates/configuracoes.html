@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\configuracoes.html
-Último recode: 2026-08-22 13:47 (America/Bahia)
-Motivo: Adicionar apresentação profissional opcional e prévia visual imediata do tipo de Vitrine na aplicação executada pelo Railway DEV.
+Último recode: 2026-08-22 15:19 (America/Bahia)
+Motivo: Tornar a escolha do formato da Vitrine didática para clientes leigos, perguntando o que vendem e mostrando claramente como a página será organizada.
 #}
 
 <!DOCTYPE html>
@@ -346,42 +346,69 @@ Motivo: Adicionar apresentação profissional opcional e prévia visual imediata
                                 </details>
 
                                 <details class="vitrine-config-section" open>
-                                    <summary><span>Conteúdo e catálogo</span><small>Apresentação institucional e formato dos produtos</small></summary>
+                                    <summary><span>Como sua vitrine será mostrada</span><small>Escolha simples para o seu tipo de negócio</small></summary>
                                     <div class="vitrine-config-grid">
                                         <div class="module-config-field wide">
-                                            <label for="vitrine_descricao_empresa">Descrição / Sobre nós</label>
-                                            <textarea id="vitrine_descricao_empresa" name="descricao_empresa" class="form-control module-config-textarea" rows="4" maxlength="600">{{ vitrine_cfg.get('descricao_empresa') or '' }}</textarea>
-                                            <small class="module-config-help">Esse texto aparece em destaque na página pública. Limite de 600 caracteres.</small>
+                                            <label for="vitrine_descricao_empresa">Uma frase sobre o seu negócio</label>
+                                            <textarea id="vitrine_descricao_empresa" name="descricao_empresa" class="form-control module-config-textarea" rows="3" maxlength="600" placeholder="Ex.: Moda feminina com peças selecionadas para o dia a dia.">{{ vitrine_cfg.get('descricao_empresa') or '' }}</textarea>
+                                            <small class="module-config-help">Escreva de forma simples. Essa frase ajuda o cliente a entender rapidamente o que você oferece.</small>
                                         </div>
-                                        <div class="module-config-field">
-                                            <label for="vitrine_categoria">Escolha o tipo da sua vitrine</label>
-                                            <select id="vitrine_categoria" name="categoria" class="form-control" data-vitrine-categoria>
-                                                <option value="">Selecionar tipo de vitrine</option>
-                                                <option value="perfumaria" {% if vitrine_cfg.get('categoria') == 'perfumaria' %}selected{% endif %}>Perfumaria e cosméticos</option>
-                                                <option value="moda" {% if vitrine_cfg.get('categoria') == 'moda' %}selected{% endif %}>Moda e roupas</option>
-                                                <option value="mercado" {% if vitrine_cfg.get('categoria') == 'mercado' %}selected{% endif %}>Mercado e variedades</option>
-                                                <option value="servicos" {% if vitrine_cfg.get('categoria') == 'servicos' %}selected{% endif %}>Serviços</option>
+
+                                        <div class="vitrine-business-question wide">
+                                            <span class="vitrine-business-question-kicker">1. O que você vende?</span>
+                                            <strong>Escolha a opção que mais se parece com o seu negócio</strong>
+                                            <p>Não precisa conhecer nenhuma configuração do GestFlow. Você pode mudar essa escolha depois.</p>
+
+                                            <select id="vitrine_categoria" name="categoria" class="vitrine-category-native" data-vitrine-categoria aria-label="Tipo de negócio">
+                                                <option value="">Selecionar</option>
+                                                <option value="perfumaria" {% if vitrine_cfg.get('categoria') == 'perfumaria' %}selected{% endif %}>Perfumes e cosméticos</option>
+                                                <option value="moda" {% if vitrine_cfg.get('categoria') == 'moda' %}selected{% endif %}>Roupas e acessórios</option>
+                                                <option value="mercado" {% if vitrine_cfg.get('categoria') == 'mercado' %}selected{% endif %}>Loja e produtos em geral</option>
+                                                <option value="servicos" {% if vitrine_cfg.get('categoria') == 'servicos' %}selected{% endif %}>Serviços e atendimentos</option>
                                                 <option value="pecas" {% if vitrine_cfg.get('categoria') == 'pecas' %}selected{% endif %}>Peças e oficina</option>
                                             </select>
-                                            <small class="module-config-help">Ao escolher, veja abaixo como o GestFlow organiza a vitrine para esse tipo de negócio.</small>
+
+                                            <div class="vitrine-business-choices" data-vitrine-business-choices>
+                                                <button type="button" class="vitrine-business-choice" data-vitrine-category-option="perfumaria" aria-pressed="false">
+                                                    <strong>Perfumes e cosméticos</strong>
+                                                    <span>Beleza, perfumaria e cuidados pessoais</span>
+                                                </button>
+                                                <button type="button" class="vitrine-business-choice" data-vitrine-category-option="moda" aria-pressed="false">
+                                                    <strong>Roupas e acessórios</strong>
+                                                    <span>Moda, calçados, bolsas e acessórios</span>
+                                                </button>
+                                                <button type="button" class="vitrine-business-choice" data-vitrine-category-option="mercado" aria-pressed="false">
+                                                    <strong>Loja e produtos em geral</strong>
+                                                    <span>Mercado, variedades e outros produtos</span>
+                                                </button>
+                                                <button type="button" class="vitrine-business-choice" data-vitrine-category-option="servicos" aria-pressed="false">
+                                                    <strong>Serviços e atendimentos</strong>
+                                                    <span>Consultas, beleza, personal, aulas e outros serviços</span>
+                                                </button>
+                                                <button type="button" class="vitrine-business-choice" data-vitrine-category-option="pecas" aria-pressed="false">
+                                                    <strong>Peças e oficina</strong>
+                                                    <span>Oficina, manutenção, autopeças e serviços técnicos</span>
+                                                </button>
+                                            </div>
                                         </div>
-                                        <div class="module-config-field">
-                                            <label for="vitrine_catalogo_formato">Formato dos cards</label>
+
+                                        <div class="module-config-field wide vitrine-card-format-row">
+                                            <label for="vitrine_catalogo_formato">Como você prefere mostrar seus produtos ou serviços?</label>
                                             <select id="vitrine_catalogo_formato" name="catalogo_formato" class="form-control">
-                                                <option value="vertical" {% if (vitrine_cfg.get('catalogo_formato') or 'vertical') == 'vertical' %}selected{% endif %}>Vertical</option>
-                                                <option value="quadrado" {% if vitrine_cfg.get('catalogo_formato') == 'quadrado' %}selected{% endif %}>Quadrado</option>
-                                                <option value="horizontal" {% if vitrine_cfg.get('catalogo_formato') == 'horizontal' %}selected{% endif %}>Horizontal</option>
+                                                <option value="vertical" {% if (vitrine_cfg.get('catalogo_formato') or 'vertical') == 'vertical' %}selected{% endif %}>Mais altos</option>
+                                                <option value="quadrado" {% if vitrine_cfg.get('catalogo_formato') == 'quadrado' %}selected{% endif %}>Quadrados</option>
+                                                <option value="horizontal" {% if vitrine_cfg.get('catalogo_formato') == 'horizontal' %}selected{% endif %}>Mais largos</option>
                                             </select>
-                                            <small class="module-config-help">O formato muda o card sem cortar a mídia original.</small>
+                                            <small class="module-config-help">Isso muda apenas o formato das fotos e dos itens na tela.</small>
                                         </div>
 
                                         <div class="vitrine-type-preview wide" data-vitrine-tipo-preview>
                                             <div class="vitrine-type-preview-copy">
-                                                <span class="vitrine-type-preview-kicker">Prévia do tipo escolhido</span>
-                                                <strong data-vitrine-preview-title>Selecione o tipo da sua vitrine</strong>
-                                                <p data-vitrine-preview-description>Você verá aqui o que ganha mais destaque na página pública.</p>
+                                                <span class="vitrine-type-preview-kicker">2. Assim seu cliente verá a vitrine</span>
+                                                <strong data-vitrine-preview-title>Escolha uma opção acima</strong>
+                                                <p data-vitrine-preview-description>O GestFlow organiza a página automaticamente para destacar o que é mais importante no seu negócio.</p>
                                                 <div class="vitrine-type-preview-tags" data-vitrine-preview-tags></div>
-                                                <small>Prévia de organização. Logo, cores e formato dos cards continuam configurados normalmente.</small>
+                                                <small>Essa é uma prévia simples da ordem da página. Suas fotos, cores, preços e dados reais serão usados na vitrine.</small>
                                             </div>
                                             <div class="vitrine-type-phone" aria-label="Prévia simplificada da vitrine">
                                                 <div class="vitrine-type-phone-bar"></div>
@@ -398,13 +425,13 @@ Motivo: Adicionar apresentação profissional opcional e prévia visual imediata
                                 </details>
 
                                 <details class="vitrine-config-section" data-vitrine-apresentacao-section {% if (vitrine_cfg.get('categoria') or '') != 'servicos' %}hidden{% endif %} open>
-                                    <summary><span>Apresentação profissional</span><small>Opcional · ideal para quem vende serviços</small></summary>
+                                    <summary><span>Quer aparecer na sua vitrine?</span><small>Opcional · para quem atende clientes</small></summary>
                                     <input type="hidden" name="apresentacao_profissional_presente" value="1">
                                     <div class="vitrine-professional-config">
                                         <label class="vitrine-professional-toggle">
                                             <span>
-                                                <strong>Mostrar apresentação profissional na vitrine</strong>
-                                                <small>Exibe foto, nome, especialidade e destaques antes dos serviços. Se desligar, o cliente vai direto aos itens publicados.</small>
+                                                <strong>Mostrar minha apresentação antes dos serviços</strong>
+                                                <small>Mostra sua foto, nome, especialidade e alguns destaques. Se desligar, o cliente vai direto aos serviços.</small>
                                             </span>
                                             <span class="vitrine-switch">
                                                 <input type="checkbox" name="mostrar_apresentacao_profissional" value="sim" data-vitrine-profissional-toggle {% if (vitrine_cfg.get('mostrar_apresentacao_profissional') or 'nao') == 'sim' %}checked{% endif %}>
@@ -565,37 +592,38 @@ Motivo: Adicionar apresentação profissional opcional e prévia visual imediata
                                 const previewTags = raiz.querySelector('[data-vitrine-preview-tags]');
                                 const previewBrand = raiz.querySelector('[data-vitrine-preview-brand]');
                                 const previewBlocks = raiz.querySelector('[data-vitrine-preview-blocks]');
+                                const opcoesNegocio = Array.from(raiz.querySelectorAll('[data-vitrine-category-option]'));
 
                                 const tiposVitrine = {
                                     perfumaria: {
-                                        titulo: 'Perfumaria e cosméticos',
-                                        descricao: 'A vitrine prioriza marca, destaques e catálogo visual para facilitar a escolha dos produtos.',
-                                        tags: ['Marca', 'Destaques', 'Produtos', 'WhatsApp'],
-                                        blocos: ['Marca e destaque', 'Produtos em destaque', 'Catálogo', 'Contato']
+                                        titulo: 'Perfumes e cosméticos',
+                                        descricao: 'Primeiro sua marca e seus destaques. Depois, os produtos para o cliente escolher e comprar ou chamar no WhatsApp.',
+                                        tags: ['Sua marca', 'Destaques', 'Produtos', 'Contato'],
+                                        blocos: ['Sua marca', 'Produtos em destaque', 'Todos os produtos', 'Comprar ou chamar']
                                     },
                                     moda: {
-                                        titulo: 'Moda e roupas',
-                                        descricao: 'A vitrine prioriza coleção, categorias e produtos para o cliente chegar rápido às peças.',
-                                        tags: ['Coleção', 'Categorias', 'Produtos', 'Comprar'],
-                                        blocos: ['Coleção em destaque', 'Categorias', 'Produtos', 'Comprar / WhatsApp']
+                                        titulo: 'Roupas e acessórios',
+                                        descricao: 'A página começa com sua coleção e facilita a navegação pelas peças, categorias e formas de compra.',
+                                        tags: ['Coleção', 'Categorias', 'Peças', 'Comprar'],
+                                        blocos: ['Coleção em destaque', 'Categorias', 'Roupas e acessórios', 'Comprar ou chamar']
                                     },
                                     mercado: {
-                                        titulo: 'Mercado e variedades',
-                                        descricao: 'A vitrine prioriza ofertas, categorias e produtos para uma compra simples e direta.',
-                                        tags: ['Ofertas', 'Categorias', 'Produtos', 'Pedidos'],
-                                        blocos: ['Oferta ou destaque', 'Categorias', 'Produtos', 'Fazer pedido']
+                                        titulo: 'Loja e produtos em geral',
+                                        descricao: 'Os produtos ficam no centro da página, com destaques, categorias e um caminho rápido para fazer o pedido.',
+                                        tags: ['Destaques', 'Categorias', 'Produtos', 'Pedido'],
+                                        blocos: ['Destaque principal', 'Categorias', 'Produtos', 'Fazer pedido']
                                     },
                                     servicos: {
-                                        titulo: 'Serviços',
-                                        descricao: 'A vitrine prioriza confiança no profissional, autoridade, serviços e agendamento.',
-                                        tags: ['Profissional', 'Autoridade', 'Serviços', 'Agendamento'],
-                                        blocos: ['Profissional / empresa', 'Autoridade', 'Serviços', 'Agendamento']
+                                        titulo: 'Serviços e atendimentos',
+                                        descricao: 'Primeiro mostramos quem atende e por que confiar. Logo depois aparecem seus serviços e o botão para agendar ou chamar.',
+                                        tags: ['Quem atende', 'Destaques', 'Serviços', 'Agendar'],
+                                        blocos: ['Sua apresentação', 'Por que confiar', 'Seus serviços', 'Agendar ou chamar']
                                     },
                                     pecas: {
                                         titulo: 'Peças e oficina',
-                                        descricao: 'A vitrine prioriza especialidade da oficina, serviços, peças e pedido de orçamento.',
-                                        tags: ['Oficina', 'Serviços', 'Peças', 'Orçamento'],
-                                        blocos: ['Oficina / especialidade', 'Serviços', 'Peças', 'Orçamento / WhatsApp']
+                                        descricao: 'A página destaca a oficina, o que você faz, as peças disponíveis e uma forma rápida de pedir orçamento.',
+                                        tags: ['Sua oficina', 'Serviços', 'Peças', 'Orçamento'],
+                                        blocos: ['Sua oficina', 'Serviços', 'Peças', 'Pedir orçamento']
                                     }
                                 };
 
@@ -603,9 +631,15 @@ Motivo: Adicionar apresentação profissional opcional e prévia visual imediata
                                     if (!categoria || !previewTipo) return;
                                     const tipo = tiposVitrine[categoria.value];
 
+                                    opcoesNegocio.forEach(function (opcao) {
+                                        const ativa = opcao.dataset.vitrineCategoryOption === categoria.value;
+                                        opcao.classList.toggle('active', ativa);
+                                        opcao.setAttribute('aria-pressed', ativa ? 'true' : 'false');
+                                    });
+
                                     if (!tipo) {
-                                        if (previewTitulo) previewTitulo.textContent = 'Selecione o tipo da sua vitrine';
-                                        if (previewDescricao) previewDescricao.textContent = 'Você verá aqui o que ganha mais destaque na página pública.';
+                                        if (previewTitulo) previewTitulo.textContent = 'Escolha uma opção acima';
+                                        if (previewDescricao) previewDescricao.textContent = 'O GestFlow organiza a página automaticamente para destacar o que é mais importante no seu negócio.';
                                         if (previewBrand) previewBrand.textContent = 'Sua vitrine';
                                         if (previewTags) previewTags.innerHTML = '';
                                         if (previewBlocks) {
@@ -643,6 +677,14 @@ Motivo: Adicionar apresentação profissional opcional e prévia visual imediata
                                         camposProfissional.hidden = !categoriaServicos || !toggleProfissional || !toggleProfissional.checked;
                                     }
                                 }
+
+                                opcoesNegocio.forEach(function (opcao) {
+                                    opcao.addEventListener('click', function () {
+                                        if (!categoria) return;
+                                        categoria.value = opcao.dataset.vitrineCategoryOption || '';
+                                        categoria.dispatchEvent(new Event('change', { bubbles: true }));
+                                    });
+                                });
 
                                 if (categoria) {
                                     categoria.addEventListener('change', atualizarApresentacaoProfissional);
@@ -2149,6 +2191,106 @@ Motivo: Adicionar apresentação profissional opcional e prévia visual imediata
                 grid-column: 1 / -1;
             }
 
+            .vitrine-business-question {
+                padding: 16px;
+                border: 1px solid #dbe4f0;
+                border-radius: 14px;
+                background: #ffffff;
+            }
+
+            .vitrine-business-question-kicker {
+                display: block;
+                margin-bottom: 5px;
+                color: #2563eb;
+                font-size: 10px;
+                font-weight: 950;
+                text-transform: uppercase;
+                letter-spacing: .04em;
+            }
+
+            .vitrine-business-question > strong {
+                display: block;
+                color: #0f172a;
+                font-size: 16px;
+                line-height: 1.25;
+            }
+
+            .vitrine-business-question > p {
+                margin: 5px 0 12px;
+                color: #64748b;
+                font-size: 10px;
+                font-weight: 750;
+                line-height: 1.45;
+            }
+
+            .vitrine-category-native {
+                position: absolute;
+                width: 1px;
+                height: 1px;
+                padding: 0;
+                margin: -1px;
+                overflow: hidden;
+                clip: rect(0, 0, 0, 0);
+                white-space: nowrap;
+                border: 0;
+            }
+
+            .vitrine-business-choices {
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 9px;
+            }
+
+            .vitrine-business-choice {
+                min-height: 76px;
+                padding: 12px;
+                border: 1px solid #dbe4f0;
+                border-radius: 12px;
+                background: #f8fafc;
+                color: #0f172a;
+                text-align: left;
+                cursor: pointer;
+                transition: border-color .15s ease, background .15s ease, box-shadow .15s ease, transform .15s ease;
+            }
+
+            .vitrine-business-choice:hover {
+                border-color: #93c5fd;
+                background: #eff6ff;
+                transform: translateY(-1px);
+            }
+
+            .vitrine-business-choice.active {
+                border-color: #2563eb;
+                background: #eff6ff;
+                box-shadow: inset 0 0 0 1px #2563eb;
+            }
+
+            .vitrine-business-choice strong,
+            .vitrine-business-choice span {
+                display: block;
+            }
+
+            .vitrine-business-choice strong {
+                font-size: 11px;
+                line-height: 1.25;
+            }
+
+            .vitrine-business-choice span {
+                margin-top: 5px;
+                color: #64748b;
+                font-size: 9px;
+                font-weight: 700;
+                line-height: 1.35;
+            }
+
+            .vitrine-business-choice.active strong {
+                color: #1d4ed8;
+            }
+
+            .vitrine-card-format-row {
+                max-width: 520px;
+            }
+
             .vitrine-type-preview {
                 display: grid;
                 grid-template-columns: minmax(0, 1fr) 190px;
@@ -2526,6 +2668,18 @@ Motivo: Adicionar apresentação profissional opcional e prévia visual imediata
 
                 .vitrine-logo-config-preview {
                     min-height: 220px;
+                }
+
+                .vitrine-business-choices {
+                    grid-template-columns: 1fr;
+                }
+
+                .vitrine-business-choice {
+                    min-height: 68px;
+                }
+
+                .vitrine-card-format-row {
+                    max-width: none;
                 }
 
                 .vitrine-type-preview {
