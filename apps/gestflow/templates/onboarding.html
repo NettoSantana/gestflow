@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\onboarding.html
-Último recode: 2026-08-21 06:43 (America/Bahia)
-Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+Último recode: 2026-08-22 11:56 (America/Bahia)
+Motivo: Atualizar a anamnese inicial para montar os módulos da empresa por núcleo, operação e especialidades, com revisão final antes de entrar no GestFlow.
 #}
 
 <!DOCTYPE html>
@@ -9,431 +9,118 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GESTFLOW - Anamnese da empresa</title>
+    <title>GESTFLOW - Configuração inicial</title>
     <link rel="stylesheet" href="/static/css/dashboard.css">
-
     <style>
-        /* ANAMNESE TELA A TELA */
-        body.onboarding-modulos-page {
+        * { box-sizing: border-box; }
+        body.onboarding-page {
+            margin: 0;
             min-height: 100vh;
             background: #eef3fb;
             color: #0f172a;
-            overflow-x: hidden;
+            font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         }
-
         .onboarding-trial {
-            min-height: 44px;
+            min-height: 42px;
+            padding: 8px 24px;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 12px;
-            padding: 8px 16px;
-            background: #071a2b;
-            color: #e5eefb;
+            gap: 18px;
+            background: #0f172a;
+            color: #fff;
             font-size: 13px;
             font-weight: 800;
-            text-align: center;
         }
-
         .onboarding-trial button {
-            min-height: 32px;
-            padding: 0 12px;
-            border: 0;
-            border-radius: 999px;
-            background: #16a34a;
-            color: #ffffff;
-            font-size: 12px;
-            font-weight: 900;
-            cursor: pointer;
-        }
-
-        .onboarding-topbar {
-            height: 74px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 22px;
-            background: #ffffff;
-            border-bottom: 1px solid #e5eaf2;
-            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
-        }
-
-        .onboarding-topbar img {
-            width: 176px;
-            max-width: 55vw;
-            height: auto;
-            display: block;
-            object-fit: contain;
-        }
-
-        .onboarding-topbar a {
-            color: #0f172a;
-            font-size: 13px;
-            font-weight: 900;
-            text-decoration: none;
-        }
-
-        .onboarding-wrap.onboarding-wide {
-            width: min(900px, calc(100% - 28px));
-            margin: 0 auto;
-            padding: 22px 0 44px;
-        }
-
-        .onboarding-intro-card {
-            margin-bottom: 14px;
-            padding: 18px;
-            border: 1px solid #e5eaf2;
-            border-radius: 18px;
-            background: #ffffff;
-            box-shadow: 0 14px 34px rgba(15, 23, 42, 0.07);
-        }
-
-        .onboarding-intro-card h1 {
-            margin: 5px 0 8px;
-            font-size: clamp(20px, 3vw, 28px);
-            line-height: 1.15;
-            font-weight: 900;
-        }
-
-        .onboarding-intro-card p {
-            max-width: 720px;
-            margin: 0;
-            color: #64748b;
-            font-size: 13px;
-            line-height: 1.45;
-            font-weight: 750;
-        }
-
-        .onboarding-progress-steps {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            gap: 8px;
-            margin: 0 0 14px;
-        }
-
-        .onboarding-progress-steps span {
-            height: 9px;
-            border-radius: 999px;
-            background: #dbe3ef;
-        }
-
-        .onboarding-progress-steps span.active {
-            background: #0f62fe;
-        }
-
-        #onboarding-form {
-            display: block;
-        }
-
-        .onboarding-step {
-            display: none !important;
-        }
-
-        .onboarding-step.active {
-            min-height: 440px;
-            display: flex !important;
-            flex-direction: column;
-            justify-content: space-between;
-            gap: 18px;
-            padding: 22px;
-            border: 1px solid #e5eaf2;
-            border-radius: 18px;
-            background: #ffffff;
-            box-shadow: 0 14px 34px rgba(15, 23, 42, 0.07);
-        }
-
-        .onboarding-question {
-            margin: 0;
-            color: #0f172a;
-            font-size: clamp(19px, 2.5vw, 25px);
-            line-height: 1.2;
-            font-weight: 900;
-        }
-
-        .onboarding-question.small-question {
-            margin-top: 6px;
-            font-size: 17px;
-        }
-
-        .segment-filter-wrap {
-            margin-top: -6px;
-        }
-
-        .segment-filter-wrap .form-control {
-            width: min(420px, 100%);
-            height: 42px;
-            border: 1px solid #dbe3ef;
-            border-radius: 12px;
-            padding: 0 14px;
-            font-size: 14px;
-        }
-
-        .onboarding-options {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 12px;
-            margin: 0;
-        }
-
-        .onboarding-options.two,
-        .onboarding-options.three,
-        .onboarding-options.single {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            width: 100%;
-        }
-
-        .segments-grid {
-            max-height: 430px;
-            overflow-y: auto;
-            padding-right: 6px;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-
-        .segments-grid::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .segments-grid::-webkit-scrollbar-thumb {
-            border-radius: 999px;
-            background: #cbd5e1;
-        }
-
-        .onboarding-option {
-            min-height: 72px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 14px;
-            border: 1px solid #dbe3ef;
-            border-radius: 14px;
-            background: #ffffff;
-            color: #0f172a;
-            box-shadow: 0 6px 16px rgba(15, 23, 42, 0.04);
-            cursor: pointer;
-            transition: border-color .15s ease, background .15s ease, box-shadow .15s ease, transform .15s ease;
-            user-select: none;
-            font-size: 14px;
-            font-weight: 900;
-        }
-
-        .onboarding-option:hover,
-        .onboarding-option.selected {
-            border-color: #0f62fe;
-            background: #eff6ff;
-            box-shadow: 0 10px 22px rgba(15, 98, 254, 0.10);
-            transform: translateY(-1px);
-        }
-
-        .onboarding-option input {
-            width: 18px;
-            height: 18px;
-            accent-color: #16a34a;
-            flex: 0 0 auto;
-        }
-
-        .onboarding-option strong {
-            display: block;
-            font-size: 14px;
-            line-height: 1.25;
-        }
-
-        .onboarding-option small {
-            display: block;
-            margin-top: 3px;
-            color: #64748b;
-            font-size: 11px;
-            font-weight: 900;
-        }
-
-        .onboarding-columns {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 16px;
-        }
-
-        .onboarding-columns h3 {
-            margin: 0 0 10px;
-            color: #0f62fe;
-            font-size: 13px;
-            font-weight: 900;
-            text-transform: uppercase;
-        }
-
-        .onboarding-review-subtitle {
-            margin-top: -8px;
-            color: #64748b;
-            font-size: 13px;
-            font-weight: 750;
-        }
-
-        .onboarding-review-panel {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 12px;
-        }
-
-        .onboarding-review-panel div {
-            padding: 14px;
-            border: 1px solid #e5eaf2;
-            border-radius: 14px;
-            background: #f8fafc;
-        }
-
-        .onboarding-review-panel strong {
-            display: block;
-            margin-bottom: 4px;
-            color: #64748b;
-            font-size: 11px;
-            font-weight: 900;
-            text-transform: uppercase;
-        }
-
-        .onboarding-review-panel span {
-            color: #0f172a;
-            font-size: 14px;
-            font-weight: 900;
-        }
-
-        .onboarding-modules-preview {
-            max-height: 360px;
-            overflow-y: auto;
-            padding-right: 6px;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-
-        .module-disabled-preview {
-            opacity: .45;
-            filter: grayscale(.55);
-        }
-
-        .module-warning-box {
-            padding: 12px 14px;
-            border: 1px solid #fde68a;
-            border-radius: 12px;
-            background: #fffbeb;
-            color: #92400e;
-            font-size: 12px;
-            font-weight: 850;
-        }
-
-        .onboarding-actions {
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            gap: 10px;
-            margin-top: 4px;
-        }
-
-        .onboarding-back,
-        .onboarding-next,
-        .onboarding-finish {
-            min-width: 118px;
-            height: 42px;
-            border: 0;
-            border-radius: 12px;
-            font-size: 13px;
-            font-weight: 900;
-            cursor: pointer;
-        }
-
-        .onboarding-back {
-            background: #f1f5f9;
-            color: #334155;
-        }
-
-        .onboarding-next {
-            background: #0f62fe;
-            color: #ffffff;
-        }
-
-        .onboarding-finish {
-            background: #16a34a;
-            color: #ffffff;
-        }
-
-        .onboarding-skip {
-            display: block;
-            margin: 14px auto 0;
             border: 0;
             background: transparent;
-            color: #64748b;
-            font-size: 12px;
-            font-weight: 900;
+            color: #93c5fd;
+            font: inherit;
             cursor: pointer;
+            text-decoration: underline;
         }
-
-        @media (max-width: 760px) {
-            .onboarding-trial {
-                align-items: stretch;
-                flex-direction: column;
-                gap: 8px;
-            }
-
-            .onboarding-topbar {
-                height: 66px;
-                padding: 0 14px;
-            }
-
-            .onboarding-topbar img {
-                width: 146px;
-            }
-
-            .onboarding-wrap.onboarding-wide {
-                width: min(100% - 18px, 900px);
-                padding-top: 12px;
-            }
-
-            .onboarding-intro-card {
-                padding: 14px;
-            }
-
-            .onboarding-intro-card p {
-                font-size: 12px;
-            }
-
-            .onboarding-step.active {
-                min-height: calc(100vh - 245px);
-                padding: 16px;
-            }
-
-            .onboarding-options,
-            .onboarding-options.two,
-            .onboarding-options.three,
-            .onboarding-options.single,
-            .segments-grid,
-            .onboarding-columns,
-            .onboarding-review-panel,
-            .onboarding-modules-preview {
-                grid-template-columns: 1fr;
-            }
-
-            .segments-grid {
-                max-height: calc(100vh - 380px);
-                min-height: 260px;
-            }
-
-            .onboarding-option {
-                min-height: 62px;
-            }
-
-            .onboarding-actions {
-                justify-content: stretch;
-            }
-
-            .onboarding-back,
-            .onboarding-next,
-            .onboarding-finish {
-                flex: 1;
-                min-width: 0;
-            }
+        .onboarding-topbar {
+            height: 72px;
+            padding: 0 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #fff;
+            border-bottom: 1px solid #e4eaf3;
+        }
+        .onboarding-topbar img { width: 156px; max-height: 48px; object-fit: contain; }
+        .onboarding-topbar a { color: #475569; font-size: 13px; font-weight: 850; text-decoration: none; }
+        .onboarding-wrap { width: min(1120px, calc(100% - 32px)); margin: 28px auto 70px; }
+        .onboarding-intro-card,
+        .onboarding-step {
+            background: #fff;
+            border: 1px solid #dfe7f2;
+            border-radius: 18px;
+            box-shadow: 0 14px 38px rgba(15, 23, 42, .06);
+        }
+        .onboarding-intro-card { padding: 26px 28px; margin-bottom: 18px; }
+        .page-kicker { display: block; color: #0f62fe; font-size: 12px; font-weight: 950; text-transform: uppercase; letter-spacing: .08em; }
+        .onboarding-intro-card h1 { margin: 8px 0 8px; font-size: clamp(25px, 3vw, 36px); line-height: 1.08; }
+        .onboarding-intro-card p { margin: 0; color: #64748b; font-size: 14px; font-weight: 650; line-height: 1.55; }
+        .onboarding-progress { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin: 0 4px 14px; }
+        .onboarding-progress span { height: 6px; border-radius: 99px; background: #dbe4f0; }
+        .onboarding-progress span.active { background: #0f62fe; }
+        .onboarding-step { display: none; padding: 28px; }
+        .onboarding-step.active { display: block; }
+        .onboarding-question { margin-bottom: 18px; font-size: clamp(21px, 2.4vw, 28px); line-height: 1.15; font-weight: 950; }
+        .onboarding-help { margin: -8px 0 20px; color: #64748b; font-size: 13px; font-weight: 650; line-height: 1.5; }
+        .segment-filter-wrap { margin-bottom: 14px; }
+        .segment-filter-wrap input {
+            width: min(460px, 100%); height: 44px; border: 1px solid #dbe3ef; border-radius: 12px; padding: 0 14px; font-size: 14px;
+        }
+        .onboarding-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+        .onboarding-options.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .segments-grid { max-height: 410px; overflow-y: auto; padding-right: 5px; }
+        .onboarding-option {
+            min-height: 76px; padding: 15px; display: flex; align-items: flex-start; gap: 12px;
+            border: 1px solid #dbe3ef; border-radius: 14px; background: #fff; cursor: pointer;
+            transition: .15s ease; box-shadow: 0 5px 14px rgba(15,23,42,.035);
+        }
+        .onboarding-option:hover, .onboarding-option.selected { border-color: #0f62fe; background: #eff6ff; transform: translateY(-1px); }
+        .onboarding-option input { width: 18px; height: 18px; margin-top: 2px; accent-color: #16a34a; flex: 0 0 auto; }
+        .onboarding-option strong { display: block; font-size: 14px; line-height: 1.3; }
+        .onboarding-option small { display: block; margin-top: 4px; color: #64748b; font-size: 11px; font-weight: 750; line-height: 1.35; }
+        .section-label { margin: 22px 0 10px; color: #0f62fe; font-size: 12px; font-weight: 950; text-transform: uppercase; letter-spacing: .06em; }
+        .onboarding-actions { display: flex; justify-content: space-between; gap: 12px; margin-top: 26px; }
+        .onboarding-back, .onboarding-next, .onboarding-finish {
+            min-width: 130px; min-height: 44px; border-radius: 12px; border: 0; padding: 0 18px; font-size: 13px; font-weight: 950; cursor: pointer;
+        }
+        .onboarding-back { background: #eef2f7; color: #334155; }
+        .onboarding-next, .onboarding-finish { background: #16a34a; color: #fff; }
+        .onboarding-skip { margin: 14px auto 0; display: block; border: 0; background: transparent; color: #64748b; font-size: 12px; font-weight: 800; cursor: pointer; }
+        .module-summary { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px; margin-top: 18px; }
+        .module-group { border: 1px solid #dfe7f2; border-radius: 16px; padding: 16px; background: #f8fafc; }
+        .module-group h3 { margin: 0 0 4px; font-size: 14px; }
+        .module-group p { margin: 0 0 12px; color: #64748b; font-size: 11px; line-height: 1.4; font-weight: 650; }
+        .module-list { display: flex; flex-wrap: wrap; gap: 7px; }
+        .module-pill { padding: 6px 9px; border-radius: 999px; background: #fff; border: 1px solid #dbe4f0; font-size: 11px; font-weight: 850; }
+        .module-pill.disabled { opacity: .32; text-decoration: line-through; }
+        .module-group.core { border-color: #bfdbfe; background: #eff6ff; }
+        .module-group.special { border-color: #ddd6fe; background: #f5f3ff; }
+        .review-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; margin-bottom: 18px; }
+        .review-item { padding: 14px; border: 1px solid #e2e8f0; border-radius: 13px; background: #f8fafc; }
+        .review-item strong { display: block; color: #64748b; font-size: 10px; text-transform: uppercase; letter-spacing: .05em; }
+        .review-item span { display: block; margin-top: 5px; font-size: 14px; font-weight: 900; }
+        .module-warning-box { margin-top: 16px; padding: 12px 14px; border: 1px solid #fde68a; border-radius: 12px; background: #fffbeb; color: #92400e; font-size: 12px; font-weight: 750; line-height: 1.5; }
+        .core-note { margin-top: 14px; padding: 12px 14px; border-radius: 12px; background: #eff6ff; color: #1e3a8a; font-size: 12px; font-weight: 750; }
+        @media (max-width: 800px) {
+            .onboarding-options, .onboarding-options.three, .module-summary, .review-grid { grid-template-columns: 1fr; }
+            .onboarding-step { padding: 20px; }
+            .onboarding-intro-card { padding: 20px; }
+            .onboarding-trial { padding: 8px 12px; text-align: center; }
         }
     </style>
-
 </head>
-<body class="onboarding-page onboarding-modulos-page">
+<body class="onboarding-page">
     <div class="onboarding-trial">
-        <span>Vamos configurar o GestFlow para mostrar só o que sua empresa realmente usa.</span>
-        <button type="submit" form="onboarding-form" name="usar_configuracao_completa" value="sim">Usar configuração completa</button>
+        <span>Vamos montar o GestFlow para a forma como sua empresa realmente trabalha.</span>
+        <button type="submit" form="onboarding-form" name="usar_configuracao_completa" value="sim">Usar todos os módulos</button>
     </div>
 
     <header class="onboarding-topbar">
@@ -441,198 +128,146 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
         <a href="/sair">Sair</a>
     </header>
 
-    <main class="onboarding-wrap onboarding-wide">
+    <main class="onboarding-wrap">
         <div class="onboarding-intro-card">
-            <span class="page-kicker">Anamnese da empresa</span>
-            <h1>Vamos deixar o GestFlow com a cara da sua operação{% if empresa.nome_fantasia %}, {{ empresa.nome_fantasia }}{% endif %}.</h1>
-            <p>Responda uma etapa por vez. No final, o sistema sugere os módulos ideais e você revisa antes de salvar. Nada é apagado.</p>
+            <span class="page-kicker">Configuração inicial</span>
+            <h1>Como sua empresa funciona{% if empresa.nome_fantasia %}, {{ empresa.nome_fantasia }}{% endif %}?</h1>
+            <p>Você descreve a operação em linguagem simples. O GestFlow mantém o núcleo básico, ativa os módulos auxiliares que fazem sentido e cria um roteiro inicial para você começar usando o sistema.</p>
         </div>
 
         <form id="onboarding-form" action="/onboarding" method="post">
-            <div class="onboarding-progress onboarding-progress-steps" aria-hidden="true">
-                <span class="active"></span>
-                <span></span>
-                <span></span>
-                <span></span>
-                <span></span>
-                <span></span>
-                <span></span>
+            <div class="onboarding-progress" aria-hidden="true">
+                <span class="active"></span><span></span><span></span><span></span><span></span><span></span>
             </div>
 
             <section class="onboarding-step active" data-step="0">
                 <div class="onboarding-question">1. Qual segmento melhor descreve sua empresa?</div>
+                <p class="onboarding-help">Isso ajuda o GestFlow a partir de uma configuração coerente com seu mercado.</p>
                 <div class="segment-filter-wrap">
-                    <input type="search" id="segmento-busca" class="form-control" placeholder="Buscar segmento: mercadinho, oficina, manutenção, loja...">
+                    <input type="search" id="segmento-busca" placeholder="Buscar segmento: oficina, manutenção, loja, clínica, indústria...">
                 </div>
                 <div class="onboarding-options segments-grid">
                     {% for segmento in segmentos %}
                         <label class="onboarding-option segment-option" data-segment-group="{{ segmento.grupo }}" data-segment-name="{{ segmento.nome|lower }}">
                             <input type="radio" name="segmento" value="{{ segmento.codigo }}" data-perfil="{{ segmento.perfil }}" data-segment-label="{{ segmento.nome }}">
-                            <span>
-                                <strong>{{ segmento.nome }}</strong>
-                                <small>{{ segmento.grupo }}</small>
-                            </span>
+                            <span><strong>{{ segmento.nome }}</strong><small>{{ segmento.grupo }}</small></span>
                         </label>
                     {% endfor %}
                 </div>
-                <div class="onboarding-actions">
-                    <button type="button" class="onboarding-next" onclick="proximoPassoOnboarding()">Avançar</button>
-                </div>
+                <div class="onboarding-actions"><span></span><button type="button" class="onboarding-next" onclick="proximoPassoOnboarding()">Avançar</button></div>
             </section>
 
             <section class="onboarding-step" data-step="1">
-                <div class="onboarding-question">2. Como sua empresa trabalha hoje?</div>
+                <div class="onboarding-question">2. O que sua empresa faz principalmente?</div>
+                <p class="onboarding-help">Escolha a opção mais próxima da rotina principal. Os demais recursos serão ajustados nas próximas perguntas.</p>
                 <div class="onboarding-options">
-                    <label class="onboarding-option"><input type="checkbox" name="operacao" value="produtos" data-modules="clientes,produtos,vendas"> Vendo produtos</label>
-                    <label class="onboarding-option"><input type="checkbox" name="operacao" value="servicos" data-modules="clientes,servicos,orcamentos"> Presto serviços</label>
-                    <label class="onboarding-option"><input type="checkbox" name="operacao" value="agendamentos" data-modules="clientes,funcionarios,servicos,agendamentos"> Trabalho com agenda/atendimento marcado</label>
-                    <label class="onboarding-option"><input type="checkbox" name="operacao" value="balcao" data-modules="clientes,produtos,vendas,pdv,devolucoes,estoque"> Tenho venda rápida no balcão/caixa</label>
-                    <label class="onboarding-option"><input type="checkbox" name="operacao" value="estoque" data-modules="produtos,estoque"> Preciso controlar estoque</label>
-                    <label class="onboarding-option"><input type="checkbox" name="operacao" value="ordem_servico" data-modules="clientes,servicos,ordens_servico"> Uso ordem de serviço</label>
-                    <label class="onboarding-option"><input type="checkbox" name="operacao" value="equipe_externa" data-modules="clientes,funcionarios,servicos,ordens_servico,painel_os"> Tenho equipe externa/técnica</label>
-                    <label class="onboarding-option"><input type="checkbox" name="operacao" value="registro_ponto" data-modules="funcionarios,registro_ponto"> Preciso controlar ponto da equipe</label>
-                    <label class="onboarding-option"><input type="checkbox" name="operacao" value="projetos_obras" data-modules="clientes,fornecedores,funcionarios,produtos,servicos,orcamentos,gerador_orcamentos,ordens_servico,financeiro,registro_ponto"> Trabalho com projetos, obras ou contratos</label>
+                    <label class="onboarding-option"><input type="radio" name="uso_principal" value="produtos" data-modules="produtos"><span><strong>Vende produtos</strong><small>Comércio, distribuição, revenda ou fabricação com venda de itens.</small></span></label>
+                    <label class="onboarding-option"><input type="radio" name="uso_principal" value="servicos" data-modules="servicos"><span><strong>Presta serviços</strong><small>Atendimento, instalação, manutenção, consultoria ou serviço técnico.</small></span></label>
+                    <label class="onboarding-option"><input type="radio" name="uso_principal" value="ambos" data-modules="produtos,servicos"><span><strong>Produtos e serviços</strong><small>Usa os dois tipos no mesmo fluxo comercial.</small></span></label>
+                    <label class="onboarding-option"><input type="radio" name="uso_principal" value="industrial" data-modules="produtos,estoque,indflow"><span><strong>Indústria / produção</strong><small>Além da gestão comercial, acompanha produção e operação industrial.</small></span></label>
                 </div>
-                <div class="onboarding-actions">
-                    <button type="button" class="onboarding-back" onclick="voltarPassoOnboarding()">Voltar</button>
-                    <button type="button" class="onboarding-next" onclick="proximoPassoOnboarding()">Avançar</button>
-                </div>
+                <div class="core-note"><strong>Núcleo GestFlow:</strong> Clientes, Orçamentos, Vendas e Financeiro ficam disponíveis para todas as empresas. Produtos e Serviços entram conforme sua operação.</div>
+                <div class="onboarding-actions"><button type="button" class="onboarding-back" onclick="voltarPassoOnboarding()">Voltar</button><button type="button" class="onboarding-next" onclick="proximoPassoOnboarding()">Avançar</button></div>
             </section>
 
             <section class="onboarding-step" data-step="2">
-                <div class="onboarding-question">3. Como funciona sua parte comercial?</div>
-                <div class="onboarding-options two">
-                    <label class="onboarding-option"><input type="checkbox" name="comercial" value="orcamento" data-modules="clientes,orcamentos"> Faço orçamento antes de vender</label>
-                    <label class="onboarding-option"><input type="checkbox" name="comercial" value="gerador" data-modules="clientes,orcamentos,gerador_orcamentos,produtos,servicos,funcionarios"> Preciso calcular material, mão de obra e margem</label>
-                    <label class="onboarding-option"><input type="checkbox" name="comercial" value="venda_direta" data-modules="clientes,vendas"> Vendo direto, sem orçamento</label>
-                    <label class="onboarding-option"><input type="checkbox" name="comercial" value="whatsapp" data-modules="clientes,vendas"> Vendo por WhatsApp / atendimento online</label>
+                <div class="onboarding-question">3. Como você vende e atende seus clientes?</div>
+                <p class="onboarding-help">Marque tudo o que acontece no comercial. O núcleo continua ativo; aqui escolhemos os recursos auxiliares.</p>
+                <div class="onboarding-options">
+                    <label class="onboarding-option"><input type="checkbox" name="comercial" value="orcamento"><span><strong>Faço orçamento antes de vender</strong><small>Fluxo comercial com proposta e aprovação.</small></span></label>
+                    <label class="onboarding-option"><input type="checkbox" name="comercial" value="gerador" data-modules="gerador_orcamentos,produtos,servicos,funcionarios"><span><strong>Calculo material, mão de obra e margem</strong><small>Ativa o Gerador de Orçamentos.</small></span></label>
+                    <label class="onboarding-option"><input type="checkbox" name="comercial" value="venda_direta"><span><strong>Também vendo direto</strong><small>Registro de venda sem depender de orçamento.</small></span></label>
+                    <label class="onboarding-option"><input type="checkbox" name="comercial" value="pdv" data-modules="produtos,pdv,devolucoes"><span><strong>Tenho balcão / caixa</strong><small>Venda rápida com PDV e devoluções.</small></span></label>
+                    <label class="onboarding-option"><input type="checkbox" name="comercial" value="vitrine" data-modules="vitrine"><span><strong>Quero vender ou receber pedidos online</strong><small>Ativa a Vitrine Online.</small></span></label>
+                    <label class="onboarding-option"><input type="checkbox" name="operacao" value="agendamentos" data-modules="servicos,agendamentos"><span><strong>Trabalho com horários marcados</strong><small>Agenda de clientes, serviços e profissionais.</small></span></label>
                 </div>
-                <div class="onboarding-actions">
-                    <button type="button" class="onboarding-back" onclick="voltarPassoOnboarding()">Voltar</button>
-                    <button type="button" class="onboarding-next" onclick="proximoPassoOnboarding()">Avançar</button>
-                </div>
+                <div class="onboarding-actions"><button type="button" class="onboarding-back" onclick="voltarPassoOnboarding()">Voltar</button><button type="button" class="onboarding-next" onclick="proximoPassoOnboarding()">Avançar</button></div>
             </section>
 
             <section class="onboarding-step" data-step="3">
-                <div class="onboarding-question">4. Você controla execução de serviço?</div>
-                <div class="onboarding-options two">
-                    <label class="onboarding-option"><input type="checkbox" name="execucao" value="os_simples" data-modules="clientes,servicos,ordens_servico"> Sim, com OS simples</label>
-                    <label class="onboarding-option"><input type="checkbox" name="execucao" value="os_completa" data-modules="clientes,funcionarios,produtos,servicos,ordens_servico"> Sim, com OS completa</label>
-                    <label class="onboarding-option"><input type="checkbox" name="execucao" value="campo" data-modules="clientes,funcionarios,servicos,ordens_servico,painel_os"> Equipe trabalha em campo/no cliente</label>
-                    <label class="onboarding-option"><input type="checkbox" name="execucao" value="fotos" data-modules="ordens_servico,painel_os"> Preciso registrar fotos antes/depois</label>
-                    <label class="onboarding-option"><input type="checkbox" name="execucao" value="acompanhamento" data-modules="ordens_servico,painel_os"> Quero acompanhamento diário da OS</label>
-                    <label class="onboarding-option"><input type="checkbox" name="execucao" value="nao_uso_os"> Não uso OS</label>
+                <div class="onboarding-question">4. O que você precisa controlar na operação?</div>
+                <p class="onboarding-help">Esses são módulos operacionais: úteis para determinadas rotinas, mas não precisam aparecer para todo mundo.</p>
+                <div class="onboarding-options">
+                    <label class="onboarding-option"><input type="checkbox" name="operacao" value="compras" data-modules="fornecedores,produtos,estoque"><span><strong>Compras e fornecedores</strong><small>Cadastro de fornecedores, compras e entrada de materiais.</small></span></label>
+                    <label class="onboarding-option"><input type="checkbox" name="operacao" value="estoque" data-modules="produtos,estoque"><span><strong>Estoque</strong><small>Entradas, saídas, ajustes e saldos.</small></span></label>
+                    <label class="onboarding-option"><input type="checkbox" name="operacao" value="ordem_servico" data-modules="servicos,ordens_servico"><span><strong>Ordens de Serviço</strong><small>Abertura, execução e fechamento de OS.</small></span></label>
+                    <label class="onboarding-option"><input type="checkbox" name="operacao" value="equipe_externa" data-modules="funcionarios,servicos,ordens_servico,painel_os"><span><strong>Equipe externa / técnica</strong><small>Execução no cliente e acompanhamento operacional.</small></span></label>
+                    <label class="onboarding-option"><input type="checkbox" name="operacao" value="contratos" data-modules="contratos"><span><strong>Contratos recorrentes</strong><small>Serviços contínuos, locações e recorrências.</small></span></label>
+                    <label class="onboarding-option"><input type="checkbox" name="operacao" value="registro_ponto" data-modules="funcionarios,registro_ponto"><span><strong>Controle de ponto</strong><small>Entrada, intervalo, retorno e saída da equipe.</small></span></label>
+                    <label class="onboarding-option"><input type="checkbox" name="operacao" value="atividades" data-modules="gestao_atividades"><span><strong>Gestão de atividades</strong><small>Tarefas, responsáveis, prazos e cronograma.</small></span></label>
+                    <label class="onboarding-option"><input type="checkbox" name="operacao" value="projetos_obras" data-modules="fornecedores,funcionarios,produtos,servicos,gerador_orcamentos,contratos,ordens_servico,gestao_atividades"><span><strong>Projetos / obras</strong><small>Fluxo mais completo com custos, equipes e execução.</small></span></label>
                 </div>
-                <div class="onboarding-actions">
-                    <button type="button" class="onboarding-back" onclick="voltarPassoOnboarding()">Voltar</button>
-                    <button type="button" class="onboarding-next" onclick="proximoPassoOnboarding()">Avançar</button>
-                </div>
+                <div class="onboarding-actions"><button type="button" class="onboarding-back" onclick="voltarPassoOnboarding()">Voltar</button><button type="button" class="onboarding-next" onclick="proximoPassoOnboarding()">Avançar</button></div>
             </section>
 
             <section class="onboarding-step" data-step="4">
-                <div class="onboarding-question">5. Estoque e financeiro</div>
-                <div class="onboarding-columns">
-                    <div>
-                        <h3>Estoque</h3>
-                        <div class="onboarding-options single">
-                            <label class="onboarding-option"><input type="checkbox" name="estoque" value="estoque_simples" data-modules="produtos,estoque"> Controlar entrada e saída simples</label>
-                            <label class="onboarding-option"><input type="checkbox" name="estoque" value="estoque_completo" data-modules="produtos,estoque"> Controlar compras, ajustes e movimentações</label>
-                            <label class="onboarding-option"><input type="checkbox" name="estoque" value="sem_estoque"> Não controlo estoque</label>
-                        </div>
-                    </div>
-                    <div>
-                        <h3>Financeiro</h3>
-                        <div class="onboarding-options single">
-                            <label class="onboarding-option"><input type="checkbox" name="financeiro" value="receber" data-modules="financeiro"> Contas a receber</label>
-                            <label class="onboarding-option"><input type="checkbox" name="financeiro" value="pagar" data-modules="financeiro"> Contas a pagar</label>
-                            <label class="onboarding-option"><input type="checkbox" name="financeiro" value="fluxo_caixa" data-modules="financeiro"> Fluxo de caixa</label>
-                            <label class="onboarding-option"><input type="checkbox" name="financeiro" value="sem_financeiro"> Ainda não quero usar financeiro</label>
-                        </div>
-                    </div>
+                <div class="onboarding-question">5. Você precisa de algum módulo especializado?</div>
+                <p class="onboarding-help">São recursos mais específicos. Eles só aparecem quando realmente ajudam sua empresa.</p>
+                <div class="onboarding-options">
+                    <label class="onboarding-option"><input type="checkbox" name="especializados" value="equipamentos" data-modules="equipamentos"><span><strong>Equipamentos</strong><small>QR Code, histórico técnico e equipamentos de clientes.</small></span></label>
+                    <label class="onboarding-option"><input type="checkbox" name="especializados" value="vitrine" data-modules="vitrine"><span><strong>Vitrine Online</strong><small>Catálogo público, pedidos e agendamentos.</small></span></label>
+                    <label class="onboarding-option"><input type="checkbox" name="especializados" value="emprestimos" data-modules="emprestimos"><span><strong>Empréstimos</strong><small>Contratos, parcelas, saldos e renegociações.</small></span></label>
+                    <label class="onboarding-option"><input type="checkbox" name="especializados" value="indflow" data-modules="indflow,produtos"><span><strong>IndFlow</strong><small>Produção, paradas, histórico e indicadores industriais.</small></span></label>
                 </div>
-                <div class="onboarding-actions">
-                    <button type="button" class="onboarding-back" onclick="voltarPassoOnboarding()">Voltar</button>
-                    <button type="button" class="onboarding-next" onclick="proximoPassoOnboarding()">Avançar</button>
+                <div class="section-label">Como você quer começar?</div>
+                <div class="onboarding-options three">
+                    <label class="onboarding-option"><input type="radio" name="nivel" value="simples"><span><strong>Essencial</strong><small>Mostra o núcleo e apenas os auxiliares escolhidos.</small></span></label>
+                    <label class="onboarding-option selected"><input type="radio" name="nivel" value="intermediario" checked><span><strong>Recomendado</strong><small>Combina suas respostas com o perfil do segmento.</small></span></label>
+                    <label class="onboarding-option"><input type="radio" name="nivel" value="completo"><span><strong>Completo</strong><small>Libera todos os módulos.</small></span></label>
                 </div>
+                <div class="onboarding-actions"><button type="button" class="onboarding-back" onclick="voltarPassoOnboarding()">Voltar</button><button type="button" class="onboarding-next" onclick="proximoPassoOnboarding()">Revisar</button></div>
             </section>
 
             <section class="onboarding-step" data-step="5">
-                <div class="onboarding-question">6. Quais cadastros você pretende usar?</div>
-                <div class="onboarding-options">
-                    <label class="onboarding-option"><input type="checkbox" name="cadastros" value="clientes" data-modules="clientes" checked> Clientes</label>
-                    <label class="onboarding-option"><input type="checkbox" name="cadastros" value="fornecedores" data-modules="fornecedores"> Fornecedores</label>
-                    <label class="onboarding-option"><input type="checkbox" name="cadastros" value="funcionarios" data-modules="funcionarios"> Funcionários / equipe</label>
-                    <label class="onboarding-option"><input type="checkbox" name="cadastros" value="produtos" data-modules="produtos"> Produtos</label>
-                    <label class="onboarding-option"><input type="checkbox" name="cadastros" value="servicos" data-modules="servicos"> Serviços</label>
+                <div class="onboarding-question">6. Sua configuração inicial</div>
+                <p class="onboarding-help">O núcleo fica protegido. Os módulos operacionais e especializados podem ser ativados ou desativados depois em Configurações &gt; Módulos.</p>
+                <div class="review-grid">
+                    <div class="review-item"><strong>Segmento</strong><span id="review-segmento">Não informado</span></div>
+                    <div class="review-item"><strong>Uso principal</strong><span id="review-uso">Não informado</span></div>
+                    <div class="review-item"><strong>Modo de início</strong><span id="review-nivel">Recomendado</span></div>
                 </div>
-
-                <div class="onboarding-question small-question">Como deseja começar?</div>
-                <div class="onboarding-options three">
-                    <label class="onboarding-option"><input type="radio" name="nivel" value="simples"> Simples<br><small>Só o essencial</small></label>
-                    <label class="onboarding-option"><input type="radio" name="nivel" value="intermediario" checked> Intermediário<br><small>Principais controles</small></label>
-                    <label class="onboarding-option"><input type="radio" name="nivel" value="completo"> Completo<br><small>Todos os módulos</small></label>
-                </div>
-
-                <div class="onboarding-actions">
-                    <button type="button" class="onboarding-back" onclick="voltarPassoOnboarding()">Voltar</button>
-                    <button type="button" class="onboarding-next" onclick="proximoPassoOnboarding()">Revisar módulos</button>
-                </div>
-            </section>
-
-            <section class="onboarding-step" data-step="6">
-                <div class="onboarding-question">7. Revisão final</div>
-                <p class="page-subtitle onboarding-review-subtitle">Confira a sugestão inicial. Depois você pode ajustar tudo em Configurações > Módulos.</p>
-
-                <div class="onboarding-review-panel">
-                    <div>
-                        <strong>Segmento escolhido</strong>
-                        <span id="review-segmento">Não informado</span>
+                <div class="module-summary">
+                    <div class="module-group core">
+                        <h3>Núcleo GestFlow</h3>
+                        <p>Base comum da gestão. Esses módulos permanecem disponíveis.</p>
+                        <div class="module-list">
+                            {% for modulo in modulos_sistema if modulo.codigo in modulos_nucleo %}<span class="module-pill" data-module-pill="{{ modulo.codigo }}">{{ modulo.nome }}</span>{% endfor %}
+                        </div>
                     </div>
-                    <div>
-                        <strong>Modo de início</strong>
-                        <span id="review-nivel">Intermediário</span>
+                    <div class="module-group">
+                        <h3>Módulos operacionais</h3>
+                        <p>Entram conforme a rotina de venda, serviço, estoque e equipe.</p>
+                        <div class="module-list">
+                            {% for modulo in modulos_sistema if modulo.codigo in modulos_operacionais %}<span class="module-pill" data-module-pill="{{ modulo.codigo }}">{{ modulo.nome }}</span>{% endfor %}
+                        </div>
+                    </div>
+                    <div class="module-group special">
+                        <h3>Módulos especializados</h3>
+                        <p>Recursos específicos para necessidades mais avançadas.</p>
+                        <div class="module-list">
+                            {% for modulo in modulos_sistema if modulo.codigo in modulos_especializados %}<span class="module-pill" data-module-pill="{{ modulo.codigo }}">{{ modulo.nome }}</span>{% endfor %}
+                        </div>
                     </div>
                 </div>
-
-                <div class="modules-grid onboarding-modules-preview">
-                    {% for modulo in modulos_sistema %}
-                        {% set codigo_modulo = modulo.codigo %}
-                        <label class="module-toggle-card onboarding-module-card" for="preview_modulo_{{ codigo_modulo }}" data-module-code="{{ codigo_modulo }}">
-                            <input id="preview_modulo_{{ codigo_modulo }}" type="checkbox" data-preview-module="{{ codigo_modulo }}" checked disabled>
-                            <span class="module-toggle-visual"></span>
-                            <div>
-                                <strong>{{ modulo.nome }}</strong>
-                                <small>{{ modulo.grupo }}</small>
-                                <p>{{ modulo.descricao }}</p>
-                            </div>
-                        </label>
-                    {% endfor %}
-                </div>
-
-                <div class="module-warning-box">
-                    <strong>Importante:</strong> a anamnese só define o que aparece no menu. Ela não apaga dados e não trava o sistema para sempre.
-                </div>
-
-                <div class="onboarding-actions">
-                    <button type="button" class="onboarding-back" onclick="voltarPassoOnboarding()">Voltar</button>
-                    <button type="submit" class="onboarding-finish">Salvar e entrar no GestFlow</button>
-                </div>
+                <div class="module-warning-box"><strong>Depois de salvar:</strong> o Dashboard mostrará um roteiro de primeiros passos adaptado aos módulos escolhidos. Nada é apagado quando um módulo auxiliar é desativado.</div>
+                <div class="onboarding-actions"><button type="button" class="onboarding-back" onclick="voltarPassoOnboarding()">Voltar</button><button type="submit" class="onboarding-finish">Salvar e iniciar meu GestFlow</button></div>
             </section>
 
-            <button type="submit" class="onboarding-skip" name="usar_configuracao_completa" value="sim">Pular e usar configuração completa</button>
+            <button type="submit" class="onboarding-skip" name="usar_configuracao_completa" value="sim">Pular configuração e usar todos os módulos</button>
         </form>
     </main>
 
     <script>
-        const MODULOS_PADRAO = ['clientes', 'fornecedores', 'funcionarios', 'produtos', 'servicos', 'orcamentos', 'gerador_orcamentos', 'vendas', 'pdv', 'devolucoes', 'ordens_servico', 'painel_os', 'estoque', 'financeiro', 'agendamentos', 'registro_ponto'];
+        const MODULOS_NUCLEO = {{ modulos_nucleo|list|tojson }};
+        const MODULOS_TODOS = {{ modulos_sistema|map(attribute='codigo')|list|tojson }};
         const PERFIS_SEGMENTO = {
-            comercio: ['clientes', 'fornecedores', 'produtos', 'vendas', 'pdv', 'devolucoes', 'estoque', 'financeiro'],
-            servicos: ['clientes', 'servicos', 'orcamentos', 'vendas', 'financeiro', 'agendamentos'],
-            assistencia: ['clientes', 'fornecedores', 'funcionarios', 'produtos', 'servicos', 'orcamentos', 'vendas', 'ordens_servico', 'estoque', 'financeiro', 'agendamentos', 'registro_ponto'],
-            industrial: ['clientes', 'fornecedores', 'funcionarios', 'produtos', 'servicos', 'orcamentos', 'gerador_orcamentos', 'vendas', 'ordens_servico', 'painel_os', 'estoque', 'financeiro', 'registro_ponto'],
-            distribuicao: ['clientes', 'fornecedores', 'produtos', 'vendas', 'devolucoes', 'estoque', 'financeiro'],
-            locacao: ['clientes', 'fornecedores', 'funcionarios', 'produtos', 'servicos', 'orcamentos', 'vendas', 'ordens_servico', 'estoque', 'financeiro'],
-            completo: MODULOS_PADRAO
+            comercio: ['clientes','fornecedores','produtos','orcamentos','vendas','pdv','devolucoes','estoque','financeiro'],
+            servicos: ['clientes','servicos','orcamentos','contratos','vendas','financeiro','agendamentos'],
+            assistencia: ['clientes','fornecedores','funcionarios','produtos','servicos','orcamentos','contratos','vendas','ordens_servico','estoque','financeiro','agendamentos','registro_ponto','gestao_atividades'],
+            industrial: ['clientes','fornecedores','funcionarios','produtos','servicos','orcamentos','gerador_orcamentos','contratos','vendas','ordens_servico','painel_os','estoque','financeiro','registro_ponto','gestao_atividades'],
+            distribuicao: ['clientes','fornecedores','produtos','orcamentos','vendas','devolucoes','estoque','financeiro'],
+            locacao: ['clientes','fornecedores','funcionarios','produtos','servicos','orcamentos','contratos','vendas','ordens_servico','estoque','financeiro'],
+            completo: MODULOS_TODOS
         };
 
         let passoAtualOnboarding = 0;
@@ -640,119 +275,87 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
         const barrasOnboarding = Array.from(document.querySelectorAll('.onboarding-progress span'));
 
         function atualizarPassoOnboarding() {
-            passosOnboarding.forEach(function (passo, indice) {
-                passo.classList.toggle('active', indice === passoAtualOnboarding);
-            });
-
-            barrasOnboarding.forEach(function (barra, indice) {
-                barra.classList.toggle('active', indice <= passoAtualOnboarding);
-            });
-
-            if (passoAtualOnboarding === passosOnboarding.length - 1) {
-                atualizarPreviewModulos();
-            }
-
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            passosOnboarding.forEach((passo, indice) => passo.classList.toggle('active', indice === passoAtualOnboarding));
+            barrasOnboarding.forEach((barra, indice) => barra.classList.toggle('active', indice <= passoAtualOnboarding));
+            if (passoAtualOnboarding === passosOnboarding.length - 1) atualizarPreviewModulos();
+            window.scrollTo({top: 0, behavior: 'smooth'});
         }
+        function proximoPassoOnboarding() { if (passoAtualOnboarding < passosOnboarding.length - 1) { passoAtualOnboarding += 1; atualizarPassoOnboarding(); } }
+        function voltarPassoOnboarding() { if (passoAtualOnboarding > 0) { passoAtualOnboarding -= 1; atualizarPassoOnboarding(); } }
 
-        function proximoPassoOnboarding() {
-            if (passoAtualOnboarding < passosOnboarding.length - 1) {
-                passoAtualOnboarding += 1;
-                atualizarPassoOnboarding();
-            }
-        }
-
-        function voltarPassoOnboarding() {
-            if (passoAtualOnboarding > 0) {
-                passoAtualOnboarding -= 1;
-                atualizarPassoOnboarding();
-            }
-        }
-
-        function coletarModulosMarcados() {
-            const segmentoSelecionado = document.querySelector('input[name="segmento"]:checked');
+        function modulosSelecionados() {
             const nivel = document.querySelector('input[name="nivel"]:checked')?.value || 'intermediario';
-            let modulos = new Set();
+            const segmento = document.querySelector('input[name="segmento"]:checked');
+            const uso = document.querySelector('input[name="uso_principal"]:checked')?.value || '';
+            let ativos = new Set(MODULOS_NUCLEO);
 
             if (nivel === 'completo') {
-                MODULOS_PADRAO.forEach(function (codigo) { modulos.add(codigo); });
-            } else if (segmentoSelecionado) {
-                const perfil = segmentoSelecionado.dataset.perfil || 'completo';
-                (PERFIS_SEGMENTO[perfil] || MODULOS_PADRAO).forEach(function (codigo) { modulos.add(codigo); });
-            } else {
-                PERFIS_SEGMENTO.completo.forEach(function (codigo) { modulos.add(codigo); });
+                MODULOS_TODOS.forEach(codigo => ativos.add(codigo));
+            } else if (nivel === 'intermediario' && segmento) {
+                (PERFIS_SEGMENTO[segmento.dataset.perfil] || []).forEach(codigo => ativos.add(codigo));
             }
 
-            document.querySelectorAll('input[data-modules]:checked').forEach(function (input) {
-                const lista = (input.dataset.modules || '').split(',').map(function (item) { return item.trim(); }).filter(Boolean);
-                lista.forEach(function (codigo) { modulos.add(codigo); });
+            if (['produtos','ambos','industrial'].includes(uso)) ativos.add('produtos');
+            if (['servicos','ambos','industrial'].includes(uso)) ativos.add('servicos');
+            if (uso === 'industrial') { ativos.add('estoque'); ativos.add('indflow'); }
+
+            document.querySelectorAll('input[data-modules]:checked').forEach(input => {
+                (input.dataset.modules || '').split(',').map(v => v.trim()).filter(Boolean).forEach(codigo => ativos.add(codigo));
             });
 
             if (nivel === 'simples') {
-                const temGerador = Boolean(document.querySelector('input[value="gerador"]:checked'));
-                const temCampo = Boolean(document.querySelector('input[value="campo"]:checked, input[value="fotos"]:checked, input[value="acompanhamento"]:checked'));
-                const usaOS = Boolean(document.querySelector('input[value="ordem_servico"]:checked, input[value="os_simples"]:checked, input[value="os_completa"]:checked'));
-
-                if (!temGerador) modulos.delete('gerador_orcamentos');
-                if (!temCampo) modulos.delete('painel_os');
-                if (!usaOS) modulos.delete('ordens_servico');
+                const permitidos = new Set([...MODULOS_NUCLEO, 'produtos', 'servicos']);
+                ['estoque','pdv','ordens_servico','agendamentos','vitrine','indflow'].forEach(codigo => { if (ativos.has(codigo)) permitidos.add(codigo); });
+                ativos = permitidos;
             }
 
-            if (modulos.has('produtos')) modulos.add('clientes');
-            if (modulos.has('pdv')) { modulos.add('produtos'); modulos.add('vendas'); }
-            if (modulos.has('devolucoes')) modulos.add('vendas');
-            if (modulos.has('gerador_orcamentos')) modulos.add('orcamentos');
-            if (modulos.has('painel_os')) modulos.add('ordens_servico');
-            if (modulos.has('estoque')) modulos.add('produtos');
-            if (modulos.has('agendamentos')) { modulos.add('clientes'); modulos.add('funcionarios'); modulos.add('servicos'); }
-            if (modulos.has('registro_ponto')) modulos.add('funcionarios');
-
-            return modulos;
+            if (ativos.has('pdv')) { ativos.add('produtos'); ativos.add('vendas'); }
+            if (ativos.has('devolucoes')) ativos.add('vendas');
+            if (ativos.has('gerador_orcamentos')) { ativos.add('orcamentos'); ativos.add('produtos'); ativos.add('servicos'); }
+            if (ativos.has('painel_os')) ativos.add('ordens_servico');
+            if (ativos.has('estoque')) ativos.add('produtos');
+            if (ativos.has('agendamentos')) { ativos.add('clientes'); ativos.add('servicos'); }
+            if (ativos.has('ordens_servico')) { ativos.add('clientes'); ativos.add('servicos'); }
+            if (ativos.has('registro_ponto')) ativos.add('funcionarios');
+            MODULOS_NUCLEO.forEach(codigo => ativos.add(codigo));
+            return ativos;
         }
 
         function atualizarPreviewModulos() {
-            const modulos = coletarModulosMarcados();
-            const segmentoSelecionado = document.querySelector('input[name="segmento"]:checked');
-            const nivelSelecionado = document.querySelector('input[name="nivel"]:checked');
-
-            document.querySelectorAll('[data-preview-module]').forEach(function (input) {
-                const ativo = modulos.has(input.dataset.previewModule);
-                input.checked = ativo;
-                input.closest('.module-toggle-card').classList.toggle('module-disabled-preview', !ativo);
-            });
-
-            document.getElementById('review-segmento').textContent = segmentoSelecionado ? segmentoSelecionado.dataset.segmentLabel : 'Não informado';
-            document.getElementById('review-nivel').textContent = nivelSelecionado ? nivelSelecionado.closest('.onboarding-option').innerText.trim() : 'Intermediário';
+            const ativos = modulosSelecionados();
+            document.querySelectorAll('[data-module-pill]').forEach(pill => pill.classList.toggle('disabled', !ativos.has(pill.dataset.modulePill)));
+            const segmento = document.querySelector('input[name="segmento"]:checked');
+            const uso = document.querySelector('input[name="uso_principal"]:checked');
+            const nivel = document.querySelector('input[name="nivel"]:checked');
+            const nomesUso = {produtos: 'Venda de produtos', servicos: 'Prestação de serviços', ambos: 'Produtos e serviços', industrial: 'Indústria / produção'};
+            const nomesNivel = {simples: 'Essencial', intermediario: 'Recomendado', completo: 'Completo'};
+            document.getElementById('review-segmento').textContent = segmento ? segmento.dataset.segmentLabel : 'Não informado';
+            document.getElementById('review-uso').textContent = uso ? (nomesUso[uso.value] || uso.value) : 'Não informado';
+            document.getElementById('review-nivel').textContent = nivel ? (nomesNivel[nivel.value] || nivel.value) : 'Recomendado';
         }
 
-        document.querySelectorAll('.onboarding-option input').forEach(function (input) {
+        document.querySelectorAll('.onboarding-option input').forEach(input => {
             input.addEventListener('change', function () {
                 if (input.type === 'radio') {
-                    document.querySelectorAll('input[name="' + input.name + '"]').forEach(function (radio) {
-                        radio.closest('.onboarding-option').classList.toggle('selected', radio.checked);
-                    });
+                    document.querySelectorAll('input[name="' + input.name + '"]').forEach(radio => radio.closest('.onboarding-option').classList.toggle('selected', radio.checked));
                 } else {
                     input.closest('.onboarding-option').classList.toggle('selected', input.checked);
                 }
                 atualizarPreviewModulos();
             });
-
-            if (input.checked) {
-                input.closest('.onboarding-option').classList.add('selected');
-            }
+            if (input.checked) input.closest('.onboarding-option').classList.add('selected');
         });
 
         const campoBuscaSegmento = document.getElementById('segmento-busca');
         if (campoBuscaSegmento) {
             campoBuscaSegmento.addEventListener('input', function () {
                 const termo = campoBuscaSegmento.value.trim().toLowerCase();
-                document.querySelectorAll('.segment-option').forEach(function (card) {
+                document.querySelectorAll('.segment-option').forEach(card => {
                     const texto = (card.dataset.segmentName || '') + ' ' + (card.dataset.segmentGroup || '').toLowerCase();
                     card.style.display = texto.includes(termo) ? '' : 'none';
                 });
             });
         }
-
         atualizarPreviewModulos();
     </script>
 </body>

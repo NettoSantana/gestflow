@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\configuracoes.html
-Último recode: 2026-08-21 06:43 (America/Bahia)
-Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+Último recode: 2026-08-22 11:56 (America/Bahia)
+Motivo: Organizar a gestão de módulos em Núcleo GestFlow, módulos operacionais e módulos especializados, protegendo o núcleo obrigatório.
 #}
 
 <!DOCTYPE html>
@@ -157,6 +157,25 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
             background: #f8fafc;
             cursor: not-allowed;
         }
+
+        .module-section-heading {
+            margin: 24px 0 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        .module-section-heading strong {
+            color: #0f172a;
+            font-size: 15px;
+            font-weight: 950;
+        }
+        .module-section-heading .page-subtitle { margin: 4px 0 0; }
+        .module-core-card {
+            border-color: #bfdbfe !important;
+            background: #eff6ff !important;
+        }
+        .module-core-card input { cursor: not-allowed; }
 
     </style>
 </head>
@@ -861,8 +880,36 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
                             <button type="submit" form="refazer-anamnese-form" class="btn-dark">Refazer anamnese</button>
                         </div>
 
+                        <div class="module-section-heading">
+                            <div>
+                                <strong>Núcleo GestFlow</strong>
+                                <p class="page-subtitle">Base comum da gestão. Clientes, Orçamentos, Vendas e Financeiro permanecem ativos.</p>
+                            </div>
+                            <span class="badge-info">Sempre disponível</span>
+                        </div>
                         <div class="modules-grid">
-                            {% for modulo in modulos_sistema %}
+                            {% for modulo in modulos_sistema if modulo.codigo in modulos_nucleo %}
+                                {% set codigo_modulo = modulo.codigo %}
+                                <label class="module-toggle-card module-core-card" for="modulo_{{ codigo_modulo }}" data-module-code="{{ codigo_modulo }}">
+                                    <input id="modulo_{{ codigo_modulo }}" type="checkbox" name="modulos_ativos" value="{{ codigo_modulo }}" checked disabled data-core-module="true">
+                                    <span class="module-toggle-visual"></span>
+                                    <div>
+                                        <strong>{{ modulo.nome }}</strong>
+                                        <small>{{ modulo.grupo }} · Núcleo</small>
+                                        <p>{{ modulo.descricao }}</p>
+                                    </div>
+                                </label>
+                            {% endfor %}
+                        </div>
+
+                        <div class="module-section-heading">
+                            <div>
+                                <strong>Módulos operacionais</strong>
+                                <p class="page-subtitle">Ative conforme a rotina de produtos, serviços, estoque, equipe e execução.</p>
+                            </div>
+                        </div>
+                        <div class="modules-grid">
+                            {% for modulo in modulos_sistema if modulo.codigo in modulos_operacionais %}
                                 {% set codigo_modulo = modulo.codigo %}
                                 <label class="module-toggle-card" for="modulo_{{ codigo_modulo }}" data-module-code="{{ codigo_modulo }}">
                                     <input id="modulo_{{ codigo_modulo }}" type="checkbox" name="modulos_ativos" value="{{ codigo_modulo }}" {% if modulos_ativos.get(codigo_modulo, true) %}checked{% endif %}>
@@ -876,8 +923,29 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
                             {% endfor %}
                         </div>
 
+                        <div class="module-section-heading">
+                            <div>
+                                <strong>Módulos especializados</strong>
+                                <p class="page-subtitle">Recursos específicos para operações que precisam de controles adicionais.</p>
+                            </div>
+                        </div>
+                        <div class="modules-grid">
+                            {% for modulo in modulos_sistema if modulo.codigo in modulos_especializados %}
+                                {% set codigo_modulo = modulo.codigo %}
+                                <label class="module-toggle-card" for="modulo_{{ codigo_modulo }}" data-module-code="{{ codigo_modulo }}">
+                                    <input id="modulo_{{ codigo_modulo }}" type="checkbox" name="modulos_ativos" value="{{ codigo_modulo }}" {% if modulos_ativos.get(codigo_modulo, true) %}checked{% endif %}>
+                                    <span class="module-toggle-visual"></span>
+                                    <div>
+                                        <strong>{{ modulo.nome }}</strong>
+                                        <small>{{ modulo.grupo }} · Especializado</small>
+                                        <p>{{ modulo.descricao }}</p>
+                                    </div>
+                                </label>
+                            {% endfor %}
+                        </div>
+
                         <div class="module-warning-box">
-                            <strong>Atenção:</strong> desativar um módulo não apaga dados. Ele apenas oculta do menu e bloqueia acesso direto. Você pode reativar quando quiser.
+                            <strong>Atenção:</strong> desativar um módulo operacional ou especializado não apaga dados. Ele apenas oculta o recurso do menu e bloqueia o acesso direto. O Núcleo GestFlow não pode ser desativado.
                         </div>
 
                         <div class="form-actions">
@@ -898,6 +966,10 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
 
                             function aplicarPerfil(codigos) {
                                 document.querySelectorAll('.module-toggle-card input[type="checkbox"]').forEach(function (input) {
+                                    if (input.dataset.coreModule === 'true') {
+                                        input.checked = true;
+                                        return;
+                                    }
                                     input.checked = codigos === null || codigos.includes(input.value);
                                 });
                             }

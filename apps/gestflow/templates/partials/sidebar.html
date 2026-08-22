@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\partials\sidebar.html
-Último recode: 2026-08-21 06:43 (America/Bahia)
-Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+Último recode: 2026-08-22 11:56 (America/Bahia)
+Motivo: Integrar o IndFlow ao controle de módulos especializados definido pela nova anamnese.
 #}
 
 {% set _path = request.path if request is defined else '' %}
@@ -184,12 +184,14 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
             </li>
             {% endif %}
 
+            {% if _modulos.get('indflow', true) and modulo_usuario_visivel('indflow') %}
             <li class="menu-item {% if _path == '/indflow' %}active{% endif %}">
                 <a href="/indflow">
                     <span class="menu-icon">◉</span>
                     <span>IndFlow</span>
                 </a>
             </li>
+            {% endif %}
 
             {% if _modulos.get('estoque', true) and modulo_usuario_visivel('estoque') %}
             <li class="menu-group {% if _path.startswith('/estoque') or _config_grupo == 'estoque' %}active{% endif %}">

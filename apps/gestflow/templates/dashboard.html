@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\dashboard.html
-Último recode: 2026-08-21 06:43 (America/Bahia)
-Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+Último recode: 2026-08-22 11:56 (America/Bahia)
+Motivo: Adicionar tutorial inicial por missões e roteiro de primeiros passos adaptado aos módulos escolhidos na anamnese.
 #}
 
 <!DOCTYPE html>
@@ -248,6 +248,41 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
             }
         }
 
+        .primeiros-passos-card {
+            margin-bottom: 18px;
+            padding: 20px;
+            border: 1px solid #bfdbfe;
+            border-radius: 16px;
+            background: linear-gradient(135deg, #eff6ff, #ffffff 72%);
+            box-shadow: 0 10px 28px rgba(15, 98, 254, 0.07);
+        }
+        .primeiros-passos-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 18px;
+            margin-bottom: 14px;
+        }
+        .primeiros-passos-header h2 { margin: 3px 0 4px; font-size: 20px; }
+        .primeiros-passos-header p { margin: 0; color: #64748b; font-size: 12px; font-weight: 650; }
+        .primeiros-passos-progress-label { color: #0f62fe; font-size: 12px; font-weight: 950; white-space: nowrap; }
+        .primeiros-passos-progress { height: 7px; border-radius: 99px; background: #dbeafe; overflow: hidden; margin-bottom: 14px; }
+        .primeiros-passos-progress span { display: block; height: 100%; border-radius: inherit; background: #16a34a; }
+        .primeiros-passos-lista { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 9px; }
+        .primeiro-passo-item {
+            min-height: 64px; padding: 11px 12px; display: grid; grid-template-columns: 26px 1fr auto; gap: 10px; align-items: center;
+            border: 1px solid #dbe4f0; border-radius: 12px; background: #fff; text-decoration: none; color: #0f172a;
+        }
+        .primeiro-passo-item:hover { border-color: #93c5fd; background: #f8fbff; }
+        .primeiro-passo-status { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: #e2e8f0; color: #64748b; font-size: 12px; font-weight: 950; }
+        .primeiro-passo-item.done .primeiro-passo-status { background: #dcfce7; color: #15803d; }
+        .primeiro-passo-texto strong { display: block; font-size: 12px; }
+        .primeiro-passo-texto span { display: block; margin-top: 2px; color: #64748b; font-size: 10px; line-height: 1.35; }
+        .primeiro-passo-acao { color: #0f62fe; font-size: 11px; font-weight: 900; }
+        .primeiros-passos-footer { display: flex; justify-content: flex-end; margin-top: 12px; }
+        .primeiros-passos-footer a { color: #334155; font-size: 11px; font-weight: 850; text-decoration: none; }
+        @media (max-width: 780px) { .primeiros-passos-lista { grid-template-columns: 1fr; } .primeiros-passos-header { flex-direction: column; } }
+
         /* PADRAO VISUAL ORCAMENTOS - DASHBOARD */
         .dashboard-page {
             padding-bottom: 280px;
@@ -321,8 +356,33 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
         {% set ultimas_os = dash.ultimas_os|default([]) %}
         {% set ultimas_vendas = dash.ultimas_vendas|default([]) %}
         {% set financeiro_dash = dash.financeiro|default({"a_receber_aberto": 0, "a_pagar_aberto": 0, "receber_hoje": 0, "pagar_hoje": 0, "receber_vencido": 0, "pagar_vencido": 0, "recebido_mes": 0, "pago_mes": 0, "saldo_previsto": 0, "saldo_mes": 0, "quantidade_receber_aberto": 0, "quantidade_pagar_aberto": 0, "quantidade_receber_hoje": 0, "quantidade_pagar_hoje": 0, "quantidade_receber_vencido": 0, "quantidade_pagar_vencido": 0, "recebimentos": [], "pagamentos": [], "ultimos_titulos": []}) %}
+        {% set primeiros = primeiros_passos|default({"itens": [], "total": 0, "concluidos": 0, "percentual": 0, "concluido": true}) %}
         {% set page_title = 'Dashboard' %}
         {% include "partials/topbar.html" %}
+
+        {% if primeiros.itens and not primeiros.concluido %}
+        <section class="primeiros-passos-card" id="primeiros-passos">
+            <div class="primeiros-passos-header">
+                <div>
+                    <span class="page-kicker">Primeiros passos</span>
+                    <h2>Seu roteiro inicial no GestFlow</h2>
+                    <p>As missões abaixo seguem os módulos definidos na sua anamnese e são marcadas conforme você usa o sistema.</p>
+                </div>
+                <div class="primeiros-passos-progress-label">{{ primeiros.concluidos }} de {{ primeiros.total }} concluídos</div>
+            </div>
+            <div class="primeiros-passos-progress"><span style="width: {{ primeiros.percentual }}%;"></span></div>
+            <div class="primeiros-passos-lista">
+                {% for item in primeiros.itens %}
+                    <a href="{{ item.url }}" class="primeiro-passo-item {% if item.concluido %}done{% endif %}">
+                        <span class="primeiro-passo-status">{% if item.concluido %}✓{% else %}{{ loop.index }}{% endif %}</span>
+                        <span class="primeiro-passo-texto"><strong>{{ item.titulo }}</strong><span>{{ item.descricao }}</span></span>
+                        <span class="primeiro-passo-acao">{% if item.concluido %}Concluído{% else %}Abrir{% endif %}</span>
+                    </a>
+                {% endfor %}
+            </div>
+            <div class="primeiros-passos-footer"><a href="/?tour=1">Ver tutorial guiado novamente</a></div>
+        </section>
+        {% endif %}
 
 <section class="cards cards-primary">
 
@@ -749,6 +809,7 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
 
     <script>
         window.GESTFLOW_INICIAR_TOUR = {{ iniciar_tour|default(false)|tojson }};
+        window.GESTFLOW_TOUR_PASSOS = {{ primeiros.itens|default([])|tojson }};
     </script>
     <script src="/static/js/tour_gestflow.js"></script>
 
