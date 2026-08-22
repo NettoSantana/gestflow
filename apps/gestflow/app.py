@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\app.py
-# Último recode: 2026-08-22 13:47 (America/Bahia)
-# Motivo: Aplicar na aplicação executada pelo Railway a apresentação profissional da Vitrine, preservando a anamnese e o onboarding atuais.
+# Último recode: 2026-08-22 16:26 (America/Bahia)
+# Motivo: Criar apresentação pública específica para Serviços e atendimentos, priorizando profissional, autoridade, serviços, agendamento e contato no celular.
 
 from __future__ import annotations
 
@@ -30371,6 +30371,7 @@ def renderizar_vitrine_publica_html(
         categoria_configuracao == "servicos"
         and str(config_vitrine.get("mostrar_apresentacao_profissional") or "nao").strip().lower() == "sim"
     )
+    modo_publico_servicos = categoria_configuracao == "servicos"
 
     descricao_empresa_raw = str(config_vitrine.get("descricao_empresa") or "").strip()
     texto_institucional_raw = (
@@ -30597,6 +30598,9 @@ def renderizar_vitrine_publica_html(
         )
         item["categoria"] = categorias_padronizadas.get(chave_categoria, categoria_original)
 
+    if modo_publico_servicos:
+        itens_publicos.sort(key=lambda item: 0 if item.get("tipo") == "servico" else 1)
+
     def _primeira_imagem_item(item: dict[str, Any]) -> str:
         for midia in item.get("midias") or []:
             if midia.get("tipo") == "imagem" and midia.get("path"):
@@ -30739,6 +30743,34 @@ def renderizar_vitrine_publica_html(
 <div class="card-actions">{acao}<button type="button" class="card-peek" onclick="event.stopPropagation();abrirDetalheCard(this.closest('.store-card'))">Ver</button></div>
 </div></article>'''
 
+    def _card_servico_apresentacao_html(item: dict[str, Any]) -> str:
+        item_id = int(item.get("id") or 0)
+        nome = html.escape(str(item.get("nome") or "Serviço"))
+        categoria_item = html.escape(str(item.get("categoria") or "Serviços"))
+        duracao = html.escape(str(item.get("duracao") or "Duração a combinar"))
+        preco = html.escape(str(item.get("preco_label") or "Consulte o valor"))
+        descricao_raw = re.sub(r"\s+", " ", str(item.get("descricao") or "").strip())
+        if len(descricao_raw) > 145:
+            descricao_raw = descricao_raw[:142].rstrip() + "..."
+        descricao = html.escape(descricao_raw)
+        imagem = _primeira_imagem_item(item)
+        if imagem:
+            visual = f'<img src="/vitrine-upload/{html.escape(imagem)}" alt="{nome}" loading="lazy">'
+        else:
+            visual = '<span class="service-showcase-placeholder">Serviço</span>'
+        if item.get("disponivel"):
+            acao = (
+                f'<a href="{html.escape(str(item.get("acao_url") or "#catalogo"))}" '
+                f'onclick="registrarItem(\'servico\',{item_id})">{html.escape(str(item.get("acao_texto") or "Agendar"))}</a>'
+            )
+        else:
+            acao = '<span class="service-showcase-disabled">Indisponível</span>'
+        descricao_html = f'<p>{descricao}</p>' if descricao else ""
+        return f'''<article class="service-showcase-card">
+<div class="service-showcase-media">{visual}</div>
+<div class="service-showcase-copy"><small>{categoria_item}</small><h3>{nome}</h3><div class="service-showcase-meta"><span>{duracao}</span><strong>{preco}</strong></div>{descricao_html}{acao}</div>
+</article>'''
+
     itens_destaque = [item for item in itens_publicos if item.get("destaque") and item.get("disponivel")]
     if not itens_destaque:
         itens_destaque = [item for item in itens_publicos if item.get("disponivel")]
@@ -30809,7 +30841,8 @@ def renderizar_vitrine_publica_html(
 </section>
 <section class="benefits"><div class="benefits-inner">{beneficios_html}</div></section>'''
 
-    if categoria_configuracao == "servicos":
+    conteudo_servicos_html = ""
+    if modo_publico_servicos:
         topo_publico_html = ""
         if apresentacao_profissional_ativa:
             profissional_nome_raw = str(config_vitrine.get("profissional_nome") or nome_loja_raw).strip() or nome_loja_raw
@@ -30840,7 +30873,7 @@ def renderizar_vitrine_publica_html(
                 autoridade_itens.append(f'<b>{html.escape(profissional_destaque_raw)}</b>')
             autoridade_html = "".join(f'<span>{item}</span>' for item in autoridade_itens)
             frase_html = f'<p>{html.escape(profissional_frase_raw)}</p>' if profissional_frase_raw else ""
-            cta_servicos = "Ver serviços" if tem_servicos else "Ver catálogo"
+            cta_servicos = "Ver serviços" if tem_servicos else "Ver atendimento"
             topo_publico_html = f'''<section class="professional-hero">
 <div class="professional-hero-inner">
   <div class="professional-photo">{profissional_foto_html}</div>
@@ -30849,6 +30882,36 @@ def renderizar_vitrine_publica_html(
   <div class="professional-actions"><a class="btn-dark" href="#catalogo">{cta_servicos}</a>{hero_whatsapp}</div>
 </div>
 </section>'''
+        else:
+            topo_publico_html = f'''<section class="service-intro-hero">
+<div class="service-intro-inner">
+  <div class="service-intro-copy"><small>Serviços e atendimentos</small><h1>Encontre o atendimento certo para você</h1><p>{texto_institucional}</p><div class="service-intro-actions"><a class="btn-dark" href="#catalogo">Ver serviços</a>{hero_whatsapp}</div></div>
+  <div class="service-intro-brand"><span class="service-intro-logo">{logo_hero_html}</span><strong>{nome_loja}</strong><small>Atendimento direto e agendamento simples</small></div>
+</div>
+</section>'''
+
+        servicos_publicos = [item for item in itens_publicos if item.get("tipo") == "servico"]
+        servicos_prioritarios = [item for item in servicos_publicos if item.get("destaque") and item.get("disponivel")]
+        if not servicos_prioritarios:
+            servicos_prioritarios = [item for item in servicos_publicos if item.get("disponivel")]
+        servicos_prioritarios = servicos_prioritarios[:3]
+        servicos_prioritarios_html = "".join(_card_servico_apresentacao_html(item) for item in servicos_prioritarios)
+        vitrine_servicos_destaque_html = ""
+        if servicos_prioritarios_html:
+            vitrine_servicos_destaque_html = f'''<section class="service-showcase-section">
+<div class="service-showcase-inner">
+  <div class="service-showcase-heading"><small>Atendimentos em destaque</small><h2>Escolha como podemos ajudar</h2><p>Veja as principais opções e agende sem precisar procurar em várias telas.</p></div>
+  <div class="service-showcase-grid">{servicos_prioritarios_html}</div>
+</div>
+</section>'''
+
+        conteudo_servicos_html = f'''<section class="service-assurance" aria-label="Facilidades do atendimento">
+<div class="service-assurance-inner">
+  <article><span>01</span><div><strong>Serviços claros</strong><small>Veja duração, valor e detalhes antes de escolher.</small></div></article>
+  <article><span>02</span><div><strong>Agendamento simples</strong><small>Escolha o serviço e siga direto para os horários disponíveis.</small></div></article>
+  <article><span>03</span><div><strong>Contato direto</strong><small>Fale com a empresa sempre que precisar de ajuda.</small></div></article>
+</div>
+</section>{vitrine_servicos_destaque_html}'''
 
     entrega_options = "".join(
         f'<option value="{_normalizar_chave_campo_configuravel(rotulo)}">{html.escape(str(rotulo))}</option>'
@@ -30945,6 +31008,7 @@ def renderizar_vitrine_publica_html(
 .hero{position:relative;overflow:hidden;background:linear-gradient(135deg,#fafafa 0%,#f2f2f2 100%);border-bottom:1px solid #e5e5e5}.hero-inner{width:min(1240px,calc(100% - 28px));min-height:390px;margin:auto;display:grid;grid-template-columns:minmax(360px,1fr) minmax(420px,.9fr);align-items:stretch;gap:34px}.hero-copy{display:flex;flex-direction:column;justify-content:center;padding:50px 20px 50px 0}.hero-copy .kicker{margin:0 0 12px;font-size:12px;font-weight:900;letter-spacing:.16em;text-transform:uppercase}.hero-copy h1{max-width:620px;margin:0;font-size:clamp(38px,4.6vw,64px);line-height:.98;letter-spacing:-.045em}.hero-copy p{max-width:590px;margin:18px 0 0;color:#555;font-size:15px;line-height:1.6}.hero-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:24px}.btn-dark,.btn-light{min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:0 20px;border-radius:999px;text-decoration:none;font-size:12px;font-weight:950;cursor:pointer}.btn-dark{border:1px solid var(--action);background:var(--action);color:var(--action-text)}.btn-light{border:1px solid #111;background:#fff;color:#111}.hero-visual{display:grid;align-items:center;min-height:390px;padding:34px 0;background:transparent}.hero-brand-static{min-height:310px;display:grid;grid-template-columns:190px minmax(0,1fr);align-items:center;gap:26px;padding:28px;border:1px solid #ddd;border-radius:24px;background:#fff;box-shadow:0 18px 50px rgba(0,0,0,.06)}.hero-brand-frame{width:190px;height:190px;display:grid;place-items:center;overflow:hidden;border-radius:var(--logo-radius);background:var(--logo-bg);border:1px solid #eee}.hero-brand-image{width:100%;height:100%;object-fit:contain;transform:translate(var(--logo-x),var(--logo-y)) scale(var(--logo-zoom));transform-origin:center}.hero-brand-initials{font-size:64px;font-weight:1000}.hero-brand-static-copy{min-width:0;display:grid;gap:8px}.hero-brand-static-copy>small{color:#777;font-size:10px;font-weight:900;letter-spacing:.14em;text-transform:uppercase}.hero-brand-static-copy>strong{font-size:clamp(24px,3vw,38px);line-height:1.05}.hero-brand-static-copy>span{color:#666;font-size:13px;line-height:1.5}.hero-brand-points{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}.hero-brand-points b{padding:7px 9px;border:1px solid #ddd;border-radius:999px;background:#fafafa;font-size:9px;white-space:nowrap}
 .benefits{background:#efefef;border-top:1px solid #e1e1e1;border-bottom:1px solid #e1e1e1}.benefits-inner{width:min(1240px,calc(100% - 28px));min-height:92px;margin:auto;display:grid;grid-template-columns:repeat(4,1fr)}.benefits article{display:flex;align-items:center;gap:12px;padding:18px 24px;border-right:1px solid #d8d8d8}.benefits article:last-child{border-right:0}.benefit-icon{width:42px;height:42px;display:grid;place-items:center;border:1px solid #777;border-radius:50%;font-size:18px;flex:0 0 auto}.benefits strong,.benefits small{display:block}.benefits strong{font-size:11px;text-transform:uppercase}.benefits small{margin-top:4px;color:#666;font-size:10px;line-height:1.35}
 .professional-hero{border-bottom:1px solid #e5e5e5;background:linear-gradient(135deg,#fafafa 0%,#f3f3f3 100%)}.professional-hero-inner{width:min(1040px,calc(100% - 28px));min-height:280px;margin:auto;display:grid;grid-template-columns:210px minmax(0,1fr);grid-template-areas:"foto copy" "foto autoridade" "foto acoes";align-content:center;gap:12px 30px;padding:28px 0}.professional-photo{grid-area:foto;width:210px;height:230px;display:grid;place-items:center;overflow:hidden;border-radius:24px;background:#e7e7e7;box-shadow:0 14px 34px rgba(0,0,0,.08)}.professional-photo img{width:100%;height:100%;object-fit:cover}.professional-photo span{font-size:44px;font-weight:1000}.professional-copy{grid-area:copy}.professional-copy>small{display:block;margin-bottom:7px;font-size:10px;font-weight:950;letter-spacing:.14em;text-transform:uppercase;color:#555}.professional-copy h1{margin:0;font-size:clamp(30px,4vw,46px);line-height:1;letter-spacing:-.035em}.professional-copy>strong{display:block;margin-top:7px;font-size:15px}.professional-copy p{max-width:650px;margin:10px 0 0;color:#555;font-size:13px;line-height:1.5}.professional-authority{grid-area:autoridade;display:flex;gap:8px;flex-wrap:wrap}.professional-authority span{min-height:46px;display:flex;align-items:center;gap:5px;padding:8px 12px;border:1px solid #ddd;border-radius:12px;background:#fff}.professional-authority b{font-size:12px}.professional-authority small{color:#666;font-size:10px}.professional-actions{grid-area:acoes;display:flex;gap:8px;flex-wrap:wrap}
+.service-intro-hero{border-bottom:1px solid #e5e5e5;background:linear-gradient(135deg,#fafafa 0%,#f1f1f1 100%)}.service-intro-inner{width:min(1040px,calc(100% - 28px));min-height:300px;margin:auto;display:grid;grid-template-columns:minmax(0,1.25fr) minmax(260px,.75fr);gap:46px;align-items:center;padding:38px 0}.service-intro-copy>small{display:block;margin-bottom:9px;color:#555;font-size:10px;font-weight:950;letter-spacing:.14em;text-transform:uppercase}.service-intro-copy h1{max-width:700px;margin:0;font-size:clamp(34px,5vw,58px);line-height:.98;letter-spacing:-.045em}.service-intro-copy p{max-width:650px;margin:16px 0 0;color:#555;font-size:15px;line-height:1.55}.service-intro-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:20px}.service-intro-brand{min-height:210px;display:grid;justify-items:center;align-content:center;gap:10px;padding:24px;border:1px solid #ddd;border-radius:24px;background:#fff;text-align:center;box-shadow:0 14px 34px rgba(0,0,0,.06)}.service-intro-logo{width:112px;height:112px;display:grid;place-items:center;overflow:hidden;border-radius:20px;background:var(--logo-bg)}.service-intro-logo img{width:100%;height:100%;object-fit:contain;transform:translate(calc(var(--logo-x) * 1%),calc(var(--logo-y) * 1%)) scale(var(--logo-zoom))}.service-intro-logo .hero-brand-initials{font-size:30px;font-weight:1000}.service-intro-brand strong{font-size:18px}.service-intro-brand small{color:#666;font-size:11px;line-height:1.4}.service-assurance{border-bottom:1px solid #ddd;background:#fff}.service-assurance-inner{width:min(1120px,calc(100% - 28px));margin:auto;display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}.service-assurance article{min-height:100px;display:flex;gap:12px;align-items:center;padding:18px 24px;border-right:1px solid #e3e3e3}.service-assurance article:last-child{border-right:0}.service-assurance article>span{width:34px;height:34px;flex:0 0 34px;display:grid;place-items:center;border:1px solid #111;border-radius:50%;font-size:9px;font-weight:950}.service-assurance strong,.service-assurance small{display:block}.service-assurance strong{font-size:12px}.service-assurance small{margin-top:4px;color:#666;font-size:10px;line-height:1.4}.service-showcase-section{background:#f7f7f7;border-bottom:1px solid #e5e5e5}.service-showcase-inner{width:min(1120px,calc(100% - 28px));margin:auto;padding:48px 0}.service-showcase-heading{max-width:620px;margin-bottom:22px}.service-showcase-heading>small{display:block;margin-bottom:7px;color:#666;font-size:10px;font-weight:950;letter-spacing:.12em;text-transform:uppercase}.service-showcase-heading h2{margin:0;font-size:34px;letter-spacing:-.03em}.service-showcase-heading p{margin:9px 0 0;color:#666;font-size:13px;line-height:1.5}.service-showcase-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.service-showcase-card{min-width:0;overflow:hidden;border:1px solid #ddd;border-radius:18px;background:#fff}.service-showcase-media{height:180px;display:grid;place-items:center;overflow:hidden;background:#ececec}.service-showcase-media img{width:100%;height:100%;object-fit:cover}.service-showcase-placeholder{color:#777;font-size:12px;font-weight:900}.service-showcase-copy{display:grid;gap:8px;padding:16px}.service-showcase-copy>small{color:#777;font-size:9px;font-weight:800;text-transform:uppercase}.service-showcase-copy h3{margin:0;font-size:18px;line-height:1.15}.service-showcase-meta{display:flex;align-items:center;justify-content:space-between;gap:10px}.service-showcase-meta span{color:#666;font-size:10px}.service-showcase-meta strong{font-size:13px}.service-showcase-copy p{margin:0;color:#666;font-size:11px;line-height:1.5}.service-showcase-copy>a,.service-showcase-disabled{min-height:38px;display:flex;align-items:center;justify-content:center;margin-top:3px;border-radius:999px;background:var(--action);color:var(--action-text);text-decoration:none;font-size:9px;font-weight:950;text-transform:uppercase;letter-spacing:.06em}.service-showcase-disabled{opacity:.45}.categoria-servicos .catalog-section{background:#fff}.categoria-servicos .catalog-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}.categoria-servicos .catalog-grid .store-card[data-tipo="servico"]{border-radius:18px}.categoria-servicos .catalog-grid .store-card[data-tipo="servico"] .card-media{aspect-ratio:4/3}.categoria-servicos .catalog-grid .store-card[data-tipo="servico"] .card-copy{text-align:left}.categoria-servicos .catalog-grid .store-card[data-tipo="servico"] .card-variant-dots,.categoria-servicos .catalog-grid .store-card[data-tipo="servico"] .card-size-list{justify-content:flex-start}.categoria-servicos .catalog-grid .store-card[data-tipo="servico"] .card-copy h3{font-size:16px;font-weight:800}.categoria-servicos .catalog-grid .store-card[data-tipo="servico"] .card-copy strong{font-size:18px}.categoria-servicos .catalog-grid .store-card[data-tipo="servico"] .card-actions{grid-template-columns:1fr auto}
 .section{width:min(1240px,calc(100% - 28px));margin:0 auto;padding:64px 0}.section-heading{display:flex;align-items:end;justify-content:space-between;gap:24px;margin-bottom:26px}.section-heading small{display:block;margin-bottom:7px;color:#777;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.12em}.section-heading h2{margin:0;font-size:32px;letter-spacing:-.025em}.section-heading p{max-width:520px;margin:0;color:#666;line-height:1.55}.section-heading a,.section-heading button{border:0;background:transparent;text-decoration:underline;font-size:12px;font-weight:850;cursor:pointer}.collections-grid{display:flex;flex-wrap:wrap;gap:10px}.collection-card{min-width:150px;padding:14px 18px;border:1px solid #e3e3e3;border-radius:10px;background:#fff;text-align:center;cursor:pointer;font-size:13px;font-weight:850}.collection-card:hover{background:#f7f7f7;border-color:#cfcfcf}
 .featured-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}.store-card{position:relative;min-width:0;border:1px solid #e1e1e1;border-radius:12px;background:#fff;overflow:hidden}.card-media{position:relative;width:100%;aspect-ratio:4/5;display:block;padding:0;border:0;background:#f2f2f2;overflow:hidden;cursor:pointer}.card-media img,.card-media video{width:100%;height:100%;object-fit:cover;display:block}.card-media-nav{position:absolute;top:50%;z-index:3;width:32px;height:32px;display:grid;place-items:center;transform:translateY(-50%);border:1px solid rgba(0,0,0,.22);border-radius:50%;background:rgba(255,255,255,.9);color:#111;font-size:22px;font-weight:700;line-height:1;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.12)}.card-media-prev{left:8px}.card-media-next{right:8px}.media-placeholder{height:100%;display:grid;place-items:center;color:#888;font-weight:850}.card-badge{position:absolute;left:10px;top:10px;z-index:2;padding:7px 9px;border-radius:999px;background:#111;color:#fff;font-size:9px;font-weight:950;text-transform:uppercase}.card-badge-unavailable{background:#4b4b4b}.card-body{display:grid;gap:12px;padding:13px}.card-copy{display:grid;gap:5px;text-align:center}.card-copy small{color:#777;font-size:10px}.card-copy h3{margin:0;font-size:13px;font-weight:500;line-height:1.35}.card-copy strong{font-size:16px}.card-duration{min-height:13px}.card-variant-dots{display:flex;align-items:center;justify-content:center;gap:6px;min-height:18px;margin-top:2px}.variant-dot{width:16px;height:16px;border:1px solid #aaa;border-radius:50%;background:var(--variant-color);box-shadow:inset 0 0 0 2px #fff}.card-size-list{display:flex;justify-content:center;gap:5px;flex-wrap:wrap}.card-size-list span{min-width:24px;padding:3px 5px;border:1px solid #ddd;border-radius:5px;color:#555;background:#fff;font-size:8px;font-weight:800}.quick-variants{display:grid;gap:8px;padding:10px;border:1px solid #ddd;border-radius:9px;background:#fafafa}.quick-variants[hidden]{display:none}.quick-variants label{display:grid;gap:4px;color:#555;font-size:9px;font-weight:850}.quick-variants select{width:100%;height:36px;border:1px solid #bbb;border-radius:7px;padding:0 8px;background:#fff;font-size:10px}.quick-variant-confirm{min-height:36px;border:0;border-radius:999px;background:#111;color:#fff;font-size:9px;font-weight:950;text-transform:uppercase;cursor:pointer}.card-actions{display:grid;grid-template-columns:1fr auto;gap:7px}.card-buy,.card-peek{min-height:34px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:0 13px;text-decoration:none;font-size:9px;font-weight:950;text-transform:uppercase;letter-spacing:.06em;cursor:pointer}.card-buy{border:1px solid var(--action);background:var(--action);color:var(--action-text)}.card-buy:disabled{opacity:.45;cursor:not-allowed}.card-peek{border:1px solid #111;background:#fff;color:#111}.store-card-compact .card-body{padding:11px}.store-card-compact .card-actions{opacity:1;transform:none}
 .catalog-section{background:#fafafa;border-top:1px solid #eee}.catalog-layout{display:block}.catalog-sidebar{display:none;max-width:720px;margin:0 0 18px;padding:14px 16px;border:1px solid #ddd;border-radius:12px;background:#fff}.catalog-sidebar.open{display:grid;grid-template-columns:minmax(0,1fr) minmax(190px,.38fr);gap:18px}.filter-block{padding:0;margin:0}.filter-block+.filter-block{padding-left:24px;border-left:1px solid #ddd}.filter-block h3{margin:0 0 13px;font-size:15px}.filter-categories{display:flex;gap:7px;flex-wrap:wrap}.filter-category{padding:8px 11px;border:1px solid #ddd;border-radius:999px;background:#fff;text-align:left;color:#555;font-size:11px;cursor:pointer}.filter-category[hidden]{display:none}.filter-category.active{border-color:#111;color:#fff;background:#111;font-weight:900}.filter-check{display:flex;align-items:center;gap:8px;font-size:12px;color:#555}.catalog-toolbar{display:flex;align-items:center;justify-content:flex-start;gap:10px;margin-bottom:14px}.catalog-sort{height:38px;border:1px solid #ccc;border-radius:8px;background:#fff;padding:0 10px;font-size:11px}.catalog-count{margin:0 0 14px;color:#777;font-size:11px}.catalog-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}.catalog-empty{grid-column:1/-1;padding:48px 20px;border:1px dashed #ccc;border-radius:12px;background:#fff;text-align:center;color:#777}.pagination{display:flex;justify-content:center;gap:6px;margin-top:26px}.pagination button{min-width:36px;height:36px;border:1px solid #ccc;border-radius:7px;background:#fff;cursor:pointer}.pagination button.active{background:#111;color:#fff;border-color:#111}.mobile-filter-toggle{display:inline-flex;height:38px;align-items:center;padding:0 12px;border:1px solid #bbb;border-radius:8px;background:#fff;font-size:11px;font-weight:800;cursor:pointer}.mobile-filter-toggle[aria-expanded="true"]{border-color:#111;background:#111;color:#fff}.filter-apply{grid-column:1/-1;justify-self:start;min-height:34px;padding:0 14px;border:0;border-radius:999px;background:#111;color:#fff;font-size:10px;font-weight:900;cursor:pointer}
@@ -30956,8 +31020,8 @@ body.catalogo-formato-quadrado .card-media{aspect-ratio:1/1}body.catalogo-format
 .cart-toast{position:fixed;right:20px;top:176px;z-index:82;max-width:min(360px,calc(100vw - 32px));padding:12px 15px;border:1px solid #bbf7d0;border-radius:10px;background:#f0fdf4;color:#166534;box-shadow:0 14px 32px rgba(0,0,0,.12);font-size:11px;font-weight:850}.drawer-backdrop{position:fixed;inset:0;z-index:78;background:rgba(0,0,0,.38)}.cart-drawer{position:fixed;right:0;top:0;bottom:0;z-index:79;width:min(470px,100vw);padding:22px;background:#fff;box-shadow:-18px 0 42px rgba(0,0,0,.16);overflow:auto;transform:translateX(105%);transition:transform .24s ease}.cart-drawer.open{transform:none}.cart-head{display:flex;justify-content:space-between;align-items:center;padding-bottom:16px;border-bottom:1px solid #ddd}.cart-head small{color:#777}.cart-head h2{margin:3px 0 0}.cart-head button{width:38px;height:38px;border:1px solid #ccc;border-radius:50%;background:#fff;font-size:22px;cursor:pointer}.cart-items{display:grid;gap:12px;padding:18px 0}.cart-empty{padding:26px 10px;text-align:center;color:#777}.cart-item{display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:10px;align-items:center;padding-bottom:12px;border-bottom:1px solid #eee}.cart-item-media{width:64px;height:78px;border-radius:8px;background:#f2f2f2;overflow:hidden}.cart-item-media img{width:100%;height:100%;object-fit:cover}.cart-item strong,.cart-item small{display:block}.cart-item strong{font-size:12px}.cart-item small{margin-top:4px;color:#777;font-size:10px}.cart-item-controls{display:grid;justify-items:end;gap:7px}.cart-qty{display:grid;grid-template-columns:28px 28px 28px;align-items:center}.cart-qty button{width:28px;height:28px;border:1px solid #ccc;background:#fff;cursor:pointer}.cart-qty b{text-align:center;font-size:11px}.cart-remove{border:0;background:transparent;color:var(--danger);font-size:9px;font-weight:850;cursor:pointer}.cart-summary{display:flex;justify-content:space-between;padding:15px 0;border-top:1px solid #ddd;border-bottom:1px solid #ddd}.cart-summary strong{font-size:19px}.checkout-form{display:grid;gap:11px;padding-top:18px}.checkout-form h3{margin:0 0 4px}.checkout-form label{display:grid;gap:5px;color:#555;font-size:10px;font-weight:800}.checkout-form input,.checkout-form select,.checkout-form textarea{width:100%;min-height:42px;border:1px solid #bbb;border-radius:8px;padding:9px 10px;background:#fff}.checkout-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.checkout-submit{min-height:46px;border:0;border-radius:999px;background:#111;color:#fff;font-size:11px;font-weight:950;text-transform:uppercase;cursor:pointer}.checkout-submit:disabled{opacity:.4;cursor:not-allowed}.checkout-note{color:#777;text-align:center;font-size:9px}
 .card-return{display:block;margin-top:5px;font-size:10px;font-weight:700;color:#9a3412}.detail-return{display:block;margin:4px 0 10px;font-size:13px;font-weight:700;color:#9a3412}
 @media(max-width:1050px){.header-main{grid-template-columns:1fr auto 1fr}.hero-inner{grid-template-columns:1fr 1fr}.hero-copy{padding:42px 34px}.benefits-inner{grid-template-columns:repeat(2,1fr)}.benefits article:nth-child(2){border-right:0}.collections-grid{grid-template-columns:repeat(4,1fr)}.featured-grid,.catalog-grid{grid-template-columns:repeat(3,1fr)}.detail-main{grid-template-columns:60px minmax(0,1fr) 320px}.detail-media{min-height:520px}}
-@media(max-width:820px){.top-strip{display:none}.header-main{height:auto;min-height:116px;grid-template-columns:auto 1fr auto;grid-template-rows:60px 48px;gap:0 10px}.header-search{display:block;grid-column:1/-1;grid-row:2;max-width:none;width:100%}.header-search input{height:40px}.header-search-tools{top:46px;width:100%}.brand-center{grid-column:1/3;grid-row:1;justify-self:start;display:flex;gap:9px}.brand-logo{width:52px;height:38px}.brand-name-mobile{display:block;font-size:13px}.quick-actions{grid-column:3;grid-row:1;gap:10px}.quick-action small{display:none}.quick-action{min-width:40px}.header-nav{overflow:visible}.header-nav-inner{justify-content:flex-start;width:max-content;min-width:100%;padding:0 14px;gap:26px}.nav-dropdown-menu{left:0;transform:none;min-width:210px}.hero-inner{grid-template-columns:1fr;min-height:0}.hero-copy{order:1;padding:34px 0 18px;text-align:center;align-items:center}.hero-copy h1{font-size:46px}.hero-visual{order:2;min-height:0;padding:8px 0 32px}.hero-brand-static{min-height:250px}.benefits-inner{width:100%;grid-template-columns:1fr 1fr}.benefits article{padding:14px}.professional-hero-inner{min-height:0;grid-template-columns:96px minmax(0,1fr);grid-template-areas:"foto copy" "autoridade autoridade" "acoes acoes";gap:12px 14px;padding:18px 0}.professional-photo{width:96px;height:118px;border-radius:16px}.professional-photo span{font-size:26px}.professional-copy h1{font-size:26px}.professional-copy>strong{font-size:12px}.professional-copy p{font-size:11px;line-height:1.4}.professional-authority{gap:6px}.professional-authority span{min-height:38px;padding:7px 9px}.professional-actions .btn-dark,.professional-actions .btn-light{flex:1;min-width:120px}.collections-grid{grid-template-columns:repeat(2,1fr)}.featured-grid{grid-template-columns:repeat(2,1fr)}.catalog-sidebar.open{grid-template-columns:1fr}.filter-block+.filter-block{padding:18px 0 0;border-left:0;border-top:1px solid #ddd}.catalog-toolbar{flex-wrap:wrap}.catalog-grid{grid-template-columns:repeat(2,1fr)}body.catalogo-formato-horizontal .catalog-grid{grid-template-columns:1fr}.about-section,.contact-grid{grid-template-columns:1fr;gap:26px}.detail-main{grid-template-columns:1fr}.detail-thumbs{order:2;display:flex;overflow:auto}.detail-thumb{flex:0 0 64px}.detail-media{order:1;min-height:420px}.detail-info{order:3;position:static;padding:10px 0}.detail-long-copy{margin:30px 0 0}.footer-main{grid-template-columns:1fr 1fr}.footer-bottom-inner{flex-direction:column;justify-content:center;padding:10px 0;text-align:center}}
-@media(max-width:540px){.quick-actions{gap:2px}.hero-copy h1{font-size:38px}.hero-copy p{font-size:14px}.hero-brand-static{grid-template-columns:1fr;justify-items:center;text-align:center;padding:22px}.hero-brand-frame{width:150px;height:150px}.hero-brand-static-copy{justify-items:center}.hero-brand-points{justify-content:center}.benefits-inner{grid-template-columns:1fr}.benefits article{border-right:0;border-bottom:1px solid #ddd}.benefits article:last-child{border-bottom:0}.section{padding:46px 0}.section-heading{align-items:flex-start;flex-direction:column}.section-heading h2{font-size:27px}.collections-grid,.featured-grid,.catalog-grid{grid-template-columns:1fr 1fr;gap:10px}.card-body{padding:9px}.card-copy h3{font-size:11px}.card-copy strong{font-size:14px}.card-actions{grid-template-columns:1fr}.card-peek{display:none}.contact-cards{grid-template-columns:1fr}.footer-main{grid-template-columns:1fr}.footer-bottom-inner{font-size:9px}.detail-shell{width:min(100% - 20px,1180px)}.detail-media{min-height:360px}.detail-variants{grid-template-columns:1fr}.checkout-grid{grid-template-columns:1fr}.cart-drawer{padding:16px}.cart-toast{right:12px;top:166px}}
+@media(max-width:820px){.service-intro-inner{min-height:0;grid-template-columns:1fr;gap:20px;padding:24px 0}.service-intro-copy{text-align:center}.service-intro-copy h1{font-size:38px}.service-intro-copy p{font-size:13px}.service-intro-actions{justify-content:center}.service-intro-brand{min-height:160px;grid-template-columns:82px minmax(0,1fr);grid-template-areas:"logo nome" "logo texto";justify-items:start;text-align:left;padding:16px 18px}.service-intro-logo{grid-area:logo;width:82px;height:82px}.service-intro-brand strong{grid-area:nome;align-self:end}.service-intro-brand small{grid-area:texto;align-self:start}.service-assurance-inner{grid-template-columns:1fr}.service-assurance article{min-height:74px;padding:13px 16px;border-right:0;border-bottom:1px solid #e5e5e5}.service-assurance article:last-child{border-bottom:0}.service-showcase-grid{grid-template-columns:1fr}.service-showcase-card{display:grid;grid-template-columns:118px minmax(0,1fr)}.service-showcase-media{height:100%;min-height:156px}.service-showcase-copy{padding:13px}.categoria-servicos .catalog-grid{grid-template-columns:1fr}.categoria-servicos .catalog-grid .store-card[data-tipo="servico"]{display:grid;grid-template-columns:118px minmax(0,1fr)}.categoria-servicos .catalog-grid .store-card[data-tipo="servico"] .card-media{height:100%;min-height:150px;aspect-ratio:auto}.categoria-servicos .catalog-grid .store-card[data-tipo="servico"] .card-body{align-content:center}.categoria-servicos .catalog-grid .store-card[data-tipo="servico"] .card-actions{grid-template-columns:1fr}.categoria-servicos .catalog-grid .store-card[data-tipo="servico"] .card-peek{display:none}.top-strip{display:none}.header-main{height:auto;min-height:116px;grid-template-columns:auto 1fr auto;grid-template-rows:60px 48px;gap:0 10px}.header-search{display:block;grid-column:1/-1;grid-row:2;max-width:none;width:100%}.header-search input{height:40px}.header-search-tools{top:46px;width:100%}.brand-center{grid-column:1/3;grid-row:1;justify-self:start;display:flex;gap:9px}.brand-logo{width:52px;height:38px}.brand-name-mobile{display:block;font-size:13px}.quick-actions{grid-column:3;grid-row:1;gap:10px}.quick-action small{display:none}.quick-action{min-width:40px}.header-nav{overflow:visible}.header-nav-inner{justify-content:flex-start;width:max-content;min-width:100%;padding:0 14px;gap:26px}.nav-dropdown-menu{left:0;transform:none;min-width:210px}.hero-inner{grid-template-columns:1fr;min-height:0}.hero-copy{order:1;padding:34px 0 18px;text-align:center;align-items:center}.hero-copy h1{font-size:46px}.hero-visual{order:2;min-height:0;padding:8px 0 32px}.hero-brand-static{min-height:250px}.benefits-inner{width:100%;grid-template-columns:1fr 1fr}.benefits article{padding:14px}.professional-hero-inner{min-height:0;grid-template-columns:96px minmax(0,1fr);grid-template-areas:"foto copy" "autoridade autoridade" "acoes acoes";gap:12px 14px;padding:18px 0}.professional-photo{width:96px;height:118px;border-radius:16px}.professional-photo span{font-size:26px}.professional-copy h1{font-size:26px}.professional-copy>strong{font-size:12px}.professional-copy p{font-size:11px;line-height:1.4}.professional-authority{gap:6px}.professional-authority span{min-height:38px;padding:7px 9px}.professional-actions .btn-dark,.professional-actions .btn-light{flex:1;min-width:120px}.collections-grid{grid-template-columns:repeat(2,1fr)}.featured-grid{grid-template-columns:repeat(2,1fr)}.catalog-sidebar.open{grid-template-columns:1fr}.filter-block+.filter-block{padding:18px 0 0;border-left:0;border-top:1px solid #ddd}.catalog-toolbar{flex-wrap:wrap}.catalog-grid{grid-template-columns:repeat(2,1fr)}body.catalogo-formato-horizontal .catalog-grid{grid-template-columns:1fr}.about-section,.contact-grid{grid-template-columns:1fr;gap:26px}.detail-main{grid-template-columns:1fr}.detail-thumbs{order:2;display:flex;overflow:auto}.detail-thumb{flex:0 0 64px}.detail-media{order:1;min-height:420px}.detail-info{order:3;position:static;padding:10px 0}.detail-long-copy{margin:30px 0 0}.footer-main{grid-template-columns:1fr 1fr}.footer-bottom-inner{flex-direction:column;justify-content:center;padding:10px 0;text-align:center}}
+@media(max-width:540px){.service-showcase-inner{padding:36px 0}.service-showcase-heading h2{font-size:28px}.service-showcase-card{grid-template-columns:104px minmax(0,1fr)}.service-showcase-media{min-height:144px}.service-showcase-copy h3{font-size:15px}.service-showcase-copy p{display:none}.categoria-servicos .section{padding:38px 0}.categoria-servicos .catalog-grid .store-card[data-tipo="servico"]{grid-template-columns:104px minmax(0,1fr)}.categoria-servicos .catalog-grid .store-card[data-tipo="servico"] .card-media{min-height:138px}.categoria-servicos .catalog-grid .store-card[data-tipo="servico"] .card-copy h3{font-size:14px}.quick-actions{gap:2px}.hero-copy h1{font-size:38px}.hero-copy p{font-size:14px}.hero-brand-static{grid-template-columns:1fr;justify-items:center;text-align:center;padding:22px}.hero-brand-frame{width:150px;height:150px}.hero-brand-static-copy{justify-items:center}.hero-brand-points{justify-content:center}.benefits-inner{grid-template-columns:1fr}.benefits article{border-right:0;border-bottom:1px solid #ddd}.benefits article:last-child{border-bottom:0}.section{padding:46px 0}.section-heading{align-items:flex-start;flex-direction:column}.section-heading h2{font-size:27px}.collections-grid,.featured-grid,.catalog-grid{grid-template-columns:1fr 1fr;gap:10px}.card-body{padding:9px}.card-copy h3{font-size:11px}.card-copy strong{font-size:14px}.card-actions{grid-template-columns:1fr}.card-peek{display:none}.contact-cards{grid-template-columns:1fr}.footer-main{grid-template-columns:1fr}.footer-bottom-inner{font-size:9px}.detail-shell{width:min(100% - 20px,1180px)}.detail-media{min-height:360px}.detail-variants{grid-template-columns:1fr}.checkout-grid{grid-template-columns:1fr}.cart-drawer{padding:16px}.cart-toast{right:12px;top:166px}}
 </style>'''
     estilo = (
         estilo.replace("__COR_PRINCIPAL__", cor_principal)
@@ -30996,17 +31060,18 @@ __MENSAGEM__
     <a href="#inicio">Início</a>
     __NAV_PRODUTOS____NAV_SERVICOS__
     <a href="#atendimento">Atendimento</a>
-    <a href="#quem-somos">Quem Somos</a>
+    __NAV_QUEM_SOMOS__
   </div></nav>
 </header>
 __TOPO_PUBLICO__
+__CONTEUDO_SERVICOS__
 <section class="section" id="destaques" __OCULTAR_DESTAQUES__>
   <div class="section-heading"><div><small>Seleção da loja</small><h2>Destaques</h2></div><button type="button" onclick="document.getElementById('catalogo').scrollIntoView({behavior:'smooth'})">Ver catálogo completo</button></div>
   <div class="featured-grid">__DESTAQUES__</div>
 </section>
 <section class="catalog-section" id="catalogo">
   <div class="section">
-    <div class="section-heading"><div><small>Catálogo</small><h2>Todos os itens</h2></div></div>
+    <div class="section-heading"><div><small>__CATALOGO_KICKER__</small><h2>__CATALOGO_TITULO__</h2></div></div>
     <div class="catalog-layout">
       <div>
         <p class="catalog-count" id="catalogCount"></p>
@@ -31016,13 +31081,10 @@ __TOPO_PUBLICO__
     </div>
   </div>
 </section>
-<section class="section about-section" id="quem-somos">
-  <div class="about-copy"><small>Quem Somos</small><h2>Sobre __NOME_LOJA__</h2><p>__DESCRICAO_EMPRESA__</p></div>
-  <div class="about-facts"><article class="about-fact"><strong>Catálogo atualizado</strong><small>Os itens publicados são administrados diretamente pelo GestFlow.</small></article><article class="about-fact"><strong>Atendimento direto</strong><small>Você fala com a própria empresa para confirmar detalhes da compra ou serviço.</small></article><article class="about-fact"><strong>Produtos e serviços</strong><small>A mesma vitrine pode reunir venda de produtos e agendamento de serviços.</small></article></div>
-</section>
+__ABOUT_SECTION__
 <section class="contact-section" id="atendimento"><div class="section contact-grid"><div class="contact-copy"><h2>Atendimento</h2><p>Ficou com alguma dúvida? Use um dos canais abaixo para falar diretamente com __NOME_LOJA__.</p></div><div class="contact-cards">__CONTATOS__</div></div></section>
 <footer class="footer">
-  <div class="footer-main"><div><h3>Departamentos</h3><a href="#inicio">Início</a><a href="#catalogo">Produtos e serviços</a><a href="#atendimento">Atendimento</a><a href="#quem-somos">Quem Somos</a></div><div><h3>Entre em contato</h3>__FOOTER_CONTATO__</div><div><h3>Permaneça conectado</h3><div class="footer-social-row">__FOOTER_SOCIAL__</div></div></div>
+  <div class="footer-main"><div><h3>Departamentos</h3><a href="#inicio">Início</a><a href="#catalogo">Produtos e serviços</a><a href="#atendimento">Atendimento</a>__FOOTER_QUEM_SOMOS__</div><div><h3>Entre em contato</h3>__FOOTER_CONTATO__</div><div><h3>Permaneça conectado</h3><div class="footer-social-row">__FOOTER_SOCIAL__</div></div></div>
   <div class="footer-bottom"><div class="footer-bottom-inner"><span>Copyright __NOME_LOJA____FOOTER_DOCUMENTO__ · 2026. Todos os direitos reservados.</span><span>criado com <a href="https://nettsan.com.br" target="_blank" rel="noopener">GestFlow / Nettsan</a></span></div></div>
 </footer>
 <div class="detail-layer" id="detailLayer" aria-hidden="true">
@@ -31126,6 +31188,20 @@ document.addEventListener('DOMContentLoaded',()=>{if(document.getElementById('st
     if not footer_social:
         footer_social = '<a href="#inicio" aria-label="Início">⌂</a>'
 
+    nav_quem_somos = "" if modo_publico_servicos else '<a href="#quem-somos">Quem Somos</a>'
+    footer_quem_somos = "" if modo_publico_servicos else '<a href="#quem-somos">Quem Somos</a>'
+    if modo_publico_servicos:
+        catalogo_kicker = "Serviços disponíveis"
+        catalogo_titulo = "Todos os atendimentos" if tem_servicos else "Opções disponíveis"
+        about_section_html = ""
+    else:
+        catalogo_kicker = "Catálogo"
+        catalogo_titulo = "Todos os itens"
+        about_section_html = f'''<section class="section about-section" id="quem-somos">
+  <div class="about-copy"><small>Quem Somos</small><h2>Sobre {nome_loja}</h2><p>{texto_institucional}</p></div>
+  <div class="about-facts"><article class="about-fact"><strong>Catálogo atualizado</strong><small>Os itens publicados são administrados diretamente pelo GestFlow.</small></article><article class="about-fact"><strong>Atendimento direto</strong><small>Você fala com a própria empresa para confirmar detalhes da compra ou serviço.</small></article><article class="about-fact"><strong>Produtos e serviços</strong><small>A mesma vitrine pode reunir venda de produtos e agendamento de serviços.</small></article></div>
+</section>'''
+
     substituicoes = {
         "__COR_PRINCIPAL__": cor_principal,
         "__TITULO_SEO__": titulo_seo,
@@ -31144,6 +31220,8 @@ document.addEventListener('DOMContentLoaded',()=>{if(document.getElementById('st
         "__NAV_PRODUTOS__": nav_produtos,
         "__NAV_SERVICOS__": nav_servicos,
         "__TOPO_PUBLICO__": topo_publico_html,
+        "__CONTEUDO_SERVICOS__": conteudo_servicos_html,
+        "__NAV_QUEM_SOMOS__": nav_quem_somos,
         "__HERO_KICKER__": hero_kicker,
         "__HERO_TITULO__": hero_titulo,
         "__DESCRICAO_EMPRESA__": texto_institucional,
@@ -31152,8 +31230,12 @@ document.addEventListener('DOMContentLoaded',()=>{if(document.getElementById('st
         "__BENEFICIOS__": beneficios_html,
         "__OCULTAR_COLECOES__": "" if categorias_html else "hidden",
         "__COLECOES__": categorias_html,
-        "__OCULTAR_DESTAQUES__": "" if destaques_html else "hidden",
+        "__OCULTAR_DESTAQUES__": "hidden" if modo_publico_servicos else ("" if destaques_html else "hidden"),
         "__DESTAQUES__": destaques_html,
+        "__CATALOGO_KICKER__": catalogo_kicker,
+        "__CATALOGO_TITULO__": catalogo_titulo,
+        "__ABOUT_SECTION__": about_section_html,
+        "__FOOTER_QUEM_SOMOS__": footer_quem_somos,
         "__FILTROS_CATEGORIAS__": filtros_categorias,
         "__CATALOGO__": catalogo_html,
         "__CONTATOS__": contato_cards_html,
