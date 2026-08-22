@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\admin\routes.py
-# Último recode: 2026-08-21 06:43 (America/Bahia)
-# Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+# Último recode: 2026-08-22 15:54 (America/Bahia)
+# Motivo: Criar automaticamente o vínculo GestFlow/IndFlow no primeiro acesso SSO válido, sem exigir cadastro manual do cliente.
 
 from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for, render_template_string
 from datetime import datetime
@@ -522,6 +522,144 @@ def _get_gestflow_sso_link(gestflow_empresa_id: int, gestflow_usuario_id: int):
         conn.close()
 
 
+def _provision_gestflow_sso_link(gestflow_empresa_id: int, gestflow_usuario_id: int) -> dict:
+    """Cria o vínculo interno do IndFlow no primeiro SSO válido do GestFlow."""
+    now = datetime.utcnow().isoformat()
+    conn = get_db()
+
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+
+        empresa_row = conn.execute(
+            """
+            SELECT indflow_cliente_id, status
+            FROM integracao_gestflow_empresas
+            WHERE gestflow_empresa_id = ?
+            LIMIT 1
+            """,
+            (gestflow_empresa_id,),
+        ).fetchone()
+
+        if empresa_row:
+            if (empresa_row["status"] or "").strip().lower() != "active":
+                raise ValueError("vinculo da empresa inativo")
+            cliente_id = str(empresa_row["indflow_cliente_id"] or "").strip()
+            cliente_row = conn.execute(
+                "SELECT id, status FROM clientes WHERE id = ? LIMIT 1",
+                (cliente_id,),
+            ).fetchone()
+            if not cliente_row:
+                raise ValueError("cliente vinculado inexistente")
+            if (cliente_row["status"] or "").strip().lower() != "active":
+                raise ValueError("cliente inativo")
+        else:
+            cliente_id = str(uuid.uuid4())
+            cliente_nome = f"GestFlow Empresa {gestflow_empresa_id}"
+            api_key_hash = _sha256(secrets.token_urlsafe(48))
+
+            conn.execute(
+                """
+                INSERT INTO clientes (id, nome, api_key_hash, status, created_at)
+                VALUES (?, ?, ?, 'active', ?)
+                """,
+                (cliente_id, cliente_nome, api_key_hash, now),
+            )
+            conn.execute(
+                """
+                INSERT INTO integracao_gestflow_empresas (
+                    gestflow_empresa_id, indflow_cliente_id, status, created_at, updated_at
+                ) VALUES (?, ?, 'active', ?, ?)
+                """,
+                (gestflow_empresa_id, cliente_id, now, now),
+            )
+
+        usuario_link = conn.execute(
+            """
+            SELECT indflow_usuario_id, indflow_cliente_id, status
+            FROM integracao_gestflow_usuarios
+            WHERE gestflow_empresa_id = ? AND gestflow_usuario_id = ?
+            LIMIT 1
+            """,
+            (gestflow_empresa_id, gestflow_usuario_id),
+        ).fetchone()
+
+        if usuario_link:
+            if (usuario_link["status"] or "").strip().lower() != "active":
+                raise ValueError("vinculo do usuario inativo")
+            if str(usuario_link["indflow_cliente_id"] or "").strip() != cliente_id:
+                raise ValueError("vinculo do usuario inconsistente")
+        else:
+            total_usuarios_empresa = int(
+                conn.execute(
+                    """
+                    SELECT COUNT(1)
+                    FROM integracao_gestflow_usuarios
+                    WHERE gestflow_empresa_id = ? AND status = 'active'
+                    """,
+                    (gestflow_empresa_id,),
+                ).fetchone()[0]
+                or 0
+            )
+            role = "admin" if total_usuarios_empresa == 0 else "viewer"
+            email = f"gestflow-{gestflow_empresa_id}-{gestflow_usuario_id}@sso.indflow.local"
+
+            usuario_row = conn.execute(
+                "SELECT id, cliente_id, status FROM usuarios WHERE email = ? LIMIT 1",
+                (email,),
+            ).fetchone()
+
+            if usuario_row:
+                if str(usuario_row["cliente_id"] or "").strip() != cliente_id:
+                    raise ValueError("usuario SSO associado a outro cliente")
+                if (usuario_row["status"] or "").strip().lower() != "active":
+                    raise ValueError("usuario SSO inativo")
+                indflow_usuario_id = str(usuario_row["id"])
+            else:
+                indflow_usuario_id = str(uuid.uuid4())
+                senha_hash = _sha256(secrets.token_urlsafe(48))
+                conn.execute(
+                    """
+                    INSERT INTO usuarios (
+                        id, email, senha_hash, cliente_id, role, status, created_at
+                    ) VALUES (?, ?, ?, ?, ?, 'active', ?)
+                    """,
+                    (indflow_usuario_id, email, senha_hash, cliente_id, role, now),
+                )
+
+            conn.execute(
+                """
+                INSERT INTO integracao_gestflow_usuarios (
+                    gestflow_empresa_id,
+                    gestflow_usuario_id,
+                    indflow_usuario_id,
+                    indflow_cliente_id,
+                    status,
+                    last_sso_at,
+                    created_at,
+                    updated_at
+                ) VALUES (?, ?, ?, ?, 'active', NULL, ?, ?)
+                """,
+                (
+                    gestflow_empresa_id,
+                    gestflow_usuario_id,
+                    indflow_usuario_id,
+                    cliente_id,
+                    now,
+                    now,
+                ),
+            )
+
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+    link = _get_gestflow_sso_link(gestflow_empresa_id, gestflow_usuario_id)
+    return _validate_gestflow_sso_link(link)
+
+
 def _validate_gestflow_sso_link(link: dict | None) -> dict:
     if not link:
         raise ValueError("vinculo ausente")
@@ -607,11 +745,14 @@ def sso_gestflow():
 
     try:
         link = _get_gestflow_sso_link(payload["empresa_id"], payload["usuario_id"])
-        link = _validate_gestflow_sso_link(link)
+        if link is None:
+            link = _provision_gestflow_sso_link(payload["empresa_id"], payload["usuario_id"])
+        else:
+            link = _validate_gestflow_sso_link(link)
     except ValueError:
         return "Empresa ou usuario sem vinculo ativo com o IndFlow.", 403
     except Exception:
-        return "Nao foi possivel validar o vinculo GestFlow/IndFlow.", 500
+        return "Nao foi possivel preparar o acesso GestFlow/IndFlow.", 500
 
     session.clear()
     session["user_id"] = link["indflow_usuario_id"]
