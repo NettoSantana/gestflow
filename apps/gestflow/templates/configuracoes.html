@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\configuracoes.html
-Último recode: 2026-08-22 11:56 (America/Bahia)
-Motivo: Organizar a gestão de módulos em Núcleo GestFlow, módulos operacionais e módulos especializados, protegendo o núcleo obrigatório.
+Último recode: 2026-08-22 12:18 (America/Bahia)
+Motivo: Adicionar laboratório exclusivo da DEV para refazer anamnese e tutorial inicial completos sem apagar dados da empresa.
 #}
 
 <!DOCTYPE html>
@@ -872,13 +872,15 @@ Motivo: Organizar a gestão de módulos em Núcleo GestFlow, módulos operaciona
                             </div>
                         </div>
 
+                        {% if ambiente_dev %}
                         <div class="module-anamnese-box">
                             <div>
-                                <strong>Anamnese de módulos</strong>
-                                <p class="page-subtitle">Use a anamnese para o sistema sugerir os módulos conforme segmento, operação, comercial, OS, estoque e financeiro.</p>
+                                <strong>Teste da primeira entrada — DEV</strong>
+                                <p class="page-subtitle">Refaz a anamnese e, ao concluir, inicia novamente o onboarding/tutorial da empresa atual. Nenhum cliente, venda, orçamento, estoque, financeiro ou outro dado operacional é apagado.</p>
                             </div>
-                            <button type="submit" form="refazer-anamnese-form" class="btn-dark">Refazer anamnese</button>
+                            <button type="submit" form="refazer-anamnese-form" class="btn-dark" onclick="return confirm('Refazer a anamnese e o onboarding de teste desta empresa? Nenhum dado operacional será apagado.');">Testar primeira entrada completa</button>
                         </div>
+                        {% endif %}
 
                         <div class="module-section-heading">
                             <div>
@@ -953,7 +955,9 @@ Motivo: Organizar a gestão de módulos em Núcleo GestFlow, módulos operaciona
                         </div>
                     </form>
 
+                    {% if ambiente_dev %}
                     <form id="refazer-anamnese-form" action="/configuracoes/modulos/refazer-anamnese" method="post"></form>
+                    {% endif %}
 
                     <script>
                         document.addEventListener('DOMContentLoaded', function () {

@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\app.py
-# Último recode: 2026-08-22 11:56 (America/Bahia)
-# Motivo: Atualizar a anamnese inicial, organizar módulos em núcleo/operacionais/especializados e criar tutorial inicial orientado por missões.
+# Último recode: 2026-08-22 12:18 (America/Bahia)
+# Motivo: Adicionar teste exclusivo da DEV para refazer a experiência inicial completa, incluindo anamnese e tutorial, sem apagar dados operacionais.
 
 from __future__ import annotations
 
@@ -25301,6 +25301,7 @@ def configuracoes(grupo: str | None = None) -> str:
         modulos_nucleo=GESTFLOW_MODULOS_NUCLEO,
         modulos_operacionais=GESTFLOW_MODULOS_OPERACIONAIS,
         modulos_especializados=GESTFLOW_MODULOS_ESPECIALIZADOS,
+        ambiente_dev=ambiente_reset_base_dev_liberado(),
         perfis_usuario=contexto["perfis_usuario"],
         modulos_permissoes=contexto["modulos_permissoes"],
         acoes_permissao=contexto["acoes_permissao"],
@@ -25462,17 +25463,39 @@ def restaurar_regras_configuracao_modulo(codigo: str) -> Response:
 
 @app.post("/configuracoes/modulos/refazer-anamnese")
 def refazer_anamnese_modulos() -> Response:
+    if not ambiente_reset_base_dev_liberado():
+        return Response("Recurso disponível somente no ambiente DEV.", status=404)
+
     with conectar_db() as conn:
         conn.execute(
             """
             UPDATE empresas
-            SET onboarding_modulos_concluido = 'nao'
+            SET
+                onboarding_concluido = 'nao',
+                onboarding_modulos_concluido = 'nao',
+                onboarding_ramo = '',
+                onboarding_segmento = '',
+                onboarding_nivel = '',
+                onboarding_objetivos = '',
+                onboarding_operacao = '',
+                onboarding_ferramenta_atual = '',
+                onboarding_canal_contato = '',
+                onboarding_respostas = '',
+                onboarding_perfil_sugerido = '',
+                onboarding_modulos_atualizado_em = NULL,
+                tour_concluido = 'nao'
             WHERE id = ?
             """,
             (empresa_logada_id(),),
         )
         conn.commit()
 
+    registrar_atividade_usuario(
+        "edicao",
+        "configuracoes",
+        "Reiniciou a experiência inicial de teste na DEV: anamnese e tutorial.",
+        registro_id=empresa_logada_id(),
+    )
     return redirect(url_for("onboarding"))
 
 
