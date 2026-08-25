@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_gerador.html
-Último recode: 2026-08-20 19:18 (America/Bahia)
-Motivo: Consumir os status configuráveis do Orçamento na Revisão do Gerador e finalizar com geração de Venda apenas pelo status finalizador.
+Último recode: 2026-08-25 09:32 (America/Bahia)
+Motivo: Tornar a busca de materiais digitável e incluir quantidade comercial por atividade no Gerador de Orçamentos, preservando o custo técnico total.
 -->
 
 <!DOCTYPE html>
@@ -1053,13 +1053,28 @@ Motivo: Consumir os status configuráveis do Orçamento na Revisão do Gerador e
 
         .gerador-atividade-identificacao {
             display: grid;
-            grid-template-columns: minmax(220px, .75fr) minmax(300px, 1.25fr);
+            grid-template-columns: minmax(220px, .75fr) minmax(300px, 1.25fr) minmax(110px, .3fr);
             gap: 12px;
             margin-bottom: 16px;
         }
 
         .gerador-atividade-identificacao .form-group {
             margin: 0;
+        }
+
+        .gerador-atividade-quantidade input {
+            text-align: center;
+            font-weight: 800;
+        }
+
+        .gerador-material-busca {
+            display: grid;
+            gap: 6px;
+            min-width: 210px;
+        }
+
+        .gerador-material-filtro {
+            min-width: 0;
         }
 
         .gerador-atividade-subsecao {
@@ -1780,6 +1795,40 @@ function opcoesMateriais() {
     return html;
 }
 
+function filtrarMateriais(campo) {
+    const bloco = campo?.closest('.gerador-material-busca');
+    const select = bloco?.querySelector('.material-select');
+    if (!select) return;
+
+    const termo = textoMaiusculoTecnico(campo.value || '');
+    let correspondenciaExata = null;
+
+    Array.from(select.options).forEach(function(option, indice) {
+        const sempreVisivel = indice === 0 || option.value === '__novo_material__';
+        const textoOpcao = textoMaiusculoTecnico(option.textContent || '');
+        const corresponde = sempreVisivel || !termo || textoOpcao.includes(termo);
+        option.hidden = !corresponde;
+        if (!sempreVisivel && termo && textoOpcao === termo) correspondenciaExata = option;
+    });
+
+    if (!termo) {
+        Array.from(select.options).forEach(option => { option.hidden = false; });
+        return;
+    }
+
+    if (correspondenciaExata) {
+        select.value = correspondenciaExata.value;
+        const linha = select.closest('tr');
+        if (linha) {
+            linha.querySelector('[name="material_unidade"]').value = correspondenciaExata.dataset.unidade || 'un';
+            linha.querySelector('[name="material_valor_unitario"]').value = correspondenciaExata.dataset.custo || '';
+        }
+        recalcularGerador();
+    } else if (select.value && textoMaiusculoTecnico(select.selectedOptions[0]?.textContent || '') !== termo) {
+        select.value = '';
+    }
+}
+
 function opcoesFuncionarios() {
     let html = '<option value="">Buscar funcionário</option>';
     funcionariosCatalogo.forEach(function(item) {
@@ -1934,6 +1983,7 @@ function coletarAtividade(card) {
     return {
         nome: card.querySelector('[name="atividade_nome"]')?.value || '',
         descricao: card.querySelector('[name="atividade_descricao"]')?.value || '',
+        quantidade: card.querySelector('[name="atividade_quantidade"]')?.value || '1',
         materiais: Array.from(card.querySelectorAll('.gerador-material-row')).map(dadosMaterialLinha),
         mao_obra: Array.from(card.querySelectorAll('.gerador-mao-row')).map(dadosMaoObraLinha),
         adicionais_mao_obra: Array.from(card.querySelectorAll('.adicional-mao-obra-card')).map(dadosAdicionalCard),
@@ -1980,6 +2030,11 @@ function adicionarAtividade(dados = {}, expandir = true) {
                 <div class="form-group">
                     <label>Descrição da atividade</label>
                     <textarea name="atividade_descricao" class="form-control atividade-descricao" rows="2" placeholder="Descreva resumidamente o que será executado nesta atividade.">${textoSeguro(dados.descricao || '')}</textarea>
+                </div>
+                <div class="form-group gerador-atividade-quantidade">
+                    <label>Qtd.</label>
+                    <input name="atividade_quantidade" type="text" inputmode="decimal" class="form-control atividade-quantidade" value="${textoSeguro(dados.quantidade || '1')}" aria-label="Quantidade comercial da atividade">
+                    <small>Quantidade exibida na proposta.</small>
                 </div>
             </div>
 
@@ -2035,7 +2090,8 @@ function adicionarAtividade(dados = {}, expandir = true) {
 
     const nome = card.querySelector('.atividade-nome');
     const descricao = card.querySelector('.atividade-descricao');
-    [nome, descricao].forEach(function(campo) {
+    const quantidade = card.querySelector('.atividade-quantidade');
+    [nome, descricao, quantidade].forEach(function(campo) {
         campo?.addEventListener('input', function() {
             atualizarCabecalhoAtividade(card);
             recalcularGerador();
@@ -2104,7 +2160,13 @@ function adicionarMaterial(dados = {}, atividadeId = '') {
     const tr = document.createElement('tr');
     tr.className = 'gerador-mobile-row gerador-material-row';
     tr.innerHTML = `
-        <td data-label="Material"><input name="material_atividade_id" type="hidden" value="${textoSeguro(id)}"><select name="material_descricao" class="form-control gerador-input material-select">${opcoesMateriais()}</select></td>
+        <td data-label="Material">
+            <input name="material_atividade_id" type="hidden" value="${textoSeguro(id)}">
+            <div class="gerador-material-busca">
+                <input type="search" class="form-control gerador-material-filtro" placeholder="Digite para buscar material" autocomplete="off" aria-label="Buscar material" oninput="filtrarMateriais(this)">
+                <select name="material_descricao" class="form-control gerador-input material-select">${opcoesMateriais()}</select>
+            </div>
+        </td>
         <td data-label="Unidade"><input name="material_unidade" type="text" class="form-control gerador-input" value="${textoSeguro(dados.unidade || 'un')}"></td>
         <td data-label="Quantidade"><input name="material_quantidade" type="text" class="form-control gerador-input" value="${textoSeguro(dados.quantidade || '1')}"></td>
         <td data-label="Custo unitário"><input name="material_valor_unitario" type="text" class="form-control gerador-input" placeholder="0,00" value="${textoSeguro(dados.valor ?? dados.valor_unitario ?? '')}"></td>
@@ -2645,6 +2707,8 @@ function conectarEventosGerador(raiz) {
             if (option) {
                 linha.querySelector('[name="material_unidade"]').value = option.dataset.unidade || 'un';
                 linha.querySelector('[name="material_valor_unitario"]').value = option.dataset.custo || '';
+                const filtro = linha.querySelector('.gerador-material-filtro');
+                if (filtro && select.value) filtro.value = option.textContent || select.value;
             }
             recalcularGerador();
         });
@@ -2982,6 +3046,8 @@ function salvarMaterialRapido() {
             if (materialLinhaAlvo) {
                 const select = materialLinhaAlvo.querySelector('.material-select');
                 select.value = item.nome;
+                const filtro = materialLinhaAlvo.querySelector('.gerador-material-filtro');
+                if (filtro) filtro.value = item.nome;
                 materialLinhaAlvo.querySelector('[name="material_unidade"]').value = item.unidade || 'un';
                 materialLinhaAlvo.querySelector('[name="material_valor_unitario"]').value = item.preco_custo || item.preco_venda || item.valor || '';
             }
