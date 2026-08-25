@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-25 09:32 (America/Bahia)
-# Motivo: Persistir a quantidade comercial por atividade do Gerador e refletir a QTD na proposta sem multiplicar novamente o custo técnico.
+# Último recode: 2026-08-25 10:07 (America/Bahia)
+# Motivo: Preservar a quantidade comercial informada por atividade ao ajustar a proposta ao valor final, recalculando o valor unitário sem alterar o subtotal.
 
 from __future__ import annotations
 
@@ -12704,8 +12704,10 @@ def ajustar_itens_apresentacao_ao_total(
     ajustados: list[dict[str, Any]] = []
 
     for item, valor in zip(validos, valores):
-        item["quantidade"] = "1"
-        item["valor_unitario"] = _formatar_moeda_brl(valor)
+        quantidade = max(_converter_valor_brl(item.get("quantidade")) or 1.0, 0.01)
+        valor_unitario = valor / quantidade if quantidade > 0 else valor
+        item["quantidade"] = _formatar_numero_estoque(quantidade)
+        item["valor_unitario"] = _formatar_moeda_brl(valor_unitario)
         item["subtotal"] = _formatar_moeda_brl(valor)
         ajustados.append(item)
 
