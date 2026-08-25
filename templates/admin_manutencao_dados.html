@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\admin_manutencao_dados.html
-Último recode: 2026-08-12 22:14 (America/Bahia)
-Motivo: Liberar reset controlado no MAIN/produção com identificação visual, nome exato da empresa e frases reforçadas de confirmação.
+Último recode: 2026-08-25 12:42 (America/Bahia)
+Motivo: Padronizar na MAIN a busca administrativa de empresa com o mesmo campo único pesquisável validado no DEV.
 #}
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -10,6 +10,7 @@ Motivo: Liberar reset controlado no MAIN/produção com identificação visual, 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manutenção de dados - GestFlow</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <script src="/static/js/searchable_select.js" defer></script>
 </head>
 <body>
     {% include 'partials/sidebar.html' %}

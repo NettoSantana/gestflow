@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\partials\topbar.html
-Último recode: 2026-07-28 04:45 (America/Bahia)
-Motivo: Transformar o sino em uma central interna de notificações clicável e acessível.
+Último recode: 2026-08-25 12:42 (America/Bahia)
+Motivo: Carregar na MAIN o componente único de busca pesquisável validado no DEV para todas as telas internas.
 #}
 {% set _usuario_topbar = usuario_logado|default({}, true) %}
 {% set _empresa_topbar = empresa_topbar|default({}, true) %}
@@ -549,3 +549,5 @@ Motivo: Transformar o sino em uma central interna de notificações clicável e 
     });
 })();
 </script>
+
+<script src="/static/js/searchable_select.js" defer></script>

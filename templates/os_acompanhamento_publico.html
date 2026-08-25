@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\os_acompanhamento_publico.html
-Último recode: 2026-07-23 00:18 (America/Bahia)
-Motivo: Aplicar fotos, equipamentos, QR Code, evidências e regras de encerramento configuradas por empresa.
+Último recode: 2026-08-25 12:42 (America/Bahia)
+Motivo: Padronizar na MAIN as buscas públicas de funcionário, produto e serviço com o mesmo campo único pesquisável validado no DEV.
 -->
 
 <!DOCTYPE html>
@@ -575,6 +575,7 @@ Motivo: Aplicar fotos, equipamentos, QR Code, evidências e regras de encerramen
             .public-os-photo-gallery { grid-template-columns: 1fr; }
         }
     </style>
+    <script src="/static/js/searchable_select.js" defer></script>
 </head>
 <body>
 {% set tecnico = modo_publico == 'tecnico' %}

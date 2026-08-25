@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\vitrine.html
-Último recode: 2026-08-20 18:18 (America/Bahia)
-Motivo: Adicionar programação de retorno para produtos indisponíveis, com data, indicação visual e ação para disponibilizar imediatamente.
+Último recode: 2026-08-25 12:42 (America/Bahia)
+Motivo: Aplicar na MAIN à Central da Vitrine o componente único de busca pesquisável validado no DEV, pois esta tela não utiliza o topbar compartilhado.
 #}
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -10,6 +10,7 @@ Motivo: Adicionar programação de retorno para produtos indisponíveis, com dat
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vitrine Online - GestFlow</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <script src="/static/js/searchable_select.js" defer></script>
 </head>
 <body class="focus-mode-body">
 
