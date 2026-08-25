@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_gerador.html
-Último recode: 2026-08-25 09:32 (America/Bahia)
-Motivo: Tornar a busca de materiais digitável e incluir quantidade comercial por atividade no Gerador de Orçamentos, preservando o custo técnico total.
+Último recode: 2026-08-25 10:22 (America/Bahia)
+Motivo: Fazer a quantidade da atividade multiplicar toda a composição técnica e o cálculo comercial do Gerador, mantendo a composição interna como custo por unidade.
 -->
 
 <!DOCTYPE html>
@@ -2012,7 +2012,7 @@ function adicionarAtividade(dados = {}, expandir = true) {
                 </span>
             </button>
             <div class="gerador-atividade-acoes">
-                <div class="gerador-atividade-custo"><span>Custo da atividade</span><strong class="atividade-total">R$ 0,00</strong></div>
+                <div class="gerador-atividade-custo"><span>Custo total da atividade</span><strong class="atividade-total">R$ 0,00</strong></div>
                 <button type="button" class="gerador-atividade-btn" onclick="duplicarAtividade(this)">Duplicar</button>
                 <button type="button" class="gerador-atividade-btn excluir" onclick="removerAtividade(this)">Excluir</button>
                 <button type="button" class="gerador-atividade-btn gerador-atividade-chevron" onclick="alternarAtividade(this)" aria-label="Abrir ou fechar atividade">⌄</button>
@@ -2034,7 +2034,7 @@ function adicionarAtividade(dados = {}, expandir = true) {
                 <div class="form-group gerador-atividade-quantidade">
                     <label>Qtd.</label>
                     <input name="atividade_quantidade" type="text" inputmode="decimal" class="form-control atividade-quantidade" value="${textoSeguro(dados.quantidade || '1')}" aria-label="Quantidade comercial da atividade">
-                    <small>Quantidade exibida na proposta.</small>
+                    <small>Multiplica toda a composição e aparece na proposta.</small>
                 </div>
             </div>
 
@@ -2741,14 +2741,25 @@ function recalcularGerador() {
     let custoAdicional = 0;
     let custoGeral = 0;
     const totaisAtividades = new Map();
+    const quantidadesAtividades = new Map();
 
     document.querySelectorAll('.gerador-atividade-card').forEach(function(card) {
-        totaisAtividades.set(card.dataset.atividadeId || '', 0);
+        const atividadeId = card.dataset.atividadeId || '';
+        const quantidade = Math.max(numero(card.querySelector('[name="atividade_quantidade"]')?.value) || 1, 0.01);
+        totaisAtividades.set(atividadeId, 0);
+        quantidadesAtividades.set(atividadeId, quantidade);
     });
 
-    const somarAtividade = function(atividadeId, valor) {
-        if (!atividadeId || !totaisAtividades.has(atividadeId)) return;
-        totaisAtividades.set(atividadeId, (totaisAtividades.get(atividadeId) || 0) + valor);
+    const multiplicadorAtividade = function(atividadeId) {
+        if (!atividadeId) return 1;
+        return quantidadesAtividades.get(atividadeId) || 1;
+    };
+
+    const somarAtividade = function(atividadeId, valorUnitario) {
+        if (!atividadeId || !totaisAtividades.has(atividadeId)) return 0;
+        const valorTotal = valorUnitario * multiplicadorAtividade(atividadeId);
+        totaisAtividades.set(atividadeId, (totaisAtividades.get(atividadeId) || 0) + valorTotal);
+        return valorTotal;
     };
 
     document.querySelectorAll('.gerador-material-row').forEach(function(tr) {
@@ -2757,8 +2768,8 @@ function recalcularGerador() {
         const perda = numero(tr.querySelector('[name="material_perda_percentual"]')?.value);
         const total = qtd * unit * (1 + perda / 100);
         const atividadeId = tr.querySelector('[name="material_atividade_id"]')?.value || '';
-        custoMaterial += total;
-        somarAtividade(atividadeId, total);
+        const totalAtividade = somarAtividade(atividadeId, total);
+        custoMaterial += atividadeId ? totalAtividade : total;
         const totalEl = tr.querySelector('.linha-total');
         if (totalEl) totalEl.textContent = moeda(total);
     });
@@ -2776,8 +2787,8 @@ function recalcularGerador() {
         const custoTransporte = pessoas * diasEstimados * transporteDia;
         const total = custoBase + custoAlimentacao + custoTransporte;
         const atividadeId = tr.querySelector('[name="mao_atividade_id"]')?.value || '';
-        custoMao += total;
-        somarAtividade(atividadeId, total);
+        const totalAtividade = somarAtividade(atividadeId, total);
+        custoMao += atividadeId ? totalAtividade : total;
         const totalEl = tr.querySelector('.linha-total');
         if (totalEl) totalEl.textContent = moeda(total);
     });
@@ -2785,16 +2796,19 @@ function recalcularGerador() {
     document.querySelectorAll('.adicional-mao-obra-card').forEach(function(card) {
         const total = calcularAdicionalMaoObra(card);
         const atividadeId = card.querySelector('[name="adicional_atividade_id"]')?.value || '';
-        custoAdicionaisMao += total;
-        somarAtividade(atividadeId, total);
+        const totalAtividade = somarAtividade(atividadeId, total);
+        custoAdicionaisMao += atividadeId ? totalAtividade : total;
     });
 
     document.querySelectorAll('.gerador-custo-row').forEach(function(tr) {
         const valor = numero(tr.querySelector('[name="custo_valor"]')?.value);
         const atividadeId = tr.querySelector('[name="custo_atividade_id"]')?.value || '';
-        custoAdicional += valor;
-        if (atividadeId) somarAtividade(atividadeId, valor);
-        else custoGeral += valor;
+        if (atividadeId) {
+            custoAdicional += somarAtividade(atividadeId, valor);
+        } else {
+            custoAdicional += valor;
+            custoGeral += valor;
+        }
     });
 
     document.querySelectorAll('.gerador-atividade-card').forEach(function(card) {
