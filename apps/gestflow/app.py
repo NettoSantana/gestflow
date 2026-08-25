@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\app.py
-# Último recode: 2026-08-22 16:26 (America/Bahia)
-# Motivo: Criar apresentação pública específica para Serviços e atendimentos, priorizando profissional, autoridade, serviços, agendamento e contato no celular.
+# Último recode: 2026-08-25 09:32 (America/Bahia)
+# Motivo: Persistir a quantidade comercial por atividade do Gerador e refletir a QTD na proposta sem multiplicar novamente o custo técnico.
 
 from __future__ import annotations
 
@@ -13014,6 +13014,7 @@ def _normalizar_atividades_gerador(
                 "id": atividade_id,
                 "nome": str(atividade.get("nome") or f"Atividade {indice + 1:02d}").strip() or f"Atividade {indice + 1:02d}",
                 "descricao": normalizar_texto_multilinha(atividade.get("descricao")),
+                "quantidade": max(_converter_valor_brl(atividade.get("quantidade")) or 1.0, 0.01),
                 "ordem": max(ordem, 1),
             }
         )
@@ -13034,6 +13035,7 @@ def _normalizar_atividades_gerador(
                 "id": atividade_id,
                 "nome": f"Atividade {len(normalizadas) + 1:02d}",
                 "descricao": "",
+                "quantidade": 1.0,
                 "ordem": len(normalizadas) + 1,
             }
         )
@@ -13045,6 +13047,7 @@ def _normalizar_atividades_gerador(
                 "id": "atividade-1",
                 "nome": "Serviço principal",
                 "descricao": "",
+                "quantidade": 1.0,
                 "ordem": 1,
             }
         )
@@ -14194,6 +14197,7 @@ def montar_gerador_orcamento_formulario() -> dict[str, Any]:
     atividade_ids = _limpar_lista_formulario("atividade_id")
     atividade_nomes = _limpar_lista_formulario("atividade_nome")
     atividade_descricoes = _limpar_lista_formulario("atividade_descricao")
+    atividade_quantidades = _limpar_lista_formulario("atividade_quantidade")
     atividade_ordens = _limpar_lista_formulario("atividade_ordem")
 
     atividades: list[dict[str, Any]] = []
@@ -14202,6 +14206,7 @@ def montar_gerador_orcamento_formulario() -> dict[str, Any]:
         len(atividade_ids),
         len(atividade_nomes),
         len(atividade_descricoes),
+        len(atividade_quantidades),
         len(atividade_ordens),
         0,
     )
@@ -14219,6 +14224,7 @@ def montar_gerador_orcamento_formulario() -> dict[str, Any]:
 
         nome = _gerador_item_valor(atividade_nomes, indice) or f"Atividade {indice + 1:02d}"
         descricao = normalizar_texto_multilinha(_gerador_item_valor(atividade_descricoes, indice))
+        quantidade = max(_converter_valor_brl(_gerador_item_valor(atividade_quantidades, indice)) or 1.0, 0.01)
         try:
             ordem = int(float(_gerador_item_valor(atividade_ordens, indice) or indice + 1))
         except (TypeError, ValueError):
@@ -14229,13 +14235,14 @@ def montar_gerador_orcamento_formulario() -> dict[str, Any]:
                 "id": atividade_id,
                 "nome": nome,
                 "descricao": descricao,
+                "quantidade": quantidade,
                 "ordem": max(ordem, 1),
             }
         )
         ids_usados.add(atividade_id)
 
     if not atividades:
-        atividades = [{"id": "atividade-1", "nome": "Serviço principal", "descricao": "", "ordem": 1}]
+        atividades = [{"id": "atividade-1", "nome": "Serviço principal", "descricao": "", "quantidade": 1.0, "ordem": 1}]
 
     atividades.sort(key=lambda item: (int(item.get("ordem") or 0), str(item.get("nome") or "")))
     for indice, atividade in enumerate(atividades, start=1):
@@ -14582,12 +14589,14 @@ def montar_apresentacao_atividades_gerador(dados: dict[str, Any]) -> list[dict[s
         atividade = dict(item["atividade"])
         nome = str(atividade.get("nome") or "Atividade do serviço").strip() or "Atividade do serviço"
         descricao = str(atividade.get("descricao") or "").strip()
+        quantidade = max(_converter_valor_brl(atividade.get("quantidade")) or 1.0, 0.01)
+        valor_unitario = valor / quantidade if quantidade > 0 else valor
         resultado.append(
             {
                 "descricao": nome,
                 "detalhes": descricao or "Execução conforme escopo técnico e condições previstas para esta atividade.",
-                "quantidade": "1",
-                "valor_unitario": _formatar_moeda_brl(valor),
+                "quantidade": _formatar_numero_estoque(quantidade),
+                "valor_unitario": _formatar_moeda_brl(valor_unitario),
                 "subtotal": _formatar_moeda_brl(valor),
             }
         )
@@ -14726,6 +14735,7 @@ def montar_orcamento_por_gerador(
                         "base": base_atividade,
                         "descricao": nome,
                         "detalhes": descricao or "Mão de obra e custos operacionais previstos para execução desta atividade.",
+                        "quantidade": max(_converter_valor_brl(atividade.get("quantidade")) or 1.0, 0.01),
                     }
                 )
 
@@ -14741,6 +14751,7 @@ def montar_orcamento_por_gerador(
                         "base": venda_adicional,
                         "descricao": f"{nome_atividade} - {str(adicional.get('descricao') or adicional.get('tipo_nome') or 'Adicional de mão de obra').strip()}",
                         "detalhes": "Adicional de mão de obra aplicado conforme as condições previstas para a execução desta atividade.",
+                        "quantidade": 1.0,
                     }
                 )
 
@@ -14756,6 +14767,7 @@ def montar_orcamento_por_gerador(
                     "base": base_geral,
                     "descricao": "Custos gerais de execução",
                     "detalhes": "Mobilização, hospedagem, ART, fretes, locações compartilhadas e demais custos gerais previstos no serviço.",
+                    "quantidade": 1.0,
                 }
             )
 
@@ -14770,6 +14782,7 @@ def montar_orcamento_por_gerador(
                         "base": diferenca,
                         "descricao": "Serviço técnico conforme escopo",
                         "detalhes": str(dados.get("escopo") or "Serviço técnico gerado pelo Gerador de Orçamentos."),
+                        "quantidade": 1.0,
                     }
                 )
 
@@ -14779,6 +14792,7 @@ def montar_orcamento_por_gerador(
                     "base": total_servicos_numero,
                     "descricao": "Serviço técnico conforme escopo",
                     "detalhes": str(dados.get("escopo") or "Serviço técnico gerado pelo Gerador de Orçamentos."),
+                    "quantidade": 1.0,
                 }
             )
 
@@ -14790,13 +14804,15 @@ def montar_orcamento_por_gerador(
         for componente, valor_servico in zip(componentes_servicos, valores_servicos):
             if valor_servico <= 0:
                 continue
+            quantidade = max(_converter_valor_brl(componente.get("quantidade")) or 1.0, 0.01)
+            valor_unitario = valor_servico / quantidade if quantidade > 0 else valor_servico
             itens.append(
                 {
                     "tipo_item": "servico",
                     "descricao": str(componente.get("descricao") or "Serviço técnico"),
                     "detalhes": str(componente.get("detalhes") or ""),
-                    "quantidade": "1",
-                    "valor_unitario": _formatar_moeda_brl(valor_servico),
+                    "quantidade": _formatar_numero_estoque(quantidade),
+                    "valor_unitario": _formatar_moeda_brl(valor_unitario),
                     "desconto": "0,00",
                     "subtotal": _formatar_moeda_brl(valor_servico),
                 }
