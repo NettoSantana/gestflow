@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamento_detalhe.html
-Último recode: 2026-08-27 19:45 (America/Bahia)
-Motivo: Separar orçamento de projeto e permitir iniciar a execução somente por ação manual.
+Último recode: 2026-07-30 19:29 (America/Bahia)
+Motivo: Ocultar acessos de edição no detalhe de orçamentos em situação final.
 -->
 
 <!DOCTYPE html>
@@ -446,17 +446,8 @@ Motivo: Separar orçamento de projeto e permitir iniciar a execução somente po
                 <div class="client-toolbar"><span class="origin-badge {{ origem }}">{{ 'Gerador' if origem == 'gerador' else 'Manual' }}</span><span class="presentation-badge">{{ modo|replace('_',' ') }}</span><span class="status-pill {{ orcamento.status }}">{{ orcamento.status }}</span></div>
             </div>
             <div class="panel-summary">
-                <div><span>Número</span><strong>{{ orcamento.numero or '-' }}</strong></div><div><span>Responsável</span><strong>{{ orcamento.responsavel or '-' }}</strong></div><div><span>Data</span><strong>{{ orcamento.data or '-' }}</strong></div><div><span>Prazo</span><strong>{{ orcamento.prazo_entrega or '-' }}</strong></div><div><span>Validade</span><strong>{{ orcamento.validade or '-' }}</strong></div><div><span>Pagamento</span><strong>{{ orcamento.forma_pagamento or '-' }}</strong></div><div><span>Valor total</span><strong>R$ {{ orcamento.valor_total or '0,00' }}</strong></div><div><span>Modo de apresentação</span><strong>{{ modo|replace('_',' ')|title }}</strong></div><div><span>Origem</span><strong>{{ 'Gerador de Orçamentos' if origem == 'gerador' else 'Orçamento comum' }}</strong></div><div><span>Centro de custo</span><strong>{{ orcamento.centro_custo_nome or orcamento.centro_custo or '-' }}</strong></div><div><span>Projeto</span><strong>{% if projeto_iniciado %}{{ projeto_status_nomes.get(atividade.projeto_status, 'Em andamento') }}{% else %}Não iniciado{% endif %}</strong></div>
+                <div><span>Número</span><strong>{{ orcamento.numero or '-' }}</strong></div><div><span>Responsável</span><strong>{{ orcamento.responsavel or '-' }}</strong></div><div><span>Data</span><strong>{{ orcamento.data or '-' }}</strong></div><div><span>Prazo</span><strong>{{ orcamento.prazo_entrega or '-' }}</strong></div><div><span>Validade</span><strong>{{ orcamento.validade or '-' }}</strong></div><div><span>Pagamento</span><strong>{{ orcamento.forma_pagamento or '-' }}</strong></div><div><span>Valor total</span><strong>R$ {{ orcamento.valor_total or '0,00' }}</strong></div><div><span>Modo de apresentação</span><strong>{{ modo|replace('_',' ')|title }}</strong></div><div><span>Origem</span><strong>{{ 'Gerador de Orçamentos' if origem == 'gerador' else 'Orçamento comum' }}</strong></div><div><span>Centro de custo</span><strong>{{ orcamento.centro_custo_nome or orcamento.centro_custo or '-' }}</strong></div><div><span>Atividade / Projeto</span><strong>{{ atividade.nome if atividade else '-' }}</strong></div>
             </div>
-            {% if projeto_iniciado %}
-                <p><a class="btn-dark" href="/financeiro/atividades/{{ atividade.id }}">Abrir projeto</a></p>
-            {% elif pode_iniciar_projeto %}
-                <form method="post" action="/orcamentos/{{ orcamento.id }}/iniciar-projeto" onsubmit="return confirm('Iniciar este projeto agora? Ele passará a aparecer em Atividades / Projetos como Em andamento.');">
-                    <button type="submit" class="btn-primary-green">Iniciar projeto</button>
-                </form>
-            {% else %}
-                <p class="page-subtitle">O projeto ficará disponível para início quando o orçamento estiver aprovado ou finalizado.</p>
-            {% endif %}
         </section>
 
         <section class="panel table-panel">
@@ -514,7 +505,7 @@ Motivo: Separar orçamento de projeto e permitir iniciar a execução somente po
         </section>
 
         <section class="panel page-section">
-            <div class="panel-header page-header"><div><h3>Resumo financeiro</h3><p class="page-subtitle">Totais e informações complementares do orçamento.</p></div></div><div class="gf-financial-kpis"><div><span>Valor previsto</span><strong>R$ {{ resumo_atividade.previsto_formatado }}</strong></div><div><span>Recebido</span><strong>R$ {{ resumo_atividade.recebido_formatado }}</strong></div><div><span>A receber</span><strong>R$ {{ resumo_atividade.a_receber_formatado }}</strong></div><div><span>Custos</span><strong>R$ {{ resumo_atividade.custos_formatado }}</strong></div><div><span>Resultado atual</span><strong>R$ {{ resumo_atividade.resultado_formatado }}</strong></div><div><span>Margem atual</span><strong>{{ resumo_atividade.margem_formatada }}%</strong></div></div>{% if projeto_iniciado %}<p><a class="btn-light" href="/financeiro/atividades/{{ atividade.id }}">Abrir projeto e movimentações</a></p>{% endif %}
+            <div class="panel-header page-header"><div><h3>Resumo financeiro</h3><p class="page-subtitle">Totais e informações complementares do orçamento.</p></div></div><div class="gf-financial-kpis"><div><span>Valor previsto</span><strong>R$ {{ resumo_atividade.previsto_formatado }}</strong></div><div><span>Recebido</span><strong>R$ {{ resumo_atividade.recebido_formatado }}</strong></div><div><span>A receber</span><strong>R$ {{ resumo_atividade.a_receber_formatado }}</strong></div><div><span>Custos</span><strong>R$ {{ resumo_atividade.custos_formatado }}</strong></div><div><span>Resultado atual</span><strong>R$ {{ resumo_atividade.resultado_formatado }}</strong></div><div><span>Margem atual</span><strong>{{ resumo_atividade.margem_formatada }}%</strong></div></div>{% if atividade %}<p><a class="btn-light" href="/financeiro/atividades/{{ atividade.id }}">Ver movimentações da atividade</a></p>{% endif %}
             <div class="panel-summary">
                 <div><span>Total produtos interno</span><strong>{{ orcamento.total_produtos or '0,00' }}</strong></div>
                 <div><span>Total serviços interno</span><strong>{{ orcamento.total_servicos or '0,00' }}</strong></div>
