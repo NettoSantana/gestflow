@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-22 12:36 (America/Bahia)
-# Motivo: Adicionar apresentação profissional opcional e resumida à Vitrine de Serviços, com foto, autoridade e acesso direto aos serviços.
+# Último recode: 2026-08-27 20:26 (America/Bahia)
+# Motivo: Separar projetos de atividades financeiras e permitir iniciar projeto manualmente a partir de orçamento aprovado/finalizado.
 
 from __future__ import annotations
 
@@ -10496,6 +10496,238 @@ def listar_atividades_financeiras(apenas_ativas: bool = True) -> list[dict[str, 
 
 
 
+PROJETO_ORCAMENTO_STATUS_NOMES = {
+    "nao_iniciada": "Planejado",
+    "em_andamento": "Em andamento",
+    "pausada": "Pausado",
+    "aguardando": "Pausado",
+    "concluida": "Concluído",
+    "cancelada": "Cancelado",
+}
+
+
+def normalizar_filtro_projetos_orcamentos(valor: Any) -> str:
+    codigo = _codigo_status_orcamento(valor)
+    aliases = {
+        "": "em_andamento",
+        "andamento": "em_andamento",
+        "planejado": "nao_iniciada",
+        "planejados": "nao_iniciada",
+        "planejada": "nao_iniciada",
+        "planejadas": "nao_iniciada",
+        "nao_iniciado": "nao_iniciada",
+        "nao_iniciados": "nao_iniciada",
+        "pausado": "pausada",
+        "pausados": "pausada",
+        "concluido": "concluida",
+        "concluidos": "concluida",
+        "concluidas": "concluida",
+        "cancelado": "cancelada",
+        "cancelados": "cancelada",
+        "canceladas": "cancelada",
+        "todos": "todos",
+    }
+    codigo = aliases.get(codigo, codigo)
+    permitidos = {*PROJETO_ORCAMENTO_STATUS_NOMES, "todos"}
+    return codigo if codigo in permitidos else "em_andamento"
+
+
+def orcamento_pode_iniciar_projeto(orcamento: dict[str, Any] | None) -> bool:
+    if not orcamento:
+        return False
+    status = codigo_status_orcamento_existente(orcamento.get("status"))
+    return status == "aprovado" or status_final_orcamento(status)
+
+
+def buscar_projeto_por_orcamento(orcamento_id: int) -> dict[str, Any] | None:
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT a.*, o.numero AS orcamento_numero, o.status AS orcamento_status,
+                   o.atividade_financeira_id
+            FROM gestao_atividades a
+            INNER JOIN orcamentos o
+                    ON o.id = a.orcamento_id
+                   AND o.empresa_id = a.empresa_id
+            WHERE a.empresa_id = ?
+              AND a.orcamento_id = ?
+              AND a.tipo = 'projeto'
+            ORDER BY a.id ASC
+            LIMIT 1
+            """,
+            (empresa_logada_id(), orcamento_id),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def iniciar_projeto_por_orcamento_db(orcamento_id: int) -> tuple[int | None, bool, str]:
+    empresa_id = empresa_logada_id()
+    atividade_financeira_id = garantir_atividade_orcamento(orcamento_id)
+    if not atividade_financeira_id:
+        return None, False, "Orçamento não encontrado."
+
+    agora = agora_empresa().isoformat(timespec="seconds")
+    hoje = hoje_empresa().isoformat()
+    with conectar_db() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        orcamento = conn.execute(
+            """
+            SELECT id, numero, cliente, responsavel, status, introducao, descricao_comercial
+            FROM orcamentos
+            WHERE id = ? AND empresa_id = ?
+            """,
+            (orcamento_id, empresa_id),
+        ).fetchone()
+        if orcamento is None:
+            conn.rollback()
+            return None, False, "Orçamento não encontrado."
+
+        orcamento_dict = dict(orcamento)
+        existente = conn.execute(
+            """
+            SELECT id
+            FROM gestao_atividades
+            WHERE empresa_id = ?
+              AND orcamento_id = ?
+              AND tipo = 'projeto'
+            ORDER BY id ASC
+            LIMIT 1
+            """,
+            (empresa_id, orcamento_id),
+        ).fetchone()
+        if existente is not None:
+            conn.rollback()
+            return int(existente["id"]), False, "Este orçamento já possui um projeto."
+
+        if not orcamento_pode_iniciar_projeto(orcamento_dict):
+            conn.rollback()
+            return None, False, "O projeto só pode ser iniciado após o orçamento ser aprovado ou finalizado."
+
+        usuario_id = usuario_logado_id()
+        usuario = conn.execute(
+            """
+            SELECT u.id, u.nome, u.email, u.funcionario_id,
+                   f.nome AS funcionario_nome, f.email AS funcionario_email
+            FROM usuarios u
+            LEFT JOIN funcionarios f
+                   ON f.id = u.funcionario_id
+                  AND f.empresa_id = u.empresa_id
+            WHERE u.id = ? AND u.empresa_id = ?
+            LIMIT 1
+            """,
+            (usuario_id, empresa_id),
+        ).fetchone() if usuario_id else None
+
+        responsavel_funcionario_id = usuario["funcionario_id"] if usuario is not None else None
+        responsavel_nome = (
+            str(usuario["funcionario_nome"] or usuario["nome"] or "").strip()
+            if usuario is not None
+            else str(session.get("usuario_nome") or "").strip()
+        )
+        responsavel_email = (
+            str(usuario["funcionario_email"] or usuario["email"] or "").strip()
+            if usuario is not None
+            else ""
+        )
+        numero = str(orcamento["numero"] or orcamento_id)
+        cliente = str(orcamento["cliente"] or "").strip()
+        titulo = f"Projeto {numero}" + (f" - {cliente}" if cliente else "")
+        descricao = str(
+            orcamento["descricao_comercial"] or orcamento["introducao"] or ""
+        ).strip()
+        observacoes = f"Projeto iniciado a partir do orçamento {numero}."
+
+        cursor = conn.execute(
+            """
+            INSERT INTO gestao_atividades (
+                empresa_id, titulo, descricao, tipo, classificacao,
+                responsavel_funcionario_id, responsavel_usuario_id,
+                responsavel_nome, responsavel_email, cliente_nome,
+                orcamento_id, data_inicio, prioridade, status, progresso,
+                observacoes, criado_por_usuario_id, criado_por_nome,
+                criado_em, atualizado_em
+            ) VALUES (?, ?, ?, 'projeto', 'orcamento', ?, ?, ?, ?, ?, ?, ?,
+                      'normal', 'em_andamento', 0, ?, ?, ?, ?, ?)
+            """,
+            (
+                empresa_id, titulo, descricao, responsavel_funcionario_id,
+                usuario_id, responsavel_nome, responsavel_email, cliente,
+                orcamento_id, hoje, observacoes, usuario_id,
+                str(session.get("usuario_nome") or responsavel_nome), agora, agora,
+            ),
+        )
+        projeto_id = int(cursor.lastrowid)
+        _registrar_historico_atividade(
+            projeto_id,
+            "projeto_iniciado",
+            f"Projeto iniciado manualmente a partir do orçamento {numero}.",
+            conn=conn,
+        )
+        conn.commit()
+
+    return projeto_id, True, "Projeto iniciado com sucesso."
+
+
+def listar_projetos_orcamentos(status: Any = "em_andamento") -> list[dict[str, Any]]:
+    filtro = normalizar_filtro_projetos_orcamentos(status)
+    consulta = """
+        SELECT a.*,
+               o.numero AS orcamento_numero,
+               o.status AS orcamento_status,
+               o.atividade_financeira_id,
+               af.centro_custo_id,
+               cc.nome AS centro_custo_nome
+        FROM gestao_atividades a
+        INNER JOIN orcamentos o
+                ON o.id = a.orcamento_id
+               AND o.empresa_id = a.empresa_id
+        LEFT JOIN atividades_financeiras af
+               ON af.id = o.atividade_financeira_id
+              AND af.empresa_id = a.empresa_id
+        LEFT JOIN centros_custo cc
+               ON cc.id = af.centro_custo_id
+              AND cc.empresa_id = a.empresa_id
+        WHERE a.empresa_id = ?
+          AND a.tipo = 'projeto'
+          AND a.orcamento_id IS NOT NULL
+    """
+    parametros: list[Any] = [empresa_logada_id()]
+    if filtro == "pausada":
+        consulta += " AND a.status IN ('pausada', 'aguardando')"
+    elif filtro != "todos":
+        consulta += " AND a.status = ?"
+        parametros.append(filtro)
+    consulta += " ORDER BY COALESCE(a.data_inicio, a.criado_em) DESC, a.id DESC"
+
+    with conectar_db() as conn:
+        rows = conn.execute(consulta, parametros).fetchall()
+
+    projetos: list[dict[str, Any]] = []
+    for row in rows:
+        item = dict(row)
+        projeto_id = int(item["id"])
+        atividade_financeira_id = item.get("atividade_financeira_id")
+        projeto_status = str(item.get("status") or "nao_iniciada")
+        item["projeto_id"] = projeto_id
+        item["id"] = int(atividade_financeira_id) if atividade_financeira_id else 0
+        item["codigo"] = str(item.get("orcamento_numero") or item.get("orcamento_id") or projeto_id)
+        item["nome"] = str(item.get("titulo") or f"Projeto {item['codigo']}")
+        item["cliente"] = str(item.get("cliente_nome") or "")
+        item["origem"] = "projeto"
+        item["projeto_status"] = projeto_status
+        item["status"] = projeto_status
+        item["status_nome"] = PROJETO_ORCAMENTO_STATUS_NOMES.get(
+            projeto_status, projeto_status.replace("_", " ").title()
+        )
+        item["resumo"] = resumir_atividade_financeira(
+            int(atividade_financeira_id) if atividade_financeira_id else None
+        )
+        projetos.append(item)
+    return projetos
+
+
+
+
 def buscar_centro_custo_por_id(centro_id: int) -> dict[str, Any] | None:
     with conectar_db() as conn:
         row = conn.execute("SELECT * FROM centros_custo WHERE id = ? AND empresa_id = ?", (centro_id, empresa_logada_id())).fetchone()
@@ -10754,10 +10986,35 @@ def excluir_centro_custo(centro_id: int) -> Response:
 
 @app.get('/financeiro/atividades')
 def atividades_financeiras() -> str:
-    atividades = listar_atividades_financeiras(False)
-    for atividade in atividades:
-        atividade['resumo'] = resumir_atividade_financeira(atividade['id'])
-    return render_template('atividades_financeiras.html', atividades=atividades)
+    filtro_status = normalizar_filtro_projetos_orcamentos(request.args.get('status'))
+    todos_projetos = listar_projetos_orcamentos('todos')
+    atividades = (
+        todos_projetos
+        if filtro_status == 'todos'
+        else [
+            item for item in todos_projetos
+            if (
+                item.get('projeto_status') in {'pausada', 'aguardando'}
+                if filtro_status == 'pausada'
+                else item.get('projeto_status') == filtro_status
+            )
+        ]
+    )
+    contagens = {
+        'em_andamento': sum(1 for item in todos_projetos if item.get('projeto_status') == 'em_andamento'),
+        'planejados': sum(1 for item in todos_projetos if item.get('projeto_status') == 'nao_iniciada'),
+        'pausados': sum(1 for item in todos_projetos if item.get('projeto_status') in {'pausada', 'aguardando'}),
+        'concluidos': sum(1 for item in todos_projetos if item.get('projeto_status') == 'concluida'),
+        'cancelados': sum(1 for item in todos_projetos if item.get('projeto_status') == 'cancelada'),
+        'todos': len(todos_projetos),
+    }
+    return render_template(
+        'atividades_financeiras.html',
+        atividades=atividades,
+        filtro_status=filtro_status,
+        contagens=contagens,
+        projeto_status_nomes=PROJETO_ORCAMENTO_STATUS_NOMES,
+    )
 
 
 @app.get('/financeiro/atividades/<int:atividade_id>')
@@ -38614,9 +38871,57 @@ def ver_orcamento(orcamento_id: int) -> str | Response:
         atividade=buscar_atividade_financeira_por_id(orcamento.get("atividade_financeira_id")) if orcamento.get("atividade_financeira_id") else None,
         resumo_atividade=resumir_atividade_financeira(orcamento.get("atividade_financeira_id")),
         atividades_operacionais=[a for a in _listar_atividades_operacionais() if int(a.get("orcamento_id") or 0) == orcamento_id],
+        projeto_orcamento=buscar_projeto_por_orcamento(orcamento_id),
+        pode_iniciar_projeto=orcamento_pode_iniciar_projeto(orcamento),
     )
 
 
+
+
+@app.post("/orcamentos/<int:orcamento_id>/iniciar-projeto")
+def iniciar_projeto_orcamento(orcamento_id: int) -> Response:
+    orcamento = buscar_orcamento_por_id(orcamento_id)
+    if orcamento is None:
+        return redirect(url_for("orcamentos", erro="Orçamento não encontrado."))
+
+    projeto_existente = buscar_projeto_por_orcamento(orcamento_id)
+    if projeto_existente is not None:
+        return redirect(
+            url_for(
+                "gestao_atividade_detalhe",
+                atividade_id=int(projeto_existente["id"]),
+                aviso="Este orçamento já possui um projeto.",
+            )
+        )
+
+    if not orcamento_pode_iniciar_projeto(orcamento):
+        return redirect(
+            url_for(
+                "ver_orcamento",
+                orcamento_id=orcamento_id,
+                erro="O projeto só pode ser iniciado após o orçamento ser aprovado ou finalizado.",
+            )
+        )
+
+    projeto_id, criado, mensagem = iniciar_projeto_por_orcamento_db(orcamento_id)
+    if projeto_id is None:
+        return redirect(url_for("ver_orcamento", orcamento_id=orcamento_id, erro=mensagem))
+
+    if criado:
+        registrar_atividade_usuario(
+            "criacao",
+            "gestao_atividades",
+            f"Iniciou o projeto #{projeto_id} a partir do orçamento {orcamento.get('numero') or orcamento_id}",
+            request.path,
+        )
+    return redirect(
+        url_for(
+            "gestao_atividade_detalhe",
+            atividade_id=projeto_id,
+            sucesso=mensagem if criado else "",
+            aviso="" if criado else mensagem,
+        )
+    )
 
 
 @app.get("/orcamentos/<int:orcamento_id>/gerar/venda")
