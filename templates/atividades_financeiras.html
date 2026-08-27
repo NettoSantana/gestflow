@@ -1,14 +1,14 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\atividades_financeiras.html
-Último recode: 2026-07-18 13:30 (America/Bahia)
-Motivo: Modernizar somente a listagem de Atividades / Projetos, sem cards superiores e sem alterar a lógica financeira.
+Último recode: 2026-08-27 19:45 (America/Bahia)
+Motivo: Exibir somente projetos iniciados manualmente, com filtro por situação de execução.
 #}
 <!doctype html>
 <html lang="pt-BR">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Atividades financeiras | GestFlow</title>
+    <title>Atividades / Projetos | GestFlow</title>
     <link rel="stylesheet" href="/static/css/dashboard.css">
 </head>
 <body>
@@ -20,25 +20,34 @@ Motivo: Modernizar somente a listagem de Atividades / Projetos, sem cards superi
             <div class="page-header atividades-financeiras-header">
                 <div>
                     <h1>Atividades / Projetos</h1>
-                    <p>Cada orçamento pode ser acompanhado como uma atividade financeira.</p>
+                    <p>Somente orçamentos que foram iniciados como projeto aparecem nesta tela.</p>
+                </div>
+                <div class="client-toolbar">
+                    <a class="{{ 'btn-dark' if filtro_status == 'em_andamento' else 'btn-light' }}" href="/financeiro/atividades?status=em_andamento">Em andamento ({{ contagens.em_andamento }})</a>
+                    <a class="{{ 'btn-dark' if filtro_status == 'pausado' else 'btn-light' }}" href="/financeiro/atividades?status=pausado">Pausados ({{ contagens.pausado }})</a>
+                    <a class="{{ 'btn-dark' if filtro_status == 'concluido' else 'btn-light' }}" href="/financeiro/atividades?status=concluido">Concluídos ({{ contagens.concluido }})</a>
+                    <a class="{{ 'btn-dark' if filtro_status == 'cancelado' else 'btn-light' }}" href="/financeiro/atividades?status=cancelado">Cancelados ({{ contagens.cancelado }})</a>
+                    <a class="{{ 'btn-dark' if filtro_status == 'todos' else 'btn-light' }}" href="/financeiro/atividades?status=todos">Todos ({{ contagens.todos }})</a>
                 </div>
             </div>
 
-            <section class="atividades-financeiras-lista" aria-label="Lista de atividades financeiras">
+            {% if request.args.get('erro') %}<div class="form-alert-error">{{ request.args.get('erro') }}</div>{% endif %}
+
+            <section class="atividades-financeiras-lista" aria-label="Lista de projetos">
                 {% for atividade in atividades %}
                 <article class="atividade-financeira-card">
                     <div class="atividade-financeira-topo">
                         <div class="atividade-financeira-identificacao">
                             <div class="atividade-financeira-icone" aria-hidden="true">▣</div>
                             <div>
-                                <h2>{{ atividade.nome }}</h2>
+                                <h2>Projeto {{ atividade.codigo or atividade.id }}</h2>
                                 <p>{{ atividade.cliente or 'Cliente não informado' }}</p>
                             </div>
                         </div>
 
                         <div class="atividade-financeira-meta">
-                            <span class="atividade-origem">{{ atividade.origem|replace("_", " ")|title }}</span>
-                            <span class="status-pill {{ atividade.status }}">{{ atividade.status }}</span>
+                            <span class="atividade-origem">{{ atividade.codigo or ('#' ~ atividade.id) }}</span>
+                            <span class="status-pill {{ atividade.projeto_status }}">{{ projeto_status_nomes.get(atividade.projeto_status, 'Em andamento') }}</span>
                         </div>
                     </div>
 
@@ -74,8 +83,8 @@ Motivo: Modernizar somente a listagem de Atividades / Projetos, sem cards superi
                 {% else %}
                 <div class="atividades-financeiras-vazio">
                     <div aria-hidden="true">▣</div>
-                    <strong>Nenhuma atividade financeira encontrada</strong>
-                    <p>As atividades serão criadas automaticamente a partir dos orçamentos.</p>
+                    <strong>Nenhum projeto encontrado neste status</strong>
+                    <p>Um orçamento só aparece aqui depois que você usar a ação “Iniciar projeto”.</p>
                 </div>
                 {% endfor %}
             </section>
