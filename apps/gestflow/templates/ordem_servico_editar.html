@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\ordem_servico_editar.html
-Último recode: 2026-08-28 12:04 (America/Bahia)
-Motivo: Permitir editar OS finalizada; ao salvar diretamente, a OS é reaberta e suas integrações finais são estornadas antes da alteração.
+Último recode: 2026-08-28 13:05 (America/Bahia)
+Motivo: Simplificar a edição da OS para uma experiência operacional em quatro abas, ocultando valores/comercial da visão principal e priorizando execução, evidências e histórico.
 #}
 
 <!DOCTYPE html>
@@ -983,6 +983,292 @@ Motivo: Permitir editar OS finalizada; ao salvar diretamente, a OS é reaberta e
         }
     </style>
 
+
+    <style>
+        /* OS OPERACIONAL SIMPLIFICADA - 2026-08-28 */
+        .os-operational-shell {
+            display: grid;
+            grid-template-columns: minmax(220px, .8fr) minmax(0, 1.7fr) auto;
+            gap: 18px;
+            align-items: center;
+            margin-bottom: 16px;
+            padding: 18px;
+            border: 1px solid #dbe5f1;
+            border-radius: 18px;
+            background: #ffffff;
+            box-shadow: 0 10px 28px rgba(15, 23, 42, .05);
+        }
+
+        .os-operational-id {
+            min-width: 0;
+        }
+
+        .os-operational-id small {
+            display: block;
+            margin-bottom: 4px;
+            color: #64748b;
+            font-size: 11px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .os-operational-id strong {
+            display: block;
+            color: #0f172a;
+            font-size: 22px;
+            font-weight: 950;
+            letter-spacing: -.02em;
+        }
+
+        .os-operational-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            margin-top: 9px;
+            padding: 7px 11px;
+            border: 1px solid var(--status-border, #cbd5e1);
+            border-radius: 999px;
+            background: var(--status-bg, #f1f5f9);
+            color: var(--status-text, #334155);
+            font-size: 12px;
+            font-weight: 900;
+        }
+
+        .os-operational-status::before {
+            content: "";
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        .os-operational-summary {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px 22px;
+        }
+
+        .os-operational-summary-item {
+            min-width: 0;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #eef2f7;
+        }
+
+        .os-operational-summary-item span {
+            display: block;
+            margin-bottom: 4px;
+            color: #64748b;
+            font-size: 10px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .os-operational-summary-item strong {
+            display: block;
+            overflow: hidden;
+            color: #0f172a;
+            font-size: 13px;
+            font-weight: 900;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .os-operational-top-actions {
+            display: grid;
+            gap: 8px;
+            min-width: 158px;
+        }
+
+        .os-operational-top-actions .btn-primary-green,
+        .os-operational-top-actions .btn-light {
+            width: 100%;
+            min-height: 42px;
+            justify-content: center;
+        }
+
+        .os-tabs {
+            position: sticky;
+            top: 0;
+            z-index: 35;
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            margin: 0 0 16px;
+            padding: 7px;
+            border: 1px solid #dbe5f1;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, .96);
+            box-shadow: 0 8px 20px rgba(15, 23, 42, .05);
+            backdrop-filter: blur(10px);
+        }
+
+        .os-tab-button {
+            min-height: 44px;
+            border: 0;
+            border-radius: 10px;
+            background: transparent;
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 900;
+            cursor: pointer;
+        }
+
+        .os-tab-button:hover {
+            background: #f8fafc;
+            color: #0f172a;
+        }
+
+        .os-tab-button.is-active {
+            background: #eff6ff;
+            color: #0f62fe;
+        }
+
+        [data-os-tab-panel][hidden] {
+            display: none !important;
+        }
+
+        .os-admin-retained {
+            display: none !important;
+        }
+
+        .os-tab-active-execucao [data-os-execucao-equipamentos] .os-foto-equipamento-bloco {
+            display: none !important;
+        }
+
+        .os-tab-active-execucao [data-os-execucao-equipamentos] .os-equipamentos-table {
+            min-width: 0 !important;
+        }
+
+        .os-tab-active-execucao [data-os-execucao-equipamentos] .os-equipamentos-table th:nth-child(3),
+        .os-tab-active-execucao [data-os-execucao-equipamentos] .os-equipamentos-table th:nth-child(4),
+        .os-tab-active-execucao [data-os-execucao-equipamentos] .os-equipamentos-table th:nth-child(5),
+        .os-tab-active-execucao [data-os-execucao-equipamentos] .os-equipamentos-table td:nth-child(3),
+        .os-tab-active-execucao [data-os-execucao-equipamentos] .os-equipamentos-table td:nth-child(4),
+        .os-tab-active-execucao [data-os-execucao-equipamentos] .os-equipamentos-table td:nth-child(5) {
+            display: none !important;
+        }
+
+        .os-tab-active-execucao [data-os-execucao-equipamentos] .os-equipamento-detalhes-grid .form-group:has([name="os_relato_cliente"]),
+        .os-tab-active-execucao [data-os-execucao-equipamentos] .os-equipamento-detalhes-grid .form-group:has([name="os_acessorios"]),
+        .os-tab-active-execucao [data-os-execucao-equipamentos] .os-equipamento-detalhes-grid .form-group:has([name="os_laudo"]),
+        .os-tab-active-execucao [data-os-execucao-equipamentos] .os-equipamento-detalhes-grid .form-group:has([name="os_termos"]) {
+            display: none !important;
+        }
+
+        .os-tab-active-evidencias [data-os-execucao-equipamentos] .os-equipamentos-table-shell,
+        .os-tab-active-evidencias [data-os-execucao-equipamentos] .os-equipamento-detalhes-grid,
+        .os-tab-active-evidencias [data-os-execucao-equipamentos] > .os-section-body > .os-actions-line {
+            display: none !important;
+        }
+
+        .os-tab-active-evidencias [data-os-execucao-equipamentos] .os-equipamento-detalhes-card {
+            margin-top: 0;
+            border: 0 !important;
+            padding: 0 !important;
+            background: transparent !important;
+        }
+
+        .os-tab-active-evidencias [data-os-execucao-equipamentos] .os-equipamento-bloco {
+            padding: 14px !important;
+            border: 1px solid #e5eaf2 !important;
+            background: #ffffff !important;
+        }
+
+        .os-execution-actions {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            margin: 16px 0 18px;
+        }
+
+        .os-execution-button {
+            min-height: 52px;
+            border: 0;
+            border-radius: 12px;
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 950;
+            cursor: pointer;
+        }
+
+        .os-execution-button.start { background: #16a34a; }
+        .os-execution-button.pause { background: #f59e0b; }
+        .os-execution-button.finish { background: #dc2626; }
+
+        .os-execution-button:disabled {
+            opacity: .42;
+            cursor: not-allowed;
+        }
+
+        .os-operational-note {
+            margin: 0 0 16px;
+            padding: 12px 14px;
+            border: 1px solid #dbeafe;
+            border-radius: 12px;
+            background: #eff6ff;
+            color: #1e40af;
+            font-size: 12px;
+            font-weight: 750;
+            line-height: 1.45;
+        }
+
+        .os-execution-record .os-section-title h3 {
+            text-transform: none !important;
+        }
+
+        .os-execution-record .os-hidden-retained-fields {
+            display: none !important;
+        }
+
+        .os-execution-record .os-executed-field {
+            grid-column: 1 / -1;
+        }
+
+        .os-execution-record .os-executed-field textarea {
+            min-height: 120px !important;
+        }
+
+        .os-tab-active-historico #form-editar-os .os-execution-actions,
+        .os-tab-active-resumo #form-editar-os .os-execution-actions,
+        .os-tab-active-evidencias #form-editar-os .os-execution-actions {
+            display: none;
+        }
+
+        @media (max-width: 1050px) {
+            .os-operational-shell {
+                grid-template-columns: 1fr 1.4fr;
+            }
+
+            .os-operational-top-actions {
+                grid-column: 1 / -1;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 720px) {
+            .os-operational-shell {
+                grid-template-columns: 1fr;
+            }
+
+            .os-operational-summary {
+                grid-template-columns: 1fr;
+            }
+
+            .os-operational-top-actions {
+                grid-column: auto;
+                grid-template-columns: 1fr;
+            }
+
+            .os-tabs {
+                position: static;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .os-execution-actions {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+
 </head>
 <body>
     {% include "partials/sidebar.html" %}
@@ -998,7 +1284,7 @@ Motivo: Permitir editar OS finalizada; ao salvar diretamente, a OS é reaberta e
                 <div>
                     <span class="page-kicker">Ordens de Serviço</span>
                     <h3 class="page-title">Editar OS {{ os.numero or os.id }}</h3>
-                    <p class="page-subtitle">Atualize os dados da OS, produtos, serviços e totais.</p>
+                    <p class="page-subtitle">Organize a execução, as evidências e o acompanhamento da ordem de serviço.</p>
                 </div>
                 <a href="/ordens-servico/{{ os.id }}" class="btn-dark">Cancelar edição</a>
             </div>
@@ -1009,10 +1295,62 @@ Motivo: Permitir editar OS finalizada; ao salvar diretamente, a OS é reaberta e
             <input id="os_fotos_json" name="os_fotos_json" type="hidden" value="[]">
             <input id="os_cliente_original" name="os_cliente_original" type="hidden" value="{{ os.cliente or '' }}">
             <div class="gestflow-form-error{% if request.args.get('erro') %} show{% endif %}" data-form-error>{% if request.args.get('erro') %}{{ request.args.get('erro') }}{% endif %}</div>
-            <section class="panel page-section os-form-section os-panel-orcamento">
+            {% set equipamento_principal = equipamentos_os[0] if equipamentos_os|default([])|length else none %}
+            <section class="os-operational-shell" aria-label="Resumo operacional da ordem de serviço">
+                <div class="os-operational-id">
+                    <small>Ordem de serviço</small>
+                    <strong>OS {{ os.numero or os.id }}</strong>
+                    <span
+                        class="os-operational-status"
+                        style="--status-bg:{{ os.status_fundo }};--status-text:{{ os.status_texto_cor }};--status-border:{{ os.status_borda }};"
+                    >{{ os.status_nome or os.status or 'Sem status' }}</span>
+                </div>
+
+                <div class="os-operational-summary">
+                    <div class="os-operational-summary-item">
+                        <span>Cliente</span>
+                        <strong>{{ os.cliente or '-' }}</strong>
+                    </div>
+                    <div class="os-operational-summary-item">
+                        <span>Local</span>
+                        <strong>{{ equipamento_principal.local_servico if equipamento_principal and equipamento_principal.local_servico else '-' }}</strong>
+                    </div>
+                    <div class="os-operational-summary-item">
+                        <span>Técnico</span>
+                        <strong>{{ os.tecnico or '-' }}</strong>
+                    </div>
+                    <div class="os-operational-summary-item">
+                        <span>Data prevista</span>
+                        <strong>{{ os.data_previsao or os.data_saida or '-' }}</strong>
+                    </div>
+                </div>
+
+                <div class="os-operational-top-actions">
+                    <button type="submit" class="btn-primary-green">Salvar alterações</button>
+                    <a href="/ordens-servico/{{ os.id }}" class="btn-light">Voltar para OS</a>
+                </div>
+            </section>
+
+            <nav class="os-tabs" aria-label="Áreas da ordem de serviço">
+                <button type="button" class="os-tab-button" data-os-tab="resumo">Resumo</button>
+                <button type="button" class="os-tab-button is-active" data-os-tab="execucao">Execução</button>
+                <button type="button" class="os-tab-button" data-os-tab="evidencias">Evidências</button>
+                <button type="button" class="os-tab-button" data-os-tab="historico">Histórico</button>
+            </nav>
+
+            <div class="os-operational-note" data-os-execucao-note>
+                Esta tela está focada na execução da OS. Valores, descontos, totais e informações comerciais continuam preservados no registro, mas não aparecem na experiência operacional.
+            </div>
+
+            <div class="os-execution-actions" data-os-execution-actions>
+                <button type="button" class="os-execution-button start" data-os-status-action="andamento">Iniciar serviço</button>
+                <button type="button" class="os-execution-button pause" data-os-status-action="pausado">Pausar</button>
+                <button type="button" class="os-execution-button finish" data-os-status-action="final">Finalizar serviço</button>
+            </div>
+            <section class="panel page-section os-form-section os-panel-orcamento" data-os-tab-panel="resumo">
                 <div class="panel-header page-header os-section-title">
                     <div>
-                        <h3>OS {{ os.numero or os.id }}</h3>
+                        <h3>Dados principais</h3>
                         <p class="page-subtitle">Cliente: {{ os.cliente or '-' }}</p>
                     </div>
 
@@ -1063,7 +1401,7 @@ Motivo: Permitir editar OS finalizada; ao salvar diretamente, a OS é reaberta e
                 </div>
             </section>
 
-            <section class="panel page-section os-form-section os-panel-orcamento">
+            <section class="panel page-section os-form-section os-panel-orcamento" data-os-tab-panel="resumo">
                 <div class="panel-header page-header os-section-title"><div><h3>Responsáveis</h3><p class="page-subtitle">Responsável comercial e técnico da execução.</p></div></div>
                 <div class="os-section-body"><div class="os-grid-2"><div class="form-group">
                         <label for="os_responsavel">Vendedor / Responsável</label>
@@ -1086,10 +1424,10 @@ Motivo: Permitir editar OS finalizada; ao salvar diretamente, a OS é reaberta e
                     </div></div></div>
             </section>
 
-            <section class="panel page-section os-form-section os-panel-orcamento">
+            <section class="panel page-section os-form-section os-panel-orcamento" data-os-tab-panel="execucao evidencias" data-os-execucao-equipamentos>
                 <div class="panel-header page-header os-section-title">
                     <div>
-                        <h3>Equipamentos</h3>
+                        <h3 data-os-equipamentos-title>Equipamentos e execução</h3>
                         <p class="page-subtitle">Adicione um ou vários equipamentos atendidos nesta OS, no mesmo padrão de produtos e serviços.</p>
                     </div>
                 </div>
@@ -1101,7 +1439,7 @@ Motivo: Permitir editar OS finalizada; ao salvar diretamente, a OS é reaberta e
                                 <div class="os-equipamento-topo">
                                     <div>
                                         <span>{{ equipamento.titulo }}</span>
-                                        <small>Dados principais na linha, detalhes abaixo.</small>
+                                        <small>Identificação e informações necessárias para executar o serviço.</small>
                                     </div>
                                     {% if not loop.first %}
                                         <button type="button" class="action-button delete" title="Remover equipamento" aria-label="Remover equipamento" onclick="removerEquipamento(this)">×</button>
@@ -1150,10 +1488,10 @@ Motivo: Permitir editar OS finalizada; ao salvar diretamente, a OS é reaberta e
                                 <div class="os-equipamento-detalhes-card">
                                     <div class="os-equipamento-detalhes-grid">
                                         <div class="form-group os-detalhe-full"><label>Local do serviço</label><input name="os_local_servico" type="text" value="{{ equipamento.local_servico or '' }}" placeholder="Ex.: portaria principal, linha 2, área técnica" class="form-control"></div>
-                                        <div class="form-group"><label>Condições</label><textarea name="os_condicoes" class="form-control os-textarea" placeholder="Condições encontradas">{{ equipamento.condicoes or '' }}</textarea></div>
+                                        <div class="form-group"><label>Condição encontrada</label><textarea name="os_condicoes" class="form-control os-textarea" placeholder="Condições encontradas">{{ equipamento.condicoes or '' }}</textarea></div>
                                         <div class="form-group"><label>Defeitos / relato do cliente</label><textarea name="os_relato_cliente" class="form-control os-textarea" placeholder="Problema informado pelo cliente">{{ equipamento.relato_cliente or '' }}</textarea></div>
                                         <div class="form-group"><label>Acessórios</label><textarea name="os_acessorios" class="form-control os-textarea" placeholder="Acessórios recebidos ou vinculados">{{ equipamento.acessorios or '' }}</textarea></div>
-                                        <div class="form-group"><label>Solução / diagnóstico</label><textarea name="os_diagnostico" class="form-control os-textarea" placeholder="Diagnóstico técnico e solução proposta">{{ equipamento.diagnostico or '' }}</textarea></div>
+                                        <div class="form-group"><label>Orientação / diagnóstico</label><textarea name="os_diagnostico" class="form-control os-textarea" placeholder="Diagnóstico técnico e solução proposta">{{ equipamento.diagnostico or '' }}</textarea></div>
                                         <div class="form-group"><label>Laudo</label><textarea name="os_laudo" class="form-control os-textarea" placeholder="Laudo técnico, quando aplicável">{{ equipamento.laudo or '' }}</textarea></div>
                                         <div class="form-group"><label>Termos</label><textarea name="os_termos" class="form-control os-textarea" placeholder="Termos e condições do atendimento">{{ equipamento.termos or '' }}</textarea></div>
                                     </div>
@@ -1206,26 +1544,46 @@ Motivo: Permitir editar OS finalizada; ao salvar diretamente, a OS é reaberta e
                     <div class="os-actions-line"><button type="button" class="btn-primary-green" onclick="adicionarEquipamento()">+ Adicionar equipamento</button></div>
                 </div>
             </section>
-            <section class="panel page-section os-form-section os-panel-orcamento"><div class="panel-header page-header os-section-title"><div><h3>Produtos</h3><p class="page-subtitle">Adicione produtos à OS. Use o botão para inserir novas linhas.</p></div></div><div class="os-section-body"><div class="table-shell"><table class="client-table"><thead><tr><th>Produto</th><th>Detalhes</th><th>Quant.</th><th>Valor</th><th>Desconto</th><th>Subtotal</th><th>Ação</th></tr></thead><tbody id="produto-tbody"></tbody></table></div><div class="os-actions-line"><button type="button" class="btn-primary-green" onclick="adicionarItem('produto')">+ Adicionar produto</button></div></div></section>
-            <section class="panel page-section os-form-section os-panel-orcamento"><div class="panel-header page-header os-section-title"><div><h3>Serviços</h3><p class="page-subtitle">Adicione serviços à OS. Use o botão para inserir novas linhas.</p></div></div><div class="os-section-body"><div class="table-shell"><table class="client-table"><thead><tr><th>Serviço</th><th>Detalhes</th><th>Quant.</th><th>Valor</th><th>Desconto</th><th>Subtotal</th><th>Ação</th></tr></thead><tbody id="servico-tbody"></tbody></table></div><div class="os-actions-line"><button type="button" class="btn-primary-green" onclick="adicionarItem('servico')">+ Adicionar serviço</button></div></div></section>
+            <section class="panel page-section os-form-section os-panel-orcamento os-admin-retained" aria-hidden="true"><div class="panel-header page-header os-section-title"><div><h3>Produtos</h3><p class="page-subtitle">Adicione produtos à OS. Use o botão para inserir novas linhas.</p></div></div><div class="os-section-body"><div class="table-shell"><table class="client-table"><thead><tr><th>Produto</th><th>Detalhes</th><th>Quant.</th><th>Valor</th><th>Desconto</th><th>Subtotal</th><th>Ação</th></tr></thead><tbody id="produto-tbody"></tbody></table></div><div class="os-actions-line"><button type="button" class="btn-primary-green" onclick="adicionarItem('produto')">+ Adicionar produto</button></div></div></section>
+            <section class="panel page-section os-form-section os-panel-orcamento os-admin-retained" aria-hidden="true"><div class="panel-header page-header os-section-title"><div><h3>Serviços</h3><p class="page-subtitle">Adicione serviços à OS. Use o botão para inserir novas linhas.</p></div></div><div class="os-section-body"><div class="table-shell"><table class="client-table"><thead><tr><th>Serviço</th><th>Detalhes</th><th>Quant.</th><th>Valor</th><th>Desconto</th><th>Subtotal</th><th>Ação</th></tr></thead><tbody id="servico-tbody"></tbody></table></div><div class="os-actions-line"><button type="button" class="btn-primary-green" onclick="adicionarItem('servico')">+ Adicionar serviço</button></div></div></section>
 
-            <section class="panel page-section os-form-section os-panel-orcamento">
+            <section class="panel page-section os-form-section os-panel-orcamento os-admin-retained" aria-hidden="true">
                 <div class="panel-header page-header os-section-title"><div><h3>Endereço de entrega</h3><p class="page-subtitle">Opcional para retirada ou entrega de equipamento.</p></div></div>
                 <div class="os-section-body"><label class="os-muted-check"><input type="checkbox" name="os_informar_endereco_entrega" value="sim" {% if os.informar_endereco_entrega == 'sim' %}checked{% endif %}> Informar endereço de entrega</label><div class="os-grid-4" style="margin-top: 14px;"><div class="form-group os-span-2"><label for="os_endereco_entrega">Endereço</label><input id="os_endereco_entrega" name="os_endereco_entrega" type="text" value="{{ os.endereco_entrega or '' }}" class="form-control"></div><div class="form-group"><label for="os_bairro_entrega">Bairro</label><input id="os_bairro_entrega" name="os_bairro_entrega" type="text" value="{{ os.bairro_entrega or '' }}" class="form-control"></div><div class="form-group"><label for="os_cidade_entrega">Cidade</label><input id="os_cidade_entrega" name="os_cidade_entrega" type="text" value="{{ os.cidade_entrega or '' }}" class="form-control"></div></div></div>
             </section>
 
-            <section class="panel page-section os-form-section os-panel-orcamento">
+            <section class="panel page-section os-form-section os-panel-orcamento os-admin-retained" aria-hidden="true">
                 <div class="panel-header page-header os-section-title"><div><h3>Total</h3><p class="page-subtitle">Atualize os totais da OS.</p></div></div>
                 <div class="os-section-body"><label class="os-muted-check"><input type="checkbox" name="os_exibir_valor_impressao" value="sim" {% if os.exibir_valor_impressao == 'sim' %}checked{% endif %}> Exibir valor total na impressão</label><div class="os-grid-6" style="margin-top: 14px;"><div class="form-group"><label for="os_total_servicos">Mão de obra</label><input id="os_total_servicos" name="os_total_servicos" type="text" value="{{ os.total_servicos or '0,00' }}" class="form-control" readonly></div><div class="form-group"><label for="os_total_produtos">Peças</label><input id="os_total_produtos" name="os_total_produtos" type="text" value="{{ os.total_produtos or '0,00' }}" class="form-control" readonly></div><div class="form-group"><label for="os_frete">Frete</label><input id="os_frete" name="os_frete" type="text" value="{{ os.frete or '0,00' }}" class="form-control"></div><div class="form-group"><label for="os_outros">Outros</label><input id="os_outros" name="os_outros" type="text" value="{{ os.outros or '0,00' }}" class="form-control"></div><div class="form-group"><label for="os_desconto_valor">Desconto</label><input id="os_desconto_valor" name="os_desconto_valor" type="text" value="{{ os.desconto_valor or '0,00' }}" class="form-control"></div><div class="form-group"><label for="os_valor_total">Valor total</label><input id="os_valor_total" name="os_valor_total" type="text" value="{{ os.valor_total or '0,00' }}" class="form-control" readonly></div><div class="form-group os-span-2"><label for="os_forma_pagamento">Forma de pagamento</label><input id="os_forma_pagamento" name="os_forma_pagamento" type="text" value="{{ os.forma_pagamento or '' }}" class="form-control"></div><div class="form-group"><label for="os_tipo">Tipo</label><select id="os_tipo" name="os_tipo" class="form-control"><option value="misto" {% if os.tipo == 'misto' %}selected{% endif %}>Misto</option><option value="produto" {% if os.tipo == 'produto' %}selected{% endif %}>Produto</option><option value="servico" {% if os.tipo == 'servico' %}selected{% endif %}>Serviço</option></select></div></div></div>
             </section>
 
-            <section class="panel page-section os-form-section os-panel-orcamento">
-                <div class="panel-header page-header os-section-title"><div><h3>Observações</h3><p class="page-subtitle">Observações impressas e internas.</p></div></div>
-                <div class="os-section-body"><div class="os-grid-2"><div class="form-group"><label for="os_observacoes">Observações para o cliente</label><textarea id="os_observacoes" name="os_observacoes" rows="6" class="form-control os-textarea os-observacoes-principais">{{ os.observacoes or '' }}</textarea></div><div class="form-group"><label for="os_observacoes_internas">Observações internas</label><textarea id="os_observacoes_internas" name="os_observacoes_internas" rows="6" class="form-control os-textarea os-observacoes-principais">{{ os.observacoes_internas or '' }}</textarea></div><div class="form-group os-span-2"><label for="os_servico_executado">Serviço executado</label><textarea id="os_servico_executado" name="os_servico_executado" class="form-control os-textarea">{{ os.servico_executado or '' }}</textarea></div></div><div class="form-actions"><a href="/ordens-servico/{{ os.id }}" class="btn-light">Cancelar</a><button type="submit" class="btn-primary-green">Salvar alterações</button></div></div>
+            <section class="panel page-section os-form-section os-panel-orcamento os-execution-record" data-os-tab-panel="execucao">
+                <div class="panel-header page-header os-section-title">
+                    <div>
+                        <h3>Registro da execução</h3>
+                        <p class="page-subtitle">Registre somente o que foi executado, pendências ou informações importantes de campo.</p>
+                    </div>
+                </div>
+                <div class="os-section-body">
+                    <div class="os-hidden-retained-fields" aria-hidden="true">
+                        <textarea id="os_observacoes" name="os_observacoes">{{ os.observacoes or '' }}</textarea>
+                        <textarea id="os_observacoes_internas" name="os_observacoes_internas">{{ os.observacoes_internas or '' }}</textarea>
+                    </div>
+                    <div class="os-grid-2">
+                        <div class="form-group os-executed-field">
+                            <label for="os_servico_executado">Serviço executado / observações de campo</label>
+                            <textarea id="os_servico_executado" name="os_servico_executado" class="form-control os-textarea" placeholder="Descreva de forma curta o que foi feito, o que ficou pendente ou alguma condição importante.">{{ os.servico_executado or '' }}</textarea>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <a href="/ordens-servico/{{ os.id }}" class="btn-light">Cancelar</a>
+                        <button type="submit" class="btn-primary-green">Salvar alterações</button>
+                    </div>
+                </div>
             </section>
         </form>
 
-        <section id="acompanhamentos-diarios" class="panel page-section os-form-section os-panel-orcamento">
+        <section id="acompanhamentos-diarios" class="panel page-section os-form-section os-panel-orcamento" data-os-tab-panel="historico">
             <div class="panel-header page-header os-section-title">
                 <div>
                     <h3>Acompanhamentos diários</h3>
@@ -2296,7 +2654,7 @@ Motivo: Permitir editar OS finalizada; ao salvar diretamente, a OS é reaberta e
                     <div class="os-equipamento-topo">
                         <div>
                             <span>${rotulo}</span>
-                            <small>Dados principais na linha, detalhes abaixo.</small>
+                            <small>Identificação e informações necessárias para executar o serviço.</small>
                         </div>
                         <button type="button" class="action-button delete" title="Remover equipamento" aria-label="Remover equipamento" onclick="removerEquipamento(this)">×</button>
                     </div>
@@ -2328,10 +2686,10 @@ Motivo: Permitir editar OS finalizada; ao salvar diretamente, a OS é reaberta e
                     <div class="os-equipamento-detalhes-card">
                         <div class="os-equipamento-detalhes-grid">
                             <div class="form-group os-detalhe-full"><label>Local do serviço</label><input name="os_local_servico" type="text" placeholder="Ex.: portaria principal, linha 2, área técnica" class="form-control"></div>
-                            <div class="form-group"><label>Condições</label><textarea name="os_condicoes" class="form-control os-textarea" placeholder="Condições encontradas"></textarea></div>
+                            <div class="form-group"><label>Condição encontrada</label><textarea name="os_condicoes" class="form-control os-textarea" placeholder="Condições encontradas"></textarea></div>
                             <div class="form-group"><label>Defeitos / relato do cliente</label><textarea name="os_relato_cliente" class="form-control os-textarea" placeholder="Problema informado pelo cliente"></textarea></div>
                             <div class="form-group"><label>Acessórios</label><textarea name="os_acessorios" class="form-control os-textarea" placeholder="Acessórios recebidos ou vinculados"></textarea></div>
-                            <div class="form-group"><label>Solução / diagnóstico</label><textarea name="os_diagnostico" class="form-control os-textarea" placeholder="Diagnóstico técnico e solução proposta"></textarea></div>
+                            <div class="form-group"><label>Orientação / diagnóstico</label><textarea name="os_diagnostico" class="form-control os-textarea" placeholder="Diagnóstico técnico e solução proposta"></textarea></div>
                             <div class="form-group"><label>Laudo</label><textarea name="os_laudo" class="form-control os-textarea" placeholder="Laudo técnico, quando aplicável"></textarea></div>
                             <div class="form-group"><label>Termos</label><textarea name="os_termos" class="form-control os-textarea" placeholder="Termos e condições do atendimento"></textarea></div>
                         </div>
@@ -3280,6 +3638,132 @@ document.addEventListener("DOMContentLoaded", function() {
 });
 </script>
 
+
+
+<script>
+(function gestflowOsOperacionalSimplificada() {
+    "use strict";
+
+    function normalizar(texto) {
+        return String(texto || "")
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLowerCase()
+            .trim();
+    }
+
+    function statusSelect() {
+        return document.querySelector("[data-status-operacional]");
+    }
+
+    function encontrarOpcaoStatus(acao) {
+        const select = statusSelect();
+        if (!select) return null;
+
+        const opcoes = Array.from(select.options || []);
+        if (acao === "final") {
+            return opcoes.find(function(opcao) {
+                return opcao.dataset.final === "1";
+            }) || null;
+        }
+
+        const termos = acao === "andamento"
+            ? ["andamento", "andando", "iniciado", "execucao"]
+            : ["paus"];
+
+        return opcoes.find(function(opcao) {
+            const alvo = normalizar((opcao.value || "") + " " + (opcao.textContent || ""));
+            return termos.some(function(termo) { return alvo.includes(termo); });
+        }) || null;
+    }
+
+    function atualizarBotoesExecucao() {
+        document.querySelectorAll("[data-os-status-action]").forEach(function(botao) {
+            const acao = botao.dataset.osStatusAction || "";
+            const opcao = encontrarOpcaoStatus(acao);
+            botao.disabled = !opcao;
+            if (!opcao) {
+                botao.title = acao === "pausado"
+                    ? "Nenhum status de pausa está configurado para esta OS."
+                    : "Ação indisponível para os status configurados.";
+            }
+        });
+    }
+
+    function acionarStatus(acao) {
+        const select = statusSelect();
+        const opcao = encontrarOpcaoStatus(acao);
+        if (!select || !opcao) return;
+
+        select.value = opcao.value;
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    function ativarAba(nome) {
+        const aba = ["resumo", "execucao", "evidencias", "historico"].includes(nome)
+            ? nome
+            : "execucao";
+
+        document.body.classList.remove(
+            "os-tab-active-resumo",
+            "os-tab-active-execucao",
+            "os-tab-active-evidencias",
+            "os-tab-active-historico"
+        );
+        document.body.classList.add("os-tab-active-" + aba);
+
+        document.querySelectorAll("[data-os-tab]").forEach(function(botao) {
+            const ativa = botao.dataset.osTab === aba;
+            botao.classList.toggle("is-active", ativa);
+            botao.setAttribute("aria-selected", ativa ? "true" : "false");
+        });
+
+        document.querySelectorAll("[data-os-tab-panel]").forEach(function(painel) {
+            const abas = String(painel.dataset.osTabPanel || "").split(/\s+/).filter(Boolean);
+            painel.hidden = !abas.includes(aba);
+        });
+
+        const nota = document.querySelector("[data-os-execucao-note]");
+        if (nota) {
+            nota.hidden = aba !== "execucao";
+        }
+
+        const tituloEquipamentos = document.querySelector("[data-os-equipamentos-title]");
+        if (tituloEquipamentos) {
+            tituloEquipamentos.textContent = aba === "evidencias"
+                ? "Evidências"
+                : "Equipamentos e execução";
+        }
+
+        try {
+            sessionStorage.setItem("gestflow_os_aba_" + String({{ os.id|tojson }}), aba);
+        } catch (erro) {}
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        let abaInicial = "execucao";
+        try {
+            const salva = sessionStorage.getItem("gestflow_os_aba_" + String({{ os.id|tojson }}));
+            if (salva) abaInicial = salva;
+        } catch (erro) {}
+
+        document.querySelectorAll("[data-os-tab]").forEach(function(botao) {
+            botao.addEventListener("click", function() {
+                ativarAba(botao.dataset.osTab || "execucao");
+            });
+        });
+
+        document.querySelectorAll("[data-os-status-action]").forEach(function(botao) {
+            botao.addEventListener("click", function() {
+                acionarStatus(botao.dataset.osStatusAction || "");
+            });
+        });
+
+        ativarAba(abaInicial);
+        atualizarBotoesExecucao();
+    });
+})();
+</script>
 
 <script>
 (function gestflowStatusOperacional() {
