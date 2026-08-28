@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamentos.html
-Último recode: 2026-08-28 08:49 (America/Bahia)
-Motivo: Redirecionar a conversão de Orçamento para a edição da Venda gerada, mantendo a Venda aberta/editável até sua concretização.
+Último recode: 2026-08-20 19:18 (America/Bahia)
+Motivo: Consumir os status configuráveis dos Orçamentos, aplicar cores predefinidas e finalizar com geração de Venda apenas no status finalizador.
 -->
 
 <!DOCTYPE html>
@@ -1252,8 +1252,8 @@ Motivo: Redirecionar a conversão de Orçamento para a edição da Venda gerada,
                         if (finaliza) {
                             const confirmou = window.confirm(
                                 'Finalizar este orçamento como "' + nome + '"?\n\n' +
-                                'Essa ação irá encerrar o orçamento e gerar uma Venda aberta para revisão. ' +
-                                'Você será direcionado para editar a Venda antes de concretizá-la.'
+                                'Essa ação irá gerar a Venda e bloquear a composição do orçamento. ' +
+                                'Depois de finalizado, o orçamento não poderá voltar para outro status.'
                             );
                             if (!confirmou) {
                                 campo.value = statusAnterior;
@@ -1275,10 +1275,6 @@ Motivo: Redirecionar a conversão de Orçamento para a edição da Venda gerada,
                             const payload = await resposta.json();
                             if (!resposta.ok || !payload.ok) {
                                 throw new Error(payload.erro || 'Não foi possível alterar o status.');
-                            }
-                            if (finaliza && payload.editar_venda_url) {
-                                window.location.href = payload.editar_venda_url;
-                                return;
                             }
                             window.location.reload();
                         } catch (erro) {

@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-28 08:49 (America/Bahia)
-# Motivo: Corrigir o fluxo Orçamento → Venda para gerar uma Venda editável, redirecionar para sua edição e concretizar estoque/financeiro somente ao finalizar a Venda.
+# Último recode: 2026-08-27 20:26 (America/Bahia)
+# Motivo: Separar projetos de atividades financeiras e permitir iniciar projeto manualmente a partir de orçamento aprovado/finalizado.
 
 from __future__ import annotations
 
@@ -5184,6 +5184,14 @@ def iniciar_banco() -> None:
                 video_path TEXT,
                 categoria TEXT,
                 descricao_empresa TEXT,
+                mostrar_apresentacao_profissional TEXT NOT NULL DEFAULT 'nao',
+                profissional_foto_path TEXT,
+                profissional_nome TEXT,
+                profissional_especialidade TEXT,
+                profissional_frase TEXT,
+                profissional_experiencia TEXT,
+                profissional_clientes TEXT,
+                profissional_destaque TEXT,
                 tipo_identidade_visual TEXT NOT NULL DEFAULT 'cores',
                 cor_principal TEXT,
                 cor_secundaria TEXT,
@@ -6258,6 +6266,14 @@ def iniciar_banco() -> None:
             "servicos_vistos": "INTEGER NOT NULL DEFAULT 0",
             "agendamentos_gerados": "INTEGER NOT NULL DEFAULT 0",
             "descricao_empresa": "TEXT",
+            "mostrar_apresentacao_profissional": "TEXT NOT NULL DEFAULT 'nao'",
+            "profissional_foto_path": "TEXT",
+            "profissional_nome": "TEXT",
+            "profissional_especialidade": "TEXT",
+            "profissional_frase": "TEXT",
+            "profissional_experiencia": "TEXT",
+            "profissional_clientes": "TEXT",
+            "profissional_destaque": "TEXT",
             "tipo_identidade_visual": "TEXT NOT NULL DEFAULT 'cores'",
             "logo_tamanho": "INTEGER NOT NULL DEFAULT 100",
             "logo_posicao": "TEXT NOT NULL DEFAULT 'centro'",
@@ -10480,6 +10496,238 @@ def listar_atividades_financeiras(apenas_ativas: bool = True) -> list[dict[str, 
 
 
 
+PROJETO_ORCAMENTO_STATUS_NOMES = {
+    "nao_iniciada": "Planejado",
+    "em_andamento": "Em andamento",
+    "pausada": "Pausado",
+    "aguardando": "Pausado",
+    "concluida": "Concluído",
+    "cancelada": "Cancelado",
+}
+
+
+def normalizar_filtro_projetos_orcamentos(valor: Any) -> str:
+    codigo = _codigo_status_orcamento(valor)
+    aliases = {
+        "": "em_andamento",
+        "andamento": "em_andamento",
+        "planejado": "nao_iniciada",
+        "planejados": "nao_iniciada",
+        "planejada": "nao_iniciada",
+        "planejadas": "nao_iniciada",
+        "nao_iniciado": "nao_iniciada",
+        "nao_iniciados": "nao_iniciada",
+        "pausado": "pausada",
+        "pausados": "pausada",
+        "concluido": "concluida",
+        "concluidos": "concluida",
+        "concluidas": "concluida",
+        "cancelado": "cancelada",
+        "cancelados": "cancelada",
+        "canceladas": "cancelada",
+        "todos": "todos",
+    }
+    codigo = aliases.get(codigo, codigo)
+    permitidos = {*PROJETO_ORCAMENTO_STATUS_NOMES, "todos"}
+    return codigo if codigo in permitidos else "em_andamento"
+
+
+def orcamento_pode_iniciar_projeto(orcamento: dict[str, Any] | None) -> bool:
+    if not orcamento:
+        return False
+    status = codigo_status_orcamento_existente(orcamento.get("status"))
+    return status == "aprovado" or status_final_orcamento(status)
+
+
+def buscar_projeto_por_orcamento(orcamento_id: int) -> dict[str, Any] | None:
+    with conectar_db() as conn:
+        row = conn.execute(
+            """
+            SELECT a.*, o.numero AS orcamento_numero, o.status AS orcamento_status,
+                   o.atividade_financeira_id
+            FROM gestao_atividades a
+            INNER JOIN orcamentos o
+                    ON o.id = a.orcamento_id
+                   AND o.empresa_id = a.empresa_id
+            WHERE a.empresa_id = ?
+              AND a.orcamento_id = ?
+              AND a.tipo = 'projeto'
+            ORDER BY a.id ASC
+            LIMIT 1
+            """,
+            (empresa_logada_id(), orcamento_id),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def iniciar_projeto_por_orcamento_db(orcamento_id: int) -> tuple[int | None, bool, str]:
+    empresa_id = empresa_logada_id()
+    atividade_financeira_id = garantir_atividade_orcamento(orcamento_id)
+    if not atividade_financeira_id:
+        return None, False, "Orçamento não encontrado."
+
+    agora = agora_empresa().isoformat(timespec="seconds")
+    hoje = hoje_empresa().isoformat()
+    with conectar_db() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        orcamento = conn.execute(
+            """
+            SELECT id, numero, cliente, responsavel, status, introducao, descricao_comercial
+            FROM orcamentos
+            WHERE id = ? AND empresa_id = ?
+            """,
+            (orcamento_id, empresa_id),
+        ).fetchone()
+        if orcamento is None:
+            conn.rollback()
+            return None, False, "Orçamento não encontrado."
+
+        orcamento_dict = dict(orcamento)
+        existente = conn.execute(
+            """
+            SELECT id
+            FROM gestao_atividades
+            WHERE empresa_id = ?
+              AND orcamento_id = ?
+              AND tipo = 'projeto'
+            ORDER BY id ASC
+            LIMIT 1
+            """,
+            (empresa_id, orcamento_id),
+        ).fetchone()
+        if existente is not None:
+            conn.rollback()
+            return int(existente["id"]), False, "Este orçamento já possui um projeto."
+
+        if not orcamento_pode_iniciar_projeto(orcamento_dict):
+            conn.rollback()
+            return None, False, "O projeto só pode ser iniciado após o orçamento ser aprovado ou finalizado."
+
+        usuario_id = usuario_logado_id()
+        usuario = conn.execute(
+            """
+            SELECT u.id, u.nome, u.email, u.funcionario_id,
+                   f.nome AS funcionario_nome, f.email AS funcionario_email
+            FROM usuarios u
+            LEFT JOIN funcionarios f
+                   ON f.id = u.funcionario_id
+                  AND f.empresa_id = u.empresa_id
+            WHERE u.id = ? AND u.empresa_id = ?
+            LIMIT 1
+            """,
+            (usuario_id, empresa_id),
+        ).fetchone() if usuario_id else None
+
+        responsavel_funcionario_id = usuario["funcionario_id"] if usuario is not None else None
+        responsavel_nome = (
+            str(usuario["funcionario_nome"] or usuario["nome"] or "").strip()
+            if usuario is not None
+            else str(session.get("usuario_nome") or "").strip()
+        )
+        responsavel_email = (
+            str(usuario["funcionario_email"] or usuario["email"] or "").strip()
+            if usuario is not None
+            else ""
+        )
+        numero = str(orcamento["numero"] or orcamento_id)
+        cliente = str(orcamento["cliente"] or "").strip()
+        titulo = f"Projeto {numero}" + (f" - {cliente}" if cliente else "")
+        descricao = str(
+            orcamento["descricao_comercial"] or orcamento["introducao"] or ""
+        ).strip()
+        observacoes = f"Projeto iniciado a partir do orçamento {numero}."
+
+        cursor = conn.execute(
+            """
+            INSERT INTO gestao_atividades (
+                empresa_id, titulo, descricao, tipo, classificacao,
+                responsavel_funcionario_id, responsavel_usuario_id,
+                responsavel_nome, responsavel_email, cliente_nome,
+                orcamento_id, data_inicio, prioridade, status, progresso,
+                observacoes, criado_por_usuario_id, criado_por_nome,
+                criado_em, atualizado_em
+            ) VALUES (?, ?, ?, 'projeto', 'orcamento', ?, ?, ?, ?, ?, ?, ?,
+                      'normal', 'em_andamento', 0, ?, ?, ?, ?, ?)
+            """,
+            (
+                empresa_id, titulo, descricao, responsavel_funcionario_id,
+                usuario_id, responsavel_nome, responsavel_email, cliente,
+                orcamento_id, hoje, observacoes, usuario_id,
+                str(session.get("usuario_nome") or responsavel_nome), agora, agora,
+            ),
+        )
+        projeto_id = int(cursor.lastrowid)
+        _registrar_historico_atividade(
+            projeto_id,
+            "projeto_iniciado",
+            f"Projeto iniciado manualmente a partir do orçamento {numero}.",
+            conn=conn,
+        )
+        conn.commit()
+
+    return projeto_id, True, "Projeto iniciado com sucesso."
+
+
+def listar_projetos_orcamentos(status: Any = "em_andamento") -> list[dict[str, Any]]:
+    filtro = normalizar_filtro_projetos_orcamentos(status)
+    consulta = """
+        SELECT a.*,
+               o.numero AS orcamento_numero,
+               o.status AS orcamento_status,
+               o.atividade_financeira_id,
+               af.centro_custo_id,
+               cc.nome AS centro_custo_nome
+        FROM gestao_atividades a
+        INNER JOIN orcamentos o
+                ON o.id = a.orcamento_id
+               AND o.empresa_id = a.empresa_id
+        LEFT JOIN atividades_financeiras af
+               ON af.id = o.atividade_financeira_id
+              AND af.empresa_id = a.empresa_id
+        LEFT JOIN centros_custo cc
+               ON cc.id = af.centro_custo_id
+              AND cc.empresa_id = a.empresa_id
+        WHERE a.empresa_id = ?
+          AND a.tipo = 'projeto'
+          AND a.orcamento_id IS NOT NULL
+    """
+    parametros: list[Any] = [empresa_logada_id()]
+    if filtro == "pausada":
+        consulta += " AND a.status IN ('pausada', 'aguardando')"
+    elif filtro != "todos":
+        consulta += " AND a.status = ?"
+        parametros.append(filtro)
+    consulta += " ORDER BY COALESCE(a.data_inicio, a.criado_em) DESC, a.id DESC"
+
+    with conectar_db() as conn:
+        rows = conn.execute(consulta, parametros).fetchall()
+
+    projetos: list[dict[str, Any]] = []
+    for row in rows:
+        item = dict(row)
+        projeto_id = int(item["id"])
+        atividade_financeira_id = item.get("atividade_financeira_id")
+        projeto_status = str(item.get("status") or "nao_iniciada")
+        item["projeto_id"] = projeto_id
+        item["id"] = int(atividade_financeira_id) if atividade_financeira_id else 0
+        item["codigo"] = str(item.get("orcamento_numero") or item.get("orcamento_id") or projeto_id)
+        item["nome"] = str(item.get("titulo") or f"Projeto {item['codigo']}")
+        item["cliente"] = str(item.get("cliente_nome") or "")
+        item["origem"] = "projeto"
+        item["projeto_status"] = projeto_status
+        item["status"] = projeto_status
+        item["status_nome"] = PROJETO_ORCAMENTO_STATUS_NOMES.get(
+            projeto_status, projeto_status.replace("_", " ").title()
+        )
+        item["resumo"] = resumir_atividade_financeira(
+            int(atividade_financeira_id) if atividade_financeira_id else None
+        )
+        projetos.append(item)
+    return projetos
+
+
+
+
 def buscar_centro_custo_por_id(centro_id: int) -> dict[str, Any] | None:
     with conectar_db() as conn:
         row = conn.execute("SELECT * FROM centros_custo WHERE id = ? AND empresa_id = ?", (centro_id, empresa_logada_id())).fetchone()
@@ -10738,10 +10986,35 @@ def excluir_centro_custo(centro_id: int) -> Response:
 
 @app.get('/financeiro/atividades')
 def atividades_financeiras() -> str:
-    atividades = listar_atividades_financeiras(False)
-    for atividade in atividades:
-        atividade['resumo'] = resumir_atividade_financeira(atividade['id'])
-    return render_template('atividades_financeiras.html', atividades=atividades)
+    filtro_status = normalizar_filtro_projetos_orcamentos(request.args.get('status'))
+    todos_projetos = listar_projetos_orcamentos('todos')
+    atividades = (
+        todos_projetos
+        if filtro_status == 'todos'
+        else [
+            item for item in todos_projetos
+            if (
+                item.get('projeto_status') in {'pausada', 'aguardando'}
+                if filtro_status == 'pausada'
+                else item.get('projeto_status') == filtro_status
+            )
+        ]
+    )
+    contagens = {
+        'em_andamento': sum(1 for item in todos_projetos if item.get('projeto_status') == 'em_andamento'),
+        'planejados': sum(1 for item in todos_projetos if item.get('projeto_status') == 'nao_iniciada'),
+        'pausados': sum(1 for item in todos_projetos if item.get('projeto_status') in {'pausada', 'aguardando'}),
+        'concluidos': sum(1 for item in todos_projetos if item.get('projeto_status') == 'concluida'),
+        'cancelados': sum(1 for item in todos_projetos if item.get('projeto_status') == 'cancelada'),
+        'todos': len(todos_projetos),
+    }
+    return render_template(
+        'atividades_financeiras.html',
+        atividades=atividades,
+        filtro_status=filtro_status,
+        contagens=contagens,
+        projeto_status_nomes=PROJETO_ORCAMENTO_STATUS_NOMES,
+    )
 
 
 @app.get('/financeiro/atividades/<int:atividade_id>')
@@ -12704,10 +12977,8 @@ def ajustar_itens_apresentacao_ao_total(
     ajustados: list[dict[str, Any]] = []
 
     for item, valor in zip(validos, valores):
-        quantidade = max(_converter_valor_brl(item.get("quantidade")) or 1.0, 0.01)
-        valor_unitario = valor / quantidade if quantidade > 0 else valor
-        item["quantidade"] = _formatar_numero_estoque(quantidade)
-        item["valor_unitario"] = _formatar_moeda_brl(valor_unitario)
+        item["quantidade"] = "1"
+        item["valor_unitario"] = _formatar_moeda_brl(valor)
         item["subtotal"] = _formatar_moeda_brl(valor)
         ajustados.append(item)
 
@@ -12952,7 +13223,6 @@ def _normalizar_atividades_gerador(
                 "id": atividade_id,
                 "nome": str(atividade.get("nome") or f"Atividade {indice + 1:02d}").strip() or f"Atividade {indice + 1:02d}",
                 "descricao": normalizar_texto_multilinha(atividade.get("descricao")),
-                "quantidade": max(_converter_valor_brl(atividade.get("quantidade")) or 1.0, 0.01),
                 "ordem": max(ordem, 1),
             }
         )
@@ -12973,7 +13243,6 @@ def _normalizar_atividades_gerador(
                 "id": atividade_id,
                 "nome": f"Atividade {len(normalizadas) + 1:02d}",
                 "descricao": "",
-                "quantidade": 1.0,
                 "ordem": len(normalizadas) + 1,
             }
         )
@@ -12985,7 +13254,6 @@ def _normalizar_atividades_gerador(
                 "id": "atividade-1",
                 "nome": "Serviço principal",
                 "descricao": "",
-                "quantidade": 1.0,
                 "ordem": 1,
             }
         )
@@ -14135,7 +14403,6 @@ def montar_gerador_orcamento_formulario() -> dict[str, Any]:
     atividade_ids = _limpar_lista_formulario("atividade_id")
     atividade_nomes = _limpar_lista_formulario("atividade_nome")
     atividade_descricoes = _limpar_lista_formulario("atividade_descricao")
-    atividade_quantidades = _limpar_lista_formulario("atividade_quantidade")
     atividade_ordens = _limpar_lista_formulario("atividade_ordem")
 
     atividades: list[dict[str, Any]] = []
@@ -14144,7 +14411,6 @@ def montar_gerador_orcamento_formulario() -> dict[str, Any]:
         len(atividade_ids),
         len(atividade_nomes),
         len(atividade_descricoes),
-        len(atividade_quantidades),
         len(atividade_ordens),
         0,
     )
@@ -14162,7 +14428,6 @@ def montar_gerador_orcamento_formulario() -> dict[str, Any]:
 
         nome = _gerador_item_valor(atividade_nomes, indice) or f"Atividade {indice + 1:02d}"
         descricao = normalizar_texto_multilinha(_gerador_item_valor(atividade_descricoes, indice))
-        quantidade = max(_converter_valor_brl(_gerador_item_valor(atividade_quantidades, indice)) or 1.0, 0.01)
         try:
             ordem = int(float(_gerador_item_valor(atividade_ordens, indice) or indice + 1))
         except (TypeError, ValueError):
@@ -14173,14 +14438,13 @@ def montar_gerador_orcamento_formulario() -> dict[str, Any]:
                 "id": atividade_id,
                 "nome": nome,
                 "descricao": descricao,
-                "quantidade": quantidade,
                 "ordem": max(ordem, 1),
             }
         )
         ids_usados.add(atividade_id)
 
     if not atividades:
-        atividades = [{"id": "atividade-1", "nome": "Serviço principal", "descricao": "", "quantidade": 1.0, "ordem": 1}]
+        atividades = [{"id": "atividade-1", "nome": "Serviço principal", "descricao": "", "ordem": 1}]
 
     atividades.sort(key=lambda item: (int(item.get("ordem") or 0), str(item.get("nome") or "")))
     for indice, atividade in enumerate(atividades, start=1):
@@ -14334,22 +14598,9 @@ def montar_gerador_orcamento_formulario() -> dict[str, Any]:
         if atividade_id in totais_por_atividade:
             totais_por_atividade[atividade_id]["custo_outros"] += float(item.get("valor") or 0)
 
-    quantidade_por_atividade = {
-        str(atividade.get("id") or ""): max(_converter_valor_brl(atividade.get("quantidade")) or 1.0, 0.01)
-        for atividade in atividades
-        if str(atividade.get("id") or "").strip()
-    }
-
     for atividade in atividades:
-        atividade_id = str(atividade.get("id") or "")
-        quantidade_atividade = quantidade_por_atividade.get(atividade_id, 1.0)
-        totais_unitarios = totais_por_atividade.get(atividade_id, {})
-        totais = {
-            chave: float(valor or 0) * quantidade_atividade
-            for chave, valor in totais_unitarios.items()
-        }
+        totais = totais_por_atividade.get(str(atividade.get("id") or ""), {})
         atividade.update(totais)
-        atividade["custo_unitario"] = sum(float(valor or 0) for valor in totais_unitarios.values())
         atividade["custo_total"] = sum(float(valor or 0) for valor in totais.values())
 
     margem_material = _valor_percentual_formulario("margem_material", 30.0)
@@ -14359,28 +14610,11 @@ def montar_gerador_orcamento_formulario() -> dict[str, Any]:
     administrativo_percentual = _valor_percentual_formulario("administrativo_percentual", 10.0)
     reserva_percentual = _valor_percentual_formulario("reserva_percentual", 5.0)
 
-    def multiplicador_atividade(atividade_id: Any) -> float:
-        return quantidade_por_atividade.get(str(atividade_id or ""), 1.0)
-
-    custo_material = sum(
-        float(item.get("custo") or 0) * multiplicador_atividade(item.get("atividade_id"))
-        for item in materiais
-    )
-    custo_mao_obra = sum(
-        float(item.get("custo") or 0) * multiplicador_atividade(item.get("atividade_id"))
-        for item in mao_obra
-    )
-    custo_adicionais_mao_obra = sum(
-        float(item.get("custo") or 0) * multiplicador_atividade(item.get("atividade_id"))
-        for item in adicionais_mao_obra
-    )
-    custo_adicional = sum(
-        float(item.get("valor") or 0) * (
-            multiplicador_atividade(item.get("atividade_id")) if item.get("atividade_id") else 1.0
-        )
-        for item in custos_adicionais
-    )
-    custo_geral = sum(float(item.get("valor") or 0) for item in custos_adicionais if not item.get("atividade_id"))
+    custo_material = sum(item["custo"] for item in materiais)
+    custo_mao_obra = sum(item["custo"] for item in mao_obra)
+    custo_adicionais_mao_obra = sum(item["custo"] for item in adicionais_mao_obra)
+    custo_adicional = sum(item["valor"] for item in custos_adicionais)
+    custo_geral = sum(item["valor"] for item in custos_adicionais if not item.get("atividade_id"))
     custo_total = custo_material + custo_mao_obra + custo_adicionais_mao_obra + custo_adicional
 
     venda_material = custo_material * (1 + (margem_material / 100))
@@ -14523,13 +14757,12 @@ def montar_apresentacao_atividades_gerador(dados: dict[str, Any]) -> list[dict[s
         custo_mao = sum(float(item.get("custo") or 0) for item in mao_obra if str(item.get("atividade_id") or "") == atividade_id)
         custo_adicionais = sum(float(item.get("custo") or 0) for item in adicionais if str(item.get("atividade_id") or "") == atividade_id)
         custo_outros = sum(float(item.get("valor") or 0) for item in custos if str(item.get("atividade_id") or "") == atividade_id)
-        quantidade_atividade = max(_converter_valor_brl(atividade.get("quantidade")) or 1.0, 0.01)
         base = (
             custo_material * (1 + margem_material / 100)
             + custo_mao * (1 + margem_mao / 100)
             + custo_adicionais * (1 + margem_mao / 100)
             + custo_outros * (1 + margem_custos / 100)
-        ) * quantidade_atividade
+        )
         if base <= 0:
             continue
         linhas.append(
@@ -14558,14 +14791,12 @@ def montar_apresentacao_atividades_gerador(dados: dict[str, Any]) -> list[dict[s
         atividade = dict(item["atividade"])
         nome = str(atividade.get("nome") or "Atividade do serviço").strip() or "Atividade do serviço"
         descricao = str(atividade.get("descricao") or "").strip()
-        quantidade = max(_converter_valor_brl(atividade.get("quantidade")) or 1.0, 0.01)
-        valor_unitario = valor / quantidade if quantidade > 0 else valor
         resultado.append(
             {
                 "descricao": nome,
                 "detalhes": descricao or "Execução conforme escopo técnico e condições previstas para esta atividade.",
-                "quantidade": _formatar_numero_estoque(quantidade),
-                "valor_unitario": _formatar_moeda_brl(valor_unitario),
+                "quantidade": "1",
+                "valor_unitario": _formatar_moeda_brl(valor),
                 "subtotal": _formatar_moeda_brl(valor),
             }
         )
@@ -14626,24 +14857,14 @@ def montar_orcamento_por_gerador(
 
     if total_produtos_numero > 0:
         if materiais:
-            bases_materiais = [
-                float(item.get("custo") or 0)
-                * max(
-                    _converter_valor_brl(
-                        atividades_por_id.get(str(item.get("atividade_id") or ""), {}).get("quantidade")
-                    ) or 1.0,
-                    0.01,
-                )
-                for item in materiais
-            ]
+            bases_materiais = [float(item.get("custo") or 0) for item in materiais]
             valores_materiais = _gerador_alocar_total(total_produtos_numero, bases_materiais)
 
             for material, valor_material in zip(materiais, valores_materiais):
                 descricao = str(material.get("descricao") or "Material aplicado").strip()
-                atividade = atividades_por_id.get(str(material.get("atividade_id") or ""), {})
-                quantidade_atividade = max(_converter_valor_brl(atividade.get("quantidade")) or 1.0, 0.01)
-                quantidade_numero = (float(material.get("quantidade") or 0) or 1.0) * quantidade_atividade
+                quantidade_numero = float(material.get("quantidade") or 0) or 1.0
                 valor_unitario = valor_material / quantidade_numero if quantidade_numero > 0 else valor_material
+                atividade = atividades_por_id.get(str(material.get("atividade_id") or ""), {})
                 atividade_nome = str(atividade.get("nome") or "").strip()
                 detalhes = "Material previsto no Gerador de Orçamentos."
                 if atividade_nome:
@@ -14700,12 +14921,11 @@ def montar_orcamento_por_gerador(
                 for item in custos_adicionais
                 if str(item.get("atividade_id") or "") == atividade_id
             )
-            quantidade_atividade = max(_converter_valor_brl(atividade.get("quantidade")) or 1.0, 0.01)
             base_atividade = (
                 custo_mao * (1 + margem_mao_obra / 100)
                 + custo_adicionais_ocultos * (1 + margem_mao_obra / 100)
                 + custo_outros * (1 + margem_custos / 100)
-            ) * quantidade_atividade
+            )
 
             if base_atividade > 0:
                 nome = str(atividade.get("nome") or "Atividade do serviço").strip() or "Atividade do serviço"
@@ -14715,18 +14935,13 @@ def montar_orcamento_por_gerador(
                         "base": base_atividade,
                         "descricao": nome,
                         "detalhes": descricao or "Mão de obra e custos operacionais previstos para execução desta atividade.",
-                        "quantidade": max(_converter_valor_brl(atividade.get("quantidade")) or 1.0, 0.01),
                     }
                 )
 
             for adicional in adicionais_atividade:
                 if str(adicional.get("exibir_cliente") or "nao").strip().lower() != "sim":
                     continue
-                venda_adicional = (
-                    float(adicional.get("custo") or 0)
-                    * (1 + margem_mao_obra / 100)
-                    * quantidade_atividade
-                )
+                venda_adicional = float(adicional.get("custo") or 0) * (1 + margem_mao_obra / 100)
                 if venda_adicional <= 0:
                     continue
                 nome_atividade = str(atividade.get("nome") or "Atividade").strip() or "Atividade"
@@ -14735,7 +14950,6 @@ def montar_orcamento_por_gerador(
                         "base": venda_adicional,
                         "descricao": f"{nome_atividade} - {str(adicional.get('descricao') or adicional.get('tipo_nome') or 'Adicional de mão de obra').strip()}",
                         "detalhes": "Adicional de mão de obra aplicado conforme as condições previstas para a execução desta atividade.",
-                        "quantidade": 1.0,
                     }
                 )
 
@@ -14751,7 +14965,6 @@ def montar_orcamento_por_gerador(
                     "base": base_geral,
                     "descricao": "Custos gerais de execução",
                     "detalhes": "Mobilização, hospedagem, ART, fretes, locações compartilhadas e demais custos gerais previstos no serviço.",
-                    "quantidade": 1.0,
                 }
             )
 
@@ -14766,7 +14979,6 @@ def montar_orcamento_por_gerador(
                         "base": diferenca,
                         "descricao": "Serviço técnico conforme escopo",
                         "detalhes": str(dados.get("escopo") or "Serviço técnico gerado pelo Gerador de Orçamentos."),
-                        "quantidade": 1.0,
                     }
                 )
 
@@ -14776,7 +14988,6 @@ def montar_orcamento_por_gerador(
                     "base": total_servicos_numero,
                     "descricao": "Serviço técnico conforme escopo",
                     "detalhes": str(dados.get("escopo") or "Serviço técnico gerado pelo Gerador de Orçamentos."),
-                    "quantidade": 1.0,
                 }
             )
 
@@ -14788,15 +14999,13 @@ def montar_orcamento_por_gerador(
         for componente, valor_servico in zip(componentes_servicos, valores_servicos):
             if valor_servico <= 0:
                 continue
-            quantidade = max(_converter_valor_brl(componente.get("quantidade")) or 1.0, 0.01)
-            valor_unitario = valor_servico / quantidade if quantidade > 0 else valor_servico
             itens.append(
                 {
                     "tipo_item": "servico",
                     "descricao": str(componente.get("descricao") or "Serviço técnico"),
                     "detalhes": str(componente.get("detalhes") or ""),
-                    "quantidade": _formatar_numero_estoque(quantidade),
-                    "valor_unitario": _formatar_moeda_brl(valor_unitario),
+                    "quantidade": "1",
+                    "valor_unitario": _formatar_moeda_brl(valor_servico),
                     "desconto": "0,00",
                     "subtotal": _formatar_moeda_brl(valor_servico),
                 }
@@ -15228,7 +15437,7 @@ def gerar_venda_por_orcamento_db(orcamento_id: int) -> tuple[int | None, bool]:
         "centro_custo_id": orcamento.get("centro_custo_id") or "",
         "atividade_financeira_id": orcamento.get("atividade_financeira_id") or garantir_atividade_orcamento(orcamento_id) or "",
         "tipo": str(orcamento.get("tipo") or "misto"),
-        "status": status_inicial_operacional("vendas"),
+        "status": configuracao_status_operacional("vendas")["finalizador"],
         "total_produtos": str(orcamento.get("total_produtos") or "0,00"),
         "total_servicos": str(orcamento.get("total_servicos") or "0,00"),
         "desconto_valor": str(orcamento.get("desconto_valor") or "0,00"),
@@ -25393,6 +25602,9 @@ def salvar_configuracao_publica_vitrine() -> Response:
                 "nome_loja", "whatsapp", "instagram", "slug", "logo_path",
                 "logo_zoom", "logo_offset_x", "logo_offset_y", "logo_formato",
                 "logo_fundo", "catalogo_formato", "categoria", "descricao_empresa",
+                "mostrar_apresentacao_profissional", "profissional_foto_path",
+                "profissional_nome", "profissional_especialidade", "profissional_frase",
+                "profissional_experiencia", "profissional_clientes", "profissional_destaque",
                 "tipo_identidade_visual", "cor_principal", "cor_secundaria", "status",
             )
         },
@@ -25402,6 +25614,9 @@ def salvar_configuracao_publica_vitrine() -> Response:
                 "nome_loja", "whatsapp", "instagram", "slug", "logo_path",
                 "logo_zoom", "logo_offset_x", "logo_offset_y", "logo_formato",
                 "logo_fundo", "catalogo_formato", "categoria", "descricao_empresa",
+                "mostrar_apresentacao_profissional", "profissional_foto_path",
+                "profissional_nome", "profissional_especialidade", "profissional_frase",
+                "profissional_experiencia", "profissional_clientes", "profissional_destaque",
                 "tipo_identidade_visual", "cor_principal", "cor_secundaria", "status",
             )
         },
@@ -26916,6 +27131,27 @@ def salvar_logo_vitrine_upload() -> str:
     return f"uploads/vitrines/{nome_final}"
 
 
+def salvar_foto_profissional_vitrine_upload() -> str:
+    arquivo = request.files.get("profissional_foto")
+
+    if arquivo is None or not arquivo.filename:
+        return ""
+
+    if not extensao_arquivo_permitida(arquivo.filename, EXTENSOES_FOTO_VITRINE_PERMITIDAS):
+        raise ValueError("A foto profissional deve estar em PNG, JPG, JPEG ou WEBP.")
+
+    empresa_id = empresa_logada_id()
+    nome_seguro = secure_filename(arquivo.filename)
+    extensao = nome_seguro.rsplit(".", 1)[-1].lower()
+    nome_final = (
+        f"vitrine_profissional_{empresa_id}_{int(datetime.now().timestamp())}_"
+        f"{secrets.token_hex(4)}.{extensao}"
+    )
+    caminho_final = VITRINE_UPLOAD_DIR / nome_final
+    arquivo.save(caminho_final)
+    return f"uploads/vitrines/{nome_final}"
+
+
 def salvar_video_vitrine_upload() -> str:
     arquivo = request.files.get("video_catalogo")
 
@@ -27015,6 +27251,37 @@ def montar_vitrine_formulario(config_atual: dict[str, Any] | None = None) -> dic
     video_novo = "" if remover_video else salvar_video_vitrine_upload()
     video_path = "" if remover_video else (video_novo or video_anterior)
 
+    profissional_foto_anterior = str(config_atual.get("profissional_foto_path") or "").strip()
+    remover_profissional_foto = str(request.form.get("remover_profissional_foto") or "").strip().lower() == "sim"
+    profissional_foto_nova = "" if remover_profissional_foto else salvar_foto_profissional_vitrine_upload()
+    profissional_foto_path = "" if remover_profissional_foto else (profissional_foto_nova or profissional_foto_anterior)
+
+    apresentacao_profissional_presente = str(request.form.get("apresentacao_profissional_presente") or "") == "1"
+    if apresentacao_profissional_presente:
+        mostrar_apresentacao_profissional = (
+            "sim"
+            if str(request.form.get("mostrar_apresentacao_profissional") or "").strip().lower() == "sim"
+            else "nao"
+        )
+        profissional_nome = (request.form.get("profissional_nome") or "").strip()[:90]
+        profissional_especialidade = (request.form.get("profissional_especialidade") or "").strip()[:120]
+        profissional_frase = (request.form.get("profissional_frase") or "").strip()[:220]
+        profissional_experiencia = (request.form.get("profissional_experiencia") or "").strip()[:40]
+        profissional_clientes = (request.form.get("profissional_clientes") or "").strip()[:40]
+        profissional_destaque = (request.form.get("profissional_destaque") or "").strip()[:120]
+    else:
+        mostrar_apresentacao_profissional = str(
+            config_atual.get("mostrar_apresentacao_profissional") or "nao"
+        ).strip().lower()
+        if mostrar_apresentacao_profissional not in {"sim", "nao"}:
+            mostrar_apresentacao_profissional = "nao"
+        profissional_nome = str(config_atual.get("profissional_nome") or "").strip()[:90]
+        profissional_especialidade = str(config_atual.get("profissional_especialidade") or "").strip()[:120]
+        profissional_frase = str(config_atual.get("profissional_frase") or "").strip()[:220]
+        profissional_experiencia = str(config_atual.get("profissional_experiencia") or "").strip()[:40]
+        profissional_clientes = str(config_atual.get("profissional_clientes") or "").strip()[:40]
+        profissional_destaque = str(config_atual.get("profissional_destaque") or "").strip()[:120]
+
     cor_principal_atual = str(config_atual.get("cor_principal") or "#111827").strip() or "#111827"
     cor_secundaria_atual = str(config_atual.get("cor_secundaria") or "#f59e0b").strip() or "#f59e0b"
 
@@ -27065,6 +27332,16 @@ def montar_vitrine_formulario(config_atual: dict[str, Any] | None = None) -> dic
         "remover_video": "sim" if remover_video else "nao",
         "categoria": (request.form.get("categoria") or "").strip(),
         "descricao_empresa": (request.form.get("descricao_empresa") or "").strip()[:600],
+        "mostrar_apresentacao_profissional": mostrar_apresentacao_profissional,
+        "profissional_foto_path": profissional_foto_path,
+        "profissional_foto_anterior": profissional_foto_anterior,
+        "remover_profissional_foto": "sim" if remover_profissional_foto else "nao",
+        "profissional_nome": profissional_nome,
+        "profissional_especialidade": profissional_especialidade,
+        "profissional_frase": profissional_frase,
+        "profissional_experiencia": profissional_experiencia,
+        "profissional_clientes": profissional_clientes,
+        "profissional_destaque": profissional_destaque,
         "tipo_identidade_visual": tipo_identidade_visual,
         "cor_principal": (request.form.get("cor_principal") or cor_principal_atual).strip() or cor_principal_atual,
         "cor_secundaria": (request.form.get("cor_secundaria") or cor_secundaria_atual).strip() or cor_secundaria_atual,
@@ -27096,6 +27373,14 @@ def buscar_vitrine_configuracao() -> dict[str, Any]:
                 video_path,
                 categoria,
                 descricao_empresa,
+                mostrar_apresentacao_profissional,
+                profissional_foto_path,
+                profissional_nome,
+                profissional_especialidade,
+                profissional_frase,
+                profissional_experiencia,
+                profissional_clientes,
+                profissional_destaque,
                 tipo_identidade_visual,
                 cor_principal,
                 cor_secundaria,
@@ -27134,6 +27419,14 @@ def buscar_vitrine_configuracao() -> dict[str, Any]:
             "video_path": "",
             "categoria": "",
             "descricao_empresa": "",
+            "mostrar_apresentacao_profissional": "nao",
+            "profissional_foto_path": "",
+            "profissional_nome": "",
+            "profissional_especialidade": "",
+            "profissional_frase": "",
+            "profissional_experiencia": "",
+            "profissional_clientes": "",
+            "profissional_destaque": "",
             "tipo_identidade_visual": "cores",
             "cor_principal": "#111827",
             "cor_secundaria": "#f59e0b",
@@ -27186,13 +27479,21 @@ def salvar_vitrine_configuracao_db(dados: dict[str, str]) -> None:
                     video_path,
                     categoria,
                     descricao_empresa,
+                    mostrar_apresentacao_profissional,
+                    profissional_foto_path,
+                    profissional_nome,
+                    profissional_especialidade,
+                    profissional_frase,
+                    profissional_experiencia,
+                    profissional_clientes,
+                    profissional_destaque,
                     tipo_identidade_visual,
                     cor_principal,
                     cor_secundaria,
                     template,
                     status,
                     atualizado_em
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     empresa_id,
@@ -27210,6 +27511,14 @@ def salvar_vitrine_configuracao_db(dados: dict[str, str]) -> None:
                     dados["video_path"],
                     dados["categoria"],
                     dados["descricao_empresa"],
+                    dados["mostrar_apresentacao_profissional"],
+                    dados["profissional_foto_path"],
+                    dados["profissional_nome"],
+                    dados["profissional_especialidade"],
+                    dados["profissional_frase"],
+                    dados["profissional_experiencia"],
+                    dados["profissional_clientes"],
+                    dados["profissional_destaque"],
                     dados["tipo_identidade_visual"],
                     dados["cor_principal"],
                     dados["cor_secundaria"],
@@ -27237,6 +27546,14 @@ def salvar_vitrine_configuracao_db(dados: dict[str, str]) -> None:
                     video_path = ?,
                     categoria = ?,
                     descricao_empresa = ?,
+                    mostrar_apresentacao_profissional = ?,
+                    profissional_foto_path = ?,
+                    profissional_nome = ?,
+                    profissional_especialidade = ?,
+                    profissional_frase = ?,
+                    profissional_experiencia = ?,
+                    profissional_clientes = ?,
+                    profissional_destaque = ?,
                     tipo_identidade_visual = ?,
                     cor_principal = ?,
                     cor_secundaria = ?,
@@ -27260,6 +27577,14 @@ def salvar_vitrine_configuracao_db(dados: dict[str, str]) -> None:
                     dados["video_path"],
                     dados["categoria"],
                     dados["descricao_empresa"],
+                    dados["mostrar_apresentacao_profissional"],
+                    dados["profissional_foto_path"],
+                    dados["profissional_nome"],
+                    dados["profissional_especialidade"],
+                    dados["profissional_frase"],
+                    dados["profissional_experiencia"],
+                    dados["profissional_clientes"],
+                    dados["profissional_destaque"],
                     dados["tipo_identidade_visual"],
                     dados["cor_principal"],
                     dados["cor_secundaria"],
@@ -27287,6 +27612,14 @@ def salvar_vitrine_configuracao_db(dados: dict[str, str]) -> None:
 
     if dados.get("remover_logo") == "sim" and dados.get("logo_anterior"):
         remover_arquivo_imagem_vitrine(dados.get("logo_anterior"))
+
+    profissional_foto_anterior = str(dados.get("profissional_foto_anterior") or "").strip()
+    profissional_foto_atual = str(dados.get("profissional_foto_path") or "").strip()
+    if profissional_foto_anterior and (
+        dados.get("remover_profissional_foto") == "sim"
+        or (profissional_foto_atual and profissional_foto_atual != profissional_foto_anterior)
+    ):
+        remover_arquivo_imagem_vitrine(profissional_foto_anterior)
 
     video_anterior = str(dados.get("video_anterior") or "").strip()
     if video_anterior and (dados.get("remover_video") == "sim" or (video_atual and video_atual != video_anterior)):
@@ -30014,6 +30347,10 @@ def renderizar_vitrine_publica_html(
     if categoria_configuracao not in perfis_categoria:
         categoria_configuracao = "servicos" if tem_servicos and not tem_produtos else "mercado"
     perfil_categoria = perfis_categoria[categoria_configuracao]
+    apresentacao_profissional_ativa = (
+        categoria_configuracao == "servicos"
+        and str(config_vitrine.get("mostrar_apresentacao_profissional") or "nao").strip().lower() == "sim"
+    )
 
     descricao_empresa_raw = str(config_vitrine.get("descricao_empresa") or "").strip()
     texto_institucional_raw = (
@@ -30439,6 +30776,60 @@ def renderizar_vitrine_publica_html(
         ]
     )
 
+    hero_whatsapp = (
+        f'<a class="btn-light" href="{whatsapp_publico_url_html}" target="_blank" rel="noopener">Falar no WhatsApp</a>'
+        if whatsapp_publico_url
+        else ""
+    )
+    topo_publico_html = f'''<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-copy"><p class="kicker">{hero_kicker}</p><h1>{hero_titulo}</h1><p>{texto_institucional}</p><div class="hero-actions"><a class="btn-dark" href="#catalogo">Ver catálogo</a>{hero_whatsapp}</div></div>
+    <div class="hero-visual">{hero_visual_html}</div>
+  </div>
+</section>
+<section class="benefits"><div class="benefits-inner">{beneficios_html}</div></section>'''
+
+    if categoria_configuracao == "servicos":
+        topo_publico_html = ""
+        if apresentacao_profissional_ativa:
+            profissional_nome_raw = str(config_vitrine.get("profissional_nome") or nome_loja_raw).strip() or nome_loja_raw
+            profissional_especialidade_raw = str(config_vitrine.get("profissional_especialidade") or "Atendimento profissional").strip()
+            profissional_frase_raw = str(config_vitrine.get("profissional_frase") or "").strip()
+            profissional_experiencia_raw = str(config_vitrine.get("profissional_experiencia") or "").strip()
+            profissional_clientes_raw = str(config_vitrine.get("profissional_clientes") or "").strip()
+            profissional_destaque_raw = str(config_vitrine.get("profissional_destaque") or "").strip()
+            profissional_foto_path = str(config_vitrine.get("profissional_foto_path") or "").strip()
+
+            if profissional_foto_path:
+                profissional_foto_html = (
+                    f'<img src="/vitrine-upload/{html.escape(profissional_foto_path)}" '
+                    f'alt="{html.escape(profissional_nome_raw)}" loading="eager">'
+                )
+            else:
+                iniciais_profissional = "".join(
+                    parte[:1] for parte in profissional_nome_raw.split()[:2]
+                ).upper() or "GF"
+                profissional_foto_html = f'<span>{html.escape(iniciais_profissional)}</span>'
+
+            autoridade_itens = []
+            if profissional_experiencia_raw:
+                autoridade_itens.append(f'<b>{html.escape(profissional_experiencia_raw)}</b><small>de experiência</small>')
+            if profissional_clientes_raw:
+                autoridade_itens.append(f'<b>{html.escape(profissional_clientes_raw)}</b><small>atendimentos</small>')
+            if profissional_destaque_raw:
+                autoridade_itens.append(f'<b>{html.escape(profissional_destaque_raw)}</b>')
+            autoridade_html = "".join(f'<span>{item}</span>' for item in autoridade_itens)
+            frase_html = f'<p>{html.escape(profissional_frase_raw)}</p>' if profissional_frase_raw else ""
+            cta_servicos = "Ver serviços" if tem_servicos else "Ver catálogo"
+            topo_publico_html = f'''<section class="professional-hero">
+<div class="professional-hero-inner">
+  <div class="professional-photo">{profissional_foto_html}</div>
+  <div class="professional-copy"><small>Atendimento profissional</small><h1>{html.escape(profissional_nome_raw)}</h1><strong>{html.escape(profissional_especialidade_raw)}</strong>{frase_html}</div>
+  <div class="professional-authority">{autoridade_html}</div>
+  <div class="professional-actions"><a class="btn-dark" href="#catalogo">{cta_servicos}</a>{hero_whatsapp}</div>
+</div>
+</section>'''
+
     entrega_options = "".join(
         f'<option value="{_normalizar_chave_campo_configuravel(rotulo)}">{html.escape(str(rotulo))}</option>'
         for rotulo in formas_entrega
@@ -30533,6 +30924,7 @@ def renderizar_vitrine_publica_html(
 .store-feedback{position:fixed;z-index:90;left:50%;top:18px;transform:translateX(-50%);width:min(680px,calc(100% - 24px));display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:10px;padding:14px 16px;border:1px solid #bbf7d0;border-radius:12px;background:#f0fdf4;box-shadow:var(--shadow);color:#166534}.store-feedback a{font-weight:900}.store-feedback button{width:30px;height:30px;border:0;background:transparent;font-size:22px;cursor:pointer}
 .hero{position:relative;overflow:hidden;background:linear-gradient(135deg,#fafafa 0%,#f2f2f2 100%);border-bottom:1px solid #e5e5e5}.hero-inner{width:min(1240px,calc(100% - 28px));min-height:390px;margin:auto;display:grid;grid-template-columns:minmax(360px,1fr) minmax(420px,.9fr);align-items:stretch;gap:34px}.hero-copy{display:flex;flex-direction:column;justify-content:center;padding:50px 20px 50px 0}.hero-copy .kicker{margin:0 0 12px;font-size:12px;font-weight:900;letter-spacing:.16em;text-transform:uppercase}.hero-copy h1{max-width:620px;margin:0;font-size:clamp(38px,4.6vw,64px);line-height:.98;letter-spacing:-.045em}.hero-copy p{max-width:590px;margin:18px 0 0;color:#555;font-size:15px;line-height:1.6}.hero-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:24px}.btn-dark,.btn-light{min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:0 20px;border-radius:999px;text-decoration:none;font-size:12px;font-weight:950;cursor:pointer}.btn-dark{border:1px solid var(--action);background:var(--action);color:var(--action-text)}.btn-light{border:1px solid #111;background:#fff;color:#111}.hero-visual{display:grid;align-items:center;min-height:390px;padding:34px 0;background:transparent}.hero-brand-static{min-height:310px;display:grid;grid-template-columns:190px minmax(0,1fr);align-items:center;gap:26px;padding:28px;border:1px solid #ddd;border-radius:24px;background:#fff;box-shadow:0 18px 50px rgba(0,0,0,.06)}.hero-brand-frame{width:190px;height:190px;display:grid;place-items:center;overflow:hidden;border-radius:var(--logo-radius);background:var(--logo-bg);border:1px solid #eee}.hero-brand-image{width:100%;height:100%;object-fit:contain;transform:translate(var(--logo-x),var(--logo-y)) scale(var(--logo-zoom));transform-origin:center}.hero-brand-initials{font-size:64px;font-weight:1000}.hero-brand-static-copy{min-width:0;display:grid;gap:8px}.hero-brand-static-copy>small{color:#777;font-size:10px;font-weight:900;letter-spacing:.14em;text-transform:uppercase}.hero-brand-static-copy>strong{font-size:clamp(24px,3vw,38px);line-height:1.05}.hero-brand-static-copy>span{color:#666;font-size:13px;line-height:1.5}.hero-brand-points{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}.hero-brand-points b{padding:7px 9px;border:1px solid #ddd;border-radius:999px;background:#fafafa;font-size:9px;white-space:nowrap}
 .benefits{background:#efefef;border-top:1px solid #e1e1e1;border-bottom:1px solid #e1e1e1}.benefits-inner{width:min(1240px,calc(100% - 28px));min-height:92px;margin:auto;display:grid;grid-template-columns:repeat(4,1fr)}.benefits article{display:flex;align-items:center;gap:12px;padding:18px 24px;border-right:1px solid #d8d8d8}.benefits article:last-child{border-right:0}.benefit-icon{width:42px;height:42px;display:grid;place-items:center;border:1px solid #777;border-radius:50%;font-size:18px;flex:0 0 auto}.benefits strong,.benefits small{display:block}.benefits strong{font-size:11px;text-transform:uppercase}.benefits small{margin-top:4px;color:#666;font-size:10px;line-height:1.35}
+.professional-hero{border-bottom:1px solid #e5e5e5;background:linear-gradient(135deg,#fafafa 0%,#f3f3f3 100%)}.professional-hero-inner{width:min(1040px,calc(100% - 28px));min-height:280px;margin:auto;display:grid;grid-template-columns:210px minmax(0,1fr);grid-template-areas:"foto copy" "foto autoridade" "foto acoes";align-content:center;gap:12px 30px;padding:28px 0}.professional-photo{grid-area:foto;width:210px;height:230px;display:grid;place-items:center;overflow:hidden;border-radius:24px;background:#e7e7e7;box-shadow:0 14px 34px rgba(0,0,0,.08)}.professional-photo img{width:100%;height:100%;object-fit:cover}.professional-photo span{font-size:44px;font-weight:1000}.professional-copy{grid-area:copy}.professional-copy>small{display:block;margin-bottom:7px;font-size:10px;font-weight:950;letter-spacing:.14em;text-transform:uppercase;color:#555}.professional-copy h1{margin:0;font-size:clamp(30px,4vw,46px);line-height:1;letter-spacing:-.035em}.professional-copy>strong{display:block;margin-top:7px;font-size:15px}.professional-copy p{max-width:650px;margin:10px 0 0;color:#555;font-size:13px;line-height:1.5}.professional-authority{grid-area:autoridade;display:flex;gap:8px;flex-wrap:wrap}.professional-authority span{min-height:46px;display:flex;align-items:center;gap:5px;padding:8px 12px;border:1px solid #ddd;border-radius:12px;background:#fff}.professional-authority b{font-size:12px}.professional-authority small{color:#666;font-size:10px}.professional-actions{grid-area:acoes;display:flex;gap:8px;flex-wrap:wrap}
 .section{width:min(1240px,calc(100% - 28px));margin:0 auto;padding:64px 0}.section-heading{display:flex;align-items:end;justify-content:space-between;gap:24px;margin-bottom:26px}.section-heading small{display:block;margin-bottom:7px;color:#777;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.12em}.section-heading h2{margin:0;font-size:32px;letter-spacing:-.025em}.section-heading p{max-width:520px;margin:0;color:#666;line-height:1.55}.section-heading a,.section-heading button{border:0;background:transparent;text-decoration:underline;font-size:12px;font-weight:850;cursor:pointer}.collections-grid{display:flex;flex-wrap:wrap;gap:10px}.collection-card{min-width:150px;padding:14px 18px;border:1px solid #e3e3e3;border-radius:10px;background:#fff;text-align:center;cursor:pointer;font-size:13px;font-weight:850}.collection-card:hover{background:#f7f7f7;border-color:#cfcfcf}
 .featured-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}.store-card{position:relative;min-width:0;border:1px solid #e1e1e1;border-radius:12px;background:#fff;overflow:hidden}.card-media{position:relative;width:100%;aspect-ratio:4/5;display:block;padding:0;border:0;background:#f2f2f2;overflow:hidden;cursor:pointer}.card-media img,.card-media video{width:100%;height:100%;object-fit:cover;display:block}.card-media-nav{position:absolute;top:50%;z-index:3;width:32px;height:32px;display:grid;place-items:center;transform:translateY(-50%);border:1px solid rgba(0,0,0,.22);border-radius:50%;background:rgba(255,255,255,.9);color:#111;font-size:22px;font-weight:700;line-height:1;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.12)}.card-media-prev{left:8px}.card-media-next{right:8px}.media-placeholder{height:100%;display:grid;place-items:center;color:#888;font-weight:850}.card-badge{position:absolute;left:10px;top:10px;z-index:2;padding:7px 9px;border-radius:999px;background:#111;color:#fff;font-size:9px;font-weight:950;text-transform:uppercase}.card-badge-unavailable{background:#4b4b4b}.card-body{display:grid;gap:12px;padding:13px}.card-copy{display:grid;gap:5px;text-align:center}.card-copy small{color:#777;font-size:10px}.card-copy h3{margin:0;font-size:13px;font-weight:500;line-height:1.35}.card-copy strong{font-size:16px}.card-duration{min-height:13px}.card-variant-dots{display:flex;align-items:center;justify-content:center;gap:6px;min-height:18px;margin-top:2px}.variant-dot{width:16px;height:16px;border:1px solid #aaa;border-radius:50%;background:var(--variant-color);box-shadow:inset 0 0 0 2px #fff}.card-size-list{display:flex;justify-content:center;gap:5px;flex-wrap:wrap}.card-size-list span{min-width:24px;padding:3px 5px;border:1px solid #ddd;border-radius:5px;color:#555;background:#fff;font-size:8px;font-weight:800}.quick-variants{display:grid;gap:8px;padding:10px;border:1px solid #ddd;border-radius:9px;background:#fafafa}.quick-variants[hidden]{display:none}.quick-variants label{display:grid;gap:4px;color:#555;font-size:9px;font-weight:850}.quick-variants select{width:100%;height:36px;border:1px solid #bbb;border-radius:7px;padding:0 8px;background:#fff;font-size:10px}.quick-variant-confirm{min-height:36px;border:0;border-radius:999px;background:#111;color:#fff;font-size:9px;font-weight:950;text-transform:uppercase;cursor:pointer}.card-actions{display:grid;grid-template-columns:1fr auto;gap:7px}.card-buy,.card-peek{min-height:34px;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:0 13px;text-decoration:none;font-size:9px;font-weight:950;text-transform:uppercase;letter-spacing:.06em;cursor:pointer}.card-buy{border:1px solid var(--action);background:var(--action);color:var(--action-text)}.card-buy:disabled{opacity:.45;cursor:not-allowed}.card-peek{border:1px solid #111;background:#fff;color:#111}.store-card-compact .card-body{padding:11px}.store-card-compact .card-actions{opacity:1;transform:none}
 .catalog-section{background:#fafafa;border-top:1px solid #eee}.catalog-layout{display:block}.catalog-sidebar{display:none;max-width:720px;margin:0 0 18px;padding:14px 16px;border:1px solid #ddd;border-radius:12px;background:#fff}.catalog-sidebar.open{display:grid;grid-template-columns:minmax(0,1fr) minmax(190px,.38fr);gap:18px}.filter-block{padding:0;margin:0}.filter-block+.filter-block{padding-left:24px;border-left:1px solid #ddd}.filter-block h3{margin:0 0 13px;font-size:15px}.filter-categories{display:flex;gap:7px;flex-wrap:wrap}.filter-category{padding:8px 11px;border:1px solid #ddd;border-radius:999px;background:#fff;text-align:left;color:#555;font-size:11px;cursor:pointer}.filter-category[hidden]{display:none}.filter-category.active{border-color:#111;color:#fff;background:#111;font-weight:900}.filter-check{display:flex;align-items:center;gap:8px;font-size:12px;color:#555}.catalog-toolbar{display:flex;align-items:center;justify-content:flex-start;gap:10px;margin-bottom:14px}.catalog-sort{height:38px;border:1px solid #ccc;border-radius:8px;background:#fff;padding:0 10px;font-size:11px}.catalog-count{margin:0 0 14px;color:#777;font-size:11px}.catalog-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}.catalog-empty{grid-column:1/-1;padding:48px 20px;border:1px dashed #ccc;border-radius:12px;background:#fff;text-align:center;color:#777}.pagination{display:flex;justify-content:center;gap:6px;margin-top:26px}.pagination button{min-width:36px;height:36px;border:1px solid #ccc;border-radius:7px;background:#fff;cursor:pointer}.pagination button.active{background:#111;color:#fff;border-color:#111}.mobile-filter-toggle{display:inline-flex;height:38px;align-items:center;padding:0 12px;border:1px solid #bbb;border-radius:8px;background:#fff;font-size:11px;font-weight:800;cursor:pointer}.mobile-filter-toggle[aria-expanded="true"]{border-color:#111;background:#111;color:#fff}.filter-apply{grid-column:1/-1;justify-self:start;min-height:34px;padding:0 14px;border:0;border-radius:999px;background:#111;color:#fff;font-size:10px;font-weight:900;cursor:pointer}
@@ -30544,7 +30936,7 @@ body.catalogo-formato-quadrado .card-media{aspect-ratio:1/1}body.catalogo-format
 .cart-toast{position:fixed;right:20px;top:176px;z-index:82;max-width:min(360px,calc(100vw - 32px));padding:12px 15px;border:1px solid #bbf7d0;border-radius:10px;background:#f0fdf4;color:#166534;box-shadow:0 14px 32px rgba(0,0,0,.12);font-size:11px;font-weight:850}.drawer-backdrop{position:fixed;inset:0;z-index:78;background:rgba(0,0,0,.38)}.cart-drawer{position:fixed;right:0;top:0;bottom:0;z-index:79;width:min(470px,100vw);padding:22px;background:#fff;box-shadow:-18px 0 42px rgba(0,0,0,.16);overflow:auto;transform:translateX(105%);transition:transform .24s ease}.cart-drawer.open{transform:none}.cart-head{display:flex;justify-content:space-between;align-items:center;padding-bottom:16px;border-bottom:1px solid #ddd}.cart-head small{color:#777}.cart-head h2{margin:3px 0 0}.cart-head button{width:38px;height:38px;border:1px solid #ccc;border-radius:50%;background:#fff;font-size:22px;cursor:pointer}.cart-items{display:grid;gap:12px;padding:18px 0}.cart-empty{padding:26px 10px;text-align:center;color:#777}.cart-item{display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:10px;align-items:center;padding-bottom:12px;border-bottom:1px solid #eee}.cart-item-media{width:64px;height:78px;border-radius:8px;background:#f2f2f2;overflow:hidden}.cart-item-media img{width:100%;height:100%;object-fit:cover}.cart-item strong,.cart-item small{display:block}.cart-item strong{font-size:12px}.cart-item small{margin-top:4px;color:#777;font-size:10px}.cart-item-controls{display:grid;justify-items:end;gap:7px}.cart-qty{display:grid;grid-template-columns:28px 28px 28px;align-items:center}.cart-qty button{width:28px;height:28px;border:1px solid #ccc;background:#fff;cursor:pointer}.cart-qty b{text-align:center;font-size:11px}.cart-remove{border:0;background:transparent;color:var(--danger);font-size:9px;font-weight:850;cursor:pointer}.cart-summary{display:flex;justify-content:space-between;padding:15px 0;border-top:1px solid #ddd;border-bottom:1px solid #ddd}.cart-summary strong{font-size:19px}.checkout-form{display:grid;gap:11px;padding-top:18px}.checkout-form h3{margin:0 0 4px}.checkout-form label{display:grid;gap:5px;color:#555;font-size:10px;font-weight:800}.checkout-form input,.checkout-form select,.checkout-form textarea{width:100%;min-height:42px;border:1px solid #bbb;border-radius:8px;padding:9px 10px;background:#fff}.checkout-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.checkout-submit{min-height:46px;border:0;border-radius:999px;background:#111;color:#fff;font-size:11px;font-weight:950;text-transform:uppercase;cursor:pointer}.checkout-submit:disabled{opacity:.4;cursor:not-allowed}.checkout-note{color:#777;text-align:center;font-size:9px}
 .card-return{display:block;margin-top:5px;font-size:10px;font-weight:700;color:#9a3412}.detail-return{display:block;margin:4px 0 10px;font-size:13px;font-weight:700;color:#9a3412}
 @media(max-width:1050px){.header-main{grid-template-columns:1fr auto 1fr}.hero-inner{grid-template-columns:1fr 1fr}.hero-copy{padding:42px 34px}.benefits-inner{grid-template-columns:repeat(2,1fr)}.benefits article:nth-child(2){border-right:0}.collections-grid{grid-template-columns:repeat(4,1fr)}.featured-grid,.catalog-grid{grid-template-columns:repeat(3,1fr)}.detail-main{grid-template-columns:60px minmax(0,1fr) 320px}.detail-media{min-height:520px}}
-@media(max-width:820px){.top-strip{display:none}.header-main{height:auto;min-height:116px;grid-template-columns:auto 1fr auto;grid-template-rows:60px 48px;gap:0 10px}.header-search{display:block;grid-column:1/-1;grid-row:2;max-width:none;width:100%}.header-search input{height:40px}.header-search-tools{top:46px;width:100%}.brand-center{grid-column:1/3;grid-row:1;justify-self:start;display:flex;gap:9px}.brand-logo{width:52px;height:38px}.brand-name-mobile{display:block;font-size:13px}.quick-actions{grid-column:3;grid-row:1;gap:10px}.quick-action small{display:none}.quick-action{min-width:40px}.header-nav{overflow:visible}.header-nav-inner{justify-content:flex-start;width:max-content;min-width:100%;padding:0 14px;gap:26px}.nav-dropdown-menu{left:0;transform:none;min-width:210px}.hero-inner{grid-template-columns:1fr;min-height:0}.hero-copy{order:1;padding:34px 0 18px;text-align:center;align-items:center}.hero-copy h1{font-size:46px}.hero-visual{order:2;min-height:0;padding:8px 0 32px}.hero-brand-static{min-height:250px}.benefits-inner{width:100%;grid-template-columns:1fr 1fr}.benefits article{padding:14px}.collections-grid{grid-template-columns:repeat(2,1fr)}.featured-grid{grid-template-columns:repeat(2,1fr)}.catalog-sidebar.open{grid-template-columns:1fr}.filter-block+.filter-block{padding:18px 0 0;border-left:0;border-top:1px solid #ddd}.catalog-toolbar{flex-wrap:wrap}.catalog-grid{grid-template-columns:repeat(2,1fr)}body.catalogo-formato-horizontal .catalog-grid{grid-template-columns:1fr}.about-section,.contact-grid{grid-template-columns:1fr;gap:26px}.detail-main{grid-template-columns:1fr}.detail-thumbs{order:2;display:flex;overflow:auto}.detail-thumb{flex:0 0 64px}.detail-media{order:1;min-height:420px}.detail-info{order:3;position:static;padding:10px 0}.detail-long-copy{margin:30px 0 0}.footer-main{grid-template-columns:1fr 1fr}.footer-bottom-inner{flex-direction:column;justify-content:center;padding:10px 0;text-align:center}}
+@media(max-width:820px){.top-strip{display:none}.header-main{height:auto;min-height:116px;grid-template-columns:auto 1fr auto;grid-template-rows:60px 48px;gap:0 10px}.header-search{display:block;grid-column:1/-1;grid-row:2;max-width:none;width:100%}.header-search input{height:40px}.header-search-tools{top:46px;width:100%}.brand-center{grid-column:1/3;grid-row:1;justify-self:start;display:flex;gap:9px}.brand-logo{width:52px;height:38px}.brand-name-mobile{display:block;font-size:13px}.quick-actions{grid-column:3;grid-row:1;gap:10px}.quick-action small{display:none}.quick-action{min-width:40px}.header-nav{overflow:visible}.header-nav-inner{justify-content:flex-start;width:max-content;min-width:100%;padding:0 14px;gap:26px}.nav-dropdown-menu{left:0;transform:none;min-width:210px}.hero-inner{grid-template-columns:1fr;min-height:0}.hero-copy{order:1;padding:34px 0 18px;text-align:center;align-items:center}.hero-copy h1{font-size:46px}.hero-visual{order:2;min-height:0;padding:8px 0 32px}.hero-brand-static{min-height:250px}.benefits-inner{width:100%;grid-template-columns:1fr 1fr}.benefits article{padding:14px}.professional-hero-inner{min-height:0;grid-template-columns:96px minmax(0,1fr);grid-template-areas:"foto copy" "autoridade autoridade" "acoes acoes";gap:12px 14px;padding:18px 0}.professional-photo{width:96px;height:118px;border-radius:16px}.professional-photo span{font-size:26px}.professional-copy h1{font-size:26px}.professional-copy>strong{font-size:12px}.professional-copy p{font-size:11px;line-height:1.4}.professional-authority{gap:6px}.professional-authority span{min-height:38px;padding:7px 9px}.professional-actions .btn-dark,.professional-actions .btn-light{flex:1;min-width:120px}.collections-grid{grid-template-columns:repeat(2,1fr)}.featured-grid{grid-template-columns:repeat(2,1fr)}.catalog-sidebar.open{grid-template-columns:1fr}.filter-block+.filter-block{padding:18px 0 0;border-left:0;border-top:1px solid #ddd}.catalog-toolbar{flex-wrap:wrap}.catalog-grid{grid-template-columns:repeat(2,1fr)}body.catalogo-formato-horizontal .catalog-grid{grid-template-columns:1fr}.about-section,.contact-grid{grid-template-columns:1fr;gap:26px}.detail-main{grid-template-columns:1fr}.detail-thumbs{order:2;display:flex;overflow:auto}.detail-thumb{flex:0 0 64px}.detail-media{order:1;min-height:420px}.detail-info{order:3;position:static;padding:10px 0}.detail-long-copy{margin:30px 0 0}.footer-main{grid-template-columns:1fr 1fr}.footer-bottom-inner{flex-direction:column;justify-content:center;padding:10px 0;text-align:center}}
 @media(max-width:540px){.quick-actions{gap:2px}.hero-copy h1{font-size:38px}.hero-copy p{font-size:14px}.hero-brand-static{grid-template-columns:1fr;justify-items:center;text-align:center;padding:22px}.hero-brand-frame{width:150px;height:150px}.hero-brand-static-copy{justify-items:center}.hero-brand-points{justify-content:center}.benefits-inner{grid-template-columns:1fr}.benefits article{border-right:0;border-bottom:1px solid #ddd}.benefits article:last-child{border-bottom:0}.section{padding:46px 0}.section-heading{align-items:flex-start;flex-direction:column}.section-heading h2{font-size:27px}.collections-grid,.featured-grid,.catalog-grid{grid-template-columns:1fr 1fr;gap:10px}.card-body{padding:9px}.card-copy h3{font-size:11px}.card-copy strong{font-size:14px}.card-actions{grid-template-columns:1fr}.card-peek{display:none}.contact-cards{grid-template-columns:1fr}.footer-main{grid-template-columns:1fr}.footer-bottom-inner{font-size:9px}.detail-shell{width:min(100% - 20px,1180px)}.detail-media{min-height:360px}.detail-variants{grid-template-columns:1fr}.checkout-grid{grid-template-columns:1fr}.cart-drawer{padding:16px}.cart-toast{right:12px;top:166px}}
 </style>'''
     estilo = (
@@ -30587,13 +30979,7 @@ __MENSAGEM__
     <a href="#quem-somos">Quem Somos</a>
   </div></nav>
 </header>
-<section class="hero">
-  <div class="hero-inner">
-    <div class="hero-copy"><p class="kicker">__HERO_KICKER__</p><h1>__HERO_TITULO__</h1><p>__DESCRICAO_EMPRESA__</p><div class="hero-actions"><a class="btn-dark" href="#catalogo">Ver catálogo</a>__HERO_WHATSAPP__</div></div>
-    <div class="hero-visual">__HERO_VISUAL__</div>
-  </div>
-</section>
-<section class="benefits"><div class="benefits-inner">__BENEFICIOS__</div></section>
+__TOPO_PUBLICO__
 <section class="section" id="destaques" __OCULTAR_DESTAQUES__>
   <div class="section-heading"><div><small>Seleção da loja</small><h2>Destaques</h2></div><button type="button" onclick="document.getElementById('catalogo').scrollIntoView({behavior:'smooth'})">Ver catálogo completo</button></div>
   <div class="featured-grid">__DESTAQUES__</div>
@@ -30705,11 +31091,6 @@ document.addEventListener('DOMContentLoaded',()=>{if(document.getElementById('st
     nav_produtos = _menu_categorias_nav("produto", "Produtos ", categorias_produtos) if tem_produtos else ""
     nav_servicos = _menu_categorias_nav("servico", "Serviços ", categorias_servicos) if tem_servicos else ""
 
-    hero_whatsapp = (
-        f'<a class="btn-light" href="{whatsapp_publico_url_html}" target="_blank" rel="noopener">Falar no WhatsApp</a>'
-        if whatsapp_publico_url
-        else ""
-    )
     footer_contato = ""
     if telefone_publico:
         footer_contato += f'<span>{html.escape(telefone_publico)}</span>'
@@ -30742,6 +31123,7 @@ document.addEventListener('DOMContentLoaded',()=>{if(document.getElementById('st
         "__CARRINHO_HEADER__": carrinho_header,
         "__NAV_PRODUTOS__": nav_produtos,
         "__NAV_SERVICOS__": nav_servicos,
+        "__TOPO_PUBLICO__": topo_publico_html,
         "__HERO_KICKER__": hero_kicker,
         "__HERO_TITULO__": hero_titulo,
         "__DESCRICAO_EMPRESA__": texto_institucional,
@@ -38317,6 +38699,11 @@ def atualizar_status_orcamento(orcamento_id: int) -> Response:
                 }
             ), 409
 
+        try:
+            validar_estoque_para_venda_db(itens_orcamento)
+        except ValueError as exc:
+            return jsonify({"ok": False, "erro": str(exc)}), 409
+
         venda_id, venda_criada = gerar_venda_por_orcamento_db(orcamento_id)
         if venda_id is None:
             return jsonify(
@@ -38326,9 +38713,9 @@ def atualizar_status_orcamento(orcamento_id: int) -> Response:
                 }
             ), 409
 
-        # A existência da Venda encerra o fluxo do orçamento. A Venda nasce no
-        # status inicial e permanece editável; estoque e financeiro só são efetivados
-        # quando a própria Venda for concretizada pelo status finalizador.
+        # A existência da Venda é o marco permanente de finalização. Atualizamos o
+        # status imediatamente para que uma falha posterior de integração nunca
+        # deixe uma Venda criada com o orçamento ainda aparentando estar aberto.
         sucesso, mensagem, resultado = atualizar_status_orcamento_db(orcamento_id, novo_status)
         if not sucesso or resultado is None:
             return jsonify(
@@ -38344,10 +38731,20 @@ def atualizar_status_orcamento(orcamento_id: int) -> Response:
 
         venda = buscar_venda_por_id(venda_id)
         if venda_criada and venda is not None:
+            try:
+                itens_venda = listar_venda_itens(venda_id)
+                baixar_estoque_por_venda_db(venda_id, venda, itens_venda)
+                gerar_conta_receber_por_venda_db(venda_id, venda)
+            except (ValueError, sqlite3.Error) as exc:
+                aviso_integracao = (
+                    f"A Venda {venda.get('numero') or venda_id} foi gerada e o orçamento foi "
+                    f"finalizado, mas uma integração precisa ser revisada: {exc}"
+                )
+
             registrar_atividade_usuario(
                 "criacao",
                 "orcamentos",
-                f"Gerou venda #{venda_id} editável ao finalizar o orçamento #{orcamento_id}",
+                f"Gerou venda #{venda_id} ao finalizar o orçamento #{orcamento_id}",
                 request.path,
             )
     else:
@@ -38373,10 +38770,9 @@ def atualizar_status_orcamento(orcamento_id: int) -> Response:
     venda = buscar_venda_por_id(venda_id) if venda_id else None
     mensagem_final = mensagem
     if eh_finalizador and venda is not None:
-        mensagem_final = (
-            f"Orçamento finalizado e Venda {venda.get('numero')} gerada. "
-            "Revise a Venda antes de concretizá-la."
-        )
+        mensagem_final = f"Orçamento finalizado e Venda {venda.get('numero')} gerada com sucesso."
+    if aviso_integracao:
+        mensagem_final = aviso_integracao
 
     return jsonify(
         {
@@ -38392,11 +38788,6 @@ def atualizar_status_orcamento(orcamento_id: int) -> Response:
             "borda": dados_status["borda"],
             "venda_id": venda_id,
             "venda_criada": venda_criada,
-            "editar_venda_url": (
-                url_for("editar_venda", venda_id=venda_id)
-                if eh_finalizador and venda_id is not None
-                else ""
-            ),
         }
     )
 
@@ -38480,9 +38871,57 @@ def ver_orcamento(orcamento_id: int) -> str | Response:
         atividade=buscar_atividade_financeira_por_id(orcamento.get("atividade_financeira_id")) if orcamento.get("atividade_financeira_id") else None,
         resumo_atividade=resumir_atividade_financeira(orcamento.get("atividade_financeira_id")),
         atividades_operacionais=[a for a in _listar_atividades_operacionais() if int(a.get("orcamento_id") or 0) == orcamento_id],
+        projeto_orcamento=buscar_projeto_por_orcamento(orcamento_id),
+        pode_iniciar_projeto=orcamento_pode_iniciar_projeto(orcamento),
     )
 
 
+
+
+@app.post("/orcamentos/<int:orcamento_id>/iniciar-projeto")
+def iniciar_projeto_orcamento(orcamento_id: int) -> Response:
+    orcamento = buscar_orcamento_por_id(orcamento_id)
+    if orcamento is None:
+        return redirect(url_for("orcamentos", erro="Orçamento não encontrado."))
+
+    projeto_existente = buscar_projeto_por_orcamento(orcamento_id)
+    if projeto_existente is not None:
+        return redirect(
+            url_for(
+                "gestao_atividade_detalhe",
+                atividade_id=int(projeto_existente["id"]),
+                aviso="Este orçamento já possui um projeto.",
+            )
+        )
+
+    if not orcamento_pode_iniciar_projeto(orcamento):
+        return redirect(
+            url_for(
+                "ver_orcamento",
+                orcamento_id=orcamento_id,
+                erro="O projeto só pode ser iniciado após o orçamento ser aprovado ou finalizado.",
+            )
+        )
+
+    projeto_id, criado, mensagem = iniciar_projeto_por_orcamento_db(orcamento_id)
+    if projeto_id is None:
+        return redirect(url_for("ver_orcamento", orcamento_id=orcamento_id, erro=mensagem))
+
+    if criado:
+        registrar_atividade_usuario(
+            "criacao",
+            "gestao_atividades",
+            f"Iniciou o projeto #{projeto_id} a partir do orçamento {orcamento.get('numero') or orcamento_id}",
+            request.path,
+        )
+    return redirect(
+        url_for(
+            "gestao_atividade_detalhe",
+            atividade_id=projeto_id,
+            sucesso=mensagem if criado else "",
+            aviso="" if criado else mensagem,
+        )
+    )
 
 
 @app.get("/orcamentos/<int:orcamento_id>/gerar/venda")
