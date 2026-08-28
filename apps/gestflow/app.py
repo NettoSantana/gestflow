@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\app.py
-# Último recode: 2026-08-27 21:47 (America/Bahia)
-# Motivo: Recuperar da MAIN a regra em que a quantidade da atividade multiplica toda a composição técnica e comercial do Gerador de Orçamentos, preservando IndFlow, Projetos, onboarding e Vitrine da DEV.
+# Último recode: 2026-08-27 23:03 (America/Bahia)
+# Motivo: Permitir desativar todos os módulos, inclusive Clientes, Orçamentos, Vendas e Financeiro, e persistir a opção de pular os primeiros passos do Dashboard.
 
 from __future__ import annotations
 
@@ -1653,9 +1653,6 @@ def normalizar_modulos_empresa(valor: Any) -> dict[str, bool]:
             for codigo in GESTFLOW_MODULOS_CODIGOS:
                 modulos[codigo] = codigo in ativos
 
-    for codigo in GESTFLOW_MODULOS_NUCLEO:
-        modulos[codigo] = True
-
     return modulos
 
 
@@ -1699,7 +1696,6 @@ def modulo_empresa_ativo(codigo: str) -> bool:
 def salvar_modulos_empresa(codigos_ativos: list[str]) -> None:
     empresa_id = empresa_logada_id()
     ativos = {str(codigo or "").strip() for codigo in codigos_ativos}
-    ativos.update(GESTFLOW_MODULOS_NUCLEO)
     modulos = {codigo: codigo in ativos for codigo in GESTFLOW_MODULOS_CODIGOS}
 
     with conectar_db() as conn:
@@ -26191,12 +26187,45 @@ def _respostas_onboarding_empresa(empresa: dict[str, Any] | None = None) -> dict
     return dados if isinstance(dados, dict) else {}
 
 
+def marcar_primeiros_passos_pulados_db() -> None:
+    empresa = buscar_onboarding_empresa()
+    respostas = _respostas_onboarding_empresa(empresa)
+    respostas["primeiros_passos_pulados"] = True
+
+    with conectar_db() as conn:
+        conn.execute(
+            """
+            UPDATE empresas
+            SET onboarding_respostas = ?
+            WHERE id = ?
+            """,
+            (
+                json.dumps(respostas, ensure_ascii=False, sort_keys=True),
+                empresa_logada_id(),
+            ),
+        )
+        conn.commit()
+
+
 def montar_primeiros_passos() -> dict[str, Any]:
     modulos = buscar_modulos_empresa()
     empresa = buscar_onboarding_empresa()
     respostas = _respostas_onboarding_empresa(empresa)
     tipo_empresa = str(respostas.get("tipo_empresa") or respostas.get("uso_principal") or "").strip()
     fluxos = {str(item or "").strip() for item in respostas.get("fluxo", []) if str(item or "").strip()}
+
+    if bool(respostas.get("primeiros_passos_pulados")):
+        return {
+            "itens": [],
+            "total": 0,
+            "concluidos": 0,
+            "percentual": 100,
+            "concluido": True,
+            "proximo": None,
+            "tipo_empresa": tipo_empresa,
+            "segmento": respostas.get("segmento_nome") or empresa.get("onboarding_ramo") or "",
+            "pulado": True,
+        }
 
     tabelas_primeiros_passos = ("clientes", "produtos", "servicos", "orcamentos", "vendas", "ordens_servico", "agendamentos", "financeiro_titulos")
     contagens_atuais = {
@@ -27400,6 +27429,18 @@ def concluir_tour() -> Response:
 
     marcar_tour_concluido_db()
     return jsonify({"ok": True})
+
+
+@app.post("/primeiros-passos/pular")
+def pular_primeiros_passos() -> Response:
+    marcar_primeiros_passos_pulados_db()
+    registrar_atividade_usuario(
+        "edicao",
+        "onboarding",
+        "Pulou os primeiros passos do Dashboard.",
+        registro_id=empresa_logada_id(),
+    )
+    return redirect(url_for("dashboard"))
 
 
 @app.get("/")
