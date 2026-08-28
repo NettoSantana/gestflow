@@ -1,7 +1,7 @@
 <!--
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\templates\orcamentos.html
-Último recode: 2026-08-20 19:18 (America/Bahia)
-Motivo: Consumir os status configuráveis dos Orçamentos, aplicar cores predefinidas e finalizar com geração de Venda apenas no status finalizador.
+Último recode: 2026-08-28 09:33 (America/Bahia)
+Motivo: Redirecionar a finalização do Orçamento diretamente para a edição da Venda gerada, mantendo recarga como fallback.
 -->
 
 <!DOCTYPE html>
@@ -1275,6 +1275,10 @@ Motivo: Consumir os status configuráveis dos Orçamentos, aplicar cores predefi
                             const payload = await resposta.json();
                             if (!resposta.ok || !payload.ok) {
                                 throw new Error(payload.erro || 'Não foi possível alterar o status.');
+                            }
+                            if (payload.editar_venda_url) {
+                                window.location.href = payload.editar_venda_url;
+                                return;
                             }
                             window.location.reload();
                         } catch (erro) {
