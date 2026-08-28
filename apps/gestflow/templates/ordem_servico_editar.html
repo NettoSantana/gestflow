@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\ordem_servico_editar.html
-Último recode: 2026-08-28 14:21 (America/Bahia)
-Motivo: Simplificar a linguagem da execução da OS para serviços, itens e áreas, incluindo Atividades do dia, Pendências / próximos passos e Observações sem alterar backend ou banco.
+Último recode: 2026-08-28 16:13 (America/Bahia)
+Motivo: Transformar o registro da execução em diário de trabalho simples, com data, equipe, atividades, progresso e conclusão de 100% usando um único botão Salvar alterações.
 #}
 
 <!DOCTYPE html>
@@ -1186,7 +1186,7 @@ Motivo: Simplificar a linguagem da execução da OS para serviços, itens e áre
 
         .os-execution-actions {
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 12px;
             margin: 16px 0 18px;
         }
@@ -1203,7 +1203,6 @@ Motivo: Simplificar a linguagem da execução da OS para serviços, itens e áre
 
         .os-execution-button.start { background: #16a34a; }
         .os-execution-button.pause { background: #f59e0b; }
-        .os-execution-button.finish { background: #dc2626; }
 
         .os-execution-button:disabled {
             opacity: .42;
@@ -1242,6 +1241,369 @@ Motivo: Simplificar a linguagem da execução da OS para serviços, itens e áre
             min-height: 96px !important;
         }
 
+        .os-day-intro {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .os-day-step {
+            position: relative;
+            min-height: 86px;
+            padding: 14px 14px 14px 50px;
+            border: 1px solid #dbe5f1;
+            border-radius: 12px;
+            background: #f8fafc;
+        }
+
+        .os-day-step > span {
+            position: absolute;
+            top: 14px;
+            left: 14px;
+            display: grid;
+            place-items: center;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: #0f62fe;
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 950;
+        }
+
+        .os-day-step strong,
+        .os-day-step small {
+            display: block;
+        }
+
+        .os-day-step strong {
+            color: #0f172a;
+            font-size: 13px;
+        }
+
+        .os-day-step small {
+            margin-top: 5px;
+            color: #64748b;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+
+        .os-day-card {
+            padding: 16px;
+            border: 1px solid #dbe5f1;
+            border-radius: 16px;
+            background: #ffffff;
+        }
+
+        .os-day-card-title,
+        .os-day-block-heading,
+        .os-day-progress-heading {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        .os-day-card-title {
+            padding-bottom: 14px;
+            border-bottom: 1px solid #e8eef6;
+        }
+
+        .os-day-card-title h4,
+        .os-day-block-heading h5,
+        .os-day-progress-heading h5 {
+            margin: 0;
+            color: #0f172a;
+            font-size: 15px;
+            font-weight: 950;
+        }
+
+        .os-day-card-title p,
+        .os-day-block-heading p,
+        .os-day-progress-heading p {
+            margin: 5px 0 0;
+            color: #64748b;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .os-day-date {
+            width: 190px;
+            flex: 0 0 190px;
+        }
+
+        .os-day-block {
+            padding: 16px 0;
+            border-bottom: 1px solid #e8eef6;
+        }
+
+        .os-day-block:last-of-type {
+            border-bottom: 0;
+        }
+
+        .os-day-team-list {
+            display: grid;
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .os-day-team-row {
+            display: grid;
+            grid-template-columns: minmax(230px, 1.6fr) minmax(150px, .6fr) 38px;
+            gap: 10px;
+            align-items: end;
+            padding: 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            background: #f8fafc;
+        }
+
+        .os-day-team-row label span {
+            color: #94a3b8;
+            font-weight: 700;
+        }
+
+        .os-day-remove-person {
+            width: 38px;
+            height: 38px;
+            border: 0;
+            border-radius: 10px;
+            background: #fee2e2;
+            color: #b91c1c;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: 950;
+        }
+
+        .os-day-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+            padding: 16px 0;
+        }
+
+        .os-day-grid textarea {
+            min-height: 96px !important;
+        }
+
+        .os-day-textarea-main {
+            min-height: 126px !important;
+        }
+
+        .os-day-help {
+            display: block;
+            margin-top: 6px;
+            color: #64748b;
+            font-size: 11px;
+        }
+
+        .os-day-progress-card {
+            margin-top: 4px;
+            padding: 16px;
+            border: 1px solid #bfdbfe;
+            border-radius: 14px;
+            background: #eff6ff;
+        }
+
+        .os-day-progress-heading > strong {
+            color: #0f62fe;
+            font-size: 24px;
+            font-weight: 950;
+        }
+
+        .os-day-progress-range {
+            width: 100%;
+            margin: 16px 0 4px;
+            accent-color: #0f62fe;
+        }
+
+        .os-day-progress-scale {
+            display: flex;
+            justify-content: space-between;
+            color: #64748b;
+            font-size: 10px;
+            font-weight: 800;
+        }
+
+        .os-day-finish {
+            margin: 16px 0 0;
+            padding: 16px;
+            border: 1px solid #dbe5f1;
+            border-radius: 14px;
+        }
+
+        .os-day-finish legend {
+            padding: 0 6px;
+            color: #0f172a;
+            font-size: 14px;
+            font-weight: 950;
+        }
+
+        .os-day-finish > p {
+            margin: 0 0 12px;
+            color: #64748b;
+            font-size: 12px;
+        }
+
+        .os-day-finish-options {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .os-day-finish-option {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 13px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            background: #ffffff;
+            cursor: pointer;
+        }
+
+        .os-day-finish-option.is-selected {
+            border-color: #0f62fe;
+            background: #eff6ff;
+        }
+
+        .os-day-finish-option input {
+            margin-top: 2px;
+        }
+
+        .os-day-finish-option strong,
+        .os-day-finish-option small {
+            display: block;
+        }
+
+        .os-day-finish-option strong {
+            color: #0f172a;
+            font-size: 13px;
+        }
+
+        .os-day-finish-option small {
+            margin-top: 4px;
+            color: #64748b;
+            font-size: 11px;
+        }
+
+        .os-single-save-actions {
+            margin-top: 16px;
+        }
+
+        .os-history-list {
+            display: grid;
+            gap: 12px;
+        }
+
+        .os-history-day {
+            padding: 14px;
+            border: 1px solid #dbe5f1;
+            border-radius: 14px;
+            background: #ffffff;
+        }
+
+        .os-history-day-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eef2f7;
+        }
+
+        .os-history-date {
+            display: block;
+            margin-bottom: 4px;
+            color: #0f62fe;
+            font-size: 12px;
+            font-weight: 950;
+        }
+
+        .os-history-day-header strong {
+            color: #0f172a;
+            font-size: 13px;
+        }
+
+        .os-history-progress {
+            display: grid;
+            place-items: center;
+            min-width: 58px;
+            height: 38px;
+            padding: 0 10px;
+            border-radius: 999px;
+            background: #dbeafe;
+            color: #1d4ed8;
+            font-size: 13px;
+            font-weight: 950;
+        }
+
+        .os-history-progress.is-complete {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .os-history-people {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 7px;
+            margin-top: 10px;
+            color: #475569;
+            font-size: 11px;
+        }
+
+        .os-history-people > span {
+            color: #64748b;
+            font-weight: 800;
+        }
+
+        .os-history-people i {
+            color: #cbd5e1;
+            font-style: normal;
+        }
+
+        .os-history-content {
+            margin-top: 10px;
+        }
+
+        .os-history-content > span {
+            display: block;
+            margin-bottom: 3px;
+            color: #64748b;
+            font-size: 10px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .os-history-content p {
+            margin: 0;
+            color: #1e293b;
+            font-size: 12px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        .os-history-empty {
+            display: grid;
+            gap: 5px;
+            padding: 20px;
+            border: 1px dashed #cbd5e1;
+            border-radius: 14px;
+            background: #f8fafc;
+            text-align: center;
+        }
+
+        .os-history-empty strong {
+            color: #0f172a;
+        }
+
+        .os-history-empty span {
+            color: #64748b;
+            font-size: 12px;
+        }
+
         .os-tab-active-historico #form-editar-os .os-execution-actions,
         .os-tab-active-resumo #form-editar-os .os-execution-actions,
         .os-tab-active-evidencias #form-editar-os .os-execution-actions {
@@ -1278,8 +1640,34 @@ Motivo: Simplificar a linguagem da execução da OS para serviços, itens e áre
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
 
-            .os-execution-actions {
+            .os-execution-actions,
+            .os-day-intro,
+            .os-day-grid,
+            .os-day-finish-options {
                 grid-template-columns: 1fr;
+            }
+
+            .os-day-card-title,
+            .os-day-block-heading,
+            .os-day-progress-heading {
+                flex-direction: column;
+            }
+
+            .os-day-date {
+                width: 100%;
+                flex-basis: auto;
+            }
+
+            .os-day-team-row {
+                grid-template-columns: 1fr;
+            }
+
+            .os-day-remove-person {
+                width: 100%;
+            }
+
+            .os-day-add-person {
+                width: 100%;
             }
         }
     </style>
@@ -1341,7 +1729,6 @@ Motivo: Simplificar a linguagem da execução da OS para serviços, itens e áre
                 </div>
 
                 <div class="os-operational-top-actions">
-                    <button type="submit" class="btn-primary-green">Salvar alterações</button>
                     <a href="/ordens-servico/{{ os.id }}" class="btn-light">Voltar para OS</a>
                 </div>
             </section>
@@ -1359,8 +1746,7 @@ Motivo: Simplificar a linguagem da execução da OS para serviços, itens e áre
 
             <div class="os-execution-actions" data-os-execution-actions>
                 <button type="button" class="os-execution-button start" data-os-status-action="andamento">Iniciar serviço</button>
-                <button type="button" class="os-execution-button pause" data-os-status-action="pausado">Pausar</button>
-                <button type="button" class="os-execution-button finish" data-os-status-action="final">Finalizar serviço</button>
+                <button type="button" class="os-execution-button pause" data-os-status-action="pausado">Pausar serviço</button>
             </div>
             <section class="panel page-section os-form-section os-panel-orcamento" data-os-tab-panel="resumo">
                 <div class="panel-header page-header os-section-title">
@@ -1573,29 +1959,167 @@ Motivo: Simplificar a linguagem da execução da OS para serviços, itens e áre
                 <div class="os-section-body"><label class="os-muted-check"><input type="checkbox" name="os_exibir_valor_impressao" value="sim" {% if os.exibir_valor_impressao == 'sim' %}checked{% endif %}> Exibir valor total na impressão</label><div class="os-grid-6" style="margin-top: 14px;"><div class="form-group"><label for="os_total_servicos">Mão de obra</label><input id="os_total_servicos" name="os_total_servicos" type="text" value="{{ os.total_servicos or '0,00' }}" class="form-control" readonly></div><div class="form-group"><label for="os_total_produtos">Peças</label><input id="os_total_produtos" name="os_total_produtos" type="text" value="{{ os.total_produtos or '0,00' }}" class="form-control" readonly></div><div class="form-group"><label for="os_frete">Frete</label><input id="os_frete" name="os_frete" type="text" value="{{ os.frete or '0,00' }}" class="form-control"></div><div class="form-group"><label for="os_outros">Outros</label><input id="os_outros" name="os_outros" type="text" value="{{ os.outros or '0,00' }}" class="form-control"></div><div class="form-group"><label for="os_desconto_valor">Desconto</label><input id="os_desconto_valor" name="os_desconto_valor" type="text" value="{{ os.desconto_valor or '0,00' }}" class="form-control"></div><div class="form-group"><label for="os_valor_total">Valor total</label><input id="os_valor_total" name="os_valor_total" type="text" value="{{ os.valor_total or '0,00' }}" class="form-control" readonly></div><div class="form-group os-span-2"><label for="os_forma_pagamento">Forma de pagamento</label><input id="os_forma_pagamento" name="os_forma_pagamento" type="text" value="{{ os.forma_pagamento or '' }}" class="form-control"></div><div class="form-group"><label for="os_tipo">Tipo</label><select id="os_tipo" name="os_tipo" class="form-control"><option value="misto" {% if os.tipo == 'misto' %}selected{% endif %}>Misto</option><option value="produto" {% if os.tipo == 'produto' %}selected{% endif %}>Produto</option><option value="servico" {% if os.tipo == 'servico' %}selected{% endif %}>Serviço</option></select></div></div></div>
             </section>
 
-            <section class="panel page-section os-form-section os-panel-orcamento os-execution-record" data-os-tab-panel="execucao">
+            <section id="registro-do-dia" class="panel page-section os-form-section os-panel-orcamento os-execution-record" data-os-tab-panel="execucao">
                 <div class="panel-header page-header os-section-title">
                     <div>
-                        <h3>Registro da execução</h3>
-                        <p class="page-subtitle">Registre somente o que foi executado, pendências ou informações importantes de campo.</p>
+                        <h3>Diário de execução</h3>
+                        <p class="page-subtitle">Preencha somente o trabalho deste dia. O histórico dos dias anteriores fica guardado automaticamente.</p>
                     </div>
                 </div>
+
                 <div class="os-section-body">
-                    <div class="os-grid-2">
-                        <div class="form-group os-executed-field">
-                            <label for="os_servico_executado">Atividades do dia</label>
-                            <textarea id="os_servico_executado" name="os_servico_executado" class="form-control os-textarea" placeholder="Descreva de forma objetiva o que foi realizado hoje.">{{ os.servico_executado or '' }}</textarea>
+                    <textarea name="os_servico_executado" hidden>{{ os.servico_executado or '' }}</textarea>
+                    <textarea name="os_observacoes_internas" hidden>{{ os.observacoes_internas or '' }}</textarea>
+                    <textarea name="os_observacoes" hidden>{{ os.observacoes or '' }}</textarea>
+
+                    <div class="os-day-intro">
+                        <div class="os-day-step">
+                            <span>1</span>
+                            <strong>Informe o dia</strong>
+                            <small>Qual dia de trabalho você está registrando?</small>
                         </div>
-                        <div class="form-group">
-                            <label for="os_observacoes_internas">Pendências / próximos passos</label>
-                            <textarea id="os_observacoes_internas" name="os_observacoes_internas" class="form-control os-textarea" placeholder="Informe o que ficou pendente ou qual é o próximo passo.">{{ os.observacoes_internas or '' }}</textarea>
+                        <div class="os-day-step">
+                            <span>2</span>
+                            <strong>Informe quem trabalhou</strong>
+                            <small>Adicione as pessoas que participaram do serviço.</small>
                         </div>
-                        <div class="form-group">
-                            <label for="os_observacoes">Observações</label>
-                            <textarea id="os_observacoes" name="os_observacoes" class="form-control os-textarea" placeholder="Registre somente informações adicionais importantes para a execução.">{{ os.observacoes or '' }}</textarea>
+                        <div class="os-day-step">
+                            <span>3</span>
+                            <strong>Conte o que foi feito</strong>
+                            <small>Use frases simples e objetivas.</small>
                         </div>
                     </div>
-                    <div class="form-actions">
+
+                    <div class="os-day-card">
+                        <div class="os-day-card-title">
+                            <div>
+                                <h4>Registro do dia</h4>
+                                <p>Um registro por dia mantém a execução organizada sem apagar o que já aconteceu.</p>
+                            </div>
+                            <div class="form-group os-day-date">
+                                <label for="registro_dia_data">Data do trabalho</label>
+                                <input
+                                    id="registro_dia_data"
+                                    name="registro_dia_data"
+                                    type="date"
+                                    value="{{ data_registro_padrao or '' }}"
+                                    class="form-control"
+                                >
+                            </div>
+                        </div>
+
+                        <div class="os-day-block">
+                            <div class="os-day-block-heading">
+                                <div>
+                                    <h5>Quem trabalhou neste dia?</h5>
+                                    <p>Selecione as pessoas envolvidas. As horas são opcionais.</p>
+                                </div>
+                                <button type="button" class="btn-primary-green os-day-add-person" data-registro-equipe-adicionar>+ Adicionar pessoa</button>
+                            </div>
+
+                            <div class="os-day-team-list" data-registro-equipe-lista>
+                                <div class="os-day-team-row" data-registro-equipe-item>
+                                    <div class="form-group">
+                                        <label>Pessoa</label>
+                                        <select name="equipe_funcionario_id[]" class="form-control">
+                                            <option value="">Selecione uma pessoa</option>
+                                            {% for funcionario in funcionarios|default([]) %}
+                                                <option value="{{ funcionario.id }}">{{ funcionario.nome }}{% if funcionario.cargo %} — {{ funcionario.cargo }}{% endif %}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Horas trabalhadas <span>(opcional)</span></label>
+                                        <input name="equipe_horas[]" type="text" class="form-control" placeholder="Ex.: 8">
+                                    </div>
+                                    <input name="equipe_observacoes[]" type="hidden" value="">
+                                    <button type="button" class="os-day-remove-person" data-registro-equipe-remover title="Remover pessoa" aria-label="Remover pessoa">×</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="os-day-block">
+                            <div class="form-group">
+                                <label for="registro_dia_atividades">O que foi feito hoje? <strong>*</strong></label>
+                                <textarea
+                                    id="registro_dia_atividades"
+                                    name="registro_dia_atividades"
+                                    class="form-control os-day-textarea-main"
+                                    placeholder="Ex.: Retiramos 12 metros de cerca danificada e preparamos os pontos para instalar as novas peças."
+                                ></textarea>
+                                <small class="os-day-help">Escreva de forma simples: o que a equipe realmente executou hoje.</small>
+                            </div>
+                        </div>
+
+                        <div class="os-day-grid">
+                            <div class="form-group">
+                                <label for="registro_dia_pendencias">O que ficou para depois?</label>
+                                <textarea
+                                    id="registro_dia_pendencias"
+                                    name="registro_dia_pendencias"
+                                    class="form-control"
+                                    placeholder="Ex.: Instalar os 8 metros restantes amanhã."
+                                ></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="registro_dia_observacoes">Teve algum problema ou observação?</label>
+                                <textarea
+                                    id="registro_dia_observacoes"
+                                    name="registro_dia_observacoes"
+                                    class="form-control"
+                                    placeholder="Ex.: Área ficou bloqueada das 11h às 12h."
+                                ></textarea>
+                            </div>
+                        </div>
+
+                        <div class="os-day-progress-card">
+                            <div class="os-day-progress-heading">
+                                <div>
+                                    <h5>Quanto do serviço já foi concluído?</h5>
+                                    <p>Use uma estimativa simples do andamento total da OS.</p>
+                                </div>
+                                <strong data-registro-progresso-valor>{{ progresso_registro_padrao|default(0) }}%</strong>
+                            </div>
+                            <input
+                                id="registro_dia_progresso"
+                                name="registro_dia_progresso"
+                                type="range"
+                                min="0"
+                                max="100"
+                                step="5"
+                                value="{{ progresso_registro_padrao|default(0) }}"
+                                class="os-day-progress-range"
+                            >
+                            <div class="os-day-progress-scale">
+                                <span>0%</span>
+                                <span>50%</span>
+                                <span>100%</span>
+                            </div>
+                        </div>
+
+                        <fieldset class="os-day-finish">
+                            <legend>O serviço terminou 100%?</legend>
+                            <p>Escolha <strong>Sim</strong> somente quando não houver mais nada para executar nesta OS.</p>
+                            <div class="os-day-finish-options">
+                                <label class="os-day-finish-option is-selected" data-registro-conclusao-opcao>
+                                    <input type="radio" name="registro_dia_concluido" value="nao" checked>
+                                    <span>
+                                        <strong>Não, o serviço continua</strong>
+                                        <small>A OS permanece em andamento.</small>
+                                    </span>
+                                </label>
+                                <label class="os-day-finish-option" data-registro-conclusao-opcao>
+                                    <input type="radio" name="registro_dia_concluido" value="sim">
+                                    <span>
+                                        <strong>Sim, terminou 100%</strong>
+                                        <small>Ao salvar, a OS será concluída.</small>
+                                    </span>
+                                </label>
+                            </div>
+                        </fieldset>
+                    </div>
+
+                    <div class="form-actions os-single-save-actions">
                         <a href="/ordens-servico/{{ os.id }}" class="btn-light">Cancelar</a>
                         <button type="submit" class="btn-primary-green">Salvar alterações</button>
                     </div>
@@ -1603,11 +2127,11 @@ Motivo: Simplificar a linguagem da execução da OS para serviços, itens e áre
             </section>
         </form>
 
-        <section id="acompanhamentos-diarios" class="panel page-section os-form-section os-panel-orcamento" data-os-tab-panel="historico">
+        <section id="acompanhamentos-diarios" class="panel page-section os-form-section os-panel-orcamento os-history-simple" data-os-tab-panel="historico">
             <div class="panel-header page-header os-section-title">
                 <div>
-                    <h3>Acompanhamentos diários</h3>
-                    <p class="page-subtitle">Edite ou exclua os registros enviados pelo técnico. O link técnico continua sem permissão para alterar registros já salvos.</p>
+                    <h3>Histórico da execução</h3>
+                    <p class="page-subtitle">Cada dia salvo fica registrado aqui. O técnico pode consultar sem sobrescrever os dias anteriores.</p>
                 </div>
                 <span class="badge-info">{{ acompanhamentos|length }} registro{% if acompanhamentos|length != 1 %}s{% endif %}</span>
             </div>
@@ -1622,297 +2146,207 @@ Motivo: Simplificar a linguagem da execução da OS para serviços, itens e áre
                 {% endif %}
 
                 {% if acompanhamentos %}
-                    <div class="os-acompanhamentos-list">
+                    <div class="os-history-list">
                         {% for acompanhamento in acompanhamentos %}
-                            {% set status_dia = (acompanhamento.status_dia or 'aberto')|lower %}
-                            {% set status_texto = 'Finalizado' if status_dia == 'finalizado' else ('Registrado' if status_dia == 'registrado' else 'Aberto') %}
-                            <details class="os-acompanhamento-card" {% if loop.first %}open{% endif %}>
-                                <summary>
-                                    <div class="os-acompanhamento-resumo">
-                                        <div>
-                                            <strong>{{ acompanhamento.data_acompanhamento|default('-', true) }} — {{ acompanhamento.responsavel|default('Sem responsável', true) }}</strong>
-                                            <span>Registro #{{ acompanhamento.id }}{% if acompanhamento.atualizado_em %} · Atualizado em {{ acompanhamento.atualizado_em }}{% endif %}</span>
-                                        </div>
+                            {% set status_dia = (acompanhamento.status_dia or 'registrado')|lower %}
+                            {% set progresso = acompanhamento.progresso_percentual|default(0, true)|int %}
+                            <article class="os-history-day">
+                                <div class="os-history-day-header">
+                                    <div>
+                                        <span class="os-history-date">{{ acompanhamento.data_acompanhamento|default('-', true) }}</span>
+                                        <strong>{{ acompanhamento.responsavel|default('Responsável não informado', true) }}</strong>
                                     </div>
-                                    <span class="os-acompanhamento-status status-{{ status_dia }}">{{ status_texto }}</span>
-                                </summary>
-
-                                <form method="post" action="{{ url_for('editar_acompanhamento_ordem_servico_interno_rota', ordem_servico_id=os.id, acompanhamento_id=acompanhamento.id) }}" class="os-acompanhamento-form">
-                                    <div class="os-acompanhamento-grid">
-                                        <div class="form-group">
-                                            <label>Data</label>
-                                            <input type="date" name="data_acompanhamento" value="{{ acompanhamento.data_acompanhamento or '' }}" class="form-control" required>
-                                        </div>
-
-                                        <div class="form-group os-acompanhamento-span-2">
-                                            <label>Responsável pelo registro</label>
-                                            <input type="text" name="responsavel" value="{{ acompanhamento.responsavel or '' }}" class="form-control" placeholder="Nome do responsável">
-                                        </div>
-
-                                        <div class="form-group">
-                                            <label>Status do dia</label>
-                                            <select name="status_dia" class="form-control">
-                                                <option value="aberto" {% if status_dia == 'aberto' %}selected{% endif %}>Aberto</option>
-                                                <option value="registrado" {% if status_dia == 'registrado' %}selected{% endif %}>Registrado</option>
-                                                <option value="finalizado" {% if status_dia == 'finalizado' %}selected{% endif %}>Finalizado</option>
-                                            </select>
-                                        </div>
-
-                                        <div class="form-group">
-                                            <label>Status do link</label>
-                                            <select name="status_link" class="form-control">
-                                                <option value="ativo" {% if (acompanhamento.status_link or 'ativo') == 'ativo' %}selected{% endif %}>Ativo</option>
-                                                <option value="inativo" {% if acompanhamento.status_link == 'inativo' %}selected{% endif %}>Inativo</option>
-                                            </select>
-                                        </div>
-
-                                        <div class="form-group os-acompanhamento-span-4">
-                                            <label>Atividades previstas</label>
-                                            <textarea name="atividades_previstas" class="form-control os-textarea" placeholder="Atividades previstas para o dia">{{ acompanhamento.atividades_previstas or '' }}</textarea>
-                                        </div>
-
-                                        <div class="os-acompanhamento-item-section">
-                                            <div class="os-acompanhamento-item-header">
-                                                <div>
-                                                    <h4>Equipe envolvida</h4>
-                                                    <p>Edite profissionais, horas e observações do registro.</p>
-                                                </div>
-                                                <button type="button" class="btn-primary-green" data-acompanhamento-adicionar="equipe">+ Adicionar profissional</button>
-                                            </div>
-                                            <div class="os-acompanhamento-item-lista" data-acompanhamento-lista="equipe">
-                                                {% for item in acompanhamento.equipe_lista|default([]) %}
-                                                    <div class="os-acompanhamento-item-row" data-acompanhamento-item>
-                                                        <div class="form-group">
-                                                            <label>Profissional</label>
-                                                            <select name="equipe_funcionario_id[]" class="form-control">
-                                                                <option value="">Selecione</option>
-                                                                {% if item.funcionario_id %}
-                                                                    <option value="{{ item.funcionario_id }}" selected>{{ item.nome or 'Profissional' }}{% if item.cargo %} - {{ item.cargo }}{% endif %}</option>
-                                                                {% endif %}
-                                                                {% for funcionario in funcionarios|default([]) %}
-                                                                    {% if funcionario.id != item.funcionario_id %}
-                                                                        <option value="{{ funcionario.id }}">{{ funcionario.nome }}{% if funcionario.cargo %} - {{ funcionario.cargo }}{% endif %}</option>
-                                                                    {% endif %}
-                                                                {% endfor %}
-                                                            </select>
-                                                        </div>
-                                                        <div class="form-group">
-                                                            <label>Horas</label>
-                                                            <input type="text" name="equipe_horas[]" value="{{ item.horas or '' }}" class="form-control" placeholder="8">
-                                                        </div>
-                                                        <div class="form-group">
-                                                            <label>Observação</label>
-                                                            <input type="text" name="equipe_observacoes[]" value="{{ item.observacoes or '' }}" class="form-control" placeholder="Opcional">
-                                                        </div>
-                                                        <button type="button" class="os-acompanhamento-item-remove" data-acompanhamento-remover title="Remover profissional">×</button>
-                                                    </div>
-                                                {% else %}
-                                                    <div class="os-acompanhamento-empty" data-acompanhamento-vazio>Nenhum profissional informado.</div>
-                                                {% endfor %}
-                                            </div>
-                                        </div>
-
-                                        <div class="os-acompanhamento-item-section">
-                                            <div class="os-acompanhamento-item-header">
-                                                <div>
-                                                    <h4>Materiais utilizados</h4>
-                                                    <p>Edite os produtos, quantidades e observações do registro.</p>
-                                                </div>
-                                                <button type="button" class="btn-primary-green" data-acompanhamento-adicionar="materiais">+ Adicionar material</button>
-                                            </div>
-                                            <div class="os-acompanhamento-item-lista" data-acompanhamento-lista="materiais">
-                                                {% for item in acompanhamento.materiais_lista|default([]) %}
-                                                    <div class="os-acompanhamento-item-row material-row" data-acompanhamento-item>
-                                                        <div class="form-group">
-                                                            <label>Material</label>
-                                                            <select name="material_produto_id[]" class="form-control">
-                                                                <option value="">Selecione</option>
-                                                                {% if item.produto_id %}
-                                                                    <option value="{{ item.produto_id }}" selected>{{ item.nome or 'Material' }}{% if item.unidade %} - {{ item.unidade }}{% endif %}</option>
-                                                                {% endif %}
-                                                                {% for produto in produtos|default([]) %}
-                                                                    {% if produto.id != item.produto_id %}
-                                                                        <option value="{{ produto.id }}">{{ produto.nome }}{% if produto.unidade %} - {{ produto.unidade }}{% endif %}</option>
-                                                                    {% endif %}
-                                                                {% endfor %}
-                                                            </select>
-                                                        </div>
-                                                        <div class="form-group">
-                                                            <label>Quantidade</label>
-                                                            <input type="text" name="material_quantidade[]" value="{{ item.quantidade or '' }}" class="form-control" placeholder="1">
-                                                        </div>
-                                                        <div class="form-group">
-                                                            <label>Observação</label>
-                                                            <input type="text" name="material_observacoes[]" value="{{ item.observacoes or '' }}" class="form-control" placeholder="Opcional">
-                                                        </div>
-                                                        <button type="button" class="os-acompanhamento-item-remove" data-acompanhamento-remover title="Remover material">×</button>
-                                                    </div>
-                                                {% else %}
-                                                    <div class="os-acompanhamento-empty" data-acompanhamento-vazio>Nenhum material informado.</div>
-                                                {% endfor %}
-                                            </div>
-                                        </div>
-
-                                        <div class="os-acompanhamento-item-section">
-                                            <div class="os-acompanhamento-item-header">
-                                                <div>
-                                                    <h4>Serviços executados</h4>
-                                                    <p>Edite os serviços, quantidades e observações do registro.</p>
-                                                </div>
-                                                <button type="button" class="btn-primary-green" data-acompanhamento-adicionar="servicos">+ Adicionar serviço</button>
-                                            </div>
-                                            <div class="os-acompanhamento-item-lista" data-acompanhamento-lista="servicos">
-                                                {% for item in acompanhamento.servicos_lista|default([]) %}
-                                                    <div class="os-acompanhamento-item-row" data-acompanhamento-item>
-                                                        <div class="form-group">
-                                                            <label>Serviço</label>
-                                                            <select name="servico_id[]" class="form-control">
-                                                                <option value="">Selecione</option>
-                                                                {% if item.servico_id %}
-                                                                    <option value="{{ item.servico_id }}" selected>{{ item.nome or 'Serviço' }}</option>
-                                                                {% endif %}
-                                                                {% for servico in servicos|default([]) %}
-                                                                    {% if servico.id != item.servico_id %}
-                                                                        <option value="{{ servico.id }}">{{ servico.nome }}</option>
-                                                                    {% endif %}
-                                                                {% endfor %}
-                                                            </select>
-                                                        </div>
-                                                        <div class="form-group">
-                                                            <label>Quantidade</label>
-                                                            <input type="text" name="servico_quantidade[]" value="{{ item.quantidade or '' }}" class="form-control" placeholder="1">
-                                                        </div>
-                                                        <div class="form-group">
-                                                            <label>Observação</label>
-                                                            <input type="text" name="servico_observacoes[]" value="{{ item.observacoes or '' }}" class="form-control" placeholder="Opcional">
-                                                        </div>
-                                                        <button type="button" class="os-acompanhamento-item-remove" data-acompanhamento-remover title="Remover serviço">×</button>
-                                                    </div>
-                                                {% else %}
-                                                    <div class="os-acompanhamento-empty" data-acompanhamento-vazio>Nenhum serviço informado.</div>
-                                                {% endfor %}
-                                            </div>
-                                        </div>
-
-                                        <div class="form-group os-acompanhamento-span-4">
-                                            <label>Atividades executadas</label>
-                                            <textarea name="atividades_executadas" class="form-control os-textarea" placeholder="Atividades executadas no dia">{{ acompanhamento.atividades_executadas or '' }}</textarea>
-                                        </div>
-
-                                        <div class="form-group os-acompanhamento-span-4">
-                                            <label>Observações</label>
-                                            <textarea name="observacoes" class="form-control os-textarea" placeholder="Pendências, impedimentos e observações">{{ acompanhamento.observacoes or '' }}</textarea>
-                                        </div>
-
-                                        <div class="os-acompanhamento-actions">
-                                            <button
-                                                type="submit"
-                                                class="os-acompanhamento-delete"
-                                                formaction="{{ url_for('excluir_acompanhamento_ordem_servico_interno_rota', ordem_servico_id=os.id, acompanhamento_id=acompanhamento.id) }}"
-                                                formmethod="post"
-                                                onclick="return confirm('Excluir definitivamente este acompanhamento diário? O link vinculado a ele deixará de funcionar.');"
-                                            >Excluir acompanhamento</button>
-                                            <button type="submit" class="btn-primary-green">Salvar acompanhamento</button>
-                                        </div>
+                                    <div class="os-history-progress{% if progresso >= 100 or status_dia == 'finalizado' %} is-complete{% endif %}">
+                                        {{ 100 if status_dia == 'finalizado' and progresso < 100 else progresso }}%
                                     </div>
-                                </form>
-                            </details>
+                                </div>
+
+                                {% if acompanhamento.equipe_lista %}
+                                    <div class="os-history-people">
+                                        <span>Equipe:</span>
+                                        {% for pessoa in acompanhamento.equipe_lista %}
+                                            <strong>{{ pessoa.nome }}{% if pessoa.horas %} · {{ pessoa.horas }}h{% endif %}</strong>{% if not loop.last %}<i>•</i>{% endif %}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+
+                                {% if acompanhamento.atividades_executadas %}
+                                    <div class="os-history-content">
+                                        <span>O que foi feito</span>
+                                        <p>{{ acompanhamento.atividades_executadas }}</p>
+                                    </div>
+                                {% endif %}
+
+                                {% if acompanhamento.atividades_previstas %}
+                                    <div class="os-history-content">
+                                        <span>Ficou para depois</span>
+                                        <p>{{ acompanhamento.atividades_previstas }}</p>
+                                    </div>
+                                {% endif %}
+
+                                {% if acompanhamento.observacoes %}
+                                    <div class="os-history-content">
+                                        <span>Problemas / observações</span>
+                                        <p>{{ acompanhamento.observacoes }}</p>
+                                    </div>
+                                {% endif %}
+                            </article>
                         {% endfor %}
                     </div>
                 {% else %}
-                    <div class="os-acompanhamento-empty">Ainda não existem acompanhamentos diários nesta OS.</div>
+                    <div class="os-history-empty">
+                        <strong>Nenhum dia registrado ainda.</strong>
+                        <span>Preencha o Diário de execução e use Salvar alterações. O primeiro registro aparecerá aqui.</span>
+                    </div>
                 {% endif %}
             </div>
         </section>
 
-        <template id="template-acompanhamento-equipe">
-            <div class="os-acompanhamento-item-row" data-acompanhamento-item>
+        <template id="template-registro-equipe">
+            <div class="os-day-team-row" data-registro-equipe-item>
                 <div class="form-group">
-                    <label>Profissional</label>
+                    <label>Pessoa</label>
                     <select name="equipe_funcionario_id[]" class="form-control">
-                        <option value="">Selecione</option>
+                        <option value="">Selecione uma pessoa</option>
                         {% for funcionario in funcionarios|default([]) %}
-                            <option value="{{ funcionario.id }}">{{ funcionario.nome }}{% if funcionario.cargo %} - {{ funcionario.cargo }}{% endif %}</option>
+                            <option value="{{ funcionario.id }}">{{ funcionario.nome }}{% if funcionario.cargo %} — {{ funcionario.cargo }}{% endif %}</option>
                         {% endfor %}
                     </select>
                 </div>
-                <div class="form-group"><label>Horas</label><input type="text" name="equipe_horas[]" class="form-control" placeholder="8"></div>
-                <div class="form-group"><label>Observação</label><input type="text" name="equipe_observacoes[]" class="form-control" placeholder="Opcional"></div>
-                <button type="button" class="os-acompanhamento-item-remove" data-acompanhamento-remover title="Remover profissional">×</button>
-            </div>
-        </template>
-
-        <template id="template-acompanhamento-materiais">
-            <div class="os-acompanhamento-item-row material-row" data-acompanhamento-item>
                 <div class="form-group">
-                    <label>Material</label>
-                    <select name="material_produto_id[]" class="form-control">
-                        <option value="">Selecione</option>
-                        {% for produto in produtos|default([]) %}
-                            <option value="{{ produto.id }}">{{ produto.nome }}{% if produto.unidade %} - {{ produto.unidade }}{% endif %}</option>
-                        {% endfor %}
-                    </select>
+                    <label>Horas trabalhadas <span>(opcional)</span></label>
+                    <input name="equipe_horas[]" type="text" class="form-control" placeholder="Ex.: 8">
                 </div>
-                <div class="form-group"><label>Quantidade</label><input type="text" name="material_quantidade[]" class="form-control" placeholder="1"></div>
-                <div class="form-group"><label>Observação</label><input type="text" name="material_observacoes[]" class="form-control" placeholder="Opcional"></div>
-                <button type="button" class="os-acompanhamento-item-remove" data-acompanhamento-remover title="Remover material">×</button>
-            </div>
-        </template>
-
-        <template id="template-acompanhamento-servicos">
-            <div class="os-acompanhamento-item-row" data-acompanhamento-item>
-                <div class="form-group">
-                    <label>Serviço</label>
-                    <select name="servico_id[]" class="form-control">
-                        <option value="">Selecione</option>
-                        {% for servico in servicos|default([]) %}
-                            <option value="{{ servico.id }}">{{ servico.nome }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="form-group"><label>Quantidade</label><input type="text" name="servico_quantidade[]" class="form-control" placeholder="1"></div>
-                <div class="form-group"><label>Observação</label><input type="text" name="servico_observacoes[]" class="form-control" placeholder="Opcional"></div>
-                <button type="button" class="os-acompanhamento-item-remove" data-acompanhamento-remover title="Remover serviço">×</button>
+                <input name="equipe_observacoes[]" type="hidden" value="">
+                <button type="button" class="os-day-remove-person" data-registro-equipe-remover title="Remover pessoa" aria-label="Remover pessoa">×</button>
             </div>
         </template>
 
         <script>
-            document.addEventListener("click", function(evento) {
-                const botaoAdicionar = evento.target.closest("[data-acompanhamento-adicionar]");
-                const botaoRemover = evento.target.closest("[data-acompanhamento-remover]");
+            document.addEventListener("DOMContentLoaded", function() {
+                const formulario = document.getElementById("form-editar-os");
+                const listaEquipe = document.querySelector("[data-registro-equipe-lista]");
+                const templateEquipe = document.getElementById("template-registro-equipe");
+                const progresso = document.getElementById("registro_dia_progresso");
+                const progressoValor = document.querySelector("[data-registro-progresso-valor]");
+                const opcoesConclusao = document.querySelectorAll("[data-registro-conclusao-opcao]");
+                const radioNao = formulario ? formulario.querySelector('input[name="registro_dia_concluido"][value="nao"]') : null;
+                const radioSim = formulario ? formulario.querySelector('input[name="registro_dia_concluido"][value="sim"]') : null;
 
-                if (botaoAdicionar) {
-                    const tipo = botaoAdicionar.getAttribute("data-acompanhamento-adicionar");
-                    const card = botaoAdicionar.closest(".os-acompanhamento-card");
-                    const lista = card ? card.querySelector('[data-acompanhamento-lista="' + tipo + '"]') : null;
-                    const template = document.getElementById("template-acompanhamento-" + tipo);
+                function atualizarProgresso() {
+                    if (!progresso || !progressoValor) return;
+                    progressoValor.textContent = String(progresso.value || "0") + "%";
+                }
 
-                    if (lista && template) {
-                        const vazio = lista.querySelector("[data-acompanhamento-vazio]");
-                        if (vazio) {
-                            vazio.remove();
+                function atualizarConclusaoVisual() {
+                    opcoesConclusao.forEach(function(opcao) {
+                        const radio = opcao.querySelector('input[type="radio"]');
+                        opcao.classList.toggle("is-selected", Boolean(radio && radio.checked));
+                    });
+
+                    if (radioSim && radioSim.checked && progresso) {
+                        progresso.value = "100";
+                        atualizarProgresso();
+                    } else if (radioNao && radioNao.checked && progresso && Number(progresso.value || 0) >= 100) {
+                        progresso.value = "95";
+                        atualizarProgresso();
+                    }
+                }
+
+                document.addEventListener("click", function(evento) {
+                    const adicionar = evento.target.closest("[data-registro-equipe-adicionar]");
+                    const remover = evento.target.closest("[data-registro-equipe-remover]");
+
+                    if (adicionar && listaEquipe && templateEquipe) {
+                        listaEquipe.appendChild(templateEquipe.content.cloneNode(true));
+                        const novoSelect = listaEquipe.querySelector("[data-registro-equipe-item]:last-child select");
+                        if (novoSelect) novoSelect.focus();
+                    }
+
+                    if (remover) {
+                        const item = remover.closest("[data-registro-equipe-item]");
+                        const itens = listaEquipe ? listaEquipe.querySelectorAll("[data-registro-equipe-item]") : [];
+                        if (item && itens.length > 1) {
+                            item.remove();
+                        } else if (item) {
+                            const select = item.querySelector("select");
+                            const horas = item.querySelector('input[name="equipe_horas[]"]');
+                            if (select) select.value = "";
+                            if (horas) horas.value = "";
                         }
-                        lista.appendChild(template.content.cloneNode(true));
                     }
+                });
+
+                if (progresso) {
+                    progresso.addEventListener("input", function() {
+                        if (Number(progresso.value || 0) >= 100 && radioSim) {
+                            radioSim.checked = true;
+                        } else if (radioNao) {
+                            radioNao.checked = true;
+                        }
+                        atualizarProgresso();
+                        atualizarConclusaoVisual();
+                    });
                 }
 
-                if (botaoRemover) {
-                    const linha = botaoRemover.closest("[data-acompanhamento-item]");
-                    const lista = linha ? linha.closest("[data-acompanhamento-lista]") : null;
-                    if (linha) {
-                        linha.remove();
-                    }
-                    if (lista && !lista.querySelector("[data-acompanhamento-item]")) {
-                        const vazio = document.createElement("div");
-                        vazio.className = "os-acompanhamento-empty";
-                        vazio.setAttribute("data-acompanhamento-vazio", "");
-                        vazio.textContent = "Nenhum item informado.";
-                        lista.appendChild(vazio);
-                    }
+                opcoesConclusao.forEach(function(opcao) {
+                    opcao.addEventListener("change", atualizarConclusaoVisual);
+                });
+
+                if (formulario) {
+                    formulario.addEventListener("submit", function(evento) {
+                        const atividades = formulario.querySelector('[name="registro_dia_atividades"]');
+                        const pendencias = formulario.querySelector('[name="registro_dia_pendencias"]');
+                        const observacoes = formulario.querySelector('[name="registro_dia_observacoes"]');
+                        const data = formulario.querySelector('[name="registro_dia_data"]');
+                        const pessoas = Array.from(formulario.querySelectorAll('select[name="equipe_funcionario_id[]"]'))
+                            .filter(function(select) { return String(select.value || "").trim(); });
+                        const temRegistro = Boolean(
+                            String(atividades ? atividades.value : "").trim()
+                            || String(pendencias ? pendencias.value : "").trim()
+                            || String(observacoes ? observacoes.value : "").trim()
+                            || pessoas.length
+                            || (radioSim && radioSim.checked)
+                        );
+
+                        if (!temRegistro) return;
+
+                        if (!data || !String(data.value || "").trim()) {
+                            evento.preventDefault();
+                            if (typeof window.gestflowAtivarAbaOS === "function") window.gestflowAtivarAbaOS("execucao");
+                            gestflowExibirErroFormulario(formulario, "Informe a data do registro do dia.", data);
+                            return;
+                        }
+
+                        if (!pessoas.length) {
+                            evento.preventDefault();
+                            if (typeof window.gestflowAtivarAbaOS === "function") window.gestflowAtivarAbaOS("execucao");
+                            gestflowExibirErroFormulario(formulario, "Adicione pelo menos uma pessoa que trabalhou neste dia.", listaEquipe ? listaEquipe.querySelector("select") : null);
+                            return;
+                        }
+
+                        if (!atividades || !String(atividades.value || "").trim()) {
+                            evento.preventDefault();
+                            if (typeof window.gestflowAtivarAbaOS === "function") window.gestflowAtivarAbaOS("execucao");
+                            gestflowExibirErroFormulario(formulario, "Escreva o que foi feito neste dia.", atividades);
+                            return;
+                        }
+
+                        if (radioSim && radioSim.checked) {
+                            const confirmou = window.confirm(
+                                "Você marcou que o serviço terminou 100%. Ao salvar, esta OS será concluída. Confirmar?"
+                            );
+                            if (!confirmou) {
+                                evento.preventDefault();
+                            }
+                        }
+                    });
                 }
+
+                atualizarProgresso();
+                atualizarConclusaoVisual();
             });
         </script>
-
 
         <div id="quick-cliente-modal" class="quick-modal-backdrop" aria-hidden="true">
             <div class="quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-cliente-title">

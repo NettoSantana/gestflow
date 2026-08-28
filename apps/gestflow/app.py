@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\app.py
-# Último recode: 2026-08-28 12:57 (America/Bahia)
-# Motivo: Tornar Atividades / Projetos independentes do status do Orçamento, com execução calculada pelas OS vinculadas e filtros operacionais.
+# Último recode: 2026-08-28 16:13 (America/Bahia)
+# Motivo: Integrar um diário de execução simples à edição da OS, com data, equipe, atividades, progresso e conclusão em um único botão Salvar alterações.
 
 from __future__ import annotations
 
@@ -4838,6 +4838,7 @@ def iniciar_banco() -> None:
                 responsavel TEXT,
                 status_link TEXT NOT NULL DEFAULT 'ativo',
                 status_dia TEXT NOT NULL DEFAULT 'aberto',
+                progresso_percentual INTEGER NOT NULL DEFAULT 0,
                 atividades_previstas TEXT,
                 equipe_prevista TEXT,
                 materiais_previstos TEXT,
@@ -6817,6 +6818,11 @@ def iniciar_banco() -> None:
 
         if "token_cliente" not in colunas_acompanhamentos_os:
             conn.execute("ALTER TABLE os_acompanhamentos ADD COLUMN token_cliente TEXT")
+
+        if "progresso_percentual" not in colunas_acompanhamentos_os:
+            conn.execute(
+                "ALTER TABLE os_acompanhamentos ADD COLUMN progresso_percentual INTEGER NOT NULL DEFAULT 0"
+            )
 
         acompanhamentos_sem_tokens_separados = conn.execute(
             """
@@ -16840,6 +16846,7 @@ def listar_acompanhamentos_ordem_servico(ordem_servico_id: int) -> list[dict[str
                 responsavel,
                 status_link,
                 status_dia,
+                progresso_percentual,
                 atividades_previstas,
                 equipe_prevista,
                 materiais_previstos,
@@ -17277,6 +17284,223 @@ def salvar_itens_acompanhamento_os(
         )
 
 
+def salvar_registro_diario_ordem_servico_db(
+    ordem_servico_id: int,
+    ordem_servico: dict[str, Any],
+    *,
+    data_registro: str,
+    atividades_realizadas: str,
+    pendencias: str,
+    observacoes: str,
+    progresso_percentual: int,
+    concluido_100: bool,
+    itens: dict[str, list[dict[str, str]]],
+) -> tuple[bool, str, int | None]:
+    data_registro = str(data_registro or "").strip()
+    atividades_realizadas = str(atividades_realizadas or "").strip()
+    pendencias = str(pendencias or "").strip()
+    observacoes = str(observacoes or "").strip()
+
+    if not data_registro:
+        return False, "Informe a data do registro do dia.", None
+
+    try:
+        datetime.strptime(data_registro, "%Y-%m-%d")
+    except ValueError:
+        return False, "Informe uma data válida para o registro do dia.", None
+
+    equipe = list(itens.get("equipe") or [])
+    if not equipe:
+        return False, "Adicione pelo menos uma pessoa que trabalhou neste dia.", None
+
+    if not atividades_realizadas:
+        return False, "Informe o que foi feito neste dia.", None
+
+    try:
+        progresso = int(progresso_percentual)
+    except (TypeError, ValueError):
+        progresso = 0
+
+    progresso = max(0, min(100, progresso))
+    if concluido_100:
+        progresso = 100
+    elif progresso >= 100:
+        progresso = 95
+
+    empresa_id = empresa_logada_id()
+    agora_iso = agora_empresa().isoformat(timespec="seconds")
+    responsavel = str(
+        ordem_servico.get("tecnico")
+        or ordem_servico.get("responsavel")
+        or session.get("usuario_nome")
+        or "Responsável"
+    ).strip()
+    status_dia = "finalizado" if concluido_100 else "registrado"
+
+    try:
+        with conectar_db() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            existente = conn.execute(
+                """
+                SELECT *
+                FROM os_acompanhamentos
+                WHERE ordem_servico_id = ?
+                  AND empresa_id = ?
+                  AND data_acompanhamento = ?
+                  AND status_dia = 'aberto'
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                (ordem_servico_id, empresa_id, data_registro),
+            ).fetchone()
+
+            if existente is not None:
+                acompanhamento = dict(existente)
+                acompanhamento_id = int(acompanhamento["id"])
+                conn.execute(
+                    """
+                    UPDATE os_acompanhamentos
+                    SET
+                        responsavel = ?,
+                        status_link = 'inativo',
+                        status_dia = ?,
+                        progresso_percentual = ?,
+                        atividades_previstas = ?,
+                        atividades_executadas = ?,
+                        observacoes = ?,
+                        finalizado_em = ?,
+                        atualizado_em = ?
+                    WHERE id = ?
+                      AND ordem_servico_id = ?
+                      AND empresa_id = ?
+                    """,
+                    (
+                        responsavel,
+                        status_dia,
+                        progresso,
+                        pendencias,
+                        atividades_realizadas,
+                        observacoes,
+                        agora_iso,
+                        agora_iso,
+                        acompanhamento_id,
+                        ordem_servico_id,
+                        empresa_id,
+                    ),
+                )
+            else:
+                token_legado = _gerar_token_publico_os_unico(conn)
+                token_tecnico = _gerar_token_publico_os_unico(conn)
+                token_cliente = _gerar_token_publico_os_unico(conn)
+                cursor = conn.execute(
+                    """
+                    INSERT INTO os_acompanhamentos (
+                        empresa_id,
+                        ordem_servico_id,
+                        token,
+                        token_tecnico,
+                        token_cliente,
+                        data_acompanhamento,
+                        responsavel,
+                        status_link,
+                        status_dia,
+                        progresso_percentual,
+                        atividades_previstas,
+                        atividades_executadas,
+                        observacoes,
+                        aberto_em,
+                        finalizado_em,
+                        expira_em,
+                        atualizado_em
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'inativo', ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        empresa_id,
+                        ordem_servico_id,
+                        token_legado,
+                        token_tecnico,
+                        token_cliente,
+                        data_registro,
+                        responsavel,
+                        status_dia,
+                        progresso,
+                        pendencias,
+                        atividades_realizadas,
+                        observacoes,
+                        agora_iso,
+                        agora_iso,
+                        agora_iso,
+                        agora_iso,
+                    ),
+                )
+                acompanhamento_id = int(cursor.lastrowid)
+                acompanhamento = {
+                    "id": acompanhamento_id,
+                    "empresa_id": empresa_id,
+                    "ordem_servico_id": ordem_servico_id,
+                }
+
+            salvar_itens_acompanhamento_os(conn, acompanhamento, itens)
+            conn.commit()
+    except sqlite3.Error:
+        app.logger.exception(
+            "Falha ao salvar registro diário da OS %s em %s.",
+            ordem_servico_id,
+            data_registro,
+        )
+        return False, "Não foi possível salvar o registro do dia. Tente novamente.", None
+
+    return True, "Registro do dia salvo com sucesso.", acompanhamento_id
+
+
+def concluir_ordem_servico_por_registro_diario_db(
+    ordem_servico_id: int,
+) -> tuple[bool, str, list[str]]:
+    ordem = buscar_ordem_servico_por_id(ordem_servico_id)
+    if ordem is None:
+        return False, "Ordem de Serviço não encontrada.", []
+
+    if str(ordem.get("finalizado_em") or "").strip() or status_final_operacional(
+        "ordens_servico", ordem.get("status")
+    ):
+        return True, "OS já estava concluída.", []
+
+    finalizador = str(
+        configuracao_status_operacional("ordens_servico").get("finalizador") or ""
+    ).strip()
+    if not finalizador:
+        return False, "Não existe um status finalizador configurado para a OS.", []
+
+    if (
+        configuracao_bool(
+            "ordens_servico",
+            "exigir_responsavel_encerramento",
+            True,
+        )
+        and not str(ordem.get("responsavel") or "").strip()
+    ):
+        return False, "Informe o responsável da OS antes de concluí-la.", []
+
+    agora_iso = agora_empresa().isoformat(timespec="seconds")
+    with conectar_db() as conn:
+        cursor = conn.execute(
+            """
+            UPDATE ordens_servico
+            SET status = ?, finalizado_em = ?
+            WHERE id = ?
+              AND empresa_id = ?
+            """,
+            (finalizador, agora_iso, ordem_servico_id, empresa_logada_id()),
+        )
+        if cursor.rowcount != 1:
+            conn.rollback()
+            return False, "Não foi possível concluir a OS.", []
+        conn.commit()
+
+    integracoes = executar_integracoes_ordem_servico_configuradas(ordem_servico_id)
+    return True, "OS concluída com sucesso.", integracoes
+
+
 
 def buscar_acompanhamento_ordem_servico_interno(
     ordem_servico_id: int,
@@ -17515,6 +17739,7 @@ def listar_acompanhamentos_ordem_servico_publico(
                 responsavel,
                 status_link,
                 status_dia,
+                progresso_percentual,
                 atividades_previstas,
                 equipe_prevista,
                 materiais_previstos,
@@ -38028,6 +38253,16 @@ def editar_ordem_servico(ordem_servico_id: int) -> str | Response:
     acompanhamentos = anexar_itens_aos_acompanhamentos(
         listar_acompanhamentos_ordem_servico(ordem_servico_id)
     )
+    progresso_registro_padrao = min(
+        max(
+            [
+                int(acompanhamento.get("progresso_percentual") or 0)
+                for acompanhamento in acompanhamentos
+            ],
+            default=0,
+        ),
+        95,
+    )
 
     return render_template(
         "ordem_servico_editar.html",
@@ -38047,6 +38282,8 @@ def editar_ordem_servico(ordem_servico_id: int) -> str | Response:
         centros_custo=listar_centros_custo(),
         atividades_financeiras=listar_atividades_financeiras(),
         os_status_opcoes=status_opcoes_operacional("ordens_servico", ordem_servico.get("status")),
+        data_registro_padrao=hoje_empresa().isoformat(),
+        progresso_registro_padrao=progresso_registro_padrao,
     )
 
 
@@ -38252,6 +38489,24 @@ def atualizar_ordem_servico(ordem_servico_id: int) -> Response:
     if ordem_servico_atual is None:
         return redirect(url_for("ordens_servico"))
 
+    registro_data = str(request.form.get("registro_dia_data") or "").strip()
+    registro_atividades = str(request.form.get("registro_dia_atividades") or "").strip()
+    registro_pendencias = str(request.form.get("registro_dia_pendencias") or "").strip()
+    registro_observacoes = str(request.form.get("registro_dia_observacoes") or "").strip()
+    registro_concluido = str(request.form.get("registro_dia_concluido") or "nao").strip().lower() == "sim"
+    try:
+        registro_progresso = int(str(request.form.get("registro_dia_progresso") or "0").strip())
+    except ValueError:
+        registro_progresso = 0
+    itens_registro = montar_itens_acompanhamento_formulario(request.form)
+    registro_preenchido = bool(
+        registro_atividades
+        or registro_pendencias
+        or registro_observacoes
+        or itens_registro.get("equipe")
+        or registro_concluido
+    )
+
     os_reaberta = False
     if str(ordem_servico_atual.get("finalizado_em") or "").strip() or status_final_operacional("ordens_servico", ordem_servico_atual.get("status")):
         try:
@@ -38282,20 +38537,121 @@ def atualizar_ordem_servico(ordem_servico_id: int) -> Response:
     if erro_validacao:
         return redirect(url_for("editar_ordem_servico", ordem_servico_id=ordem_servico_id, erro=erro_validacao))
 
+    if registro_preenchido:
+        if not registro_data:
+            return redirect(
+                url_for(
+                    "editar_ordem_servico",
+                    ordem_servico_id=ordem_servico_id,
+                    erro="Informe a data do registro do dia.",
+                    _anchor="registro-do-dia",
+                )
+            )
+        if not itens_registro.get("equipe"):
+            return redirect(
+                url_for(
+                    "editar_ordem_servico",
+                    ordem_servico_id=ordem_servico_id,
+                    erro="Adicione pelo menos uma pessoa que trabalhou neste dia.",
+                    _anchor="registro-do-dia",
+                )
+            )
+        if not registro_atividades:
+            return redirect(
+                url_for(
+                    "editar_ordem_servico",
+                    ordem_servico_id=ordem_servico_id,
+                    erro="Informe o que foi feito neste dia.",
+                    _anchor="registro-do-dia",
+                )
+            )
+        if registro_concluido and configuracao_bool(
+            "ordens_servico",
+            "exigir_responsavel_encerramento",
+            True,
+        ) and not str(ordem_servico.get("responsavel") or "").strip():
+            return redirect(
+                url_for(
+                    "editar_ordem_servico",
+                    ordem_servico_id=ordem_servico_id,
+                    erro="Informe o responsável da OS antes de marcar o serviço como 100% concluído.",
+                    _anchor="registro-do-dia",
+                )
+            )
+
     atualizar_ordem_servico_db(ordem_servico_id, ordem_servico, itens)
     try:
         atualizar_fotos_equipamento_os_formulario(ordem_servico_id)
     except ValueError as exc:
         return redirect(url_for("editar_ordem_servico", ordem_servico_id=ordem_servico_id, erro=str(exc)))
 
+    registro_salvo = False
+    if registro_preenchido:
+        sucesso_registro, mensagem_registro, acompanhamento_id = salvar_registro_diario_ordem_servico_db(
+            ordem_servico_id,
+            ordem_servico,
+            data_registro=registro_data,
+            atividades_realizadas=registro_atividades,
+            pendencias=registro_pendencias,
+            observacoes=registro_observacoes,
+            progresso_percentual=registro_progresso,
+            concluido_100=registro_concluido,
+            itens=itens_registro,
+        )
+        if not sucesso_registro:
+            return redirect(
+                url_for(
+                    "editar_ordem_servico",
+                    ordem_servico_id=ordem_servico_id,
+                    erro=mensagem_registro,
+                    _anchor="registro-do-dia",
+                )
+            )
+        registro_salvo = True
+        registrar_atividade_usuario(
+            "registro_diario",
+            "ordens_servico",
+            f"Registrou o dia {registro_data} na OS {ordem_servico.get('numero') or ordem_servico_id}",
+            request.path,
+            registro_id=acompanhamento_id,
+        )
+
+    integracoes: list[str] = []
+    if registro_preenchido and registro_concluido:
+        sucesso_conclusao, mensagem_conclusao, integracoes = concluir_ordem_servico_por_registro_diario_db(
+            ordem_servico_id
+        )
+        if not sucesso_conclusao:
+            return redirect(
+                url_for(
+                    "editar_ordem_servico",
+                    ordem_servico_id=ordem_servico_id,
+                    erro=mensagem_conclusao,
+                    _anchor="registro-do-dia",
+                )
+            )
+        registrar_atividade_usuario(
+            "status",
+            "ordens_servico",
+            f"Concluiu a OS {ordem_servico.get('numero') or ordem_servico_id} pelo registro do dia.",
+            request.path,
+            registro_id=ordem_servico_id,
+        )
+
+    partes_mensagem = [f"OS {ordem_servico.get('numero')} atualizada com sucesso."]
+    if os_reaberta and not registro_concluido:
+        partes_mensagem.append("A OS foi reaberta para permitir a alteração.")
+    if registro_salvo:
+        partes_mensagem.append("Registro do dia salvo.")
+    if registro_concluido:
+        partes_mensagem.append("Serviço marcado como 100% concluído e OS finalizada.")
+        if integracoes:
+            partes_mensagem.append("Gerado: " + ", ".join(integracoes) + ".")
+
     return redirect(
         url_for(
             "ordens_servico",
-            sucesso=(
-                f"OS {ordem_servico.get('numero')} reaberta e atualizada. Conclua novamente quando estiver pronta."
-                if os_reaberta
-                else f"OS {ordem_servico.get('numero')} atualizada com sucesso."
-            ),
+            sucesso=" ".join(partes_mensagem),
         )
     )
 
