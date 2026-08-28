@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\app.py
-# Último recode: 2026-08-28 12:04 (America/Bahia)
-# Motivo: Permitir reabrir, editar e excluir Venda, Orçamento e OS finalizados, com estorno controlado das integrações de Venda/OS.
+# Último recode: 2026-08-28 12:57 (America/Bahia)
+# Motivo: Tornar Atividades / Projetos independentes do status do Orçamento, com execução calculada pelas OS vinculadas e filtros operacionais.
 
 from __future__ import annotations
 
@@ -10615,36 +10615,156 @@ def listar_atividades_financeiras(apenas_ativas: bool = True) -> list[dict[str, 
 
 
 
-PROJETO_ORCAMENTO_STATUS_NOMES = {
+PROJETO_STATUS_NOMES = {
+    "aguardando_inicio": "Aguardando início",
     "em_andamento": "Em andamento",
-    "finalizado": "Finalizado",
+    "pausado": "Pausado",
+    "concluido": "Concluído",
+    "cancelado": "Cancelado",
+}
+
+PROJETO_STATUS_CLASSES = {
+    "aguardando_inicio": "aguardando",
+    "em_andamento": "em_andamento",
+    "pausado": "pausado",
+    "concluido": "concluida",
+    "cancelado": "cancelada",
+}
+
+PROJETO_STATUS_PAUSA_CODIGOS = {
+    "pausado", "pausada", "parado", "parada", "suspenso", "suspensa",
+    "bloqueado", "bloqueada", "aguardando_cliente", "aguardando_material",
 }
 
 
 def normalizar_filtro_projetos_orcamentos(valor: Any) -> str:
     codigo = _codigo_status_orcamento(valor)
     aliases = {
-        "": "em_andamento",
-        "andamento": "em_andamento",
-        "finalizada": "finalizado",
-        "finalizadas": "finalizado",
-        "finalizados": "finalizado",
-        "concluido": "finalizado",
-        "concluida": "finalizado",
-        "concluidos": "finalizado",
-        "concluidas": "finalizado",
+        "": "todos",
         "todos": "todos",
+        "ativo": "ativos",
+        "ativos": "ativos",
+        "aguardando": "aguardando_inicio",
+        "aguardando_inicio": "aguardando_inicio",
+        "andamento": "em_andamento",
+        "em_andamento": "em_andamento",
+        "pausada": "pausado",
+        "pausadas": "pausado",
+        "pausados": "pausado",
+        "finalizado": "concluido",
+        "finalizada": "concluido",
+        "finalizados": "concluido",
+        "finalizadas": "concluido",
+        "concluida": "concluido",
+        "concluidas": "concluido",
+        "concluidos": "concluido",
+        "cancelada": "cancelado",
+        "canceladas": "cancelado",
+        "cancelados": "cancelado",
     }
     codigo = aliases.get(codigo, codigo)
-    return codigo if codigo in {"em_andamento", "finalizado", "todos"} else "em_andamento"
+    permitidos = {"todos", "ativos", *PROJETO_STATUS_NOMES.keys()}
+    return codigo if codigo in permitidos else "todos"
+
+
+def _normalizar_busca_projeto(valor: Any) -> str:
+    texto = unicodedata.normalize("NFKD", str(valor or "").strip().lower())
+    texto = "".join(caractere for caractere in texto if not unicodedata.combining(caractere))
+    return re.sub(r"\s+", " ", texto).strip()
+
+
+def _status_os_cancelado_projeto(ordem: dict[str, Any]) -> bool:
+    codigo = _codigo_status_operacional("ordens_servico", ordem.get("status"))
+    return codigo in {"cancelada", "cancelado", "excluida", "excluido"}
+
+
+def _status_os_pausado_projeto(ordem: dict[str, Any]) -> bool:
+    codigo = _codigo_status_operacional("ordens_servico", ordem.get("status"))
+    return codigo in PROJETO_STATUS_PAUSA_CODIGOS
+
+
+def resumir_execucao_projeto(ordens: list[dict[str, Any]]) -> dict[str, Any]:
+    ordens_validas = [dict(ordem) for ordem in ordens if str(ordem.get("status") or "").strip().lower() != "excluida"]
+    canceladas = [ordem for ordem in ordens_validas if _status_os_cancelado_projeto(ordem)]
+    executaveis = [ordem for ordem in ordens_validas if not _status_os_cancelado_projeto(ordem)]
+    concluidas = [
+        ordem for ordem in executaveis
+        if bool(str(ordem.get("finalizado_em") or "").strip())
+        or status_final_operacional("ordens_servico", ordem.get("status"))
+    ]
+    em_andamento = [
+        ordem for ordem in executaveis
+        if _codigo_status_operacional("ordens_servico", ordem.get("status")) == "andamento"
+    ]
+    pausadas = [ordem for ordem in executaveis if _status_os_pausado_projeto(ordem)]
+
+    total_execucao = len(executaveis)
+    total_concluidas = len(concluidas)
+    total_pendentes = max(total_execucao - total_concluidas, 0)
+
+    if not ordens_validas:
+        status = "aguardando_inicio"
+    elif not executaveis:
+        status = "cancelado"
+    elif total_concluidas == total_execucao:
+        status = "concluido"
+    elif em_andamento:
+        status = "em_andamento"
+    elif pausadas and len(pausadas) >= total_pendentes:
+        status = "pausado"
+    elif total_concluidas > 0:
+        status = "em_andamento"
+    else:
+        status = "aguardando_inicio"
+
+    progresso = round((total_concluidas / total_execucao) * 100) if total_execucao else 0
+    return {
+        "status": status,
+        "status_nome": PROJETO_STATUS_NOMES[status],
+        "status_classe": PROJETO_STATUS_CLASSES[status],
+        "total_os": len(ordens_validas),
+        "total_execucao": total_execucao,
+        "concluidas": total_concluidas,
+        "pendentes": total_pendentes,
+        "canceladas": len(canceladas),
+        "em_andamento": len(em_andamento),
+        "pausadas": len(pausadas),
+        "progresso": progresso,
+    }
+
+
+def _preparar_os_projeto(ordem: dict[str, Any]) -> dict[str, Any]:
+    item = enriquecer_status_operacional("ordens_servico", dict(ordem))
+    item["status_codigo"] = _codigo_status_operacional("ordens_servico", item.get("status"))
+    item["status_nome"] = nome_status_operacional("ordens_servico", item.get("status"))
+    if item.get("status_finalizador") or item.get("status_finalizado"):
+        item["status_classe"] = "concluida"
+    elif _status_os_cancelado_projeto(item):
+        item["status_classe"] = "cancelada"
+    elif item["status_codigo"] == "andamento":
+        item["status_classe"] = "em_andamento"
+    elif _status_os_pausado_projeto(item) or item["status_codigo"] == "aguardando":
+        item["status_classe"] = "aguardando"
+    else:
+        item["status_classe"] = "neutro"
+    item["data_abertura_exibicao"] = formatar_data_br(item.get("data_abertura")) if item.get("data_abertura") else "-"
+    item["data_previsao_exibicao"] = formatar_data_br(item.get("data_previsao")) if item.get("data_previsao") else "-"
+    item["valor_total_formatado"] = _formatar_moeda_brl(_converter_valor_brl(item.get("valor_total")))
+    return item
 
 
 def orcamento_pode_iniciar_projeto(orcamento: dict[str, Any] | None) -> bool:
-    return False
+    if not orcamento:
+        return False
+    status = codigo_status_orcamento_existente(orcamento.get("status"))
+    return status == "em_andamento" or status_final_orcamento(status)
 
 
 def buscar_projeto_por_orcamento(orcamento_id: int) -> dict[str, Any] | None:
-    return None
+    return next(
+        (item for item in listar_projetos_orcamentos("todos") if int(item.get("orcamento_id") or 0) == int(orcamento_id)),
+        None,
+    )
 
 
 def iniciar_projeto_por_orcamento_db(orcamento_id: int) -> tuple[int | None, bool, str]:
@@ -10687,7 +10807,7 @@ def iniciar_projeto_por_orcamento_db(orcamento_id: int) -> tuple[int | None, boo
 
         if not orcamento_pode_iniciar_projeto(dict(orcamento)):
             conn.rollback()
-            return None, False, "O projeto só pode ser iniciado após o orçamento ser aprovado ou finalizado."
+            return None, False, "O projeto só pode ser iniciado após o orçamento entrar em andamento ou ser finalizado."
 
         usuario_id = usuario_logado_id()
         usuario = conn.execute(
@@ -10751,12 +10871,14 @@ def iniciar_projeto_por_orcamento_db(orcamento_id: int) -> tuple[int | None, boo
     return projeto_id, True, "Projeto iniciado com sucesso."
 
 
-def listar_projetos_orcamentos(status: Any = "em_andamento") -> list[dict[str, Any]]:
+def listar_projetos_orcamentos(status: Any = "todos") -> list[dict[str, Any]]:
     filtro = normalizar_filtro_projetos_orcamentos(status)
+    empresa_id = empresa_logada_id()
     consulta = """
         SELECT o.id AS orcamento_id,
                o.numero AS orcamento_numero,
                o.cliente AS cliente_nome,
+               o.responsavel AS orcamento_responsavel,
                o.status AS orcamento_status,
                o.data AS data_inicio,
                o.valor_total,
@@ -10771,36 +10893,86 @@ def listar_projetos_orcamentos(status: Any = "em_andamento") -> list[dict[str, A
                ON cc.id = af.centro_custo_id
               AND cc.empresa_id = o.empresa_id
         WHERE o.empresa_id = ?
+          AND LOWER(TRIM(COALESCE(o.status, ''))) <> 'excluido'
         ORDER BY COALESCE(o.data, '') DESC, o.id DESC
     """
 
     with conectar_db() as conn:
-        rows = conn.execute(consulta, (empresa_logada_id(),)).fetchall()
+        rows = [dict(row) for row in conn.execute(consulta, (empresa_id,)).fetchall()]
+        ordens_rows = [
+            dict(row) for row in conn.execute(
+                """
+                SELECT id, numero, cliente, responsavel, tecnico, data_abertura, data_previsao,
+                       status, finalizado_em, prioridade, valor_total, origem_orcamento_id,
+                       atividade_financeira_id
+                FROM ordens_servico
+                WHERE empresa_id = ?
+                  AND LOWER(TRIM(COALESCE(status, ''))) <> 'excluida'
+                ORDER BY id ASC
+                """,
+                (empresa_id,),
+            ).fetchall()
+        ]
+
+    atividade_para_orcamento = {
+        int(item["atividade_financeira_id"]): int(item["orcamento_id"])
+        for item in rows if item.get("atividade_financeira_id")
+    }
+    ordens_por_orcamento: dict[int, list[dict[str, Any]]] = {}
+    for ordem in ordens_rows:
+        orcamento_id = int(ordem.get("origem_orcamento_id") or 0)
+        if not orcamento_id and ordem.get("atividade_financeira_id"):
+            orcamento_id = atividade_para_orcamento.get(int(ordem["atividade_financeira_id"]), 0)
+        if orcamento_id:
+            ordens_por_orcamento.setdefault(orcamento_id, []).append(_preparar_os_projeto(ordem))
 
     projetos: list[dict[str, Any]] = []
-    for row in rows:
-        item = dict(row)
+    for item in rows:
         orcamento_id = int(item["orcamento_id"])
-        atividade_financeira_id = item.get("atividade_financeira_id")
+        ordens = ordens_por_orcamento.get(orcamento_id, [])
         orcamento_status = codigo_status_orcamento_existente(item.get("orcamento_status"))
-
-        if orcamento_status == "em_andamento":
-            projeto_status = "em_andamento"
-        elif status_final_orcamento(orcamento_status):
-            projeto_status = "finalizado"
-        else:
+        eh_candidato_comercial = orcamento_status == "em_andamento" or status_final_orcamento(orcamento_status)
+        if not eh_candidato_comercial and not ordens:
             continue
 
-        if filtro != "todos" and projeto_status != filtro:
+        atividade_financeira_id = item.get("atividade_financeira_id")
+        if not atividade_financeira_id:
+            atividade_financeira_id = garantir_atividade_orcamento(orcamento_id)
+            item["atividade_financeira_id"] = atividade_financeira_id
+
+        execucao = resumir_execucao_projeto(ordens)
+        projeto_status = str(execucao["status"])
+        if filtro == "ativos" and projeto_status not in {"aguardando_inicio", "em_andamento", "pausado"}:
             continue
+        if filtro not in {"todos", "ativos"} and projeto_status != filtro:
+            continue
+
+        responsaveis: list[str] = []
+        for ordem in ordens:
+            for chave in ("responsavel", "tecnico"):
+                nome = str(ordem.get(chave) or "").strip()
+                if nome and nome not in responsaveis:
+                    responsaveis.append(nome)
+        responsavel_orcamento = str(item.get("orcamento_responsavel") or "").strip()
+        if responsavel_orcamento and responsavel_orcamento not in responsaveis:
+            responsaveis.append(responsavel_orcamento)
 
         item["projeto_id"] = orcamento_id
         item["codigo"] = str(item.get("orcamento_numero") or orcamento_id)
         item["nome"] = f"Projeto {item['codigo']}"
         item["cliente"] = str(item.get("cliente_nome") or "")
         item["projeto_status"] = projeto_status
-        item["status_classe"] = "concluida" if projeto_status == "finalizado" else "em_andamento"
-        item["status_nome"] = nome_status_orcamento(orcamento_status)
+        item["status_classe"] = execucao["status_classe"]
+        item["status_nome"] = execucao["status_nome"]
+        item["execucao"] = execucao
+        item["ordens_servico"] = ordens
+        item["os_numeros"] = [str(ordem.get("numero") or ordem.get("id") or "") for ordem in ordens]
+        item["os_status_codigos"] = sorted({str(ordem.get("status_codigo") or "") for ordem in ordens if ordem.get("status_codigo")})
+        item["responsaveis"] = responsaveis
+        item["responsavel_nome"] = responsaveis[0] if responsaveis else ""
+        item["orcamento_status_nome"] = nome_status_orcamento(orcamento_status)
+        item["orcamento_status_final"] = status_final_orcamento(orcamento_status)
+        item["orcamento_status_classe"] = "concluida" if item["orcamento_status_final"] else "em_andamento"
         item["resumo"] = resumir_atividade_financeira(
             int(atividade_financeira_id) if atividade_financeira_id else None
         )
@@ -11066,32 +11238,108 @@ def excluir_centro_custo(centro_id: int) -> Response:
 @app.get('/financeiro/atividades')
 def atividades_financeiras() -> str:
     filtro_status = normalizar_filtro_projetos_orcamentos(request.args.get('status'))
+    busca = str(request.args.get('q') or '').strip()
+    cliente = str(request.args.get('cliente') or '').strip()
+    centro_custo = str(request.args.get('centro_custo') or '').strip()
+    responsavel = str(request.args.get('responsavel') or '').strip()
+    status_os = _codigo_status_operacional('ordens_servico', request.args.get('status_os'))
+    data_inicio = str(request.args.get('data_inicio') or '').strip()
+    data_fim = str(request.args.get('data_fim') or '').strip()
+
     todos_projetos = listar_projetos_orcamentos('todos')
-    atividades = (
-        todos_projetos
-        if filtro_status == 'todos'
-        else [item for item in todos_projetos if item.get('projeto_status') == filtro_status]
-    )
+    termo_busca = _normalizar_busca_projeto(busca)
+
+    def corresponde(item: dict[str, Any]) -> bool:
+        projeto_status = str(item.get('projeto_status') or '')
+        if filtro_status == 'ativos' and projeto_status not in {'aguardando_inicio', 'em_andamento', 'pausado'}:
+            return False
+        if filtro_status not in {'todos', 'ativos'} and projeto_status != filtro_status:
+            return False
+        if cliente and str(item.get('cliente') or '') != cliente:
+            return False
+        if centro_custo and str(item.get('centro_custo_nome') or '') != centro_custo:
+            return False
+        if responsavel and responsavel not in item.get('responsaveis', []):
+            return False
+        if status_os and status_os not in item.get('os_status_codigos', []):
+            return False
+        data_projeto = str(item.get('data_inicio') or '')[:10]
+        if data_inicio and (not data_projeto or data_projeto < data_inicio):
+            return False
+        if data_fim and (not data_projeto or data_projeto > data_fim):
+            return False
+        if termo_busca:
+            campos = [
+                item.get('codigo'), item.get('nome'), item.get('cliente'),
+                item.get('centro_custo_nome'), item.get('orcamento_status_nome'), item.get('status_nome'),
+                *item.get('responsaveis', []), *item.get('os_numeros', []),
+                *[ordem.get('status_nome') for ordem in item.get('ordens_servico', [])],
+            ]
+            texto = _normalizar_busca_projeto(' '.join(str(valor or '') for valor in campos))
+            if termo_busca not in texto:
+                return False
+        return True
+
+    atividades = [item for item in todos_projetos if corresponde(item)]
     contagens = {
-        'em_andamento': sum(1 for item in todos_projetos if item.get('projeto_status') == 'em_andamento'),
-        'finalizados': sum(1 for item in todos_projetos if item.get('projeto_status') == 'finalizado'),
         'todos': len(todos_projetos),
+        'ativos': sum(1 for item in todos_projetos if item.get('projeto_status') in {'aguardando_inicio', 'em_andamento', 'pausado'}),
+        'aguardando_inicio': sum(1 for item in todos_projetos if item.get('projeto_status') == 'aguardando_inicio'),
+        'em_andamento': sum(1 for item in todos_projetos if item.get('projeto_status') == 'em_andamento'),
+        'pausado': sum(1 for item in todos_projetos if item.get('projeto_status') == 'pausado'),
+        'concluido': sum(1 for item in todos_projetos if item.get('projeto_status') == 'concluido'),
+        'cancelado': sum(1 for item in todos_projetos if item.get('projeto_status') == 'cancelado'),
+    }
+    opcoes = {
+        'clientes': sorted({str(item.get('cliente') or '') for item in todos_projetos if str(item.get('cliente') or '').strip()}),
+        'centros_custo': sorted({str(item.get('centro_custo_nome') or '') for item in todos_projetos if str(item.get('centro_custo_nome') or '').strip()}),
+        'responsaveis': sorted({nome for item in todos_projetos for nome in item.get('responsaveis', []) if nome}),
+        'status_os': listar_status_operacional_configurados('ordens_servico'),
+    }
+    filtros = {
+        'q': busca,
+        'cliente': cliente,
+        'centro_custo': centro_custo,
+        'responsavel': responsavel,
+        'status_os': status_os,
+        'data_inicio': data_inicio,
+        'data_fim': data_fim,
     }
     return render_template(
         'atividades_financeiras.html',
         atividades=atividades,
         filtro_status=filtro_status,
         contagens=contagens,
+        filtros=filtros,
+        opcoes=opcoes,
     )
 
 
 @app.get('/financeiro/atividades/<int:atividade_id>')
 def ver_atividade_financeira(atividade_id: int) -> str | Response:
     atividade = buscar_atividade_financeira_por_id(atividade_id)
-    if not atividade: return redirect(url_for('atividades_financeiras'))
+    if not atividade:
+        return redirect(url_for('atividades_financeiras'))
+
+    projeto = None
+    if str(atividade.get('origem') or '') == 'orcamento' and atividade.get('origem_id'):
+        projeto = buscar_projeto_por_orcamento(int(atividade['origem_id']))
+
     with conectar_db() as conn:
-        titulos = [preparar_financeiro_titulo_exibicao(dict(r)) for r in conn.execute("SELECT * FROM financeiro_titulos WHERE empresa_id=? AND atividade_financeira_id=? ORDER BY data_vencimento,id DESC", (empresa_logada_id(),atividade_id)).fetchall()]
-    return render_template('atividade_financeira_detalhe.html', atividade=atividade, resumo=resumir_atividade_financeira(atividade_id), titulos=titulos)
+        titulos = [
+            preparar_financeiro_titulo_exibicao(dict(row))
+            for row in conn.execute(
+                "SELECT * FROM financeiro_titulos WHERE empresa_id=? AND atividade_financeira_id=? ORDER BY data_vencimento,id DESC",
+                (empresa_logada_id(), atividade_id),
+            ).fetchall()
+        ]
+    return render_template(
+        'atividade_financeira_detalhe.html',
+        atividade=atividade,
+        projeto=projeto,
+        resumo=resumir_atividade_financeira(atividade_id),
+        titulos=titulos,
+    )
 
 
 def _ano_numero_orcamento(data_orcamento: Any = None) -> int:

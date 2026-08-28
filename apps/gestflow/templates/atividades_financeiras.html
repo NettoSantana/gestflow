@@ -1,9 +1,8 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\atividades_financeiras.html
-Último recode: 2026-08-27 23:45 (America/Bahia)
-Motivo: Fazer a tela de Atividades / Projetos refletir diretamente os status Em andamento e Finalizado dos Orçamentos, sem status paralelo.
+Último recode: 2026-08-28 12:57 (America/Bahia)
+Motivo: Transformar Atividades / Projetos em central operacional independente do Orçamento, com status calculado pelas OS, progresso, busca e filtros.
 #}
-
 <!doctype html>
 <html lang="pt-BR">
 <head>
@@ -11,79 +10,102 @@ Motivo: Fazer a tela de Atividades / Projetos refletir diretamente os status Em 
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Atividades / Projetos | GestFlow</title>
     <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .projetos-page{padding-bottom:180px}.projetos-header{align-items:flex-start}.projetos-header p{max-width:850px;color:#64748b}
+        .projetos-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:16px 0}.projeto-kpi{padding:14px 16px;border:1px solid #e2e8f0;border-radius:14px;background:#fff;box-shadow:0 6px 18px rgba(15,23,42,.04)}.projeto-kpi span{display:block;color:#64748b;font-size:11px;font-weight:900;text-transform:uppercase}.projeto-kpi strong{display:block;margin-top:5px;color:#0f172a;font-size:22px}
+        .projetos-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}.projetos-tabs a{min-height:38px;display:inline-flex;align-items:center;padding:0 13px;border:1px solid #dbe4f0;border-radius:10px;background:#fff;color:#475569;text-decoration:none;font-size:12px;font-weight:900}.projetos-tabs a.active{background:#0f172a;color:#fff;border-color:#0f172a}
+        .projetos-filtros{margin-bottom:16px;padding:14px;border:1px solid #dbe4f0;border-radius:16px;background:#fff}.projetos-busca-linha{display:grid;grid-template-columns:minmax(260px,1.6fr) repeat(3,minmax(160px,.7fr)) auto;gap:10px}.projetos-busca-linha+.projetos-busca-linha{margin-top:10px;grid-template-columns:repeat(4,minmax(150px,1fr)) auto}.projetos-filtros input,.projetos-filtros select{width:100%;min-height:42px;border:1px solid #cbd5e1;border-radius:10px;padding:0 12px;background:#fff}.projetos-filtros .btn-dark,.projetos-filtros .btn-light{min-height:42px;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap}
+        .projetos-lista{display:grid;gap:12px}.projeto-card{overflow:hidden;border:1px solid #dbe4f0;border-radius:16px;background:#fff;box-shadow:0 8px 22px rgba(15,23,42,.05)}.projeto-card-topo{display:flex;justify-content:space-between;gap:18px;padding:16px 18px 12px}.projeto-identidade{min-width:0}.projeto-identidade h2{margin:0;color:#0f172a;font-size:17px}.projeto-identidade p{margin:4px 0 0;color:#64748b;font-size:13px;font-weight:700}.projeto-badges{display:flex;align-items:flex-start;justify-content:flex-end;gap:7px;flex-wrap:wrap}.projeto-badge{display:inline-flex;align-items:center;min-height:29px;padding:0 10px;border-radius:999px;border:1px solid #dbe4f0;font-size:10px;font-weight:950;white-space:nowrap}.projeto-badge.orcamento{background:#f8fafc;color:#475569}.projeto-badge.aguardando{background:#fff7ed;color:#9a3412;border-color:#fed7aa}.projeto-badge.em_andamento{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe}.projeto-badge.pausado{background:#faf5ff;color:#7e22ce;border-color:#e9d5ff}.projeto-badge.concluida{background:#ecfdf5;color:#15803d;border-color:#bbf7d0}.projeto-badge.cancelada{background:#fef2f2;color:#b91c1c;border-color:#fecaca}
+        .projeto-operacao{display:grid;grid-template-columns:minmax(230px,1.5fr) repeat(3,minmax(130px,.7fr));gap:12px;padding:0 18px 14px}.projeto-operacao-item{min-width:0}.projeto-operacao-item span{display:block;color:#64748b;font-size:10px;font-weight:900;text-transform:uppercase}.projeto-operacao-item strong{display:block;margin-top:4px;color:#0f172a;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.projeto-progresso-texto{display:flex;justify-content:space-between;gap:10px;margin-bottom:6px;color:#475569;font-size:11px;font-weight:850}.projeto-progresso-barra{height:8px;overflow:hidden;border-radius:999px;background:#e2e8f0}.projeto-progresso-barra i{display:block;height:100%;border-radius:inherit;background:#2563eb}
+        .projeto-rodape{display:grid;grid-template-columns:repeat(4,minmax(110px,1fr)) auto;border-top:1px solid #e5e7eb;background:#fbfdff}.projeto-valor{padding:12px 16px;border-right:1px solid #e5e7eb}.projeto-valor span{display:block;color:#64748b;font-size:9px;font-weight:900;text-transform:uppercase}.projeto-valor strong{display:block;margin-top:4px;font-size:14px}.projeto-valor.previsto strong{color:#2563eb}.projeto-valor.recebido strong{color:#16a34a}.projeto-valor.custos strong{color:#d97706}.projeto-valor.resultado strong{color:#7c3aed}.projeto-acoes{display:flex;align-items:center;gap:7px;padding:10px 14px}.projeto-acoes a{min-height:36px;display:inline-flex;align-items:center;padding:0 11px;border-radius:9px;text-decoration:none;font-size:11px;font-weight:900}.projeto-acoes .principal{background:#0f62fe;color:#fff}.projeto-acoes .secundario{border:1px solid #dbe4f0;background:#fff;color:#334155}
+        .projetos-vazio{padding:34px;border:1px dashed #cbd5e1;border-radius:16px;background:#fff;text-align:center;color:#64748b}.projetos-vazio strong{display:block;color:#0f172a;font-size:16px}.projetos-vazio p{margin:7px 0 0}
+        @media(max-width:1100px){.projetos-kpis{grid-template-columns:repeat(2,1fr)}.projetos-busca-linha,.projetos-busca-linha+.projetos-busca-linha{grid-template-columns:repeat(2,1fr)}.projeto-operacao{grid-template-columns:repeat(2,1fr)}.projeto-rodape{grid-template-columns:repeat(2,1fr)}.projeto-acoes{grid-column:1/-1}}
+        @media(max-width:700px){.projetos-kpis,.projetos-busca-linha,.projetos-busca-linha+.projetos-busca-linha,.projeto-operacao,.projeto-rodape{grid-template-columns:1fr}.projeto-card-topo{flex-direction:column}.projeto-badges{justify-content:flex-start}.projeto-valor{border-right:0;border-bottom:1px solid #e5e7eb}.projeto-acoes{grid-column:auto;flex-wrap:wrap}}
+    </style>
 </head>
 <body>
 <div class="app-layout">
     {% include 'partials/sidebar.html' %}
     <div class="main-area">
         {% include 'partials/topbar.html' %}
-        <main class="content atividades-financeiras-page">
-            <div class="page-header atividades-financeiras-header">
+        <main class="content projetos-page">
+            <div class="page-header projetos-header">
                 <div>
                     <h1>Atividades / Projetos</h1>
-                    <p>Os projetos são os próprios orçamentos em andamento ou finalizados. O status exibido aqui é o mesmo do orçamento.</p>
+                    <p>O Orçamento representa a etapa comercial. O andamento do Projeto é calculado pelas Ordens de Serviço vinculadas, sem depender do status do orçamento.</p>
                 </div>
             </div>
 
-            <div class="client-toolbar" style="margin-bottom: 18px;">
-                <a class="{{ 'btn-dark' if filtro_status == 'em_andamento' else 'btn-light' }}" href="/financeiro/atividades?status=em_andamento">Em andamento ({{ contagens.em_andamento }})</a>
-                <a class="{{ 'btn-dark' if filtro_status == 'finalizado' else 'btn-light' }}" href="/financeiro/atividades?status=finalizado">Finalizados ({{ contagens.finalizados }})</a>
-                <a class="{{ 'btn-dark' if filtro_status == 'todos' else 'btn-light' }}" href="/financeiro/atividades?status=todos">Todos ({{ contagens.todos }})</a>
-            </div>
+            <section class="projetos-kpis" aria-label="Resumo dos projetos">
+                <div class="projeto-kpi"><span>Projetos ativos</span><strong>{{ contagens.ativos }}</strong></div>
+                <div class="projeto-kpi"><span>Aguardando início</span><strong>{{ contagens.aguardando_inicio }}</strong></div>
+                <div class="projeto-kpi"><span>Em andamento</span><strong>{{ contagens.em_andamento }}</strong></div>
+                <div class="projeto-kpi"><span>Concluídos</span><strong>{{ contagens.concluido }}</strong></div>
+            </section>
 
-            <section class="atividades-financeiras-lista" aria-label="Lista de projetos">
+            <nav class="projetos-tabs" aria-label="Status do projeto">
+                {% set abas = [('todos','Todos',contagens.todos),('ativos','Ativos',contagens.ativos),('aguardando_inicio','Aguardando início',contagens.aguardando_inicio),('em_andamento','Em andamento',contagens.em_andamento),('pausado','Pausados',contagens.pausado),('concluido','Concluídos',contagens.concluido),('cancelado','Cancelados',contagens.cancelado)] %}
+                {% for codigo, nome, quantidade in abas %}
+                    <a class="{{ 'active' if filtro_status == codigo else '' }}" href="{{ url_for('atividades_financeiras', status=codigo) }}">{{ nome }} ({{ quantidade }})</a>
+                {% endfor %}
+            </nav>
+
+            <form class="projetos-filtros" method="get" action="/financeiro/atividades">
+                <input type="hidden" name="status" value="{{ filtro_status }}">
+                <div class="projetos-busca-linha">
+                    <input type="search" name="q" value="{{ filtros.q }}" placeholder="Buscar projeto, orçamento, cliente, responsável ou OS..." aria-label="Buscar projetos">
+                    <select name="cliente"><option value="">Todos os clientes</option>{% for item in opcoes.clientes %}<option value="{{ item }}" {% if filtros.cliente == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select>
+                    <select name="centro_custo"><option value="">Todos os centros de custo</option>{% for item in opcoes.centros_custo %}<option value="{{ item }}" {% if filtros.centro_custo == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select>
+                    <select name="responsavel"><option value="">Todos os responsáveis</option>{% for item in opcoes.responsaveis %}<option value="{{ item }}" {% if filtros.responsavel == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select>
+                    <button type="submit" class="btn-dark">Buscar</button>
+                </div>
+                <div class="projetos-busca-linha">
+                    <select name="status_os"><option value="">Qualquer status de OS</option>{% for item in opcoes.status_os %}<option value="{{ item.codigo }}" {% if filtros.status_os == item.codigo %}selected{% endif %}>OS · {{ item.nome }}</option>{% endfor %}</select>
+                    <input type="date" name="data_inicio" value="{{ filtros.data_inicio }}" title="Projeto a partir de">
+                    <input type="date" name="data_fim" value="{{ filtros.data_fim }}" title="Projeto até">
+                    <div></div>
+                    <a class="btn-light" href="{{ url_for('atividades_financeiras', status=filtro_status) }}">Limpar filtros</a>
+                </div>
+            </form>
+
+            <section class="projetos-lista" aria-label="Lista de projetos">
                 {% for atividade in atividades %}
-                <article class="atividade-financeira-card">
-                    <div class="atividade-financeira-topo">
-                        <div class="atividade-financeira-identificacao">
-                            <div class="atividade-financeira-icone" aria-hidden="true">▣</div>
-                            <div>
-                                <h2>{{ atividade.nome }}</h2>
-                                <p>{{ atividade.cliente or 'Cliente não informado' }}</p>
-                            </div>
+                <article class="projeto-card">
+                    <div class="projeto-card-topo">
+                        <div class="projeto-identidade">
+                            <h2>{{ atividade.nome }}</h2>
+                            <p>{{ atividade.cliente or 'Cliente não informado' }}</p>
                         </div>
-
-                        <div class="atividade-financeira-meta">
-                            <span class="atividade-origem">{{ atividade.codigo or ('#' ~ atividade.orcamento_id) }}</span>
-                            <span class="status-pill {{ atividade.status_classe }}">{{ atividade.status_nome }}</span>
+                        <div class="projeto-badges">
+                            <span class="projeto-badge orcamento">Orçamento · {{ atividade.orcamento_status_nome }}</span>
+                            <span class="projeto-badge {{ atividade.status_classe }}">Execução · {{ atividade.status_nome }}</span>
                         </div>
                     </div>
 
-                    <div class="atividade-financeira-centro">
-                        <span>Centro de custo</span>
-                        <strong>{{ atividade.centro_custo_nome or '-' }}</strong>
+                    <div class="projeto-operacao">
+                        <div class="projeto-operacao-item">
+                            <div class="projeto-progresso-texto"><span>Progresso das OS</span><strong>{{ atividade.execucao.concluidas }}/{{ atividade.execucao.total_execucao }} concluídas · {{ atividade.execucao.progresso }}%</strong></div>
+                            <div class="projeto-progresso-barra"><i style="width:{{ atividade.execucao.progresso }}%"></i></div>
+                        </div>
+                        <div class="projeto-operacao-item"><span>Ordens de Serviço</span><strong>{% if atividade.execucao.total_os %}{{ atividade.execucao.total_os }} vinculada(s){% else %}Nenhuma OS criada{% endif %}</strong></div>
+                        <div class="projeto-operacao-item"><span>Responsável</span><strong>{{ atividade.responsavel_nome or '-' }}</strong></div>
+                        <div class="projeto-operacao-item"><span>Centro de custo</span><strong>{{ atividade.centro_custo_nome or '-' }}</strong></div>
                     </div>
 
-                    <div class="atividade-financeira-valores">
-                        <div class="atividade-financeira-valor is-previsto">
-                            <span>Previsto</span>
-                            <strong>R$ {{ atividade.resumo.previsto_formatado }}</strong>
+                    <div class="projeto-rodape">
+                        <div class="projeto-valor previsto"><span>Previsto</span><strong>R$ {{ atividade.resumo.previsto_formatado }}</strong></div>
+                        <div class="projeto-valor recebido"><span>Recebido</span><strong>R$ {{ atividade.resumo.recebido_formatado }}</strong></div>
+                        <div class="projeto-valor custos"><span>Custos</span><strong>R$ {{ atividade.resumo.custos_formatado }}</strong></div>
+                        <div class="projeto-valor resultado"><span>Resultado</span><strong>R$ {{ atividade.resumo.resultado_formatado }}</strong></div>
+                        <div class="projeto-acoes">
+                            {% if atividade.atividade_financeira_id %}<a class="principal" href="/financeiro/atividades/{{ atividade.atividade_financeira_id }}">Ver projeto</a>{% endif %}
+                            {% if atividade.execucao.total_os == 1 %}<a class="secundario" href="/ordens-servico/{{ atividade.ordens_servico[0].id }}">Ver OS</a>{% elif atividade.execucao.total_os > 1 and atividade.atividade_financeira_id %}<a class="secundario" href="/financeiro/atividades/{{ atividade.atividade_financeira_id }}#ordens-servico">Ver OS</a>{% endif %}
+                            <a class="secundario" href="/orcamentos/{{ atividade.orcamento_id }}">Orçamento</a>
                         </div>
-                        <div class="atividade-financeira-valor is-recebido">
-                            <span>Recebido</span>
-                            <strong>R$ {{ atividade.resumo.recebido_formatado }}</strong>
-                        </div>
-                        <div class="atividade-financeira-valor is-custos">
-                            <span>Custos</span>
-                            <strong>R$ {{ atividade.resumo.custos_formatado }}</strong>
-                        </div>
-                        <div class="atividade-financeira-valor is-resultado">
-                            <span>Resultado</span>
-                            <strong>R$ {{ atividade.resumo.resultado_formatado }}</strong>
-                        </div>
-                        <a class="atividade-financeira-ver"
-                           href="/orcamentos/{{ atividade.orcamento_id }}"
-                           aria-label="Ver orçamento de referência de {{ atividade.nome }}">
-                            <span>Ver</span><strong aria-hidden="true">›</strong>
-                        </a>
                     </div>
                 </article>
                 {% else %}
-                <div class="atividades-financeiras-vazio">
-                    <div aria-hidden="true">▣</div>
-                    <strong>Nenhum projeto encontrado neste filtro</strong>
-                    <p>Quando um orçamento ficar Em andamento ou Finalizado, ele aparecerá automaticamente aqui.</p>
-                </div>
+                <div class="projetos-vazio"><strong>Nenhum projeto encontrado</strong><p>Ajuste os filtros ou aguarde a criação das Ordens de Serviço vinculadas ao orçamento.</p></div>
                 {% endfor %}
             </section>
         </main>

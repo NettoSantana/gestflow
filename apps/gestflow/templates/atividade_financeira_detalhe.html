@@ -1,7 +1,98 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\atividade_financeira_detalhe.html
-Último recode: 2026-08-21 06:43 (America/Bahia)
-Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+Último recode: 2026-08-28 12:57 (America/Bahia)
+Motivo: Exibir o Projeto com status operacional calculado pelas OS, progresso da execução, Ordens de Serviço vinculadas e resumo financeiro.
 #}
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Projeto | GestFlow</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .projeto-detalhe{padding-bottom:180px}.projeto-detalhe-topo{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}.projeto-detalhe-topo h1{margin:0}.projeto-detalhe-topo p{margin:5px 0 0;color:#64748b}.projeto-detalhe-acoes{display:flex;gap:8px;flex-wrap:wrap}.projeto-detalhe-acoes a{text-decoration:none}
+        .projeto-status-grid{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:12px;margin:16px 0}.projeto-status-card{padding:15px;border:1px solid #dbe4f0;border-radius:14px;background:#fff}.projeto-status-card span{display:block;color:#64748b;font-size:10px;font-weight:900;text-transform:uppercase}.projeto-status-card strong{display:block;margin-top:5px;color:#0f172a;font-size:15px}.projeto-status-card .badge{display:inline-flex;align-items:center;min-height:30px;padding:0 10px;border-radius:999px;margin-top:7px;font-size:11px;font-weight:900}.badge.aguardando{background:#fff7ed;color:#9a3412}.badge.em_andamento{background:#eff6ff;color:#1d4ed8}.badge.pausado{background:#faf5ff;color:#7e22ce}.badge.concluida{background:#ecfdf5;color:#15803d}.badge.cancelada{background:#fef2f2;color:#b91c1c}.badge.orcamento{background:#f1f5f9;color:#475569}
+        .projeto-progresso{margin-top:10px}.projeto-progresso-texto{display:flex;justify-content:space-between;gap:10px;color:#475569;font-size:11px;font-weight:850}.projeto-progresso-barra{height:9px;margin-top:7px;overflow:hidden;border-radius:999px;background:#e2e8f0}.projeto-progresso-barra i{display:block;height:100%;border-radius:inherit;background:#2563eb}
+        .projeto-section{margin-top:16px;border-radius:16px}.projeto-section .table-responsive{overflow:auto}.projeto-section table{width:100%;border-collapse:collapse}.projeto-section th,.projeto-section td{padding:11px 10px;border-bottom:1px solid #e5e7eb;text-align:left;white-space:nowrap}.projeto-section th{color:#64748b;font-size:10px;text-transform:uppercase}.projeto-section td{font-size:12px;color:#334155}.projeto-section td a{font-weight:850;text-decoration:none}.os-status{display:inline-flex;align-items:center;min-height:26px;padding:0 9px;border-radius:999px;font-size:10px;font-weight:900}.os-status.aguardando{background:#fff7ed;color:#9a3412}.os-status.em_andamento{background:#eff6ff;color:#1d4ed8}.os-status.concluida{background:#ecfdf5;color:#15803d}.os-status.cancelada{background:#fef2f2;color:#b91c1c}.os-status.neutro{background:#f1f5f9;color:#475569}
+        @media(max-width:900px){.projeto-status-grid{grid-template-columns:1fr}.projeto-detalhe-topo{flex-direction:column}}
+    </style>
+</head>
+<body>
+<div class="app-layout">
+    {% include 'partials/sidebar.html' %}
+    <div class="main-area">
+        {% include 'partials/topbar.html' %}
+        <main class="content projeto-detalhe">
+            <div class="page-header projeto-detalhe-topo">
+                <div>
+                    <h1>{{ projeto.nome if projeto else atividade.nome }}</h1>
+                    <p>{{ projeto.cliente if projeto else atividade.cliente or 'Sem cliente' }} · {{ atividade.centro_custo_nome or 'Sem centro de custo' }}</p>
+                </div>
+                <div class="projeto-detalhe-acoes">
+                    {% if projeto %}<a class="btn-light" href="/orcamentos/{{ projeto.orcamento_id }}">Ver orçamento</a>{% endif %}
+                    <a class="btn-dark" href="/financeiro/atividades">Voltar aos projetos</a>
+                </div>
+            </div>
 
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Resultado da atividade | GestFlow</title><link rel="stylesheet" href="/static/css/dashboard.css"></head><body><div class="app-layout">{% include 'partials/sidebar.html' %}<div class="main-area">{% include 'partials/topbar.html' %}<main class="content"><div class="page-header"><div><h1>{{ atividade.nome }}</h1><p>{{ atividade.centro_custo_nome or 'Sem centro de custo' }} · {{ atividade.cliente or 'Sem cliente' }}</p></div><a class="btn-light" href="/financeiro/atividades">Voltar</a></div><section class="gf-financial-kpis"><div><span>Previsto</span><strong>R$ {{ resumo.previsto_formatado }}</strong></div><div><span>Recebido</span><strong>R$ {{ resumo.recebido_formatado }}</strong></div><div><span>A receber</span><strong>R$ {{ resumo.a_receber_formatado }}</strong></div><div><span>Custos</span><strong>R$ {{ resumo.custos_formatado }}</strong></div><div><span>Resultado</span><strong>R$ {{ resumo.resultado_formatado }}</strong></div><div><span>Margem</span><strong>{{ resumo.margem_formatada }}%</strong></div></section><section class="panel page-section"><h3>Movimentações</h3><div class="table-responsive"><table><thead><tr><th>Tipo</th><th>Descrição</th><th>Vencimento</th><th>Status</th><th>Valor</th></tr></thead><tbody>{% for titulo in titulos %}<tr><td>{{ 'Receita' if titulo.tipo=='receber' else 'Custo' }}</td><td><a href="/financeiro/titulos/{{ titulo.id }}">{{ titulo.descricao }}</a></td><td>{{ titulo.data_vencimento_exibicao }}</td><td>{{ titulo.status_exibicao }}</td><td>R$ {{ titulo.valor_formatado }}</td></tr>{% else %}<tr><td colspan="5">Nenhuma movimentação vinculada.</td></tr>{% endfor %}</tbody></table></div></section></main></div></div></body></html>
+            {% if projeto %}
+            <section class="projeto-status-grid">
+                <div class="projeto-status-card">
+                    <span>Execução do projeto</span>
+                    <div class="badge {{ projeto.status_classe }}">{{ projeto.status_nome }}</div>
+                    <div class="projeto-progresso">
+                        <div class="projeto-progresso-texto"><span>OS concluídas</span><strong>{{ projeto.execucao.concluidas }}/{{ projeto.execucao.total_execucao }} · {{ projeto.execucao.progresso }}%</strong></div>
+                        <div class="projeto-progresso-barra"><i style="width:{{ projeto.execucao.progresso }}%"></i></div>
+                    </div>
+                </div>
+                <div class="projeto-status-card"><span>Etapa comercial</span><div class="badge orcamento">Orçamento · {{ projeto.orcamento_status_nome }}</div><strong>{{ projeto.codigo }}</strong></div>
+                <div class="projeto-status-card"><span>Responsável operacional</span><strong>{{ projeto.responsavel_nome or '-' }}</strong><span style="margin-top:9px">Ordens de Serviço</span><strong>{{ projeto.execucao.total_os }} vinculada(s)</strong></div>
+            </section>
+            {% endif %}
+
+            <section class="gf-financial-kpis">
+                <div><span>Previsto</span><strong>R$ {{ resumo.previsto_formatado }}</strong></div>
+                <div><span>Recebido</span><strong>R$ {{ resumo.recebido_formatado }}</strong></div>
+                <div><span>A receber</span><strong>R$ {{ resumo.a_receber_formatado }}</strong></div>
+                <div><span>Custos</span><strong>R$ {{ resumo.custos_formatado }}</strong></div>
+                <div><span>Resultado</span><strong>R$ {{ resumo.resultado_formatado }}</strong></div>
+                <div><span>Margem</span><strong>{{ resumo.margem_formatada }}%</strong></div>
+            </section>
+
+            {% if projeto %}
+            <section class="panel page-section projeto-section" id="ordens-servico">
+                <div class="panel-header page-header"><div><h3>Ordens de Serviço</h3><p class="page-subtitle">A situação destas OS é o que determina automaticamente o andamento do Projeto.</p></div></div>
+                <div class="table-responsive">
+                    <table>
+                        <thead><tr><th>OS</th><th>Status</th><th>Responsável</th><th>Técnico</th><th>Abertura</th><th>Previsão</th><th>Valor</th><th>Ação</th></tr></thead>
+                        <tbody>
+                            {% for ordem in projeto.ordens_servico %}
+                            <tr>
+                                <td><strong>{{ ordem.numero or ordem.id }}</strong></td>
+                                <td><span class="os-status {{ ordem.status_classe|default('neutro') }}">{{ ordem.status_nome }}</span></td>
+                                <td>{{ ordem.responsavel or '-' }}</td><td>{{ ordem.tecnico or '-' }}</td>
+                                <td>{{ ordem.data_abertura_exibicao }}</td><td>{{ ordem.data_previsao_exibicao }}</td>
+                                <td>R$ {{ ordem.valor_total_formatado }}</td><td><a href="/ordens-servico/{{ ordem.id }}">Ver OS</a></td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="8">Nenhuma Ordem de Serviço vinculada. O Projeto permanece em “Aguardando início”.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            {% endif %}
+
+            <section class="panel page-section projeto-section">
+                <div class="panel-header page-header"><div><h3>Movimentações financeiras</h3><p class="page-subtitle">Receitas e custos vinculados ao projeto.</p></div></div>
+                <div class="table-responsive">
+                    <table><thead><tr><th>Tipo</th><th>Descrição</th><th>Vencimento</th><th>Status</th><th>Valor</th></tr></thead><tbody>
+                        {% for titulo in titulos %}<tr><td>{{ 'Receita' if titulo.tipo=='receber' else 'Custo' }}</td><td><a href="/financeiro/titulos/{{ titulo.id }}">{{ titulo.descricao }}</a></td><td>{{ titulo.data_vencimento_exibicao }}</td><td>{{ titulo.status_exibicao }}</td><td>R$ {{ titulo.valor_formatado }}</td></tr>{% else %}<tr><td colspan="5">Nenhuma movimentação vinculada.</td></tr>{% endfor %}
+                    </tbody></table>
+                </div>
+            </section>
+        </main>
+    </div>
+</div>
+</body>
+</html>
