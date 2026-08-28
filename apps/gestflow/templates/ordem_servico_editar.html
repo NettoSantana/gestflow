@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\ordem_servico_editar.html
-Último recode: 2026-08-28 13:46 (America/Bahia)
-Motivo: Corrigir o salvamento na interface por abas e permitir adicionar/identificar novos equipamentos também na aba Evidências, preservando a experiência operacional simplificada.
+Último recode: 2026-08-28 14:21 (America/Bahia)
+Motivo: Simplificar a linguagem da execução da OS para serviços, itens e áreas, incluindo Atividades do dia, Pendências / próximos passos e Observações sem alterar backend ou banco.
 #}
 
 <!DOCTYPE html>
@@ -1238,6 +1238,10 @@ Motivo: Corrigir o salvamento na interface por abas e permitir adicionar/identif
             min-height: 120px !important;
         }
 
+        .os-execution-record .os-grid-2 > .form-group:not(.os-executed-field) textarea {
+            min-height: 96px !important;
+        }
+
         .os-tab-active-historico #form-editar-os .os-execution-actions,
         .os-tab-active-resumo #form-editar-os .os-execution-actions,
         .os-tab-active-evidencias #form-editar-os .os-execution-actions {
@@ -1438,10 +1442,10 @@ Motivo: Corrigir o salvamento na interface por abas e permitir adicionar/identif
             <section class="panel page-section os-form-section os-panel-orcamento" data-os-tab-panel="execucao evidencias" data-os-execucao-equipamentos>
                 <div class="panel-header page-header os-section-title">
                     <div>
-                        <h3 data-os-equipamentos-title>Equipamentos e execução</h3>
-                        <p class="page-subtitle">Adicione um ou vários equipamentos atendidos nesta OS, no mesmo padrão de produtos e serviços.</p>
+                        <h3 data-os-equipamentos-title>Serviço em campo</h3>
+                        <p class="page-subtitle">Organize os itens, áreas ou frentes atendidas nesta OS e registre o que precisa ser executado em cada local.</p>
                     </div>
-                    <button type="button" class="btn-primary-green" onclick="adicionarEquipamento()">+ Adicionar equipamento</button>
+                    <button type="button" class="btn-primary-green" onclick="adicionarEquipamento()">+ Adicionar item / local</button>
                 </div>
                 <div class="os-section-body">
                     <div id="equipamentos-container" class="os-equipamentos-container">
@@ -1462,8 +1466,8 @@ Motivo: Corrigir o salvamento na interface por abas e permitir adicionar/identif
                                     <table class="client-table os-equipamentos-table">
                                         <thead>
                                             <tr>
-                                                <th>Equipamento cadastrado</th>
-                                                <th>Equipamento</th>
+                                                <th>Item vinculado</th>
+                                                <th>Serviço / item atendido</th>
                                                 <th>Marca</th>
                                                 <th>Modelo</th>
                                                 <th>Série</th>
@@ -1483,7 +1487,7 @@ Motivo: Corrigir o salvamento na interface por abas e permitir adicionar/identif
                                                             <option value="__novo_equipamento__" class="quick-new-option">+ Adicionar novo equipamento</option>
                                                     </select>
                                                 </td>
-                                                <td><input name="os_equipamento" type="text" value="{{ equipamento.equipamento or '' }}" placeholder="Ex.: portão, máquina, veículo" class="form-control"></td>
+                                                <td><input name="os_equipamento" type="text" value="{{ equipamento.equipamento or '' }}" placeholder="Ex.: cerca externa, portão principal, máquina 01" class="form-control"></td>
                                                 <td><input name="os_marca" type="text" value="{{ equipamento.marca or '' }}" class="form-control"></td>
                                                 <td><input name="os_modelo" type="text" value="{{ equipamento.modelo or '' }}" class="form-control"></td>
                                                 <td><input name="os_serie" type="text" value="{{ equipamento.serie or '' }}" class="form-control"></td>
@@ -1499,19 +1503,19 @@ Motivo: Corrigir o salvamento na interface por abas e permitir adicionar/identif
 
                                 <div class="os-equipamento-detalhes-card">
                                     <div class="os-equipamento-detalhes-grid">
-                                        <div class="form-group os-detalhe-full"><label>Local do serviço</label><input name="os_local_servico" type="text" value="{{ equipamento.local_servico or '' }}" placeholder="Ex.: portaria principal, linha 2, área técnica" class="form-control"></div>
-                                        <div class="form-group"><label>Condição encontrada</label><textarea name="os_condicoes" class="form-control os-textarea" placeholder="Condições encontradas">{{ equipamento.condicoes or '' }}</textarea></div>
+                                        <div class="form-group os-detalhe-full"><label>Local / área</label><input name="os_local_servico" type="text" value="{{ equipamento.local_servico or '' }}" placeholder="Ex.: portaria principal, linha 2, área técnica" class="form-control"></div>
+                                        <div class="form-group"><label>Situação encontrada</label><textarea name="os_condicoes" class="form-control os-textarea" placeholder="Descreva a situação encontrada no local">{{ equipamento.condicoes or '' }}</textarea></div>
                                         <div class="form-group"><label>Defeitos / relato do cliente</label><textarea name="os_relato_cliente" class="form-control os-textarea" placeholder="Problema informado pelo cliente">{{ equipamento.relato_cliente or '' }}</textarea></div>
                                         <div class="form-group"><label>Acessórios</label><textarea name="os_acessorios" class="form-control os-textarea" placeholder="Acessórios recebidos ou vinculados">{{ equipamento.acessorios or '' }}</textarea></div>
-                                        <div class="form-group"><label>Orientação / diagnóstico</label><textarea name="os_diagnostico" class="form-control os-textarea" placeholder="Diagnóstico técnico e solução proposta">{{ equipamento.diagnostico or '' }}</textarea></div>
+                                        <div class="form-group"><label>Serviço previsto</label><textarea name="os_diagnostico" class="form-control os-textarea" placeholder="Descreva de forma objetiva o que precisa ser feito">{{ equipamento.diagnostico or '' }}</textarea></div>
                                         <div class="form-group"><label>Laudo</label><textarea name="os_laudo" class="form-control os-textarea" placeholder="Laudo técnico, quando aplicável">{{ equipamento.laudo or '' }}</textarea></div>
                                         <div class="form-group"><label>Termos</label><textarea name="os_termos" class="form-control os-textarea" placeholder="Termos e condições do atendimento">{{ equipamento.termos or '' }}</textarea></div>
                                     </div>
                                     <div class="os-foto-equipamento-bloco" data-foto-bloco>
                                         <div class="os-foto-equipamento-titulo">
                                             <div>
-                                                <span>Fotos do equipamento</span>
-                                                <p class="os-photo-helper">Adicione quantas fotos precisar. Nenhum campo vazio aparece antes de clicar.</p>
+                                                <span>Fotos / evidências</span>
+                                                <p class="os-photo-helper">Registre fotos do item ou local atendido. Adicione apenas quando necessário.</p>
                                             </div>
                                             <button type="button" class="btn-primary-green" onclick="adicionarFotoEquipamento(this)">+ Adicionar foto</button>
                                         </div>
@@ -1553,7 +1557,7 @@ Motivo: Corrigir o salvamento na interface por abas e permitir adicionar/identif
                             </div>
                         {% endfor %}
                     </div>
-                    <div class="os-actions-line"><button type="button" class="btn-primary-green" onclick="adicionarEquipamento()">+ Adicionar equipamento</button></div>
+                    <div class="os-actions-line"><button type="button" class="btn-primary-green" onclick="adicionarEquipamento()">+ Adicionar item / local</button></div>
                 </div>
             </section>
             <section class="panel page-section os-form-section os-panel-orcamento os-admin-retained" aria-hidden="true"><div class="panel-header page-header os-section-title"><div><h3>Produtos</h3><p class="page-subtitle">Adicione produtos à OS. Use o botão para inserir novas linhas.</p></div></div><div class="os-section-body"><div class="table-shell"><table class="client-table"><thead><tr><th>Produto</th><th>Detalhes</th><th>Quant.</th><th>Valor</th><th>Desconto</th><th>Subtotal</th><th>Ação</th></tr></thead><tbody id="produto-tbody"></tbody></table></div><div class="os-actions-line"><button type="button" class="btn-primary-green" onclick="adicionarItem('produto')">+ Adicionar produto</button></div></div></section>
@@ -1577,14 +1581,18 @@ Motivo: Corrigir o salvamento na interface por abas e permitir adicionar/identif
                     </div>
                 </div>
                 <div class="os-section-body">
-                    <div class="os-hidden-retained-fields" aria-hidden="true">
-                        <textarea id="os_observacoes" name="os_observacoes">{{ os.observacoes or '' }}</textarea>
-                        <textarea id="os_observacoes_internas" name="os_observacoes_internas">{{ os.observacoes_internas or '' }}</textarea>
-                    </div>
                     <div class="os-grid-2">
                         <div class="form-group os-executed-field">
-                            <label for="os_servico_executado">Serviço executado / observações de campo</label>
-                            <textarea id="os_servico_executado" name="os_servico_executado" class="form-control os-textarea" placeholder="Descreva de forma curta o que foi feito, o que ficou pendente ou alguma condição importante.">{{ os.servico_executado or '' }}</textarea>
+                            <label for="os_servico_executado">Atividades do dia</label>
+                            <textarea id="os_servico_executado" name="os_servico_executado" class="form-control os-textarea" placeholder="Descreva de forma objetiva o que foi realizado hoje.">{{ os.servico_executado or '' }}</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="os_observacoes_internas">Pendências / próximos passos</label>
+                            <textarea id="os_observacoes_internas" name="os_observacoes_internas" class="form-control os-textarea" placeholder="Informe o que ficou pendente ou qual é o próximo passo.">{{ os.observacoes_internas or '' }}</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="os_observacoes">Observações</label>
+                            <textarea id="os_observacoes" name="os_observacoes" class="form-control os-textarea" placeholder="Registre somente informações adicionais importantes para a execução.">{{ os.observacoes or '' }}</textarea>
                         </div>
                     </div>
                     <div class="form-actions">
@@ -2681,7 +2689,7 @@ Motivo: Corrigir o salvamento na interface por abas e permitir adicionar/identif
                     </div>
                     <div class="table-shell os-equipamentos-table-shell">
                         <table class="client-table os-equipamentos-table">
-                            <thead><tr><th>Equipamento cadastrado</th><th>Equipamento</th><th>Marca</th><th>Modelo</th><th>Série</th><th>Ação</th></tr></thead>
+                            <thead><tr><th>Item vinculado</th><th>Serviço / item atendido</th><th>Marca</th><th>Modelo</th><th>Série</th><th>Ação</th></tr></thead>
                             <tbody>
                                 <tr class="os-equipamento-linha" data-equipamento-indice="${equipamentoIndice}">
                                     <td>
@@ -2695,7 +2703,7 @@ Motivo: Corrigir o salvamento na interface por abas e permitir adicionar/identif
                                                 <option value="__novo_equipamento__" class="quick-new-option">+ Adicionar novo equipamento</option>
                                         </select>
                                     </td>
-                                    <td><input name="os_equipamento" type="text" placeholder="Ex.: portão, máquina, veículo" class="form-control"></td>
+                                    <td><input name="os_equipamento" type="text" placeholder="Ex.: cerca externa, portão principal, máquina 01" class="form-control"></td>
                                     <td><input name="os_marca" type="text" class="form-control"></td>
                                     <td><input name="os_modelo" type="text" class="form-control"></td>
                                     <td><input name="os_serie" type="text" class="form-control"></td>
@@ -2706,19 +2714,19 @@ Motivo: Corrigir o salvamento na interface por abas e permitir adicionar/identif
                     </div>
                     <div class="os-equipamento-detalhes-card">
                         <div class="os-equipamento-detalhes-grid">
-                            <div class="form-group os-detalhe-full"><label>Local do serviço</label><input name="os_local_servico" type="text" placeholder="Ex.: portaria principal, linha 2, área técnica" class="form-control"></div>
-                            <div class="form-group"><label>Condição encontrada</label><textarea name="os_condicoes" class="form-control os-textarea" placeholder="Condições encontradas"></textarea></div>
+                            <div class="form-group os-detalhe-full"><label>Local / área</label><input name="os_local_servico" type="text" placeholder="Ex.: portaria principal, linha 2, área técnica" class="form-control"></div>
+                            <div class="form-group"><label>Situação encontrada</label><textarea name="os_condicoes" class="form-control os-textarea" placeholder="Descreva a situação encontrada no local"></textarea></div>
                             <div class="form-group"><label>Defeitos / relato do cliente</label><textarea name="os_relato_cliente" class="form-control os-textarea" placeholder="Problema informado pelo cliente"></textarea></div>
                             <div class="form-group"><label>Acessórios</label><textarea name="os_acessorios" class="form-control os-textarea" placeholder="Acessórios recebidos ou vinculados"></textarea></div>
-                            <div class="form-group"><label>Orientação / diagnóstico</label><textarea name="os_diagnostico" class="form-control os-textarea" placeholder="Diagnóstico técnico e solução proposta"></textarea></div>
+                            <div class="form-group"><label>Serviço previsto</label><textarea name="os_diagnostico" class="form-control os-textarea" placeholder="Descreva de forma objetiva o que precisa ser feito"></textarea></div>
                             <div class="form-group"><label>Laudo</label><textarea name="os_laudo" class="form-control os-textarea" placeholder="Laudo técnico, quando aplicável"></textarea></div>
                             <div class="form-group"><label>Termos</label><textarea name="os_termos" class="form-control os-textarea" placeholder="Termos e condições do atendimento"></textarea></div>
                         </div>
                         <div class="os-foto-equipamento-bloco" data-foto-bloco>
                             <div class="os-foto-equipamento-titulo">
                                 <div>
-                                    <span>Fotos do equipamento</span>
-                                    <p class="os-photo-helper">Adicione quantas fotos precisar. Nenhum campo vazio aparece antes de clicar.</p>
+                                    <span>Fotos / evidências</span>
+                                    <p class="os-photo-helper">Registre fotos do item ou local atendido. Adicione apenas quando necessário.</p>
                                 </div>
                                 <button type="button" class="btn-primary-green" onclick="adicionarFotoEquipamento(this)">+ Adicionar foto</button>
                             </div>
@@ -2737,7 +2745,7 @@ Motivo: Corrigir o salvamento na interface por abas e permitir adicionar/identif
                     return;
                 }
                 const equipamentoIndice = contadorEquipamentos - 1;
-                container.appendChild(criarBlocoEquipamentoEdicao(equipamentoIndice, "Equipamento adicional " + contadorEquipamentos));
+                container.appendChild(criarBlocoEquipamentoEdicao(equipamentoIndice, "Item / local adicional " + contadorEquipamentos));
             }
 
             function removerEquipamento(botao) {
@@ -2888,8 +2896,8 @@ Motivo: Corrigir o salvamento na interface por abas e permitir adicionar/identif
                 const titulo = String(
                     equipamentoNomeCampo ? equipamentoNomeCampo.value : ""
                 ).trim() || (equipamentoIndice === 0
-                    ? "Equipamento principal"
-                    : "Equipamento adicional " + (equipamentoIndice + 1));
+                    ? "Item / local principal"
+                    : "Item / local adicional " + (equipamentoIndice + 1));
 
                 const tipoCampo = card.querySelector("[data-foto-tipo]");
                 const observacaoCampo = card.querySelector("[data-foto-observacoes]");
@@ -3052,7 +3060,7 @@ Motivo: Corrigir o salvamento na interface por abas e permitir adicionar/identif
                     const equipamentoCadastroId = equipamentoSelect && !String(equipamentoSelect.value || "").startsWith("__novo")
                         ? String(equipamentoSelect.value || "").trim()
                         : "";
-                    const equipamentoNome = valor("os_equipamento") || (indice === 0 ? "Equipamento principal" : "Equipamento adicional " + (indice + 1));
+                    const equipamentoNome = valor("os_equipamento") || (indice === 0 ? "Item / local principal" : "Item / local adicional " + (indice + 1));
 
                     equipamentos.push({
                         equipamento_id: equipamentoCadastroId,
@@ -3753,7 +3761,7 @@ document.addEventListener("DOMContentLoaded", function() {
         if (tituloEquipamentos) {
             tituloEquipamentos.textContent = aba === "evidencias"
                 ? "Evidências"
-                : "Equipamentos e execução";
+                : "Serviço em campo";
         }
 
         try {
