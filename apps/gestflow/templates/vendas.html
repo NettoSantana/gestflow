@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\vendas.html
-Último recode: 2026-08-28 12:04 (America/Bahia)
-Motivo: Permitir alterar status, editar e excluir Vendas concretizadas; reabertura passa a estornar estoque e financeiro de forma controlada.
+Último recode: 2026-08-28 16:51 (America/Bahia)
+Motivo: Adicionar a coluna Data prevista à listagem de Vendas, exibindo o próximo recebimento esperado ou Quitada e disponibilizando a coluna no gerenciador da tabela.
 #}
 
 <!DOCTYPE html>
@@ -778,6 +778,7 @@ Motivo: Permitir alterar status, editar e excluir Vendas concretizadas; reabertu
                             <th><a href="{{ url_for(listagem_endpoint, pagina=1, por_pagina=por_pagina, ordenar='tipo', direcao='desc' if ordenar == 'tipo' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Tipo {% if ordenar == 'tipo' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
                             <th><a href="{{ url_for(listagem_endpoint, pagina=1, por_pagina=por_pagina, ordenar='status', direcao='desc' if ordenar == 'status' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Situação {% if ordenar == 'status' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
                             <th><a href="{{ url_for(listagem_endpoint, pagina=1, por_pagina=por_pagina, ordenar='data', direcao='desc' if ordenar == 'data' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Data {% if ordenar == 'data' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                            <th>Data prevista</th>
                             <th><a href="{{ url_for(listagem_endpoint, pagina=1, por_pagina=por_pagina, ordenar='valor_total', direcao='desc' if ordenar == 'valor_total' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Valor total {% if ordenar == 'valor_total' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
                             <th>Ações</th>
                         </tr>
@@ -796,6 +797,7 @@ Motivo: Permitir alterar status, editar e excluir Vendas concretizadas; reabertu
                                         </select>
                                     </td>
                                     <td>{{ venda.data }}</td>
+                                    <td>{{ venda.data_prevista_exibicao|default('—', true) }}</td>
                                     <td>{{ venda.valor_total }}</td>
                                     <td>
                                         <div class="action-buttons">
@@ -811,7 +813,7 @@ Motivo: Permitir alterar status, editar e excluir Vendas concretizadas; reabertu
                             {% endfor %}
                         {% else %}
                             <tr>
-                                <td colspan="8" class="empty-table empty-table-box">
+                                <td colspan="9" class="empty-table empty-table-box">
                                     <div class="empty-table-content">
                                         <div class="empty-table-icon">▤</div>
                                         <strong>Nenhuma venda cadastrada.</strong>

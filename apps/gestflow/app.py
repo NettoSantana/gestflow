@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\app.py
-# Último recode: 2026-08-28 16:13 (America/Bahia)
-# Motivo: Integrar um diário de execução simples à edição da OS, com data, equipe, atividades, progresso e conclusão em um único botão Salvar alterações.
+# Último recode: 2026-08-28 16:51 (America/Bahia)
+# Motivo: Exibir na listagem de Vendas a data prevista do próximo recebimento, priorizando títulos financeiros em aberto e preservando a previsão configurada antes da concretização.
 
 from __future__ import annotations
 
@@ -11998,6 +11998,75 @@ def montar_filtros_vendas(busca: Any) -> tuple[str, list[Any]]:
     return where, parametros
 
 
+def enriquecer_data_prevista_vendas(registros: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if not registros:
+        return registros
+
+    empresa_id = empresa_logada_id()
+    venda_ids = [int(registro.get("id") or 0) for registro in registros if int(registro.get("id") or 0) > 0]
+    financeiro_por_venda: dict[int, dict[str, Any]] = {}
+
+    if venda_ids:
+        placeholders = ",".join("?" for _ in venda_ids)
+        with conectar_db() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT
+                    origem_id,
+                    MIN(
+                        CASE
+                            WHEN status = 'aberto' AND COALESCE(data_vencimento, '') <> ''
+                            THEN data_vencimento
+                        END
+                    ) AS proximo_vencimento,
+                    SUM(CASE WHEN status = 'aberto' THEN 1 ELSE 0 END) AS titulos_abertos,
+                    SUM(CASE WHEN status = 'pago' THEN 1 ELSE 0 END) AS titulos_pagos,
+                    SUM(CASE WHEN status <> 'cancelado' THEN 1 ELSE 0 END) AS titulos_ativos
+                FROM financeiro_titulos
+                WHERE empresa_id = ?
+                  AND tipo = 'receber'
+                  AND origem IN ('venda', 'venda_pdv')
+                  AND origem_id IN ({placeholders})
+                GROUP BY origem_id
+                """,
+                [empresa_id, *venda_ids],
+            ).fetchall()
+
+        financeiro_por_venda = {int(row["origem_id"]): dict(row) for row in rows}
+
+    for registro in registros:
+        venda_id = int(registro.get("id") or 0)
+        financeiro = financeiro_por_venda.get(venda_id)
+        data_prevista = ""
+        data_prevista_exibicao = "—"
+
+        if financeiro:
+            titulos_abertos = int(financeiro.get("titulos_abertos") or 0)
+            titulos_pagos = int(financeiro.get("titulos_pagos") or 0)
+            titulos_ativos = int(financeiro.get("titulos_ativos") or 0)
+            proximo_vencimento = str(financeiro.get("proximo_vencimento") or "").strip()
+
+            if titulos_abertos > 0 and proximo_vencimento:
+                data_prevista = proximo_vencimento
+            elif titulos_ativos > 0 and titulos_pagos >= titulos_ativos:
+                data_prevista_exibicao = "Quitada"
+
+        if not data_prevista and data_prevista_exibicao != "Quitada":
+            condicao = _normalizar_condicao_pagamento_venda(registro.get("condicao_pagamento"))
+            if condicao == "avista":
+                data_prevista = str(registro.get("data") or "").strip()
+            else:
+                data_prevista = str(registro.get("primeiro_vencimento") or registro.get("data") or "").strip()
+
+        if data_prevista:
+            data_prevista_exibicao = formatar_data_br(data_prevista) or data_prevista
+
+        registro["data_prevista"] = data_prevista
+        registro["data_prevista_exibicao"] = data_prevista_exibicao
+
+    return registros
+
+
 def listar_vendas_paginado(
     busca: Any = "",
     pagina: int = 1,
@@ -12037,6 +12106,8 @@ def listar_vendas_paginado(
                 desconto_percentual,
                 valor_total,
                 forma_pagamento,
+                condicao_pagamento,
+                primeiro_vencimento,
                 observacoes,
                 observacoes_internas,
                 criado_em
@@ -12049,7 +12120,8 @@ def listar_vendas_paginado(
             [*parametros, por_pagina, offset],
         ).fetchall()
 
-    return [enriquecer_status_operacional("vendas", dict(row)) for row in rows], int(total or 0)
+    registros = [enriquecer_status_operacional("vendas", dict(row)) for row in rows]
+    return enriquecer_data_prevista_vendas(registros), int(total or 0)
 
 
 def resumir_vendas_cadastradas() -> dict[str, int]:
