@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\app.py
-# Último recode: 2026-08-27 21:04 (America/Bahia)
-# Motivo: Separar projetos de atividades financeiras e iniciar projetos manualmente a partir de orçamentos aprovados/finalizados.
+# Último recode: 2026-08-27 21:47 (America/Bahia)
+# Motivo: Recuperar da MAIN a regra em que a quantidade da atividade multiplica toda a composição técnica e comercial do Gerador de Orçamentos, preservando IndFlow, Projetos, onboarding e Vitrine da DEV.
 
 from __future__ import annotations
 
@@ -13005,8 +13005,10 @@ def ajustar_itens_apresentacao_ao_total(
     ajustados: list[dict[str, Any]] = []
 
     for item, valor in zip(validos, valores):
-        item["quantidade"] = "1"
-        item["valor_unitario"] = _formatar_moeda_brl(valor)
+        quantidade = max(_converter_valor_brl(item.get("quantidade")) or 1.0, 0.01)
+        valor_unitario = valor / quantidade if quantidade > 0 else valor
+        item["quantidade"] = _formatar_numero_estoque(quantidade)
+        item["valor_unitario"] = _formatar_moeda_brl(valor_unitario)
         item["subtotal"] = _formatar_moeda_brl(valor)
         ajustados.append(item)
 
@@ -14633,9 +14635,22 @@ def montar_gerador_orcamento_formulario() -> dict[str, Any]:
         if atividade_id in totais_por_atividade:
             totais_por_atividade[atividade_id]["custo_outros"] += float(item.get("valor") or 0)
 
+    quantidade_por_atividade = {
+        str(atividade.get("id") or ""): max(_converter_valor_brl(atividade.get("quantidade")) or 1.0, 0.01)
+        for atividade in atividades
+        if str(atividade.get("id") or "").strip()
+    }
+
     for atividade in atividades:
-        totais = totais_por_atividade.get(str(atividade.get("id") or ""), {})
+        atividade_id = str(atividade.get("id") or "")
+        quantidade_atividade = quantidade_por_atividade.get(atividade_id, 1.0)
+        totais_unitarios = totais_por_atividade.get(atividade_id, {})
+        totais = {
+            chave: float(valor or 0) * quantidade_atividade
+            for chave, valor in totais_unitarios.items()
+        }
         atividade.update(totais)
+        atividade["custo_unitario"] = sum(float(valor or 0) for valor in totais_unitarios.values())
         atividade["custo_total"] = sum(float(valor or 0) for valor in totais.values())
 
     margem_material = _valor_percentual_formulario("margem_material", 30.0)
@@ -14645,11 +14660,28 @@ def montar_gerador_orcamento_formulario() -> dict[str, Any]:
     administrativo_percentual = _valor_percentual_formulario("administrativo_percentual", 10.0)
     reserva_percentual = _valor_percentual_formulario("reserva_percentual", 5.0)
 
-    custo_material = sum(item["custo"] for item in materiais)
-    custo_mao_obra = sum(item["custo"] for item in mao_obra)
-    custo_adicionais_mao_obra = sum(item["custo"] for item in adicionais_mao_obra)
-    custo_adicional = sum(item["valor"] for item in custos_adicionais)
-    custo_geral = sum(item["valor"] for item in custos_adicionais if not item.get("atividade_id"))
+    def multiplicador_atividade(atividade_id: Any) -> float:
+        return quantidade_por_atividade.get(str(atividade_id or ""), 1.0)
+
+    custo_material = sum(
+        float(item.get("custo") or 0) * multiplicador_atividade(item.get("atividade_id"))
+        for item in materiais
+    )
+    custo_mao_obra = sum(
+        float(item.get("custo") or 0) * multiplicador_atividade(item.get("atividade_id"))
+        for item in mao_obra
+    )
+    custo_adicionais_mao_obra = sum(
+        float(item.get("custo") or 0) * multiplicador_atividade(item.get("atividade_id"))
+        for item in adicionais_mao_obra
+    )
+    custo_adicional = sum(
+        float(item.get("valor") or 0) * (
+            multiplicador_atividade(item.get("atividade_id")) if item.get("atividade_id") else 1.0
+        )
+        for item in custos_adicionais
+    )
+    custo_geral = sum(float(item.get("valor") or 0) for item in custos_adicionais if not item.get("atividade_id"))
     custo_total = custo_material + custo_mao_obra + custo_adicionais_mao_obra + custo_adicional
 
     venda_material = custo_material * (1 + (margem_material / 100))
@@ -14792,12 +14824,13 @@ def montar_apresentacao_atividades_gerador(dados: dict[str, Any]) -> list[dict[s
         custo_mao = sum(float(item.get("custo") or 0) for item in mao_obra if str(item.get("atividade_id") or "") == atividade_id)
         custo_adicionais = sum(float(item.get("custo") or 0) for item in adicionais if str(item.get("atividade_id") or "") == atividade_id)
         custo_outros = sum(float(item.get("valor") or 0) for item in custos if str(item.get("atividade_id") or "") == atividade_id)
+        quantidade_atividade = max(_converter_valor_brl(atividade.get("quantidade")) or 1.0, 0.01)
         base = (
             custo_material * (1 + margem_material / 100)
             + custo_mao * (1 + margem_mao / 100)
             + custo_adicionais * (1 + margem_mao / 100)
             + custo_outros * (1 + margem_custos / 100)
-        )
+        ) * quantidade_atividade
         if base <= 0:
             continue
         linhas.append(
@@ -14894,14 +14927,24 @@ def montar_orcamento_por_gerador(
 
     if total_produtos_numero > 0:
         if materiais:
-            bases_materiais = [float(item.get("custo") or 0) for item in materiais]
+            bases_materiais = [
+                float(item.get("custo") or 0)
+                * max(
+                    _converter_valor_brl(
+                        atividades_por_id.get(str(item.get("atividade_id") or ""), {}).get("quantidade")
+                    ) or 1.0,
+                    0.01,
+                )
+                for item in materiais
+            ]
             valores_materiais = _gerador_alocar_total(total_produtos_numero, bases_materiais)
 
             for material, valor_material in zip(materiais, valores_materiais):
                 descricao = str(material.get("descricao") or "Material aplicado").strip()
-                quantidade_numero = float(material.get("quantidade") or 0) or 1.0
-                valor_unitario = valor_material / quantidade_numero if quantidade_numero > 0 else valor_material
                 atividade = atividades_por_id.get(str(material.get("atividade_id") or ""), {})
+                quantidade_atividade = max(_converter_valor_brl(atividade.get("quantidade")) or 1.0, 0.01)
+                quantidade_numero = (float(material.get("quantidade") or 0) or 1.0) * quantidade_atividade
+                valor_unitario = valor_material / quantidade_numero if quantidade_numero > 0 else valor_material
                 atividade_nome = str(atividade.get("nome") or "").strip()
                 detalhes = "Material previsto no Gerador de Orçamentos."
                 if atividade_nome:
@@ -14958,11 +15001,12 @@ def montar_orcamento_por_gerador(
                 for item in custos_adicionais
                 if str(item.get("atividade_id") or "") == atividade_id
             )
+            quantidade_atividade = max(_converter_valor_brl(atividade.get("quantidade")) or 1.0, 0.01)
             base_atividade = (
                 custo_mao * (1 + margem_mao_obra / 100)
                 + custo_adicionais_ocultos * (1 + margem_mao_obra / 100)
                 + custo_outros * (1 + margem_custos / 100)
-            )
+            ) * quantidade_atividade
 
             if base_atividade > 0:
                 nome = str(atividade.get("nome") or "Atividade do serviço").strip() or "Atividade do serviço"
@@ -14979,7 +15023,11 @@ def montar_orcamento_por_gerador(
             for adicional in adicionais_atividade:
                 if str(adicional.get("exibir_cliente") or "nao").strip().lower() != "sim":
                     continue
-                venda_adicional = float(adicional.get("custo") or 0) * (1 + margem_mao_obra / 100)
+                venda_adicional = (
+                    float(adicional.get("custo") or 0)
+                    * (1 + margem_mao_obra / 100)
+                    * quantidade_atividade
+                )
                 if venda_adicional <= 0:
                     continue
                 nome_atividade = str(atividade.get("nome") or "Atividade").strip() or "Atividade"
