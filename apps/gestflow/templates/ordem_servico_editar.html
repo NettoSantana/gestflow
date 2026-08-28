@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\ordem_servico_editar.html
-Último recode: 2026-08-28 13:05 (America/Bahia)
-Motivo: Simplificar a edição da OS para uma experiência operacional em quatro abas, ocultando valores/comercial da visão principal e priorizando execução, evidências e histórico.
+Último recode: 2026-08-28 13:46 (America/Bahia)
+Motivo: Corrigir o salvamento na interface por abas e permitir adicionar/identificar novos equipamentos também na aba Evidências, preservando a experiência operacional simplificada.
 #}
 
 <!DOCTYPE html>
@@ -1154,9 +1154,20 @@ Motivo: Simplificar a edição da OS para uma experiência operacional em quatro
             display: none !important;
         }
 
-        .os-tab-active-evidencias [data-os-execucao-equipamentos] .os-equipamentos-table-shell,
-        .os-tab-active-evidencias [data-os-execucao-equipamentos] .os-equipamento-detalhes-grid,
-        .os-tab-active-evidencias [data-os-execucao-equipamentos] > .os-section-body > .os-actions-line {
+        .os-tab-active-evidencias [data-os-execucao-equipamentos] .os-equipamento-detalhes-grid {
+            display: none !important;
+        }
+
+        .os-tab-active-evidencias [data-os-execucao-equipamentos] .os-equipamentos-table {
+            min-width: 0 !important;
+        }
+
+        .os-tab-active-evidencias [data-os-execucao-equipamentos] .os-equipamentos-table th:nth-child(3),
+        .os-tab-active-evidencias [data-os-execucao-equipamentos] .os-equipamentos-table th:nth-child(4),
+        .os-tab-active-evidencias [data-os-execucao-equipamentos] .os-equipamentos-table th:nth-child(5),
+        .os-tab-active-evidencias [data-os-execucao-equipamentos] .os-equipamentos-table td:nth-child(3),
+        .os-tab-active-evidencias [data-os-execucao-equipamentos] .os-equipamentos-table td:nth-child(4),
+        .os-tab-active-evidencias [data-os-execucao-equipamentos] .os-equipamentos-table td:nth-child(5) {
             display: none !important;
         }
 
@@ -1290,7 +1301,7 @@ Motivo: Simplificar a edição da OS para uma experiência operacional em quatro
             </div>
         </section>
 
-        <form id="form-editar-os" action="/ordens-servico/{{ os.id }}/editar" method="post" class="client-form">
+        <form id="form-editar-os" action="/ordens-servico/{{ os.id }}/editar" method="post" class="client-form" novalidate>
             <input id="os_equipamentos_json" name="os_equipamentos_json" type="hidden" value="">
             <input id="os_fotos_json" name="os_fotos_json" type="hidden" value="[]">
             <input id="os_cliente_original" name="os_cliente_original" type="hidden" value="{{ os.cliente or '' }}">
@@ -1430,6 +1441,7 @@ Motivo: Simplificar a edição da OS para uma experiência operacional em quatro
                         <h3 data-os-equipamentos-title>Equipamentos e execução</h3>
                         <p class="page-subtitle">Adicione um ou vários equipamentos atendidos nesta OS, no mesmo padrão de produtos e serviços.</p>
                     </div>
+                    <button type="button" class="btn-primary-green" onclick="adicionarEquipamento()">+ Adicionar equipamento</button>
                 </div>
                 <div class="os-section-body">
                     <div id="equipamentos-container" class="os-equipamentos-container">
@@ -2429,6 +2441,15 @@ Motivo: Simplificar a edição da OS para uma experiência operacional em quatro
 
                 if (campo) {
                     campo.classList.add("gestflow-campo-invalido");
+
+                    const painel = campo.closest("[data-os-tab-panel]");
+                    if (painel && painel.hidden && typeof window.gestflowAtivarAbaOS === "function") {
+                        const aba = String(painel.dataset.osTabPanel || "").split(/\s+/).filter(Boolean)[0];
+                        if (aba) {
+                            window.gestflowAtivarAbaOS(aba);
+                        }
+                    }
+
                     campo.focus();
                 }
             }
@@ -3739,6 +3760,8 @@ document.addEventListener("DOMContentLoaded", function() {
             sessionStorage.setItem("gestflow_os_aba_" + String({{ os.id|tojson }}), aba);
         } catch (erro) {}
     }
+
+    window.gestflowAtivarAbaOS = ativarAba;
 
     document.addEventListener("DOMContentLoaded", function() {
         let abaInicial = "execucao";
