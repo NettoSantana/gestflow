@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\ordem_servico_imprimir_a4.html
-Último recode: 2026-08-28 14:03 (America/Bahia)
-Motivo: Simplificar a impressão A4 da OS para uso operacional, removendo valores e informações comerciais e priorizando execução, evidências e encerramento.
+Último recode: 2026-08-28 14:07 (America/Bahia)
+Motivo: Refinar a impressão operacional da OS, compactando identificação técnica, descrições e fotos e eliminando duplicidades automáticas no fechamento.
 #}
 
 <!DOCTYPE html>
@@ -161,8 +161,35 @@ Motivo: Simplificar a impressão A4 da OS para uso operacional, removendo valore
 
         .value-normal {
             color: #172033;
-            font-size: 9.6pt;
+            font-size: 9.3pt;
             font-weight: 400;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+
+        .technical-section {
+            margin-top: 8px;
+            break-inside: avoid;
+        }
+
+        .technical-section .section-title {
+            justify-content: flex-start;
+            padding: 6px 10px;
+            background: #fbfdff;
+            font-size: 9.5pt;
+            line-height: 1.2;
+        }
+
+        .technical-section .section-body {
+            padding: 7px 10px 8px;
+            background: #ffffff;
+        }
+
+        .technical-text {
+            color: #263244;
+            font-size: 9.2pt;
+            line-height: 1.48;
             white-space: pre-wrap;
             overflow-wrap: anywhere;
         }
@@ -241,8 +268,8 @@ Motivo: Simplificar a impressão A4 da OS para uso operacional, removendo valore
 
         .equipment-grid {
             display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 8px;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px 12px;
         }
 
         .equipment-cell {
@@ -254,7 +281,30 @@ Motivo: Simplificar a impressão A4 da OS para uso operacional, removendo valore
         }
 
         .equipment-cell.span-4 {
-            grid-column: span 4;
+            grid-column: 1 / -1;
+        }
+
+        .equipment-identity {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #e5eaf2;
+        }
+
+        .equipment-identity-item {
+            min-width: 0;
+            padding: 7px 8px;
+            border: 1px solid #e5eaf2;
+            border-radius: 8px;
+            background: #ffffff;
+        }
+
+        .equipment-identity-item .value {
+            font-size: 9pt;
+            white-space: normal;
+            overflow-wrap: anywhere;
         }
 
         .qr-equipamento {
@@ -289,9 +339,14 @@ Motivo: Simplificar a impressão A4 da OS para uso operacional, removendo valore
         }
 
         .photos {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px;
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 8px;
+            align-items: start;
+        }
+
+        .photo-section {
+            break-inside: avoid;
         }
 
         .photo-card {
@@ -304,10 +359,10 @@ Motivo: Simplificar a impressão A4 da OS para uso operacional, removendo valore
 
         .photo-card img {
             width: 100%;
-            height: 175px;
-            object-fit: cover;
+            height: 128px;
+            object-fit: contain;
             display: block;
-            background: #f1f5f9;
+            background: #f8fafc;
         }
 
         .photo-caption {
@@ -465,6 +520,11 @@ Motivo: Simplificar a impressão A4 da OS para uso operacional, removendo valore
             .equipment-cell.span-4 {
                 grid-column: span 1;
             }
+
+            .equipment-identity {
+                grid-column: span 1;
+                grid-template-columns: 1fr;
+            }
         }
 
         @media print {
@@ -575,6 +635,12 @@ Motivo: Simplificar a impressão A4 da OS para uso operacional, removendo valore
             </div>
         {% endif %}
 
+        {% set _texto_origem_orcamento = 'os gerada a partir do orçamento' %}
+        {% set _servico_executado_texto = (os.servico_executado or '')|trim %}
+        {% set _observacoes_texto = (os.observacoes or '')|trim %}
+        {% set _servico_executado_auto = _servico_executado_texto.lower().startswith(_texto_origem_orcamento) if _servico_executado_texto else false %}
+        {% set _observacoes_auto = _observacoes_texto.lower().startswith(_texto_origem_orcamento) if _observacoes_texto else false %}
+
         {% for equipamento in equipamentos_os|default([]) %}
             {% set fotos_do_equipamento = fotos_por_equipamento.get(equipamento.indice, []) if fotos_por_equipamento else [] %}
 
@@ -598,15 +664,25 @@ Motivo: Simplificar a impressão A4 da OS para uso operacional, removendo valore
                             {% endif %}
 
                             {% if equipamento.marca or equipamento.modelo or equipamento.serie %}
-                                <div class="equipment-cell span-4">
-                                    <div class="label">Identificação</div>
-                                    <div class="value">
-                                        {% if equipamento.marca %}{{ equipamento.marca }}{% endif %}
-                                        {% if equipamento.marca and (equipamento.modelo or equipamento.serie) %} · {% endif %}
-                                        {% if equipamento.modelo %}{{ equipamento.modelo }}{% endif %}
-                                        {% if equipamento.modelo and equipamento.serie %} / {% endif %}
-                                        {% if equipamento.serie %}{{ equipamento.serie }}{% endif %}
-                                    </div>
+                                <div class="equipment-identity">
+                                    {% if equipamento.marca %}
+                                        <div class="equipment-identity-item">
+                                            <div class="label">Marca</div>
+                                            <div class="value">{{ equipamento.marca }}</div>
+                                        </div>
+                                    {% endif %}
+                                    {% if equipamento.modelo %}
+                                        <div class="equipment-identity-item">
+                                            <div class="label">Modelo</div>
+                                            <div class="value">{{ equipamento.modelo }}</div>
+                                        </div>
+                                    {% endif %}
+                                    {% if equipamento.serie %}
+                                        <div class="equipment-identity-item">
+                                            <div class="label">Série</div>
+                                            <div class="value">{{ equipamento.serie }}</div>
+                                        </div>
+                                    {% endif %}
                                 </div>
                             {% endif %}
                         </div>
@@ -615,37 +691,28 @@ Motivo: Simplificar a impressão A4 da OS para uso operacional, removendo valore
             {% endif %}
 
             {% if equipamento.condicoes %}
-                <section class="section context">
-                    <div class="section-title">
-                        <span>Condições</span>
-                        <small>Contexto técnico observado</small>
-                    </div>
+                <section class="section context technical-section">
+                    <div class="section-title">Condição encontrada</div>
                     <div class="section-body">
-                        <div class="value-normal">{{ equipamento.condicoes }}</div>
+                        <div class="technical-text">{{ equipamento.condicoes }}</div>
                     </div>
                 </section>
             {% endif %}
 
             {% if equipamento.diagnostico %}
-                <section class="section diagnosis">
-                    <div class="section-title">
-                        <span>Execução / Solução</span>
-                        <small>Registro do serviço executado</small>
-                    </div>
+                <section class="section diagnosis technical-section">
+                    <div class="section-title">Execução realizada</div>
                     <div class="section-body">
-                        <div class="value-normal">{{ equipamento.diagnostico }}</div>
+                        <div class="technical-text">{{ equipamento.diagnostico }}</div>
                     </div>
                 </section>
             {% endif %}
 
             {% if equipamento.laudo %}
-                <section class="section report">
-                    <div class="section-title">
-                        <span>Laudo</span>
-                        <small>Conclusão técnica</small>
-                    </div>
+                <section class="section report technical-section">
+                    <div class="section-title">Laudo técnico</div>
                     <div class="section-body">
-                        <div class="value-normal">{{ equipamento.laudo }}</div>
+                        <div class="technical-text">{{ equipamento.laudo }}</div>
                     </div>
                 </section>
             {% endif %}
@@ -658,7 +725,7 @@ Motivo: Simplificar a impressão A4 da OS para uso operacional, removendo valore
             {% endfor %}
 
             {% if _tem_fotos_deste_equipamento.valor %}
-                <section class="section">
+                <section class="section photo-section">
                     <div class="section-title">
                         <span>Registro fotográfico</span>
                         <small>{{ equipamento.equipamento or equipamento.titulo }}</small>
@@ -697,23 +764,20 @@ Motivo: Simplificar a impressão A4 da OS para uso operacional, removendo valore
             {% endif %}
         {% endfor %}
 
-        {% if os.servico_executado %}
-            <section class="section diagnosis">
-                <div class="section-title">
-                    <span>Serviço executado</span>
-                    <small>Resumo da execução</small>
-                </div>
+        {% if _servico_executado_texto and not _servico_executado_auto %}
+            <section class="section diagnosis technical-section">
+                <div class="section-title">Serviço executado</div>
                 <div class="section-body">
-                    <div class="value-normal">{{ os.servico_executado }}</div>
+                    <div class="technical-text">{{ _servico_executado_texto }}</div>
                 </div>
             </section>
         {% endif %}
 
-        {% if os.observacoes %}
-            <section class="section observations">
+        {% if _observacoes_texto and not _observacoes_auto and (_observacoes_texto|lower != _servico_executado_texto|lower) %}
+            <section class="section observations technical-section">
                 <div class="section-title">Observações finais</div>
                 <div class="section-body">
-                    <div class="value-normal">{{ os.observacoes }}</div>
+                    <div class="technical-text">{{ _observacoes_texto }}</div>
                 </div>
             </section>
         {% endif %}
