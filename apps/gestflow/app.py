@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\app.py
-# Último recode: 2026-08-28 11:14 (America/Bahia)
-# Motivo: Finalizar Orçamento gerando Venda aberta/editável; estoque e financeiro ficam para a concretização da Venda.
+# Último recode: 2026-08-28 12:04 (America/Bahia)
+# Motivo: Permitir reabrir, editar e excluir Venda, Orçamento e OS finalizados, com estorno controlado das integrações de Venda/OS.
 
 from __future__ import annotations
 
@@ -10146,6 +10146,81 @@ def baixar_estoque_por_venda_db(venda_id: int, venda: dict[str, str], itens: lis
         salvar_estoque_movimentacao_db(movimentacao)
 
 
+def estornar_estoque_venda_concretizada_db(venda_id: int, venda: dict[str, Any]) -> int:
+    numero_venda = str(venda.get("numero") or venda_id).strip() or str(venda_id)
+    documento = f"Venda Nº {numero_venda}"
+    empresa_id = empresa_logada_id()
+
+    with conectar_db() as conn:
+        movimentos = conn.execute(
+            """
+            SELECT produto_id, produto_nome, tipo, quantidade, motivo
+            FROM estoque_movimentacoes
+            WHERE empresa_id = ?
+              AND documento = ?
+              AND (
+                    (tipo = 'saida' AND motivo = 'Venda de produto')
+                 OR (tipo = 'entrada' AND motivo = 'Reabertura de venda')
+              )
+            ORDER BY id ASC
+            """,
+            (empresa_id, documento),
+        ).fetchall()
+
+    pendentes: dict[int, dict[str, Any]] = {}
+    for movimento in movimentos:
+        produto_id = int(movimento["produto_id"] or 0)
+        if produto_id <= 0:
+            continue
+        quantidade = max(0.0, _converter_valor_brl(movimento["quantidade"]))
+        if quantidade <= 0:
+            continue
+        dados = pendentes.setdefault(
+            produto_id,
+            {"produto_nome": str(movimento["produto_nome"] or "Produto"), "quantidade": 0.0},
+        )
+        if str(movimento["tipo"] or "") == "saida":
+            dados["quantidade"] += quantidade
+        else:
+            dados["quantidade"] -= quantidade
+
+    estornados = 0
+    for produto_id, dados in pendentes.items():
+        quantidade = float(dados["quantidade"] or 0)
+        if quantidade <= 0.000001:
+            continue
+        with conectar_db() as conn:
+            produto = conn.execute(
+                "SELECT id, nome, estoque_atual FROM produtos WHERE id = ? AND empresa_id = ?",
+                (produto_id, empresa_id),
+            ).fetchone()
+        if produto is None:
+            raise ValueError(
+                f"Não foi possível reabrir a Venda {numero_venda}: o produto "
+                f"{dados['produto_nome']} não existe mais no cadastro."
+            )
+
+        saldo_anterior = _converter_valor_brl(produto["estoque_atual"])
+        saldo_atual = saldo_anterior + quantidade
+        salvar_estoque_movimentacao_db(
+            {
+                "produto_id": str(produto_id),
+                "produto_nome": str(produto["nome"] or dados["produto_nome"]),
+                "tipo": "entrada",
+                "quantidade": _formatar_numero_estoque(quantidade),
+                "saldo_anterior": _formatar_numero_estoque(saldo_anterior),
+                "saldo_atual": _formatar_numero_estoque(saldo_atual),
+                "motivo": "Reabertura de venda",
+                "documento": documento,
+                "responsavel": str(session.get("usuario_nome") or venda.get("responsavel") or "Sistema"),
+                "observacoes": "Estorno automático da baixa de estoque ao reabrir uma Venda concretizada.",
+            }
+        )
+        estornados += 1
+
+    return estornados
+
+
 def montar_devolucao_itens_formulario() -> list[dict[str, str]]:
     descricoes = request.form.getlist("devolucao_descricao")
     quantidades = request.form.getlist("devolucao_quantidade")
@@ -11529,23 +11604,11 @@ def resumir_orcamentos_cadastrados() -> dict[str, Any]:
             ).fetchone()["total"]
             or 0
         )
-        finalizados = int(
-            conn.execute(
-                """
-                SELECT COUNT(DISTINCT o.id) AS total
-                FROM orcamentos o
-                WHERE o.empresa_id = ?
-                  AND EXISTS (
-                      SELECT 1
-                      FROM vendas v
-                      WHERE v.empresa_id = o.empresa_id
-                        AND v.origem_orcamento_id = o.id
-                  )
-                """,
-                (empresa_id,),
-            ).fetchone()["total"]
-            or 0
-        )
+        statuses = conn.execute(
+            "SELECT status FROM orcamentos WHERE empresa_id = ?",
+            (empresa_id,),
+        ).fetchall()
+        finalizados = sum(1 for row in statuses if status_final_orcamento(row["status"]))
 
     return {
         "total": total,
@@ -11593,7 +11656,7 @@ def montar_contexto_orcamentos_paginado() -> dict[str, Any]:
         status_codigo = str(status_dados["codigo"])
         item["status_codigo"] = status_codigo
         item["status_nome"] = str(status_dados["nome"])
-        item["status_final"] = bool(item.get("venda_gerada_id"))
+        item["status_final"] = status_final_orcamento(status_codigo)
         item["status_cor"] = str(status_dados.get("cor") or "cinza")
         item["status_fundo"] = str(status_dados.get("fundo") or "#e2e8f0")
         item["status_texto"] = str(status_dados.get("texto") or "#334155")
@@ -18763,12 +18826,39 @@ def validar_recalculo_financeiro_venda(venda_id: int, venda: dict[str, str]) -> 
     return ""
 
 
-def cancelar_titulos_financeiros_venda_db(venda_id: int) -> None:
+def cancelar_titulos_financeiros_venda_db(venda_id: int) -> int:
     titulos = listar_pagamentos_venda(venda_id, incluir_cancelados=False)
+    cancelados = 0
 
     for titulo in titulos:
-        if titulo.get("status") == "aberto":
-            cancelar_financeiro_titulo_db(int(titulo["id"]))
+        cancelar_financeiro_titulo_db(int(titulo["id"]))
+        cancelados += 1
+
+    return cancelados
+
+
+def reabrir_venda_concretizada_db(venda_id: int, novo_status: str) -> dict[str, int]:
+    venda = buscar_venda_por_id(venda_id)
+    if venda is None:
+        raise ValueError("Venda não encontrada.")
+
+    status_destino = normalizar_status_operacional(
+        "vendas", novo_status, status_inicial_operacional("vendas")
+    )
+    estoque_estornado = estornar_estoque_venda_concretizada_db(venda_id, venda)
+    titulos_cancelados = cancelar_titulos_financeiros_venda_db(venda_id)
+
+    with conectar_db() as conn:
+        conn.execute(
+            "UPDATE vendas SET status = ?, finalizado_em = NULL WHERE id = ? AND empresa_id = ?",
+            (status_destino, venda_id, empresa_logada_id()),
+        )
+        conn.commit()
+
+    return {
+        "estoque_estornado": estoque_estornado,
+        "titulos_cancelados": titulos_cancelados,
+    }
 
 
 def _titulo_venda_por_parcela(
@@ -21769,11 +21859,15 @@ def mensagem_bloqueio_registro_final(
     acao: str = "alterar",
     registro_id: int | None = None,
 ) -> str:
-    configuracao = REGISTROS_FINAIS_BLOQUEIO.get(str(modulo or "").strip())
+    modulo_normalizado = str(modulo or "").strip()
+    if modulo_normalizado in {"vendas", "orcamentos", "ordens_servico"}:
+        return ""
+
+    configuracao = REGISTROS_FINAIS_BLOQUEIO.get(modulo_normalizado)
     if not configuracao:
         return ""
 
-    if str(modulo or "").strip() == "orcamentos":
+    if modulo_normalizado == "orcamentos":
         venda_gerada = (
             buscar_venda_por_orcamento_id(int(registro_id))
             if registro_id is not None
@@ -21786,7 +21880,6 @@ def mensagem_bloqueio_registro_final(
             "ele já foi finalizado e possui Venda gerada."
         )
 
-    modulo_normalizado = str(modulo or "").strip()
     if modulo_normalizado in STATUS_OPERACIONAL_MODULOS and registro_id is not None:
         if modulo_normalizado == "vendas":
             registro = buscar_venda_por_id(int(registro_id))
@@ -21892,6 +21985,145 @@ def liberar_operacao_configurada(
             (empresa_logada_id(), modulo, entidade, registro_id, operacao, referencia),
         )
         conn.commit()
+
+
+def estornar_integracoes_ordem_servico_configuradas(ordem_servico_id: int) -> list[str]:
+    empresa_id = empresa_logada_id()
+    ordem = buscar_ordem_servico_por_id(ordem_servico_id)
+    if ordem is None:
+        raise ValueError("Ordem de Serviço não encontrada.")
+
+    with conectar_db() as conn:
+        operacoes = conn.execute(
+            """
+            SELECT operacao, referencia, detalhes_json
+            FROM configuracoes_operacoes_automaticas
+            WHERE empresa_id = ? AND modulo = 'ordens_servico'
+              AND entidade = 'ordem_servico' AND registro_id = ?
+            ORDER BY id ASC
+            """,
+            (empresa_id, ordem_servico_id),
+        ).fetchall()
+
+    estoques: list[dict[str, Any]] = []
+    for operacao in operacoes:
+        if str(operacao["operacao"] or "") != "baixa_estoque":
+            continue
+        try:
+            detalhes = json.loads(str(operacao["detalhes_json"] or "{}"))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            detalhes = {}
+        movimento_id = int(detalhes.get("movimentacao_id") or 0)
+        if movimento_id <= 0:
+            continue
+        with conectar_db() as conn:
+            movimento = conn.execute(
+                "SELECT produto_id, produto_nome, quantidade, tipo FROM estoque_movimentacoes WHERE id = ? AND empresa_id = ?",
+                (movimento_id, empresa_id),
+            ).fetchone()
+            produto = (
+                conn.execute(
+                    "SELECT id, nome, estoque_atual FROM produtos WHERE id = ? AND empresa_id = ?",
+                    (int(movimento["produto_id"] or 0), empresa_id),
+                ).fetchone()
+                if movimento is not None
+                else None
+            )
+        if movimento is None or str(movimento["tipo"] or "") != "saida":
+            continue
+        if produto is None:
+            raise ValueError(
+                f"Não foi possível reabrir a OS {ordem.get('numero') or ordem_servico_id}: "
+                f"o produto {movimento['produto_nome'] or movimento['produto_id']} não existe mais no cadastro."
+            )
+        estoques.append(
+            {
+                "operacao": str(operacao["operacao"] or ""),
+                "referencia": str(operacao["referencia"] or ""),
+                "produto": dict(produto),
+                "quantidade": max(0.0, _converter_valor_brl(movimento["quantidade"])),
+            }
+        )
+
+    resultados: list[str] = []
+    titulos_cancelados = 0
+    for operacao in operacoes:
+        tipo_operacao = str(operacao["operacao"] or "")
+        referencia = str(operacao["referencia"] or "")
+        if tipo_operacao == "conta_receber":
+            try:
+                detalhes = json.loads(str(operacao["detalhes_json"] or "{}"))
+            except (TypeError, ValueError, json.JSONDecodeError):
+                detalhes = {}
+            titulo_id = int(detalhes.get("titulo_id") or 0)
+            if titulo_id > 0 and buscar_financeiro_titulo_por_id(titulo_id) is not None:
+                cancelar_financeiro_titulo_db(titulo_id)
+                titulos_cancelados += 1
+            liberar_operacao_configurada(
+                "ordens_servico", "ordem_servico", ordem_servico_id, tipo_operacao, referencia
+            )
+
+    baixas_estornadas = 0
+    for item in estoques:
+        quantidade = float(item["quantidade"] or 0)
+        produto = item["produto"]
+        if quantidade > 0:
+            saldo_anterior = _converter_valor_brl(produto.get("estoque_atual"))
+            with conectar_db() as conn:
+                produto_atual = conn.execute(
+                    "SELECT estoque_atual FROM produtos WHERE id = ? AND empresa_id = ?",
+                    (int(produto["id"]), empresa_id),
+                ).fetchone()
+            if produto_atual is not None:
+                saldo_anterior = _converter_valor_brl(produto_atual["estoque_atual"])
+            saldo_atual = saldo_anterior + quantidade
+            salvar_estoque_movimentacao_db(
+                {
+                    "produto_id": str(produto["id"]),
+                    "produto_nome": str(produto.get("nome") or "Produto"),
+                    "tipo": "entrada",
+                    "quantidade": _formatar_numero_estoque(quantidade),
+                    "saldo_anterior": _formatar_numero_estoque(saldo_anterior),
+                    "saldo_atual": _formatar_numero_estoque(saldo_atual),
+                    "motivo": "Estorno por reabertura de OS",
+                    "documento": str(ordem.get("numero") or ordem_servico_id),
+                    "responsavel": str(session.get("usuario_nome") or "Sistema"),
+                    "observacoes": "Estorno automático da baixa de estoque ao reabrir a Ordem de Serviço.",
+                }
+            )
+            baixas_estornadas += 1
+        liberar_operacao_configurada(
+            "ordens_servico", "ordem_servico", ordem_servico_id, item["operacao"], item["referencia"]
+        )
+
+    # Libera também reservas de estoque sem movimentação (por exemplo, produto não identificado).
+    for operacao in operacoes:
+        if str(operacao["operacao"] or "") == "baixa_estoque" and not any(
+            item["referencia"] == str(operacao["referencia"] or "") for item in estoques
+        ):
+            liberar_operacao_configurada(
+                "ordens_servico", "ordem_servico", ordem_servico_id, "baixa_estoque", str(operacao["referencia"] or "")
+            )
+
+    if titulos_cancelados:
+        resultados.append(f"{titulos_cancelados} título(s) financeiro(s) cancelado(s)")
+    if baixas_estornadas:
+        resultados.append(f"{baixas_estornadas} baixa(s) de estoque estornada(s)")
+    return resultados
+
+
+def reabrir_ordem_servico_finalizada_db(ordem_servico_id: int, novo_status: str) -> list[str]:
+    status_destino = normalizar_status_operacional(
+        "ordens_servico", novo_status, status_inicial_operacional("ordens_servico")
+    )
+    resultados = estornar_integracoes_ordem_servico_configuradas(ordem_servico_id)
+    with conectar_db() as conn:
+        conn.execute(
+            "UPDATE ordens_servico SET status = ?, finalizado_em = NULL WHERE id = ? AND empresa_id = ?",
+            (status_destino, ordem_servico_id, empresa_logada_id()),
+        )
+        conn.commit()
+    return resultados
 
 
 def executar_integracoes_ordem_servico_configuradas(ordem_servico_id: int) -> list[str]:
@@ -36972,33 +37204,55 @@ def atualizar_status_ordem_servico(ordem_servico_id: int) -> Response:
     ordem = buscar_ordem_servico_por_id(ordem_servico_id)
     if ordem is None:
         return jsonify({"ok": False, "erro": "Ordem de Serviço não encontrada."}), 404
-    if str(ordem.get("finalizado_em") or "").strip():
-        return jsonify({"ok": False, "erro": "Esta Ordem de Serviço já foi finalizada."}), 409
+
     novo_status = normalizar_status_operacional("ordens_servico", request.form.get("status"), "")
     if not novo_status:
         return jsonify({"ok": False, "erro": "O status selecionado não existe mais nas Configurações."}), 409
+
     anterior = _codigo_status_operacional("ordens_servico", ordem.get("status")) or status_inicial_operacional("ordens_servico")
     finalizador = status_final_operacional("ordens_servico", novo_status)
-    if finalizador and request.form.get("confirmar_finalizacao") != "sim":
-        return jsonify({"ok": False, "erro": "Confirme a conclusão da OS. Essa ação bloqueia alterações e executa as integrações finais configuradas.", "exige_confirmacao": True}), 409
-    if finalizador and configuracao_bool("ordens_servico", "exigir_responsavel_encerramento", True) and not str(ordem.get("responsavel") or "").strip():
-        return jsonify({"ok": False, "erro": "Informe o responsável da OS antes de concluí-la."}), 409
-    agora = agora_empresa().isoformat(timespec="seconds")
-    with conectar_db() as conn:
-        cursor = conn.execute(
-            "UPDATE ordens_servico SET status = ?, finalizado_em = CASE WHEN ? THEN ? ELSE finalizado_em END WHERE id = ? AND empresa_id = ? AND TRIM(COALESCE(finalizado_em, '')) = ''",
-            (novo_status, 1 if finalizador else 0, agora, ordem_servico_id, empresa_logada_id()),
-        )
-        if cursor.rowcount != 1:
-            conn.rollback()
-            return jsonify({"ok": False, "erro": "Esta Ordem de Serviço já foi finalizada por outra operação."}), 409
-        conn.commit()
-    integracoes = executar_integracoes_ordem_servico_configuradas(ordem_servico_id) if finalizador else []
-    registrar_atividade_usuario("status", "ordens_servico", f"Alterou status da OS {ordem.get('numero') or ordem_servico_id}: {nome_status_operacional('ordens_servico', anterior)} → {nome_status_operacional('ordens_servico', novo_status)}" + (" e concluiu a OS." if finalizador else "."), request.path, registro_id=ordem_servico_id)
-    dados = _dados_status_operacional("ordens_servico", novo_status)
-    mensagem = "OS concluída com sucesso." + (" Gerado: " + ", ".join(integracoes) + "." if integracoes else "") if finalizador else "Status da OS atualizado."
-    return jsonify({"ok": True, "mensagem": mensagem, "status": novo_status, "status_nome": dados["nome"], "final": finalizador, "fundo": dados["fundo"], "texto": dados["texto"], "borda": dados["borda"]})
+    estava_finalizada = bool(str(ordem.get("finalizado_em") or "").strip()) or status_final_operacional("ordens_servico", anterior)
 
+    if novo_status == anterior:
+        dados = _dados_status_operacional("ordens_servico", novo_status)
+        return jsonify({"ok": True, "mensagem": "Status da OS mantido.", "status": novo_status, "status_nome": dados["nome"], "final": finalizador, "fundo": dados["fundo"], "texto": dados["texto"], "borda": dados["borda"]})
+
+    if estava_finalizada and not finalizador:
+        try:
+            estornos = reabrir_ordem_servico_finalizada_db(ordem_servico_id, novo_status)
+        except (ValueError, sqlite3.Error) as exc:
+            return jsonify({"ok": False, "erro": str(exc)}), 409
+        mensagem = "OS reaberta com sucesso." + ((" Estornado: " + ", ".join(estornos) + ".") if estornos else "")
+    elif estava_finalizada and finalizador:
+        mensagem = "OS já está concluída."
+    else:
+        if finalizador and request.form.get("confirmar_finalizacao") != "sim":
+            return jsonify({"ok": False, "erro": "Confirme a conclusão da OS. As integrações finais configuradas serão executadas; a OS poderá ser reaberta depois com estorno controlado.", "exige_confirmacao": True}), 409
+        if finalizador and configuracao_bool("ordens_servico", "exigir_responsavel_encerramento", True) and not str(ordem.get("responsavel") or "").strip():
+            return jsonify({"ok": False, "erro": "Informe o responsável da OS antes de concluí-la."}), 409
+
+        agora = agora_empresa().isoformat(timespec="seconds")
+        with conectar_db() as conn:
+            cursor = conn.execute(
+                "UPDATE ordens_servico SET status = ?, finalizado_em = CASE WHEN ? THEN ? ELSE NULL END WHERE id = ? AND empresa_id = ?",
+                (novo_status, 1 if finalizador else 0, agora, ordem_servico_id, empresa_logada_id()),
+            )
+            if cursor.rowcount != 1:
+                conn.rollback()
+                return jsonify({"ok": False, "erro": "A Ordem de Serviço foi alterada por outra operação."}), 409
+            conn.commit()
+        integracoes = executar_integracoes_ordem_servico_configuradas(ordem_servico_id) if finalizador else []
+        mensagem = "OS concluída com sucesso." + (" Gerado: " + ", ".join(integracoes) + "." if integracoes else "") if finalizador else "Status da OS atualizado."
+
+    registrar_atividade_usuario(
+        "status",
+        "ordens_servico",
+        f"Alterou status da OS {ordem.get('numero') or ordem_servico_id}: {nome_status_operacional('ordens_servico', anterior)} → {nome_status_operacional('ordens_servico', novo_status)}" + (" e concluiu a OS." if finalizador and not estava_finalizada else " e reabriu a OS." if estava_finalizada and not finalizador else "."),
+        request.path,
+        registro_id=ordem_servico_id,
+    )
+    dados = _dados_status_operacional("ordens_servico", novo_status)
+    return jsonify({"ok": True, "mensagem": mensagem, "status": novo_status, "status_nome": dados["nome"], "final": finalizador, "fundo": dados["fundo"], "texto": dados["texto"], "borda": dados["borda"]})
 
 @app.get("/ordens-servico/<int:ordem_servico_id>")
 def ver_ordem_servico(ordem_servico_id: int) -> str | Response:
@@ -37750,6 +38004,15 @@ def atualizar_ordem_servico(ordem_servico_id: int) -> Response:
     if ordem_servico_atual is None:
         return redirect(url_for("ordens_servico"))
 
+    os_reaberta = False
+    if str(ordem_servico_atual.get("finalizado_em") or "").strip() or status_final_operacional("ordens_servico", ordem_servico_atual.get("status")):
+        try:
+            reabrir_ordem_servico_finalizada_db(ordem_servico_id, status_inicial_operacional("ordens_servico"))
+        except (ValueError, sqlite3.Error) as exc:
+            return redirect(url_for("editar_ordem_servico", ordem_servico_id=ordem_servico_id, erro=str(exc)))
+        os_reaberta = True
+        ordem_servico_atual = buscar_ordem_servico_por_id(ordem_servico_id) or ordem_servico_atual
+
     ordem_servico = montar_ordem_servico_formulario(numero_padrao=str(ordem_servico_atual["numero"] or ""))
     ordem_servico["numero"] = str(ordem_servico_atual["numero"] or "")
     ordem_servico["status"] = str(ordem_servico_atual.get("status") or status_inicial_operacional("ordens_servico"))
@@ -37780,7 +38043,11 @@ def atualizar_ordem_servico(ordem_servico_id: int) -> Response:
     return redirect(
         url_for(
             "ordens_servico",
-            sucesso=f"OS {ordem_servico.get('numero')} atualizada com sucesso.",
+            sucesso=(
+                f"OS {ordem_servico.get('numero')} reaberta e atualizada. Conclua novamente quando estiver pronta."
+                if os_reaberta
+                else f"OS {ordem_servico.get('numero')} atualizada com sucesso."
+            ),
         )
     )
 
@@ -37790,7 +38057,13 @@ def excluir_ordem_servico(ordem_servico_id: int) -> Response:
     ordem_servico = buscar_ordem_servico_por_id(ordem_servico_id)
 
     if ordem_servico is not None:
+        if str(ordem_servico.get("finalizado_em") or "").strip() or status_final_operacional("ordens_servico", ordem_servico.get("status")):
+            try:
+                reabrir_ordem_servico_finalizada_db(ordem_servico_id, status_inicial_operacional("ordens_servico"))
+            except (ValueError, sqlite3.Error) as exc:
+                return redirect(url_for("ordens_servico", erro=str(exc)))
         excluir_ordem_servico_db(ordem_servico_id)
+        registrar_atividade_usuario("exclusao", "ordens_servico", f"Excluiu OS {ordem_servico.get('numero') or ordem_servico_id}", request.path, registro_id=ordem_servico_id)
 
     return redirect(url_for("ordens_servico"))
 
@@ -38615,44 +38888,74 @@ def atualizar_status_venda(venda_id: int) -> Response:
     venda = buscar_venda_por_id(venda_id)
     if venda is None:
         return jsonify({"ok": False, "erro": "Venda não encontrada."}), 404
-    if str(venda.get("finalizado_em") or "").strip():
-        return jsonify({"ok": False, "erro": "Esta Venda já foi concretizada/finalizada."}), 409
+
     novo_status = normalizar_status_operacional("vendas", request.form.get("status"), "")
     if not novo_status:
         return jsonify({"ok": False, "erro": "O status selecionado não existe mais nas Configurações."}), 409
+
     anterior = _codigo_status_operacional("vendas", venda.get("status")) or status_inicial_operacional("vendas")
     finalizador = status_final_operacional("vendas", novo_status)
-    if finalizador and request.form.get("confirmar_finalizacao") != "sim":
-        return jsonify({"ok": False, "erro": "Confirme a concretização da Venda. Essa ação baixa o estoque, gera o financeiro e bloqueia alterações.", "exige_confirmacao": True}), 409
-    itens = listar_venda_itens(venda_id)
-    if finalizador:
-        try:
-            validar_estoque_para_venda_db(itens)
-        except ValueError as exc:
-            return jsonify({"ok": False, "erro": str(exc)}), 409
-    agora = agora_empresa().isoformat(timespec="seconds")
-    with conectar_db() as conn:
-        cursor = conn.execute(
-            "UPDATE vendas SET status = ?, finalizado_em = CASE WHEN ? THEN ? ELSE finalizado_em END WHERE id = ? AND empresa_id = ? AND TRIM(COALESCE(finalizado_em, '')) = ''",
-            (novo_status, 1 if finalizador else 0, agora, venda_id, empresa_logada_id()),
-        )
-        if cursor.rowcount != 1:
-            conn.rollback()
-            return jsonify({"ok": False, "erro": "Esta Venda já foi finalizada por outra operação."}), 409
-        conn.commit()
-    aviso = ""
-    if finalizador:
-        venda_final = buscar_venda_por_id(venda_id) or venda
-        try:
-            baixar_estoque_por_venda_db(venda_id, venda_final, itens)
-            gerar_conta_receber_por_venda_db(venda_id, venda_final)
-        except (ValueError, sqlite3.Error) as exc:
-            aviso = f"Venda concretizada, mas uma integração precisa ser revisada: {exc}"
-    registrar_atividade_usuario("status", "vendas", f"Alterou status da Venda {venda.get('numero') or venda_id}: {nome_status_operacional('vendas', anterior)} → {nome_status_operacional('vendas', novo_status)}" + (" e concretizou a Venda." if finalizador else "."), request.path, registro_id=venda_id)
-    dados = _dados_status_operacional("vendas", novo_status)
-    mensagem = aviso or ("Venda concretizada com sucesso." if finalizador else "Status da Venda atualizado.")
-    return jsonify({"ok": True, "mensagem": mensagem, "aviso": aviso, "status": novo_status, "status_nome": dados["nome"], "final": finalizador, "fundo": dados["fundo"], "texto": dados["texto"], "borda": dados["borda"]})
+    estava_finalizada = bool(str(venda.get("finalizado_em") or "").strip()) or status_final_operacional("vendas", anterior)
 
+    if novo_status == anterior:
+        dados = _dados_status_operacional("vendas", novo_status)
+        return jsonify({"ok": True, "mensagem": "Status da Venda mantido.", "aviso": "", "status": novo_status, "status_nome": dados["nome"], "final": finalizador, "fundo": dados["fundo"], "texto": dados["texto"], "borda": dados["borda"]})
+
+    if estava_finalizada and not finalizador:
+        try:
+            estorno = reabrir_venda_concretizada_db(venda_id, novo_status)
+        except (ValueError, sqlite3.Error) as exc:
+            return jsonify({"ok": False, "erro": str(exc)}), 409
+        partes = []
+        if estorno["estoque_estornado"]:
+            partes.append(f"{estorno['estoque_estornado']} item(ns) de estoque estornado(s)")
+        if estorno["titulos_cancelados"]:
+            partes.append(f"{estorno['titulos_cancelados']} título(s) financeiro(s) cancelado(s)")
+        complemento = " " + "; ".join(partes) + "." if partes else ""
+        mensagem = "Venda reaberta com sucesso." + complemento
+    elif estava_finalizada and finalizador:
+        mensagem = "Venda já está concretizada."
+    else:
+        if finalizador and request.form.get("confirmar_finalizacao") != "sim":
+            return jsonify({"ok": False, "erro": "Confirme a concretização da Venda. Essa ação baixa o estoque e gera o financeiro; a Venda poderá ser reaberta depois com estorno controlado.", "exige_confirmacao": True}), 409
+
+        itens = listar_venda_itens(venda_id)
+        if finalizador:
+            try:
+                validar_estoque_para_venda_db(itens)
+            except ValueError as exc:
+                return jsonify({"ok": False, "erro": str(exc)}), 409
+
+        agora = agora_empresa().isoformat(timespec="seconds")
+        with conectar_db() as conn:
+            cursor = conn.execute(
+                "UPDATE vendas SET status = ?, finalizado_em = CASE WHEN ? THEN ? ELSE NULL END WHERE id = ? AND empresa_id = ?",
+                (novo_status, 1 if finalizador else 0, agora, venda_id, empresa_logada_id()),
+            )
+            if cursor.rowcount != 1:
+                conn.rollback()
+                return jsonify({"ok": False, "erro": "A Venda foi alterada por outra operação."}), 409
+            conn.commit()
+
+        aviso = ""
+        if finalizador:
+            venda_final = buscar_venda_por_id(venda_id) or venda
+            try:
+                baixar_estoque_por_venda_db(venda_id, venda_final, itens)
+                gerar_conta_receber_por_venda_db(venda_id, venda_final)
+            except (ValueError, sqlite3.Error) as exc:
+                aviso = f"Venda concretizada, mas uma integração precisa ser revisada: {exc}"
+        mensagem = aviso or ("Venda concretizada com sucesso." if finalizador else "Status da Venda atualizado.")
+
+    registrar_atividade_usuario(
+        "status",
+        "vendas",
+        f"Alterou status da Venda {venda.get('numero') or venda_id}: {nome_status_operacional('vendas', anterior)} → {nome_status_operacional('vendas', novo_status)}" + (" e concretizou a Venda." if finalizador and not estava_finalizada else " e reabriu a Venda." if estava_finalizada and not finalizador else "."),
+        request.path,
+        registro_id=venda_id,
+    )
+    dados = _dados_status_operacional("vendas", novo_status)
+    return jsonify({"ok": True, "mensagem": mensagem, "aviso": "", "status": novo_status, "status_nome": dados["nome"], "final": finalizador, "fundo": dados["fundo"], "texto": dados["texto"], "borda": dados["borda"]})
 
 @app.get("/vendas/<int:venda_id>")
 def ver_venda(venda_id: int) -> str | Response:
@@ -38833,6 +39136,15 @@ def atualizar_venda(venda_id: int) -> Response:
     if venda_atual is None:
         return redirect(url_for("vendas"))
 
+    venda_reaberta = False
+    if str(venda_atual.get("finalizado_em") or "").strip() or status_final_operacional("vendas", venda_atual.get("status")):
+        try:
+            reabrir_venda_concretizada_db(venda_id, status_inicial_operacional("vendas"))
+        except (ValueError, sqlite3.Error) as exc:
+            return redirect(url_for("editar_venda", venda_id=venda_id, erro=str(exc)))
+        venda_reaberta = True
+        venda_atual = buscar_venda_por_id(venda_id) or venda_atual
+
     venda = montar_venda_formulario(numero_padrao=str(venda_atual["numero"] or ""))
     venda["numero"] = str(venda_atual["numero"] or "")
     venda["status"] = str(venda_atual.get("status") or status_inicial_operacional("vendas"))
@@ -38846,7 +39158,12 @@ def atualizar_venda(venda_id: int) -> Response:
     registrar_atividade_usuario(
         "edicao", "vendas", f"Atualizou venda {venda.get('numero') or venda_id}", request.path, registro_id=venda_id
     )
-    return redirect(url_for("vendas", sucesso=f"Venda {venda.get('numero')} atualizada."))
+    mensagem_sucesso = (
+        f"Venda {venda.get('numero')} reaberta e atualizada. Concretize novamente quando estiver pronta."
+        if venda_reaberta
+        else f"Venda {venda.get('numero')} atualizada."
+    )
+    return redirect(url_for("vendas", sucesso=mensagem_sucesso))
 
 
 @app.post("/vendas/<int:venda_id>/excluir")
@@ -38854,8 +39171,15 @@ def excluir_venda(venda_id: int) -> Response:
     venda = buscar_venda_por_id(venda_id)
 
     if venda is not None:
-        cancelar_titulos_financeiros_venda_db(venda_id)
+        if str(venda.get("finalizado_em") or "").strip() or status_final_operacional("vendas", venda.get("status")):
+            try:
+                reabrir_venda_concretizada_db(venda_id, status_inicial_operacional("vendas"))
+            except (ValueError, sqlite3.Error) as exc:
+                return redirect(url_for("vendas", erro=str(exc)))
+        else:
+            cancelar_titulos_financeiros_venda_db(venda_id)
         excluir_venda_db(venda_id)
+        registrar_atividade_usuario("exclusao", "vendas", f"Excluiu venda {venda.get('numero') or venda_id}", request.path, registro_id=venda_id)
 
     return redirect(url_for("vendas"))
 
@@ -38920,18 +39244,6 @@ def revisar_gerador_orcamento(orcamento_id: int) -> str | Response:
         return redirect(url_for("editar_orcamento", orcamento_id=orcamento_id, erro="Este orçamento não possui dados salvos do Gerador."))
 
     if request.method == "POST":
-        if buscar_venda_por_orcamento_id(orcamento_id) is not None:
-            return redirect(
-                url_for(
-                    "revisar_gerador_orcamento",
-                    orcamento_id=orcamento_id,
-                    erro=(
-                        f"O orçamento está {nome_status_orcamento(orcamento.get('status')).lower()} "
-                        "e não permite alterar a composição do Gerador."
-                    ),
-                )
-            )
-
         dados = montar_gerador_orcamento_formulario()
         if not dados["cliente"] or not dados["responsavel"]:
             return redirect(url_for("revisar_gerador_orcamento", orcamento_id=orcamento_id, erro="Cliente e responsável são obrigatórios."))
@@ -38957,7 +39269,7 @@ def revisar_gerador_orcamento(orcamento_id: int) -> str | Response:
         orcamento_status_atual=codigo_status_orcamento_existente(orcamento.get("status")),
         orcamento_status_opcoes=opcoes_transicao_status_orcamento(orcamento.get("status")),
         orcamento_status_dados=_dados_status_orcamento(orcamento.get("status")),
-        orcamento_status_final=buscar_venda_por_orcamento_id(orcamento_id) is not None,
+        orcamento_status_final=status_final_orcamento(orcamento.get("status")),
         form_action=url_for("revisar_gerador_orcamento", orcamento_id=orcamento_id),
     )
 
@@ -39056,16 +39368,6 @@ def atualizar_status_orcamento(orcamento_id: int) -> Response:
         return jsonify({"ok": False, "erro": "Orçamento não encontrado."}), 404
 
     venda_existente = buscar_venda_por_orcamento_id(orcamento_id)
-    if venda_existente is not None:
-        return jsonify(
-            {
-                "ok": False,
-                "erro": (
-                    "Este orçamento já foi finalizado e possui a Venda "
-                    f"{venda_existente.get('numero') or ('#' + str(venda_existente.get('id')))}."
-                ),
-            }
-        ), 409
 
     novo_status = normalizar_status_orcamento(request.form.get("status"), "")
     if not novo_status:
@@ -39085,7 +39387,7 @@ def atualizar_status_orcamento(orcamento_id: int) -> Response:
                     "ok": False,
                     "erro": (
                         f'Confirme a finalização em "{nome_status_orcamento(novo_status)}". '
-                        "Essa ação gera a Venda e bloqueia a composição do orçamento."
+                        "Essa ação gera a Venda quando ainda não existir uma vinculada."
                     ),
                     "exige_confirmacao": True,
                 }
@@ -39120,9 +39422,8 @@ def atualizar_status_orcamento(orcamento_id: int) -> Response:
                 }
             ), 409
 
-        # A existência da Venda é o marco permanente de finalização. Atualizamos o
-        # status imediatamente para que uma falha posterior de integração nunca
-        # deixe uma Venda criada com o orçamento ainda aparentando estar aberto.
+        # A Venda vinculada é mantida quando o orçamento for reaberto e finalizado novamente.
+        # O vínculo impede duplicidade; o status do orçamento continua livre para alteração.
         sucesso, mensagem, resultado = atualizar_status_orcamento_db(orcamento_id, novo_status)
         if not sucesso or resultado is None:
             return jsonify(
@@ -39166,10 +39467,16 @@ def atualizar_status_orcamento(orcamento_id: int) -> Response:
     venda = buscar_venda_por_id(venda_id) if venda_id else None
     mensagem_final = mensagem
     if eh_finalizador and venda is not None:
-        mensagem_final = (
-            f"Orçamento finalizado e Venda {venda.get('numero')} gerada para revisão. "
-            "Concretize a Venda somente quando estiver pronta para baixar estoque e gerar o financeiro."
-        )
+        if venda_criada:
+            mensagem_final = (
+                f"Orçamento finalizado e Venda {venda.get('numero')} gerada para revisão. "
+                "Concretize a Venda somente quando estiver pronta para baixar estoque e gerar o financeiro."
+            )
+        else:
+            mensagem_final = (
+                f"Orçamento finalizado. A Venda {venda.get('numero')} já estava vinculada e foi mantida, "
+                "sem criar duplicidade."
+            )
 
     return jsonify(
         {
@@ -39412,15 +39719,6 @@ def editar_orcamento(orcamento_id: int) -> str | Response:
     if orcamento is None:
         return redirect(url_for("orcamentos"))
 
-    if buscar_venda_por_orcamento_id(orcamento_id) is not None:
-        return redirect(
-            url_for(
-                "ver_orcamento",
-                orcamento_id=orcamento_id,
-                aviso="Este orçamento já foi finalizado, possui Venda gerada e sua composição está protegida.",
-            )
-        )
-
     dados_gerador = buscar_orcamento_gerador_dados(orcamento_id)
     if dados_gerador is not None:
         return redirect(
@@ -39453,17 +39751,6 @@ def atualizar_orcamento(orcamento_id: int) -> Response:
     orcamento_atual = buscar_orcamento_por_id(orcamento_id)
     if orcamento_atual is None:
         return redirect(url_for("orcamentos"))
-
-    if buscar_venda_por_orcamento_id(orcamento_id) is not None:
-        return redirect(
-            url_for(
-                "orcamentos",
-                erro=(
-                    f"O orçamento {orcamento_atual.get('numero') or orcamento_id} já foi finalizado, "
-                    "possui Venda gerada e não pode ser alterado."
-                ),
-            )
-        )
 
     if buscar_orcamento_gerador_dados(orcamento_id) is not None:
         return redirect(

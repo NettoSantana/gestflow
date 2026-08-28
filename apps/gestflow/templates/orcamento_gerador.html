@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\orcamento_gerador.html
-Último recode: 2026-08-27 21:47 (America/Bahia)
-Motivo: Unificar a busca de material em um único campo pesquisável e aplicar a quantidade da atividade à composição visual, alinhando a DEV ao backend atualizado.
+Último recode: 2026-08-28 12:04 (America/Bahia)
+Motivo: Permitir revisar e alterar status de Orçamento finalizado no Gerador, mantendo a Venda já vinculada sem duplicidade.
 #}
 
 <!DOCTYPE html>
@@ -1365,7 +1365,7 @@ Motivo: Unificar a busca de material em um único campo pesquisável e aplicar a
         {% endif %}
         {% if revisao and orcamento_status_final %}
             <div class="gerador-status-final-note">
-                Este orçamento já foi finalizado e possui Venda gerada. A composição do Gerador está protegida contra novas alterações.
+                Este orçamento está finalizado, mas continua editável. A Venda já vinculada será mantida e não será duplicada; alterações no orçamento não atualizam automaticamente essa Venda.
             </div>
         {% endif %}
 
@@ -1447,7 +1447,6 @@ Motivo: Unificar a busca de material em um único campo pesquisável e aplicar a
                                         data-gerador-status-select
                                         data-status-url="{{ url_for('atualizar_status_orcamento', orcamento_id=orcamento.id) }}"
                                         data-status-atual="{{ orcamento_status_atual }}"
-                                        {% if orcamento_status_final %}disabled title="Orçamento finalizado. A Venda já foi gerada e a composição está protegida."{% endif %}
                                     >
                                         {% for opcao in orcamento_status_opcoes %}
                                             <option
@@ -1462,9 +1461,9 @@ Motivo: Unificar a busca de material em um único campo pesquisável e aplicar a
                                     </select>
                                     <small class="field-hint">
                                         {% if orcamento_status_final %}
-                                            Orçamento finalizado. A Venda já foi gerada e a composição permanece somente para consulta.
+                                            Você pode reabrir este orçamento. A Venda já vinculada será mantida e não será criada novamente ao finalizar depois.
                                         {% else %}
-                                            Este é o mesmo status da Lista de Orçamentos. Somente a opção marcada como finalizadora gera a Venda.
+                                            Este é o mesmo status da Lista de Orçamentos. A opção finalizadora gera a Venda somente quando ainda não existir uma vinculada.
                                         {% endif %}
                                     </small>
                                 </div>
@@ -1642,7 +1641,7 @@ Motivo: Unificar a busca de material em um único campo pesquisável e aplicar a
                         <div class="gerador-indicador"><span>Margem real depois dos impostos</span><strong id="res-margem">0,00%</strong></div>
 
                         <div class="gerador-final-actions">
-                            <button type="submit" class="btn-primary-green{% if revisao and orcamento_status_final %} gerador-submit-finalizado{% endif %}" {% if revisao and orcamento_status_final %}disabled title="Orçamento finalizado e com Venda gerada."{% endif %}>{{ 'Orçamento finalizado' if revisao and orcamento_status_final else ('Atualizar orçamento' if revisao else 'Gerar orçamento') }}</button>
+                            <button type="submit" class="btn-primary-green">{{ 'Atualizar orçamento' if revisao else 'Gerar orçamento' }}</button>
                             {% if revisao and orcamento %}<a href="/orcamentos/{{ orcamento.id }}/gerador/historico" class="btn-light">Histórico</a>{% else %}<button type="button" class="btn-light" onclick="window.location.href='/orcamentos'">Cancelar</button>{% endif %}
                         </div>
                     </div>
@@ -3295,8 +3294,8 @@ async function configurarStatusOrcamentoGerador() {
         if (finaliza) {
             const confirmou = window.confirm(
                 'Finalizar este orçamento como "' + nome + '"?\n\n' +
-                'Essa ação irá gerar a Venda e bloquear a composição do orçamento. ' +
-                'Depois de finalizado, o orçamento não poderá voltar para outro status.'
+                'Essa ação irá gerar a Venda caso ainda não exista uma vinculada. ' +
+                'Depois, o status poderá ser alterado novamente sem criar outra Venda.'
             );
             if (!confirmou) {
                 campo.value = statusAnterior;

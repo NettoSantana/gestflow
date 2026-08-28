@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\ordem_servico_editar.html
-Último recode: 2026-08-21 06:43 (America/Bahia)
-Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+Último recode: 2026-08-28 12:04 (America/Bahia)
+Motivo: Permitir editar OS finalizada; ao salvar diretamente, a OS é reaberta e suas integrações finais são estornadas antes da alteração.
 #}
 
 <!DOCTYPE html>
@@ -1046,10 +1046,10 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
                             <option value="__novo_cliente__" class="quick-new-option">+ Adicionar novo cliente</option>
                         </select>
                     </div>
-                        <div class="form-group"><label for="os_status">Situação</label><select id="os_status" name="os_status" class="gf-status-select" data-status-operacional data-status-url="/ordens-servico/{{ os.id }}/status" data-current="{{ os.status }}" data-final-message="Concluir esta Ordem de Serviço? Após confirmar, a OS será bloqueada e as integrações finais configuradas serão executadas." style="--status-bg:{{ os.status_fundo }};--status-text:{{ os.status_texto_cor }};--status-border:{{ os.status_borda }};" required>
+                        <div class="form-group"><label for="os_status">Situação</label><select id="os_status" name="os_status" class="gf-status-select" data-status-operacional data-status-url="/ordens-servico/{{ os.id }}/status" data-current="{{ os.status }}" data-final-message="Concluir esta Ordem de Serviço? Após confirmar, as integrações finais configuradas serão executadas. A OS poderá ser reaberta depois com estorno controlado." style="--status-bg:{{ os.status_fundo }};--status-text:{{ os.status_texto_cor }};--status-border:{{ os.status_borda }};" required>
                             {% for status in os_status_opcoes|default([]) %}
                                 <option value="{{ status.codigo }}" data-final="{{ 1 if status.final else 0 }}" data-bg="{{ status.fundo }}" data-text="{{ status.texto }}" data-border="{{ status.borda }}" {% if os.status == status.codigo %}selected{% endif %}>{{ status.nome }}</option>
-                            {% endfor %}</select><small style="display:block;margin-top:5px;color:#64748b;">A situação é salva imediatamente. O status finalizador exige confirmação.</small></div>
+                            {% endfor %}</select><small style="display:block;margin-top:5px;color:#64748b;">{% if os.status_finalizado %}Esta OS está finalizada. Alterar para um status não final estorna as integrações; salvar alterações diretamente também reabre a OS antes de editar.{% else %}A situação é salva imediatamente. O status finalizador exige confirmação.{% endif %}</small></div>
                         <div class="form-group"><label for="os_data_abertura">Entrada</label><input id="os_data_abertura" name="os_data_abertura" type="date" value="{{ os.data_abertura or '' }}" class="form-control" required></div>
                         <div class="form-group"><label for="os_hora_entrada">Hora de entrada</label><input id="os_hora_entrada" name="os_hora_entrada" type="time" value="{{ os.hora_entrada or '' }}" class="form-control"></div>
                         <div class="form-group"><label for="os_data_saida">Saída</label><input id="os_data_saida" name="os_data_saida" type="date" value="{{ os.data_saida or '' }}" class="form-control"></div>

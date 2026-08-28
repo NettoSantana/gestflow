@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\ordens_servico.html
-Último recode: 2026-08-22 00:35 (America/Bahia)
-Motivo: Vincular a lista principal ao componente padronizado e remover a adaptação local duplicada de Colunas/Mais ações.
+Último recode: 2026-08-28 12:04 (America/Bahia)
+Motivo: Permitir alterar status, editar e excluir OS finalizadas; reabertura estorna as integrações finais configuradas.
 #}
 
 <!DOCTYPE html>
@@ -1478,7 +1478,7 @@ Motivo: Vincular a lista principal ao componente padronizado e remover a adapta�
                                     <td><span class="os-list-client" title="{{ os.cliente|e }}">{{ os.cliente }}</span></td>
                                     <td><span class="os-list-equipment" title="{{ os.equipamento|e }}">{{ os.equipamento }}</span></td>
                                     <td>
-                                        <select class="gf-status-select" data-status-operacional data-status-url="/ordens-servico/{{ os.id }}/status" data-current="{{ os.status }}" data-final-message="Concluir esta Ordem de Serviço? Após confirmar, a OS será bloqueada e as integrações finais configuradas serão executadas." style="--status-bg:{{ os.status_fundo }};--status-text:{{ os.status_texto_cor }};--status-border:{{ os.status_borda }};" {% if os_status_final %}disabled{% endif %}>
+                                        <select class="gf-status-select" data-status-operacional data-status-url="/ordens-servico/{{ os.id }}/status" data-current="{{ os.status }}" data-final-message="Concluir esta Ordem de Serviço? Após confirmar, as integrações finais configuradas serão executadas. Se precisar reabrir depois, essas integrações serão estornadas." style="--status-bg:{{ os.status_fundo }};--status-text:{{ os.status_texto_cor }};--status-border:{{ os.status_borda }};">
                                             {% for status in os_status_opcoes|default([]) %}<option value="{{ status.codigo }}" data-final="{{ 1 if status.final else 0 }}" data-bg="{{ status.fundo }}" data-text="{{ status.texto }}" data-border="{{ status.borda }}" {% if os.status == status.codigo %}selected{% endif %}>{{ status.nome }}</option>{% endfor %}
                                         </select>
                                     </td>
@@ -1488,12 +1488,10 @@ Motivo: Vincular a lista principal ao componente padronizado e remover a adapta�
                                     <td>
                                         <div class="action-buttons os-action-wrap">
                                             <a href="/ordens-servico/{{ os.id }}" title="Ver OS" aria-label="Ver OS" class="action-button view">🔍</a>
-                                            {% if not os_status_final %}
-                                                <a href="/ordens-servico/{{ os.id }}/editar" title="Editar OS" aria-label="Editar OS" class="action-button edit">✎</a>
-                                                <form action="/ordens-servico/{{ os.id }}/excluir" method="post" style="display:inline;" onsubmit="return confirm('Deseja excluir esta OS?');">
-                                                    <button type="submit" class="action-button delete" title="Excluir OS" aria-label="Excluir OS">×</button>
-                                                </form>
-                                            {% endif %}
+                                            <a href="/ordens-servico/{{ os.id }}/editar" title="Editar OS" aria-label="Editar OS" class="action-button edit">✎</a>
+                                            <form action="/ordens-servico/{{ os.id }}/excluir" method="post" style="display:inline;" onsubmit="return confirm('Deseja excluir esta OS? Se estiver finalizada, as integrações finais serão estornadas antes da exclusão.');">
+                                                <button type="submit" class="action-button delete" title="Excluir OS" aria-label="Excluir OS">×</button>
+                                            </form>
                                             <div class="budget-action-menu">
                                                 <button
                                                     type="button"

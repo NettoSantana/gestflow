@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\venda_editar.html
-Último recode: 2026-08-21 06:43 (America/Bahia)
-Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+Último recode: 2026-08-28 12:04 (America/Bahia)
+Motivo: Permitir editar Venda concretizada; ao salvar uma Venda finalizada, o sistema a reabre e estorna as integrações antes da alteração.
 #}
 
 <!DOCTYPE html>
@@ -434,10 +434,10 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
                     <div class="form-group"><label for="venda_canal_venda">Canal de venda</label><input id="venda_canal_venda" name="venda_canal_venda" type="text" value="{{ venda.canal_venda or '' }}" class="form-control" required></div>
                     <div class="form-group"><label for="venda_centro_custo_id">Centro de custo</label><select id="venda_centro_custo_id" name="venda_centro_custo_id" class="form-control"><option value="">Sem centro de custo</option>{% for centro in centros_custo %}<option value="{{ centro.id }}" {% if venda.centro_custo_id == centro.id %}selected{% endif %}>{{ centro.nome }}</option>{% endfor %}</select></div><div class="form-group"><label for="venda_atividade_financeira_id">Atividade / Projeto</label><select id="venda_atividade_financeira_id" name="venda_atividade_financeira_id" class="form-control"><option value="">Sem atividade</option>{% for atividade in atividades_financeiras %}<option value="{{ atividade.id }}" {% if venda.atividade_financeira_id == atividade.id %}selected{% endif %}>{{ atividade.nome }}</option>{% endfor %}</select></div><input type="hidden" name="venda_centro_custo" value="{{ venda.centro_custo or '' }}">
                     <div class="form-group"><label for="venda_tipo">Tipo</label><select id="venda_tipo" name="venda_tipo" class="form-control"><option value="misto"{% if venda.tipo == "misto" %} selected{% endif %}>Misto</option><option value="produto"{% if venda.tipo == "produto" %} selected{% endif %}>Produto</option><option value="servico"{% if venda.tipo == "servico" %} selected{% endif %}>Serviço</option></select></div>
-                    <div class="form-group"><label for="venda_status">Situação</label><select id="venda_status" name="venda_status" class="gf-status-select" data-status-operacional data-status-url="/vendas/{{ venda.id }}/status" data-current="{{ venda.status }}" data-final-message="Concretizar esta Venda? Após confirmar, o GestFlow executará estoque e financeiro conforme as configurações e bloqueará alterações." style="--status-bg:{{ venda.status_fundo }};--status-text:{{ venda.status_texto_cor }};--status-border:{{ venda.status_borda }};">
+                    <div class="form-group"><label for="venda_status">Situação</label><select id="venda_status" name="venda_status" class="gf-status-select" data-status-operacional data-status-url="/vendas/{{ venda.id }}/status" data-current="{{ venda.status }}" data-final-message="Concretizar esta Venda? Após confirmar, o GestFlow executará estoque e financeiro conforme as configurações. A Venda poderá ser reaberta depois com estorno controlado." style="--status-bg:{{ venda.status_fundo }};--status-text:{{ venda.status_texto_cor }};--status-border:{{ venda.status_borda }};">
                         {% for status in venda_status_opcoes|default([]) %}
                                 <option value="{{ status.codigo }}" data-final="{{ 1 if status.final else 0 }}" data-bg="{{ status.fundo }}" data-text="{{ status.texto }}" data-border="{{ status.borda }}" {% if venda.status == status.codigo %}selected{% endif %}>{{ status.nome }}</option>
-                            {% endfor %}</select><small style="display:block;margin-top:5px;color:#64748b;">A situação é salva imediatamente. O status finalizador exige confirmação.</small></div>
+                            {% endfor %}</select><small style="display:block;margin-top:5px;color:#64748b;">{% if venda.status_finalizado %}Esta Venda está concretizada. Alterar o status para uma situação não final reabre e estorna as integrações; salvar alterações diretamente também reabre a Venda antes de editar.{% else %}A situação é salva imediatamente. O status finalizador exige confirmação.{% endif %}</small></div>
                 </div>
             </section>
 

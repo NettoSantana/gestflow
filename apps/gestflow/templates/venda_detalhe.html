@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\venda_detalhe.html
-Último recode: 2026-08-21 06:43 (America/Bahia)
-Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+Último recode: 2026-08-28 12:04 (America/Bahia)
+Motivo: Manter o acesso à edição da Venda mesmo após a concretização; o backend fará reabertura controlada quando necessário.
 #}
 
 <!DOCTYPE html>
@@ -448,10 +448,7 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
                 </div>
 
                 <div class="sale-action-row">
-                    {% set venda_status_final = venda.status_finalizado|default(false) %}
-                    {% if not venda_status_final %}
-                        <a href="/vendas/{{ venda.id }}/editar" class="btn-primary-green" style="text-decoration:none;">Editar Venda</a>
-                    {% endif %}
+                    <a href="/vendas/{{ venda.id }}/editar" class="btn-primary-green" style="text-decoration:none;">Editar Venda</a>
 
                     <div class="sale-action-menu">
                         <button

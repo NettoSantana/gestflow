@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\orcamentos.html
-Último recode: 2026-08-28 11:24 (America/Bahia)
-Motivo: Redirecionar a finalização do Orçamento para a edição da Venda recém-gerada, mantendo a Venda aberta/editável até sua concretização.
+Último recode: 2026-08-28 12:04 (America/Bahia)
+Motivo: Permitir alterar status, editar e excluir Orçamentos finalizados, mantendo a Venda vinculada sem gerar duplicidade.
 #}
 
 <!DOCTYPE html>
@@ -1203,8 +1203,7 @@ Motivo: Redirecionar a finalização do Orçamento para a edição da Venda rec�
                                     data-status-url="{{ url_for('atualizar_status_orcamento', orcamento_id=orcamento.id) }}"
                                     data-status-atual="{{ orcamento.status_codigo }}"
                                     aria-label="Alterar status do orçamento {{ orcamento.numero }}"
-                                    {% if orcamento_status_final %}disabled title="Orçamento finalizado. A Venda já foi gerada e a composição está protegida."{% endif %}
-                                >
+                                                                    >
                                     {% for opcao in orcamento.status_opcoes %}
                                         <option
                                             value="{{ opcao.codigo }}"
@@ -1219,7 +1218,7 @@ Motivo: Redirecionar a finalização do Orçamento para a edição da Venda rec�
                             </td><td data-column="data">{{ orcamento.data }}</td>
                             <td data-column="prazo_entrega">{{ orcamento.prazo_entrega or '-' }}</td><td data-column="validade">{{ orcamento.validade or '-' }}</td><td data-column="tipo">{{ orcamento.tipo or '-' }}</td>
                             <td data-column="centro_custo">{{ orcamento.centro_custo or '-' }}</td><td data-column="origem">{{ 'Gerador' if orcamento.origem == 'gerador' else 'Manual' }}</td><td data-column="modo_apresentacao">{{ orcamento.modo_apresentacao|default('agrupado', true)|replace('_',' ') }}</td><td data-column="valor_total">{{ orcamento.valor_total }}</td>
-                            <td data-column="acoes"><div class="action-buttons"><a href="/orcamentos/{{ orcamento.id }}" title="Ver orçamento" class="action-button view">🔍</a>{% if not orcamento_status_final %}<a href="/orcamentos/{{ orcamento.id }}/editar" title="Editar orçamento" class="action-button edit">✎</a>{% if orcamento.origem == 'gerador' %}<a href="/orcamentos/{{ orcamento.id }}/gerador/revisao" title="Editar dados do Gerador" class="action-button generator">⚙</a>{% endif %}<form action="/orcamentos/{{ orcamento.id }}/excluir" method="post" onsubmit="return confirm('Tem certeza que deseja excluir este orçamento?');" class="action-form"><button type="submit" title="Excluir orçamento" class="action-button delete">×</button></form>{% endif %}<div class="budget-action-menu"><button type="button" class="gf-action-dialog-trigger" title="Mais ações do orçamento" data-gf-action-dialog="orcamento-acoes-{{ orcamento.id }}">⌄</button><dialog class="gf-action-dialog" id="orcamento-acoes-{{ orcamento.id }}"><div class="gf-action-dialog-card"><div class="gf-action-dialog-header"><div><h3>Ações do orçamento</h3><p>{{ orcamento.numero or ('Orçamento ' ~ orcamento.id) }}</p></div><button type="button" class="gf-action-dialog-close" data-gf-action-dialog-close>×</button></div><div class="gf-action-dialog-actions"><button type="button" data-gf-print-url="/orcamentos/{{ orcamento.id }}/imprimir/a4">🖨 Imprimir A4</button><button type="button" data-gf-print-url="/orcamentos/{{ orcamento.id }}/imprimir/cupom">🧾 Imprimir Cupom</button><a href="/whatsapp/pdf/orcamento/{{ orcamento.id }}">📲 Enviar PDF por WhatsApp</a><a href="/orcamentos/{{ orcamento.id }}/gerar/copia">↻ Gerar cópia</a>{% if orcamento.venda_gerada_id %}<a href="/vendas/{{ orcamento.venda_gerada_id }}">✓ Abrir venda gerada</a>{% else %}<span class="gf-action-dialog-disabled">🛒 A Venda será gerada ao finalizar</span>{% endif %}<a href="/orcamentos/{{ orcamento.id }}?gerar=os">🛠 Gerar OS</a></div></div></dialog></div></div></td>
+                            <td data-column="acoes"><div class="action-buttons"><a href="/orcamentos/{{ orcamento.id }}" title="Ver orçamento" class="action-button view">🔍</a><a href="/orcamentos/{{ orcamento.id }}/editar" title="Editar orçamento" class="action-button edit">✎</a>{% if orcamento.origem == 'gerador' %}<a href="/orcamentos/{{ orcamento.id }}/gerador/revisao" title="Editar dados do Gerador" class="action-button generator">⚙</a>{% endif %}<form action="/orcamentos/{{ orcamento.id }}/excluir" method="post" onsubmit="return confirm('Tem certeza que deseja excluir este orçamento? A Venda vinculada, se existir, será mantida.');" class="action-form"><button type="submit" title="Excluir orçamento" class="action-button delete">×</button></form><div class="budget-action-menu"><button type="button" class="gf-action-dialog-trigger" title="Mais ações do orçamento" data-gf-action-dialog="orcamento-acoes-{{ orcamento.id }}">⌄</button><dialog class="gf-action-dialog" id="orcamento-acoes-{{ orcamento.id }}"><div class="gf-action-dialog-card"><div class="gf-action-dialog-header"><div><h3>Ações do orçamento</h3><p>{{ orcamento.numero or ('Orçamento ' ~ orcamento.id) }}</p></div><button type="button" class="gf-action-dialog-close" data-gf-action-dialog-close>×</button></div><div class="gf-action-dialog-actions"><button type="button" data-gf-print-url="/orcamentos/{{ orcamento.id }}/imprimir/a4">🖨 Imprimir A4</button><button type="button" data-gf-print-url="/orcamentos/{{ orcamento.id }}/imprimir/cupom">🧾 Imprimir Cupom</button><a href="/whatsapp/pdf/orcamento/{{ orcamento.id }}">📲 Enviar PDF por WhatsApp</a><a href="/orcamentos/{{ orcamento.id }}/gerar/copia">↻ Gerar cópia</a>{% if orcamento.venda_gerada_id %}<a href="/vendas/{{ orcamento.venda_gerada_id }}">✓ Abrir venda gerada</a>{% else %}<span class="gf-action-dialog-disabled">🛒 A Venda será gerada ao finalizar</span>{% endif %}<a href="/orcamentos/{{ orcamento.id }}?gerar=os">🛠 Gerar OS</a></div></div></dialog></div></div></td>
                         </tr>{% endfor %}{% else %}<tr><td colspan="14" class="empty-table empty-table-box"><div class="empty-table-content"><div class="empty-table-icon">▣</div><strong>Nenhum orçamento encontrado.</strong><span>Revise os filtros ou cadastre um novo orçamento.</span></div></td></tr>{% endif %}
                     </tbody>
                 </table>
@@ -1252,8 +1251,8 @@ Motivo: Redirecionar a finalização do Orçamento para a edição da Venda rec�
                         if (finaliza) {
                             const confirmou = window.confirm(
                                 'Finalizar este orçamento como "' + nome + '"?\n\n' +
-                                'Essa ação irá gerar a Venda e bloquear a composição do orçamento. ' +
-                                'Depois de finalizado, o orçamento não poderá voltar para outro status.'
+                                'Essa ação irá gerar a Venda caso ainda não exista uma vinculada. ' +
+                                'Depois, o status poderá ser alterado novamente sem criar outra Venda.'
                             );
                             if (!confirmou) {
                                 campo.value = statusAnterior;
