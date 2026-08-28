@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\ordem_servico_editar.html
 Último recode: 2026-08-28 16:13 (America/Bahia)
-Motivo: Transformar o registro da execução em diário de trabalho simples, com data, equipe, atividades, progresso e conclusão de 100% usando um único botão Salvar alterações.
+Motivo: Simplificar visualmente o andamento do diário da OS com percentuais pré-definidos e conclusão em opções simples, mantendo um único botão Salvar alterações.
 #}
 
 <!DOCTYPE html>
@@ -1401,91 +1401,102 @@ Motivo: Transformar o registro da execução em diário de trabalho simples, com
         .os-day-progress-card {
             margin-top: 4px;
             padding: 16px;
-            border: 1px solid #bfdbfe;
+            border: 1px solid #dbe5f1;
             border-radius: 14px;
+            background: #f8fafc;
+        }
+
+        .os-day-progress-options {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 8px;
+            margin-top: 14px;
+        }
+
+        .os-day-progress-option {
+            min-height: 44px;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            background: #ffffff;
+            color: #334155;
+            cursor: pointer;
+            font: inherit;
+            font-size: 13px;
+            font-weight: 900;
+            transition: border-color .15s ease, background .15s ease, color .15s ease;
+        }
+
+        .os-day-progress-option:hover {
+            border-color: #93c5fd;
             background: #eff6ff;
         }
 
-        .os-day-progress-heading > strong {
-            color: #0f62fe;
-            font-size: 24px;
-            font-weight: 950;
+        .os-day-progress-option.is-selected {
+            border-color: #0f62fe;
+            background: #0f62fe;
+            color: #ffffff;
         }
 
-        .os-day-progress-range {
-            width: 100%;
-            margin: 16px 0 4px;
-            accent-color: #0f62fe;
-        }
-
-        .os-day-progress-scale {
-            display: flex;
-            justify-content: space-between;
-            color: #64748b;
-            font-size: 10px;
-            font-weight: 800;
+        .os-day-progress-option:focus-visible {
+            outline: 3px solid rgba(15, 98, 254, .18);
+            outline-offset: 2px;
         }
 
         .os-day-finish {
             margin: 16px 0 0;
-            padding: 16px;
-            border: 1px solid #dbe5f1;
-            border-radius: 14px;
+            padding: 14px 0 0;
+            border: 0;
+            border-top: 1px solid #e2e8f0;
         }
 
         .os-day-finish legend {
-            padding: 0 6px;
+            padding: 0;
             color: #0f172a;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 950;
         }
 
-        .os-day-finish > p {
-            margin: 0 0 12px;
-            color: #64748b;
-            font-size: 12px;
-        }
-
         .os-day-finish-options {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px 24px;
+            margin-top: 10px;
         }
 
         .os-day-finish-option {
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
-            padding: 13px;
-            border: 2px solid #e2e8f0;
-            border-radius: 12px;
-            background: #ffffff;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0;
+            border: 0;
+            background: transparent;
+            color: #334155;
             cursor: pointer;
         }
 
-        .os-day-finish-option.is-selected {
-            border-color: #0f62fe;
-            background: #eff6ff;
+        .os-day-finish-option.is-selected strong {
+            color: #0f62fe;
         }
 
         .os-day-finish-option input {
-            margin-top: 2px;
-        }
-
-        .os-day-finish-option strong,
-        .os-day-finish-option small {
-            display: block;
+            width: 16px;
+            height: 16px;
+            margin: 0;
+            accent-color: #0f62fe;
         }
 
         .os-day-finish-option strong {
-            color: #0f172a;
-            font-size: 13px;
+            color: #334155;
+            font-size: 12px;
+            font-weight: 850;
         }
 
-        .os-day-finish-option small {
-            margin-top: 4px;
+        .os-day-finish-help {
+            margin: 10px 0 0;
             color: #64748b;
             font-size: 11px;
+            line-height: 1.4;
         }
 
         .os-single-save-actions {
@@ -1642,9 +1653,13 @@ Motivo: Transformar o registro da execução em diário de trabalho simples, com
 
             .os-execution-actions,
             .os-day-intro,
-            .os-day-grid,
-            .os-day-finish-options {
+            .os-day-grid {
                 grid-template-columns: 1fr;
+            }
+
+            .os-day-progress-options {
+                grid-template-columns: repeat(5, minmax(52px, 1fr));
+                overflow-x: auto;
             }
 
             .os-day-card-title,
@@ -2075,48 +2090,39 @@ Motivo: Transformar o registro da execução em diário de trabalho simples, com
                         <div class="os-day-progress-card">
                             <div class="os-day-progress-heading">
                                 <div>
-                                    <h5>Quanto do serviço já foi concluído?</h5>
-                                    <p>Use uma estimativa simples do andamento total da OS.</p>
+                                    <h5>Andamento de hoje</h5>
+                                    <p>Quanto do serviço já foi concluído? Escolha a opção mais próxima.</p>
                                 </div>
-                                <strong data-registro-progresso-valor>{{ progresso_registro_padrao|default(0) }}%</strong>
                             </div>
                             <input
                                 id="registro_dia_progresso"
                                 name="registro_dia_progresso"
-                                type="range"
-                                min="0"
-                                max="100"
-                                step="5"
+                                type="hidden"
                                 value="{{ progresso_registro_padrao|default(0) }}"
-                                class="os-day-progress-range"
                             >
-                            <div class="os-day-progress-scale">
-                                <span>0%</span>
-                                <span>50%</span>
-                                <span>100%</span>
+                            <div class="os-day-progress-options" role="group" aria-label="Andamento total da OS">
+                                <button type="button" class="os-day-progress-option" data-registro-progresso-opcao data-progresso-valor="0">0%</button>
+                                <button type="button" class="os-day-progress-option" data-registro-progresso-opcao data-progresso-valor="25">25%</button>
+                                <button type="button" class="os-day-progress-option" data-registro-progresso-opcao data-progresso-valor="50">50%</button>
+                                <button type="button" class="os-day-progress-option" data-registro-progresso-opcao data-progresso-valor="75">75%</button>
+                                <button type="button" class="os-day-progress-option" data-registro-progresso-opcao data-progresso-valor="100">100%</button>
                             </div>
-                        </div>
 
-                        <fieldset class="os-day-finish">
-                            <legend>O serviço terminou 100%?</legend>
-                            <p>Escolha <strong>Sim</strong> somente quando não houver mais nada para executar nesta OS.</p>
-                            <div class="os-day-finish-options">
-                                <label class="os-day-finish-option is-selected" data-registro-conclusao-opcao>
-                                    <input type="radio" name="registro_dia_concluido" value="nao" checked>
-                                    <span>
-                                        <strong>Não, o serviço continua</strong>
-                                        <small>A OS permanece em andamento.</small>
-                                    </span>
-                                </label>
-                                <label class="os-day-finish-option" data-registro-conclusao-opcao>
-                                    <input type="radio" name="registro_dia_concluido" value="sim">
-                                    <span>
-                                        <strong>Sim, terminou 100%</strong>
-                                        <small>Ao salvar, a OS será concluída.</small>
-                                    </span>
-                                </label>
-                            </div>
-                        </fieldset>
+                            <fieldset class="os-day-finish">
+                                <legend>O serviço terminou hoje?</legend>
+                                <div class="os-day-finish-options">
+                                    <label class="os-day-finish-option is-selected" data-registro-conclusao-opcao>
+                                        <input type="radio" name="registro_dia_concluido" value="nao" checked>
+                                        <strong>Não, ainda falta serviço</strong>
+                                    </label>
+                                    <label class="os-day-finish-option" data-registro-conclusao-opcao>
+                                        <input type="radio" name="registro_dia_concluido" value="sim">
+                                        <strong>Sim, foi concluído</strong>
+                                    </label>
+                                </div>
+                                <p class="os-day-finish-help">Ao marcar “Sim”, o andamento vai para 100% e a OS será concluída quando você usar Salvar alterações.</p>
+                            </fieldset>
+                        </div>
                     </div>
 
                     <div class="form-actions os-single-save-actions">
@@ -2228,14 +2234,19 @@ Motivo: Transformar o registro da execução em diário de trabalho simples, com
                 const listaEquipe = document.querySelector("[data-registro-equipe-lista]");
                 const templateEquipe = document.getElementById("template-registro-equipe");
                 const progresso = document.getElementById("registro_dia_progresso");
-                const progressoValor = document.querySelector("[data-registro-progresso-valor]");
+                const opcoesProgresso = document.querySelectorAll("[data-registro-progresso-opcao]");
                 const opcoesConclusao = document.querySelectorAll("[data-registro-conclusao-opcao]");
                 const radioNao = formulario ? formulario.querySelector('input[name="registro_dia_concluido"][value="nao"]') : null;
                 const radioSim = formulario ? formulario.querySelector('input[name="registro_dia_concluido"][value="sim"]') : null;
 
-                function atualizarProgresso() {
-                    if (!progresso || !progressoValor) return;
-                    progressoValor.textContent = String(progresso.value || "0") + "%";
+                function atualizarProgressoVisual() {
+                    if (!progresso) return;
+                    const atual = String(progresso.value || "0");
+                    opcoesProgresso.forEach(function(opcao) {
+                        const selecionado = String(opcao.dataset.progressoValor || "") === atual;
+                        opcao.classList.toggle("is-selected", selecionado);
+                        opcao.setAttribute("aria-pressed", selecionado ? "true" : "false");
+                    });
                 }
 
                 function atualizarConclusaoVisual() {
@@ -2246,11 +2257,10 @@ Motivo: Transformar o registro da execução em diário de trabalho simples, com
 
                     if (radioSim && radioSim.checked && progresso) {
                         progresso.value = "100";
-                        atualizarProgresso();
                     } else if (radioNao && radioNao.checked && progresso && Number(progresso.value || 0) >= 100) {
-                        progresso.value = "95";
-                        atualizarProgresso();
+                        progresso.value = "75";
                     }
+                    atualizarProgressoVisual();
                 }
 
                 document.addEventListener("click", function(evento) {
@@ -2277,17 +2287,18 @@ Motivo: Transformar o registro da execução em diário de trabalho simples, com
                     }
                 });
 
-                if (progresso) {
-                    progresso.addEventListener("input", function() {
+                opcoesProgresso.forEach(function(opcao) {
+                    opcao.addEventListener("click", function() {
+                        if (!progresso) return;
+                        progresso.value = String(opcao.dataset.progressoValor || "0");
                         if (Number(progresso.value || 0) >= 100 && radioSim) {
                             radioSim.checked = true;
                         } else if (radioNao) {
                             radioNao.checked = true;
                         }
-                        atualizarProgresso();
                         atualizarConclusaoVisual();
                     });
-                }
+                });
 
                 opcoesConclusao.forEach(function(opcao) {
                     opcao.addEventListener("change", atualizarConclusaoVisual);
@@ -2343,7 +2354,7 @@ Motivo: Transformar o registro da execução em diário de trabalho simples, com
                     });
                 }
 
-                atualizarProgresso();
+                atualizarProgressoVisual();
                 atualizarConclusaoVisual();
             });
         </script>
