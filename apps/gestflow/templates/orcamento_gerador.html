@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\orcamento_gerador.html
-Último recode: 2026-08-25 09:32 (America/Bahia)
-Motivo: Tornar a busca de materiais digitável e incluir quantidade comercial por atividade no Gerador de Orçamentos, preservando o custo técnico total.
+Último recode: 2026-08-27 21:47 (America/Bahia)
+Motivo: Unificar a busca de material em um único campo pesquisável e aplicar a quantidade da atividade à composição visual, alinhando a DEV ao backend atualizado.
 #}
 
 <!DOCTYPE html>
@@ -1068,13 +1068,92 @@ Motivo: Tornar a busca de materiais digitável e incluir quantidade comercial po
         }
 
         .gerador-material-busca {
-            display: grid;
-            gap: 6px;
-            min-width: 210px;
+            position: relative;
+            min-width: 240px;
         }
 
         .gerador-material-filtro {
+            width: 100%;
             min-width: 0;
+            padding-right: 38px;
+            background: #ffffff;
+        }
+
+        .gerador-material-busca::after {
+            content: '⌄';
+            position: absolute;
+            top: 50%;
+            right: 13px;
+            transform: translateY(-52%);
+            color: #64748b;
+            font-size: 16px;
+            font-weight: 900;
+            pointer-events: none;
+        }
+
+        .gerador-material-dropdown {
+            position: fixed;
+            z-index: 1200;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            background: #ffffff;
+            box-shadow: 0 18px 36px rgba(15, 23, 42, 0.18);
+        }
+
+        .gerador-material-dropdown[hidden] {
+            display: none !important;
+        }
+
+        .gerador-material-opcao,
+        .gerador-material-novo,
+        .gerador-material-vazio {
+            width: 100%;
+            min-height: 42px;
+            display: flex;
+            align-items: center;
+            padding: 9px 12px;
+            border: 0;
+            border-bottom: 1px solid #eef2f7;
+            background: #ffffff;
+            color: #0f172a;
+            font: inherit;
+            text-align: left;
+        }
+
+        .gerador-material-opcao {
+            cursor: pointer;
+        }
+
+        .gerador-material-opcao:hover,
+        .gerador-material-opcao.is-active {
+            background: #f1f5f9;
+        }
+
+        .gerador-material-opcao strong {
+            display: block;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .gerador-material-novo {
+            justify-content: center;
+            border-bottom: 0;
+            background: #16a34a;
+            color: #ffffff;
+            font-size: 13px;
+            font-weight: 900;
+            cursor: pointer;
+        }
+
+        .gerador-material-novo:hover {
+            background: #15803d;
+        }
+
+        .gerador-material-vazio {
+            color: #64748b;
+            font-size: 12px;
         }
 
         .gerador-atividade-subsecao {
@@ -1785,48 +1864,135 @@ function moedaSemSimbolo(valor) {
     return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function opcoesMateriais() {
-    let html = '<option value="">Buscar material</option>';
-    materiaisCatalogo.forEach(function(item) {
-        const custo = item.preco_custo || item.preco_venda || '';
-        html += `<option value="${textoSeguro(item.nome)}" data-unidade="${textoSeguro(item.unidade || 'un')}" data-custo="${textoSeguro(custo)}">${textoSeguro(item.nome)}</option>`;
-    });
-    html += '<option value="__novo_material__" class="quick-new-option">+ Adicionar novo material</option>';
-    return html;
+function materialCatalogoPorNome(nome) {
+    const procurado = textoMaiusculoTecnico(nome || '');
+    if (!procurado) return null;
+    return materiaisCatalogo.find(item => textoMaiusculoTecnico(item.nome || '') === procurado) || null;
+}
+
+function posicionarListaMaterial(campo) {
+    const bloco = campo?.closest('.gerador-material-busca');
+    const lista = bloco?.querySelector('.gerador-material-dropdown');
+    if (!campo || !lista || lista.hidden) return;
+    const rect = campo.getBoundingClientRect();
+    lista.style.left = `${Math.max(rect.left, 8)}px`;
+    lista.style.top = `${rect.bottom + 4}px`;
+    lista.style.width = `${Math.max(rect.width, 280)}px`;
+    const limiteDireita = window.innerWidth - 8;
+    const direita = Math.max(rect.left, 8) + Math.max(rect.width, 280);
+    if (direita > limiteDireita) {
+        lista.style.left = `${Math.max(8, limiteDireita - Math.max(rect.width, 280))}px`;
+    }
+}
+
+function fecharListaMaterial(campo) {
+    const bloco = campo?.closest('.gerador-material-busca');
+    const lista = bloco?.querySelector('.gerador-material-dropdown');
+    if (lista) {
+        lista.hidden = true;
+        lista.innerHTML = '';
+    }
+    campo?.setAttribute('aria-expanded', 'false');
+}
+
+function aplicarMaterialNaLinha(linha, item) {
+    if (!linha || !item) return;
+    const campo = linha.querySelector('.gerador-material-filtro');
+    const valor = linha.querySelector('[name="material_descricao"]');
+    if (campo) campo.value = item.nome || '';
+    if (valor) valor.value = item.nome || '';
+    linha.querySelector('[name="material_unidade"]').value = item.unidade || 'un';
+    linha.querySelector('[name="material_valor_unitario"]').value = item.preco_custo || item.preco_venda || item.valor || '';
+    fecharListaMaterial(campo);
+    recalcularGerador();
+}
+
+function selecionarMaterialBusca(botao) {
+    const bloco = botao?.closest('.gerador-material-busca');
+    const linha = bloco?.closest('tr');
+    const item = materialCatalogoPorNome(botao?.dataset?.materialNome || '');
+    if (linha && item) aplicarMaterialNaLinha(linha, item);
+}
+
+function abrirNovoMaterialBusca(botao) {
+    const bloco = botao?.closest('.gerador-material-busca');
+    const campo = bloco?.querySelector('.gerador-material-filtro');
+    const linha = bloco?.closest('tr');
+    fecharListaMaterial(campo);
+    abrirModalMaterial(linha);
 }
 
 function filtrarMateriais(campo) {
     const bloco = campo?.closest('.gerador-material-busca');
-    const select = bloco?.querySelector('.material-select');
-    if (!select) return;
+    const lista = bloco?.querySelector('.gerador-material-dropdown');
+    const valor = bloco?.querySelector('[name="material_descricao"]');
+    if (!campo || !lista || !valor) return;
 
     const termo = textoMaiusculoTecnico(campo.value || '');
-    let correspondenciaExata = null;
+    if (textoMaiusculoTecnico(valor.value || '') !== termo) valor.value = '';
 
-    Array.from(select.options).forEach(function(option, indice) {
-        const sempreVisivel = indice === 0 || option.value === '__novo_material__';
-        const textoOpcao = textoMaiusculoTecnico(option.textContent || '');
-        const corresponde = sempreVisivel || !termo || textoOpcao.includes(termo);
-        option.hidden = !corresponde;
-        if (!sempreVisivel && termo && textoOpcao === termo) correspondenciaExata = option;
-    });
+    const encontrados = materiaisCatalogo
+        .filter(item => !termo || textoMaiusculoTecnico(item.nome || '').includes(termo))
+        .slice(0, 30);
 
-    if (!termo) {
-        Array.from(select.options).forEach(option => { option.hidden = false; });
+    let html = encontrados.map(function(item) {
+        return `<button type="button" class="gerador-material-opcao" data-material-nome="${textoSeguro(item.nome)}" onclick="selecionarMaterialBusca(this)"><strong>${textoSeguro(item.nome)}</strong></button>`;
+    }).join('');
+
+    if (!encontrados.length) {
+        html = '<div class="gerador-material-vazio">Nenhum material encontrado.</div>';
+    }
+
+    html += '<button type="button" class="gerador-material-novo" onclick="abrirNovoMaterialBusca(this)">+ Adicionar novo material</button>';
+    lista.innerHTML = html;
+    lista.hidden = false;
+    campo.setAttribute('aria-expanded', 'true');
+    posicionarListaMaterial(campo);
+}
+
+function confirmarMaterialDigitado(campo) {
+    const bloco = campo?.closest('.gerador-material-busca');
+    const valor = bloco?.querySelector('[name="material_descricao"]');
+    const item = materialCatalogoPorNome(campo?.value || '');
+    if (item) {
+        aplicarMaterialNaLinha(bloco.closest('tr'), item);
+        return;
+    }
+    if (valor && campo && textoMaiusculoTecnico(valor.value || '') !== textoMaiusculoTecnico(campo.value || '')) {
+        valor.value = '';
+    }
+}
+
+function navegarListaMaterial(campo, evento) {
+    const bloco = campo?.closest('.gerador-material-busca');
+    const lista = bloco?.querySelector('.gerador-material-dropdown');
+    if (!lista) return;
+
+    if (evento.key === 'Escape') {
+        fecharListaMaterial(campo);
         return;
     }
 
-    if (correspondenciaExata) {
-        select.value = correspondenciaExata.value;
-        const linha = select.closest('tr');
-        if (linha) {
-            linha.querySelector('[name="material_unidade"]').value = correspondenciaExata.dataset.unidade || 'un';
-            linha.querySelector('[name="material_valor_unitario"]').value = correspondenciaExata.dataset.custo || '';
-        }
-        recalcularGerador();
-    } else if (select.value && textoMaiusculoTecnico(select.selectedOptions[0]?.textContent || '') !== termo) {
-        select.value = '';
+    if (evento.key !== 'ArrowDown' && evento.key !== 'ArrowUp' && evento.key !== 'Enter') return;
+    if (lista.hidden) filtrarMateriais(campo);
+
+    const opcoes = Array.from(lista.querySelectorAll('.gerador-material-opcao'));
+    if (!opcoes.length) return;
+    let indice = opcoes.findIndex(opcao => opcao.classList.contains('is-active'));
+
+    if (evento.key === 'ArrowDown') indice = Math.min(indice + 1, opcoes.length - 1);
+    if (evento.key === 'ArrowUp') indice = indice <= 0 ? opcoes.length - 1 : indice - 1;
+    if (evento.key === 'Enter') {
+        evento.preventDefault();
+        const alvo = indice >= 0 ? opcoes[indice] : opcoes[0];
+        selecionarMaterialBusca(alvo);
+        return;
     }
+
+    evento.preventDefault();
+    opcoes.forEach(opcao => opcao.classList.remove('is-active'));
+    opcoes[indice].classList.add('is-active');
+    opcoes[indice].scrollIntoView({ block: 'nearest' });
 }
 
 function opcoesFuncionarios() {
@@ -2012,7 +2178,7 @@ function adicionarAtividade(dados = {}, expandir = true) {
                 </span>
             </button>
             <div class="gerador-atividade-acoes">
-                <div class="gerador-atividade-custo"><span>Custo da atividade</span><strong class="atividade-total">R$ 0,00</strong></div>
+                <div class="gerador-atividade-custo"><span>Custo total da atividade</span><strong class="atividade-total">R$ 0,00</strong></div>
                 <button type="button" class="gerador-atividade-btn" onclick="duplicarAtividade(this)">Duplicar</button>
                 <button type="button" class="gerador-atividade-btn excluir" onclick="removerAtividade(this)">Excluir</button>
                 <button type="button" class="gerador-atividade-btn gerador-atividade-chevron" onclick="alternarAtividade(this)" aria-label="Abrir ou fechar atividade">⌄</button>
@@ -2034,7 +2200,7 @@ function adicionarAtividade(dados = {}, expandir = true) {
                 <div class="form-group gerador-atividade-quantidade">
                     <label>Qtd.</label>
                     <input name="atividade_quantidade" type="text" inputmode="decimal" class="form-control atividade-quantidade" value="${textoSeguro(dados.quantidade || '1')}" aria-label="Quantidade comercial da atividade">
-                    <small>Quantidade exibida na proposta.</small>
+                    <small>Multiplica toda a composição e aparece na proposta.</small>
                 </div>
             </div>
 
@@ -2163,8 +2329,9 @@ function adicionarMaterial(dados = {}, atividadeId = '') {
         <td data-label="Material">
             <input name="material_atividade_id" type="hidden" value="${textoSeguro(id)}">
             <div class="gerador-material-busca">
-                <input type="search" class="form-control gerador-material-filtro" placeholder="Digite para buscar material" autocomplete="off" aria-label="Buscar material" oninput="filtrarMateriais(this)">
-                <select name="material_descricao" class="form-control gerador-input material-select">${opcoesMateriais()}</select>
+                <input type="search" class="form-control gerador-input gerador-material-filtro" placeholder="Digite para buscar material" autocomplete="off" aria-label="Buscar material" aria-autocomplete="list" aria-expanded="false" value="${textoSeguro(dados.descricao || '')}">
+                <input type="hidden" name="material_descricao" value="${textoSeguro(dados.descricao || '')}">
+                <div class="gerador-material-dropdown" role="listbox" hidden></div>
             </div>
         </td>
         <td data-label="Unidade"><input name="material_unidade" type="text" class="form-control gerador-input" value="${textoSeguro(dados.unidade || 'un')}"></td>
@@ -2175,16 +2342,6 @@ function adicionarMaterial(dados = {}, atividadeId = '') {
         <td data-label="Ação" class="gerador-action-cell"><button type="button" class="gerador-remove" onclick="removerLinha(this)" aria-label="Excluir material">×</button></td>
     `;
     body.appendChild(tr);
-    if (dados.descricao) {
-        const select = tr.querySelector('.material-select');
-        if (!Array.from(select.options).some(option => option.value === dados.descricao)) {
-            const option = document.createElement('option');
-            option.value = dados.descricao;
-            option.textContent = dados.descricao;
-            select.insertBefore(option, select.lastElementChild);
-        }
-        select.value = dados.descricao;
-    }
     conectarEventosGerador(tr);
     recalcularGerador();
 }
@@ -2554,8 +2711,7 @@ function textoMaiusculoTecnico(valor) {
 function listaMateriaisEscopo() {
     return Array.from(document.querySelectorAll('.gerador-material-row'))
         .map(function(tr) {
-            const select = tr.querySelector('.material-select');
-            const descricao = select?.value || '';
+            const descricao = tr.querySelector('[name="material_descricao"]')?.value || '';
             if (!descricao || descricao.startsWith('__novo')) return '';
             const qtd = tr.querySelector('[name="material_quantidade"]')?.value || '';
             const unidade = tr.querySelector('[name="material_unidade"]')?.value || '';
@@ -2695,22 +2851,15 @@ function conectarEventosGerador(raiz) {
         input.addEventListener('input', recalcularGerador);
         input.addEventListener('change', recalcularGerador);
     });
-    raiz.querySelectorAll('.material-select').forEach(function(select) {
-        select.addEventListener('change', function() {
-            const linha = select.closest('tr');
-            if (select.value === '__novo_material__') {
-                abrirModalMaterial(linha);
-                select.value = '';
-                return;
-            }
-            const option = select.selectedOptions[0];
-            if (option) {
-                linha.querySelector('[name="material_unidade"]').value = option.dataset.unidade || 'un';
-                linha.querySelector('[name="material_valor_unitario"]').value = option.dataset.custo || '';
-                const filtro = linha.querySelector('.gerador-material-filtro');
-                if (filtro && select.value) filtro.value = option.textContent || select.value;
-            }
-            recalcularGerador();
+    raiz.querySelectorAll('.gerador-material-filtro').forEach(function(campo) {
+        campo.addEventListener('focus', function() { filtrarMateriais(campo); });
+        campo.addEventListener('input', function() { filtrarMateriais(campo); });
+        campo.addEventListener('keydown', function(evento) { navegarListaMaterial(campo, evento); });
+        campo.addEventListener('blur', function() {
+            setTimeout(function() {
+                confirmarMaterialDigitado(campo);
+                fecharListaMaterial(campo);
+            }, 160);
         });
     });
     raiz.querySelectorAll('.mao-select, .mao-unidade').forEach(function(campo) {
@@ -2741,14 +2890,25 @@ function recalcularGerador() {
     let custoAdicional = 0;
     let custoGeral = 0;
     const totaisAtividades = new Map();
+    const quantidadesAtividades = new Map();
 
     document.querySelectorAll('.gerador-atividade-card').forEach(function(card) {
-        totaisAtividades.set(card.dataset.atividadeId || '', 0);
+        const atividadeId = card.dataset.atividadeId || '';
+        const quantidade = Math.max(numero(card.querySelector('[name="atividade_quantidade"]')?.value) || 1, 0.01);
+        totaisAtividades.set(atividadeId, 0);
+        quantidadesAtividades.set(atividadeId, quantidade);
     });
 
-    const somarAtividade = function(atividadeId, valor) {
-        if (!atividadeId || !totaisAtividades.has(atividadeId)) return;
-        totaisAtividades.set(atividadeId, (totaisAtividades.get(atividadeId) || 0) + valor);
+    const multiplicadorAtividade = function(atividadeId) {
+        if (!atividadeId) return 1;
+        return quantidadesAtividades.get(atividadeId) || 1;
+    };
+
+    const somarAtividade = function(atividadeId, valorUnitario) {
+        if (!atividadeId || !totaisAtividades.has(atividadeId)) return 0;
+        const valorTotal = valorUnitario * multiplicadorAtividade(atividadeId);
+        totaisAtividades.set(atividadeId, (totaisAtividades.get(atividadeId) || 0) + valorTotal);
+        return valorTotal;
     };
 
     document.querySelectorAll('.gerador-material-row').forEach(function(tr) {
@@ -2757,8 +2917,8 @@ function recalcularGerador() {
         const perda = numero(tr.querySelector('[name="material_perda_percentual"]')?.value);
         const total = qtd * unit * (1 + perda / 100);
         const atividadeId = tr.querySelector('[name="material_atividade_id"]')?.value || '';
-        custoMaterial += total;
-        somarAtividade(atividadeId, total);
+        const totalAtividade = somarAtividade(atividadeId, total);
+        custoMaterial += atividadeId ? totalAtividade : total;
         const totalEl = tr.querySelector('.linha-total');
         if (totalEl) totalEl.textContent = moeda(total);
     });
@@ -2776,8 +2936,8 @@ function recalcularGerador() {
         const custoTransporte = pessoas * diasEstimados * transporteDia;
         const total = custoBase + custoAlimentacao + custoTransporte;
         const atividadeId = tr.querySelector('[name="mao_atividade_id"]')?.value || '';
-        custoMao += total;
-        somarAtividade(atividadeId, total);
+        const totalAtividade = somarAtividade(atividadeId, total);
+        custoMao += atividadeId ? totalAtividade : total;
         const totalEl = tr.querySelector('.linha-total');
         if (totalEl) totalEl.textContent = moeda(total);
     });
@@ -2785,16 +2945,19 @@ function recalcularGerador() {
     document.querySelectorAll('.adicional-mao-obra-card').forEach(function(card) {
         const total = calcularAdicionalMaoObra(card);
         const atividadeId = card.querySelector('[name="adicional_atividade_id"]')?.value || '';
-        custoAdicionaisMao += total;
-        somarAtividade(atividadeId, total);
+        const totalAtividade = somarAtividade(atividadeId, total);
+        custoAdicionaisMao += atividadeId ? totalAtividade : total;
     });
 
     document.querySelectorAll('.gerador-custo-row').forEach(function(tr) {
         const valor = numero(tr.querySelector('[name="custo_valor"]')?.value);
         const atividadeId = tr.querySelector('[name="custo_atividade_id"]')?.value || '';
-        custoAdicional += valor;
-        if (atividadeId) somarAtividade(atividadeId, valor);
-        else custoGeral += valor;
+        if (atividadeId) {
+            custoAdicional += somarAtividade(atividadeId, valor);
+        } else {
+            custoAdicional += valor;
+            custoGeral += valor;
+        }
     });
 
     document.querySelectorAll('.gerador-atividade-card').forEach(function(card) {
@@ -3034,23 +3197,7 @@ function salvarMaterialRapido() {
         .then(r => r.json().then(p => { if (!r.ok || !p.ok) throw new Error(p.erro || 'Erro ao salvar material.'); return p.item || p.produto; }))
         .then(item => {
             materiaisCatalogo.push(item);
-            document.querySelectorAll('.material-select').forEach(function(select) {
-                const opt = document.createElement('option');
-                opt.value = item.nome;
-                opt.textContent = item.nome;
-                opt.dataset.unidade = item.unidade || 'un';
-                opt.dataset.custo = item.preco_custo || item.preco_venda || item.valor || '';
-                const novo = Array.from(select.options).find(o => o.value === '__novo_material__');
-                select.insertBefore(opt, novo);
-            });
-            if (materialLinhaAlvo) {
-                const select = materialLinhaAlvo.querySelector('.material-select');
-                select.value = item.nome;
-                const filtro = materialLinhaAlvo.querySelector('.gerador-material-filtro');
-                if (filtro) filtro.value = item.nome;
-                materialLinhaAlvo.querySelector('[name="material_unidade"]').value = item.unidade || 'un';
-                materialLinhaAlvo.querySelector('[name="material_valor_unitario"]').value = item.preco_custo || item.preco_venda || item.valor || '';
-            }
+            if (materialLinhaAlvo) aplicarMaterialNaLinha(materialLinhaAlvo, item);
             fecharModalMaterial();
             recalcularGerador();
         })
