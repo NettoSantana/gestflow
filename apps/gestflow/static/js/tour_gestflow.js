@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\static\js\tour_gestflow.js
-Último recode: 2026-08-22 12:37 (America/Bahia)
-Motivo: Simplificar o tutorial inicial para mostrar somente o próximo passo útil e levar o usuário diretamente à primeira missão, sem apresentar o sistema inteiro de uma vez.
+Último recode: 2026-08-27 23:12 (America/Bahia)
+Motivo: Corrigir o cancelamento do tutorial para não tratar o PointerEvent do clique como URL de redirecionamento.
 */
 
 (function () {
@@ -104,7 +104,9 @@ Motivo: Simplificar o tutorial inicial para mostrar somente o próximo passo út
                     <button type="button" class="gestflow-tour-next">${passo.botao || 'Continuar'}</button>
                 </div>
             `;
-            balao.querySelector('.gestflow-tour-cancel').addEventListener('click', finalizarTour);
+            balao.querySelector('.gestflow-tour-cancel').addEventListener('click', function () {
+                finalizarTour();
+            });
             balao.querySelector('.gestflow-tour-next').addEventListener('click', function () {
                 if (passo.acaoUrl) {
                     finalizarTour(passo.acaoUrl);
@@ -134,7 +136,7 @@ Motivo: Simplificar o tutorial inicial para mostrar somente o próximo passo út
         overlay.remove();
         destaque.remove();
         balao.remove();
-        if (destino) window.location.href = destino;
+        if (typeof destino === 'string' && destino) window.location.href = destino;
     }
 
     document.addEventListener('keydown', function (event) {
