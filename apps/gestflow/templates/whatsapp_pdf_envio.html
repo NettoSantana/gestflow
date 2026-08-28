@@ -1,0 +1,52 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\whatsapp_pdf_envio.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GestFlow - Enviar PDF pelo WhatsApp</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .whatsapp-pdf-page{padding-bottom:60px}.whatsapp-pdf-panel{max-width:820px;margin:0 auto;background:#fff;border:1px solid #dbe4f0;border-radius:18px;padding:24px}.whatsapp-pdf-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:20px}.whatsapp-pdf-head h2{margin:4px 0 6px;color:#0f172a}.whatsapp-pdf-kicker{color:#128c7e;font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}.whatsapp-pdf-file{border:1px solid #bbf7d0;background:#f0fdf4;border-radius:14px;padding:14px;color:#166534;font-weight:800}.whatsapp-pdf-form{display:grid;gap:16px;margin-top:18px}.whatsapp-pdf-form label{display:grid;gap:7px;color:#0f172a;font-weight:800}.whatsapp-pdf-form input,.whatsapp-pdf-form textarea{width:100%;border:1px solid #cbd5e1;border-radius:12px;padding:12px;font:inherit;background:#fff}.whatsapp-pdf-form textarea{min-height:190px;resize:vertical}.whatsapp-pdf-help{color:#64748b;font-size:13px;font-weight:600}.whatsapp-pdf-actions{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}.whatsapp-pdf-actions a,.whatsapp-pdf-actions button{border:0;border-radius:11px;padding:11px 16px;font-weight:900;text-decoration:none;cursor:pointer}.whatsapp-pdf-actions a{background:#eef2f7;color:#0f172a}.whatsapp-pdf-actions button{background:#128c7e;color:#fff}.whatsapp-pdf-error{margin-bottom:16px;border:1px solid #fecaca;background:#fef2f2;color:#b91c1c;border-radius:12px;padding:12px;font-weight:800}@media(max-width:720px){.whatsapp-pdf-panel{padding:16px}.whatsapp-pdf-head{flex-direction:column}.whatsapp-pdf-actions>*{width:100%;text-align:center}}
+    </style>
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+    <main class="content whatsapp-pdf-page">
+        {% set page_title = 'Enviar PDF pelo WhatsApp' %}
+        {% include "partials/topbar.html" %}
+        <section class="whatsapp-pdf-panel">
+            {% if erro %}<div class="whatsapp-pdf-error" role="alert">{{ erro }}</div>{% endif %}
+            <div class="whatsapp-pdf-head">
+                <div>
+                    <span class="whatsapp-pdf-kicker">{{ modulo_nome }}</span>
+                    <h2>Enviar {{ numero_documento }} pelo WhatsApp</h2>
+                    <p class="whatsapp-pdf-help">O GestFlow gerará um PDF real e enviará o arquivo anexado diretamente na conversa.</p>
+                </div>
+                <div class="whatsapp-pdf-file">📄 {{ nome_arquivo }}</div>
+            </div>
+            <form method="post" class="whatsapp-pdf-form">
+                <label>
+                    Telefone / WhatsApp
+                    <input type="tel" name="telefone" value="{{ telefone or '' }}" placeholder="5571999999999" autocomplete="tel" required>
+                    <span class="whatsapp-pdf-help">Informe DDI, DDD e número. Exemplo: 5571999999999.</span>
+                </label>
+                <label>
+                    Mensagem que acompanhará o PDF
+                    <textarea name="mensagem" maxlength="1024" required>{{ mensagem or '' }}</textarea>
+                    <span class="whatsapp-pdf-help">A mensagem será enviada como legenda do documento.</span>
+                </label>
+                <div class="whatsapp-pdf-actions">
+                    <a href="{{ voltar_url }}">Cancelar</a>
+                    <button type="submit">📲 Gerar e enviar PDF</button>
+                </div>
+            </form>
+        </section>
+    </main>
+</body>
+</html>

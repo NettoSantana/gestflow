@@ -1,0 +1,3339 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\ordem_servico_editar.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Editar OS</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+
+    <style>
+        .os-form-section { border: 1px solid #dbe3ef; border-radius: 12px; background: #ffffff; margin-bottom: 14px; overflow: hidden; }
+        .os-section-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: #f8fafc; border-bottom: 1px solid #e5eaf2; padding: 14px 16px; }
+        .os-section-title h3 { margin: 0; font-size: 15px; font-weight: 800; color: #0f172a; text-transform: none; }
+        .os-section-title span { color: #64748b; font-size: 12px; }
+        .os-section-body { padding: 16px; }
+        .os-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; }
+        .os-grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px 16px; }
+        .os-grid-6 { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px 16px; }
+        .os-span-2 { grid-column: span 2; }
+        .os-span-3 { grid-column: span 3; }
+        .os-span-6 { grid-column: span 6; }
+        .os-textarea { min-height: 92px; resize: vertical; }
+        .os-muted-check { display: flex; align-items: center; gap: 8px; color: #475569; font-size: 13px; }
+        .os-actions-line { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+
+        .os-equipamento-bloco {
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 14px;
+            margin-bottom: 14px;
+            background: #ffffff;
+        }
+
+        .os-equipamento-bloco-extra {
+            background: #f8fafc;
+        }
+
+        .os-equipamento-topo {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+            color: #334155;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .os-remove-equipment {
+            align-self: end;
+            width: 36px;
+            height: 36px;
+            border: none;
+            border-radius: 8px;
+            background: #ef4444;
+            color: #ffffff;
+            cursor: pointer;
+            font-weight: 800;
+        }
+
+        @media (max-width: 1100px) { .os-grid-6, .os-grid-4, .os-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .os-span-6, .os-span-3, .os-span-2 { grid-column: span 2; } }
+        @media (max-width: 720px) { .os-grid-6, .os-grid-4, .os-grid-2 { grid-template-columns: 1fr; } .os-span-6, .os-span-3, .os-span-2 { grid-column: span 1; } }
+
+        .quick-modal-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 10000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: rgba(15, 23, 42, 0.45);
+        }
+
+        .quick-modal-backdrop.open {
+            display: flex;
+        }
+
+        .quick-modal {
+            width: min(460px, 100%);
+            background: #ffffff;
+            border-radius: 18px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+            padding: 18px;
+        }
+
+        .quick-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .quick-modal-header h3 {
+            margin: 0;
+            font-size: 18px;
+            color: #0f172a;
+        }
+
+        .quick-modal-header p {
+            margin: 4px 0 0;
+            color: #64748b;
+            font-size: 13px;
+        }
+
+        .quick-modal-close {
+            width: 34px;
+            height: 34px;
+            border: 0;
+            border-radius: 10px;
+            background: #f1f5f9;
+            color: #0f172a;
+            cursor: pointer;
+            font-weight: 800;
+        }
+
+        .quick-modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 14px;
+        }
+
+        .quick-modal-error {
+            display: none;
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 10px;
+            background: #fef2f2;
+            color: #991b1b;
+            font-weight: 700;
+            font-size: 13px;
+        }
+
+        .quick-modal-error.show {
+            display: block;
+        }
+
+        .quick-new-option {
+            font-weight: 800;
+            color: #16a34a;
+        }
+
+
+        .gestflow-form-error {
+            display: none;
+            margin: 12px 0;
+            padding: 12px 14px;
+            border-radius: 10px;
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+            font-weight: 700;
+            font-size: 13px;
+        }
+
+        .gestflow-form-error.show {
+            display: block;
+        }
+
+        .gestflow-campo-invalido {
+            border-color: #dc2626 !important;
+            box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.12);
+        }
+
+
+        .os-photo-table th,
+        .os-photo-table td {
+            vertical-align: top;
+        }
+
+        .os-photo-preview {
+            width: 120px;
+            height: 86px;
+            border: 1px solid #dbe3ef;
+            border-radius: 10px;
+            object-fit: cover;
+            display: block;
+            margin-bottom: 8px;
+            background: #f8fafc;
+        }
+
+        .os-photo-remove-check {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #991b1b;
+            font-weight: 800;
+        }
+
+
+        .os-foto-equipamento-bloco {
+            margin-top: 14px;
+            border: 1px solid #dbe3ef;
+            border-radius: 12px;
+            background: #f8fafc;
+            padding: 12px;
+        }
+
+        .os-foto-equipamento-titulo {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 10px;
+            color: #334155;
+            font-size: 13px;
+            font-weight: 900;
+        }
+
+
+        .os-photo-card-list {
+            display: grid;
+            gap: 12px;
+        }
+
+        .os-photo-card-list:empty::before {
+            content: "Nenhuma foto adicionada.";
+            display: block;
+            padding: 16px;
+            border: 1px dashed #cbd5e1;
+            border-radius: 12px;
+            background: #ffffff;
+            color: #64748b;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        .os-photo-card {
+            position: relative;
+            display: grid;
+            grid-template-columns: 150px minmax(0, 1fr) auto;
+            gap: 14px;
+            align-items: start;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            background: #ffffff;
+            padding: 12px;
+        }
+
+        .os-photo-card[hidden] {
+            display: none;
+        }
+
+        .os-photo-card-preview {
+            width: 150px;
+            height: 118px;
+            border: 1px solid #dbe3ef;
+            border-radius: 12px;
+            object-fit: cover;
+            background: #f8fafc;
+        }
+
+        .os-photo-card-preview[hidden] {
+            display: none;
+        }
+
+        .os-photo-card-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 150px;
+            height: 118px;
+            border: 1px dashed #cbd5e1;
+            border-radius: 12px;
+            background: #f8fafc;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 800;
+            text-align: center;
+            padding: 10px;
+        }
+
+        .os-photo-card-placeholder[hidden] {
+            display: none;
+        }
+
+        .os-photo-card-fields {
+            display: grid;
+            grid-template-columns: 150px minmax(0, 1fr);
+            gap: 10px 12px;
+            min-width: 0;
+        }
+
+        .os-photo-card-field {
+            min-width: 0;
+        }
+
+        .os-photo-card-field label {
+            display: block;
+            margin-bottom: 6px;
+            color: #334155;
+            font-size: 12px;
+            font-weight: 900;
+        }
+
+        .os-photo-card-observation {
+            grid-column: 1 / -1;
+        }
+
+        .os-photo-card-remove {
+            width: 36px;
+            height: 36px;
+            border: 0;
+            border-radius: 10px;
+            background: #fee2e2;
+            color: #991b1b;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: 900;
+        }
+
+        .os-photo-helper {
+            margin: 0;
+            color: #64748b;
+            font-size: 12px;
+        }
+
+        .os-foto-equipamento-titulo .btn-primary-green {
+            flex: 0 0 auto;
+        }
+
+        .os-photo-upload-status {
+            margin-top: 6px;
+            min-height: 18px;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .os-photo-upload-status.enviando { color: #1d4ed8; }
+        .os-photo-upload-status.sucesso { color: #166534; }
+        .os-photo-upload-status.erro { color: #991b1b; }
+
+        @media (max-width: 820px) {
+            .os-photo-card {
+                grid-template-columns: 110px minmax(0, 1fr) auto;
+            }
+
+            .os-photo-card-preview,
+            .os-photo-card-placeholder {
+                width: 110px;
+                height: 96px;
+            }
+
+            .os-photo-card-fields {
+                grid-template-columns: 1fr;
+            }
+
+            .os-photo-card-observation {
+                grid-column: span 1;
+            }
+        }
+
+        @media (max-width: 560px) {
+            .os-photo-card {
+                grid-template-columns: 1fr auto;
+            }
+
+            .os-photo-card-media {
+                grid-column: 1 / -1;
+            }
+
+            .os-photo-card-preview,
+            .os-photo-card-placeholder {
+                width: 100%;
+                height: 180px;
+            }
+        }
+
+
+        /* EQUIPAMENTOS DA OS - PADRAO PRODUTOS/SERVICOS */
+        .os-equipamentos-container {
+            display: grid;
+            gap: 16px;
+        }
+
+        .os-equipamento-bloco {
+            border: 1px solid #e5eaf2 !important;
+            border-radius: 16px !important;
+            background: #ffffff !important;
+            padding: 16px !important;
+            margin-bottom: 14px !important;
+            overflow: hidden;
+        }
+
+        .os-equipamento-topo {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px !important;
+            color: #0f172a !important;
+            font-size: 13px !important;
+            font-weight: 900 !important;
+            text-transform: uppercase;
+        }
+
+        .os-equipamento-topo small {
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: none;
+        }
+
+        .os-equipamentos-table-shell {
+            width: 100%;
+            max-width: 100%;
+            border: 0 !important;
+            border-radius: 14px !important;
+            background: #ffffff;
+            overflow-x: auto;
+            overflow-y: visible;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .os-equipamentos-table {
+            width: 100%;
+            min-width: 1040px;
+            border-collapse: separate !important;
+            border-spacing: 0 8px !important;
+        }
+
+        .os-equipamentos-table thead th {
+            border-bottom: 0 !important;
+            background: transparent !important;
+            color: #334155 !important;
+            font-size: 12px !important;
+            font-weight: 900 !important;
+            text-transform: uppercase;
+            padding: 8px 10px !important;
+            white-space: nowrap;
+        }
+
+        .os-equipamentos-table tbody td {
+            border-bottom: 0 !important;
+            padding: 0 6px 8px !important;
+            vertical-align: middle;
+        }
+
+        .os-equipamentos-table .form-control,
+        .os-equipamentos-table input,
+        .os-equipamentos-table select {
+            min-height: 42px;
+            width: 100%;
+            max-width: 100%;
+        }
+
+        .os-equipamento-detalhes-card {
+            margin-top: 10px;
+            border: 1px solid #e5eaf2;
+            border-radius: 14px;
+            background: #f8fafc;
+            padding: 14px;
+        }
+
+        .os-equipamento-detalhes-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px 14px;
+        }
+
+        .os-equipamento-detalhes-grid .os-detalhe-full {
+            grid-column: 1 / -1;
+        }
+
+        .os-equipamento-remover-cell {
+            width: 54px;
+            text-align: center;
+        }
+
+        @media (max-width: 900px) {
+            .os-equipamento-detalhes-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .os-equipamentos-table {
+                min-width: 920px;
+            }
+        }
+
+
+        .gf-status-select {
+            min-width: 132px;
+            max-width: 190px;
+            height: 34px;
+            padding: 0 30px 0 10px;
+            border: 1px solid var(--status-border, #cbd5e1);
+            border-radius: 999px;
+            background-color: var(--status-bg, #f1f5f9);
+            color: var(--status-text, #334155);
+            font: inherit;
+            font-size: 12px;
+            font-weight: 850;
+            cursor: pointer;
+        }
+        .gf-status-select:disabled { cursor: default; opacity: .82; }
+
+    </style>
+
+    <style>
+        /* PADRAO ESPECIFICO - EDITAR OS IGUAL EDITAR ORCAMENTO */
+        .os-page {
+            padding-bottom: 280px;
+        }
+
+        .os-page .panel.page-section,
+        .os-page .os-form-section {
+            border: 0 !important;
+            border-radius: 16px !important;
+            background: #ffffff !important;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+            margin-bottom: 18px !important;
+            overflow: visible !important;
+            padding: 18px;
+        }
+
+        .os-page .panel-header.page-header,
+        .os-page .os-section-title {
+            display: flex !important;
+            align-items: flex-start !important;
+            justify-content: space-between !important;
+            gap: 14px !important;
+            background: transparent !important;
+            border-bottom: 0 !important;
+            padding: 0 !important;
+            margin: 0 0 14px !important;
+        }
+
+        .os-page .page-kicker {
+            color: #0f62fe;
+            font-size: 12px;
+            font-weight: 900;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .os-page .page-title,
+        .os-page .os-section-title h3 {
+            margin: 0;
+            color: #0f172a;
+            font-size: 16px;
+            font-weight: 900;
+            letter-spacing: -0.01em;
+            text-transform: uppercase;
+        }
+
+        .os-page .page-header > div h3.page-title {
+            font-size: 18px;
+        }
+
+        .os-page .page-subtitle,
+        .os-page .os-section-title p {
+            margin: 6px 0 0;
+            color: #64748b;
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        .os-page .badge-info {
+            align-self: flex-start;
+            border-radius: 999px;
+            background: #eff6ff;
+            color: #0f62fe;
+            font-size: 12px;
+            font-weight: 900;
+            padding: 8px 12px;
+            white-space: nowrap;
+        }
+
+        .os-page .os-section-body {
+            padding: 0 !important;
+        }
+
+        .os-page .os-grid-6,
+        .os-page .os-grid-4,
+        .os-page .os-grid-2,
+        .os-page .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px 16px;
+            align-items: start;
+        }
+
+        .os-page .os-span-2,
+        .os-page .os-span-3,
+        .os-page .os-span-4,
+        .os-page .os-span-6 {
+            grid-column: span 2;
+        }
+
+        .os-page .form-group label {
+            color: #334155;
+            font-size: 12px;
+            font-weight: 900;
+        }
+
+        .os-page .form-control,
+        .os-page input,
+        .os-page select,
+        .os-page textarea {
+            border-radius: 10px !important;
+            max-width: 100%;
+        }
+
+        .os-page .os-textarea {
+            min-height: 84px !important;
+        }
+
+        .os-page .os-observacoes-principais {
+            min-height: 150px !important;
+            resize: vertical !important;
+        }
+
+        .os-page .os-equipamento-bloco,
+        .os-page .os-foto-equipamento-bloco {
+            border: 1px solid #e5eaf2 !important;
+            border-radius: 14px !important;
+            background: #ffffff !important;
+            box-shadow: none !important;
+            padding: 14px !important;
+            margin-bottom: 14px !important;
+        }
+
+        .os-page .os-equipamento-topo,
+        .os-page .os-foto-equipamento-titulo {
+            color: #334155 !important;
+            font-size: 12px !important;
+            font-weight: 900 !important;
+            text-transform: uppercase;
+            margin-bottom: 12px !important;
+        }
+
+        .os-page .table-shell {
+            border: 0 !important;
+            border-radius: 16px !important;
+            background: #ffffff;
+            overflow-x: auto;
+        }
+
+        .os-page table.client-table {
+            width: 100%;
+            min-width: 900px;
+            border-collapse: separate !important;
+            border-spacing: 0 8px !important;
+        }
+
+        .os-page table.client-table thead th {
+            border-bottom: 0 !important;
+            background: transparent !important;
+            color: #334155 !important;
+            font-size: 12px !important;
+            font-weight: 900 !important;
+            text-transform: uppercase;
+            padding: 10px 12px !important;
+            white-space: nowrap;
+        }
+
+        .os-page table.client-table tbody tr {
+            background: #ffffff !important;
+            box-shadow: none !important;
+        }
+
+        .os-page table.client-table tbody td {
+            border-bottom: 0 !important;
+            padding: 8px 10px !important;
+            vertical-align: middle;
+        }
+
+        .os-page table.client-table .form-control {
+            min-height: 38px;
+        }
+
+        .os-page .btn-primary-green,
+        .os-page .btn-dark,
+        .os-page .btn-light,
+        .os-page .action-button {
+            border-radius: 10px !important;
+            text-decoration: none;
+        }
+
+        .os-page .form-actions,
+        .os-page .os-actions-line,
+        .os-page .client-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .os-page .os-actions-line {
+            justify-content: flex-start;
+        }
+
+        .os-page .os-muted-check {
+            margin-bottom: 14px;
+        }
+
+        .os-page .os-remove-equipment {
+            border-radius: 10px;
+        }
+
+        @media (max-width: 900px) {
+            .os-page .os-grid-6,
+            .os-page .os-grid-4,
+            .os-page .os-grid-2,
+            .os-page .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .os-page .os-span-2,
+            .os-page .os-span-3,
+            .os-page .os-span-4,
+            .os-page .os-span-6 {
+                grid-column: span 1;
+            }
+
+            .os-page .panel-header.page-header,
+            .os-page .os-section-title {
+                flex-direction: column;
+                align-items: stretch !important;
+            }
+        }
+    </style>
+
+
+    <style>
+        /* GERENCIAMENTO INTERNO DOS ACOMPANHAMENTOS DIARIOS */
+        .os-acompanhamento-alert {
+            margin: 0 0 14px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .os-acompanhamento-alert-success {
+            border: 1px solid #bbf7d0;
+            background: #f0fdf4;
+            color: #166534;
+        }
+
+        .os-acompanhamento-alert-error {
+            border: 1px solid #fecaca;
+            background: #fef2f2;
+            color: #991b1b;
+        }
+
+        .os-acompanhamentos-list {
+            display: grid;
+            gap: 14px;
+        }
+
+        .os-acompanhamento-card {
+            border: 1px solid #dbe3ef;
+            border-radius: 14px;
+            background: #ffffff;
+            overflow: hidden;
+        }
+
+        .os-acompanhamento-card > summary {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            padding: 14px 16px;
+            cursor: pointer;
+            list-style: none;
+            background: #f8fafc;
+        }
+
+        .os-acompanhamento-card > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .os-acompanhamento-resumo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .os-acompanhamento-resumo strong {
+            display: block;
+            color: #0f172a;
+            font-size: 14px;
+        }
+
+        .os-acompanhamento-resumo span {
+            display: block;
+            margin-top: 3px;
+            color: #64748b;
+            font-size: 12px;
+        }
+
+        .os-acompanhamento-status {
+            flex: 0 0 auto;
+            border-radius: 999px;
+            padding: 7px 10px;
+            font-size: 11px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .os-acompanhamento-status.status-aberto {
+            background: #eff6ff;
+            color: #1d4ed8;
+        }
+
+        .os-acompanhamento-status.status-registrado {
+            background: #fff7ed;
+            color: #c2410c;
+        }
+
+        .os-acompanhamento-status.status-finalizado {
+            background: #f0fdf4;
+            color: #166534;
+        }
+
+        .os-acompanhamento-form {
+            padding: 16px;
+            border-top: 1px solid #e5eaf2;
+        }
+
+        .os-acompanhamento-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px 16px;
+        }
+
+        .os-acompanhamento-span-2 {
+            grid-column: span 2;
+        }
+
+        .os-acompanhamento-span-4 {
+            grid-column: span 4;
+        }
+
+        .os-acompanhamento-item-section {
+            grid-column: span 4;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            background: #f8fafc;
+            padding: 14px;
+        }
+
+        .os-acompanhamento-item-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .os-acompanhamento-item-header h4 {
+            margin: 0;
+            color: #0f172a;
+            font-size: 14px;
+            font-weight: 900;
+        }
+
+        .os-acompanhamento-item-header p {
+            margin: 4px 0 0;
+            color: #64748b;
+            font-size: 12px;
+        }
+
+        .os-acompanhamento-item-lista {
+            display: grid;
+            gap: 10px;
+        }
+
+        .os-acompanhamento-item-row {
+            display: grid;
+            grid-template-columns: minmax(210px, 1.4fr) 110px minmax(170px, 1fr) 38px;
+            gap: 10px;
+            align-items: end;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            background: #ffffff;
+            padding: 10px;
+        }
+
+        .os-acompanhamento-item-row.material-row {
+            grid-template-columns: minmax(210px, 1.4fr) 110px minmax(170px, 1fr) 38px;
+        }
+
+        .os-acompanhamento-item-remove {
+            width: 38px;
+            height: 38px;
+            border: 0;
+            border-radius: 10px;
+            background: #fee2e2;
+            color: #991b1b;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: 900;
+        }
+
+        .os-acompanhamento-empty {
+            padding: 12px;
+            border: 1px dashed #cbd5e1;
+            border-radius: 12px;
+            background: #ffffff;
+            color: #64748b;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        .os-acompanhamento-actions {
+            grid-column: span 4;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 10px;
+            flex-wrap: wrap;
+            padding-top: 4px;
+        }
+
+        .os-acompanhamento-delete {
+            border: 0;
+            border-radius: 10px;
+            background: #dc2626;
+            color: #ffffff;
+            padding: 10px 14px;
+            cursor: pointer;
+            font-weight: 900;
+        }
+
+        @media (max-width: 900px) {
+            .os-acompanhamento-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .os-acompanhamento-span-2,
+            .os-acompanhamento-span-4,
+            .os-acompanhamento-item-section,
+            .os-acompanhamento-actions {
+                grid-column: span 2;
+            }
+
+            .os-acompanhamento-item-row,
+            .os-acompanhamento-item-row.material-row {
+                grid-template-columns: 1fr;
+            }
+
+            .os-acompanhamento-item-remove {
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 620px) {
+            .os-acompanhamento-card > summary,
+            .os-acompanhamento-resumo {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .os-acompanhamento-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .os-acompanhamento-span-2,
+            .os-acompanhamento-span-4,
+            .os-acompanhamento-item-section,
+            .os-acompanhamento-actions {
+                grid-column: span 1;
+            }
+
+            .os-acompanhamento-actions {
+                align-items: stretch;
+                flex-direction: column-reverse;
+            }
+        }
+    </style>
+
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+
+<main class="content os-page">
+        {% set page_title = 'Editar OS' %}
+        {% include "partials/topbar.html" %}
+
+{% set os = ordem_servico %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Ordens de Serviço</span>
+                    <h3 class="page-title">Editar OS {{ os.numero or os.id }}</h3>
+                    <p class="page-subtitle">Atualize os dados da OS, produtos, serviços e totais.</p>
+                </div>
+                <a href="/ordens-servico/{{ os.id }}" class="btn-dark">Cancelar edição</a>
+            </div>
+        </section>
+
+        <form id="form-editar-os" action="/ordens-servico/{{ os.id }}/editar" method="post" class="client-form">
+            <input id="os_equipamentos_json" name="os_equipamentos_json" type="hidden" value="">
+            <input id="os_fotos_json" name="os_fotos_json" type="hidden" value="[]">
+            <input id="os_cliente_original" name="os_cliente_original" type="hidden" value="{{ os.cliente or '' }}">
+            <div class="gestflow-form-error{% if request.args.get('erro') %} show{% endif %}" data-form-error>{% if request.args.get('erro') %}{{ request.args.get('erro') }}{% endif %}</div>
+            <section class="panel page-section os-form-section os-panel-orcamento">
+                <div class="panel-header page-header os-section-title">
+                    <div>
+                        <h3>OS {{ os.numero or os.id }}</h3>
+                        <p class="page-subtitle">Cliente: {{ os.cliente or '-' }}</p>
+                    </div>
+
+                    <span class="badge-info">Modo edição</span>
+                </div>
+                <div class="os-section-body">
+                    <div class="os-grid-4">
+                        <div class="form-group"><label for="os_numero">Número</label><input id="os_numero" name="os_numero" type="text" value="{{ os.numero or '' }}" class="form-control" readonly aria-readonly="true" title="Gerado automaticamente pelo sistema"></div>
+                        <div class="form-group os-span-2">
+                        <label for="os_cliente">Cliente</label>
+                        {% set cliente_os_atual = (os.cliente or '')|trim %}
+                        {% set controle_cliente = namespace(encontrado=false) %}
+                        <select
+                            id="os_cliente"
+                            name="os_cliente"
+                            class="form-control quick-cliente-select"
+                            data-cliente-atual="{{ cliente_os_atual }}"
+                            required>
+                            <option value="">Digite para buscar</option>
+                            {% for cliente in clientes|default([]) %}
+                                {% set nome_cliente = (cliente.nome or '')|trim %}
+                                {% set cliente_selecionado = nome_cliente|lower == cliente_os_atual|lower and cliente_os_atual %}
+                                {% if cliente_selecionado %}
+                                    {% set controle_cliente.encontrado = true %}
+                                {% endif %}
+                                <option value="{{ nome_cliente }}" {% if cliente_selecionado %}selected{% endif %}>{{ nome_cliente }}</option>
+                            {% endfor %}
+                            {% if cliente_os_atual and not controle_cliente.encontrado %}
+                                <option value="{{ cliente_os_atual }}" selected>{{ cliente_os_atual }}</option>
+                            {% endif %}
+                            <option value="__novo_cliente__" class="quick-new-option">+ Adicionar novo cliente</option>
+                        </select>
+                    </div>
+                        <div class="form-group"><label for="os_status">Situação</label><select id="os_status" name="os_status" class="gf-status-select" data-status-operacional data-status-url="/ordens-servico/{{ os.id }}/status" data-current="{{ os.status }}" data-final-message="Concluir esta Ordem de Serviço? Após confirmar, a OS será bloqueada e as integrações finais configuradas serão executadas." style="--status-bg:{{ os.status_fundo }};--status-text:{{ os.status_texto_cor }};--status-border:{{ os.status_borda }};" required>
+                            {% for status in os_status_opcoes|default([]) %}
+                                <option value="{{ status.codigo }}" data-final="{{ 1 if status.final else 0 }}" data-bg="{{ status.fundo }}" data-text="{{ status.texto }}" data-border="{{ status.borda }}" {% if os.status == status.codigo %}selected{% endif %}>{{ status.nome }}</option>
+                            {% endfor %}</select><small style="display:block;margin-top:5px;color:#64748b;">A situação é salva imediatamente. O status finalizador exige confirmação.</small></div>
+                        <div class="form-group"><label for="os_data_abertura">Entrada</label><input id="os_data_abertura" name="os_data_abertura" type="date" value="{{ os.data_abertura or '' }}" class="form-control" required></div>
+                        <div class="form-group"><label for="os_hora_entrada">Hora de entrada</label><input id="os_hora_entrada" name="os_hora_entrada" type="time" value="{{ os.hora_entrada or '' }}" class="form-control"></div>
+                        <div class="form-group"><label for="os_data_saida">Saída</label><input id="os_data_saida" name="os_data_saida" type="date" value="{{ os.data_saida or '' }}" class="form-control"></div>
+                        <div class="form-group"><label for="os_hora_saida">Hora de saída</label><input id="os_hora_saida" name="os_hora_saida" type="time" value="{{ os.hora_saida or '' }}" class="form-control"></div>
+                        <div class="form-group"><label for="os_data_previsao">Previsão</label><input id="os_data_previsao" name="os_data_previsao" type="text" value="{{ os.data_previsao or '' }}" class="form-control"></div>
+                        <div class="form-group"><label for="os_canal_venda">Canal de venda</label><select id="os_canal_venda" name="os_canal_venda" class="form-control"><option value="presencial" {% if os.canal_venda == 'presencial' %}selected{% endif %}>Presencial</option><option value="whatsapp" {% if os.canal_venda == 'whatsapp' %}selected{% endif %}>WhatsApp</option><option value="telefone" {% if os.canal_venda == 'telefone' %}selected{% endif %}>Telefone</option><option value="indicacao" {% if os.canal_venda == 'indicacao' %}selected{% endif %}>Indicação</option><option value="outro" {% if os.canal_venda == 'outro' %}selected{% endif %}>Outro</option></select></div>
+                        <div class="form-group"><label for="os_centro_custo_id">Centro de custo</label><select id="os_centro_custo_id" name="os_centro_custo_id" class="form-control"><option value="">Sem centro de custo</option>{% for centro in centros_custo %}<option value="{{ centro.id }}" {% if os.centro_custo_id == centro.id %}selected{% endif %}>{{ centro.nome }}</option>{% endfor %}</select></div><div class="form-group"><label for="os_atividade_financeira_id">Atividade / Projeto</label><select id="os_atividade_financeira_id" name="os_atividade_financeira_id" class="form-control"><option value="">Sem atividade</option>{% for atividade in atividades_financeiras %}<option value="{{ atividade.id }}" data-centro-custo-id="{{ atividade.centro_custo_id or '' }}" {% if os.atividade_financeira_id == atividade.id %}selected{% endif %}>{{ atividade.nome }}</option>{% endfor %}</select></div><input type="hidden" name="os_centro_custo" value="{{ os.centro_custo or '' }}">
+                        <div class="form-group"><label for="os_prioridade">Prioridade</label><select id="os_prioridade" name="os_prioridade" class="form-control" required><option value="normal" {% if os.prioridade == 'normal' %}selected{% endif %}>Normal</option><option value="baixa" {% if os.prioridade == 'baixa' %}selected{% endif %}>Baixa</option><option value="media" {% if os.prioridade == 'media' %}selected{% endif %}>Média</option><option value="alta" {% if os.prioridade == 'alta' %}selected{% endif %}>Alta</option><option value="urgente" {% if os.prioridade == 'urgente' %}selected{% endif %}>Urgente</option><option value="muito_urgente" {% if os.prioridade == 'muito_urgente' %}selected{% endif %}>Muito urgente</option></select></div>
+                        <div class="form-group"><label for="os_origem_venda_id">Venda de origem</label><input id="os_origem_venda_id" name="os_origem_venda_id" type="text" value="{{ os.origem_venda_id or '' }}" class="form-control"></div><input id="os_origem_orcamento_id" name="os_origem_orcamento_id" type="hidden" value="{{ os.origem_orcamento_id or '' }}">
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel page-section os-form-section os-panel-orcamento">
+                <div class="panel-header page-header os-section-title"><div><h3>Responsáveis</h3><p class="page-subtitle">Responsável comercial e técnico da execução.</p></div></div>
+                <div class="os-section-body"><div class="os-grid-2"><div class="form-group">
+                        <label for="os_responsavel">Vendedor / Responsável</label>
+                        <select id="os_responsavel" name="os_responsavel" class="form-control quick-responsavel-select" required>
+                            <option value="">Selecione</option>
+                            {% for funcionario in funcionarios|default([]) %}
+                                <option value="{{ funcionario.nome }}" {% if os.responsavel == funcionario.nome %}selected{% endif %}>{{ funcionario.nome }}</option>
+                            {% endfor %}
+                            <option value="__novo_responsavel__" class="quick-new-option">+ Adicionar novo responsável</option>
+                        </select>
+                    </div><div class="form-group">
+                        <label for="os_tecnico">Técnico</label>
+                        <select id="os_tecnico" name="os_tecnico" class="form-control quick-responsavel-select" required>
+                            <option value="">Selecione</option>
+                            {% for funcionario in funcionarios|default([]) %}
+                                <option value="{{ funcionario.nome }}" {% if os.tecnico == funcionario.nome %}selected{% endif %}>{{ funcionario.nome }}</option>
+                            {% endfor %}
+                            <option value="__novo_responsavel__" class="quick-new-option">+ Adicionar novo responsável</option>
+                        </select>
+                    </div></div></div>
+            </section>
+
+            <section class="panel page-section os-form-section os-panel-orcamento">
+                <div class="panel-header page-header os-section-title">
+                    <div>
+                        <h3>Equipamentos</h3>
+                        <p class="page-subtitle">Adicione um ou vários equipamentos atendidos nesta OS, no mesmo padrão de produtos e serviços.</p>
+                    </div>
+                </div>
+                <div class="os-section-body">
+                    <div id="equipamentos-container" class="os-equipamentos-container">
+                        {% for equipamento in equipamentos_os|default([]) %}
+                            {% set fotos_do_equipamento = fotos_por_equipamento.get(equipamento.indice, []) if fotos_por_equipamento else [] %}
+                            <div class="os-equipamento-bloco{% if not loop.first %} os-equipamento-bloco-extra{% endif %}" data-equipamento-indice="{{ equipamento.indice }}">
+                                <div class="os-equipamento-topo">
+                                    <div>
+                                        <span>{{ equipamento.titulo }}</span>
+                                        <small>Dados principais na linha, detalhes abaixo.</small>
+                                    </div>
+                                    {% if not loop.first %}
+                                        <button type="button" class="action-button delete" title="Remover equipamento" aria-label="Remover equipamento" onclick="removerEquipamento(this)">×</button>
+                                    {% endif %}
+                                </div>
+
+                                <div class="table-shell os-equipamentos-table-shell">
+                                    <table class="client-table os-equipamentos-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Equipamento cadastrado</th>
+                                                <th>Equipamento</th>
+                                                <th>Marca</th>
+                                                <th>Modelo</th>
+                                                <th>Série</th>
+                                                <th>Ação</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr class="os-equipamento-linha" data-equipamento-indice="{{ equipamento.indice }}">
+                                                <td>
+                                                    <select name="os_equipamento_id" class="form-control os-equipamento-select" onchange="preencherEquipamentoCadastro(this)">
+                                                        <option value="">Selecione</option>
+                                                        {% for equipamento_cadastrado in equipamentos_cadastrados|default([]) %}
+                                                            <option value="{{ equipamento_cadastrado.id }}" data-nome="{{ equipamento_cadastrado.nome|e }}" data-marca="{{ equipamento_cadastrado.marca|e }}" data-modelo="{{ equipamento_cadastrado.modelo|e }}" data-serie="{{ equipamento_cadastrado.serie|e }}" data-local="{{ equipamento_cadastrado.local_instalacao|e }}" {% if equipamento.equipamento_id and equipamento_cadastrado.id == equipamento.equipamento_id %}selected{% endif %}>
+                                                                {{ equipamento_cadastrado.cliente_nome or 'Sem cliente' }} - {{ equipamento_cadastrado.nome }}{% if equipamento_cadastrado.serie %} / {{ equipamento_cadastrado.serie }}{% endif %}
+                                                            </option>
+                                                        {% endfor %}
+                                                            <option value="__novo_equipamento__" class="quick-new-option">+ Adicionar novo equipamento</option>
+                                                    </select>
+                                                </td>
+                                                <td><input name="os_equipamento" type="text" value="{{ equipamento.equipamento or '' }}" placeholder="Ex.: portão, máquina, veículo" class="form-control"></td>
+                                                <td><input name="os_marca" type="text" value="{{ equipamento.marca or '' }}" class="form-control"></td>
+                                                <td><input name="os_modelo" type="text" value="{{ equipamento.modelo or '' }}" class="form-control"></td>
+                                                <td><input name="os_serie" type="text" value="{{ equipamento.serie or '' }}" class="form-control"></td>
+                                                <td class="os-equipamento-remover-cell">
+                                                    {% if not loop.first %}
+                                                        <button type="button" class="action-button delete" title="Remover equipamento" aria-label="Remover equipamento" onclick="removerEquipamento(this)">×</button>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div class="os-equipamento-detalhes-card">
+                                    <div class="os-equipamento-detalhes-grid">
+                                        <div class="form-group os-detalhe-full"><label>Local do serviço</label><input name="os_local_servico" type="text" value="{{ equipamento.local_servico or '' }}" placeholder="Ex.: portaria principal, linha 2, área técnica" class="form-control"></div>
+                                        <div class="form-group"><label>Condições</label><textarea name="os_condicoes" class="form-control os-textarea" placeholder="Condições encontradas">{{ equipamento.condicoes or '' }}</textarea></div>
+                                        <div class="form-group"><label>Defeitos / relato do cliente</label><textarea name="os_relato_cliente" class="form-control os-textarea" placeholder="Problema informado pelo cliente">{{ equipamento.relato_cliente or '' }}</textarea></div>
+                                        <div class="form-group"><label>Acessórios</label><textarea name="os_acessorios" class="form-control os-textarea" placeholder="Acessórios recebidos ou vinculados">{{ equipamento.acessorios or '' }}</textarea></div>
+                                        <div class="form-group"><label>Solução / diagnóstico</label><textarea name="os_diagnostico" class="form-control os-textarea" placeholder="Diagnóstico técnico e solução proposta">{{ equipamento.diagnostico or '' }}</textarea></div>
+                                        <div class="form-group"><label>Laudo</label><textarea name="os_laudo" class="form-control os-textarea" placeholder="Laudo técnico, quando aplicável">{{ equipamento.laudo or '' }}</textarea></div>
+                                        <div class="form-group"><label>Termos</label><textarea name="os_termos" class="form-control os-textarea" placeholder="Termos e condições do atendimento">{{ equipamento.termos or '' }}</textarea></div>
+                                    </div>
+                                    <div class="os-foto-equipamento-bloco" data-foto-bloco>
+                                        <div class="os-foto-equipamento-titulo">
+                                            <div>
+                                                <span>Fotos do equipamento</span>
+                                                <p class="os-photo-helper">Adicione quantas fotos precisar. Nenhum campo vazio aparece antes de clicar.</p>
+                                            </div>
+                                            <button type="button" class="btn-primary-green" onclick="adicionarFotoEquipamento(this)">+ Adicionar foto</button>
+                                        </div>
+                                        <div class="os-photo-card-list" data-fotos-lista>
+                                            {% for foto in fotos_do_equipamento %}
+                                                {% set foto_path = foto.foto_antes_path or foto.foto_depois_path %}
+                                                {% set foto_tipo = 'antes' if foto.foto_antes_path else 'depois' %}
+                                                {% if foto_path %}
+                                                    <article class="os-photo-card" data-foto-card data-foto-chave="existente_{{ foto.id }}" data-foto-id="{{ foto.id }}" data-foto-remover="nao">
+                                                        <div class="os-photo-card-media">
+                                                            <img data-photo-preview src="{{ foto_path }}" alt="Foto do equipamento" class="os-photo-card-preview">
+                                                            <div data-photo-placeholder class="os-photo-card-placeholder" hidden>Selecione uma imagem</div>
+                                                        </div>
+                                                        <div class="os-photo-card-fields">
+                                                            <div class="os-photo-card-field">
+                                                                <label>Tipo da foto</label>
+                                                                <select data-foto-tipo class="form-control">
+                                                                    <option value="antes" {% if foto_tipo == 'antes' %}selected{% endif %}>Antes</option>
+                                                                    <option value="depois" {% if foto_tipo == 'depois' %}selected{% endif %}>Depois</option>
+                                                                </select>
+                                                            </div>
+                                                            <div class="os-photo-card-field">
+                                                                <label>Substituir imagem</label>
+                                                                <input data-foto-arquivo type="file" name="foto_os_arquivo_existente_{{ foto.id }}" class="form-control os-photo-input" accept="image/png,image/jpeg,image/webp">
+                                                                <div data-foto-upload-status class="os-photo-upload-status"></div>
+                                                            </div>
+                                                            <div class="os-photo-card-field os-photo-card-observation">
+                                                                <label>Observação</label>
+                                                                <textarea data-foto-observacoes class="form-control os-textarea" placeholder="Observação desta foto">{{ foto.observacoes or '' }}</textarea>
+                                                            </div>
+                                                        </div>
+                                                        <button type="button" class="os-photo-card-remove" title="Remover foto" aria-label="Remover foto" onclick="removerFotoEquipamento(this)">×</button>
+                                                    </article>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    <div class="os-actions-line"><button type="button" class="btn-primary-green" onclick="adicionarEquipamento()">+ Adicionar equipamento</button></div>
+                </div>
+            </section>
+            <section class="panel page-section os-form-section os-panel-orcamento"><div class="panel-header page-header os-section-title"><div><h3>Produtos</h3><p class="page-subtitle">Adicione produtos à OS. Use o botão para inserir novas linhas.</p></div></div><div class="os-section-body"><div class="table-shell"><table class="client-table"><thead><tr><th>Produto</th><th>Detalhes</th><th>Quant.</th><th>Valor</th><th>Desconto</th><th>Subtotal</th><th>Ação</th></tr></thead><tbody id="produto-tbody"></tbody></table></div><div class="os-actions-line"><button type="button" class="btn-primary-green" onclick="adicionarItem('produto')">+ Adicionar produto</button></div></div></section>
+            <section class="panel page-section os-form-section os-panel-orcamento"><div class="panel-header page-header os-section-title"><div><h3>Serviços</h3><p class="page-subtitle">Adicione serviços à OS. Use o botão para inserir novas linhas.</p></div></div><div class="os-section-body"><div class="table-shell"><table class="client-table"><thead><tr><th>Serviço</th><th>Detalhes</th><th>Quant.</th><th>Valor</th><th>Desconto</th><th>Subtotal</th><th>Ação</th></tr></thead><tbody id="servico-tbody"></tbody></table></div><div class="os-actions-line"><button type="button" class="btn-primary-green" onclick="adicionarItem('servico')">+ Adicionar serviço</button></div></div></section>
+
+            <section class="panel page-section os-form-section os-panel-orcamento">
+                <div class="panel-header page-header os-section-title"><div><h3>Endereço de entrega</h3><p class="page-subtitle">Opcional para retirada ou entrega de equipamento.</p></div></div>
+                <div class="os-section-body"><label class="os-muted-check"><input type="checkbox" name="os_informar_endereco_entrega" value="sim" {% if os.informar_endereco_entrega == 'sim' %}checked{% endif %}> Informar endereço de entrega</label><div class="os-grid-4" style="margin-top: 14px;"><div class="form-group os-span-2"><label for="os_endereco_entrega">Endereço</label><input id="os_endereco_entrega" name="os_endereco_entrega" type="text" value="{{ os.endereco_entrega or '' }}" class="form-control"></div><div class="form-group"><label for="os_bairro_entrega">Bairro</label><input id="os_bairro_entrega" name="os_bairro_entrega" type="text" value="{{ os.bairro_entrega or '' }}" class="form-control"></div><div class="form-group"><label for="os_cidade_entrega">Cidade</label><input id="os_cidade_entrega" name="os_cidade_entrega" type="text" value="{{ os.cidade_entrega or '' }}" class="form-control"></div></div></div>
+            </section>
+
+            <section class="panel page-section os-form-section os-panel-orcamento">
+                <div class="panel-header page-header os-section-title"><div><h3>Total</h3><p class="page-subtitle">Atualize os totais da OS.</p></div></div>
+                <div class="os-section-body"><label class="os-muted-check"><input type="checkbox" name="os_exibir_valor_impressao" value="sim" {% if os.exibir_valor_impressao == 'sim' %}checked{% endif %}> Exibir valor total na impressão</label><div class="os-grid-6" style="margin-top: 14px;"><div class="form-group"><label for="os_total_servicos">Mão de obra</label><input id="os_total_servicos" name="os_total_servicos" type="text" value="{{ os.total_servicos or '0,00' }}" class="form-control" readonly></div><div class="form-group"><label for="os_total_produtos">Peças</label><input id="os_total_produtos" name="os_total_produtos" type="text" value="{{ os.total_produtos or '0,00' }}" class="form-control" readonly></div><div class="form-group"><label for="os_frete">Frete</label><input id="os_frete" name="os_frete" type="text" value="{{ os.frete or '0,00' }}" class="form-control"></div><div class="form-group"><label for="os_outros">Outros</label><input id="os_outros" name="os_outros" type="text" value="{{ os.outros or '0,00' }}" class="form-control"></div><div class="form-group"><label for="os_desconto_valor">Desconto</label><input id="os_desconto_valor" name="os_desconto_valor" type="text" value="{{ os.desconto_valor or '0,00' }}" class="form-control"></div><div class="form-group"><label for="os_valor_total">Valor total</label><input id="os_valor_total" name="os_valor_total" type="text" value="{{ os.valor_total or '0,00' }}" class="form-control" readonly></div><div class="form-group os-span-2"><label for="os_forma_pagamento">Forma de pagamento</label><input id="os_forma_pagamento" name="os_forma_pagamento" type="text" value="{{ os.forma_pagamento or '' }}" class="form-control"></div><div class="form-group"><label for="os_tipo">Tipo</label><select id="os_tipo" name="os_tipo" class="form-control"><option value="misto" {% if os.tipo == 'misto' %}selected{% endif %}>Misto</option><option value="produto" {% if os.tipo == 'produto' %}selected{% endif %}>Produto</option><option value="servico" {% if os.tipo == 'servico' %}selected{% endif %}>Serviço</option></select></div></div></div>
+            </section>
+
+            <section class="panel page-section os-form-section os-panel-orcamento">
+                <div class="panel-header page-header os-section-title"><div><h3>Observações</h3><p class="page-subtitle">Observações impressas e internas.</p></div></div>
+                <div class="os-section-body"><div class="os-grid-2"><div class="form-group"><label for="os_observacoes">Observações para o cliente</label><textarea id="os_observacoes" name="os_observacoes" rows="6" class="form-control os-textarea os-observacoes-principais">{{ os.observacoes or '' }}</textarea></div><div class="form-group"><label for="os_observacoes_internas">Observações internas</label><textarea id="os_observacoes_internas" name="os_observacoes_internas" rows="6" class="form-control os-textarea os-observacoes-principais">{{ os.observacoes_internas or '' }}</textarea></div><div class="form-group os-span-2"><label for="os_servico_executado">Serviço executado</label><textarea id="os_servico_executado" name="os_servico_executado" class="form-control os-textarea">{{ os.servico_executado or '' }}</textarea></div></div><div class="form-actions"><a href="/ordens-servico/{{ os.id }}" class="btn-light">Cancelar</a><button type="submit" class="btn-primary-green">Salvar alterações</button></div></div>
+            </section>
+        </form>
+
+        <section id="acompanhamentos-diarios" class="panel page-section os-form-section os-panel-orcamento">
+            <div class="panel-header page-header os-section-title">
+                <div>
+                    <h3>Acompanhamentos diários</h3>
+                    <p class="page-subtitle">Edite ou exclua os registros enviados pelo técnico. O link técnico continua sem permissão para alterar registros já salvos.</p>
+                </div>
+                <span class="badge-info">{{ acompanhamentos|length }} registro{% if acompanhamentos|length != 1 %}s{% endif %}</span>
+            </div>
+
+            <div class="os-section-body">
+                {% if acompanhamento_mensagem %}
+                    <div class="os-acompanhamento-alert os-acompanhamento-alert-success">{{ acompanhamento_mensagem }}</div>
+                {% endif %}
+
+                {% if acompanhamento_erro %}
+                    <div class="os-acompanhamento-alert os-acompanhamento-alert-error">{{ acompanhamento_erro }}</div>
+                {% endif %}
+
+                {% if acompanhamentos %}
+                    <div class="os-acompanhamentos-list">
+                        {% for acompanhamento in acompanhamentos %}
+                            {% set status_dia = (acompanhamento.status_dia or 'aberto')|lower %}
+                            {% set status_texto = 'Finalizado' if status_dia == 'finalizado' else ('Registrado' if status_dia == 'registrado' else 'Aberto') %}
+                            <details class="os-acompanhamento-card" {% if loop.first %}open{% endif %}>
+                                <summary>
+                                    <div class="os-acompanhamento-resumo">
+                                        <div>
+                                            <strong>{{ acompanhamento.data_acompanhamento|default('-', true) }} — {{ acompanhamento.responsavel|default('Sem responsável', true) }}</strong>
+                                            <span>Registro #{{ acompanhamento.id }}{% if acompanhamento.atualizado_em %} · Atualizado em {{ acompanhamento.atualizado_em }}{% endif %}</span>
+                                        </div>
+                                    </div>
+                                    <span class="os-acompanhamento-status status-{{ status_dia }}">{{ status_texto }}</span>
+                                </summary>
+
+                                <form method="post" action="{{ url_for('editar_acompanhamento_ordem_servico_interno_rota', ordem_servico_id=os.id, acompanhamento_id=acompanhamento.id) }}" class="os-acompanhamento-form">
+                                    <div class="os-acompanhamento-grid">
+                                        <div class="form-group">
+                                            <label>Data</label>
+                                            <input type="date" name="data_acompanhamento" value="{{ acompanhamento.data_acompanhamento or '' }}" class="form-control" required>
+                                        </div>
+
+                                        <div class="form-group os-acompanhamento-span-2">
+                                            <label>Responsável pelo registro</label>
+                                            <input type="text" name="responsavel" value="{{ acompanhamento.responsavel or '' }}" class="form-control" placeholder="Nome do responsável">
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label>Status do dia</label>
+                                            <select name="status_dia" class="form-control">
+                                                <option value="aberto" {% if status_dia == 'aberto' %}selected{% endif %}>Aberto</option>
+                                                <option value="registrado" {% if status_dia == 'registrado' %}selected{% endif %}>Registrado</option>
+                                                <option value="finalizado" {% if status_dia == 'finalizado' %}selected{% endif %}>Finalizado</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label>Status do link</label>
+                                            <select name="status_link" class="form-control">
+                                                <option value="ativo" {% if (acompanhamento.status_link or 'ativo') == 'ativo' %}selected{% endif %}>Ativo</option>
+                                                <option value="inativo" {% if acompanhamento.status_link == 'inativo' %}selected{% endif %}>Inativo</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="form-group os-acompanhamento-span-4">
+                                            <label>Atividades previstas</label>
+                                            <textarea name="atividades_previstas" class="form-control os-textarea" placeholder="Atividades previstas para o dia">{{ acompanhamento.atividades_previstas or '' }}</textarea>
+                                        </div>
+
+                                        <div class="os-acompanhamento-item-section">
+                                            <div class="os-acompanhamento-item-header">
+                                                <div>
+                                                    <h4>Equipe envolvida</h4>
+                                                    <p>Edite profissionais, horas e observações do registro.</p>
+                                                </div>
+                                                <button type="button" class="btn-primary-green" data-acompanhamento-adicionar="equipe">+ Adicionar profissional</button>
+                                            </div>
+                                            <div class="os-acompanhamento-item-lista" data-acompanhamento-lista="equipe">
+                                                {% for item in acompanhamento.equipe_lista|default([]) %}
+                                                    <div class="os-acompanhamento-item-row" data-acompanhamento-item>
+                                                        <div class="form-group">
+                                                            <label>Profissional</label>
+                                                            <select name="equipe_funcionario_id[]" class="form-control">
+                                                                <option value="">Selecione</option>
+                                                                {% if item.funcionario_id %}
+                                                                    <option value="{{ item.funcionario_id }}" selected>{{ item.nome or 'Profissional' }}{% if item.cargo %} - {{ item.cargo }}{% endif %}</option>
+                                                                {% endif %}
+                                                                {% for funcionario in funcionarios|default([]) %}
+                                                                    {% if funcionario.id != item.funcionario_id %}
+                                                                        <option value="{{ funcionario.id }}">{{ funcionario.nome }}{% if funcionario.cargo %} - {{ funcionario.cargo }}{% endif %}</option>
+                                                                    {% endif %}
+                                                                {% endfor %}
+                                                            </select>
+                                                        </div>
+                                                        <div class="form-group">
+                                                            <label>Horas</label>
+                                                            <input type="text" name="equipe_horas[]" value="{{ item.horas or '' }}" class="form-control" placeholder="8">
+                                                        </div>
+                                                        <div class="form-group">
+                                                            <label>Observação</label>
+                                                            <input type="text" name="equipe_observacoes[]" value="{{ item.observacoes or '' }}" class="form-control" placeholder="Opcional">
+                                                        </div>
+                                                        <button type="button" class="os-acompanhamento-item-remove" data-acompanhamento-remover title="Remover profissional">×</button>
+                                                    </div>
+                                                {% else %}
+                                                    <div class="os-acompanhamento-empty" data-acompanhamento-vazio>Nenhum profissional informado.</div>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+
+                                        <div class="os-acompanhamento-item-section">
+                                            <div class="os-acompanhamento-item-header">
+                                                <div>
+                                                    <h4>Materiais utilizados</h4>
+                                                    <p>Edite os produtos, quantidades e observações do registro.</p>
+                                                </div>
+                                                <button type="button" class="btn-primary-green" data-acompanhamento-adicionar="materiais">+ Adicionar material</button>
+                                            </div>
+                                            <div class="os-acompanhamento-item-lista" data-acompanhamento-lista="materiais">
+                                                {% for item in acompanhamento.materiais_lista|default([]) %}
+                                                    <div class="os-acompanhamento-item-row material-row" data-acompanhamento-item>
+                                                        <div class="form-group">
+                                                            <label>Material</label>
+                                                            <select name="material_produto_id[]" class="form-control">
+                                                                <option value="">Selecione</option>
+                                                                {% if item.produto_id %}
+                                                                    <option value="{{ item.produto_id }}" selected>{{ item.nome or 'Material' }}{% if item.unidade %} - {{ item.unidade }}{% endif %}</option>
+                                                                {% endif %}
+                                                                {% for produto in produtos|default([]) %}
+                                                                    {% if produto.id != item.produto_id %}
+                                                                        <option value="{{ produto.id }}">{{ produto.nome }}{% if produto.unidade %} - {{ produto.unidade }}{% endif %}</option>
+                                                                    {% endif %}
+                                                                {% endfor %}
+                                                            </select>
+                                                        </div>
+                                                        <div class="form-group">
+                                                            <label>Quantidade</label>
+                                                            <input type="text" name="material_quantidade[]" value="{{ item.quantidade or '' }}" class="form-control" placeholder="1">
+                                                        </div>
+                                                        <div class="form-group">
+                                                            <label>Observação</label>
+                                                            <input type="text" name="material_observacoes[]" value="{{ item.observacoes or '' }}" class="form-control" placeholder="Opcional">
+                                                        </div>
+                                                        <button type="button" class="os-acompanhamento-item-remove" data-acompanhamento-remover title="Remover material">×</button>
+                                                    </div>
+                                                {% else %}
+                                                    <div class="os-acompanhamento-empty" data-acompanhamento-vazio>Nenhum material informado.</div>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+
+                                        <div class="os-acompanhamento-item-section">
+                                            <div class="os-acompanhamento-item-header">
+                                                <div>
+                                                    <h4>Serviços executados</h4>
+                                                    <p>Edite os serviços, quantidades e observações do registro.</p>
+                                                </div>
+                                                <button type="button" class="btn-primary-green" data-acompanhamento-adicionar="servicos">+ Adicionar serviço</button>
+                                            </div>
+                                            <div class="os-acompanhamento-item-lista" data-acompanhamento-lista="servicos">
+                                                {% for item in acompanhamento.servicos_lista|default([]) %}
+                                                    <div class="os-acompanhamento-item-row" data-acompanhamento-item>
+                                                        <div class="form-group">
+                                                            <label>Serviço</label>
+                                                            <select name="servico_id[]" class="form-control">
+                                                                <option value="">Selecione</option>
+                                                                {% if item.servico_id %}
+                                                                    <option value="{{ item.servico_id }}" selected>{{ item.nome or 'Serviço' }}</option>
+                                                                {% endif %}
+                                                                {% for servico in servicos|default([]) %}
+                                                                    {% if servico.id != item.servico_id %}
+                                                                        <option value="{{ servico.id }}">{{ servico.nome }}</option>
+                                                                    {% endif %}
+                                                                {% endfor %}
+                                                            </select>
+                                                        </div>
+                                                        <div class="form-group">
+                                                            <label>Quantidade</label>
+                                                            <input type="text" name="servico_quantidade[]" value="{{ item.quantidade or '' }}" class="form-control" placeholder="1">
+                                                        </div>
+                                                        <div class="form-group">
+                                                            <label>Observação</label>
+                                                            <input type="text" name="servico_observacoes[]" value="{{ item.observacoes or '' }}" class="form-control" placeholder="Opcional">
+                                                        </div>
+                                                        <button type="button" class="os-acompanhamento-item-remove" data-acompanhamento-remover title="Remover serviço">×</button>
+                                                    </div>
+                                                {% else %}
+                                                    <div class="os-acompanhamento-empty" data-acompanhamento-vazio>Nenhum serviço informado.</div>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+
+                                        <div class="form-group os-acompanhamento-span-4">
+                                            <label>Atividades executadas</label>
+                                            <textarea name="atividades_executadas" class="form-control os-textarea" placeholder="Atividades executadas no dia">{{ acompanhamento.atividades_executadas or '' }}</textarea>
+                                        </div>
+
+                                        <div class="form-group os-acompanhamento-span-4">
+                                            <label>Observações</label>
+                                            <textarea name="observacoes" class="form-control os-textarea" placeholder="Pendências, impedimentos e observações">{{ acompanhamento.observacoes or '' }}</textarea>
+                                        </div>
+
+                                        <div class="os-acompanhamento-actions">
+                                            <button
+                                                type="submit"
+                                                class="os-acompanhamento-delete"
+                                                formaction="{{ url_for('excluir_acompanhamento_ordem_servico_interno_rota', ordem_servico_id=os.id, acompanhamento_id=acompanhamento.id) }}"
+                                                formmethod="post"
+                                                onclick="return confirm('Excluir definitivamente este acompanhamento diário? O link vinculado a ele deixará de funcionar.');"
+                                            >Excluir acompanhamento</button>
+                                            <button type="submit" class="btn-primary-green">Salvar acompanhamento</button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </details>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="os-acompanhamento-empty">Ainda não existem acompanhamentos diários nesta OS.</div>
+                {% endif %}
+            </div>
+        </section>
+
+        <template id="template-acompanhamento-equipe">
+            <div class="os-acompanhamento-item-row" data-acompanhamento-item>
+                <div class="form-group">
+                    <label>Profissional</label>
+                    <select name="equipe_funcionario_id[]" class="form-control">
+                        <option value="">Selecione</option>
+                        {% for funcionario in funcionarios|default([]) %}
+                            <option value="{{ funcionario.id }}">{{ funcionario.nome }}{% if funcionario.cargo %} - {{ funcionario.cargo }}{% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group"><label>Horas</label><input type="text" name="equipe_horas[]" class="form-control" placeholder="8"></div>
+                <div class="form-group"><label>Observação</label><input type="text" name="equipe_observacoes[]" class="form-control" placeholder="Opcional"></div>
+                <button type="button" class="os-acompanhamento-item-remove" data-acompanhamento-remover title="Remover profissional">×</button>
+            </div>
+        </template>
+
+        <template id="template-acompanhamento-materiais">
+            <div class="os-acompanhamento-item-row material-row" data-acompanhamento-item>
+                <div class="form-group">
+                    <label>Material</label>
+                    <select name="material_produto_id[]" class="form-control">
+                        <option value="">Selecione</option>
+                        {% for produto in produtos|default([]) %}
+                            <option value="{{ produto.id }}">{{ produto.nome }}{% if produto.unidade %} - {{ produto.unidade }}{% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group"><label>Quantidade</label><input type="text" name="material_quantidade[]" class="form-control" placeholder="1"></div>
+                <div class="form-group"><label>Observação</label><input type="text" name="material_observacoes[]" class="form-control" placeholder="Opcional"></div>
+                <button type="button" class="os-acompanhamento-item-remove" data-acompanhamento-remover title="Remover material">×</button>
+            </div>
+        </template>
+
+        <template id="template-acompanhamento-servicos">
+            <div class="os-acompanhamento-item-row" data-acompanhamento-item>
+                <div class="form-group">
+                    <label>Serviço</label>
+                    <select name="servico_id[]" class="form-control">
+                        <option value="">Selecione</option>
+                        {% for servico in servicos|default([]) %}
+                            <option value="{{ servico.id }}">{{ servico.nome }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group"><label>Quantidade</label><input type="text" name="servico_quantidade[]" class="form-control" placeholder="1"></div>
+                <div class="form-group"><label>Observação</label><input type="text" name="servico_observacoes[]" class="form-control" placeholder="Opcional"></div>
+                <button type="button" class="os-acompanhamento-item-remove" data-acompanhamento-remover title="Remover serviço">×</button>
+            </div>
+        </template>
+
+        <script>
+            document.addEventListener("click", function(evento) {
+                const botaoAdicionar = evento.target.closest("[data-acompanhamento-adicionar]");
+                const botaoRemover = evento.target.closest("[data-acompanhamento-remover]");
+
+                if (botaoAdicionar) {
+                    const tipo = botaoAdicionar.getAttribute("data-acompanhamento-adicionar");
+                    const card = botaoAdicionar.closest(".os-acompanhamento-card");
+                    const lista = card ? card.querySelector('[data-acompanhamento-lista="' + tipo + '"]') : null;
+                    const template = document.getElementById("template-acompanhamento-" + tipo);
+
+                    if (lista && template) {
+                        const vazio = lista.querySelector("[data-acompanhamento-vazio]");
+                        if (vazio) {
+                            vazio.remove();
+                        }
+                        lista.appendChild(template.content.cloneNode(true));
+                    }
+                }
+
+                if (botaoRemover) {
+                    const linha = botaoRemover.closest("[data-acompanhamento-item]");
+                    const lista = linha ? linha.closest("[data-acompanhamento-lista]") : null;
+                    if (linha) {
+                        linha.remove();
+                    }
+                    if (lista && !lista.querySelector("[data-acompanhamento-item]")) {
+                        const vazio = document.createElement("div");
+                        vazio.className = "os-acompanhamento-empty";
+                        vazio.setAttribute("data-acompanhamento-vazio", "");
+                        vazio.textContent = "Nenhum item informado.";
+                        lista.appendChild(vazio);
+                    }
+                }
+            });
+        </script>
+
+
+        <div id="quick-cliente-modal" class="quick-modal-backdrop" aria-hidden="true">
+            <div class="quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-cliente-title">
+                <div class="quick-modal-header">
+                    <div>
+                        <h3 id="quick-cliente-title">Novo cliente</h3>
+                        <p>Cadastro rápido sem sair da tela atual.</p>
+                    </div>
+                    <button type="button" class="quick-modal-close" onclick="fecharModalClienteRapidoGeral()">×</button>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="quick-cliente-nome">Nome *</label>
+                        <input id="quick-cliente-nome" type="text" class="form-control" placeholder="Ex: Cliente ABC">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-cliente-documento">CPF / CNPJ</label>
+                        <input id="quick-cliente-documento" type="text" class="form-control" placeholder="Documento do cliente">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-cliente-telefone">Telefone</label>
+                        <input id="quick-cliente-telefone" type="text" class="form-control" placeholder="WhatsApp ou telefone">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-cliente-email">E-mail</label>
+                        <input id="quick-cliente-email" type="text" class="form-control" placeholder="email@cliente.com">
+                    </div>
+                </div>
+
+                <div id="quick-cliente-error" class="quick-modal-error"></div>
+
+                <div class="quick-modal-actions">
+                    <button type="button" class="btn-light" onclick="fecharModalClienteRapidoGeral()">Cancelar</button>
+                    <button type="button" class="btn-primary-green" onclick="salvarClienteRapidoGeral()">Salvar cliente</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="quick-responsavel-modal" class="quick-modal-backdrop" aria-hidden="true">
+            <div class="quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-responsavel-title">
+                <div class="quick-modal-header">
+                    <div>
+                        <h3 id="quick-responsavel-title">Novo responsável</h3>
+                        <p>Cadastro rápido de funcionário sem sair da tela atual.</p>
+                    </div>
+                    <button type="button" class="quick-modal-close" onclick="fecharModalResponsavelRapidoGeral()">×</button>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="quick-responsavel-nome">Nome *</label>
+                        <input id="quick-responsavel-nome" type="text" class="form-control" placeholder="Ex: Vendedor ou técnico">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-responsavel-cargo">Cargo</label>
+                        <input id="quick-responsavel-cargo" type="text" class="form-control" placeholder="Ex: Vendedor, técnico">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-responsavel-telefone">Telefone</label>
+                        <input id="quick-responsavel-telefone" type="text" class="form-control" placeholder="WhatsApp ou telefone">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-responsavel-email">E-mail</label>
+                        <input id="quick-responsavel-email" type="text" class="form-control" placeholder="email@empresa.com">
+                    </div>
+                </div>
+
+                <div id="quick-responsavel-error" class="quick-modal-error"></div>
+
+                <div class="quick-modal-actions">
+                    <button type="button" class="btn-light" onclick="fecharModalResponsavelRapidoGeral()">Cancelar</button>
+                    <button type="button" class="btn-primary-green" onclick="salvarResponsavelRapidoGeral()">Salvar responsável</button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            window.opcoesProdutos = [
+                {% for produto in produtos|default([]) %}
+                    { nome: "{{ produto.nome }}", valor: "{{ produto.preco_venda or '' }}" }{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ];
+            window.opcoesServicos = [
+                {% for servico in servicos|default([]) %}
+                    { nome: "{{ servico.nome }}", valor: "{{ servico.valor_venda or '' }}" }{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ];
+            window.itensOS = {{ itens|tojson }};
+        </script>
+
+        <script>
+            function criarLinha(tipo, dados) {
+                dados = dados || {};
+                const linha = document.createElement("tr");
+                const tipoLabel = tipo === "produto" ? "Produto" : "Serviço";
+                const opcoes = tipo === "produto" ? window.opcoesProdutos : window.opcoesServicos;
+                let selectOptions = '<option value="">Selecione</option>';
+                opcoes.forEach(function(item) {
+                    const selected = item.nome === (dados.descricao || "") ? " selected" : "";
+                    selectOptions += '<option value="' + item.nome + '"' + selected + '>' + item.nome + '</option>';
+                });
+                if (dados.descricao && !opcoes.some(function(item) { return item.nome === dados.descricao; })) {
+                    selectOptions += '<option value="' + dados.descricao + '" selected>' + dados.descricao + '</option>';
+                }
+                selectOptions += '<option value="__novo__" class="quick-new-option">+ Adicionar novo ' + tipoLabel.toLowerCase() + '</option>';
+                linha.innerHTML = `
+                    <td><input type="hidden" name="item_tipo" value="${tipo}"><select name="item_descricao" class="form-control item-descricao">${selectOptions}</select></td>
+                    <td><input name="item_detalhes" type="text" value="${dados.detalhes || ""}" placeholder="Detalhes" class="form-control"></td>
+                    <td><input name="item_quantidade" type="text" value="${dados.quantidade || ""}" placeholder="1" class="form-control item-quantidade"></td>
+                    <td><input name="item_valor_unitario" type="text" value="${dados.valor_unitario || ""}" placeholder="0,00" class="form-control item-valor"></td>
+                    <td><input name="item_desconto" type="text" value="${dados.desconto || ""}" placeholder="0,00" class="form-control item-desconto"></td>
+                    <td><input name="item_subtotal" type="text" value="${dados.subtotal || ""}" placeholder="0,00" class="form-control item-subtotal" readonly></td>
+                    <td><button type="button" class="action-button delete" title="Remover ${tipoLabel}" aria-label="Remover ${tipoLabel}" onclick="removerLinha(this)">×</button></td>
+                `;
+                const selectDescricao = linha.querySelector(".item-descricao");
+                const inputValor = linha.querySelector(".item-valor");
+                selectDescricao.addEventListener("change", function() {
+                    if (selectDescricao.value === "__novo__") {
+                        abrirModalItemRapidoGeral(tipo, selectDescricao, linha);
+                        return;
+                    }
+
+                    const itemSelecionado = opcoes.find(function(item) { return item.nome === selectDescricao.value; });
+                    if (itemSelecionado && !inputValor.value) { inputValor.value = itemSelecionado.valor || ""; }
+                });
+                return linha;
+            }
+            function adicionarItem(tipo, dados) { document.getElementById(tipo + "-tbody").appendChild(criarLinha(tipo, dados || {})); }
+            function removerLinha(botao) {
+                const linha = botao.closest("tr");
+                const corpo = linha.closest("tbody");
+                linha.remove();
+                if (corpo.children.length === 0) { adicionarItem(corpo.id.replace("-tbody", "")); }
+            }
+            document.addEventListener("DOMContentLoaded", function() {
+                const produtos = (window.itensOS || []).filter(function(item) { return item.tipo_item === "produto"; });
+                const servicos = (window.itensOS || []).filter(function(item) { return item.tipo_item === "servico"; });
+                if (produtos.length) { produtos.forEach(function(item) { adicionarItem("produto", item); }); } else { adicionarItem("produto"); }
+                if (servicos.length) { servicos.forEach(function(item) { adicionarItem("servico", item); }); } else { adicionarItem("servico"); }
+            });
+        </script>
+    
+
+
+        <div id="quick-equipamento-modal" class="quick-modal-backdrop" aria-hidden="true">
+            <div class="quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-equipamento-title">
+                <div class="quick-modal-header">
+                    <div>
+                        <h3 id="quick-equipamento-title">Novo equipamento</h3>
+                        <p>Cadastro rápido sem sair da ordem de serviço.</p>
+                    </div>
+                    <button type="button" class="quick-modal-close" onclick="fecharModalEquipamentoRapidoGeral()">×</button>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group form-span-2">
+                        <label for="quick-equipamento-cliente">Cliente</label>
+                        <select id="quick-equipamento-cliente" class="form-control">
+                            <option value="">Sem cliente definido</option>
+                            {% for cliente in clientes|default([]) %}
+                                <option value="{{ cliente.nome }}">{{ cliente.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="quick-equipamento-nome">Nome do equipamento *</label>
+                        <input id="quick-equipamento-nome" type="text" class="form-control" placeholder="Ex.: Portão principal">
+                    </div>
+                    <div class="form-group">
+                        <label for="quick-equipamento-marca">Marca</label>
+                        <input id="quick-equipamento-marca" type="text" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="quick-equipamento-modelo">Modelo</label>
+                        <input id="quick-equipamento-modelo" type="text" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="quick-equipamento-serie">Série / número</label>
+                        <input id="quick-equipamento-serie" type="text" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="quick-equipamento-tag">TAG / patrimônio</label>
+                        <input id="quick-equipamento-tag" type="text" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="quick-equipamento-local">Local de instalação</label>
+                        <input id="quick-equipamento-local" type="text" class="form-control" placeholder="Ex.: Portaria 02">
+                    </div>
+                    <div class="form-group form-span-2">
+                        <label for="quick-equipamento-observacoes">Observações</label>
+                        <textarea id="quick-equipamento-observacoes" class="form-control textarea-control" placeholder="Observações do equipamento"></textarea>
+                    </div>
+                </div>
+
+                <div id="quick-equipamento-error" class="quick-modal-error"></div>
+
+                <div class="quick-modal-actions">
+                    <button type="button" class="btn-light" onclick="fecharModalEquipamentoRapidoGeral()">Cancelar</button>
+                    <button type="button" class="btn-primary-green" onclick="salvarEquipamentoRapidoGeral()">Salvar equipamento</button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+        (function() {
+            "use strict";
+
+            let gestflowEquipamentoSelectAtual = null;
+
+            function abrirModalPorIdEquipamento(id) {
+                const modal = document.getElementById(id);
+                if (!modal) { return; }
+                modal.classList.add("open");
+                modal.setAttribute("aria-hidden", "false");
+                const primeiroCampo = modal.querySelector("input:not([type='hidden']), select, textarea");
+                if (primeiroCampo) {
+                    setTimeout(function() { primeiroCampo.focus(); }, 80);
+                }
+            }
+
+            function fecharModalPorIdEquipamento(id) {
+                const modal = document.getElementById(id);
+                if (!modal) { return; }
+                modal.classList.remove("open");
+                modal.setAttribute("aria-hidden", "true");
+            }
+
+            function valorCampoEquipamento(id) {
+                const campo = document.getElementById(id);
+                return campo ? String(campo.value || "").trim() : "";
+            }
+
+            function setValorCampoEquipamento(id, valor) {
+                const campo = document.getElementById(id);
+                if (campo) { campo.value = valor || ""; }
+            }
+
+            function mostrarErroEquipamento(mensagem) {
+                const erroBox = document.getElementById("quick-equipamento-error");
+                if (erroBox) {
+                    erroBox.textContent = mensagem;
+                    erroBox.classList.add("show");
+                } else {
+                    alert(mensagem);
+                }
+            }
+
+            function limparErroEquipamento() {
+                const erroBox = document.getElementById("quick-equipamento-error");
+                if (erroBox) {
+                    erroBox.textContent = "";
+                    erroBox.classList.remove("show");
+                }
+            }
+
+            function limparCamposEquipamentoRapido() {
+                [
+                    "quick-equipamento-nome",
+                    "quick-equipamento-marca",
+                    "quick-equipamento-modelo",
+                    "quick-equipamento-serie",
+                    "quick-equipamento-tag",
+                    "quick-equipamento-local",
+                    "quick-equipamento-observacoes"
+                ].forEach(function(id) { setValorCampoEquipamento(id, ""); });
+                limparErroEquipamento();
+            }
+
+            function clienteAtualDaOS() {
+                const campoCliente = document.querySelector('[name="os_cliente"]');
+                return campoCliente ? String(campoCliente.value || "").trim() : "";
+            }
+
+            function preencherModalPelaLinha(selectOrigem) {
+                const bloco = selectOrigem ? selectOrigem.closest(".os-equipamento-bloco") : null;
+                const cliente = clienteAtualDaOS();
+                const clienteModal = document.getElementById("quick-equipamento-cliente");
+                if (clienteModal && cliente) { clienteModal.value = cliente; }
+                if (!bloco) { return; }
+                const mapa = {
+                    "quick-equipamento-nome": bloco.querySelector('[name="os_equipamento"]')?.value || "",
+                    "quick-equipamento-marca": bloco.querySelector('[name="os_marca"]')?.value || "",
+                    "quick-equipamento-modelo": bloco.querySelector('[name="os_modelo"]')?.value || "",
+                    "quick-equipamento-serie": bloco.querySelector('[name="os_serie"]')?.value || "",
+                    "quick-equipamento-local": bloco.querySelector('[name="os_local_servico"]')?.value || "",
+                    "quick-equipamento-observacoes": bloco.querySelector('[name="os_condicoes"]')?.value || ""
+                };
+                Object.keys(mapa).forEach(function(id) { setValorCampoEquipamento(id, mapa[id]); });
+            }
+
+            function textoEquipamentoOpcao(item) {
+                const cliente = item.cliente_nome || "Sem cliente";
+                const nome = item.nome || "Equipamento";
+                const serie = item.serie ? " / " + item.serie : "";
+                return cliente + " - " + nome + serie;
+            }
+
+            function aplicarDadosEquipamentoNaOpcao(opcao, item) {
+                opcao.value = String(item.id || "");
+                opcao.textContent = textoEquipamentoOpcao(item);
+                opcao.dataset.nome = item.nome || "";
+                opcao.dataset.marca = item.marca || "";
+                opcao.dataset.modelo = item.modelo || "";
+                opcao.dataset.serie = item.serie || "";
+                opcao.dataset.local = item.local_instalacao || "";
+            }
+
+            function adicionarEquipamentoAosSelects(item, selectAtual) {
+                const id = String(item.id || "");
+                if (!id) { return; }
+
+                document.querySelectorAll("select.os-equipamento-select").forEach(function(select) {
+                    let opcao = Array.from(select.options).find(function(opcaoExistente) {
+                        return String(opcaoExistente.value || "") === id;
+                    });
+
+                    if (!opcao) {
+                        opcao = document.createElement("option");
+                        const opcaoNovo = Array.from(select.options).find(function(opcaoExistente) {
+                            return opcaoExistente.value === "__novo_equipamento__";
+                        });
+                        if (opcaoNovo) {
+                            select.insertBefore(opcao, opcaoNovo);
+                        } else {
+                            select.appendChild(opcao);
+                        }
+                    }
+
+                    aplicarDadosEquipamentoNaOpcao(opcao, item);
+
+                    if (select === selectAtual) {
+                        select.value = id;
+                        if (typeof window.preencherEquipamentoCadastro === "function") {
+                            window.preencherEquipamentoCadastro(select);
+                        }
+                    }
+                });
+            }
+
+            window.abrirModalEquipamentoRapidoGeral = function(selectOrigem) {
+                gestflowEquipamentoSelectAtual = selectOrigem || null;
+                limparCamposEquipamentoRapido();
+                preencherModalPelaLinha(selectOrigem);
+                abrirModalPorIdEquipamento("quick-equipamento-modal");
+            };
+
+            window.fecharModalEquipamentoRapidoGeral = function() {
+                fecharModalPorIdEquipamento("quick-equipamento-modal");
+                if (gestflowEquipamentoSelectAtual && gestflowEquipamentoSelectAtual.value === "__novo_equipamento__") {
+                    gestflowEquipamentoSelectAtual.value = "";
+                }
+            };
+
+            window.salvarEquipamentoRapidoGeral = function() {
+                const nome = valorCampoEquipamento("quick-equipamento-nome");
+                if (!nome) {
+                    mostrarErroEquipamento("Informe o nome do equipamento.");
+                    return;
+                }
+
+                const dados = new URLSearchParams();
+                dados.append("cliente_nome", valorCampoEquipamento("quick-equipamento-cliente") || clienteAtualDaOS());
+                dados.append("nome", nome);
+                dados.append("marca", valorCampoEquipamento("quick-equipamento-marca"));
+                dados.append("modelo", valorCampoEquipamento("quick-equipamento-modelo"));
+                dados.append("serie", valorCampoEquipamento("quick-equipamento-serie"));
+                dados.append("tag", valorCampoEquipamento("quick-equipamento-tag"));
+                dados.append("local_instalacao", valorCampoEquipamento("quick-equipamento-local"));
+                dados.append("status", "ativo");
+                dados.append("observacoes", valorCampoEquipamento("quick-equipamento-observacoes"));
+
+                fetch("/equipamentos/rapido", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+                    body: dados.toString()
+                })
+                    .then(function(resposta) {
+                        return resposta.json().then(function(payload) {
+                            if (!resposta.ok || !payload.ok) {
+                                throw new Error(payload.erro || "Não foi possível salvar o equipamento.");
+                            }
+                            return payload.equipamento;
+                        });
+                    })
+                    .then(function(equipamento) {
+                        adicionarEquipamentoAosSelects(equipamento, gestflowEquipamentoSelectAtual);
+                        fecharModalPorIdEquipamento("quick-equipamento-modal");
+                    })
+                    .catch(function(erro) {
+                        mostrarErroEquipamento(erro.message || "Não foi possível salvar o equipamento.");
+                    });
+            };
+        })();
+        </script>
+
+
+        <div id="quick-item-modal" class="quick-modal-backdrop" aria-hidden="true">
+            <div class="quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-item-title">
+                <div class="quick-modal-header">
+                    <div>
+                        <h3 id="quick-item-title">Novo item</h3>
+                        <p id="quick-item-subtitle">Cadastro rápido sem sair da tela.</p>
+                    </div>
+                    <button type="button" class="quick-modal-close" onclick="fecharModalItemRapidoGeral()">×</button>
+                </div>
+
+                <input id="quick-item-tipo" type="hidden" value="produto">
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="quick-item-nome">Nome *</label>
+                        <input id="quick-item-nome" type="text" class="form-control" placeholder="Ex: material, produto ou serviço">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-item-valor">Valor de venda</label>
+                        <input id="quick-item-valor" type="text" class="form-control" placeholder="0,00">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-item-categoria">Categoria</label>
+                        <input id="quick-item-categoria" type="text" class="form-control" placeholder="Ex: Serviço técnico">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-item-unidade">Unidade</label>
+                        <input id="quick-item-unidade" type="text" class="form-control" placeholder="un">
+                    </div>
+
+                    <div class="form-group form-span-2">
+                        <label for="quick-item-observacoes">Descrição / observação</label>
+                        <input id="quick-item-observacoes" type="text" class="form-control" placeholder="Resumo do item">
+                    </div>
+                </div>
+
+                <div id="quick-item-error" class="quick-modal-error"></div>
+
+                <div class="quick-modal-actions">
+                    <button type="button" class="btn-light" onclick="fecharModalItemRapidoGeral()">Cancelar</button>
+                    <button type="button" class="btn-primary-green" onclick="salvarItemRapidoGeral()">Salvar item</button>
+                </div>
+            </div>
+        </div>
+
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                const centro = document.getElementById("os_centro_custo_id");
+                const atividade = document.getElementById("os_atividade_financeira_id");
+                const centroNome = document.querySelector('input[name="os_centro_custo"]');
+                if (!centro || !atividade) return;
+
+                function sincronizarCentroNome() {
+                    if (!centroNome) return;
+                    const opcao = centro.options[centro.selectedIndex];
+                    centroNome.value = centro.value && opcao ? opcao.textContent.trim() : "";
+                }
+
+                function filtrarAtividades() {
+                    const centroId = String(centro.value || "");
+                    let selecionadaValida = !atividade.value;
+                    Array.from(atividade.options).forEach(function (opcao, indice) {
+                        if (indice === 0) { opcao.hidden = false; opcao.disabled = false; return; }
+                        const atividadeCentro = String(opcao.dataset.centroCustoId || "");
+                        const visivel = !centroId || atividadeCentro === centroId;
+                        opcao.hidden = !visivel;
+                        opcao.disabled = !visivel;
+                        if (visivel && opcao.value === atividade.value) selecionadaValida = true;
+                    });
+                    if (!selecionadaValida) atividade.value = "";
+                    sincronizarCentroNome();
+                }
+
+                centro.addEventListener("change", filtrarAtividades);
+                atividade.addEventListener("change", function () {
+                    const opcao = atividade.options[atividade.selectedIndex];
+                    const centroAtividade = opcao ? String(opcao.dataset.centroCustoId || "") : "";
+                    if (centroAtividade) centro.value = centroAtividade;
+                    filtrarAtividades();
+                });
+                filtrarAtividades();
+            });
+        </script>
+</main>
+
+        <script>
+            function gestflowValorNumero(valor) {
+                let texto = String(valor || "").trim();
+
+                if (!texto) {
+                    return 0;
+                }
+
+                texto = texto.replace("R$", "").replace(/\s/g, "");
+
+                if (texto.includes(",")) {
+                    texto = texto.replace(/\./g, "").replace(",", ".");
+                }
+
+                const numero = Number.parseFloat(texto);
+                return Number.isFinite(numero) ? numero : 0;
+            }
+
+            function gestflowLimparErrosFormulario(formulario) {
+                formulario.querySelectorAll(".gestflow-campo-invalido").forEach(function(campo) {
+                    campo.classList.remove("gestflow-campo-invalido");
+                });
+
+                const erroBox = formulario.querySelector("[data-form-error]");
+
+                if (erroBox) {
+                    erroBox.textContent = "";
+                    erroBox.classList.remove("show");
+                }
+            }
+
+            function gestflowExibirErroFormulario(formulario, mensagem, campo) {
+                const erroBox = formulario.querySelector("[data-form-error]");
+
+                if (erroBox) {
+                    erroBox.textContent = mensagem;
+                    erroBox.classList.add("show");
+                    erroBox.scrollIntoView({ behavior: "smooth", block: "center" });
+                } else {
+                    alert(mensagem);
+                }
+
+                if (campo) {
+                    campo.classList.add("gestflow-campo-invalido");
+                    campo.focus();
+                }
+            }
+
+            function gestflowCampoObrigatorio(formulario, seletor, mensagem) {
+                const campo = formulario.querySelector(seletor);
+
+                if (!campo) {
+                    return "";
+                }
+
+                let valor = String(campo.value || "").trim();
+
+                /*
+                 * Safari/iPhone pode restaurar visualmente o texto do select após
+                 * abrir câmera/galeria, mas deixar campo.value vazio. Na edição da
+                 * OS, recuperamos o cliente original antes de bloquear o envio.
+                 */
+                if (
+                    seletor === '[name="os_cliente"]'
+                    && (!valor || valor.startsWith("__novo"))
+                ) {
+                    const clienteOriginal = formulario.querySelector('[name="os_cliente_original"]');
+                    const valorOriginal = String(clienteOriginal ? clienteOriginal.value : "").trim();
+
+                    if (valorOriginal) {
+                        let opcao = Array.from(campo.options || []).find(function(item) {
+                            return String(item.value || "").trim().toLocaleLowerCase("pt-BR")
+                                === valorOriginal.toLocaleLowerCase("pt-BR");
+                        });
+
+                        if (!opcao && campo.tagName === "SELECT") {
+                            opcao = document.createElement("option");
+                            opcao.value = valorOriginal;
+                            opcao.textContent = valorOriginal;
+                            campo.insertBefore(opcao, campo.firstChild);
+                        }
+
+                        campo.value = valorOriginal;
+                        valor = String(campo.value || valorOriginal).trim();
+                    }
+                }
+
+                if (!valor || valor.startsWith("__novo")) {
+                    gestflowExibirErroFormulario(formulario, mensagem, campo);
+                    return mensagem;
+                }
+
+                return "";
+            }
+
+            function gestflowExisteItemValido(formulario, exigirValor) {
+                const linhas = formulario.querySelectorAll("tbody tr");
+
+                for (const linha of linhas) {
+                    const descricao = linha.querySelector('[name="item_descricao"]');
+                    const quantidade = linha.querySelector('[name="item_quantidade"]');
+                    const valor = linha.querySelector('[name="item_valor_unitario"]');
+
+                    if (!descricao) {
+                        continue;
+                    }
+
+                    const descricaoValor = String(descricao.value || "").trim();
+
+                    if (!descricaoValor || descricaoValor.startsWith("__novo")) {
+                        continue;
+                    }
+
+                    const quantidadeNumero = gestflowValorNumero(quantidade ? quantidade.value : "");
+                    const valorNumero = gestflowValorNumero(valor ? valor.value : "");
+
+                    if (quantidadeNumero > 0 && (!exigirValor || valorNumero > 0)) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            function gestflowTravarFormularioDocumento(configuracao) {
+                const formulario = document.getElementById(configuracao.formId);
+
+                if (!formulario) {
+                    return;
+                }
+
+                formulario.addEventListener("submit", function(evento) {
+                    gestflowLimparErrosFormulario(formulario);
+
+                    for (const campo of configuracao.camposObrigatorios) {
+                        const erro = gestflowCampoObrigatorio(formulario, campo.seletor, campo.mensagem);
+
+                        if (erro) {
+                            evento.preventDefault();
+                            return;
+                        }
+                    }
+
+                    if (configuracao.exigirItem && !gestflowExisteItemValido(formulario, configuracao.exigirValorItem !== false)) {
+                        evento.preventDefault();
+                        gestflowExibirErroFormulario(formulario, configuracao.mensagemItem || "Adicione pelo menos um item válido com quantidade e valor.");
+                        return;
+                    }
+
+                    if (configuracao.exigirItemOuRelato && !gestflowExisteItemValido(formulario, false)) {
+                        const relato = formulario.querySelector('[name="os_relato_cliente"]');
+                        const diagnostico = formulario.querySelector('[name="os_diagnostico"]');
+                        const executado = formulario.querySelector('[name="os_servico_executado"]');
+                        const temRelato = [relato, diagnostico, executado].some(function(campo) {
+                            return campo && String(campo.value || "").trim();
+                        });
+
+                        if (!temRelato) {
+                            evento.preventDefault();
+                            gestflowExibirErroFormulario(formulario, "Informe ao menos um item, relato do cliente, diagnóstico ou serviço executado.");
+                            return;
+                        }
+                    }
+
+                    if (configuracao.totalSeletor) {
+                        const total = formulario.querySelector(configuracao.totalSeletor);
+
+                        if (total && gestflowValorNumero(total.value) <= 0) {
+                            evento.preventDefault();
+                            gestflowExibirErroFormulario(formulario, configuracao.mensagemTotal || "O valor total precisa ser maior que zero.", total);
+                        }
+                    }
+                });
+            }
+        </script>
+
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function() {
+                const clienteSelect = document.getElementById("os_cliente");
+
+                if (clienteSelect) {
+                    const clienteOriginal = document.getElementById("os_cliente_original");
+
+                    clienteSelect.addEventListener("change", function() {
+                        const valorAtual = String(clienteSelect.value || "").trim();
+                        if (clienteOriginal && valorAtual && !valorAtual.startsWith("__novo")) {
+                            clienteOriginal.value = valorAtual;
+                        }
+                    });
+                }
+
+                if (clienteSelect && !String(clienteSelect.value || "").trim()) {
+                    const clienteAtual = String(clienteSelect.dataset.clienteAtual || "").trim();
+
+                    if (clienteAtual) {
+                        let opcaoAtual = Array.from(clienteSelect.options).find(function(opcao) {
+                            return String(opcao.value || "").trim().toLocaleLowerCase("pt-BR") === clienteAtual.toLocaleLowerCase("pt-BR");
+                        });
+
+                        if (!opcaoAtual) {
+                            opcaoAtual = document.createElement("option");
+                            opcaoAtual.value = clienteAtual;
+                            opcaoAtual.textContent = clienteAtual;
+                            const opcaoNovoCliente = Array.from(clienteSelect.options).find(function(opcao) {
+                                return opcao.value === "__novo_cliente__";
+                            });
+
+                            if (opcaoNovoCliente) {
+                                clienteSelect.insertBefore(opcaoAtual, opcaoNovoCliente);
+                            } else {
+                                clienteSelect.appendChild(opcaoAtual);
+                            }
+                        }
+
+                        clienteSelect.value = opcaoAtual.value;
+                    }
+                }
+            });
+        </script>
+
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function() {
+                const formulario = document.getElementById("form-editar-os");
+                const clienteSelect = document.getElementById("os_cliente");
+                const clienteOriginal = document.getElementById("os_cliente_original");
+
+                if (formulario && clienteSelect && clienteOriginal) {
+                    formulario.addEventListener("submit", function() {
+                        const clienteSelecionado = String(clienteSelect.value || "").trim();
+
+                        if (clienteSelecionado && !clienteSelecionado.startsWith("__novo")) {
+                            clienteOriginal.value = clienteSelecionado;
+                        }
+                    }, true);
+                }
+            });
+        </script>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function() {
+                gestflowTravarFormularioDocumento({
+                    formId: "form-editar-os",
+                    camposObrigatorios: [
+                        { seletor: '[name="os_cliente"]', mensagem: "Selecione um cliente para salvar a OS." },
+                        { seletor: '[name="os_responsavel"]', mensagem: "Selecione um responsável para salvar a OS." },
+                        { seletor: '[name="os_tecnico"]', mensagem: "Selecione um técnico para salvar a OS." },
+                        { seletor: '[name="os_data_abertura"]', mensagem: "Informe a data de abertura da OS." },
+                        { seletor: '[name="os_status"]', mensagem: "Informe o status da OS." },
+                        { seletor: '[name="os_prioridade"]', mensagem: "Informe a prioridade da OS." }
+                    ],
+                    exigirItemOuRelato: true
+                });
+            });
+        </script>
+
+
+        <script>
+            let contadorEquipamentos = {{ equipamentos_os|length if equipamentos_os else 1 }};
+
+            function criarBlocoEquipamentoEdicao(equipamentoIndice, rotulo) {
+                const bloco = document.createElement("div");
+                bloco.className = "os-equipamento-bloco os-equipamento-bloco-extra";
+                bloco.dataset.equipamentoIndice = String(equipamentoIndice);
+                bloco.innerHTML = `
+                    <div class="os-equipamento-topo">
+                        <div>
+                            <span>${rotulo}</span>
+                            <small>Dados principais na linha, detalhes abaixo.</small>
+                        </div>
+                        <button type="button" class="action-button delete" title="Remover equipamento" aria-label="Remover equipamento" onclick="removerEquipamento(this)">×</button>
+                    </div>
+                    <div class="table-shell os-equipamentos-table-shell">
+                        <table class="client-table os-equipamentos-table">
+                            <thead><tr><th>Equipamento cadastrado</th><th>Equipamento</th><th>Marca</th><th>Modelo</th><th>Série</th><th>Ação</th></tr></thead>
+                            <tbody>
+                                <tr class="os-equipamento-linha" data-equipamento-indice="${equipamentoIndice}">
+                                    <td>
+                                        <select name="os_equipamento_id" class="form-control os-equipamento-select" onchange="preencherEquipamentoCadastro(this)">
+                                            <option value="">Selecione</option>
+                                            {% for equipamento_cadastrado in equipamentos_cadastrados|default([]) %}
+                                                <option value="{{ equipamento_cadastrado.id }}" data-nome="{{ equipamento_cadastrado.nome|e }}" data-marca="{{ equipamento_cadastrado.marca|e }}" data-modelo="{{ equipamento_cadastrado.modelo|e }}" data-serie="{{ equipamento_cadastrado.serie|e }}" data-local="{{ equipamento_cadastrado.local_instalacao|e }}">
+                                                    {{ equipamento_cadastrado.cliente_nome or 'Sem cliente' }} - {{ equipamento_cadastrado.nome }}{% if equipamento_cadastrado.serie %} / {{ equipamento_cadastrado.serie }}{% endif %}
+                                                </option>
+                                            {% endfor %}
+                                                <option value="__novo_equipamento__" class="quick-new-option">+ Adicionar novo equipamento</option>
+                                        </select>
+                                    </td>
+                                    <td><input name="os_equipamento" type="text" placeholder="Ex.: portão, máquina, veículo" class="form-control"></td>
+                                    <td><input name="os_marca" type="text" class="form-control"></td>
+                                    <td><input name="os_modelo" type="text" class="form-control"></td>
+                                    <td><input name="os_serie" type="text" class="form-control"></td>
+                                    <td class="os-equipamento-remover-cell"><button type="button" class="action-button delete" title="Remover equipamento" aria-label="Remover equipamento" onclick="removerEquipamento(this)">×</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="os-equipamento-detalhes-card">
+                        <div class="os-equipamento-detalhes-grid">
+                            <div class="form-group os-detalhe-full"><label>Local do serviço</label><input name="os_local_servico" type="text" placeholder="Ex.: portaria principal, linha 2, área técnica" class="form-control"></div>
+                            <div class="form-group"><label>Condições</label><textarea name="os_condicoes" class="form-control os-textarea" placeholder="Condições encontradas"></textarea></div>
+                            <div class="form-group"><label>Defeitos / relato do cliente</label><textarea name="os_relato_cliente" class="form-control os-textarea" placeholder="Problema informado pelo cliente"></textarea></div>
+                            <div class="form-group"><label>Acessórios</label><textarea name="os_acessorios" class="form-control os-textarea" placeholder="Acessórios recebidos ou vinculados"></textarea></div>
+                            <div class="form-group"><label>Solução / diagnóstico</label><textarea name="os_diagnostico" class="form-control os-textarea" placeholder="Diagnóstico técnico e solução proposta"></textarea></div>
+                            <div class="form-group"><label>Laudo</label><textarea name="os_laudo" class="form-control os-textarea" placeholder="Laudo técnico, quando aplicável"></textarea></div>
+                            <div class="form-group"><label>Termos</label><textarea name="os_termos" class="form-control os-textarea" placeholder="Termos e condições do atendimento"></textarea></div>
+                        </div>
+                        <div class="os-foto-equipamento-bloco" data-foto-bloco>
+                            <div class="os-foto-equipamento-titulo">
+                                <div>
+                                    <span>Fotos do equipamento</span>
+                                    <p class="os-photo-helper">Adicione quantas fotos precisar. Nenhum campo vazio aparece antes de clicar.</p>
+                                </div>
+                                <button type="button" class="btn-primary-green" onclick="adicionarFotoEquipamento(this)">+ Adicionar foto</button>
+                            </div>
+                            <div class="os-photo-card-list" data-fotos-lista></div>
+                        </div>
+                        </div>
+                    </div>
+                `;
+                return bloco;
+            }
+
+            function adicionarEquipamento() {
+                contadorEquipamentos += 1;
+                const container = document.getElementById("equipamentos-container");
+                if (!container) {
+                    return;
+                }
+                const equipamentoIndice = contadorEquipamentos - 1;
+                container.appendChild(criarBlocoEquipamentoEdicao(equipamentoIndice, "Equipamento adicional " + contadorEquipamentos));
+            }
+
+            function removerEquipamento(botao) {
+                const bloco = botao.closest(".os-equipamento-bloco");
+                if (bloco) {
+                    bloco.remove();
+                    prepararTitulosFotosEquipamento();
+                }
+            }
+        </script>
+
+
+        <script>
+            let contadorFotosOS = 0;
+
+            function gerarChaveFotoOS() {
+                contadorFotosOS += 1;
+                return "nova_" + Date.now() + "_" + contadorFotosOS;
+            }
+
+            function criarCardFotoOS(dados) {
+                dados = dados || {};
+                const chave = String(dados.chave || gerarChaveFotoOS());
+                const card = document.createElement("article");
+                card.className = "os-photo-card";
+                card.dataset.fotoCard = "";
+                card.dataset.fotoChave = chave;
+                card.dataset.fotoId = String(dados.id || "");
+                card.dataset.fotoRemover = "nao";
+                const tipo = dados.tipo === "depois" ? "depois" : "antes";
+                const imagem = String(dados.imagem || "");
+                const observacoes = String(dados.observacoes || "");
+
+                card.innerHTML = `
+                    <div class="os-photo-card-media">
+                        <img data-photo-preview src="${imagem}" alt="Foto do equipamento" class="os-photo-card-preview" ${imagem ? "" : "hidden"}>
+                        <div data-photo-placeholder class="os-photo-card-placeholder" ${imagem ? "hidden" : ""}>Selecione uma imagem</div>
+                    </div>
+                    <div class="os-photo-card-fields">
+                        <div class="os-photo-card-field">
+                            <label>Tipo da foto</label>
+                            <select data-foto-tipo class="form-control">
+                                <option value="antes" ${tipo === "antes" ? "selected" : ""}>Antes</option>
+                                <option value="depois" ${tipo === "depois" ? "selected" : ""}>Depois</option>
+                            </select>
+                        </div>
+                        <div class="os-photo-card-field">
+                            <label>${dados.id ? "Substituir imagem" : "Imagem"}</label>
+                            <input data-foto-arquivo type="file" name="foto_os_arquivo_${chave}" class="form-control os-photo-input" accept="image/png,image/jpeg,image/webp">
+                            <div data-foto-upload-status class="os-photo-upload-status"></div>
+                        </div>
+                        <div class="os-photo-card-field os-photo-card-observation">
+                            <label>Observação</label>
+                            <textarea data-foto-observacoes class="form-control os-textarea" placeholder="Observação desta foto"></textarea>
+                        </div>
+                    </div>
+                    <button type="button" class="os-photo-card-remove" title="Remover foto" aria-label="Remover foto" onclick="removerFotoEquipamento(this)">×</button>
+                `;
+
+                const observacaoCampo = card.querySelector("[data-foto-observacoes]");
+                if (observacaoCampo) {
+                    observacaoCampo.value = observacoes;
+                }
+                return card;
+            }
+
+            function adicionarFotoEquipamento(botao) {
+                const blocoFoto = botao ? botao.closest("[data-foto-bloco]") : null;
+                const lista = blocoFoto ? blocoFoto.querySelector("[data-fotos-lista]") : null;
+                if (!lista) {
+                    return;
+                }
+
+                const card = criarCardFotoOS({ tipo: "antes" });
+                lista.appendChild(card);
+                const arquivo = card.querySelector("[data-foto-arquivo]");
+                if (arquivo) {
+                    arquivo.click();
+                }
+            }
+
+            function removerFotoEquipamento(botao) {
+                const card = botao ? botao.closest("[data-foto-card]") : null;
+                if (!card) {
+                    return;
+                }
+
+                const fotoId = String(card.dataset.fotoId || "").trim();
+
+                if (fotoId && card.dataset.uploadImediato === "sim") {
+                    botao.disabled = true;
+
+                    fetch("/ordens-servico/{{ os.id }}/fotos/" + encodeURIComponent(fotoId) + "/excluir", {
+                        method: "POST",
+                        headers: { "X-Requested-With": "XMLHttpRequest" }
+                    })
+                        .then(function(resposta) {
+                            return resposta.json().then(function(payload) {
+                                if (!resposta.ok || !payload.ok) {
+                                    throw new Error(payload.erro || "Não foi possível excluir a foto.");
+                                }
+                                return payload;
+                            });
+                        })
+                        .then(function() {
+                            card.remove();
+                            prepararTitulosFotosEquipamento();
+                        })
+                        .catch(function(erro) {
+                            botao.disabled = false;
+                            alert(erro.message || "Não foi possível excluir a foto.");
+                        });
+                    return;
+                }
+
+                if (fotoId) {
+                    card.dataset.fotoRemover = "sim";
+                    card.hidden = true;
+                    return;
+                }
+
+                card.remove();
+            }
+
+            let gestflowUploadsFotosPendentes = 0;
+
+            function statusUploadFoto(card, mensagem, tipo) {
+                const status = card ? card.querySelector("[data-foto-upload-status]") : null;
+                if (!status) {
+                    return;
+                }
+
+                status.textContent = mensagem || "";
+                status.className = "os-photo-upload-status" + (tipo ? " " + tipo : "");
+            }
+
+            function enviarFotoEquipamentoImediatamente(input, arquivo) {
+                const card = input.closest("[data-foto-card]");
+                const bloco = card ? card.closest(".os-equipamento-bloco") : null;
+
+                if (!card || !bloco || !arquivo) {
+                    return;
+                }
+
+                const blocos = Array.from(document.querySelectorAll(".os-equipamento-bloco"));
+                const equipamentoIndice = Math.max(0, blocos.indexOf(bloco));
+                const equipamentoNomeCampo = bloco.querySelector('[name="os_equipamento"]');
+                const titulo = String(
+                    equipamentoNomeCampo ? equipamentoNomeCampo.value : ""
+                ).trim() || (equipamentoIndice === 0
+                    ? "Equipamento principal"
+                    : "Equipamento adicional " + (equipamentoIndice + 1));
+
+                const tipoCampo = card.querySelector("[data-foto-tipo]");
+                const observacaoCampo = card.querySelector("[data-foto-observacoes]");
+                const dados = new FormData();
+
+                dados.append("foto", arquivo, arquivo.name || "foto.jpg");
+                dados.append("foto_id", String(card.dataset.fotoId || ""));
+                dados.append("tipo", String(tipoCampo ? tipoCampo.value : "antes"));
+                dados.append("equipamento_indice", String(equipamentoIndice));
+                dados.append("titulo", titulo);
+                dados.append("observacoes", String(observacaoCampo ? observacaoCampo.value : "").trim());
+
+                card.dataset.fotoUploadErro = "nao";
+                gestflowUploadsFotosPendentes += 1;
+                statusUploadFoto(card, "Enviando foto...", "enviando");
+
+                fetch("/ordens-servico/{{ os.id }}/fotos/upload", {
+                    method: "POST",
+                    headers: { "X-Requested-With": "XMLHttpRequest" },
+                    credentials: "same-origin",
+                    cache: "no-store",
+                    body: dados
+                })
+                    .then(function(resposta) {
+                        return resposta.json().then(function(payload) {
+                            if (!resposta.ok || !payload.ok) {
+                                throw new Error(payload.erro || "Não foi possível enviar a foto.");
+                            }
+                            return payload.foto;
+                        });
+                    })
+                    .then(function(foto) {
+                        card.dataset.fotoId = String(foto.id || "");
+                        card.dataset.fotoChave = "existente_" + String(foto.id || "");
+                        card.dataset.uploadImediato = "sim";
+                        card.dataset.fotoRemover = "nao";
+                        card.dataset.fotoUploadErro = "nao";
+
+                        const preview = card.querySelector("[data-photo-preview]");
+                        const placeholder = card.querySelector("[data-photo-placeholder]");
+
+                        if (preview && foto.caminho) {
+                            preview.src = foto.caminho;
+                            preview.hidden = false;
+                        }
+                        if (placeholder) {
+                            placeholder.hidden = true;
+                        }
+
+                        input.value = "";
+                        statusUploadFoto(card, "Foto enviada e salva.", "sucesso");
+                        prepararTitulosFotosEquipamento();
+                    })
+                    .catch(function(erro) {
+                        input.value = "";
+                        card.dataset.fotoUploadErro = "sim";
+                        statusUploadFoto(
+                            card,
+                            erro.message || "Não foi possível enviar a foto.",
+                            "erro"
+                        );
+                    })
+                    .finally(function() {
+                        gestflowUploadsFotosPendentes = Math.max(
+                            0,
+                            gestflowUploadsFotosPendentes - 1
+                        );
+                    });
+            }
+
+            document.addEventListener("change", function(evento) {
+                const input = evento.target;
+                if (!input || !input.matches || !input.matches(".os-photo-input")) {
+                    return;
+                }
+
+                const arquivo = input.files && input.files[0];
+                const card = input.closest("[data-foto-card]");
+                const preview = card ? card.querySelector("[data-photo-preview]") : null;
+                const placeholder = card ? card.querySelector("[data-photo-placeholder]") : null;
+
+                if (!preview || !placeholder) {
+                    return;
+                }
+
+                if (!arquivo) {
+                    if (!String(card.dataset.fotoId || "").trim()) {
+                        preview.removeAttribute("src");
+                        preview.hidden = true;
+                        placeholder.hidden = false;
+                    }
+                    return;
+                }
+
+                if (!String(arquivo.type || "").startsWith("image/")) {
+                    input.value = "";
+                    statusUploadFoto(card, "Selecione um arquivo de imagem válido.", "erro");
+                    return;
+                }
+
+                const leitor = new FileReader();
+                leitor.addEventListener("load", function() {
+                    preview.src = String(leitor.result || "");
+                    preview.hidden = false;
+                    placeholder.hidden = true;
+                });
+                leitor.readAsDataURL(arquivo);
+
+                enviarFotoEquipamentoImediatamente(input, arquivo);
+            });
+
+
+            function preencherEquipamentoCadastro(select) {
+                const option = select && select.options ? select.options[select.selectedIndex] : null;
+                const bloco = select ? select.closest(".os-equipamento-bloco") : null;
+
+                if (select && select.value === "__novo_equipamento__") {
+                    if (typeof window.abrirModalEquipamentoRapidoGeral === "function") {
+                        window.abrirModalEquipamentoRapidoGeral(select);
+                    }
+                    return;
+                }
+
+                if (!option || !bloco || !select.value) {
+                    return;
+                }
+
+                const mapa = {
+                    os_equipamento: option.dataset.nome || "",
+                    os_marca: option.dataset.marca || "",
+                    os_modelo: option.dataset.modelo || "",
+                    os_serie: option.dataset.serie || "",
+                    os_local_servico: option.dataset.local || ""
+                };
+
+                Object.keys(mapa).forEach(function(nomeCampo) {
+                    const campo = bloco.querySelector('[name="' + nomeCampo + '"]');
+                    if (campo) {
+                        campo.value = mapa[nomeCampo] || "";
+                    }
+                });
+
+                prepararTitulosFotosEquipamento();
+            }
+
+            window.preencherEquipamentoCadastro = preencherEquipamentoCadastro;
+
+            function prepararTitulosFotosEquipamento() {
+                const equipamentos = [];
+                const fotos = [];
+
+                document.querySelectorAll(".os-equipamento-bloco").forEach(function(bloco, indice) {
+                    bloco.dataset.equipamentoIndice = String(indice);
+
+                    const valor = function(nomeCampo) {
+                        const campo = bloco.querySelector('[name="' + nomeCampo + '"]');
+                        return campo ? String(campo.value || "").trim() : "";
+                    };
+                    const equipamentoSelect = bloco.querySelector('[name="os_equipamento_id"]');
+                    const equipamentoCadastroId = equipamentoSelect && !String(equipamentoSelect.value || "").startsWith("__novo")
+                        ? String(equipamentoSelect.value || "").trim()
+                        : "";
+                    const equipamentoNome = valor("os_equipamento") || (indice === 0 ? "Equipamento principal" : "Equipamento adicional " + (indice + 1));
+
+                    equipamentos.push({
+                        equipamento_id: equipamentoCadastroId,
+                        equipamento: valor("os_equipamento"),
+                        marca: valor("os_marca"),
+                        modelo: valor("os_modelo"),
+                        serie: valor("os_serie"),
+                        local_servico: valor("os_local_servico"),
+                        condicoes: valor("os_condicoes"),
+                        acessorios: valor("os_acessorios"),
+                        relato_cliente: valor("os_relato_cliente"),
+                        diagnostico: valor("os_diagnostico"),
+                        laudo: valor("os_laudo"),
+                        termos: valor("os_termos")
+                    });
+
+                    bloco.querySelectorAll("[data-foto-card]").forEach(function(card) {
+                        const chave = String(card.dataset.fotoChave || gerarChaveFotoOS());
+                        card.dataset.fotoChave = chave;
+                        const arquivo = card.querySelector("[data-foto-arquivo]");
+                        if (arquivo) {
+                            arquivo.name = "foto_os_arquivo_" + chave;
+                        }
+
+                        fotos.push({
+                            chave: chave,
+                            id: String(card.dataset.fotoId || ""),
+                            equipamento_indice: String(indice),
+                            titulo: equipamentoNome,
+                            tipo: String(card.querySelector("[data-foto-tipo]")?.value || "antes"),
+                            observacoes: String(card.querySelector("[data-foto-observacoes]")?.value || "").trim(),
+                            remover: String(card.dataset.fotoRemover || "nao")
+                        });
+                    });
+                });
+
+                const equipamentosJson = document.getElementById("os_equipamentos_json");
+                if (equipamentosJson) {
+                    equipamentosJson.value = JSON.stringify(equipamentos);
+                }
+
+                const fotosJson = document.getElementById("os_fotos_json");
+                if (fotosJson) {
+                    fotosJson.value = JSON.stringify(fotos);
+                }
+            }
+
+            document.addEventListener("DOMContentLoaded", function() {
+                const formulario = document.getElementById("form-editar-os");
+                prepararTitulosFotosEquipamento();
+
+                if (formulario) {
+                    formulario.addEventListener("submit", function(evento) {
+                        const uploadComErro = formulario.querySelector(
+                            '[data-foto-card][data-foto-upload-erro="sim"]'
+                        );
+
+                        if (gestflowUploadsFotosPendentes > 0) {
+                            evento.preventDefault();
+                            gestflowExibirErroFormulario(
+                                formulario,
+                                "Aguarde o envio da foto terminar antes de salvar a OS."
+                            );
+                            return;
+                        }
+
+                        if (uploadComErro) {
+                            evento.preventDefault();
+                            gestflowExibirErroFormulario(
+                                formulario,
+                                "Uma foto não foi enviada. Selecione a imagem novamente antes de salvar."
+                            );
+                            uploadComErro.scrollIntoView({ behavior: "smooth", block: "center" });
+                            return;
+                        }
+
+                        prepararTitulosFotosEquipamento();
+                    }, true);
+                }
+            });
+        </script>
+
+
+
+<script>
+(function() {
+    "use strict";
+
+    let gestflowClienteSelectAtual = null;
+    let gestflowResponsavelSelectAtual = null;
+    let gestflowFornecedorSelectAtual = null;
+
+    function abrirModalPorId(id) {
+        const modal = document.getElementById(id);
+        if (!modal) {
+            return;
+        }
+        modal.classList.add("open");
+        modal.setAttribute("aria-hidden", "false");
+        const primeiroCampo = modal.querySelector("input, select, textarea");
+        if (primeiroCampo) {
+            setTimeout(function() { primeiroCampo.focus(); }, 80);
+        }
+    }
+
+    function fecharModalPorId(id) {
+        const modal = document.getElementById(id);
+        if (!modal) {
+            return;
+        }
+        modal.classList.remove("open");
+        modal.setAttribute("aria-hidden", "true");
+    }
+
+    function limparErro(id) {
+        const erroBox = document.getElementById(id);
+        if (erroBox) {
+            erroBox.textContent = "";
+            erroBox.classList.remove("show");
+        }
+    }
+
+    function mostrarErro(id, mensagem) {
+        const erroBox = document.getElementById(id);
+        if (erroBox) {
+            erroBox.textContent = mensagem;
+            erroBox.classList.add("show");
+        } else {
+            alert(mensagem);
+        }
+    }
+
+    function adicionarOpcaoSelecionada(selects, valor, texto, selectAtual) {
+        document.querySelectorAll(selects).forEach(function(select) {
+            let opcaoExistente = Array.from(select.options).find(function(opcao) {
+                return opcao.value === valor;
+            });
+
+            if (!opcaoExistente) {
+                opcaoExistente = document.createElement("option");
+                opcaoExistente.value = valor;
+                opcaoExistente.textContent = texto;
+                const primeiraOpcaoNova = Array.from(select.options).find(function(opcao) {
+                    return String(opcao.value || "").startsWith("__novo");
+                });
+                if (primeiraOpcaoNova) {
+                    select.insertBefore(opcaoExistente, primeiraOpcaoNova);
+                } else {
+                    select.appendChild(opcaoExistente);
+                }
+            }
+
+            if (select === selectAtual) {
+                select.value = valor;
+                select.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+        });
+    }
+
+    window.abrirModalClienteRapidoGeral = function(selectOrigem) {
+        gestflowClienteSelectAtual = selectOrigem || gestflowClienteSelectAtual || document.querySelector(".quick-cliente-select");
+        limparErro("quick-cliente-error");
+        ["quick-cliente-nome", "quick-cliente-documento", "quick-cliente-telefone", "quick-cliente-email"].forEach(function(id) {
+            const campo = document.getElementById(id);
+            if (campo) { campo.value = ""; }
+        });
+        abrirModalPorId("quick-cliente-modal");
+    };
+
+    window.fecharModalClienteRapidoGeral = function() {
+        fecharModalPorId("quick-cliente-modal");
+        if (gestflowClienteSelectAtual && String(gestflowClienteSelectAtual.value || "").startsWith("__novo")) {
+            gestflowClienteSelectAtual.value = "";
+        }
+    };
+
+    window.abrirModalResponsavelRapidoGeral = function(selectOrigem) {
+        gestflowResponsavelSelectAtual = selectOrigem || gestflowResponsavelSelectAtual || document.querySelector(".quick-responsavel-select");
+        limparErro("quick-responsavel-error");
+        ["quick-responsavel-nome", "quick-responsavel-cargo", "quick-responsavel-telefone", "quick-responsavel-email"].forEach(function(id) {
+            const campo = document.getElementById(id);
+            if (campo) { campo.value = ""; }
+        });
+        abrirModalPorId("quick-responsavel-modal");
+    };
+
+    window.fecharModalResponsavelRapidoGeral = function() {
+        fecharModalPorId("quick-responsavel-modal");
+        if (gestflowResponsavelSelectAtual && String(gestflowResponsavelSelectAtual.value || "").startsWith("__novo")) {
+            gestflowResponsavelSelectAtual.value = "";
+        }
+    };
+
+    window.abrirModalFornecedorRapidoGeral = function(selectOrigem) {
+        gestflowFornecedorSelectAtual = selectOrigem || gestflowFornecedorSelectAtual || document.querySelector(".quick-fornecedor-select");
+        limparErro("quick-fornecedor-error");
+        ["quick-fornecedor-nome", "quick-fornecedor-documento", "quick-fornecedor-telefone", "quick-fornecedor-email"].forEach(function(id) {
+            const campo = document.getElementById(id);
+            if (campo) { campo.value = ""; }
+        });
+        abrirModalPorId("quick-fornecedor-modal");
+    };
+
+    window.fecharModalFornecedorRapidoGeral = function() {
+        fecharModalPorId("quick-fornecedor-modal");
+        if (gestflowFornecedorSelectAtual && String(gestflowFornecedorSelectAtual.value || "").startsWith("__novo")) {
+            gestflowFornecedorSelectAtual.value = "";
+        }
+    };
+
+    window.salvarClienteRapidoGeral = function() {
+        const nome = (document.getElementById("quick-cliente-nome")?.value || "").trim();
+        const documento = (document.getElementById("quick-cliente-documento")?.value || "").trim();
+        const telefone = (document.getElementById("quick-cliente-telefone")?.value || "").trim();
+        const email = (document.getElementById("quick-cliente-email")?.value || "").trim();
+
+        if (!nome) {
+            mostrarErro("quick-cliente-error", "Informe o nome do cliente.");
+            return;
+        }
+
+        const dados = new URLSearchParams();
+        dados.append("nome", nome);
+        dados.append("documento", documento);
+        dados.append("telefone", telefone);
+        dados.append("email", email);
+
+        fetch("/clientes/rapido", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+            body: dados.toString()
+        })
+            .then(function(resposta) {
+                return resposta.json().then(function(payload) {
+                    if (!resposta.ok || !payload.ok) {
+                        throw new Error(payload.erro || "Não foi possível salvar o cliente.");
+                    }
+                    return payload.cliente || payload.item;
+                });
+            })
+            .then(function(cliente) {
+                adicionarOpcaoSelecionada(".quick-cliente-select", cliente.nome, cliente.nome, gestflowClienteSelectAtual);
+                fecharModalPorId("quick-cliente-modal");
+            })
+            .catch(function(erro) {
+                mostrarErro("quick-cliente-error", erro.message || "Não foi possível salvar o cliente.");
+            });
+    };
+
+    window.salvarResponsavelRapidoGeral = function() {
+        const nome = (document.getElementById("quick-responsavel-nome")?.value || "").trim();
+        const cargo = (document.getElementById("quick-responsavel-cargo")?.value || "").trim();
+        const telefone = (document.getElementById("quick-responsavel-telefone")?.value || "").trim();
+        const email = (document.getElementById("quick-responsavel-email")?.value || "").trim();
+
+        if (!nome) {
+            mostrarErro("quick-responsavel-error", "Informe o nome do responsável.");
+            return;
+        }
+
+        const dados = new URLSearchParams();
+        dados.append("nome", nome);
+        dados.append("cargo", cargo);
+        dados.append("telefone", telefone);
+        dados.append("email", email);
+
+        fetch("/funcionarios/rapido", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+            body: dados.toString()
+        })
+            .then(function(resposta) {
+                return resposta.json().then(function(payload) {
+                    if (!resposta.ok || !payload.ok) {
+                        throw new Error(payload.erro || "Não foi possível salvar o responsável.");
+                    }
+                    return payload.funcionario || payload.item;
+                });
+            })
+            .then(function(funcionario) {
+                adicionarOpcaoSelecionada(".quick-responsavel-select", funcionario.nome, funcionario.nome, gestflowResponsavelSelectAtual);
+                fecharModalPorId("quick-responsavel-modal");
+            })
+            .catch(function(erro) {
+                mostrarErro("quick-responsavel-error", erro.message || "Não foi possível salvar o responsável.");
+            });
+    };
+
+    window.salvarFornecedorRapidoGeral = function() {
+        const nome = (document.getElementById("quick-fornecedor-nome")?.value || "").trim();
+        const documento = (document.getElementById("quick-fornecedor-documento")?.value || "").trim();
+        const telefone = (document.getElementById("quick-fornecedor-telefone")?.value || "").trim();
+        const email = (document.getElementById("quick-fornecedor-email")?.value || "").trim();
+
+        if (!nome) {
+            mostrarErro("quick-fornecedor-error", "Informe o nome do fornecedor.");
+            return;
+        }
+
+        const dados = new URLSearchParams();
+        dados.append("nome", nome);
+        dados.append("documento", documento);
+        dados.append("telefone", telefone);
+        dados.append("email", email);
+
+        fetch("/fornecedores/rapido", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+            body: dados.toString()
+        })
+            .then(function(resposta) {
+                return resposta.json().then(function(payload) {
+                    if (!resposta.ok || !payload.ok) {
+                        throw new Error(payload.erro || "Não foi possível salvar o fornecedor.");
+                    }
+                    return payload.fornecedor || payload.item;
+                });
+            })
+            .then(function(fornecedor) {
+                adicionarOpcaoSelecionada(".quick-fornecedor-select", fornecedor.nome, fornecedor.nome, gestflowFornecedorSelectAtual);
+                fecharModalPorId("quick-fornecedor-modal");
+            })
+            .catch(function(erro) {
+                mostrarErro("quick-fornecedor-error", erro.message || "Não foi possível salvar o fornecedor.");
+            });
+    };
+
+    window.abrirModalClienteRapido = window.abrirModalClienteRapidoGeral;
+    window.fecharModalClienteRapido = window.fecharModalClienteRapidoGeral;
+    window.salvarClienteRapido = window.salvarClienteRapidoGeral;
+    window.abrirModalResponsavelRapido = window.abrirModalResponsavelRapidoGeral;
+    window.fecharModalResponsavelRapido = window.fecharModalResponsavelRapidoGeral;
+    window.salvarResponsavelRapido = window.salvarResponsavelRapidoGeral;
+    window.abrirModalFornecedorRapido = window.abrirModalFornecedorRapidoGeral;
+    window.fecharModalFornecedorRapido = window.fecharModalFornecedorRapidoGeral;
+    window.salvarFornecedorRapido = window.salvarFornecedorRapidoGeral;
+
+    document.addEventListener("change", function(evento) {
+        const alvo = evento.target;
+
+        if (!alvo || !alvo.matches) {
+            return;
+        }
+
+        if (alvo.matches(".quick-cliente-select") && alvo.value === "__novo_cliente__") {
+            window.abrirModalClienteRapidoGeral(alvo);
+            return;
+        }
+
+        if (alvo.matches(".quick-responsavel-select") && alvo.value === "__novo_responsavel__") {
+            window.abrirModalResponsavelRapidoGeral(alvo);
+            return;
+        }
+
+        if (alvo.matches(".quick-fornecedor-select") && alvo.value === "__novo_fornecedor__") {
+            window.abrirModalFornecedorRapidoGeral(alvo);
+        }
+    });
+})();
+</script>
+
+
+
+<script>
+(function() {
+    "use strict";
+
+    let gestflowItemSelectAtual = null;
+    let gestflowItemLinhaAtual = null;
+    let gestflowItemTipoAtual = "produto";
+
+    function abrirModalPorId(id) {
+        const modal = document.getElementById(id);
+        if (!modal) {
+            return;
+        }
+        modal.classList.add("open");
+        modal.setAttribute("aria-hidden", "false");
+        const primeiroCampo = modal.querySelector("input:not([type='hidden']), select, textarea");
+        if (primeiroCampo) {
+            setTimeout(function() { primeiroCampo.focus(); }, 80);
+        }
+    }
+
+    function fecharModalPorId(id) {
+        const modal = document.getElementById(id);
+        if (!modal) {
+            return;
+        }
+        modal.classList.remove("open");
+        modal.setAttribute("aria-hidden", "true");
+    }
+
+    function mostrarErro(id, mensagem) {
+        const erroBox = document.getElementById(id);
+        if (erroBox) {
+            erroBox.textContent = mensagem;
+            erroBox.classList.add("show");
+        } else {
+            alert(mensagem);
+        }
+    }
+
+    function limparCamposItemRapido() {
+        ["quick-item-nome", "quick-item-valor", "quick-item-categoria", "quick-item-unidade", "quick-item-observacoes"].forEach(function(id) {
+            const campo = document.getElementById(id);
+            if (campo) { campo.value = ""; }
+        });
+        const erroBox = document.getElementById("quick-item-error");
+        if (erroBox) {
+            erroBox.textContent = "";
+            erroBox.classList.remove("show");
+        }
+    }
+
+    function adicionarItemAosSelects(tipo, item, selectAtual) {
+        const nome = item.nome || "";
+        const id = item.id || nome;
+        const valor = selectAtual && (selectAtual.name === "estoque_produto_id" || selectAtual.name === "compra_produto_id") ? String(id) : nome;
+        const texto = tipo === "produto" && item.codigo ? nome + " - " + item.codigo : nome;
+        const seletor = tipo === "produto" ? 'select.item-descricao, select[name="estoque_produto_id"], select[name="compra_produto_id"]' : 'select.item-descricao';
+
+        if (tipo === "produto" && Array.isArray(window.opcoesProdutos)) {
+            window.opcoesProdutos.push({
+                id: item.id || "",
+                nome: nome,
+                valor: item.valor || item.preco_venda || "",
+                codigo: item.codigo || "",
+                unidade: item.unidade || ""
+            });
+        }
+
+        if (tipo === "servico" && Array.isArray(window.opcoesServicos)) {
+            window.opcoesServicos.push({
+                id: item.id || "",
+                nome: nome,
+                valor: item.valor || item.valor_venda || "",
+                unidade: item.unidade || ""
+            });
+        }
+
+        document.querySelectorAll(seletor).forEach(function(select) {
+            const ehSelectItem = select.classList.contains("item-descricao");
+            const linha = select.closest("tr");
+            const tipoLinha = linha ? (linha.querySelector('[name="item_tipo"]')?.value || "produto") : "produto";
+
+            if (ehSelectItem && tipoLinha !== tipo) {
+                return;
+            }
+
+            let opcaoExistente = Array.from(select.options).find(function(opcao) {
+                return opcao.value === valor || opcao.value === nome;
+            });
+
+            if (!opcaoExistente) {
+                opcaoExistente = document.createElement("option");
+                opcaoExistente.value = ehSelectItem ? nome : valor;
+                opcaoExistente.textContent = texto;
+                opcaoExistente.setAttribute("data-valor", item.valor || item.preco_venda || item.valor_venda || "");
+
+                const primeiraOpcaoNova = Array.from(select.options).find(function(opcao) {
+                    return String(opcao.value || "").startsWith("__novo");
+                });
+
+                if (primeiraOpcaoNova) {
+                    select.insertBefore(opcaoExistente, primeiraOpcaoNova);
+                } else {
+                    select.appendChild(opcaoExistente);
+                }
+            }
+
+            if (select === selectAtual) {
+                select.value = ehSelectItem ? nome : valor;
+                select.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+        });
+
+        if (selectAtual && selectAtual.classList.contains("item-descricao")) {
+            const linha = selectAtual.closest("tr");
+            const valorInput = linha ? linha.querySelector(".item-valor") : null;
+            const quantidadeInput = linha ? linha.querySelector(".item-quantidade") : null;
+
+            if (valorInput && (item.valor || item.preco_venda || item.valor_venda)) {
+                valorInput.value = item.valor || item.preco_venda || item.valor_venda || "";
+                valorInput.dispatchEvent(new Event("input", { bubbles: true }));
+            }
+
+            if (quantidadeInput && !quantidadeInput.value) {
+                quantidadeInput.value = "1";
+            }
+        }
+    }
+
+    window.abrirModalItemRapidoGeral = function(tipo, selectOrigem, linhaOrigem) {
+        gestflowItemTipoAtual = tipo === "servico" ? "servico" : "produto";
+        gestflowItemSelectAtual = selectOrigem || gestflowItemSelectAtual;
+        gestflowItemLinhaAtual = linhaOrigem || (selectOrigem ? selectOrigem.closest("tr") : null);
+
+        limparCamposItemRapido();
+
+        const tipoInput = document.getElementById("quick-item-tipo");
+        const titulo = document.getElementById("quick-item-title");
+        const subtitulo = document.getElementById("quick-item-subtitle");
+        const unidade = document.getElementById("quick-item-unidade");
+
+        if (tipoInput) { tipoInput.value = gestflowItemTipoAtual; }
+        if (titulo) { titulo.textContent = gestflowItemTipoAtual === "produto" ? "Novo produto" : "Novo serviço"; }
+        if (subtitulo) { subtitulo.textContent = "Cadastro rápido sem sair da tela."; }
+        if (unidade) { unidade.value = gestflowItemTipoAtual === "produto" ? "un" : "un"; }
+
+        abrirModalPorId("quick-item-modal");
+    };
+
+    window.fecharModalItemRapidoGeral = function() {
+        fecharModalPorId("quick-item-modal");
+        if (gestflowItemSelectAtual && String(gestflowItemSelectAtual.value || "").startsWith("__novo")) {
+            gestflowItemSelectAtual.value = "";
+        }
+    };
+
+    window.salvarItemRapidoGeral = function() {
+        const tipo = (document.getElementById("quick-item-tipo")?.value || gestflowItemTipoAtual || "produto") === "servico" ? "servico" : "produto";
+        const nome = (document.getElementById("quick-item-nome")?.value || "").trim();
+        const valor = (document.getElementById("quick-item-valor")?.value || "").trim();
+        const categoria = (document.getElementById("quick-item-categoria")?.value || "").trim();
+        const unidade = (document.getElementById("quick-item-unidade")?.value || "un").trim() || "un";
+        const observacoes = (document.getElementById("quick-item-observacoes")?.value || "").trim();
+
+        if (!nome) {
+            mostrarErro("quick-item-error", "Informe o nome do item.");
+            return;
+        }
+
+        const endpoint = tipo === "produto" ? "/produtos/rapido" : "/servicos/rapido";
+        const dados = new URLSearchParams();
+        dados.append("nome", nome);
+        dados.append("valor_venda", valor);
+        dados.append("preco_venda", valor);
+        dados.append("unidade", unidade);
+        dados.append("categoria", categoria);
+        dados.append("observacoes", observacoes);
+
+        fetch(endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+            body: dados.toString()
+        })
+            .then(function(resposta) {
+                return resposta.json().then(function(payload) {
+                    if (!resposta.ok || !payload.ok) {
+                        throw new Error(payload.erro || "Não foi possível salvar o item.");
+                    }
+                    return payload.item || payload.produto || payload.servico;
+                });
+            })
+            .then(function(item) {
+                adicionarItemAosSelects(tipo, item, gestflowItemSelectAtual);
+                fecharModalPorId("quick-item-modal");
+            })
+            .catch(function(erro) {
+                mostrarErro("quick-item-error", erro.message || "Não foi possível salvar o item.");
+            });
+    };
+
+    window.abrirModalItemRapido = window.abrirModalItemRapidoGeral;
+    window.fecharModalItemRapido = window.fecharModalItemRapidoGeral;
+    window.salvarItemRapido = window.salvarItemRapidoGeral;
+
+    document.addEventListener("change", function(evento) {
+        const alvo = evento.target;
+
+        if (!alvo || !alvo.matches) {
+            return;
+        }
+
+        if (alvo.matches("select.item-descricao")) {
+            if (alvo.value === "__novo__" || alvo.value === "__novo_produto__" || alvo.value === "__novo_servico__") {
+                const linha = alvo.closest("tr");
+                const tipoLinha = linha ? (linha.querySelector('[name="item_tipo"]')?.value || "produto") : (alvo.value === "__novo_servico__" ? "servico" : "produto");
+                window.abrirModalItemRapidoGeral(tipoLinha, alvo, linha);
+            }
+        }
+
+        if ((alvo.matches('select[name="estoque_produto_id"]') || alvo.matches('select[name="compra_produto_id"]')) && alvo.value === "__novo_produto__") {
+            window.abrirModalItemRapidoGeral("produto", alvo, null);
+        }
+    });
+})();
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const formulario = document.getElementById("form-editar-os");
+
+    if (!formulario) {
+        return;
+    }
+
+    formulario.addEventListener("keydown", function(evento) {
+        if (evento.key === "Enter" && evento.target.tagName !== "TEXTAREA") {
+            evento.preventDefault();
+        }
+    });
+});
+</script>
+
+
+<script>
+(function gestflowStatusOperacional() {
+    function aplicarCor(select) {
+        const opcao = select.options[select.selectedIndex];
+        if (!opcao) return;
+        select.style.setProperty('--status-bg', opcao.dataset.bg || '#f1f5f9');
+        select.style.setProperty('--status-text', opcao.dataset.text || '#334155');
+        select.style.setProperty('--status-border', opcao.dataset.border || '#cbd5e1');
+    }
+
+    async function alterarStatus(select) {
+        const anterior = select.dataset.current || '';
+        const opcao = select.options[select.selectedIndex];
+        if (!opcao || select.value === anterior) { aplicarCor(select); return; }
+        const finalizador = opcao.dataset.final === '1';
+        if (finalizador) {
+            const mensagem = select.dataset.finalMessage || 'Confirmar a finalização deste registro?';
+            if (!window.confirm(mensagem)) {
+                select.value = anterior;
+                aplicarCor(select);
+                return;
+            }
+        }
+        select.disabled = true;
+        const dados = new URLSearchParams();
+        dados.append('status', select.value);
+        if (finalizador) dados.append('confirmar_finalizacao', 'sim');
+        try {
+            const resposta = await fetch(select.dataset.statusUrl, {
+                method: 'POST',
+                headers: {'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},
+                body: dados.toString()
+            });
+            const payload = await resposta.json();
+            if (!resposta.ok || !payload.ok) throw new Error(payload.erro || 'Não foi possível alterar o status.');
+            select.dataset.current = payload.status || select.value;
+            aplicarCor(select);
+            if (payload.mensagem) window.alert(payload.mensagem);
+            window.location.reload();
+        } catch (erro) {
+            select.value = anterior;
+            aplicarCor(select);
+            select.disabled = false;
+            window.alert(erro.message || 'Não foi possível alterar o status.');
+        }
+    }
+
+    document.querySelectorAll('[data-status-operacional]').forEach(function(select) {
+        aplicarCor(select);
+        select.addEventListener('change', function() { alterarStatus(select); });
+    });
+})();
+</script>
+
+</body>
+</html>

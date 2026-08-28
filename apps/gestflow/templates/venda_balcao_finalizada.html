@@ -1,0 +1,424 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\venda_balcao_finalizada.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Venda Finalizada</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .pdv-success-shell {
+            min-height: calc(100vh - 170px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .pdv-success-card {
+            width: min(980px, 100%);
+            min-height: 500px;
+            background: #ffffff;
+            border: 1px solid #dbe5f1;
+            border-radius: 16px;
+            box-shadow: 0 18px 45px rgba(15, 23, 42, 0.16);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 40px 24px;
+        }
+
+        .pdv-basket {
+            width: 230px;
+            height: 230px;
+            margin: 0 auto 18px;
+            color: #28a745;
+        }
+
+        .pdv-success-title {
+            margin: 0 0 22px;
+            color: #16a34a;
+            font-size: 28px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.2px;
+        }
+
+        .pdv-success-info {
+            margin: 0 auto 24px;
+            max-width: 520px;
+            color: #334155;
+            font-size: 15px;
+            line-height: 1.6;
+        }
+
+        .pdv-success-actions {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .pdv-success-actions a,
+        .pdv-success-actions button {
+            min-width: 170px;
+            height: 42px;
+            border: 0;
+            border-radius: 5px;
+            color: #ffffff;
+            font-weight: 900;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        .pdv-green {
+            background: #08a85a;
+        }
+
+        .pdv-dark {
+            background: #071624;
+        }
+
+        .pdv-purple {
+            background: #8a124d;
+        }
+
+        .pdv-footer-help {
+            margin-top: 18px;
+            padding: 13px;
+            background: #f1f5f9;
+            color: #0f172a;
+            font-size: 12px;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        @media (max-width: 640px) {
+            .pdv-basket {
+                width: 170px;
+                height: 170px;
+            }
+
+            .pdv-success-title {
+                font-size: 22px;
+            }
+
+            .pdv-success-actions a,
+            .pdv-success-actions button {
+                width: 100%;
+            }
+        }
+    </style>
+
+    <style>
+        /* PADRAO VISUAL ORCAMENTOS - TELAS AUXILIARES */
+        .content {
+            padding-bottom: 220px;
+        }
+
+        .content > .panel.page-section:first-of-type {
+            margin-top: 0;
+        }
+
+        .panel,
+        .page-section,
+        .table-panel {
+            border-radius: 16px;
+        }
+
+        .panel-header.page-header,
+        .page-header {
+            gap: 14px;
+        }
+
+        .page-title {
+            letter-spacing: -0.02em;
+        }
+
+        .page-subtitle {
+            max-width: 760px;
+        }
+
+        .client-toolbar,
+        .form-actions,
+        .client-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn-primary-green,
+        .btn-dark,
+        .btn-light,
+        .action-button {
+            border-radius: 10px;
+            text-decoration: none;
+        }
+
+        .form-control,
+        input,
+        select,
+        textarea {
+            border-radius: 10px;
+            max-width: 100%;
+        }
+
+        .client-form {
+            width: 100%;
+        }
+
+        .form-grid {
+            align-items: start;
+        }
+
+        .panel-summary {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .panel-summary > div {
+            min-height: 74px;
+            border: 1px solid #e5eaf2;
+            border-radius: 14px;
+            background: #ffffff;
+            padding: 14px;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+        }
+
+        .panel-summary span {
+            display: block;
+            margin-bottom: 6px;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+
+        .panel-summary strong {
+            color: #0f172a;
+            font-size: 14px;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+
+        .table-shell {
+            border: 0 !important;
+            border-radius: 16px;
+            overflow-x: auto;
+            background: #ffffff;
+        }
+
+        .content table,
+        .content .client-table {
+            width: 100%;
+            border-collapse: separate !important;
+            border-spacing: 0 10px !important;
+            min-width: 760px;
+        }
+
+        .content table thead th,
+        .content .client-table thead th {
+            border-bottom: 0 !important;
+            background: transparent;
+            padding: 10px 12px;
+            color: #334155;
+            font-size: 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .content table tbody tr,
+        .content .client-table tbody tr {
+            background: #ffffff;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+            border-radius: 14px;
+        }
+
+        .content table tbody td,
+        .content .client-table tbody td {
+            border-bottom: 0 !important;
+            padding: 14px 12px !important;
+            color: #334155;
+            vertical-align: middle;
+        }
+
+        .content table tbody td:first-child,
+        .content .client-table tbody td:first-child {
+            border-top-left-radius: 14px;
+            border-bottom-left-radius: 14px;
+        }
+
+        .content table tbody td:last-child,
+        .content .client-table tbody td:last-child {
+            border-top-right-radius: 14px;
+            border-bottom-right-radius: 14px;
+        }
+
+        .empty-table,
+        .empty-table-box {
+            border-radius: 14px;
+        }
+
+        .status-pill,
+        .badge-info {
+            border-radius: 999px;
+            white-space: nowrap;
+        }
+
+        .quick-modal,
+        .modal,
+        .dialog {
+            border-radius: 18px;
+        }
+
+        .config-grid,
+        .portal-grid,
+        .planos-grid,
+        .cards,
+        .cards-secondary {
+            gap: 16px;
+        }
+
+        .config-card,
+        .portal-card,
+        .plan-card,
+        .card,
+        .stat-card {
+            border-radius: 16px;
+        }
+
+        .auth-card,
+        .login-card,
+        .onboarding-card,
+        .portal-card,
+        .plan-card {
+            box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+        }
+
+        @media (max-width: 1100px) {
+            .panel-summary {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .content table,
+            .content .client-table {
+                min-width: 720px;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .panel-summary {
+                grid-template-columns: 1fr;
+            }
+
+            .client-toolbar,
+            .form-actions,
+            .client-actions {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .client-toolbar .btn-primary-green,
+            .client-toolbar .btn-dark,
+            .client-toolbar .btn-light,
+            .form-actions .btn-primary-green,
+            .form-actions .btn-dark,
+            .form-actions .btn-light {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .content table,
+            .content .client-table {
+                min-width: 680px;
+            }
+        }
+    </style>
+
+</head>
+<body class="focus-mode-body">
+
+    <main class="content focus-mode-main">
+        <header class="focus-mode-header">
+            <div class="focus-mode-heading">
+                <span class="focus-mode-eyebrow">Modo foco</span>
+                <strong>Venda Finalizada</strong>
+                <small>A operação foi concluída com sucesso.</small>
+            </div>
+            <button type="button" class="focus-mode-exit" onclick="sairModoFocoFinalizado()" title="Voltar para vendas">
+                <span>← Voltar para vendas</span>
+                <kbd>Esc</kbd>
+            </button>
+        </header>
+
+        <section class="pdv-success-shell">
+            <div class="pdv-success-card">
+                <div>
+                    <svg class="pdv-basket" viewBox="0 0 240 240" aria-hidden="true">
+                        <path d="M70 88h100l-14 90c-2 13-10 20-23 20H107c-13 0-21-7-23-20L70 88z" fill="currentColor"></path>
+                        <path d="M52 76h136" stroke="currentColor" stroke-width="24" stroke-linecap="round"></path>
+                        <path d="M90 58l24-43" stroke="currentColor" stroke-width="22" stroke-linecap="round"></path>
+                        <path d="M150 58l-24-43" stroke="currentColor" stroke-width="22" stroke-linecap="round"></path>
+                    </svg>
+
+                    <h2 class="pdv-success-title">Venda finalizada com sucesso!</h2>
+
+                    <p class="pdv-success-info">
+                        Venda Nº <strong>{{ venda.numero or venda.id }}</strong> registrada como concretizada.
+                        Total: <strong>R$ {{ venda.valor_total or '0,00' }}</strong>.<br>
+                        Pagamento: <strong>{{ venda.condicao_pagamento or 'avista' }}</strong>
+                        por <strong>{{ venda.meio_pagamento or venda.forma_pagamento or '-' }}</strong>.
+                    </p>
+
+                    <div class="pdv-success-actions">
+                        <a href="/vendas/balcao" class="pdv-green">Iniciar nova venda</a>
+                        <a href="/vendas/{{ venda.id }}/imprimir/cupom" class="pdv-dark">Imprimir cupom</a>
+                        <button type="button" class="pdv-purple" onclick="alert('Emissão NFC-e ficará para uma etapa futura.')">Emitir NFC-e</button>
+                    </div>
+
+                    <div class="pdv-footer-help">F2 = Imprimir cupom | F3 = Emitir NFC-e | F4 = Nova venda</div>
+                </div>
+            </div>
+        </section>
+
+        <script>
+            function sairModoFocoFinalizado() {
+                window.location.href = "/vendas";
+            }
+
+            document.addEventListener("keydown", function (event) {
+                if (event.key === "Escape") {
+                    event.preventDefault();
+                    sairModoFocoFinalizado();
+                    return;
+                }
+                if (event.key === "F2") {
+                    event.preventDefault();
+                    window.location.href = "/vendas/{{ venda.id }}/imprimir/cupom";
+                }
+                if (event.key === "F3") {
+                    event.preventDefault();
+                    alert("Emissão NFC-e ficará para uma etapa futura.");
+                }
+                if (event.key === "F4") {
+                    event.preventDefault();
+                    window.location.href = "/vendas/balcao";
+                }
+            });
+        </script>
+    </main>
+</body>
+</html>

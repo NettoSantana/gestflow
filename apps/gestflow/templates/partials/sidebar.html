@@ -1,0 +1,523 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\partials\sidebar.html
+Último recode: 2026-08-22 11:56 (America/Bahia)
+Motivo: Integrar o IndFlow ao controle de módulos especializados definido pela nova anamnese.
+#}
+
+{% set _path = request.path if request is defined else '' %}
+{% set _config_grupo = request.view_args.get('grupo', '') if request is defined and request.view_args else '' %}
+{% set _sistema_config_ativo = ((_path.startswith('/configuracoes') and not _path.startswith('/configuracoes/modulo/')) or _path.startswith('/indicacoes') or _config_grupo == 'sistema') %}
+{% set _usuario_sidebar = usuario_logado|default({}, true) %}
+
+<aside class="sidebar">
+    <div class="brand brand-with-logo">
+        <a href="/" class="brand-logo-link" aria-label="GestFlow - Dashboard">
+            <img src="/static/img/gestflow-logo.png" alt="GestFlow" class="brand-logo-img">
+        </a>
+        <button class="mobile-sidebar-close" type="button" aria-label="Fechar menu">×</button>
+    </div>
+
+
+    <button class="mobile-submenu-floating-back" type="button" aria-label="Voltar para o menu principal">← VOLTAR</button>
+
+    <nav class="sidebar-nav">
+        {% set _modulos = gestflow_modulos_ativos|default({}, true) %}
+        {% set _cadastros_ativo =
+            (_modulos.get('clientes', true) and modulo_usuario_visivel('clientes')) or
+            (_modulos.get('fornecedores', true) and modulo_usuario_visivel('fornecedores')) or
+            (_modulos.get('funcionarios', true) and modulo_usuario_visivel('funcionarios')) or
+            (_modulos.get('equipamentos', true) and modulo_usuario_visivel('equipamentos'))
+        %}
+        {% set _vendas_ativo =
+            (_modulos.get('vendas', true) and modulo_usuario_visivel('vendas')) or
+            (_modulos.get('pdv', true) and modulo_usuario_visivel('pdv')) or
+            (_modulos.get('devolucoes', true) and modulo_usuario_visivel('devolucoes'))
+        %}
+        {% set _orcamentos_ativo =
+            (_modulos.get('orcamentos', true) and modulo_usuario_visivel('orcamentos')) or
+            (_modulos.get('gerador_orcamentos', true) and modulo_usuario_visivel('gerador_orcamentos'))
+        %}
+        {% set _os_ativo =
+            (_modulos.get('ordens_servico', true) and modulo_usuario_visivel('ordens_servico')) or
+            (_modulos.get('painel_os', true) and modulo_usuario_visivel('painel_os'))
+        %}
+
+        <ul class="menu">
+            <li class="menu-item {% if _path == '/' %}active{% endif %}">
+                <a href="/">
+                    <span class="menu-icon">⌂</span>
+                    <span>Dashboard</span>
+                </a>
+            </li>
+
+            {% if _cadastros_ativo %}
+            <li class="menu-group {% if _path.startswith('/clientes') or _path.startswith('/fornecedores') or _path.startswith('/funcionarios') or _path.startswith('/equipamentos') or _config_grupo == 'cadastros' %}active{% endif %}">
+                <details {% if _path.startswith('/clientes') or _path.startswith('/fornecedores') or _path.startswith('/funcionarios') or _path.startswith('/equipamentos') or _config_grupo == 'cadastros' %}open{% endif %}>
+                    <summary>
+                        <span class="menu-label"><span class="menu-icon">☷</span><span>Cadastros</span></span>
+                        <span class="arrow">⌄</span>
+                    </summary>
+                    <ul class="submenu">
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Cadastros</strong></li>
+                        {% if _modulos.get('clientes', true) and modulo_usuario_visivel('clientes') %}<li class="{% if _path.startswith('/clientes') %}submenu-active{% endif %}"><a href="/clientes">Clientes</a></li>{% endif %}
+                        {% if _modulos.get('fornecedores', true) and modulo_usuario_visivel('fornecedores') %}<li class="{% if _path.startswith('/fornecedores') %}submenu-active{% endif %}"><a href="/fornecedores">Fornecedores</a></li>{% endif %}
+                        {% if _modulos.get('funcionarios', true) and modulo_usuario_visivel('funcionarios') %}<li class="{% if _path.startswith('/funcionarios') %}submenu-active{% endif %}"><a href="/funcionarios">Funcionários</a></li>{% endif %}
+                        {% if _modulos.get('equipamentos', true) and modulo_usuario_visivel('equipamentos') %}<li class="{% if _path.startswith('/equipamentos') %}submenu-active{% endif %}"><a href="/equipamentos">Equipamentos</a></li>{% endif %}
+                        {% if usuario_eh_admin_empresa %}<li class="{% if _config_grupo == 'cadastros' %}submenu-active{% endif %}"><a href="/configuracoes/modulo/cadastros">Configurações</a></li>{% endif %}
+                    </ul>
+                </details>
+            </li>
+            {% endif %}
+
+            {% if _modulos.get('produtos', true) and modulo_usuario_visivel('produtos') %}
+            <li class="menu-group {% if _path.startswith('/produtos') or _config_grupo == 'produtos' %}active{% endif %}">
+                <details {% if _path.startswith('/produtos') or _config_grupo == 'produtos' %}open{% endif %}>
+                    <summary>
+                        <span class="menu-label"><span class="menu-icon">□</span><span>Produtos</span></span>
+                        <span class="arrow">⌄</span>
+                    </summary>
+                    <ul class="submenu">
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Produtos</strong></li>
+                        <li class="{% if _path.startswith('/produtos') %}submenu-active{% endif %}"><a href="/produtos">Gerenciar produtos</a></li>
+                        {% if usuario_eh_admin_empresa %}<li class="{% if _config_grupo == 'produtos' %}submenu-active{% endif %}"><a href="/configuracoes/modulo/produtos">Configurações</a></li>{% endif %}
+                    </ul>
+                </details>
+            </li>
+            {% endif %}
+
+            {% if _modulos.get('servicos', true) and modulo_usuario_visivel('servicos') %}
+            <li class="menu-group {% if _path.startswith('/servicos') or _config_grupo == 'servicos' %}active{% endif %}">
+                <details {% if _path.startswith('/servicos') or _config_grupo == 'servicos' %}open{% endif %}>
+                    <summary>
+                        <span class="menu-label"><span class="menu-icon">⚙</span><span>Serviços</span></span>
+                        <span class="arrow">⌄</span>
+                    </summary>
+                    <ul class="submenu">
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Serviços</strong></li>
+                        <li class="{% if _path.startswith('/servicos') %}submenu-active{% endif %}"><a href="/servicos">Gerenciar serviços</a></li>
+                        {% if usuario_eh_admin_empresa %}<li class="{% if _config_grupo == 'servicos' %}submenu-active{% endif %}"><a href="/configuracoes/modulo/servicos">Configurações</a></li>{% endif %}
+                    </ul>
+                </details>
+            </li>
+            {% endif %}
+
+            {% if _orcamentos_ativo %}
+            <li class="menu-group {% if _path.startswith('/orcamentos') or _config_grupo == 'orcamentos' %}active{% endif %}">
+                <details {% if _path.startswith('/orcamentos') or _config_grupo == 'orcamentos' %}open{% endif %}>
+                    <summary>
+                        <span class="menu-label"><span class="menu-icon">▣</span><span>Orçamentos</span></span>
+                        <span class="arrow">⌄</span>
+                    </summary>
+                    <ul class="submenu">
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Orçamentos</strong></li>
+                        {% if _modulos.get('orcamentos', true) and modulo_usuario_visivel('orcamentos') %}<li class="{% if _path == '/orcamentos' %}submenu-active{% endif %}"><a href="/orcamentos">Orçamentos</a></li>{% endif %}
+                        {% if _modulos.get('gerador_orcamentos', true) and modulo_usuario_visivel('gerador_orcamentos') %}<li class="{% if _path.startswith('/orcamentos/gerador') %}submenu-active{% endif %}"><a href="/orcamentos/gerador">Gerador de Orçamentos</a></li>{% endif %}
+                        {% if usuario_eh_admin_empresa %}<li class="{% if _config_grupo == 'orcamentos' %}submenu-active{% endif %}"><a href="/configuracoes/modulo/orcamentos">Configurações</a></li>{% endif %}
+                    </ul>
+                </details>
+            </li>
+            {% endif %}
+
+            {% if _modulos.get('contratos', true) and modulo_usuario_visivel('contratos') %}
+            <li class="menu-group {% if _path.startswith('/contratos') or _config_grupo == 'contratos' %}active{% endif %}">
+                <details {% if _path.startswith('/contratos') or _config_grupo == 'contratos' %}open{% endif %}>
+                    <summary>
+                        <span class="menu-label"><span class="menu-icon">▤</span><span>Contratos</span></span>
+                        <span class="arrow">⌄</span>
+                    </summary>
+                    <ul class="submenu">
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Contratos</strong></li>
+                        <li class="{% if _path.startswith('/contratos') %}submenu-active{% endif %}"><a href="/contratos">Gerenciar contratos</a></li>
+                        {% if usuario_eh_admin_empresa %}<li class="{% if _config_grupo == 'contratos' %}submenu-active{% endif %}"><a href="/configuracoes/modulo/contratos">Configurações</a></li>{% endif %}
+                    </ul>
+                </details>
+            </li>
+            {% endif %}
+
+            {% if _vendas_ativo %}
+            <li class="menu-group {% if _path.startswith('/vendas') or _config_grupo == 'vendas' %}active{% endif %}">
+                <details {% if _path.startswith('/vendas') or _config_grupo == 'vendas' %}open{% endif %}>
+                    <summary>
+                        <span class="menu-label"><span class="menu-icon">▤</span><span>Vendas</span></span>
+                        <span class="arrow">⌄</span>
+                    </summary>
+                    <ul class="submenu">
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Vendas</strong></li>
+                        {% if _modulos.get('vendas', true) and modulo_usuario_visivel('vendas') %}<li class="{% if _path == '/vendas' %}submenu-active{% endif %}"><a href="/vendas">Vendas</a></li>{% endif %}
+                        {% if _modulos.get('pdv', true) and modulo_usuario_visivel('pdv') %}<li class="{% if _path.startswith('/vendas/balcao') %}submenu-active{% endif %}"><a href="/vendas/balcao">Balcão / PDV</a></li>{% endif %}
+                        {% if _modulos.get('devolucoes', true) and modulo_usuario_visivel('devolucoes') %}<li class="{% if _path.startswith('/vendas/devolucoes') %}submenu-active{% endif %}"><a href="/vendas/devolucoes">Devoluções</a></li>{% endif %}
+                        {% if usuario_eh_admin_empresa %}<li class="{% if _config_grupo == 'vendas' %}submenu-active{% endif %}"><a href="/configuracoes/modulo/vendas">Configurações</a></li>{% endif %}
+                    </ul>
+                </details>
+            </li>
+            {% endif %}
+
+            {% if _os_ativo %}
+            <li class="menu-group {% if _path.startswith('/ordens-servico') or _config_grupo == 'ordens_servico' %}active{% endif %}">
+                <details {% if _path.startswith('/ordens-servico') or _config_grupo == 'ordens_servico' %}open{% endif %}>
+                    <summary>
+                        <span class="menu-label"><span class="menu-icon">✚</span><span>Ordens de Serviço</span></span>
+                        <span class="arrow">⌄</span>
+                    </summary>
+                    <ul class="submenu">
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Ordens de Serviço</strong></li>
+                        {% if _modulos.get('ordens_servico', true) and modulo_usuario_visivel('ordens_servico') %}<li class="{% if _path == '/ordens-servico' %}submenu-active{% endif %}"><a href="/ordens-servico">Gerenciar O.S.</a></li>{% endif %}
+                        {% if _modulos.get('painel_os', true) and modulo_usuario_visivel('painel_os') %}<li class="{% if _path.startswith('/ordens-servico/painel') %}submenu-active{% endif %}"><a href="/ordens-servico/painel">Painel</a></li>{% endif %}
+                        {% if usuario_eh_admin_empresa %}<li class="{% if _config_grupo == 'ordens_servico' %}submenu-active{% endif %}"><a href="/configuracoes/modulo/ordens_servico">Configurações</a></li>{% endif %}
+                    </ul>
+                </details>
+            </li>
+            {% endif %}
+
+
+            {% if _modulos.get('gestao_atividades', true) and modulo_usuario_visivel('gestao_atividades') %}
+            <li class="menu-group {% if _path.startswith('/gestao-atividades') or _config_grupo == 'gestao_atividades' %}active{% endif %}">
+                <details {% if _path.startswith('/gestao-atividades') or _config_grupo == 'gestao_atividades' %}open{% endif %}>
+                    <summary><span class="menu-label"><span class="menu-icon">✓</span><span>Gestão de Atividades</span></span><span class="arrow">⌄</span></summary>
+                    <ul class="submenu">
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Gestão de Atividades</strong></li>
+                        <li class="{% if _path == '/gestao-atividades' %}submenu-active{% endif %}"><a href="/gestao-atividades">Visão geral</a></li>
+                        <li class="{% if _path == '/gestao-atividades/todas' %}submenu-active{% endif %}"><a href="/gestao-atividades/todas">Atividades</a></li>
+                        {% if usuario_eh_admin_empresa %}<li class="{% if _config_grupo == 'gestao_atividades' %}submenu-active{% endif %}"><a href="/configuracoes/modulo/gestao_atividades">Configurações</a></li>{% endif %}
+                    </ul>
+                </details>
+            </li>
+            {% endif %}
+
+            {% if _modulos.get('indflow', true) and modulo_usuario_visivel('indflow') %}
+            <li class="menu-item {% if _path == '/indflow' %}active{% endif %}">
+                <a href="/indflow">
+                    <span class="menu-icon">◉</span>
+                    <span>IndFlow</span>
+                </a>
+            </li>
+            {% endif %}
+
+            {% if _modulos.get('estoque', true) and modulo_usuario_visivel('estoque') %}
+            <li class="menu-group {% if _path.startswith('/estoque') or _config_grupo == 'estoque' %}active{% endif %}">
+                <details {% if _path.startswith('/estoque') or _config_grupo == 'estoque' %}open{% endif %}>
+                    <summary>
+                        <span class="menu-label"><span class="menu-icon">▧</span><span>Estoque</span></span>
+                        <span class="arrow">⌄</span>
+                    </summary>
+                    <ul class="submenu">
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Estoque</strong></li>
+                        <li class="{% if _path.startswith('/estoque/movimentacoes') or _path == '/estoque' %}submenu-active{% endif %}"><a href="/estoque/movimentacoes">Movimentações</a></li>
+                        <li class="{% if _path.startswith('/estoque/ajustes') %}submenu-active{% endif %}"><a href="/estoque/ajustes">Ajustes</a></li>
+                        <li class="{% if _path.startswith('/estoque/compras') %}submenu-active{% endif %}"><a href="/estoque/compras">Compras</a></li>
+                        {% if usuario_eh_admin_empresa %}<li class="{% if _config_grupo == 'estoque' %}submenu-active{% endif %}"><a href="/configuracoes/modulo/estoque">Configurações</a></li>{% endif %}
+                    </ul>
+                </details>
+            </li>
+            {% endif %}
+
+            {% if _modulos.get('financeiro', true) and modulo_usuario_visivel('financeiro') %}
+            <li class="menu-group {% if _path.startswith('/financeiro') or _config_grupo == 'financeiro' %}active{% endif %}">
+                <details {% if _path.startswith('/financeiro') or _config_grupo == 'financeiro' %}open{% endif %}>
+                    <summary>
+                        <span class="menu-label"><span class="menu-icon">◈</span><span>Financeiro</span></span>
+                        <span class="arrow">⌄</span>
+                    </summary>
+                    <ul class="submenu">
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Financeiro</strong></li>
+                        <li class="{% if _path.startswith('/financeiro/pagar') %}submenu-active{% endif %}"><a href="/financeiro/pagar">Contas a pagar</a></li>
+                        <li class="{% if _path.startswith('/financeiro/receber') %}submenu-active{% endif %}"><a href="/financeiro/receber">Contas a receber</a></li>
+                        <li class="{% if _path.startswith('/financeiro/fluxo-caixa') or _path == '/financeiro' %}submenu-active{% endif %}"><a href="/financeiro/fluxo-caixa">Fluxo de caixa</a></li>
+                        <li class="{% if _path.startswith('/financeiro/centros-custo') %}submenu-active{% endif %}"><a href="/financeiro/centros-custo">Centros de custo</a></li>
+                        <li class="{% if _path.startswith('/financeiro/atividades') %}submenu-active{% endif %}"><a href="/financeiro/atividades">Atividades / Projetos</a></li>
+                        {% if usuario_eh_admin_empresa %}<li class="{% if _config_grupo == 'financeiro' %}submenu-active{% endif %}"><a href="/configuracoes/modulo/financeiro">Configurações</a></li>{% endif %}
+                    </ul>
+                </details>
+            </li>
+            {% endif %}
+
+
+            {% if _modulos.get('emprestimos', true) and modulo_usuario_visivel('emprestimos') %}
+            <li class="menu-group {% if _path.startswith('/emprestimos') or _config_grupo == 'emprestimos' %}active{% endif %}">
+                <details {% if _path.startswith('/emprestimos') or _config_grupo == 'emprestimos' %}open{% endif %}>
+                    <summary>
+                        <span class="menu-label"><span class="menu-icon">⇆</span><span>Empréstimos</span></span>
+                        <span class="arrow">⌄</span>
+                    </summary>
+                    <ul class="submenu">
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Empréstimos</strong></li>
+                        <li class="{% if _path in ['/emprestimos', '/emprestimos/visao-geral'] %}submenu-active{% endif %}"><a href="/emprestimos/visao-geral">Visão Geral</a></li>
+                        <li class="{% if _path == '/emprestimos/todos' %}submenu-active{% endif %}"><a href="/emprestimos/todos">Todos os Empréstimos</a></li>
+                        <li class="{% if _path == '/emprestimos/novo' %}submenu-active{% endif %}"><a href="/emprestimos/novo">Novo Empréstimo</a></li>
+                        <li class="{% if _path == '/emprestimos/parcelas' %}submenu-active{% endif %}"><a href="/emprestimos/parcelas">Parcelas</a></li>
+                        <li class="{% if _path == '/emprestimos/renegociacoes' %}submenu-active{% endif %}"><a href="/emprestimos/renegociacoes">Renegociações</a></li>
+                        {% if usuario_eh_admin_empresa %}<li class="{% if _config_grupo == 'emprestimos' %}submenu-active{% endif %}"><a href="/configuracoes/modulo/emprestimos">Configurações</a></li>{% endif %}
+                    </ul>
+                </details>
+            </li>
+            {% endif %}
+            {% if _modulos.get('vitrine', true) and modulo_usuario_visivel('vitrine') %}
+            <li class="menu-group {% if _path.startswith('/vitrine') or _config_grupo == 'vitrine' %}active{% endif %}">
+                <details {% if _path.startswith('/vitrine') or _config_grupo == 'vitrine' %}open{% endif %}>
+                    <summary>
+                        <span class="menu-label"><span class="menu-icon">▦</span><span>Vitrine Online</span></span>
+                        <span class="arrow">⌄</span>
+                    </summary>
+                    <ul class="submenu">
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Vitrine Online</strong></li>
+                        <li class="{% if _path.startswith('/vitrine') %}submenu-active{% endif %}"><a href="/vitrine">Gerenciar vitrine</a></li>
+                        {% if usuario_eh_admin_empresa %}<li class="{% if _config_grupo == 'vitrine' %}submenu-active{% endif %}"><a href="/configuracoes/modulo/vitrine">Configurações</a></li>{% endif %}
+                    </ul>
+                </details>
+            </li>
+            {% endif %}
+
+            {% if _modulos.get('agendamentos', true) and modulo_usuario_visivel('agendamentos') %}
+            <li class="menu-group {% if _path.startswith('/agendamentos') or _config_grupo == 'agendamentos' %}active{% endif %}">
+                <details {% if _path.startswith('/agendamentos') or _config_grupo == 'agendamentos' %}open{% endif %}>
+                    <summary>
+                        <span class="menu-label"><span class="menu-icon">◷</span><span>Atendimento</span></span>
+                        <span class="arrow">⌄</span>
+                    </summary>
+                    <ul class="submenu">
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Atendimento</strong></li>
+                        <li class="{% if _path.startswith('/agendamentos') %}submenu-active{% endif %}"><a href="/agendamentos">Agenda / Atendimento</a></li>
+                        {% if usuario_eh_admin_empresa %}<li class="{% if _config_grupo == 'agendamentos' %}submenu-active{% endif %}"><a href="/configuracoes/modulo/agendamentos">Configurações</a></li>{% endif %}
+                    </ul>
+                </details>
+            </li>
+            {% endif %}
+
+            {% if _modulos.get('registro_ponto', true) and modulo_usuario_visivel('registro_ponto') %}
+            <li class="menu-group {% if _path.startswith('/registro-ponto') or _config_grupo == 'registro_ponto' %}active{% endif %}">
+                <details {% if _path.startswith('/registro-ponto') or _config_grupo == 'registro_ponto' %}open{% endif %}>
+                    <summary>
+                        <span class="menu-label"><span class="menu-icon">◴</span><span>Registro de Ponto</span></span>
+                        <span class="arrow">⌄</span>
+                    </summary>
+                    <ul class="submenu">
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Registro de Ponto</strong></li>
+                        <li class="{% if _path.startswith('/registro-ponto') %}submenu-active{% endif %}"><a href="/registro-ponto">Gerenciamento de Ponto</a></li>
+                        {% if usuario_eh_admin_empresa %}<li class="{% if _config_grupo == 'registro_ponto' %}submenu-active{% endif %}"><a href="/configuracoes/modulo/registro_ponto">Configurações</a></li>{% endif %}
+                    </ul>
+                </details>
+            </li>
+            {% endif %}
+
+            {% if usuario_eh_admin_sistema %}
+            <li class="menu-group {% if _path.startswith('/admin') %}active{% endif %}">
+                <details {% if _path.startswith('/admin') %}open{% endif %}>
+                    <summary>
+                        <span class="menu-label"><span class="menu-icon">◆</span><span>Admin</span></span>
+                        <span class="arrow">⌄</span>
+                    </summary>
+                    <ul class="submenu">
+                        <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Admin</strong></li>
+                        <li class="{% if _path.startswith('/admin/dashboard') %}submenu-active{% endif %}"><a href="/admin/dashboard">Dashboard Admin</a></li>
+                        <li class="{% if _path.startswith('/admin/empresas') %}submenu-active{% endif %}"><a href="/admin/empresas">Empresas</a></li>
+                        <li class="{% if _path.startswith('/admin/manutencao-dados') %}submenu-active{% endif %}"><a href="/admin/manutencao-dados">Manutenção de dados</a></li>
+                    </ul>
+                </details>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+
+    <div class="sidebar-footer">
+        {% if usuario_eh_admin_empresa %}
+        <div class="menu-group footer-configuracoes {% if _sistema_config_ativo %}active{% endif %}">
+            <details {% if _sistema_config_ativo %}open{% endif %}>
+                <summary>
+                    <span class="menu-label"><span class="menu-icon">⚙</span><span>Configurações</span></span>
+                    <span class="arrow">⌄</span>
+                </summary>
+                <ul class="submenu">
+                    <li class="submenu-mobile-title"><button type="button" class="submenu-back">← Voltar</button><strong>Configurações</strong></li>
+                    <li class="{% if _path.startswith('/configuracoes/plano') %}submenu-active{% endif %}"><a href="/configuracoes/plano">Meu plano</a></li>
+                    <li class="{% if _path.startswith('/indicacoes') %}submenu-active{% endif %}"><a href="/indicacoes">Indicações</a></li>
+                    <li class="{% if _path.startswith('/configuracoes/usuarios') %}submenu-active{% endif %}"><a href="/configuracoes/usuarios">Usuários</a></li>
+                    <li class="{% if _path.startswith('/configuracoes/modulos') %}submenu-active{% endif %}"><a href="/configuracoes/modulos">Módulos do sistema</a></li>
+                    <li class="{% if _path.startswith('/configuracoes/empresa') %}submenu-active{% endif %}"><a href="/configuracoes/empresa">Dados da empresa</a></li>
+                    <li class="{% if _path.startswith('/configuracoes/marca') %}submenu-active{% endif %}"><a href="/configuracoes/marca">Marca da empresa</a></li>
+                    <li class="{% if _path.startswith('/configuracoes/lojas') %}submenu-active{% endif %}"><a href="/configuracoes/lojas">Empresas / Lojas</a></li>
+                    <li class="{% if _path in ['/configuracoes', '/configuracoes/gerais'] %}submenu-active{% endif %}"><a href="/configuracoes">Preferências</a></li>
+                    <li class="{% if _config_grupo == 'sistema' %}submenu-active{% endif %}"><a href="/configuracoes/modulo/sistema">Configurações</a></li>
+                </ul>
+            </details>
+        </div>
+        {% endif %}
+        <a href="/instalar" class="footer-item {% if _path.startswith('/instalar') %}active{% endif %}" style="text-decoration: none;">▣ Instalar app</a>
+        <a href="/sair" class="footer-item" style="text-decoration: none;">Sair</a>
+        <div class="sidebar-version" aria-label="Versão do GestFlow">GestFlow v{{ gestflow_versao|default('1.0.0', true) }}</div>
+    </div>
+</aside>
+<div class="sidebar-backdrop" aria-hidden="true"></div>
+
+{% include "partials/assistente_ia_widget.html" %}
+
+<style>
+    .brand-with-logo {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+    }
+
+    .brand-logo-link {
+        display: inline-flex;
+        align-items: center;
+        min-width: 0;
+        text-decoration: none;
+    }
+
+    .brand-logo-img {
+        width: 176px;
+        max-width: 100%;
+        height: auto;
+        display: block;
+        object-fit: contain;
+    }
+
+    .sidebar-version {
+        padding: 8px 12px 2px;
+        color: rgba(255, 255, 255, 0.45);
+        font-size: 11px;
+        line-height: 1;
+        text-align: center;
+        letter-spacing: 0.02em;
+        user-select: none;
+    }
+
+    @media (max-width: 1024px) {
+        .brand-logo-img {
+            width: 162px;
+        }
+    }
+</style>
+
+<script>
+(function () {
+    function iniciarMenuMobile() {
+        const limiteMobile = 1024;
+        const sidebar = document.querySelector('.sidebar');
+        const toggle = document.querySelector('.menu-toggle');
+        const fechar = document.querySelector('.mobile-sidebar-close');
+        const voltarFlutuante = document.querySelector('.mobile-submenu-floating-back');
+
+        if (!sidebar) {
+            return;
+        }
+
+        let backdrop = document.querySelector('.sidebar-backdrop');
+        if (!backdrop) {
+            backdrop = document.createElement('div');
+            backdrop.className = 'sidebar-backdrop';
+            document.body.appendChild(backdrop);
+        }
+
+        function mobile() {
+            return window.innerWidth <= limiteMobile;
+        }
+
+        function fecharSubmenu() {
+            document.querySelectorAll('.menu-group.mobile-submenu-open').forEach(function (grupo) {
+                grupo.classList.remove('mobile-submenu-open');
+            });
+            sidebar.classList.remove('mobile-submenu-mode');
+            if (voltarFlutuante) {
+                voltarFlutuante.style.display = '';
+            }
+        }
+
+        function abrirMenu() {
+            document.body.classList.add('sidebar-mobile-open');
+        }
+
+        function fecharMenu() {
+            fecharSubmenu();
+            document.body.classList.remove('sidebar-mobile-open');
+        }
+
+        if (toggle) {
+            toggle.addEventListener('click', function () {
+                if (mobile()) {
+                    abrirMenu();
+                }
+            });
+        }
+
+        if (fechar) {
+            fechar.addEventListener('click', fecharMenu);
+        }
+
+        backdrop.addEventListener('click', fecharMenu);
+
+        document.querySelectorAll('.menu-group > details > summary').forEach(function (summary) {
+            summary.addEventListener('click', function (event) {
+                if (!mobile()) {
+                    return;
+                }
+
+                event.preventDefault();
+                event.stopPropagation();
+
+                const grupo = summary.closest('.menu-group');
+                const detalhes = summary.closest('details');
+
+                if (!grupo || !detalhes) {
+                    return;
+                }
+
+                document.querySelectorAll('.menu-group.mobile-submenu-open').forEach(function (item) {
+                    if (item !== grupo) {
+                        item.classList.remove('mobile-submenu-open');
+                    }
+                });
+
+                detalhes.open = true;
+                grupo.classList.add('mobile-submenu-open');
+                sidebar.classList.add('mobile-submenu-mode');
+                if (voltarFlutuante) {
+                    voltarFlutuante.style.display = 'inline-flex';
+                }
+            });
+        });
+
+        document.querySelectorAll('.submenu-back, .mobile-submenu-floating-back').forEach(function (botao) {
+            botao.addEventListener('click', function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                fecharSubmenu();
+            });
+        });
+
+        // IMPORTANTE: nao bloqueia cliques em links.
+        // Os <a href="..."> navegam normalmente no celular e no desktop.
+        document.querySelectorAll('.sidebar a[href]').forEach(function (link) {
+            link.addEventListener('click', function () {
+                const href = link.getAttribute('href') || '';
+                if (mobile() && href && href !== '#') {
+                    document.body.classList.remove('sidebar-mobile-open');
+                }
+            });
+        });
+
+        window.addEventListener('resize', function () {
+            if (!mobile()) {
+                fecharMenu();
+            }
+        });
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') {
+                fecharMenu();
+            }
+        });
+
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', iniciarMenuMobile);
+    } else {
+        iniciarMenuMobile();
+    }
+})();
+</script>
+
+{% include 'partials/configuracoes_runtime.html' %}
+

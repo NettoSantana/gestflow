@@ -1,0 +1,38 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\admin\templates\admin_home.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+{% extends "base.html" %}
+{% block title %}Administração Técnica — IndFlow{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-heading">
+    <div class="page-eyebrow">Acesso técnico</div>
+    <h1 class="page-title">Administração Técnica</h1>
+    <p class="page-description">Área de suporte do IndFlow. Empresas, equipamentos e usuários de negócio devem ser administrados pelo GestFlow.</p>
+  </div>
+  <div class="page-actions"><a class="btn btn-primary" href="/">Painel Industrial</a></div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;">
+  <section class="section-shell">
+    <div class="section-shell-header"><div><h2>Devices</h2><p>Comunicação, alias e vínculo técnico ESP/PLC.</p></div></div>
+    <a class="btn btn-primary" href="/devices/">Gerenciar devices</a>
+  </section>
+
+  <section class="section-shell">
+    <div class="section-shell-header"><div><h2>Usuários técnicos</h2><p>Consulta de usuários internos do IndFlow para suporte e compatibilidade. O login operacional é feito pelo GestFlow/SSO.</p></div></div>
+    <a class="btn btn-secondary" href="/admin/usuarios">Consultar usuários técnicos</a>
+  </section>
+
+  <section class="section-shell">
+    <div class="section-shell-header"><div><h2>Dados de teste</h2><p>Crie TESTE01 para validar barras RUN/STOP, classificação de paradas e indicadores sem apontar o ESP novo.</p></div></div>
+    <a class="btn btn-secondary" href="/teste/">Abrir ambiente de teste</a>
+  </section>
+</div>
+
+<div class="page-note" style="margin-top:14px;">Role técnico atual: <strong>{{ (session.get("role") or "viewer")|upper }}</strong>. Cadastros de clientes não são exibidos no menu principal do IndFlow para evitar redundância com o GestFlow.</div>
+{% endblock %}

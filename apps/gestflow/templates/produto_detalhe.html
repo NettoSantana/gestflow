@@ -1,0 +1,255 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\produto_detalhe.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Detalhes do Produto</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .content { padding-bottom: 220px; }
+        .content > .panel.page-section:first-of-type { margin-top: 0; }
+        .panel, .page-section, .table-panel { border-radius: 16px; }
+        .panel-header.page-header, .page-header { gap: 14px; }
+        .page-title { letter-spacing: -0.02em; }
+        .page-subtitle { max-width: 820px; }
+        .client-toolbar, .form-actions, .client-actions {
+            display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+        }
+        .btn-primary-green, .btn-dark, .btn-light, .action-button {
+            border-radius: 10px; text-decoration: none;
+        }
+        .form-alert-error, .form-alert-success {
+            margin: 0 0 18px; padding: 12px 14px; border-radius: 12px;
+            font-size: 13px; font-weight: 800;
+        }
+        .form-alert-error { border: 1px solid #fecaca; background: #fef2f2; color: #991b1b; }
+        .form-alert-success { border: 1px solid #bbf7d0; background: #f0fdf4; color: #166534; }
+        .panel-summary {
+            display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px;
+        }
+        .panel-summary > div {
+            min-height: 82px; border: 1px solid #e5eaf2; border-radius: 14px;
+            background: #ffffff; padding: 14px; box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+        }
+        .panel-summary span {
+            display: block; margin-bottom: 6px; color: #64748b; font-size: 11px;
+            font-weight: 900; text-transform: uppercase; letter-spacing: 0.02em;
+        }
+        .panel-summary strong {
+            display: block; color: #0f172a; font-size: 15px; line-height: 1.35; overflow-wrap: anywhere;
+        }
+        .panel-summary small {
+            display: block; margin-top: 5px; color: #64748b; font-size: 11px; font-weight: 700; line-height: 1.35;
+        }
+        .panel-summary .summary-primary { border-color: #86efac; background: #f0fdf4; }
+        .panel-summary .summary-primary strong { color: #15803d; font-size: 20px; }
+        .detail-section-title { margin: 0 0 4px; color: #0f172a; font-size: 16px; }
+        .table-shell {
+            border: 1px solid #e2e8f0; border-radius: 14px; overflow-x: auto; background: #ffffff;
+        }
+        .detail-table { width: 100%; min-width: 820px; border-collapse: collapse; }
+        .detail-table thead th {
+            padding: 11px 12px; border-bottom: 1px solid #e2e8f0; background: #f8fafc;
+            color: #334155; font-size: 11px; font-weight: 900; text-align: left;
+            text-transform: uppercase; white-space: nowrap;
+        }
+        .detail-table tbody td {
+            padding: 12px; border-bottom: 1px solid #eef2f7; color: #334155; font-size: 12px; vertical-align: middle;
+        }
+        .detail-table tbody tr:last-child td { border-bottom: 0; }
+        .detail-table strong { color: #0f172a; }
+        .stock-ok, .stock-low {
+            display: inline-flex; align-items: center; min-height: 24px; padding: 0 9px;
+            border-radius: 999px; font-size: 10px; font-weight: 900; white-space: nowrap;
+        }
+        .stock-ok { background: #dcfce7; color: #166534; }
+        .stock-low { background: #fee2e2; color: #991b1b; }
+        .empty-box {
+            padding: 22px; border: 1px dashed #cbd5e1; border-radius: 14px; background: #f8fafc;
+            color: #64748b; text-align: center; font-size: 13px; font-weight: 800;
+        }
+        .warning-box {
+            margin-top: 14px; padding: 13px 14px; border: 1px solid #fde68a; border-radius: 12px;
+            background: #fffbeb; color: #92400e; font-size: 12px; font-weight: 800; line-height: 1.5;
+        }
+        .composition-status {
+            display: inline-flex; align-items: center; min-height: 28px; padding: 0 11px;
+            border-radius: 999px; font-size: 11px; font-weight: 900; white-space: nowrap;
+        }
+        .composition-status.active { background: #dcfce7; color: #166534; }
+        .composition-status.manual { background: #e2e8f0; color: #475569; }
+        .two-column-grid {
+            display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(300px, 0.6fr); gap: 18px;
+        }
+        .mini-list { display: grid; gap: 10px; }
+        .mini-list a {
+            display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px;
+            border: 1px solid #e2e8f0; border-radius: 12px; color: #0f172a;
+            font-size: 12px; font-weight: 900; text-decoration: none;
+        }
+        .mini-list a:hover { border-color: #bfdbfe; background: #eff6ff; color: #0f62fe; }
+        @media (max-width: 1100px) {
+            .panel-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .two-column-grid { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 720px) {
+            .panel-summary { grid-template-columns: 1fr; }
+            .client-toolbar, .form-actions, .client-actions {
+                align-items: stretch; flex-direction: column;
+            }
+            .client-toolbar .btn-primary-green, .client-toolbar .btn-dark, .client-toolbar .btn-light {
+                width: 100%; justify-content: center;
+            }
+            .detail-table { min-width: 760px; }
+        }
+    </style>
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+
+    <main class="content">
+        {% set page_title = 'Produto' %}
+        {% include "partials/topbar.html" %}
+
+        {% if request.args.get('erro') %}
+            <div class="form-alert-error">{{ request.args.get('erro') }}</div>
+        {% endif %}
+        {% if request.args.get('sucesso') %}
+            <div class="form-alert-success">{{ request.args.get('sucesso') }}</div>
+        {% endif %}
+
+        {% set resumo = resumo_composicao|default({}, true) %}
+        {% set tem_composicao = resumo.possui_composicao|default(false, true) %}
+        {% set itens_composicao = composicao_itens|default([]) %}
+        {% set custos_composicao = composicao_custos|default([]) %}
+        {% set historico_producao = producoes|default([]) %}
+        {% set produtos_vinculados = usado_em_produtos|default([]) %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Cadastros</span>
+                    <h3 class="page-title">Detalhes do produto</h3>
+                    <p class="page-subtitle">Consulte dados cadastrais, ficha técnica, CMV, capacidade e histórico de produção.</p>
+                </div>
+                <div class="client-toolbar">
+                    {% if tem_composicao %}<a href="/produtos/{{ produto.id }}/producao" class="btn-primary-green">Produzir produto</a>{% endif %}
+                    <a href="/produtos/{{ produto.id }}/editar" class="btn-light">Editar produto</a>
+                    <a href="/produtos" class="btn-dark">Voltar para Produtos</a>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>{{ produto.nome }}</h3>
+                    <p class="page-subtitle">ID {{ produto.id }} · Código interno: {{ produto.codigo or '-' }}</p>
+                </div>
+                <div class="client-toolbar">
+                    {% if tem_composicao %}<span class="composition-status active">Ficha técnica ativa</span>
+                    {% else %}<span class="composition-status manual">Custo manual</span>{% endif %}
+                    <span class="status-pill {{ produto.status }}">{{ produto.status }}</span>
+                </div>
+            </div>
+
+            <div class="panel-summary">
+                <div><span>Categoria</span><strong>{{ produto.categoria or '-' }}</strong><small>Unidade: {{ produto.unidade or '-' }}</small></div>
+                <div><span>Estoque</span><strong>{{ produto.estoque_atual or '0' }} {{ produto.unidade or '' }}</strong><small>Mínimo: {{ produto.estoque_minimo or '0' }}</small></div>
+                <div><span>Custo manual</span><strong>R$ {{ produto.preco_custo_manual or produto.preco_custo or '0,00' }}</strong><small>Reserva usada quando não existe composição.</small></div>
+                <div class="summary-primary"><span>CMV efetivo</span><strong>R$ {{ produto.preco_custo or '0,00' }}</strong><small>{{ 'Calculado pela ficha técnica.' if tem_composicao else 'Utilizando custo manual.' }}</small></div>
+                <div><span>Preço de venda</span><strong>R$ {{ produto.preco_venda or '0,00' }}</strong><small>Preço comercial cadastrado.</small></div>
+                <div><span>Capacidade atual</span><strong>{{ resumo.capacidade_producao|default(0, true) }} unidade(s)</strong><small>Com base no componente mais limitado.</small></div>
+                <div><span>Componentes</span><strong>{{ resumo.quantidade_componentes|default(0, true) }}</strong><small>Custo: R$ {{ '%.2f'|format(resumo.custo_componentes|default(0, true))|replace('.', ',') }}</small></div>
+                <div><span>Custos diretos</span><strong>{{ resumo.quantidade_custos|default(0, true) }}</strong><small>Total: R$ {{ '%.2f'|format(resumo.custos_diretos|default(0, true))|replace('.', ',') }}</small></div>
+            </div>
+            {% if produto.observacoes %}<div class="warning-box"><strong>Observações:</strong> {{ produto.observacoes }}</div>{% endif %}
+        </section>
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Composição do CMV</span>
+                    <h3 class="detail-section-title">Componentes e insumos</h3>
+                    <p class="page-subtitle">Quantidade e custo necessários para produzir uma unidade.</p>
+                </div>
+                <a href="/produtos/{{ produto.id }}/editar#ficha-tecnica" class="btn-light">Editar ficha técnica</a>
+            </div>
+
+            {% if itens_composicao %}
+                <div class="table-shell">
+                    <table class="detail-table">
+                        <thead><tr><th>Componente</th><th>Unidade</th><th>Qtd. base</th><th>Perda</th><th>Consumo real</th><th>Custo unit.</th><th>Custo total</th><th>Estoque</th></tr></thead>
+                        <tbody>
+                            {% for item in itens_composicao %}
+                                <tr>
+                                    <td><strong>{{ item.componente_nome }}</strong>{% if item.observacoes %}<br><small>{{ item.observacoes }}</small>{% endif %}</td>
+                                    <td>{{ item.unidade or 'un' }}</td>
+                                    <td>{{ item.quantidade or '0' }}</td>
+                                    <td>{{ item.perda_percentual or '0' }}%</td>
+                                    <td>{{ '%.4f'|format(item.quantidade_com_perda|default(0, true))|replace('.', ',') }}</td>
+                                    <td>R$ {{ item.custo_unitario_atual or '0,00' }}</td>
+                                    <td><strong>R$ {{ '%.2f'|format(item.custo_total_numero|default(0, true))|replace('.', ',') }}</strong></td>
+                                    <td>
+                                        {{ item.componente_estoque_atual or '0' }} {{ item.unidade or '' }}
+                                        {% if (item.componente_estoque_atual|default('0')|replace('.', '')|replace(',', '.')|float) >= (item.quantidade_com_perda|default(0, true)) %}
+                                            <span class="stock-ok">Disponível</span>
+                                        {% else %}<span class="stock-low">Insuficiente</span>{% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}<div class="empty-box">Nenhum componente cadastrado nesta ficha técnica.</div>{% endif %}
+        </section>
+
+        <section class="panel page-section">
+            <div class="two-column-grid">
+                <div>
+                    <div class="panel-header page-header"><div><h3 class="detail-section-title">Custos diretos por unidade</h3><p class="page-subtitle">Mão de obra, embalagem, frete, energia e outros custos do produto.</p></div></div>
+                    {% if custos_composicao %}
+                        <div class="table-shell">
+                            <table class="detail-table" style="min-width: 560px;">
+                                <thead><tr><th>Tipo</th><th>Descrição</th><th>Valor</th></tr></thead>
+                                <tbody>{% for custo in custos_composicao %}<tr><td>{{ custo.tipo|replace('_', ' ')|title }}</td><td><strong>{{ custo.descricao }}</strong></td><td>R$ {{ custo.valor or '0,00' }}</td></tr>{% endfor %}</tbody>
+                            </table>
+                        </div>
+                    {% else %}<div class="empty-box">Nenhum custo direto cadastrado.</div>{% endif %}
+                </div>
+                <div>
+                    <div class="panel-header page-header"><div><h3 class="detail-section-title">Usado como componente</h3><p class="page-subtitle">Produtos que dependem deste item.</p></div></div>
+                    {% if produtos_vinculados %}
+                        <div class="mini-list">{% for vinculo in produtos_vinculados %}<a href="/produtos/{{ vinculo.id }}"><span>{{ vinculo.nome }}</span><small>{{ vinculo.codigo or 'Sem código' }} →</small></a>{% endfor %}</div>
+                    {% else %}<div class="empty-box">Este produto não é usado na ficha técnica de outro produto.</div>{% endif %}
+                </div>
+            </div>
+        </section>
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div><span class="page-kicker">Produção</span><h3 class="detail-section-title">Histórico de produção</h3><p class="page-subtitle">Últimas produções registradas para este produto.</p></div>
+                {% if tem_composicao %}<a href="/produtos/{{ produto.id }}/producao" class="btn-primary-green">Nova produção</a>{% endif %}
+            </div>
+            {% if historico_producao %}
+                <div class="table-shell">
+                    <table class="detail-table">
+                        <thead><tr><th>Nº</th><th>Data</th><th>Quantidade</th><th>CMV unitário</th><th>Custo total</th><th>Estoque anterior</th><th>Estoque final</th><th>Responsável</th><th>Observações</th></tr></thead>
+                        <tbody>
+                            {% for producao in historico_producao %}
+                                <tr><td><strong>#{{ producao.id }}</strong></td><td>{{ producao.criado_em or '-' }}</td><td>{{ producao.quantidade_produzida or '0' }}</td><td>R$ {{ producao.cmv_unitario or '0,00' }}</td><td><strong>R$ {{ producao.custo_total or '0,00' }}</strong></td><td>{{ producao.estoque_anterior or '0' }}</td><td>{{ producao.estoque_atual or '0' }}</td><td>{{ producao.responsavel or '-' }}</td><td>{{ producao.observacoes or '-' }}</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}<div class="empty-box">Nenhuma produção registrada para este produto.</div>{% endif %}
+        </section>
+    </main>
+</body>
+</html>

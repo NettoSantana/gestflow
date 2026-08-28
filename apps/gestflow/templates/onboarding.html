@@ -1,0 +1,368 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\onboarding.html
+Último recode: 2026-08-22 12:37 (America/Bahia)
+Motivo: Simplificar a primeira entrada para uma experiência intuitiva, sem linguagem de módulos: boas-vindas, tipo de negócio, rotina, controles desejados e início do uso.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GestFlow - Primeira configuração</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        * { box-sizing: border-box; }
+        body.onboarding-page {
+            margin: 0;
+            min-height: 100vh;
+            background: #f4f7fb;
+            color: #0f172a;
+            font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+        .onboarding-topbar {
+            height: 68px;
+            padding: 0 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(255, 255, 255, .96);
+            border-bottom: 1px solid #e5eaf1;
+        }
+        .onboarding-topbar img { width: 146px; max-height: 44px; object-fit: contain; }
+        .onboarding-topbar a { color: #64748b; font-size: 12px; font-weight: 800; text-decoration: none; }
+        .onboarding-shell {
+            width: min(820px, calc(100% - 32px));
+            margin: 38px auto 72px;
+        }
+        .progress-wrap { display: none; margin: 0 auto 14px; max-width: 560px; }
+        .progress-wrap.visible { display: block; }
+        .progress-caption { margin-bottom: 8px; color: #64748b; font-size: 11px; font-weight: 850; text-align: center; }
+        .onboarding-progress { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
+        .onboarding-progress span { height: 5px; border-radius: 99px; background: #dbe4ef; }
+        .onboarding-progress span.active { background: #16a34a; }
+        .onboarding-card {
+            min-height: 470px;
+            padding: clamp(28px, 5vw, 48px);
+            border: 1px solid #e0e7f0;
+            border-radius: 22px;
+            background: #fff;
+            box-shadow: 0 18px 48px rgba(15, 23, 42, .07);
+        }
+        .onboarding-step { display: none; }
+        .onboarding-step.active { display: block; }
+        .welcome-step { min-height: 370px; display: none; place-items: center; text-align: center; }
+        .welcome-step.active { display: grid; }
+        .welcome-inner { max-width: 560px; }
+        .welcome-mark {
+            width: 62px; height: 62px; margin: 0 auto 20px; border-radius: 18px;
+            display: grid; place-items: center; background: #eff6ff; color: #0f62fe;
+            font-size: 25px; font-weight: 950;
+        }
+        .eyebrow { display: block; margin-bottom: 9px; color: #0f62fe; font-size: 11px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
+        .onboarding-title { margin: 0; font-size: clamp(28px, 5vw, 42px); line-height: 1.08; letter-spacing: -.03em; }
+        .onboarding-subtitle { margin: 14px auto 0; max-width: 610px; color: #64748b; font-size: 14px; font-weight: 650; line-height: 1.55; }
+        .time-note { display: inline-flex; margin-top: 15px; padding: 7px 11px; border-radius: 999px; background: #f1f5f9; color: #475569; font-size: 11px; font-weight: 850; }
+        .question-title { margin: 0; font-size: clamp(23px, 4vw, 31px); line-height: 1.12; letter-spacing: -.02em; }
+        .question-help { margin: 10px 0 24px; color: #64748b; font-size: 13px; font-weight: 650; line-height: 1.5; }
+        .option-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+        .option-card {
+            min-height: 102px;
+            padding: 16px;
+            display: flex;
+            align-items: flex-start;
+            gap: 13px;
+            border: 1px solid #dbe3ed;
+            border-radius: 15px;
+            background: #fff;
+            cursor: pointer;
+            transition: border-color .15s ease, background .15s ease, transform .15s ease, box-shadow .15s ease;
+        }
+        .option-card:hover { border-color: #93c5fd; transform: translateY(-1px); box-shadow: 0 7px 18px rgba(15, 98, 254, .07); }
+        .option-card.selected { border-color: #0f62fe; background: #eff6ff; box-shadow: 0 0 0 2px rgba(15, 98, 254, .08); }
+        .option-card input { width: 18px; height: 18px; margin-top: 3px; accent-color: #16a34a; flex: 0 0 auto; }
+        .option-icon {
+            width: 38px; height: 38px; display: grid; place-items: center; flex: 0 0 auto;
+            border-radius: 11px; background: #f1f5f9; font-size: 19px;
+        }
+        .option-copy { min-width: 0; }
+        .option-copy strong { display: block; font-size: 14px; line-height: 1.3; }
+        .option-copy small { display: block; margin-top: 5px; color: #64748b; font-size: 11px; font-weight: 700; line-height: 1.4; }
+        .flow-group { display: none; }
+        .flow-group.active { display: block; }
+        .onboarding-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 28px; }
+        .btn-back, .btn-next, .btn-start {
+            min-height: 46px; border: 0; border-radius: 12px; padding: 0 20px; font-size: 13px; font-weight: 950; cursor: pointer;
+        }
+        .btn-back { background: #eef2f7; color: #334155; }
+        .btn-next, .btn-start { background: #16a34a; color: #fff; }
+        .btn-start { min-width: 180px; }
+        .welcome-action { margin-top: 26px; }
+        .inline-error { display: none; margin-top: 14px; padding: 10px 12px; border-radius: 10px; background: #fff1f2; color: #be123c; font-size: 12px; font-weight: 800; }
+        .inline-error.visible { display: block; }
+        .ready-step { min-height: 370px; display: none; place-items: center; text-align: center; }
+        .ready-step.active { display: grid; }
+        .ready-inner { max-width: 590px; }
+        .ready-check {
+            width: 66px; height: 66px; margin: 0 auto 18px; display: grid; place-items: center;
+            border-radius: 50%; background: #dcfce7; color: #15803d; font-size: 30px; font-weight: 950;
+        }
+        .ready-summary { margin: 22px 0 0; display: grid; gap: 8px; text-align: left; }
+        .ready-summary div { padding: 11px 13px; border-radius: 11px; background: #f8fafc; color: #475569; font-size: 12px; font-weight: 750; line-height: 1.45; }
+        .ready-summary strong { color: #0f172a; }
+        .ready-note { margin-top: 16px; color: #64748b; font-size: 11px; font-weight: 700; }
+        .ready-actions { margin-top: 24px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+        .review-link { border: 0; background: transparent; color: #475569; font-size: 12px; font-weight: 850; cursor: pointer; text-decoration: underline; }
+        @media (max-width: 680px) {
+            .onboarding-shell { margin-top: 22px; }
+            .onboarding-card { min-height: 0; padding: 24px 18px; }
+            .option-grid { grid-template-columns: 1fr; }
+            .onboarding-topbar { padding: 0 18px; }
+            .onboarding-actions { align-items: stretch; }
+            .btn-back, .btn-next { flex: 1; }
+        }
+    </style>
+</head>
+<body class="onboarding-page">
+    <header class="onboarding-topbar">
+        <img src="/static/img/gestflow-logo.png" alt="GestFlow">
+        <a href="/sair">Sair</a>
+    </header>
+
+    <main class="onboarding-shell">
+        <div class="progress-wrap" id="progress-wrap" aria-hidden="true">
+            <div class="progress-caption" id="progress-caption">1 de 4</div>
+            <div class="onboarding-progress">
+                <span></span><span></span><span></span><span></span>
+            </div>
+        </div>
+
+        <form id="onboarding-form" action="/onboarding" method="post">
+            <div class="onboarding-card">
+                <section class="onboarding-step welcome-step active" data-step="0">
+                    <div class="welcome-inner">
+                        <div class="welcome-mark">G</div>
+                        <span class="eyebrow">Bem-vindo</span>
+                        <h1 class="onboarding-title">Vamos preparar o GestFlow para sua empresa.</h1>
+                        <p class="onboarding-subtitle">Você só precisa contar, de forma simples, como trabalha. O GestFlow organiza o restante para você.</p>
+                        <span class="time-note">Leva menos de 1 minuto</span>
+                        <div class="welcome-action"><button type="button" class="btn-start" onclick="irParaPasso(1)">Começar</button></div>
+                    </div>
+                </section>
+
+                <section class="onboarding-step" data-step="1">
+                    <span class="eyebrow">Sobre seu negócio</span>
+                    <h2 class="question-title">O que sua empresa faz?</h2>
+                    <p class="question-help">Escolha a opção que mais se parece com o seu dia a dia. Não precisa ser perfeita.</p>
+                    <div class="option-grid">
+                        <label class="option-card">
+                            <input type="radio" name="tipo_empresa" value="produtos">
+                            <span class="option-icon">🛍️</span>
+                            <span class="option-copy"><strong>Vendo produtos</strong><small>Loja, comércio, distribuidora, revenda...</small></span>
+                        </label>
+                        <label class="option-card">
+                            <input type="radio" name="tipo_empresa" value="servicos">
+                            <span class="option-icon">🔧</span>
+                            <span class="option-copy"><strong>Presto serviços</strong><small>Manutenção, instalação, assistência, consultoria...</small></span>
+                        </label>
+                        <label class="option-card">
+                            <input type="radio" name="tipo_empresa" value="ambos">
+                            <span class="option-icon">↔</span>
+                            <span class="option-copy"><strong>Vendo produtos e serviços</strong><small>Minha empresa trabalha com as duas coisas.</small></span>
+                        </label>
+                        <label class="option-card">
+                            <input type="radio" name="tipo_empresa" value="industrial">
+                            <span class="option-icon">🏭</span>
+                            <span class="option-copy"><strong>Produção / Indústria</strong><small>Quero acompanhar uma operação produtiva ou máquinas.</small></span>
+                        </label>
+                    </div>
+                    <div class="inline-error" id="erro-tipo">Escolha uma opção para continuar.</div>
+                    <div class="onboarding-actions"><span></span><button type="button" class="btn-next" onclick="avancarTipoEmpresa()">Continuar</button></div>
+                </section>
+
+                <section class="onboarding-step" data-step="2">
+                    <span class="eyebrow">Seu jeito de trabalhar</span>
+
+                    <div class="flow-group" data-flow="servicos">
+                        <h2 class="question-title">Como normalmente começa um serviço?</h2>
+                        <p class="question-help">Pode escolher mais de uma opção.</p>
+                        <div class="option-grid">
+                            <label class="option-card"><input type="checkbox" name="fluxo" value="orcamento"><span class="option-icon">💬</span><span class="option-copy"><strong>Pedem um orçamento</strong><small>Primeiro envio uma proposta para o cliente.</small></span></label>
+                            <label class="option-card"><input type="checkbox" name="fluxo" value="agendamento"><span class="option-icon">📅</span><span class="option-copy"><strong>Agendam um horário</strong><small>O atendimento é marcado por dia e hora.</small></span></label>
+                            <label class="option-card"><input type="checkbox" name="fluxo" value="servico_direto"><span class="option-icon">🔧</span><span class="option-copy"><strong>Pedem o serviço diretamente</strong><small>Recebo a solicitação e parto para a execução.</small></span></label>
+                            <label class="option-card"><input type="checkbox" name="fluxo" value="recorrente"><span class="option-icon">🔁</span><span class="option-copy"><strong>Tenho clientes recorrentes</strong><small>Faço serviços periódicos ou contínuos.</small></span></label>
+                        </div>
+                    </div>
+
+                    <div class="flow-group" data-flow="produtos">
+                        <h2 class="question-title">Como você costuma vender?</h2>
+                        <p class="question-help">Pode escolher mais de uma opção.</p>
+                        <div class="option-grid">
+                            <label class="option-card"><input type="checkbox" name="fluxo" value="venda_direta"><span class="option-icon">🛒</span><span class="option-copy"><strong>Venda direta</strong><small>O cliente escolhe e a venda é feita na hora.</small></span></label>
+                            <label class="option-card"><input type="checkbox" name="fluxo" value="orcamento"><span class="option-icon">📋</span><span class="option-copy"><strong>Faço orçamento antes</strong><small>Primeiro envio uma proposta para o cliente.</small></span></label>
+                            <label class="option-card"><input type="checkbox" name="fluxo" value="online"><span class="option-icon">🌐</span><span class="option-copy"><strong>Também vendo pela internet</strong><small>Quero divulgar produtos ou receber pedidos online.</small></span></label>
+                        </div>
+                    </div>
+
+                    <div class="flow-group" data-flow="ambos">
+                        <h2 class="question-title">Como seus clientes costumam comprar de você?</h2>
+                        <p class="question-help">Marque as formas que fazem parte da sua rotina.</p>
+                        <div class="option-grid">
+                            <label class="option-card"><input type="checkbox" name="fluxo" value="orcamento"><span class="option-icon">📋</span><span class="option-copy"><strong>Faço orçamento antes</strong><small>Envio uma proposta antes de vender ou executar.</small></span></label>
+                            <label class="option-card"><input type="checkbox" name="fluxo" value="venda_direta"><span class="option-icon">🛒</span><span class="option-copy"><strong>Faço venda direta</strong><small>Algumas vendas são concluídas na hora.</small></span></label>
+                            <label class="option-card"><input type="checkbox" name="fluxo" value="agendamento"><span class="option-icon">📅</span><span class="option-copy"><strong>Agendam um horário</strong><small>Tenho atendimentos com data e hora.</small></span></label>
+                            <label class="option-card"><input type="checkbox" name="fluxo" value="servico_direto"><span class="option-icon">🔧</span><span class="option-copy"><strong>Recebo serviços para executar</strong><small>Também acompanho trabalhos em andamento.</small></span></label>
+                            <label class="option-card"><input type="checkbox" name="fluxo" value="online"><span class="option-icon">🌐</span><span class="option-copy"><strong>Também vendo pela internet</strong><small>Quero divulgar produtos ou serviços online.</small></span></label>
+                        </div>
+                    </div>
+
+                    <div class="flow-group" data-flow="industrial">
+                        <h2 class="question-title">O que você quer acompanhar na operação?</h2>
+                        <p class="question-help">Escolha a opção mais próxima do que você precisa agora.</p>
+                        <div class="option-grid">
+                            <label class="option-card"><input type="radio" name="fluxo" value="producao"><span class="option-icon">🏭</span><span class="option-copy"><strong>Produção</strong><small>Quero acompanhar o que as máquinas estão produzindo.</small></span></label>
+                            <label class="option-card"><input type="radio" name="fluxo" value="paradas"><span class="option-icon">⏱️</span><span class="option-copy"><strong>Paradas das máquinas</strong><small>Quero entender quando e por que a produção para.</small></span></label>
+                            <label class="option-card"><input type="radio" name="fluxo" value="producao_paradas"><span class="option-icon">📊</span><span class="option-copy"><strong>Produção e paradas</strong><small>Quero acompanhar a operação de forma completa.</small></span></label>
+                        </div>
+                    </div>
+
+                    <div class="inline-error" id="erro-fluxo">Escolha pelo menos uma opção para continuar.</div>
+                    <div class="onboarding-actions"><button type="button" class="btn-back" onclick="irParaPasso(1)">Voltar</button><button type="button" class="btn-next" onclick="avancarFluxo()">Continuar</button></div>
+                </section>
+
+                <section class="onboarding-step" data-step="3">
+                    <span class="eyebrow">Só mais uma pergunta</span>
+                    <h2 class="question-title">O que você também gostaria de controlar?</h2>
+                    <p class="question-help">Marque apenas o que fizer sentido hoje. Você poderá mudar isso depois.</p>
+                    <div class="option-grid">
+                        <label class="option-card"><input type="checkbox" name="controle" value="produtos_materiais"><span class="option-icon">📦</span><span class="option-copy"><strong>Produtos e materiais</strong><small>Quero acompanhar o que tenho disponível.</small></span></label>
+                        <label class="option-card"><input type="checkbox" name="controle" value="compras_fornecedores"><span class="option-icon">🧾</span><span class="option-copy"><strong>Compras e fornecedores</strong><small>Quero organizar de quem compro e o que entra.</small></span></label>
+                        <label class="option-card"><input type="checkbox" name="controle" value="funcionarios"><span class="option-icon">👥</span><span class="option-copy"><strong>Funcionários</strong><small>Quero cadastrar e organizar minha equipe.</small></span></label>
+                        <label class="option-card"><input type="checkbox" name="controle" value="horarios_agendamentos"><span class="option-icon">📅</span><span class="option-copy"><strong>Horários e agendamentos</strong><small>Quero organizar atendimentos por data e hora.</small></span></label>
+                        <label class="option-card"><input type="checkbox" name="controle" value="servicos_andamento"><span class="option-icon">🔧</span><span class="option-copy"><strong>Serviços em andamento</strong><small>Quero acompanhar o que está sendo executado.</small></span></label>
+                        <label class="option-card"><input type="checkbox" name="controle" value="vendas_online"><span class="option-icon">🌐</span><span class="option-copy"><strong>Vendas pela internet</strong><small>Quero divulgar e receber pedidos online.</small></span></label>
+                    </div>
+                    <div class="onboarding-actions"><button type="button" class="btn-back" onclick="irParaPasso(2)">Voltar</button><button type="button" class="btn-next" onclick="prepararResumo()">Continuar</button></div>
+                </section>
+
+                <section class="onboarding-step ready-step" data-step="4">
+                    <div class="ready-inner">
+                        <div class="ready-check">✓</div>
+                        <span class="eyebrow">Tudo pronto</span>
+                        <h2 class="onboarding-title">Preparamos o GestFlow para sua empresa.</h2>
+                        <p class="onboarding-subtitle">Você não precisa configurar mais nada agora. Vamos começar pelo essencial e o sistema vai te guiando.</p>
+                        <div class="ready-summary">
+                            <div><strong>Seu negócio:</strong> <span id="resumo-tipo">—</span></div>
+                            <div><strong>Seu dia a dia:</strong> <span id="resumo-fluxo">—</span></div>
+                            <div><strong>Você quer controlar:</strong> <span id="resumo-controles">Só o essencial por enquanto</span></div>
+                        </div>
+                        <div class="ready-note">Você poderá ajustar essas escolhas depois, sem perder nenhum dado.</div>
+                        <div class="ready-actions">
+                            <button type="submit" class="btn-start">Começar a usar</button>
+                            <button type="button" class="review-link" onclick="irParaPasso(1)">Quero revisar minhas respostas</button>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </form>
+    </main>
+
+    <script>
+        let passoAtual = 0;
+        const passos = Array.from(document.querySelectorAll('.onboarding-step'));
+        const barras = Array.from(document.querySelectorAll('.onboarding-progress span'));
+        const progresso = document.getElementById('progress-wrap');
+        const legendaProgresso = document.getElementById('progress-caption');
+
+        const nomesTipo = {
+            produtos: 'Venda de produtos',
+            servicos: 'Prestação de serviços',
+            ambos: 'Produtos e serviços',
+            industrial: 'Produção / Indústria'
+        };
+        const nomesFluxo = {
+            orcamento: 'orçamentos antes de fechar',
+            agendamento: 'atendimentos agendados',
+            servico_direto: 'serviços recebidos diretamente',
+            recorrente: 'clientes recorrentes',
+            venda_direta: 'vendas diretas',
+            online: 'vendas pela internet',
+            producao: 'produção das máquinas',
+            paradas: 'paradas das máquinas',
+            producao_paradas: 'produção e paradas das máquinas'
+        };
+        const nomesControle = {
+            produtos_materiais: 'produtos e materiais',
+            compras_fornecedores: 'compras e fornecedores',
+            funcionarios: 'funcionários',
+            horarios_agendamentos: 'horários e agendamentos',
+            servicos_andamento: 'serviços em andamento',
+            vendas_online: 'vendas pela internet'
+        };
+
+        function marcarCards() {
+            document.querySelectorAll('.option-card').forEach(card => {
+                const input = card.querySelector('input');
+                card.classList.toggle('selected', Boolean(input && input.checked));
+            });
+        }
+
+        function atualizarTela() {
+            passos.forEach((passo, indice) => passo.classList.toggle('active', indice === passoAtual));
+            progresso.classList.toggle('visible', passoAtual > 0);
+            if (passoAtual > 0) {
+                const etapaVisual = Math.min(passoAtual, 4);
+                legendaProgresso.textContent = etapaVisual + ' de 4';
+                barras.forEach((barra, indice) => barra.classList.toggle('active', indice < etapaVisual));
+            }
+            if (passoAtual === 2) mostrarFluxoCorreto();
+            marcarCards();
+            window.scrollTo({top: 0, behavior: 'smooth'});
+        }
+
+        function irParaPasso(numero) {
+            passoAtual = Math.max(0, Math.min(numero, passos.length - 1));
+            atualizarTela();
+        }
+
+        function avancarTipoEmpresa() {
+            const tipo = document.querySelector('input[name="tipo_empresa"]:checked');
+            document.getElementById('erro-tipo').classList.toggle('visible', !tipo);
+            if (!tipo) return;
+            irParaPasso(2);
+        }
+
+        function mostrarFluxoCorreto() {
+            const tipo = document.querySelector('input[name="tipo_empresa"]:checked')?.value || '';
+            document.querySelectorAll('.flow-group').forEach(grupo => {
+                const ativo = grupo.dataset.flow === tipo;
+                grupo.classList.toggle('active', ativo);
+                if (!ativo) grupo.querySelectorAll('input[name="fluxo"]').forEach(input => { input.checked = false; });
+            });
+            document.getElementById('erro-fluxo').classList.remove('visible');
+            marcarCards();
+        }
+
+        function avancarFluxo() {
+            const grupo = document.querySelector('.flow-group.active');
+            const escolhido = grupo ? grupo.querySelector('input[name="fluxo"]:checked') : null;
+            document.getElementById('erro-fluxo').classList.toggle('visible', !escolhido);
+            if (!escolhido) return;
+            irParaPasso(3);
+        }
+
+        function prepararResumo() {
+            const tipo = document.querySelector('input[name="tipo_empresa"]:checked')?.value || '';
+            const fluxos = Array.from(document.querySelectorAll('input[name="fluxo"]:checked')).map(input => nomesFluxo[input.value]).filter(Boolean);
+            const controles = Array.from(document.querySelectorAll('input[name="controle"]:checked')).map(input => nomesControle[input.value]).filter(Boolean);
+            document.getElementById('resumo-tipo').textContent = nomesTipo[tipo] || 'Seu negócio';
+            document.getElementById('resumo-fluxo').textContent = fluxos.length ? fluxos.join(', ') : 'rotina básica';
+            document.getElementById('resumo-controles').textContent = controles.length ? controles.join(', ') : 'Só o essencial por enquanto';
+            irParaPasso(4);
+        }
+
+        document.querySelectorAll('.option-card input').forEach(input => input.addEventListener('change', marcarCards));
+        atualizarTela();
+    </script>
+</body>
+</html>

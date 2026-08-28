@@ -1,0 +1,222 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\partials\lista_avancada.html
+Último recode: 2026-08-22 00:35 (America/Bahia)
+Motivo: Padronizar Busca avançada, Colunas e Mais ações no mesmo padrão visual de Orçamentos e vincular o componente somente às tabelas principais marcadas.
+#}
+
+<style>
+    .gf-list-tools{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 14px;position:relative}
+    .gf-list-result{margin-right:auto;font-size:12px;font-weight:800;color:#64748b}
+    .gf-list-toolbar-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;position:relative}
+    .gf-list-toolbar-button{min-height:38px;padding:0 13px;border:1px solid #0f172a;border-radius:10px;background:#0f172a;color:#fff;display:inline-flex;align-items:center;justify-content:center;gap:7px;font:inherit;font-size:13px;font-weight:900;cursor:pointer}
+    .gf-list-toolbar-button:hover,.gf-list-toolbar-button[aria-expanded="true"]{background:#1e293b;border-color:#1e293b;color:#fff}
+    .gf-list-dropdown{position:relative;display:inline-flex;align-items:center}
+    .gf-list-dropdown-menu{position:absolute;z-index:180;top:calc(100% + 8px);right:0;min-width:220px;max-width:min(340px,calc(100vw - 36px));padding:10px;border:1px solid #dbe4f0;border-radius:12px;background:#fff;box-shadow:0 18px 45px rgba(15,23,42,.18);display:none}
+    .gf-list-dropdown.is-open>.gf-list-dropdown-menu{display:block}
+    .gf-list-dropdown-title{margin:0 0 8px;padding:0 4px 8px;border-bottom:1px solid #e2e8f0;color:#475569;font-size:12px;font-weight:900;text-transform:uppercase}
+    .gf-list-columns{display:grid;gap:2px;max-height:min(430px,62vh);overflow-y:auto}
+    .gf-list-column-option{display:flex;align-items:center;gap:9px;min-height:32px;padding:5px 4px;border-radius:8px;color:#334155;font-size:13px;font-weight:800;cursor:pointer}
+    .gf-list-column-option:hover{background:#f8fafc}
+    .gf-list-column-option input{width:16px;height:16px;margin:0}
+    .gf-list-dropdown-divider{height:1px;margin:8px 0;background:#e2e8f0}
+    .gf-list-menu-button{width:100%;min-height:36px;padding:7px 9px;border:0;border-radius:8px;background:transparent;color:#1e293b;display:flex;align-items:center;justify-content:flex-start;gap:8px;font:inherit;font-size:13px;font-weight:800;cursor:pointer}
+    .gf-list-menu-button:hover{background:#f0fdf4;color:#166534}
+    .gf-list-tools-panel{display:none;margin:0 0 14px;padding:16px;border:1px solid #dbe4f0;border-radius:14px;background:#f8fafc}
+    .gf-list-tools-panel.is-open{display:block}
+    .gf-list-panel-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}
+    .gf-list-panel-header h4{margin:0;color:#0f172a;font-size:16px}
+    .gf-list-panel-header p{margin:4px 0 0;color:#64748b;font-size:12px}
+    .gf-list-filter-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+    .gf-list-filter-field{display:grid;gap:5px}
+    .gf-list-filter-field label{font-size:11px;font-weight:900;color:#475569;text-transform:uppercase}
+    .gf-list-filter-field input{width:100%;min-height:38px;padding:8px 10px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;color:#0f172a}
+    .gf-list-panel-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:14px}
+    .gf-list-panel-actions button{min-height:38px;padding:0 14px;border:1px solid #0f172a;border-radius:9px;background:#0f172a;color:#fff;font:inherit;font-size:13px;font-weight:900;cursor:pointer}
+    .gf-list-panel-actions button:hover{background:#020617;border-color:#020617;color:#fff}
+    .gf-list-hidden-column{display:none!important}
+    @media(max-width:720px){.gf-list-tools{align-items:stretch}.gf-list-result{width:100%}.gf-list-toolbar-actions{width:100%}.gf-list-toolbar-button{flex:1}.gf-list-dropdown{flex:1}.gf-list-dropdown>.gf-list-toolbar-button{width:100%}.gf-list-dropdown-menu{left:0;right:auto}.gf-list-tools-panel{padding:12px}}
+</style>
+
+<script>
+(function configurarListaAvancadaGestFlow(){
+    function normalizar(valor){
+        return String(valor || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    }
+
+    function csvSeguro(valor){
+        const texto = String(valor || "").replace(/\s+/g, " ").trim();
+        return '"' + texto.replace(/"/g, '""') + '"';
+    }
+
+    function ehLinhaVazia(linha){
+        return Boolean(linha.querySelector(".empty-table, .empty-table-box") || (linha.children.length === 1 && linha.children[0].hasAttribute("colspan")));
+    }
+
+    function iniciarTabela(tabela, indiceTabela, totalTabelas){
+        if (tabela.dataset.gfListaAvancada === "sim") return;
+        tabela.dataset.gfListaAvancada = "sim";
+
+        const cabecalhos = Array.from(tabela.querySelectorAll("thead th"));
+        const linhas = Array.from(tabela.querySelectorAll("tbody tr"));
+        if (!cabecalhos.length) return;
+
+        const sufixoTabela = totalTabelas > 1 ? "_" + indiceTabela : "";
+        const chave = "gestflow_colunas_" + (location.pathname.replace(/\W+/g, "_") || "lista") + sufixoTabela;
+        const shell = tabela.closest(".table-shell, .gf-table-shell, .financeiro-lista-shell, .estoque-table-wrap, .loan-table-wrap, .contracts-table-shell") || tabela.parentElement;
+        if (!shell || !shell.parentNode) return;
+
+        const painelLista = tabela.closest(".gf-list-panel, .table-panel, .panel");
+        const slot = painelLista ? painelLista.querySelector(".os-list-tools-slot") : null;
+
+        const tools = document.createElement("div");
+        tools.className = "gf-list-tools";
+        tools.innerHTML = '<span class="gf-list-result"></span><div class="gf-list-toolbar-actions"><button type="button" class="gf-list-toolbar-button" data-gf-filtros aria-expanded="false">⌕ Busca avançada</button><div class="gf-list-dropdown" data-gf-dropdown="colunas"><button type="button" class="gf-list-toolbar-button" data-gf-dropdown-toggle aria-expanded="false">▤ Colunas</button><div class="gf-list-dropdown-menu"><p class="gf-list-dropdown-title">Gerenciar colunas</p><div class="gf-list-columns"></div><div class="gf-list-dropdown-divider"></div><button type="button" class="gf-list-menu-button" data-gf-restaurar>↺ Restaurar padrão</button></div></div><div class="gf-list-dropdown" data-gf-dropdown="acoes"><button type="button" class="gf-list-toolbar-button" data-gf-dropdown-toggle aria-expanded="false">⚙ Mais ações</button><div class="gf-list-dropdown-menu"><button type="button" class="gf-list-menu-button" data-gf-exportar>⇩ Exportar CSV</button></div></div></div>';
+
+        const painelFiltros = document.createElement("div");
+        painelFiltros.className = "gf-list-tools-panel";
+        painelFiltros.innerHTML = '<div class="gf-list-panel-header"><div><h4>Busca avançada</h4><p>Preencha somente os campos que deseja filtrar.</p></div></div><div class="gf-list-filter-grid"></div><div class="gf-list-panel-actions"><button type="button" class="gf-list-clear">Limpar</button><button type="button" class="gf-list-apply">Buscar</button></div>';
+
+        if (slot) slot.appendChild(tools); else shell.parentNode.insertBefore(tools, shell);
+        shell.parentNode.insertBefore(painelFiltros, shell);
+
+        const filtrosGrid = painelFiltros.querySelector(".gf-list-filter-grid");
+        const colunasGrid = tools.querySelector(".gf-list-columns");
+        const filtros = [];
+
+        cabecalhos.forEach(function(th, indice){
+            const nome = String(th.textContent || "Coluna " + (indice + 1)).replace(/[↑↓]/g, "").trim() || "Coluna " + (indice + 1);
+            const ehAcoes = normalizar(nome) === "acoes";
+
+            if (!ehAcoes) {
+                const campo = document.createElement("div");
+                campo.className = "gf-list-filter-field";
+                campo.innerHTML = '<label></label><input type="text" autocomplete="off">';
+                campo.querySelector("label").textContent = nome;
+                campo.querySelector("input").placeholder = "Filtrar por " + nome.toLowerCase();
+                filtrosGrid.appendChild(campo);
+                filtros.push({indice: indice, input: campo.querySelector("input")});
+            }
+
+            const opcao = document.createElement("label");
+            opcao.className = "gf-list-column-option";
+            opcao.innerHTML = '<input type="checkbox" checked><span></span>';
+            opcao.querySelector("span").textContent = nome;
+            opcao.querySelector("input").dataset.indice = String(indice);
+            if (ehAcoes) {
+                opcao.querySelector("input").disabled = true;
+                opcao.title = "A coluna Ações permanece sempre visível.";
+            }
+            colunasGrid.appendChild(opcao);
+        });
+
+        function atualizarResultado(){
+            const visiveis = linhas.filter(function(linha){return linha.style.display !== "none" && !ehLinhaVazia(linha);}).length;
+            tools.querySelector(".gf-list-result").textContent = visiveis + " registro" + (visiveis === 1 ? "" : "s") + " exibido" + (visiveis === 1 ? "" : "s");
+        }
+
+        function aplicarFiltros(){
+            const termos = filtros.map(function(item){return {indice:item.indice, termo:normalizar(item.input.value)};});
+            linhas.forEach(function(linha){
+                if (ehLinhaVazia(linha)) return;
+                const celulas = Array.from(linha.children);
+                const atende = termos.every(function(item){
+                    return !item.termo || normalizar(celulas[item.indice] ? celulas[item.indice].textContent : "").includes(item.termo);
+                });
+                linha.style.display = atende ? "" : "none";
+            });
+            atualizarResultado();
+        }
+
+        function indiceAcoes(){
+            return cabecalhos.findIndex(function(th){return normalizar(String(th.textContent || "").replace(/[↑↓]/g, "")) === "acoes";});
+        }
+
+        function aplicarColunas(indicesVisiveis, salvar){
+            const indices = indicesVisiveis.slice();
+            const acoes = indiceAcoes();
+            if (acoes >= 0 && !indices.includes(acoes)) indices.push(acoes);
+            cabecalhos.forEach(function(th, indice){th.classList.toggle("gf-list-hidden-column", !indices.includes(indice));});
+            linhas.forEach(function(linha){Array.from(linha.children).forEach(function(td, indice){td.classList.toggle("gf-list-hidden-column", !indices.includes(indice));});});
+            Array.from(colunasGrid.querySelectorAll('input[type="checkbox"]')).forEach(function(input){input.checked = indices.includes(Number(input.dataset.indice));});
+            if (salvar) localStorage.setItem(chave, JSON.stringify(indices));
+        }
+
+        function colunasMarcadas(){
+            return Array.from(colunasGrid.querySelectorAll('input[type="checkbox"]:checked')).map(function(input){return Number(input.dataset.indice);});
+        }
+
+        function fecharDropdowns(excecao){
+            tools.querySelectorAll("[data-gf-dropdown]").forEach(function(dropdown){
+                if (dropdown === excecao) return;
+                dropdown.classList.remove("is-open");
+                const botao = dropdown.querySelector("[data-gf-dropdown-toggle]");
+                if (botao) botao.setAttribute("aria-expanded", "false");
+            });
+        }
+
+        tools.querySelector("[data-gf-filtros]").addEventListener("click", function(){
+            const abrir = !painelFiltros.classList.contains("is-open");
+            painelFiltros.classList.toggle("is-open", abrir);
+            this.setAttribute("aria-expanded", String(abrir));
+            fecharDropdowns();
+        });
+
+        tools.querySelectorAll("[data-gf-dropdown-toggle]").forEach(function(botao){
+            botao.addEventListener("click", function(evento){
+                evento.stopPropagation();
+                const dropdown = botao.closest("[data-gf-dropdown]");
+                const abrir = !dropdown.classList.contains("is-open");
+                fecharDropdowns(dropdown);
+                dropdown.classList.toggle("is-open", abrir);
+                botao.setAttribute("aria-expanded", String(abrir));
+                if (abrir) {
+                    painelFiltros.classList.remove("is-open");
+                    tools.querySelector("[data-gf-filtros]").setAttribute("aria-expanded", "false");
+                }
+            });
+        });
+
+        painelFiltros.querySelector(".gf-list-apply").addEventListener("click", aplicarFiltros);
+        painelFiltros.querySelector(".gf-list-clear").addEventListener("click", function(){filtros.forEach(function(item){item.input.value="";});aplicarFiltros();});
+        filtros.forEach(function(item){item.input.addEventListener("keydown", function(evento){if(evento.key === "Enter"){evento.preventDefault();aplicarFiltros();}});});
+        colunasGrid.addEventListener("change", function(){const marcadas=colunasMarcadas();if(marcadas.length)aplicarColunas(marcadas,true);});
+        tools.querySelector("[data-gf-restaurar]").addEventListener("click", function(){const todos=cabecalhos.map(function(_,i){return i;});localStorage.removeItem(chave);aplicarColunas(todos,false);});
+
+        tools.querySelector("[data-gf-exportar]").addEventListener("click", function(){
+            const indices = colunasMarcadas().filter(function(i){return i !== indiceAcoes();});
+            const conteudo = [];
+            conteudo.push(indices.map(function(i){return csvSeguro(cabecalhos[i].textContent.replace(/[↑↓]/g,""));}).join(";"));
+            linhas.forEach(function(linha){
+                if (linha.style.display === "none" || ehLinhaVazia(linha)) return;
+                const celulas = Array.from(linha.children);
+                conteudo.push(indices.map(function(i){return csvSeguro(celulas[i] ? celulas[i].textContent : "");}).join(";"));
+            });
+            const blob = new Blob(["\ufeff" + conteudo.join("\r\n")], {type:"text/csv;charset=utf-8"});
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = (document.title || "gestflow-lista").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"") + ".csv";
+            document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
+            fecharDropdowns();
+        });
+
+        document.addEventListener("click", function(evento){
+            if (!tools.contains(evento.target)) fecharDropdowns();
+        });
+        document.addEventListener("keydown", function(evento){if(evento.key === "Escape"){fecharDropdowns();painelFiltros.classList.remove("is-open");tools.querySelector("[data-gf-filtros]").setAttribute("aria-expanded","false");}});
+
+        let salvas = [];
+        try { salvas = JSON.parse(localStorage.getItem(chave) || "[]"); } catch (_) { salvas = []; }
+        const validas = Array.isArray(salvas) ? salvas.filter(function(i){return Number.isInteger(i) && i >= 0 && i < cabecalhos.length;}) : [];
+        aplicarColunas(validas.length ? validas : cabecalhos.map(function(_,i){return i;}), false);
+        atualizarResultado();
+    }
+
+    function iniciar(){
+        const tabelas = Array.from(document.querySelectorAll('table[data-gf-lista-principal="sim"]'));
+        tabelas.forEach(function(tabela, indice){iniciarTabela(tabela, indice, tabelas.length);});
+    }
+
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", iniciar); else iniciar();
+})();
+</script>

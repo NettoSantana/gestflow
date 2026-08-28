@@ -1,0 +1,672 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\ordem_servico_detalhe.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Detalhes da OS</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+
+    <main class="content os-page os-detail-page">
+        {% set page_title = 'Detalhes da OS' %}
+        {% include "partials/topbar.html" %}
+        {% set os = ordem_servico %}
+        {% set os_status_final = os.status_finalizado|default(false) %}
+        {% set cliente_url = os_publico_links.cliente_url if os_publico_links else '' %}
+        {% set campo_url = os_publico_links.campo_url if os_publico_links else '' %}
+
+        <section class="panel page-section os-detail-hero">
+            <div class="os-detail-hero-main">
+                <div>
+                    <span class="page-kicker">Ordens de Serviço</span>
+                    <div class="os-detail-title-line">
+                        <h2>OS {{ os.numero or os.id }}</h2>
+                        <span class="os-detail-status" style="background: {{ os.status_fundo|default('#f1f5f9') }}; color: {{ os.status_texto_cor|default('#334155') }}; border-color: {{ os.status_borda|default('#cbd5e1') }};">
+                            {{ os.status_nome|default(os.status, true) or '-' }}
+                        </span>
+                    </div>
+                    <p class="page-subtitle">
+                        Cliente: <strong>{{ os.cliente or 'não informado' }}</strong>
+                    </p>
+                </div>
+
+                <div class="os-detail-actions">
+                    <a href="/ordens-servico" class="btn-light">Voltar</a>
+                    {% if not os_status_final %}
+                        <a href="/ordens-servico/{{ os.id }}/links" class="btn-primary-green">Gerar links</a>
+                        <a href="/ordens-servico/{{ os.id }}/gerar/acompanhamento" class="btn-primary-green">Link diário</a>
+                        <a href="/ordens-servico/{{ os.id }}/editar" class="btn-dark">Editar OS</a>
+                    {% endif %}
+                    <a href="/ordens-servico/{{ os.id }}/imprimir/a4" target="_blank" rel="noopener" class="btn-primary-green">Imprimir</a>
+                </div>
+            </div>
+
+            <div class="os-detail-summary">
+                <div class="os-detail-summary-card">
+                    <span>Número</span>
+                    <strong>{{ os.numero or os.id }}</strong>
+                    <small>Registro da ordem</small>
+                </div>
+                <div class="os-detail-summary-card">
+                    <span>Situação</span>
+                    <strong>{{ os.status_nome|default(os.status, true) or '-' }}</strong>
+                    <small>Prioridade: {{ os.prioridade or '-' }}</small>
+                </div>
+                <div class="os-detail-summary-card">
+                    <span>Valor total</span>
+                    <strong>R$ {{ os.valor_total or '0,00' }}</strong>
+                    <small>Produtos e serviços</small>
+                </div>
+                <div class="os-detail-summary-card">
+                    <span>Previsão</span>
+                    <strong>{{ os.data_previsao or '-' }}</strong>
+                    <small>Técnico: {{ os.tecnico or '-' }}</small>
+                </div>
+            </div>
+        </section>
+
+        <nav
+            class="os-detail-tabs"
+            aria-label="Seções da ordem de serviço"
+            data-force-tab="{{ 'links' if acompanhamento_url_gerada or acompanhamento_erro else '' }}"
+        >
+            <button type="button" class="os-detail-tab is-active" data-os-tab="visao-geral" aria-selected="true">
+                Visão geral
+            </button>
+            <button type="button" class="os-detail-tab" data-os-tab="equipamentos" aria-selected="false">
+                Equipamentos
+                <span>{{ equipamentos_os|default([])|length }}</span>
+            </button>
+            <button type="button" class="os-detail-tab" data-os-tab="execucao" aria-selected="false">
+                Execução
+            </button>
+            <button type="button" class="os-detail-tab" data-os-tab="atividades" aria-selected="false">
+                Atividades <span>{{ atividades_operacionais|default([])|length }}</span>
+            </button>
+            <button type="button" class="os-detail-tab" data-os-tab="itens" aria-selected="false">
+                Itens e valores
+            </button>
+            <button type="button" class="os-detail-tab" data-os-tab="links" aria-selected="false">
+                Links e acompanhamento
+            </button>
+        </nav>
+
+        <section class="os-detail-tab-panel is-active" data-os-panel="visao-geral">
+            <div class="panel page-section">
+                <div class="os-detail-section-head">
+                    <div>
+                        <span class="os-detail-section-index">01</span>
+                        <div>
+                            <h3>Dados gerais</h3>
+                            <p>Cliente, responsáveis, origem e prazos da ordem.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="os-detail-field-grid">
+                    <div class="os-detail-field"><span>Cliente</span><strong>{{ os.cliente or '-' }}</strong></div>
+                    <div class="os-detail-field"><span>Responsável</span><strong>{{ os.responsavel or '-' }}</strong></div>
+                    <div class="os-detail-field"><span>Técnico</span><strong>{{ os.tecnico or '-' }}</strong></div>
+                    <div class="os-detail-field"><span>Data de abertura</span><strong>{{ os.data_abertura or '-' }}</strong></div>
+                    <div class="os-detail-field"><span>Previsão</span><strong>{{ os.data_previsao or '-' }}</strong></div>
+                    <div class="os-detail-field"><span>Data de saída</span><strong>{{ os.data_saida or '-' }}</strong></div>
+                    <div class="os-detail-field"><span>Hora de entrada</span><strong>{{ os.hora_entrada or '-' }}</strong></div>
+                    <div class="os-detail-field"><span>Hora de saída</span><strong>{{ os.hora_saida or '-' }}</strong></div>
+                    <div class="os-detail-field"><span>Canal de venda</span><strong>{{ os.canal_venda or '-' }}</strong></div>
+                    <div class="os-detail-field"><span>Centro de custo</span><strong>{{ os.centro_custo or '-' }}</strong></div>
+                    <div class="os-detail-field"><span>Atividade / Projeto</span><strong>{{ atividade.nome if atividade else '-' }}</strong></div>
+                    <div class="os-detail-field"><span>Tipo</span><strong>{{ os.tipo or '-' }}</strong></div>
+                    <div class="os-detail-field"><span>Venda de origem</span><strong>{{ os.origem_venda_id or '-' }}</strong></div>
+                    <div class="os-detail-field os-detail-field-wide">
+                        <span>Orçamento de origem</span>
+                        <strong>
+                            {% if os.origem_orcamento_id %}
+                                <a href="/orcamentos/{{ os.origem_orcamento_id }}">
+                                    Orçamento {{ os.origem_orcamento_numero or os.origem_orcamento_id }}
+                                </a>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel page-section">
+                <div class="os-detail-section-head">
+                    <div>
+                        <span class="os-detail-section-index">02</span>
+                        <div>
+                            <h3>Resumo comercial e entrega</h3>
+                            <p>Condições financeiras e destino informado para a ordem.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="os-detail-field-grid">
+                    <div class="os-detail-field"><span>Total de produtos</span><strong>R$ {{ os.total_produtos or '0,00' }}</strong></div>
+                    <div class="os-detail-field"><span>Total de serviços</span><strong>R$ {{ os.total_servicos or '0,00' }}</strong></div>
+                    <div class="os-detail-field"><span>Frete</span><strong>R$ {{ os.frete or '0,00' }}</strong></div>
+                    <div class="os-detail-field"><span>Outros</span><strong>R$ {{ os.outros or '0,00' }}</strong></div>
+                    <div class="os-detail-field"><span>Desconto</span><strong>R$ {{ os.desconto_valor or '0,00' }}</strong></div>
+                    <div class="os-detail-field os-detail-field-highlight"><span>Valor total</span><strong>R$ {{ os.valor_total or '0,00' }}</strong></div>
+                    <div class="os-detail-field"><span>Forma de pagamento</span><strong>{{ os.forma_pagamento or '-' }}</strong></div>
+                    <div class="os-detail-field"><span>Endereço de entrega</span><strong>{{ os.endereco_entrega or '-' }}</strong></div>
+                    <div class="os-detail-field"><span>Bairro</span><strong>{{ os.bairro_entrega or '-' }}</strong></div>
+                    <div class="os-detail-field"><span>Cidade</span><strong>{{ os.cidade_entrega or '-' }}</strong></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="os-detail-tab-panel" data-os-panel="equipamentos" hidden>
+            <div class="panel page-section">
+                <div class="os-detail-section-head">
+                    <div>
+                        <span class="os-detail-section-index">03</span>
+                        <div>
+                            <h3>Equipamentos atendidos</h3>
+                            <p>Abra somente o equipamento que deseja consultar.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="os-equipment-list">
+                    {% for equipamento in equipamentos_os|default([]) %}
+                        {% set fotos_do_equipamento = fotos_por_equipamento.get(equipamento.indice, []) if fotos_por_equipamento else [] %}
+                        <details class="os-equipment-accordion"{% if loop.first %} open{% endif %}>
+                            <summary>
+                                <div class="os-equipment-summary-main">
+                                    <span class="os-equipment-number">{{ "%02d"|format(loop.index) }}</span>
+                                    <div>
+                                        <strong>{{ equipamento.equipamento or equipamento.titulo or ('Equipamento ' ~ loop.index) }}</strong>
+                                        <small>
+                                            {{ equipamento.marca or 'Sem marca' }}
+                                            {% if equipamento.modelo %} · {{ equipamento.modelo }}{% endif %}
+                                            {% if equipamento.serie %} · Série {{ equipamento.serie }}{% endif %}
+                                        </small>
+                                    </div>
+                                </div>
+                                <span class="os-equipment-toggle">Abrir detalhes</span>
+                            </summary>
+
+                            <div class="os-equipment-content">
+                                <div class="os-detail-field-grid">
+                                    <div class="os-detail-field"><span>Equipamento</span><strong>{{ equipamento.equipamento or '-' }}</strong></div>
+                                    <div class="os-detail-field"><span>Marca</span><strong>{{ equipamento.marca or '-' }}</strong></div>
+                                    <div class="os-detail-field"><span>Modelo</span><strong>{{ equipamento.modelo or '-' }}</strong></div>
+                                    <div class="os-detail-field"><span>Série</span><strong>{{ equipamento.serie or '-' }}</strong></div>
+                                    <div class="os-detail-field os-detail-field-wide"><span>Local do serviço</span><strong>{{ equipamento.local_servico or '-' }}</strong></div>
+                                    <div class="os-detail-field os-detail-field-wide"><span>Condições</span><strong>{{ equipamento.condicoes or '-' }}</strong></div>
+                                    <div class="os-detail-field os-detail-field-wide"><span>Acessórios</span><strong>{{ equipamento.acessorios or '-' }}</strong></div>
+                                </div>
+
+                                <div class="os-detail-long-grid">
+                                    <article class="os-detail-text-card">
+                                        <span>Defeito / relato</span>
+                                        <p>{{ equipamento.relato_cliente or '-' }}</p>
+                                    </article>
+                                    <article class="os-detail-text-card">
+                                        <span>Diagnóstico / solução</span>
+                                        <p>{{ equipamento.diagnostico or '-' }}</p>
+                                    </article>
+                                    <article class="os-detail-text-card">
+                                        <span>Laudo</span>
+                                        <p>{{ equipamento.laudo or '-' }}</p>
+                                    </article>
+                                    <article class="os-detail-text-card">
+                                        <span>Termos</span>
+                                        <p>{{ equipamento.termos or '-' }}</p>
+                                    </article>
+                                </div>
+
+                                {% if equipamento.historico_url %}
+                                    <div class="os-qr-card">
+                                        <img src="{{ equipamento.qrcode_url }}" alt="QR Code do equipamento">
+                                        <div>
+                                            <strong>QR Code do equipamento</strong>
+                                            <span>Abre o histórico completo de manutenções deste equipamento.</span>
+                                            <div class="os-link-actions">
+                                                <a class="btn-primary-green" href="{{ equipamento.historico_url }}" target="_blank" rel="noopener">Abrir histórico</a>
+                                                <input value="{{ equipamento.historico_url }}" readonly onclick="this.select()">
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endif %}
+
+                                <div class="os-equipment-photo-section">
+                                    <div class="os-detail-subhead">
+                                        <h4>Registro fotográfico</h4>
+                                        <span>{{ fotos_do_equipamento|length }} registro(s)</span>
+                                    </div>
+
+                                    {% if fotos_do_equipamento %}
+                                        <div class="os-photo-grid">
+                                            {% for foto in fotos_do_equipamento %}
+                                                <article class="os-photo-card">
+                                                    <h4>{{ foto.titulo or equipamento.equipamento or equipamento.titulo }}</h4>
+                                                    <div class="os-photo-pair">
+                                                        <div class="os-photo-box">
+                                                            <strong>Antes</strong>
+                                                            {% if foto.foto_antes_path %}
+                                                                <img src="{{ foto.foto_antes_path }}" alt="Foto antes">
+                                                            {% else %}
+                                                                <div class="os-photo-empty">Sem foto antes</div>
+                                                            {% endif %}
+                                                        </div>
+                                                        <div class="os-photo-box">
+                                                            <strong>Depois</strong>
+                                                            {% if foto.foto_depois_path %}
+                                                                <img src="{{ foto.foto_depois_path }}" alt="Foto depois">
+                                                            {% else %}
+                                                                <div class="os-photo-empty">Sem foto depois</div>
+                                                            {% endif %}
+                                                        </div>
+                                                    </div>
+                                                    {% if foto.observacoes %}<p>{{ foto.observacoes }}</p>{% endif %}
+                                                </article>
+                                            {% endfor %}
+                                        </div>
+                                    {% else %}
+                                        <div class="os-detail-empty">Nenhuma foto registrada para este equipamento.</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </details>
+                    {% else %}
+                        <div class="os-detail-empty">Nenhum equipamento vinculado a esta ordem de serviço.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+
+        <section class="os-detail-tab-panel" data-os-panel="atividades" hidden>
+            <div class="panel page-section">
+                <div class="os-detail-section-head"><div><span class="os-detail-section-index">04</span><div><h3>Atividades da OS</h3><p>Serviços e ações paralelas vinculados a esta ordem.</p></div></div>{% if not os_status_final %}<a class="btn-primary-green" href="/gestao-atividades/nova?tipo=servico&ordem_servico_id={{ os.id }}">+ Nova atividade</a>{% endif %}</div>
+                <div class="activity-linked-list">{% for item in atividades_operacionais|default([]) %}<a href="/gestao-atividades/{{ item.id }}" class="activity-linked-item"><div><strong>{{ item.titulo }}</strong><span>{{ item.responsavel_nome or '-' }} · {{ item.data_prazo or 'Sem prazo' }} · {{ item.etapas_concluidas or 0 }}/{{ item.etapas_total or 0 }} etapas</span></div><span class="status-pill {{ item.status_exibicao or item.status }}">{{ (item.status_exibicao or item.status)|replace('_',' ') }}</span></a>{% else %}<div class="os-detail-empty">Nenhuma atividade vinculada a esta OS.</div>{% endfor %}</div>
+            </div>
+        </section>
+
+        <section class="os-detail-tab-panel" data-os-panel="execucao" hidden>
+            <div class="panel page-section">
+                <div class="os-detail-section-head">
+                    <div>
+                        <span class="os-detail-section-index">04</span>
+                        <div>
+                            <h3>Relato, diagnóstico e execução</h3>
+                            <p>Informações técnicas apresentadas em blocos de leitura ampla.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="os-detail-execution-grid">
+                    <article class="os-detail-text-card os-detail-text-card-wide">
+                        <span>Relato do cliente</span>
+                        <p>{{ os.relato_cliente or '-' }}</p>
+                    </article>
+                    <article class="os-detail-text-card os-detail-text-card-wide">
+                        <span>Diagnóstico</span>
+                        <p>{{ os.diagnostico or '-' }}</p>
+                    </article>
+                    <article class="os-detail-text-card os-detail-text-card-wide os-detail-text-card-primary">
+                        <span>Serviço executado</span>
+                        <p>{{ os.servico_executado or '-' }}</p>
+                    </article>
+                    <article class="os-detail-text-card">
+                        <span>Laudo</span>
+                        <p>{{ os.laudo or '-' }}</p>
+                    </article>
+                    <article class="os-detail-text-card">
+                        <span>Termos</span>
+                        <p>{{ os.termos or '-' }}</p>
+                    </article>
+                    <article class="os-detail-text-card os-detail-text-card-wide">
+                        <span>Observações para o cliente</span>
+                        <p>{{ os.observacoes or '-' }}</p>
+                    </article>
+                    <article class="os-detail-text-card os-detail-text-card-wide os-detail-text-card-internal">
+                        <span>Observações internas</span>
+                        <p>{{ os.observacoes_internas or '-' }}</p>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <section class="os-detail-tab-panel" data-os-panel="itens" hidden>
+            <div class="panel page-section">
+                <div class="os-detail-section-head">
+                    <div>
+                        <span class="os-detail-section-index">05</span>
+                        <div>
+                            <h3>Produtos e peças</h3>
+                            <p>Materiais vinculados à ordem de serviço.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-shell os-detail-table-shell">
+                    <table class="client-table os-detail-table">
+                        <thead>
+                            <tr>
+                                <th>Produto</th>
+                                <th>Detalhes</th>
+                                <th>Quant.</th>
+                                <th>Valor</th>
+                                <th>Desconto</th>
+                                <th>Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if itens_produtos %}
+                                {% for item in itens_produtos %}
+                                    <tr>
+                                        <td><strong>{{ item.descricao or '-' }}</strong></td>
+                                        <td>{{ item.detalhes or '-' }}</td>
+                                        <td>{{ item.quantidade or '-' }}</td>
+                                        <td>R$ {{ item.valor_unitario or '0,00' }}</td>
+                                        <td>R$ {{ item.desconto or '0,00' }}</td>
+                                        <td><strong>R$ {{ item.subtotal or '0,00' }}</strong></td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr><td colspan="6" class="empty-table">Nenhum produto vinculado.</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="panel page-section">
+                <div class="os-detail-section-head">
+                    <div>
+                        <span class="os-detail-section-index">06</span>
+                        <div>
+                            <h3>Serviços e mão de obra</h3>
+                            <p>Serviços vinculados à ordem de serviço.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-shell os-detail-table-shell">
+                    <table class="client-table os-detail-table">
+                        <thead>
+                            <tr>
+                                <th>Serviço</th>
+                                <th>Detalhes</th>
+                                <th>Quant.</th>
+                                <th>Valor</th>
+                                <th>Desconto</th>
+                                <th>Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if itens_servicos %}
+                                {% for item in itens_servicos %}
+                                    <tr>
+                                        <td><strong>{{ item.descricao or '-' }}</strong></td>
+                                        <td>{{ item.detalhes or '-' }}</td>
+                                        <td>{{ item.quantidade or '-' }}</td>
+                                        <td>R$ {{ item.valor_unitario or '0,00' }}</td>
+                                        <td>R$ {{ item.desconto or '0,00' }}</td>
+                                        <td><strong>R$ {{ item.subtotal or '0,00' }}</strong></td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr><td colspan="6" class="empty-table">Nenhum serviço vinculado.</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="panel page-section">
+                <div class="os-detail-section-head">
+                    <div>
+                        <span class="os-detail-section-index">07</span>
+                        <div>
+                            <h3>Resumo financeiro</h3><div class="gf-financial-kpis"><div><span>Previsto</span><strong>R$ {{ resumo_atividade.previsto_formatado }}</strong></div><div><span>Recebido</span><strong>R$ {{ resumo_atividade.recebido_formatado }}</strong></div><div><span>A receber</span><strong>R$ {{ resumo_atividade.a_receber_formatado }}</strong></div><div><span>Custos</span><strong>R$ {{ resumo_atividade.custos_formatado }}</strong></div><div><span>Resultado</span><strong>R$ {{ resumo_atividade.resultado_formatado }}</strong></div><div><span>Margem</span><strong>{{ resumo_atividade.margem_formatada }}%</strong></div></div>{% if atividade %}<p><a class="btn-light" href="/financeiro/atividades/{{ atividade.id }}">Ver atividade financeira</a></p>{% endif %}
+                            <p>Consolidação dos valores da ordem de serviço.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="os-detail-financial-grid">
+                    <div><span>Produtos</span><strong>R$ {{ os.total_produtos or '0,00' }}</strong></div>
+                    <div><span>Serviços</span><strong>R$ {{ os.total_servicos or '0,00' }}</strong></div>
+                    <div><span>Frete</span><strong>R$ {{ os.frete or '0,00' }}</strong></div>
+                    <div><span>Outros</span><strong>R$ {{ os.outros or '0,00' }}</strong></div>
+                    <div><span>Desconto</span><strong>R$ {{ os.desconto_valor or '0,00' }}</strong></div>
+                    <div class="is-total"><span>Valor total</span><strong>R$ {{ os.valor_total or '0,00' }}</strong></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="os-detail-tab-panel" data-os-panel="links" hidden>
+            <div class="panel page-section">
+                <div class="os-detail-section-head">
+                    <div>
+                        <span class="os-detail-section-index">08</span>
+                        <div>
+                            <h3>Links de acompanhamento</h3>
+                            <p>Acessos separados para o cliente e para o técnico de campo.</p>
+                        </div>
+                    </div>
+                    {% if not os_status_final %}<a href="/ordens-servico/{{ os.id }}/links" class="btn-light">Atualizar links</a>{% endif %}
+                </div>
+
+                <div class="os-link-grid">
+                    <article class="os-link-card">
+                        <div class="os-link-card-head">
+                            <span class="os-link-card-icon">C</span>
+                            <div>
+                                <strong>Link do cliente</strong>
+                                <small>Somente leitura</small>
+                            </div>
+                        </div>
+                        <p>O cliente acompanha status, atividades, materiais, fotos e evolução da OS.</p>
+                        <input id="os-link-cliente" value="{{ cliente_url }}" readonly onclick="this.select()">
+                        <div class="os-link-actions">
+                            {% if cliente_url %}
+                                <a class="btn-primary-green" href="{{ cliente_url }}" target="_blank" rel="noopener">Abrir</a>
+                                <button type="button" class="btn-light" data-copy-link="os-link-cliente">Copiar</button>
+                            {% else %}
+                                <span class="os-detail-unavailable">Link ainda não gerado</span>
+                            {% endif %}
+                        </div>
+                    </article>
+
+                    <article class="os-link-card">
+                        <div class="os-link-card-head">
+                            <span class="os-link-card-icon is-dark">T</span>
+                            <div>
+                                <strong>Link do técnico / campo</strong>
+                                <small>Execução controlada</small>
+                            </div>
+                        </div>
+                        <p>Edita execução, atividades, diagnóstico, observações e fotos, sem liberar o cabeçalho comercial.</p>
+                        <input id="os-link-campo" value="{{ campo_url }}" readonly onclick="this.select()">
+                        <div class="os-link-actions">
+                            {% if campo_url %}
+                                <a class="btn-dark" href="{{ campo_url }}" target="_blank" rel="noopener">Abrir</a>
+                                <button type="button" class="btn-light" data-copy-link="os-link-campo">Copiar</button>
+                            {% else %}
+                                <span class="os-detail-unavailable">Link ainda não gerado</span>
+                            {% endif %}
+                        </div>
+                    </article>
+                </div>
+            </div>
+
+            <div class="panel page-section">
+                <div class="os-detail-section-head">
+                    <div>
+                        <span class="os-detail-section-index">09</span>
+                        <div>
+                            <h3>Acompanhamento diário</h3>
+                            <p>Registro operacional de atividades, equipe, materiais e serviços do dia.</p>
+                        </div>
+                    </div>
+                    {% if not os_status_final %}
+                        <a href="/ordens-servico/{{ os.id }}/gerar/acompanhamento" class="btn-primary-green">Gerar link diário</a>
+                    {% else %}
+                        <span class="os-detail-unavailable">OS finalizada</span>
+                    {% endif %}
+                </div>
+
+                {% if acompanhamento_erro %}
+                    <div class="os-detail-alert is-error">{{ acompanhamento_erro }}</div>
+                {% endif %}
+
+                {% if acompanhamento_url_gerada %}
+                    <div class="os-detail-generated-link">
+                        <div>
+                            <span>Link gerado</span>
+                            <input id="os-link-diario" value="{{ acompanhamento_url_gerada }}" readonly onclick="this.select()">
+                        </div>
+                        <button type="button" class="btn-light" data-copy-link="os-link-diario">Copiar</button>
+                    </div>
+                    {% if acompanhamento_mensagem %}
+                        <div class="os-detail-alert is-success">{{ acompanhamento_mensagem }}</div>
+                    {% endif %}
+                {% endif %}
+
+                <div class="table-shell os-detail-table-shell">
+                    <table class="client-table os-detail-table os-detail-follow-table">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Responsável</th>
+                                <th>Status</th>
+                                <th>Expira em</th>
+                                <th>Previsto</th>
+                                <th>Equipe</th>
+                                <th>Materiais</th>
+                                <th>Serviços</th>
+                                <th>Executado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if acompanhamentos %}
+                                {% for acompanhamento in acompanhamentos %}
+                                    <tr>
+                                        <td>{{ acompanhamento.data_acompanhamento or '-' }}</td>
+                                        <td>{{ acompanhamento.responsavel or '-' }}</td>
+                                        <td>{{ acompanhamento.status_dia or '-' }}</td>
+                                        <td>{{ acompanhamento.expira_em or '-' }}</td>
+                                        <td>{{ acompanhamento.atividades_previstas or '-' }}</td>
+                                        <td>
+                                            {% if acompanhamento.equipe_lista %}
+                                                {% for item in acompanhamento.equipe_lista %}
+                                                    <div>{{ item.nome or '-' }}{% if item.horas %} · {{ item.horas }}h{% endif %}</div>
+                                                {% endfor %}
+                                            {% else %}-{% endif %}
+                                        </td>
+                                        <td>
+                                            {% if acompanhamento.materiais_lista %}
+                                                {% for item in acompanhamento.materiais_lista %}
+                                                    <div>{{ item.nome or '-' }}{% if item.quantidade %} · {{ item.quantidade }}{% endif %}{% if item.unidade %} {{ item.unidade }}{% endif %}</div>
+                                                {% endfor %}
+                                            {% else %}-{% endif %}
+                                        </td>
+                                        <td>
+                                            {% if acompanhamento.servicos_lista %}
+                                                {% for item in acompanhamento.servicos_lista %}
+                                                    <div>{{ item.nome or '-' }}{% if item.quantidade %} · {{ item.quantidade }}{% endif %}</div>
+                                                {% endfor %}
+                                            {% else %}-{% endif %}
+                                        </td>
+                                        <td>{{ acompanhamento.atividades_executadas or '-' }}</td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr><td colspan="9" class="empty-table">Nenhum acompanhamento diário registrado.</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+{% set whatsapp_modulo = 'ordem_servico' %}
+{% set whatsapp_registro_id = ordem_servico.id %}
+{% set whatsapp_telefone = '' %}
+{% include 'partials/whatsapp_envio_modulo.html' %}
+</main>
+
+    <script>
+        (function () {
+            "use strict";
+
+            const tabs = Array.from(document.querySelectorAll("[data-os-tab]"));
+            const panels = Array.from(document.querySelectorAll("[data-os-panel]"));
+            const tabsContainer = document.querySelector(".os-detail-tabs");
+
+            function ativarAba(nome, atualizarHash) {
+                const abaExiste = tabs.some(function (tab) {
+                    return tab.dataset.osTab === nome;
+                });
+
+                const abaFinal = abaExiste ? nome : "visao-geral";
+
+                tabs.forEach(function (tab) {
+                    const ativa = tab.dataset.osTab === abaFinal;
+                    tab.classList.toggle("is-active", ativa);
+                    tab.setAttribute("aria-selected", ativa ? "true" : "false");
+                });
+
+                panels.forEach(function (panel) {
+                    const ativo = panel.dataset.osPanel === abaFinal;
+                    panel.classList.toggle("is-active", ativo);
+                    panel.hidden = !ativo;
+                });
+
+                if (atualizarHash) {
+                    history.replaceState(null, "", "#" + abaFinal);
+                }
+            }
+
+            tabs.forEach(function (tab) {
+                tab.addEventListener("click", function () {
+                    ativarAba(tab.dataset.osTab, true);
+                });
+            });
+
+            document.querySelectorAll("[data-copy-link]").forEach(function (botao) {
+                botao.addEventListener("click", function () {
+                    const campo = document.getElementById(botao.dataset.copyLink);
+                    const valor = campo ? String(campo.value || "") : "";
+
+                    if (!valor) {
+                        return;
+                    }
+
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        navigator.clipboard.writeText(valor).then(function () {
+                            const textoOriginal = botao.textContent;
+                            botao.textContent = "Copiado";
+                            setTimeout(function () {
+                                botao.textContent = textoOriginal;
+                            }, 1400);
+                        });
+                        return;
+                    }
+
+                    campo.select();
+                    document.execCommand("copy");
+                });
+            });
+
+            const abaForcada = tabsContainer ? tabsContainer.dataset.forceTab : "";
+            const abaHash = window.location.hash.replace("#", "");
+            ativarAba(abaForcada || abaHash || "visao-geral", false);
+        })();
+    </script>
+</body>
+</html>

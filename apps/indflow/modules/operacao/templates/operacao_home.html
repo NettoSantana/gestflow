@@ -1,0 +1,173 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\operacao\templates\operacao_home.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+{% extends "base.html" %}
+{% block title %}Tela Operacional — IndFlow{% endblock %}
+{% block content %}
+<style>
+.op-shell{display:flex;flex-direction:column;gap:14px}.op-header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.op-title-wrap{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.op-title{margin:0;font-size:25px}.op-machine-select{min-width:190px;padding:10px 12px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;font-weight:800;color:#0f172a}.op-status{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;font-size:12px;font-weight:900}.op-status.run{background:#dcfce7;color:#166534}.op-status.stop{background:#fee2e2;color:#991b1b}.op-status.wait{background:#fef3c7;color:#92400e}.op-status.off{background:#e2e8f0;color:#475569}.op-actions{display:flex;gap:8px;align-items:center}.op-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.op-card{background:#fff;border:1px solid #e2e8f0;border-radius:15px;padding:16px;min-height:104px}.op-card .label{display:block;color:#64748b;text-transform:uppercase;font-size:10px;font-weight:900;letter-spacing:.04em}.op-card strong{display:block;margin-top:8px;font-size:28px;color:#0f172a}.op-card small{display:block;margin-top:5px;color:#64748b}.op-wide{grid-column:span 2}.op-panel{background:#fff;border:1px solid #e2e8f0;border-radius:15px;padding:17px}.op-panel-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px}.op-panel h2{margin:0;font-size:17px}.op-machine-message{font-size:15px;font-weight:800}.op-machine-message.run{color:#166534}.op-machine-message.stop{color:#991b1b}.op-machine-message.wait{color:#92400e}.op-progress{height:9px;background:#e2e8f0;border-radius:999px;overflow:hidden;margin-top:10px}.op-progress>div{height:100%;background:#dc2626;width:0;transition:width .3s ease}.op-muted{color:#64748b}.op-empty{padding:36px;text-align:center;background:#fff;border:1px dashed #cbd5e1;border-radius:15px;color:#64748b}.op-overlay{position:fixed;inset:0;z-index:9999;background:#f8fafc;display:none;overflow:auto}.op-overlay.open{display:block}.op-block-shell{min-height:100vh;display:flex;flex-direction:column}.op-block-head{background:#991b1b;color:#fff;padding:18px 22px;display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap}.op-block-head h1{margin:0;font-size:26px}.op-block-head p{margin:4px 0 0;color:#fecaca}.op-block-count{padding:8px 12px;border:1px solid rgba(255,255,255,.3);border-radius:999px;font-size:12px;font-weight:900}.op-block-body{flex:1;padding:20px;display:flex;flex-direction:column;gap:16px;max-width:1400px;width:100%;box-sizing:border-box;margin:0 auto}.op-stop-info{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.op-stop-chip{background:#fff;border:1px solid #fecaca;border-radius:13px;padding:13px}.op-stop-chip span{display:block;font-size:10px;font-weight:900;color:#991b1b;text-transform:uppercase}.op-stop-chip strong{display:block;margin-top:5px;font-size:20px}.op-reason-title{text-align:center}.op-reason-title h2{margin:0;font-size:22px}.op-reason-title p{margin:5px 0 0;color:#64748b}.op-reason-nav{display:grid;grid-template-columns:64px 1fr 64px;gap:12px;align-items:stretch;flex:1}.op-arrow{border:1px solid #cbd5e1;background:#fff;border-radius:14px;font-size:34px;font-weight:900;cursor:pointer;min-height:100%}.op-arrow:disabled{opacity:.25;cursor:default}.op-reason-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;align-content:start}.op-reason{min-height:104px;border:2px solid #cbd5e1;border-radius:14px;background:#fff;padding:13px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:8px;justify-content:center;transition:.12s ease}.op-reason:hover{border-color:#64748b}.op-reason.selected{border-color:#2563eb;background:#eff6ff;box-shadow:0 0 0 3px rgba(37,99,235,.12)}.op-reason-code{font-size:13px;font-weight:950;color:#1d4ed8}.op-reason-desc{font-size:15px;font-weight:900;color:#0f172a;line-height:1.25}.op-reason-meta{font-size:10px;color:#64748b}.op-page{text-align:center;color:#64748b;font-size:12px;font-weight:800}.op-confirm{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:13px}.op-confirm-text strong{display:block}.op-confirm-text span{display:block;margin-top:3px;color:#64748b;font-size:12px}.op-confirm button{min-width:210px;padding:14px 18px;border:0;border-radius:11px;background:#16a34a;color:#fff;font-weight:950;cursor:pointer}.op-confirm button:disabled{background:#cbd5e1;cursor:not-allowed}.op-modal{position:fixed;inset:0;z-index:10020;background:rgba(15,23,42,.55);display:none;align-items:center;justify-content:center;padding:18px}.op-modal.open{display:flex}.op-modal-card{width:min(520px,100%);background:#fff;border-radius:16px;overflow:hidden}.op-modal-head{display:flex;justify-content:space-between;align-items:center;padding:15px 17px;border-bottom:1px solid #e2e8f0}.op-modal-head h3{margin:0}.op-modal-close{border:0;background:transparent;font-size:25px;cursor:pointer}.op-modal-body{padding:17px}.op-field{margin-bottom:12px}.op-field label{display:block;margin-bottom:5px;color:#475569;font-size:11px;font-weight:900;text-transform:uppercase}.op-field input,.op-field select{width:100%;box-sizing:border-box;padding:11px;border:1px solid #cbd5e1;border-radius:10px;background:#fff}.op-modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:15px}.op-error{display:none;padding:10px 12px;background:#fef2f2;color:#991b1b;border:1px solid #fecaca;border-radius:10px;margin-bottom:12px;font-size:12px;font-weight:800}.op-error.show{display:block}.op-sim-panel{display:none;border:2px solid #f59e0b;background:#fffbeb}.op-sim-panel.open{display:block}.op-sim-head{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}.op-sim-alert{padding:7px 10px;border-radius:999px;background:#fef3c7;color:#92400e;font-size:11px;font-weight:950}.op-sim-controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:13px}.op-sim-box{background:#fff;border:1px solid #fde68a;border-radius:12px;padding:12px}.op-sim-box span{display:block;color:#92400e;font-size:10px;font-weight:900;text-transform:uppercase}.op-sim-box strong{display:block;margin-top:6px;font-size:20px;color:#0f172a}.op-sim-box input{width:90px;margin-top:6px;padding:8px;border:1px solid #cbd5e1;border-radius:8px}.op-sim-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:13px}.op-sim-actions button{font-weight:900}.op-sim-note{margin-top:10px;color:#92400e;font-size:12px;font-weight:700}
+@media(max-width:1100px){.op-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.op-reason-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.op-stop-info{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){.op-grid{grid-template-columns:1fr}.op-wide{grid-column:span 1}.op-reason-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.op-reason-nav{grid-template-columns:48px 1fr 48px}.op-stop-info{grid-template-columns:1fr 1fr}.op-confirm{grid-template-columns:1fr}.op-confirm button{width:100%}.op-sim-controls{grid-template-columns:1fr}}
+</style>
+
+<div class="op-shell">
+  <div class="op-header">
+    <div class="op-title-wrap">
+      <div>
+        <div class="page-eyebrow">Operação do tablet</div>
+        <h1 class="op-title">Tela Operacional</h1>
+      </div>
+      {% if machines %}
+      <select id="machineSelect" class="op-machine-select" aria-label="Máquina">
+        {% for mid in machines %}<option value="{{ mid }}" {% if mid|lower == machine_id|lower %}selected{% endif %}>{{ mid|upper }}</option>{% endfor %}
+      </select>
+      {% endif %}
+      <span id="statusBadge" class="op-status off">CARREGANDO</span>
+    </div>
+    <div class="op-actions">
+      {% if (session.get('role') or '')|lower in ['admin','superadmin'] %}<button class="btn btn-secondary" id="simulationBtn" type="button">Modo simulação</button><button class="btn btn-secondary" id="configBtn" type="button">Configurar tela</button>{% endif %}
+    </div>
+  </div>
+
+  {% if (session.get('role') or '')|lower in ['admin','superadmin'] %}
+  <section class="op-panel op-sim-panel" id="simulationPanel">
+    <div class="op-sim-head"><h2>Simulador de Produção</h2><span class="op-sim-alert">SIMULAÇÃO LOCAL — NÃO GRAVA PRODUÇÃO NEM PARADAS REAIS</span></div>
+    <div class="op-sim-controls">
+      <div class="op-sim-box"><span>Produção simulada</span><strong id="simProduction">0</strong><small class="op-muted">Peças geradas nesta simulação</small></div>
+      <div class="op-sim-box"><span>Ritmo simulado</span><strong>1 peça a cada</strong><input id="simCycleSeconds" type="number" min="0.2" max="3600" step="0.1" value="3"> <small class="op-muted">segundos</small></div>
+      <div class="op-sim-box"><span>Exigir classificação após</span><strong id="simThreshold">3 min</strong><small class="op-muted">Mesmo X definido em Configurar tela</small></div>
+    </div>
+    <div class="op-sim-actions"><button class="btn btn-primary" id="simStart" type="button">INICIAR PRODUÇÃO</button><button class="btn btn-secondary" id="simStop" type="button">PARAR MÁQUINA</button><button class="btn btn-secondary" id="simResume" type="button">VOLTAR A PRODUZIR</button><button class="btn btn-secondary" id="simReset" type="button">ZERAR SIMULAÇÃO</button></div>
+    <div class="op-sim-note">Para mudar o tempo X, use <strong>Configurar tela</strong> → <strong>Tempo para exigir classificação (X)</strong>.</div>
+  </section>
+  {% endif %}
+
+  {% if not machines %}
+  <div class="op-empty">Nenhuma máquina disponível para esta empresa.</div>
+  {% else %}
+  <div class="op-grid">
+    <div class="op-card"><span class="label">Produção do turno</span><strong id="production">0</strong><small id="productionDetail">Atual</small></div>
+    <div class="op-card"><span class="label">Meta do turno</span><strong id="target">0</strong><small id="targetDetail">Programada</small></div>
+    <div class="op-card"><span class="label">Atingimento</span><strong id="attainment">0%</strong><small>Produção x meta</small></div>
+    <div class="op-card"><span class="label">Produção da hora</span><strong id="hourProduction">0</strong><small id="hourDetail">Hora atual</small></div>
+    <div class="op-card op-wide"><span class="label">OP ativa</span><strong id="activeOrder">—</strong><small id="activeOrderDetail">Nenhuma OP ativa</small></div>
+    <div class="op-card op-wide"><span class="label">Tempo de parada</span><strong id="stopTimer">00:00:00</strong><small id="stopLimit">Classificação após 3 min</small></div>
+  </div>
+
+  <section class="op-panel">
+    <div class="op-panel-head"><h2>Estado atual</h2><span class="op-muted" id="lastUpdate">—</span></div>
+    <div id="machineMessage" class="op-machine-message wait">Carregando dados da máquina...</div>
+    <div class="op-progress" id="stopProgressWrap" style="display:none"><div id="stopProgress"></div></div>
+    <div class="op-muted" id="stopHint" style="margin-top:7px"></div>
+  </section>
+  {% endif %}
+</div>
+
+<div class="op-overlay" id="stopOverlay" aria-modal="true" role="dialog">
+  <div class="op-block-shell">
+    <div class="op-block-head">
+      <div><h1>PARADA OBRIGATÓRIA</h1><p>A tela só será liberada após classificar a parada.</p></div>
+      <div class="op-block-count" id="pendingCount">1 pendência</div>
+    </div>
+    <div class="op-block-body">
+      <div class="op-stop-info">
+        <div class="op-stop-chip"><span>Máquina</span><strong id="blockMachine">—</strong></div>
+        <div class="op-stop-chip"><span>Início</span><strong id="blockStart">—</strong></div>
+        <div class="op-stop-chip"><span>Duração</span><strong id="blockDuration">—</strong></div>
+        <div class="op-stop-chip"><span>Situação</span><strong id="blockSituation">Aguardando motivo</strong></div>
+      </div>
+      <div class="op-reason-title"><h2>Selecione o motivo da parada</h2><p>Toque no botão correspondente e confirme.</p></div>
+      <div class="op-error" id="blockError"></div>
+      <div class="op-reason-nav">
+        <button class="op-arrow" id="prevReasons" type="button" aria-label="Página anterior">‹</button>
+        <div class="op-reason-grid" id="reasonGrid"></div>
+        <button class="op-arrow" id="nextReasons" type="button" aria-label="Próxima página">›</button>
+      </div>
+      <div class="op-page" id="reasonPage">Página 1 de 1</div>
+      <div class="op-confirm">
+        <div class="op-confirm-text"><strong id="selectedReason">Nenhum motivo selecionado</strong><span>Confira o motivo antes de confirmar.</span></div>
+        <button id="confirmReason" type="button" disabled>CONFIRMAR PARADA</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if (session.get('role') or '')|lower in ['admin','superadmin'] %}
+<div class="op-modal" id="configModal">
+  <div class="op-modal-card">
+    <div class="op-modal-head"><h3>Configuração da Tela Operacional</h3><button class="op-modal-close" id="configClose" type="button">×</button></div>
+    <div class="op-modal-body">
+      <div class="op-error" id="configError"></div>
+      <div class="op-field"><label>Tempo para exigir classificação (X)</label><input id="cfgMinutes" type="number" min="1" max="120" step="1"><small class="op-muted">Após X minutos contínuos de parada, a escolha do motivo passa a ser obrigatória.</small></div>
+      <div class="op-field"><label>Botões de parada por página</label><input id="cfgPageSize" type="number" min="4" max="20" step="1"><small class="op-muted">Quantidade de motivos exibidos antes das setas laterais.</small></div>
+      <div class="op-field"><label>Ordenação dos motivos</label><select id="cfgOrder"><option value="mais_clicados">Mais clicados</option><option value="codigo_crescente">Código crescente</option><option value="codigo_decrescente">Código decrescente</option></select></div>
+      <div class="op-modal-actions"><button class="btn btn-secondary" id="configCancel" type="button">Cancelar</button><button class="btn btn-primary" id="configSave" type="button">Salvar configuração</button></div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<script>
+const initialMachine={{ machine_id|tojson }};
+const $=id=>document.getElementById(id);
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtNum=v=>Number(v||0).toLocaleString('pt-BR');
+const fmtClock=sec=>{sec=Math.max(0,Math.floor(Number(sec||0)));const h=String(Math.floor(sec/3600)).padStart(2,'0'),m=String(Math.floor((sec%3600)/60)).padStart(2,'0'),s=String(sec%60).padStart(2,'0');return `${h}:${m}:${s}`;};
+const fmtTime=ms=>ms?new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Bahia',hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date(Number(ms))):'—';
+let machine=initialMachine, context=null, opState=null, machineState=null, reasonPage=0, selectedReasonId=null, selectedReason=null, pollBusy=false;
+const simulation={active:false,status:'AGUARDANDO',productionTurno:0,productionHora:0,target:0,lastTickMs:Date.now(),pieceCarry:0,stopStartMs:null,stopEndMs:null,stopReason:null,pendingRequired:false};
+
+function nowSecFromStop(stop){if(!stop)return 0;const start=Number(stop.started_at_ms||0);const end=stop.ended_at_ms?Number(stop.ended_at_ms):Date.now();return start>0?Math.max(0,(end-start)/1000):0;}
+function setBadge(mode,text){const el=$('statusBadge');if(!el)return;el.className='op-status '+mode;el.textContent=text;}
+function setMessage(mode,text){const el=$('machineMessage');if(!el)return;el.className='op-machine-message '+mode;el.textContent=text;}
+function showError(id,msg){const el=$(id);if(!el)return;el.textContent=msg||'';el.classList.toggle('show',!!msg);}
+
+async function fetchJson(url,options){const r=await fetch(url,options);const j=await r.json().catch(()=>({}));if(!r.ok||j.ok===false)throw new Error(j.error||'Falha ao carregar dados.');return j;}
+async function loadContext(){if(!machine)return;context=await fetchJson('/operacao/api/contexto?machine_id='+encodeURIComponent(machine));machine=context.machine_id||machine;if($('machineSelect'))$('machineSelect').value=machine;reasonPage=0;selectedReasonId=null;selectedReason=null;renderConfig();}
+async function loadState(){if(!machine)return;const [m,s]=await Promise.all([fetchJson('/machine/status?machine_id='+encodeURIComponent(machine)),fetchJson('/operacao/api/estado?machine_id='+encodeURIComponent(machine))]);machineState=m;opState=s.data;if(simulation.active&&opState?.pending){simulation.active=false;if($('simulationPanel'))$('simulationPanel').classList.remove('open');if($('simulationBtn'))$('simulationBtn').textContent='Modo simulação';}renderAll();}
+async function poll(){if(pollBusy||!machine)return;pollBusy=true;try{await loadState();showError('blockError','');}catch(e){setBadge('off','SEM DADOS');setMessage('wait',e.message);}finally{pollBusy=false;}}
+
+function renderProductive(){if(simulation.active){renderSimulationProductive();return;}if(!machineState||!opState)return;const m=machineState,cfg=opState.config||context?.config||{};const status=String(m.status_ui||'').toUpperCase();const currentStop=opState.current_stop;const stopSec=nowSecFromStop(currentStop);const threshold=Math.max(60,Number(cfg.tempo_obrigatorio_min||3)*60);$('production').textContent=fmtNum(m.producao_turno||0);$('target').textContent=fmtNum(m.meta_turno||0);$('attainment').textContent=`${Number(m.percentual_turno||0)}%`;$('hourProduction').textContent=fmtNum(m.producao_hora_liquida??m.producao_hora??0);$('stopTimer').textContent=status==='PARADA'?fmtClock(stopSec):'00:00:00';$('stopLimit').textContent=`Classificação após ${cfg.tempo_obrigatorio_min||3} min`;
+const op=opState.active_order;if(op){$('activeOrder').textContent=op.os||`OP ${op.id}`;$('activeOrderDetail').textContent=[op.lote?`Lote ${op.lote}`:'',op.operador?`Operador ${op.operador}`:''].filter(Boolean).join(' · ')||'OP ativa';}else{$('activeOrder').textContent='—';$('activeOrderDetail').textContent='Nenhuma OP ativa';}
+if(status==='PRODUZINDO'){setBadge('run','PRODUZINDO');setMessage('run','Máquina produzindo. Nenhuma ação do operador é necessária.');$('stopProgressWrap').style.display='none';$('stopHint').textContent='';}
+else if(status==='PARADA'){setBadge('stop','PARADA');const classified=currentStop&&currentStop.classificada;if(classified){setMessage('stop',`Parada classificada: ${currentStop.motivo_codigo||''} - ${currentStop.motivo_descricao||''}`);$('stopProgressWrap').style.display='none';$('stopHint').textContent='A máquina permanece parada, mas o motivo já foi registrado.';}else{const remaining=Math.max(0,threshold-stopSec);setMessage(remaining>0?'wait':'stop',remaining>0?`Parada detectada. Classificação obrigatória em ${fmtClock(remaining)}.`:'Parada atingiu o tempo obrigatório e deve ser classificada.');$('stopProgressWrap').style.display='block';$('stopProgress').style.width=`${Math.min(100,(stopSec/threshold)*100)}%`;$('stopHint').textContent=`Tempo atual ${fmtClock(stopSec)} · limite ${cfg.tempo_obrigatorio_min||3} min`;}}
+else{setBadge('wait',status||'AGUARDANDO');setMessage('wait','Aguardando estado operacional da máquina.');$('stopProgressWrap').style.display='none';}
+$('lastUpdate').textContent='Atualizado '+new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Bahia',hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date());}
+
+
+function simulationThresholdSec(){return Math.max(60,Number(context?.config?.tempo_obrigatorio_min||3)*60);}
+function simulationStopSec(){if(!simulation.stopStartMs)return 0;const end=simulation.stopEndMs||Date.now();return Math.max(0,(end-simulation.stopStartMs)/1000);}
+function resetSimulation(){simulation.status='AGUARDANDO';simulation.productionTurno=0;simulation.productionHora=0;simulation.target=Number(machineState?.meta_turno||0);simulation.lastTickMs=Date.now();simulation.pieceCarry=0;simulation.stopStartMs=null;simulation.stopEndMs=null;simulation.stopReason=null;simulation.pendingRequired=false;selectedReasonId=null;selectedReason=null;reasonPage=0;renderAll();}
+function tickSimulation(){if(!simulation.active)return;const now=Date.now();if(simulation.status==='PRODUZINDO'){const elapsed=Math.max(0,(now-simulation.lastTickMs)/1000);const cycle=Math.max(.2,Number($('simCycleSeconds')?.value||3));simulation.pieceCarry+=elapsed/cycle;const pieces=Math.floor(simulation.pieceCarry);if(pieces>0){simulation.productionTurno+=pieces;simulation.productionHora+=pieces;simulation.pieceCarry-=pieces;}}simulation.lastTickMs=now;if(simulation.stopStartMs&&!simulation.stopReason&&simulationStopSec()>=simulationThresholdSec())simulation.pendingRequired=true;renderAll();}
+function renderSimulationProductive(){const status=simulation.status;const threshold=simulationThresholdSec();const stopSec=simulationStopSec();const target=Number(simulation.target||0);const attainment=target>0?Math.round((simulation.productionTurno/target)*100):0;$('production').textContent=fmtNum(simulation.productionTurno);$('target').textContent=fmtNum(target);$('attainment').textContent=`${attainment}%`;$('hourProduction').textContent=fmtNum(simulation.productionHora);$('activeOrder').textContent='SIMULAÇÃO';$('activeOrderDetail').textContent='Dados locais de teste — sem gravação no banco';$('stopTimer').textContent=simulation.stopStartMs&&status==='PARADA'?fmtClock(stopSec):'00:00:00';$('stopLimit').textContent=`Classificação após ${context?.config?.tempo_obrigatorio_min||3} min`;
+if($('simProduction'))$('simProduction').textContent=fmtNum(simulation.productionTurno);if($('simThreshold'))$('simThreshold').textContent=`${context?.config?.tempo_obrigatorio_min||3} min`;
+if(status==='PRODUZINDO'){setBadge('run','SIMULANDO PRODUÇÃO');setMessage('run','Simulação produzindo. Os valores desta tela não estão sendo gravados.');$('stopProgressWrap').style.display='none';$('stopHint').textContent='';}
+else if(status==='PARADA'){setBadge('stop','SIMULANDO PARADA');if(simulation.stopReason){setMessage('stop',`Parada simulada classificada: ${simulation.stopReason.codigo} - ${simulation.stopReason.descricao}`);$('stopProgressWrap').style.display='none';$('stopHint').textContent='A parada simulada continua ativa, mas o motivo já foi escolhido.';}else{const remaining=Math.max(0,threshold-stopSec);setMessage(remaining>0?'wait':'stop',remaining>0?`Parada simulada. Classificação obrigatória em ${fmtClock(remaining)}.`:'Parada simulada atingiu o tempo obrigatório e deve ser classificada.');$('stopProgressWrap').style.display='block';$('stopProgress').style.width=`${Math.min(100,(stopSec/threshold)*100)}%`;$('stopHint').textContent=`Tempo atual ${fmtClock(stopSec)} · limite ${context?.config?.tempo_obrigatorio_min||3} min`;}}
+else{setBadge('wait','SIMULAÇÃO PRONTA');setMessage('wait','Simulação ativa. Clique em INICIAR PRODUÇÃO.');$('stopProgressWrap').style.display='none';$('stopHint').textContent='';}
+$('lastUpdate').textContent='Atualizado '+new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Bahia',hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date())+' · SIMULAÇÃO';}
+function renderSimulationBlocking(){const overlay=$('stopOverlay');if(!simulation.pendingRequired){overlay.classList.remove('open');selectedReasonId=null;selectedReason=null;return;}overlay.classList.add('open');$('pendingCount').textContent='SIMULAÇÃO';$('blockMachine').textContent=String(machine||'').toUpperCase()+' · SIMULAÇÃO';$('blockStart').textContent=fmtTime(simulation.stopStartMs);$('blockDuration').textContent=fmtClock(simulationStopSec());$('blockSituation').textContent=simulation.stopEndMs?'Máquina simulada já retornou':'Parada simulada em andamento';renderReasons();}
+function toggleSimulation(){if(!simulation.active&&opState?.pending){alert('Existe uma parada REAL pendente de classificação. Classifique-a antes de iniciar a simulação.');return;}simulation.active=!simulation.active;if($('simulationPanel'))$('simulationPanel').classList.toggle('open',simulation.active);if($('simulationBtn'))$('simulationBtn').textContent=simulation.active?'Sair da simulação':'Modo simulação';if(simulation.active){resetSimulation();}else{$('stopOverlay').classList.remove('open');poll();}}
+function startSimulation(){if(!simulation.active||simulation.pendingRequired)return;simulation.status='PRODUZINDO';simulation.stopStartMs=null;simulation.stopEndMs=null;simulation.stopReason=null;simulation.lastTickMs=Date.now();simulation.pieceCarry=0;renderAll();}
+function stopSimulation(){if(!simulation.active||simulation.status!=='PRODUZINDO')return;simulation.status='PARADA';simulation.stopStartMs=Date.now();simulation.stopEndMs=null;simulation.stopReason=null;simulation.pendingRequired=false;simulation.lastTickMs=Date.now();renderAll();}
+function resumeSimulation(){if(!simulation.active)return;if(simulation.status==='PARADA'){const elapsed=simulationStopSec();simulation.stopEndMs=Date.now();if(elapsed<simulationThresholdSec()&&!simulation.pendingRequired){simulation.stopStartMs=null;simulation.stopEndMs=null;simulation.stopReason=null;}simulation.status='PRODUZINDO';simulation.lastTickMs=Date.now();simulation.pieceCarry=0;renderAll();}}
+
+function pageReasons(){const reasons=context?.reasons||[];const size=Math.max(4,Number(opState?.config?.botoes_por_pagina||context?.config?.botoes_por_pagina||8));const pages=Math.max(1,Math.ceil(reasons.length/size));if(reasonPage>=pages)reasonPage=pages-1;const start=reasonPage*size;return {reasons:reasons.slice(start,start+size),pages,size};}
+function renderReasons(){const p=pageReasons();$('reasonGrid').innerHTML=p.reasons.length?p.reasons.map(r=>`<button type="button" class="op-reason ${Number(r.id)===Number(selectedReasonId)?'selected':''}" data-reason="${r.id}"><span class="op-reason-code">${esc(r.codigo)}</span><span class="op-reason-desc">${esc(r.descricao)}</span><span class="op-reason-meta">${esc(r.categoria_nome||'')} ${r.uso_count?`· ${r.uso_count} uso(s)`:''}</span></button>`).join(''):'<div class="op-empty" style="grid-column:1/-1">Nenhum motivo ativo disponível para esta máquina.</div>';$('reasonPage').textContent=`Página ${reasonPage+1} de ${p.pages}`;$('prevReasons').disabled=reasonPage<=0;$('nextReasons').disabled=reasonPage>=p.pages-1;document.querySelectorAll('[data-reason]').forEach(btn=>btn.onclick=()=>selectReason(Number(btn.dataset.reason)));}
+function selectReason(id){selectedReasonId=id;selectedReason=(context?.reasons||[]).find(r=>Number(r.id)===Number(id))||null;$('selectedReason').textContent=selectedReason?`${selectedReason.codigo} - ${selectedReason.descricao}`:'Nenhum motivo selecionado';$('confirmReason').disabled=!selectedReason;renderReasons();}
+function renderBlocking(){if(simulation.active){renderSimulationBlocking();return;}const pending=opState?.pending||null;const overlay=$('stopOverlay');if(!pending){overlay.classList.remove('open');selectedReasonId=null;selectedReason=null;return;}overlay.classList.add('open');$('pendingCount').textContent=`${opState.pending_count||1} pendência(s)`;$('blockMachine').textContent=String(opState.machine_id||machine).toUpperCase();$('blockStart').textContent=fmtTime(pending.started_at_ms);$('blockDuration').textContent=fmtClock(nowSecFromStop(pending));$('blockSituation').textContent=pending.ended_at_ms?'Máquina já retornou':'Parada em andamento';renderReasons();}
+function renderAll(){renderProductive();renderBlocking();}
+function renderConfig(){if(!context?.config)return;if($('cfgMinutes'))$('cfgMinutes').value=context.config.tempo_obrigatorio_min;if($('cfgPageSize'))$('cfgPageSize').value=context.config.botoes_por_pagina;if($('cfgOrder'))$('cfgOrder').value=context.config.ordenacao;}
+
+if($('machineSelect'))$('machineSelect').onchange=async e=>{machine=e.target.value;const u=new URL(location.href);u.searchParams.set('machine_id',machine);history.replaceState({},'',u);await loadContext();if(simulation.active)resetSimulation();await poll();};
+$('prevReasons').onclick=()=>{if(reasonPage>0){reasonPage--;renderReasons();}};$('nextReasons').onclick=()=>{const p=pageReasons();if(reasonPage<p.pages-1){reasonPage++;renderReasons();}};
+$('confirmReason').onclick=async()=>{if(simulation.active){if(!selectedReasonId||!simulation.pendingRequired)return;simulation.stopReason=selectedReason;simulation.pendingRequired=false;selectedReasonId=null;selectedReason=null;renderAll();return;}if(!selectedReasonId||!opState?.pending)return;const btn=$('confirmReason');btn.disabled=true;btn.textContent='REGISTRANDO...';showError('blockError','');try{await fetchJson('/operacao/api/classificar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:opState.pending.id,motivo_id:selectedReasonId})});await loadContext();await poll();}catch(e){showError('blockError',e.message);}finally{btn.textContent='CONFIRMAR PARADA';btn.disabled=!selectedReasonId;}};
+
+if($('simulationBtn'))$('simulationBtn').onclick=toggleSimulation;if($('simStart'))$('simStart').onclick=startSimulation;if($('simStop'))$('simStop').onclick=stopSimulation;if($('simResume'))$('simResume').onclick=resumeSimulation;if($('simReset'))$('simReset').onclick=resetSimulation;
+if($('configBtn'))$('configBtn').onclick=()=>{$('configModal').classList.add('open');renderConfig();showError('configError','');};if($('configClose'))$('configClose').onclick=()=>$('configModal').classList.remove('open');if($('configCancel'))$('configCancel').onclick=()=>$('configModal').classList.remove('open');if($('configSave'))$('configSave').onclick=async()=>{const btn=$('configSave');btn.disabled=true;showError('configError','');try{const payload={machine_id:machine,tempo_obrigatorio_min:Number($('cfgMinutes').value),botoes_por_pagina:Number($('cfgPageSize').value),ordenacao:$('cfgOrder').value};const j=await fetchJson('/operacao/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});context.config=j.config;$('configModal').classList.remove('open');await loadContext();if(simulation.active)renderAll();else await poll();}catch(e){showError('configError',e.message);}finally{btn.disabled=false;}};
+
+(async()=>{if(!machine)return;try{await loadContext();await poll();setInterval(poll,2000);setInterval(()=>{if(simulation.active)tickSimulation();else if(opState){renderProductive();renderBlocking();}},1000);}catch(e){setBadge('off','ERRO');setMessage('wait',e.message);}})();
+</script>
+{% endblock %}

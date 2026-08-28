@@ -1,0 +1,1300 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\venda_balcao.html
+Último recode: 2026-08-25 11:05 (America/Bahia)
+Motivo: Aplicar ao PDV o componente único de busca pesquisável, pois esta tela não utiliza o topbar compartilhado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Venda Balcão</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .pdv-layout {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 22px;
+        }
+
+        .pdv-panel {
+            background: #ffffff;
+            border: 1px solid #dbe5f1;
+            border-radius: 16px;
+            padding: 18px;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+        }
+
+        .pdv-title {
+            margin: 0 0 12px;
+            color: #071624;
+            font-size: 24px;
+            text-transform: uppercase;
+        }
+
+        .pdv-search-wrap {
+            position: relative;
+        }
+
+        .pdv-search-line {
+            display: grid;
+            grid-template-columns: 1fr 150px;
+            gap: 10px;
+        }
+
+        .pdv-search {
+            width: 100%;
+            height: 54px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 0 16px;
+            font-size: 18px;
+            outline: none;
+        }
+
+        .pdv-search:focus {
+            border-color: #16a34a;
+            box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
+        }
+
+        .pdv-search-button {
+            height: 54px;
+            border: 0;
+            border-radius: 8px;
+            background: #071624;
+            color: #ffffff;
+            font-weight: 900;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        .pdv-search-list {
+            position: absolute;
+            z-index: 50;
+            top: 62px;
+            left: 0;
+            right: 160px;
+            max-height: 300px;
+            overflow: auto;
+            display: none;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            box-shadow: 0 18px 42px rgba(15, 23, 42, 0.18);
+        }
+
+        .pdv-search-list.show {
+            display: block;
+        }
+
+        .pdv-search-item {
+            width: 100%;
+            border: 0;
+            border-bottom: 1px solid #e5edf6;
+            background: #ffffff;
+            padding: 12px 14px;
+            text-align: left;
+            cursor: pointer;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+        }
+
+        .pdv-search-item:hover,
+        .pdv-search-item.active {
+            background: #eef6ff;
+        }
+
+        .pdv-search-item strong {
+            color: #071624;
+            font-size: 14px;
+        }
+
+        .pdv-search-item small {
+            color: #64748b;
+            font-size: 12px;
+        }
+
+        .pdv-search-price {
+            font-weight: 900;
+            color: #16a34a;
+            white-space: nowrap;
+        }
+
+        .pdv-work-area {
+            display: grid;
+            grid-template-columns: 190px 1fr;
+            gap: 28px;
+            margin-top: 16px;
+        }
+
+        .pdv-image-box {
+            height: 176px;
+            border-radius: 4px;
+            background: #e5e7eb;
+            color: #ffffff;
+            display: grid;
+            place-items: center;
+            font-size: 54px;
+        }
+
+        .pdv-fields {
+            display: grid;
+            gap: 9px;
+        }
+
+        .pdv-row {
+            display: grid;
+            grid-template-columns: 180px 1fr;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .pdv-row label {
+            font-size: 19px;
+            color: #071624;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .pdv-row input {
+            height: 52px;
+            border: 1px solid #cbd5e1;
+            border-radius: 7px;
+            padding: 0 12px;
+            font-size: 16px;
+            background: #f8fafc;
+        }
+
+        .pdv-add-button {
+            height: 44px;
+            border: 0;
+            border-radius: 7px;
+            background: #071624;
+            color: #ffffff;
+            font-weight: 900;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        .pdv-side-card {
+            background: #00a85a;
+            color: #ffffff;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 12px;
+            font-weight: 900;
+            margin-bottom: 14px;
+            text-transform: uppercase;
+        }
+
+        .pdv-side-card select {
+            width: 100%;
+            margin: 6px 0 10px;
+            height: 34px;
+            border: 0;
+            border-radius: 6px;
+            padding: 0 8px;
+        }
+
+        .pdv-caixa-status {
+            border: 1px solid #dbe5f1;
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 16px;
+            background: #f8fafc;
+        }
+
+        .pdv-caixa-status strong {
+            display: block;
+            color: #071624;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+        }
+
+        .pdv-caixa-status span {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            color: #334155;
+            font-size: 13px;
+            margin-top: 4px;
+        }
+
+        .pdv-caixa-status details {
+            margin-top: 10px;
+        }
+
+        .pdv-caixa-status summary {
+            cursor: pointer;
+            color: #dc2626;
+            font-weight: 900;
+            margin-bottom: 10px;
+        }
+
+        .pdv-caixa-status input {
+            width: 100%;
+            height: 38px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 0 10px;
+            margin-bottom: 8px;
+        }
+
+        .pdv-close-button {
+            width: 100%;
+            height: 38px;
+            border: 0;
+            border-radius: 6px;
+            background: #dc2626;
+            color: #ffffff;
+            font-weight: 900;
+            cursor: pointer;
+        }
+
+        .pdv-total-label {
+            margin: 72px 0 10px;
+            color: #071624;
+            font-size: 22px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .pdv-total-box {
+            height: 48px;
+            border-radius: 3px;
+            background: #071624;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 16px;
+            font-size: 24px;
+            font-weight: 900;
+        }
+
+        .pdv-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .pdv-actions button,
+        .pdv-actions a {
+            height: 40px;
+            border: 0;
+            border-radius: 5px;
+            color: #ffffff;
+            font-weight: 900;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+        }
+
+        .pdv-wait { background: #f59e0b; }
+        .pdv-cancel { background: #ef6351; }
+        .pdv-finish { background: #08a85a; grid-column: 1 / -1; }
+
+        .pdv-cart {
+            margin-top: 18px;
+            max-height: 220px;
+            overflow: auto;
+            border: 1px solid #e5edf6;
+            border-radius: 10px;
+        }
+
+        .pdv-cart table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .pdv-cart th,
+        .pdv-cart td {
+            padding: 9px;
+            border-bottom: 1px solid #e5edf6;
+            text-align: left;
+        }
+
+        .pdv-remove {
+            border: 0;
+            border-radius: 6px;
+            background: #fee2e2;
+            color: #dc2626;
+            font-weight: 900;
+            cursor: pointer;
+        }
+
+        .pdv-footer-help {
+            margin-top: 18px;
+            padding: 13px;
+            background: #f1f5f9;
+            color: #0f172a;
+            font-size: 12px;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .pdv-caixa-shell {
+            min-height: calc(100vh - 180px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .pdv-caixa-card {
+            width: min(980px, 100%);
+            border: 1px solid #dbe5f1;
+            border-radius: 18px;
+            background: #ffffff;
+            box-shadow: 0 18px 45px rgba(15, 23, 42, 0.16);
+            overflow: hidden;
+        }
+
+        .pdv-caixa-header {
+            padding: 22px 26px;
+            border-bottom: 1px solid #e5edf6;
+        }
+
+        .pdv-caixa-header h2 {
+            margin: 0;
+            color: #06162b;
+            font-size: 26px;
+            letter-spacing: -0.5px;
+            text-transform: uppercase;
+        }
+
+        .pdv-caixa-body {
+            padding: 38px 28px 28px;
+            text-align: center;
+        }
+
+        .pdv-caixa-body h3 {
+            margin: 0 0 26px;
+            font-size: 25px;
+            color: #071624;
+            font-weight: 800;
+        }
+
+        .pdv-terminal {
+            width: 170px;
+            height: 150px;
+            margin: 0 auto 28px;
+            color: #c7cbd1;
+        }
+
+        .pdv-caixa-form {
+            width: min(580px, 100%);
+            margin: 0 auto;
+            display: grid;
+            gap: 14px;
+        }
+
+        .pdv-caixa-form input {
+            width: 100%;
+            height: 54px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 0 14px;
+            text-align: right;
+            font-size: 18px;
+            outline: none;
+        }
+
+        .pdv-caixa-form input:focus {
+            border-color: #16a34a;
+            box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
+        }
+
+        .pdv-caixa-label {
+            color: #071624;
+            font-size: 22px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .pdv-checkbox-line {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            color: #16a34a;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .pdv-checkbox-line input {
+            width: 14px;
+            height: 14px;
+            padding: 0;
+        }
+
+        .pdv-confirmar {
+            height: 48px;
+            border: 0;
+            border-radius: 8px;
+            background: #08a85a;
+            color: #ffffff;
+            font-weight: 900;
+            font-size: 18px;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+
+
+        /* MOBILE PDV - TELA DE BALCAO */
+        @media (max-width: 820px) {
+            .pdv-layout {
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 14px !important;
+            }
+
+            .pdv-panel {
+                padding: 14px !important;
+                border-radius: 14px !important;
+            }
+
+            .pdv-title {
+                font-size: 18px !important;
+                line-height: 1.2 !important;
+                margin-bottom: 12px !important;
+            }
+
+            .pdv-search-line {
+                display: flex !important;
+                flex-direction: column !important;
+            }
+
+            .pdv-search,
+            .pdv-search-button {
+                width: 100% !important;
+                height: 48px !important;
+                font-size: 15px !important;
+            }
+
+            .pdv-search-list {
+                top: 106px !important;
+                right: 0 !important;
+                max-height: 260px !important;
+            }
+
+            .pdv-work-area {
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 12px !important;
+            }
+
+            .pdv-image-box {
+                height: 76px !important;
+                font-size: 32px !important;
+            }
+
+            .pdv-row {
+                display: grid !important;
+                grid-template-columns: 1fr !important;
+                gap: 6px !important;
+            }
+
+            .pdv-row label {
+                font-size: 13px !important;
+            }
+
+            .pdv-row input,
+            .pdv-add-button {
+                width: 100% !important;
+                height: 46px !important;
+                font-size: 15px !important;
+            }
+
+            .pdv-cart {
+                max-height: none !important;
+                overflow: visible !important;
+                border: 0 !important;
+            }
+
+            .pdv-cart table,
+            .pdv-cart thead,
+            .pdv-cart tbody,
+            .pdv-cart tr,
+            .pdv-cart td {
+                display: block !important;
+                min-width: 0 !important;
+                width: 100% !important;
+                white-space: normal !important;
+            }
+
+            .pdv-cart thead {
+                display: none !important;
+            }
+
+            .pdv-cart tr {
+                margin-bottom: 10px !important;
+                padding: 10px !important;
+                border: 1px solid #e5edf6 !important;
+                border-radius: 12px !important;
+                background: #ffffff !important;
+                box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05) !important;
+            }
+
+            .pdv-cart td {
+                border: 0 !important;
+                padding: 5px 0 !important;
+                display: flex !important;
+                justify-content: space-between !important;
+                gap: 12px !important;
+                font-size: 13px !important;
+            }
+
+            .pdv-cart td::before {
+                content: attr(data-label);
+                color: #64748b;
+                font-weight: 900;
+                text-transform: uppercase;
+                font-size: 11px;
+            }
+
+            .pdv-cart td[colspan] {
+                justify-content: center !important;
+                text-align: center !important;
+            }
+
+            .pdv-cart td[colspan]::before {
+                content: '' !important;
+            }
+
+            .pdv-side-card select,
+            .pdv-caixa-status input {
+                height: 42px !important;
+            }
+
+            .pdv-total-label {
+                margin: 14px 0 8px !important;
+                font-size: 15px !important;
+            }
+
+            .pdv-total-box {
+                height: 54px !important;
+                font-size: 22px !important;
+                border-radius: 10px !important;
+            }
+
+            .pdv-actions {
+                grid-template-columns: 1fr !important;
+            }
+
+            .pdv-actions button,
+            .pdv-actions a {
+                height: 46px !important;
+            }
+
+            .pdv-footer-help {
+                display: none !important;
+            }
+
+            .pdv-caixa-shell {
+                min-height: auto !important;
+                padding: 10px 0 70px !important;
+            }
+
+            .pdv-caixa-header,
+            .pdv-caixa-body {
+                padding: 18px 14px !important;
+            }
+
+            .pdv-caixa-header h2,
+            .pdv-caixa-body h3 {
+                font-size: 18px !important;
+                line-height: 1.25 !important;
+            }
+
+            .pdv-terminal {
+                width: 104px !important;
+                height: 92px !important;
+                margin-bottom: 16px !important;
+            }
+        }
+
+        @media (max-width: 1100px) {
+            .pdv-layout { grid-template-columns: 1fr; }
+            .pdv-total-label { margin-top: 18px; }
+        }
+
+        @media (max-width: 760px) {
+            .pdv-work-area { grid-template-columns: 1fr; }
+            .pdv-row { grid-template-columns: 1fr; }
+            .pdv-search-line { grid-template-columns: 1fr; }
+            .pdv-search-list { right: 0; top: 120px; }
+        }
+    </style>
+
+    <style>
+        /* PADRAO VISUAL ORCAMENTOS - TELAS AUXILIARES */
+        .content {
+            padding-bottom: 220px;
+        }
+
+        .content > .panel.page-section:first-of-type {
+            margin-top: 0;
+        }
+
+        .panel,
+        .page-section,
+        .table-panel {
+            border-radius: 16px;
+        }
+
+        .panel-header.page-header,
+        .page-header {
+            gap: 14px;
+        }
+
+        .page-title {
+            letter-spacing: -0.02em;
+        }
+
+        .page-subtitle {
+            max-width: 760px;
+        }
+
+        .client-toolbar,
+        .form-actions,
+        .client-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn-primary-green,
+        .btn-dark,
+        .btn-light,
+        .action-button {
+            border-radius: 10px;
+            text-decoration: none;
+        }
+
+        .form-control,
+        input,
+        select,
+        textarea {
+            border-radius: 10px;
+            max-width: 100%;
+        }
+
+        .client-form {
+            width: 100%;
+        }
+
+        .form-grid {
+            align-items: start;
+        }
+
+        .panel-summary {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .panel-summary > div {
+            min-height: 74px;
+            border: 1px solid #e5eaf2;
+            border-radius: 14px;
+            background: #ffffff;
+            padding: 14px;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+        }
+
+        .panel-summary span {
+            display: block;
+            margin-bottom: 6px;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+
+        .panel-summary strong {
+            color: #0f172a;
+            font-size: 14px;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+
+        .table-shell {
+            border: 0 !important;
+            border-radius: 16px;
+            overflow-x: auto;
+            background: #ffffff;
+        }
+
+        .content table,
+        .content .client-table {
+            width: 100%;
+            border-collapse: separate !important;
+            border-spacing: 0 10px !important;
+            min-width: 760px;
+        }
+
+        .content table thead th,
+        .content .client-table thead th {
+            border-bottom: 0 !important;
+            background: transparent;
+            padding: 10px 12px;
+            color: #334155;
+            font-size: 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .content table tbody tr,
+        .content .client-table tbody tr {
+            background: #ffffff;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+            border-radius: 14px;
+        }
+
+        .content table tbody td,
+        .content .client-table tbody td {
+            border-bottom: 0 !important;
+            padding: 14px 12px !important;
+            color: #334155;
+            vertical-align: middle;
+        }
+
+        .content table tbody td:first-child,
+        .content .client-table tbody td:first-child {
+            border-top-left-radius: 14px;
+            border-bottom-left-radius: 14px;
+        }
+
+        .content table tbody td:last-child,
+        .content .client-table tbody td:last-child {
+            border-top-right-radius: 14px;
+            border-bottom-right-radius: 14px;
+        }
+
+        .empty-table,
+        .empty-table-box {
+            border-radius: 14px;
+        }
+
+        .status-pill,
+        .badge-info {
+            border-radius: 999px;
+            white-space: nowrap;
+        }
+
+        .quick-modal,
+        .modal,
+        .dialog {
+            border-radius: 18px;
+        }
+
+        .config-grid,
+        .portal-grid,
+        .planos-grid,
+        .cards,
+        .cards-secondary {
+            gap: 16px;
+        }
+
+        .config-card,
+        .portal-card,
+        .plan-card,
+        .card,
+        .stat-card {
+            border-radius: 16px;
+        }
+
+        .auth-card,
+        .login-card,
+        .onboarding-card,
+        .portal-card,
+        .plan-card {
+            box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+        }
+
+        @media (max-width: 1100px) {
+            .panel-summary {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .content table,
+            .content .client-table {
+                min-width: 720px;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .panel-summary {
+                grid-template-columns: 1fr;
+            }
+
+            .client-toolbar,
+            .form-actions,
+            .client-actions {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .client-toolbar .btn-primary-green,
+            .client-toolbar .btn-dark,
+            .client-toolbar .btn-light,
+            .form-actions .btn-primary-green,
+            .form-actions .btn-dark,
+            .form-actions .btn-light {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .content table,
+            .content .client-table {
+                min-width: 680px;
+            }
+        }
+    </style>
+
+    <script src="/static/js/searchable_select.js" defer></script>
+</head>
+<body class="focus-mode-body">
+
+    <main class="content focus-mode-main">
+        <header class="focus-mode-header">
+            <div class="focus-mode-heading">
+                <span class="focus-mode-eyebrow">Modo foco</span>
+                <strong>Venda Balcão / PDV</strong>
+                <small>Operação rápida de caixa e vendas.</small>
+            </div>
+            <button type="button" class="focus-mode-exit focus-mode-exit-danger" onclick="sairModoFocoPdv()" title="Sair do balcão">
+                <span>✕ Sair do balcão</span>
+                <kbd>Esc</kbd>
+            </button>
+        </header>
+
+        {% if not caixa %}
+            <section class="pdv-caixa-shell">
+                <div class="pdv-caixa-card">
+                    <div class="pdv-caixa-header">
+                        <h2>Abertura de caixa</h2>
+                    </div>
+
+                    <div class="pdv-caixa-body">
+                        <h3>Informe os valores disponíveis para iniciar suas operações</h3>
+
+                        <svg class="pdv-terminal" viewBox="0 0 220 170" aria-hidden="true">
+                            <rect x="52" y="10" width="116" height="96" rx="15" fill="none" stroke="currentColor" stroke-width="16"></rect>
+                            <path d="M28 122h164v12c0 10-16 18-36 18H64c-20 0-36-8-36-18z" fill="currentColor"></path>
+                            <rect x="98" y="132" width="24" height="4" rx="2" fill="#fff"></rect>
+                        </svg>
+
+                        <form action="/vendas/balcao/abrir-caixa" method="post" class="pdv-caixa-form">
+                            <input name="valor_abertura" type="text" value="0,00" inputmode="decimal" autocomplete="off">
+                            <div class="pdv-caixa-label">Valor da abertura</div>
+
+                            <input name="responsavel" type="text" value="{{ usuario_logado.nome if usuario_logado else '' }}" placeholder="Responsável pelo caixa" style="text-align:left; font-size:15px;">
+
+                            <label class="pdv-checkbox-line">
+                                <input type="checkbox" name="gerar_recebimento" value="1">
+                                Gerar um recebimento no financeiro
+                            </label>
+
+                            <button type="submit" class="pdv-confirmar">↪ Confirmar abertura</button>
+                        </form>
+
+                        <div class="pdv-footer-help">F2 = Mudar o valor | Enter = Confirmar abertura</div>
+                    </div>
+                </div>
+            </section>
+        {% else %}
+            <form id="pdv-form" action="/vendas/balcao/pagamento" method="post">
+                <input type="hidden" name="carrinho_json" id="carrinho_json">
+
+                <section class="pdv-layout">
+                    <div class="pdv-panel">
+                        <h2 class="pdv-title">Localize um produto abaixo</h2>
+
+                        {% if request.args.get('erro') %}
+                            <div class="alert alert-danger">{{ request.args.get('erro') }}</div>
+                        {% endif %}
+
+                        <div class="pdv-search-wrap">
+                            <div class="pdv-search-line">
+                                <input id="busca_pdv" class="pdv-search" type="text" placeholder="Digite o código ou o nome" autocomplete="off">
+                                <button type="button" class="pdv-search-button" onclick="abrirListaProdutos()">Buscar produto</button>
+                            </div>
+                            <div id="pdv-search-list" class="pdv-search-list"></div>
+                        </div>
+
+                        <div class="pdv-work-area">
+                            <div class="pdv-image-box">▧</div>
+
+                            <div class="pdv-fields">
+                                <div class="pdv-row">
+                                    <label for="codigo_item">Código</label>
+                                    <input id="codigo_item" type="text" readonly>
+                                </div>
+                                <div class="pdv-row">
+                                    <label for="quantidade_item">Quantidade</label>
+                                    <input id="quantidade_item" type="text" value="1">
+                                </div>
+                                <div class="pdv-row">
+                                    <label for="valor_item">Valor unitário</label>
+                                    <input id="valor_item" type="text" value="0,00">
+                                </div>
+                                <div class="pdv-row">
+                                    <label for="desconto_item">Desconto</label>
+                                    <input id="desconto_item" type="text" value="0,00">
+                                </div>
+                                <div class="pdv-row">
+                                    <label for="total_item">Valor total</label>
+                                    <input id="total_item" type="text" value="0,00" readonly>
+                                </div>
+                                <button type="button" class="pdv-add-button" onclick="adicionarProdutoPdv()">Adicionar produto</button>
+                            </div>
+                        </div>
+
+                        <div class="pdv-cart">
+                            <table class="client-table">
+                                <thead>
+                                    <tr>
+                                        <th>Qtd.</th>
+                                        <th>Nome</th>
+                                        <th>Valor</th>
+                                        <th>Desc.</th>
+                                        <th>Total</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pdv-carrinho-body">
+                                    <tr><td colspan="6">Nenhum item adicionado.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="pdv-footer-help">F1 = Ver atalhos | F2 = Nova busca | F4 = Adicionar produto | F6 = Finalizar venda</div>
+                    </div>
+
+                    <aside class="pdv-panel">
+                        <div class="pdv-side-card">
+                            Cliente:
+                            <select name="cliente">
+                                <option value="AO CONSUMIDOR">AO CONSUMIDOR</option>
+                                {% for cliente in clientes|default([]) %}
+                                    <option value="{{ cliente.nome }}">{{ cliente.nome }}</option>
+                                {% endfor %}
+                            </select>
+                            Vendedor:
+                            <select name="responsavel">
+                                <option value="{{ usuario_logado.nome if usuario_logado else '' }}">{{ usuario_logado.nome if usuario_logado else 'Selecione' }}</option>
+                                {% for funcionario in funcionarios|default([]) %}
+                                    <option value="{{ funcionario.nome }}">{{ funcionario.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="pdv-caixa-status">
+                            <strong>Caixa aberto</strong>
+                            <span><em>Nº</em><b>{{ caixa.id }}</b></span>
+                            <span><em>Abertura</em><b>R$ {{ caixa.valor_abertura or '0,00' }}</b></span>
+                            <span><em>Total registrado</em><b>R$ {{ total_entradas_caixa or '0,00' }}</b></span>
+
+                            <details>
+                                <summary>Fechar caixa</summary>
+                                <input name="valor_fechamento" form="form-fechar-caixa" type="text" value="{{ total_entradas_caixa or '0,00' }}" placeholder="Valor encontrado">
+                                <input name="observacoes" form="form-fechar-caixa" type="text" placeholder="Observações">
+                                <button type="submit" form="form-fechar-caixa" class="pdv-close-button" onclick="return confirm('Fechar o caixa atual?')">Confirmar fechamento</button>
+                            </details>
+                        </div>
+
+                        <div class="pdv-total-label">Total do pedido</div>
+                        <div class="pdv-total-box">R$ <span id="total_pedido">0,00</span></div>
+
+                        <div class="pdv-actions">
+                            <button type="button" class="pdv-wait">Aguardar</button>
+                            <button type="button" class="pdv-cancel" onclick="limparPdv()">Cancelar</button>
+                            <button type="submit" class="pdv-finish">Finalizar venda</button>
+                        </div>
+                    </aside>
+                </section>
+            </form>
+
+            <form id="form-fechar-caixa" action="/vendas/balcao/fechar-caixa" method="post"></form>
+
+            <script>
+                const itensDisponiveis = [
+                    {% for produto in produtos|default([]) %}
+                        {
+                            tipo_item: "produto",
+                            codigo: {{ (produto.codigo or produto.id|string)|tojson }},
+                            descricao: {{ (produto.nome or '')|tojson }},
+                            valor_unitario: {{ (produto.preco_venda or '0,00')|tojson }}
+                        }{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                ].sort(function (a, b) {
+                    return String(a.descricao || "").localeCompare(String(b.descricao || ""), "pt-BR");
+                });
+
+                let itemSelecionado = null;
+                let carrinho = [];
+
+                function converterMoeda(valor) {
+                    let texto = String(valor || "").replace("R$", "").replace(/\s/g, "");
+                    if (texto.includes(",")) {
+                        texto = texto.replace(/\./g, "").replace(",", ".");
+                    }
+                    const numero = Number(texto);
+                    return Number.isNaN(numero) ? 0 : numero;
+                }
+
+                function formatarMoeda(valor) {
+                    return Number(valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                }
+
+                function calcularItemAtual() {
+                    const quantidade = converterMoeda(document.getElementById("quantidade_item").value) || 1;
+                    const valor = converterMoeda(document.getElementById("valor_item").value);
+                    const desconto = converterMoeda(document.getElementById("desconto_item").value);
+                    document.getElementById("total_item").value = formatarMoeda(Math.max((quantidade * valor) - desconto, 0));
+                }
+
+                function selecionarItem(item) {
+                    itemSelecionado = item;
+                    document.getElementById("codigo_item").value = item.codigo || "";
+                    document.getElementById("busca_pdv").value = item.descricao || "";
+                    document.getElementById("valor_item").value = item.valor_unitario || "0,00";
+                    fecharListaProdutos();
+                    calcularItemAtual();
+                    document.getElementById("quantidade_item").focus();
+                    document.getElementById("quantidade_item").select();
+                }
+
+                function obterProdutosFiltrados() {
+                    const busca = document.getElementById("busca_pdv").value.trim().toLowerCase();
+
+                    if (!busca) {
+                        return itensDisponiveis;
+                    }
+
+                    const comecaCom = [];
+                    const contem = [];
+
+                    itensDisponiveis.forEach(function (item) {
+                        const nome = String(item.descricao || "").toLowerCase();
+                        const codigo = String(item.codigo || "").toLowerCase();
+
+                        if (nome.startsWith(busca) || codigo.startsWith(busca)) {
+                            comecaCom.push(item);
+                        } else if (nome.includes(busca) || codigo.includes(busca)) {
+                            contem.push(item);
+                        }
+                    });
+
+                    return comecaCom.concat(contem);
+                }
+
+                function renderizarListaProdutos() {
+                    const lista = document.getElementById("pdv-search-list");
+                    const produtos = obterProdutosFiltrados();
+
+                    lista.innerHTML = "";
+
+                    if (!produtos.length) {
+                        lista.innerHTML = '<button type="button" class="pdv-search-item"><strong>Nenhum produto encontrado</strong><small>Cadastre o produto antes de vender.</small></button>';
+                        lista.classList.add("show");
+                        return;
+                    }
+
+                    produtos.slice(0, 60).forEach(function (item) {
+                        const botao = document.createElement("button");
+                        botao.type = "button";
+                        botao.className = "pdv-search-item";
+                        botao.innerHTML = `
+                            <span>
+                                <strong>${item.descricao || "-"}</strong>
+                                <small>Código: ${item.codigo || "-"}</small>
+                            </span>
+                            <span class="pdv-search-price">R$ ${item.valor_unitario || "0,00"}</span>
+                        `;
+                        botao.addEventListener("click", function () {
+                            selecionarItem(item);
+                        });
+                        lista.appendChild(botao);
+                    });
+
+                    lista.classList.add("show");
+                }
+
+                function abrirListaProdutos() {
+                    renderizarListaProdutos();
+                    document.getElementById("busca_pdv").focus();
+                }
+
+                function fecharListaProdutos() {
+                    document.getElementById("pdv-search-list").classList.remove("show");
+                }
+
+                document.getElementById("busca_pdv").addEventListener("focus", renderizarListaProdutos);
+                document.getElementById("busca_pdv").addEventListener("input", function () {
+                    itemSelecionado = null;
+                    renderizarListaProdutos();
+                });
+
+                document.addEventListener("click", function (event) {
+                    if (!event.target.closest(".pdv-search-wrap")) {
+                        fecharListaProdutos();
+                    }
+                });
+
+                ["quantidade_item", "valor_item", "desconto_item"].forEach(function (id) {
+                    document.getElementById(id).addEventListener("input", calcularItemAtual);
+                    document.getElementById(id).addEventListener("blur", calcularItemAtual);
+                });
+
+                function renderizarCarrinho() {
+                    const corpo = document.getElementById("pdv-carrinho-body");
+                    corpo.innerHTML = "";
+
+                    if (!carrinho.length) {
+                        corpo.innerHTML = '<tr><td colspan="6">Nenhum item adicionado.</td></tr>';
+                    }
+
+                    let total = 0;
+                    carrinho.forEach(function (item, indice) {
+                        total += converterMoeda(item.subtotal);
+                        const tr = document.createElement("tr");
+                        tr.innerHTML = `
+                            <td data-label="Qtd.">${item.quantidade}</td>
+                            <td data-label="Produto">${item.descricao}</td>
+                            <td data-label="Valor">${item.valor_unitario}</td>
+                            <td data-label="Desc.">${item.desconto}</td>
+                            <td data-label="Total">${item.subtotal}</td>
+                            <td data-label="Ação"><button type="button" class="pdv-remove" onclick="removerItemPdv(${indice})">×</button></td>
+                        `;
+                        corpo.appendChild(tr);
+                    });
+
+                    document.getElementById("total_pedido").textContent = formatarMoeda(total);
+                    document.getElementById("carrinho_json").value = JSON.stringify(carrinho);
+                }
+
+                function adicionarProdutoPdv() {
+                    const descricao = document.getElementById("busca_pdv").value.trim();
+                    const quantidade = converterMoeda(document.getElementById("quantidade_item").value) || 1;
+                    const valor = converterMoeda(document.getElementById("valor_item").value);
+                    const desconto = converterMoeda(document.getElementById("desconto_item").value);
+
+                    if (!itemSelecionado && descricao) {
+                        const busca = descricao.toLowerCase();
+                        itemSelecionado = itensDisponiveis.find(function (item) {
+                            return String(item.descricao || "").toLowerCase() === busca || String(item.codigo || "").toLowerCase() === busca;
+                        }) || null;
+                    }
+
+                    if (!itemSelecionado || !descricao || valor <= 0) {
+                        alert("Selecione um produto da lista e informe valor unitário maior que zero.");
+                        abrirListaProdutos();
+                        return;
+                    }
+
+                    carrinho.push({
+                        tipo_item: "produto",
+                        codigo: document.getElementById("codigo_item").value,
+                        descricao: itemSelecionado.descricao || descricao,
+                        detalhes: "Balcão / PDV",
+                        quantidade: formatarMoeda(quantidade).replace(",00", ""),
+                        valor_unitario: formatarMoeda(valor),
+                        desconto: formatarMoeda(desconto),
+                        subtotal: formatarMoeda(Math.max((quantidade * valor) - desconto, 0))
+                    });
+
+                    document.getElementById("busca_pdv").value = "";
+                    document.getElementById("codigo_item").value = "";
+                    document.getElementById("quantidade_item").value = "1";
+                    document.getElementById("valor_item").value = "0,00";
+                    document.getElementById("desconto_item").value = "0,00";
+                    document.getElementById("total_item").value = "0,00";
+                    itemSelecionado = null;
+                    renderizarCarrinho();
+                    document.getElementById("busca_pdv").focus();
+                    renderizarListaProdutos();
+                }
+
+                function removerItemPdv(indice) {
+                    carrinho.splice(indice, 1);
+                    renderizarCarrinho();
+                }
+
+                function limparPdv() {
+                    if (!confirm("Cancelar a venda atual?")) {
+                        return;
+                    }
+                    carrinho = [];
+                    renderizarCarrinho();
+                }
+
+                document.getElementById("pdv-form").addEventListener("submit", function (event) {
+                    if (!carrinho.length) {
+                        event.preventDefault();
+                        alert("Adicione pelo menos um produto para finalizar a venda.");
+                    }
+                });
+
+                document.addEventListener("keydown", function (event) {
+                    if (event.key === "F2") {
+                        event.preventDefault();
+                        document.getElementById("busca_pdv").focus();
+                        abrirListaProdutos();
+                    }
+                    if (event.key === "F4") {
+                        event.preventDefault();
+                        adicionarProdutoPdv();
+                    }
+                    if (event.key === "F6") {
+                        event.preventDefault();
+                        document.getElementById("pdv-form").requestSubmit();
+                    }
+                });
+
+                renderizarCarrinho();
+            </script>
+        {% endif %}
+
+        <script>
+            function pdvTemVendaPendente() {
+                return typeof carrinho !== "undefined"
+                    && Array.isArray(carrinho)
+                    && carrinho.length > 0;
+            }
+
+            function sairModoFocoPdv() {
+                if (pdvTemVendaPendente()) {
+                    const confirmarSaida = window.confirm(
+                        "Há produtos na venda atual. Deseja sair do balcão e descartar esta venda?"
+                    );
+
+                    if (!confirmarSaida) {
+                        return;
+                    }
+                }
+
+                window.location.href = "/vendas";
+            }
+
+            document.addEventListener("keydown", function (event) {
+                if (event.key === "Escape") {
+                    event.preventDefault();
+                    sairModoFocoPdv();
+                }
+            });
+        </script>
+    </main>
+</body>
+</html>

@@ -1,0 +1,84 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\orcamento_historico_calculos.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Histórico do Gerador</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .content { padding-bottom: 220px; }
+        .budget-tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px; padding:8px; border:1px solid #dbe4f0; border-radius:14px; background:#fff; }
+        .budget-tab { min-height:38px; display:inline-flex; align-items:center; justify-content:center; padding:0 14px; border-radius:10px; color:#475569; font-size:12px; font-weight:900; text-decoration:none; }
+        .budget-tab:hover { background:#f1f5f9; color:#0f172a; }
+        .budget-tab.active { background:#0f62fe; color:#fff; }
+        .history-grid { display:grid; gap:14px; }
+        .history-card { border:1px solid #e2e8f0; border-radius:16px; padding:16px; background:#fff; box-shadow:0 8px 22px rgba(15,23,42,.05); }
+        .history-head { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; margin-bottom:14px; }
+        .history-head strong { color:#0f172a; font-size:14px; }
+        .history-head span { color:#64748b; font-size:12px; font-weight:800; }
+        .history-values { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
+        .history-values div { padding:12px; border:1px solid #e2e8f0; border-radius:12px; background:#f8fafc; }
+        .history-values span { display:block; color:#64748b; font-size:10px; font-weight:900; text-transform:uppercase; }
+        .history-values strong { display:block; margin-top:6px; color:#0f172a; font-size:14px; }
+        .difference-positive { color:#15803d !important; }
+        .difference-negative { color:#b91c1c !important; }
+        .empty-history { padding:26px; border:1px dashed #cbd5e1; border-radius:14px; background:#f8fafc; color:#64748b; text-align:center; font-weight:800; }
+        @media(max-width:720px){.budget-tabs{flex-direction:column}.budget-tab{width:100%}.history-values{grid-template-columns:1fr}.history-head{flex-direction:column}}
+    </style>
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+    <main class="content">
+        {% set page_title = 'Histórico do Gerador' %}
+        {% include "partials/topbar.html" %}
+
+        <nav class="budget-tabs" aria-label="Abas do orçamento">
+            <a class="budget-tab" href="/orcamentos/{{ orcamento.id }}">Visão geral</a>
+            <a class="budget-tab" href="/orcamentos/{{ orcamento.id }}/editar">Orçamento</a>
+            <a class="budget-tab" href="/orcamentos/{{ orcamento.id }}/editar#aba-apresentacao">Apresentação ao cliente</a>
+            <a class="budget-tab" href="/orcamentos/{{ orcamento.id }}/gerador/revisao">Dados do Gerador</a>
+            <a class="budget-tab active" href="/orcamentos/{{ orcamento.id }}/gerador/historico">Histórico</a>
+        </nav>
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Orçamento {{ orcamento.numero or orcamento.id }}</span>
+                    <h3 class="page-title">Histórico de recálculos</h3>
+                    <p class="page-subtitle">Compare valor, lucro líquido, margem líquida e responsável por cada atualização realizada nos dados internos do Gerador.</p>
+                </div>
+                <a href="/orcamentos/{{ orcamento.id }}/gerador/revisao" class="btn-primary-green">Revisar Gerador</a>
+            </div>
+        </section>
+
+        <section class="panel page-section">
+            {% if historico %}
+                <div class="history-grid">
+                    {% for registro in historico %}
+                        <article class="history-card">
+                            <div class="history-head">
+                                <strong>Revisão #{{ registro.id }}</strong>
+                                <span>{{ registro.criado_em }} · {{ registro.responsavel or 'Usuário' }}</span>
+                            </div>
+                            <div class="history-values">
+                                <div><span>Valor do orçamento</span><strong>{{ registro.valor_anterior or '0,00' }} → {{ registro.valor_novo or '0,00' }}</strong></div>
+                                <div><span>Lucro líquido estimado</span><strong>{{ registro.lucro_liquido_anterior or '0,00' }} → {{ registro.lucro_liquido_novo or '0,00' }}</strong></div>
+                                <div><span>Margem líquida</span><strong>{{ registro.margem_anterior or '0' }}% → {{ registro.margem_nova or '0' }}%</strong></div>
+                                <div><span>Diferença do valor</span><strong class="{% if registro.diferenca_valor and not registro.diferenca_valor.startswith('-') %}difference-positive{% else %}difference-negative{% endif %}">{{ registro.diferenca_valor or '0,00' }}</strong></div>
+                            </div>
+                        </article>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-history">Nenhum recálculo foi registrado ainda. O primeiro registro será criado quando os dados do Gerador forem atualizados.</div>
+            {% endif %}
+        </section>
+    </main>
+</body>
+</html>

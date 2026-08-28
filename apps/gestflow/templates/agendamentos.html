@@ -1,0 +1,283 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\agendamentos.html
+Último recode: 2026-08-22 00:35 (America/Bahia)
+Motivo: Remover a inclusão inativa do componente tabular de Busca avançada/Colunas em tela que não possui tabela de listagem.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GestFlow - Atendimento</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .schedule-alert{margin:0 0 14px;padding:12px 14px;border-radius:12px;font-weight:900;font-size:13px}.schedule-alert.error{background:#fef2f2;border:1px solid #fecaca;color:#991b1b}.schedule-alert.success{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534}
+        .attendance-grid{display:grid;grid-template-columns:380px 1fr;gap:16px}.attendance-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+        .share-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}.share-card{display:grid;gap:9px;padding:15px;border:1px solid #dbeafe;border-radius:16px;background:#eff6ff}.share-card.secondary{border-color:#e2e8f0;background:#f8fafc}.share-card strong{color:#0f172a}.share-card p{margin:0;color:#64748b;font-size:12px;font-weight:700;line-height:1.45}.public-link-row{display:flex;gap:8px;align-items:center}.public-link-input{flex:1;min-width:0;height:40px;border:1px solid #bfdbfe;border-radius:10px;padding:0 12px;font-weight:800;color:#0f172a;background:#fff}
+        .attendance-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.attendance-tab{height:38px;display:inline-flex;align-items:center;justify-content:center;padding:0 14px;border:1px solid #dbe3ef;border-radius:999px;background:#fff;color:#334155;font-weight:900;text-decoration:none}.attendance-tab.active{background:#0f172a;color:#fff;border-color:#0f172a}
+        .schedule-day-list{display:grid;gap:10px}.schedule-card{border:1px solid #e5eaf2;border-radius:14px;background:#fff;padding:14px;display:grid;gap:10px}.schedule-card.public{border-color:#bfdbfe;background:#f8fbff}.schedule-card.vitrine{border-color:#a7f3d0;background:#f0fdf4}.schedule-card-top{display:flex;justify-content:space-between;gap:10px}.schedule-time{font-size:22px;font-weight:900;color:#0f172a}.schedule-client{font-weight:900;font-size:15px}.schedule-meta{color:#64748b;font-size:13px;font-weight:700}.schedule-actions{display:flex;gap:8px;flex-wrap:wrap}
+        .status-agendado{background:#eff6ff;color:#1d4ed8}.status-confirmado{background:#dcfce7;color:#166534}.status-em_atendimento{background:#fef3c7;color:#92400e}.status-concluido{background:#e0f2fe;color:#075985}.status-cancelado,.status-nao_compareceu{background:#fee2e2;color:#991b1b}.pill-status{display:inline-flex;align-items:center;height:28px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:900;text-transform:capitalize}.pill-origin{display:inline-flex;align-items:center;height:26px;padding:0 9px;border-radius:999px;background:#f1f5f9;color:#475569;font-size:11px;font-weight:900}.pill-origin.public{background:#dbeafe;color:#1d4ed8}.pill-origin.vitrine{background:#dcfce7;color:#166534}
+        .mini-form{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.mini-form select{height:36px;border:1px solid #dbe3ef;border-radius:10px;padding:0 10px}.btn-small{height:34px;border:0;border-radius:10px;padding:0 11px;font-weight:900;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}.btn-small.dark{background:#0f172a;color:#fff}.btn-small.light{background:#fff;border:1px solid #dbe3ef;color:#334155}.btn-small.red{background:#ef4444;color:#fff}
+        .filters-row{display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin-bottom:14px}.filters-row .form-group{min-width:150px}.attendance-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}.attendance-stat{border:1px solid #e5eaf2;border-radius:14px;background:#fff;padding:13px}.attendance-stat span{display:block;color:#64748b;font-size:12px;font-weight:900;text-transform:uppercase}.attendance-stat strong{display:block;margin-top:6px;font-size:23px;font-weight:900;color:#0f172a}
+        .duration-box{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px;border:1px solid #dbeafe;border-radius:14px;background:#eff6ff}.duration-box .form-group{margin:0}.duration-preview{display:block;margin-top:5px;color:#1d4ed8;font-size:12px;font-weight:900}.readonly-control{background:#f8fafc!important;color:#475569!important}.form-help{display:block;margin-top:5px;color:#64748b;font-size:12px;font-weight:700}
+        .evaluation-list{display:grid;gap:14px}.evaluation-card{display:grid;gap:14px;padding:16px;border:1px solid #fde68a;border-radius:16px;background:#fffbeb}.evaluation-card.agendada{border-color:#bbf7d0;background:#f0fdf4}.evaluation-preference{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.evaluation-preference>div{display:grid;gap:5px;padding:12px;border:1px solid #bfdbfe;border-radius:12px;background:#eff6ff}.evaluation-preference span{color:#1d4ed8;font-size:11px;font-weight:900;text-transform:uppercase}.evaluation-preference strong{color:#0f172a;font-size:14px;text-transform:capitalize}.evaluation-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}.evaluation-title{display:grid;gap:4px}.evaluation-title strong{font-size:17px;color:#0f172a}.evaluation-title span{color:#64748b;font-size:13px;font-weight:700}.evaluation-answers{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.evaluation-answer{display:grid;gap:5px;padding:11px;border:1px solid #e5e7eb;border-radius:12px;background:#fff}.evaluation-answer span{color:#64748b;font-size:11px;font-weight:900;text-transform:uppercase}.evaluation-answer strong{color:#0f172a;font-size:13px;white-space:pre-wrap}.evaluation-answer a{color:#1d4ed8;font-weight:900}.evaluation-form{display:grid;gap:12px;padding-top:12px;border-top:1px solid #fde68a}.evaluation-form-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.evaluation-status-form{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.evaluation-status-form select{height:36px;border:1px solid #dbe3ef;border-radius:10px;padding:0 10px}.status-avaliacao{display:inline-flex;padding:7px 10px;border-radius:999px;background:#fef3c7;color:#92400e;font-size:12px;font-weight:900;text-transform:capitalize}.status-avaliacao.agendada{background:#dcfce7;color:#166534}.status-avaliacao.cancelada{background:#fee2e2;color:#991b1b}
+        @media(max-width:1080px){.attendance-grid{grid-template-columns:1fr}.evaluation-form-grid,.evaluation-answers,.evaluation-preference{grid-template-columns:1fr}.share-grid{grid-template-columns:1fr}.filters-row,.public-link-row{flex-direction:column;align-items:stretch}.schedule-card-top{flex-direction:column}.schedule-actions,.mini-form{flex-direction:column;align-items:stretch}.schedule-actions a,.schedule-actions button,.mini-form select,.mini-form button{width:100%}.attendance-stats{grid-template-columns:1fr}}
+        @media(max-width:640px){.duration-box{grid-template-columns:1fr}}
+    </style>
+</head>
+<body>
+{% include "partials/sidebar.html" %}
+<main class="content agendamentos-page gf-module-page">
+    {% set page_title = 'Atendimento' %}
+    {% include "partials/topbar.html" %}
+
+    <section class="panel page-section gf-page-hero">
+        <div class="panel-header page-header gf-page-header">
+            <div>
+                <span class="page-kicker">Agenda e atendimento</span>
+                <h3 class="page-title">Atendimento</h3>
+                <p class="page-subtitle">O horário final é calculado pela duração cadastrada no serviço. O sistema reserva todo o período e impede conflito do profissional.</p>
+            </div>
+            <div class="attendance-toolbar">
+                {% if link_vitrine_publica %}<a class="btn-primary-green" href="{{ link_vitrine_publica }}" target="_blank">Abrir Vitrine Online</a>{% endif %}
+                <a class="btn-light" href="{{ link_agendamento_publico }}" target="_blank">Abrir agenda direta</a>
+            </div>
+        </div>
+
+        <div class="share-grid">
+            <div class="share-card">
+                <strong>Link recomendado: Vitrine Online</strong>
+                {% if link_vitrine_publica %}
+                    <div class="public-link-row">
+                        <input id="publicVitrineLink" class="public-link-input" value="{{ link_vitrine_publica }}" readonly>
+                        <button type="button" class="btn-dark" onclick="copiarLink('publicVitrineLink','Link da vitrine copiado.')">Copiar</button>
+                    </div>
+                    <p>O cliente vê serviços, preços, imagens e duração antes de clicar em “Agendar este serviço”.</p>
+                {% else %}
+                    <p>Publique a Vitrine Online e defina o endereço público para gerar este link.</p>
+                    <a class="btn-dark" href="/vitrine">Configurar vitrine</a>
+                {% endif %}
+            </div>
+            <div class="share-card secondary">
+                <strong>Link direto da agenda</strong>
+                <div class="public-link-row">
+                    <input id="publicAgendaLink" class="public-link-input" value="{{ link_agendamento_publico }}" readonly>
+                    <button type="button" class="btn-dark" onclick="copiarLink('publicAgendaLink','Link da agenda copiado.')">Copiar</button>
+                </div>
+                <p>Permanece disponível para marcação rápida, sem passar pela vitrine.</p>
+            </div>
+        </div>
+    </section>
+
+    {% if erro %}<div class="schedule-alert error">{{ erro }}</div>{% endif %}
+    {% if sucesso %}<div class="schedule-alert success">{{ sucesso }}</div>{% endif %}
+
+    <section class="panel page-section" id="solicitacoes-avaliacao">
+        <div class="panel-header page-header">
+            <div>
+                <span class="page-kicker">Vitrine Online</span>
+                <h3 class="page-title">Solicitações aguardando avaliação</h3>
+                <p class="page-subtitle">Analise as respostas do cliente, defina valor e duração e transforme a solicitação em um agendamento.</p>
+            </div>
+            <span class="badge-info">{{ solicitacoes_avaliacao|rejectattr('status','in',['agendada','cancelada'])|list|length }} pendente(s)</span>
+        </div>
+        <div class="evaluation-list">
+            {% for solicitacao in solicitacoes_avaliacao %}
+                <article class="evaluation-card {% if solicitacao.status == 'agendada' %}agendada{% endif %}">
+                    <div class="evaluation-top">
+                        <div class="evaluation-title">
+                            <strong>#{{ solicitacao.id }} — {{ solicitacao.servico_nome }}</strong>
+                            <span>{{ solicitacao.cliente_nome }} • {{ solicitacao.cliente_telefone or 'Sem telefone' }} • {{ solicitacao.criado_em or '' }}</span>
+                        </div>
+                        <span class="status-avaliacao {{ solicitacao.status }}">{{ solicitacao.status|replace('_',' ') }}</span>
+                    </div>
+                    <div class="evaluation-preference">
+                        <div><span>Data desejada pelo cliente</span><strong>{{ solicitacao.data_desejada_formatada or 'Não informada' }}</strong></div>
+                        <div><span>Período preferido</span><strong>{{ solicitacao.periodo_preferido_rotulo or 'Sem preferência' }}</strong></div>
+                    </div>
+                    <div class="evaluation-answers">
+                        {% for resposta in solicitacao.respostas %}
+                            <div class="evaluation-answer">
+                                <span>{{ resposta.pergunta_texto }}</span>
+                                {% if resposta.arquivo_path %}
+                                    <a href="{{ url_for('servir_upload_vitrine_publico', caminho=resposta.arquivo_path) }}" target="_blank" rel="noopener">Abrir foto enviada</a>
+                                {% else %}
+                                    <strong>{{ resposta.resposta_texto or 'Não respondido' }}</strong>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                        {% if solicitacao.observacoes_cliente %}<div class="evaluation-answer"><span>Observações adicionais</span><strong>{{ solicitacao.observacoes_cliente }}</strong></div>{% endif %}
+                    </div>
+                    {% if solicitacao.status not in ['agendada','cancelada'] %}
+                        <form class="evaluation-status-form" method="post" action="/agendamentos/avaliacoes/{{ solicitacao.id }}/status">
+                            <select name="status">
+                                {% for status_avaliacao in solicitacoes_status %}
+                                    {% if status_avaliacao != 'agendada' %}<option value="{{ status_avaliacao }}" {% if solicitacao.status == status_avaliacao %}selected{% endif %}>{{ status_avaliacao|replace('_',' ') }}</option>{% endif %}
+                                {% endfor %}
+                            </select>
+                            <button class="btn-small light" type="submit">Atualizar situação</button>
+                        </form>
+                        <form class="evaluation-form" method="post" action="/agendamentos/avaliacoes/{{ solicitacao.id }}/agendar">
+                            <div class="evaluation-form-grid">
+                                <div class="form-group"><label>Valor definido *</label><input class="form-control" name="valor_definido" placeholder="Ex: 350,00" required></div>
+                                <div class="form-group"><label>Duração *</label><input class="form-control" type="number" min="0.1" step="0.1" name="duracao_valor" value="1" required></div>
+                                <div class="form-group"><label>Unidade da duração *</label><select class="form-control" name="duracao_unidade" required><option value="minutos">Minutos</option><option value="horas" selected>Horas</option><option value="dias">Dia inteiro</option></select></div>
+                                <div class="form-group"><label>Profissional</label><select class="form-control" name="profissional_id"><option value="">Primeiro disponível</option>{% for funcionario in funcionarios %}<option value="{{ funcionario.id }}">{{ funcionario.nome }}</option>{% endfor %}</select></div>
+                                <div class="form-group"><label>Data *</label><input class="form-control" type="date" name="data_agendamento" value="{{ solicitacao.data_desejada or data_inicio }}" required><small class="form-help">Pré-preenchida com a data desejada pelo cliente.</small></div>
+                                <div class="form-group"><label>Horário inicial *</label><input class="form-control" type="time" name="hora_inicio" required></div>
+                            </div>
+                            <div class="form-group"><label>Observações para o atendimento</label><textarea class="form-control" name="observacoes" rows="3">{{ solicitacao.observacoes_cliente or '' }}</textarea></div>
+                            <div class="form-actions"><button class="btn-primary-green" type="submit">Definir valor e transformar em agendamento</button></div>
+                        </form>
+                    {% elif solicitacao.agendamento_id %}
+                        <div class="schedule-alert success">Transformada no agendamento #{{ solicitacao.agendamento_id }} — {{ solicitacao.data_agendamento }} às {{ solicitacao.hora_inicio }}.</div>
+                    {% endif %}
+                </article>
+            {% else %}
+                <div class="empty-chart">Nenhuma solicitação de avaliação recebida.</div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="attendance-grid gf-content-grid">
+        <div class="panel">
+            <h3>{{ 'Editar agendamento' if agendamento_edicao else 'Novo agendamento' }}</h3>
+            <form method="post" action="{{ '/agendamentos/' ~ agendamento_edicao.id ~ '/editar' if agendamento_edicao else '/agendamentos' }}" class="client-form" id="formAgendamento">
+                <input type="hidden" name="origem" value="{{ agendamento_edicao.origem if agendamento_edicao else 'manual' }}">
+                <div class="form-grid" style="grid-template-columns:1fr;">
+                    <div class="form-group"><label>Cliente</label><input class="form-control" name="cliente_nome" value="{{ agendamento_edicao.cliente_nome if agendamento_edicao else '' }}" placeholder="Nome do cliente" required></div>
+                    <div class="form-group"><label>Telefone</label><input class="form-control" name="cliente_telefone" value="{{ agendamento_edicao.cliente_telefone if agendamento_edicao else '' }}" placeholder="WhatsApp / telefone"></div>
+                    <div class="form-group">
+                        <label for="servicoAgendamento">Serviço *</label>
+                        <select class="form-control" name="servico_id" id="servicoAgendamento" required>
+                            <option value="">Selecione um serviço cadastrado</option>
+                            {% for servico in servicos %}
+                                <option value="{{ servico.id }}"
+                                        data-nome="{{ servico.nome }}"
+                                        data-valor="{{ servico.valor_venda or '' }}"
+                                        data-minutos="{{ servico.tempo_estimado_minutos or 60 }}"
+                                        data-unidade="{{ servico.tempo_estimado_unidade or 'horas' }}"
+                                        data-duracao="{{ servico.tempo_estimado or '' }}"
+                                        {% if agendamento_edicao and agendamento_edicao.servico_id|string == servico.id|string %}selected{% endif %}>
+                                    {{ servico.nome }} — {{ servico.tempo_estimado or 'duração não informada' }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <small id="duracaoServicoPreview" class="duration-preview">Selecione o serviço para carregar a duração.</small>
+                    </div>
+                    <div class="form-group"><label>Profissional</label><select class="form-control" name="profissional_id"><option value="">Escolher automaticamente um profissional livre</option>{% for funcionario in funcionarios %}<option value="{{ funcionario.id }}" {% if agendamento_edicao and agendamento_edicao.profissional_id|string == funcionario.id|string %}selected{% endif %}>{{ funcionario.nome }}</option>{% endfor %}</select><small class="form-help">Sem seleção, o GestFlow escolhe o primeiro profissional disponível durante todo o período.</small></div>
+                    <div class="form-grid">
+                        <div class="form-group"><label>Data</label><input class="form-control" type="date" name="data_agendamento" value="{{ agendamento_edicao.data_agendamento if agendamento_edicao else data_inicio }}" required></div>
+                        <div class="form-group"><label>Status</label><select class="form-control" name="status">{% for status in status_opcoes %}<option value="{{ status }}" {% if agendamento_edicao and agendamento_edicao.status == status %}selected{% endif %}>{{ status.replace('_',' ')|capitalize }}</option>{% endfor %}</select></div>
+                    </div>
+                    <div class="duration-box">
+                        <div class="form-group"><label>Início *</label><input id="horaInicioAgendamento" class="form-control" type="time" name="hora_inicio" value="{{ agendamento_edicao.hora_inicio if agendamento_edicao else '' }}" required></div>
+                        <div class="form-group"><label>Término calculado</label><input id="horaFimAgendamento" class="form-control readonly-control" type="time" name="hora_fim" value="{{ agendamento_edicao.hora_fim if agendamento_edicao else '' }}" readonly></div>
+                    </div>
+                    <div class="form-group"><label>Valor</label><input id="valorAgendamento" class="form-control" name="valor" value="{{ agendamento_edicao.valor if agendamento_edicao else '' }}" placeholder="Carregado do serviço"></div>
+                    <div class="form-group"><label>Observações</label><textarea class="form-control" name="observacoes" style="height:96px;padding-top:12px;">{{ agendamento_edicao.observacoes if agendamento_edicao else '' }}</textarea></div>
+                </div>
+                <div class="form-actions">
+                    {% if agendamento_edicao %}<a href="/agendamentos" class="btn-light">Cancelar edição</a>{% endif %}
+                    <button class="btn-primary-green" type="submit">{{ 'Salvar edição' if agendamento_edicao else 'Salvar agendamento' }}</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="panel">
+            <div class="attendance-tabs">
+                <a class="attendance-tab {% if not status_filtro %}active{% endif %}" href="/agendamentos?data_inicio={{ data_inicio }}&data_fim={{ data_fim }}">Agenda do dia</a>
+                <a class="attendance-tab {% if status_filtro == 'em_atendimento' %}active{% endif %}" href="/agendamentos?data_inicio={{ data_inicio }}&data_fim={{ data_fim }}&status=em_atendimento">Em atendimento</a>
+                <a class="attendance-tab {% if status_filtro == 'confirmado' %}active{% endif %}" href="/agendamentos?data_inicio={{ data_inicio }}&data_fim={{ data_fim }}&status=confirmado">Confirmados</a>
+                <a class="attendance-tab {% if status_filtro == 'agendado' %}active{% endif %}" href="/agendamentos?data_inicio={{ data_inicio }}&data_fim={{ data_fim }}&status=agendado">Solicitados</a>
+            </div>
+            <form method="get" action="/agendamentos" class="filters-row">
+                <div class="form-group"><label>De</label><input class="form-control" type="date" name="data_inicio" value="{{ data_inicio }}"></div>
+                <div class="form-group"><label>Até</label><input class="form-control" type="date" name="data_fim" value="{{ data_fim }}"></div>
+                <div class="form-group"><label>Status</label><select class="form-control" name="status"><option value="">Todos</option>{% for status in status_opcoes %}<option value="{{ status }}" {% if status_filtro == status %}selected{% endif %}>{{ status.replace('_',' ')|capitalize }}</option>{% endfor %}</select></div>
+                <button class="btn-dark" type="submit">Filtrar</button>
+            </form>
+            <div class="attendance-stats">
+                <div class="attendance-stat"><span>Total no filtro</span><strong>{{ agendamentos|length }}</strong></div>
+                <div class="attendance-stat"><span>Em atendimento</span><strong>{{ agendamentos|selectattr('status','equalto','em_atendimento')|list|length }}</strong></div>
+                <div class="attendance-stat"><span>Vitrine Online</span><strong>{{ agendamentos|selectattr('origem','equalto','vitrine_online')|list|length }}</strong></div>
+            </div>
+            <div class="schedule-day-list">
+                {% if agendamentos %}
+                    {% for item in agendamentos %}
+                    {% set origem_vitrine = item.origem in ['vitrine_online','avaliacao_vitrine'] %}
+                    {% set origem_publica = origem_vitrine or item.origem == 'link_publico' or item.criado_via_publico == 'sim' %}
+                    <article class="schedule-card {% if origem_vitrine %}vitrine{% elif origem_publica %}public{% endif %}">
+                        <div class="schedule-card-top">
+                            <div>
+                                <div class="schedule-time">{{ item.hora_inicio or '--:--' }}{% if item.hora_fim %} - {{ item.hora_fim }}{% endif %}</div>
+                                <div class="schedule-client">{{ item.cliente_nome }}</div>
+                                <div class="schedule-meta">{{ item.servico_nome }} • {{ item.profissional_nome or 'Sem profissional' }} • {{ item.data_agendamento|default('') }}</div>
+                                {% if item.duracao_minutos %}<div class="schedule-meta">Período reservado: {{ item.duracao_minutos }} minutos</div>{% endif %}
+                            </div>
+                            <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;justify-content:flex-end;">
+                                <span class="pill-origin {% if origem_vitrine %}vitrine{% elif origem_publica %}public{% endif %}">{{ 'Avaliação da Vitrine' if item.origem == 'avaliacao_vitrine' else ('Vitrine Online' if origem_vitrine else ('Link público' if origem_publica else 'Manual')) }}</span>
+                                <span class="pill-status status-{{ item.status }}">{{ item.status.replace('_',' ') }}</span>
+                            </div>
+                        </div>
+                        {% if item.cliente_telefone %}<div class="schedule-meta">WhatsApp: {{ item.cliente_telefone }}</div>{% endif %}
+                        {% if item.observacoes %}<p class="page-subtitle">{{ item.observacoes }}</p>{% endif %}
+                        <div class="schedule-actions">
+                            <a class="btn-small light" href="/agendamentos?editar_id={{ item.id }}&data_inicio={{ data_inicio }}&data_fim={{ data_fim }}">Editar</a>
+                            <a class="btn-small" style="background:#128c7e;color:#fff;text-decoration:none;" href="/whatsapp/pdf/agendamento/{{ item.id }}">📲 Enviar PDF</a>
+                            <form class="mini-form" method="post" action="/agendamentos/{{ item.id }}/status"><select name="status">{% for status in status_opcoes %}<option value="{{ status }}" {% if item.status == status %}selected{% endif %}>{{ status.replace('_',' ') }}</option>{% endfor %}</select><button class="btn-small dark" type="submit">Atualizar</button></form>
+                            {% if not item.venda_id %}<form method="post" action="/agendamentos/{{ item.id }}/gerar-venda"><button class="btn-small dark" type="submit">Gerar venda</button></form>{% else %}<a class="btn-small light" href="/vendas/{{ item.venda_id }}">Ver venda</a>{% endif %}
+                            <form method="post" action="/agendamentos/{{ item.id }}/excluir" onsubmit="return confirm('Excluir este agendamento?');"><button class="btn-small red" type="submit">Excluir</button></form>
+                        </div>
+                    </article>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-chart">Nenhum agendamento encontrado para o filtro selecionado.</div>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+</main>
+<script>
+function copiarLink(id, mensagem){
+    const campo=document.getElementById(id); if(!campo)return;
+    campo.select(); campo.setSelectionRange(0,99999);
+    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(campo.value);}else{document.execCommand('copy');}
+    alert(mensagem);
+}
+(function(){
+    const servico=document.getElementById('servicoAgendamento');
+    const inicio=document.getElementById('horaInicioAgendamento');
+    const fim=document.getElementById('horaFimAgendamento');
+    const valor=document.getElementById('valorAgendamento');
+    const preview=document.getElementById('duracaoServicoPreview');
+    const editando={{ 'true' if agendamento_edicao else 'false' }};
+    function atualizar(preencherValor){
+        if(!servico||!servico.value){if(preview)preview.textContent='Selecione o serviço para carregar a duração.';if(fim)fim.value='';return;}
+        const opcao=servico.options[servico.selectedIndex];
+        const minutos=parseInt(opcao.dataset.minutos||'60',10);
+        const unidade=opcao.dataset.unidade||'horas';
+        const duracao=opcao.dataset.duracao||minutos+' minutos';
+        if(preview)preview.textContent='Duração cadastrada: '+duracao+'. O GestFlow reservará todo esse período.';
+        if(preencherValor&&valor)valor.value=opcao.dataset.valor||'';
+        if(!inicio||!inicio.value||!fim)return;
+        if(unidade==='dias'){
+            fim.value='';
+            if(preview)preview.textContent='Duração cadastrada: dia inteiro. O GestFlow bloqueará todo o expediente.';
+            return;
+        }
+        const partes=inicio.value.split(':');
+        let total=parseInt(partes[0],10)*60+parseInt(partes[1],10)+minutos;
+        if(total>=24*60){fim.value='23:59';return;}
+        fim.value=String(Math.floor(total/60)).padStart(2,'0')+':'+String(total%60).padStart(2,'0');
+    }
+    if(servico)servico.addEventListener('change',()=>atualizar(true));
+    if(inicio)inicio.addEventListener('change',()=>atualizar(false));
+    atualizar(!editando && !(valor&&valor.value));
+})();
+</script>
+
+
+</body>
+</html>

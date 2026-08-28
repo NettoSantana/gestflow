@@ -1,0 +1,126 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\emprestimos_dashboard.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Empréstimos - Visão Geral</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+    <main class="content loans-page gf-module-page">
+        {% set page_title = 'Empréstimos - Visão Geral' %}
+        {% include "partials/topbar.html" %}
+
+        <nav class="loan-tabs gf-tabs" aria-label="Navegação do módulo Empréstimos">
+            <a class="loan-tab active" href="/emprestimos/visao-geral">Visão Geral</a>
+            <a class="loan-tab" href="/emprestimos/todos">Todos os Empréstimos</a>
+            <a class="loan-tab" href="/emprestimos/parcelas">Parcelas</a>
+            <a class="loan-tab" href="/emprestimos/renegociacoes">Renegociações</a>
+        </nav>
+
+        {% if sucesso %}<div class="loan-alert success" role="status">{{ sucesso }}</div>{% endif %}
+        {% if erro %}<div class="loan-alert error" role="alert">{{ erro }}</div>{% endif %}
+
+        <section class="panel page-section gf-page-hero">
+            <div class="panel-header page-header gf-page-header">
+                <div>
+                    <span class="page-kicker">Gestão financeira</span>
+                    <h3 class="page-title">Visão Geral de Empréstimos</h3>
+                    <p class="page-subtitle">Acompanhe valores tomados, concedidos, saldos e vencimentos em um único painel.</p>
+                </div>
+                <div class="gf-module-actions">
+                    <a class="btn-primary-green" href="/emprestimos/novo">+ Novo Empréstimo</a>
+                </div>
+            </div>
+        </section>
+
+        <section class="cards page-section gf-stat-grid loan-dashboard-grid">
+            <article class="card card-blue">
+                <div class="card-icon">↓</div>
+                <div class="card-info"><h3>Total tomado</h3><p>R$ {{ dashboard_emprestimos.total_tomado }}</p><span>Principal recebido pela empresa</span></div>
+            </article>
+            <article class="card card-blue">
+                <div class="card-icon">↑</div>
+                <div class="card-info"><h3>Total emprestado</h3><p>R$ {{ dashboard_emprestimos.total_emprestado }}</p><span>Principal concedido pela empresa</span></div>
+            </article>
+            <article class="card card-danger">
+                <div class="card-icon">!</div>
+                <div class="card-info"><h3>Saldo devedor</h3><p>R$ {{ dashboard_emprestimos.saldo_devedor }}</p><span>Saldo dos empréstimos recebidos</span></div>
+            </article>
+            <article class="card card-success">
+                <div class="card-icon">$</div>
+                <div class="card-info"><h3>Saldo a receber</h3><p>R$ {{ dashboard_emprestimos.saldo_a_receber }}</p><span>Saldo dos empréstimos concedidos</span></div>
+            </article>
+            <article class="card card-warning">
+                <div class="card-icon">⌛</div>
+                <div class="card-info"><h3>Parcelas vencidas</h3><p>{{ dashboard_emprestimos.parcelas_vencidas }}</p><span>R$ {{ dashboard_emprestimos.valor_vencido }} em atraso</span></div>
+            </article>
+            <article class="card card-blue">
+                <div class="card-icon">30</div>
+                <div class="card-info"><h3>Próximos 30 dias</h3><p>{{ dashboard_emprestimos.parcelas_proximos_30_dias }}</p><span>R$ {{ dashboard_emprestimos.valor_proximos_30_dias }}</span></div>
+            </article>
+            <article class="card card-success">
+                <div class="card-icon">▶</div>
+                <div class="card-info"><h3>Contratos ativos</h3><p>{{ dashboard_emprestimos.ativos }}</p><span>Ativos ou em atraso</span></div>
+            </article>
+            <article class="card card-success">
+                <div class="card-icon">✓</div>
+                <div class="card-info"><h3>Contratos quitados</h3><p>{{ dashboard_emprestimos.quitados }}</p><span>Sem saldo pendente</span></div>
+            </article>
+        </section>
+
+        <section class="loan-two-columns">
+            <article class="loan-panel gf-list-panel">
+                <div class="loan-panel-header"><div><h2>Empréstimos recentes</h2><p>Últimos contratos cadastrados.</p></div><a href="/emprestimos/todos">Ver todos</a></div>
+                <div class="loan-table-wrap gf-table-shell">
+                    <table class="loan-table gf-table">
+                        <thead><tr><th>Número</th><th>Título</th><th>Parte</th><th>Tipo</th><th>Saldo</th><th>Status</th></tr></thead>
+                        <tbody>
+                        {% for item in dashboard_emprestimos.recentes %}
+                            <tr>
+                                <td><a href="/emprestimos/{{ item.id }}">{{ item.numero }}</a></td>
+                                <td>{{ item.titulo }}</td>
+                                <td>{{ item.parte_nome }}</td>
+                                <td>{{ 'Recebido' if item.tipo == 'recebido' else 'Concedido' }}</td>
+                                <td>R$ {{ item.saldo_atual }}</td>
+                                <td><span class="loan-status {{ item.status }}">{{ item.status|replace('_', ' ')|title }}</span></td>
+                            </tr>
+                        {% else %}
+                            <tr><td colspan="6" class="loan-empty">Nenhum empréstimo cadastrado.</td></tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+
+            <article class="loan-panel gf-list-panel">
+                <div class="loan-panel-header"><div><h2>Próximas parcelas</h2><p>Vencimentos dos próximos 30 dias.</p></div><a href="/emprestimos/parcelas">Ver parcelas</a></div>
+                <div class="loan-table-wrap gf-table-shell">
+                    <table class="loan-table gf-table">
+                        <thead><tr><th>Vencimento</th><th>Contrato</th><th>Parte</th><th>Saldo</th></tr></thead>
+                        <tbody>
+                        {% for item in dashboard_emprestimos.proximas_parcelas %}
+                            <tr>
+                                <td>{{ item.vencimento[8:10] }}/{{ item.vencimento[5:7] }}/{{ item.vencimento[0:4] }}</td>
+                                <td><a href="/emprestimos/{{ item.emprestimo_id }}">{{ item.emprestimo_numero }}</a></td>
+                                <td>{{ item.parte_nome }}</td>
+                                <td>R$ {{ item.saldo_parcela }}</td>
+                            </tr>
+                        {% else %}
+                            <tr><td colspan="4" class="loan-empty">Nenhuma parcela próxima.</td></tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+        </section>
+    </main>
+</body>
+</html>

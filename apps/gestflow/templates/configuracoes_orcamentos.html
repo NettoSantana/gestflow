@@ -1,0 +1,593 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\configuracoes_orcamentos.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Configurações de Orçamentos</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .orc-config-page { padding-bottom: 80px; }
+        .orc-config-alert {
+            margin-bottom: 14px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 800;
+        }
+        .orc-config-alert.error { border:1px solid #fecaca; background:#fef2f2; color:#991b1b; }
+        .orc-config-alert.success { border:1px solid #bbf7d0; background:#f0fdf4; color:#166534; }
+
+        .orc-status-intro {
+            display:flex;
+            align-items:flex-start;
+            justify-content:space-between;
+            gap:18px;
+            padding:14px 16px;
+            border:1px solid #bfdbfe;
+            border-radius:14px;
+            background:#eff6ff;
+            color:#1e3a8a;
+        }
+        .orc-status-intro strong { display:block; color:#1e3a8a; font-size:13px; }
+        .orc-status-intro p { margin:5px 0 0; font-size:12px; line-height:1.5; }
+        .orc-status-final-rule {
+            flex:0 0 auto;
+            padding:7px 10px;
+            border-radius:999px;
+            background:#dbeafe;
+            color:#1d4ed8;
+            font-size:11px;
+            font-weight:900;
+            white-space:nowrap;
+        }
+
+        .orc-status-list {
+            display:grid;
+            gap:10px;
+            margin-top:14px;
+        }
+        .orc-status-row {
+            display:grid;
+            grid-template-columns:minmax(190px,1fr) minmax(160px,.6fr) minmax(210px,.75fr) auto;
+            gap:10px;
+            align-items:center;
+            padding:11px;
+            border:1px solid #dbe4f0;
+            border-radius:13px;
+            background:#fff;
+        }
+        .orc-status-name-wrap,
+        .orc-status-color-wrap {
+            display:flex;
+            align-items:center;
+            gap:9px;
+            min-width:0;
+        }
+        .orc-status-preview {
+            width:18px;
+            height:18px;
+            flex:0 0 18px;
+            border:2px solid var(--status-border,#cbd5e1);
+            border-radius:50%;
+            background:var(--status-bg,#e2e8f0);
+        }
+        .orc-status-row input[type="text"],
+        .orc-status-row select {
+            width:100%;
+            min-width:0;
+            height:38px;
+            border:1px solid #d8e0ea;
+            border-radius:9px;
+            background:#fff;
+            padding:0 10px;
+            font:inherit;
+            font-size:13px;
+        }
+        .orc-status-finalizer {
+            display:flex;
+            align-items:center;
+            gap:9px;
+            min-height:38px;
+            padding:8px 10px;
+            border:1px solid #dbe4f0;
+            border-radius:10px;
+            background:#f8fafc;
+            color:#475569;
+            font-size:12px;
+            font-weight:800;
+            cursor:pointer;
+        }
+        .orc-status-finalizer input { width:17px; height:17px; margin:0; }
+        .orc-status-finalizer:has(input:checked) {
+            border-color:#86efac;
+            background:#f0fdf4;
+            color:#166534;
+        }
+        .orc-status-delete {
+            width:38px;
+            height:38px;
+            border:1px solid #fecaca;
+            border-radius:10px;
+            background:#fff;
+            color:#b91c1c;
+            font-size:20px;
+            font-weight:900;
+            cursor:pointer;
+        }
+        .orc-status-delete:hover { background:#fef2f2; }
+        .orc-status-toolbar {
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:12px;
+            flex-wrap:wrap;
+            margin-top:12px;
+        }
+        .orc-status-toolbar small {
+            max-width:740px;
+            color:#64748b;
+            font-size:11px;
+            font-weight:700;
+            line-height:1.45;
+        }
+
+        .orc-config-section {
+            margin-top:16px;
+            overflow:hidden;
+            border:1px solid #dbe4f0;
+            border-radius:15px;
+            background:#fff;
+        }
+        .orc-config-section summary {
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:12px;
+            padding:14px 16px;
+            background:#f8fafc;
+            color:#0f172a;
+            cursor:pointer;
+            font-size:14px;
+            font-weight:900;
+            list-style:none;
+        }
+        .orc-config-section summary::-webkit-details-marker { display:none; }
+        .orc-config-section summary small { color:#64748b; font-size:11px; }
+        .orc-config-fields {
+            display:grid;
+            grid-template-columns:repeat(2,minmax(0,1fr));
+            gap:14px;
+            padding:16px;
+        }
+        .orc-config-field { min-width:0; }
+        .orc-config-field.wide { grid-column:1/-1; }
+        .orc-config-field label {
+            display:block;
+            margin-bottom:6px;
+            color:#0f172a;
+            font-size:12px;
+            font-weight:850;
+        }
+        .orc-config-field .form-control { width:100%; min-width:0; }
+        .orc-config-field textarea { min-height:92px; resize:vertical; }
+        .orc-config-help {
+            display:block;
+            margin-top:5px;
+            color:#64748b;
+            font-size:10px;
+            font-weight:700;
+            line-height:1.4;
+        }
+        .orc-config-toggle {
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:12px;
+            min-height:52px;
+            padding:10px 12px;
+            border:1px solid #e2e8f0;
+            border-radius:11px;
+            background:#fff;
+        }
+        .orc-config-toggle strong { display:block; color:#0f172a; font-size:12px; }
+        .orc-config-toggle small { display:block; margin-top:3px; color:#64748b; font-size:10px; }
+        .orc-config-toggle input { width:18px; height:18px; }
+
+        .orc-config-actions {
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:16px;
+            margin-top:18px;
+            padding:15px 16px;
+            border:1px solid #dbe4f0;
+            border-radius:14px;
+            background:#f8fafc;
+        }
+        .orc-config-actions strong { display:block; color:#0f172a; font-size:13px; }
+        .orc-config-actions small { display:block; margin-top:3px; color:#64748b; font-size:11px; }
+        .orc-config-reset {
+            margin-top:12px;
+            text-align:right;
+        }
+        .orc-config-reset button {
+            border:0;
+            background:transparent;
+            color:#b91c1c;
+            font-size:12px;
+            font-weight:800;
+            cursor:pointer;
+        }
+
+        @media(max-width:900px){
+            .orc-status-row { grid-template-columns:1fr 1fr; }
+            .orc-status-delete { justify-self:end; }
+            .orc-config-fields { grid-template-columns:1fr; }
+            .orc-config-field.wide { grid-column:auto; }
+        }
+        @media(max-width:620px){
+            .orc-status-row { grid-template-columns:1fr; }
+            .orc-status-intro,
+            .orc-config-actions { align-items:stretch; flex-direction:column; }
+            .orc-status-final-rule { align-self:flex-start; }
+            .orc-status-delete { justify-self:start; }
+        }
+    </style>
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+    <main class="content orc-config-page">
+        {% set page_title = 'Configurações de Orçamentos' %}
+        {% include "partials/topbar.html" %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Configurações · Orçamentos</span>
+                    <h3 class="page-title">Regras dos Orçamentos</h3>
+                    <p class="page-subtitle">Defina o fluxo comercial, aparência dos status, documentos, valores e conversões deste módulo.</p>
+                </div>
+                <a href="{{ url_for('orcamentos') }}" class="btn-light">Voltar aos Orçamentos</a>
+            </div>
+        </section>
+
+        {% if erro %}<div class="orc-config-alert error">{{ erro }}</div>{% endif %}
+        {% if sucesso %}<div class="orc-config-alert success">{{ sucesso }}</div>{% endif %}
+
+        <form
+            id="orcamento-config-form"
+            action="{{ url_for('salvar_regras_configuracao_modulo', codigo='orcamentos') }}"
+            method="post"
+        >
+            <input type="hidden" name="situacoes" data-status-lines>
+            <input type="hidden" name="situacoes_config_json" data-status-json>
+            <input type="hidden" name="situacao_finalizadora" data-status-finalizer>
+
+            <section class="panel page-section">
+                <div class="panel-header page-header">
+                    <div>
+                        <h3>Fluxo · Status dos Orçamentos</h3>
+                        <p class="page-subtitle">Crie os status que sua empresa realmente usa. Todos são apenas gerenciais, exceto um único status finalizador.</p>
+                    </div>
+                    <span class="badge-info">{{ status_orcamentos|length }} status</span>
+                </div>
+
+                <div class="orc-status-intro">
+                    <div>
+                        <strong>Uma única regra executa a finalização</strong>
+                        <p>Os status comuns apenas organizam visualmente o orçamento. O status marcado como <b>Finaliza e gera Venda</b> exige confirmação, gera uma única Venda e bloqueia a composição do orçamento.</p>
+                    </div>
+                    <span class="orc-status-final-rule">1 finalizador obrigatório</span>
+                </div>
+
+                <div class="orc-status-list" data-status-list>
+                    {% for status in status_orcamentos %}
+                        <div class="orc-status-row" data-status-row data-status-code="{{ status.codigo }}">
+                            <div class="orc-status-name-wrap">
+                                <span
+                                    class="orc-status-preview"
+                                    style="--status-bg:{{ status.fundo }};--status-border:{{ status.borda }};"
+                                    data-status-preview
+                                ></span>
+                                <input type="text" maxlength="40" value="{{ status.nome }}" aria-label="Nome do status" data-status-name>
+                            </div>
+
+                            <div class="orc-status-color-wrap">
+                                <select aria-label="Cor do status" data-status-color>
+                                    {% for cor in status_cores %}
+                                        <option
+                                            value="{{ cor.codigo }}"
+                                            data-bg="{{ cor.fundo }}"
+                                            data-text="{{ cor.texto }}"
+                                            data-border="{{ cor.borda }}"
+                                            {% if cor.codigo == status.cor %}selected{% endif %}
+                                        >{{ cor.nome }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <label class="orc-status-finalizer">
+                                <input type="radio" name="status_finalizador_visual" value="{{ status.codigo }}" {% if status.final %}checked{% endif %} data-status-final-radio>
+                                <span>Finaliza e gera Venda</span>
+                            </label>
+
+                            <button type="button" class="orc-status-delete" title="Excluir status" aria-label="Excluir {{ status.nome }}" data-status-delete>×</button>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <div class="orc-status-toolbar">
+                    <button type="button" class="btn-primary-green" data-status-add>+ Adicionar status</button>
+                    <small>Se um status estiver sendo usado por orçamentos ainda não finalizados, o GestFlow bloqueará sua exclusão até que esses orçamentos sejam movidos para outro status. Orçamentos já finalizados preservam o histórico e a Venda vinculada.</small>
+                </div>
+            </section>
+
+            {% for nome_secao, campos_secao in secoes_configuracao.items() %}
+                {% set campos_visiveis = [] %}
+                {% for campo in campos_secao %}
+                    {% if campo.chave not in ['situacoes', 'situacoes_config_json', 'situacao_finalizadora'] %}
+                        {% set _ = campos_visiveis.append(campo) %}
+                    {% endif %}
+                {% endfor %}
+                {% if campos_visiveis %}
+                    <details class="orc-config-section" open>
+                        <summary>
+                            <span>{{ nome_secao }}</span>
+                            <small>{{ campos_visiveis|length }} {{ 'configuração' if campos_visiveis|length == 1 else 'configurações' }}</small>
+                        </summary>
+                        <div class="orc-config-fields">
+                            {% for campo in campos_visiveis %}
+                                {% set valor_campo = configuracoes_modulo.get(campo.chave, campo.padrao) %}
+                                {% if campo.tipo == 'booleano' %}
+                                    <label class="orc-config-toggle" for="cfg_{{ campo.chave }}">
+                                        <span>
+                                            <strong>{{ campo.nome }}</strong>
+                                            {% if campo.ajuda %}<small>{{ campo.ajuda }}</small>{% endif %}
+                                        </span>
+                                        <input id="cfg_{{ campo.chave }}" name="{{ campo.chave }}" type="checkbox" value="sim" {% if valor_campo %}checked{% endif %}>
+                                    </label>
+                                {% else %}
+                                    <div class="orc-config-field {% if campo.tipo in ['lista','texto_longo'] %}wide{% endif %}">
+                                        <label for="cfg_{{ campo.chave }}">{{ campo.nome }}</label>
+                                        {% if campo.tipo == 'selecao' %}
+                                            <select id="cfg_{{ campo.chave }}" name="{{ campo.chave }}" class="form-control">
+                                                {% for opcao in campo.opcoes %}
+                                                    <option value="{{ opcao.valor }}" {% if valor_campo|string == opcao.valor|string %}selected{% endif %}>{{ opcao.nome }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        {% elif campo.tipo in ['lista','texto_longo'] %}
+                                            <textarea id="cfg_{{ campo.chave }}" name="{{ campo.chave }}" class="form-control" rows="{{ 6 if campo.tipo == 'texto_longo' else 5 }}">{{ valor_campo }}</textarea>
+                                        {% else %}
+                                            <input
+                                                id="cfg_{{ campo.chave }}"
+                                                name="{{ campo.chave }}"
+                                                type="{{ 'number' if campo.tipo == 'numero' else ('email' if campo.tipo == 'email' else 'text') }}"
+                                                value="{{ valor_campo }}"
+                                                class="form-control"
+                                                {% if campo.tipo == 'numero' %}
+                                                    step="any"
+                                                    {% if campo.minimo is not none %}min="{{ campo.minimo }}"{% endif %}
+                                                    {% if campo.maximo is not none %}max="{{ campo.maximo }}"{% endif %}
+                                                {% endif %}
+                                            >
+                                        {% endif %}
+                                        {% if campo.ajuda %}
+                                            <small class="orc-config-help">{{ campo.ajuda }}</small>
+                                        {% elif campo.tipo == 'lista' %}
+                                            <small class="orc-config-help">Digite uma opção por linha.</small>
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </details>
+                {% endif %}
+            {% endfor %}
+
+            <div class="orc-config-actions">
+                <div>
+                    <strong>Salvar regras dos Orçamentos</strong>
+                    <small>Os status passam a ser usados no cadastro, filtros, Lista de Orçamentos e Revisão do Gerador.</small>
+                </div>
+                <button type="submit" class="btn-primary-green">Salvar Orçamentos</button>
+            </div>
+        </form>
+
+        <form
+            class="orc-config-reset"
+            action="{{ url_for('restaurar_regras_configuracao_modulo', codigo='orcamentos') }}"
+            method="post"
+            onsubmit="return confirm('Restaurar as configurações padrão de Orçamentos, incluindo os status padrão?');"
+        >
+            <button type="submit">Restaurar padrões de Orçamentos</button>
+        </form>
+    </main>
+
+    <template id="orc-status-row-template">
+        <div class="orc-status-row" data-status-row data-status-code="">
+            <div class="orc-status-name-wrap">
+                <span class="orc-status-preview" data-status-preview></span>
+                <input type="text" maxlength="40" value="" placeholder="Ex.: Aguardando cliente" aria-label="Nome do status" data-status-name>
+            </div>
+            <div class="orc-status-color-wrap">
+                <select aria-label="Cor do status" data-status-color>
+                    {% for cor in status_cores %}
+                        <option value="{{ cor.codigo }}" data-bg="{{ cor.fundo }}" data-text="{{ cor.texto }}" data-border="{{ cor.borda }}" {% if cor.codigo == 'cinza' %}selected{% endif %}>{{ cor.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <label class="orc-status-finalizer">
+                <input type="radio" name="status_finalizador_visual" value="" data-status-final-radio>
+                <span>Finaliza e gera Venda</span>
+            </label>
+            <button type="button" class="orc-status-delete" title="Excluir status" aria-label="Excluir status" data-status-delete>×</button>
+        </div>
+    </template>
+
+    <script>
+    (function configurarStatusOrcamentos() {
+        const form = document.getElementById('orcamento-config-form');
+        const list = document.querySelector('[data-status-list]');
+        const template = document.getElementById('orc-status-row-template');
+        const addButton = document.querySelector('[data-status-add]');
+        const linesInput = document.querySelector('[data-status-lines]');
+        const jsonInput = document.querySelector('[data-status-json]');
+        const finalizerInput = document.querySelector('[data-status-finalizer]');
+        if (!form || !list || !template || !linesInput || !jsonInput || !finalizerInput) return;
+
+        function slug(valor) {
+            return String(valor || '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '_')
+                .replace(/^_+|_+$/g, '')
+                .slice(0, 48);
+        }
+
+        function linhas() {
+            return Array.from(list.querySelectorAll('[data-status-row]'));
+        }
+
+        function codigoUnico(base, linhaAtual) {
+            const usados = new Set(
+                linhas()
+                    .filter(linha => linha !== linhaAtual)
+                    .map(linha => String(linha.dataset.statusCode || '').trim())
+                    .filter(Boolean)
+            );
+            let candidato = base || 'status';
+            let numero = 2;
+            while (usados.has(candidato)) {
+                candidato = (base || 'status') + '_' + numero;
+                numero += 1;
+            }
+            return candidato.slice(0, 48);
+        }
+
+        function atualizarPreview(linha) {
+            const select = linha.querySelector('[data-status-color]');
+            const preview = linha.querySelector('[data-status-preview]');
+            if (!select || !preview) return;
+            const opcao = select.options[select.selectedIndex];
+            preview.style.setProperty('--status-bg', opcao ? opcao.dataset.bg : '#e2e8f0');
+            preview.style.setProperty('--status-border', opcao ? opcao.dataset.border : '#cbd5e1');
+        }
+
+        function conectarLinha(linha) {
+            const color = linha.querySelector('[data-status-color]');
+            const remove = linha.querySelector('[data-status-delete]');
+            const name = linha.querySelector('[data-status-name]');
+            const radio = linha.querySelector('[data-status-final-radio]');
+
+            if (color) color.addEventListener('change', function() { atualizarPreview(linha); });
+            if (remove) remove.addEventListener('click', function() {
+                if (linhas().length <= 2) {
+                    window.alert('Mantenha pelo menos dois status de Orçamento.');
+                    return;
+                }
+                const nome = name ? name.value.trim() : 'este status';
+                if (!window.confirm('Excluir "' + (nome || 'este status') + '" da lista de status?')) return;
+                linha.remove();
+                if (!list.querySelector('[data-status-final-radio]:checked')) {
+                    const primeiroRadio = list.querySelector('[data-status-final-radio]');
+                    if (primeiroRadio) primeiroRadio.checked = true;
+                }
+            });
+            if (name) name.addEventListener('input', function() {
+                if (!linha.dataset.statusCode) {
+                    const codigo = codigoUnico(slug(name.value), linha);
+                    if (radio) radio.value = codigo;
+                }
+            });
+
+            atualizarPreview(linha);
+        }
+
+        linhas().forEach(conectarLinha);
+
+        if (addButton) addButton.addEventListener('click', function() {
+            const fragment = template.content.cloneNode(true);
+            const linha = fragment.querySelector('[data-status-row]');
+            list.appendChild(fragment);
+            const adicionada = linhas()[linhas().length - 1];
+            conectarLinha(adicionada);
+            const nome = adicionada.querySelector('[data-status-name]');
+            if (nome) nome.focus();
+        });
+
+        form.addEventListener('submit', function(event) {
+            const registros = [];
+            const nomes = new Set();
+            const codigos = new Set();
+            let finalizador = '';
+
+            for (const linha of linhas()) {
+                const nameInput = linha.querySelector('[data-status-name]');
+                const colorSelect = linha.querySelector('[data-status-color]');
+                const radio = linha.querySelector('[data-status-final-radio]');
+                const nome = String(nameInput ? nameInput.value : '').trim().replace(/\s+/g, ' ');
+                if (!nome) {
+                    event.preventDefault();
+                    window.alert('Todos os status precisam ter um nome.');
+                    if (nameInput) nameInput.focus();
+                    return;
+                }
+
+                const chaveNome = slug(nome);
+                if (nomes.has(chaveNome)) {
+                    event.preventDefault();
+                    window.alert('Não é permitido cadastrar dois status com o mesmo nome.');
+                    if (nameInput) nameInput.focus();
+                    return;
+                }
+                nomes.add(chaveNome);
+
+                let codigo = String(linha.dataset.statusCode || '').trim();
+                if (!codigo) {
+                    codigo = codigoUnico(chaveNome || 'status', linha);
+                    linha.dataset.statusCode = codigo;
+                }
+                if (codigos.has(codigo)) {
+                    codigo = codigoUnico(codigo, linha);
+                    linha.dataset.statusCode = codigo;
+                }
+                codigos.add(codigo);
+
+                if (radio) {
+                    radio.value = codigo;
+                    if (radio.checked) finalizador = codigo;
+                }
+
+                registros.push({
+                    codigo: codigo,
+                    nome: nome,
+                    cor: colorSelect ? colorSelect.value : 'cinza'
+                });
+            }
+
+            if (registros.length < 2) {
+                event.preventDefault();
+                window.alert('Mantenha pelo menos dois status de Orçamento.');
+                return;
+            }
+            if (!finalizador || !codigos.has(finalizador)) {
+                event.preventDefault();
+                window.alert('Escolha exatamente um status que finaliza o Orçamento e gera a Venda.');
+                return;
+            }
+
+            linesInput.value = registros.map(item => item.nome).join('\n');
+            jsonInput.value = JSON.stringify(registros);
+            finalizerInput.value = finalizador;
+        });
+    })();
+    </script>
+</body>
+</html>

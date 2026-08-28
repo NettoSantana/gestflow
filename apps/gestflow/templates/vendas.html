@@ -1,0 +1,2096 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\vendas.html
+Último recode: 2026-08-22 00:35 (America/Bahia)
+Motivo: Vincular a lista principal ao componente padronizado e remover a adaptação local duplicada de Colunas/Mais ações.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Vendas</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .logout-button {
+            height: 36px;
+            padding: 0 14px;
+            border: 1px solid #d7e1ef;
+            border-radius: 10px;
+            background: #ffffff;
+            color: #dc2626;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 900;
+            text-decoration: none;
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .logout-button:hover {
+            background: #fff1f2;
+            border-color: #fecdd3;
+        }
+
+
+        .quick-modal-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 10000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: rgba(15, 23, 42, 0.45);
+        }
+
+        .quick-modal-backdrop.open {
+            display: flex;
+        }
+
+        .quick-modal {
+            width: min(460px, 100%);
+            background: #ffffff;
+            border-radius: 18px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+            padding: 18px;
+        }
+
+        .quick-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .quick-modal-header h3 {
+            margin: 0;
+            font-size: 18px;
+            color: #0f172a;
+        }
+
+        .quick-modal-header p {
+            margin: 4px 0 0;
+            color: #64748b;
+            font-size: 13px;
+        }
+
+        .quick-modal-close {
+            width: 34px;
+            height: 34px;
+            border: 0;
+            border-radius: 10px;
+            background: #f1f5f9;
+            color: #0f172a;
+            cursor: pointer;
+            font-weight: 800;
+        }
+
+        .quick-modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 14px;
+        }
+
+        .quick-modal-error {
+            display: none;
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 10px;
+            background: #fef2f2;
+            color: #991b1b;
+            font-weight: 700;
+            font-size: 13px;
+        }
+
+        .quick-modal-error.show {
+            display: block;
+        }
+
+        .quick-new-option {
+            font-weight: 800;
+            color: #16a34a;
+        }
+
+
+        .gestflow-form-error {
+            display: none;
+            margin: 12px 0;
+            padding: 12px 14px;
+            border-radius: 10px;
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+            font-weight: 700;
+            font-size: 13px;
+        }
+
+        .gestflow-form-error.show {
+            display: block;
+        }
+
+        .gestflow-campo-invalido {
+            border-color: #dc2626 !important;
+            box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.12);
+        }
+
+
+        .list-toolbar-paginada {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin: 14px 0 16px;
+        }
+
+        .list-search-form {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .list-search-form input,
+        .list-search-form select {
+            height: 38px;
+            border: 1px solid #d8dee9;
+            border-radius: 10px;
+            padding: 0 12px;
+            font-family: inherit;
+            font-size: 13px;
+        }
+
+        .clear-search-link {
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 800;
+            text-decoration: none;
+        }
+
+        .sortable-link {
+            color: inherit;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            text-decoration: none;
+        }
+
+        .sortable-link:hover {
+            color: #0f62fe;
+        }
+
+        .sort-indicator {
+            color: #0f62fe;
+            font-weight: 900;
+        }
+
+        .pagination-bar {
+            margin-top: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            font-size: 13px;
+            color: #475569;
+            font-weight: 800;
+        }
+
+        .pagination-links {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .pagination-links a,
+        .pagination-links span {
+            min-width: 34px;
+            height: 34px;
+            padding: 0 10px;
+            border: 1px solid #dbe4f0;
+            border-radius: 9px;
+            background: #ffffff;
+            color: #0f172a;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 900;
+            text-decoration: none;
+        }
+
+        .pagination-links a:hover {
+            background: #eff6ff;
+            border-color: #bfdbfe;
+            color: #0f62fe;
+        }
+
+        .pagination-links .current-page {
+            background: #0f62fe;
+            border-color: #0f62fe;
+            color: #ffffff;
+        }
+
+        .pagination-links .disabled-page {
+            color: #94a3b8;
+            background: #f8fafc;
+            cursor: not-allowed;
+        }
+
+
+        /* PADRAO VISUAL ORCAMENTOS - VENDAS */
+        .vendas-page {
+            padding-bottom: 280px;
+        }
+
+        .vendas-page .table-panel {
+            margin-bottom: 180px;
+        }
+
+        .venda-cadastro-toggle {
+            display: none;
+        }
+
+        #form-nova-venda {
+            display: none;
+            scroll-margin-top: 88px;
+        }
+
+        #venda-cadastro-toggle:checked ~ #form-nova-venda,
+        #form-nova-venda:target {
+            display: block;
+        }
+
+        .vendas-lista-shell {
+            border: 0 !important;
+            border-radius: 16px;
+            overflow-x: auto;
+            background: #ffffff;
+        }
+
+        .vendas-lista-table {
+            width: 100% !important;
+            min-width: 100% !important;
+            border-collapse: separate !important;
+            border-spacing: 0 10px !important;
+        }
+
+        .vendas-lista-table thead th {
+            border-bottom: 0 !important;
+            background: transparent;
+            padding-bottom: 10px;
+        }
+
+        .vendas-lista-table tbody tr {
+            background: #ffffff;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+            border-radius: 14px;
+        }
+
+        .vendas-lista-table tbody td {
+            border-bottom: 0 !important;
+            padding-top: 14px !important;
+            padding-bottom: 14px !important;
+        }
+
+        .vendas-lista-table tbody td:first-child {
+            border-top-left-radius: 14px;
+            border-bottom-left-radius: 14px;
+        }
+
+        .vendas-lista-table tbody td:last-child {
+            border-top-right-radius: 14px;
+            border-bottom-right-radius: 14px;
+        }
+
+        .venda-search-form {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .venda-search-form input[name="busca"] {
+            flex: 1 1 320px;
+        }
+
+        .venda-search-form input,
+        .venda-search-form select {
+            height: 38px;
+            border: 1px solid #d8dee9;
+            border-radius: 10px;
+            padding: 0 12px;
+            font-family: inherit;
+            font-size: 13px;
+        }
+
+        .vendas-page .form-grid {
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        }
+
+        .vendas-page input,
+        .vendas-page select,
+        .vendas-page textarea {
+            min-width: 0;
+        }
+
+        .vendas-page .venda-observacoes {
+            min-height: 150px;
+            resize: vertical;
+        }
+
+        @media (max-width: 720px) {
+            .venda-header-actions {
+                width: 100%;
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .venda-header-actions .btn-primary-green,
+            .venda-header-actions .btn-dark {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+
+        .pagamento-venda-box{grid-column:1/-1;border:1px solid #dbe5f1;border-radius:16px;background:#f8fafc;padding:16px}
+        .pagamento-venda-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+        .pagamento-campo-condicional{display:none}
+        .pagamento-campo-condicional.ativo{display:block}
+        .pagamento-previa{grid-column:1/-1;margin-top:4px;border:1px solid #dbe5f1;border-radius:12px;background:#fff;padding:12px}
+        .pagamento-previa strong{display:block;margin-bottom:6px;color:#0f172a}
+        .pagamento-previa-lista{display:grid;gap:5px;color:#475569;font-size:12px;font-weight:700}
+        .venda-origem-vitrine{margin-bottom:16px;padding:14px 16px;border:1px solid #86efac;border-radius:14px;background:#f0fdf4;color:#166534}
+        .venda-origem-vitrine strong{display:block;margin-bottom:4px}
+        .venda-origem-vitrine span{font-size:13px;font-weight:700}
+        @media(max-width:720px){.pagamento-venda-grid{grid-template-columns:1fr}}
+
+
+        .gf-status-select {
+            min-width: 132px;
+            max-width: 190px;
+            height: 34px;
+            padding: 0 30px 0 10px;
+            border: 1px solid var(--status-border, #cbd5e1);
+            border-radius: 999px;
+            background-color: var(--status-bg, #f1f5f9);
+            color: var(--status-text, #334155);
+            font: inherit;
+            font-size: 12px;
+            font-weight: 850;
+            cursor: pointer;
+        }
+        .gf-status-select:disabled { cursor: default; opacity: .82; }
+
+
+    </style>
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+
+<main class="content vendas-page">
+        {% set page_title = 'Vendas' %}
+        {% include "partials/topbar.html" %}
+
+{% set vendas_lista = vendas|default([]) %}
+        {% set venda_preparada = venda_preparada|default({}, true) %}
+        {% set itens_iniciais = itens_iniciais|default([], true) %}
+        {% set origem_vitrine_tipo = origem_vitrine_tipo|default('', true) %}
+        {% set origem_vitrine_id = origem_vitrine_id|default(0, true) %}
+        {% set paginacao = paginacao|default({}, true) %}
+        {% set busca = busca|default('', true) %}
+        {% set ordenar = ordenar|default('id', true) %}
+        {% set direcao = direcao|default('desc', true) %}
+        {% set por_pagina = por_pagina|default(20, true) %}
+        {% set listagem_endpoint = listagem_endpoint|default('vendas', true) %}
+        {% set resumo = resumo_geral|default({}, true) %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Vendas</span>
+                    <h3 class="page-title">Vendas</h3>
+                    <p class="page-subtitle">Cadastre vendas de produtos, serviços ou mistas, com cliente, itens, descontos, totais e forma de pagamento.</p>
+                </div>
+
+                <div class="client-toolbar gf-module-actions venda-header-actions">
+                    <a href="/vendas/balcao" class="btn-dark">▤ Venda Balcão / PDV</a>
+                    <label for="venda-cadastro-toggle" class="btn-primary-green" role="button" tabindex="0">+ Nova Venda</label>
+                </div>
+            </div>
+        </section>
+
+        <section class="cards cards-secondary page-section">
+            <div class="card stat-card">
+                <div class="card-icon">▤</div>
+                <div class="card-info">
+                    <p>{{ resumo.total|default(0) }}</p>
+                    <h3>Total de vendas</h3>
+                    <span>{{ resumo.total|default(0) }} no histórico</span>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="card-icon">⌁</div>
+                <div class="card-info">
+                    <p>{{ resumo.abertas|default(0) }}</p>
+                    <h3>Não finalizadas</h3>
+                    <span>Fluxo comercial em aberto</span>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="card-icon">✓</div>
+                <div class="card-info">
+                    <p>{{ resumo.finalizadas|default(0) }}</p>
+                    <h3>Finalizadas</h3>
+                    <span>Concretizadas pelo status finalizador</span>
+                </div>
+            </div>
+        </section>
+
+
+        <input type="checkbox" id="venda-cadastro-toggle" class="venda-cadastro-toggle">
+
+        <form id="form-nova-venda" action="/vendas" method="post" class="client-form">
+            <div class="gestflow-form-error{% if request.args.get('erro') %} show{% endif %}" data-form-error>{% if request.args.get('erro') %}{{ request.args.get('erro') }}{% endif %}</div>
+            {% if origem_vitrine_tipo %}
+                <div class="venda-origem-vitrine">
+                    <strong>Venda preparada pela Central da Vitrine</strong>
+                    <span>
+                        {{ 'Pedido' if origem_vitrine_tipo == 'pedido' else 'Agendamento' }}
+                        #{{ origem_vitrine_id }}. Confira os dados e informe a condição de pagamento antes de salvar.
+                    </span>
+                </div>
+            {% endif %}
+            <input type="hidden" name="origem_vitrine_pedido_id" value="{{ origem_vitrine_id if origem_vitrine_tipo == 'pedido' else '' }}">
+            <input type="hidden" name="origem_vitrine_agendamento_id" value="{{ origem_vitrine_id if origem_vitrine_tipo == 'agendamento' else '' }}">
+            <section class="panel page-section">
+                <div class="panel-header page-header">
+                    <div>
+                        <h3>Dados gerais</h3>
+                        <p class="page-subtitle">Informações principais da venda.</p>
+                    </div>
+
+                    <span class="badge-info">Cadastro inicial</span>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="venda_numero">Número</label>
+                        <input id="venda_numero" name="venda_numero" type="text" value="{{ proximo_numero|default('0001') }}" class="form-control" readonly aria-readonly="true" title="Gerado automaticamente pelo sistema">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="venda_cliente">Cliente</label>
+                        <select id="venda_cliente" name="venda_cliente" class="form-control quick-cliente-select" required>
+                            <option value="">Selecione</option>
+                            {% if venda_preparada.get('cliente') and venda_preparada.get('cliente') not in clientes|default([])|map(attribute='nome')|list %}
+                                <option value="{{ venda_preparada.get('cliente') }}" selected>{{ venda_preparada.get('cliente') }}</option>
+                            {% endif %}
+                            {% for cliente in clientes|default([]) %}
+                                <option value="{{ cliente.nome }}" {% if venda_preparada.get('cliente') == cliente.nome %}selected{% endif %}>{{ cliente.nome }}</option>
+                            {% endfor %}
+                            <option value="__novo_cliente__" class="quick-new-option">+ Adicionar novo cliente</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="venda_responsavel">Vendedor / responsável</label>
+                        <select id="venda_responsavel" name="venda_responsavel" class="form-control quick-responsavel-select" required>
+                            <option value="">Selecione</option>
+                            {% if venda_preparada.get('responsavel') and venda_preparada.get('responsavel') not in funcionarios|default([])|map(attribute='nome')|list %}
+                                <option value="{{ venda_preparada.get('responsavel') }}" selected>{{ venda_preparada.get('responsavel') }}</option>
+                            {% endif %}
+                            {% for funcionario in funcionarios|default([]) %}
+                                <option value="{{ funcionario.nome }}" {% if venda_preparada.get('responsavel') == funcionario.nome %}selected{% endif %}>{{ funcionario.nome }}</option>
+                            {% endfor %}
+                            <option value="__novo_responsavel__" class="quick-new-option">+ Adicionar novo responsável</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="venda_data">Data</label>
+                        <input id="venda_data" name="venda_data" type="date" value="{{ venda_preparada.get('data') or '' }}" class="form-control" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="venda_prazo_entrega">Prazo de entrega</label>
+                        <input id="venda_prazo_entrega" name="venda_prazo_entrega" type="text" value="{{ venda_preparada.get('prazo_entrega') or '' }}" placeholder="Ex: imediato, 3 dias úteis" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="venda_canal_venda">Canal de venda</label>
+                        <input id="venda_canal_venda" name="venda_canal_venda" type="text" value="{{ venda_preparada.get('canal_venda') or '' }}" placeholder="Ex: WhatsApp, balcão, indicação" class="form-control" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="venda_centro_custo">Centro de custo</label>
+                        <input id="venda_centro_custo" name="venda_centro_custo" type="text" value="{{ venda_preparada.get('centro_custo') or '' }}" placeholder="Ex: Geral" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="venda_tipo">Tipo</label>
+                        <select id="venda_tipo" name="venda_tipo" class="form-control">
+                            <option value="misto" {% if (venda_preparada.get('tipo') or 'misto') == 'misto' %}selected{% endif %}>Misto</option>
+                            <option value="produto" {% if venda_preparada.get('tipo') == 'produto' %}selected{% endif %}>Produto</option>
+                            <option value="servico" {% if venda_preparada.get('tipo') == 'servico' %}selected{% endif %}>Serviço</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="venda_status">Situação</label>
+                        <select id="venda_status" name="venda_status" class="form-control">
+                            {% for status in venda_status_opcoes|default([]) %}{% if not status.final %}
+                                <option value="{{ status.codigo }}" data-final="{{ 1 if status.final else 0 }}" data-bg="{{ status.fundo }}" data-text="{{ status.texto }}" data-border="{{ status.borda }}" {% if venda_preparada.get('status')|default(venda_status_inicial, true) == status.codigo %}selected{% endif %}>{{ status.nome }}</option>
+                            {% endif %}{% endfor %}</select>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel page-section">
+                <div class="panel-header page-header">
+                    <div>
+                        <h3>Produtos</h3>
+                        <p class="page-subtitle">Adicione produtos à venda. Use o botão para inserir novas linhas.</p>
+                    </div>
+                </div>
+
+                <div class="client-actions">
+                    <button type="button" class="btn-primary-green" onclick="adicionarItem('produto')">+ Adicionar produto</button>
+                </div>
+
+                <div class="table-shell">
+                    <table class="client-table">
+                        <thead>
+                            <tr>
+                                <th>Produto</th>
+                                <th>Detalhes</th>
+                                <th>Quant.</th>
+                                <th>Valor</th>
+                                <th>Desconto</th>
+                                <th>Subtotal</th>
+                                <th>Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="produto-tbody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="panel page-section">
+                <div class="panel-header page-header">
+                    <div>
+                        <h3>Serviços</h3>
+                        <p class="page-subtitle">Adicione serviços à venda. Use o botão para inserir novas linhas.</p>
+                    </div>
+                </div>
+
+                <div class="client-actions">
+                    <button type="button" class="btn-primary-green" onclick="adicionarItem('servico')">+ Adicionar serviço</button>
+                </div>
+
+                <div class="table-shell">
+                    <table class="client-table">
+                        <thead>
+                            <tr>
+                                <th>Serviço</th>
+                                <th>Detalhes</th>
+                                <th>Quant.</th>
+                                <th>Valor</th>
+                                <th>Desconto</th>
+                                <th>Subtotal</th>
+                                <th>Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="servico-tbody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="panel page-section">
+                <div class="panel-header page-header">
+                    <div>
+                        <h3>Total e pagamento</h3>
+                        <p class="page-subtitle">Os totais são calculados automaticamente pelos itens informados.</p>
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="venda_total_produtos">Total produtos</label>
+                        <input id="venda_total_produtos" name="venda_total_produtos" type="text" value="{{ venda_preparada.get('total_produtos') or '0,00' }}" placeholder="0,00" class="form-control" readonly>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="venda_total_servicos">Total serviços</label>
+                        <input id="venda_total_servicos" name="venda_total_servicos" type="text" value="{{ venda_preparada.get('total_servicos') or '0,00' }}" placeholder="0,00" class="form-control" readonly>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="venda_desconto_valor">Desconto R$</label>
+                        <input id="venda_desconto_valor" name="venda_desconto_valor" type="text" value="{{ venda_preparada.get('desconto_valor') or '0,00' }}" placeholder="0,00" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="venda_desconto_percentual">Desconto %</label>
+                        <input id="venda_desconto_percentual" name="venda_desconto_percentual" type="text" value="{{ venda_preparada.get('desconto_percentual') or '0,00' }}" placeholder="0" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="venda_valor_total">Valor total</label>
+                        <input id="venda_valor_total" name="venda_valor_total" type="text" value="{{ venda_preparada.get('valor_total') or '0,00' }}" placeholder="0,00" class="form-control" readonly>
+                    </div>
+
+
+                    <div class="pagamento-venda-box">
+                        <div class="pagamento-venda-grid">
+                            <div class="form-group">
+                                <label for="venda_condicao_pagamento">Condição de pagamento</label>
+                                <select id="venda_condicao_pagamento" name="venda_condicao_pagamento" class="form-control" required>
+                                    <option value="avista" {% if (venda_preparada.get('condicao_pagamento') or 'avista') == 'avista' %}selected{% endif %}>À vista</option>
+                                    <option value="prazo" {% if venda_preparada.get('condicao_pagamento') == 'prazo' %}selected{% endif %}>Pagamento único a prazo</option>
+                                    <option value="parcelado" {% if venda_preparada.get('condicao_pagamento') == 'parcelado' %}selected{% endif %}>Parcelado</option>
+                                    <option value="entrada_parcelas" {% if venda_preparada.get('condicao_pagamento') == 'entrada_parcelas' %}selected{% endif %}>Entrada + parcelas</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="venda_meio_pagamento">Meio de pagamento</label>
+                                <select id="venda_meio_pagamento" name="venda_meio_pagamento" class="form-control" required>
+                                    <option value="">Selecione</option>
+                                    <option value="Dinheiro" {% if venda_preparada.get('meio_pagamento') == 'Dinheiro' %}selected{% endif %}>Dinheiro</option>
+                                    <option value="Pix" {% if venda_preparada.get('meio_pagamento') == 'Pix' %}selected{% endif %}>Pix</option>
+                                    <option value="Cartão de débito" {% if venda_preparada.get('meio_pagamento') == 'Cartão de débito' %}selected{% endif %}>Cartão de débito</option>
+                                    <option value="Cartão de crédito" {% if venda_preparada.get('meio_pagamento') == 'Cartão de crédito' %}selected{% endif %}>Cartão de crédito</option>
+                                    <option value="Transferência" {% if venda_preparada.get('meio_pagamento') == 'Transferência' %}selected{% endif %}>Transferência</option>
+                                    <option value="Boleto" {% if venda_preparada.get('meio_pagamento') == 'Boleto' %}selected{% endif %}>Boleto</option>
+                                    <option value="Outro" {% if venda_preparada.get('meio_pagamento') == 'Outro' %}selected{% endif %}>Outro</option>
+                                </select>
+                                <input type="hidden" id="venda_forma_pagamento" name="venda_forma_pagamento">
+                            </div>
+
+                            <div class="form-group pagamento-campo-condicional" data-pagamento-campo="entrada">
+                                <label for="venda_valor_entrada">Valor da entrada</label>
+                                <input id="venda_valor_entrada" name="venda_valor_entrada" type="text" value="{{ venda_preparada.get('valor_entrada') or '0,00' }}" class="form-control" inputmode="decimal">
+                            </div>
+
+                            <div class="form-group pagamento-campo-condicional" data-pagamento-campo="entrada">
+                                <label for="venda_meio_pagamento_entrada">Meio da entrada</label>
+                                <select id="venda_meio_pagamento_entrada" name="venda_meio_pagamento_entrada" class="form-control">
+                                    <option value="">Selecione</option>
+                                    <option value="Dinheiro" {% if venda_preparada.get('meio_pagamento_entrada') == 'Dinheiro' %}selected{% endif %}>Dinheiro</option>
+                                    <option value="Pix" {% if venda_preparada.get('meio_pagamento_entrada') == 'Pix' %}selected{% endif %}>Pix</option>
+                                    <option value="Cartão de débito" {% if venda_preparada.get('meio_pagamento_entrada') == 'Cartão de débito' %}selected{% endif %}>Cartão de débito</option>
+                                    <option value="Cartão de crédito" {% if venda_preparada.get('meio_pagamento_entrada') == 'Cartão de crédito' %}selected{% endif %}>Cartão de crédito</option>
+                                    <option value="Transferência" {% if venda_preparada.get('meio_pagamento_entrada') == 'Transferência' %}selected{% endif %}>Transferência</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group pagamento-campo-condicional" data-pagamento-campo="entrada">
+                                <label for="venda_data_entrada">Data da entrada</label>
+                                <input id="venda_data_entrada" name="venda_data_entrada" type="date" value="{{ venda_preparada.get('data_entrada') or '' }}" class="form-control">
+                            </div>
+
+                            <div class="form-group pagamento-campo-condicional" data-pagamento-campo="parcelas">
+                                <label for="venda_quantidade_parcelas">Quantidade de parcelas</label>
+                                <input id="venda_quantidade_parcelas" name="venda_quantidade_parcelas" type="number" min="1" max="120" value="{{ venda_preparada.get('quantidade_parcelas') or 1 }}" class="form-control">
+                            </div>
+
+                            <div class="form-group pagamento-campo-condicional" data-pagamento-campo="vencimento">
+                                <label for="venda_primeiro_vencimento">Primeiro vencimento</label>
+                                <input id="venda_primeiro_vencimento" name="venda_primeiro_vencimento" type="date" value="{{ venda_preparada.get('primeiro_vencimento') or '' }}" class="form-control">
+                            </div>
+
+                            <input type="hidden" name="venda_intervalo_parcelas" value="mensal">
+
+                            <div class="pagamento-previa">
+                                <strong>Resumo do pagamento</strong>
+                                <div class="pagamento-previa-lista" id="pagamento-previa-lista">À vista.</div>
+                            </div>
+                        </div>
+                    </div>
+
+
+                    <div class="form-group">
+                        <label for="venda_observacoes">Observações para o cliente</label>
+                        <textarea id="venda_observacoes" name="venda_observacoes" rows="6" placeholder="Observações que podem aparecer no comprovante" class="form-control venda-observacoes">{{ venda_preparada.get('observacoes') or '' }}</textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="venda_observacoes_internas">Observações internas</label>
+                        <textarea id="venda_observacoes_internas" name="venda_observacoes_internas" rows="6" placeholder="Uso interno" class="form-control venda-observacoes">{{ venda_preparada.get('observacoes_internas') or '' }}</textarea>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    {% if origem_vitrine_tipo == 'pedido' %}
+                        <a class="btn-light" href="{{ url_for('vitrine', aba='pedidos', pedido_id=origem_vitrine_id, _anchor='central-vitrine') }}">Cancelar e voltar</a>
+                    {% elif origem_vitrine_tipo == 'agendamento' %}
+                        <a class="btn-light" href="{{ url_for('vitrine', aba='agendamentos', agendamento_id=origem_vitrine_id, _anchor='central-vitrine') }}">Cancelar e voltar</a>
+                    {% else %}
+                        <label for="venda-cadastro-toggle" class="btn-light">Cancelar</label>
+                    {% endif %}
+                    <button type="submit" class="btn-primary-green">Salvar Venda</button>
+                </div>
+            </section>
+        </form>
+
+        <section class="panel table-panel">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Lista de vendas</h3>
+                    <p class="page-subtitle">Pesquise, filtre, personalize as colunas e acompanhe as vendas cadastradas.</p>
+                </div>
+
+            </div>
+
+            <div class="list-toolbar-paginada">
+                <form method="get" action="{{ url_for(listagem_endpoint) }}" class="list-search-form venda-search-form">
+                    <input type="text" name="busca" value="{{ busca }}" placeholder="Buscar por número, cliente, situação ou responsável">
+                    <select name="por_pagina" onchange="this.form.submit()">
+                        {% for quantidade in [10, 20, 50, 100] %}
+                            <option value="{{ quantidade }}" {% if por_pagina == quantidade %}selected{% endif %}>{{ quantidade }} por página</option>
+                        {% endfor %}
+                    </select>
+                    <input type="hidden" name="ordenar" value="{{ ordenar }}">
+                    <input type="hidden" name="direcao" value="{{ direcao }}">
+                    <button type="submit" class="btn-dark">Buscar</button>
+                    {% if busca %}<a href="{{ url_for(listagem_endpoint, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao) }}" class="clear-search-link">Limpar</a>{% endif %}
+                </form>
+            </div>
+
+            <div class="table-shell vendas-lista-shell">
+                <table class="client-table vendas-lista-table" data-gf-lista-principal="sim">
+                    <thead>
+                        <tr>
+                            <th><a href="{{ url_for(listagem_endpoint, pagina=1, por_pagina=por_pagina, ordenar='id', direcao='desc' if ordenar == 'id' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">ID {% if ordenar == 'id' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                            <th><a href="{{ url_for(listagem_endpoint, pagina=1, por_pagina=por_pagina, ordenar='numero', direcao='desc' if ordenar == 'numero' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Número {% if ordenar == 'numero' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                            <th><a href="{{ url_for(listagem_endpoint, pagina=1, por_pagina=por_pagina, ordenar='cliente', direcao='desc' if ordenar == 'cliente' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Cliente {% if ordenar == 'cliente' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                            <th><a href="{{ url_for(listagem_endpoint, pagina=1, por_pagina=por_pagina, ordenar='tipo', direcao='desc' if ordenar == 'tipo' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Tipo {% if ordenar == 'tipo' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                            <th><a href="{{ url_for(listagem_endpoint, pagina=1, por_pagina=por_pagina, ordenar='status', direcao='desc' if ordenar == 'status' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Situação {% if ordenar == 'status' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                            <th><a href="{{ url_for(listagem_endpoint, pagina=1, por_pagina=por_pagina, ordenar='data', direcao='desc' if ordenar == 'data' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Data {% if ordenar == 'data' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                            <th><a href="{{ url_for(listagem_endpoint, pagina=1, por_pagina=por_pagina, ordenar='valor_total', direcao='desc' if ordenar == 'valor_total' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Valor total {% if ordenar == 'valor_total' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if vendas_lista %}
+                            {% for venda in vendas_lista %}
+                                <tr>
+                                    <td>{{ venda.id }}</td>
+                                    <td>{{ venda.numero }}</td>
+                                    <td>{{ venda.cliente }}</td>
+                                    <td>{{ venda.tipo }}</td>
+                                    <td>
+                                        <select class="gf-status-select" data-status-operacional data-status-url="/vendas/{{ venda.id }}/status" data-current="{{ venda.status }}" data-final-message="Concretizar esta Venda? Após confirmar, o GestFlow executará estoque e financeiro conforme as configurações e bloqueará alterações." style="--status-bg:{{ venda.status_fundo }};--status-text:{{ venda.status_texto_cor }};--status-border:{{ venda.status_borda }};" {% if venda.status_finalizado %}disabled{% endif %}>
+                                            {% for status in venda_status_opcoes|default([]) %}<option value="{{ status.codigo }}" data-final="{{ 1 if status.final else 0 }}" data-bg="{{ status.fundo }}" data-text="{{ status.texto }}" data-border="{{ status.borda }}" {% if venda.status == status.codigo %}selected{% endif %}>{{ status.nome }}</option>{% endfor %}
+                                        </select>
+                                    </td>
+                                    <td>{{ venda.data }}</td>
+                                    <td>{{ venda.valor_total }}</td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <a href="/vendas/{{ venda.id }}" title="Ver venda" aria-label="Ver venda" class="action-button view" style="text-decoration:none;">🔍</a>
+                                            {% if not venda.status_finalizado %}
+                                            <a href="/vendas/{{ venda.id }}/editar" title="Editar venda" aria-label="Editar venda" class="action-button edit" style="text-decoration:none;">✎</a>
+                                            {% endif %}
+                                            <a href="/whatsapp/pdf/venda/{{ venda.id }}" title="Enviar PDF pelo WhatsApp" aria-label="Enviar PDF pelo WhatsApp" class="action-button" style="background:#128c7e;color:#fff;text-decoration:none;">📲</a>
+                                            {% if not venda.status_finalizado %}
+                                            <form action="/vendas/{{ venda.id }}/excluir" method="post" style="display:inline;" onsubmit="return confirm('Excluir esta venda?');">
+                                                <button type="submit" title="Excluir venda" aria-label="Excluir venda" class="action-button delete">×</button>
+                                            </form>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="8" class="empty-table empty-table-box">
+                                    <div class="empty-table-content">
+                                        <div class="empty-table-icon">▤</div>
+                                        <strong>Nenhuma venda cadastrada.</strong>
+                                        <span>Use o botão Nova Venda para iniciar o cadastro.</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+                <div class="pagination-bar">
+                    <div>{% if paginacao.total|default(0, true) > 0 %}Mostrando {{ paginacao.inicio }} a {{ paginacao.fim }} de {{ paginacao.total }}{% else %}Nenhum registro encontrado{% endif %}</div>
+                    {% if paginacao.total_paginas|default(1, true) > 1 %}
+                        <div class="pagination-links">
+                            {% if paginacao.tem_anterior %}<a href="{{ url_for(listagem_endpoint, pagina=paginacao.anterior, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">‹</a>{% else %}<span class="disabled-page">‹</span>{% endif %}
+                            {% for numero_pagina in paginacao.paginas %}{% if numero_pagina == paginacao.pagina %}<span class="current-page">{{ numero_pagina }}</span>{% else %}<a href="{{ url_for(listagem_endpoint, pagina=numero_pagina, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">{{ numero_pagina }}</a>{% endif %}{% endfor %}
+                            {% if paginacao.tem_proxima %}<a href="{{ url_for(listagem_endpoint, pagina=paginacao.proxima, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">›</a>{% else %}<span class="disabled-page">›</span>{% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+
+
+
+        <div id="quick-cliente-modal" class="quick-modal-backdrop" aria-hidden="true">
+            <div class="quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-cliente-title">
+                <div class="quick-modal-header">
+                    <div>
+                        <h3 id="quick-cliente-title">Novo cliente</h3>
+                        <p>Cadastro rápido sem sair da tela atual.</p>
+                    </div>
+                    <button type="button" class="quick-modal-close" onclick="fecharModalClienteRapidoGeral()">×</button>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="quick-cliente-nome">Nome *</label>
+                        <input id="quick-cliente-nome" type="text" class="form-control" placeholder="Ex: Cliente ABC">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-cliente-documento">CPF / CNPJ</label>
+                        <input id="quick-cliente-documento" type="text" class="form-control" placeholder="Documento do cliente">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-cliente-telefone">Telefone</label>
+                        <input id="quick-cliente-telefone" type="text" class="form-control" placeholder="WhatsApp ou telefone">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-cliente-email">E-mail</label>
+                        <input id="quick-cliente-email" type="text" class="form-control" placeholder="email@cliente.com">
+                    </div>
+                </div>
+
+                <div id="quick-cliente-error" class="quick-modal-error"></div>
+
+                <div class="quick-modal-actions">
+                    <button type="button" class="btn-light" onclick="fecharModalClienteRapidoGeral()">Cancelar</button>
+                    <button type="button" class="btn-primary-green" onclick="salvarClienteRapidoGeral()">Salvar cliente</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="quick-responsavel-modal" class="quick-modal-backdrop" aria-hidden="true">
+            <div class="quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-responsavel-title">
+                <div class="quick-modal-header">
+                    <div>
+                        <h3 id="quick-responsavel-title">Novo responsável</h3>
+                        <p>Cadastro rápido de funcionário sem sair da tela atual.</p>
+                    </div>
+                    <button type="button" class="quick-modal-close" onclick="fecharModalResponsavelRapidoGeral()">×</button>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="quick-responsavel-nome">Nome *</label>
+                        <input id="quick-responsavel-nome" type="text" class="form-control" placeholder="Ex: Vendedor ou técnico">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-responsavel-cargo">Cargo</label>
+                        <input id="quick-responsavel-cargo" type="text" class="form-control" placeholder="Ex: Vendedor, técnico">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-responsavel-telefone">Telefone</label>
+                        <input id="quick-responsavel-telefone" type="text" class="form-control" placeholder="WhatsApp ou telefone">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-responsavel-email">E-mail</label>
+                        <input id="quick-responsavel-email" type="text" class="form-control" placeholder="email@empresa.com">
+                    </div>
+                </div>
+
+                <div id="quick-responsavel-error" class="quick-modal-error"></div>
+
+                <div class="quick-modal-actions">
+                    <button type="button" class="btn-light" onclick="fecharModalResponsavelRapidoGeral()">Cancelar</button>
+                    <button type="button" class="btn-primary-green" onclick="salvarResponsavelRapidoGeral()">Salvar responsável</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="quick-produto-modal" class="quick-modal-backdrop" aria-hidden="true">
+            <div class="quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-produto-title">
+                <div class="quick-modal-header">
+                    <div>
+                        <h3 id="quick-produto-title">Novo produto</h3>
+                        <p>Cadastro rápido de produto sem sair da venda.</p>
+                    </div>
+                    <button type="button" class="quick-modal-close" onclick="fecharModalProdutoRapidoVenda()">×</button>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="quick-produto-nome">Produto *</label>
+                        <input id="quick-produto-nome" type="text" class="form-control" placeholder="Ex: Rolamento 6203">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-produto-valor">Valor de venda *</label>
+                        <input id="quick-produto-valor" type="text" class="form-control" placeholder="0,00">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-produto-unidade">Unidade</label>
+                        <input id="quick-produto-unidade" type="text" class="form-control" value="un" placeholder="un, kg, m">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-produto-categoria">Categoria</label>
+                        <input id="quick-produto-categoria" type="text" class="form-control" placeholder="Ex: Peças">
+                    </div>
+                </div>
+
+                <div id="quick-produto-error" class="quick-modal-error"></div>
+
+                <div class="quick-modal-actions">
+                    <button type="button" class="btn-light" onclick="fecharModalProdutoRapidoVenda()">Cancelar</button>
+                    <button type="button" class="btn-primary-green" onclick="salvarProdutoRapidoVenda()">Salvar produto</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="quick-servico-modal" class="quick-modal-backdrop" aria-hidden="true">
+            <div class="quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-servico-title">
+                <div class="quick-modal-header">
+                    <div>
+                        <h3 id="quick-servico-title">Novo serviço</h3>
+                        <p>Cadastro rápido de serviço sem sair da venda.</p>
+                    </div>
+                    <button type="button" class="quick-modal-close" onclick="fecharModalServicoRapidoVenda()">×</button>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="quick-servico-nome">Serviço *</label>
+                        <input id="quick-servico-nome" type="text" class="form-control" placeholder="Ex: Troca de rolamento">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-servico-valor">Valor de venda *</label>
+                        <input id="quick-servico-valor" type="text" class="form-control" placeholder="0,00">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-servico-categoria">Categoria</label>
+                        <input id="quick-servico-categoria" type="text" class="form-control" placeholder="Ex: Manutenção">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quick-servico-observacoes">Observações</label>
+                        <input id="quick-servico-observacoes" type="text" class="form-control" placeholder="Observação interna opcional">
+                    </div>
+                </div>
+
+                <div id="quick-servico-error" class="quick-modal-error"></div>
+
+                <div class="quick-modal-actions">
+                    <button type="button" class="btn-light" onclick="fecharModalServicoRapidoVenda()">Cancelar</button>
+                    <button type="button" class="btn-primary-green" onclick="salvarServicoRapidoVenda()">Salvar serviço</button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            window.opcoesProdutos = [
+                {% for produto in produtos|default([]) %}
+                    { nome: "{{ produto.nome }}", valor: "{{ produto.preco_venda or '' }}" }{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ];
+
+            window.opcoesServicos = [
+                {% for servico in servicos|default([]) %}
+                    { nome: "{{ servico.nome }}", valor: "{{ servico.valor_venda or '' }}" }{% if not loop.last %},{% endif %}
+                {% endfor %}
+            ];
+
+            window.itensIniciais = {{ itens_iniciais|tojson }};
+        </script>
+
+        <script>
+            function converterMoedaParaNumero(valor) {
+                let texto = String(valor || "").trim();
+
+                if (!texto) {
+                    return 0;
+                }
+
+                texto = texto.replace("R$", "").replace(/\s/g, "");
+
+                if (texto.includes(",")) {
+                    texto = texto.replace(/\./g, "").replace(",", ".");
+                }
+
+                const numero = Number(texto);
+
+                if (Number.isNaN(numero)) {
+                    return 0;
+                }
+
+                return numero;
+            }
+
+            function formatarNumeroParaMoeda(valor) {
+                return valor.toLocaleString("pt-BR", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+            }
+
+            function calcularSubtotalLinha(linha) {
+                const quantidadeInput = linha.querySelector(".item-quantidade");
+                const valorInput = linha.querySelector(".item-valor");
+                const descontoInput = linha.querySelector(".item-desconto");
+                const subtotalInput = linha.querySelector(".item-subtotal");
+
+                const quantidade = converterMoedaParaNumero(quantidadeInput.value || "1") || 1;
+                const valorUnitario = converterMoedaParaNumero(valorInput.value);
+                const desconto = converterMoedaParaNumero(descontoInput.value);
+                const subtotal = Math.max((quantidade * valorUnitario) - desconto, 0);
+
+                subtotalInput.value = formatarNumeroParaMoeda(subtotal);
+
+                return subtotal;
+            }
+
+            function calcularTotaisVenda() {
+                let totalProdutos = 0;
+                let totalServicos = 0;
+
+                document.querySelectorAll("#produto-tbody tr").forEach(function(linha) {
+                    totalProdutos += calcularSubtotalLinha(linha);
+                });
+
+                document.querySelectorAll("#servico-tbody tr").forEach(function(linha) {
+                    totalServicos += calcularSubtotalLinha(linha);
+                });
+
+                const descontoValorInput = document.getElementById("venda_desconto_valor");
+                const descontoPercentualInput = document.getElementById("venda_desconto_percentual");
+                const totalProdutosInput = document.getElementById("venda_total_produtos");
+                const totalServicosInput = document.getElementById("venda_total_servicos");
+                const valorTotalInput = document.getElementById("venda_valor_total");
+
+                const bruto = totalProdutos + totalServicos;
+                const descontoValor = converterMoedaParaNumero(descontoValorInput.value);
+                const descontoPercentual = converterMoedaParaNumero(descontoPercentualInput.value);
+                const descontoPercentualValor = bruto * (descontoPercentual / 100);
+                const valorTotal = Math.max(bruto - descontoValor - descontoPercentualValor, 0);
+
+                totalProdutosInput.value = formatarNumeroParaMoeda(totalProdutos);
+                totalServicosInput.value = formatarNumeroParaMoeda(totalServicos);
+                valorTotalInput.value = formatarNumeroParaMoeda(valorTotal);
+            }
+
+            function configurarEventosLinha(linha, opcoes) {
+                const selectDescricao = linha.querySelector(".item-descricao");
+                const inputValor = linha.querySelector(".item-valor");
+                const camposCalculo = linha.querySelectorAll(".item-quantidade, .item-valor, .item-desconto");
+
+                selectDescricao.addEventListener("change", function() {
+                    if (selectDescricao.value === "__novo_produto__") {
+                        abrirModalProdutoRapidoVenda(selectDescricao);
+                        return;
+                    }
+
+                    if (selectDescricao.value === "__novo_servico__") {
+                        abrirModalServicoRapidoVenda(selectDescricao);
+                        return;
+                    }
+
+                    const itemSelecionado = opcoes.find(function(item) {
+                        return item.nome === selectDescricao.value;
+                    });
+
+                    if (itemSelecionado && itemSelecionado.valor) {
+                        inputValor.value = itemSelecionado.valor;
+                    }
+
+                    calcularTotaisVenda();
+                });
+
+                camposCalculo.forEach(function(campo) {
+                    campo.addEventListener("input", calcularTotaisVenda);
+                    campo.addEventListener("blur", calcularTotaisVenda);
+                });
+            }
+
+            function criarLinha(tipo, dados) {
+                const linha = document.createElement("tr");
+                const tipoLabel = tipo === "produto" ? "Produto" : "Serviço";
+                const opcoes = tipo === "produto" ? window.opcoesProdutos : window.opcoesServicos;
+
+                let selectOptions = '<option value="">Selecione</option>';
+                opcoes.forEach(function(item) {
+                    const selected = dados.descricao === item.nome ? " selected" : "";
+                    selectOptions += '<option value="' + item.nome + '"' + selected + '>' + item.nome + '</option>';
+                });
+
+                const valorNovoItem = tipo === "produto" ? "__novo_produto__" : "__novo_servico__";
+                const textoNovoItem = tipo === "produto" ? "+ Adicionar novo produto" : "+ Adicionar novo serviço";
+                selectOptions += '<option value="' + valorNovoItem + '" class="quick-new-option">' + textoNovoItem + '</option>';
+
+                linha.innerHTML = `
+                    <td>
+                        <input type="hidden" name="item_tipo" value="${tipo}">
+                        <select name="item_descricao" class="form-control item-descricao">
+                            ${selectOptions}
+                        </select>
+                    </td>
+                    <td><input name="item_detalhes" type="text" value="${dados.detalhes || ""}" placeholder="Detalhes" class="form-control"></td>
+                    <td><input name="item_quantidade" type="text" value="${dados.quantidade || "1"}" placeholder="1" class="form-control item-quantidade"></td>
+                    <td><input name="item_valor_unitario" type="text" value="${dados.valor_unitario || ""}" placeholder="0,00" class="form-control item-valor"></td>
+                    <td><input name="item_desconto" type="text" value="${dados.desconto || "0,00"}" placeholder="0,00" class="form-control item-desconto"></td>
+                    <td><input name="item_subtotal" type="text" value="${dados.subtotal || "0,00"}" placeholder="0,00" class="form-control item-subtotal" readonly></td>
+                    <td>
+                        <button type="button" class="action-button delete" title="Remover ${tipoLabel}" aria-label="Remover ${tipoLabel}" onclick="removerLinha(this)">×</button>
+                    </td>
+                `;
+
+                configurarEventosLinha(linha, opcoes);
+                calcularSubtotalLinha(linha);
+
+                return linha;
+            }
+
+            function adicionarItem(tipo) {
+                const corpo = document.getElementById(tipo + "-tbody");
+                corpo.appendChild(criarLinha(tipo, {}));
+                calcularTotaisVenda();
+            }
+
+            function removerLinha(botao) {
+                const linha = botao.closest("tr");
+                const corpo = linha.closest("tbody");
+                linha.remove();
+
+                if (corpo.children.length === 0) {
+                    const tipo = corpo.id.replace("-tbody", "");
+                    adicionarItem(tipo);
+                }
+
+                calcularTotaisVenda();
+            }
+
+            function carregarItensIniciais() {
+                const itensIniciais = window.itensIniciais || [];
+
+                if (itensIniciais.length === 0) {
+                    adicionarItem("produto");
+                    adicionarItem("servico");
+                    calcularTotaisVenda();
+                    return;
+                }
+
+                itensIniciais.forEach(function(item) {
+                    const tipo = item.tipo_item === "servico" ? "servico" : "produto";
+                    const corpo = document.getElementById(tipo + "-tbody");
+                    corpo.appendChild(criarLinha(tipo, item));
+                });
+
+                if (document.getElementById("produto-tbody").children.length === 0) {
+                    adicionarItem("produto");
+                }
+
+                if (document.getElementById("servico-tbody").children.length === 0) {
+                    adicionarItem("servico");
+                }
+
+                calcularTotaisVenda();
+            }
+
+            let selectProdutoRapidoAtualVenda = null;
+            let selectServicoRapidoAtualVenda = null;
+
+            function abrirModalGenericoVenda(modalId, campoFocoId) {
+                const modal = document.getElementById(modalId);
+                const campoFoco = document.getElementById(campoFocoId);
+
+                if (!modal) {
+                    return;
+                }
+
+                modal.classList.add("open");
+                modal.setAttribute("aria-hidden", "false");
+
+                if (campoFoco) {
+                    setTimeout(function() {
+                        campoFoco.focus();
+                    }, 80);
+                }
+            }
+
+            function fecharModalGenericoVenda(modalId) {
+                const modal = document.getElementById(modalId);
+
+                if (!modal) {
+                    return;
+                }
+
+                modal.classList.remove("open");
+                modal.setAttribute("aria-hidden", "true");
+            }
+
+            function exibirErroRapidoVenda(elementoId, mensagem) {
+                const erro = document.getElementById(elementoId);
+
+                if (!erro) {
+                    alert(mensagem);
+                    return;
+                }
+
+                erro.textContent = mensagem;
+                erro.classList.add("show");
+            }
+
+            function limparErroRapidoVenda(elementoId) {
+                const erro = document.getElementById(elementoId);
+
+                if (!erro) {
+                    return;
+                }
+
+                erro.textContent = "";
+                erro.classList.remove("show");
+            }
+
+            function abrirModalProdutoRapidoVenda(selectOrigem) {
+                selectProdutoRapidoAtualVenda = selectOrigem;
+                limparErroRapidoVenda("quick-produto-error");
+
+                const nome = document.getElementById("quick-produto-nome");
+                const valor = document.getElementById("quick-produto-valor");
+                const unidade = document.getElementById("quick-produto-unidade");
+                const categoria = document.getElementById("quick-produto-categoria");
+
+                if (nome) nome.value = "";
+                if (valor) valor.value = "";
+                if (unidade) unidade.value = "un";
+                if (categoria) categoria.value = "";
+
+                abrirModalGenericoVenda("quick-produto-modal", "quick-produto-nome");
+            }
+
+            function fecharModalProdutoRapidoVenda() {
+                if (selectProdutoRapidoAtualVenda && selectProdutoRapidoAtualVenda.value === "__novo_produto__") {
+                    selectProdutoRapidoAtualVenda.value = "";
+                }
+
+                selectProdutoRapidoAtualVenda = null;
+                fecharModalGenericoVenda("quick-produto-modal");
+            }
+
+            function abrirModalServicoRapidoVenda(selectOrigem) {
+                selectServicoRapidoAtualVenda = selectOrigem;
+                limparErroRapidoVenda("quick-servico-error");
+
+                const nome = document.getElementById("quick-servico-nome");
+                const valor = document.getElementById("quick-servico-valor");
+                const categoria = document.getElementById("quick-servico-categoria");
+                const observacoes = document.getElementById("quick-servico-observacoes");
+
+                if (nome) nome.value = "";
+                if (valor) valor.value = "";
+                if (categoria) categoria.value = "";
+                if (observacoes) observacoes.value = "";
+
+                abrirModalGenericoVenda("quick-servico-modal", "quick-servico-nome");
+            }
+
+            function fecharModalServicoRapidoVenda() {
+                if (selectServicoRapidoAtualVenda && selectServicoRapidoAtualVenda.value === "__novo_servico__") {
+                    selectServicoRapidoAtualVenda.value = "";
+                }
+
+                selectServicoRapidoAtualVenda = null;
+                fecharModalGenericoVenda("quick-servico-modal");
+            }
+
+            function adicionarOpcaoItemVenda(tipo, item, selectAtual) {
+                const opcoes = tipo === "produto" ? window.opcoesProdutos : window.opcoesServicos;
+                const seletor = tipo === "produto" ? "#produto-tbody .item-descricao" : "#servico-tbody .item-descricao";
+                const valorNovo = tipo === "produto" ? "__novo_produto__" : "__novo_servico__";
+
+                opcoes.push(item);
+
+                document.querySelectorAll(seletor).forEach(function(select) {
+                    let existe = false;
+
+                    Array.from(select.options).forEach(function(option) {
+                        if (option.value === item.nome) {
+                            existe = true;
+                        }
+                    });
+
+                    if (!existe) {
+                        const novaOpcao = document.createElement("option");
+                        novaOpcao.value = item.nome;
+                        novaOpcao.textContent = item.nome;
+
+                        const opcaoNovo = Array.from(select.options).find(function(option) {
+                            return option.value === valorNovo;
+                        });
+
+                        select.insertBefore(novaOpcao, opcaoNovo || null);
+                    }
+                });
+
+                if (selectAtual) {
+                    const linha = selectAtual.closest("tr");
+                    const inputValor = linha ? linha.querySelector(".item-valor") : null;
+
+                    selectAtual.value = item.nome;
+
+                    if (inputValor) {
+                        inputValor.value = item.valor || "";
+                    }
+
+                    calcularTotaisVenda();
+                }
+            }
+
+            function salvarProdutoRapidoVenda() {
+                limparErroRapidoVenda("quick-produto-error");
+
+                const nome = (document.getElementById("quick-produto-nome")?.value || "").trim();
+                const valor = (document.getElementById("quick-produto-valor")?.value || "").trim();
+                const unidade = (document.getElementById("quick-produto-unidade")?.value || "un").trim() || "un";
+                const categoria = (document.getElementById("quick-produto-categoria")?.value || "").trim();
+
+                if (!nome) {
+                    exibirErroRapidoVenda("quick-produto-error", "Informe o nome do produto.");
+                    return;
+                }
+
+                if (!valor) {
+                    exibirErroRapidoVenda("quick-produto-error", "Informe o valor de venda do produto.");
+                    return;
+                }
+
+                const dados = new URLSearchParams();
+                dados.append("nome", nome);
+                dados.append("valor_venda", valor);
+                dados.append("unidade", unidade);
+                dados.append("categoria", categoria);
+
+                fetch("/produtos/rapido", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: dados.toString()
+                })
+                    .then(function(resposta) {
+                        return resposta.json().then(function(payload) {
+                            if (!resposta.ok || !payload.ok) {
+                                throw new Error(payload.erro || "Não foi possível salvar o produto.");
+                            }
+
+                            return payload;
+                        });
+                    })
+                    .then(function(payload) {
+                        adicionarOpcaoItemVenda("produto", payload.item, selectProdutoRapidoAtualVenda);
+                        selectProdutoRapidoAtualVenda = null;
+                        fecharModalGenericoVenda("quick-produto-modal");
+                    })
+                    .catch(function(erro) {
+                        exibirErroRapidoVenda("quick-produto-error", erro.message || "Não foi possível salvar o produto.");
+                    });
+            }
+
+            function salvarServicoRapidoVenda() {
+                limparErroRapidoVenda("quick-servico-error");
+
+                const nome = (document.getElementById("quick-servico-nome")?.value || "").trim();
+                const valor = (document.getElementById("quick-servico-valor")?.value || "").trim();
+                const categoria = (document.getElementById("quick-servico-categoria")?.value || "").trim();
+                const observacoes = (document.getElementById("quick-servico-observacoes")?.value || "").trim();
+
+                if (!nome) {
+                    exibirErroRapidoVenda("quick-servico-error", "Informe o nome do serviço.");
+                    return;
+                }
+
+                if (!valor) {
+                    exibirErroRapidoVenda("quick-servico-error", "Informe o valor de venda do serviço.");
+                    return;
+                }
+
+                const dados = new URLSearchParams();
+                dados.append("nome", nome);
+                dados.append("valor_venda", valor);
+                dados.append("categoria", categoria);
+                dados.append("observacoes", observacoes);
+
+                fetch("/servicos/rapido", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: dados.toString()
+                })
+                    .then(function(resposta) {
+                        return resposta.json().then(function(payload) {
+                            if (!resposta.ok || !payload.ok) {
+                                throw new Error(payload.erro || "Não foi possível salvar o serviço.");
+                            }
+
+                            return payload;
+                        });
+                    })
+                    .then(function(payload) {
+                        adicionarOpcaoItemVenda("servico", payload.item, selectServicoRapidoAtualVenda);
+                        selectServicoRapidoAtualVenda = null;
+                        fecharModalGenericoVenda("quick-servico-modal");
+                    })
+                    .catch(function(erro) {
+                        exibirErroRapidoVenda("quick-servico-error", erro.message || "Não foi possível salvar o serviço.");
+                    });
+            }
+
+            document.addEventListener("DOMContentLoaded", function() {
+                carregarItensIniciais();
+
+                const descontoValorInput = document.getElementById("venda_desconto_valor");
+                const descontoPercentualInput = document.getElementById("venda_desconto_percentual");
+                const formulario = document.getElementById("form-nova-venda");
+
+                descontoValorInput.addEventListener("input", calcularTotaisVenda);
+                descontoPercentualInput.addEventListener("input", calcularTotaisVenda);
+
+                formulario.addEventListener("submit", calcularTotaisVenda);
+                formulario.addEventListener("reset", function() {
+                    setTimeout(calcularTotaisVenda, 0);
+                });
+            });
+        </script>
+
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function() {
+                const toggleVenda = document.getElementById("venda-cadastro-toggle");
+                const formularioVenda = document.getElementById("form-nova-venda");
+                const botaoNovaVenda = document.querySelector('label[for="venda-cadastro-toggle"].btn-primary-green');
+
+                if (!toggleVenda || !formularioVenda) {
+                    return;
+                }
+
+                if (window.location.hash === "#form-nova-venda" || new URLSearchParams(window.location.search).has("erro")) {
+                    toggleVenda.checked = true;
+                }
+
+                toggleVenda.addEventListener("change", function() {
+                    if (toggleVenda.checked) {
+                        setTimeout(function() {
+                            formularioVenda.scrollIntoView({ behavior: "smooth", block: "start" });
+                        }, 80);
+                    }
+                });
+
+                if (botaoNovaVenda) {
+                    botaoNovaVenda.addEventListener("keydown", function(evento) {
+                        if (evento.key === "Enter" || evento.key === " ") {
+                            evento.preventDefault();
+                            toggleVenda.checked = !toggleVenda.checked;
+                            toggleVenda.dispatchEvent(new Event("change"));
+                        }
+                    });
+                }
+            });
+        </script>
+
+</main>
+
+
+        <script>
+            function gestflowValorNumero(valor) {
+                let texto = String(valor || "").trim();
+
+                if (!texto) {
+                    return 0;
+                }
+
+                texto = texto.replace("R$", "").replace(/\s/g, "");
+
+                if (texto.includes(",")) {
+                    texto = texto.replace(/\./g, "").replace(",", ".");
+                }
+
+                const numero = Number.parseFloat(texto);
+                return Number.isFinite(numero) ? numero : 0;
+            }
+
+            function gestflowLimparErrosFormulario(formulario) {
+                formulario.querySelectorAll(".gestflow-campo-invalido").forEach(function(campo) {
+                    campo.classList.remove("gestflow-campo-invalido");
+                });
+
+                const erroBox = formulario.querySelector("[data-form-error]");
+
+                if (erroBox) {
+                    erroBox.textContent = "";
+                    erroBox.classList.remove("show");
+                }
+            }
+
+            function gestflowExibirErroFormulario(formulario, mensagem, campo) {
+                const erroBox = formulario.querySelector("[data-form-error]");
+
+                if (erroBox) {
+                    erroBox.textContent = mensagem;
+                    erroBox.classList.add("show");
+                    erroBox.scrollIntoView({ behavior: "smooth", block: "center" });
+                } else {
+                    alert(mensagem);
+                }
+
+                if (campo) {
+                    campo.classList.add("gestflow-campo-invalido");
+                    campo.focus();
+                }
+            }
+
+            function gestflowCampoObrigatorio(formulario, seletor, mensagem) {
+                const campo = formulario.querySelector(seletor);
+
+                if (!campo) {
+                    return "";
+                }
+
+                const valor = String(campo.value || "").trim();
+
+                if (!valor || valor.startsWith("__novo")) {
+                    gestflowExibirErroFormulario(formulario, mensagem, campo);
+                    return mensagem;
+                }
+
+                return "";
+            }
+
+            function gestflowExisteItemValido(formulario, exigirValor) {
+                const linhas = formulario.querySelectorAll("tbody tr");
+
+                for (const linha of linhas) {
+                    const descricao = linha.querySelector('[name="item_descricao"]');
+                    const quantidade = linha.querySelector('[name="item_quantidade"]');
+                    const valor = linha.querySelector('[name="item_valor_unitario"]');
+
+                    if (!descricao) {
+                        continue;
+                    }
+
+                    const descricaoValor = String(descricao.value || "").trim();
+
+                    if (!descricaoValor || descricaoValor.startsWith("__novo")) {
+                        continue;
+                    }
+
+                    const quantidadeNumero = gestflowValorNumero(quantidade ? quantidade.value : "");
+                    const valorNumero = gestflowValorNumero(valor ? valor.value : "");
+
+                    if (quantidadeNumero > 0 && (!exigirValor || valorNumero > 0)) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            function gestflowTravarFormularioDocumento(configuracao) {
+                const formulario = document.getElementById(configuracao.formId);
+
+                if (!formulario) {
+                    return;
+                }
+
+                formulario.addEventListener("submit", function(evento) {
+                    gestflowLimparErrosFormulario(formulario);
+
+                    for (const campo of configuracao.camposObrigatorios) {
+                        const erro = gestflowCampoObrigatorio(formulario, campo.seletor, campo.mensagem);
+
+                        if (erro) {
+                            evento.preventDefault();
+                            return;
+                        }
+                    }
+
+                    if (configuracao.exigirItem && !gestflowExisteItemValido(formulario, configuracao.exigirValorItem !== false)) {
+                        evento.preventDefault();
+                        gestflowExibirErroFormulario(formulario, configuracao.mensagemItem || "Adicione pelo menos um item válido com quantidade e valor.");
+                        return;
+                    }
+
+                    if (configuracao.exigirItemOuRelato && !gestflowExisteItemValido(formulario, false)) {
+                        const relato = formulario.querySelector('[name="os_relato_cliente"]');
+                        const diagnostico = formulario.querySelector('[name="os_diagnostico"]');
+                        const executado = formulario.querySelector('[name="os_servico_executado"]');
+                        const temRelato = [relato, diagnostico, executado].some(function(campo) {
+                            return campo && String(campo.value || "").trim();
+                        });
+
+                        if (!temRelato) {
+                            evento.preventDefault();
+                            gestflowExibirErroFormulario(formulario, "Informe ao menos um item, relato do cliente, diagnóstico ou serviço executado.");
+                            return;
+                        }
+                    }
+
+                    if (configuracao.totalSeletor) {
+                        const total = formulario.querySelector(configuracao.totalSeletor);
+
+                        if (total && gestflowValorNumero(total.value) <= 0) {
+                            evento.preventDefault();
+                            gestflowExibirErroFormulario(formulario, configuracao.mensagemTotal || "O valor total precisa ser maior que zero.", total);
+                        }
+                    }
+                });
+            }
+        </script>
+
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function() {
+                gestflowTravarFormularioDocumento({
+                    formId: "form-nova-venda",
+                    camposObrigatorios: [
+                        { seletor: '[name="venda_cliente"]', mensagem: "Selecione um cliente para salvar a venda." },
+                        { seletor: '[name="venda_responsavel"]', mensagem: "Selecione um responsável para salvar a venda." },
+                        { seletor: '[name="venda_data"]', mensagem: "Informe a data da venda." },
+                        { seletor: '[name="venda_canal_venda"]', mensagem: "Informe o canal de venda." },
+                        { seletor: '[name="venda_forma_pagamento"]', mensagem: "Informe a forma de pagamento." }
+                    ],
+                    exigirItem: true,
+                    exigirValorItem: true,
+                    totalSeletor: '[name="venda_valor_total"]',
+                    mensagemItem: "Adicione pelo menos um produto ou serviço com quantidade e valor unitário maiores que zero.",
+                    mensagemTotal: "O valor total da venda precisa ser maior que zero."
+                });
+            });
+        </script>
+
+
+
+<script>
+(function() {
+    "use strict";
+
+    let gestflowClienteSelectAtual = null;
+    let gestflowResponsavelSelectAtual = null;
+    let gestflowFornecedorSelectAtual = null;
+
+    function abrirModalPorId(id) {
+        const modal = document.getElementById(id);
+        if (!modal) {
+            return;
+        }
+        modal.classList.add("open");
+        modal.setAttribute("aria-hidden", "false");
+        const primeiroCampo = modal.querySelector("input, select, textarea");
+        if (primeiroCampo) {
+            setTimeout(function() { primeiroCampo.focus(); }, 80);
+        }
+    }
+
+    function fecharModalPorId(id) {
+        const modal = document.getElementById(id);
+        if (!modal) {
+            return;
+        }
+        modal.classList.remove("open");
+        modal.setAttribute("aria-hidden", "true");
+    }
+
+    function limparErro(id) {
+        const erroBox = document.getElementById(id);
+        if (erroBox) {
+            erroBox.textContent = "";
+            erroBox.classList.remove("show");
+        }
+    }
+
+    function mostrarErro(id, mensagem) {
+        const erroBox = document.getElementById(id);
+        if (erroBox) {
+            erroBox.textContent = mensagem;
+            erroBox.classList.add("show");
+        } else {
+            alert(mensagem);
+        }
+    }
+
+    function adicionarOpcaoSelecionada(selects, valor, texto, selectAtual) {
+        document.querySelectorAll(selects).forEach(function(select) {
+            let opcaoExistente = Array.from(select.options).find(function(opcao) {
+                return opcao.value === valor;
+            });
+
+            if (!opcaoExistente) {
+                opcaoExistente = document.createElement("option");
+                opcaoExistente.value = valor;
+                opcaoExistente.textContent = texto;
+                const primeiraOpcaoNova = Array.from(select.options).find(function(opcao) {
+                    return String(opcao.value || "").startsWith("__novo");
+                });
+                if (primeiraOpcaoNova) {
+                    select.insertBefore(opcaoExistente, primeiraOpcaoNova);
+                } else {
+                    select.appendChild(opcaoExistente);
+                }
+            }
+
+            if (select === selectAtual) {
+                select.value = valor;
+                select.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+        });
+    }
+
+    window.abrirModalClienteRapidoGeral = function(selectOrigem) {
+        gestflowClienteSelectAtual = selectOrigem || gestflowClienteSelectAtual || document.querySelector(".quick-cliente-select");
+        limparErro("quick-cliente-error");
+        ["quick-cliente-nome", "quick-cliente-documento", "quick-cliente-telefone", "quick-cliente-email"].forEach(function(id) {
+            const campo = document.getElementById(id);
+            if (campo) { campo.value = ""; }
+        });
+        abrirModalPorId("quick-cliente-modal");
+    };
+
+    window.fecharModalClienteRapidoGeral = function() {
+        fecharModalPorId("quick-cliente-modal");
+        if (gestflowClienteSelectAtual && String(gestflowClienteSelectAtual.value || "").startsWith("__novo")) {
+            gestflowClienteSelectAtual.value = "";
+        }
+    };
+
+    window.abrirModalResponsavelRapidoGeral = function(selectOrigem) {
+        gestflowResponsavelSelectAtual = selectOrigem || gestflowResponsavelSelectAtual || document.querySelector(".quick-responsavel-select");
+        limparErro("quick-responsavel-error");
+        ["quick-responsavel-nome", "quick-responsavel-cargo", "quick-responsavel-telefone", "quick-responsavel-email"].forEach(function(id) {
+            const campo = document.getElementById(id);
+            if (campo) { campo.value = ""; }
+        });
+        abrirModalPorId("quick-responsavel-modal");
+    };
+
+    window.fecharModalResponsavelRapidoGeral = function() {
+        fecharModalPorId("quick-responsavel-modal");
+        if (gestflowResponsavelSelectAtual && String(gestflowResponsavelSelectAtual.value || "").startsWith("__novo")) {
+            gestflowResponsavelSelectAtual.value = "";
+        }
+    };
+
+    window.abrirModalFornecedorRapidoGeral = function(selectOrigem) {
+        gestflowFornecedorSelectAtual = selectOrigem || gestflowFornecedorSelectAtual || document.querySelector(".quick-fornecedor-select");
+        limparErro("quick-fornecedor-error");
+        ["quick-fornecedor-nome", "quick-fornecedor-documento", "quick-fornecedor-telefone", "quick-fornecedor-email"].forEach(function(id) {
+            const campo = document.getElementById(id);
+            if (campo) { campo.value = ""; }
+        });
+        abrirModalPorId("quick-fornecedor-modal");
+    };
+
+    window.fecharModalFornecedorRapidoGeral = function() {
+        fecharModalPorId("quick-fornecedor-modal");
+        if (gestflowFornecedorSelectAtual && String(gestflowFornecedorSelectAtual.value || "").startsWith("__novo")) {
+            gestflowFornecedorSelectAtual.value = "";
+        }
+    };
+
+    window.salvarClienteRapidoGeral = function() {
+        const nome = (document.getElementById("quick-cliente-nome")?.value || "").trim();
+        const documento = (document.getElementById("quick-cliente-documento")?.value || "").trim();
+        const telefone = (document.getElementById("quick-cliente-telefone")?.value || "").trim();
+        const email = (document.getElementById("quick-cliente-email")?.value || "").trim();
+
+        if (!nome) {
+            mostrarErro("quick-cliente-error", "Informe o nome do cliente.");
+            return;
+        }
+
+        const dados = new URLSearchParams();
+        dados.append("nome", nome);
+        dados.append("documento", documento);
+        dados.append("telefone", telefone);
+        dados.append("email", email);
+
+        fetch("/clientes/rapido", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+            body: dados.toString()
+        })
+            .then(function(resposta) {
+                return resposta.json().then(function(payload) {
+                    if (!resposta.ok || !payload.ok) {
+                        throw new Error(payload.erro || "Não foi possível salvar o cliente.");
+                    }
+                    return payload.cliente || payload.item;
+                });
+            })
+            .then(function(cliente) {
+                adicionarOpcaoSelecionada(".quick-cliente-select", cliente.nome, cliente.nome, gestflowClienteSelectAtual);
+                fecharModalPorId("quick-cliente-modal");
+            })
+            .catch(function(erro) {
+                mostrarErro("quick-cliente-error", erro.message || "Não foi possível salvar o cliente.");
+            });
+    };
+
+    window.salvarResponsavelRapidoGeral = function() {
+        const nome = (document.getElementById("quick-responsavel-nome")?.value || "").trim();
+        const cargo = (document.getElementById("quick-responsavel-cargo")?.value || "").trim();
+        const telefone = (document.getElementById("quick-responsavel-telefone")?.value || "").trim();
+        const email = (document.getElementById("quick-responsavel-email")?.value || "").trim();
+
+        if (!nome) {
+            mostrarErro("quick-responsavel-error", "Informe o nome do responsável.");
+            return;
+        }
+
+        const dados = new URLSearchParams();
+        dados.append("nome", nome);
+        dados.append("cargo", cargo);
+        dados.append("telefone", telefone);
+        dados.append("email", email);
+
+        fetch("/funcionarios/rapido", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+            body: dados.toString()
+        })
+            .then(function(resposta) {
+                return resposta.json().then(function(payload) {
+                    if (!resposta.ok || !payload.ok) {
+                        throw new Error(payload.erro || "Não foi possível salvar o responsável.");
+                    }
+                    return payload.funcionario || payload.item;
+                });
+            })
+            .then(function(funcionario) {
+                adicionarOpcaoSelecionada(".quick-responsavel-select", funcionario.nome, funcionario.nome, gestflowResponsavelSelectAtual);
+                fecharModalPorId("quick-responsavel-modal");
+            })
+            .catch(function(erro) {
+                mostrarErro("quick-responsavel-error", erro.message || "Não foi possível salvar o responsável.");
+            });
+    };
+
+    window.salvarFornecedorRapidoGeral = function() {
+        const nome = (document.getElementById("quick-fornecedor-nome")?.value || "").trim();
+        const documento = (document.getElementById("quick-fornecedor-documento")?.value || "").trim();
+        const telefone = (document.getElementById("quick-fornecedor-telefone")?.value || "").trim();
+        const email = (document.getElementById("quick-fornecedor-email")?.value || "").trim();
+
+        if (!nome) {
+            mostrarErro("quick-fornecedor-error", "Informe o nome do fornecedor.");
+            return;
+        }
+
+        const dados = new URLSearchParams();
+        dados.append("nome", nome);
+        dados.append("documento", documento);
+        dados.append("telefone", telefone);
+        dados.append("email", email);
+
+        fetch("/fornecedores/rapido", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+            body: dados.toString()
+        })
+            .then(function(resposta) {
+                return resposta.json().then(function(payload) {
+                    if (!resposta.ok || !payload.ok) {
+                        throw new Error(payload.erro || "Não foi possível salvar o fornecedor.");
+                    }
+                    return payload.fornecedor || payload.item;
+                });
+            })
+            .then(function(fornecedor) {
+                adicionarOpcaoSelecionada(".quick-fornecedor-select", fornecedor.nome, fornecedor.nome, gestflowFornecedorSelectAtual);
+                fecharModalPorId("quick-fornecedor-modal");
+            })
+            .catch(function(erro) {
+                mostrarErro("quick-fornecedor-error", erro.message || "Não foi possível salvar o fornecedor.");
+            });
+    };
+
+    window.abrirModalClienteRapido = window.abrirModalClienteRapidoGeral;
+    window.fecharModalClienteRapido = window.fecharModalClienteRapidoGeral;
+    window.salvarClienteRapido = window.salvarClienteRapidoGeral;
+    window.abrirModalResponsavelRapido = window.abrirModalResponsavelRapidoGeral;
+    window.fecharModalResponsavelRapido = window.fecharModalResponsavelRapidoGeral;
+    window.salvarResponsavelRapido = window.salvarResponsavelRapidoGeral;
+    window.abrirModalFornecedorRapido = window.abrirModalFornecedorRapidoGeral;
+    window.fecharModalFornecedorRapido = window.fecharModalFornecedorRapidoGeral;
+    window.salvarFornecedorRapido = window.salvarFornecedorRapidoGeral;
+
+    document.addEventListener("change", function(evento) {
+        const alvo = evento.target;
+
+        if (!alvo || !alvo.matches) {
+            return;
+        }
+
+        if (alvo.matches(".quick-cliente-select") && alvo.value === "__novo_cliente__") {
+            window.abrirModalClienteRapidoGeral(alvo);
+            return;
+        }
+
+        if (alvo.matches(".quick-responsavel-select") && alvo.value === "__novo_responsavel__") {
+            window.abrirModalResponsavelRapidoGeral(alvo);
+            return;
+        }
+
+        if (alvo.matches(".quick-fornecedor-select") && alvo.value === "__novo_fornecedor__") {
+            window.abrirModalFornecedorRapidoGeral(alvo);
+        }
+    });
+})();
+</script>
+
+
+<script>
+(function(){
+    const condicao = document.getElementById("venda_condicao_pagamento");
+    const meio = document.getElementById("venda_meio_pagamento");
+    const forma = document.getElementById("venda_forma_pagamento");
+    const valorTotal = document.getElementById("venda_valor_total");
+    const valorEntrada = document.getElementById("venda_valor_entrada");
+    const quantidade = document.getElementById("venda_quantidade_parcelas");
+    const previa = document.getElementById("pagamento-previa-lista");
+    const dataVenda = document.getElementById("venda_data");
+    const dataEntrada = document.getElementById("venda_data_entrada");
+    const primeiroVencimento = document.getElementById("venda_primeiro_vencimento");
+
+    function numeroMoeda(valor){
+        let texto=String(valor||"").replace("R$","").replace(/\s/g,"");
+        if(texto.includes(",")){texto=texto.replace(/\./g,"").replace(",",".");}
+        const numero=Number(texto);
+        return Number.isFinite(numero)?numero:0;
+    }
+    function moeda(valor){
+        return Number(valor||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+    }
+    function atualizarPagamento(){
+        if(!condicao){return;}
+        const tipo=condicao.value;
+        document.querySelectorAll("[data-pagamento-campo]").forEach(function(campo){
+            const grupo=campo.dataset.pagamentoCampo;
+            const ativo=(grupo==="entrada"&&tipo==="entrada_parcelas")
+                ||(grupo==="parcelas"&&(tipo==="parcelado"||tipo==="entrada_parcelas"))
+                ||(grupo==="vencimento"&&(tipo==="prazo"||tipo==="parcelado"||tipo==="entrada_parcelas"));
+            campo.classList.toggle("ativo",ativo);
+        });
+        if(forma){forma.value=meio ? meio.value : "";}
+        if(dataVenda && dataVenda.value){
+            if(dataEntrada && !dataEntrada.value){dataEntrada.value=dataVenda.value;}
+            if(primeiroVencimento && !primeiroVencimento.value){primeiroVencimento.value=dataVenda.value;}
+        }
+        if(!previa){return;}
+        const total=numeroMoeda(valorTotal ? valorTotal.value : 0);
+        const entrada=tipo==="entrada_parcelas" ? numeroMoeda(valorEntrada ? valorEntrada.value : 0) : 0;
+        const parcelas=Math.max(1,parseInt(quantidade ? quantidade.value : "1",10)||1);
+        const saldo=Math.max(total-entrada,0);
+        const valorParcela=saldo/parcelas;
+        if(tipo==="avista"){previa.textContent="À vista · R$ "+moeda(total)+" · "+((meio&&meio.value)||"meio não selecionado");}
+        else if(tipo==="prazo"){previa.textContent="Pagamento único de R$ "+moeda(total)+" no vencimento informado.";}
+        else if(tipo==="parcelado"){previa.textContent=parcelas+" parcela(s) aproximada(s) de R$ "+moeda(valorParcela)+".";}
+        else{previa.textContent="Entrada de R$ "+moeda(entrada)+" + "+parcelas+" parcela(s) aproximada(s) de R$ "+moeda(valorParcela)+".";}
+    }
+    ["change","input"].forEach(function(evento){
+        [condicao,meio,valorTotal,valorEntrada,quantidade,dataVenda].forEach(function(campo){
+            if(campo){campo.addEventListener(evento,atualizarPagamento);}
+        });
+    });
+    document.addEventListener("DOMContentLoaded",atualizarPagamento);
+    setTimeout(atualizarPagamento,0);
+})();
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const formulario = document.getElementById("form-nova-venda");
+
+    if (!formulario) {
+        return;
+    }
+
+    formulario.addEventListener("keydown", function(evento) {
+        if (evento.key === "Enter" && evento.target.tagName !== "TEXTAREA") {
+            evento.preventDefault();
+        }
+    });
+});
+</script>
+
+
+<script>
+(function gestflowStatusOperacional() {
+    function aplicarCor(select) {
+        const opcao = select.options[select.selectedIndex];
+        if (!opcao) return;
+        select.style.setProperty('--status-bg', opcao.dataset.bg || '#f1f5f9');
+        select.style.setProperty('--status-text', opcao.dataset.text || '#334155');
+        select.style.setProperty('--status-border', opcao.dataset.border || '#cbd5e1');
+    }
+
+    async function alterarStatus(select) {
+        const anterior = select.dataset.current || '';
+        const opcao = select.options[select.selectedIndex];
+        if (!opcao || select.value === anterior) { aplicarCor(select); return; }
+        const finalizador = opcao.dataset.final === '1';
+        if (finalizador) {
+            const mensagem = select.dataset.finalMessage || 'Confirmar a finalização deste registro?';
+            if (!window.confirm(mensagem)) {
+                select.value = anterior;
+                aplicarCor(select);
+                return;
+            }
+        }
+        select.disabled = true;
+        const dados = new URLSearchParams();
+        dados.append('status', select.value);
+        if (finalizador) dados.append('confirmar_finalizacao', 'sim');
+        try {
+            const resposta = await fetch(select.dataset.statusUrl, {
+                method: 'POST',
+                headers: {'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},
+                body: dados.toString()
+            });
+            const payload = await resposta.json();
+            if (!resposta.ok || !payload.ok) throw new Error(payload.erro || 'Não foi possível alterar o status.');
+            select.dataset.current = payload.status || select.value;
+            aplicarCor(select);
+            if (payload.mensagem) window.alert(payload.mensagem);
+            window.location.reload();
+        } catch (erro) {
+            select.value = anterior;
+            aplicarCor(select);
+            select.disabled = false;
+            window.alert(erro.message || 'Não foi possível alterar o status.');
+        }
+    }
+
+    document.querySelectorAll('[data-status-operacional]').forEach(function(select) {
+        aplicarCor(select);
+        select.addEventListener('change', function() { alterarStatus(select); });
+    });
+})();
+</script>
+
+    {% include "partials/lista_avancada.html" %}
+
+</body>
+</html>

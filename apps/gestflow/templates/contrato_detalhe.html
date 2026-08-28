@@ -1,0 +1,279 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\contrato_detalhe.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - {{ contrato.numero }}</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link rel="stylesheet" href="/static/css/contratos.css">
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+
+    <main class="content contracts-page">
+        {% set page_title = contrato.numero %}
+        {% include "partials/topbar.html" %}
+
+        <section class="panel page-section contracts-hero">
+            <div class="panel-header page-header contracts-hero-content">
+                <div>
+                    <span class="page-kicker">Contrato {{ contrato.numero }}</span>
+                    <h3 class="page-title">{{ contrato.titulo }}</h3>
+                    <p class="page-subtitle">{{ contrato.cliente }}{% if contrato.responsavel %} · Responsável: {{ contrato.responsavel }}{% endif %}</p>
+                </div>
+                <div class="contract-header-actions">
+                    <a href="{{ url_for('contratos') }}" class="contract-button secondary">Voltar</a>
+                    {% if tem_permissao('contratos', 'exportar') %}
+                        <a href="{{ url_for('imprimir_contrato_a4', contrato_id=contrato.id) }}" class="contract-button secondary" target="_blank" rel="noopener">Imprimir A4</a>
+                    {% endif %}
+                    {% if tem_permissao('contratos', 'editar') and contrato.status not in ['encerrado', 'cancelado'] %}
+                        <a href="{{ url_for('editar_contrato', contrato_id=contrato.id) }}" class="contract-button primary">Editar contrato</a>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+
+        {% if request.args.get('sucesso') %}
+            <div class="contracts-alert success" role="status">{{ request.args.get('sucesso') }}</div>
+        {% endif %}
+        {% if request.args.get('erro') %}
+            <div class="contracts-alert error" role="alert">{{ request.args.get('erro') }}</div>
+        {% endif %}
+
+        <section class="contract-detail-summary">
+            <article class="contract-detail-stat">
+                <span>Situação</span>
+                {% if contrato.status == 'aguardando_assinatura' %}
+                    <strong class="contract-badge contract-status-waiting">Aguardando assinatura</strong>
+                {% elif contrato.status == 'ativo' %}
+                    <strong class="contract-badge contract-status-active">Ativo</strong>
+                {% elif contrato.status == 'suspenso' %}
+                    <strong class="contract-badge contract-status-paused">Suspenso</strong>
+                {% elif contrato.status == 'encerrado' %}
+                    <strong class="contract-badge contract-status-ended">Encerrado</strong>
+                {% elif contrato.status == 'cancelado' %}
+                    <strong class="contract-badge contract-status-cancelled">Cancelado</strong>
+                {% else %}
+                    <strong class="contract-badge contract-status-draft">Rascunho</strong>
+                {% endif %}
+            </article>
+            <article class="contract-detail-stat">
+                <span>Tipo</span>
+                <strong>
+                    {% if contrato.tipo == 'recorrente' %}Serviço recorrente{% elif contrato.tipo == 'locacao' %}Locação{% else %}Serviço{% endif %}
+                </strong>
+            </article>
+            <article class="contract-detail-stat">
+                <span>Vigência</span>
+                <strong>{{ contrato.data_inicio or '-' }} até {{ contrato.data_fim or 'prazo indeterminado' }}</strong>
+            </article>
+            <article class="contract-detail-stat emphasized">
+                <span>Valor total</span>
+                <strong>R$ {{ contrato.valor_total or '0,00' }}</strong>
+            </article>
+        </section>
+
+        <div class="contract-detail-layout">
+            <div class="contract-detail-main">
+                <section class="panel contract-detail-card">
+                    <div class="contract-section-heading"><div><span class="contract-step">1</span><h4>Dados do contrato</h4></div></div>
+                    <dl class="contract-data-grid">
+                        <div><dt>Número</dt><dd>{{ contrato.numero }}</dd></div>
+                        <div><dt>Cliente</dt><dd>{{ contrato.cliente or '-' }}</dd></div>
+                        <div><dt>Responsável</dt><dd>{{ contrato.responsavel or '-' }}</dd></div>
+                        <div><dt>Centro de custo</dt><dd>{{ contrato.centro_custo or '-' }}</dd></div>
+                        <div><dt>Orçamento vinculado</dt><dd>{% if contrato.orcamento_id %}#{{ contrato.orcamento_id }}{% else %}-{% endif %}</dd></div>
+                        <div><dt>Forma de pagamento</dt><dd>{{ contrato.forma_pagamento or '-' }}</dd></div>
+                        <div><dt>Periodicidade</dt><dd>{% for periodicidade in periodicidades_contrato %}{% if periodicidade.codigo == contrato.periodicidade %}{{ periodicidade.nome }}{% endif %}{% endfor %}</dd></div>
+                        <div><dt>Renovação automática</dt><dd>{{ 'Sim' if contrato.renovacao_automatica == 'sim' else 'Não' }}</dd></div>
+                        {% if contrato.periodicidade != 'unica' %}
+                            <div><dt>Dia do vencimento</dt><dd>{{ contrato.dia_vencimento or '-' }}</dd></div>
+                            <div><dt>Valor recorrente</dt><dd>R$ {{ contrato.valor_recorrente or '0,00' }}</dd></div>
+                        {% endif %}
+                    </dl>
+                    <div class="contract-text-block">
+                        <h5>Objeto do contrato</h5>
+                        <p>{{ contrato.objeto or 'Objeto não informado.' }}</p>
+                    </div>
+                    {% if contrato.observacoes %}
+                        <div class="contract-text-block muted"><h5>Observações</h5><p>{{ contrato.observacoes }}</p></div>
+                    {% endif %}
+                    {% if contrato.status == 'cancelado' and contrato.motivo_cancelamento %}
+                        <div class="contract-text-block danger"><h5>Motivo do cancelamento</h5><p>{{ contrato.motivo_cancelamento }}</p></div>
+                    {% endif %}
+                </section>
+
+                <section class="panel contract-detail-card">
+                    <div class="contract-section-heading">
+                        <div><span class="contract-step">2</span><h4>Itens</h4></div>
+                        <strong>{{ itens|length }} item(ns)</strong>
+                    </div>
+                    {% if itens %}
+                        <div class="contract-items-shell">
+                            <table class="contract-items-table detail">
+                                <thead><tr><th>Tipo</th><th>Descrição</th><th>Detalhes</th><th>Qtd.</th><th>Unitário</th><th>Subtotal</th></tr></thead>
+                                <tbody>
+                                    {% for item in itens %}
+                                        <tr>
+                                            <td>{{ {'produto': 'Produto', 'servico': 'Serviço', 'locacao': 'Locação', 'outro': 'Outro'}.get(item.tipo_item, 'Outro') }}</td>
+                                            <td><strong>{{ item.descricao }}</strong></td>
+                                            <td>{{ item.detalhes or '-' }}</td>
+                                            <td>{{ item.quantidade or '1,00' }}</td>
+                                            <td>R$ {{ item.valor_unitario or '0,00' }}</td>
+                                            <td><strong>R$ {{ item.subtotal or '0,00' }}</strong></td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="contract-card-empty">Este contrato não possui itens detalhados.</p>
+                    {% endif %}
+                </section>
+
+                <section class="panel contract-detail-card">
+                    <div class="contract-section-heading"><div><span class="contract-step">3</span><h4>Histórico</h4></div></div>
+                    {% if historico %}
+                        <ol class="contract-timeline">
+                            {% for evento in historico %}
+                                <li>
+                                    <span class="contract-timeline-dot"></span>
+                                    <div>
+                                        <strong>{{ evento.descricao or evento.tipo_evento }}</strong>
+                                        <small>{{ evento.usuario_nome or 'Sistema' }} · {{ evento.criado_em or '-' }}</small>
+                                    </div>
+                                </li>
+                            {% endfor %}
+                        </ol>
+                    {% else %}
+                        <p class="contract-card-empty">Nenhuma movimentação registrada.</p>
+                    {% endif %}
+                </section>
+            </div>
+
+            <aside class="contract-detail-side">
+                {% if tem_permissao('contratos', 'editar') and transicoes_status %}
+                    <section class="panel contract-side-card">
+                        <h4>Alterar situação</h4>
+                        <p>Escolha somente a próxima etapa real do contrato.</p>
+                        <form method="post" action="{{ url_for('alterar_status_contrato', contrato_id=contrato.id) }}" id="contract-status-form">
+                            <div class="contract-field">
+                                <label for="status-next">Nova situação</label>
+                                <select id="status-next" name="status" required>
+                                    <option value="">Selecione</option>
+                                    {% for codigo in transicoes_status %}
+                                        {% for situacao in status_contrato %}
+                                            {% if situacao.codigo == codigo %}<option value="{{ codigo }}">{{ situacao.nome }}</option>{% endif %}
+                                        {% endfor %}
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div id="contract-cancel-reason" class="contract-field contract-cancel-reason">
+                                <label id="contract-reason-label" for="motivo">Motivo da alteração</label>
+                                <textarea id="motivo" name="motivo" rows="3" placeholder="Informe o motivo da alteração"></textarea>
+                            </div>
+                            <button type="submit" class="contract-button primary full">Atualizar situação</button>
+                        </form>
+                    </section>
+                {% endif %}
+
+                <section class="panel contract-side-card">
+                    <h4>Anexos</h4>
+                    <p>Contrato assinado, imagens ou documentos de apoio. Limite de 10 MB.</p>
+                    {% if tem_permissao('contratos', 'editar') %}
+                        <form method="post" action="{{ url_for('atualizar_contrato_anexos', contrato_id=contrato.id) }}" enctype="multipart/form-data" class="contract-upload-form">
+                            <label class="contract-file-picker" for="arquivo"><span>Selecionar arquivo</span><small>PDF, imagem, DOC ou DOCX</small></label>
+                            <input id="arquivo" name="arquivo" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx" required>
+                            <span id="contract-file-name" class="contract-selected-file">Nenhum arquivo selecionado</span>
+                            <button type="submit" class="contract-button secondary full">Adicionar anexo</button>
+                        </form>
+                    {% endif %}
+                    {% if anexos %}
+                        <ul class="contract-attachments">
+                            {% for anexo in anexos %}
+                                <li>
+                                    <div><strong>{{ anexo.nome_original }}</strong><small>{{ (anexo.tamanho_bytes / 1024)|round(1) }} KB · {{ anexo.criado_por_nome or 'Sistema' }}</small></div>
+                                    <div class="contract-attachment-actions">
+                                        <a href="{{ url_for('download_anexo_contrato', anexo_id=anexo.id) }}" aria-label="Baixar {{ anexo.nome_original }}">Baixar</a>
+                                        {% if tem_permissao('contratos', 'editar') %}
+                                            <form method="post" action="{{ url_for('remover_anexo_contrato', anexo_id=anexo.id) }}" onsubmit="return window.confirm('Remover este anexo?');"><button type="submit">Remover</button></form>
+                                        {% endif %}
+                                    </div>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="contract-card-empty compact">Nenhum anexo adicionado.</p>
+                    {% endif %}
+                </section>
+
+                <section class="panel contract-side-card contract-audit-card">
+                    <h4>Controle</h4>
+                    <dl>
+                        <div><dt>Versão</dt><dd>{{ contrato.versao or 1 }}</dd></div>
+                        <div><dt>Criado por</dt><dd>{{ contrato.criado_por_nome or 'Sistema' }}</dd></div>
+                        <div><dt>Criado em</dt><dd>{{ contrato.criado_em or '-' }}</dd></div>
+                        <div><dt>Atualizado em</dt><dd>{{ contrato.atualizado_em or '-' }}</dd></div>
+                    </dl>
+                </section>
+            </aside>
+        </div>
+
+{% set whatsapp_modulo = 'contrato' %}
+{% set whatsapp_registro_id = contrato.id %}
+{% set whatsapp_telefone = '' %}
+{% include 'partials/whatsapp_envio_modulo.html' %}
+</main>
+
+    <script>
+    (function () {
+        const statusField = document.getElementById('status-next');
+        const cancelBox = document.getElementById('contract-cancel-reason');
+        const reasonField = document.getElementById('motivo');
+        const reasonLabel = document.getElementById('contract-reason-label');
+        const fileField = document.getElementById('arquivo');
+        const fileName = document.getElementById('contract-file-name');
+
+        function updateStatusReason() {
+            if (!statusField || !cancelBox || !reasonField) return;
+
+            const selectedStatus = statusField.value;
+            const requiresReason = ['suspenso', 'encerrado', 'cancelado'].includes(selectedStatus);
+            const labels = {
+                suspenso: 'Motivo da suspensão',
+                encerrado: 'Motivo do encerramento',
+                cancelado: 'Motivo do cancelamento'
+            };
+
+            cancelBox.classList.toggle('visible', requiresReason);
+            reasonField.required = requiresReason;
+            reasonField.disabled = !requiresReason;
+
+            if (reasonLabel) {
+                reasonLabel.textContent = labels[selectedStatus] || 'Motivo da alteração';
+            }
+
+            if (!requiresReason) {
+                reasonField.value = '';
+            }
+        }
+
+        if (statusField) {
+            statusField.addEventListener('change', updateStatusReason);
+            updateStatusReason();
+        }
+        if (fileField && fileName) {
+            fileField.addEventListener('change', function () {
+                fileName.textContent = fileField.files && fileField.files[0] ? fileField.files[0].name : 'Nenhum arquivo selecionado';
+            });
+        }
+    })();
+    </script>
+</body>
+</html>

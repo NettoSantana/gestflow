@@ -1,0 +1,409 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\servico_editar.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Editar Serviço</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .question-builder{grid-column:1/-1;display:none;gap:12px;padding:16px;border:1px solid #bfdbfe;border-radius:16px;background:#eff6ff}.question-builder.visible{display:grid}.question-builder-header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.question-list{display:grid;gap:10px}.question-card{display:grid;grid-template-columns:minmax(220px,2fr) minmax(150px,1fr) auto auto;gap:10px;align-items:end;padding:12px;border:1px solid #dbeafe;border-radius:14px;background:#fff}.question-card label{display:grid;gap:6px;font-size:12px;font-weight:900;color:#334155}.question-options{grid-column:1/-1;display:none}.question-card[data-type="opcoes"] .question-options{display:grid}.question-remove{height:40px;border:0;border-radius:10px;background:#fee2e2;color:#991b1b;font-weight:900;cursor:pointer}.contract-help{display:block;margin-top:6px;color:#64748b;font-size:12px;font-weight:700}@media(max-width:900px){.question-card{grid-template-columns:1fr}.question-options{grid-column:1}}
+        .duration-field { display:grid; grid-template-columns:minmax(110px,1fr) minmax(130px,1fr); gap:8px; }
+        .duration-help { display:block; margin-top:6px; color:#64748b; font-size:12px; font-weight:700; }
+        @media (max-width:640px){ .duration-field{grid-template-columns:1fr;} }
+
+        .form-alert-error {
+            margin: 0 0 18px;
+            padding: 12px 14px;
+            border: 1px solid #fecaca;
+            border-radius: 12px;
+            background: #fef2f2;
+            color: #991b1b;
+            font-size: 13px;
+            font-weight: 800;
+        }
+    </style>
+
+    <style>
+        /* PADRAO VISUAL ORCAMENTOS - TELAS AUXILIARES */
+        .content {
+            padding-bottom: 220px;
+        }
+
+        .content > .panel.page-section:first-of-type {
+            margin-top: 0;
+        }
+
+        .panel,
+        .page-section,
+        .table-panel {
+            border-radius: 16px;
+        }
+
+        .panel-header.page-header,
+        .page-header {
+            gap: 14px;
+        }
+
+        .page-title {
+            letter-spacing: -0.02em;
+        }
+
+        .page-subtitle {
+            max-width: 760px;
+        }
+
+        .client-toolbar,
+        .form-actions,
+        .client-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn-primary-green,
+        .btn-dark,
+        .btn-light,
+        .action-button {
+            border-radius: 10px;
+            text-decoration: none;
+        }
+
+        .form-control,
+        input,
+        select,
+        textarea {
+            border-radius: 10px;
+            max-width: 100%;
+        }
+
+        .client-form {
+            width: 100%;
+        }
+
+        .form-grid {
+            align-items: start;
+        }
+
+        .panel-summary {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .panel-summary > div {
+            min-height: 74px;
+            border: 1px solid #e5eaf2;
+            border-radius: 14px;
+            background: #ffffff;
+            padding: 14px;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+        }
+
+        .panel-summary span {
+            display: block;
+            margin-bottom: 6px;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+
+        .panel-summary strong {
+            color: #0f172a;
+            font-size: 14px;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+
+        .table-shell {
+            border: 0 !important;
+            border-radius: 16px;
+            overflow-x: auto;
+            background: #ffffff;
+        }
+
+        .content table,
+        .content .client-table {
+            width: 100%;
+            border-collapse: separate !important;
+            border-spacing: 0 10px !important;
+            min-width: 760px;
+        }
+
+        .content table thead th,
+        .content .client-table thead th {
+            border-bottom: 0 !important;
+            background: transparent;
+            padding: 10px 12px;
+            color: #334155;
+            font-size: 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .content table tbody tr,
+        .content .client-table tbody tr {
+            background: #ffffff;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+            border-radius: 14px;
+        }
+
+        .content table tbody td,
+        .content .client-table tbody td {
+            border-bottom: 0 !important;
+            padding: 14px 12px !important;
+            color: #334155;
+            vertical-align: middle;
+        }
+
+        .content table tbody td:first-child,
+        .content .client-table tbody td:first-child {
+            border-top-left-radius: 14px;
+            border-bottom-left-radius: 14px;
+        }
+
+        .content table tbody td:last-child,
+        .content .client-table tbody td:last-child {
+            border-top-right-radius: 14px;
+            border-bottom-right-radius: 14px;
+        }
+
+        .empty-table,
+        .empty-table-box {
+            border-radius: 14px;
+        }
+
+        .status-pill,
+        .badge-info {
+            border-radius: 999px;
+            white-space: nowrap;
+        }
+
+        .quick-modal,
+        .modal,
+        .dialog {
+            border-radius: 18px;
+        }
+
+        .config-grid,
+        .portal-grid,
+        .planos-grid,
+        .cards,
+        .cards-secondary {
+            gap: 16px;
+        }
+
+        .config-card,
+        .portal-card,
+        .plan-card,
+        .card,
+        .stat-card {
+            border-radius: 16px;
+        }
+
+        .auth-card,
+        .login-card,
+        .onboarding-card,
+        .portal-card,
+        .plan-card {
+            box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+        }
+
+        @media (max-width: 1100px) {
+            .panel-summary {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .content table,
+            .content .client-table {
+                min-width: 720px;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .panel-summary {
+                grid-template-columns: 1fr;
+            }
+
+            .client-toolbar,
+            .form-actions,
+            .client-actions {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .client-toolbar .btn-primary-green,
+            .client-toolbar .btn-dark,
+            .client-toolbar .btn-light,
+            .form-actions .btn-primary-green,
+            .form-actions .btn-dark,
+            .form-actions .btn-light {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .content table,
+            .content .client-table {
+                min-width: 680px;
+            }
+        }
+    </style>
+
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+
+<main class="content">
+        {% set page_title = 'Editar Serviço' %}
+        {% include "partials/topbar.html" %}
+
+        {% if request.args.get('erro') %}
+            <div class="form-alert-error">{{ request.args.get('erro') }}</div>
+        {% endif %}
+
+<section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Serviços</span>
+                    <h3 class="page-title">Editar serviço</h3>
+                    <p class="page-subtitle">Atualize os dados principais do serviço selecionado.</p>
+                </div>
+
+                <a href="/servicos/{{ servico.id }}" class="btn-dark">Cancelar edição</a>
+            </div>
+        </section>
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>{{ servico.nome }}</h3>
+                    <p class="page-subtitle">Código do serviço: {{ servico.id }}</p>
+                </div>
+
+                <span class="badge-info">Modo edição</span>
+            </div>
+
+            <form action="/servicos/{{ servico.id }}/editar" method="post" class="client-form" id="formEditarServico" onsubmit="return prepararPerguntasServicoEditar()">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="servico_nome">Nome do serviço *</label>
+                        <input id="servico_nome" name="servico_nome" type="text" value="{{ servico.nome or '' }}" placeholder="Ex: Manutenção preventiva" class="form-control" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="servico_codigo">Código interno</label>
+                        <input id="servico_codigo" name="servico_codigo" type="text" value="{{ servico.codigo or '' }}" placeholder="Ex: SERV-001" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="servico_categoria">Categoria</label>
+                        <select id="servico_categoria" name="servico_categoria" class="form-control">
+                            <option value="" {% if not servico.categoria %}selected{% endif %}>Selecione</option>
+                            <option value="Elétrica" {% if servico.categoria == "Elétrica" %}selected{% endif %}>Elétrica</option>
+                            <option value="Mecânica" {% if servico.categoria == "Mecânica" %}selected{% endif %}>Mecânica</option>
+                            <option value="Automação" {% if servico.categoria == "Automação" %}selected{% endif %}>Automação</option>
+                            <option value="Caldeiraria" {% if servico.categoria == "Caldeiraria" %}selected{% endif %}>Caldeiraria</option>
+                            <option value="Solda" {% if servico.categoria == "Solda" %}selected{% endif %}>Solda</option>
+                            <option value="Inspeção" {% if servico.categoria == "Inspeção" %}selected{% endif %}>Inspeção</option>
+                            <option value="Projetos" {% if servico.categoria == "Projetos" %}selected{% endif %}>Projetos</option>
+                            <option value="Outros" {% if servico.categoria == "Outros" %}selected{% endif %}>Outros</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="servico_unidade">Unidade *</label>
+                        <select id="servico_unidade" name="servico_unidade" class="form-control" required>
+                            <option value="" {% if not servico.unidade %}selected{% endif %}>Selecione</option>
+                            <option value="Serviço" {% if servico.unidade == "Serviço" %}selected{% endif %}>Serviço</option>
+                            <option value="Hora" {% if servico.unidade == "Hora" %}selected{% endif %}>Hora</option>
+                            <option value="Diária" {% if servico.unidade == "Diária" %}selected{% endif %}>Diária</option>
+                            <option value="Projeto" {% if servico.unidade == "Projeto" %}selected{% endif %}>Projeto</option>
+                            <option value="Unidade" {% if servico.unidade == "Unidade" %}selected{% endif %}>Unidade</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="servico_custo">Custo</label>
+                        <input id="servico_custo" name="servico_custo" type="text" value="{{ servico.custo or '' }}" placeholder="Ex: 150,00" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="servico_tipo_contratacao">Forma de contratação *</label>
+                        <select id="servico_tipo_contratacao" name="servico_tipo_contratacao" class="form-control" required>
+                            <option value="valor_fixo" {% if servico.tipo_contratacao != 'a_combinar' %}selected{% endif %}>Valor fixo e agendamento direto</option>
+                            <option value="a_combinar" {% if servico.tipo_contratacao == 'a_combinar' %}selected{% endif %}>Valor a combinar e avaliação prévia</option>
+                        </select>
+                        <small class="contract-help">No valor a combinar, as perguntas abaixo aparecem para o cliente.</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="servico_valor_venda">Valor de venda</label>
+                        <input id="servico_valor_venda" name="servico_valor_venda" type="text" value="{{ '' if servico.tipo_contratacao == 'a_combinar' and servico.valor_venda in ['0','0,00','0.00'] else (servico.valor_venda or '') }}" placeholder="Ex: 280,00" class="form-control" {% if servico.tipo_contratacao != 'a_combinar' %}required{% endif %}>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="servico_tempo_estimado_valor">Duração estimada *</label>
+                        <div class="duration-field">
+                            <input id="servico_tempo_estimado_valor" name="servico_tempo_estimado_valor" type="number" min="0.1" step="0.1" value="{{ servico.tempo_estimado_valor or 1 }}" class="form-control" required>
+                            <select id="servico_tempo_estimado_unidade" name="servico_tempo_estimado_unidade" class="form-control" required>
+                                <option value="minutos" {% if servico.tempo_estimado_unidade == 'minutos' %}selected{% endif %}>Minutos</option>
+                                <option value="horas" {% if not servico.tempo_estimado_unidade or servico.tempo_estimado_unidade == 'horas' %}selected{% endif %}>Horas</option>
+                                <option value="dias" {% if servico.tempo_estimado_unidade == 'dias' %}selected{% endif %}>Dia inteiro</option>
+                            </select>
+                        </div>
+                        <small class="duration-help">Esse período será reservado automaticamente quando o serviço for agendado.</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="servico_status">Status *</label>
+                        <select id="servico_status" name="servico_status" class="form-control" required>
+                            <option value="ativo" {% if servico.status == "ativo" %}selected{% endif %}>Ativo</option>
+                            <option value="inativo" {% if servico.status == "inativo" %}selected{% endif %}>Inativo</option>
+                            <option value="pendente" {% if servico.status == "pendente" %}selected{% endif %}>Pendente</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="servico_observacoes">Observações</label>
+                        <input id="servico_observacoes" name="servico_observacoes" type="text" value="{{ servico.observacoes or '' }}" placeholder="Ex: Escopo, aplicação ou observação" class="form-control">
+                    </div>
+
+                    <div id="questionBuilderEditar" class="question-builder {% if servico.tipo_contratacao == 'a_combinar' %}visible{% endif %}">
+                        <div class="question-builder-header"><div><strong>Perguntas para avaliação</strong><small class="contract-help">Adicione, edite, remova e ordene as perguntas.</small></div><button type="button" class="btn-dark" onclick="adicionarPerguntaServicoEditar()">+ Adicionar pergunta</button></div>
+                        <div id="questionListEditar" class="question-list"></div>
+                        <input type="hidden" id="servico_perguntas_json" name="servico_perguntas_json" value="[]">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <a href="/servicos/{{ servico.id }}" class="btn-light">Cancelar</a>
+                    <button type="submit" class="btn-primary-green">Salvar Alterações</button>
+                </div>
+            </form>
+        </section>
+
+    </main>
+
+    <script>
+    (function(){
+        const iniciais={{ perguntas|default([])|tojson }};
+        const tipo=document.getElementById('servico_tipo_contratacao');const valor=document.getElementById('servico_valor_venda');const box=document.getElementById('questionBuilderEditar');const lista=document.getElementById('questionListEditar');
+        function card(item={}){const el=document.createElement('div');el.className='question-card';el.dataset.type=item.tipo_resposta||'texto';el.innerHTML=`<label>Pergunta<input class="form-control q-text" value="${String(item.pergunta||'').replace(/"/g,'&quot;')}" required></label><label>Tipo<select class="form-control q-type"><option value="texto">Texto livre</option><option value="numero">Número</option><option value="sim_nao">Sim ou não</option><option value="opcoes">Escolha entre opções</option><option value="endereco">Endereço</option><option value="foto">Envio de foto</option></select></label><label><span>Obrigatória</span><input type="checkbox" class="q-required" ${item.obrigatoria==='nao'?'':'checked'}></label><button type="button" class="question-remove">Remover</button><label class="question-options">Opções<textarea class="form-control q-options" rows="2">${(item.opcoes||[]).join('\n')}</textarea></label>`;el.querySelector('.q-type').value=item.tipo_resposta||'texto';el.querySelector('.q-type').onchange=e=>el.dataset.type=e.target.value;el.querySelector('.question-remove').onclick=()=>el.remove();return el;}
+        window.adicionarPerguntaServicoEditar=()=>lista.appendChild(card());
+        function atualizar(){const combinar=tipo.value==='a_combinar';box.classList.toggle('visible',combinar);valor.required=!combinar;lista.querySelectorAll('input,select,textarea').forEach(campo=>campo.disabled=!combinar);}
+        window.prepararPerguntasServicoEditar=function(){if(tipo.value!=='a_combinar'){document.getElementById('servico_perguntas_json').value='[]';return true;}const dados=[];lista.querySelectorAll('.question-card').forEach(el=>{const pergunta=el.querySelector('.q-text').value.trim();if(pergunta)dados.push({pergunta,tipo_resposta:el.querySelector('.q-type').value,obrigatoria:el.querySelector('.q-required').checked?'sim':'nao',opcoes:el.querySelector('.q-options').value.split(/\n|;|\|/).map(v=>v.trim()).filter(Boolean)});});if(!dados.length){alert('Adicione pelo menos uma pergunta.');return false;}document.getElementById('servico_perguntas_json').value=JSON.stringify(dados);return true;};
+        iniciais.forEach(item=>lista.appendChild(card(item)));tipo.addEventListener('change',atualizar);atualizar();
+    })();
+    </script>
+
+</body>
+</html>

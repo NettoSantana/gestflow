@@ -1,0 +1,830 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\dashboard.html
+Último recode: 2026-08-22 12:37 (America/Bahia)
+Motivo: Tornar o onboarding do Dashboard mais didático: poucas missões sequenciais, próximo passo destacado e linguagem para quem nunca usou o GestFlow.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Dashboard</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .dashboard-chart-wrap {
+            display: flex;
+            align-items: end;
+            gap: 12px;
+            min-height: 190px;
+            padding: 18px 10px 10px;
+            border: 1px dashed #c9d6ea;
+            border-radius: 12px;
+            background: #f8fbff;
+        }
+
+        .dashboard-bar-item {
+            flex: 1;
+            min-width: 42px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: end;
+            gap: 8px;
+        }
+
+        .dashboard-bar-value {
+            font-size: 11px;
+            font-weight: 700;
+            color: #263c5f;
+            min-height: 16px;
+            text-align: center;
+        }
+
+        .dashboard-bar {
+            width: 100%;
+            max-width: 42px;
+            min-height: 8px;
+            border-radius: 12px 12px 4px 4px;
+            background: linear-gradient(180deg, #2563eb, #1d4ed8);
+            box-shadow: 0 6px 14px rgba(37, 99, 235, 0.18);
+        }
+
+        .dashboard-bar.outflow {
+            background: linear-gradient(180deg, #ef4444, #dc2626);
+            box-shadow: 0 6px 14px rgba(220, 38, 38, 0.15);
+        }
+
+        .dashboard-bar-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: #506280;
+        }
+
+        .cash-bars {
+            display: flex;
+            align-items: stretch;
+            gap: 10px;
+            min-height: 190px;
+            padding: 18px 10px 10px;
+            border: 1px dashed #c9d6ea;
+            border-radius: 12px;
+            background: #f8fbff;
+        }
+
+        .cash-month {
+            flex: 1;
+            display: grid;
+            grid-template-rows: 1fr auto;
+            gap: 8px;
+            min-width: 46px;
+        }
+
+        .cash-pair {
+            display: flex;
+            align-items: end;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .cash-bar {
+            width: 16px;
+            min-height: 8px;
+            border-radius: 10px 10px 4px 4px;
+        }
+
+        .cash-bar.entry {
+            background: #16a34a;
+        }
+
+        .cash-bar.exit {
+            background: #ef4444;
+        }
+
+        .cash-label {
+            text-align: center;
+            font-size: 12px;
+            font-weight: 700;
+            color: #506280;
+        }
+
+        .calendar-day.has-event {
+            background: #eef6ff;
+            border: 1px solid #1d4ed8;
+            color: #0f172a;
+            font-weight: 800;
+            position: relative;
+        }
+
+        .calendar-day.has-event::after {
+            content: "";
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #16a34a;
+            position: absolute;
+            right: 6px;
+            bottom: 5px;
+        }
+
+        .calendar-day.today {
+            background: #2563eb;
+            color: #fff;
+        }
+
+        .dashboard-agenda {
+            margin-top: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .agenda-item {
+            display: grid;
+            grid-template-columns: 34px 1fr auto;
+            gap: 10px;
+            align-items: center;
+            padding: 10px;
+            border: 1px solid #e1e8f5;
+            border-radius: 10px;
+            background: #fff;
+        }
+
+        .agenda-day {
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            background: #eef6ff;
+            color: #1d4ed8;
+            display: grid;
+            place-items: center;
+            font-weight: 900;
+        }
+
+        .agenda-info strong {
+            display: block;
+            font-size: 13px;
+            color: #0f172a;
+        }
+
+        .agenda-info span {
+            display: block;
+            font-size: 12px;
+            color: #5d6d86;
+        }
+
+        .agenda-value {
+            font-size: 12px;
+            font-weight: 900;
+            color: #0f172a;
+        }
+
+        .status-mini-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .status-mini-card {
+            border: 1px solid #e1e8f5;
+            border-radius: 12px;
+            padding: 10px;
+            background: #fff;
+        }
+
+        .status-mini-card span {
+            display: block;
+            color: #53657f;
+            font-size: 12px;
+        }
+
+        .status-mini-card strong {
+            display: block;
+            margin-top: 4px;
+            font-size: 15px;
+            color: #0f172a;
+        }
+
+        .status-mini-card.warning strong {
+            color: #dc2626;
+        }
+
+        .table-panel table a {
+            font-weight: 800;
+            color: #1d4ed8;
+            text-decoration: none;
+        }
+
+        .logout-button {
+            height: 36px;
+            padding: 0 14px;
+            border: 1px solid #d7e1ef;
+            border-radius: 10px;
+            background: #ffffff;
+            color: #dc2626;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 900;
+            text-decoration: none;
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .logout-button:hover {
+            background: #fff1f2;
+            border-color: #fecdd3;
+        }
+
+        @media (max-width: 980px) {
+            .status-mini-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .dashboard-chart-wrap,
+            .cash-bars {
+                overflow-x: auto;
+            }
+        }
+
+        .primeiros-passos-card {
+            margin-bottom: 18px;
+            padding: 22px;
+            border: 1px solid #bfdbfe;
+            border-radius: 18px;
+            background: linear-gradient(135deg, #eff6ff, #ffffff 74%);
+            box-shadow: 0 10px 28px rgba(15, 98, 254, 0.07);
+        }
+        .primeiros-passos-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 18px;
+            margin-bottom: 14px;
+        }
+        .primeiros-passos-header h2 { margin: 3px 0 5px; font-size: 22px; }
+        .primeiros-passos-header p { margin: 0; max-width: 620px; color: #64748b; font-size: 12px; font-weight: 650; line-height: 1.5; }
+        .primeiros-passos-progress-label { color: #0f62fe; font-size: 12px; font-weight: 950; white-space: nowrap; }
+        .primeiros-passos-progress { height: 7px; border-radius: 99px; background: #dbeafe; overflow: hidden; margin-bottom: 14px; }
+        .primeiros-passos-progress span { display: block; height: 100%; border-radius: inherit; background: #16a34a; }
+        .primeiros-passos-lista { display: grid; grid-template-columns: 1fr; gap: 8px; }
+        .primeiro-passo-item {
+            min-height: 62px; padding: 11px 12px; display: grid; grid-template-columns: 28px 1fr auto; gap: 10px; align-items: center;
+            border: 1px solid #e2e8f0; border-radius: 12px; background: rgba(255,255,255,.82); text-decoration: none; color: #0f172a;
+        }
+        .primeiro-passo-item:hover { border-color: #93c5fd; background: #fff; }
+        .primeiro-passo-item.current { border-color: #60a5fa; background: #fff; box-shadow: 0 6px 18px rgba(15,98,254,.08); }
+        .primeiro-passo-status { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: #e2e8f0; color: #64748b; font-size: 12px; font-weight: 950; }
+        .primeiro-passo-item.current .primeiro-passo-status { background: #dbeafe; color: #0f62fe; }
+        .primeiro-passo-item.done .primeiro-passo-status { background: #dcfce7; color: #15803d; }
+        .primeiro-passo-texto strong { display: block; font-size: 12px; }
+        .primeiro-passo-texto span { display: block; margin-top: 3px; color: #64748b; font-size: 10px; line-height: 1.4; }
+        .primeiro-passo-acao { min-width: 72px; text-align: right; color: #0f62fe; font-size: 11px; font-weight: 950; }
+        .primeiro-passo-item.done .primeiro-passo-acao { color: #15803d; }
+        .primeiros-passos-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; }
+        .primeiros-passos-footer span { color: #64748b; font-size: 10px; font-weight: 700; }
+        .primeiros-passos-footer a { color: #334155; font-size: 11px; font-weight: 850; text-decoration: none; }
+        @media (max-width: 780px) {
+            .primeiros-passos-header { flex-direction: column; }
+            .primeiro-passo-item { grid-template-columns: 28px 1fr; }
+            .primeiro-passo-acao { grid-column: 2; text-align: left; }
+            .primeiros-passos-footer { align-items: flex-start; flex-direction: column; }
+        }
+
+        /* PADRAO VISUAL ORCAMENTOS - DASHBOARD */
+        .dashboard-page {
+            padding-bottom: 280px;
+        }
+
+        .dashboard-page .table-panel,
+        .dashboard-page .dashboard-panel {
+            border-radius: 16px;
+            background: #ffffff;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+        }
+
+        .dashboard-lista-shell {
+            border: 0 !important;
+            border-radius: 16px;
+            overflow-x: auto;
+            background: #ffffff;
+        }
+
+        .dashboard-lista-table {
+            width: 100% !important;
+            min-width: 100% !important;
+            border-collapse: separate !important;
+            border-spacing: 0 10px !important;
+        }
+
+        .dashboard-lista-table thead th {
+            border-bottom: 0 !important;
+            background: transparent;
+            padding-bottom: 10px;
+        }
+
+        .dashboard-lista-table tbody tr {
+            background: #ffffff;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+            border-radius: 14px;
+        }
+
+        .dashboard-lista-table tbody td {
+            border-bottom: 0 !important;
+            padding-top: 14px !important;
+            padding-bottom: 14px !important;
+        }
+
+        .dashboard-lista-table tbody td:first-child {
+            border-top-left-radius: 14px;
+            border-bottom-left-radius: 14px;
+        }
+
+        .dashboard-lista-table tbody td:last-child {
+            border-top-right-radius: 14px;
+            border-bottom-right-radius: 14px;
+        }
+
+    </style>
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+
+<main class="content dashboard-page">
+
+        {% set dash = dashboard|default({}) %}
+        {% set vendas_mes = dash.vendas_mes|default({"quantidade": 0, "valor_total": 0}) %}
+        {% set vendas_6_meses = dash.vendas_6_meses|default({"valor_total": 0, "media_mensal": 0, "meses": [], "rotulos": [], "valores": [], "quantidades": []}) %}
+        {% set fluxo_6_meses = dash.fluxo_6_meses|default({"meses": [], "rotulos": [], "entradas": [], "saidas": [], "saldos": []}) %}
+        {% set calendario_dash = dash.calendario|default({"eventos": []}) %}
+        {% set orcamentos_abertos = dash.orcamentos_abertos|default({"quantidade": 0, "valor_total": 0}) %}
+        {% set ordens_abertas = dash.ordens_abertas|default({"quantidade": 0, "valor_total": 0}) %}
+        {% set produtos_dash = dash.produtos|default({"em_estoque": 0, "estoque_baixo": 0}) %}
+        {% set clientes_dash = dash.clientes|default({"ativos": 0, "total": 0}) %}
+        {% set ultimas_os = dash.ultimas_os|default([]) %}
+        {% set ultimas_vendas = dash.ultimas_vendas|default([]) %}
+        {% set financeiro_dash = dash.financeiro|default({"a_receber_aberto": 0, "a_pagar_aberto": 0, "receber_hoje": 0, "pagar_hoje": 0, "receber_vencido": 0, "pagar_vencido": 0, "recebido_mes": 0, "pago_mes": 0, "saldo_previsto": 0, "saldo_mes": 0, "quantidade_receber_aberto": 0, "quantidade_pagar_aberto": 0, "quantidade_receber_hoje": 0, "quantidade_pagar_hoje": 0, "quantidade_receber_vencido": 0, "quantidade_pagar_vencido": 0, "recebimentos": [], "pagamentos": [], "ultimos_titulos": []}) %}
+        {% set primeiros = primeiros_passos|default({"itens": [], "total": 0, "concluidos": 0, "percentual": 0, "concluido": true}) %}
+        {% set page_title = 'Dashboard' %}
+        {% include "partials/topbar.html" %}
+
+        {% if primeiros.itens and not primeiros.concluido %}
+        <section class="primeiros-passos-card" id="primeiros-passos">
+            <div class="primeiros-passos-header">
+                <div>
+                    <span class="page-kicker">Primeira vez por aqui?</span>
+                    <h2>Vamos fazer juntos?</h2>
+                    <p>Você não precisa aprender o sistema inteiro agora. Faça um passo de cada vez e o GestFlow vai mostrando o próximo.</p>
+                </div>
+                <div class="primeiros-passos-progress-label">{{ primeiros.concluidos }} de {{ primeiros.total }} concluídos</div>
+            </div>
+            <div class="primeiros-passos-progress"><span style="width: {{ primeiros.percentual }}%;"></span></div>
+            <div class="primeiros-passos-lista">
+                {% for item in primeiros.itens %}
+                    {% set atual = primeiros.proximo and item.codigo == primeiros.proximo.codigo %}
+                    <a href="{{ item.url }}" class="primeiro-passo-item {% if item.concluido %}done{% elif atual %}current{% endif %}">
+                        <span class="primeiro-passo-status">{% if item.concluido %}✓{% else %}{{ loop.index }}{% endif %}</span>
+                        <span class="primeiro-passo-texto"><strong>{{ item.titulo }}</strong><span>{{ item.descricao }}</span></span>
+                        <span class="primeiro-passo-acao">{% if item.concluido %}Concluído{% elif atual %}Começar{% else %}Depois{% endif %}</span>
+                    </a>
+                {% endfor %}
+            </div>
+            <div class="primeiros-passos-footer">
+                <span>Esses passos desaparecem quando você concluir o básico.</span>
+                <a href="/?tour=1">Me mostre o próximo passo</a>
+            </div>
+        </section>
+        {% endif %}
+
+<section class="cards cards-primary">
+
+            <a href="/financeiro/receber" class="card card-success" style="text-decoration: none;">
+                <div class="card-icon">R$</div>
+                <div class="card-info">
+                    <h3>Receber hoje</h3>
+                    <p>R$ {{ "%.2f"|format(financeiro_dash.receber_hoje|default(0))|replace(".", ",") }}</p>
+                    <span>{{ financeiro_dash.quantidade_receber_hoje|default(0) }} títulos hoje</span>
+                </div>
+                <div class="mini-trend trend-success">⌁</div>
+            </a>
+
+            <a href="/financeiro/pagar" class="card card-danger" style="text-decoration: none;">
+                <div class="card-icon">R$</div>
+                <div class="card-info">
+                    <h3>Pagar hoje</h3>
+                    <p>R$ {{ "%.2f"|format(financeiro_dash.pagar_hoje|default(0))|replace(".", ",") }}</p>
+                    <span>{{ financeiro_dash.quantidade_pagar_hoje|default(0) }} títulos hoje</span>
+                </div>
+                <div class="mini-trend trend-danger">⌁</div>
+            </a>
+
+            <a href="/financeiro/fluxo-caixa" class="card card-blue" style="text-decoration: none;">
+                <div class="card-icon">▣</div>
+                <div class="card-info">
+                    <h3>Saldo previsto</h3>
+                    <p>R$ {{ "%.2f"|format(financeiro_dash.saldo_previsto|default(0))|replace(".", ",") }}</p>
+                    <span>A receber - a pagar</span>
+                </div>
+                <div class="mini-trend trend-blue">⌁</div>
+            </a>
+
+            <a href="/vendas" class="card card-warning" style="text-decoration: none;">
+                <div class="card-icon">▤</div>
+                <div class="card-info">
+                    <h3>Vendas do mês</h3>
+                    <p>R$ {{ "%.2f"|format(vendas_mes.valor_total|default(0))|replace(".", ",") }}</p>
+                    <span>{{ vendas_mes.quantidade|default(0) }} vendas</span>
+                </div>
+            </a>
+
+        </section>
+
+        <section class="cards cards-secondary">
+
+            <a href="/orcamentos" class="card stat-card" style="text-decoration: none;">
+                <div class="card-icon">▣</div>
+                <div class="card-info">
+                    <p>{{ orcamentos_abertos.quantidade }}</p>
+                    <h3>Orçamentos abertos</h3>
+                    <span>R$ {{ "%.2f"|format(orcamentos_abertos.valor_total)|replace(".", ",") }}</span>
+                </div>
+            </a>
+
+            <a href="/ordens-servico" class="card stat-card" style="text-decoration: none;">
+                <div class="card-icon">▤</div>
+                <div class="card-info">
+                    <p>{{ ordens_abertas.quantidade }}</p>
+                    <h3>Ordens de Serviço abertas</h3>
+                    <span>R$ {{ "%.2f"|format(ordens_abertas.valor_total)|replace(".", ",") }}</span>
+                </div>
+            </a>
+
+            <a href="/estoque/movimentacoes" class="card stat-card" style="text-decoration: none;">
+                <div class="card-icon">▧</div>
+                <div class="card-info">
+                    <p>{{ produtos_dash.em_estoque }}</p>
+                    <h3>Produtos em estoque</h3>
+                    <span>{{ produtos_dash.estoque_baixo }} com estoque baixo</span>
+                </div>
+            </a>
+
+            <a href="/clientes" class="card stat-card" style="text-decoration: none;">
+                <div class="card-icon">☷</div>
+                <div class="card-info">
+                    <p>{{ clientes_dash.ativos }}</p>
+                    <h3>Clientes ativos</h3>
+                    <span>{{ clientes_dash.total }} clientes cadastrados</span>
+                </div>
+            </a>
+
+        </section>
+
+        <section class="status-mini-grid">
+            <a href="/financeiro/receber" class="status-mini-card" style="text-decoration: none;">
+                <span>A receber em aberto</span>
+                <strong>R$ {{ "%.2f"|format(financeiro_dash.a_receber_aberto|default(0))|replace(".", ",") }}</strong>
+            </a>
+            <a href="/financeiro/pagar" class="status-mini-card" style="text-decoration: none;">
+                <span>A pagar em aberto</span>
+                <strong>R$ {{ "%.2f"|format(financeiro_dash.a_pagar_aberto|default(0))|replace(".", ",") }}</strong>
+            </a>
+            <a href="/financeiro/receber" class="status-mini-card warning" style="text-decoration: none;">
+                <span>Recebimentos vencidos</span>
+                <strong>{{ financeiro_dash.quantidade_receber_vencido|default(0) }} títulos</strong>
+            </a>
+            <a href="/financeiro/pagar" class="status-mini-card warning" style="text-decoration: none;">
+                <span>Pagamentos vencidos</span>
+                <strong>{{ financeiro_dash.quantidade_pagar_vencido|default(0) }} títulos</strong>
+            </a>
+        </section>
+
+        <section class="dashboard-grid">
+
+            <div class="panel chart-panel">
+                <h3>Vendas dos últimos 6 meses</h3>
+                <div id="grafico-vendas" class="dashboard-chart-wrap">
+                    <div class="empty-chart">Carregando gráfico de vendas...</div>
+                </div>
+
+                <div class="panel-summary">
+                    <div>
+                        <span>Total no período</span>
+                        <strong>R$ {{ "%.2f"|format(vendas_6_meses.valor_total|default(0))|replace(".", ",") }}</strong>
+                    </div>
+                    <div>
+                        <span>Média mensal</span>
+                        <strong>R$ {{ "%.2f"|format(vendas_6_meses.media_mensal|default(0))|replace(".", ",") }}</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel chart-panel">
+                <h3>Fluxo de caixa dos últimos 6 meses</h3>
+                <div id="grafico-fluxo" class="cash-bars">
+                    <div class="empty-chart">Carregando fluxo de caixa...</div>
+                </div>
+                <div class="cash-summary">
+                    <div>
+                        <span>Entradas mês</span>
+                        <strong>R$ {{ "%.2f"|format(financeiro_dash.recebido_mes|default(0))|replace(".", ",") }}</strong>
+                    </div>
+                    <div>
+                        <span>Saídas mês</span>
+                        <strong>R$ {{ "%.2f"|format(financeiro_dash.pago_mes|default(0))|replace(".", ",") }}</strong>
+                    </div>
+                    <div>
+                        <span>Saldo mês</span>
+                        <strong>R$ {{ "%.2f"|format(financeiro_dash.saldo_mes|default(0))|replace(".", ",") }}</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel calendar-panel">
+                <div class="panel-header">
+                    <h3>Calendário financeiro</h3>
+                    <button type="button" onclick="renderizarCalendarioDashboard()">Hoje</button>
+                </div>
+
+                <div id="dashboard-calendar-title" class="calendar-title">Calendário</div>
+                <div id="dashboard-calendar-grid" class="calendar-grid"></div>
+                <div id="dashboard-agenda" class="dashboard-agenda"></div>
+            </div>
+
+        </section>
+
+        <section class="table-grid">
+
+            <div class="panel table-panel">
+                <h3>Últimas Ordens de Serviço</h3>
+                <table class="client-table dashboard-lista-table">
+                    <thead>
+                        <tr>
+                            <th>Nº OS</th>
+                            <th>Cliente</th>
+                            <th>Serviço</th>
+                            <th>Status</th>
+                            <th>Prazo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if ultimas_os %}
+                            {% for os in ultimas_os %}
+                                <tr>
+                                    <td>{{ os.numero }}</td>
+                                    <td>{{ os.cliente }}</td>
+                                    <td>{{ os.equipamento or os.tipo or '-' }}</td>
+                                    <td><span class="status-pill {{ os.status }}">{{ os.status }}</span></td>
+                                    <td>{{ os.data_previsao or '-' }}</td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="5" class="empty-table">Nenhuma ordem de serviço cadastrada.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+                <a href="/ordens-servico">Ver todas as ordens →</a>
+            </div>
+
+            <div class="panel table-panel">
+                <h3>Últimas Vendas</h3>
+                <table class="client-table dashboard-lista-table">
+                    <thead>
+                        <tr>
+                            <th>Nº Venda</th>
+                            <th>Cliente</th>
+                            <th>Data</th>
+                            <th>Valor</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if ultimas_vendas %}
+                            {% for venda in ultimas_vendas %}
+                                <tr>
+                                    <td><a href="/vendas/{{ venda.id }}">{{ venda.numero }}</a></td>
+                                    <td>{{ venda.cliente }}</td>
+                                    <td>{{ venda.data or '-' }}</td>
+                                    <td>{{ venda.valor_total or '0,00' }}</td>
+                                    <td><span class="status-pill {{ venda.status }}">{{ venda.status }}</span></td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="5" class="empty-table">Nenhuma venda cadastrada.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+                <a href="/vendas">Ver todas as vendas →</a>
+            </div>
+
+        </section>
+
+        <section class="panel table-panel" style="margin-top: 18px;">
+            <h3>Últimos títulos financeiros</h3>
+            <table class="client-table dashboard-lista-table">
+                <thead>
+                    <tr>
+                        <th>Tipo</th>
+                        <th>Documento</th>
+                        <th>Pessoa</th>
+                        <th>Vencimento</th>
+                        <th>Valor</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if financeiro_dash.ultimos_titulos|default([]) %}
+                        {% for titulo in financeiro_dash.ultimos_titulos %}
+                            <tr>
+                                <td>{{ titulo.tipo }}</td>
+                                <td>{{ titulo.documento or '-' }}</td>
+                                <td>{{ titulo.pessoa or '-' }}</td>
+                                <td>{{ titulo.data_vencimento or '-' }}</td>
+                                <td>R$ {{ "%.2f"|format(titulo.valor_numero|default(0))|replace(".", ",") }}</td>
+                                <td><span class="status-pill {{ titulo.status_exibicao }}">{{ titulo.status_exibicao }}</span></td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="6" class="empty-table">Nenhum título financeiro cadastrado.</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+            <a href="/financeiro/fluxo-caixa">Abrir financeiro →</a>
+        </section>
+
+    </main>
+
+    <script>
+        const vendasDashboard = {{ vendas_6_meses|tojson }};
+        const fluxoDashboard = {{ fluxo_6_meses|tojson }};
+        const calendarioDashboard = {{ calendario_dash|tojson }};
+        const dataHojeDashboard = "{{ dash.data_hoje|default('') }}";
+
+        function formatarMoedaDashboard(valor) {
+            const numero = Number(valor || 0);
+            return numero.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+        }
+
+        function renderizarGraficoVendas() {
+            const container = document.getElementById("grafico-vendas");
+            const meses = vendasDashboard.meses || [];
+
+            if (!container) {
+                return;
+            }
+
+            if (!meses.length) {
+                container.innerHTML = '<div class="empty-chart">Nenhuma venda registrada no período.</div>';
+                return;
+            }
+
+            const maiorValor = Math.max(...meses.map((item) => Number(item.valor_total || 0)), 1);
+            container.innerHTML = "";
+
+            meses.forEach((item) => {
+                const valor = Number(item.valor_total || 0);
+                const altura = Math.max(8, Math.round((valor / maiorValor) * 140));
+                const coluna = document.createElement("div");
+                coluna.className = "dashboard-bar-item";
+                coluna.title = `${item.rotulo}: ${formatarMoedaDashboard(valor)} em ${item.quantidade || 0} vendas`;
+                coluna.innerHTML = `
+                    <div class="dashboard-bar-value">${formatarMoedaDashboard(valor).replace('R$', 'R$')}</div>
+                    <div class="dashboard-bar" style="height: ${altura}px;"></div>
+                    <div class="dashboard-bar-label">${item.rotulo || '-'}</div>
+                `;
+                container.appendChild(coluna);
+            });
+        }
+
+        function renderizarGraficoFluxo() {
+            const container = document.getElementById("grafico-fluxo");
+            const meses = fluxoDashboard.meses || [];
+
+            if (!container) {
+                return;
+            }
+
+            if (!meses.length) {
+                container.innerHTML = '<div class="empty-chart">Nenhuma movimentação financeira registrada.</div>';
+                return;
+            }
+
+            const maiorValor = Math.max(
+                ...meses.map((item) => Number(item.entradas || 0)),
+                ...meses.map((item) => Number(item.saidas || 0)),
+                1
+            );
+            container.innerHTML = "";
+
+            meses.forEach((item) => {
+                const entradas = Number(item.entradas || 0);
+                const saidas = Number(item.saidas || 0);
+                const alturaEntradas = Math.max(8, Math.round((entradas / maiorValor) * 135));
+                const alturaSaidas = Math.max(8, Math.round((saidas / maiorValor) * 135));
+                const mes = document.createElement("div");
+                mes.className = "cash-month";
+                mes.title = `${item.rotulo}: entradas ${formatarMoedaDashboard(entradas)} | saídas ${formatarMoedaDashboard(saidas)}`;
+                mes.innerHTML = `
+                    <div class="cash-pair">
+                        <div class="cash-bar entry" style="height: ${alturaEntradas}px;"></div>
+                        <div class="cash-bar exit" style="height: ${alturaSaidas}px;"></div>
+                    </div>
+                    <div class="cash-label">${item.rotulo || '-'}</div>
+                `;
+                container.appendChild(mes);
+            });
+        }
+
+        function renderizarCalendarioDashboard() {
+            const grid = document.getElementById("dashboard-calendar-grid");
+            const titulo = document.getElementById("dashboard-calendar-title");
+            const agenda = document.getElementById("dashboard-agenda");
+            const eventos = calendarioDashboard.eventos || [];
+            const hoje = dataHojeDashboard ? new Date(`${dataHojeDashboard}T00:00:00`) : new Date();
+            const ano = hoje.getFullYear();
+            const mes = hoje.getMonth();
+            const nomesMes = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+            const primeiroDia = new Date(ano, mes, 1);
+            const ultimoDia = new Date(ano, mes + 1, 0);
+            const diasSemana = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+
+            if (!grid || !titulo || !agenda) {
+                return;
+            }
+
+            titulo.textContent = `${nomesMes[mes]} ${ano}`;
+            grid.innerHTML = "";
+            agenda.innerHTML = "";
+
+            diasSemana.forEach((dia) => {
+                const el = document.createElement("span");
+                el.textContent = dia;
+                grid.appendChild(el);
+            });
+
+            for (let i = 0; i < primeiroDia.getDay(); i += 1) {
+                const vazio = document.createElement("span");
+                vazio.className = "muted";
+                vazio.textContent = "";
+                grid.appendChild(vazio);
+            }
+
+            for (let dia = 1; dia <= ultimoDia.getDate(); dia += 1) {
+                const eventosDia = eventos.filter((evento) => Number(evento.dia || 0) === dia);
+                const el = document.createElement("span");
+                el.className = "calendar-day";
+                el.textContent = String(dia);
+
+                if (dia === hoje.getDate()) {
+                    el.classList.add("today");
+                }
+
+                if (eventosDia.length > 0) {
+                    el.classList.add("has-event");
+                    el.title = eventosDia.map((evento) => `${evento.descricao} - ${formatarMoedaDashboard(evento.valor)}`).join(" | ");
+                }
+
+                grid.appendChild(el);
+            }
+
+            if (!eventos.length) {
+                agenda.innerHTML = '<div class="agenda-list empty-agenda">Nenhum vencimento financeiro no mês.</div>';
+                return;
+            }
+
+            eventos.slice(0, 5).forEach((evento) => {
+                const item = document.createElement("div");
+                item.className = "agenda-item";
+                item.innerHTML = `
+                    <div class="agenda-day">${evento.dia}</div>
+                    <div class="agenda-info">
+                        <strong>${evento.descricao || '-'}</strong>
+                        <span>${evento.pessoa || '-'} • ${evento.tipo || '-'}</span>
+                    </div>
+                    <div class="agenda-value">${formatarMoedaDashboard(evento.valor)}</div>
+                `;
+                agenda.appendChild(item);
+            });
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            renderizarGraficoVendas();
+            renderizarGraficoFluxo();
+            renderizarCalendarioDashboard();
+        });
+    </script>
+
+    <script>
+        window.GESTFLOW_INICIAR_TOUR = {{ iniciar_tour|default(false)|tojson }};
+        window.GESTFLOW_TOUR_PASSOS = {{ primeiros.itens|default([])|tojson }};
+    </script>
+    <script src="/static/js/tour_gestflow.js"></script>
+
+</body>
+</html>

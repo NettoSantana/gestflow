@@ -1,0 +1,380 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\fornecedor_editar.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Editar Fornecedor</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .logout-button {
+            height: 36px;
+            padding: 0 14px;
+            border: 1px solid #d7e1ef;
+            border-radius: 10px;
+            background: #ffffff;
+            color: #dc2626;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 900;
+            text-decoration: none;
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .logout-button:hover {
+            background: #fff1f2;
+            border-color: #fecdd3;
+        }
+
+        .alert-error {
+            padding: 12px 14px;
+            border: 1px solid #fecaca;
+            border-radius: 12px;
+            background: #fef2f2;
+            color: #b91c1c;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+    </style>
+
+    <style>
+        /* PADRAO VISUAL ORCAMENTOS - TELAS AUXILIARES */
+        .content {
+            padding-bottom: 220px;
+        }
+
+        .content > .panel.page-section:first-of-type {
+            margin-top: 0;
+        }
+
+        .panel,
+        .page-section,
+        .table-panel {
+            border-radius: 16px;
+        }
+
+        .panel-header.page-header,
+        .page-header {
+            gap: 14px;
+        }
+
+        .page-title {
+            letter-spacing: -0.02em;
+        }
+
+        .page-subtitle {
+            max-width: 760px;
+        }
+
+        .client-toolbar,
+        .form-actions,
+        .client-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn-primary-green,
+        .btn-dark,
+        .btn-light,
+        .action-button {
+            border-radius: 10px;
+            text-decoration: none;
+        }
+
+        .form-control,
+        input,
+        select,
+        textarea {
+            border-radius: 10px;
+            max-width: 100%;
+        }
+
+        .client-form {
+            width: 100%;
+        }
+
+        .form-grid {
+            align-items: start;
+        }
+
+        .panel-summary {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .panel-summary > div {
+            min-height: 74px;
+            border: 1px solid #e5eaf2;
+            border-radius: 14px;
+            background: #ffffff;
+            padding: 14px;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+        }
+
+        .panel-summary span {
+            display: block;
+            margin-bottom: 6px;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+
+        .panel-summary strong {
+            color: #0f172a;
+            font-size: 14px;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+
+        .table-shell {
+            border: 0 !important;
+            border-radius: 16px;
+            overflow-x: auto;
+            background: #ffffff;
+        }
+
+        .content table,
+        .content .client-table {
+            width: 100%;
+            border-collapse: separate !important;
+            border-spacing: 0 10px !important;
+            min-width: 760px;
+        }
+
+        .content table thead th,
+        .content .client-table thead th {
+            border-bottom: 0 !important;
+            background: transparent;
+            padding: 10px 12px;
+            color: #334155;
+            font-size: 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .content table tbody tr,
+        .content .client-table tbody tr {
+            background: #ffffff;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+            border-radius: 14px;
+        }
+
+        .content table tbody td,
+        .content .client-table tbody td {
+            border-bottom: 0 !important;
+            padding: 14px 12px !important;
+            color: #334155;
+            vertical-align: middle;
+        }
+
+        .content table tbody td:first-child,
+        .content .client-table tbody td:first-child {
+            border-top-left-radius: 14px;
+            border-bottom-left-radius: 14px;
+        }
+
+        .content table tbody td:last-child,
+        .content .client-table tbody td:last-child {
+            border-top-right-radius: 14px;
+            border-bottom-right-radius: 14px;
+        }
+
+        .empty-table,
+        .empty-table-box {
+            border-radius: 14px;
+        }
+
+        .status-pill,
+        .badge-info {
+            border-radius: 999px;
+            white-space: nowrap;
+        }
+
+        .quick-modal,
+        .modal,
+        .dialog {
+            border-radius: 18px;
+        }
+
+        .config-grid,
+        .portal-grid,
+        .planos-grid,
+        .cards,
+        .cards-secondary {
+            gap: 16px;
+        }
+
+        .config-card,
+        .portal-card,
+        .plan-card,
+        .card,
+        .stat-card {
+            border-radius: 16px;
+        }
+
+        .auth-card,
+        .login-card,
+        .onboarding-card,
+        .portal-card,
+        .plan-card {
+            box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+        }
+
+        @media (max-width: 1100px) {
+            .panel-summary {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .content table,
+            .content .client-table {
+                min-width: 720px;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .panel-summary {
+                grid-template-columns: 1fr;
+            }
+
+            .client-toolbar,
+            .form-actions,
+            .client-actions {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .client-toolbar .btn-primary-green,
+            .client-toolbar .btn-dark,
+            .client-toolbar .btn-light,
+            .form-actions .btn-primary-green,
+            .form-actions .btn-dark,
+            .form-actions .btn-light {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .content table,
+            .content .client-table {
+                min-width: 680px;
+            }
+        }
+    </style>
+
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+
+<main class="content">
+        {% set page_title = 'Editar Fornecedor' %}
+        {% include "partials/topbar.html" %}
+
+        {% if request.args.get("erro") %}
+            <section class="panel page-section">
+                <div class="alert-error">{{ request.args.get("erro") }}</div>
+            </section>
+        {% endif %}
+
+
+<section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Cadastros</span>
+                    <h3 class="page-title">Editar fornecedor</h3>
+                    <p class="page-subtitle">Atualize os dados principais do fornecedor selecionado.</p>
+                </div>
+
+                <a href="/fornecedores/{{ fornecedor.id }}" class="btn-dark">Cancelar edição</a>
+            </div>
+        </section>
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>{{ fornecedor.nome }}</h3>
+                    <p class="page-subtitle">Código do fornecedor: {{ fornecedor.id }}</p>
+                </div>
+
+                <span class="badge-info">Modo edição</span>
+            </div>
+
+            <form action="/fornecedores/{{ fornecedor.id }}/editar" method="post" class="client-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="fornecedor_nome">Nome / Razão Social *</label>
+                        <input id="fornecedor_nome" name="fornecedor_nome" type="text" value="{{ fornecedor.nome or '' }}" placeholder="Ex: Fornecedor ABC Ltda" class="form-control" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fornecedor_documento">CPF/CNPJ</label>
+                        <input id="fornecedor_documento" name="fornecedor_documento" type="text" value="{{ fornecedor.documento or '' }}" placeholder="Ex: 00.000.000/0000-00" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fornecedor_telefone">Telefone</label>
+                        <input id="fornecedor_telefone" name="fornecedor_telefone" type="text" value="{{ fornecedor.telefone or '' }}" placeholder="Ex: (71) 99999-9999" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fornecedor_cidade">Cidade</label>
+                        <input id="fornecedor_cidade" name="fornecedor_cidade" type="text" value="{{ fornecedor.cidade or '' }}" placeholder="Ex: Salvador" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fornecedor_status">Status *</label>
+                        <select id="fornecedor_status" name="fornecedor_status" class="form-control" required>
+                            <option value="ativo" {% if fornecedor.status == "ativo" %}selected{% endif %}>Ativo</option>
+                            <option value="inativo" {% if fornecedor.status == "inativo" %}selected{% endif %}>Inativo</option>
+                            <option value="pendente" {% if fornecedor.status == "pendente" %}selected{% endif %}>Pendente</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fornecedor_email">E-mail</label>
+                        <input id="fornecedor_email" name="fornecedor_email" type="email" value="{{ fornecedor.email or '' }}" placeholder="Ex: contato@fornecedor.com.br" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fornecedor_categoria">Categoria *</label>
+                        <select id="fornecedor_categoria" name="fornecedor_categoria" class="form-control" required>
+                            <option value="" {% if not fornecedor.categoria %}selected{% endif %}>Selecione</option>
+                            <option value="Material elétrico" {% if fornecedor.categoria == "Material elétrico" %}selected{% endif %}>Material elétrico</option>
+                            <option value="Material mecânico" {% if fornecedor.categoria == "Material mecânico" %}selected{% endif %}>Material mecânico</option>
+                            <option value="Serviços" {% if fornecedor.categoria == "Serviços" %}selected{% endif %}>Serviços</option>
+                            <option value="Transporte" {% if fornecedor.categoria == "Transporte" %}selected{% endif %}>Transporte</option>
+                            <option value="Ferramentas" {% if fornecedor.categoria == "Ferramentas" %}selected{% endif %}>Ferramentas</option>
+                            <option value="EPI" {% if fornecedor.categoria == "EPI" %}selected{% endif %}>EPI</option>
+                            <option value="Outros" {% if fornecedor.categoria == "Outros" %}selected{% endif %}>Outros</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fornecedor_observacoes">Observações</label>
+                        <input id="fornecedor_observacoes" name="fornecedor_observacoes" type="text" value="{{ fornecedor.observacoes or '' }}" placeholder="Ex: Condição de pagamento, contato principal ou observação" class="form-control">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <a href="/fornecedores/{{ fornecedor.id }}" class="btn-light">Cancelar</a>
+                    <button type="submit" class="btn-primary-green">Salvar Alterações</button>
+                </div>
+            </form>
+        </section>
+
+    </main>
+
+</body>
+</html>

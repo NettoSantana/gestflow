@@ -1,0 +1,603 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\cliente_editar.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Editar Cliente</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .alert-error {
+            padding: 12px 14px;
+            border: 1px solid #fecaca;
+            border-radius: 12px;
+            background: #fef2f2;
+            color: #b91c1c;
+            font-size: 13px;
+            font-weight: 800;
+        }
+    </style>
+
+    <style>
+        /* PADRAO VISUAL ORCAMENTOS - TELAS AUXILIARES */
+        .content {
+            padding-bottom: 220px;
+        }
+
+        .content > .panel.page-section:first-of-type {
+            margin-top: 0;
+        }
+
+        .panel,
+        .page-section,
+        .table-panel {
+            border-radius: 16px;
+        }
+
+        .panel-header.page-header,
+        .page-header {
+            gap: 14px;
+        }
+
+        .page-title {
+            letter-spacing: -0.02em;
+        }
+
+        .page-subtitle {
+            max-width: 760px;
+        }
+
+        .client-toolbar,
+        .form-actions,
+        .client-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn-primary-green,
+        .btn-dark,
+        .btn-light,
+        .action-button {
+            border-radius: 10px;
+            text-decoration: none;
+        }
+
+        .form-control,
+        input,
+        select,
+        textarea {
+            border-radius: 10px;
+            max-width: 100%;
+        }
+
+        .client-form {
+            width: 100%;
+        }
+
+        .form-grid {
+            align-items: start;
+        }
+
+        .panel-summary {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .panel-summary > div {
+            min-height: 74px;
+            border: 1px solid #e5eaf2;
+            border-radius: 14px;
+            background: #ffffff;
+            padding: 14px;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+        }
+
+        .panel-summary span {
+            display: block;
+            margin-bottom: 6px;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+
+        .panel-summary strong {
+            color: #0f172a;
+            font-size: 14px;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+
+        .table-shell {
+            border: 0 !important;
+            border-radius: 16px;
+            overflow-x: auto;
+            background: #ffffff;
+        }
+
+        .content table,
+        .content .client-table {
+            width: 100%;
+            border-collapse: separate !important;
+            border-spacing: 0 10px !important;
+            min-width: 760px;
+        }
+
+        .content table thead th,
+        .content .client-table thead th {
+            border-bottom: 0 !important;
+            background: transparent;
+            padding: 10px 12px;
+            color: #334155;
+            font-size: 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .content table tbody tr,
+        .content .client-table tbody tr {
+            background: #ffffff;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+            border-radius: 14px;
+        }
+
+        .content table tbody td,
+        .content .client-table tbody td {
+            border-bottom: 0 !important;
+            padding: 14px 12px !important;
+            color: #334155;
+            vertical-align: middle;
+        }
+
+        .content table tbody td:first-child,
+        .content .client-table tbody td:first-child {
+            border-top-left-radius: 14px;
+            border-bottom-left-radius: 14px;
+        }
+
+        .content table tbody td:last-child,
+        .content .client-table tbody td:last-child {
+            border-top-right-radius: 14px;
+            border-bottom-right-radius: 14px;
+        }
+
+        .empty-table,
+        .empty-table-box {
+            border-radius: 14px;
+        }
+
+        .status-pill,
+        .badge-info {
+            border-radius: 999px;
+            white-space: nowrap;
+        }
+
+        .quick-modal,
+        .modal,
+        .dialog {
+            border-radius: 18px;
+        }
+
+        .config-grid,
+        .portal-grid,
+        .planos-grid,
+        .cards,
+        .cards-secondary {
+            gap: 16px;
+        }
+
+        .config-card,
+        .portal-card,
+        .plan-card,
+        .card,
+        .stat-card {
+            border-radius: 16px;
+        }
+
+        .auth-card,
+        .login-card,
+        .onboarding-card,
+        .portal-card,
+        .plan-card {
+            box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+        }
+
+        @media (max-width: 1100px) {
+            .panel-summary {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .content table,
+            .content .client-table {
+                min-width: 720px;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .panel-summary {
+                grid-template-columns: 1fr;
+            }
+
+            .client-toolbar,
+            .form-actions,
+            .client-actions {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .client-toolbar .btn-primary-green,
+            .client-toolbar .btn-dark,
+            .client-toolbar .btn-light,
+            .form-actions .btn-primary-green,
+            .form-actions .btn-dark,
+            .form-actions .btn-light {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .content table,
+            .content .client-table {
+                min-width: 680px;
+            }
+        }
+    
+        .cnpj-lookup-row {
+            display: flex;
+            align-items: stretch;
+            gap: 8px;
+        }
+
+        .cnpj-lookup-row .form-control {
+            min-width: 0;
+            flex: 1 1 auto;
+        }
+
+        .btn-cnpj-lookup {
+            min-width: 118px;
+            min-height: 42px;
+            padding: 0 14px;
+            border: 1px solid #bfdbfe;
+            border-radius: 10px;
+            background: #eff6ff;
+            color: #1d4ed8;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 900;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
+        }
+
+        .btn-cnpj-lookup:hover:not(:disabled) {
+            background: #dbeafe;
+            border-color: #93c5fd;
+        }
+
+        .btn-cnpj-lookup:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .cnpj-lookup-status {
+            display: none;
+            margin-top: 7px;
+            padding: 9px 11px;
+            border-radius: 9px;
+            font-size: 11px;
+            font-weight: 800;
+            line-height: 1.4;
+        }
+
+        .cnpj-lookup-status.show {
+            display: block;
+        }
+
+        .cnpj-lookup-status.loading {
+            border: 1px solid #bfdbfe;
+            background: #eff6ff;
+            color: #1d4ed8;
+        }
+
+        .cnpj-lookup-status.success {
+            border: 1px solid #bbf7d0;
+            background: #f0fdf4;
+            color: #166534;
+        }
+
+        .cnpj-lookup-status.warning {
+            border: 1px solid #fde68a;
+            background: #fffbeb;
+            color: #92400e;
+        }
+
+        .cnpj-lookup-status.error {
+            border: 1px solid #fecaca;
+            background: #fef2f2;
+            color: #991b1b;
+        }
+
+        @media (max-width: 620px) {
+            .cnpj-lookup-row {
+                flex-direction: column;
+            }
+
+            .btn-cnpj-lookup {
+                width: 100%;
+            }
+        }
+
+    </style>
+
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+
+<main class="content">
+        {% set page_title = 'Editar Cliente' %}
+        {% include "partials/topbar.html" %}
+
+        {% if request.args.get("erro") %}
+            <section class="panel page-section">
+                <div class="alert-error">{{ request.args.get("erro") }}</div>
+            </section>
+        {% endif %}
+
+
+<section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Cadastros</span>
+                    <h3 class="page-title">Editar cliente</h3>
+                    <p class="page-subtitle">Atualize os dados principais do cliente selecionado.</p>
+                </div>
+
+                <a href="/clientes/{{ cliente.id }}" class="btn-dark">Cancelar edição</a>
+            </div>
+        </section>
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>{{ cliente.nome }}</h3>
+                    <p class="page-subtitle">Código do cliente: {{ cliente.id }}</p>
+                </div>
+
+                <span class="badge-info">Modo edição</span>
+            </div>
+
+            <form action="/clientes/{{ cliente.id }}/editar" method="post" class="client-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="cliente_nome">Nome / Razão Social *</label>
+                        <input id="cliente_nome" name="cliente_nome" type="text" value="{{ cliente.nome or '' }}" placeholder="Ex: LR Manutenção Ltda" class="form-control" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cliente_documento">CPF/CNPJ</label>
+                        <div class="cnpj-lookup-row">
+                            <input id="cliente_documento" name="cliente_documento" data-cliente-id="{{ cliente.id }}" type="text" value="{{ cliente.documento or '' }}" placeholder="Ex: 00.000.000/0000-00" class="form-control" maxlength="18" autocomplete="off">
+                            <button id="btn_consultar_cnpj" type="button" class="btn-cnpj-lookup">Buscar CNPJ</button>
+                        </div>
+                        <div id="cliente_cnpj_status" class="cnpj-lookup-status" role="status" aria-live="polite"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cliente_telefone">Telefone</label>
+                        <input id="cliente_telefone" name="cliente_telefone" type="text" value="{{ cliente.telefone or '' }}" placeholder="Ex: (71) 99999-9999" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cliente_cidade">Cidade</label>
+                        <input id="cliente_cidade" name="cliente_cidade" type="text" value="{{ cliente.cidade or '' }}" placeholder="Ex: Salvador" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cliente_status">Status *</label>
+                        <select id="cliente_status" name="cliente_status" class="form-control" required>
+                            <option value="ativo" {% if cliente.status == "ativo" %}selected{% endif %}>Ativo</option>
+                            <option value="inativo" {% if cliente.status == "inativo" %}selected{% endif %}>Inativo</option>
+                            <option value="pendente" {% if cliente.status == "pendente" %}selected{% endif %}>Pendente</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cliente_email">E-mail</label>
+                        <input id="cliente_email" name="cliente_email" type="email" value="{{ cliente.email or '' }}" placeholder="Ex: contato@empresa.com.br" class="form-control">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <a href="/clientes/{{ cliente.id }}" class="btn-light">Cancelar</a>
+                    <button type="submit" class="btn-primary-green">Salvar Alterações</button>
+                </div>
+            </form>
+        </section>
+
+    </main>
+
+    <script>
+
+        function normalizarCnpjConsulta(valor) {
+            return String(valor || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+        }
+
+        function formatarCnpjNumerico(valor) {
+            const cnpj = normalizarCnpjConsulta(valor);
+
+            if (!/^\d{14}$/.test(cnpj)) {
+                return cnpj;
+            }
+
+            return `${cnpj.slice(0, 2)}.${cnpj.slice(2, 5)}.${cnpj.slice(5, 8)}/${cnpj.slice(8, 12)}-${cnpj.slice(12)}`;
+        }
+
+        function mostrarStatusCnpj(tipo, mensagem) {
+            const status = document.getElementById("cliente_cnpj_status");
+
+            if (!status) {
+                return;
+            }
+
+            status.className = `cnpj-lookup-status show ${tipo}`;
+            status.textContent = mensagem;
+        }
+
+        function limparStatusCnpj() {
+            const status = document.getElementById("cliente_cnpj_status");
+
+            if (!status) {
+                return;
+            }
+
+            status.className = "cnpj-lookup-status";
+            status.textContent = "";
+        }
+
+        function preencherCampoCnpj(id, valor) {
+            const campo = document.getElementById(id);
+            const texto = String(valor || "").trim();
+
+            if (campo && texto) {
+                campo.value = texto;
+                campo.dispatchEvent(new Event("input", { bubbles: true }));
+                campo.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+        }
+
+        async function consultarCnpjCliente(forcarConsulta = true) {
+            const documento = document.getElementById("cliente_documento");
+            const botao = document.getElementById("btn_consultar_cnpj");
+
+            if (!documento || !botao) {
+                return;
+            }
+
+            const cnpj = normalizarCnpjConsulta(documento.value);
+
+            if (cnpj.length !== 14) {
+                if (forcarConsulta) {
+                    mostrarStatusCnpj("error", "Informe um CNPJ com 14 caracteres para realizar a busca.");
+                }
+                return;
+            }
+
+            botao.disabled = true;
+            botao.textContent = "Consultando...";
+            mostrarStatusCnpj("loading", "Buscando dados públicos do CNPJ...");
+
+            try {
+                const parametros = new URLSearchParams({ cnpj });
+                const clienteId = documento.dataset.clienteId || "";
+
+                if (clienteId) {
+                    parametros.set("cliente_id", clienteId);
+                }
+
+                const resposta = await fetch(`/api/clientes/consultar-cnpj?${parametros.toString()}`, {
+                    method: "GET",
+                    credentials: "same-origin",
+                    cache: "no-store",
+                    headers: { "Accept": "application/json" }
+                });
+
+                let retorno = null;
+
+                try {
+                    retorno = await resposta.json();
+                } catch (erroJson) {
+                    retorno = null;
+                }
+
+                if (!resposta.ok || !retorno || !retorno.ok) {
+                    throw new Error(retorno?.erro || "Não foi possível consultar o CNPJ.");
+                }
+
+                const dados = retorno.dados || {};
+                documento.value = dados.cnpj_formatado || formatarCnpjNumerico(cnpj);
+                documento.dataset.ultimoCnpjConsultado = cnpj;
+
+                preencherCampoCnpj("cliente_nome", dados.razao_social || dados.nome_fantasia);
+                preencherCampoCnpj("cliente_telefone", dados.telefone);
+                preencherCampoCnpj("cliente_cidade", dados.cidade);
+                preencherCampoCnpj("cliente_email", dados.email);
+
+                const situacao = dados.situacao_cadastral
+                    ? ` Situação cadastral: ${dados.situacao_cadastral}.`
+                    : "";
+
+                if (retorno.cliente_existente) {
+                    mostrarStatusCnpj(
+                        "warning",
+                        `Dados encontrados, mas este CNPJ já está cadastrado para ${retorno.cliente_existente.nome}.${situacao}`
+                    );
+                } else {
+                    mostrarStatusCnpj(
+                        "success",
+                        `Dados encontrados e preenchidos automaticamente.${situacao}`
+                    );
+                }
+            } catch (erro) {
+                mostrarStatusCnpj(
+                    "error",
+                    erro?.message || "Falha ao consultar o CNPJ. Preencha os dados manualmente."
+                );
+            } finally {
+                botao.disabled = false;
+                botao.textContent = "Buscar CNPJ";
+            }
+        }
+
+        function configurarConsultaCnpj() {
+            const documento = document.getElementById("cliente_documento");
+            const botao = document.getElementById("btn_consultar_cnpj");
+
+            if (!documento || !botao) {
+                return;
+            }
+
+            botao.addEventListener("click", function() {
+                consultarCnpjCliente(true);
+            });
+
+            documento.addEventListener("input", function() {
+                const cnpj = normalizarCnpjConsulta(documento.value);
+                botao.disabled = cnpj.length !== 14;
+
+                if (cnpj !== documento.dataset.ultimoCnpjConsultado) {
+                    limparStatusCnpj();
+                }
+            });
+
+            documento.addEventListener("blur", function() {
+                const cnpj = normalizarCnpjConsulta(documento.value);
+
+                if (
+                    cnpj.length === 14
+                    && cnpj !== documento.dataset.ultimoCnpjConsultado
+                ) {
+                    consultarCnpjCliente(false);
+                }
+            });
+
+            botao.disabled = normalizarCnpjConsulta(documento.value).length !== 14;
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            configurarConsultaCnpj();
+        });
+    </script>
+
+</body>
+</html>

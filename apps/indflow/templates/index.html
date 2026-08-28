@@ -1,0 +1,77 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\templates\index.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+{% extends "base.html" %}
+{% block title %}Painel Industrial — IndFlow{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="/static/dashboard.css?v=20260811">
+
+<div class="page-header">
+  <div class="page-heading">
+    <div class="page-eyebrow">Monitoramento em tempo real</div>
+    <h1 class="page-title">Painel Industrial</h1>
+    <p class="page-description">Acompanhe produção, disponibilidade e comunicação das máquinas monitoradas. O cadastro mestre dos equipamentos permanece no GestFlow.</p>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn-secondary" href="/producao/historico">Ver histórico</a>
+    <a class="btn btn-primary" href="/producao/">Abrir produção</a>
+  </div>
+</div>
+
+<div class="kpi-grid" id="industrialKpis">
+  <div class="kpi-card info">
+    <div class="kpi-label">Monitoradas</div>
+    <div class="kpi-value" id="kpi-monitored">0</div>
+    <div class="kpi-detail">máquinas no painel</div>
+  </div>
+  <div class="kpi-card success">
+    <div class="kpi-label">Produzindo</div>
+    <div class="kpi-value" id="kpi-running">0</div>
+    <div class="kpi-detail">status atual</div>
+  </div>
+  <div class="kpi-card danger">
+    <div class="kpi-label">Paradas</div>
+    <div class="kpi-value" id="kpi-stopped">0</div>
+    <div class="kpi-detail">requerem atenção</div>
+  </div>
+  <div class="kpi-card warning">
+    <div class="kpi-label">Offline</div>
+    <div class="kpi-value" id="kpi-offline">0</div>
+    <div class="kpi-detail">sem comunicação</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Produção do turno</div>
+    <div class="kpi-value" id="kpi-production">0</div>
+    <div class="kpi-detail" id="kpi-production-detail">meta 0</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Atingimento</div>
+    <div class="kpi-value" id="kpi-attainment">0%</div>
+    <div class="kpi-detail" id="kpi-scrap-detail">refugo 0</div>
+  </div>
+</div>
+
+<section class="section-shell">
+  <div class="section-shell-header">
+    <div>
+      <h2>Máquinas monitoradas</h2>
+      <p>Clique em uma máquina para abrir o detalhe operacional, OP, histórico e parâmetros industriais.</p>
+    </div>
+    {% if (session.get('role') or '')|lower in ['admin', 'superadmin'] %}<a class="btn btn-ghost" href="/devices/">Devices</a>{% endif %}
+  </div>
+
+  <div class="machine-grid" id="machineGrid"></div>
+</section>
+
+<div class="page-note" style="margin-top:14px;">
+  Equipamentos, usuários e empresas não são cadastrados novamente no IndFlow. O IndFlow concentra somente monitoramento, produção, histórico, OP/bobinas, utilidades e parâmetros industriais.
+</div>
+
+<script src="/static/dashboard.state.js?v=20260811"></script>
+<script src="/static/dashboard.ui.js?v=20260811"></script>
+<script src="/static/dashboard.update.js?v=20260811"></script>
+{% endblock %}

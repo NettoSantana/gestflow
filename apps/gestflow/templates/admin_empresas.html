@@ -1,0 +1,621 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\admin_empresas.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Admin Empresas</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .logout-button {
+            height: 36px;
+            padding: 0 14px;
+            border: 1px solid #d7e1ef;
+            border-radius: 10px;
+            background: #ffffff;
+            color: #dc2626;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 900;
+            text-decoration: none;
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .logout-button:hover {
+            background: #fff1f2;
+            border-color: #fecdd3;
+        }
+
+        .admin-action-stack {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .admin-delete-form {
+            margin: 0;
+        }
+
+        .btn-danger-light {
+            min-height: 36px;
+            padding: 0 14px;
+            border: 1px solid #fecaca;
+            border-radius: 10px;
+            background: #fff1f2;
+            color: #dc2626;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 900;
+            cursor: pointer;
+        }
+
+        .btn-danger-light:hover {
+            background: #fee2e2;
+            border-color: #fca5a5;
+        }
+
+
+        .list-toolbar-paginada {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin: 14px 0 16px;
+        }
+
+        .list-search-form {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .list-search-form input,
+        .list-search-form select {
+            height: 38px;
+            border: 1px solid #d8dee9;
+            border-radius: 10px;
+            padding: 0 12px;
+            font-family: inherit;
+            font-size: 13px;
+        }
+
+        .clear-search-link {
+            color: #64748b;
+            font-size: 13px;
+            font-weight: 800;
+            text-decoration: none;
+        }
+
+        .sortable-link {
+            color: inherit;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            text-decoration: none;
+        }
+
+        .sortable-link:hover {
+            color: #0f62fe;
+        }
+
+        .sort-indicator {
+            color: #0f62fe;
+            font-weight: 900;
+        }
+
+        .pagination-bar {
+            margin-top: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            font-size: 13px;
+            color: #475569;
+            font-weight: 800;
+        }
+
+        .pagination-links {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .pagination-links a,
+        .pagination-links span {
+            min-width: 34px;
+            height: 34px;
+            padding: 0 10px;
+            border: 1px solid #dbe4f0;
+            border-radius: 9px;
+            background: #ffffff;
+            color: #0f172a;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 900;
+            text-decoration: none;
+        }
+
+        .pagination-links a:hover {
+            background: #eff6ff;
+            border-color: #bfdbfe;
+            color: #0f62fe;
+        }
+
+        .pagination-links .current-page {
+            background: #0f62fe;
+            border-color: #0f62fe;
+            color: #ffffff;
+        }
+
+        .pagination-links .disabled-page {
+            color: #94a3b8;
+            background: #f8fafc;
+            cursor: not-allowed;
+        }
+
+    </style>
+
+    <style>
+        /* PADRAO VISUAL ORCAMENTOS - TELAS AUXILIARES */
+        .content {
+            padding-bottom: 220px;
+        }
+
+        .content > .panel.page-section:first-of-type {
+            margin-top: 0;
+        }
+
+        .panel,
+        .page-section,
+        .table-panel {
+            border-radius: 16px;
+        }
+
+        .panel-header.page-header,
+        .page-header {
+            gap: 14px;
+        }
+
+        .page-title {
+            letter-spacing: -0.02em;
+        }
+
+        .page-subtitle {
+            max-width: 760px;
+        }
+
+        .client-toolbar,
+        .form-actions,
+        .client-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn-primary-green,
+        .btn-dark,
+        .btn-light,
+        .action-button {
+            border-radius: 10px;
+            text-decoration: none;
+        }
+
+        .form-control,
+        input,
+        select,
+        textarea {
+            border-radius: 10px;
+            max-width: 100%;
+        }
+
+        .client-form {
+            width: 100%;
+        }
+
+        .form-grid {
+            align-items: start;
+        }
+
+        .panel-summary {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .panel-summary > div {
+            min-height: 74px;
+            border: 1px solid #e5eaf2;
+            border-radius: 14px;
+            background: #ffffff;
+            padding: 14px;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+        }
+
+        .panel-summary span {
+            display: block;
+            margin-bottom: 6px;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+
+        .panel-summary strong {
+            color: #0f172a;
+            font-size: 14px;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+
+        .table-shell {
+            border: 0 !important;
+            border-radius: 16px;
+            overflow-x: auto;
+            background: #ffffff;
+        }
+
+        .content table,
+        .content .client-table {
+            width: 100%;
+            border-collapse: separate !important;
+            border-spacing: 0 10px !important;
+            min-width: 760px;
+        }
+
+        .content table thead th,
+        .content .client-table thead th {
+            border-bottom: 0 !important;
+            background: transparent;
+            padding: 10px 12px;
+            color: #334155;
+            font-size: 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .content table tbody tr,
+        .content .client-table tbody tr {
+            background: #ffffff;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+            border-radius: 14px;
+        }
+
+        .content table tbody td,
+        .content .client-table tbody td {
+            border-bottom: 0 !important;
+            padding: 14px 12px !important;
+            color: #334155;
+            vertical-align: middle;
+        }
+
+        .content table tbody td:first-child,
+        .content .client-table tbody td:first-child {
+            border-top-left-radius: 14px;
+            border-bottom-left-radius: 14px;
+        }
+
+        .content table tbody td:last-child,
+        .content .client-table tbody td:last-child {
+            border-top-right-radius: 14px;
+            border-bottom-right-radius: 14px;
+        }
+
+        .empty-table,
+        .empty-table-box {
+            border-radius: 14px;
+        }
+
+        .status-pill,
+        .badge-info {
+            border-radius: 999px;
+            white-space: nowrap;
+        }
+
+        .quick-modal,
+        .modal,
+        .dialog {
+            border-radius: 18px;
+        }
+
+        .config-grid,
+        .portal-grid,
+        .planos-grid,
+        .cards,
+        .cards-secondary {
+            gap: 16px;
+        }
+
+        .config-card,
+        .portal-card,
+        .plan-card,
+        .card,
+        .stat-card {
+            border-radius: 16px;
+        }
+
+        .auth-card,
+        .login-card,
+        .onboarding-card,
+        .portal-card,
+        .plan-card {
+            box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+        }
+
+        @media (max-width: 1100px) {
+            .panel-summary {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .content table,
+            .content .client-table {
+                min-width: 720px;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .panel-summary {
+                grid-template-columns: 1fr;
+            }
+
+            .client-toolbar,
+            .form-actions,
+            .client-actions {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .client-toolbar .btn-primary-green,
+            .client-toolbar .btn-dark,
+            .client-toolbar .btn-light,
+            .form-actions .btn-primary-green,
+            .form-actions .btn-dark,
+            .form-actions .btn-light {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .content table,
+            .content .client-table {
+                min-width: 680px;
+            }
+        }
+    </style>
+
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+
+<main class="content">
+        {% set page_title = 'Admin Empresas' %}
+        {% include "partials/topbar.html" %}
+        {% set paginacao = paginacao|default({}, true) %}
+        {% set busca = busca|default('', true) %}
+        {% set ordenar = ordenar|default('id', true) %}
+        {% set direcao = direcao|default('desc', true) %}
+        {% set por_pagina = por_pagina|default(20, true) %}
+
+<section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Admin GestFlow</span>
+                    <h3 class="page-title">Gerar acesso inicial</h3>
+                    <p class="page-subtitle">Crie um login novo ou atualize a senha de um login já existente. O cliente completa os dados da empresa no primeiro acesso.</p>
+                </div>
+
+                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <a href="/admin/indicacoes" class="btn-primary-green">Indicações</a>
+                    <span class="badge-info">Login e senha</span>
+                </div>
+            </div>
+
+            {% if erro %}
+                <div class="alert alert-danger">{{ erro }}</div>
+            {% endif %}
+
+            {% if sucesso %}
+                <div class="alert alert-success">{{ sucesso }}</div>
+            {% endif %}
+
+            <form action="/admin/empresas" method="post" class="client-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="usuario_admin_nome">Nome do cliente/responsável *</label>
+                        <input id="usuario_admin_nome" name="usuario_admin_nome" type="text" value="{{ formulario.admin_nome }}" placeholder="Nome do responsável" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="usuario_admin_email">E-mail de login *</label>
+                        <input id="usuario_admin_email" name="usuario_admin_email" type="email" value="{{ formulario.admin_email }}" placeholder="login@empresa.com" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="usuario_admin_senha">Senha inicial *</label>
+                        <div style="display: flex; gap: 8px;">
+                            <input id="usuario_admin_senha" name="usuario_admin_senha" type="text" value="{{ formulario.admin_senha }}" placeholder="Clique em Gerar senha" autocomplete="new-password" class="form-control">
+                            <button type="button" class="btn-light" onclick="gerarSenhaGestFlow()" style="white-space: nowrap;">Gerar senha</button>
+                        </div>
+                        <small style="display:block; margin-top:6px; color:#64748b; font-weight:700;">A nova senha não usa símbolos para evitar erro de cópia.</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="empresa_plano">Plano</label>
+                        <select id="empresa_plano" name="empresa_plano" class="form-control">
+                            <option value="Start" {% if formulario.plano == "Start" %}selected{% endif %}>Start</option>
+                            <option value="Pro" {% if formulario.plano == "Pro" %}selected{% endif %}>Pro</option>
+                            <option value="Business" {% if formulario.plano == "Business" %}selected{% endif %}>Business</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="empresa_status">Status</label>
+                        <select id="empresa_status" name="empresa_status" class="form-control">
+                            <option value="trial" {% if formulario.status == "trial" %}selected{% endif %}>Trial</option>
+                            <option value="ativo" {% if formulario.status == "ativo" %}selected{% endif %}>Ativo</option>
+                            <option value="bloqueado" {% if formulario.status == "bloqueado" %}selected{% endif %}>Bloqueado</option>
+                            <option value="cancelado" {% if formulario.status == "cancelado" %}selected{% endif %}>Cancelado</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="reset" class="btn-light">Limpar</button>
+                    <button type="submit" class="btn-primary-green">Criar/Atualizar acesso</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="panel table-panel">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Acessos criados</h3>
+                    <p class="page-subtitle">Controle os logins liberados para clientes GestFlow. Se usar um e-mail já cadastrado, a senha será atualizada.</p>
+                </div>
+            </div>
+
+            <div class="list-toolbar-paginada">
+                <form method="get" action="{{ url_for('admin_empresas') }}" class="list-search-form">
+                    <input type="text" name="busca" value="{{ busca }}" placeholder="Buscar empresa, login, plano ou status">
+                    <select name="por_pagina" onchange="this.form.submit()">
+                        {% for quantidade in [10, 20, 50, 100] %}<option value="{{ quantidade }}" {% if por_pagina == quantidade %}selected{% endif %}>{{ quantidade }} por página</option>{% endfor %}
+                    </select>
+                    <input type="hidden" name="ordenar" value="{{ ordenar }}">
+                    <input type="hidden" name="direcao" value="{{ direcao }}">
+                    <button type="submit" class="btn-dark">Buscar</button>
+                    {% if busca %}<a href="{{ url_for('admin_empresas', por_pagina=por_pagina, ordenar=ordenar, direcao=direcao) }}" class="clear-search-link">Limpar</a>{% endif %}
+                </form>
+            </div>
+
+            <div class="table-shell">
+                <table class="client-table">
+                    <thead>
+                        <tr>
+                            <th><a href="{{ url_for('admin_empresas', pagina=1, por_pagina=por_pagina, ordenar='id', direcao='desc' if ordenar == 'id' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">ID {% if ordenar == 'id' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                            <th><a href="{{ url_for('admin_empresas', pagina=1, por_pagina=por_pagina, ordenar='nome_fantasia', direcao='desc' if ordenar == 'nome_fantasia' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Cliente/Acesso {% if ordenar == 'nome_fantasia' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                            <th><a href="{{ url_for('admin_empresas', pagina=1, por_pagina=por_pagina, ordenar='email', direcao='desc' if ordenar == 'email' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Login {% if ordenar == 'email' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                            <th><a href="{{ url_for('admin_empresas', pagina=1, por_pagina=por_pagina, ordenar='plano', direcao='desc' if ordenar == 'plano' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Plano {% if ordenar == 'plano' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                            <th><a href="{{ url_for('admin_empresas', pagina=1, por_pagina=por_pagina, ordenar='status', direcao='desc' if ordenar == 'status' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Status {% if ordenar == 'status' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                            <th><a href="{{ url_for('admin_empresas', pagina=1, por_pagina=por_pagina, ordenar='trial_fim', direcao='desc' if ordenar == 'trial_fim' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Fim do teste {% if ordenar == 'trial_fim' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                            <th>Dias</th>
+                            <th><a href="{{ url_for('admin_empresas', pagina=1, por_pagina=por_pagina, ordenar='total_usuarios', direcao='desc' if ordenar == 'total_usuarios' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Usuários {% if ordenar == 'total_usuarios' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                            <th><a href="{{ url_for('admin_empresas', pagina=1, por_pagina=por_pagina, ordenar='total_lojas', direcao='desc' if ordenar == 'total_lojas' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Lojas {% if ordenar == 'total_lojas' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                            <th><a href="{{ url_for('admin_empresas', pagina=1, por_pagina=por_pagina, ordenar='criado_em', direcao='desc' if ordenar == 'criado_em' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">Criado em {% if ordenar == 'criado_em' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}</a></th>
+                            <th>Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if empresas %}
+                            {% for empresa in empresas %}
+                                <tr>
+                                    <td>{{ empresa.id }}</td>
+                                    <td>
+                                        <strong>{{ empresa.nome_fantasia }}</strong><br>
+                                        <span>{{ empresa.razao_social or 'Cadastro pendente' }}</span>
+                                    </td>
+                                    <td>{{ empresa.email or '-' }}</td>
+                                    <td>{{ empresa.plano }}</td>
+                                    <td><span class="status-pill {{ empresa.status }}">{{ empresa.status }}</span></td>
+                                    <td>{{ empresa.trial_fim or '-' }}</td>
+                                    <td>{{ empresa.trial_dias_texto or '-' }}</td>
+                                    <td>{{ empresa.total_usuarios }}</td>
+                                    <td>{{ empresa.total_lojas }}</td>
+                                    <td>{{ empresa.criado_em }}</td>
+                                    <td>
+                                        <div class="admin-action-stack">
+                                            <form action="/admin/empresas/{{ empresa.id }}/status" method="post" class="action-form">
+                                                <select name="empresa_status" class="form-control" style="min-width: 120px;">
+                                                    <option value="trial" {% if empresa.status == "trial" %}selected{% endif %}>Trial</option>
+                                                    <option value="ativo" {% if empresa.status == "ativo" %}selected{% endif %}>Ativo</option>
+                                                    <option value="bloqueado" {% if empresa.status == "bloqueado" %}selected{% endif %}>Bloqueado</option>
+                                                    <option value="cancelado" {% if empresa.status == "cancelado" %}selected{% endif %}>Cancelado</option>
+                                                </select>
+                                                <button type="submit" class="btn-light">Salvar</button>
+                                            </form>
+
+                                            {% if empresa.id != usuario_logado.empresa_id %}
+                                                <form action="/admin/empresas/{{ empresa.id }}/excluir" method="post" class="admin-delete-form" onsubmit="return confirm('Tem certeza que deseja excluir este acesso/cliente? Esta ação apagará usuários, lojas e dados vinculados a esta empresa e não poderá ser desfeita.');">
+                                                    <button type="submit" class="btn-danger-light">Excluir</button>
+                                                </form>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="11" class="empty-table empty-table-box">
+                                    <div class="empty-table-content">
+                                        <div class="empty-table-icon">◆</div>
+                                        <strong>Nenhum acesso criado.</strong>
+                                        <span>Use o formulário acima para gerar o primeiro login.</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+                <div class="pagination-bar">
+                    <div>{% if paginacao.total|default(0, true) > 0 %}Mostrando {{ paginacao.inicio }} a {{ paginacao.fim }} de {{ paginacao.total }}{% else %}Nenhuma empresa encontrada{% endif %}</div>
+                    {% if paginacao.total_paginas|default(1, true) > 1 %}<div class="pagination-links">{% if paginacao.tem_anterior %}<a href="{{ url_for('admin_empresas', pagina=paginacao.anterior, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">‹</a>{% else %}<span class="disabled-page">‹</span>{% endif %}{% for numero_pagina in paginacao.paginas %}{% if numero_pagina == paginacao.pagina %}<span class="current-page">{{ numero_pagina }}</span>{% else %}<a href="{{ url_for('admin_empresas', pagina=numero_pagina, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">{{ numero_pagina }}</a>{% endif %}{% endfor %}{% if paginacao.tem_proxima %}<a href="{{ url_for('admin_empresas', pagina=paginacao.proxima, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">›</a>{% else %}<span class="disabled-page">›</span>{% endif %}</div>{% endif %}
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        function gerarSenhaGestFlow() {
+            const letrasMaiusculas = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+            const letrasMinusculas = "abcdefghijkmnopqrstuvwxyz";
+            const numeros = "23456789";
+            const todos = letrasMaiusculas + letrasMinusculas + numeros;
+
+            function numeroSeguro(maximo) {
+                const array = new Uint32Array(1);
+                window.crypto.getRandomValues(array);
+                return array[0] % maximo;
+            }
+
+            function escolher(texto) {
+                return texto[numeroSeguro(texto.length)];
+            }
+
+            let senha = "GF";
+            senha += escolher(numeros);
+            senha += escolher(numeros);
+            senha += escolher(letrasMaiusculas);
+            senha += escolher(letrasMinusculas);
+            senha += escolher(todos);
+            senha += escolher(todos);
+            senha += escolher(todos);
+            senha += escolher(todos);
+
+            const campoSenha = document.getElementById("usuario_admin_senha");
+            if (campoSenha) {
+                campoSenha.value = senha;
+                campoSenha.focus();
+                campoSenha.select();
+            }
+        }
+    </script>
+
+</body>
+</html>

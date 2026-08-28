@@ -1,0 +1,727 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\funcionarios.html
+Último recode: 2026-08-22 00:35 (America/Bahia)
+Motivo: Vincular explicitamente a tabela principal ao componente padronizado de Busca avançada, Colunas e Mais ações no mesmo padrão de Orçamentos.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Funcionários</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .logout-button {
+            height: 36px;
+            padding: 0 14px;
+            border: 1px solid #d7e1ef;
+            border-radius: 10px;
+            background: #ffffff;
+            color: #dc2626;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 900;
+            text-decoration: none;
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .logout-button:hover {
+            background: #fff1f2;
+            border-color: #fecdd3;
+        }
+
+        .alert-error {
+            padding: 12px 14px;
+            border: 1px solid #fecaca;
+            border-radius: 12px;
+            background: #fef2f2;
+            color: #b91c1c;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+
+        .alert-success,
+        .form-alert-success {
+            margin: 0 0 18px;
+            padding: 12px 14px;
+            border: 1px solid #bbf7d0;
+            border-radius: 12px;
+            background: #f0fdf4;
+            color: #166534;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .more-actions-wrap {
+            position: relative;
+            display: inline-flex;
+        }
+
+        .more-actions-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            z-index: 20;
+            min-width: 230px;
+            padding: 8px;
+            border: 1px solid #dbe4f0;
+            border-radius: 12px;
+            background: #ffffff;
+            box-shadow: 0 18px 36px rgba(15, 23, 42, 0.16);
+            display: none;
+        }
+
+        .more-actions-menu.open {
+            display: block;
+        }
+
+        .more-actions-menu a,
+        .more-actions-menu button {
+            width: 100%;
+            min-height: 36px;
+            border: 0;
+            border-radius: 9px;
+            background: transparent;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            font-size: 13px;
+            font-weight: 800;
+            text-align: left;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .more-actions-menu a:hover,
+        .more-actions-menu button:hover {
+            background: #f1f5f9;
+        }
+
+        .sortable-link {
+            color: #1e293b;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            text-decoration: none;
+            font-weight: 900;
+        }
+
+        .sortable-link:hover {
+            color: #0f62fe;
+        }
+
+        .sort-indicator {
+            color: #0f62fe;
+            font-size: 11px;
+            font-weight: 900;
+        }
+
+        .pagination-bar {
+            margin-top: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            font-size: 13px;
+            color: #475569;
+            font-weight: 800;
+        }
+
+        .pagination-links {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .pagination-links a,
+        .pagination-links span {
+            min-width: 34px;
+            height: 34px;
+            padding: 0 10px;
+            border: 1px solid #dbe4f0;
+            border-radius: 9px;
+            background: #ffffff;
+            color: #0f172a;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 900;
+            text-decoration: none;
+        }
+
+        .pagination-links a:hover {
+            background: #eff6ff;
+            border-color: #bfdbfe;
+            color: #0f62fe;
+        }
+
+        .pagination-links .current-page {
+            background: #0f62fe;
+            border-color: #0f62fe;
+            color: #ffffff;
+        }
+
+        .pagination-links .disabled-page {
+            color: #94a3b8;
+            background: #f8fafc;
+            cursor: not-allowed;
+        }
+
+        .client-search-form {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .client-search-form .client-search {
+            flex: 1 1 320px;
+        }
+
+        .per-page-select {
+            max-width: 130px;
+        }
+
+        .clear-search-link {
+            min-height: 38px;
+            padding: 0 12px;
+            border: 1px solid #dbe4f0;
+            border-radius: 10px;
+            background: #ffffff;
+            color: #64748b;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 900;
+            text-decoration: none;
+        }
+
+        .clear-search-link:hover {
+            background: #f8fafc;
+            color: #0f172a;
+        }
+
+        .ponto-config-check {
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border: 1px solid #dbe4f0;
+            border-radius: 12px;
+            background: #f8fafc;
+            color: #334155;
+            font-size: 13px;
+            font-weight: 900;
+            cursor: pointer;
+        }
+
+        .ponto-config-check input {
+            width: 18px;
+            height: 18px;
+        }
+
+    </style>
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+
+<main class="content funcionarios-page gf-module-page">
+        {% set page_title = 'Funcionários' %}
+        {% include "partials/topbar.html" %}
+
+        {% if request.args.get("erro") %}
+            <section class="panel page-section gf-page-hero">
+                <div class="alert-error">{{ request.args.get("erro") }}</div>
+            </section>
+        {% endif %}
+
+        {% if request.args.get("sucesso") %}
+            <section class="panel page-section">
+                <div class="alert-success">{{ request.args.get("sucesso") }}</div>
+            </section>
+        {% endif %}
+
+
+{% set funcionarios_lista = funcionarios|default([]) %}
+        {% set resumo_geral = resumo_funcionarios|default({}, true) %}
+        {% set paginacao = paginacao|default({}, true) %}
+        {% set busca = busca|default('', true) %}
+        {% set ordenar = ordenar|default('id', true) %}
+        {% set direcao = direcao|default('desc', true) %}
+        {% set por_pagina = por_pagina|default(20, true) %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header gf-page-header">
+                <div>
+                    <span class="page-kicker">Cadastros</span>
+                    <h3 class="page-title">Funcionários</h3>
+                    <p class="page-subtitle">Controle os dados dos funcionários, contatos, cargos e status de cadastro do GESTFLOW.</p>
+                </div>
+
+                <a href="#form-novo-funcionario" class="btn-primary-green">+ Novo Funcionário</a>
+            </div>
+        </section>
+
+        <section class="cards cards-secondary page-section gf-stat-grid">
+            <div class="card stat-card">
+                <div class="card-icon">☷</div>
+                <div class="card-info">
+                    <p>{{ resumo_geral.total|default(0, true) }}</p>
+                    <h3>Total de funcionários</h3>
+                    <span>{% if funcionarios_lista|length == 1 %}1 funcionário cadastrado{% elif funcionarios_lista|length > 1 %}{{ resumo_geral.total|default(0, true) }} funcionários cadastrados{% else %}Nenhum funcionário cadastrado{% endif %}</span>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="card-icon">✓</div>
+                <div class="card-info">
+                    <p>{{ resumo_geral.ativos|default(0, true) }}</p>
+                    <h3>Funcionários ativos</h3>
+                    <span>{% if resumo_geral.ativos == 1 %}1 funcionário ativo{% elif resumo_geral.ativos > 1 %}{{ resumo_geral.ativos|default(0, true) }} funcionários ativos{% else %}Aguardando cadastro{% endif %}</span>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="card-icon">!</div>
+                <div class="card-info">
+                    <p>{{ resumo_geral.pendentes|default(0, true) }}</p>
+                    <h3>Pendências</h3>
+                    <span>{% if resumo_geral.pendentes == 1 %}1 cadastro pendente{% elif resumo_geral.pendentes > 1 %}{{ resumo_geral.pendentes|default(0, true) }} cadastros pendentes{% else %}Nenhuma pendência{% endif %}</span>
+                </div>
+            </div>
+        </section>
+
+        <section id="form-novo-funcionario" class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Novo funcionário</h3>
+                    <p class="page-subtitle">Preencha os dados principais para preparar o cadastro do funcionário.</p>
+                </div>
+
+                <span class="badge-info">Cadastro inicial</span>
+            </div>
+
+            <form action="/funcionarios" method="post" class="client-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="funcionario_nome">Nome completo *</label>
+                        <input id="funcionario_nome" name="funcionario_nome" type="text" placeholder="Ex: João Silva" class="form-control" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="funcionario_cpf">CPF</label>
+                        <input id="funcionario_cpf" name="funcionario_cpf" type="text" placeholder="Ex: 000.000.000-00" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="funcionario_telefone">Telefone</label>
+                        <input id="funcionario_telefone" name="funcionario_telefone" type="text" placeholder="Ex: (71) 99999-9999" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="funcionario_cidade">Cidade</label>
+                        <input id="funcionario_cidade" name="funcionario_cidade" type="text" placeholder="Ex: Salvador" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="funcionario_cargo">Cargo / Função *</label>
+                        <input id="funcionario_cargo" name="funcionario_cargo" type="text" placeholder="Ex: Técnico eletromecânico" class="form-control" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="funcionario_status">Status *</label>
+                        <select id="funcionario_status" name="funcionario_status" class="form-control" required>
+                            <option value="ativo">Ativo</option>
+                            <option value="inativo">Inativo</option>
+                            <option value="pendente">Pendente</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="funcionario_email">E-mail</label>
+                        <input id="funcionario_email" name="funcionario_email" type="email" placeholder="Ex: funcionario@empresa.com.br" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="funcionario_exigir_intervalo_ponto">Registro de ponto</label>
+                        <label class="ponto-config-check" for="funcionario_exigir_intervalo_ponto">
+                            <input id="funcionario_exigir_intervalo_ponto" name="funcionario_exigir_intervalo_ponto" type="checkbox" value="sim" checked>
+                            Exigir marcação de intervalo/almoço
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="funcionario_observacoes">Observações</label>
+                        <input id="funcionario_observacoes" name="funcionario_observacoes" type="text" placeholder="Ex: Treinamentos, documentos ou observações" class="form-control">
+                    </div>
+                </div>
+
+                <div class="cost-section">
+                    <div class="panel-header page-header cost-section-header">
+                        <div>
+                            <h3>Custos</h3>
+                            <p class="page-subtitle">Informe salário, encargos e benefícios para o Gerador de Orçamentos calcular a mão de obra real.</p>
+                        </div>
+                        <span class="badge-info">Uso interno</span>
+                    </div>
+
+                    <div class="form-grid funcionario-custos-grid">
+                        <div class="form-group">
+                            <label for="funcionario_salario_base">Salário base</label>
+                            <input id="funcionario_salario_base" name="funcionario_salario_base" type="text" placeholder="Ex: 2200,00" class="form-control funcionario-custo-input">
+                        </div>
+                        <div class="form-group">
+                            <label for="funcionario_inss_percentual">INSS / encargos %</label>
+                            <input id="funcionario_inss_percentual" name="funcionario_inss_percentual" type="text" placeholder="Ex: 20" class="form-control funcionario-custo-input">
+                        </div>
+                        <div class="form-group">
+                            <label for="funcionario_fgts_percentual">FGTS %</label>
+                            <input id="funcionario_fgts_percentual" name="funcionario_fgts_percentual" type="text" placeholder="Ex: 8" class="form-control funcionario-custo-input">
+                        </div>
+                        <div class="form-group">
+                            <label for="funcionario_ferias_percentual">Férias %</label>
+                            <input id="funcionario_ferias_percentual" name="funcionario_ferias_percentual" type="text" placeholder="Ex: 11,11" class="form-control funcionario-custo-input">
+                        </div>
+                        <div class="form-group">
+                            <label for="funcionario_decimo_percentual">13º %</label>
+                            <input id="funcionario_decimo_percentual" name="funcionario_decimo_percentual" type="text" placeholder="Ex: 8,33" class="form-control funcionario-custo-input">
+                        </div>
+                        <div class="form-group">
+                            <label for="funcionario_beneficios">Benefícios</label>
+                            <input id="funcionario_beneficios" name="funcionario_beneficios" type="text" placeholder="Ex: 300,00" class="form-control funcionario-custo-input">
+                        </div>
+                        <div class="form-group">
+                            <label for="funcionario_transporte">Transporte</label>
+                            <input id="funcionario_transporte" name="funcionario_transporte" type="text" placeholder="Ex: 250,00" class="form-control funcionario-custo-input">
+                        </div>
+                        <div class="form-group">
+                            <label for="funcionario_alimentacao">Alimentação</label>
+                            <input id="funcionario_alimentacao" name="funcionario_alimentacao" type="text" placeholder="Ex: 400,00" class="form-control funcionario-custo-input">
+                        </div>
+                        <div class="form-group">
+                            <label for="funcionario_outros_custos">Outros custos</label>
+                            <input id="funcionario_outros_custos" name="funcionario_outros_custos" type="text" placeholder="Ex: 100,00" class="form-control funcionario-custo-input">
+                        </div>
+                        <div class="form-group">
+                            <label for="funcionario_custo_mensal">Custo mensal</label>
+                            <input id="funcionario_custo_mensal" name="funcionario_custo_mensal" type="text" placeholder="0,00" class="form-control funcionario-custo-total">
+                        </div>
+                        <div class="form-group">
+                            <label for="funcionario_custo_dia">Custo dia</label>
+                            <input id="funcionario_custo_dia" name="funcionario_custo_dia" type="text" placeholder="0,00" class="form-control funcionario-custo-total">
+                        </div>
+                        <div class="form-group">
+                            <label for="funcionario_custo_hora">Custo hora</label>
+                            <input id="funcionario_custo_hora" name="funcionario_custo_hora" type="text" placeholder="0,00" class="form-control funcionario-custo-total">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="reset" class="btn-light">Cancelar</button>
+                    <button type="submit" class="btn-primary-green">Salvar Funcionário</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="panel table-panel">
+
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Lista de funcionários</h3>
+                    <p class="page-subtitle">Pesquise, visualize e mantenha os funcionários cadastrados.</p>
+                </div>
+
+                <div class="client-toolbar gf-module-actions">
+                    <div class="more-actions-wrap">
+                        <button type="button" class="btn-light" onclick="alternarMenuFuncionarios()">⚙ Mais ações</button>
+                        <div id="funcionarios-more-actions" class="more-actions-menu">
+                            <button type="button" onclick="abrirImportacaoFuncionarios()">⬆ Importar de uma planilha</button>
+                            <a href="/funcionarios/modelo">⬇ Baixar modelo</a>
+                            <a href="/funcionarios/exportar">⬇ Exportar funcionários</a>
+                        </div>
+                    </div>
+                </div>
+
+                <form id="form-importar-funcionarios" action="/funcionarios/importar" method="post" enctype="multipart/form-data" style="display:none;">
+                    <input id="arquivo-funcionarios" name="arquivo_funcionarios" type="file" accept=".xlsx,.csv" onchange="enviarImportacaoFuncionarios()">
+                </form>
+            </div>
+
+            <div class="client-actions">
+                <form action="/funcionarios" method="get" class="client-search-form">
+                    <input type="text" name="busca" value="{{ busca }}" placeholder="Buscar por nome, CPF, telefone, cidade, cargo ou e-mail" class="client-search">
+                    <input type="hidden" name="ordenar" value="{{ ordenar }}">
+                    <input type="hidden" name="direcao" value="{{ direcao }}">
+
+                    <select name="por_pagina" class="form-control per-page-select" onchange="this.form.submit()">
+                        <option value="10" {% if por_pagina == 10 %}selected{% endif %}>10 por página</option>
+                        <option value="20" {% if por_pagina == 20 %}selected{% endif %}>20 por página</option>
+                        <option value="50" {% if por_pagina == 50 %}selected{% endif %}>50 por página</option>
+                        <option value="100" {% if por_pagina == 100 %}selected{% endif %}>100 por página</option>
+                    </select>
+
+                    <button type="submit" class="btn-dark">Buscar</button>
+
+                    {% if busca %}
+                        <a href="{{ url_for('funcionarios', por_pagina=por_pagina, ordenar=ordenar, direcao=direcao) }}" class="clear-search-link">Limpar</a>
+                    {% endif %}
+                </form>
+            </div>
+
+            <div class="table-shell">
+                <table class="client-table" data-gf-lista-principal="sim">
+                    <thead>
+                        <tr>
+                            <th>
+                                <a href="{{ url_for('funcionarios', pagina=1, por_pagina=por_pagina, ordenar='id', direcao='desc' if ordenar == 'id' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    Código
+                                    {% if ordenar == 'id' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('funcionarios', pagina=1, por_pagina=por_pagina, ordenar='nome', direcao='desc' if ordenar == 'nome' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    Nome
+                                    {% if ordenar == 'nome' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('funcionarios', pagina=1, por_pagina=por_pagina, ordenar='cpf', direcao='desc' if ordenar == 'cpf' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    CPF
+                                    {% if ordenar == 'cpf' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('funcionarios', pagina=1, por_pagina=por_pagina, ordenar='telefone', direcao='desc' if ordenar == 'telefone' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    Telefone
+                                    {% if ordenar == 'telefone' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('funcionarios', pagina=1, por_pagina=por_pagina, ordenar='cidade', direcao='desc' if ordenar == 'cidade' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    Cidade
+                                    {% if ordenar == 'cidade' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('funcionarios', pagina=1, por_pagina=por_pagina, ordenar='cargo', direcao='desc' if ordenar == 'cargo' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    Cargo / Função
+                                    {% if ordenar == 'cargo' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('funcionarios', pagina=1, por_pagina=por_pagina, ordenar='custo_hora', direcao='desc' if ordenar == 'custo_hora' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    Custo hora
+                                    {% if ordenar == 'custo_hora' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('funcionarios', pagina=1, por_pagina=por_pagina, ordenar='status', direcao='desc' if ordenar == 'status' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    Status
+                                    {% if ordenar == 'status' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>Almoço</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if funcionarios_lista %}
+                            {% for funcionario in funcionarios_lista %}
+                                <tr>
+                                    <td>{{ funcionario.id }}</td>
+                                    <td>{{ funcionario.nome }}</td>
+                                    <td>{{ funcionario.cpf }}</td>
+                                    <td>{{ funcionario.telefone }}</td>
+                                    <td>{{ funcionario.cidade }}</td>
+                                    <td>{{ funcionario.cargo }}</td>
+                                    <td>{{ funcionario.custo_hora or "-" }}</td>
+                                    <td>
+                                        <span class="status-pill {{ funcionario.status }}">
+                                            {{ funcionario.status }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% set exige_almoco = funcionario.exigir_intervalo_ponto|default('sim', true)|string|lower %}
+                                        {% if exige_almoco in ['nao', 'não', 'n', 'no', 'false', '0', 'off', 'sem', 'sem_intervalo'] %}
+                                            Não
+                                        {% else %}
+                                            Sim
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <a href="/funcionarios/{{ funcionario.id }}" title="Ver funcionário" aria-label="Ver funcionário" class="action-button view">🔍</a>
+                                            <a href="/funcionarios/{{ funcionario.id }}/editar" title="Editar funcionário" aria-label="Editar funcionário" class="action-button edit">✎</a>
+                                            <a href="/whatsapp/pdf/funcionario/{{ funcionario.id }}" title="Enviar PDF pelo WhatsApp" aria-label="Enviar PDF pelo WhatsApp" class="action-button" style="background:#128c7e;color:#fff;text-decoration:none;">📲</a>
+                                            <form action="/funcionarios/{{ funcionario.id }}/excluir" method="post" onsubmit="return confirm('Tem certeza que deseja excluir este funcionário?');" class="action-form">
+                                                <button type="submit" title="Excluir funcionário" aria-label="Excluir funcionário" class="action-button delete">×</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="10" class="empty-table empty-table-box">
+                                    <div class="empty-table-content">
+                                        <div class="empty-table-icon">☷</div>
+                                        <strong>Nenhum funcionário cadastrado.</strong>
+                                        <span>Use o botão Novo Funcionário para iniciar o cadastro.</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pagination-bar">
+                <div>
+                    {% if paginacao.total|default(0, true) > 0 %}
+                        Mostrando {{ paginacao.inicio }} a {{ paginacao.fim }} de um total de {{ paginacao.total }}
+                    {% else %}
+                        Nenhum funcionário encontrado
+                    {% endif %}
+                </div>
+
+                {% if paginacao.total_paginas|default(1, true) > 1 %}
+                    <div class="pagination-links">
+                        {% if paginacao.tem_anterior %}
+                            <a href="{{ url_for('funcionarios', pagina=paginacao.anterior, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">‹</a>
+                        {% else %}
+                            <span class="disabled-page">‹</span>
+                        {% endif %}
+
+                        {% if 1 not in paginacao.paginas %}
+                            <a href="{{ url_for('funcionarios', pagina=1, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">1</a>
+                            {% if paginacao.paginas[0] > 2 %}
+                                <span class="disabled-page">...</span>
+                            {% endif %}
+                        {% endif %}
+
+                        {% for numero_pagina in paginacao.paginas %}
+                            {% if numero_pagina == paginacao.pagina %}
+                                <span class="current-page">{{ numero_pagina }}</span>
+                            {% else %}
+                                <a href="{{ url_for('funcionarios', pagina=numero_pagina, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">{{ numero_pagina }}</a>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if paginacao.total_paginas not in paginacao.paginas %}
+                            {% if paginacao.paginas[-1] < paginacao.total_paginas - 1 %}
+                                <span class="disabled-page">...</span>
+                            {% endif %}
+                            <a href="{{ url_for('funcionarios', pagina=paginacao.total_paginas, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">{{ paginacao.total_paginas }}</a>
+                        {% endif %}
+
+                        {% if paginacao.tem_proxima %}
+                            <a href="{{ url_for('funcionarios', pagina=paginacao.proxima, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">›</a>
+                        {% else %}
+                            <span class="disabled-page">›</span>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+
+
+        </section>
+
+    </main>
+
+<script>
+function funcionarioNumero(valor) {
+    let texto = String(valor || '').trim().replace('R$', '').replace(/\s/g, '');
+    if (!texto) return 0;
+    if (texto.includes(',')) texto = texto.replace(/\./g, '').replace(',', '.');
+    const n = Number.parseFloat(texto);
+    return Number.isFinite(n) ? n : 0;
+}
+function funcionarioMoeda(valor) {
+    const n = Number.isFinite(valor) ? valor : 0;
+    return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function recalcularCustosFuncionario() {
+    const salario = funcionarioNumero(document.getElementById('funcionario_salario_base')?.value);
+    const inss = funcionarioNumero(document.getElementById('funcionario_inss_percentual')?.value);
+    const fgts = funcionarioNumero(document.getElementById('funcionario_fgts_percentual')?.value);
+    const ferias = funcionarioNumero(document.getElementById('funcionario_ferias_percentual')?.value);
+    const decimo = funcionarioNumero(document.getElementById('funcionario_decimo_percentual')?.value);
+    const beneficios = funcionarioNumero(document.getElementById('funcionario_beneficios')?.value);
+    const transporte = funcionarioNumero(document.getElementById('funcionario_transporte')?.value);
+    const alimentacao = funcionarioNumero(document.getElementById('funcionario_alimentacao')?.value);
+    const outros = funcionarioNumero(document.getElementById('funcionario_outros_custos')?.value);
+    const custoMensal = salario + (salario * ((inss + fgts + ferias + decimo) / 100)) + beneficios + transporte + alimentacao + outros;
+    const custoDia = custoMensal / 22;
+    const custoHora = custoMensal / 220;
+    const mensal = document.getElementById('funcionario_custo_mensal');
+    const dia = document.getElementById('funcionario_custo_dia');
+    const hora = document.getElementById('funcionario_custo_hora');
+    if (mensal) mensal.value = custoMensal ? funcionarioMoeda(custoMensal) : '';
+    if (dia) dia.value = custoDia ? funcionarioMoeda(custoDia) : '';
+    if (hora) hora.value = custoHora ? funcionarioMoeda(custoHora) : '';
+}
+document.querySelectorAll('.funcionario-custo-input').forEach(function(input) {
+    input.addEventListener('input', recalcularCustosFuncionario);
+});
+</script>
+
+    <script>
+        function alternarMenuFuncionarios() {
+            const menu = document.getElementById("funcionarios-more-actions");
+
+            if (!menu) {
+                return;
+            }
+
+            menu.classList.toggle("open");
+        }
+
+        function abrirImportacaoFuncionarios() {
+            const input = document.getElementById("arquivo-funcionarios");
+            const menu = document.getElementById("funcionarios-more-actions");
+
+            if (menu) {
+                menu.classList.remove("open");
+            }
+
+            if (input) {
+                input.click();
+            }
+        }
+
+        function enviarImportacaoFuncionarios() {
+            const form = document.getElementById("form-importar-funcionarios");
+            const input = document.getElementById("arquivo-funcionarios");
+
+            if (form && input && input.files.length > 0) {
+                form.submit();
+            }
+        }
+
+        document.addEventListener("click", function(event) {
+            const menu = document.getElementById("funcionarios-more-actions");
+            const wrapper = document.querySelector(".more-actions-wrap");
+
+            if (menu && wrapper && !wrapper.contains(event.target)) {
+                menu.classList.remove("open");
+            }
+        });
+    </script>
+
+    {% include "partials/lista_avancada.html" %}
+
+</body>
+</html>

@@ -1,0 +1,264 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\ponto_funcionario.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GestFlow - Bater Ponto</title>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0f62fe">
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        body{min-height:100vh;background:linear-gradient(180deg,#071a2b 0,#0f62fe 42%,#f3f6fb 42%);padding:18px}
+        .ponto-publico-wrap{max-width:520px;margin:0 auto}
+        .ponto-publico-brand{display:flex;align-items:center;justify-content:center;margin:8px 0 18px;color:#fff;font-weight:900;font-size:22px}
+        .ponto-publico-card{background:#fff;border:1px solid #e5eaf2;border-radius:24px;box-shadow:0 18px 40px rgba(15,23,42,.22);overflow:hidden}
+        .ponto-publico-top{padding:22px 20px;background:linear-gradient(135deg,#071a2b,#0f62fe);color:#fff;text-align:center}
+        .ponto-publico-top span{display:inline-flex;align-items:center;justify-content:center;height:30px;padding:0 12px;border-radius:999px;background:rgba(255,255,255,.14);font-size:12px;font-weight:900}
+        .ponto-publico-top h1{margin:13px 0 4px;font-size:24px;line-height:1.1}
+        .ponto-publico-top p{margin:0;color:rgba(255,255,255,.84);font-size:13px;font-weight:800}
+        .ponto-publico-body{padding:18px}
+        .ponto-alert{margin:0 0 14px;padding:12px 14px;border-radius:12px;font-weight:900;font-size:13px}
+        .ponto-alert.error{background:#fef2f2;border:1px solid #fecaca;color:#991b1b}
+        .ponto-alert.success{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534}
+        .ponto-identidade{display:flex;align-items:center;gap:12px;margin-bottom:14px;padding:13px;border:1px solid #e5eaf2;border-radius:16px;background:#f8fafc}
+        .ponto-avatar{flex:0 0 46px;width:46px;height:46px;border-radius:16px;background:#dbeafe;color:#1d4ed8;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900}
+        .ponto-identidade span{display:block;color:#64748b;font-size:12px;font-weight:900;text-transform:uppercase}
+        .ponto-identidade strong{display:block;margin-top:2px;color:#0f172a;font-size:17px;font-weight:900}
+        .clock-box{text-align:center;border:1px solid #e5eaf2;border-radius:22px;background:linear-gradient(180deg,#fff,#f8fafc);padding:22px;margin:14px 0}
+        .clock-time{font-size:52px;line-height:1;font-weight:900;color:#0f172a;letter-spacing:-1px}
+        .clock-date{margin-top:8px;color:#64748b;font-size:13px;font-weight:900}
+        .ponto-validacao{display:grid;gap:10px;margin-top:12px}
+        .ponto-validacao label{color:#334155;font-size:12px;font-weight:900;text-transform:uppercase}
+        .ponto-validacao small{color:#64748b;font-weight:800;line-height:1.35}
+        .ponto-status-ok{margin:12px 0;padding:12px;border-radius:14px;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;font-size:13px;font-weight:900}
+        .ponto-buttons{display:grid;gap:10px;margin-top:14px}
+        .ponto-btn{width:100%;min-height:68px;display:flex;align-items:center;gap:12px;padding:12px 14px;border:0;border-radius:18px;color:#fff;background:linear-gradient(135deg,#0f62fe,#0b4fd1);box-shadow:0 10px 18px rgba(15,23,42,.14);font-weight:900;cursor:pointer;text-align:left}
+        .ponto-btn.entrada{background:linear-gradient(135deg,#16a34a,#15803d)}
+        .ponto-btn.saida{background:linear-gradient(135deg,#334155,#0f172a)}
+        .ponto-btn[disabled]{cursor:not-allowed;opacity:.42;box-shadow:none;filter:grayscale(.3)}
+        .ponto-icone{flex:0 0 40px;width:40px;height:40px;display:inline-flex;align-items:center;justify-content:center;border-radius:14px;background:rgba(255,255,255,.18);font-size:18px}
+        .ponto-texto strong{display:block;font-size:16px;line-height:1.1}
+        .ponto-texto span{display:block;margin-top:4px;color:rgba(255,255,255,.8);font-size:12px;font-weight:800}
+        .ponto-status-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:14px}
+        .ponto-status-item{border:1px solid #e5eaf2;border-radius:14px;background:#fff;padding:12px}
+        .ponto-status-item span{display:block;color:#64748b;font-size:11px;font-weight:900;text-transform:uppercase}
+        .ponto-status-item strong{display:block;margin-top:5px;font-size:20px;color:#0f172a}
+        .ponto-sync-box{margin-top:12px;padding:12px;border-radius:14px;border:1px solid #e5eaf2;background:#f8fafc;color:#334155;font-size:12px;font-weight:900;line-height:1.35}
+        .ponto-sync-box.online{border-color:#bbf7d0;background:#f0fdf4;color:#166534}
+        .ponto-sync-box.offline{border-color:#fed7aa;background:#fff7ed;color:#9a3412}
+        .ponto-sync-box.pending{border-color:#bfdbfe;background:#eff6ff;color:#1d4ed8}
+        .ponto-pendente-lista{display:grid;gap:8px;margin-top:10px}
+        .ponto-pendente-item{display:flex;justify-content:space-between;gap:10px;padding:9px 10px;border-radius:12px;background:#fff;border:1px solid #e5eaf2;color:#334155}
+        .ponto-pendente-item span{font-weight:900}
+        .ponto-pendente-item small{color:#64748b;font-weight:800}
+        .ponto-offline-hidden{display:none !important}
+        .ponto-config-info{margin-top:10px;padding:10px 12px;border-radius:12px;background:#eff6ff;border:1px solid #bfdbfe;color:#1d4ed8;font-size:12px;font-weight:900}
+        .ponto-gps-status{margin-top:10px;padding:10px 12px;border-radius:12px;border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;font-size:12px;font-weight:900;line-height:1.35}
+        .ponto-gps-status.localizando{border-color:#fde68a;background:#fffbeb;color:#92400e}
+        .ponto-gps-status.localizado{border-color:#bbf7d0;background:#f0fdf4;color:#166534}
+        .ponto-gps-status.indisponivel{border-color:#fecaca;background:#fef2f2;color:#991b1b}
+        @media(max-width:460px){body{padding:12px}.ponto-publico-top h1{font-size:22px}.clock-time{font-size:46px}.ponto-status-grid{grid-template-columns:1fr}.ponto-publico-body{padding:14px}}
+    </style>
+</head>
+<body>
+<div class="ponto-publico-wrap">
+    <div class="ponto-publico-brand">GestFlow</div>
+
+    {% set entrada_marcada = registro_hoje and registro_hoje.entrada %}
+    {% set exigir_intervalo = exigir_intervalo_ponto|default(true) %}
+    {% set saida_intervalo_marcada = registro_hoje and registro_hoje.saida_intervalo %}
+    {% set retorno_intervalo_marcado = registro_hoje and registro_hoje.retorno_intervalo %}
+    {% set saida_marcada = registro_hoje and registro_hoje.saida %}
+    {% set entrada_bloqueada = (bloqueio_nova_entrada_segundos|default(0)|int) > 0 %}
+
+    <div class="ponto-publico-card">
+        <div class="ponto-publico-top">
+            <span>Registro de Ponto</span>
+            <h1>{% if funcionario %}{{ funcionario.empresa_nome or 'GestFlow' }}{% else %}Link inválido{% endif %}</h1>
+            <p>Tela individual do funcionário</p>
+        </div>
+
+        <div class="ponto-publico-body">
+            {% set erro_validacao_whatsapp = erro and ('Valide seu WhatsApp' in erro) %}
+            {% if erro and not (telefone_validado and erro_validacao_whatsapp) %}<div class="ponto-alert error">{{ erro }}</div>{% endif %}
+            {% if sucesso %}<div class="ponto-alert success">{{ sucesso }}</div>{% endif %}
+
+            {% if funcionario %}
+            <div class="ponto-identidade">
+                <div class="ponto-avatar">👤</div>
+                <div>
+                    <span>Funcionário</span>
+                    <strong>{{ funcionario.nome }}</strong>
+                </div>
+            </div>
+
+            <div class="clock-box">
+                <div class="clock-time" id="ponto-relogio">--:--</div>
+                <div class="clock-date">{{ data_hoje }}</div>
+            </div>
+
+            <form method="post" action="/ponto/{{ token }}" class="ponto-validacao {% if telefone_validado %}ponto-offline-hidden{% endif %}" id="ponto-form-validacao" data-token="{{ token }}">
+                <input type="hidden" name="etapa" value="validar_celular">
+                <label>Confirme seu WhatsApp</label>
+                <input class="form-control" type="tel" name="telefone" placeholder="Digite seu WhatsApp cadastrado" required autocomplete="tel">
+                <small>Por segurança, este ponto só é liberado para o celular cadastrado no funcionário. Cadastro atual: {{ telefone_mascarado }}.</small>
+                <button class="btn-primary-green" type="submit">Validar celular</button>
+            </form>
+
+            <div id="ponto-area-batida" class="{% if not telefone_validado %}ponto-offline-hidden{% endif %}">
+                <div class="ponto-status-ok">Celular validado. Use os botões abaixo para bater o ponto de hoje.</div>
+                <div class="ponto-config-info">Intervalo/almoço: {% if exigir_intervalo %}exigido neste funcionário{% else %}não exigido neste funcionário{% endif %}.</div>
+                <div
+                    class="ponto-config-info {% if not entrada_bloqueada %}ponto-offline-hidden{% endif %}"
+                    id="ponto-bloqueio-aviso"
+                    style="background:#fff7ed;border-color:#fed7aa;color:#9a3412;"
+                >Nova entrada para hora extra liberada em {{ bloqueio_nova_entrada_segundos }} segundo(s).</div>
+                <div class="ponto-sync-box" id="ponto-sync-status">Verificando conexão...</div>
+                <div class="ponto-gps-status" id="ponto-gps-status">📍 A localização será solicitada antes de cada batida.</div>
+                <div class="ponto-pendente-lista" id="ponto-pendente-lista"></div>
+
+                <form method="post" action="/ponto/{{ token }}" class="ponto-buttons" id="ponto-form-batida" data-token="{{ token }}" data-telefone-validado="{{ 'sim' if telefone_validado else 'nao' }}" data-funcionario-nome="{{ funcionario.nome }}" data-empresa-nome="{{ funcionario.empresa_nome or 'GestFlow' }}" data-exigir-intervalo="{{ 'sim' if exigir_intervalo else 'nao' }}" data-bloqueio-segundos="{{ bloqueio_nova_entrada_segundos|default(0)|int }}">
+                    <input type="hidden" name="latitude" id="ponto-latitude" value="">
+                    <input type="hidden" name="longitude" id="ponto-longitude" value="">
+                    <input type="hidden" name="precisao" id="ponto-precisao" value="">
+                    <button class="ponto-btn entrada" name="acao" value="entrada" type="submit" {% if entrada_bloqueada or entrada_marcada %}disabled{% endif %}>
+                        <span class="ponto-icone">↦</span><span class="ponto-texto"><strong>Entrada</strong><span>Iniciar expediente</span></span>
+                    </button>
+
+                    {% if exigir_intervalo %}
+                    <button class="ponto-btn" name="acao" value="saida_intervalo" type="submit" {% if not entrada_marcada or saida_intervalo_marcada %}disabled{% endif %}>
+                        <span class="ponto-icone">☕</span><span class="ponto-texto"><strong>Saída intervalo</strong><span>Pausar expediente</span></span>
+                    </button>
+
+                    <button class="ponto-btn" name="acao" value="retorno_intervalo" type="submit" {% if not saida_intervalo_marcada or retorno_intervalo_marcado %}disabled{% endif %}>
+                        <span class="ponto-icone">↩</span><span class="ponto-texto"><strong>Retorno intervalo</strong><span>Voltar ao trabalho</span></span>
+                    </button>
+                    {% endif %}
+
+                    <button class="ponto-btn saida" name="acao" value="saida" type="submit" {% if (exigir_intervalo and not retorno_intervalo_marcado) or ((not exigir_intervalo) and not entrada_marcada) or saida_marcada %}disabled{% endif %}>
+                        <span class="ponto-icone">⇥</span><span class="ponto-texto"><strong>Saída</strong><span>Encerrar expediente</span></span>
+                    </button>
+                </form>
+            </div>
+
+            <div class="ponto-status-grid">
+                <div class="ponto-status-item"><span>Entrada</span><strong data-ponto-campo="entrada">{{ registro_hoje.entrada if registro_hoje and registro_hoje.entrada else '--:--' }}</strong></div>
+                {% if exigir_intervalo %}
+                <div class="ponto-status-item"><span>Saída intervalo</span><strong data-ponto-campo="saida_intervalo">{{ registro_hoje.saida_intervalo if registro_hoje and registro_hoje.saida_intervalo else '--:--' }}</strong></div>
+                <div class="ponto-status-item"><span>Retorno intervalo</span><strong data-ponto-campo="retorno_intervalo">{{ registro_hoje.retorno_intervalo if registro_hoje and registro_hoje.retorno_intervalo else '--:--' }}</strong></div>
+                {% endif %}
+                <div class="ponto-status-item"><span>Saída</span><strong data-ponto-campo="saida">{{ registro_hoje.saida if registro_hoje and registro_hoje.saida else '--:--' }}</strong></div>
+            </div>
+
+            <div class="ponto-footer">Este link é individual. Não compartilhe com outro funcionário.</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+function atualizarRelogioPonto(){
+    const el = document.getElementById('ponto-relogio');
+    if(!el){return;}
+    const agora = new Date();
+    const horas = String(agora.getHours()).padStart(2,'0');
+    const minutos = String(agora.getMinutes()).padStart(2,'0');
+    el.textContent = `${horas}:${minutos}`;
+}
+
+function atualizarStatusGps(tipo, mensagem){
+    const status = document.getElementById('ponto-gps-status');
+    if(!status){return;}
+    status.className = `ponto-gps-status ${tipo || ''}`.trim();
+    status.textContent = mensagem;
+}
+
+function limparCamposGps(){
+    const latitude = document.getElementById('ponto-latitude');
+    const longitude = document.getElementById('ponto-longitude');
+    const precisao = document.getElementById('ponto-precisao');
+    if(latitude){latitude.value = '';}
+    if(longitude){longitude.value = '';}
+    if(precisao){precisao.value = '';}
+}
+
+function mensagemErroGps(erro){
+    if(!erro){return 'Localização indisponível. O ponto será registrado sem GPS.';}
+    if(erro.code === 1){return 'Permissão de localização negada. O ponto será registrado sem GPS.';}
+    if(erro.code === 2){return 'Não foi possível determinar sua localização. O ponto será registrado sem GPS.';}
+    if(erro.code === 3){return 'Tempo esgotado ao buscar localização. O ponto será registrado sem GPS.';}
+    return 'Localização indisponível. O ponto será registrado sem GPS.';
+}
+
+function capturarGpsAntesDaBatida(){
+    return new Promise((resolve) => {
+        limparCamposGps();
+
+        if(!navigator.geolocation){
+            atualizarStatusGps('indisponivel', '📍 Este aparelho não oferece localização. O ponto será registrado sem GPS.');
+            resolve();
+            return;
+        }
+
+        atualizarStatusGps('localizando', '📍 Buscando sua localização...');
+
+        navigator.geolocation.getCurrentPosition(
+            (posicao) => {
+                const latitude = document.getElementById('ponto-latitude');
+                const longitude = document.getElementById('ponto-longitude');
+                const precisao = document.getElementById('ponto-precisao');
+                const coords = posicao.coords;
+
+                if(latitude){latitude.value = String(coords.latitude);}
+                if(longitude){longitude.value = String(coords.longitude);}
+                if(precisao){precisao.value = String(Math.round(coords.accuracy || 0));}
+
+                atualizarStatusGps('localizado', `📍 Localização obtida com precisão aproximada de ${Math.round(coords.accuracy || 0)} metro(s).`);
+                resolve();
+            },
+            (erro) => {
+                limparCamposGps();
+                atualizarStatusGps('indisponivel', `📍 ${mensagemErroGps(erro)}`);
+                resolve();
+            },
+            {enableHighAccuracy:true,timeout:12000,maximumAge:0}
+        );
+    });
+}
+
+function prepararGpsPonto(){
+    const formulario = document.getElementById('ponto-form-batida');
+    if(!formulario){return;}
+
+    formulario.addEventListener('click', async (evento) => {
+        const botao = evento.target.closest('button[type="submit"][name="acao"]');
+        if(!botao || botao.disabled || formulario.dataset.gpsPronto === 'sim'){return;}
+
+        evento.preventDefault();
+        evento.stopImmediatePropagation();
+
+        const botoes = Array.from(formulario.querySelectorAll('button[type="submit"]'));
+        botoes.forEach((item) => {item.dataset.estadoGps = item.disabled ? 'desabilitado' : 'habilitado'; item.disabled = true;});
+
+        await capturarGpsAntesDaBatida();
+
+        botoes.forEach((item) => {item.disabled = item.dataset.estadoGps === 'desabilitado'; delete item.dataset.estadoGps;});
+        formulario.dataset.gpsPronto = 'sim';
+        formulario.requestSubmit(botao);
+    }, true);
+}
+
+atualizarRelogioPonto();
+setInterval(atualizarRelogioPonto, 1000);
+prepararGpsPonto();
+</script>
+<script src="/static/js/ponto_offline.js"></script>
+{% include 'partials/configuracoes_runtime.html' %}
+</body>
+</html>

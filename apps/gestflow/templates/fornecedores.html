@@ -1,0 +1,593 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\fornecedores.html
+Último recode: 2026-08-22 00:35 (America/Bahia)
+Motivo: Vincular explicitamente a tabela principal ao componente padronizado de Busca avançada, Colunas e Mais ações no mesmo padrão de Orçamentos.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Fornecedores</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <style>
+        .logout-button {
+            height: 36px;
+            padding: 0 14px;
+            border: 1px solid #d7e1ef;
+            border-radius: 10px;
+            background: #ffffff;
+            color: #dc2626;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 900;
+            text-decoration: none;
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .logout-button:hover {
+            background: #fff1f2;
+            border-color: #fecdd3;
+        }
+
+        .alert-error {
+            padding: 12px 14px;
+            border: 1px solid #fecaca;
+            border-radius: 12px;
+            background: #fef2f2;
+            color: #b91c1c;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+
+        .alert-success,
+        .form-alert-success {
+            margin: 0 0 18px;
+            padding: 12px 14px;
+            border: 1px solid #bbf7d0;
+            border-radius: 12px;
+            background: #f0fdf4;
+            color: #166534;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .more-actions-wrap {
+            position: relative;
+            display: inline-flex;
+        }
+
+        .more-actions-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            z-index: 20;
+            min-width: 230px;
+            padding: 8px;
+            border: 1px solid #dbe4f0;
+            border-radius: 12px;
+            background: #ffffff;
+            box-shadow: 0 18px 36px rgba(15, 23, 42, 0.16);
+            display: none;
+        }
+
+        .more-actions-menu.open {
+            display: block;
+        }
+
+        .more-actions-menu a,
+        .more-actions-menu button {
+            width: 100%;
+            min-height: 36px;
+            border: 0;
+            border-radius: 9px;
+            background: transparent;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            font-size: 13px;
+            font-weight: 800;
+            text-align: left;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .more-actions-menu a:hover,
+        .more-actions-menu button:hover {
+            background: #f1f5f9;
+        }
+
+        .sortable-link {
+            color: #1e293b;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            text-decoration: none;
+            font-weight: 900;
+        }
+
+        .sortable-link:hover {
+            color: #0f62fe;
+        }
+
+        .sort-indicator {
+            color: #0f62fe;
+            font-size: 11px;
+            font-weight: 900;
+        }
+
+        .pagination-bar {
+            margin-top: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            font-size: 13px;
+            color: #475569;
+            font-weight: 800;
+        }
+
+        .pagination-links {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .pagination-links a,
+        .pagination-links span {
+            min-width: 34px;
+            height: 34px;
+            padding: 0 10px;
+            border: 1px solid #dbe4f0;
+            border-radius: 9px;
+            background: #ffffff;
+            color: #0f172a;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 900;
+            text-decoration: none;
+        }
+
+        .pagination-links a:hover {
+            background: #eff6ff;
+            border-color: #bfdbfe;
+            color: #0f62fe;
+        }
+
+        .pagination-links .current-page {
+            background: #0f62fe;
+            border-color: #0f62fe;
+            color: #ffffff;
+        }
+
+        .pagination-links .disabled-page {
+            color: #94a3b8;
+            background: #f8fafc;
+            cursor: not-allowed;
+        }
+
+        .client-search-form {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .client-search-form .client-search {
+            flex: 1 1 320px;
+        }
+
+        .per-page-select {
+            max-width: 130px;
+        }
+
+        .clear-search-link {
+            min-height: 38px;
+            padding: 0 12px;
+            border: 1px solid #dbe4f0;
+            border-radius: 10px;
+            background: #ffffff;
+            color: #64748b;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 900;
+            text-decoration: none;
+        }
+
+        .clear-search-link:hover {
+            background: #f8fafc;
+            color: #0f172a;
+        }
+
+    </style>
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+
+<main class="content">
+        {% set page_title = 'Fornecedores' %}
+        {% include "partials/topbar.html" %}
+
+        {% if request.args.get("erro") %}
+            <section class="panel page-section">
+                <div class="alert-error">{{ request.args.get("erro") }}</div>
+            </section>
+        {% endif %}
+
+        {% if request.args.get("sucesso") %}
+            <section class="panel page-section">
+                <div class="alert-success">{{ request.args.get("sucesso") }}</div>
+            </section>
+        {% endif %}
+
+
+{% set fornecedores_lista = fornecedores|default([]) %}
+        {% set resumo_geral = resumo_fornecedores|default({}, true) %}
+        {% set paginacao = paginacao|default({}, true) %}
+        {% set busca = busca|default('', true) %}
+        {% set ordenar = ordenar|default('id', true) %}
+        {% set direcao = direcao|default('desc', true) %}
+        {% set por_pagina = por_pagina|default(20, true) %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Cadastros</span>
+                    <h3 class="page-title">Fornecedores</h3>
+                    <p class="page-subtitle">Controle os dados dos fornecedores, documentos, contatos, categorias e status de cadastro do GESTFLOW.</p>
+                </div>
+
+                <a href="#form-novo-fornecedor" class="btn-primary-green">+ Novo Fornecedor</a>
+            </div>
+        </section>
+
+        <section class="cards cards-secondary page-section">
+            <div class="card stat-card">
+                <div class="card-icon">☷</div>
+                <div class="card-info">
+                    <p>{{ resumo_geral.total|default(0, true) }}</p>
+                    <h3>Total de fornecedores</h3>
+                    <span>{% if fornecedores_lista|length == 1 %}1 fornecedor cadastrado{% elif fornecedores_lista|length > 1 %}{{ resumo_geral.total|default(0, true) }} fornecedores cadastrados{% else %}Nenhum fornecedor cadastrado{% endif %}</span>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="card-icon">✓</div>
+                <div class="card-info">
+                    <p>{{ resumo_geral.ativos|default(0, true) }}</p>
+                    <h3>Fornecedores ativos</h3>
+                    <span>{% if resumo_geral.ativos == 1 %}1 fornecedor ativo{% elif resumo_geral.ativos > 1 %}{{ resumo_geral.ativos|default(0, true) }} fornecedores ativos{% else %}Aguardando cadastro{% endif %}</span>
+                </div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="card-icon">!</div>
+                <div class="card-info">
+                    <p>{{ resumo_geral.pendentes|default(0, true) }}</p>
+                    <h3>Pendências</h3>
+                    <span>{% if resumo_geral.pendentes == 1 %}1 cadastro pendente{% elif resumo_geral.pendentes > 1 %}{{ resumo_geral.pendentes|default(0, true) }} cadastros pendentes{% else %}Nenhuma pendência{% endif %}</span>
+                </div>
+            </div>
+        </section>
+
+        <section id="form-novo-fornecedor" class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Novo fornecedor</h3>
+                    <p class="page-subtitle">Preencha os dados principais para preparar o cadastro do fornecedor.</p>
+                </div>
+
+                <span class="badge-info">Cadastro inicial</span>
+            </div>
+
+            <form action="/fornecedores" method="post" class="client-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="fornecedor_nome">Nome / Razão Social *</label>
+                        <input id="fornecedor_nome" name="fornecedor_nome" type="text" placeholder="Ex: Fornecedor ABC Ltda" class="form-control" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fornecedor_documento">CPF/CNPJ</label>
+                        <input id="fornecedor_documento" name="fornecedor_documento" type="text" placeholder="Ex: 00.000.000/0000-00" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fornecedor_telefone">Telefone</label>
+                        <input id="fornecedor_telefone" name="fornecedor_telefone" type="text" placeholder="Ex: (71) 99999-9999" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fornecedor_cidade">Cidade</label>
+                        <input id="fornecedor_cidade" name="fornecedor_cidade" type="text" placeholder="Ex: Salvador" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fornecedor_status">Status *</label>
+                        <select id="fornecedor_status" name="fornecedor_status" class="form-control" required>
+                            <option value="ativo">Ativo</option>
+                            <option value="inativo">Inativo</option>
+                            <option value="pendente">Pendente</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fornecedor_email">E-mail</label>
+                        <input id="fornecedor_email" name="fornecedor_email" type="email" placeholder="Ex: contato@fornecedor.com.br" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fornecedor_categoria">Categoria *</label>
+                        <select id="fornecedor_categoria" name="fornecedor_categoria" class="form-control" required>
+                            <option value="">Selecione</option>
+                            <option value="Material elétrico">Material elétrico</option>
+                            <option value="Material mecânico">Material mecânico</option>
+                            <option value="Serviços">Serviços</option>
+                            <option value="Transporte">Transporte</option>
+                            <option value="Ferramentas">Ferramentas</option>
+                            <option value="EPI">EPI</option>
+                            <option value="Outros">Outros</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fornecedor_observacoes">Observações</label>
+                        <input id="fornecedor_observacoes" name="fornecedor_observacoes" type="text" placeholder="Ex: Condição de pagamento, contato principal ou observação" class="form-control">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="reset" class="btn-light">Cancelar</button>
+                    <button type="submit" class="btn-primary-green">Salvar Fornecedor</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="panel table-panel">
+
+            <div class="panel-header page-header">
+                <div>
+                    <h3>Lista de fornecedores</h3>
+                    <p class="page-subtitle">Pesquise, visualize e mantenha os fornecedores cadastrados.</p>
+                </div>
+
+                <div class="client-toolbar">
+                    <div class="more-actions-wrap">
+                        <button type="button" class="btn-light" onclick="alternarMenuFornecedores()">⚙ Mais ações</button>
+                        <div id="fornecedores-more-actions" class="more-actions-menu">
+                            <button type="button" onclick="abrirImportacaoFornecedores()">⬆ Importar de uma planilha</button>
+                            <a href="/fornecedores/modelo">⬇ Baixar modelo</a>
+                            <a href="/fornecedores/exportar">⬇ Exportar fornecedores</a>
+                        </div>
+                    </div>
+                </div>
+
+                <form id="form-importar-fornecedores" action="/fornecedores/importar" method="post" enctype="multipart/form-data" style="display:none;">
+                    <input id="arquivo-fornecedores" name="arquivo_fornecedores" type="file" accept=".xlsx,.csv" onchange="enviarImportacaoFornecedores()">
+                </form>
+            </div>
+
+            <div class="client-actions">
+                <form action="/fornecedores" method="get" class="client-search-form">
+                    <input type="text" name="busca" value="{{ busca }}" placeholder="Buscar por nome, CPF/CNPJ, telefone, cidade, categoria ou e-mail" class="client-search">
+                    <input type="hidden" name="ordenar" value="{{ ordenar }}">
+                    <input type="hidden" name="direcao" value="{{ direcao }}">
+
+                    <select name="por_pagina" class="form-control per-page-select" onchange="this.form.submit()">
+                        <option value="10" {% if por_pagina == 10 %}selected{% endif %}>10 por página</option>
+                        <option value="20" {% if por_pagina == 20 %}selected{% endif %}>20 por página</option>
+                        <option value="50" {% if por_pagina == 50 %}selected{% endif %}>50 por página</option>
+                        <option value="100" {% if por_pagina == 100 %}selected{% endif %}>100 por página</option>
+                    </select>
+
+                    <button type="submit" class="btn-dark">Buscar</button>
+
+                    {% if busca %}
+                        <a href="{{ url_for('fornecedores', por_pagina=por_pagina, ordenar=ordenar, direcao=direcao) }}" class="clear-search-link">Limpar</a>
+                    {% endif %}
+                </form>
+            </div>
+
+            <div class="table-shell">
+                <table class="client-table" data-gf-lista-principal="sim">
+                    <thead>
+                        <tr>
+                            <th>
+                                <a href="{{ url_for('fornecedores', pagina=1, por_pagina=por_pagina, ordenar='id', direcao='desc' if ordenar == 'id' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    Código
+                                    {% if ordenar == 'id' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('fornecedores', pagina=1, por_pagina=por_pagina, ordenar='nome', direcao='desc' if ordenar == 'nome' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    Nome / Razão Social
+                                    {% if ordenar == 'nome' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('fornecedores', pagina=1, por_pagina=por_pagina, ordenar='documento', direcao='desc' if ordenar == 'documento' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    CPF/CNPJ
+                                    {% if ordenar == 'documento' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('fornecedores', pagina=1, por_pagina=por_pagina, ordenar='telefone', direcao='desc' if ordenar == 'telefone' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    Telefone
+                                    {% if ordenar == 'telefone' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('fornecedores', pagina=1, por_pagina=por_pagina, ordenar='cidade', direcao='desc' if ordenar == 'cidade' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    Cidade
+                                    {% if ordenar == 'cidade' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('fornecedores', pagina=1, por_pagina=por_pagina, ordenar='categoria', direcao='desc' if ordenar == 'categoria' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    Categoria
+                                    {% if ordenar == 'categoria' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="{{ url_for('fornecedores', pagina=1, por_pagina=por_pagina, ordenar='status', direcao='desc' if ordenar == 'status' and direcao == 'asc' else 'asc', busca=busca) }}" class="sortable-link">
+                                    Status
+                                    {% if ordenar == 'status' %}<span class="sort-indicator">{{ '↑' if direcao == 'asc' else '↓' }}</span>{% endif %}
+                                </a>
+                            </th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if fornecedores_lista %}
+                            {% for fornecedor in fornecedores_lista %}
+                                <tr>
+                                    <td>{{ fornecedor.id }}</td>
+                                    <td>{{ fornecedor.nome }}</td>
+                                    <td>{{ fornecedor.documento }}</td>
+                                    <td>{{ fornecedor.telefone }}</td>
+                                    <td>{{ fornecedor.cidade }}</td>
+                                    <td>{{ fornecedor.categoria }}</td>
+                                    <td>
+                                        <span class="status-pill {{ fornecedor.status }}">
+                                            {{ fornecedor.status }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <a href="/fornecedores/{{ fornecedor.id }}" title="Ver fornecedor" aria-label="Ver fornecedor" class="action-button view">🔍</a>
+                                            <a href="/fornecedores/{{ fornecedor.id }}/editar" title="Editar fornecedor" aria-label="Editar fornecedor" class="action-button edit">✎</a>
+                                            <form action="/fornecedores/{{ fornecedor.id }}/excluir" method="post" onsubmit="return confirm('Tem certeza que deseja excluir este fornecedor?');" class="action-form">
+                                                <button type="submit" title="Excluir fornecedor" aria-label="Excluir fornecedor" class="action-button delete">×</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="8" class="empty-table empty-table-box">
+                                    <div class="empty-table-content">
+                                        <div class="empty-table-icon">☷</div>
+                                        <strong>Nenhum fornecedor cadastrado.</strong>
+                                        <span>Use o botão Novo Fornecedor para iniciar o cadastro.</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="pagination-bar">
+                <div>
+                    {% if paginacao.total|default(0, true) > 0 %}
+                        Mostrando {{ paginacao.inicio }} a {{ paginacao.fim }} de um total de {{ paginacao.total }}
+                    {% else %}
+                        Nenhum fornecedor encontrado
+                    {% endif %}
+                </div>
+
+                {% if paginacao.total_paginas|default(1, true) > 1 %}
+                    <div class="pagination-links">
+                        {% if paginacao.tem_anterior %}
+                            <a href="{{ url_for('fornecedores', pagina=paginacao.anterior, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">‹</a>
+                        {% else %}
+                            <span class="disabled-page">‹</span>
+                        {% endif %}
+
+                        {% if 1 not in paginacao.paginas %}
+                            <a href="{{ url_for('fornecedores', pagina=1, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">1</a>
+                            {% if paginacao.paginas[0] > 2 %}
+                                <span class="disabled-page">...</span>
+                            {% endif %}
+                        {% endif %}
+
+                        {% for numero_pagina in paginacao.paginas %}
+                            {% if numero_pagina == paginacao.pagina %}
+                                <span class="current-page">{{ numero_pagina }}</span>
+                            {% else %}
+                                <a href="{{ url_for('fornecedores', pagina=numero_pagina, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">{{ numero_pagina }}</a>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if paginacao.total_paginas not in paginacao.paginas %}
+                            {% if paginacao.paginas[-1] < paginacao.total_paginas - 1 %}
+                                <span class="disabled-page">...</span>
+                            {% endif %}
+                            <a href="{{ url_for('fornecedores', pagina=paginacao.total_paginas, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">{{ paginacao.total_paginas }}</a>
+                        {% endif %}
+
+                        {% if paginacao.tem_proxima %}
+                            <a href="{{ url_for('fornecedores', pagina=paginacao.proxima, por_pagina=por_pagina, ordenar=ordenar, direcao=direcao, busca=busca) }}">›</a>
+                        {% else %}
+                            <span class="disabled-page">›</span>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+
+
+        </section>
+
+    </main>
+
+    <script>
+        function alternarMenuFornecedores() {
+            const menu = document.getElementById("fornecedores-more-actions");
+
+            if (!menu) {
+                return;
+            }
+
+            menu.classList.toggle("open");
+        }
+
+        function abrirImportacaoFornecedores() {
+            const input = document.getElementById("arquivo-fornecedores");
+            const menu = document.getElementById("fornecedores-more-actions");
+
+            if (menu) {
+                menu.classList.remove("open");
+            }
+
+            if (input) {
+                input.click();
+            }
+        }
+
+        function enviarImportacaoFornecedores() {
+            const form = document.getElementById("form-importar-fornecedores");
+            const input = document.getElementById("arquivo-fornecedores");
+
+            if (form && input && input.files.length > 0) {
+                form.submit();
+            }
+        }
+
+        document.addEventListener("click", function(event) {
+            const menu = document.getElementById("fornecedores-more-actions");
+            const wrapper = document.querySelector(".more-actions-wrap");
+
+            if (menu && wrapper && !wrapper.contains(event.target)) {
+                menu.classList.remove("open");
+            }
+        });
+    </script>
+
+    {% include "partials/lista_avancada.html" %}
+
+</body>
+</html>

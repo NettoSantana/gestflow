@@ -1,0 +1,834 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\login.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GestFlow - Login</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="apple-touch-icon" href="/static/img/gestflow-icon-180.png">
+    <meta name="theme-color" content="#071a2b">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="GestFlow">
+    <style>
+        :root {
+            --login-navy: #050a2b;
+            --login-navy-soft: #071f3b;
+            --login-blue: #1f7cff;
+            --login-green: #16a34a;
+            --login-red: #e3222a;
+            --login-text: #101d33;
+            --login-muted: #5b6c84;
+            --login-border: #d6e0ec;
+            --login-field: #eaf2ff;
+            --login-white: #ffffff;
+            --login-shadow: 0 22px 60px rgba(5, 20, 42, 0.16);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: Inter, Arial, Helvetica, sans-serif;
+            color: var(--login-text);
+            background: #ffffff;
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .login-page {
+            min-height: 100vh;
+            display: grid;
+            grid-template-columns: 1.04fr 0.96fr;
+        }
+
+        .login-marketing {
+            position: relative;
+            overflow: hidden;
+            background:
+                radial-gradient(circle at 22% 20%, rgba(31, 124, 255, 0.42), transparent 26%),
+                radial-gradient(circle at 80% 72%, rgba(22, 163, 74, 0.22), transparent 28%),
+                linear-gradient(135deg, #050a2b 0%, #071e3a 100%);
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 48px;
+        }
+
+        .marketing-content {
+            width: min(560px, 100%);
+            text-align: center;
+            position: relative;
+            z-index: 2;
+        }
+
+        .ai-pill {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.16);
+            border: 1px solid rgba(255, 255, 255, 0.32);
+            padding: 10px 18px;
+            color: #dfeaff;
+            font-weight: 900;
+            font-size: 16px;
+            margin-bottom: 24px;
+        }
+
+        .marketing-slide {
+            display: none;
+            animation: gestflowFadeSlide 0.45s ease;
+        }
+
+        .marketing-slide.active {
+            display: block;
+        }
+
+        @keyframes gestflowFadeSlide {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .slide-card-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .slide-card-item {
+            border: 1px solid #dce8f8;
+            border-radius: 18px;
+            background: #ffffff;
+            padding: 18px;
+        }
+
+        .slide-card-item span {
+            display: block;
+            color: var(--login-muted);
+            font-size: 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .slide-card-item strong {
+            display: block;
+            color: var(--login-navy);
+            font-size: 22px;
+            line-height: 1.15;
+        }
+
+        .slide-card-item small {
+            display: block;
+            color: #64748b;
+            font-size: 12px;
+            line-height: 1.4;
+            margin-top: 6px;
+        }
+
+        .marketing-content h1 {
+            font-size: clamp(36px, 5vw, 62px);
+            line-height: 1.02;
+            letter-spacing: -2px;
+            margin: 0 0 18px;
+        }
+
+        .marketing-content h1 strong {
+            color: var(--login-blue);
+        }
+
+        .marketing-content p {
+            margin: 0 auto 30px;
+            max-width: 460px;
+            color: #d2dfef;
+            font-size: 18px;
+            line-height: 1.55;
+        }
+
+        .assistant-card {
+            width: min(420px, 100%);
+            margin: 0 auto;
+            border-radius: 22px;
+            overflow: hidden;
+            background: #ffffff;
+            color: var(--login-text);
+            box-shadow: var(--login-shadow);
+            text-align: left;
+        }
+
+        .assistant-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            background: #071624;
+            color: #ffffff;
+        }
+
+        .assistant-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .assistant-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: #22c55e;
+        }
+
+        .assistant-body {
+            background: linear-gradient(180deg, #f5f9ff, #e8f2ff);
+            padding: 28px;
+            min-height: 270px;
+        }
+
+        .bubble {
+            max-width: 82%;
+            padding: 14px 16px;
+            border-radius: 16px;
+            margin-bottom: 14px;
+            font-size: 15px;
+            line-height: 1.45;
+        }
+
+        .bubble.user {
+            margin-left: auto;
+            background: #d8eaff;
+            color: #24476f;
+        }
+
+        .bubble.bot {
+            background: #ffffff;
+            color: #31516f;
+            box-shadow: 0 10px 24px rgba(12, 43, 80, 0.08);
+        }
+
+        .marketing-controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 28px;
+        }
+
+        .control-line {
+            width: 40px;
+            height: 4px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.34);
+        }
+
+        .control-line.active {
+            background: #ffffff;
+        }
+
+
+        .marketing-controls button.control-line {
+            border: 0;
+            cursor: pointer;
+            padding: 0;
+        }
+
+
+        .login-area {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 48px;
+            background: #ffffff;
+        }
+
+        .login-box {
+            width: min(465px, 100%);
+        }
+
+        .login-logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 42px;
+        }
+
+        .login-logo-img {
+            width: 258px;
+            max-width: 100%;
+            height: auto;
+            display: block;
+            object-fit: contain;
+        }
+
+        .login-title {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+
+        .login-title h2 {
+            margin: 0 0 8px;
+            font-size: 26px;
+            color: var(--login-navy);
+        }
+
+        .login-title p {
+            margin: 0;
+            color: var(--login-muted);
+            line-height: 1.5;
+        }
+
+        .login-form {
+            display: grid;
+            gap: 18px;
+        }
+
+        .field-group label {
+            display: block;
+            font-weight: 800;
+            font-size: 14px;
+            margin-bottom: 9px;
+            color: #0d1c33;
+        }
+
+        .field-control {
+            position: relative;
+        }
+
+        .field-control input {
+            width: 100%;
+            height: 56px;
+            border: 1px solid #cbd8e7;
+            border-radius: 10px;
+            background: var(--login-field);
+            padding: 0 48px 0 16px;
+            font-size: 15px;
+            color: var(--login-text);
+            outline: none;
+            transition: border 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+        }
+
+        .field-control input:focus {
+            border-color: var(--login-blue);
+            background: #ffffff;
+            box-shadow: 0 0 0 4px rgba(31, 124, 255, 0.12);
+        }
+
+        .field-icon {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #4c617c;
+            font-weight: 900;
+        }
+
+        .password-toggle {
+            border: 0;
+            background: transparent;
+            cursor: pointer;
+            padding: 0;
+            font-size: 16px;
+        }
+
+        .login-links {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            font-size: 14px;
+        }
+
+        .login-links a {
+            color: var(--login-navy);
+            font-weight: 700;
+        }
+
+        .login-button {
+            width: 100%;
+            height: 56px;
+            border: 0;
+            border-radius: 10px;
+            background: #071624;
+            color: #ffffff;
+            font-weight: 900;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 16px 34px rgba(7, 22, 36, 0.2);
+        }
+
+        .login-button:hover {
+            transform: translateY(-1px);
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--login-muted);
+            font-size: 13px;
+            margin: 2px 0;
+        }
+
+        .divider::before, .divider::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: var(--login-border);
+        }
+
+        .google-button {
+            width: 100%;
+            height: 52px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            border: 1px solid var(--login-border);
+            background: #ffffff;
+            border-radius: 10px;
+            color: var(--login-text);
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .google-icon {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            color: #ffffff;
+            background: conic-gradient(#4285f4 0 25%, #34a853 0 50%, #fbbc05 0 75%, #ea4335 0 100%);
+            font-size: 12px;
+            font-weight: 900;
+        }
+
+        .trial-text {
+            text-align: center;
+            color: var(--login-text);
+            font-size: 16px;
+            margin: 8px 0 0;
+        }
+
+        .trial-text a {
+            font-weight: 900;
+            color: var(--login-navy);
+        }
+
+        .social-area {
+            text-align: center;
+            margin-top: 28px;
+        }
+
+        .social-area span {
+            display: block;
+            color: var(--login-muted);
+            font-weight: 700;
+            font-size: 13px;
+            margin-bottom: 13px;
+        }
+
+        .social-icons {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .social-icons a {
+            width: 34px;
+            height: 34px;
+            display: grid;
+            place-items: center;
+            border: 1px solid var(--login-border);
+            border-radius: 9px;
+            color: #31475f;
+            font-weight: 900;
+        }
+
+        .login-footer-links {
+            margin-top: 24px;
+            display: flex;
+            justify-content: center;
+            gap: 18px;
+            color: var(--login-muted);
+            font-size: 13px;
+        }
+
+
+        .install-app-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 14px;
+            color: var(--login-blue);
+            font-size: 14px;
+            font-weight: 900;
+            text-decoration: none;
+        }
+
+        .login-alert {
+            margin: -8px 0 18px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 1px solid rgba(227, 34, 42, 0.22);
+            background: rgba(227, 34, 42, 0.08);
+            color: #991b1b;
+            font-size: 14px;
+            font-weight: 800;
+            text-align: center;
+        }
+
+        @media (max-width: 980px) {
+            .login-page {
+                grid-template-columns: 1fr;
+            }
+
+            .login-marketing {
+                min-height: auto;
+                padding: 48px 24px;
+            }
+
+            .assistant-card {
+                display: none;
+            }
+        }
+
+        @media (max-width: 560px) {
+            .login-area {
+                padding: 34px 20px;
+            }
+
+            .login-logo {
+                margin-bottom: 28px;
+            }
+
+            .login-logo-img {
+                width: 220px;
+            }
+
+            .login-links {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+        }
+    </style>
+
+    <style>
+        /* PADRAO VISUAL ORCAMENTOS - TELAS PUBLICAS */
+        body {
+            background: #f5f7fb;
+        }
+
+        main,
+        .portal-page,
+        .login-page,
+        .onboarding-page,
+        .plans-page {
+            color: #0f172a;
+        }
+
+        .portal-card,
+        .login-card,
+        .auth-card,
+        .onboarding-card,
+        .plan-card,
+        .card,
+        .panel {
+            border-radius: 18px !important;
+            box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+        }
+
+        input,
+        select,
+        textarea,
+        .form-control {
+            border-radius: 10px !important;
+        }
+
+        button,
+        .btn-primary-green,
+        .btn-dark,
+        .btn-light,
+        .primary-button,
+        .secondary-button {
+            border-radius: 10px !important;
+            text-decoration: none;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate !important;
+            border-spacing: 0 10px !important;
+        }
+
+        table thead th {
+            border-bottom: 0 !important;
+            background: transparent;
+            padding: 10px 12px;
+            color: #334155;
+            font-size: 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        table tbody tr {
+            background: #ffffff;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+            border-radius: 14px;
+        }
+
+        table tbody td {
+            border-bottom: 0 !important;
+            padding: 14px 12px !important;
+        }
+
+        table tbody td:first-child {
+            border-top-left-radius: 14px;
+            border-bottom-left-radius: 14px;
+        }
+
+        table tbody td:last-child {
+            border-top-right-radius: 14px;
+            border-bottom-right-radius: 14px;
+        }
+    </style>
+
+</head>
+<body>
+    <main class="login-page">
+        <section class="login-marketing">
+            <div class="marketing-content">
+                <div class="marketing-slide active" data-login-slide>
+                    <div class="ai-pill">Gestão web simples</div>
+                    <h1>Controle sua empresa com <strong>simplicidade.</strong></h1>
+                    <p>O GestFlow reúne vendas, clientes, produtos, serviços, estoque, ordens de serviço e financeiro em uma plataforma leve para o dia a dia.</p>
+
+                    <div class="assistant-card">
+                        <div class="assistant-top">
+                            <div class="assistant-status"><span class="assistant-dot"></span>Resumo GestFlow</div>
+                            <span>Hoje</span>
+                        </div>
+                        <div class="assistant-body">
+                            <div class="slide-card-grid">
+                                <div class="slide-card-item"><span>Vendas</span><strong>Controle diário</strong><small>Produtos, serviços e clientes organizados.</small></div>
+                                <div class="slide-card-item"><span>Estoque</span><strong>Mais visão</strong><small>Entradas, saídas e movimentações.</small></div>
+                                <div class="slide-card-item"><span>Serviços</span><strong>OS completa</strong><small>Registro técnico e acompanhamento.</small></div>
+                                <div class="slide-card-item"><span>Financeiro</span><strong>Simples</strong><small>Receber, pagar e fluxo de caixa.</small></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="marketing-slide" data-login-slide>
+                    <div class="ai-pill">Ordens de serviço</div>
+                    <h1>Acompanhe serviços do início ao <strong>fim.</strong></h1>
+                    <p>Registre cliente, técnico, equipamentos, fotos antes e depois, materiais aplicados e acompanhamento diário da execução.</p>
+
+                    <div class="assistant-card">
+                        <div class="assistant-top">
+                            <div class="assistant-status"><span class="assistant-dot"></span>OS em andamento</div>
+                            <span>Execução</span>
+                        </div>
+                        <div class="assistant-body">
+                            <div class="slide-card-grid">
+                                <div class="slide-card-item"><span>Equipamento</span><strong>Antes/depois</strong><small>Fotos vinculadas ao item correto.</small></div>
+                                <div class="slide-card-item"><span>Equipe</span><strong>Responsáveis</strong><small>Técnico, apoio e horas registradas.</small></div>
+                                <div class="slide-card-item"><span>Materiais</span><strong>Aplicação</strong><small>Produtos utilizados no serviço.</small></div>
+                                <div class="slide-card-item"><span>Histórico</span><strong>Diário</strong><small>Registro do que foi executado.</small></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="marketing-slide" data-login-slide>
+                    <div class="ai-pill">Vendas e estoque</div>
+                    <h1>Tenha mais controle da sua <strong>operação.</strong></h1>
+                    <p>Cadastre produtos, serviços, vendas e devoluções com uma rotina mais organizada e fácil de acompanhar.</p>
+
+                    <div class="assistant-card">
+                        <div class="assistant-top">
+                            <div class="assistant-status"><span class="assistant-dot"></span>Operação organizada</div>
+                            <span>Gestão</span>
+                        </div>
+                        <div class="assistant-body">
+                            <div class="slide-card-grid">
+                                <div class="slide-card-item"><span>Produtos</span><strong>Cadastro único</strong><small>Informações comerciais e estoque.</small></div>
+                                <div class="slide-card-item"><span>Serviços</span><strong>Catálogo</strong><small>Mão de obra e atividades recorrentes.</small></div>
+                                <div class="slide-card-item"><span>Vendas</span><strong>Agilidade</strong><small>Itens, totais e impressão.</small></div>
+                                <div class="slide-card-item"><span>Devoluções</span><strong>Retorno</strong><small>Reposição controlada no estoque.</small></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="marketing-slide" data-login-slide>
+                    <div class="ai-pill">Financeiro simples</div>
+                    <h1>Veja o que entra e o que <strong>sai.</strong></h1>
+                    <p>Organize contas a receber, contas a pagar, baixas e fluxo de caixa para enxergar melhor o resultado do negócio.</p>
+
+                    <div class="assistant-card">
+                        <div class="assistant-top">
+                            <div class="assistant-status"><span class="assistant-dot"></span>Visão financeira</div>
+                            <span>Controle</span>
+                        </div>
+                        <div class="assistant-body">
+                            <div class="slide-card-grid">
+                                <div class="slide-card-item"><span>Receber</span><strong>Títulos</strong><small>Valores previstos e baixados.</small></div>
+                                <div class="slide-card-item"><span>Pagar</span><strong>Compromissos</strong><small>Contas e vencimentos.</small></div>
+                                <div class="slide-card-item"><span>Caixa</span><strong>Fluxo</strong><small>Entradas, saídas e saldo.</small></div>
+                                <div class="slide-card-item"><span>Resumo</span><strong>Decisão</strong><small>Números simples para agir melhor.</small></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="marketing-controls" aria-label="Slides do GestFlow">
+                    <button type="button" class="control-line active" data-login-slide-control="0" aria-label="Slide 1"></button>
+                    <button type="button" class="control-line" data-login-slide-control="1" aria-label="Slide 2"></button>
+                    <button type="button" class="control-line" data-login-slide-control="2" aria-label="Slide 3"></button>
+                    <button type="button" class="control-line" data-login-slide-control="3" aria-label="Slide 4"></button>
+                </div>
+            </div>
+        </section>
+
+        <section class="login-area">
+            <div class="login-box">
+                <a href="/portal" class="login-logo" aria-label="GestFlow">
+                    <img src="/static/img/gestflow-logo.png" alt="GestFlow" class="login-logo-img">
+                </a>
+
+                <div class="login-title">
+                    <h2>Acesse sua conta</h2>
+                    <p>Entre para acompanhar vendas, estoque, serviços e financeiro.</p>
+                </div>
+
+                {% set mensagem_erro = erro_login|default(erro|default("")) %}
+                {% if mensagem_erro %}
+                    <div class="login-alert">{{ mensagem_erro }}</div>
+                {% endif %}
+
+                <form class="login-form" action="/login" method="post">
+                    <div class="field-group">
+                        <label for="login_email">E-mail</label>
+                        <div class="field-control">
+                            <input id="login_email" name="email" type="email" placeholder="seuemail@empresa.com" autocomplete="email" value="{{ email_login|default('') }}" required>
+                            <span class="field-icon">@</span>
+                        </div>
+                    </div>
+
+                    <div class="field-group">
+                        <label for="login_senha">Senha</label>
+                        <div class="field-control">
+                            <input id="login_senha" name="senha" type="password" placeholder="Digite sua senha" autocomplete="current-password" required>
+                            <button class="field-icon password-toggle" type="button" onclick="alternarSenha()" aria-label="Mostrar ou ocultar senha">◉</button>
+                        </div>
+                    </div>
+
+                    <div class="login-links">
+                        <label><input type="checkbox" name="lembrar"> Manter conectado</label>
+                        <a href="/esqueci-senha">Esqueci minha senha</a>
+                    </div>
+
+                    <button type="submit" class="login-button">Acessar minha conta</button>
+                    <p class="trial-text">Ainda não tem uma conta? <a href="/novo-cadastro">Experimente grátis!</a></p>
+                </form>
+
+                <a href="/instalar" class="install-app-link">Instalar GestFlow no celular</a>
+
+            <div class="login-footer-links">
+                    <a href="/portal">Voltar ao portal</a>
+                    <a href="/">Ir para dashboard</a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        function alternarSenha() {
+            const campoSenha = document.getElementById("login_senha");
+
+            if (!campoSenha) {
+                return;
+            }
+
+            campoSenha.type = campoSenha.type === "password" ? "text" : "password";
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            const slides = Array.from(document.querySelectorAll("[data-login-slide]"));
+            const controles = Array.from(document.querySelectorAll("[data-login-slide-control]"));
+            let slideAtual = 0;
+            let intervaloSlides = null;
+
+            function mostrarSlide(indice) {
+                if (!slides.length) {
+                    return;
+                }
+
+                slideAtual = ((indice % slides.length) + slides.length) % slides.length;
+
+                slides.forEach(function(slide, posicao) {
+                    slide.classList.toggle("active", posicao === slideAtual);
+                });
+
+                controles.forEach(function(controle, posicao) {
+                    controle.classList.toggle("active", posicao === slideAtual);
+                });
+            }
+
+            function iniciarSlides() {
+                if (intervaloSlides) {
+                    window.clearInterval(intervaloSlides);
+                }
+
+                intervaloSlides = window.setInterval(function() {
+                    mostrarSlide(slideAtual + 1);
+                }, 5200);
+            }
+
+            controles.forEach(function(controle) {
+                controle.addEventListener("click", function() {
+                    const indice = Number.parseInt(controle.getAttribute("data-login-slide-control"), 10);
+                    mostrarSlide(Number.isFinite(indice) ? indice : 0);
+                    iniciarSlides();
+                });
+            });
+
+            mostrarSlide(0);
+            iniciarSlides();
+        });
+    </script>
+
+    <script>
+        if ("serviceWorker" in navigator) {
+            window.addEventListener("load", function () {
+                navigator.serviceWorker.register("/service-worker.js").catch(function () {});
+            });
+        }
+    </script>
+
+</body>
+</html>

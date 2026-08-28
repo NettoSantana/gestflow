@@ -1,0 +1,551 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\ordens_servico_painel.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GESTFLOW - Painel de OS</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+
+    <style>
+        html,
+        body {
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+
+        main.content.os-page {
+            width: auto !important;
+            min-width: 0 !important;
+            max-width: none !important;
+            overflow-x: hidden;
+            box-sizing: border-box;
+        }
+
+        .os-page *,
+        .os-page *::before,
+        .os-page *::after {
+            box-sizing: border-box;
+        }
+
+        .os-page .topbar,
+        .os-page .panel,
+        .os-page .page-section,
+        .os-page .table-panel,
+        .os-panel-grid,
+        .os-money-grid,
+        .os-priority-grid,
+        .os-status-grid,
+        .os-board-grid,
+        .os-board-tables {
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+        }
+
+        .os-page .page-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            min-width: 0;
+        }
+
+        .os-page .page-header > div:first-child {
+            min-width: 0;
+            flex: 1 1 320px;
+        }
+
+        .os-panel-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 14px;
+            margin-bottom: 22px;
+        }
+
+        .os-money-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+            gap: 14px;
+        }
+
+        .os-board-grid,
+        .os-board-tables {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            gap: 18px;
+            margin-bottom: 22px;
+        }
+
+        .os-priority-grid,
+        .os-status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 14px;
+        }
+
+        .os-panel-card {
+            background: #ffffff;
+            border: 1px solid #dbe3ef;
+            border-radius: 14px;
+            padding: 18px;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+            min-width: 0;
+        }
+
+        .os-panel-card strong {
+            display: block;
+            font-size: 28px;
+            color: #0f172a;
+            margin-bottom: 6px;
+            line-height: 1.1;
+            overflow-wrap: anywhere;
+        }
+
+        .os-panel-card span {
+            display: block;
+            color: #64748b;
+            font-size: 13px;
+            overflow-wrap: anywhere;
+        }
+
+        .os-panel-card h4 {
+            margin: 0 0 10px;
+            font-size: 14px;
+            color: #334155;
+            overflow-wrap: anywhere;
+        }
+
+        .os-panel-card-warning {
+            border-color: #facc15;
+            background: #fefce8;
+        }
+
+        .os-panel-card-danger {
+            border-color: #fecaca;
+            background: #fff1f2;
+        }
+
+        .os-panel-card-success {
+            border-color: #bbf7d0;
+            background: #f0fdf4;
+        }
+
+        .os-dashboard-link-row {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 10px;
+            flex: 0 1 auto;
+            flex-wrap: wrap;
+            min-width: 0;
+        }
+
+        .os-page .table-shell {
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            overflow-x: auto;
+        }
+
+        .os-page .client-table {
+            width: 100%;
+            min-width: 620px;
+        }
+
+        .os-page .table-panel {
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        @media (max-width: 1280px) {
+            .os-board-grid,
+            .os-board-tables {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 980px) {
+            .os-panel-grid,
+            .os-money-grid,
+            .os-priority-grid,
+            .os-status-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 720px) {
+            .os-panel-grid,
+            .os-money-grid,
+            .os-priority-grid,
+            .os-status-grid,
+            .os-board-grid,
+            .os-board-tables {
+                grid-template-columns: 1fr;
+            }
+
+            .os-dashboard-link-row {
+                justify-content: flex-start;
+            }
+        }
+    </style>
+
+    <style>
+        /* PADRAO VISUAL ORCAMENTOS - TELAS AUXILIARES */
+        .content {
+            padding-bottom: 220px;
+        }
+
+        .content > .panel.page-section:first-of-type {
+            margin-top: 0;
+        }
+
+        .panel,
+        .page-section,
+        .table-panel {
+            border-radius: 16px;
+        }
+
+        .panel-header.page-header,
+        .page-header {
+            gap: 14px;
+        }
+
+        .page-title {
+            letter-spacing: -0.02em;
+        }
+
+        .page-subtitle {
+            max-width: 760px;
+        }
+
+        .client-toolbar,
+        .form-actions,
+        .client-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn-primary-green,
+        .btn-dark,
+        .btn-light,
+        .action-button {
+            border-radius: 10px;
+            text-decoration: none;
+        }
+
+        .form-control,
+        input,
+        select,
+        textarea {
+            border-radius: 10px;
+            max-width: 100%;
+        }
+
+        .client-form {
+            width: 100%;
+        }
+
+        .form-grid {
+            align-items: start;
+        }
+
+        .panel-summary {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .panel-summary > div {
+            min-height: 74px;
+            border: 1px solid #e5eaf2;
+            border-radius: 14px;
+            background: #ffffff;
+            padding: 14px;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+        }
+
+        .panel-summary span {
+            display: block;
+            margin-bottom: 6px;
+            color: #64748b;
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+
+        .panel-summary strong {
+            color: #0f172a;
+            font-size: 14px;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+
+        .table-shell {
+            border: 0 !important;
+            border-radius: 16px;
+            overflow-x: auto;
+            background: #ffffff;
+        }
+
+        .content table,
+        .content .client-table {
+            width: 100%;
+            border-collapse: separate !important;
+            border-spacing: 0 10px !important;
+            min-width: 760px;
+        }
+
+        .content table thead th,
+        .content .client-table thead th {
+            border-bottom: 0 !important;
+            background: transparent;
+            padding: 10px 12px;
+            color: #334155;
+            font-size: 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .content table tbody tr,
+        .content .client-table tbody tr {
+            background: #ffffff;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+            border-radius: 14px;
+        }
+
+        .content table tbody td,
+        .content .client-table tbody td {
+            border-bottom: 0 !important;
+            padding: 14px 12px !important;
+            color: #334155;
+            vertical-align: middle;
+        }
+
+        .content table tbody td:first-child,
+        .content .client-table tbody td:first-child {
+            border-top-left-radius: 14px;
+            border-bottom-left-radius: 14px;
+        }
+
+        .content table tbody td:last-child,
+        .content .client-table tbody td:last-child {
+            border-top-right-radius: 14px;
+            border-bottom-right-radius: 14px;
+        }
+
+        .empty-table,
+        .empty-table-box {
+            border-radius: 14px;
+        }
+
+        .status-pill,
+        .badge-info {
+            border-radius: 999px;
+            white-space: nowrap;
+        }
+
+        .quick-modal,
+        .modal,
+        .dialog {
+            border-radius: 18px;
+        }
+
+        .config-grid,
+        .portal-grid,
+        .planos-grid,
+        .cards,
+        .cards-secondary {
+            gap: 16px;
+        }
+
+        .config-card,
+        .portal-card,
+        .plan-card,
+        .card,
+        .stat-card {
+            border-radius: 16px;
+        }
+
+        .auth-card,
+        .login-card,
+        .onboarding-card,
+        .portal-card,
+        .plan-card {
+            box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+        }
+
+        @media (max-width: 1100px) {
+            .panel-summary {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .content table,
+            .content .client-table {
+                min-width: 720px;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .panel-summary {
+                grid-template-columns: 1fr;
+            }
+
+            .client-toolbar,
+            .form-actions,
+            .client-actions {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .client-toolbar .btn-primary-green,
+            .client-toolbar .btn-dark,
+            .client-toolbar .btn-light,
+            .form-actions .btn-primary-green,
+            .form-actions .btn-dark,
+            .form-actions .btn-light {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .content table,
+            .content .client-table {
+                min-width: 680px;
+            }
+        }
+    </style>
+
+</head>
+<body>
+    {% include "partials/sidebar.html" %}
+
+<main class="content os-page">
+        {% set page_title = 'Painel de OS' %}
+        {% include "partials/topbar.html" %}
+
+{% set prazo = painel.prazo %}
+        {% set prioridade = painel.prioridade %}
+        {% set faturamento = painel.faturamento %}
+
+        <section class="panel page-section">
+            <div class="panel-header page-header">
+                <div>
+                    <span class="page-kicker">Ordens de Serviço</span>
+                    <h3 class="page-title">Painel de OS</h3>
+                    <p class="page-subtitle">Acompanhe prazos, prioridades, situação, faturamento e técnico responsável.</p>
+                </div>
+                <div class="os-dashboard-link-row">
+                    <a href="/ordens-servico" class="btn-light">Gerenciar OS</a>
+                    <a href="/ordens-servico#form-nova-os" class="btn-primary-green">+ Nova OS</a>
+                </div>
+            </div>
+        </section>
+
+        <section class="os-panel-grid">
+            <div class="os-panel-card os-panel-card-danger"><h4>Vencidas</h4><strong>{{ prazo.vencidas }}</strong><span>OS abertas com prazo vencido</span></div>
+            <div class="os-panel-card os-panel-card-warning"><h4>Hoje</h4><strong>{{ prazo.hoje }}</strong><span>OS previstas para hoje</span></div>
+            <div class="os-panel-card"><h4>Amanhã</h4><strong>{{ prazo.amanha }}</strong><span>OS previstas para amanhã</span></div>
+            <div class="os-panel-card"><h4>Futuras</h4><strong>{{ prazo.futuras }}</strong><span>OS com prazo futuro</span></div>
+            <div class="os-panel-card"><h4>Sem prazo</h4><strong>{{ prazo.sem_prazo }}</strong><span>OS sem previsão cadastrada</span></div>
+        </section>
+
+        <section class="panel page-section">
+            <div class="panel-header page-header"><div><h3>Faturamento</h3><p class="page-subtitle">Resumo financeiro das ordens cadastradas.</p></div></div>
+            <div class="os-money-grid">
+                <div class="os-panel-card"><h4>Não finalizadas</h4><strong>R$ {{ "%.2f"|format(faturamento.nao_finalizadas)|replace(".", ",") }}</strong><span>Todos os status visuais em aberto</span></div>
+                <div class="os-panel-card os-panel-card-success"><h4>Finalizadas</h4><strong>R$ {{ "%.2f"|format(faturamento.finalizadas)|replace(".", ",") }}</strong><span>OS concluídas pelo status finalizador</span></div>
+                <div class="os-panel-card"><h4>Total geral</h4><strong>R$ {{ "%.2f"|format(faturamento.geral)|replace(".", ",") }}</strong><span>Total cadastrado</span></div>
+            </div>
+        </section>
+
+        <section class="os-board-grid">
+            <div class="panel table-panel">
+                <div class="panel-header page-header"><div><h3>Prioridade</h3><p class="page-subtitle">Distribuição das OS por urgência.</p></div></div>
+                <div class="os-priority-grid">
+                    <div class="os-panel-card"><h4>Baixa</h4><strong>{{ prioridade.baixa }}</strong><span>Baixa prioridade</span></div>
+                    <div class="os-panel-card"><h4>Média</h4><strong>{{ prioridade.media }}</strong><span>Prioridade média</span></div>
+                    <div class="os-panel-card os-panel-card-warning"><h4>Alta</h4><strong>{{ prioridade.alta }}</strong><span>Prioridade alta</span></div>
+                    <div class="os-panel-card os-panel-card-danger"><h4>Urgente</h4><strong>{{ prioridade.urgente }}</strong><span>Atendimento urgente</span></div>
+                    <div class="os-panel-card os-panel-card-danger"><h4>Muito urgente</h4><strong>{{ prioridade.muito_urgente }}</strong><span>Atenção imediata</span></div>
+                    <div class="os-panel-card"><h4>Normal</h4><strong>{{ prioridade.normal }}</strong><span>Sem prioridade especial</span></div>
+                </div>
+            </div>
+
+            <div class="panel table-panel">
+                <div class="panel-header page-header"><div><h3>Situação</h3><p class="page-subtitle">Status das ordens de serviço.</p></div></div>
+                <div class="os-status-grid">
+                    {% for item in painel.status_itens %}
+                        <div class="os-panel-card" style="border-color: {{ item.borda }}; background: {{ item.fundo }}; color: {{ item.texto }};">
+                            <h4 style="color: {{ item.texto }};">{{ item.nome }}</h4>
+                            <strong style="color: {{ item.texto }};">{{ item.quantidade }}</strong>
+                            <span style="color: {{ item.texto }};">{{ 'Status finalizador' if item.final else 'Status visual' }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+
+        <section class="os-board-tables">
+            <div class="panel table-panel">
+                <div class="panel-header page-header"><div><h3>Faturamento por técnico</h3><p class="page-subtitle">Quantidade, abertas, finalizadas e valor por responsável técnico.</p></div></div>
+                <div class="table-shell">
+                    <table class="client-table">
+                        <thead><tr><th>Técnico</th><th>OS</th><th>Abertas</th><th>Finalizadas</th><th>Valor total</th></tr></thead>
+                        <tbody>
+                            {% if painel.por_tecnico %}
+                                {% for item in painel.por_tecnico %}
+                                    <tr>
+                                        <td>{{ item.tecnico }}</td>
+                                        <td>{{ item.quantidade }}</td>
+                                        <td>{{ item.abertas }}</td>
+                                        <td>{{ item.finalizadas }}</td>
+                                        <td>R$ {{ "%.2f"|format(item.valor_total)|replace(".", ",") }}</td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr><td colspan="5" class="empty-table">Nenhum técnico vinculado.</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="panel table-panel">
+                <div class="panel-header page-header"><div><h3>Próximas OS</h3><p class="page-subtitle">Lista ordenada pelo prazo de previsão.</p></div></div>
+                <div class="table-shell">
+                    <table class="client-table">
+                        <thead><tr><th>Número</th><th>Cliente</th><th>Técnico</th><th>Status</th><th>Prioridade</th><th>Previsão</th><th>Ação</th></tr></thead>
+                        <tbody>
+                            {% if painel.proximas_ordens %}
+                                {% for os in painel.proximas_ordens %}
+                                    <tr>
+                                        <td>{{ os.numero }}</td>
+                                        <td>{{ os.cliente }}</td>
+                                        <td>{{ os.tecnico or '-' }}</td>
+                                        <td><span class="status-pill" style="background: {{ os.status_fundo }}; color: {{ os.status_texto_cor }}; border-color: {{ os.status_borda }};">{{ os.status_nome }}</span></td>
+                                        <td>{{ os.prioridade }}</td>
+                                        <td>{{ os.data_previsao or '-' }}</td>
+                                        <td><a href="/ordens-servico/{{ os.id }}" class="action-button view">🔍</a></td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr><td colspan="7" class="empty-table">Nenhuma OS cadastrada.</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

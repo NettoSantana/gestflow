@@ -1,0 +1,225 @@
+{#
+Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\venda_imprimir_cupom.html
+Último recode: 2026-08-21 06:43 (America/Bahia)
+Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+#}
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>GESTFLOW - Cupom Venda</title>
+    <style>
+        @page {
+            size: 80mm auto;
+            margin: 4mm;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            color: #111827;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 11px;
+            background: #ffffff;
+        }
+
+        .cupom {
+            width: 72mm;
+            margin: 0 auto;
+        }
+
+        .center {
+            text-align: center;
+        }
+
+        .brand {
+            padding-bottom: 8px;
+            border-bottom: 1px dashed #111827;
+            margin-bottom: 8px;
+        }
+
+        .brand h1 {
+            margin: 0;
+            font-size: 18px;
+            letter-spacing: 1px;
+        }
+
+        .brand p {
+            margin: 3px 0 0;
+            font-size: 10px;
+        }
+
+        .line {
+            border-top: 1px dashed #111827;
+            margin: 8px 0;
+        }
+
+        .row {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            margin: 3px 0;
+        }
+
+        .label {
+            color: #475569;
+        }
+
+        .value {
+            font-weight: 700;
+            text-align: right;
+        }
+
+        .item {
+            margin-bottom: 8px;
+        }
+
+        .item-title {
+            font-weight: 700;
+            margin-bottom: 2px;
+        }
+
+        .item-detail {
+            color: #475569;
+            margin-bottom: 2px;
+        }
+
+        .total {
+            font-size: 14px;
+            font-weight: 800;
+        }
+
+        .obs {
+            white-space: pre-wrap;
+        }
+
+        .screen-actions {
+            width: 72mm;
+            margin: 0 auto 8px;
+            display: flex;
+            gap: 6px;
+        }
+
+        .screen-actions button,
+        .screen-actions a {
+            flex: 1;
+            border: 0;
+            border-radius: 6px;
+            padding: 8px;
+            background: #0f172a;
+            color: #ffffff;
+            text-decoration: none;
+            text-align: center;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 11px;
+        }
+
+        @media print {
+            .screen-actions {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    {% set _cfg = gestflow_configuracoes_runtime.get('valores', {}) %}
+    {% set _cfg_gerais = _cfg.get('gerais', {}) %}
+    <div class="screen-actions">
+        <a href="/vendas/{{ venda.id }}">Voltar</a>
+        <button type="button" onclick="window.print()">Imprimir</button>
+    </div>
+
+    <main class="cupom">
+        <header class="brand center">
+            <h1>{{ empresa.nome_fantasia or empresa.razao_social or 'GESTFLOW' }}</h1>
+            {% if empresa.documento %}<p>CNPJ/CPF: {{ empresa.documento }}</p>{% endif %}
+            <p>{{ empresa.telefone or '-' }} | {{ empresa.email or '-' }}</p>
+            {% if loja and loja.cidade %}<p>{{ loja.cidade }}</p>{% endif %}
+            <p>COMPROVANTE DE VENDA</p>
+            <p>Venda {{ venda.numero or venda.id }}</p>
+        </header>
+
+        <section>
+            <div class="row"><span class="label">Cliente</span><span class="value">{{ cliente.nome if cliente else (venda.cliente or '-') }}</span></div>
+            <div class="row"><span class="label">CPF/CNPJ</span><span class="value">{{ cliente.documento if cliente and cliente.documento else '-' }}</span></div>
+            <div class="row"><span class="label">Telefone</span><span class="value">{{ cliente.telefone if cliente and cliente.telefone else '-' }}</span></div>
+            <div class="row"><span class="label">Data</span><span class="value">{{ venda.data or '-' }}</span></div>
+            <div class="row"><span class="label">Situação</span><span class="value">{{ venda.status_nome|default(venda.status, true) or '-' }}</span></div>
+            <div class="row"><span class="label">Condição</span><span class="value">{{ venda.condicao_pagamento or 'avista' }}</span></div>
+            <div class="row"><span class="label">Meio</span><span class="value">{{ venda.meio_pagamento or venda.forma_pagamento or '-' }}</span></div>
+        </section>
+
+        <div class="line"></div>
+
+        <section>
+            {% if itens %}
+                {% for item in itens %}
+                <div class="item">
+                    <div class="item-title">{{ item.descricao or '-' }}</div>
+                    {% if item.detalhes %}
+                    <div class="item-detail">{{ item.detalhes }}</div>
+                    {% endif %}
+                    <div class="row">
+                        <span>{{ item.quantidade or '-' }} x {{ item.valor_unitario or '0,00' }}</span>
+                        <span class="value">{{ item.subtotal or '0,00' }}</span>
+                    </div>
+                    {% if item.desconto %}
+                    <div class="row">
+                        <span class="label">Desconto</span>
+                        <span>{{ item.desconto }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="center">Nenhum item informado.</p>
+            {% endif %}
+        </section>
+
+        <div class="line"></div>
+
+        <section>
+            <div class="row"><span>Total produtos</span><span class="value">R$ {{ venda.total_produtos or '0,00' }}</span></div>
+            <div class="row"><span>Total serviços</span><span class="value">R$ {{ venda.total_servicos or '0,00' }}</span></div>
+            <div class="row"><span>Desconto R$</span><span class="value">R$ {{ venda.desconto_valor or '0,00' }}</span></div>
+            <div class="row total"><span>VALOR TOTAL</span><span>R$ {{ venda.valor_total or '0,00' }}</span></div>
+        </section>
+
+
+        {% if pagamentos %}
+        <div class="line"></div>
+        <section>
+            <strong>PLANO DE PAGAMENTO</strong>
+            {% for pagamento in pagamentos %}
+            <div class="row">
+                <span>{{ pagamento.numero or '-' }} · {{ pagamento.vencimento or '-' }}</span>
+                <span class="value">R$ {{ pagamento.valor or '0,00' }}</span>
+            </div>
+            <div class="row"><span class="label">{{ pagamento.meio or '-' }}</span><span>{{ pagamento.status or '-' }}</span></div>
+            {% endfor %}
+        </section>
+        {% endif %}
+
+        {% if venda.observacoes %}
+        <div class="line"></div>
+        <section>
+            <strong>Observações</strong>
+            <p class="obs">{{ venda.observacoes }}</p>
+        </section>
+        {% endif %}
+
+        <div class="line"></div>
+
+        <footer class="center">
+            <p>Obrigado pela preferência.</p>
+            <p>{{ empresa.nome_fantasia or 'GESTFLOW' }}</p>
+        </footer>
+    </main>
+    {% if _cfg_gerais.get('rodape_documentos') %}<p class="center">{{ _cfg_gerais.get('rodape_documentos') }}</p>{% endif %}
+</body>
+</html>
