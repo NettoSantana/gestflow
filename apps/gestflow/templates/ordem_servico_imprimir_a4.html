@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\ordem_servico_imprimir_a4.html
-Último recode: 2026-08-21 06:43 (America/Bahia)
-Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+Último recode: 2026-08-28 14:03 (America/Bahia)
+Motivo: Simplificar a impressão A4 da OS para uso operacional, removendo valores e informações comerciais e priorizando execução, evidências e encerramento.
 #}
 
 <!DOCTYPE html>
@@ -356,49 +356,6 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
             font-size: 8.7pt;
         }
 
-        .money {
-            white-space: nowrap;
-            text-align: right;
-        }
-
-        .totals {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 8px;
-        }
-
-        .total-box {
-            padding: 8px 9px;
-            border: 1px solid #dce4ee;
-            border-radius: 9px;
-            background: #f8fafc;
-        }
-
-        .total-box span {
-            display: block;
-            color: #64748b;
-            font-size: 7.3pt;
-            font-weight: 800;
-            text-transform: uppercase;
-        }
-
-        .total-box strong {
-            display: block;
-            margin-top: 2px;
-            color: #172033;
-            font-size: 11pt;
-        }
-
-        .total-box.total-geral {
-            background: #ecfdf5;
-            border-color: #a7f3d0;
-        }
-
-        .total-box.total-geral strong {
-            color: #047857;
-            font-size: 12pt;
-        }
-
         .followup-table tr {
             break-inside: avoid;
         }
@@ -500,7 +457,6 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
             .grid-2,
             .equipment-grid,
             .photos,
-            .totals,
             .signature-grid {
                 grid-template-columns: 1fr;
             }
@@ -549,14 +505,6 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
         {% endfor %}
     {% endfor %}
 
-    {% set _total_produtos = (os.total_produtos|string|replace('R$', '')|replace('.', '')|replace(',', '.')|trim)|float %}
-    {% set _total_servicos = (os.total_servicos|string|replace('R$', '')|replace('.', '')|replace(',', '.')|trim)|float %}
-    {% set _frete = (os.frete|string|replace('R$', '')|replace('.', '')|replace(',', '.')|trim)|float %}
-    {% set _outros = (os.outros|string|replace('R$', '')|replace('.', '')|replace(',', '.')|trim)|float %}
-    {% set _desconto = (os.desconto_valor|string|replace('R$', '')|replace('.', '')|replace(',', '.')|trim)|float %}
-    {% set _valor_total = (os.valor_total|string|replace('R$', '')|replace('.', '')|replace(',', '.')|trim)|float %}
-    {% set _tem_totais = _total_produtos != 0 or _total_servicos != 0 or _frete != 0 or _outros != 0 or _desconto != 0 or _valor_total != 0 %}
-
     <div class="page">
         <header class="header">
             <div class="brand-logo-box">
@@ -592,35 +540,23 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
             </div>
         </header>
 
-        {% if os.cliente or os.responsavel or os.tecnico or os.prioridade or os.data_abertura or os.data_previsao or os.data_saida or os.canal_venda %}
-            <div class="grid grid-4">
+        {% if os.cliente or os.tecnico or os.data_abertura or os.data_previsao or os.data_saida %}
+            <div class="grid grid-3">
                 {% if os.cliente %}
                     <div class="info">
                         <div class="label">Cliente</div>
                         <div class="value">{{ os.cliente }}</div>
                     </div>
                 {% endif %}
-                {% if os.responsavel %}
-                    <div class="info">
-                        <div class="label">Responsável</div>
-                        <div class="value">{{ os.responsavel }}</div>
-                    </div>
-                {% endif %}
                 {% if os.tecnico %}
                     <div class="info">
-                        <div class="label">Técnico</div>
+                        <div class="label">Técnico responsável</div>
                         <div class="value">{{ os.tecnico }}</div>
-                    </div>
-                {% endif %}
-                {% if os.prioridade %}
-                    <div class="info">
-                        <div class="label">Prioridade</div>
-                        <div class="value">{{ os.prioridade }}</div>
                     </div>
                 {% endif %}
                 {% if os.data_abertura or os.hora_entrada %}
                     <div class="info">
-                        <div class="label">Entrada</div>
+                        <div class="label">Início</div>
                         <div class="value">{{ os.data_abertura or '' }}{% if os.hora_entrada %} {{ os.hora_entrada }}{% endif %}</div>
                     </div>
                 {% endif %}
@@ -632,14 +568,8 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
                 {% endif %}
                 {% if os.data_saida or os.hora_saida %}
                     <div class="info">
-                        <div class="label">Saída</div>
+                        <div class="label">Conclusão</div>
                         <div class="value">{{ os.data_saida or '' }}{% if os.hora_saida %} {{ os.hora_saida }}{% endif %}</div>
-                    </div>
-                {% endif %}
-                {% if os.canal_venda %}
-                    <div class="info">
-                        <div class="label">Canal</div>
-                        <div class="value">{{ os.canal_venda }}</div>
                     </div>
                 {% endif %}
             </div>
@@ -648,7 +578,7 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
         {% for equipamento in equipamentos_os|default([]) %}
             {% set fotos_do_equipamento = fotos_por_equipamento.get(equipamento.indice, []) if fotos_por_equipamento else [] %}
 
-            {% if equipamento.equipamento or equipamento.marca or equipamento.modelo or equipamento.serie or equipamento.local_servico or equipamento.qrcode_url %}
+            {% if equipamento.equipamento or equipamento.marca or equipamento.modelo or equipamento.serie or equipamento.local_servico %}
                 <section class="section equipment keep">
                     <div class="section-title">{{ equipamento.titulo or ('Equipamento ' ~ loop.index) }}</div>
                     <div class="section-body">
@@ -660,42 +590,26 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
                                 </div>
                             {% endif %}
 
-                            {% if equipamento.marca %}
-                                <div class="equipment-cell">
-                                    <div class="label">Marca</div>
-                                    <div class="value">{{ equipamento.marca }}</div>
-                                </div>
-                            {% endif %}
-
-                            {% if equipamento.modelo or equipamento.serie %}
-                                <div class="equipment-cell">
-                                    <div class="label">Modelo / Série</div>
-                                    <div class="value">
-                                        {% if equipamento.modelo %}{{ equipamento.modelo }}{% endif %}
-                                        {% if equipamento.modelo and equipamento.serie %} / {% endif %}
-                                        {% if equipamento.serie %}{{ equipamento.serie }}{% endif %}
-                                    </div>
-                                </div>
-                            {% endif %}
-
                             {% if equipamento.local_servico %}
                                 <div class="equipment-cell span-2">
                                     <div class="label">Local do serviço</div>
                                     <div class="value">{{ equipamento.local_servico }}</div>
                                 </div>
                             {% endif %}
-                        </div>
 
-                        {% if equipamento.qrcode_url %}
-                            <div class="qr-equipamento">
-                                <img src="{{ equipamento.qrcode_url }}" alt="QR Code do equipamento">
-                                <div>
-                                    <strong>QR Code do equipamento</strong>
-                                    <span>Escaneie para acessar o histórico de manutenções deste equipamento.</span>
-                                    {% if equipamento.historico_url %}<span>{{ equipamento.historico_url }}</span>{% endif %}
+                            {% if equipamento.marca or equipamento.modelo or equipamento.serie %}
+                                <div class="equipment-cell span-4">
+                                    <div class="label">Identificação</div>
+                                    <div class="value">
+                                        {% if equipamento.marca %}{{ equipamento.marca }}{% endif %}
+                                        {% if equipamento.marca and (equipamento.modelo or equipamento.serie) %} · {% endif %}
+                                        {% if equipamento.modelo %}{{ equipamento.modelo }}{% endif %}
+                                        {% if equipamento.modelo and equipamento.serie %} / {% endif %}
+                                        {% if equipamento.serie %}{{ equipamento.serie }}{% endif %}
+                                    </div>
                                 </div>
-                            </div>
-                        {% endif %}
+                            {% endif %}
+                        </div>
                     </div>
                 </section>
             {% endif %}
@@ -712,23 +626,11 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
                 </section>
             {% endif %}
 
-            {% if equipamento.relato_cliente %}
-                <section class="section incident">
-                    <div class="section-title">
-                        <span>Defeito / Relato</span>
-                        <small>Ocorrência identificada</small>
-                    </div>
-                    <div class="section-body">
-                        <div class="value-normal">{{ equipamento.relato_cliente }}</div>
-                    </div>
-                </section>
-            {% endif %}
-
             {% if equipamento.diagnostico %}
                 <section class="section diagnosis">
                     <div class="section-title">
-                        <span>Diagnóstico / Solução</span>
-                        <small>Intervenções realizadas</small>
+                        <span>Execução / Solução</span>
+                        <small>Registro do serviço executado</small>
                     </div>
                     <div class="section-body">
                         <div class="value-normal">{{ equipamento.diagnostico }}</div>
@@ -795,119 +697,21 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
             {% endif %}
         {% endfor %}
 
-        {% if itens_produtos %}
-            <section class="section">
-                <div class="section-title">Produtos / Peças</div>
-                <div class="section-body">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Produto</th>
-                                <th>Detalhes</th>
-                                <th>Qtde</th>
-                                <th>Valor</th>
-                                <th>Desc.</th>
-                                <th>Subtotal</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in itens_produtos %}
-                                <tr>
-                                    <td>{{ item.descricao }}</td>
-                                    <td>{{ item.detalhes or '' }}</td>
-                                    <td>{{ item.quantidade }}</td>
-                                    <td class="money">{{ item.valor_unitario }}</td>
-                                    <td class="money">{{ item.desconto }}</td>
-                                    <td class="money">{{ item.subtotal }}</td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+        {% if os.servico_executado %}
+            <section class="section diagnosis">
+                <div class="section-title">
+                    <span>Serviço executado</span>
+                    <small>Resumo da execução</small>
                 </div>
-            </section>
-        {% endif %}
-
-        {% if itens_servicos %}
-            <section class="section">
-                <div class="section-title">Serviços / Mão de obra</div>
                 <div class="section-body">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Serviço</th>
-                                <th>Detalhes</th>
-                                <th>Qtde</th>
-                                <th>Valor</th>
-                                <th>Desc.</th>
-                                <th>Subtotal</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in itens_servicos %}
-                                <tr>
-                                    <td>{{ item.descricao }}</td>
-                                    <td>{{ item.detalhes or '' }}</td>
-                                    <td>{{ item.quantidade }}</td>
-                                    <td class="money">{{ item.valor_unitario }}</td>
-                                    <td class="money">{{ item.desconto }}</td>
-                                    <td class="money">{{ item.subtotal }}</td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-        {% endif %}
-
-        {% if os.exibir_valor_impressao != 'nao' and _tem_totais %}
-            <section class="section">
-                <div class="section-title">Totais</div>
-                <div class="section-body">
-                    <div class="totals">
-                        {% if _total_produtos != 0 %}
-                            <div class="total-box">
-                                <span>Peças</span>
-                                <strong>{{ os.total_produtos }}</strong>
-                            </div>
-                        {% endif %}
-                        {% if _total_servicos != 0 %}
-                            <div class="total-box">
-                                <span>Mão de obra</span>
-                                <strong>{{ os.total_servicos }}</strong>
-                            </div>
-                        {% endif %}
-                        {% if _frete != 0 %}
-                            <div class="total-box">
-                                <span>Frete</span>
-                                <strong>{{ os.frete }}</strong>
-                            </div>
-                        {% endif %}
-                        {% if _outros != 0 %}
-                            <div class="total-box">
-                                <span>Outros</span>
-                                <strong>{{ os.outros }}</strong>
-                            </div>
-                        {% endif %}
-                        {% if _desconto != 0 %}
-                            <div class="total-box">
-                                <span>Desconto</span>
-                                <strong>{{ os.desconto_valor }}</strong>
-                            </div>
-                        {% endif %}
-                        {% if _valor_total != 0 %}
-                            <div class="total-box total-geral">
-                                <span>Total</span>
-                                <strong>{{ os.valor_total }}</strong>
-                            </div>
-                        {% endif %}
-                    </div>
+                    <div class="value-normal">{{ os.servico_executado }}</div>
                 </div>
             </section>
         {% endif %}
 
         {% if os.observacoes %}
             <section class="section observations">
-                <div class="section-title">Observações</div>
+                <div class="section-title">Observações finais</div>
                 <div class="section-body">
                     <div class="value-normal">{{ os.observacoes }}</div>
                 </div>
@@ -922,106 +726,6 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
                 </div>
                 <div class="section-body">
                     <div class="value-normal">{{ os.laudo }}</div>
-                </div>
-            </section>
-        {% endif %}
-
-        {% if os.termos %}
-            <section class="section terms">
-                <div class="section-title">
-                    <span>Termos / Garantia</span>
-                    <small>Condições do serviço</small>
-                </div>
-                <div class="section-body">
-                    <div class="value-normal">{{ os.termos }}</div>
-                </div>
-            </section>
-        {% endif %}
-
-        {% if acompanhamentos %}
-            <section class="section">
-                <div class="section-title">Acompanhamento diário</div>
-                <div class="section-body">
-                    <table class="followup-table">
-                        <thead>
-                            <tr>
-                                <th>Data</th>
-                                <th>Responsável</th>
-                                <th>Status</th>
-                                <th>Atividades</th>
-                                <th>Equipe / Materiais / Serviços</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for acompanhamento in acompanhamentos %}
-                                <tr>
-                                    <td>{{ acompanhamento.data_acompanhamento or '' }}</td>
-                                    <td>{{ acompanhamento.responsavel or '' }}</td>
-                                    <td>{{ acompanhamento.status_dia or '' }}</td>
-                                    <td>
-                                        {% if acompanhamento.atividades_previstas %}
-                                            <strong>Previstas:</strong>
-                                            <div>{{ acompanhamento.atividades_previstas }}</div>
-                                        {% endif %}
-                                        {% if acompanhamento.atividades_executadas %}
-                                            <div style="margin-top:5px;">
-                                                <strong>Executadas:</strong>
-                                                <div>{{ acompanhamento.atividades_executadas }}</div>
-                                            </div>
-                                        {% endif %}
-                                        {% if acompanhamento.observacoes %}
-                                            <div style="margin-top:5px;">
-                                                <strong>Observações:</strong>
-                                                <div>{{ acompanhamento.observacoes }}</div>
-                                            </div>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if acompanhamento.equipe_lista %}
-                                            <strong>Equipe:</strong>
-                                            <ul class="mini-list">
-                                                {% for item in acompanhamento.equipe_lista %}
-                                                    <li>
-                                                        {{ item.nome or '' }}
-                                                        {% if item.cargo %} - {{ item.cargo }}{% endif %}
-                                                        {% if item.horas %} | {{ item.horas }}h{% endif %}
-                                                        {% if item.observacoes %}<br>{{ item.observacoes }}{% endif %}
-                                                    </li>
-                                                {% endfor %}
-                                            </ul>
-                                        {% endif %}
-
-                                        {% if acompanhamento.materiais_lista %}
-                                            <strong>Materiais:</strong>
-                                            <ul class="mini-list">
-                                                {% for item in acompanhamento.materiais_lista %}
-                                                    <li>
-                                                        {{ item.nome or '' }}
-                                                        {% if item.quantidade %} | {{ item.quantidade }}{% endif %}
-                                                        {% if item.unidade %} {{ item.unidade }}{% endif %}
-                                                        {% if item.observacoes %}<br>{{ item.observacoes }}{% endif %}
-                                                    </li>
-                                                {% endfor %}
-                                            </ul>
-                                        {% endif %}
-
-                                        {% if acompanhamento.servicos_lista %}
-                                            <strong>Serviços:</strong>
-                                            <ul class="mini-list">
-                                                {% for item in acompanhamento.servicos_lista %}
-                                                    <li>
-                                                        {{ item.nome or '' }}
-                                                        {% if item.quantidade %} | {{ item.quantidade }}{% endif %}
-                                                        {% if item.observacoes %}<br>{{ item.observacoes }}{% endif %}
-                                                    </li>
-                                                {% endfor %}
-                                            </ul>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
                 </div>
             </section>
         {% endif %}
