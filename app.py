@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\app.py
-# Último recode: 2026-08-27 20:26 (America/Bahia)
-# Motivo: Separar projetos de atividades financeiras e permitir iniciar projeto manualmente a partir de orçamento aprovado/finalizado.
+# Último recode: 2026-08-28 09:26 (America/Bahia)
+# Motivo: Corrigir a conversão de Orçamento em Venda para gerar uma Venda editável, deixando estoque e financeiro somente para a concretização da Venda.
 
 from __future__ import annotations
 
@@ -15437,7 +15437,7 @@ def gerar_venda_por_orcamento_db(orcamento_id: int) -> tuple[int | None, bool]:
         "centro_custo_id": orcamento.get("centro_custo_id") or "",
         "atividade_financeira_id": orcamento.get("atividade_financeira_id") or garantir_atividade_orcamento(orcamento_id) or "",
         "tipo": str(orcamento.get("tipo") or "misto"),
-        "status": configuracao_status_operacional("vendas")["finalizador"],
+        "status": status_inicial_operacional("vendas"),
         "total_produtos": str(orcamento.get("total_produtos") or "0,00"),
         "total_servicos": str(orcamento.get("total_servicos") or "0,00"),
         "desconto_valor": str(orcamento.get("desconto_valor") or "0,00"),
@@ -38664,7 +38664,6 @@ def atualizar_status_orcamento(orcamento_id: int) -> Response:
     eh_finalizador = status_final_orcamento(novo_status)
     venda_id: int | None = None
     venda_criada = False
-    aviso_integracao = ""
 
     if eh_finalizador:
         if request.form.get("confirmar_finalizacao") != "sim":
@@ -38699,10 +38698,6 @@ def atualizar_status_orcamento(orcamento_id: int) -> Response:
                 }
             ), 409
 
-        try:
-            validar_estoque_para_venda_db(itens_orcamento)
-        except ValueError as exc:
-            return jsonify({"ok": False, "erro": str(exc)}), 409
 
         venda_id, venda_criada = gerar_venda_por_orcamento_db(orcamento_id)
         if venda_id is None:
@@ -38731,16 +38726,6 @@ def atualizar_status_orcamento(orcamento_id: int) -> Response:
 
         venda = buscar_venda_por_id(venda_id)
         if venda_criada and venda is not None:
-            try:
-                itens_venda = listar_venda_itens(venda_id)
-                baixar_estoque_por_venda_db(venda_id, venda, itens_venda)
-                gerar_conta_receber_por_venda_db(venda_id, venda)
-            except (ValueError, sqlite3.Error) as exc:
-                aviso_integracao = (
-                    f"A Venda {venda.get('numero') or venda_id} foi gerada e o orçamento foi "
-                    f"finalizado, mas uma integração precisa ser revisada: {exc}"
-                )
-
             registrar_atividade_usuario(
                 "criacao",
                 "orcamentos",
@@ -38770,15 +38755,18 @@ def atualizar_status_orcamento(orcamento_id: int) -> Response:
     venda = buscar_venda_por_id(venda_id) if venda_id else None
     mensagem_final = mensagem
     if eh_finalizador and venda is not None:
-        mensagem_final = f"Orçamento finalizado e Venda {venda.get('numero')} gerada com sucesso."
-    if aviso_integracao:
-        mensagem_final = aviso_integracao
+        mensagem_final = (
+            f"Orçamento finalizado e Venda {venda.get('numero')} gerada para revisão."
+        )
 
     return jsonify(
         {
             "ok": True,
             "mensagem": mensagem_final,
-            "aviso": aviso_integracao,
+            "aviso": "",
+            "editar_venda_url": (
+                url_for("editar_venda", venda_id=venda_id) if venda_id else ""
+            ),
             "status": status_novo,
             "status_nome": dados_status["nome"],
             "final": eh_finalizador,
