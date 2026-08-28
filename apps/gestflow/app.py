@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\app.py
-# Último recode: 2026-08-27 23:03 (America/Bahia)
-# Motivo: Permitir desativar todos os módulos, inclusive Clientes, Orçamentos, Vendas e Financeiro, e persistir a opção de pular os primeiros passos do Dashboard.
+# Último recode: 2026-08-27 23:45 (America/Bahia)
+# Motivo: Fazer Atividades / Projetos usar diretamente o status do Orçamento como referência única, exibindo somente Em andamento e Finalizado sem criar status paralelo.
 
 from __future__ import annotations
 
@@ -10541,11 +10541,8 @@ def listar_atividades_financeiras(apenas_ativas: bool = True) -> list[dict[str, 
 
 
 PROJETO_ORCAMENTO_STATUS_NOMES = {
-    "nao_iniciada": "Planejado",
     "em_andamento": "Em andamento",
-    "aguardando": "Pausado",
-    "concluida": "Concluído",
-    "cancelada": "Cancelado",
+    "finalizado": "Finalizado",
 }
 
 
@@ -10554,53 +10551,25 @@ def normalizar_filtro_projetos_orcamentos(valor: Any) -> str:
     aliases = {
         "": "em_andamento",
         "andamento": "em_andamento",
-        "planejado": "nao_iniciada",
-        "planejados": "nao_iniciada",
-        "planejada": "nao_iniciada",
-        "planejadas": "nao_iniciada",
-        "pausado": "aguardando",
-        "pausados": "aguardando",
-        "pausada": "aguardando",
-        "pausadas": "aguardando",
-        "concluido": "concluida",
-        "concluidos": "concluida",
-        "concluidas": "concluida",
-        "cancelado": "cancelada",
-        "cancelados": "cancelada",
-        "canceladas": "cancelada",
+        "finalizada": "finalizado",
+        "finalizadas": "finalizado",
+        "finalizados": "finalizado",
+        "concluido": "finalizado",
+        "concluida": "finalizado",
+        "concluidos": "finalizado",
+        "concluidas": "finalizado",
         "todos": "todos",
     }
     codigo = aliases.get(codigo, codigo)
-    permitidos = {*PROJETO_ORCAMENTO_STATUS_NOMES, "todos"}
-    return codigo if codigo in permitidos else "em_andamento"
+    return codigo if codigo in {"em_andamento", "finalizado", "todos"} else "em_andamento"
 
 
 def orcamento_pode_iniciar_projeto(orcamento: dict[str, Any] | None) -> bool:
-    if not orcamento:
-        return False
-    status = codigo_status_orcamento_existente(orcamento.get("status"))
-    return status == "aprovado" or status_final_orcamento(status)
+    return False
 
 
 def buscar_projeto_por_orcamento(orcamento_id: int) -> dict[str, Any] | None:
-    with conectar_db() as conn:
-        row = conn.execute(
-            """
-            SELECT a.*, o.numero AS orcamento_numero, o.status AS orcamento_status,
-                   o.atividade_financeira_id
-            FROM gestao_atividades a
-            INNER JOIN orcamentos o
-                    ON o.id = a.orcamento_id
-                   AND o.empresa_id = a.empresa_id
-            WHERE a.empresa_id = ?
-              AND a.orcamento_id = ?
-              AND a.tipo = 'projeto'
-            ORDER BY a.id ASC
-            LIMIT 1
-            """,
-            (empresa_logada_id(), orcamento_id),
-        ).fetchone()
-    return dict(row) if row else None
+    return None
 
 
 def iniciar_projeto_por_orcamento_db(orcamento_id: int) -> tuple[int | None, bool, str]:
@@ -10710,55 +10679,58 @@ def iniciar_projeto_por_orcamento_db(orcamento_id: int) -> tuple[int | None, boo
 def listar_projetos_orcamentos(status: Any = "em_andamento") -> list[dict[str, Any]]:
     filtro = normalizar_filtro_projetos_orcamentos(status)
     consulta = """
-        SELECT a.*,
+        SELECT o.id AS orcamento_id,
                o.numero AS orcamento_numero,
+               o.cliente AS cliente_nome,
                o.status AS orcamento_status,
+               o.data AS data_inicio,
+               o.valor_total,
                o.atividade_financeira_id,
                af.centro_custo_id,
                cc.nome AS centro_custo_nome
-        FROM gestao_atividades a
-        INNER JOIN orcamentos o
-                ON o.id = a.orcamento_id
-               AND o.empresa_id = a.empresa_id
+        FROM orcamentos o
         LEFT JOIN atividades_financeiras af
                ON af.id = o.atividade_financeira_id
-              AND af.empresa_id = a.empresa_id
+              AND af.empresa_id = o.empresa_id
         LEFT JOIN centros_custo cc
                ON cc.id = af.centro_custo_id
-              AND cc.empresa_id = a.empresa_id
-        WHERE a.empresa_id = ?
-          AND a.tipo = 'projeto'
-          AND a.orcamento_id IS NOT NULL
+              AND cc.empresa_id = o.empresa_id
+        WHERE o.empresa_id = ?
+        ORDER BY COALESCE(o.data, '') DESC, o.id DESC
     """
-    parametros: list[Any] = [empresa_logada_id()]
-    if filtro != "todos":
-        consulta += " AND a.status = ?"
-        parametros.append(filtro)
-    consulta += " ORDER BY COALESCE(a.data_inicio, a.criado_em) DESC, a.id DESC"
 
     with conectar_db() as conn:
-        rows = conn.execute(consulta, parametros).fetchall()
+        rows = conn.execute(consulta, (empresa_logada_id(),)).fetchall()
 
     projetos: list[dict[str, Any]] = []
     for row in rows:
         item = dict(row)
-        projeto_id = int(item["id"])
+        orcamento_id = int(item["orcamento_id"])
         atividade_financeira_id = item.get("atividade_financeira_id")
-        projeto_status = str(item.get("status") or "nao_iniciada")
-        item["projeto_id"] = projeto_id
-        item["codigo"] = str(item.get("orcamento_numero") or item.get("orcamento_id") or projeto_id)
-        item["nome"] = str(item.get("titulo") or f"Projeto {item['codigo']}")
+        orcamento_status = codigo_status_orcamento_existente(item.get("orcamento_status"))
+
+        if orcamento_status == "em_andamento":
+            projeto_status = "em_andamento"
+        elif status_final_orcamento(orcamento_status):
+            projeto_status = "finalizado"
+        else:
+            continue
+
+        if filtro != "todos" and projeto_status != filtro:
+            continue
+
+        item["projeto_id"] = orcamento_id
+        item["codigo"] = str(item.get("orcamento_numero") or orcamento_id)
+        item["nome"] = f"Projeto {item['codigo']}"
         item["cliente"] = str(item.get("cliente_nome") or "")
         item["projeto_status"] = projeto_status
-        item["status_nome"] = PROJETO_ORCAMENTO_STATUS_NOMES.get(
-            projeto_status, projeto_status.replace("_", " ").title()
-        )
+        item["status_classe"] = "concluida" if projeto_status == "finalizado" else "em_andamento"
+        item["status_nome"] = nome_status_orcamento(orcamento_status)
         item["resumo"] = resumir_atividade_financeira(
             int(atividade_financeira_id) if atividade_financeira_id else None
         )
         projetos.append(item)
     return projetos
-
 
 def buscar_centro_custo_por_id(centro_id: int) -> dict[str, Any] | None:
     with conectar_db() as conn:
@@ -11027,10 +10999,7 @@ def atividades_financeiras() -> str:
     )
     contagens = {
         'em_andamento': sum(1 for item in todos_projetos if item.get('projeto_status') == 'em_andamento'),
-        'planejados': sum(1 for item in todos_projetos if item.get('projeto_status') == 'nao_iniciada'),
-        'pausados': sum(1 for item in todos_projetos if item.get('projeto_status') == 'aguardando'),
-        'concluidos': sum(1 for item in todos_projetos if item.get('projeto_status') == 'concluida'),
-        'cancelados': sum(1 for item in todos_projetos if item.get('projeto_status') == 'cancelada'),
+        'finalizados': sum(1 for item in todos_projetos if item.get('projeto_status') == 'finalizado'),
         'todos': len(todos_projetos),
     }
     return render_template(
@@ -39326,15 +39295,11 @@ def iniciar_projeto_orcamento(orcamento_id: int) -> Response:
     if orcamento is None:
         return redirect(url_for("orcamentos", erro="Orçamento não encontrado."))
 
-    projeto_id, criado, mensagem = iniciar_projeto_por_orcamento_db(orcamento_id)
-    if projeto_id is None:
-        return redirect(url_for("ver_orcamento", orcamento_id=orcamento_id, erro=mensagem))
-
     return redirect(
         url_for(
-            "gestao_atividade_detalhe",
-            atividade_id=projeto_id,
-            sucesso=mensagem if criado else "Projeto já existente.",
+            "ver_orcamento",
+            orcamento_id=orcamento_id,
+            aviso="Projetos agora acompanham automaticamente o status do orçamento.",
         )
     )
 

@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\atividades_financeiras.html
-Último recode: 2026-08-27 21:04 (America/Bahia)
-Motivo: Exibir somente projetos iniciados manualmente, com filtros por situação de execução.
+Último recode: 2026-08-27 23:45 (America/Bahia)
+Motivo: Fazer a tela de Atividades / Projetos refletir diretamente os status Em andamento e Finalizado dos Orçamentos, sem status paralelo.
 #}
 
 <!doctype html>
@@ -21,16 +21,13 @@ Motivo: Exibir somente projetos iniciados manualmente, com filtros por situaçã
             <div class="page-header atividades-financeiras-header">
                 <div>
                     <h1>Atividades / Projetos</h1>
-                    <p>Somente serviços iniciados como projeto aparecem nesta tela.</p>
+                    <p>Os projetos são os próprios orçamentos em andamento ou finalizados. O status exibido aqui é o mesmo do orçamento.</p>
                 </div>
             </div>
 
             <div class="client-toolbar" style="margin-bottom: 18px;">
                 <a class="{{ 'btn-dark' if filtro_status == 'em_andamento' else 'btn-light' }}" href="/financeiro/atividades?status=em_andamento">Em andamento ({{ contagens.em_andamento }})</a>
-                <a class="{{ 'btn-dark' if filtro_status == 'nao_iniciada' else 'btn-light' }}" href="/financeiro/atividades?status=nao_iniciada">Planejados ({{ contagens.planejados }})</a>
-                <a class="{{ 'btn-dark' if filtro_status == 'aguardando' else 'btn-light' }}" href="/financeiro/atividades?status=aguardando">Pausados ({{ contagens.pausados }})</a>
-                <a class="{{ 'btn-dark' if filtro_status == 'concluida' else 'btn-light' }}" href="/financeiro/atividades?status=concluida">Concluídos ({{ contagens.concluidos }})</a>
-                <a class="{{ 'btn-dark' if filtro_status == 'cancelada' else 'btn-light' }}" href="/financeiro/atividades?status=cancelada">Cancelados ({{ contagens.cancelados }})</a>
+                <a class="{{ 'btn-dark' if filtro_status == 'finalizado' else 'btn-light' }}" href="/financeiro/atividades?status=finalizado">Finalizados ({{ contagens.finalizados }})</a>
                 <a class="{{ 'btn-dark' if filtro_status == 'todos' else 'btn-light' }}" href="/financeiro/atividades?status=todos">Todos ({{ contagens.todos }})</a>
             </div>
 
@@ -47,8 +44,8 @@ Motivo: Exibir somente projetos iniciados manualmente, com filtros por situaçã
                         </div>
 
                         <div class="atividade-financeira-meta">
-                            <span class="atividade-origem">{{ atividade.codigo or ('#' ~ atividade.projeto_id) }}</span>
-                            <span class="status-pill {{ atividade.projeto_status }}">{{ atividade.status_nome }}</span>
+                            <span class="atividade-origem">{{ atividade.codigo or ('#' ~ atividade.orcamento_id) }}</span>
+                            <span class="status-pill {{ atividade.status_classe }}">{{ atividade.status_nome }}</span>
                         </div>
                     </div>
 
@@ -75,8 +72,8 @@ Motivo: Exibir somente projetos iniciados manualmente, com filtros por situaçã
                             <strong>R$ {{ atividade.resumo.resultado_formatado }}</strong>
                         </div>
                         <a class="atividade-financeira-ver"
-                           href="/gestao-atividades/{{ atividade.projeto_id }}"
-                           aria-label="Ver detalhes de {{ atividade.nome }}">
+                           href="/orcamentos/{{ atividade.orcamento_id }}"
+                           aria-label="Ver orçamento de referência de {{ atividade.nome }}">
                             <span>Ver</span><strong aria-hidden="true">›</strong>
                         </a>
                     </div>
@@ -85,7 +82,7 @@ Motivo: Exibir somente projetos iniciados manualmente, com filtros por situaçã
                 <div class="atividades-financeiras-vazio">
                     <div aria-hidden="true">▣</div>
                     <strong>Nenhum projeto encontrado neste filtro</strong>
-                    <p>Para aparecer aqui, o projeto deve ser iniciado a partir de um orçamento aprovado ou finalizado.</p>
+                    <p>Quando um orçamento ficar Em andamento ou Finalizado, ele aparecerá automaticamente aqui.</p>
                 </div>
                 {% endfor %}
             </section>
