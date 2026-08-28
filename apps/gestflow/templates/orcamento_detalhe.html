@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\gestflow\templates\orcamento_detalhe.html
-Último recode: 2026-08-21 06:43 (America/Bahia)
-Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+Último recode: 2026-08-27 21:04 (America/Bahia)
+Motivo: Permitir iniciar e abrir projeto real a partir de orçamento aprovado/finalizado.
 #}
 
 <!DOCTYPE html>
@@ -443,10 +443,21 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
         <section class="panel page-section">
             <div class="panel-header page-header">
                 <div><span class="page-kicker">Orçamentos</span><h3 class="page-title">Orçamento {{ orcamento.numero or orcamento.id }}</h3><p class="page-subtitle">Cliente: {{ orcamento.cliente or '-' }}</p></div>
-                <div class="client-toolbar"><span class="origin-badge {{ origem }}">{{ 'Gerador' if origem == 'gerador' else 'Manual' }}</span><span class="presentation-badge">{{ modo|replace('_',' ') }}</span><span class="status-pill {{ orcamento.status }}">{{ orcamento.status }}</span></div>
+                <div class="client-toolbar">
+                    <span class="origin-badge {{ origem }}">{{ 'Gerador' if origem == 'gerador' else 'Manual' }}</span>
+                    <span class="presentation-badge">{{ modo|replace('_',' ') }}</span>
+                    <span class="status-pill {{ orcamento.status }}">{{ orcamento.status }}</span>
+                    {% if projeto_orcamento %}
+                        <a href="/gestao-atividades/{{ projeto_orcamento.id }}" class="btn-dark">Abrir projeto</a>
+                    {% elif pode_iniciar_projeto %}
+                        <form method="post" action="/orcamentos/{{ orcamento.id }}/iniciar-projeto" style="display:inline;" onsubmit="return confirm('Iniciar este orçamento como projeto?');">
+                            <button type="submit" class="btn-primary-green">Iniciar projeto</button>
+                        </form>
+                    {% endif %}
+                </div>
             </div>
             <div class="panel-summary">
-                <div><span>Número</span><strong>{{ orcamento.numero or '-' }}</strong></div><div><span>Responsável</span><strong>{{ orcamento.responsavel or '-' }}</strong></div><div><span>Data</span><strong>{{ orcamento.data or '-' }}</strong></div><div><span>Prazo</span><strong>{{ orcamento.prazo_entrega or '-' }}</strong></div><div><span>Validade</span><strong>{{ orcamento.validade or '-' }}</strong></div><div><span>Pagamento</span><strong>{{ orcamento.forma_pagamento or '-' }}</strong></div><div><span>Valor total</span><strong>R$ {{ orcamento.valor_total or '0,00' }}</strong></div><div><span>Modo de apresentação</span><strong>{{ modo|replace('_',' ')|title }}</strong></div><div><span>Origem</span><strong>{{ 'Gerador de Orçamentos' if origem == 'gerador' else 'Orçamento comum' }}</strong></div><div><span>Centro de custo</span><strong>{{ orcamento.centro_custo_nome or orcamento.centro_custo or '-' }}</strong></div><div><span>Atividade / Projeto</span><strong>{{ atividade.nome if atividade else '-' }}</strong></div>
+                <div><span>Número</span><strong>{{ orcamento.numero or '-' }}</strong></div><div><span>Responsável</span><strong>{{ orcamento.responsavel or '-' }}</strong></div><div><span>Data</span><strong>{{ orcamento.data or '-' }}</strong></div><div><span>Prazo</span><strong>{{ orcamento.prazo_entrega or '-' }}</strong></div><div><span>Validade</span><strong>{{ orcamento.validade or '-' }}</strong></div><div><span>Pagamento</span><strong>{{ orcamento.forma_pagamento or '-' }}</strong></div><div><span>Valor total</span><strong>R$ {{ orcamento.valor_total or '0,00' }}</strong></div><div><span>Modo de apresentação</span><strong>{{ modo|replace('_',' ')|title }}</strong></div><div><span>Origem</span><strong>{{ 'Gerador de Orçamentos' if origem == 'gerador' else 'Orçamento comum' }}</strong></div><div><span>Centro de custo</span><strong>{{ orcamento.centro_custo_nome or orcamento.centro_custo or '-' }}</strong></div><div><span>Projeto</span><strong>{% if projeto_orcamento %}{{ projeto_orcamento.titulo }} · {{ projeto_orcamento.status|replace('_',' ')|title }}{% else %}Não iniciado{% endif %}</strong></div>
             </div>
         </section>
 
