@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\admin\routes.py
-# Último recode: 2026-08-22 15:54 (America/Bahia)
-# Motivo: Criar automaticamente o vínculo GestFlow/IndFlow no primeiro acesso SSO válido, sem exigir cadastro manual do cliente.
+# Último recode: 2026-08-31 15:58 (America/Bahia)
+# Motivo: Abrir o SSO no Painel Industrial e retornar ao GestFlow ao sair do IndFlow.
 
 from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for, render_template_string
 from datetime import datetime
@@ -14,6 +14,14 @@ from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from modules.db_indflow import get_db
 
 admin_bp = Blueprint("admin", __name__, template_folder="templates")
+
+def _gestflow_base_url() -> str:
+    """URL confiável do GestFlow para retorno após encerrar apenas a sessão do IndFlow."""
+    return (
+        (os.getenv("GESTFLOW_BASE_URL") or "https://gestflow-web-production.up.railway.app")
+        .strip()
+        .rstrip("/")
+    )
 
 # ============================================================
 # AUTH (sessao + sha256)
@@ -769,7 +777,7 @@ def sso_gestflow():
     except Exception:
         pass
 
-    response = redirect(url_for("admin.home"))
+    response = redirect("/")
     response.headers["Cache-Control"] = "no-store"
     response.headers["Referrer-Policy"] = "no-referrer"
     return response
@@ -821,7 +829,10 @@ def login():
 @admin_bp.route("/logout")
 def logout():
     session.clear()
-    return redirect(url_for("admin.login"))
+    response = redirect(_gestflow_base_url())
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
 
 
 @admin_bp.route("/")
