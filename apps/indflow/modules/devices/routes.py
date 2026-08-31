@@ -1,13 +1,15 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\devices\routes.py
-# Último recode: 2026-08-31 15:38 (America/Bahia)
-# Motivo: Tornar Devices a fonte da lista de máquinas do dashboard, isolada por tenant.
+# Último recode: 2026-08-31 16:03 (America/Bahia)
+# Motivo: Permitir geração segura e rotacionável da API Key do ESP por tenant, restrita a ADMIN.
 
 from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify
 from datetime import datetime
+import hashlib
 import re
+import secrets
 
 from modules.db_indflow import get_db
-from modules.admin.routes import login_required
+from modules.admin.routes import admin_required, login_required
 
 devices_bp = Blueprint("devices", __name__, template_folder="templates")
 
@@ -172,6 +174,55 @@ def machines():
         "cliente_id": cliente_id,
         "machines": machines_out,
     })
+
+
+@devices_bp.route("/api-key", methods=["POST"])
+@admin_required
+def generate_api_key():
+    """
+    Gera/rotaciona a API Key usada pelo ESP deste tenant.
+
+    Segurança:
+    - somente ADMIN/SUPERADMIN;
+    - a chave em texto puro existe apenas nesta resposta;
+    - o banco persiste somente SHA-256;
+    - gerar uma nova chave invalida imediatamente a anterior.
+    """
+    cliente_id = _cliente_id_atual()
+    if not cliente_id:
+        return jsonify({"ok": False, "error": "Cliente da sessao nao identificado"}), 403
+
+    api_key_plain = secrets.token_urlsafe(48)
+    api_key_hash = hashlib.sha256(api_key_plain.encode("utf-8")).hexdigest()
+
+    db = get_db()
+    try:
+        cur = db.execute(
+            """
+            UPDATE clientes
+            SET api_key_hash = ?
+            WHERE id = ? AND status = 'active'
+            """,
+            (api_key_hash, cliente_id),
+        )
+
+        if int(cur.rowcount or 0) != 1:
+            db.rollback()
+            return jsonify({"ok": False, "error": "Cliente ativo nao encontrado"}), 404
+
+        db.commit()
+    finally:
+        db.close()
+
+    response = jsonify({
+        "ok": True,
+        "api_key": api_key_plain,
+        "warning": "Esta chave sera exibida somente agora. A chave anterior foi invalidada.",
+    })
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
 
 
 @devices_bp.route("/link", methods=["POST"])

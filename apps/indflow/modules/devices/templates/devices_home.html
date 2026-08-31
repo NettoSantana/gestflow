@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\devices\templates\devices_home.html
-Último recode: 2026-08-21 06:43 (America/Bahia)
-Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+Último recode: 2026-08-31 16:03 (America/Bahia)
+Motivo: Adicionar geração segura da API Key do ESP, exibida uma única vez e restrita a ADMIN.
 #}
 
 {% extends "base.html" %}
@@ -21,6 +21,46 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
     <a href="/" class="btn btn-primary">Painel Industrial</a>
   </div>
 </div>
+
+{% set _role = (session.get('role') or 'viewer')|lower %}
+{% if _role in ['admin', 'superadmin'] %}
+<div class="section-shell" style="margin-bottom:14px;">
+  <div class="section-shell-header">
+    <div>
+      <h2>API Key do ESP</h2>
+      <p>Credencial do tenant usada pelo equipamento no header <strong>X-API-Key</strong>.</p>
+    </div>
+  </div>
+
+  <div class="page-note" style="margin-bottom:12px;">
+    Gerar uma nova chave invalida imediatamente a anterior. A nova chave será exibida somente uma vez.
+  </div>
+
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+    <button class="btn btn-primary" id="generateEspApiKey" type="button">Gerar API Key do ESP</button>
+    <span id="apiKeyStatus" style="font-size:12px;color:#64748b;"></span>
+  </div>
+
+  <div id="apiKeyResult" style="display:none;margin-top:14px;">
+    <label>Nova API Key — copie agora</label>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px;">
+      <input
+        id="apiKeyValue"
+        class="input"
+        type="text"
+        readonly
+        autocomplete="off"
+        spellcheck="false"
+        style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;min-width:min(100%,620px);"
+      >
+      <button class="btn btn-secondary" id="copyEspApiKey" type="button">Copiar chave</button>
+    </div>
+    <div class="page-note" style="margin-top:10px;">
+      Depois que você sair desta tela ou gerar outra chave, este valor não poderá ser recuperado pelo sistema.
+    </div>
+  </div>
+</div>
+{% endif %}
 
 <div class="section-shell" style="margin-bottom:14px;">
   <div class="section-shell-header">
@@ -76,4 +116,69 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
   </form>
   <div class="page-note" style="margin-top:12px;">Este vínculo é técnico. Na próxima etapa de integração com o GestFlow, a identificação operacional será associada ao equipamento mestre do GestFlow sem duplicar cadastro.</div>
 </div>
+
+{% if _role in ['admin', 'superadmin'] %}
+<script>
+(function(){
+  const generateBtn = document.getElementById("generateEspApiKey");
+  const copyBtn = document.getElementById("copyEspApiKey");
+  const resultBox = document.getElementById("apiKeyResult");
+  const keyInput = document.getElementById("apiKeyValue");
+  const statusEl = document.getElementById("apiKeyStatus");
+
+  if(!generateBtn || !resultBox || !keyInput) return;
+
+  generateBtn.addEventListener("click", async function(){
+    const confirmed = window.confirm(
+      "Gerar uma nova API Key? A chave anterior será invalidada imediatamente."
+    );
+    if(!confirmed) return;
+
+    generateBtn.disabled = true;
+    resultBox.style.display = "none";
+    keyInput.value = "";
+    statusEl.textContent = "Gerando nova chave...";
+
+    try{
+      const response = await fetch("/devices/api-key", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Accept": "application/json" },
+        cache: "no-store"
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if(!response.ok || !data.ok || !data.api_key){
+        throw new Error(data.error || "Não foi possível gerar a API Key.");
+      }
+
+      keyInput.value = data.api_key;
+      resultBox.style.display = "block";
+      statusEl.textContent = "Nova chave gerada. Copie antes de sair desta tela.";
+      keyInput.focus();
+      keyInput.select();
+    }catch(error){
+      statusEl.textContent = error?.message || "Falha ao gerar a API Key.";
+    }finally{
+      generateBtn.disabled = false;
+    }
+  });
+
+  if(copyBtn){
+    copyBtn.addEventListener("click", async function(){
+      if(!keyInput.value) return;
+      try{
+        await navigator.clipboard.writeText(keyInput.value);
+        statusEl.textContent = "API Key copiada.";
+      }catch(error){
+        keyInput.focus();
+        keyInput.select();
+        statusEl.textContent = "Selecione e copie a chave manualmente.";
+      }
+    });
+  }
+})();
+</script>
+{% endif %}
 {% endblock %}
