@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\templates\index.html
-Último recode: 2026-08-21 06:43 (America/Bahia)
-Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+Último recode: 2026-08-31 19:17 (America/Bahia)
+Motivo: Compactar o cabeçalho e os indicadores do Painel Industrial para priorizar a visualização panorâmica das máquinas, sem alterar os cards das máquinas.
 #}
 
 {% extends "base.html" %}
@@ -10,11 +10,31 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
 {% block content %}
 <link rel="stylesheet" href="/static/dashboard.css?v=20260811">
 
+<style>
+@media (min-width:981px){
+  .industrial-dashboard-shell .industrial-topbar{height:48px;min-height:48px;padding:0 24px;}
+  .industrial-dashboard-shell .industrial-topbar-context{display:none;}
+  .industrial-dashboard-shell .industrial-topbar-user{padding:5px 9px;}
+  .industrial-dashboard-shell .industrial-content{padding:12px 24px 24px;}
+  .industrial-dashboard-shell .page-header{align-items:center;flex-wrap:nowrap;gap:14px;margin-bottom:9px;}
+  .industrial-dashboard-shell .page-title{font-size:20px;line-height:1.1;letter-spacing:-.015em;}
+  .industrial-dashboard-shell .page-actions{margin-left:auto;flex-wrap:nowrap;}
+  .industrial-dashboard-shell .page-actions .btn{min-height:34px;padding:6px 11px;}
+  .industrial-dashboard-shell .kpi-grid{gap:8px;margin-bottom:10px;}
+  .industrial-dashboard-shell .kpi-card{min-height:62px;padding:8px 11px;border-radius:10px;box-shadow:0 3px 10px rgba(15,23,42,.035);justify-content:center;}
+  .industrial-dashboard-shell .kpi-label{font-size:9px;line-height:1.1;}
+  .industrial-dashboard-shell .kpi-value{margin-top:5px;font-size:21px;line-height:1;}
+  .industrial-dashboard-shell .kpi-detail{display:none;}
+  .industrial-dashboard-shell .section-shell{padding:12px 18px 18px;}
+  .industrial-dashboard-shell .section-shell-header{margin-bottom:10px;}
+  .industrial-dashboard-shell .section-shell-header h2{font-size:16px;}
+  .industrial-dashboard-shell .section-shell-header p{margin-top:2px;font-size:11px;}
+}
+</style>
+
 <div class="page-header">
   <div class="page-heading">
-    <div class="page-eyebrow">Monitoramento em tempo real</div>
     <h1 class="page-title">Painel Industrial</h1>
-    <p class="page-description">Acompanhe produção, disponibilidade e comunicação das máquinas monitoradas. O cadastro mestre dos equipamentos permanece no GestFlow.</p>
   </div>
   <div class="page-actions">
     <a class="btn btn-secondary" href="/producao/historico">Ver histórico</a>
