@@ -1,8 +1,8 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\devices\routes.py
-# Último recode: 2026-08-21 06:43 (America/Bahia)
-# Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+# Último recode: 2026-08-31 15:38 (America/Bahia)
+# Motivo: Tornar Devices a fonte da lista de máquinas do dashboard, isolada por tenant.
 
-from flask import Blueprint, render_template, request, redirect, url_for, session
+from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify
 from datetime import datetime
 import re
 
@@ -119,6 +119,59 @@ def home():
         })
 
     return render_template("devices_home.html", devices=devices)
+
+
+@devices_bp.route("/machines", methods=["GET"])
+@login_required
+def machines():
+    """
+    Lista somente máquinas vinculadas a MACs válidos do tenant autenticado.
+    O dashboard usa este endpoint como fonte da verdade e não usa localStorage.
+    """
+    cliente_id = _cliente_id_atual()
+    if not cliente_id:
+        return jsonify({"ok": False, "error": "Cliente da sessao nao identificado"}), 403
+
+    db = get_db()
+    _ensure_devices_table(db)
+
+    rows = db.execute(
+        """
+        SELECT device_id, machine_id
+        FROM devices
+        WHERE cliente_id = ?
+          AND machine_id IS NOT NULL
+          AND TRIM(machine_id) <> ''
+        ORDER BY machine_id ASC
+        """,
+        (cliente_id,),
+    ).fetchall()
+
+    machines_seen = set()
+    machines_out = []
+
+    for row in rows:
+        try:
+            device_id = row["device_id"]
+            machine_id = row["machine_id"]
+        except Exception:
+            device_id, machine_id = row
+
+        if not _is_valid_mac(_norm_device_id(device_id)):
+            continue
+
+        mid = _norm_machine_id(machine_id)
+        if not mid or mid in machines_seen:
+            continue
+
+        machines_seen.add(mid)
+        machines_out.append(mid)
+
+    return jsonify({
+        "ok": True,
+        "cliente_id": cliente_id,
+        "machines": machines_out,
+    })
 
 
 @devices_bp.route("/link", methods=["POST"])

@@ -1,7 +1,7 @@
 /*
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\static\dashboard.state.js
-Último recode: 2026-08-21 06:43 (America/Bahia)
-Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+Último recode: 2026-08-31 15:38 (America/Bahia)
+Motivo: Carregar a lista de máquinas do tenant pelo backend Devices e eliminar localStorage global.
 */
 
 // static/dashboard.state.js
@@ -10,7 +10,7 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
 // (CÓPIA DO dashboard.js — PASSO 1)
 // ===========================
 
-const LS_KEY = "indflow_machines_v1";
+let tenantMachines = [];
 
 /* PAGINAÇÃO */
 const PAGE_SIZE = 6;
@@ -21,18 +21,51 @@ let currentPage = 0;
    =========================== */
 
 function getMachines(){
-  try{
-    const raw = localStorage.getItem(LS_KEY);
-    if(raw){
-      const arr = JSON.parse(raw);
-      if(Array.isArray(arr) && arr.length) return arr;
-    }
-  }catch(e){}
-  return ["maquina01"];
+  return tenantMachines.slice();
 }
 
 function setMachines(arr){
-  localStorage.setItem(LS_KEY, JSON.stringify(arr));
+  const next = [];
+  const seen = new Set();
+
+  (Array.isArray(arr) ? arr : []).forEach(item => {
+    const id = normalizeId(item);
+    if(!id || seen.has(id)) return;
+    seen.add(id);
+    next.push(id);
+  });
+
+  tenantMachines = next;
+}
+
+function loadTenantMachines(){
+  return fetch("/devices/machines", {
+    method: "GET",
+    credentials: "same-origin",
+    headers: { "Accept": "application/json" }
+  })
+    .then(response => {
+      if(!response.ok) throw new Error("Falha ao carregar máquinas do tenant");
+      return response.json();
+    })
+    .then(data => {
+      setMachines(Array.isArray(data && data.machines) ? data.machines : []);
+      currentPage = 0;
+
+      if(typeof renderMachines === "function") renderMachines();
+      if(typeof updateAll === "function") updateAll();
+
+      return getMachines();
+    })
+    .catch(() => {
+      setMachines([]);
+      currentPage = 0;
+
+      if(typeof renderMachines === "function") renderMachines();
+      if(typeof updateAll === "function") updateAll();
+
+      return [];
+    });
 }
 
 function normalizeId(s){
@@ -158,39 +191,11 @@ function renderPager(){
    =========================== */
 
 function removeMachine(machineId){
-  const id = String(machineId || "");
-  const machines = getMachines();
-
-  if(!machines.includes(id)) return;
-
-  const isDefault = id === "maquina01";
-
-  if(isDefault){
-    const ok1 = window.confirm(
-      "ATENÇÃO: você está tentando excluir a MAQUINA01 (padrão).\n\nDeseja continuar?"
-    );
-    if(!ok1) return;
-
-    const ok2 = window.confirm(
-      "Confirma MESMO a exclusão da MAQUINA01?\n\nIsso pode quebrar seus testes."
-    );
-    if(!ok2) return;
-  }else{
-    const ok = window.confirm(
-      `Excluir o equipamento "${id.toUpperCase()}"?\n\nEssa ação remove do dashboard (localStorage).`
-    );
-    if(!ok) return;
-  }
-
-  const next = machines.filter(x => x !== id);
-
-  if(next.length === 0){
-    next.push("maquina01");
-  }
-
-  setMachines(next);
-
-  clampCurrentPage();
-  renderMachines();
-  updateAll();
+  const id = String(machineId || "").trim().toUpperCase();
+  window.alert(
+    `A máquina ${id || "selecionada"} é controlada pelo vínculo em Devices. ` +
+    "Desvincule ou altere o device para atualizar o dashboard."
+  );
 }
+
+loadTenantMachines();
