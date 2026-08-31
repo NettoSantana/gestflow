@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\devices\routes.py
-# Último recode: 2026-08-31 16:03 (America/Bahia)
-# Motivo: Permitir geração segura e rotacionável da API Key do ESP por tenant, restrita a ADMIN.
+# Último recode: 2026-08-31 16:41 (America/Bahia)
+# Motivo: Exibir mensagens claras no vínculo de devices sem permitir takeover entre tenants.
 
 from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify
 from datetime import datetime
@@ -120,7 +120,11 @@ def home():
             "is_valid_mac": _is_valid_mac(device_id),
         })
 
-    return render_template("devices_home.html", devices=devices)
+    return render_template(
+        "devices_home.html",
+        devices=devices,
+        device_notice=(request.args.get("notice") or "").strip().lower(),
+    )
 
 
 @devices_bp.route("/machines", methods=["GET"])
@@ -237,10 +241,10 @@ def link_device():
 
     # REGRA ESTRUTURAL: DEVICE PRECISA SER MAC VÁLIDO
     if not device_id or not _is_valid_mac(device_id):
-        return redirect(url_for("devices.home"))
+        return redirect(url_for("devices.home", notice="invalid_mac"))
 
     if not machine_id:
-        return redirect(url_for("devices.home"))
+        return redirect(url_for("devices.home", notice="missing_machine"))
 
     db = get_db()
     _ensure_devices_table(db)
@@ -257,7 +261,7 @@ def link_device():
             VALUES (?, ?, ?, NULL, ?, ?)
         """, (device_id, cliente_id, machine_id, now, now))
         db.commit()
-        return redirect(url_for("devices.home"))
+        return redirect(url_for("devices.home", notice="linked"))
 
     try:
         owner = (row["cliente_id"] or "").strip()
@@ -265,7 +269,7 @@ def link_device():
         owner = (row[0] or "").strip()
 
     if owner and owner != cliente_id:
-        return redirect(url_for("devices.home"))
+        return redirect(url_for("devices.home", notice="owner_conflict"))
 
     if not owner:
         db.execute("""
@@ -285,7 +289,7 @@ def link_device():
         """, (machine_id, now, device_id, cliente_id))
 
     db.commit()
-    return redirect(url_for("devices.home"))
+    return redirect(url_for("devices.home", notice="linked"))
 
 
 @devices_bp.route("/unlink", methods=["POST"])

@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\devices\templates\devices_home.html
-Último recode: 2026-08-31 16:03 (America/Bahia)
-Motivo: Adicionar geração segura da API Key do ESP, exibida uma única vez e restrita a ADMIN.
+Último recode: 2026-08-31 16:41 (America/Bahia)
+Motivo: Exibir mensagens claras no vínculo de devices sem permitir takeover entre tenants.
 #}
 
 {% extends "base.html" %}
@@ -21,6 +21,24 @@ Motivo: Adicionar geração segura da API Key do ESP, exibida uma única vez e r
     <a href="/" class="btn btn-primary">Painel Industrial</a>
   </div>
 </div>
+
+{% if device_notice == 'owner_conflict' %}
+<div class="page-note" style="margin-bottom:14px;border-color:#fecaca;background:#fef2f2;color:#991b1b;">
+  <strong>MAC já vinculado.</strong> Este MAC já está vinculado a outra empresa. Desvincule-o da empresa atual antes de vinculá-lo aqui.
+</div>
+{% elif device_notice == 'invalid_mac' %}
+<div class="page-note" style="margin-bottom:14px;border-color:#fecaca;background:#fef2f2;color:#991b1b;">
+  <strong>MAC inválido.</strong> Informe um MAC válido com 12 caracteres hexadecimais.
+</div>
+{% elif device_notice == 'missing_machine' %}
+<div class="page-note" style="margin-bottom:14px;border-color:#fecaca;background:#fef2f2;color:#991b1b;">
+  <strong>Máquina não informada.</strong> Informe a identificação da máquina antes de salvar o vínculo.
+</div>
+{% elif device_notice == 'linked' %}
+<div class="page-note" style="margin-bottom:14px;border-color:#bbf7d0;background:#f0fdf4;color:#166534;">
+  <strong>Device vinculado com sucesso.</strong> O MAC foi associado à máquina desta empresa.
+</div>
+{% endif %}
 
 {% set _role = (session.get('role') or 'viewer')|lower %}
 {% if _role in ['admin', 'superadmin'] %}
