@@ -1,6 +1,6 @@
 # Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\machine_routes.py
-# Último recode: 2026-08-21 06:43 (America/Bahia)
-# Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+# Último recode: 2026-08-31 14:50 (America/Bahia)
+# Motivo: Isolar refugo por tenant e impedir atribuicao automatica insegura de historico legado sem cliente_id.
 
 import os
 import json
@@ -3658,6 +3658,15 @@ def salvar_refugo():
     data = request.get_json() or {}
     machine_id = _norm_machine_id(data.get("machine_id", "maquina01"))
 
+    cliente_id = None
+    try:
+        cliente_id = _get_cliente_id_for_request()
+    except Exception:
+        cliente_id = None
+
+    if not cliente_id:
+        return jsonify({"ok": False, "error": "Cliente da sessao nao identificado"}), 403
+
     agora = now_bahia()
     dia_atual = dia_operacional_ref_str(agora)
 
@@ -3679,7 +3688,14 @@ def salvar_refugo():
         if hora_dia >= hora_atual:
             return jsonify({"ok": False, "error": "So e permitido lancar refugo em horas passadas"}), 400
 
-    ok = upsert_refugo(machine_id=machine_id, dia_ref=dia_ref, hora_dia=hora_dia, refugo=refugo, updated_at_iso=agora.isoformat())
+    scoped_machine_id = _machine_id_scoped(cliente_id, machine_id)
+    ok = upsert_refugo(
+        machine_id=scoped_machine_id,
+        dia_ref=dia_ref,
+        hora_dia=hora_dia,
+        refugo=refugo,
+        updated_at_iso=agora.isoformat(),
+    )
 
     if not ok:
         return jsonify({"ok": False, "error": "Falha ao salvar no banco"}), 500
@@ -3706,38 +3722,10 @@ def machine_status():
     # Recarrega config persistida do tenant (fallback legado durante a transicao).
     _cfgv2_load_apply(m, machine_id, cid_req)
 
-    if cid_req:
-        if not m.get("_pd_backfill_done"):
-            try:
-                _backfill_producao_diaria_cliente_id_all(machine_id, cid_req)
-                m["_pd_backfill_done"] = True
-            except Exception:
-                pass
-
-    dia_ref_before = str(m.get("ultimo_dia") or "").strip()
     try:
         verificar_reset_diario(m, machine_id)
     except Exception:
         pass
-    dia_ref_after = str(m.get("ultimo_dia") or "").strip()
-
-    if cid_req and dia_ref_before and dia_ref_after and dia_ref_before != dia_ref_after:
-        try:
-            raw_mid = _norm_machine_id(machine_id)
-            scoped_mid = f"{cid_req}::{raw_mid}"
-            conn = get_db()
-            try:
-                conn.execute(
-                    "UPDATE producao_diaria SET cliente_id=? "
-                    "WHERE (cliente_id IS NULL OR cliente_id='') "
-                    "AND data=? AND (machine_id=? OR machine_id=?)",
-                    (cid_req, dia_ref_before, raw_mid, scoped_mid),
-                )
-                conn.commit()
-            finally:
-                conn.close()
-        except Exception:
-            pass
 
     carregar_baseline_diario(m, machine_id)
 
@@ -3773,7 +3761,7 @@ def machine_status():
     aplicar_derivados_ml(m)
 
     dia_ref = dia_operacional_ref_str(now_bahia())
-    m["refugo_por_hora"] = load_refugo_24(machine_id, dia_ref)
+    m["refugo_por_hora"] = load_refugo_24(_machine_id_scoped(cid_req, machine_id), dia_ref)
 
     try:
         cid = _resolve_cliente_id_for_status(m)
