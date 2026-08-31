@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\modules\producao\templates\producao_home.html
-Último recode: 2026-08-21 06:43 (America/Bahia)
-Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+Último recode: 2026-08-31 15:53 (America/Bahia)
+Motivo: Carregar máquinas da Produção exclusivamente pelo Devices do tenant, sem fonte local ou fallback MAQUINA01.
 #}
 
 {% extends 'base.html' %}
@@ -42,15 +42,19 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
 </div>
 
 <script>
-  const LS_KEY_PROD = "indflow_machines_v1";
-
-  function monitoredMachines(){
+  async function monitoredMachines(){
     try{
-      const raw = localStorage.getItem(LS_KEY_PROD);
-      const arr = raw ? JSON.parse(raw) : null;
-      if(Array.isArray(arr) && arr.length) return arr;
-    }catch(e){}
-    return ["maquina01"];
+      const response = await fetch("/devices/machines", {
+        method: "GET",
+        credentials: "same-origin",
+        headers: { "Accept": "application/json" }
+      });
+      if(!response.ok) throw new Error("machines");
+      const data = await response.json();
+      return Array.isArray(data?.machines) ? data.machines : [];
+    }catch(e){
+      return [];
+    }
   }
 
   function n(v){ const x = Number(v); return Number.isFinite(x) ? x : 0; }
@@ -99,7 +103,16 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
 
   async function carregarMaquinas(){
     const area = document.getElementById("machines-area");
-    const ids = monitoredMachines();
+    const ids = await monitoredMachines();
+
+    if(!ids.length){
+      area.innerHTML = `
+        <article class="production-card">
+          <div class="production-name">Nenhuma máquina disponível para esta empresa.</div>
+        </article>`;
+      return;
+    }
+
     const rows = await Promise.all(ids.map(async id => {
       try{
         const r = await fetch(`/machine/status?machine_id=${encodeURIComponent(id)}`);
