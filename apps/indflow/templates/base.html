@@ -1,7 +1,7 @@
 {#
 Caminho: C:\Users\vlula\OneDrive\Área de Trabalho\Projetos Backup\GESTFLOW\apps\indflow\templates\base.html
-Último recode: 2026-08-21 06:43 (America/Bahia)
-Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, preservando o conteúdo funcional validado.
+Último recode: 2026-08-31 19:00 (America/Bahia)
+Motivo: Adicionar modo panorâmico no Painel Industrial, permitindo recolher a barra lateral e ampliar a área útil sem alterar os cards das máquinas.
 #}
 
 <!DOCTYPE html>
@@ -12,6 +12,17 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
   <meta name="theme-color" content="#0f172a">
   <title>{% block title %}IndFlow — Operação Industrial{% endblock %}</title>
   <link rel="stylesheet" href="/static/style.css?v=20260811">
+  <style>
+    .sidebar-desktop-toggle { display: none; }
+    @media (min-width: 981px) {
+      .industrial-dashboard-shell .sidebar-desktop-toggle { display:inline-flex; align-items:center; justify-content:center; width:40px; height:40px; flex:0 0 40px; border:1px solid #dbe3ee; border-radius:10px; background:#fff; color:#334155; font-size:20px; line-height:1; cursor:pointer; }
+      .industrial-dashboard-shell .industrial-container { width:100%; max-width:none; }
+      .industrial-dashboard-shell .industrial-topbar { min-height:56px; padding-top:8px; padding-bottom:8px; }
+      .industrial-dashboard-shell .industrial-content { padding-top:18px; }
+      body.industrial-sidebar-collapsed .industrial-dashboard-shell .industrial-sidebar { width:0 !important; min-width:0 !important; padding:0 !important; border:0 !important; overflow:hidden !important; transform:translateX(-100%); }
+      body.industrial-sidebar-collapsed .industrial-dashboard-shell .industrial-main { width:100% !important; max-width:none !important; margin-left:0 !important; }
+    }
+  </style>
   {% block head %}{% endblock %}
 </head>
 <body>
@@ -20,7 +31,7 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
   {% set _is_technical = _role in ['admin', 'superadmin'] %}
   {% set _gestflow_url = gestflow_base_url|default('https://gestflow-web-production.up.railway.app', true) %}
 
-  <div class="industrial-shell">
+  <div class="industrial-shell{% if _path == '/' %} industrial-dashboard-shell{% endif %}">
     <aside class="industrial-sidebar" id="industrialSidebar">
       <div class="industrial-brand">
         <a href="/" class="industrial-brand-link" aria-label="IndFlow - Painel Industrial">
@@ -113,6 +124,9 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
     <div class="industrial-main">
       <header class="industrial-topbar">
         <button class="sidebar-mobile-toggle" id="sidebarMobileToggle" type="button" aria-label="Abrir menu">☰</button>
+        {% if _path == '/' %}
+        <button class="sidebar-desktop-toggle" id="sidebarDesktopToggle" type="button" aria-label="Ativar modo panorâmico" aria-pressed="false" title="Modo panorâmico">⤢</button>
+        {% endif %}
         <div class="industrial-topbar-context">
           <span class="industrial-topbar-kicker">GestFlow</span>
           <strong>
@@ -152,13 +166,25 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
     (function () {
       const body = document.body;
       const toggle = document.getElementById('sidebarMobileToggle');
+      const desktopToggle = document.getElementById('sidebarDesktopToggle');
       const close = document.getElementById('sidebarMobileClose');
       const backdrop = document.getElementById('industrialSidebarBackdrop');
 
       function openSidebar(){ body.classList.add('industrial-sidebar-open'); }
       function closeSidebar(){ body.classList.remove('industrial-sidebar-open'); }
+      function setDesktopSidebarCollapsed(collapsed){
+        body.classList.toggle('industrial-sidebar-collapsed', collapsed);
+        if (!desktopToggle) return;
+        desktopToggle.setAttribute('aria-pressed', collapsed ? 'true' : 'false');
+        desktopToggle.setAttribute('aria-label', collapsed ? 'Mostrar menu lateral' : 'Ativar modo panorâmico');
+        desktopToggle.title = collapsed ? 'Mostrar menu lateral' : 'Modo panorâmico';
+        desktopToggle.textContent = collapsed ? '☰' : '⤢';
+      }
 
       if (toggle) toggle.addEventListener('click', openSidebar);
+      if (desktopToggle) desktopToggle.addEventListener('click', function(){
+        setDesktopSidebarCollapsed(!body.classList.contains('industrial-sidebar-collapsed'));
+      });
       if (close) close.addEventListener('click', closeSidebar);
       if (backdrop) backdrop.addEventListener('click', closeSidebar);
 
@@ -169,7 +195,13 @@ Motivo: Migrar para a estrutura consolidada GESTFLOW + INDFLOW na branch DEV, pr
       });
 
       document.addEventListener('keydown', function(event){
-        if (event.key === 'Escape') closeSidebar();
+        if (event.key !== 'Escape') return;
+        if (window.innerWidth <= 980) closeSidebar();
+        else if (body.classList.contains('industrial-sidebar-collapsed')) setDesktopSidebarCollapsed(false);
+      });
+
+      window.addEventListener('resize', function(){
+        if (window.innerWidth <= 980 && body.classList.contains('industrial-sidebar-collapsed')) setDesktopSidebarCollapsed(false);
       });
     })();
   </script>
